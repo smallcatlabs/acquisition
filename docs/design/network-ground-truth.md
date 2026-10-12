@@ -681,7 +681,7 @@ volatile until a wider sample says otherwise.
 machine and one IP do not share policy counters.** [OBSERVED — High;
 one run of two accounts, August 30, 2026]
 Two daemons, each logged into a different account, on one machine
-(spike rung 11; `spikes/rust-playground/LIVE-TESTING.md` run ledger,
+(spike rung 11; `LIVE-TESTING.md` run ledger,
 `runs/2026-08-30-r11/`). Account A's counted GET on
 `character-list-request-limit` read `1:10:0,1:300:0`; account B's HEAD
 probe on the same policy **4.1 s later** reported `0:10:0,0:300:0`, and
@@ -772,7 +772,7 @@ exceptions.
 ### Characters and PoE2 claims (September 2, 2026)
 
 Source for all five: the Rust spike's characters rung
-(`spikes/rust-playground/LIVE-TESTING.md`, run ledger rows dated
+(`LIVE-TESTING.md`, run ledger rows dated
 2026-09-02; journals and bodies under `runs/2026-09-02-characters/`,
 `runs/2026-09-02-tracer-150553/`, `-154145/`, `-160139/`, `-161419/`).
 One account (`GERWARIC#7694`), one machine, rails on, every probe at 0

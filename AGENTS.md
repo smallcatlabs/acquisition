@@ -1,30 +1,130 @@
-# Repository Guidelines
+# Rust playground — agent entry point
 
-## Project Map
-- Acquisition is a C++23 Qt Widgets application for Path of Exile stash, inventory, and forum shop management.
-- `src/` contains the application code. Important subdirectories include `src/datastore/`, `src/legacy/`, `src/poe/`, `src/ratelimit/`, `src/repoe/`, `src/ui/`, and `src/util/`.
-- `assets/` contains bundled icons and Path of Exile-style UI images.
-- `docs/` contains design specs, ADRs, and the findings register; `docs/README.md` maps them.
-- `deps/qdarkstyle/` is the vendored qdarkstyle dependency. Other third-party libraries are fetched by CMake.
-- Release packaging is defined in `.github/workflows/`.
+You are at the root of `smallcatlabs/acquisition`, branch `main`: a
+Cargo workspace implementing Acquisition (`README.md`, the charter and
+crate index). The C++ app is its own repository, `acquisition-qt`
+(GPL-3.0); its build and Qt guidance does not apply here. ADR 0003
+(rewrite vs. evolve) lives there, is the owner's call and needs nothing
+from you. History before the root swap is under `spikes/rust-playground/`
+(tag `playground-end`).
 
-## Build And Run
-- Read `BUILD.md` before changing build, packaging, or platform setup.
-- Configure and build with `cmake -S . -B build` and `cmake --build build`.
-- CMake requires Qt 6.11+, the Qt Network Authorization module, and the private Qt Gui module that the fetched QXlsx dependency links against. Linux also requires OpenSSL.
-- A distribution's Qt packages often ship neither of those modules, so a bare `cmake -S . -B build` can pick up a system Qt and fail in `build/_deps/qxlsx-src` with `Failed to find required Qt component "GuiPrivate"`. Point CMake at an official Qt kit instead: `cmake -S . -B build -DCMAKE_PREFIX_PATH=<qt-install>/6.11.1/<compiler>`.
-- If `build/` already holds Qt Creator kit trees (`build/Desktop_Qt_6_11_1_Release` and similar), build and test in one of those rather than configuring a second tree at `build/` itself.
-- Run locally with `./build/acquisition --data-dir /tmp/acq-data` to avoid touching a user's real Acquisition data.
-- Run the checked-in Qt Test suite with `ctest --test-dir build --output-on-failure` after building.
+## Read before changing anything
 
-## Items Pipeline and Network Redesign (in progress)
-- The July 2026 interior design cleanup is complete. Current work is a delta-native redesign of the items refresh pipeline; read `docs/design/items-pipeline.md` before making structural changes to the worker, `ItemsManager`, or the search/model refresh paths.
-- The rate-limited networking layer is being redesigned under an accepted, frozen spec; read `docs/design/network-redesign.md` before touching `src/ratelimit/` or the network boundary. Claims about how the Path of Exile API actually limits requests live in `docs/design/network-ground-truth.md` and are cited by number.
-- Known design/correctness problems are recorded in `docs/cleanup/findings.md` (open findings, standing constraints, and a ledger of resolved ones). Check it before fixing something that looks broken — it may already be recorded or assigned.
-- A rewrite-or-evolve decision for the core and UI is under exploration: see `docs/adr/0003-rewrite-vs-evolve.md` (proposed) and the `redesign` branch (`docs/redesign/`). Until that ADR is accepted, nothing changes — the specs above remain full authority for all work on `master`.
+Always, in this order:
 
-## Development Guidance
-- Use `.clang-format` for C++ formatting when touching formatted source, respect existing `// clang-format off/on` blocks, and preserve nearby style for naming and code organization.
-- Prefer existing Qt and local helper patterns over new abstractions.
-- Keep generated logs, `settings.ini`, OAuth tokens, and other user-local state out of commits.
-- For release changes, compare `CMakeLists.txt`, `installer.iss`, and the relevant workflow so version and packaging assumptions stay aligned.
+1. `README.md` — what exists, how to run it, knobs, known gaps.
+2. `CONTEXT.md` — invariants, cross-cutting decisions and parks, area
+   decision index, working style.
+   Owner (Tom) holds the boundaries (invariants, protocol, core API
+   surface); agents own internals.
+
+Then, only when the work touches it:
+
+- Before running `acq` or driving `acq-mcp`: `CLI-REFERENCE.md` and
+  `MCP-REFERENCE.md` (generated semantics, checked against the binaries),
+  or `acq <verb> --help`. README's tour shows only the shape.
+- Before anything that talks to the real GGG API: `LIVE-TESTING.md`
+  (standing rule, rails), the tail of `RUN-LEDGER.md`, and the live-run
+  procedure below. **The real provider is the default (C88): never start
+  a real-mode daemon from an agent shell — the CLI refuses without a
+  terminal, and the mock-session skill sets `ACQ_PROVIDER=mock`.**
+  Live runs are human-run, from a terminal.
+- Before touching tests or the harness: `TESTING-NOTES.md` — the send
+  journal is the contract surface; tests pin boundaries, never mechanisms.
+- Before reading, citing or fetching a surface GGG does not sanction
+  (trade site, forums, feeds): `SURFACES.md` (C79); tooling fetches need
+  the permission recorded in the surface's row.
+- Before touching item search: `search/README.md` — one track per
+  subdirectory, with the slice's rules in force.
+- Before touching an area, read its decisions and parks:
+  `decisions/daemon.md` (daemon, jobs, protocol, accounts),
+  `decisions/network.md` (limiter, gate, rails, OAuth traffic),
+  `decisions/store.md` (ingest, facts, realm, characters),
+  `decisions/plans.md` (sync policy, planner, quote, apply),
+  `decisions/pricing.md` (buyout intent, listing state, currency table,
+  price plans, import, render), `decisions/frontends.md` (CLI, MCP,
+  rendering), `decisions/search.md` (item search: the crate,
+  the line, the query, the answer, the basis, the trade boundary).
+  Each module doc names its decision file and ids at the top.
+  `python3 -I tools/bothy.py pack --path <file>` prints them, with the
+  invariants and the cross-cutting rulings, as one document.
+
+Also read the applicable closed slice record below; its findings table
+— for search, its shapes of fault — is the review checklist. For the
+refresh and daemon split, also read the crates' module docs (refresh:
+`src/lib.rs`, "As built").
+
+| Before touching | Read |
+| --- | --- |
+| network layer | `NETWORK-CLEANUP.md` |
+| pricing | `PRICING-SLICE.md` |
+| store, planner or plan slice | `REFRESH-SLICE.md` |
+| protocol, client, daemon lifecycle or world | `DAEMON-SPLIT-SLICE.md` |
+| item search | `SEARCH-SLICE.md` |
+
+Facts about GGG live in `docs/design/network-ground-truth.md` (and the
+trade appendix beside it), cited by claim number; new claims are authored
+here, and `acquisition-qt` takes copies, never the reverse. A slice's history is its commit
+range — `git log` — and nothing restates it.
+
+## Procedures (loaded when needed; one home each)
+
+- Live run: `.claude/skills/live-run/SKILL.md`
+- Mock session (isolation, scripted login, rehearsals):
+  `.claude/skills/mock-session/SKILL.md`
+- Session close (route what you learned; run before your last commit):
+  `.claude/skills/session-close/SKILL.md`
+- Research track (a subagent under a committed brief, then review and
+  commit): `.claude/skills/research-track/SKILL.md`
+- Site sitting (asking the trade site what a computed value counts: the
+  searches, the owner's recorded sitting, the captures read):
+  `.claude/skills/site-sitting/SKILL.md`
+
+## Quality gate, kept green by every change
+
+```sh
+cargo build --workspace
+cargo test --workspace --all-targets
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo fmt --all -- --check
+git diff --check
+tools/docs-check.sh
+python3 -I tools/bothy.py check
+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
+```
+
+Build first, and again before any smoke or live run (C82). If contract
+inputs change after building — including a formatting edit — build
+again before testing or running. Never run the drivers while the gate
+runs (C84). The artifact explanation is in
+[session-close, "Why build order matters"](.claude/skills/session-close/SKILL.md#why-build-order-matters).
+
+## Routing: one authoritative home per fact
+
+Every fact has one source; a duplicate description rots. When a document
+reaches its budget, route the information to its home. Registry formats
+and park lifecycle are in `CONTEXT.md` ("Decisions", "Parked"): use
+`decisions/<area>.md`, or `CONTEXT.md` only if every area must know it.
+
+| Kind of fact | Home |
+| --- | --- |
+| ruling, invariant or boundary property | the registry; next stable `C<n>`, ruling verbatim, *Why:* and pointers |
+| parked scope or question without a ruling | the area's "Parked", with its trigger |
+| observation without a ruling | the open slice's "Observations still open"; after closure, an area park with a trigger |
+| property pinned by a test | test name or comment cites the decision id; the entry's *Pinned:* names the file |
+| review finding | the regression test that holds it, named for the fault and never the round; a fault that came back is a rule of the brief or a shape in the record's checklist; the round's story is the fix's commit message |
+| build narrative | commit message |
+| live run | one `RUN-LEDGER.md` row; journals in gitignored `runs/`, mock rehearsals in `runs/mock/` |
+| fact about GGG | numbered ground-truth claim |
+| mechanism | code doc comment under "Decisions as recorded" / "As built", headed by the decision id; until the code exists, a rule that decides an answer lives in the area's labelled contract-detail section the registry cites (`decisions/search.md`, "Contract detail") |
+| verb, flag or knob usage | clap help / MCP tool description (regenerate references with `ACQ_UPDATE_FIXTURES=1`), or knob read-site doc; README gets one tour line or knob row, never a comment block |
+| procedure | skill file referenced here, when earned under P6 |
+| deliberation | numbered `brainstorming-notes/` note while a ruling, tool, skill or crate doc cites its path; otherwise delete, citing history as "note NN at `<commit>`" |
+| owner's verdict | verbatim from the conversation, marked as such |
+
+`tools/docs-check.sh` checks budgets, stale identifiers, registry and note
+citations, README form and dependency edges (C1); it reports uncited notes
+and refuses paths to deleted ones. `tools/bothy.py check` holds the
+registry's own shape; the two do not overlap. Rustdoc checks links in code docs.
+Headers carry no status. Struck-through items are deleted. Session notes
+are history, never a second authority.

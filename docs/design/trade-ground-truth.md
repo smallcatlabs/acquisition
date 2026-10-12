@@ -6,7 +6,7 @@ how the Path of Exile API limits requests, but how items get *listed for
 sale* — the trade site's two channels, the forum shop mechanism, the
 in-game price dialog, and what the sanctioned API does and does not
 report about any of it. The Rust spike's pricing rulings
-(`spikes/rust-playground/decisions/pricing.md`: C67 the price value, C68
+(`decisions/pricing.md`: C67 the price value, C68
 the currency table, C69 the listing state, C74 the shop render, C81 the
 effective price) rest on these claims. When a claim here falls, every ruling that cites it falls
 with it; that is the point.
@@ -792,15 +792,15 @@ answered.
 - `docs/design/network-ground-truth.md` — the N-claims (rate limiting,
   endpoint policies, realm and character shapes). T4 and T13 lean on
   N42 and N43.
-- `spikes/rust-playground/decisions/pricing.md` — the pricing rulings
+- `decisions/pricing.md` — the pricing rulings
   (C64–C81). Each ruling that rests on a claim cites it inline; that
   registry, not this file, is the record of which ruling cites what.
-- `spikes/rust-playground/SURFACES.md` — the register of governed
+- `SURFACES.md` — the register of governed
   surfaces under C79: the trade site, the forum, the wiki and
   Procurement, each with the access method its claims here were read
   under.
-- `spikes/rust-playground/crates/acquisition-plan/reference/price-notes-2026-09-04.txt`
+- `crates/acquisition-plan/reference/price-notes-2026-09-04.txt`
   — the verbatim note corpus behind T9 and T10, committed as a parser
   fixture.
-- `spikes/rust-playground/LIVE-TESTING.md` — the run ledger; the row
+- `LIVE-TESTING.md` — the run ledger; the row
   dated 2026-09-04 is T6, T9 and T10's run.

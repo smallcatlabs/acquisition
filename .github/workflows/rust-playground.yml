@@ -1,6 +1,6 @@
 name: Rust playground (Linux)
 
-# The spike's quality gate on Linux (spikes/rust-playground/AGENTS.md,
+# The quality gate on Linux (AGENTS.md,
 # "Quality gate"), plus the one check only a Linux box can make: the
 # daemon's keyring round trip against a real Secret Service
 # (acquisition-daemon/src/auth.rs, `keyring_round_trip_survives_a_fresh_entry`).
@@ -11,22 +11,12 @@ name: Rust playground (Linux)
 
 on:
   push:
-    paths:
-      - 'spikes/rust-playground/**'
-      - '.github/workflows/rust-playground.yml'
   pull_request:
-    paths:
-      - 'spikes/rust-playground/**'
-      - '.github/workflows/rust-playground.yml'
   workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
-
-defaults:
-  run:
-    working-directory: spikes/rust-playground
 
 jobs:
   gate:
@@ -40,7 +30,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: spikes/rust-playground
+          workspaces: .
 
       # RustSec advisories over the locked graph (`deny.toml`): a daemon
       # that holds real tokens earns the check. Here only — the local gate
@@ -49,7 +39,7 @@ jobs:
         uses: EmbarkStudios/cargo-deny-action@v2
         with:
           command: check advisories
-          manifest-path: spikes/rust-playground/Cargo.toml
+          manifest-path: Cargo.toml
 
       - name: Install a Secret Service
         run: |
