@@ -109,9 +109,9 @@
 //! false mismatch — a respawn is cheap, a missed contract change is
 //! invisible); a source edit to the daemon, the planner, this crate or a
 //! frontend does not, and no git state is consulted. The package version
-//! alone is fixed at `0.0.1` across the playground, and comparing it let
-//! a pre-realm daemon accept a console job and render the pc URL (review
-//! finding 2026-09-02).
+//! alone moves only at a release (it sat at `0.0.1` across the
+//! playground), and comparing it let a pre-realm daemon accept a console
+//! job and render the pc URL (review finding 2026-09-02).
 //!
 //! The **artifact** is the executable the daemon runs from: at startup it
 //! records its file identity and SHA-256 and reports both in `hello`

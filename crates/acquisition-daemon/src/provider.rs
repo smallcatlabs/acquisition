@@ -8,9 +8,14 @@
 //! which provider a process wants is part of the handshake.
 
 /// Same shape as the shipped app (APP_NAME "/" APP_VERSION " (contact: " EMAIL ")")
-/// and the same registration, but a distinct version so anything GGG sees from
-/// live testing is attributable to this spike, not to a shipped release.
-pub const USER_AGENT: &str = "acquisition/1.0.0-alpha.1 (contact: gerwaric@gmail.com)";
+/// and the same registration. The version segment is the package's and
+/// moves with each release, as the C++ app's does under this registration;
+/// the shape and the contact are what stay (CONTEXT invariant 4).
+pub const USER_AGENT: &str = concat!(
+    "acquisition/",
+    env!("CARGO_PKG_VERSION"),
+    " (contact: gerwaric@gmail.com)"
+);
 
 /// The C++ app's scope set plus `account:profile`, which the registration
 /// offers but the shipped app never requested (2026-08-29). A user of the

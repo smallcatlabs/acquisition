@@ -32,9 +32,9 @@ pub mod provider;
 pub mod realm;
 pub mod status;
 
-/// The package version. Not the handshake identity on its own: it is
-/// fixed at `0.0.1` across every commit of the playground, so comparing it
-/// lets a daemon from an older build serve a newer client silently (review
+/// The package version. Not the handshake identity on its own: it moves
+/// only at a release (it sat at `0.0.1` across the playground), so comparing
+/// it lets a daemon from an older build serve a newer client silently (review
 /// finding 2026-09-02: a pre-realm daemon accepted a console job and sent
 /// it to pc). [`CONTRACT_REVISION`] is what the handshake compares, with
 /// the daemon artifact beside it (C84).
