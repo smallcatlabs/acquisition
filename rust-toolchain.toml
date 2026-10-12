@@ -1,0 +1,6 @@
+# The toolchain the gate runs on, here and in CI (the Linux workflow
+# installs what this file names). A bump is a deliberate commit that runs
+# the whole gate (`AGENTS.md`, "Quality gate"); nothing floats.
+[toolchain]
+channel = "1.99.0"
+components = ["clippy", "rustfmt"]

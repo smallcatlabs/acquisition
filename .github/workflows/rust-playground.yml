@@ -24,9 +24,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy, rustfmt
+      # The pinned toolchain and its components, as `rust-toolchain.toml`
+      # names them: the runner's rustup reads the file.
+      - name: Install the pinned toolchain
+        run: rustup toolchain install
 
       - uses: Swatinem/rust-cache@v2
         with:
