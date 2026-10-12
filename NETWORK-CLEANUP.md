@@ -8,13 +8,14 @@ live in git history (the file at `8198bef8` holds the full text).
 
 No further network-cleanup package is authorized by this record. New work
 on the network layer is defined under its own control document; the
-properties the packages established are recorded in `CONTEXT.md`.
+properties the packages established are recorded in `CONTEXT.md` (the invariants)
+and `decisions/network.md`.
 
 ## Authority
 
 When sources disagree: `AGENTS.md` and `CONTEXT.md` for repository and
 spike invariants; `acquisition-qt:docs/design/network-redesign.md` for the frozen
-C++ target design (a property source for the Rust code, see `CONTEXT.md`);
+C++ target design (a property source for the Rust code: C22, `decisions/network.md`);
 `docs/design/network-ground-truth.md` for numbered observations;
 `acquisition-qt:docs/cleanup/findings.md` for the C++ findings register. This file is
 history only.
@@ -27,8 +28,7 @@ history only.
   (69 core tests, 0 CLI tests, 0 failures); `cargo clippy --workspace
   --all-targets --all-features -- -D warnings`; `cargo clippy -p
   acquisition-core --all-targets --all-features -- -D warnings`;
-  `cargo fmt --all -- --check`; `git diff --check` — all passed. Later work
-  on the spike keeps all of these green.
+  `cargo fmt --all -- --check`; `git diff --check` — all passed.
 
 ## Package ledger
 

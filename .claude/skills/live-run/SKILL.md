@@ -68,12 +68,6 @@ the daemon already holds a valid access token):
 ACQ_TRIPWIRE=1 ACQ_MAX_SENDS=3 acq <command>   # the real provider is the default (C88); no flag selects it
 ```
 
-The first live run after C88 (2026-09-12) is also its proof, owed to
-the ledger: with no provider flag set, the journal's `open` line and
-`acq daemon status` name provider `ggg`, the world is the owner's data
-directory and the keyring entry is the real service's — say so in the
-row.
-
 Read the journal before anything else (`acq daemon status` prints its
 path: the world's `sends.jsonl` under the log directory, bounded; a
 driver's daemons write the run directory's `sends.jsonl` instead, under
@@ -86,8 +80,8 @@ means something else is on this account — stop and find it.
   for a first contact): date, tip, result, sends as POST/HEAD/GET,
   violations, the observed policy, the run directory, and where each
   lesson landed — never the lesson's text.
-- A new fact about GGG is a numbered ground-truth claim, authored on the
-  master-side branch and cherry-picked here — never the reverse.
+- A new fact about GGG is a numbered ground-truth claim, authored here;
+  `acquisition-qt` takes copies, never the reverse (`AGENTS.md`).
 - The owner's verdict is recorded **verbatim from the conversation**,
   marked as such; the driver's prompts are optional.
 - `acq daemon stop`. Evidence stays in `runs/` (gitignored); the ledger

@@ -15,7 +15,7 @@ The rulings survive in `decisions/pricing.md` (C64–C75, C78, C80, C81),
 are pinned by the tests named below; live runs are rows in
 `RUN-LEDGER.md`; facts about the trade site are the
 `T<n>` claims in `docs/design/trade-ground-truth.md`, authored
-master-side and cherry-picked here (T1–T15 from the forum reading,
+master-side and cherry-picked here until the root swap of 2026-10-12 (T1–T15 from the forum reading,
 PR #224; T20–T24 from the page readings, PR #227; T25–T34 with the
 rewritten T17 and the amended T11 from the site readings, PR #228, as
 `6203e984`), and N46 is a claim in `network-ground-truth.md`. Nothing

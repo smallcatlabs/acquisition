@@ -7,8 +7,7 @@ and the ladder's record (closed 2026-08-27). Every live run is one row in
 the run sections were part of this file until 2026-09-10 (the file at
 `4c9755c6`), so a pointer to "`LIVE-TESTING.md`'s run ledger" resolves
 there. `CONTEXT.md` invariants apply. Ground-truth facts learned live go
-to `docs/design/network-ground-truth.md` as numbered claims (authored
-master-side, cherry-picked here). History lives in git: the blast-radius
+to `docs/design/network-ground-truth.md` as numbered claims. History lives in git: the blast-radius
 review (risks R1–R8) and the L0 rails build with its review register
 (L0-R1–R13) at `9fa99459`; the ladder's rung table, preconditions, soak
 mechanics and postmortems at `944406ff`; the refresh rungs' preparation
@@ -43,8 +42,8 @@ Replaces the preconditions and the "new hypothesis first" requirement.
   send, and a probe that fails or comes back without rules closes the
   endpoint for 60 s (N20 path).
 - **Record the observed policy** (name, windows, the state after the
-  GET) as one row in `RUN-LEDGER.md` and as a ground-truth claim
-  master-side. That row is what lets `ratelimit.rs`'s test table cite it.
+  GET) as one row in `RUN-LEDGER.md` and as a ground-truth claim.
+  That row is what lets `ratelimit.rs`'s test table cite it.
   The row carries the evidence's location and where each lesson landed —
   a trap to the live-run skill, a fact to a claim, a verdict verbatim
   beside its ruling — never the lesson's text; that is what keeps the
@@ -135,8 +134,8 @@ one is, and whether it outlives the ladder:
 8. **`ACQ_IDLE_SHUTDOWN=<secs>`** (permanent knob), set per rung.
 
 Each rail has a deterministic test against the mock with rails 1 and 5
-forced on; the suite passes unchanged with them off; quality gates from
-`NETWORK-CLEANUP.md` stay green.
+forced on; the suite passes unchanged with them off; the quality gate
+(`AGENTS.md`, "Quality gate") stays green.
 
 ## Ladder (closed 2026-08-27)
 

@@ -9,8 +9,8 @@ narratives that used to sit in `CONTEXT.md` live in git: the file at
 `d660d1f5` holds the full text of all three sections (the tracer's
 review rounds for steps 3–6, pruned earlier, are at `35fb35d9`).
 
-The rulings survive in `CONTEXT.md` (Decisions, and the three
-"Interfaces" subsections); the properties are pinned by the tests named
+The rulings survive in the registry (`CONTEXT.md`, and `decisions/`:
+`plans.md`, `store.md`, `frontends.md`); the properties are pinned by the tests named
 below; live runs are rows in `RUN-LEDGER.md`; facts about
 GGG are ground-truth claims N38–N45. Nothing here is a second authority.
 
@@ -76,7 +76,8 @@ text is at `35fb35d9`.
 
 ## What the runs taught
 
-Properties, each now a line in `CONTEXT.md` or a claim in ground truth:
+Properties, each now a decision in the registry (`CONTEXT.md`,
+`decisions/`) or a claim in ground truth:
 
 - Binding plans produced no owner friction; subset-only reconciliation
   and two-cycle substash discovery cost nothing observable. The parked

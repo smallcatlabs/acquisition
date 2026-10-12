@@ -183,17 +183,13 @@ Sorting the tests (95 at `9d5f3b62`) by what they need from a daemon:
   method/path asserts) pin this implementation's concurrency mechanics.
   They die with a rewrite and should.
 
-## Next direction
+## The consumer that followed
 
-Test infrastructure is at diminishing returns for mapping the GGG side.
-The frontend side — what a GUI, CLI, or MCP client actually needs from the
-protocol, whether the job model survives a real stash import, how
-priorities behave under contention — is unmapped, and no journal work
-maps it. The next thing to build is a real consumer: one end-to-end task a
-user wants (a full-league stash pull with a diff on the next run), on the
-real API under the ladder rules. Every rough edge it finds is a fact about
-what the daemon's internals need to be, which is the input a
-rearchitecture needs. Alongside, at no dev cost: the re-soak below.
+In August these notes named the next step: test infrastructure was at
+diminishing returns for mapping the GGG side, the frontend side was
+unmapped, and the thing to build was a real consumer on the real API.
+It was built. What is next now is
+`brainstorming-notes/36-the-road-to-the-agent-release.md`.
 
 Started 2026-08-24 as `acq pull` (run live as rung 10; retired 2026-08-29
 for the shared store), then the refresh slice — policy, plan, apply,
@@ -232,6 +228,4 @@ Prerequisites for a goal-function build, not a plan to start on now:
   200 sends at one per 10 min is 33 h, not "several days".
 - Express the HEAD condition per `(pid, route)` so it means something in
   both the pinned and restarting shapes.
-- Ground-truth claims are authored on the master-side branch and
-  cherry-picked to the spike, never the reverse.
 - Commit the check, then break the code.
