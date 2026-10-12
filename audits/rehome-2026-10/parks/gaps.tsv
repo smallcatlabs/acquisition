@@ -1,0 +1,7 @@
+where	gap	park
+README.md:172	Two endpoints carry declared route knowledge (`/profile` policyless, N38; `/account/leagues` no-probe, N39); each declaration stays until the headers, or the free HEAD, appear	none
+README.md:177	The mock does not simulate timing-bucket quantization (N11–N12); the limiter pads for it regardless	none
+README.md:179	The mock reports an active restriction on every window of the rule; whether real GGG flags only the violated window is unobserved	none
+README.md:182	`acq policy set` replaces the whole policy; a per-realm merge is unbuilt	K36
+README.md:187	Unix only. No Windows named pipes yet	K9
+README.md:188	Everything parked: a pointer to the Parked sections, not a gap	none
