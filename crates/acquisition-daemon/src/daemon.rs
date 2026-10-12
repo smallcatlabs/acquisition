@@ -9485,20 +9485,35 @@ mod dispatcher_tests {
 
     #[tokio::test]
     async fn whoami_is_refused_in_real_mode_without_a_token_request() {
-        // Real provider, but no session: even if the refusal were missing
-        // the job could not send. The assertion is on the refusal message.
+        // Real in name only: every URL is the local token server's, so
+        // nothing here can reach GGG. The session holds a refresh token
+        // and no access token — a refresh is due, and without the refusal
+        // whoami's first act is the token POST this server would answer.
+        let (base, requests, server) = token_server_answering(vec!["200 OK"]).await;
+        let provider = Provider {
+            name: acquisition_protocol::provider::GGG,
+            ..Provider::mock(&base)
+        };
+        assert!(provider.is_real());
         let clock = Arc::new(ManualClock::new());
-        let (daemon, log_path) = test_daemon_with(Provider::ggg(), clock, RailsConfig::default());
+        let (mut daemon, log_path) = test_daemon_with(provider, clock, RailsConfig::default());
+        logged_in(&mut daemon);
         let outcome = daemon
             .execute_inner(1, "whoami", json!({}), None, None, daemon.choke.now())
             .await
             .unwrap();
+        assert!(
+            requests.lock().unwrap().is_empty(),
+            "whoami in real mode cost a token request: {outcome:?}"
+        );
         let Outcome::Failure { error } = outcome else {
             panic!("whoami ran in real mode")
         };
         assert!(error.contains("mock-only"), "{error}");
         assert!(daemon.choke.recent_sends().is_empty());
-        assert_journal_matches_wire(&log_path, &[]);
+        server.abort();
+        assert_journal_matches_wire(&log_path, &wire_posts(&requests));
+        assert!(journal_sends(&log_path).is_empty());
         remove_harness_files(&log_path);
     }
 

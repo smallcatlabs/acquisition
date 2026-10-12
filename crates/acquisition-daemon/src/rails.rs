@@ -808,8 +808,21 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// The journal never carries a token or a body. Two things hold
+    /// that, and both are held here. [`SendReport`] has no field for a
+    /// token, a request header or a body, and the writer adds none: a
+    /// line's keys are the report's. What the report's free fields do
+    /// carry the writer copies whole — `path`, `rate`, `headers`,
+    /// `shape` — so the exchange below is secret-bearing where a real
+    /// one is (a query, the response's headers, a token response's
+    /// body) and reaches the report the way the choke point builds one:
+    /// through `url_path`, the two header snapshots and
+    /// [`BlockShape::of`]. No sentinel may reach the journal's bytes.
     #[test]
     fn journal_writes_one_flushed_line_without_secrets() {
+        use crate::ratelimit::{rate_limit_snapshot, response_headers_snapshot, url_path};
+        use reqwest::header::{HeaderMap, HeaderValue};
+
         let path =
             std::env::temp_dir().join(format!("acq-journal-test-{}.jsonl", std::process::id()));
         let _ = std::fs::remove_file(&path);
@@ -828,12 +841,56 @@ mod tests {
             ok: false,
             ..report(None)
         });
+
+        // A 403 on the token route whose every secret-capable part holds
+        // a sentinel, beside the evidence the journal does keep.
+        const SENTINELS: [&str; 5] = [
+            "sentinel-code-7f3a",
+            "sentinel-bearer-91c4",
+            "sentinel-cookie-2be8",
+            "sentinel-access-55d0",
+            "sentinel-refresh-c6a1",
+        ];
+        let [code, bearer, cookie, access, refresh] = SENTINELS;
+        let url = format!(
+            "http://127.0.0.1:1/oauth/token?code={code}&refresh_token={refresh}&access_token={access}"
+        );
+        let mut response = HeaderMap::new();
+        for (name, value) in [
+            ("authorization", format!("Bearer {bearer}")),
+            ("set-cookie", format!("POESESSID={cookie}; HttpOnly")),
+            ("x-access-token", access.to_string()),
+            ("x-rate-limit-policy", "token-request-limit".to_string()),
+            ("retry-after", "7".to_string()),
+            (
+                "www-authenticate",
+                "Bearer error=\"invalid_token\"".to_string(),
+            ),
+        ] {
+            response.insert(name, HeaderValue::from_str(&value).unwrap());
+        }
+        let body = json!({ "access_token": access, "refresh_token": refresh, "server": "nginx" })
+            .to_string();
+        let url_path = url_path(&url);
+        let rate = rate_limit_snapshot(&response);
+        let headers = response_headers_snapshot(&response);
+        rails.record(&SendReport {
+            method: "POST",
+            route: "oauth-token",
+            url_path: &url_path,
+            counted: true,
+            rate: &rate,
+            headers: &headers,
+            shape: Some(BlockShape::of(&body)),
+            ..report(Some(403))
+        });
+
         let text = std::fs::read_to_string(&path).unwrap();
         let lines: Vec<Value> = text
             .lines()
             .map(|l| serde_json::from_str(l).unwrap())
             .collect();
-        assert_eq!(lines.len(), 3, "header plus two sends");
+        assert_eq!(lines.len(), 4, "header plus three sends");
         assert_eq!(lines[0]["event"], "open");
         assert_eq!(lines[0]["clock"], "system");
         assert_eq!(
@@ -851,8 +908,44 @@ mod tests {
         assert_eq!(lines[2]["status"], Value::Null);
         assert_eq!(lines[2]["error"], "connection reset");
         assert!(lines[1]["ts"].as_str().unwrap().ends_with('Z'));
-        for key in ["authorization", "token", "body", "bearer"] {
-            assert!(!text.to_lowercase().contains(key), "journal leaked {key}");
+
+        // The evidence survives the reduction, so the scan below is not
+        // passing over an emptied line.
+        assert_eq!(lines[3]["path"], "/oauth/token");
+        assert_eq!(lines[3]["shape"], "origin");
+        assert_eq!(lines[3]["rate"]["retry-after"], "7");
+        assert_eq!(
+            lines[3]["headers"]["x-rate-limit-policy"],
+            "token-request-limit"
+        );
+        assert!(lines[3]["headers"]["www-authenticate"].is_string());
+
+        // A line's keys are the report's: the writer names nothing else.
+        const KEYS: [&str; 13] = [
+            "ts", "pid", "method", "route", "path", "status", "error", "ok", "counted", "rate",
+            "wait_ms", "shape", "headers",
+        ];
+        for line in &lines[1..] {
+            for key in line.as_object().unwrap().keys() {
+                assert!(KEYS.contains(&key.as_str()), "journal names {key}: {line}");
+            }
+        }
+        let lower = text.to_lowercase();
+        for sentinel in SENTINELS {
+            assert!(
+                !lower.contains(sentinel),
+                "journal leaked {sentinel}: {text}"
+            );
+        }
+        for key in [
+            "authorization",
+            "cookie",
+            "access_token",
+            "refresh_token",
+            "x-access-token",
+            "body",
+        ] {
+            assert!(!lower.contains(key), "journal leaked {key}: {text}");
         }
         let _ = std::fs::remove_file(&path);
     }
