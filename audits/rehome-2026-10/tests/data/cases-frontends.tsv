@@ -1,0 +1,7 @@
+path	line	name	cases	where_set	knob
+crates/acquisition-cli/src/search_cmd.rs	1739	every_count_view_reads_back_as_the_keys_it_was_printed_for	6733 (73 singles + 5329 pairs over a 73-key alphabet, 1331 triples over 11 of them)	crates/acquisition-cli/src/search_cmd.rs:1796 (pairs), :1824 (triples); alphabet built at :1741-1781	none
+crates/acquisition-cli/src/price_cmd.rs	1692	c53_the_expanded_list_show_and_status_are_linear_over_the_owners_league_tiled	not generated cases: 1 run over the fixture tiled x16 (31,632 items)	crates/acquisition-cli/src/price_cmd.rs:1693	none
+crates/acquisition-cli/src/shop_cmd.rs	637	c53_the_expanded_render_is_linear_over_the_owners_league_tiled	not generated cases: 1 run over the fixture tiled x32 (63,264 items)	crates/acquisition-cli/src/shop_cmd.rs:638	none
+crates/acquisition-cli/tests/watch_recovery.rs	150	c85_the_watch_subscribes_and_reads_again_after_it_lagged_with_no_leftover_events	not generated cases: 800 sleep jobs submitted to overrun the event channel	crates/acquisition-cli/tests/watch_recovery.rs:180	none
+crates/acquisition-cli/tests/price_story.rs	233	c35_two_blind_writers_on_one_row_never_clobber_and_the_receipts_chain	not generated cases: 5 rounds of two racing processes	crates/acquisition-cli/tests/price_story.rs:239	none
+crates/acquisition-cli/tests/price_story.rs	361	c74_a_clear_under_a_render_is_never_a_torn_page	not generated cases: 6 rounds of two racing processes	crates/acquisition-cli/tests/price_story.rs:365	none

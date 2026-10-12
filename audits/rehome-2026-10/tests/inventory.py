@@ -23,12 +23,15 @@ PROPTEST = re.compile(r"^\s*proptest!\s*\{")
 
 def tests_of(path):
     lines = path.read_text(encoding="utf-8").splitlines()
-    in_proptest = False
+    # A `proptest!` block ends at the closing brace on its own indent, which
+    # is rarely column 0: the block usually sits inside `mod tests`.
+    close = None
     for i, line in enumerate(lines):
         if PROPTEST.match(line):
-            in_proptest = True
-        elif in_proptest and line.startswith("}"):
-            in_proptest = False
+            close = line[: len(line) - len(line.lstrip())] + "}"
+        elif close is not None and line.rstrip() == close:
+            close = None
+        in_proptest = close is not None
         if not ATTR.match(line):
             continue
         for j in range(i + 1, min(i + 12, len(lines))):
