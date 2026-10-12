@@ -13,8 +13,12 @@ generalization or a procedure is added when evidence asks for it and
 retired when the evidence is in. The rate limiter and the single gate
 are the proven foundation; their payoff is that every later caller,
 human or agent, is regulated by construction and is never a fresh risk.
-Whether this code ships is the owner's decision (ADR 0003) and nothing
-here anticipates it.
+This code ships. Owner, 2026-10-11: "The Rust build ships as
+Acquisition's agent surface by PoE2 1.0: the CLI, the MCP server and the
+daemon on Windows, macOS and Linux; GUI and other features follow." The
+order of the slices to that release is
+`brainstorming-notes/36-the-road-to-the-agent-release.md`; ADR 0003 in
+`acquisition-qt` is the owner's record of the decision.
 
 ## What exists
 
@@ -189,4 +193,4 @@ the world, paths and rails state; read-site docs explain invalid values.
 Licensed under MIT OR Apache-2.0 (`LICENSE-MIT`, `LICENSE-APACHE`);
 contributors keep their copyright and license their work under the same
 terms. The Rust tree was audited against the GPL C++ app before the
-declaration: `audits/relicense-2026-10/`.
+declaration (C110): `audits/relicense-2026-10/`.
