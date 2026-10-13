@@ -1781,6 +1781,53 @@ impl Store {
         Ok(stmt.exists(rusqlite::params_from_iter(params))?)
     }
 
+    /// The leagues in which the facts hold this address live, sorted:
+    /// one for nearly every address, none for one the facts do not know
+    /// or know only as removed, and none for a character the listing
+    /// gave no league. What lets a reader of one league's listing state
+    /// say a price row belongs to another league rather than to nothing,
+    /// and lets `acq price show` find its target's league unasked.
+    pub fn leagues_of(&self, address: &FactAddress<'_>) -> Result<Vec<String>> {
+        let (sql, params): (&str, Vec<&str>) = match address {
+            FactAddress::Item { id } => (
+                "SELECT DISTINCT COALESCE(i.league, c.league)
+                   FROM items i LEFT JOIN characters c
+                     ON i.location_kind = 'character' AND c.realm = i.realm AND c.id = i.location_id
+                  WHERE i.id = ?1 AND i.removed_at IS NULL",
+                vec![id],
+            ),
+            FactAddress::Character { id } => (
+                "SELECT league FROM characters WHERE id = ?1 AND removed_at IS NULL",
+                vec![id],
+            ),
+            // The same reading of a tab as `holds`.
+            FactAddress::Tab { realm, id } => (
+                "SELECT DISTINCT t.league FROM tabs t
+                  WHERE t.realm = ?1 AND t.id = ?2 AND t.removed_at IS NULL AND (t.parent IS NULL
+                    OR EXISTS (SELECT 1 FROM tabs p WHERE p.realm = t.realm AND p.league = t.league
+                                  AND p.id = t.parent AND p.type = 'Folder'))",
+                vec![realm, id],
+            ),
+            FactAddress::Substash { realm, parent, id } => (
+                "SELECT DISTINCT league FROM tabs
+                  WHERE realm = ?1 AND parent = ?2 AND id = ?3 AND removed_at IS NULL",
+                vec![realm, parent, id],
+            ),
+        };
+        let mut stmt = self.conn.prepare(sql)?;
+        let rows = stmt.query_map(rusqlite::params_from_iter(params), |r| {
+            r.get::<_, Option<String>>(0)
+        })?;
+        let mut leagues: Vec<String> = rows
+            .collect::<rusqlite::Result<Vec<_>>>()?
+            .into_iter()
+            .flatten()
+            .collect();
+        leagues.sort();
+        leagues.dedup();
+        Ok(leagues)
+    }
+
     /// Item events since `since` (unix seconds), oldest first.
     pub fn events_since(&self, since: i64, limit: usize) -> Result<Vec<EventRow>> {
         let mut stmt = self.conn.prepare(

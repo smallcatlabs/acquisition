@@ -1317,6 +1317,7 @@
   "realm": "pc",
   "rows": {
     "applied": 6,
+    "other_league": [],
     "other_realm": 1,
     "total": 10,
     "unmatched": [

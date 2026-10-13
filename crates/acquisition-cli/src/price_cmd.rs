@@ -60,8 +60,44 @@ fn report(realm: Realm, league: &str) -> Result<ListingReport> {
     let (dir, entry, annotations) = open_intent()?;
     let store = Store::open(&account_path(&dir, &entry.username))?;
     let snapshot = store.pricing_snapshot(realm.as_str(), league, &annotations)?;
-    resolve(&snapshot).context("resolving the listing state")
+    let mut report = resolve(&snapshot).context("resolving the listing state")?;
+    report.place_other_leagues(|target| {
+        store
+            .leagues_of(&FactAddress::from(target))
+            .map(|leagues| leagues.iter().any(|l| l != league))
+    })?;
+    Ok(report)
 }
+
+/// The league a verb reads when `--league` was not given: the one the
+/// facts hold the named target in, so an address an answer printed reads
+/// back as printed; Standard when no target is named, the facts do not
+/// hold it, or (a character the listing gave no league) hold it in none.
+/// A target live in several leagues is refused with their names.
+fn league_of(named: &[&PriceTarget], league: Option<&str>) -> Result<String> {
+    if let Some(league) = league {
+        return Ok(league.into());
+    }
+    let Some(target) = named.first() else {
+        return Ok(DEFAULT_LEAGUE.into());
+    };
+    let (dir, entry, _) = open_intent()?;
+    let leagues = Store::open(&account_path(&dir, &entry.username))?
+        .leagues_of(&FactAddress::from(*target))
+        .context("reading the facts for the target's league")?;
+    match leagues.as_slice() {
+        [] => Ok(DEFAULT_LEAGUE.into()),
+        [one] => Ok(one.clone()),
+        many => bail!(
+            "{target} is in several leagues ({}); name one with --league",
+            many.join(", ")
+        ),
+    }
+}
+
+/// The league `status`, and a `show` or `list` naming no known target,
+/// read without `--league`.
+pub const DEFAULT_LEAGUE: &str = "Standard";
 
 /// `acq price status`.
 pub fn status(realm: Realm, league: &str, expand: bool, json: bool) -> Result<()> {
@@ -103,9 +139,22 @@ fn realm_of(targets: &[&PriceTarget], given: Option<Realm>) -> Result<Realm> {
 
 /// The refusal for a target these facts do not hold.
 fn not_on_record(r: &ListingReport, target: &PriceTarget) -> anyhow::Error {
+    // Where the facts do hold it, when they do: the refusal names the
+    // league that reads it, never only the one that does not.
+    let elsewhere = open_intent()
+        .ok()
+        .and_then(|(dir, entry, _)| Store::open(&account_path(&dir, &entry.username)).ok())
+        .and_then(|store| store.leagues_of(&FactAddress::from(target)).ok())
+        .unwrap_or_default();
+    let hint = match elsewhere.as_slice() {
+        [] => "`acq search` finds an item's id, `acq tabs` a tab's".to_string(),
+        leagues => format!(
+            "the facts hold it in {}: `--league` reads it there",
+            leagues.join(", ")
+        ),
+    };
     anyhow::anyhow!(
-        "{target} is not in the facts for {}{} ({} items, {} tabs and characters on record); \
-         `acq search` finds an item's id, `acq tabs` a tab's",
+        "{target} is not in the facts for {}{} ({} items, {} tabs and characters on record); {hint}",
         realm_prefix(r.header.realm),
         r.header.league,
         r.counts.items,
@@ -117,13 +166,14 @@ fn not_on_record(r: &ListingReport, target: &PriceTarget) -> anyhow::Error {
 pub fn show(
     target: &str,
     realm: Option<Realm>,
-    league: &str,
+    league: Option<&str>,
     expand: bool,
     json: bool,
 ) -> Result<()> {
     let target = parse_target(target)?;
     let realm = realm_of(&[&target], realm)?;
-    let r = report(realm, league)?;
+    let league = league_of(&[&target], league)?;
+    let r = report(realm, &league)?;
     let view = r
         .show_view(&target)
         .ok_or_else(|| not_on_record(&r, &target))?;
@@ -148,7 +198,7 @@ pub struct ListArgs {
 /// `acq price list`.
 pub fn list(
     realm: Option<Realm>,
-    league: &str,
+    league: Option<&str>,
     args: &ListArgs,
     expand: bool,
     json: bool,
@@ -191,7 +241,8 @@ pub fn list(
     let covered_by = container("--covered-by", covered_by)?;
     let named: Vec<&PriceTarget> = [&location, &covered_by].into_iter().flatten().collect();
     let realm = realm_of(&named, realm)?;
-    let r = report(realm, league)?;
+    let league = league_of(&named, league)?;
+    let r = report(realm, &league)?;
     let filter = ListFilter {
         relation,
         effective,
@@ -268,14 +319,18 @@ fn relation_word(rel: Relation) -> &'static str {
 /// intent stays visible).
 fn rows_line(r: &ListingReport) -> Option<String> {
     let rows = &r.rows;
-    (!rows.unmatched.is_empty() || !rows.unreadable.is_empty() || rows.other_realm > 0).then(
-        || {
+    (!rows.unmatched.is_empty()
+        || !rows.unreadable.is_empty()
+        || !rows.other_league.is_empty()
+        || rows.other_realm > 0)
+        .then(|| {
             format!(
-                "rows: {} of {} apply here; {} name nothing in these facts, {} unreadable, {} for other realms\n",
+                "rows: {} of {} apply here; {} name nothing in the facts, {} unreadable, {} for other leagues, {} for other realms\n",
                 rows.applied,
                 rows.total,
                 rows.unmatched.len(),
                 rows.unreadable.len(),
+                rows.other_league.len(),
                 rows.other_realm
             )
         },
@@ -286,7 +341,7 @@ fn rows_detail(r: &ListingReport) -> String {
     let mut out = String::new();
     let rows = &r.rows;
     if !rows.unmatched.is_empty() {
-        out.push_str("rows naming nothing in these facts:\n");
+        out.push_str("rows naming nothing in the facts:\n");
         for t in &rows.unmatched {
             out.push_str(&format!("  {t}\n"));
         }
@@ -1036,7 +1091,7 @@ fn render_write(write: &PriceWrite, in_facts: Option<bool>) -> String {
             if in_facts == Some(false) {
                 out.push_str(&format!(
                     "note: the facts hold no {target} (not fetched yet, or a typo); the row stands, \
-                     and `acq price status` counts it under \"name nothing in these facts\"\n"
+                     and `acq price status` counts it under \"name nothing in the facts\"\n"
                 ));
             }
             let mut next = format!("`acq price show {target}` reads it beside the game side");
@@ -1220,7 +1275,7 @@ mod tests {
         );
         assert_eq!(
             lines[3],
-            "rows: 1 of 2 apply here; 1 name nothing in these facts, 0 unreadable, 0 for other realms"
+            "rows: 1 of 2 apply here; 1 name nothing in the facts, 0 unreadable, 0 for other leagues, 0 for other realms"
         );
         assert_eq!(
             lines[4],
@@ -1243,7 +1298,7 @@ mod tests {
             "{text}"
         );
         assert!(
-            text.contains("rows naming nothing in these facts:\n  item/i-gone\n"),
+            text.contains("rows naming nothing in the facts:\n  item/i-gone\n"),
             "{text}"
         );
 
@@ -1503,7 +1558,7 @@ mod tests {
         assert_eq!(
             text,
             "no items on record for Standard: 4 tabs and characters listed, none fetched with items\n\
-             rows: 0 of 3 apply here; 2 name nothing in these facts, 1 unreadable, 0 for other realms\n\
+             rows: 0 of 3 apply here; 2 name nothing in the facts, 1 unreadable, 0 for other leagues, 0 for other realms\n\
              next: `acq price status --expand` lists the rows that cannot be read\n"
         );
         let text = render_status(&r, 8_000, true);
@@ -1512,7 +1567,7 @@ mod tests {
             "{text}"
         );
         assert!(
-            text.contains("rows naming nothing in these facts:\n  item/i-01\n  item/i-gone\n"),
+            text.contains("rows naming nothing in the facts:\n  item/i-01\n  item/i-gone\n"),
             "{text}"
         );
     }
@@ -1623,7 +1678,7 @@ mod tests {
             render_write(&created, Some(false)),
             "item/i1: 12.5 chaos (revision 1), was unset\n\
              note: the facts hold no item/i1 (not fetched yet, or a typo); the row stands, \
-             and `acq price status` counts it under \"name nothing in these facts\"\n\
+             and `acq price status` counts it under \"name nothing in the facts\"\n\
              next: `acq price show item/i1` reads it beside the game side\n"
         );
         let replaced = PriceWrite {

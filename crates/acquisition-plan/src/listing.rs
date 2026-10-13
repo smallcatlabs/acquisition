@@ -86,7 +86,9 @@
 //! says why — the report's `rows.unreadable` lists every such row once.
 //! Rows whose realm is not the snapshot's are counted `other_realm`; valid
 //! rows naming nothing in these facts (another league's item, a removed
-//! tab) are listed `unmatched` — every nothing says which nothing (C53).
+//! tab) are listed `unmatched` — every nothing says which nothing (C53);
+//! a caller holding the facts moves the first kind to `other_league`
+//! ([`ListingReport::place_other_leagues`]).
 //!
 //! **The game side is a statement only where the trade index can see it
 //! (C81, T1).** For a subject in a public tab, [`game_side::read`] reads
@@ -482,6 +484,12 @@ pub struct RowAccounting {
     /// Readable rows naming nothing in these facts.
     pub unmatched: Vec<PriceTarget>,
     pub unreadable: Vec<RowProblem>,
+    /// Rows the facts hold in another league of this realm: taken out of
+    /// `unmatched` by [`ListingReport::place_other_leagues`], which a
+    /// caller holding the facts runs (the snapshot is one league's and
+    /// cannot say); empty until then.
+    #[serde(default)]
+    pub other_league: Vec<PriceTarget>,
 }
 
 /// Counts over the items (containers are not items), so `status` needs
@@ -603,6 +611,25 @@ pub struct ShowView {
 }
 
 impl ListingReport {
+    /// Move the unmatched rows the facts hold in another league into
+    /// `rows.other_league`, so that "names nothing" is left meaning it:
+    /// an orphan is a row to look at (C35), another league's row is
+    /// intent in its place. `elsewhere` answers for one target whether
+    /// the facts hold it live outside this report's league.
+    pub fn place_other_leagues<E>(
+        &mut self,
+        mut elsewhere: impl FnMut(&PriceTarget) -> Result<bool, E>,
+    ) -> Result<(), E> {
+        for target in std::mem::take(&mut self.rows.unmatched) {
+            if elsewhere(&target)? {
+                self.rows.other_league.push(target);
+            } else {
+                self.rows.unmatched.push(target);
+            }
+        }
+        Ok(())
+    }
+
     /// The listing of one target, if it is a subject of these facts.
     pub fn find(&self, target: &PriceTarget) -> Option<&Listing> {
         self.listings.iter().find(|l| &l.subject.target == target)

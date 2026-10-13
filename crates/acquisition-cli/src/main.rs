@@ -443,8 +443,10 @@ enum PriceCmd {
     /// container's items summarized under it (--expand lists them all).
     Show {
         target: String,
-        #[arg(long, default_value = "Standard")]
-        league: String,
+        /// The league to read the target in. Without it, the league the
+        /// facts hold the target in: an address reads back as printed.
+        #[arg(long)]
+        league: Option<String>,
         /// The realm of an item or character target; a tab or substash
         /// address carries its own.
         #[arg(long, value_parser = parse_realm)]
@@ -458,8 +460,10 @@ enum PriceCmd {
     /// `none` are left out — except unresolved ones (a row that cannot
     /// be read could decide), which are always listed.
     List {
-        #[arg(long, default_value = "Standard")]
-        league: String,
+        /// The league. Without it, the league of the container --in or
+        /// --covered-by names, else Standard.
+        #[arg(long)]
+        league: Option<String>,
         /// The realm; a tab or substash address given to --in or
         /// --covered-by carries its own.
         #[arg(long, value_parser = parse_realm)]
@@ -906,7 +910,7 @@ async fn run(cli: Cli) -> Result<()> {
             block_on_job(&mut client, id, cli.json).await
         }
         Cmd::Price { cmd } => match cmd.unwrap_or(PriceCmd::Status {
-            league: "Standard".into(),
+            league: price_cmd::DEFAULT_LEAGUE.into(),
             realm: None,
             expand: false,
         }) {
@@ -920,7 +924,7 @@ async fn run(cli: Cli) -> Result<()> {
                 league,
                 realm,
                 expand,
-            } => price_cmd::show(&target, realm, &league, expand, cli.json),
+            } => price_cmd::show(&target, realm, league.as_deref(), expand, cli.json),
             PriceCmd::List {
                 league,
                 realm,
@@ -931,7 +935,7 @@ async fn run(cli: Cli) -> Result<()> {
                 expand,
             } => price_cmd::list(
                 realm,
-                &league,
+                league.as_deref(),
                 &price_cmd::ListArgs {
                     relation,
                     effective,

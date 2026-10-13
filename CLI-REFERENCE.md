@@ -609,7 +609,7 @@ Arguments:
   <TARGET>  
 
 Options:
-      --league <LEAGUE>    [default: Standard]
+      --league <LEAGUE>    The league to read the target in. Without it, the league the facts hold the target in: an address reads back as printed
       --realm <REALM>      The realm of an item or character target; a tab or substash address carries its own
       --expand             
   -h, --help               Print help
@@ -623,7 +623,7 @@ Listed items grouped by container, ten or fewer listed per group and more counte
 Usage: acq price list [OPTIONS]
 
 Options:
-      --league <LEAGUE>          [default: Standard]
+      --league <LEAGUE>          The league. Without it, the league of the container --in or --covered-by names, else Standard
       --realm <REALM>            The realm; a tab or substash address given to --in or --covered-by carries its own
       --relation <RELATION>      none, manual_only, game_only, agree or conflict
       --effective <EFFECTIVE>    Who decides (C81): game, manual, none or unresolved

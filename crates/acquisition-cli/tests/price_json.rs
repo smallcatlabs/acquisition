@@ -314,7 +314,7 @@ fn price_json_documents_are_the_views_the_text_reads() {
     assert!(
         text.starts_with(
             "no items on record for Hardcore: 0 tabs and characters listed, none fetched with items\n\
-             rows: 0 of 3 apply here; 3 name nothing in these facts, 0 unreadable, 0 for other realms\n"
+             rows: 0 of 3 apply here; 1 name nothing in the facts, 0 unreadable, 2 for other leagues, 0 for other realms\n"
         ),
         "{text}"
     );
@@ -397,7 +397,7 @@ fn price_set_and_clear_print_the_receipt_and_show_reads_it_back() {
         text.ends_with(
             "), was unset\n\
              note: the facts hold no item/i-typo (not fetched yet, or a typo); the row stands, \
-             and `acq price status` counts it under \"name nothing in these facts\"\n\
+             and `acq price status` counts it under \"name nothing in the facts\"\n\
              next: `acq price show item/i-typo` reads it beside the game side\n"
         ),
         "{text}"
