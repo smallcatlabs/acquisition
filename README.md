@@ -117,7 +117,8 @@ acq version [--json]   # build identity and sibling acqd
 ```
 
 Every command takes `--json`, and it is total: a failure is `{"error":…}`
-on stdout with exit 1 (C11). `--account <username|name|uuid>` picks the
+on stdout with exit 1, a refused command line the same with
+`"kind":"usage"` and exit 2 (C11). `--account <username|name|uuid>` picks the
 account when several are logged in (C51).
 
 The real provider, under the existing registration (invariant 4), is

@@ -171,3 +171,92 @@ fn another_leagues_price_row_is_never_counted_as_naming_nothing() {
         "{said}"
     );
 }
+
+/// `--json` was not total: a command line the parser refused printed
+/// clap's text on stderr and nothing on stdout, so a program reading
+/// stdout met an empty answer. It is the one document now, with
+/// `kind: "usage"` and the parser's exit 2; without `--json` nothing
+/// changes, and help is never a failure.
+#[test]
+fn a_command_line_the_parser_refuses_is_one_json_document_under_json() {
+    let scratch = harness::scratch("seat-usage");
+    let base = scratch.0.clone();
+
+    let out = acq(
+        &base,
+        &[
+            "price",
+            "set",
+            "tab/pc/b1",
+            "exact",
+            "5",
+            "chaos",
+            "--league",
+            "Allflame",
+            "--json",
+        ],
+    );
+    assert_eq!(out.status.code(), Some(2), "{out:?}");
+    let report = sole_json(&out);
+    assert_eq!(report["kind"], "usage", "{report}");
+    let message = report["error"].as_str().unwrap();
+    assert!(
+        message.starts_with("unexpected argument '--league'"),
+        "{message}"
+    );
+    assert!(message.contains("Usage: acq price set"), "{message}");
+    assert!(out.stderr.is_empty(), "{out:?}");
+
+    // No verb at all is a refusal too.
+    let out = acq(&base, &["--json", "no-such-verb"]);
+    assert_eq!(out.status.code(), Some(2), "{out:?}");
+    assert_eq!(sole_json(&out)["kind"], "usage");
+
+    // Text mode is the parser's own, untouched.
+    let out = acq(&base, &["price", "set", "--league", "Allflame"]);
+    assert_eq!(out.status.code(), Some(2), "{out:?}");
+    assert!(out.stdout.is_empty(), "{out:?}");
+    assert!(String::from_utf8_lossy(&out.stderr).starts_with("error: "));
+
+    // Help is an answer, in either mode.
+    let out = acq(&base, &["price", "--help", "--json"]);
+    assert_eq!(out.status.code(), Some(0), "{out:?}");
+    assert!(String::from_utf8_lossy(&out.stdout).contains("Usage: acq price"));
+}
+
+/// An account that could not be picked offline was a message with no
+/// kind, and the accounts to pick from were inside the prose. The
+/// document says which failure it is in the daemon's words for the same
+/// remedy, and lists the accounts.
+#[test]
+fn an_account_that_cannot_be_picked_says_which_failure_and_lists_the_accounts() {
+    let scratch = harness::scratch("seat-account");
+    let base = scratch.0.clone();
+
+    let out = acq(&base, &["tabs", "--json"]);
+    assert_eq!(out.status.code(), Some(1), "{out:?}");
+    assert_eq!(sole_json(&out)["kind"], "not_logged_in");
+
+    seed_two_leagues(&base);
+    Index::load(&base.join("store").join("mock"))
+        .unwrap()
+        .record_login("Bob#5678", "u-bob", false, acquisition_store::now())
+        .unwrap();
+
+    let out = acq(&base, &["tabs", "--json"]);
+    assert_eq!(out.status.code(), Some(1), "{out:?}");
+    let report = sole_json(&out);
+    assert_eq!(report["kind"], "ambiguous_account", "{report}");
+    assert_eq!(
+        report["accounts"],
+        json!(["Alice#1234", "Bob#5678"]),
+        "{report}"
+    );
+
+    let out = acq(&base, &["tabs", "--json", "--account", "Carol"]);
+    assert_eq!(out.status.code(), Some(1), "{out:?}");
+    assert_eq!(sole_json(&out)["kind"], "unknown_account");
+
+    let out = acq(&base, &["tabs", "--json", "--account", "Alice"]);
+    assert_eq!(out.status.code(), Some(0), "{out:?}");
+}

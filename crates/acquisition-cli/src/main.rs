@@ -18,6 +18,7 @@ use acquisition_protocol::job::{JobInfo, JobState, Outcome};
 use acquisition_protocol::protocol::{Request, Response};
 use acquisition_protocol::provider::{self, GGG};
 use acquisition_protocol::realm::Realm;
+use acquisition_store::Resolve;
 use acquisition_store::jobs::{Persisted, PersistedJob};
 use acquisition_store::world::World;
 use anyhow::{Result, bail};
@@ -701,22 +702,67 @@ impl std::fmt::Display for AlreadyReported {
 
 impl std::error::Error for AlreadyReported {}
 
+/// A command line the parser refuses, under `--json`: the same one
+/// document on stdout as any other failure (C11), `kind: "usage"`, with
+/// the parser's own exit 2 — the command never ran. Help and version are
+/// not failures and print as they always do; so does a refusal without
+/// `--json`. `--json` is read from the raw arguments, since nothing was
+/// parsed: any argument spelled so before a bare `--`.
+fn refuse_usage(e: clap::Error) -> ! {
+    use clap::error::ErrorKind as Parse;
+    let asked_json = std::env::args()
+        .skip(1)
+        .take_while(|a| a != "--")
+        .any(|a| a == "--json");
+    let informative = matches!(
+        e.kind(),
+        Parse::DisplayHelp
+            | Parse::DisplayVersion
+            | Parse::DisplayHelpOnMissingArgumentOrSubcommand
+    );
+    if !asked_json || informative {
+        e.exit();
+    }
+    let message = e.render().to_string();
+    let message = message.trim().trim_start_matches("error: ");
+    println!("{}", json!({ "error": message, "kind": "usage" }));
+    std::process::exit(2);
+}
+
+/// What a failure adds to its `--json` document beside the message: a
+/// daemon refusal's closed kind (C85), and for an account that could not
+/// be picked offline the same words the daemon uses for the same remedy
+/// — `ambiguous_account` with the accounts to pick from, `not_logged_in`
+/// when none is known — or `unknown_account` for a selector matching
+/// none. Additive under C53; a failure with no kind has none to branch
+/// on beyond its message.
+fn error_report(e: &anyhow::Error) -> serde_json::Value {
+    let mut report = json!({ "error": format!("{e:#}") });
+    if let Some(refusal) = DaemonError::find(e) {
+        report["kind"] = json!(refusal.kind);
+    } else if let Some(resolve) = e.chain().find_map(|c| c.downcast_ref::<Resolve>()) {
+        match resolve {
+            Resolve::Ambiguous(names) => {
+                report["kind"] = json!("ambiguous_account");
+                report["accounts"] = json!(names);
+            }
+            Resolve::NotFound(_) => report["kind"] = json!("unknown_account"),
+            Resolve::Empty => report["kind"] = json!("not_logged_in"),
+        }
+    }
+    report
+}
+
 #[tokio::main]
 async fn main() {
-    let cli = Cli::parse();
+    let cli = Cli::try_parse().unwrap_or_else(|e| refuse_usage(e));
     let json = cli.json;
     store_cmd::set_selector(cli.account.clone());
     let _ = ACCOUNT.set(cli.account.clone());
     if let Err(e) = run(cli).await {
         if e.downcast_ref::<AlreadyReported>().is_none() {
             if json {
-                // A daemon refusal carries its closed kind beside the
-                // message (C85; additive under C53).
-                let mut report = json!({ "error": format!("{e:#}") });
-                if let Some(refusal) = DaemonError::find(&e) {
-                    report["kind"] = json!(refusal.kind);
-                }
-                println!("{report}");
+                println!("{}", error_report(&e));
             } else {
                 eprintln!("Error: {e:#}");
             }
