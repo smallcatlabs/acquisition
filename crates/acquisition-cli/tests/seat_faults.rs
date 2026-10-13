@@ -470,3 +470,48 @@ fn an_apply_ends_by_saying_what_a_new_plan_would_still_fetch() {
     let said = stdout(&acq(&base, &["refresh", "--plan"]));
     assert!(said.contains("nothing to do"), "{said}");
 }
+
+/// `search --describe` was 117,523 bytes with no way to read it in parts
+/// but by knowing an entry's name, and the names were listed only in the
+/// error for a wrong one. Nine tenths of the page is the computed values'
+/// and the categories' definitions. Bare, it is the index: every name
+/// with one line, under what a host shows whole, ending on how to read
+/// an entry; `all` is the page as it was, and JSON stays whole.
+#[test]
+fn describe_is_an_index_that_names_every_entry_and_says_how_to_read_one() {
+    let scratch = harness::scratch("seat-describe");
+    let base = scratch.0.clone();
+
+    let index = stdout(&acq(&base, &["search", "--describe"]));
+    assert!(index.len() < 50_000, "the index is {} bytes", index.len());
+    let life = index
+        .lines()
+        .find(|l| l.trim_start().starts_with("pseudo.total_life "))
+        .expect("the index names pseudo.total_life");
+    assert!(life.ends_with("(`+# total maximum Life`)"), "{life}");
+    assert!(
+        index.contains("\n  accessory.ring "),
+        "the index names a category"
+    );
+    let last = index.lines().last().unwrap_or_default();
+    assert!(
+        last.starts_with("more: this is the index") && last.contains("`--describe all`"),
+        "{last}"
+    );
+
+    // An entry named is whole, and so is everything under `all` and JSON.
+    let entry = stdout(&acq(&base, &["search", "--describe", "pseudo.total_life"]));
+    assert!(
+        entry.contains("the sum over the item's lines of"),
+        "{entry}"
+    );
+    let all = stdout(&acq(&base, &["search", "--describe", "all"]));
+    assert!(all.len() > 100_000 && all.contains("the sum over the item's lines of"));
+    assert!(!all.contains("more: this is the index"));
+    let whole = sole_json(&acq(&base, &["search", "--describe", "--json"]));
+    let defined = whole["computed"][0]["what"].as_str().unwrap_or_default();
+    assert!(
+        defined.contains("the sum over the item's lines of"),
+        "{defined}"
+    );
+}

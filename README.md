@@ -87,17 +87,17 @@ acq submit <kind> [--params JSON] [--detach]   # submit a job by kind
 acq demo   # mock burst with limiter ETAs
 acq jobs [--watch] | status <id> | result <id> [--wait]   # queue; one job; its payload, from disk if no daemon runs
 acq cancel <id> | set-priority <id> <n>   # cancel a subtree; change priority
-acq dash   # live TUI dashboard
+acq dash [--json]   # live TUI dashboard, on a terminal; --json is one snapshot
 
 # intent, plans, apply — binding plans (C38); compilation and reads are offline
 acq policy [show]   # sync policy and revision
 acq policy set '<json>'|-|@FILE [--if-revision N]   # validated v3: {"version":3,"realms":{"pc":{"leagues":{…}}}}
 acq refresh --plan [--realm R] [--league L] [--expand] [--json]   # compile offline; a running daemon adds its quote
-acq refresh --apply[=plan.json] [--max-requests N]   # execute the plan's actions
+acq refresh --apply[=plan.json] [--max-requests N]   # execute the plan's actions; ends on what a new plan would still fetch
 
 # pricing and the shop — offline, no daemon (C64)
 acq reference currency [WORD] [--expand]   # versioned currency table
-acq price status | list | show <target>   # listing state; status is the default
+acq price status | list | show <target>   # listing state per league (Standard unless --league); show reads its target's own
 acq price set <target> <type> [<amount> <currency>] [--if-revision N]   # set a price, with undo
 acq price clear <target> [--if-revision N]   # remove a price, with undo
 acq shop render [--size N] [--template FILE] [--page N] [--expand]   # forum pages to paste, omissions counted
@@ -105,9 +105,9 @@ acq shop render [--size N] [--template FILE] [--page N] [--expand]   # forum pag
 # the store — no daemon, no network
 acq tabs [--league L] [--realm R]   # tab tree and live item counts
 acq store characters [--realm R] [--league L]   # character locations, ages and live items
-acq search [--realm R] ['<query>'] [--sort V [--desc]] [--limit N] [--routes]   # item search: scope, basis, counts per term, rows
+acq search [--realm R] ['<query>'] [--sort V [--desc]] [--limit N] [--routes]   # item search: scope, basis, counts per term, rows; a store of two realms needs --realm (pc, poe2, all)
 acq search ['<query>'] --count KEY,… | --cross KEY,KEY [--sum V]   # the matches counted by key, one table each or one crossed; line[:text,…] is the vocabulary
-acq search --describe [name,…]   # the query language, what a count takes, and what is not built yet
+acq search --describe [name,…|all]   # the query language: bare an index, a name or `all` its entries whole
 acq show <id> [--body]   # one item as the search derives it; the stored body on request
 acq store status | events [--hours N] | refused [id]   # counts; ingest events; malformed bodies
 acq store import <snapshot.json> | rebuild   # replay a retired-pull snapshot; re-extract columns

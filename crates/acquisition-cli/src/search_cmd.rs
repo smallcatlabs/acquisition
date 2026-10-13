@@ -101,10 +101,15 @@ pub struct SearchArgs {
     /// members — instead of the first few.
     #[arg(long)]
     pub routes: bool,
-    /// The language as this build knows it: fields, what a line has,
-    /// operators, closed value sets, slots, the computed values with
-    /// their definitions, what is not built and the limits stated; or
-    /// only the entries named (`--describe league,line,total_res`).
+    /// The language as this build knows it. Bare, the index: fields,
+    /// what a line has, operators, closed value sets, slots, how terms
+    /// compose, what a count takes, what is not built and the limits
+    /// stated, with each computed value and category by name and one
+    /// line (about 36 KB). Named, those entries whole with their
+    /// definitions (`--describe league,line,pseudo.total_res`; a block's
+    /// name is one: `--describe computed`). `--describe all` is every
+    /// entry whole, over 100 KB. `--json` is whole unless entries are
+    /// named.
     #[arg(long, value_name = "NAME,…", num_args = 0..=1, value_delimiter = ',')]
     pub describe: Option<Vec<String>>,
     /// Count the matches by a key, one table for each key named, and show
@@ -325,8 +330,14 @@ pub fn search(args: SearchArgs, json: bool) -> Result<()> {
         if args.print_request {
             whole_describe(json)?;
         }
-        let described = describe(names).map_err(|e| fail(e.into(), json))?;
-        return emit(&described, json, describe_text);
+        // Bare is the index and `all` every entry whole: the same
+        // document either way (JSON is the contract and stays whole, C53),
+        // read at two densities.
+        let all = names.as_slice() == ["all"];
+        let index = names.is_empty();
+        let asked: &[String] = if all { &[] } else { names };
+        let described = describe(asked).map_err(|e| fail(e.into(), json))?;
+        return emit(&described, json, |d| describe_text(d, index));
     }
     let text = match &args.query_file {
         Some(path) if path == "-" => {
@@ -1390,9 +1401,20 @@ fn cross_text(cross: &CrossOut, all_realms: bool) -> Vec<String> {
     out
 }
 
-fn describe_text(d: &Describe) -> String {
+/// The head of a definition: what a computed value is, before how it is
+/// computed — its text up to the first `: `, which every total's and
+/// derived value's definition has after its name on the site.
+fn definition_head(what: &str) -> &str {
+    what.split_once(": ").map_or(what, |(head, _)| head)
+}
+
+/// `--describe` as text. `index` is the bare form (C53: more than ten
+/// are counted, never listed whole): the computed values and the
+/// categories, nine tenths of the page, are one line each, and the last
+/// line says how to read one whole.
+fn describe_text(d: &Describe, index: bool) -> String {
     let mut out = String::new();
-    let mut block = |head: &str, entries: &[acquisition_search::describe::Named]| {
+    let mut block = |head: &str, entries: &[acquisition_search::describe::Named], brief: bool| {
         if entries.is_empty() {
             return;
         }
@@ -1412,6 +1434,15 @@ fn describe_text(d: &Describe) -> String {
             .unwrap_or(0)
             .max(12);
         for e in entries {
+            if brief {
+                out.push_str(&format!(
+                    "  {:<name$}{:<kind$}{}\n",
+                    e.name,
+                    e.kind,
+                    definition_head(&e.what)
+                ));
+                continue;
+            }
             out.push_str(&format!("  {:<name$}{:<kind$}{}\n", e.name, e.kind, e.what));
             if !e.values.is_empty() {
                 out.push_str(&format!(
@@ -1431,25 +1462,39 @@ fn describe_text(d: &Describe) -> String {
             }
         }
     };
-    block("fields", &d.fields);
-    block("inside line( … )", &d.line);
-    block("inside linked( … )", &d.linked);
-    block("values", &d.values);
-    block("composition", &d.composition);
-    block("operators", &d.operators);
-    block("slots", &d.slots);
+    block("fields", &d.fields, false);
+    block("inside line( … )", &d.line, false);
+    block("inside linked( … )", &d.linked, false);
+    block("values", &d.values, false);
+    block("composition", &d.composition, false);
+    block("operators", &d.operators, false);
+    block("slots", &d.slots, false);
     // the totals' table is named once, over the block, with its version
     // and source (C106's clause (c))
-    block(&format!("computed values — {}", d.totals), &d.computed);
-    block("counts", &d.counts);
-    block("why an answer is what it is", &d.explain);
+    if index {
+        block(
+            "computed values — one line each; `--describe <name>` is its definition",
+            &d.computed,
+            true,
+        );
+    } else {
+        block(
+            &format!("computed values — {}", d.totals),
+            &d.computed,
+            false,
+        );
+    }
+    block("counts", &d.counts, false);
+    block("why an answer is what it is", &d.explain, false);
     // every category id with the site's text for it and what makes it
     // hold (C106)
     if !d.categories.is_empty() {
         out.push_str("categories — the trade site's ids, as spelled\n");
         for c in &d.categories {
             out.push_str(&format!("  {:<30}{}\n", c.id, c.text));
-            out.push_str(&format!("  {:<30}  {}\n", "", c.holds));
+            if !index {
+                out.push_str(&format!("  {:<30}  {}\n", "", c.holds));
+            }
         }
     }
     if !d.not_built.is_empty() {
@@ -1468,6 +1513,13 @@ fn describe_text(d: &Describe) -> String {
         for l in &d.limits {
             out.push_str(&format!("  {:<6}{}\n", l.id, l.said));
         }
+    }
+    if index {
+        out.push_str(
+            "more: this is the index — `--describe <name>,…` prints an entry whole (a computed \
+             value's definition, what makes a category hold), `--describe computed` or \
+             `--describe category` a block, `--describe all` everything\n",
+        );
     }
     out
 }
