@@ -515,3 +515,66 @@ fn describe_is_an_index_that_names_every_entry_and_says_how_to_read_one() {
         "{defined}"
     );
 }
+
+/// `acq jobs` listed every finished job of the daemon's lifetime above
+/// the ones still open, 48 rows where the question was what waits. It
+/// lists the open jobs and the ten most recent finished, counts all of
+/// them on its last line, and says how many it left out and how to see
+/// them; JSON is every job, as before.
+#[test]
+fn jobs_lists_what_is_open_and_counts_the_finished_it_leaves_out() {
+    let scratch = harness::scratch("seat-jobs");
+    let base = scratch.0.clone();
+    let (_daemon, _pid) = start_daemon(&base);
+
+    let mut last = String::new();
+    for _ in 0..12 {
+        let out = acq(
+            &base,
+            &[
+                "submit",
+                "sleep",
+                "--params",
+                "{\"seconds\":0}",
+                "--detach",
+                "--json",
+            ],
+        );
+        last = sole_json(&out)["job_id"]
+            .as_u64()
+            .expect("a job id")
+            .to_string();
+    }
+    for id in 1..=12 {
+        let out = acq(&base, &["result", &id.to_string(), "--wait", "--json"]);
+        assert!(out.status.success(), "{out:?}");
+    }
+    assert_eq!(last, "12");
+
+    let said = stdout(&acq(&base, &["jobs"]));
+    let rows = said.lines().filter(|l| l.contains(" sleep ")).count();
+    assert_eq!(rows, 10, "{said}");
+    assert!(
+        !said.contains("\n 1  "),
+        "the earliest is left out:\n{said}"
+    );
+    assert!(
+        said.contains("12 jobs: 0 running, 0 waiting, 12 done"),
+        "{said}"
+    );
+    assert!(
+        said.ends_with("2 earlier finished jobs not listed (`acq jobs --all`)\n"),
+        "{said}"
+    );
+
+    let said = stdout(&acq(&base, &["jobs", "--all"]));
+    assert_eq!(
+        said.lines().filter(|l| l.contains(" sleep ")).count(),
+        12,
+        "{said}"
+    );
+    assert!(!said.contains("not listed"), "{said}");
+
+    let all = sole_json(&acq(&base, &["jobs", "--json"]));
+    assert_eq!(all.as_array().map(Vec::len), Some(12), "{all}");
+}

@@ -85,7 +85,7 @@ acq stash <id> [--sub <id>] [--deep]   # one tab, optionally with substashes
 acq refresh --tabs a,b,c | --all [--deep]   # ad-hoc refresh of selected tabs
 acq submit <kind> [--params JSON] [--detach]   # submit a job by kind
 acq demo   # mock burst with limiter ETAs
-acq jobs [--watch] | status <id> | result <id> [--wait]   # queue; one job; its payload, from disk if no daemon runs
+acq jobs [--watch | --all] | status <id> | result <id> [--wait]   # open jobs and the latest finished; one job; its payload, from disk if no daemon runs
 acq cancel <id> | set-priority <id> <n>   # cancel a subtree; change priority
 acq dash [--json]   # live TUI dashboard, on a terminal; --json is one snapshot
 

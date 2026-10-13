@@ -439,6 +439,10 @@ is the per-location summary.")]
     Version,
     /// The live jobs: id, parent, kind, target (from params, C7), state
     /// (`↻n` counts 429 re-queues, C26), priority, account, submitter, ETA.
+    /// Every waiting and running job is listed, and the ten most recent
+    /// finished ones; the last line counts them all, and says when the
+    /// next waiting job starts and when the last one does. `--json` is
+    /// every job the daemon holds.
     /// Observes only (C10): with no daemon running it never spawns one, and
     /// answers from the ledger on disk instead (C45) — the non-terminal
     /// rows as the last daemon left them, without ETAs, and how long ago
@@ -452,6 +456,10 @@ is the per-location summary.")]
         /// (C85), and the watch ends when the daemon stops.
         #[arg(long)]
         watch: bool,
+        /// List every finished job the daemon still holds, not the ten
+        /// most recent.
+        #[arg(long, conflicts_with = "watch")]
+        all: bool,
     },
     /// One job's state and ETA. A large ETA is the limiter holding, not a
     /// hang: holds can reach 300 s plus the timing bucket. With no daemon
@@ -1204,7 +1212,7 @@ async fn run(cli: Cli) -> Result<()> {
             }
             Ok(())
         }
-        Cmd::Jobs { watch } => {
+        Cmd::Jobs { watch, all } => {
             if watch {
                 return watch_jobs(cli.json).await;
             }
@@ -1216,7 +1224,7 @@ async fn run(cli: Cli) -> Result<()> {
             if cli.json {
                 println!("{}", serde_json::to_string_pretty(&jobs)?);
             } else {
-                print_table(&jobs);
+                print_jobs(&jobs, all);
             }
             Ok(())
         }
@@ -2063,11 +2071,52 @@ fn print_outcome(id: u64, account: Option<&str>, outcome: &Outcome, json: bool) 
     }
 }
 
+/// Finished jobs `acq jobs` lists without `--all` (C53: more are
+/// counted).
+const FINISHED_LISTED: usize = 10;
+
+/// `acq jobs`: every open job, the most recent finished ones, and the
+/// summary over all of them — the answer to "what is running, what
+/// waits, when is it done" is never below a screen of history.
+fn print_jobs(jobs: &[JobInfo], all: bool) {
+    let finished = jobs.iter().filter(|j| j.state.is_terminal()).count();
+    let hidden = if all {
+        0
+    } else {
+        finished.saturating_sub(FINISHED_LISTED)
+    };
+    // The daemon lists by id: the earliest finished are the ones left out.
+    let mut skip = hidden;
+    let shown: Vec<JobInfo> = jobs
+        .iter()
+        .filter(|j| {
+            if j.state.is_terminal() && skip > 0 {
+                skip -= 1;
+                return false;
+            }
+            true
+        })
+        .cloned()
+        .collect();
+    if !jobs.is_empty() {
+        print_rows(&shown);
+    }
+    print_summary(jobs);
+    if hidden > 0 {
+        println!("{hidden} earlier finished jobs not listed (`acq jobs --all`)");
+    }
+}
+
 fn print_table(jobs: &[JobInfo]) {
     if jobs.is_empty() {
         println!("no jobs");
         return;
     }
+    print_rows(jobs);
+    print_summary(jobs);
+}
+
+fn print_rows(jobs: &[JobInfo]) {
     // Widths from the data: a route label or an account name must never
     // push the columns out of line or be cut.
     let rows: Vec<[String; 9]> = jobs
@@ -2136,18 +2185,31 @@ fn print_table(jobs: &[JobInfo]) {
             .trim_end()
         );
     }
+}
+
+/// The last line of a job table: the counts by state, and for what waits
+/// when the next starts and when the last does — a start, never an end:
+/// how long a request then takes is not predicted.
+fn print_summary(jobs: &[JobInfo]) {
+    if jobs.is_empty() {
+        println!("no jobs");
+        return;
+    }
     let count = |s: JobState| jobs.iter().filter(|j| j.state == s).count();
     let mut parts = vec![format!("{} running", count(JobState::Running))];
     let waiting = count(JobState::Waiting);
-    let next = jobs
-        .iter()
-        .filter(|j| j.state == JobState::Waiting)
-        .filter_map(|j| j.eta_seconds)
-        .filter(|e| *e > 0)
-        .min();
-    parts.push(match next {
-        Some(eta) => format!("{waiting} waiting (next in ~{eta}s)"),
-        None => format!("{waiting} waiting"),
+    let etas = || {
+        jobs.iter()
+            .filter(|j| j.state == JobState::Waiting)
+            .filter_map(|j| j.eta_seconds)
+            .filter(|e| *e > 0)
+    };
+    parts.push(match (etas().min(), etas().max()) {
+        (Some(next), Some(last)) if last > next => {
+            format!("{waiting} waiting (next starts in ~{next}s, the last in ~{last}s)")
+        }
+        (Some(next), _) => format!("{waiting} waiting (next starts in ~{next}s)"),
+        _ => format!("{waiting} waiting"),
     });
     parts.push(format!("{} done", count(JobState::Done)));
     let failed = count(JobState::Failed);
