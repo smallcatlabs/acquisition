@@ -31,22 +31,27 @@ agent needed that the tool's own words did not say.
       <what acq reads on stdin>
       J
       python3 -I audits/rehome-2026-10/seat/seat.py login <user>
+      python3 -I audits/rehome-2026-10/seat/seat.py report [--new] <<'R'
+      <a part of your report>
+      R
 
   `run` runs one `acq` command and prints its exit code, its sizes, its
-  time and its output; `--t` is the task the command is for (`T0` …
-  `T9`); `--note` says why you ran it, when that is not plain;
-  `--timeout S` changes the 300 s limit. `login` is a scripted login,
-  described below. Run nothing else against the tool or its store: no
+  time and its output, stdout and stderr apart; `--t` is the task the
+  command is for (`T0` … `T9`); `--note` says why you ran it, when that
+  is not plain; `--timeout S` changes the 300 s limit; `--out NAME`
+  also saves the command's stdout as `runs/seat-2026-10-13/work/NAME`,
+  as a shell's `>` would. `login` is a scripted login, described below.
+  `report` appends what it reads to the report file (`--new` starts
+  it). Run nothing else against the tool or its store: no
   `acq` by its path, no `acqd`, no `sqlite3`, no `cargo`, no `curl`.
 - **Every output is read as it is printed.** No pipe, no redirect and
   no filter after the command, and no file to keep an output in. An
   output over 60,000 bytes is printed as its head with a line saying
   so; that is the door's rule and not the tool's. The one exception:
-  a file the tool itself asks for or writes (a plan to apply, a
-  template, a policy passed as `@FILE`) may be written under
-  `runs/seat-2026-10-13/work/` and nowhere else — when a verb needs its
-  own earlier output back as a file, say so in the report, since that
-  is a thing the door made harder than a shell would.
+  a file the tool itself reads (a plan to apply, a template, a policy
+  passed as `@FILE`) lives under `runs/seat-2026-10-13/work/` and
+  nowhere else — saved from a command's output with `--out`, or written
+  by you there when you compose it yourself.
 - **The world is a rehearsal, and safe.** The door points every
   command at a mock of the game's API and at a store under `runs/`;
   nothing you run can reach the real API or the person's real store,
@@ -55,9 +60,12 @@ agent needed that the tool's own words did not say.
 - **No terminal.** You have no interactive terminal: a verb that draws
   a full-screen interface (`acq dash`) will not work for you. Try it
   once, record what it said, and move on.
-- You write one file, `audits/rehome-2026-10/seat/REPORT.md`, and
-  nothing else besides the work files above. Never commit, push,
-  fetch, build or spawn an agent.
+- Your report is `audits/rehome-2026-10/seat/REPORT.md`, written
+  through the door's `report` command, a part at a time as you finish
+  each task — never all at the end. Besides it and the work files
+  above you write nothing. Never commit, push, fetch, build or spawn
+  an agent. `REPORT-1.md` and `calls-1.csv` beside the brief are an
+  earlier run's: do not open them.
 - No number of commands is a target. A right result in many commands
   and a wrong one in few are both worth knowing; say which you have.
   Leave a task when your next command would be a guess you have
@@ -99,7 +107,11 @@ them in order; later ones build on earlier ones.
   tool's plan for the work and read it — what will it fetch, how many
   requests, how long — and then carry it out. Show that the items
   landed. Then ask for a plan again: what does the tool say there is
-  left to do?
+  left to do? Keep going until nothing is. Once more, the careful way:
+  "show me the plan first, and then do exactly that and no more than N
+  requests" — get a plan as a file, read it, and have the tool carry
+  out that file under a ceiling. (If nothing is left to plan by then,
+  say how you would have, and what the tool said.)
 - **T3 — the queue.** Submit several pieces of work at once so that
   some of them wait. "What is running, what is waiting, and when will
   it finish?" Cancel one that is waiting, change the priority of
@@ -141,8 +153,8 @@ them in order; later ones build on earlier ones.
 
 ## The report — `audits/rehome-2026-10/seat/REPORT.md`
 
-Its first line: `<!-- hand-written during the run of BRIEF.md; call
-numbers are rows of calls.csv -->`. Then these headings and no others.
+Its first line: `<!-- written during the second run of BRIEF.md,
+after the fix round; call numbers are rows of calls.csv -->`. Then these headings and no others.
 Every claim cites a command by the number the door printed (`call
 17`); a count, a size or a time is the one the door or the tool
 printed, never one you remember. Write it as you go, not at the end.

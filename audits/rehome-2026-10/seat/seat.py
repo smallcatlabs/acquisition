@@ -4,7 +4,8 @@
 usage:
   seat.py setup                           build the world: a fresh copy of the owner's store under the mock provider
   seat.py login <user>                    a scripted mock login (the mock-session skill's recipe; a person uses a browser)
-  seat.py run --t T3 [--note '...'] [--timeout S] [--stdin FILE|-] -- <acq arguments>
+  seat.py run --t T3 [--note '...'] [--timeout S] [--stdin FILE|-] [--out NAME] -- <acq arguments>
+  seat.py report [--new]                  append stdin to REPORT.md (--new starts it): the runner's harness may refuse it file tools
   seat.py teardown                        stop the world's daemon
 
 The world is set here and nowhere else: the mock provider, no keyring, a store and a log directory
@@ -12,7 +13,11 @@ under runs/seat-2026-10-13/ (gitignored). Nothing here can reach GGG or the owne
 command carries ACQ_PROVIDER=mock and ACQ_STORE_DIR, and `setup` reads the owner's files once, through
 sqlite's online backup. Every `run` is a row of calls.csv beside this file and a file under
 runs/seat-2026-10-13/calls/. Output is printed whole up to SHOWN bytes; past that its head is printed
-and the row says `head`.
+and the row says `head`. `--out NAME` also writes stdout to runs/seat-2026-10-13/work/NAME, as a shell's
+`>` would: the one way a verb's output becomes a file another verb reads (`refresh --apply=FILE`).
+
+The first run (2026-10-13, before the fix round) is REPORT-1.md and calls-1.csv; its world is
+runs/seat-2026-10-13-run1/.
 """
 import argparse, csv, json, os, re, sqlite3, subprocess, sys, time, urllib.parse, urllib.request
 
@@ -117,6 +122,12 @@ def run(a):
     except subprocess.TimeoutExpired as e:
         dec = lambda b: b.decode(errors="replace") if isinstance(b, bytes) else (b or "")
         code, out, err = "timeout", dec(e.stdout), dec(e.stderr)
+    if a.out:
+        if "/" in a.out or a.out.startswith("."):
+            sys.exit("seat: --out takes a bare file name; it is written under runs/seat-2026-10-13/work/")
+        os.makedirs(os.path.join(RUN, "work"), exist_ok=True)
+        with open(os.path.join(RUN, "work", a.out), "w") as f:
+            f.write(out)
     wall = round((time.perf_counter() - t0) * 1000)
     ob, eb = len(out.encode()), len(err.encode())
     whole = ob + eb <= SHOWN
@@ -141,17 +152,25 @@ def main():
     sub.add_parser("setup")
     sub.add_parser("teardown")
     sub.add_parser("login").add_argument("user")
+    sub.add_parser("report").add_argument("--new", action="store_true")
     r = sub.add_parser("run")
     r.add_argument("--t", required=True)
     r.add_argument("--note")
     r.add_argument("--timeout", type=float, default=300)
     r.add_argument("--stdin")
+    r.add_argument("--out")
     r.add_argument("args", nargs=argparse.REMAINDER)
     a = ap.parse_args()
     if a.cmd == "setup":
         setup()
     elif a.cmd == "login":
         login(a.user)
+    elif a.cmd == "report":
+        path = os.path.join(HERE, "REPORT.md")
+        text = sys.stdin.read()
+        with open(path, "w" if a.new else "a") as f:
+            f.write(text if text.endswith("\n") else text + "\n")
+        print(f"seat: REPORT.md is {os.path.getsize(path)} bytes")
     elif a.cmd == "teardown":
         print(subprocess.run([EXE, "daemon", "stop"], env=env(), capture_output=True, text=True).stdout.strip())
     else:
