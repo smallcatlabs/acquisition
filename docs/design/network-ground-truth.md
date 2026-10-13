@@ -907,6 +907,33 @@ refresh grant is the signal to stop refreshing and ask for a login
 loop cannot recover from it on its own. The 400 counted against
 `token-request-limit` (`1:30:0`) and the invalid-request budget (N27).
 
+### Stash naming claims (October 12, 2026)
+
+**N47. A map or unique substash has no name of the user's: a unique
+substash's `name` is empty, a map substash's is empty or a small
+number, and each carries its parent's ` (Remove-only)` suffix.**
+[OBSERVED — High for the shapes, one account; what the number means is
+not established; October 12, 2026]
+Read offline from the owner's store (`acq tabs --league Standard`,
+`GERWARIC#7694`, pc; no request was made for this claim, the names are
+as the stash endpoints returned them over the runs of September 2026):
+3,347 tabs, of which 2,535 are children of 14 `MapStash` parents and
+474 are children of 25 `UniqueStash` parents. Every one of the 474
+unique substashes is named `""` (38, 19 under each of the two parents
+that are not remove-only) or `" (Remove-only)"` (436); across all 3,009
+a child carries the suffix exactly when its parent does. Of the 2,535 map
+substashes, 2,221 are named `" (Remove-only)"` and 314 a number and
+the suffix: `1` (144), `2` (42), `3` (37), `4` (36), `5` (30), `6`
+(25); no other name occurs. All 14 map parents are remove-only, so a
+map substash under a live parent is unobserved. The suffix is GGG's,
+on the child as on the parent: a client that shows a substash's name
+shows it. The refresh runs read the number as the map tier (the
+spike's record, September 2, 2026); nothing here confirms that, and
+tiers above 6 do not appear. Consequence for a client: a substash is
+identified by its id and located by its parent's name; its own name
+identifies nothing (the spike's C80 reads the parent for the same
+reason).
+
 ## Open questions
 
 - **Q1. HEAD sanction verbatim. RESOLVED July 18, 2026** — Tom
