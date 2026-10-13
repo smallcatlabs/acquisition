@@ -1,6 +1,6 @@
 # cargo-deny, advisories only (C8 of the 2026-09-11 census, ruled
 # 2026-09-12): a daemon that holds real tokens earns a RustSec check, run
-# by the Linux workflow (`.github/workflows/rust-playground.yml`), never by
+# by the Linux workflow (`.github/workflows/gate-linux.yml`), never by
 # the local gate. Licenses, bans and sources wait on a shipping decision
 # (`decisions/daemon.md`, "Parked").
 [advisories]

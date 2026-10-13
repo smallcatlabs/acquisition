@@ -1,4 +1,4 @@
-name: Rust playground (Linux)
+name: Gate (Linux)
 
 # The quality gate on Linux (AGENTS.md,
 # "Quality gate"), plus the one check only a Linux box can make: the

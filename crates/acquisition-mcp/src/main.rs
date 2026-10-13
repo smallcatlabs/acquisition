@@ -1079,7 +1079,7 @@ impl ServerHandler for AcqMcp {
         let mut info = ServerInfo::default();
         info.capabilities = ServerCapabilities::builder().enable_tools().build();
         info.instructions = Some(format!(
-            "Acquisition playground (provider: {}). Items: search answers a query over \
+            "Acquisition (provider: {}). Items: search answers a query over \
              every item the store holds — counts for each term, the total, then rows or \
              tables — describe prints its query language, and show is one item whole. \
              Their arguments and answers are JSON; a term's or a table's count that is \

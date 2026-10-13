@@ -2626,7 +2626,7 @@ resubmit if still wanted",
                 }
                 Outcome::Success {
                     payload: json!({
-                        "note": "fake data — playground never talks to GGG",
+                        "note": "fake data — the mock never talks to GGG",
                         "username": username,
                         "league": "Standard",
                         "characters": [
@@ -5467,7 +5467,7 @@ mod auth_session_tests {
         assert_eq!(
             store.saves.lock().unwrap().as_slice(),
             [(
-                "acquisition-playground".into(),
+                "acq-mock".into(),
                 "rt-rotated".into(),
                 "rotated-user".into()
             )]
@@ -5579,11 +5579,7 @@ mod auth_session_tests {
         }
         assert_eq!(
             store.saves.lock().unwrap().as_slice(),
-            [(
-                "acquisition-playground".into(),
-                "rt-reauth".into(),
-                "old-user".into()
-            )]
+            [("acq-mock".into(), "rt-reauth".into(), "old-user".into())]
         );
         delayed.server.await.unwrap();
         remove_test_log(&log_path);
@@ -7483,7 +7479,7 @@ mod dispatcher_tests {
         assert!(!refresh_flight);
         let saves = credential_store.saves.lock().unwrap();
         assert_eq!(saves.len(), 1, "rotated refresh token persisted once");
-        assert_eq!(saves[0].0, "acquisition-playground");
+        assert_eq!(saves[0].0, "acq-mock");
         assert_eq!(saves[0].1, "rt-rotated");
         assert_eq!(saves[0].2, "test-user");
         drop(saves);

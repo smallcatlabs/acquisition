@@ -1,6 +1,6 @@
 ---
 name: session-close
-description: End a working session on the Rust playground — route what was learned to its one home, keep the always-loaded documents at budget, commit with the story in the message. Use before the last commit of any session, and whenever a slice closes.
+description: End a working session on the Acquisition workspace — route what was learned to its one home, keep the always-loaded documents at budget, commit with the story in the message. Use before the last commit of any session, and whenever a slice closes.
 ---
 
 # Session close

@@ -30,7 +30,7 @@ import sqlite3
 import urllib.parse
 
 DEFAULT_FACTS = os.path.expanduser(
-    "~/Library/Application Support/gerwaric.acquisition-playground/store/ggg/GERWARIC_7694.db"
+    "~/Library/Application Support/com.smallcatlabs.acq/store/ggg/GERWARIC_7694.db"
 )
 
 

@@ -1,4 +1,4 @@
-# Rust playground — agent entry point
+# Acquisition — agent entry point
 
 You are at the root of `smallcatlabs/acquisition`, branch `main`: a
 Cargo workspace implementing Acquisition (`README.md`, the charter and

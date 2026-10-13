@@ -518,7 +518,7 @@ async fn handle(
             let client_id = req.query.get("client_id").cloned().unwrap_or_default();
             let page = format!(
                 "<h1>Fake GGG OAuth</h1>\
-                 <p>This is the playground's mock provider — no real accounts here.</p>\
+                 <p>This is Acquisition's mock provider — no real accounts here.</p>\
                  <p>Authorize <b>{client_id}</b> as:</p>\
                  <form action=\"/approve\" method=\"get\">\
                  {hidden}\

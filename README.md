@@ -1,4 +1,4 @@
-# Rust playground
+# Acquisition
 
 This repository is the Rust implementation of Acquisition (`CONTEXT.md`,
 "Orientation"), built slice by slice, tested against a mock provider,

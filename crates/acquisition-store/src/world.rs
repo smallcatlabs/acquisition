@@ -85,7 +85,7 @@
 //!   a reboot cannot clear them.
 //! - **Diagnostics elsewhere, bounded.** The daemon log and the default
 //!   send journal live under [`log_base_dir`] — `ACQ_LOG_DIR`, else the
-//!   platform's log directory (`~/Library/Logs/acquisition-playground` on
+//!   platform's log directory (`~/Library/Logs/acq` on
 //!   macOS, the XDG state directory's `log` on Linux) — one subdirectory
 //!   per world ([`World::id`], twelve hex digits of the canonical root's
 //!   SHA-256, beside a `world` file naming the root for a human browsing
@@ -129,9 +129,9 @@ use directories::{BaseDirs, ProjectDirs};
 use sha2::{Digest, Sha256};
 
 /// The `directories` identity every platform path derives from.
-const QUALIFIER: &str = "";
-const ORGANIZATION: &str = "gerwaric";
-const APPLICATION: &str = "acquisition-playground";
+const QUALIFIER: &str = "com";
+const ORGANIZATION: &str = "smallcatlabs";
+const APPLICATION: &str = "acq";
 
 fn project_dirs() -> Option<ProjectDirs> {
     ProjectDirs::from(QUALIFIER, ORGANIZATION, APPLICATION)
@@ -550,7 +550,7 @@ pub fn real_mode_lock_path() -> std::io::Result<PathBuf> {
 
 /// Where the daemon log and the default journal live: `ACQ_LOG_DIR`
 /// (made absolute), else the platform's log directory —
-/// `~/Library/Logs/acquisition-playground` on macOS, the XDG state
+/// `~/Library/Logs/acq` on macOS, the XDG state
 /// directory's `log` on Linux, the local data directory's `logs`
 /// elsewhere; `logs` under the current directory with no home at all.
 /// One subdirectory per world and provider under it ([`World::log_dir`]).

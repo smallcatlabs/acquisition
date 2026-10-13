@@ -51,7 +51,7 @@ for f in "$(dirname "$acqd")"/deps/acqd-*; do
     if cmp -s "$f" "$acqd"; then twin=$f; break; fi
 done
 target=${twin:-$acqd}
-if ! out=$(codesign -s "$ACQ_CODESIGN_IDENTITY" --identifier com.gerwaric.acqd -f "$target" 2>&1); then
+if ! out=$(codesign -s "$ACQ_CODESIGN_IDENTITY" --identifier com.smallcatlabs.acqd -f "$target" 2>&1); then
     echo "sign-acqd: codesign failed for $target: $out" >&2; exit 2
 fi
 if [ -n "$twin" ]; then cp -f "$twin" "$acqd"; else echo "sign-acqd: no deps twin with $acqd's bytes — signed the copy alone; the next cargo build will undo it" >&2; fi
@@ -60,7 +60,7 @@ if [ -n "$twin" ]; then cp -f "$twin" "$acqd"; else echo "sign-acqd: no deps twi
 # a nonexistent identity had exited 0 with the code hash still in place).
 req=$(codesign -d -r- "$acqd" 2>&1 | sed -n 's/^designated => //p')
 case $req in
-    *'identifier "com.gerwaric.acqd"'*) ;;
+    *'identifier "com.smallcatlabs.acqd"'*) ;;
     *) echo "sign-acqd: $acqd does not carry the fixed identifier after signing — requirement: ${req:-none}" >&2; exit 2 ;;
 esac
 case $req in

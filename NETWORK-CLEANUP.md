@@ -1,6 +1,6 @@
 # Network cleanup — closed record
 
-The Rust playground's network cleanup (packages N0–N6) is complete and
+The Rust workspace's network cleanup (packages N0–N6) is complete and
 closed as of 2026-08-22. This file is the permanent short record: what was
 built, in which exact ranges, and what was found. Per-package narratives,
 fix-session notes, and validation transcripts were removed on closure and

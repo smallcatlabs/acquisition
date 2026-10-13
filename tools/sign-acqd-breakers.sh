@@ -36,9 +36,9 @@ else echo "FAIL … the file's requirement changed under a failed signing: $afte
 expect "no identity in the environment" 0 "ACQ_CODESIGN_IDENTITY unset" -u ACQ_CODESIGN_IDENTITY -- "$work/acqd"
 expect "no daemon" 2 "no daemon at" ACQ_CODESIGN_IDENTITY=x -- "$work/missing"
 if [ -n "${ACQ_CODESIGN_IDENTITY:-}" ]; then
-    expect "the real identity, no twin" 0 'identifier "com.gerwaric.acqd"' "ACQ_CODESIGN_IDENTITY=$ACQ_CODESIGN_IDENTITY" -- "$work/acqd"
+    expect "the real identity, no twin" 0 'identifier "com.smallcatlabs.acqd"' "ACQ_CODESIGN_IDENTITY=$ACQ_CODESIGN_IDENTITY" -- "$work/acqd"
     cp "$acqd" "$work/deps/acqd-twin"; cp "$acqd" "$work/acqd"
-    expect "the real identity, twin found" 0 'identifier "com.gerwaric.acqd"' "ACQ_CODESIGN_IDENTITY=$ACQ_CODESIGN_IDENTITY" -- "$work/acqd"
+    expect "the real identity, twin found" 0 'identifier "com.smallcatlabs.acqd"' "ACQ_CODESIGN_IDENTITY=$ACQ_CODESIGN_IDENTITY" -- "$work/acqd"
     cmp -s "$work/deps/acqd-twin" "$work/acqd" && echo "ok   … and the twin and the copy are the same signed bytes" || { echo "FAIL … the twin and the copy differ"; fails=$((fails+1)); }
 else
     echo "skip the real-identity cases: ACQ_CODESIGN_IDENTITY is not set in this shell"

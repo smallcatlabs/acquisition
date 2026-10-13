@@ -349,10 +349,7 @@ fn responses() -> Vec<Response> {
             max_in_flight: 2,
             rails: rails(),
             keyring: "ok".into(),
-            log: Some(
-                "/home/alice/.local/state/acquisition-playground/log/0123456789ab/mock/daemon.log"
-                    .into(),
-            ),
+            log: Some("/home/alice/.local/state/acq/log/0123456789ab/mock/daemon.log".into()),
         },
         Response::Quote { quote: quote() },
         Response::Dashboard {
@@ -460,7 +457,7 @@ fn c85_the_bootstrap_plane_is_pinned_and_read_leniently() {
                 serde_json::to_value(Bootstrap::Hello {
                     version: "0.0.1".into(),
                     contract: "0123456789ab".into(),
-                    world: "/home/alice/.local/share/acquisition-playground/store".into(),
+                    world: "/home/alice/.local/share/acq/store".into(),
                 })
                 .unwrap(),
             ),
@@ -476,7 +473,7 @@ fn c85_the_bootstrap_plane_is_pinned_and_read_leniently() {
                     artifact: Some(artifact()),
                     pid: 4242,
                     provider: "mock".into(),
-                    world: "/home/alice/.local/share/acquisition-playground/store".into(),
+                    world: "/home/alice/.local/share/acq/store".into(),
                 })
                 .unwrap(),
             ),

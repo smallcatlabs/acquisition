@@ -53,8 +53,8 @@ impl Provider {
             authorize_url: format!("{base_url}/authorize"),
             token_url: format!("{base_url}/token"),
             api_base: base_url.to_string(),
-            client_id: "acquisition-playground",
-            keyring_service: "acquisition-playground",
+            client_id: "acq-mock",
+            keyring_service: "acq-mock",
         }
     }
 
@@ -65,7 +65,7 @@ impl Provider {
             token_url: "https://www.pathofexile.com/oauth/token".into(),
             api_base: "https://api.pathofexile.com".into(),
             client_id: "acquisition",
-            keyring_service: "acquisition-rust-spike",
+            keyring_service: "acq",
         }
     }
 

@@ -160,7 +160,7 @@ pub(crate) async fn daemon_log_path(client: &mut Client) -> Option<String> {
     // handshake identity (C10, C84); `acq version --json` is the
     // structured form, with the sibling `acqd` beside it.
     version = acquisition_protocol::VERSION_WITH_CONTRACT,
-    about = "Acquisition playground CLI: the real GGG API by default; ACQ_PROVIDER=mock talks to the in-process mock (C88)"
+    about = "Acquisition CLI: the real GGG API by default; ACQ_PROVIDER=mock talks to the in-process mock (C88)"
 )]
 struct Cli {
     /// Emit structured JSON instead of human-readable output.

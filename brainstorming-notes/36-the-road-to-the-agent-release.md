@@ -164,6 +164,18 @@ sets no organization, so Qt's local-data location is `…/acquisition`.
   owner's migration: one directory move with the daemon stopped, the
   socket re-derived from the new root, one `acq auth` per account (two
   today) under the new service name.
+  Done in the tree 2026-10-13, and the prefix amended the same day by
+  the owner: "can we make smallcatlabs.com the org for acquisition?" —
+  the `directories` qualifier `com` and organization `smallcatlabs`
+  (macOS `com.smallcatlabs.acq`, Windows `smallcatlabs\acq`, Linux
+  `acq` as before), the codesign identifier `com.smallcatlabs.acqd`.
+  The session's choices where no ruling named one: the real keyring
+  service `acq`, the mock's service and client id `acq-mock` (the two
+  providers' entries stay separate), the macOS log directory
+  `~/Library/Logs/acq`, the workflow `gate-linux.yml`. The owner
+  migrated the same day: both directories moved, and three accounts
+  logged in under the new service (GERWARIC, _vagabond and _exiled,
+  the third new).
 
 **What does not move.** The user-agent's shape and contact (invariant
 4); the OAuth client id.
@@ -210,7 +222,7 @@ row, the owner deciding deletions:
 daemon, `acqd.exe` beside `acq.exe` in the sibling lookup, the world's
 Windows arms (the runtime directory, the lock, the data and log
 directories), the keyring's Windows arm, and a Windows job in the
-playground workflow running the gate on the mock harness, modelled on
+Linux workflow running the gate on the mock harness, modelled on
 the C++ Windows workflow. The live half runs on a Windows terminal of
 the owner's, under C88 as any first contact: a first-contact row at a
 ceiling of two, then the tracer rung, in `RUN-LEDGER.md` as every run
