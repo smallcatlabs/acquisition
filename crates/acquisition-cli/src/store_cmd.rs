@@ -71,6 +71,48 @@ pub fn print_other_accounts(live: Vec<String>) -> Result<()> {
 }
 
 /// Every account the index knows, with its store file.
+/// `auth status` with no daemon to ask: sessions live in a daemon, so
+/// none is live, and what the index on disk says of each account is what
+/// a daemon would start from — an account in the keyring is restored by
+/// the next job command, one that is not needs `acq auth` again. An
+/// observation: nothing is spawned (C10), and the answer is a state,
+/// never an error.
+pub fn auth_status_absent(json: bool) -> Result<()> {
+    let dir = store_dir(provider());
+    let index = Index::load(&dir)?;
+    if json {
+        let accounts: Vec<Value> = index
+            .entries()
+            .iter()
+            .map(|e| {
+                json!({ "username": e.username, "persisted": e.persisted,
+                             "last_login": e.last_login, "uuid": e.uuid })
+            })
+            .collect();
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({ "running": false, "accounts": accounts }))?
+        );
+        return Ok(());
+    }
+    println!("daemon is not running, so no session is live (it spawns on demand for job commands)");
+    if index.entries().is_empty() {
+        println!("no accounts known for {} — run `acq auth`", provider());
+    }
+    for e in index.entries() {
+        println!(
+            "{}: {}",
+            e.username,
+            if e.persisted {
+                "in the keyring — a job command restores the session"
+            } else {
+                "not persisted — `acq auth` logs in again"
+            }
+        );
+    }
+    Ok(())
+}
+
 pub fn accounts(json: bool) -> Result<()> {
     let dir = store_dir(provider());
     let index = Index::load(&dir)?;

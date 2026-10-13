@@ -29,8 +29,8 @@ Commands:
   dash          Live dashboard (TUI): rate limiter state (enter expands a policy: bucket state, the observed X-Rate-Limit headers, per-endpoint sends), job queue, HTTP sends, recent errors, a rails halt in red. With --json, prints one snapshot and exits
   version       What this build is (C84): the package version, the shared-contract revision the daemon handshake compares — a digest over the protocol and store crates' manifests and `src` trees, the root manifest and the lock, never a git commit — and the sibling `acqd` a job command would start, as found on disk (path, length, modification time; no hash — the run record hashes it). This reports the candidate; `acq daemon status` reports the daemon running. `--json`: {"version", "contract", "provider", "acqd": {path, len, mtime_ns} | null}, plus "acqd_absent" (why) when acqd is null; `--version` is the human form of the first two
   jobs          The live jobs: id, parent, kind, target (from params, C7), state (`↻n` counts 429 re-queues, C26), priority, account, submitter, ETA. Observes only (C10): with no daemon running it never spawns one, and answers from the ledger on disk instead (C45) — the non-terminal rows as the last daemon left them, without ETAs, and how long ago they were written; `--json`: `running: false`, `persisted` (`jobs`, `written_at`; `null` when this shell's world has no queue yet). A job command spawns a successor that restores them; `cancel` then acts on them
-  status        One job's state and ETA. A large ETA is the limiter holding, not a hang: holds can reach 300 s plus the timing bucket
-  result        A finished job's payload or error, answered across daemon restarts (C27: a client that disappears leaves its jobs running). A failed fetch's refused body is in `acq store refused <id>`, not here
+  status        One job's state and ETA. A large ETA is the limiter holding, not a hang: holds can reach 300 s plus the timing bucket. With no daemon running, the job as the ledger on disk records it (never spawns)
+  result        A finished job's payload or error. Kept on disk (7 days done, 30 failed, by default) and answered whether or not a daemon runs; a job still waiting or running is an error unless --wait. A failed or cancelled job exits 1. A failed fetch's refused body is in `acq store refused <id>`, not here
   cancel        Cancel a waiting or running job; cascades to every descendant still waiting (C23)
   set-priority  Change a waiting job's priority; higher runs sooner and the queue reorders live (C5)
   price         The listing state (no daemon): what every item, tab and character is priced as — by hand, in game, and how the two stand
@@ -41,7 +41,7 @@ Commands:
 
 Options:
       --json               Emit structured JSON instead of human-readable output
-      --account <ACCOUNT>  Which account to act as: a username (with or without `#…`) or uuid. Defaults to `ACQ_ACCOUNT`, else the sole known/logged-in account [env: ACQ_ACCOUNT=]
+      --account <ACCOUNT>  Which account to act as: a username (with or without `#…`) or uuid. Defaults to `ACQ_ACCOUNT`. With neither, a verb that reads the store takes the sole account known on disk (`acq accounts`) and a job verb the sole account logged in (`acq auth status`); with more than one, the verb refuses and lists them. A job's progress line and its JSON name the account it ran as [env: ACQ_ACCOUNT=]
   -h, --help               Print help
   -V, --version            Print version
 ```
@@ -364,7 +364,7 @@ Options:
       --json
           Emit structured JSON instead of human-readable output
 
-          Which account to act as: a username (with or without `#…`) or uuid. Defaults to `ACQ_ACCOUNT`, else the sole known/logged-in account
+          Which account to act as: a username (with or without `#…`) or uuid. Defaults to `ACQ_ACCOUNT`. With neither, a verb that reads the store takes the sole account known on disk (`acq accounts`) and a job verb the sole account logged in (`acq auth status`); with more than one, the verb refuses and lists them. A job's progress line and its JSON name the account it ran as
           
           [env: ACQ_ACCOUNT=]
 
@@ -511,7 +511,7 @@ Options:
 ## `acq status`
 
 ```text
-One job's state and ETA. A large ETA is the limiter holding, not a hang: holds can reach 300 s plus the timing bucket
+One job's state and ETA. A large ETA is the limiter holding, not a hang: holds can reach 300 s plus the timing bucket. With no daemon running, the job as the ledger on disk records it (never spawns)
 
 Usage: acq status [OPTIONS] <ID>
 
@@ -525,7 +525,7 @@ Options:
 ## `acq result`
 
 ```text
-A finished job's payload or error, answered across daemon restarts (C27: a client that disappears leaves its jobs running). A failed fetch's refused body is in `acq store refused <id>`, not here
+A finished job's payload or error. Kept on disk (7 days done, 30 failed, by default) and answered whether or not a daemon runs; a job still waiting or running is an error unless --wait. A failed or cancelled job exits 1. A failed fetch's refused body is in `acq store refused <id>`, not here
 
 Usage: acq result [OPTIONS] <ID>
 
@@ -533,6 +533,7 @@ Arguments:
   <ID>  
 
 Options:
+      --wait               Block until the job finishes, printing progress on stderr, then print the result: how a `--detach`ed job is collected. Needs the daemon that is running the job
   -h, --help               Print help
 ```
 

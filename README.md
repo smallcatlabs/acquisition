@@ -73,7 +73,7 @@ acq <verb> --help   # every verb's reference
 
 # a session — scripted mock login: the mock-session skill
 acq auth [--no-browser]   # OAuth login
-acq auth status | check | logout   # local session; token check; logout
+acq auth status | check | logout   # live sessions, or with no daemon what one would restore; token check; logout
 acq accounts   # logged-in accounts (no daemon)
 
 # jobs against the API — daemon lazy-spawns; first route use probes (C20)
@@ -85,7 +85,7 @@ acq stash <id> [--sub <id>] [--deep]   # one tab, optionally with substashes
 acq refresh --tabs a,b,c | --all [--deep]   # ad-hoc refresh of selected tabs
 acq submit <kind> [--params JSON] [--detach]   # submit a job by kind
 acq demo   # mock burst with limiter ETAs
-acq jobs [--watch] | status <id> | result <id>   # queue; one job; finished payload
+acq jobs [--watch] | status <id> | result <id> [--wait]   # queue; one job; its payload, from disk if no daemon runs
 acq cancel <id> | set-priority <id> <n>   # cancel a subtree; change priority
 acq dash   # live TUI dashboard
 
@@ -118,7 +118,8 @@ acq version [--json]   # build identity and sibling acqd
 
 Every command takes `--json`, and it is total: a failure is `{"error":…}`
 on stdout with exit 1, a refused command line the same with
-`"kind":"usage"` and exit 2 (C11). `--account <username|name|uuid>` picks the
+`"kind":"usage"` and exit 2 (C11). A job verb prints its payload on
+stdout and its progress on stderr, and exits 0 only for a success. `--account <username|name|uuid>` picks the
 account when several are logged in (C51).
 
 The real provider, under the existing registration (invariant 4), is

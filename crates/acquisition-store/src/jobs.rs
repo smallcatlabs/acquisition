@@ -299,7 +299,74 @@ pub struct Persisted {
     pub written_at: Option<i64>,
 }
 
+/// One job of any state as the ledger holds it, with its outcome once
+/// terminal — what `acq status <id>` and `acq result <id>` answer with no
+/// daemon to ask (C45): a finished job's result is on disk for as long as
+/// the daemon's retention keeps it, and a reader should not need a daemon
+/// started to read it.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct PersistedRecord {
+    /// The row; its `state` is any of the five, as recorded.
+    pub job: PersistedJob,
+    /// The outcome as the daemon wrote it (`{"outcome": …}`), `None`
+    /// until the job is terminal.
+    pub outcome: Option<Value>,
+}
+
 impl Persisted {
+    /// One job of the provider's ledger in this shell's world, or `None`
+    /// when there is no ledger or it holds no such id. Same door and same
+    /// errors as [`Persisted::observe`].
+    pub fn observe_job(provider: &str, id: u64) -> Result<Option<PersistedRecord>> {
+        let world = match crate::world::World::observe() {
+            Ok(world) => world,
+            Err(e) if e.absent => return Ok(None),
+            Err(e) => return Err(anyhow::anyhow!("{e}")),
+        };
+        Self::read_job(&world.provider_dir(provider), id)
+    }
+
+    /// One job of the ledger under `dir`, read-only as [`Persisted::read`].
+    pub fn read_job(dir: &Path, id: u64) -> Result<Option<PersistedRecord>> {
+        let path = daemon_db_path(dir);
+        if !path.exists() {
+            return Ok(None);
+        }
+        let conn = Connection::open_with_flags(
+            &path,
+            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )
+        .with_context(|| format!("opening {} read-only", path.display()))?;
+        conn.busy_timeout(std::time::Duration::from_secs(5))?;
+        conn.query_row(
+            "SELECT id, kind, state, priority, submitted_by, parent, retries, account,
+                    params, cancel_requested, submitted_at, updated_at, outcome
+             FROM jobs WHERE id = ?1",
+            [id],
+            |r| {
+                Ok(PersistedRecord {
+                    job: PersistedJob {
+                        id: r.get(0)?,
+                        kind: r.get(1)?,
+                        state: r.get(2)?,
+                        priority: r.get(3)?,
+                        submitted_by: r.get(4)?,
+                        parent: r.get(5)?,
+                        retries: r.get(6)?,
+                        account: r.get(7)?,
+                        params: parse(r.get::<_, String>(8)?),
+                        cancel_requested: r.get(9)?,
+                        submitted_at: r.get(10)?,
+                        updated_at: r.get(11)?,
+                    },
+                    outcome: r.get::<_, Option<String>>(12)?.map(parse),
+                })
+            },
+        )
+        .optional()
+        .with_context(|| format!("reading job {id} in {}", path.display()))
+    }
+
     /// The provider's ledger in this shell's world, or `None` when there
     /// is nothing to read: no world root yet (an observer creates none,
     /// C83) or no `daemon.db` under it. Anything else that goes wrong

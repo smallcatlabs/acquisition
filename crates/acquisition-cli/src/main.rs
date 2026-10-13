@@ -19,7 +19,7 @@ use acquisition_protocol::protocol::{Request, Response};
 use acquisition_protocol::provider::{self, GGG};
 use acquisition_protocol::realm::Realm;
 use acquisition_store::Resolve;
-use acquisition_store::jobs::{Persisted, PersistedJob};
+use acquisition_store::jobs::{Persisted, PersistedJob, PersistedRecord};
 use acquisition_store::world::World;
 use anyhow::{Result, bail};
 use clap::{Parser, Subcommand};
@@ -113,6 +113,9 @@ fn persisted_as_info(job: &PersistedJob) -> Result<JobInfo> {
     let state = match job.state.as_str() {
         "waiting" => JobState::Waiting,
         "running" => JobState::Running,
+        "done" => JobState::Done,
+        "failed" => JobState::Failed,
+        "cancelled" => JobState::Cancelled,
         other => bail!(
             "job {} on disk has state `{other}`, which this build does not know",
             job.id
@@ -130,6 +133,60 @@ fn persisted_as_info(job: &PersistedJob) -> Result<JobInfo> {
         account: job.account.clone(),
         params: job.params.clone(),
     })
+}
+
+/// One job from the ledger on disk, for `status` and `result` with no
+/// daemon to ask (C45). No such id, or no ledger at all, is the error
+/// that says both halves: nothing on disk, nothing running.
+fn persisted_job(id: u64) -> Result<PersistedRecord> {
+    match Persisted::observe_job(provider::wanted(), id)? {
+        Some(record) => Ok(record),
+        None => bail!(
+            "no job {id} on disk, and the daemon is not running (it spawns on demand for job commands)"
+        ),
+    }
+}
+
+/// `status <id>` with no daemon: the row as recorded, in `jobs`' absent
+/// shape — `running: false` beside what the ledger holds.
+fn print_persisted_job(id: u64, json: bool) -> Result<()> {
+    let record = persisted_job(id)?;
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({ "running": false, "persisted": record.job }))?
+        );
+        return Ok(());
+    }
+    println!(
+        "daemon is not running; job {id} as the ledger on disk records it, written {}",
+        store_cmd::ago(acquisition_store::now(), Some(record.job.updated_at)),
+    );
+    print_table(&[persisted_as_info(&record.job)?]);
+    Ok(())
+}
+
+/// `result <id>` with no daemon: a terminal job's outcome is final, so it
+/// prints exactly as a daemon would answer it. A job that has none yet
+/// cannot get one until a daemon runs, and `--wait` cannot wait for that
+/// without spawning (C10): both say so.
+fn print_persisted_result(id: u64, wait: bool, json: bool) -> Result<()> {
+    let record = persisted_job(id)?;
+    let Some(outcome) = record.outcome else {
+        bail!(
+            "job {id} is recorded {} on disk and the daemon is not running: a job command \
+             starts one that resumes it{}",
+            record.job.state,
+            if wait {
+                ", and --wait can then wait for it"
+            } else {
+                ""
+            }
+        );
+    };
+    let outcome: Outcome = serde_json::from_value(outcome)
+        .map_err(|e| anyhow::anyhow!("job {id}'s outcome on disk does not parse: {e}"))?;
+    print_outcome(id, record.job.account.as_deref(), &outcome, json)
 }
 
 /// What a human does about a daemon this client will not use: a
@@ -168,7 +225,11 @@ struct Cli {
     #[arg(long, global = true)]
     json: bool,
     /// Which account to act as: a username (with or without `#…`) or uuid.
-    /// Defaults to `ACQ_ACCOUNT`, else the sole known/logged-in account.
+    /// Defaults to `ACQ_ACCOUNT`. With neither, a verb that reads the
+    /// store takes the sole account known on disk (`acq accounts`) and a
+    /// job verb the sole account logged in (`acq auth status`); with more
+    /// than one, the verb refuses and lists them. A job's progress line
+    /// and its JSON name the account it ran as.
     #[arg(long, global = true, env = "ACQ_ACCOUNT")]
     account: Option<String>,
     #[command(subcommand)]
@@ -389,12 +450,22 @@ is the per-location summary.")]
         watch: bool,
     },
     /// One job's state and ETA. A large ETA is the limiter holding, not a
-    /// hang: holds can reach 300 s plus the timing bucket.
+    /// hang: holds can reach 300 s plus the timing bucket. With no daemon
+    /// running, the job as the ledger on disk records it (never spawns).
     Status { id: u64 },
-    /// A finished job's payload or error, answered across daemon restarts
-    /// (C27: a client that disappears leaves its jobs running). A failed
-    /// fetch's refused body is in `acq store refused <id>`, not here.
-    Result { id: u64 },
+    /// A finished job's payload or error. Kept on disk (7 days done, 30
+    /// failed, by default) and answered whether or not a daemon runs; a
+    /// job still waiting or running is an error unless --wait. A failed
+    /// or cancelled job exits 1. A failed fetch's refused body is in
+    /// `acq store refused <id>`, not here.
+    Result {
+        id: u64,
+        /// Block until the job finishes, printing progress on stderr,
+        /// then print the result: how a `--detach`ed job is collected.
+        /// Needs the daemon that is running the job.
+        #[arg(long)]
+        wait: bool,
+    },
     /// Cancel a waiting or running job; cascades to every descendant
     /// still waiting (C23).
     Cancel { id: u64 },
@@ -779,7 +850,10 @@ async fn run(cli: Cli) -> Result<()> {
         Cmd::Auth { cmd, no_browser } => match cmd {
             None => login(no_browser, cli.json).await,
             Some(AuthCmd::Status) => {
-                let mut client = attach().await?;
+                let mut client = match Client::observe().await? {
+                    Observed::Absent => return store_cmd::auth_status_absent(cli.json),
+                    observed => client_of(observed)?,
+                };
                 let status = client.request(&Request::AuthStatus).await?;
                 print_auth(&status, cli.json)?;
                 if !cli.json {
@@ -1054,7 +1128,9 @@ async fn run(cli: Cli) -> Result<()> {
                 if cli.json {
                     println!("{}", json!({ "job_id": id }));
                 } else {
-                    println!("job {id} submitted (acq status {id} / acq result {id})");
+                    println!(
+                        "job {id} submitted (`acq status {id}` reads its state, `acq result {id} --wait` collects it)"
+                    );
                 }
                 Ok(())
             } else {
@@ -1127,7 +1203,10 @@ async fn run(cli: Cli) -> Result<()> {
             Ok(())
         }
         Cmd::Status { id } => {
-            let mut client = attach().await?;
+            let mut client = match Client::observe().await? {
+                Observed::Absent => return print_persisted_job(id, cli.json),
+                observed => client_of(observed)?,
+            };
             let job = client.status(id).await?;
             if cli.json {
                 println!("{}", serde_json::to_string_pretty(&job)?);
@@ -1136,8 +1215,14 @@ async fn run(cli: Cli) -> Result<()> {
             }
             Ok(())
         }
-        Cmd::Result { id } => {
-            let mut client = attach().await?;
+        Cmd::Result { id, wait } => {
+            let mut client = match Client::observe().await? {
+                Observed::Absent => return print_persisted_result(id, wait, cli.json),
+                observed => client_of(observed)?,
+            };
+            if wait {
+                wait_for_job(&mut client, id, cli.json).await?;
+            }
             print_result(&mut client, id, cli.json).await
         }
         Cmd::Cancel { id } => {
@@ -1678,10 +1763,12 @@ pub(crate) async fn block_on_job(client: &mut Client, id: u64, json: bool) -> Re
 /// at most every this often — a 13-minute apply is not 1,500 lines.
 const PROGRESS_EVERY: Duration = Duration::from_secs(10);
 
-/// Block until the job is terminal and return its outcome. `quiet` skips
-/// the progress line (JSON mode: stdout is the outcome, nothing else).
+/// Block until the job is terminal and return its outcome. Progress goes
+/// to stderr: stdout is the answer and nothing else, in text mode as in
+/// JSON, so what a caller captures is what the job returned. `quiet`
+/// skips the progress line.
 pub(crate) async fn wait_for_job(client: &mut Client, id: u64, quiet: bool) -> Result<Outcome> {
-    let tty = std::io::stdout().is_terminal();
+    let tty = std::io::stderr().is_terminal();
     let mut last = String::new();
     let mut last_print: Option<Instant> = None;
     loop {
@@ -1692,10 +1779,10 @@ pub(crate) async fn wait_for_job(client: &mut Client, id: u64, quiet: bool) -> R
             let due = last_print.is_none_or(|t| t.elapsed() >= PROGRESS_EVERY);
             if line != last && (tty || terminal || due) {
                 if tty {
-                    print!("\r\x1b[2K{line}");
-                    std::io::stdout().flush().ok();
+                    eprint!("\r\x1b[2K{line}");
+                    std::io::stderr().flush().ok();
                 } else {
-                    println!("{line}");
+                    eprintln!("{line}");
                 }
                 last = line;
                 last_print = Some(Instant::now());
@@ -1703,7 +1790,7 @@ pub(crate) async fn wait_for_job(client: &mut Client, id: u64, quiet: bool) -> R
         }
         if terminal {
             if !quiet && tty {
-                println!();
+                eprintln!();
             }
             return match client.request(&Request::Result { id }).await? {
                 Response::Result { outcome, .. } => Ok(outcome),
@@ -1758,9 +1845,16 @@ async fn tally_children(client: &mut Client, parent: u64) -> Result<ChildTally> 
 /// waiting, next in ~343s (limiter hold on stash)`), any other job its
 /// own state and ETA.
 async fn progress_line(client: &mut Client, job: &JobInfo) -> Result<String> {
-    let id = job.id;
+    // The account the job runs as, on every line: with several accounts
+    // known a job verb takes the one logged in (C51), and the caller
+    // should see which that was before reading what came back.
+    let id = match &job.account {
+        Some(account) => format!("{} ({account})", job.id),
+        None => job.id.to_string(),
+    };
+    let job_id = job.id;
     if matches!(job.kind.as_str(), "apply" | "refresh") && job.state != JobState::Waiting {
-        let t = tally_children(client, id).await?;
+        let t = tally_children(client, job_id).await?;
         if t.total > 0 {
             let mut line = format!("job {id}: {}/{} done", t.done, t.total);
             if t.failed > 0 {
@@ -1891,34 +1985,49 @@ async fn print_result(client: &mut Client, id: u64, json: bool) -> Result<()> {
         Response::Error { kind, message } => return Err(DaemonError { kind, message }.into()),
         other => bail!("unexpected response: {other:?}"),
     };
-    if json {
-        println!("{}", serde_json::to_string_pretty(&outcome)?);
-        // A failed job exits 1 in both output modes; the outcome above is
-        // the report, so main adds no second message.
-        return match outcome {
-            Outcome::Failure { .. } => Err(AlreadyReported.into()),
-            _ => Ok(()),
-        };
-    }
+    // Status may be gone after a daemon restart; then the outcome is
+    // printed without its account and an apply without its report.
+    let job = client.status(id).await.ok();
     // An apply parent's payload is a child-id list and a tally; a person
-    // wants the report, not the array. (Status may be gone after a daemon
-    // restart; then the generic rendering serves.)
-    let kind = client.status(id).await.map(|j| j.kind).unwrap_or_default();
-    if kind == "apply" {
+    // wants the report, not the array.
+    if !json && job.as_ref().is_some_and(|j| j.kind == "apply") {
         print!("{}", report_apply(client, id, &outcome).await);
         return match outcome {
-            Outcome::Failure { .. } => Err(AlreadyReported.into()),
-            _ => Ok(()),
+            Outcome::Success { .. } => Ok(()),
+            _ => Err(AlreadyReported.into()),
+        };
+    }
+    let account = job.and_then(|j| j.account);
+    print_outcome(id, account.as_deref(), &outcome, json)
+}
+
+/// A terminal job's outcome, from the daemon or from the ledger on disk.
+/// JSON is the outcome with the job's id and account beside it (additive,
+/// C53): a blocking verb has no other way to say which job it was or
+/// whose. Only a success exits 0 — a failed or cancelled job left nothing
+/// on stdout to use, so the exit says so in both modes (C11); the JSON
+/// outcome is the report, and main adds no second message.
+fn print_outcome(id: u64, account: Option<&str>, outcome: &Outcome, json: bool) -> Result<()> {
+    if json {
+        let mut report = serde_json::to_value(outcome)?;
+        report["job_id"] = json!(id);
+        if let Some(account) = account {
+            report["account"] = json!(account);
+        }
+        println!("{}", serde_json::to_string_pretty(&report)?);
+        return match outcome {
+            Outcome::Success { .. } => Ok(()),
+            _ => Err(AlreadyReported.into()),
         };
     }
     match outcome {
         Outcome::Success { payload } => {
-            println!("{}", serde_json::to_string_pretty(&payload)?)
+            println!("{}", serde_json::to_string_pretty(payload)?);
+            Ok(())
         }
         Outcome::Failure { error } => bail!("job {id} failed: {error}"),
-        Outcome::Cancelled => println!("job {id} was cancelled"),
+        Outcome::Cancelled => bail!("job {id} was cancelled"),
     }
-    Ok(())
 }
 
 fn print_table(jobs: &[JobInfo]) {

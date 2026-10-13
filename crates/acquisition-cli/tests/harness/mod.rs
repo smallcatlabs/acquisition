@@ -239,3 +239,57 @@ pub fn sockets_under(dir: &Path) -> Vec<PathBuf> {
     found.sort();
     found
 }
+
+/// One plain HTTP GET (loopback only): status, lowercased headers, body.
+/// Enough to click the mock's approve link.
+fn http_get(url: &str) -> (u16, std::collections::HashMap<String, String>, String) {
+    use std::io::{Read as _, Write as _};
+    let rest = url.strip_prefix("http://").expect("loopback http url");
+    let (host, path) = rest.split_at(rest.find('/').unwrap_or(rest.len()));
+    let path = if path.is_empty() { "/" } else { path };
+    let mut stream = std::net::TcpStream::connect(host).expect("connecting to mock/daemon");
+    write!(
+        stream,
+        "GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n"
+    )
+    .unwrap();
+    let mut response = String::new();
+    stream.read_to_string(&mut response).unwrap();
+    let (head, body) = response
+        .split_once("\r\n\r\n")
+        .unwrap_or((response.as_str(), ""));
+    let mut lines = head.lines();
+    let status: u16 = lines
+        .next()
+        .and_then(|l| l.split_whitespace().nth(1))
+        .and_then(|s| s.parse().ok())
+        .unwrap_or_else(|| panic!("unparseable response:\n{response}"));
+    let headers = lines
+        .filter_map(|l| l.split_once(": "))
+        .map(|(k, v)| (k.to_ascii_lowercase(), v.to_string()))
+        .collect();
+    (status, headers, body.to_string())
+}
+
+/// The scripted mock login (the mock-session skill's recipe) as `user`:
+/// `acq auth --no-browser --json`, the printed authorize URL approved at
+/// the mock, the 302 followed to the daemon's callback.
+pub fn login(base: &Path, user: &str) {
+    use std::io::BufRead as _;
+    let mut child = command(base, &["auth", "--no-browser", "--json"])
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("spawning acq auth");
+    let mut lines = std::io::BufReader::new(child.stdout.take().unwrap()).lines();
+    let first: Value = serde_json::from_str(&lines.next().unwrap().unwrap()).unwrap();
+    let authorize = first["authorize_url"].as_str().expect("authorize_url");
+    let approve = format!(
+        "{}&user={user}",
+        authorize.replace("/authorize?", "/approve?")
+    );
+    let (status, headers, body) = http_get(&approve);
+    assert_eq!(status, 302, "approve did not redirect: {body}");
+    let (status, _, body) = http_get(&headers["location"]);
+    assert_eq!(status, 200, "callback refused: {body}");
+    assert!(child.wait().unwrap().success(), "login did not complete");
+}
