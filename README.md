@@ -103,7 +103,7 @@ acq price clear <target> [--if-revision N]   # remove a price, with undo
 acq shop render [--size N] [--template FILE] [--page N] [--expand]   # forum pages to paste, omissions counted
 
 # the store — no daemon, no network
-acq tabs [--league L] [--realm R]   # tab tree and live item counts
+acq tabs [--league L] [--realm R] [--expand]   # counts first, then the tab tree; a large league is counted by type unless --expand
 acq store characters [--realm R] [--league L]   # character locations, ages and live items
 acq search [--realm R] ['<query>'] [--sort V [--desc]] [--limit N] [--routes]   # item search: scope, basis, counts per term, rows; a store of two realms needs --realm (pc, poe2, all)
 acq search ['<query>'] --count KEY,… | --cross KEY,KEY [--sum V]   # the matches counted by key, one table each or one crossed; line[:text,…] is the vocabulary

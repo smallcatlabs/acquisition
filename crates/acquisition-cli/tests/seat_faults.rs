@@ -578,3 +578,102 @@ fn jobs_lists_what_is_open_and_counts_the_finished_it_leaves_out() {
     let all = sole_json(&acq(&base, &["jobs", "--json"]));
     assert_eq!(all.as_array().map(Vec::len), Some(12), "{all}");
 }
+
+/// `daemon stop` said one line, and the next job command said "not
+/// logged in": a session the keyring does not hold lives in the daemon
+/// alone, so stopping it is a logout, and nothing said so. The stop names
+/// the accounts it logged out.
+#[test]
+fn stopping_a_daemon_says_which_logins_ended_with_it() {
+    let scratch = harness::scratch("seat-stop");
+    let base = scratch.0.clone();
+    let (daemon, _pid) = start_daemon(&base);
+    login(&base, "alice");
+
+    let out = acq(&base, &["daemon", "stop"]);
+    let said = stdout(&out);
+    assert!(out.status.success(), "{}", text(&out));
+    assert!(
+        said.contains("logged out with it: alice — not in the keyring"),
+        "{said}"
+    );
+    drop(daemon);
+
+    // With no session there is nothing to say.
+    let (_daemon, _pid) = start_daemon(&base);
+    let stopped = sole_json(&acq(&base, &["daemon", "stop", "--json"]));
+    assert_eq!(stopped["sessions_ended"], json!([]), "{stopped}");
+}
+
+/// `acq tabs` printed every tab of the league with its only summary on
+/// the last line: 355 KB for the owner's Standard, which two seats met —
+/// the first turned away, the second filled its context. The counts are
+/// the first line, and a league of more than thirty tabs is counted by
+/// type with its ten largest; `--expand` is every tab, as JSON always is.
+#[test]
+fn tabs_says_its_counts_first_and_counts_a_large_league() {
+    let scratch = harness::scratch("seat-tabs");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    let said = stdout(&acq(&base, &["tabs"]));
+    assert!(
+        said.starts_with("1 tabs in Standard: 1 fetched; 1 items\n"),
+        "{said}"
+    );
+    assert!(
+        said.contains("a1"),
+        "a small league is listed whole:\n{said}"
+    );
+
+    // Forty more tabs listed and never fetched.
+    let mock = base.join("store").join("mock");
+    let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
+    let stashes: Vec<Value> = (0..41)
+        .map(|i| {
+            if i == 0 {
+                json!({ "id": "a1", "name": "Gear", "type": "PremiumStash", "index": 0 })
+            } else {
+                json!({ "id": format!("q{i}"), "name": format!("Dump {i}"), "type": "QuadStash", "index": i })
+            }
+        })
+        .collect();
+    store
+        .record(
+            &Endpoint::Stashes {
+                realm: "pc".into(),
+                league: "Standard".into(),
+            },
+            &json!({ "league": "Standard" }),
+            200,
+            &json!({ "stashes": stashes }),
+            acquisition_store::now(),
+        )
+        .unwrap();
+    drop(store);
+
+    let said = stdout(&acq(&base, &["tabs"]));
+    let lines: Vec<&str> = said.lines().collect();
+    assert_eq!(
+        lines[0], "41 tabs in Standard: 1 fetched, 40 never fetched; 1 items",
+        "{said}"
+    );
+    assert!(
+        lines
+            .iter()
+            .any(|l| l.starts_with("QuadStash") && l.contains("40")),
+        "{said}"
+    );
+    assert!(
+        lines.len() < 25,
+        "a large league is counted, never listed:\n{said}"
+    );
+    assert!(
+        lines
+            .last()
+            .unwrap()
+            .starts_with("next: `acq tabs --expand` lists all 41"),
+        "{said}"
+    );
+    let all = stdout(&acq(&base, &["tabs", "--expand"]));
+    assert!(all.contains("q40") && all.lines().count() > 41, "{all}");
+}

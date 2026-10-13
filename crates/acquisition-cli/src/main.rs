@@ -221,7 +221,10 @@ pub(crate) async fn daemon_log_path(client: &mut Client) -> Option<String> {
     about = "Acquisition CLI: the real GGG API by default; ACQ_PROVIDER=mock talks to the in-process mock (C88)"
 )]
 struct Cli {
-    /// Emit structured JSON instead of human-readable output.
+    /// Emit structured JSON instead of human-readable output: one
+    /// document on stdout, a failure included (`{"error", "kind"}`). A
+    /// job verb's is `{"outcome", "payload", "job_id", "account"}`; without
+    /// the flag it prints the payload alone.
     #[arg(long, global = true)]
     json: bool,
     /// Which account to act as: a username (with or without `#…`) or uuid.
@@ -271,8 +274,14 @@ enum Cmd {
     Leagues,
     /// Accounts this machine has logged into (the store's index; no daemon).
     Accounts,
-    /// Tabs of a league, from the shared store (no daemon round-trip).
+    /// Tabs of a league, from the shared store (no daemon round-trip):
+    /// the counts first, then every tab with its type, items, age and id.
+    /// A league of more than thirty tabs is counted by type with its ten
+    /// largest tabs instead; --expand lists every one.
     Tabs {
+        /// List every tab of a large league.
+        #[arg(long)]
+        expand: bool,
         #[arg(long, default_value = "Standard")]
         league: String,
         /// pc (default), xbox, or sony — stashes are PoE1 only (C59).
@@ -369,8 +378,10 @@ is the per-location summary.")]
         expand: bool,
         /// Execute the plan: exactly its actions, as one `apply` parent
         /// job that never expands the set. Bare `--apply` compiles the
-        /// stored policy now; `--apply=FILE` (or `--apply=-` for stdin)
-        /// reads a reviewed plan envelope from `refresh --plan --json`.
+        /// stored policy now, so it never fetches what is fresh;
+        /// `--apply=FILE` (or `--apply=-` for stdin) reads a reviewed plan
+        /// envelope from `refresh --plan --json` and fetches everything
+        /// it lists, again if it is applied again — a file is spent once.
         /// Refused if the stored policy revision no longer matches the
         /// plan's.
         #[arg(long, value_name = "FILE", num_args = 0..=1, require_equals = true,
@@ -957,7 +968,11 @@ async fn run(cli: Cli) -> Result<()> {
             block_on_job(&mut client, id, cli.json).await
         }
         Cmd::Accounts => store_cmd::accounts(cli.json),
-        Cmd::Tabs { league, realm } => store_cmd::tabs(realm, &league, cli.json),
+        Cmd::Tabs {
+            league,
+            realm,
+            expand,
+        } => store_cmd::tabs(realm, &league, expand, cli.json),
         Cmd::Search(args) => search_cmd::search(*args, cli.json),
         Cmd::Show(args) => search_cmd::show_item(args, cli.json),
         Cmd::Store { cmd } => match cmd {
@@ -1257,7 +1272,10 @@ async fn run(cli: Cli) -> Result<()> {
             if cli.json {
                 println!("{}", json!({ "job_id": id, "cancel_requested": true }));
             } else {
-                println!("job {id} cancel requested");
+                println!(
+                    "job {id} cancel requested — a running job stops at its next check; \
+                     `acq result {id} --wait` returns once it has"
+                );
             }
             Ok(())
         }
@@ -1524,6 +1542,21 @@ async fn run(cli: Cli) -> Result<()> {
                 Ok(())
             }
             DaemonCmd::Stop => {
+                // A session the keyring does not hold lives in the daemon
+                // alone, so stopping it is a logout: asked of this build's
+                // daemon before it goes, and said after. Best effort — a
+                // daemon that will not answer is stopped all the same.
+                let mut ended: Vec<String> = Vec::new();
+                if let Ok(Observed::Compatible(mut client)) = Client::observe().await
+                    && let Ok(Response::Auth { accounts, .. }) =
+                        client.request(&Request::AuthStatus).await
+                {
+                    ended = accounts
+                        .into_iter()
+                        .filter(|a| a.keyring != "ok")
+                        .map(|a| a.username)
+                        .collect();
+                }
                 // Stops this build's daemon or any other (C10): stopping is
                 // how a mismatch is resolved by hand.
                 match Client::stop_any().await? {
@@ -1538,10 +1571,18 @@ async fn run(cli: Cli) -> Result<()> {
                                     "provider": found.provider(),
                                     "compatible": found.is_ours(),
                                     "socket": found.socket(),
+                                    "sessions_ended": ended,
                                 })
                             );
                         } else if found.is_ours() {
                             println!("daemon stopped (pid {})", found.pid());
+                            if !ended.is_empty() {
+                                println!(
+                                    "logged out with it: {} — not in the keyring, so the session \
+                                     lived in that daemon alone; `acq auth` logs in again",
+                                    ended.join(", ")
+                                );
+                            }
                         } else {
                             println!("stopped: {found}");
                         }
@@ -1648,8 +1689,12 @@ fn print_auth(status: &Response, json: bool) -> Result<()> {
         (true, _) => {
             for a in accounts {
                 let token = match a.access_expires_in_seconds {
-                    Some(s) if s > 0 => format!("access token valid for ~{s}s"),
-                    _ => "access token expired (will refresh on next use)".into(),
+                    Some(s) if s > 0 => {
+                        format!(
+                            "access token valid for ~{s}s (renewed on use; the login outlasts it)"
+                        )
+                    }
+                    _ => "access token expired (renewed on next use; the login stands)".into(),
                 };
                 let kr = if a.keyring == "ok" {
                     String::new()
@@ -2220,7 +2265,12 @@ fn print_summary(jobs: &[JobInfo]) {
     if cancelled > 0 {
         parts.push(format!("{cancelled} cancelled"));
     }
-    println!("{} jobs: {}", jobs.len(), parts.join(", "));
+    println!(
+        "{} job{}: {}",
+        jobs.len(),
+        if jobs.len() == 1 { "" } else { "s" },
+        parts.join(", ")
+    );
 }
 
 /// Re-render the job table once a second until every listed job is terminal.

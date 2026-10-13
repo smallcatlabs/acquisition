@@ -16,7 +16,7 @@ Commands:
   character     Fetch one character with its equipment and inventory
   leagues       List the account's leagues
   accounts      Accounts this machine has logged into (the store's index; no daemon)
-  tabs          Tabs of a league, from the shared store (no daemon round-trip)
+  tabs          Tabs of a league, from the shared store (no daemon round-trip): the counts first, then every tab with its type, items, age and id. A league of more than thirty tabs is counted by type with its ten largest tabs instead; --expand lists every one
   search        Search the items the store holds (no daemon): a query over every live item of one realm, answered with the canonical query, the scope searched, the basis, each term's counts over the scope — matched, failed, lacked, undecided (C93) — the total, and the rows with the lines the query touched. Every count has a route: the command that returns exactly its members. `--json` is the answer whole, the query as text and as tree; a failure is `{"error", "kind", "readings"}`, with `offers` where a way on is a request `--request` reads. `--describe` prints the language, and what this build refuses by name
   show          One item as the search derives it, live or removed (no daemon): its fields, its place, every line with its kind, template and numbers, and what could not be read; `--json` the same, structured. `--body` adds the body as the store holds it, which is still there when deriving could not read it
   store         The shared store itself (what the daemon writes; every frontend reads)
@@ -40,7 +40,7 @@ Commands:
   help          Print this message or the help of the given subcommand(s)
 
 Options:
-      --json               Emit structured JSON instead of human-readable output
+      --json               Emit structured JSON instead of human-readable output: one document on stdout, a failure included (`{"error", "kind"}`). A job verb's is `{"outcome", "payload", "job_id", "account"}`; without the flag it prints the payload alone
       --account <ACCOUNT>  Which account to act as: a username (with or without `#…`) or uuid. Defaults to `ACQ_ACCOUNT`. With neither, a verb that reads the store takes the sole account known on disk (`acq accounts`) and a job verb the sole account logged in (`acq auth status`); with more than one, the verb refuses and lists them. A job's progress line and its JSON name the account it ran as [env: ACQ_ACCOUNT=]
   -h, --help               Print help
   -V, --version            Print version
@@ -160,11 +160,12 @@ Options:
 ## `acq tabs`
 
 ```text
-Tabs of a league, from the shared store (no daemon round-trip)
+Tabs of a league, from the shared store (no daemon round-trip): the counts first, then every tab with its type, items, age and id. A league of more than thirty tabs is counted by type with its ten largest tabs instead; --expand lists every one
 
 Usage: acq tabs [OPTIONS]
 
 Options:
+      --expand             List every tab of a large league
       --league <LEAGUE>    [default: Standard]
       --realm <REALM>      pc (default), xbox, or sony — stashes are PoE1 only (C59) [default: pc]
   -h, --help               Print help
@@ -362,7 +363,7 @@ Options:
           Every tab in the league (folder children included, folders not)
 
       --json
-          Emit structured JSON instead of human-readable output
+          Emit structured JSON instead of human-readable output: one document on stdout, a failure included (`{"error", "kind"}`). A job verb's is `{"outcome", "payload", "job_id", "account"}`; without the flag it prints the payload alone
 
           Which account to act as: a username (with or without `#…`) or uuid. Defaults to `ACQ_ACCOUNT`. With neither, a verb that reads the store takes the sole account known on disk (`acq accounts`) and a job verb the sole account logged in (`acq auth status`); with more than one, the verb refuses and lists them. A job's progress line and its JSON name the account it ran as
 
@@ -381,7 +382,7 @@ Options:
           With --plan: one line per action and every quote note, instead of the grouped view (groups over ten entities are counted)
 
       --apply[=<FILE>]
-          Execute the plan: exactly its actions, as one `apply` parent job that never expands the set. Bare `--apply` compiles the stored policy now; `--apply=FILE` (or `--apply=-` for stdin) reads a reviewed plan envelope from `refresh --plan --json`. Refused if the stored policy revision no longer matches the plan's
+          Execute the plan: exactly its actions, as one `apply` parent job that never expands the set. Bare `--apply` compiles the stored policy now, so it never fetches what is fresh; `--apply=FILE` (or `--apply=-` for stdin) reads a reviewed plan envelope from `refresh --plan --json` and fetches everything it lists, again if it is applied again — a file is spent once. Refused if the stored policy revision no longer matches the plan's
 
       --max-requests <MAX_REQUESTS>
           Refuse the apply before anything runs if the plan authorizes more than this many requests (checked by the daemon at admission, before any child job exists)
@@ -446,7 +447,7 @@ Options:
           Only write if the stored policy is at exactly this revision (what `acq policy show` printed when you reviewed it); refused with the current revision otherwise. Without it the write replaces whatever revision is currently stored — though a write racing in between still conflicts rather than being clobbered
 
       --json
-          Emit structured JSON instead of human-readable output
+          Emit structured JSON instead of human-readable output: one document on stdout, a failure included (`{"error", "kind"}`). A job verb's is `{"outcome", "payload", "job_id", "account"}`; without the flag it prints the payload alone
 
           Which account to act as: a username (with or without `#…`) or uuid. Defaults to `ACQ_ACCOUNT`. With neither, a verb that reads the store takes the sole account known on disk (`acq accounts`) and a job verb the sole account logged in (`acq auth status`); with more than one, the verb refuses and lists them. A job's progress line and its JSON name the account it ran as
 
