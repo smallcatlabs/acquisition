@@ -17,11 +17,11 @@ Part of the decision registry (`CONTEXT.md`, "Decisions — the registry"): the 
 
 ## Parked (do not build yet; each with its trigger)
 
-Scope this area has deferred, with the trigger that reopens it, so deferral never needs re-arguing. A fired trigger deletes its entry in the build's commit; what crosses every area is parked in `CONTEXT.md` instead. An entry is the item, where it lands, and the trigger that reopens it, with at most one clause of why; a workaround is a README known gap, history is git.
+Scope this area has deferred, with the trigger that reopens it, so deferral never needs re-arguing. An entry is deleted in the commit that builds it, never because its trigger fired; one whose trigger has fired and that nothing has built yet stays and names the step or slice that builds it; what crosses every area is parked in `CONTEXT.md` instead. An entry is the item, where it lands, and the trigger that reopens it, with at most one clause of why; a workaround is a README known gap, history is git.
 
 - Coverage advice in `refresh --plan` (the planner naming priced locations outside coverage) → the planner. Trigger: `price status` and the render's report (C72) proving the wrong place for it.
-- `aging` in the plan (C77) → a quote-bearing plan. Trigger: a cycle estimate that is trusted.
-- The explicit-selection door (C76) → its own slice, where its listing, freshness and two-cycle semantics are ruled. Trigger: pricing closed — fired 2026-09-09 with nothing built (the ad-hoc `refresh` kind still ships); it waits behind item search, the owner's direction of 2026-09-11.
+- `aging` in the plan (C77) → a quote-bearing plan. Trigger: a cycle estimate that is trusted — on a fresh daemon the quote says only "no ETA until the policy is learned", and a long-lived daemon's is untested.
+- The explicit-selection door (C76) → its own slice, where its listing, freshness and two-cycle semantics are ruled. Trigger: a one-off workflow that wants a reviewed plan — a seat recording the two doors as friction, or the GUI's refresh gesture, the natural first consumer of an explicit selection.
 - Universal Plan grammar / five-verb surface → direction only. Trigger: C75's finding once a second plan-bearing consumer exists (C71 is parked, 2026-09-04).
 - Dynamic `--deep` fan-out under plans → the planner. Trigger: live evidence that two-cycle reconciliation genuinely hurts (none so far).
 - Type-level sync-policy filters ("skip map tabs", "include unique tabs", "fetch folder children") → a policy-shape change; the planner owns the schema (C37). Trigger: a policy author who needs a type exclusion the parent-covers-children rule cannot express.

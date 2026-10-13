@@ -235,7 +235,8 @@ number there was measured, never recalled. The verdicts:
 ## Observations still open
 
 What a step saw that became neither a ruling nor a finding was
-`search/OBSERVATIONS.md`, whole at `453a4429`. At the close each entry
+`search/OBSERVATIONS.md`, whole at `453a4429` (there under
+`spikes/rust-playground/`). At the close each entry
 with a trigger became a park (`decisions/search.md`,
 `decisions/frontends.md`, `decisions/store.md`), each with a home was
 left to it, and the rest were dropped. One kind stays a pointer: the

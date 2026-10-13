@@ -103,32 +103,7 @@ Properties, each now a decision in the registry (`CONTEXT.md`,
   the owner's only adjustment put stash tab ids at the right like
   character ids (`28db97c6`).
 
-## Observations still open
-
-Agent observations from the runs that became neither a ruling nor a
-finding; each is data for the next slice that touches it.
-
-- The quote is structurally uninformative on a fresh daemon (every cycle
-  of the rung runs on one): "no ETA until the policy is learned" for
-  every scope. Whether it is useful in a long-lived daemon is untested.
-- Facts fresh at one plan's compile can be stale by the next plan's when
-  their age plus the cycle's duration passes the window (51 min + 13 min
-  against 3600 s bought a 6-request cycle 2). The driver warns; the
-  product question is whether a window is the right handle for "keep
-  these fresh" when cycles are long.
-- GGG names a map substash by tier and a unique substash not at all, and
-  the parent's "(Remove-only)" suffix rides along into plan text.
-- Stripped characters (empty arrays, `_split` 0/0/0) are a real shape; a
-  reader of `acq store characters` sees `0` items either way.
-- The first probe of a lifetime queues behind the token POST (4.5 s once,
-  ~190 ms otherwise). Noted, not investigated.
-- The parent-failure report was never exercised live; it stands on its
-  unit tests and the mock rehearsal.
-- All-zero change lines: 112 refetched bodies, `changed:` nothing,
-  `0 events`. Correct; whether a row of zeros reads as reassurance or as
-  "did it work" is for the next reader.
-
-## The method-test verdict, as recorded in CONTEXT
+## The method-test verdict, as recorded in CONTEXT at `d660d1f5`
 
 **Method-test verdict (2026-09-01):** *pass on correctness, with the
 owner-truth channel under-exercised.* The slice ran live first time with
@@ -139,10 +114,10 @@ friction note plus the remark that the driver's output was too dense to
 read means the run was judged through the agent's reading, not the
 owner's. Not a failure of pin-after-the-consumer — a caveat it carries
 into the pricing session: budget for legibility (the parked output items
-below) before that session's own live run, or say explicitly that agent
+below [in that file, under "Explicitly deferred"]) before that session's own live run, or say explicitly that agent
 observations stand in for owner notes. Discharged 2026-09-02: the
 legible output was built and read live by the owner ("Legible output for
-the refresh slice" below).
+the refresh slice" below [a section of that file]).
 
 ## Process used
 

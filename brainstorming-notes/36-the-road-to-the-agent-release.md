@@ -337,9 +337,12 @@ parks the second realm's daily use fires.
 - The GUI: the slice after the release, under C16 as it stands;
   whether Tauri is revisited is that slice's first question.
 - An external tracker (GitHub issues as the home of work, or a
-  git-native agent tracker): a park in `CONTEXT.md` with the release as
-  its trigger, since users will file issues there and the relation of
-  an issue to a park must then be stated. Until then the parks are the
-  graph.
+  git-native agent tracker): a park in `CONTEXT.md`. The owner split
+  the question, 2026-10-12. The relation of an issue to a park is stated
+  before the first issue arrives, a sentence in step 4's
+  `CONTRIBUTING.md`: the parks are the graph, an issue is evidence that
+  may fire a trigger, a bug is a finding. Whether the graph moves is
+  the park, and its trigger is the first issue a park cannot absorb,
+  never the release.
 - The daemon harness extraction: `TESTING-NOTES.md` says the day a
   fresh build of the daemon starts, not before; nothing above is that.

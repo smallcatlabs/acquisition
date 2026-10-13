@@ -62,12 +62,12 @@ A help string is a doc comment the user reads: cite the id there too.
 
 ## 3. When a slice closes
 
-Cut its `CONTEXT.md` section to rulings, properties and pointers; cite
-the last full-text commit in the section; give the slice a closed
-record in the mold of `NETWORK-CLEANUP.md` (step ledger, the shapes of
-fault its reviews taught, what the runs taught, observations still
-open). Strike-through items in
-a "Parked" list are deleted, not kept; a park whose trigger fired goes with them.
+Give the slice a closed record in the mold of `NETWORK-CLEANUP.md` (step
+ledger, the shapes of fault its reviews taught, what the runs taught,
+observations still open), citing the last commit that holds the open
+record's full text. Strike-through items in a "Parked" list are deleted,
+not kept. A park is deleted in the commit that builds it, never because
+its trigger fired (`CONTEXT.md`, "Parked").
 
 ## 4. Commit
 

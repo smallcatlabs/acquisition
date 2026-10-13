@@ -2,7 +2,7 @@
 # 2026-09-12): a daemon that holds real tokens earns a RustSec check, run
 # by the Linux workflow (`.github/workflows/rust-playground.yml`), never by
 # the local gate. Licenses, bans and sources wait on a shipping decision
-# (`decisions/daemon.md`, the packaging lot).
+# (`decisions/daemon.md`, "Parked").
 [advisories]
 version = 2
 yanked = "deny"

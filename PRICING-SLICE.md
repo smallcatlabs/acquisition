@@ -234,48 +234,6 @@ it flipped a render verdict for some item. None did.
     characters were a day old; the site was right — C72's move-since
     case, from the other side.
 
-## Observations still open
-
-Agent observations that became neither a ruling nor a finding; each is
-data for the next slice that touches it.
-
-- Still blocked-and-counted in the render's policy table until
-  observed: what the indexer does with a forum ratio on a non-bulk
-  item (Q6; `~b/o a/b` is accepted in a tab name, "What the site
-  taught" 2), and a game `skip` against a manual price (Q7).
-- The game-side parser's real corpus is the test tab (fixture) plus the
-  userstore's 120 notes; the facts hold the sale tabs listed, not
-  fetched, until the policy covers them. Two of its rules were the
-  parser's own and are now observed (2026-09-06): an unreadable `~`
-  note has no effect and the tab applies (T18 — the parser still reads
-  it `invalid`, the listing state treats `invalid` and none alike);
-  a note's suffix is tolerated as a tab name's is (parser v2,
-  2026-09-08: the game stores it, the dialog displays the parsed
-  part, the site reads through it — T17, rewritten as a display
-  fact). Still the parser's own: `~skip` as a tab name reads `skip`. The indexer's loose word matching (T16) is not
-  modelled; a hand-typed alias reads `invalid`, shown verbatim.
-- "Moved or reindexed since the render's basis" (C72) has no stored
-  basis to compare with ("what did I last post" is parked, v1 reposts
-  whole pages), so the render reports the one it has: a posted stash
-  item whose fetch predates the stash listing its `Stash<n>` comes
-  from — the link's two halves observed at different times. Whether
-  that line ever changes what the owner does is still unread: at
-  reading 2 the page was rendered minutes after the refresh, so it had
-  nothing to say.
-- The store's `tabs.idx` falls back to the listing position when an
-  entry carries no `index` (T13 says every one of 402 did), so the
-  render cannot tell a real index from the fallback; a tab with `idx`
-  null was fetched directly and never listed, and its items are the
-  `tab_unlisted` cell. Since T24 the index only orders the tabs — the
-  rank among the listed non-folder tabs is what a link carries — so the
-  fallback would matter only if it reordered them.
-- The 0.18 userstore's 120 notes and 17 tilde tab names are not in the
-  fixture (the census read shapes, never texts); a later census that
-  writes them there, verbatim, would widen the parser's pin from the one
-  test tab to the owner's real corpus.
-- The C++ userstore stored `last_update` as text in an INTEGER column
-  (Qt bound a `QDateTime`); nothing to fix, noted.
-
 ## Process used
 
 Build / owner review / fix, one step at a time, with the rulings

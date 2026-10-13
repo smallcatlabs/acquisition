@@ -185,6 +185,11 @@ the world, paths and rails state; read-site docs explain invalid values.
   work. A per-realm merge is unbuilt; trigger: a second realm in daily
   use (`decisions/plans.md`, "Parked").
 - **Unix only.** No Windows named pipes yet; the protocol doesn't care.
+- **A fetched character with an empty body prints `0` items in its row.**
+  GGG sends empty arrays for a stripped character and for one that
+  carries nothing, and `acq store characters` says which rows only in
+  its footer's count ("with empty bodies"); C53's "every nothing says
+  which nothing" is unmet at the row.
 - Everything parked: `CONTEXT.md` for what crosses every area, each
   `decisions/<area>.md` ("Parked") for the rest.
 

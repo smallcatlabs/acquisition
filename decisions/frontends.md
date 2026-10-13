@@ -12,7 +12,7 @@ Part of the decision registry (`CONTEXT.md`, "Decisions — the registry"): the 
 
 ## Parked (do not build yet; each with its trigger)
 
-Scope this area has deferred, with the trigger that reopens it, so deferral never needs re-arguing. A fired trigger deletes its entry in the build's commit; what crosses every area is parked in `CONTEXT.md` instead. An entry is the item, where it lands, and the trigger that reopens it, with at most one clause of why; a workaround is a README known gap, history is git.
+Scope this area has deferred, with the trigger that reopens it, so deferral never needs re-arguing. An entry is deleted in the commit that builds it, never because its trigger fired; one whose trigger has fired and that nothing has built yet stays and names the step or slice that builds it; what crosses every area is parked in `CONTEXT.md` instead. An entry is the item, where it lands, and the trigger that reopens it, with at most one clause of why; a workaround is a README known gap, history is git.
 
 - Queue-management UI (drag-to-reorder, per-job progress bars) → a rendering problem by construction. Trigger: the GUI.
 - The read economy as a ruling (summary by default, filters, bounded detail) → surface design under C53 until then. Trigger: the first MCP pricing consumer's re-read record (the next entry's build).
