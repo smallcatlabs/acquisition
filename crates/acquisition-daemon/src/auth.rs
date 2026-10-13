@@ -176,9 +176,16 @@ async fn token_request(
 // ad-hoc signature changes on every rebuild, so a debug `acqd` is asked
 // twice per login (the read at start, the modify on save) until
 // `tools/sign-acqd.sh` gives it a stable identity after the build.
+/// Why the keyring is off before any entry is tried, if it is: the
+/// daemon's status starts from this, so a daemon with nothing to restore
+/// never reports a keyring it was told not to use as `ok`.
+pub fn keyring_disabled() -> Option<&'static str> {
+    std::env::var_os("ACQ_NO_KEYRING").map(|_| "disabled by ACQ_NO_KEYRING")
+}
+
 fn entry(service: &str, username: &str) -> Result<keyring::Entry, String> {
-    if std::env::var_os("ACQ_NO_KEYRING").is_some() {
-        return Err("disabled by ACQ_NO_KEYRING".into());
+    if let Some(why) = keyring_disabled() {
+        return Err(why.into());
     }
     keyring::Entry::new(service, username).map_err(|e| e.to_string())
 }

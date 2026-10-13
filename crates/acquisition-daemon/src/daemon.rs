@@ -4608,7 +4608,10 @@ async fn run_with_log(
     // entry never blocks the rest.
     let dir = world.provider_dir(provider.name);
     let mut sessions = Sessions {
-        keyring: "ok".into(),
+        keyring: match auth::keyring_disabled() {
+            Some(why) => format!("unavailable: {why}"),
+            None => "ok".into(),
+        },
         ..Sessions::default()
     };
     match Index::load(&dir) {
