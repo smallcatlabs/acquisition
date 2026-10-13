@@ -65,7 +65,9 @@ fn walk(path: Vec<String>, out: &mut String) {
                 || !(l.trim_start().starts_with("--json ")
                     || l.trim_start().starts_with("--account "))
         })
-        .map(|l| format!("{l}\n"))
+        // Clap pads an empty help cell; the reference carries no line
+        // that ends in a space.
+        .map(|l| format!("{}\n", l.trim_end()))
         .collect();
     out.push_str(&format!(
         "## `{title}`\n\n```text\n{}\n```\n\n",

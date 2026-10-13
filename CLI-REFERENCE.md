@@ -128,7 +128,7 @@ Fetch one character with its equipment and inventory
 Usage: acq character [OPTIONS] <NAME>
 
 Arguments:
-  <NAME>  
+  <NAME>
 
 Options:
       --realm <REALM>      pc (default), xbox, sony, or poe2; pc is omitted on the wire (C58) [default: pc]
@@ -313,7 +313,7 @@ Replay a snapshot file from the retired `acq pull` into the store (no GGG traffi
 Usage: acq store import [OPTIONS] <PATH>
 
 Arguments:
-  <PATH>  
+  <PATH>
 
 Options:
   -h, --help               Print help
@@ -340,10 +340,10 @@ Fetch one stash tab (or one substash of a map/unique tab)
 Usage: acq stash [OPTIONS] <ID>
 
 Arguments:
-  <ID>  
+  <ID>
 
 Options:
-      --sub <SUB>          
+      --sub <SUB>
       --deep               Follow a map/unique tab's substashes as child jobs. Opt-in per tab: one map tab can hold hundreds
       --league <LEAGUE>    [default: Standard]
       --realm <REALM>      pc (default), xbox, or sony — the stash endpoints are PoE1 only; poe2 is refused at admission (C59) [default: pc]
@@ -365,7 +365,7 @@ Options:
           Emit structured JSON instead of human-readable output
 
           Which account to act as: a username (with or without `#…`) or uuid. Defaults to `ACQ_ACCOUNT`. With neither, a verb that reads the store takes the sole account known on disk (`acq accounts`) and a job verb the sole account logged in (`acq auth status`); with more than one, the verb refuses and lists them. A job's progress line and its JSON name the account it ran as
-          
+
           [env: ACQ_ACCOUNT=]
 
       --tabs <TABS>
@@ -439,7 +439,7 @@ Usage: acq policy set [OPTIONS] <VALUE>
 
 Arguments:
   <VALUE>
-          
+          The policy as JSON, `-` for stdin, or `@<path>` for a file
 
 Options:
       --if-revision <IF_REVISION>
@@ -449,7 +449,7 @@ Options:
           Emit structured JSON instead of human-readable output
 
           Which account to act as: a username (with or without `#…`) or uuid. Defaults to `ACQ_ACCOUNT`. With neither, a verb that reads the store takes the sole account known on disk (`acq accounts`) and a job verb the sole account logged in (`acq auth status`); with more than one, the verb refuses and lists them. A job's progress line and its JSON name the account it ran as
-          
+
           [env: ACQ_ACCOUNT=]
 
   -h, --help
@@ -536,7 +536,7 @@ One job's state and ETA. A large ETA is the limiter holding, not a hang: holds c
 Usage: acq status [OPTIONS] <ID>
 
 Arguments:
-  <ID>  
+  <ID>
 
 Options:
   -h, --help               Print help
@@ -550,7 +550,7 @@ A finished job's payload or error. Kept on disk (7 days done, 30 failed, by defa
 Usage: acq result [OPTIONS] <ID>
 
 Arguments:
-  <ID>  
+  <ID>
 
 Options:
       --wait               Block until the job finishes, printing progress on stderr, then print the result: how a `--detach`ed job is collected. Needs the daemon that is running the job
@@ -565,7 +565,7 @@ Cancel a waiting or running job; cascades to every descendant still waiting (C23
 Usage: acq cancel [OPTIONS] <ID>
 
 Arguments:
-  <ID>  
+  <ID>
 
 Options:
   -h, --help               Print help
@@ -579,8 +579,8 @@ Change a waiting job's priority; higher runs sooner and the queue reorders live 
 Usage: acq set-priority [OPTIONS] <ID> <PRIORITY>
 
 Arguments:
-  <ID>        
-  <PRIORITY>  
+  <ID>
+  <PRIORITY>
 
 Options:
   -h, --help               Print help
@@ -614,8 +614,8 @@ Usage: acq price status [OPTIONS]
 
 Options:
       --league <LEAGUE>    [default: Standard]
-      --realm <REALM>      
-      --expand             
+      --realm <REALM>
+      --expand
   -h, --help               Print help
 ```
 
@@ -627,12 +627,12 @@ One target's listing: `item/<id>`, `character/<id>`, `tab/<realm>/<id>` or `subs
 Usage: acq price show [OPTIONS] <TARGET>
 
 Arguments:
-  <TARGET>  
+  <TARGET>
 
 Options:
       --league <LEAGUE>    The league to read the target in. Without it, the league the facts hold the target in: an address reads back as printed
       --realm <REALM>      The realm of an item or character target; a tab or substash address carries its own
-      --expand             
+      --expand
   -h, --help               Print help
 ```
 
@@ -650,7 +650,7 @@ Options:
       --effective <EFFECTIVE>    Who decides (C81): game, manual, none or unresolved
       --in <LOCATION>            Only items physically in this container (a tab, substash or character address)
       --covered-by <COVERED_BY>  Only items a row on this target would cover (C70): a folder's tabs' items, a map or unique tab's substashes' items too
-      --expand                   
+      --expand
   -h, --help                     Print help
 ```
 
@@ -741,7 +741,7 @@ Usage: acq shop render [OPTIONS]
 
 Options:
       --league <LEAGUE>      [default: Standard]
-      --realm <REALM>        
+      --realm <REALM>
       --size <SIZE>          Characters per page, the template included (the forum's hard limit, T23) [default: 50000]
       --template <TEMPLATE>  A file whose `[items]` token each page replaces; without it the page is the items alone
       --page <PAGE>          Print one page alone (its text; with --json, its record), for the clipboard

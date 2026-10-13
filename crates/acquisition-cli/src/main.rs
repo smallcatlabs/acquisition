@@ -709,6 +709,7 @@ The policy, version 3:
 A league entry names tabs, characters or both. Nothing is fetched by setting a policy: \
 `acq refresh --plan` shows what it asks for, `acq refresh --apply` fetches it.")]
     Set {
+        /// The policy as JSON, `-` for stdin, or `@<path>` for a file.
         value: String,
         /// Only write if the stored policy is at exactly this revision
         /// (what `acq policy show` printed when you reviewed it); refused
