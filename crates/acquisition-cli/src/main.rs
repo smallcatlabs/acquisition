@@ -330,7 +330,11 @@ enum Cmd {
     /// Refresh tabs: one stash-list request, then one `stash` child job per
     /// selected tab. Selection is explicit — there is no default. (The
     /// ad-hoc `--tabs`/`--all` kind and the plan path are two doors to one
-    /// task; C76 rules the direction.)
+    /// task; C76 rules the direction.) Keeping a league up to date is the
+    /// plan path: `acq policy set` once, then `--plan` and `--apply` until
+    /// the plan says nothing to do — a map or unique tab's substashes are
+    /// known only once the tab is fetched, so a first sync takes two
+    /// rounds, and each apply ends by saying what is left.
     #[command(after_long_help = "\
 Reading a plan as an agent: the text is a function of the envelope (C53), so count \
 with `jq` over `acq refresh --plan --json` rather than parsing prose —
@@ -690,7 +694,20 @@ enum PolicyCmd {
     Show,
     /// Write the policy: inline JSON, `-` to read stdin, or `@<path>` to
     /// read a file. Validated before it is stored — a typo'd field or an
-    /// unknown version is refused, never half-honored.
+    /// unknown version is refused, never half-honored. The write replaces
+    /// the whole policy, every realm and league of it: to add a league,
+    /// read the policy with `acq policy show` and write it back with the
+    /// league added.
+    #[command(after_long_help = "\
+The policy, version 3:
+  {\"version\":3,\"realms\":{\"pc\":{\"leagues\":{\"Standard\":{\"tabs\":\"all\",\"characters\":\"all\",\"max_age_seconds\":3600}}}}}
+  realms            pc, xbox, sony or poe2, each with its leagues by name
+  tabs              \"all\", or a list of tab ids (`acq stashes` or `acq tabs` print them); an id covers
+                    the tab, a folder's children and a map or unique tab's substashes; not under poe2
+  characters        \"all\", or a list of character ids (`acq characters`)
+  max_age_seconds   required: what is older than this is fetched again; a plan made sooner says nothing to do
+A league entry names tabs, characters or both. Nothing is fetched by setting a policy: \
+`acq refresh --plan` shows what it asks for, `acq refresh --apply` fetches it.")]
     Set {
         value: String,
         /// Only write if the stored policy is at exactly this revision
@@ -1257,6 +1274,14 @@ async fn run(cli: Cli) -> Result<()> {
                         // What the ledger on disk holds (C45): the counts
                         // here, the rows under `jobs`.
                         let persisted = persisted_queue()?;
+                        // Where the last daemon of this world logged, when
+                        // it left a log: the path this shell derives, which
+                        // is the one a daemon it spawned used. The place to
+                        // look when a daemon is gone and should not be.
+                        let log = World::observe()
+                            .ok()
+                            .map(|w| w.log_path(provider::wanted()))
+                            .filter(|p| p.exists());
                         if cli.json {
                             let persisted = persisted.map(|p| {
                                 json!({
@@ -1265,7 +1290,11 @@ async fn run(cli: Cli) -> Result<()> {
                                     "written_at": p.written_at,
                                 })
                             });
-                            println!("{}", json!({ "running": false, "persisted": persisted }));
+                            let mut report = json!({ "running": false, "persisted": persisted });
+                            if let Some(log) = &log {
+                                report["log"] = json!(log);
+                            }
+                            println!("{report}");
                         } else {
                             match persisted {
                                 None => println!("daemon is not running; no queue on disk"),
@@ -1275,6 +1304,9 @@ async fn run(cli: Cli) -> Result<()> {
                                     p.recorded_running(),
                                     store_cmd::ago(acquisition_store::now(), p.written_at),
                                 ),
+                            }
+                            if let Some(log) = &log {
+                                println!("last log: {}", log.display());
                             }
                         }
                         return Ok(());

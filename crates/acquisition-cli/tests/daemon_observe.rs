@@ -138,9 +138,20 @@ fn c10_observation_never_spawns_or_replaces_and_reports_the_mismatch() {
     assert!(sockets_under(&scratch_tmp(&base)).is_empty());
     // Absent again — now with a world and a ledger the daemon left, which
     // holds no rows (C45): counted, not null.
+    // — and the log that daemon left, named beside it.
     let out = acq(&base, &["daemon", "status", "--json"]);
+    let mut absent_again = sole_json(&out);
+    let log = absent_again
+        .as_object_mut()
+        .and_then(|o| o.remove("log"))
+        .expect("the stopped daemon's log");
+    assert!(
+        log.as_str()
+            .is_some_and(|l| l.ends_with("/mock/daemon.log")),
+        "{log}"
+    );
     assert_eq!(
-        sole_json(&out),
+        absent_again,
         serde_json::json!({
             "running": false,
             "persisted": { "waiting": 0, "recorded_running": 0, "written_at": null }

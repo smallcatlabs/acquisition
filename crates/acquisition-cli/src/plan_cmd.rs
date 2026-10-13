@@ -391,25 +391,61 @@ pub async fn refresh_apply(
     }
     let outcome = crate::wait_for_job(&mut client, id, json).await?;
     let changes = StoreChanges::since(&store, &before, started)?;
+    // What the policy still wants once this apply has landed: the same
+    // offline compile `refresh --plan` runs, over the facts as they now
+    // are. A fetched map or unique tab lists substashes no plan could
+    // name before, so one apply is rarely the whole sync, and the apply
+    // is the one place that can say so with a number. `None` when the
+    // compile fails; the apply's own report stands without it.
+    let remaining = store
+        .refresh_snapshot(plan.realm.as_str(), &plan.league, &annotations)
+        .ok()
+        .and_then(|snapshot| plan_refresh(provider, &snapshot, acquisition_store::now()).ok())
+        .map(|next| next.logical_requests);
     if json {
         let mut value = serde_json::to_value(&outcome)?;
+        value["job_id"] = serde_json::json!(id);
+        value["account"] = serde_json::json!(entry.username);
         value["store_changes"] = serde_json::to_value(&changes)?;
+        value["remaining_requests"] = serde_json::json!(remaining);
         println!("{}", serde_json::to_string_pretty(&value)?);
         return match outcome {
-            Outcome::Failure { .. } => Err(crate::AlreadyReported.into()),
-            _ => Ok(()),
+            Outcome::Success { .. } => Ok(()),
+            _ => Err(crate::AlreadyReported.into()),
         };
     }
     let report = crate::report_apply(&mut client, id, &outcome).await;
     print!("{report}");
     println!("{}", changes.line());
-    if let Outcome::Failure { .. } = outcome {
-        if let Some(log) = crate::daemon_log_path(&mut client).await {
-            println!("daemon log: {log}");
+    match outcome {
+        Outcome::Success { .. } => {
+            if let Some(line) = remaining_line(remaining) {
+                println!("{line}");
+            }
+            Ok(())
         }
-        return Err(crate::AlreadyReported.into());
+        Outcome::Failure { .. } => {
+            if let Some(log) = crate::daemon_log_path(&mut client).await {
+                println!("daemon log: {log}");
+            }
+            Err(crate::AlreadyReported.into())
+        }
+        Outcome::Cancelled => Err(crate::AlreadyReported.into()),
     }
-    Ok(())
+}
+
+/// The apply's last line (C53: the next action): what a plan compiled
+/// now would still fetch, or that nothing is left.
+fn remaining_line(remaining: Option<u64>) -> Option<String> {
+    Some(match remaining? {
+        0 => "left: nothing — every covered entry is fresh".into(),
+        n => format!(
+            "next: `acq refresh --plan` — {} more are planned now (what this apply revealed, \
+             such as a map or unique tab's substashes, or left undone); plan and apply until \
+             the plan says nothing to do",
+            requests(n)
+        ),
+    })
 }
 
 /// What the store recorded between an apply's submit and its end: the

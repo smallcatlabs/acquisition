@@ -22,7 +22,7 @@ Commands:
   store         The shared store itself (what the daemon writes; every frontend reads)
   stashes       List stash tabs for a league: a second rate-limit policy, paced in parallel with the character routes
   stash         Fetch one stash tab (or one substash of a map/unique tab)
-  refresh       Refresh tabs: one stash-list request, then one `stash` child job per selected tab. Selection is explicit — there is no default. (The ad-hoc `--tabs`/`--all` kind and the plan path are two doors to one task; C76 rules the direction.)
+  refresh       Refresh tabs: one stash-list request, then one `stash` child job per selected tab. Selection is explicit — there is no default. (The ad-hoc `--tabs`/`--all` kind and the plan path are two doors to one task; C76 rules the direction.) Keeping a league up to date is the plan path: `acq policy set` once, then `--plan` and `--apply` until the plan says nothing to do — a map or unique tab's substashes are known only once the tab is fetched, so a first sync takes two rounds, and each apply ends by saying what is left
   policy        The per-account sync policy: the declared coverage and freshness that `acq refresh --plan` compiles into requests
   submit        Submit any job kind by hand
   demo          Submit a burst of fetch jobs against the mock's 5-per-10 s policy and watch the rate limiter queue them (the ETAs are the limiter's prediction, corrected by headers)
@@ -353,7 +353,7 @@ Options:
 ## `acq refresh`
 
 ```text
-Refresh tabs: one stash-list request, then one `stash` child job per selected tab. Selection is explicit — there is no default. (The ad-hoc `--tabs`/`--all` kind and the plan path are two doors to one task; C76 rules the direction.)
+Refresh tabs: one stash-list request, then one `stash` child job per selected tab. Selection is explicit — there is no default. (The ad-hoc `--tabs`/`--all` kind and the plan path are two doors to one task; C76 rules the direction.) Keeping a league up to date is the plan path: `acq policy set` once, then `--plan` and `--apply` until the plan says nothing to do — a map or unique tab's substashes are known only once the tab is fetched, so a first sync takes two rounds, and each apply ends by saying what is left
 
 Usage: acq refresh [OPTIONS]
 
@@ -412,7 +412,7 @@ Usage: acq policy [OPTIONS] [COMMAND]
 
 Commands:
   show  Print the stored policy value and its revision (the default)
-  set   Write the policy: inline JSON, `-` to read stdin, or `@<path>` to read a file. Validated before it is stored — a typo'd field or an unknown version is refused, never half-honored
+  set   Write the policy: inline JSON, `-` to read stdin, or `@<path>` to read a file. Validated before it is stored — a typo'd field or an unknown version is refused, never half-honored. The write replaces the whole policy, every realm and league of it: to add a league, read the policy with `acq policy show` and write it back with the league added
   help  Print this message or the help of the given subcommand(s)
 
 Options:
@@ -433,16 +433,36 @@ Options:
 ## `acq policy set`
 
 ```text
-Write the policy: inline JSON, `-` to read stdin, or `@<path>` to read a file. Validated before it is stored — a typo'd field or an unknown version is refused, never half-honored
+Write the policy: inline JSON, `-` to read stdin, or `@<path>` to read a file. Validated before it is stored — a typo'd field or an unknown version is refused, never half-honored. The write replaces the whole policy, every realm and league of it: to add a league, read the policy with `acq policy show` and write it back with the league added
 
 Usage: acq policy set [OPTIONS] <VALUE>
 
 Arguments:
-  <VALUE>  
+  <VALUE>
+          
 
 Options:
-      --if-revision <IF_REVISION>  Only write if the stored policy is at exactly this revision (what `acq policy show` printed when you reviewed it); refused with the current revision otherwise. Without it the write replaces whatever revision is currently stored — though a write racing in between still conflicts rather than being clobbered
-  -h, --help                       Print help
+      --if-revision <IF_REVISION>
+          Only write if the stored policy is at exactly this revision (what `acq policy show` printed when you reviewed it); refused with the current revision otherwise. Without it the write replaces whatever revision is currently stored — though a write racing in between still conflicts rather than being clobbered
+
+      --json
+          Emit structured JSON instead of human-readable output
+
+          Which account to act as: a username (with or without `#…`) or uuid. Defaults to `ACQ_ACCOUNT`. With neither, a verb that reads the store takes the sole account known on disk (`acq accounts`) and a job verb the sole account logged in (`acq auth status`); with more than one, the verb refuses and lists them. A job's progress line and its JSON name the account it ran as
+          
+          [env: ACQ_ACCOUNT=]
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+The policy, version 3:
+  {"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}
+  realms            pc, xbox, sony or poe2, each with its leagues by name
+  tabs              "all", or a list of tab ids (`acq stashes` or `acq tabs` print them); an id covers
+                    the tab, a folder's children and a map or unique tab's substashes; not under poe2
+  characters        "all", or a list of character ids (`acq characters`)
+  max_age_seconds   required: what is older than this is fetched again; a plan made sooner says nothing to do
+A league entry names tabs, characters or both. Nothing is fetched by setting a policy: `acq refresh --plan` shows what it asks for, `acq refresh --apply` fetches it.
 ```
 
 ## `acq submit`

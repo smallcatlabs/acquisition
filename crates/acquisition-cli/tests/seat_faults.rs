@@ -393,9 +393,14 @@ fn a_finished_jobs_result_is_answered_from_disk_with_no_daemon() {
         "{out:?}"
     );
 
-    // Nothing above started a daemon.
+    // Nothing above started a daemon — and with none running the status
+    // still says where the last one logged, which only a running daemon
+    // used to print.
     let status = sole_json(&acq(&base, &["daemon", "status", "--json"]));
     assert_eq!(status["running"], false, "{status}");
+    let log = status["log"].as_str().expect("the last daemon's log");
+    assert!(log.ends_with("/mock/daemon.log"), "{status}");
+    assert!(stdout(&acq(&base, &["daemon", "status"])).contains(&format!("last log: {log}")));
 }
 
 /// `auth status` with no daemon was an error, "daemon is not running",
@@ -428,4 +433,40 @@ fn auth_status_with_no_daemon_says_what_a_daemon_would_restore() {
 
     let status = sole_json(&acq(&base, &["daemon", "status", "--json"]));
     assert_eq!(status["running"], false, "{status}");
+}
+
+/// "Everything in one league" took two rounds and nothing said so: a map
+/// or unique tab's substashes can be planned only once the tab has been
+/// fetched, and the first apply ended on its tally. An apply now ends by
+/// compiling the policy again and saying what is still planned, as a
+/// number in JSON and as the next action in text, until nothing is.
+#[test]
+fn an_apply_ends_by_saying_what_a_new_plan_would_still_fetch() {
+    let scratch = harness::scratch("seat-rounds");
+    let base = scratch.0.clone();
+    let (_daemon, _pid) = start_daemon(&base);
+    login(&base, "alice");
+    let policy = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}"#;
+    assert!(acq(&base, &["policy", "set", policy]).status.success());
+    // The listings a plan compiles from.
+    assert!(acq(&base, &["stashes"]).status.success());
+    assert!(acq(&base, &["characters"]).status.success());
+
+    let out = acq(&base, &["refresh", "--apply"]);
+    assert!(out.status.success(), "{}", text(&out));
+    let said = stdout(&out);
+    let last = said.lines().last().unwrap_or_default();
+    assert!(
+        last.starts_with("next: `acq refresh --plan` — ") && last.contains(" more are planned now"),
+        "{said}"
+    );
+
+    let outcome = sole_json(&acq(&base, &["refresh", "--apply", "--json"]));
+    assert_eq!(outcome["outcome"], "success", "{outcome}");
+    assert_eq!(outcome["remaining_requests"], 0, "{outcome}");
+    assert_eq!(outcome["account"], "alice", "{outcome}");
+    assert!(outcome["job_id"].is_u64(), "{outcome}");
+
+    let said = stdout(&acq(&base, &["refresh", "--plan"]));
+    assert!(said.contains("nothing to do"), "{said}");
 }
