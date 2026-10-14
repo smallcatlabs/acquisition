@@ -711,71 +711,155 @@ fn every_occurrence_twice(
     Ok(())
 }
 
+/// The property's one case: two parts of an answer agree, and a copy of
+/// the items moves only what the rule says.
+fn agrees(
+    q: Q,
+    projection: (G, &'static str),
+    sum: (G, &'static str),
+    bodies: Vec<Body>,
+) -> Result<(), TestCaseError> {
+    let projection = sort_text(
+        &Sort::Proj(projection.0, projection.1.to_string()),
+        Spelling::Authored,
+    )
+    .unwrap();
+    let sum = sort_text(&Sort::Sum(sum.0, sum.1.to_string()), Spelling::Authored).unwrap();
+    let mut all = anchors();
+    all.extend(bodies.iter().map(Body::json));
+    let (store, corpus, scope) = fixture_with_store(all.clone());
+    let text = q_text(&q, Spelling::Authored);
+    for value in [
+        projection.as_str(),
+        sum.as_str(),
+        "ilvl",
+        "pseudo.total_res",
+        "pseudo.count_ele_res",
+        "pseudo.total_all_ele_res",
+        "pseudo.dps",
+        "pseudo.pdps",
+        "links",
+        "sockets.red",
+        RANGED[0],
+        RANGED[1],
+        RANGED[2],
+        "pseudo.adds_cold.low",
+        "pseudo.adds_cold_to_spells.high",
+        PERCENTILE,
+    ] {
+        probe_is_sort_status(&corpus, &scope, value).map_err(TestCaseError::fail)?;
+    }
+    for sort in [None, Some(projection.as_str()), Some(sum.as_str())] {
+        if let Ok(answer) = run(&corpus, &request(&text, sort, false, 50)) {
+            zero_block_is_terms_block(&corpus, &answer).map_err(TestCaseError::fail)?;
+            evidence_is_the_items(&store, &answer).map_err(TestCaseError::fail)?;
+            a_reason_is_of_what_its_term_asked(&answer).map_err(TestCaseError::fail)?;
+        }
+    }
+    // a generated query seldom ends in a zero block with suggestions in
+    // it, so two misspellings are asked of every corpus: the life line,
+    // which the generators spell two ways, and a name
+    for misspelt in [
+        "line(template:lifes)",
+        "sum(line(template:lifes).arg1)>0",
+        "name:knott",
+    ] {
+        let answer = run(&corpus, &request(misspelt, None, false, 50))
+            .map_err(|e| TestCaseError::fail(e.to_string()))?;
+        zero_block_is_terms_block(&corpus, &answer).map_err(TestCaseError::fail)?;
+    }
+    a_reading_is_what_its_totals_make(&corpus, &scope).map_err(TestCaseError::fail)?;
+    a_ranged_total_is_what_its_rows_make(&corpus, &scope).map_err(TestCaseError::fail)?;
+    what_no_total_reads_moves_no_total(&bodies, &TOTALS).map_err(TestCaseError::fail)?;
+    a_count_by_what_the_base_decides_accounts_for_every_match(&corpus, &scope, &text)
+        .map_err(TestCaseError::fail)?;
+    a_count_by_what_the_base_decides_accounts_for_every_match(&corpus, &scope, "")
+        .map_err(TestCaseError::fail)?;
+    every_item_twice(&all, &text, Some(&sum)).map_err(TestCaseError::fail)?;
+    // every occurrence twice: the generated largest stays and the
+    // generated sum doubles (C92); a total is a sum over lines and
+    // doubles with them (C94), a ranged one's `avg` too, low summed
+    // with low and high with high; the least of totals doubles with
+    // them and a count of totals is no sum and stays (C101, step
+    // 9c3); a derived field reads the properties, which no line is,
+    // and stays (C101)
+    every_occurrence_twice(
+        &bodies,
+        &q,
+        &[
+            &projection,
+            "pseudo.dps",
+            "pseudo.pdps",
+            "pseudo.count_ele_res",
+        ],
+        &[
+            &sum,
+            "pseudo.total_res",
+            "pseudo.total_all_ele_res",
+            RANGED[0],
+            RANGED[2],
+        ],
+    )
+    .map_err(TestCaseError::fail)?;
+    // in another order nothing moves: not those, not the percentile,
+    // which is of the item, and not a socket count, which is over the
+    // collection (C101)
+    every_occurrence_in_another_order(
+        &bodies,
+        &q,
+        &[
+            &projection,
+            &sum,
+            "pseudo.pdps",
+            "pseudo.total_res",
+            "pseudo.count_ele_res",
+            "pseudo.total_all_ele_res",
+            RANGED[0],
+            PERCENTILE,
+            "sockets",
+            "links",
+        ],
+    )
+    .map_err(TestCaseError::fail)?;
+    Ok(())
+}
+
+// One property in four tests of a quarter of the cases each: a test is
+// one thread, and four run side by side where one ran alone (46 s of
+// the gate at 192 cases, 14 s as four processes of 48, 2026-10-13).
 proptest! {
-    #![proptest_config(ProptestConfig { cases: cases(192), failure_persistence: None, ..ProptestConfig::default() })]
+    #![proptest_config(config(8, 48))]
     #[test]
-    fn two_parts_of_an_answer_agree_and_a_copy_moves_only_what_the_rule_says(
+    fn two_parts_of_an_answer_agree_and_a_copy_moves_only_what_the_rule_says_1(
         q in query(true), projection in (group(), proptest::sample::select(vec!["arg1", "avg"])),
         sum in (group(), proptest::sample::select(vec!["arg1", "avg"])),
         bodies in proptest::collection::vec(body(true), 0..6),
     ) {
-        let projection = sort_text(&Sort::Proj(projection.0, projection.1.to_string()), Spelling::Authored).unwrap();
-        let sum = sort_text(&Sort::Sum(sum.0, sum.1.to_string()), Spelling::Authored).unwrap();
-        let mut all = anchors();
-        all.extend(bodies.iter().map(Body::json));
-        let (store, corpus, scope) = fixture_with_store(all.clone());
-        let text = q_text(&q, Spelling::Authored);
-        for value in [projection.as_str(), sum.as_str(), "ilvl", "pseudo.total_res", "pseudo.count_ele_res", "pseudo.total_all_ele_res", "pseudo.dps", "pseudo.pdps", "links", "sockets.red", RANGED[0], RANGED[1], RANGED[2], "pseudo.adds_cold.low", "pseudo.adds_cold_to_spells.high", PERCENTILE] {
-            probe_is_sort_status(&corpus, &scope, value).map_err(TestCaseError::fail)?;
-        }
-        for sort in [None, Some(projection.as_str()), Some(sum.as_str())] {
-            if let Ok(answer) = run(&corpus, &request(&text, sort, false, 50)) {
-                zero_block_is_terms_block(&corpus, &answer).map_err(TestCaseError::fail)?;
-                evidence_is_the_items(&store, &answer).map_err(TestCaseError::fail)?;
-                a_reason_is_of_what_its_term_asked(&answer).map_err(TestCaseError::fail)?;
-            }
-        }
-        // a generated query seldom ends in a zero block with suggestions in
-        // it, so two misspellings are asked of every corpus: the life line,
-        // which the generators spell two ways, and a name
-        for misspelt in ["line(template:lifes)", "sum(line(template:lifes).arg1)>0", "name:knott"] {
-            let answer = run(&corpus, &request(misspelt, None, false, 50)).map_err(|e| TestCaseError::fail(e.to_string()))?;
-            zero_block_is_terms_block(&corpus, &answer).map_err(TestCaseError::fail)?;
-        }
-        a_reading_is_what_its_totals_make(&corpus, &scope).map_err(TestCaseError::fail)?;
-        a_ranged_total_is_what_its_rows_make(&corpus, &scope).map_err(TestCaseError::fail)?;
-        what_no_total_reads_moves_no_total(&bodies, &TOTALS).map_err(TestCaseError::fail)?;
-        a_count_by_what_the_base_decides_accounts_for_every_match(&corpus, &scope, &text)
-            .map_err(TestCaseError::fail)?;
-        a_count_by_what_the_base_decides_accounts_for_every_match(&corpus, &scope, "")
-            .map_err(TestCaseError::fail)?;
-        every_item_twice(&all, &text, Some(&sum)).map_err(TestCaseError::fail)?;
-        // every occurrence twice: the generated largest stays and the
-        // generated sum doubles (C92); a total is a sum over lines and
-        // doubles with them (C94), a ranged one's `avg` too, low summed
-        // with low and high with high; the least of totals doubles with
-        // them and a count of totals is no sum and stays (C101, step
-        // 9c3); a derived field reads the properties, which no line is,
-        // and stays (C101)
-        every_occurrence_twice(
-            &bodies,
-            &q,
-            &[&projection, "pseudo.dps", "pseudo.pdps", "pseudo.count_ele_res"],
-            &[&sum, "pseudo.total_res", "pseudo.total_all_ele_res", RANGED[0], RANGED[2]],
-        )
-        .map_err(TestCaseError::fail)?;
-        // in another order nothing moves: not those, not the percentile,
-        // which is of the item, and not a socket count, which is over the
-        // collection (C101)
-        every_occurrence_in_another_order(
-            &bodies,
-            &q,
-            &[
-                &projection, &sum, "pseudo.pdps", "pseudo.total_res", "pseudo.count_ele_res",
-                "pseudo.total_all_ele_res", RANGED[0], PERCENTILE, "sockets", "links",
-            ],
-        )
-        .map_err(TestCaseError::fail)?;
+        agrees(q, projection, sum, bodies)?;
+    }
+    #[test]
+    fn two_parts_of_an_answer_agree_and_a_copy_moves_only_what_the_rule_says_2(
+        q in query(true), projection in (group(), proptest::sample::select(vec!["arg1", "avg"])),
+        sum in (group(), proptest::sample::select(vec!["arg1", "avg"])),
+        bodies in proptest::collection::vec(body(true), 0..6),
+    ) {
+        agrees(q, projection, sum, bodies)?;
+    }
+    #[test]
+    fn two_parts_of_an_answer_agree_and_a_copy_moves_only_what_the_rule_says_3(
+        q in query(true), projection in (group(), proptest::sample::select(vec!["arg1", "avg"])),
+        sum in (group(), proptest::sample::select(vec!["arg1", "avg"])),
+        bodies in proptest::collection::vec(body(true), 0..6),
+    ) {
+        agrees(q, projection, sum, bodies)?;
+    }
+    #[test]
+    fn two_parts_of_an_answer_agree_and_a_copy_moves_only_what_the_rule_says_4(
+        q in query(true), projection in (group(), proptest::sample::select(vec!["arg1", "avg"])),
+        sum in (group(), proptest::sample::select(vec!["arg1", "avg"])),
+        bodies in proptest::collection::vec(body(true), 0..6),
+    ) {
+        agrees(q, projection, sum, bodies)?;
     }
 }
 

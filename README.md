@@ -146,6 +146,7 @@ either mode and never spawns or replaces one in real mode (C13, C14).
 | `ACQ_LOG_DIR=<dir>` | the platform log dir | bounded daemon log and default journal, by world and provider | [world.rs][world] |
 | `ACQ_NO_KEYRING=1` | off | sessions in memory only, never plaintext on disk | [auth.rs][auth] |
 | `ACQ_KEYRING_ROUNDTRIP=1` | off | opt into the test against the OS keyring (CI uses gnome-keyring) | [auth.rs][auth] (tests) |
+| `ACQ_CASES=full` | off | the generated search properties at their full counts, which CI sets; unset, a quarter or so, fresh cases each run | [generated.rs](crates/acquisition-search/tests/common/generated.rs) (tests) |
 | `ACQ_CODESIGN_IDENTITY=<sha1\|name>` | unset | macOS shell-profile identity for signing the debug daemon after building | [sign-acqd.sh](tools/sign-acqd.sh) |
 | `ACQ_NO_SPAWN=1` | off | never start or replace a daemon; for cron, ssh and headless shells | [client.rs][client]; keyring context: [auth.rs][auth] |
 | `ACQ_IDLE_SHUTDOWN=<s>` | 60 | idle exit, held while limiter history is live (C3) | [daemon.rs][daemon] |

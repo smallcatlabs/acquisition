@@ -96,6 +96,10 @@ python3 -I tools/bothy.py check
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
 ```
 
+The generated search properties run a share of their cases here, fresh
+each run, and all of them in CI (`ACQ_CASES=full`); a failure prints
+the seed that draws its cases again (`PROPTEST_RNG_SEED`).
+
 Build first, and again before any smoke or live run (C82). If contract
 inputs change after building — including a formatting edit — build
 again before testing or running. Never run the drivers while the gate

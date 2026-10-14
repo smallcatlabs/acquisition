@@ -358,7 +358,7 @@ fn check_routes(
 proptest! {
     // Fixed gate cost; failed cases shrink and print here rather than writing
     // an unrequested regression file. Retain a reported seed/case on failure.
-    #![proptest_config(ProptestConfig { cases: 512, failure_persistence: None, ..ProptestConfig::default() })]
+    #![proptest_config(common::generated::config(64, 512))]
     #[test]
     fn c93_generated_routes_partition_the_scope(
         a in group(), b in group(), c in group(), outer in query(),

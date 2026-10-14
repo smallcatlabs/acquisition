@@ -57,11 +57,16 @@ jobs:
       # trip's *assertion* failing (Some(token) expected, None) means the
       # Linux build reached the keyring crate's mock store: check feature
       # unification. First run green 2026-09-12 (run 34704103311).
+      # ACQ_CASES=full: the generated search properties at their full
+      # counts; a session's gate runs a share of them, fresh each run
+      # (acquisition-search/tests/common/generated.rs, `cases`). A property
+      # that fails here and passed locally prints its seed.
       - name: Test, with the keyring round trip against an unlocked gnome-keyring
         run: |
           dbus-run-session -- bash -eo pipefail -c '
             eval "$(printf ci-throwaway | gnome-keyring-daemon --components=secrets --daemonize --unlock)"
             export ACQ_KEYRING_ROUNDTRIP=1
+            export ACQ_CASES=full
             cargo test --workspace --all-targets --locked
           '
 

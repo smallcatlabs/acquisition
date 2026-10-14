@@ -80,6 +80,14 @@ What the read found (`data/cases-<group>.tsv`):
   `percentile.rs`, `pseudo.rs`) are the other weight and have no knob:
   each holds a committed table whole.
 
+What became of it (2026-10-13, the owner: "yes, let's take the
+recommendation and proceed"): `cases(local, full)` and `config` in
+`generated.rs`; six binaries at a share of their counts locally and all
+of them under `ACQ_CASES=full`, which the workflow sets; the
+cross-checks property in four tests of a quarter each; a printed seed
+per property. Measured after, one run: the seven binaries 15.5 s
+locally and 55 s full, where they were 88 s.
+
 ## What the runners did not do
 
 - The generators in `acquisition-search/tests/common/generated.rs` were

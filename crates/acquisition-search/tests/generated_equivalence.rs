@@ -314,7 +314,7 @@ fn check(
 }
 
 proptest! {
-    #![proptest_config(ProptestConfig { cases: cases(256), failure_persistence: None, ..ProptestConfig::default() })]
+    #![proptest_config(config(64, 256))]
     #[test]
     fn invariant_7_a_rewrite_that_changes_no_meaning_changes_no_answer(
         q in query(true), sort in sort(), desc in any::<bool>(), seed in any::<u64>(),

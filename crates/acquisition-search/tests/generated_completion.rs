@@ -428,7 +428,7 @@ fn checked(case: &Case, tally: &mut Tally) -> Result<(), String> {
 }
 
 proptest! {
-    #![proptest_config(ProptestConfig { cases: cases(256), failure_persistence: None, ..ProptestConfig::default() })]
+    #![proptest_config(config(64, 256))]
     #[test]
     fn c93_what_is_decided_on_the_stored_item_is_decided_so_under_every_completion(case in case()) {
         checked(&case, &mut Tally::default()).map_err(TestCaseError::fail)?;
@@ -442,7 +442,7 @@ fn how_often_an_undecided_answer_is_the_same_under_every_completion_tried() {
     use proptest::strategy::ValueTree;
     let mut runner = proptest::test_runner::TestRunner::deterministic();
     let mut tally = Tally::default();
-    for _ in 0..cases(2000) {
+    for _ in 0..2000 {
         let case = case().new_tree(&mut runner).unwrap().current();
         checked(&case, &mut tally).unwrap();
     }

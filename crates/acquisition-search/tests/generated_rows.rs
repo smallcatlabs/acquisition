@@ -366,9 +366,7 @@ fn a_groups_or_is_the_items(corpus: &Corpus, scope: &Ids, a: &G, b: &G) -> Resul
 }
 
 proptest! {
-    #![proptest_config(ProptestConfig {
-        cases: cases(192), failure_persistence: None, ..ProptestConfig::default()
-    })]
+    #![proptest_config(config(64, 192))]
 
     #[test]
     fn c93_on_one_occurrence_a_group_or_its_not_holds(

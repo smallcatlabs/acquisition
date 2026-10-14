@@ -1088,13 +1088,44 @@ pub fn terms(q: &Q) -> Vec<(String, TermKind)> {
     out
 }
 
-/// How many cases a property runs: its gate number, or `PROPTEST_CASES`
-/// for a longer run by hand.
-pub fn cases(gate: u32) -> u32 {
-    std::env::var("PROPTEST_CASES")
+/// How many cases a generated property runs: `local` in a gate run on
+/// a session's machine, `full` where `ACQ_CASES=full` is set, which the
+/// workflow sets. The cases are fresh on every run (see [`config`]), so
+/// the local count is a share of the full one drawn each time and never
+/// the same few cases. `PROPTEST_CASES=N` is proptest's own and replaces
+/// either, in every property of the workspace, for a long run by hand.
+pub fn cases(local: u32, full: u32) -> u32 {
+    match std::env::var("ACQ_CASES").as_deref() {
+        Ok("full") => full,
+        _ => local,
+    }
+}
+
+/// The config of a generated property: its count ([`cases`]), no
+/// regression file, and a seed that is new on every run and printed —
+/// libtest shows it with a failure, and `PROPTEST_RNG_SEED=<seed>` (with
+/// `ACQ_CASES` as it was, and the one test named, since the variable
+/// seeds every property alike) draws the same cases again, so a fault
+/// met one run in several is a case that can be asked for and never a
+/// flake.
+pub fn config(local: u32, full: u32) -> ProptestConfig {
+    let seed = std::env::var("PROPTEST_RNG_SEED")
         .ok()
-        .and_then(|n| n.parse().ok())
-        .unwrap_or(gate)
+        .and_then(|seed| seed.parse::<u64>().ok())
+        .unwrap_or_else(|| {
+            let nanos = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(0, |d| d.as_nanos() as u64);
+            nanos ^ (u64::from(std::process::id()) << 32)
+        });
+    let cases = cases(local, full);
+    eprintln!("{cases} cases from seed {seed}: PROPTEST_RNG_SEED={seed} draws them again");
+    ProptestConfig {
+        cases,
+        failure_persistence: None,
+        rng_seed: proptest::test_runner::RngSeed::Fixed(seed),
+        ..ProptestConfig::default()
+    }
 }
 
 /// A generator's own small source of choices, seeded by proptest: a

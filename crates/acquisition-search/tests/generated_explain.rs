@@ -359,7 +359,7 @@ fn check(corpus: &Corpus, scope: &Ids, q: &Q, seed: u64) -> Result<(), String> {
 }
 
 proptest! {
-    #![proptest_config(ProptestConfig { cases: cases(48), failure_persistence: None, ..ProptestConfig::default() })]
+    #![proptest_config(config(16, 48))]
     #[test]
     fn explain_is_the_transformed_query_asked_at_every_path_and_in_every_spelling(
         q in query(true), seed in any::<u64>(),

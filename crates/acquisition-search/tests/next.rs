@@ -349,7 +349,7 @@ fn a_route_read_back_reports_both_counts_with_its_basis_or_without() {
 }
 
 proptest! {
-    #![proptest_config(ProptestConfig { cases: cases(48), failure_persistence: None, ..ProptestConfig::default() })]
+    #![proptest_config(config(48, 48))]
     /// For any query, any sort and any limit, the pages in order are the
     /// answer at a limit past the total.
     #[test]
