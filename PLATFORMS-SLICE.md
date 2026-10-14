@@ -20,7 +20,8 @@ restates it. The parks it fires are in `decisions/daemon.md`
 Rulings first (`CONTEXT.md`, "Working style"). One boundary is open;
 the choices were put with a recommendation and answered 2026-10-14.
 
-1. **C83 on Windows (a ruling, open).** C83 derives the socket "into a
+1. **C83 on Windows — ruled 2026-10-14 as C112** (owner: "yes"; the
+   endpoint split from C83 to keep each entry under the limit). C83 derives the socket "into a
    private per-user runtime directory"; a named pipe (C9) lives in one
    machine-wide namespace, so privacy cannot come from a directory. The
    session's first proposal: *on Windows the endpoint is a named pipe

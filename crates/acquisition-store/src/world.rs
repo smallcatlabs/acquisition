@@ -20,15 +20,29 @@
 //! **C83 — A world is a canonical, provider-neutral store root; its
 //! daemon holds an exclusive lock on it for its lifetime, and in real
 //! mode a per-OS-user lock no root bypasses.** A use path creates the
-//! root, then canonicalises and locks; observation creates nothing. The
-//! socket is derived from the root into a private per-user runtime
-//! directory, never chosen by hand (`ACQ_SOCKET` is gone); `hello` names
-//! the root and a client refuses a daemon on another world. Durable state
-//! (`daemon.db`, rails state) lives in the world; the log and journal are
-//! bounded diagnostics elsewhere. *Why:* a socket name is discovery, not
-//! ownership — C6 and C31 were held by documentation, and the tripwire's
-//! state lived in a directory the OS clears at reboot. *Details:*
-//! `world.rs` doc. Ruled 2026-09-09.
+//! root, then canonicalises and locks; observation creates nothing. Its
+//! endpoint is C112; `hello` names the root and a client refuses a daemon
+//! on another world. Durable state (`daemon.db`, rails state) lives in
+//! the world; the log and journal are bounded diagnostics elsewhere.
+//! *Why:* C6 and C31 were held by documentation, and the tripwire's state
+//! lived in a directory the OS clears at reboot. *Details:* `world.rs`
+//! doc. Ruled 2026-09-09; amended 2026-10-14 (the endpoint to C112).
+//!
+//! ## C112 — The daemon's endpoint
+//!
+//! **C112 — The daemon's endpoint is derived from the world and the OS
+//! user, never chosen by hand (`ACQ_SOCKET` is gone); only that user can
+//! serve or reach it, and a client speaks to it only after verifying the
+//! server runs as that user.** *Why:* a socket name is discovery, not
+//! ownership; on Windows a named pipe's namespace is machine-wide, so
+//! privacy is the endpoint's property, not a directory's. *Details:*
+//! `world.rs` doc (each platform's arm). Ruled 2026-10-14, splitting
+//! C83's socket clause (owner: "yes").
+//!
+//! On Unix the arm is the socket below, in the private per-user runtime
+//! directory a client verifies before it connects; the Windows arm, a
+//! named pipe under a user-only ACL whose server's process user a client
+//! checks, is step 0 of `PLATFORMS-SLICE.md`.
 //!
 //! ## C83 — as built (the daemon split's steps 5 and 6)
 //!
