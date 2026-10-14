@@ -76,6 +76,9 @@ range — `git log` — and nothing restates it.
   `.claude/skills/session-close/SKILL.md`
 - Research track (a subagent under a committed brief, then review and
   commit): `.claude/skills/research-track/SKILL.md`
+- Seat (a blind subagent at the tool as its user, under a committed
+  brief and through one logging door; the fix round and the rerun):
+  `.claude/skills/seat/SKILL.md`
 - Site sitting (asking the trade site what a computed value counts: the
   searches, the owner's recorded sitting, the captures read):
   `.claude/skills/site-sitting/SKILL.md`

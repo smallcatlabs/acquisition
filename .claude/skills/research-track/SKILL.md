@@ -1,6 +1,6 @@
 ---
 name: research-track
-description: Run one research track of a slice's working directory (search/ is the first) as a subagent under a committed brief, then review and commit it with its story. Use for any track whose work is a read or a measurement with a fixed input; never for a seat, which a session sits in.
+description: Run one research track of a slice's working directory (search/ is the first) as a subagent under a committed brief, then review and commit it with its story. Use for any track whose work is a read or a measurement with a fixed input; never for a seat, which has its own skill.
 ---
 
 # Research track

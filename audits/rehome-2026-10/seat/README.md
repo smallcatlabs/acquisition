@@ -1,7 +1,9 @@
 # The whole-CLI seat (note 36, step 1) — 2026-10-13
 
-Two runs of one brief by a subagent blind to everything but the brief
-and the README's tour, driving the release `acq` through `seat.py` in a
+Two runs of one brief (`BRIEF.md` at `d1a10dd4`; the first run's at
+`2e1d8e51`) by a subagent blind to everything but the brief and the
+README's tour, driving the release `acq` through the seat skill's door
+(`.claude/skills/seat/seat.py`, which began here) in a
 mock world over a copy of the owner's store. `REPORT-1.md` and
 `calls-1.csv` are the first run (172 commands, the tree at `25332463`);
 `REPORT.md` and `calls.csv` the rerun after the fix round (238 commands,
@@ -29,7 +31,7 @@ What each fault became. A fix is held by the test of
 | 1 | progress and payload on one stream | fixed: `73e49bac` |
 | 1, 2 | ids nobody outside the repository can look up | parked, fired; built with the release's text (`decisions/frontends.md`) |
 | 1, 2 | not every failure carries a `kind` | usage and account kinds added: `1c43a6f5`; the taxonomy park stands |
-| 2 | a plan file applied twice fetches twice | C111: a plan spends each request once; a replay sends nothing and says what spent it (after a design study the owner asked for) |
+| 2 | a plan file applied twice fetches twice | C111: a plan spends each request once; a replay sends nothing and says what spent it (after a design study the owner asked for): `188b0ae3` |
 | 2 | `cancel` on a running job "does not stop it" | it does, at the job's next check; the words fixed: `76ef839b` |
 | 2 | `daemon stop` ends an unpersisted login silently | fixed: `76ef839b` |
 | 2 | a job verb's JSON differs with `--json` | by design (C53), now said in the help: `76ef839b` |

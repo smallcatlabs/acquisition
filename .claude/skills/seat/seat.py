@@ -1,37 +1,43 @@
 #!/usr/bin/env python3
-"""seat.py — the whole-CLI seat's one door (note 36, step 1): one `acq` command, logged.
+"""seat.py — a CLI seat's one door (the seat skill): one `acq` command, logged.
 
-usage:
-  seat.py setup                           build the world: a fresh copy of the owner's store under the mock provider
-  seat.py login <user>                    a scripted mock login (the mock-session skill's recipe; a person uses a browser)
-  seat.py run --t T3 [--note '...'] [--timeout S] [--stdin FILE|-] [--out NAME] -- <acq arguments>
-  seat.py report [--new]                  append stdin to REPORT.md (--new starts it): the runner's harness may refuse it file tools
-  seat.py teardown                        stop the world's daemon
+usage, from the repository root (AT is the seat's record directory, where its BRIEF.md is):
+  seat.py AT setup [--facts FILE.db]      build the world; with --facts, over a copy of that file of the owner's store
+  seat.py AT login <user>                 a scripted mock login (the mock-session skill's recipe; a person uses a browser)
+  seat.py AT run --t T3 [--note '...'] [--timeout S] [--stdin FILE|-] [--out NAME] -- <acq arguments>
+  seat.py AT report [--new]               append stdin to AT/REPORT.md (--new starts it): a runner's harness may refuse it file tools
+  seat.py AT teardown                     stop the world's daemon
 
 The world is set here and nowhere else: the mock provider, no keyring, a store and a log directory
-under runs/seat-2026-10-13/ (gitignored). Nothing here can reach GGG or the owner's store: every
-command carries ACQ_PROVIDER=mock and ACQ_STORE_DIR, and `setup` reads the owner's files once, through
-sqlite's online backup. Every `run` is a row of calls.csv beside this file and a file under
-runs/seat-2026-10-13/calls/. Output is printed whole up to SHOWN bytes; past that its head is printed
-and the row says `head`. `--out NAME` also writes stdout to runs/seat-2026-10-13/work/NAME, as a shell's
-`>` would: the one way a verb's output becomes a file another verb reads (`refresh --apply=FILE`).
-
-The first run (2026-10-13, before the fix round) is REPORT-1.md and calls-1.csv; its world is
-runs/seat-2026-10-13-run1/.
+under runs/seat-<the name of AT's parent>/ (gitignored). Nothing here can reach GGG or the owner's
+store: every command carries ACQ_PROVIDER=mock and ACQ_STORE_DIR, and `setup --facts` reads the owner's
+files once, through sqlite's online backup. Every `run` is a row of AT/calls.csv and a file under the
+world's calls/. Output is printed whole up to SHOWN bytes; past that its head is printed and the row
+says `head`. `--out NAME` also writes stdout to the world's work/NAME, as a shell's `>` would: the one
+way a verb's output becomes a file another verb reads (`refresh --apply=FILE`).
 """
 import argparse, csv, json, os, re, sqlite3, subprocess, sys, time, urllib.parse, urllib.request
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
-RUN = os.path.join(ROOT, "runs", "seat-2026-10-13")
-STORE = os.path.join(RUN, "store")
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 EXE = os.path.join(ROOT, "target", "release", "acq")
 COPY = os.path.join(ROOT, "target", "release", "examples", "copy-as-store")
-CSV = os.path.join(HERE, "calls.csv")
-OUT = os.path.join(RUN, "calls")
 OWNER = os.path.expanduser("~/Library/Application Support/com.smallcatlabs.acq/store/ggg")
-OWNER_FACTS = "GERWARIC_7694.db"
-HEADER = "# written by seat.py during the run of BRIEF.md, one row per `acq` command in the seat's world; row n's output is runs/seat-2026-10-13/calls/NNN.txt (gitignored)"
+# Set by `place`, from the record directory the command line names.
+HERE = RUN = STORE = CSV = OUT = WORLD = None
+
+
+def place(at):
+    global HERE, RUN, STORE, CSV, OUT, WORLD
+    HERE = os.path.abspath(at)
+    if not os.path.isdir(HERE):
+        sys.exit(f"seat: {at} is not a directory — the first argument is the seat's record directory")
+    WORLD = "runs/seat-" + os.path.basename(os.path.dirname(HERE))
+    RUN = os.path.join(ROOT, WORLD)
+    STORE = os.path.join(RUN, "store")
+    CSV = os.path.join(HERE, "calls.csv")
+    OUT = os.path.join(RUN, "calls")
+
+
 FIELDS = ["n", "task", "args", "exit", "stdout_bytes", "stderr_bytes", "wall_ms", "shown", "note"]
 SHOWN = 60_000
 HEAD = 3_000
@@ -58,12 +64,15 @@ def backup(src, dst):
     a.close()
 
 
-def setup():
+def setup(owner_facts):
     if os.path.exists(STORE):
-        sys.exit(f"seat: {STORE} exists — a world is made once; remove runs/seat-2026-10-13 to start over")
+        sys.exit(f"seat: {STORE} exists — a world is made once; move {WORLD} aside (a rerun keeps the first run's) to start over")
     os.makedirs(STORE)
+    if not owner_facts:
+        print(f"seat: an empty world at {STORE}")
+        return
     facts = os.path.join(RUN, "copy.db")
-    backup(os.path.join(OWNER, OWNER_FACTS), facts)
+    backup(os.path.join(OWNER, owner_facts), facts)
     placed = subprocess.run([COPY, facts, STORE], check=True, capture_output=True, text=True).stdout.strip()
     print(f"seat: facts copy at {placed}")
     for f in os.listdir(OWNER):
@@ -102,7 +111,7 @@ def log(row, text):
         f.write(text)
     with open(CSV, "a", newline="") as f:
         if new:
-            f.write(HEADER + "\n")
+            f.write(f"# written by seat.py during the run of BRIEF.md, one row per `acq` command in the seat's world; row n's output is {WORLD}/calls/NNN.txt (gitignored)\n")
             csv.writer(f).writerow(FIELDS)
         csv.writer(f).writerow([n] + row)
     return n
@@ -124,7 +133,7 @@ def run(a):
         code, out, err = "timeout", dec(e.stdout), dec(e.stderr)
     if a.out:
         if "/" in a.out or a.out.startswith("."):
-            sys.exit("seat: --out takes a bare file name; it is written under runs/seat-2026-10-13/work/")
+            sys.exit(f"seat: --out takes a bare file name; it is written under {WORLD}/work/")
         os.makedirs(os.path.join(RUN, "work"), exist_ok=True)
         with open(os.path.join(RUN, "work", a.out), "w") as f:
             f.write(out)
@@ -148,8 +157,9 @@ def run(a):
 
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument("at", help="the seat's record directory: BRIEF.md, calls.csv, REPORT.md")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("setup")
+    sub.add_parser("setup").add_argument("--facts", help="a facts file of the owner's store to copy, by name")
     sub.add_parser("teardown")
     sub.add_parser("login").add_argument("user")
     sub.add_parser("report").add_argument("--new", action="store_true")
@@ -161,8 +171,9 @@ def main():
     r.add_argument("--out")
     r.add_argument("args", nargs=argparse.REMAINDER)
     a = ap.parse_args()
+    place(a.at)
     if a.cmd == "setup":
-        setup()
+        setup(a.facts)
     elif a.cmd == "login":
         login(a.user)
     elif a.cmd == "report":
