@@ -16,7 +16,7 @@ No arguments.
 
 ### `apply_plan`
 
-Execute a reviewed plan: exactly its actions, as one `apply` parent job the daemon admits or refuses whole at submit (single-request vocabulary + the max_requests budget). Refused offline — before any daemon contact — if the stored sync-policy revision moved since the plan (replan with refresh_plan). In real-GGG mode the daemon must already be running (a human starts it; this server never spawns one there). An empty plan is a no-op with no daemon contact. Returns the parent job id; poll job_status, then job_result.
+Execute a reviewed plan: its actions and nothing else, as one `apply` parent job the daemon admits or refuses whole at submit (single-request vocabulary + the max_requests budget). Refused offline — before any daemon contact — if the stored sync-policy revision moved since the plan (replan with refresh_plan). In real-GGG mode the daemon must already be running (a human starts it; this server never spawns one there). An empty plan is a no-op with no daemon contact. A plan spends each request once: an action whose target was fetched after the plan was compiled, or whose request the daemon already holds, is listed in `spent` (with `fetched_at`, or the `job_id` holding it) and not sent again, so replaying a plan answers `applied: false` and sends nothing. Returns the parent job id and the `requests` sent; poll job_status, then job_result.
 
 - `account` (string | null)
 - `max_requests` (integer | null) — Refuse at admission — before any child job exists — if the plan authorizes more logical requests than this.

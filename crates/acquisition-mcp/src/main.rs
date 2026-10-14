@@ -88,7 +88,7 @@ use std::path::PathBuf;
 use acquisition_client::client::{
     Client, ConnectError, ConnectOptions, DaemonError, NotSpawned, Observed,
 };
-use acquisition_plan::{PlanError, RefreshPlan, plan_refresh, put_sync_policy};
+use acquisition_plan::{PlanError, RefreshPlan, apply_params_of, plan_refresh, put_sync_policy};
 use acquisition_protocol::protocol::{ErrorKind, QuoteJob, Request, Response};
 use acquisition_protocol::realm::Realm;
 use acquisition_search::SearchError;
@@ -868,13 +868,13 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Execute a reviewed plan: exactly its actions, as one `apply` parent job the daemon admits or refuses whole at submit (single-request vocabulary + the max_requests budget). Refused offline — before any daemon contact — if the stored sync-policy revision moved since the plan (replan with refresh_plan). In real-GGG mode the daemon must already be running (a human starts it; this server never spawns one there). An empty plan is a no-op with no daemon contact. Returns the parent job id; poll job_status, then job_result."
+        description = "Execute a reviewed plan: its actions and nothing else, as one `apply` parent job the daemon admits or refuses whole at submit (single-request vocabulary + the max_requests budget). Refused offline — before any daemon contact — if the stored sync-policy revision moved since the plan (replan with refresh_plan). In real-GGG mode the daemon must already be running (a human starts it; this server never spawns one there). An empty plan is a no-op with no daemon contact. A plan spends each request once: an action whose target was fetched after the plan was compiled, or whose request the daemon already holds, is listed in `spent` (with `fetched_at`, or the `job_id` holding it) and not sent again, so replaying a plan answers `applied: false` and sends nothing. Returns the parent job id and the `requests` sent; poll job_status, then job_result."
     )]
     async fn apply_plan(
         &self,
         Parameters(p): Parameters<ApplyParams>,
     ) -> Result<Json<Value>, ErrorData> {
-        let (_, entry, annotations) = open_intent(p.account.as_deref()).map_err(err)?;
+        let (dir, entry, annotations) = open_intent(p.account.as_deref()).map_err(err)?;
         let plan = RefreshPlan::from_value(&p.plan).map_err(|e| err(e.into()))?;
         plan.check_spendable(provider(), entry.uuid.as_deref(), &annotations)
             .map_err(|e| err(e.into()))?;
@@ -888,11 +888,34 @@ impl AcqMcp {
                 "note": "nothing to do: the plan authorizes no requests",
             })));
         }
-        let mut client = connect(true).await.map_err(err)?;
+        // C111: a plan spends each request once — the store says what was
+        // fetched after the plan's snapshot, the daemon what it already
+        // holds; only the rest is submitted.
+        let store = Store::open(&account_path(&dir, &entry.username)).map_err(err)?;
+        let facts = store
+            .refresh_snapshot(plan.realm.as_str(), &plan.league, &annotations)
+            .map_err(err)?;
+        let (mut unspent, mut spent) = plan.unspent(&facts, &[], &entry.username);
+        let mut connected = None;
+        if !unspent.is_empty() {
+            let mut client = connect(true).await.map_err(err)?;
+            if let Response::Jobs { jobs } = client.request(&Request::List).await.map_err(err)? {
+                (unspent, spent) = plan.unspent(&facts, &jobs, &entry.username);
+            }
+            connected = Some(client);
+        }
+        let Some(mut client) = connected.filter(|_| !unspent.is_empty()) else {
+            return Ok(Json(json!({
+                "applied": false,
+                "requests": 0,
+                "note": "nothing to do: every request of this plan is spent — fetched after it was compiled, or already waiting or running (each entry of `spent` says which)",
+                "spent": spent,
+            })));
+        };
         let resp = client
             .request(&Request::Submit {
                 kind: "apply".into(),
-                params: plan.apply_params(p.max_requests),
+                params: apply_params_of(&unspent, p.max_requests),
                 priority: 0,
                 submitted_by: format!("mcp:{}", std::process::id()),
                 account: Some(entry.username),
@@ -902,7 +925,8 @@ impl AcqMcp {
         match resp {
             Response::Submitted { id } => Ok(Json(json!({
                 "job_id": id,
-                "requests": plan.logical_requests,
+                "requests": unspent.len(),
+                "spent": spent,
             }))),
             Response::Error { kind, message } => Err(daemon_error(kind, message)),
             other => Err(ErrorData::internal_error(

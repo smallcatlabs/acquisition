@@ -382,7 +382,7 @@ Options:
           With --plan: one line per action and every quote note, instead of the grouped view (groups over ten entities are counted)
 
       --apply[=<FILE>]
-          Execute the plan: exactly its actions, as one `apply` parent job that never expands the set. Bare `--apply` compiles the stored policy now, so it never fetches what is fresh; `--apply=FILE` (or `--apply=-` for stdin) reads a reviewed plan envelope from `refresh --plan --json` and fetches everything it lists, again if it is applied again — a file is spent once. Refused if the stored policy revision no longer matches the plan's
+          Execute the plan: exactly its actions, as one `apply` parent job that never expands the set. Bare `--apply` compiles the stored policy now, so it never fetches what is fresh; `--apply=FILE` (or `--apply=-` for stdin) reads a reviewed plan envelope from `refresh --plan --json`. A plan spends each request once: a target fetched after the plan was compiled, or a request the daemon already holds, is named and not sent again, so applying a file twice, or retrying an apply that is still running, sends nothing (`applied: false` and `spent` in JSON, exit 0). To fetch what is fresh, name it: `acq stash`, `acq character`, `refresh --tabs`. Refused if the stored policy revision no longer matches the plan's
 
       --max-requests <MAX_REQUESTS>
           Refuse the apply before anything runs if the plan authorizes more than this many requests (checked by the daemon at admission, before any child job exists)

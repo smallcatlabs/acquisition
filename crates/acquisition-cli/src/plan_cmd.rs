@@ -117,7 +117,7 @@ use std::path::PathBuf;
 use acquisition_client::client::{Client, DaemonError, Observed};
 use acquisition_plan::{
     CharacterSkipReason, FetchReason, ListingReason, PlanError, RefreshAction, RefreshPlan,
-    SkipReason, plan_refresh, put_sync_policy,
+    SkipReason, Spent, SpentBy, apply_params_of, plan_refresh, put_sync_policy,
 };
 use acquisition_protocol::job::Outcome;
 use acquisition_protocol::protocol::{Quote, QuoteJob, QuoteScope, Request, Response};
@@ -297,7 +297,7 @@ pub async fn refresh_plan(
     Ok(())
 }
 
-/// `acq refresh --apply`: execute a plan — exactly its actions, as one
+/// `acq refresh --apply`: execute a plan — its unspent actions (C111), as one
 /// `apply` parent job the daemon admits or refuses whole (tracer step 7).
 /// With no source, the stored policy is compiled right now (the normal
 /// one-keyboard loop); a source is a reviewed plan envelope from
@@ -364,13 +364,61 @@ pub async fn refresh_apply(
         }
         return Ok(());
     }
-    let params = plan.apply_params(max_requests);
+    // C111: a plan spends each request once. What was fetched after the
+    // plan's snapshot is read from the store, with no daemon; only when
+    // something is left is the daemon asked what it already holds, on the
+    // connection the submit needs anyway. (Applying spends, so the
+    // interactive connect policy, lazy spawn included, is the right one —
+    // unlike the quote path, which promises to spend nothing.)
+    let facts = store.refresh_snapshot(plan.realm.as_str(), &plan.league, &annotations)?;
+    let (mut unspent, mut spent) = plan.unspent(&facts, &[], &entry.username);
+    let mut connected = None;
+    if !unspent.is_empty() {
+        let mut client = crate::connect(true).await?;
+        if let Response::Jobs { jobs } = client.request(&Request::List).await? {
+            (unspent, spent) = plan.unspent(&facts, &jobs, &entry.username);
+        }
+        connected = Some(client);
+    }
+    let Some(mut client) = connected.filter(|_| !unspent.is_empty()) else {
+        // Queued requests have not landed, so what a plan compiled now
+        // would fetch still counts them: no remaining count is given, and
+        // the line names the job to wait for instead.
+        let queued = spent.iter().any(|s| matches!(s.by, SpentBy::Queued { .. }));
+        let remaining = (!queued)
+            .then(|| plan_refresh(provider, &facts, acquisition_store::now()).ok())
+            .flatten()
+            .map(|next| next.logical_requests);
+        let note = format!(
+            "nothing to do: every request of this plan is spent — {}",
+            spent_phrase(&spent, acquisition_store::now())
+        );
+        if json {
+            println!(
+                "{}",
+                serde_json::json!({
+                    "applied": false,
+                    "requests": 0,
+                    "note": note,
+                    "spent": spent,
+                    "skipped": {
+                        "tabs": plan.skipped_tabs.len(),
+                        "characters": plan.skipped_characters.len(),
+                    },
+                    "remaining_requests": remaining,
+                })
+            );
+        } else {
+            println!("{note}");
+            if let Some(line) = remaining_line(remaining) {
+                println!("{line}");
+            }
+        }
+        return Ok(());
+    };
+    let params = apply_params_of(&unspent, max_requests);
     let before = store.status()?;
     let started = acquisition_store::now();
-    // Applying spends, so the interactive connect policy (lazy spawn
-    // included) is the right one here — unlike the quote path, which
-    // promises to spend nothing.
-    let mut client = crate::connect(true).await?;
     let account = entry.username.clone();
     let id = match client
         .request(&Request::Submit {
@@ -387,7 +435,17 @@ pub async fn refresh_apply(
         other => bail!("unexpected response: {other:?}"),
     };
     if !json {
-        println!("applying {} as job {id}", requests(plan.logical_requests));
+        let sending = requests(unspent.len() as u64);
+        if spent.is_empty() {
+            println!("applying {sending} as job {id}");
+        } else {
+            println!(
+                "applying {sending} as job {id} ({} of the plan's {} already spent: {})",
+                spent.len(),
+                plan.actions.len(),
+                spent_phrase(&spent, acquisition_store::now())
+            );
+        }
     }
     let outcome = crate::wait_for_job(&mut client, id, json).await?;
     let changes = StoreChanges::since(&store, &before, started)?;
@@ -408,6 +466,7 @@ pub async fn refresh_apply(
         value["account"] = serde_json::json!(entry.username);
         value["store_changes"] = serde_json::to_value(&changes)?;
         value["remaining_requests"] = serde_json::json!(remaining);
+        value["spent"] = serde_json::to_value(&spent)?;
         println!("{}", serde_json::to_string_pretty(&value)?);
         return match outcome {
             Outcome::Success { .. } => Ok(()),
@@ -432,6 +491,46 @@ pub async fn refresh_apply(
         }
         Outcome::Cancelled => Err(crate::AlreadyReported.into()),
     }
+}
+
+/// C111, in words: how many of a plan's requests were spent before this
+/// apply and by what — fetched since (with the latest's age), or held by
+/// the daemon (with the job to wait for).
+fn spent_phrase(spent: &[Spent], now: i64) -> String {
+    let fetched: Vec<i64> = spent
+        .iter()
+        .filter_map(|s| match s.by {
+            SpentBy::Fetched { fetched_at } => Some(fetched_at),
+            SpentBy::Queued { .. } => None,
+        })
+        .collect();
+    let mut owners: Vec<u64> = spent
+        .iter()
+        .filter_map(|s| match s.by {
+            SpentBy::Queued { job_id, parent } => Some(parent.unwrap_or(job_id)),
+            SpentBy::Fetched { .. } => None,
+        })
+        .collect();
+    let queued = owners.len();
+    owners.sort_unstable();
+    owners.dedup();
+    let mut parts = Vec::new();
+    if let Some(latest) = fetched.iter().max() {
+        parts.push(format!(
+            "{} fetched after it was compiled, the latest {} ago",
+            fetched.len(),
+            dur((now - latest).max(0))
+        ));
+    }
+    if let Some(first) = owners.first() {
+        let names: Vec<String> = owners.iter().map(u64::to_string).collect();
+        parts.push(format!(
+            "{queued} waiting or running in {} {} (`acq result {first} --wait`)",
+            if owners.len() == 1 { "job" } else { "jobs" },
+            names.join(", ")
+        ));
+    }
+    parts.join(", ")
 }
 
 /// The apply's last line (C53: the next action): what a plan compiled

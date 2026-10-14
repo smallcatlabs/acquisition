@@ -29,7 +29,7 @@ What each fault became. A fix is held by the test of
 | 1 | progress and payload on one stream | fixed: `73e49bac` |
 | 1, 2 | ids nobody outside the repository can look up | parked, fired; built with the release's text (`decisions/frontends.md`) |
 | 1, 2 | not every failure carries a `kind` | usage and account kinds added: `1c43a6f5`; the taxonomy park stands |
-| 2 | a plan file applied twice fetches twice | parked, fired, waits on the owner (`decisions/plans.md`); the help says so: `76ef839b` |
+| 2 | a plan file applied twice fetches twice | C111: a plan spends each request once; a replay sends nothing and says what spent it (after a design study the owner asked for) |
 | 2 | `cancel` on a running job "does not stop it" | it does, at the job's next check; the words fixed: `76ef839b` |
 | 2 | `daemon stop` ends an unpersisted login silently | fixed: `76ef839b` |
 | 2 | a job verb's JSON differs with `--json` | by design (C53), now said in the help: `76ef839b` |

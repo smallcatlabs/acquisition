@@ -677,3 +677,152 @@ fn tabs_says_its_counts_first_and_counts_a_large_league() {
     let all = stdout(&acq(&base, &["tabs", "--expand"]));
     assert!(all.contains("q40") && all.lines().count() > 41, "{all}");
 }
+
+/// A daemon with `alice` logged in, a Standard policy over every tab and
+/// the stash listing on record; the plan compiled from it is written to
+/// `plan.json` under `base` and returned beside its path.
+fn a_saved_plan(base: &Path) -> (String, Value) {
+    login(base, "alice");
+    let policy = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","max_age_seconds":3600}}}}}"#;
+    assert!(acq(base, &["policy", "set", policy]).status.success());
+    assert!(acq(base, &["stashes"]).status.success());
+    let out = acq(base, &["refresh", "--plan", "--json"]);
+    let plan = sole_json(&out);
+    let path = base.join("plan.json");
+    std::fs::write(&path, &out.stdout).unwrap();
+    (format!("--apply={}", path.display()), plan)
+}
+
+/// C111. A plan file applied twice fetched twice: the same command run
+/// again spent seven requests on tabs seconds fresh, and the limiter held
+/// the next round 292 s. A plan spends each request once, so the second
+/// apply sends nothing, says what spent the plan, and is no failure.
+#[test]
+fn a_plan_file_applied_twice_sends_nothing_the_second_time() {
+    let scratch = harness::scratch("seat-replay");
+    let base = scratch.0.clone();
+    let (_daemon, _pid) = start_daemon(&base);
+    let (apply, plan) = a_saved_plan(&base);
+    let planned = plan["logical_requests"].as_u64().expect("a count");
+    assert!(planned > 1, "{plan}");
+
+    let first = sole_json(&acq(&base, &["refresh", &apply, "--json"]));
+    assert_eq!(first["outcome"], "success", "{first}");
+    assert_eq!(first["payload"]["requests"], planned, "{first}");
+    assert_eq!(first["spent"], json!([]), "{first}");
+
+    let out = acq(&base, &["refresh", &apply, "--json"]);
+    assert!(out.status.success(), "{}", text(&out));
+    let second = sole_json(&out);
+    assert_eq!(second["applied"], false, "{second}");
+    assert_eq!(second["requests"], 0, "{second}");
+    assert!(second.get("job_id").is_none(), "{second}");
+    let spent = second["spent"].as_array().expect("a list");
+    assert_eq!(spent.len() as u64, planned, "{second}");
+    for (entry, action) in spent.iter().zip(plan["actions"].as_array().unwrap()) {
+        assert_eq!(&entry["action"], action, "{second}");
+        assert!(entry["fetched_at"].is_i64(), "{second}");
+    }
+
+    let out = acq(&base, &["refresh", &apply]);
+    assert!(out.status.success(), "{}", text(&out));
+    let said = stdout(&out);
+    assert!(
+        said.starts_with(&format!(
+            "nothing to do: every request of this plan is spent — {planned} fetched after it was compiled, the latest "
+        )),
+        "{said}"
+    );
+
+    // One apply's worth of fetches is all the daemon ever ran.
+    let jobs = sole_json(&acq(&base, &["jobs", "--all", "--json"]));
+    let jobs = jobs.as_array().expect("a list of jobs");
+    let applies = jobs.iter().filter(|j| j["kind"] == "apply").count();
+    assert_eq!(applies, 1, "{jobs:?}");
+}
+
+/// C111, the retry: an apply whose caller gave up while its fetches
+/// waited on the limiter is run again. The first apply's requests are
+/// still queued, so the store shows nothing fetched; the daemon's own
+/// list is what says they are spent, and the second apply names the job
+/// to wait for instead of queueing every request a second time.
+#[test]
+fn an_apply_retried_while_its_requests_wait_queues_nothing_more() {
+    let scratch = harness::scratch("seat-retry");
+    let base = scratch.0.clone();
+    let (_daemon, _pid) = start_daemon(&base);
+    let (apply, plan) = a_saved_plan(&base);
+    let planned = plan["logical_requests"].as_u64().expect("a count");
+
+    // Spend the stash route's burst so the apply's fetches wait.
+    let tab = plan["actions"][0]["id"].as_str().expect("a tab id");
+    let params = json!({ "realm": "pc", "league": "Standard", "id": tab, "deep": false });
+    for _ in 0..20 {
+        let out = acq(
+            &base,
+            &[
+                "submit",
+                "stash",
+                "--params",
+                &params.to_string(),
+                "--detach",
+                "--json",
+            ],
+        );
+        assert!(out.status.success(), "{}", text(&out));
+    }
+
+    // The caller that gives up: the apply is started and never read.
+    let mut first = harness::command(&base, &["refresh", &apply, "--json"])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .expect("spawning acq");
+    let open_jobs = || {
+        sole_json(&acq(&base, &["jobs", "--all", "--json"]))
+            .as_array()
+            .expect("a list of jobs")
+            .clone()
+    };
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let parent = loop {
+        let jobs = open_jobs();
+        let fanned_out = jobs.iter().find(|j| j["kind"] == "apply").filter(|apply| {
+            let children = jobs.iter().filter(|j| j["parent"] == apply["id"]).count();
+            children
+                == apply["params"]["jobs"]
+                    .as_array()
+                    .map_or(usize::MAX, Vec::len)
+        });
+        if let Some(apply) = fanned_out {
+            break apply["id"].as_u64().expect("an id");
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the apply never fanned out: {jobs:?}"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    };
+    let _ = first.kill();
+    let _ = first.wait();
+
+    let out = acq(&base, &["refresh", &apply, "--json"]);
+    assert!(out.status.success(), "{}", text(&out));
+    let second = sole_json(&out);
+    assert_eq!(second["applied"], false, "{second}");
+    let spent = second["spent"].as_array().expect("a list");
+    assert_eq!(spent.len() as u64, planned, "{second}");
+    let queued: Vec<&Value> = spent.iter().filter(|s| s["job_id"].is_u64()).collect();
+    assert!(!queued.is_empty(), "nothing was still waiting: {second}");
+    assert!(queued.iter().any(|s| s["parent"] == parent), "{second}");
+    assert!(second["remaining_requests"].is_null(), "{second}");
+    assert!(
+        second["note"]
+            .as_str()
+            .unwrap_or_default()
+            .contains(&format!("(`acq result {parent} --wait`)")),
+        "{second}"
+    );
+    let applies = open_jobs().iter().filter(|j| j["kind"] == "apply").count();
+    assert_eq!(applies, 1, "the retry queued a second apply");
+}

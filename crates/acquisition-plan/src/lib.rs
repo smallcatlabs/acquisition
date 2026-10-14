@@ -262,7 +262,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use acquisition_protocol::job::MAX_429_RETRIES;
+use acquisition_protocol::job::{JobId, JobInfo, MAX_429_RETRIES};
 use acquisition_protocol::protocol::Quote;
 use acquisition_protocol::realm::{Family, Realm};
 use acquisition_store::{
@@ -1266,26 +1266,133 @@ impl RefreshPlan {
         }
     }
 
-    /// The plan's actions rendered as the `apply` parent's params — the
-    /// explicit `(kind, params)` child tuples the daemon admits or
-    /// refuses whole at submit, plus the caller's logical budget. One
-    /// rendering for every frontend, so what apply submits cannot drift
-    /// from what the plan authorized.
-    pub fn apply_params(&self, max_requests: Option<u64>) -> Value {
-        let jobs: Vec<Value> = self
-            .actions
-            .iter()
-            .map(|action| {
-                let (kind, params) = action.job();
-                json!({ "kind": kind, "params": params })
-            })
-            .collect();
-        let mut params = json!({ "jobs": jobs });
-        if let Some(max) = max_requests {
-            params["max_requests"] = json!(max);
+    /// C111: the actions an apply may still send, and the ones already
+    /// spent — in the plan's order. An action is spent when its target's
+    /// `fetched_at` in `snapshot` (the plan's realm and league, read now)
+    /// is not earlier than the snapshot the plan was compiled from, or when
+    /// `live` holds a waiting or running job of `account` with the same
+    /// `(kind, params)`. "Not earlier", since the stamps are whole
+    /// seconds: a fetch that lands in the second the plan's snapshot was
+    /// taken spends its action, or a plan applied and replayed within one
+    /// second would send twice. The planner cannot have planned a target
+    /// already fetched in that second — a window's `Stale` is `age >
+    /// max_age` and a disagreement needs a listing strictly newer than
+    /// the fetch — except under `max_age_seconds: 0` across a second's
+    /// boundary, where the action is named as spent and the next plan
+    /// fetches it.
+    /// A target the snapshot no longer holds is unspent, as before: its
+    /// fetch fails its own child honestly (C44).
+    pub fn unspent(
+        &self,
+        snapshot: &RefreshSnapshot,
+        live: &[JobInfo],
+        account: &str,
+    ) -> (Vec<RefreshAction>, Vec<Spent>) {
+        let since = self.basis.snapshot_taken_at;
+        let after = |fetched_at: Option<i64>| fetched_at.filter(|at| *at >= since);
+        let mut unspent = Vec::new();
+        let mut spent = Vec::new();
+        for action in &self.actions {
+            let fetched = match action {
+                RefreshAction::ListStashes { .. } => {
+                    after(snapshot.stash_listing.as_ref().map(|l| l.fetched_at))
+                }
+                RefreshAction::ListCharacters { .. } => {
+                    after(snapshot.character_listing.as_ref().map(|l| l.fetched_at))
+                }
+                RefreshAction::FetchTab { id, .. } => after(
+                    snapshot
+                        .tabs
+                        .iter()
+                        // A folder's child is a `FetchTab` too, so the
+                        // parent says nothing here; the id is the tab's.
+                        .find(|t| t.id == *id)
+                        .and_then(|t| t.fetched_at),
+                ),
+                RefreshAction::FetchSubstash { parent, id, .. } => after(
+                    snapshot
+                        .tabs
+                        .iter()
+                        .find(|t| t.id == *id && t.parent.as_deref() == Some(parent.as_str()))
+                        .and_then(|t| t.fetched_at),
+                ),
+                RefreshAction::FetchCharacter { id, .. } => after(
+                    snapshot
+                        .characters
+                        .iter()
+                        .find(|c| c.id == *id)
+                        .and_then(|c| c.fetched_at),
+                ),
+            };
+            let (kind, params) = action.job();
+            let queued = || {
+                live.iter().find(|job| {
+                    !job.state.is_terminal()
+                        && job.kind == kind
+                        && job.params == params
+                        && job.account.as_deref() == Some(account)
+                })
+            };
+            let by = match fetched {
+                Some(fetched_at) => Some(SpentBy::Fetched { fetched_at }),
+                None => queued().map(|job| SpentBy::Queued {
+                    job_id: job.id,
+                    parent: job.parent,
+                }),
+            };
+            match by {
+                Some(by) => spent.push(Spent {
+                    action: action.clone(),
+                    by,
+                }),
+                None => unspent.push(action.clone()),
+            }
         }
-        params
+        (unspent, spent)
     }
+}
+
+/// An action of a plan that an apply did not send, and what spent it
+/// (C111). Serialized as the action's own object beside `fetched_at`, or
+/// beside `job_id` (and `parent`, the apply that queued it).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Spent {
+    pub action: RefreshAction,
+    #[serde(flatten)]
+    pub by: SpentBy,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(untagged)]
+pub enum SpentBy {
+    /// The target was fetched after the plan's snapshot.
+    Fetched { fetched_at: i64 },
+    /// The same request is waiting or running in the daemon.
+    Queued {
+        job_id: JobId,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        parent: Option<JobId>,
+    },
+}
+
+/// Actions rendered as the `apply` parent's params — the explicit
+/// `(kind, params)` child tuples the daemon admits or refuses whole at
+/// submit, plus the caller's logical budget. One rendering for every
+/// frontend, over the plan's unspent actions (C111), so what apply
+/// submits cannot drift from what the plan authorized.
+pub fn apply_params_of(actions: &[RefreshAction], max_requests: Option<u64>) -> Value {
+    let jobs: Vec<Value> = actions
+        .iter()
+        .map(|action| {
+            let (kind, params) = action.job();
+            json!({ "kind": kind, "params": params })
+        })
+        .collect();
+    let mut params = json!({ "jobs": jobs });
+    if let Some(max) = max_requests {
+        params["max_requests"] = json!(max);
+    }
+    params
 }
 
 impl RefreshPlan {
@@ -3090,7 +3197,7 @@ mod tests {
     fn apply_params_renders_exactly_the_plans_actions() {
         let plan = plan(&store(), &all_policy_value(3600), 2_000);
         assert!(!plan.actions.is_empty());
-        let params = plan.apply_params(None);
+        let params = apply_params_of(&plan.actions, None);
         let jobs = params["jobs"].as_array().unwrap();
         assert_eq!(jobs.len(), plan.actions.len());
         for (job, action) in jobs.iter().zip(&plan.actions) {
@@ -3099,7 +3206,82 @@ mod tests {
             assert_eq!(job["params"], action_params);
         }
         assert!(params.get("max_requests").is_none());
-        assert_eq!(plan.apply_params(Some(3))["max_requests"], json!(3));
+        assert_eq!(
+            apply_params_of(&plan.actions, Some(3))["max_requests"],
+            json!(3)
+        );
+    }
+
+    /// C111 — an action is spent by its target's fetch at or after the
+    /// plan's snapshot, or by an open job of the same account holding the
+    /// same request; an earlier fetch, a finished job and another
+    /// account's job spend nothing.
+    #[test]
+    fn an_action_is_spent_by_a_later_fetch_or_an_open_job_and_by_nothing_else() {
+        use acquisition_protocol::job::JobState;
+        let mut s = store();
+        list(
+            &mut s,
+            json!([
+                { "id": "t1", "name": "One", "type": "PremiumStash", "index": 0 },
+                { "id": "t2", "name": "Two", "type": "PremiumStash", "index": 1 },
+                { "id": "t3", "name": "Three", "type": "PremiumStash", "index": 2 },
+            ]),
+            1000,
+        );
+        let policy = all_policy_value(3600);
+        let plan = plan(&s, &policy, 1400);
+        assert_eq!(plan.actions.len(), 3, "{:?}", plan.actions);
+        let taken = plan.basis.snapshot_taken_at;
+
+        let facts = snapshot_with(&s, &policy);
+        let (unspent, spent) = plan.unspent(&facts, &[], "tom");
+        assert_eq!((unspent.len(), spent.len()), (3, 0));
+
+        // t1 fetched in the snapshot's own second, t2 a second before it.
+        let mut facts = facts;
+        facts.tabs[0].fetched_at = Some(taken);
+        facts.tabs[1].fetched_at = Some(taken - 1);
+        let job = |id, account: &str, state| JobInfo {
+            id,
+            kind: "stash".into(),
+            state,
+            priority: 0,
+            submitted_by: "test".into(),
+            eta_seconds: None,
+            parent: Some(7),
+            retries: 0,
+            account: Some(account.into()),
+            params: plan.actions[2].job().1,
+        };
+        let live = [
+            job(8, "tom", JobState::Done),
+            job(9, "someone-else", JobState::Waiting),
+        ];
+        let (unspent, spent) = plan.unspent(&facts, &live, "tom");
+        assert_eq!(unspent, plan.actions[1..].to_vec());
+        assert_eq!(
+            spent,
+            vec![Spent {
+                action: plan.actions[0].clone(),
+                by: SpentBy::Fetched { fetched_at: taken },
+            }]
+        );
+
+        let live = [job(10, "tom", JobState::Waiting)];
+        let (unspent, spent) = plan.unspent(&facts, &live, "tom");
+        assert_eq!(unspent, plan.actions[1..2].to_vec());
+        assert_eq!(
+            spent[1].by,
+            SpentBy::Queued {
+                job_id: 10,
+                parent: Some(7)
+            }
+        );
+        assert_eq!(
+            serde_json::to_value(&spent[1]).unwrap(),
+            json!({ "action": plan.actions[2], "job_id": 10, "parent": 7 })
+        );
     }
 
     /// Realm rides through: a plan for Standard on xbox lists and fetches

@@ -233,6 +233,17 @@ fn the_mcp_tools_carry_the_plan_slice_and_its_gates() {
         "{outcome}"
     );
 
+    // C111: the same plan handed back sends nothing — its one request is
+    // spent, and the answer says by what.
+    let replayed = mcp.expect_ok("apply_plan", json!({ "plan": planned["plan"] }));
+    assert_eq!(replayed["applied"], json!(false), "{replayed}");
+    assert_eq!(replayed["requests"], json!(0), "{replayed}");
+    assert_eq!(
+        replayed["spent"][0]["action"], planned["plan"]["actions"][0],
+        "{replayed}"
+    );
+    assert!(replayed["spent"][0]["fetched_at"].is_i64(), "{replayed}");
+
     // Replan: the listing is on record, so every listed tab owes its first
     // fetch (5 top-level + 2 folder children in the mock's league).
     let planned = mcp.expect_ok("refresh_plan", json!({}));

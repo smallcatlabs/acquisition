@@ -380,10 +380,14 @@ is the per-location summary.")]
         /// job that never expands the set. Bare `--apply` compiles the
         /// stored policy now, so it never fetches what is fresh;
         /// `--apply=FILE` (or `--apply=-` for stdin) reads a reviewed plan
-        /// envelope from `refresh --plan --json` and fetches everything
-        /// it lists, again if it is applied again — a file is spent once.
-        /// Refused if the stored policy revision no longer matches the
-        /// plan's.
+        /// envelope from `refresh --plan --json`. A plan spends each
+        /// request once: a target fetched after the plan was compiled, or
+        /// a request the daemon already holds, is named and not sent
+        /// again, so applying a file twice, or retrying an apply that is
+        /// still running, sends nothing (`applied: false` and `spent` in
+        /// JSON, exit 0). To fetch what is fresh, name it: `acq stash`,
+        /// `acq character`, `refresh --tabs`. Refused if the stored
+        /// policy revision no longer matches the plan's.
         #[arg(long, value_name = "FILE", num_args = 0..=1, require_equals = true,
               default_missing_value = "", conflicts_with_all = ["all", "tabs", "deep", "plan"])]
         apply: Option<String>,
