@@ -29,8 +29,8 @@ store's `test-hooks` feature and its dev-only `hooks` feature went);
 `cargo clippy` rewrites none. So run the gate's `cargo build --workspace`
 before any smoke or live run, and never run the drivers while the gate
 runs — their preflight build replaces `acqd` under a live daemon (an
-artifact mismatch, C84). The contract revision hashes the protocol
-crate's sources, so an edit or a `cargo fmt` there after the build
+artifact mismatch, C84). An edit or a `cargo fmt` to any input of the contract
+revision (`LIVE-TESTING.md`, "Build before you run") after the build
 leaves `acqd` on the old revision and every daemon test failing "another
 contract": build again first (2026-09-12). `cargo build --workspace
 --release` and `cargo build --release -p acquisition-cli` uplift two
@@ -63,9 +63,11 @@ A help string is a doc comment the user reads: cite the id there too.
 ## 3. When a slice closes
 
 Give the slice a closed record in the mold of `NETWORK-CLEANUP.md` (step
-ledger, the shapes of fault its reviews taught, what the runs taught,
-observations still open), citing the last commit that holds the open
-record's full text. Strike-through items in a "Parked" list are deleted,
+ledger, the shapes of fault its reviews taught, what the runs taught),
+citing the last commit that holds the open record's full text. An
+observation still open at the close becomes an area park with a trigger
+or is dropped, and the record says where each went (`AGENTS.md`,
+"Routing"; `DAEMON-SPLIT-SLICE.md`, "Where the open observations went"). Strike-through items in a "Parked" list are deleted,
 not kept. A park is deleted in the commit that builds it, never because
 its trigger fired (`CONTEXT.md`, "Parked").
 

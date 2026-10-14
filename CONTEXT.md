@@ -59,7 +59,7 @@ The live definition is `crates/acquisition-protocol/src/protocol.rs` (request/re
 
 ### CLI shape
 
-The live verb list is `acq --help`; the README's tour shows the shape. Properties: default mode is blocking-with-progress ("rate limited, starting in ~4m37s..."), `--detach` is the async/job mode, every command takes `--json`, and `daemon status|stop` exist for debugging only.
+The live verb list is `acq --help`; the README's tour shows the shape. Properties: default mode is blocking-with-progress ("rate limited, starting in ~4m37s..."), `--detach` is the async/job mode; `--json` on every command is C11, and what `daemon status|stop` are for is C3.
 
 ## Parked (cross-cutting only; do not build yet)
 
@@ -74,10 +74,9 @@ Scope deferred with its trigger, so deferral never needs re-arguing: something s
 The charter is `README.md`'s opening paragraph; who holds which boundary is `AGENTS.md`. The numbered principles are cited by the registry as `P<n>`.
 
 - Tests pin behavior at boundaries, never mechanisms. A test that reaches into daemon internals pins this implementation, not the contract, and is disposable. The GGG-side contract surface is the send journal (`TESTING-NOTES.md`); the frontend-side surface is the protocol, pinned under C85.
-- Decisions get recorded here after the code teaches us, not before. When the current internals get in the way of learning, record the finding and move on rather than polishing.
-- Design discussion precedes code here — "design" means updating this doc, not writing a spec.
+- Rulings first, findings after (owner, 2026-10-13, verbatim: "rulings first, findings after"). A ruling — an invariant, a boundary, a registry entry — is brought to the owner and recorded in the registry before the code that depends on it; "design" means updating the registry, not writing a spec. A finding — what building or running taught — is recorded after, at its home (`AGENTS.md`, "Routing"). When the current internals get in the way of learning, record the finding and move on rather than polishing.
 - Prefer simplicity over flexibility when trade-offs arise. Prefer idiomatic Rust patterns over translations from Qt/C++.
-- **P1.** Deep design sessions are evidence-driven, never calendar-driven; crystallize before building. Rulings land in this doc; session notes (`brainstorming-notes/`) are disposable history, never a second authority.
+- **P1.** Deep design sessions are evidence-driven, never calendar-driven; crystallize before building. Rulings land in the registry; session notes (`brainstorming-notes/`) are disposable history, never a second authority.
 - **P2.** In product scope the validating consumer is real use, and each frontend contract needs its own — the owner's live use validates a CLI slice, not the GUI/MCP/TUI contracts; friction notes are data the way the send journal is data.
 - **P3.** Generalize after two materially different consumers reveal the shared property — except where an early choice controls irreversible identity, durability, safety, or compatibility (those get first-consumer treatment; the uuid identity decision is the example).
 - **P4.** Tactical taste is settled by a lint where mechanical and a recorded property where stakes are real — design discussion precedes a property's promotion to lint or test; everything else is agent-owned internals.

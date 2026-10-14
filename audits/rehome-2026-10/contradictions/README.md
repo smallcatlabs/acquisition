@@ -1,6 +1,6 @@
 # The contradiction read — findings
 
-35 rows in `findings.tsv`, read at `d1583b2e`; every verdict cell is `open` and the owner's.
+35 rows in `findings.tsv`, read at `d1583b2e`. Every row has its verdict since 2026-10-13: fixed, or ruled and applied (X32 by the owner's "rulings first, findings after").
 Counts: contradiction 11, stale-next 8, dangling 6, stale-shape 5, two-homes 5.
 By confidence: high 9, medium 15, low 11.
 Fix first: X2 (with X1 and X3, one fact: which repository authors a ground-truth claim),

@@ -95,8 +95,9 @@ Owner, in `acquisition-qt`: ADR 0003 rewritten with ruling 3 verbatim. The
 playground follows in the rehome commit: `README.md`'s charter sentence
 "Whether this code ships is the owner's decision (ADR 0003) and nothing
 here anticipates it" becomes a citation of the ruling and of this note;
-`AGENTS.md`'s "ADR 0003 … ignore it" line becomes "read its status
-line". Nothing else in the always-loaded set changes.
+`AGENTS.md`'s "ADR 0003 … ignore it" line became, at the
+two-repository ruling, "lives there, is the owner's call and needs
+nothing from you". Nothing else in the always-loaded set changes.
 
 ## Step 1 — rehome
 

@@ -200,9 +200,9 @@ number there was measured, never recalled. The verdicts:
   asks cost no more than the empty query. The six asks the seat saw at
   695–715 ms did not recur on the copy, their cause unmeasured. The
   debug build is 2.7 to 4.6 s. What each rerun showed is the block's.
-  After the close, run alone (`53580145`, 2026-10-11): the load
-  468–482, 14 of 67 asks over, the dearest 613; the projection park
-  does not fire and the totals batch stays parked
+  After the close, run alone (`search/M3-LEDGER.md`, the row at
+  `53580145`): the projection park does not fire and the totals batch
+  stays parked
   (`decisions/search.md`). Every run is `search/M3-LEDGER.md`.
 - M4 (step 4): `~` over all text adds 9 ms.
 - M5 (step 10): over a mock session, 126 asks answered across 18

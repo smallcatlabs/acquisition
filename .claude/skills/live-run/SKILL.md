@@ -61,8 +61,9 @@ working, not a hang; macOS has no `timeout`.
 
 ## A first contact on a new endpoint
 
-Fresh daemon, rails on, ceiling 3 (token POST, HEAD probe, GET; 2 if
-the daemon already holds a valid access token):
+Fresh daemon, rails on, ceiling 3, or 2 if the daemon already holds a
+valid access token (what the ceiling counts is the standing rule's,
+`LIVE-TESTING.md`):
 
 ```sh
 ACQ_TRIPWIRE=1 ACQ_MAX_SENDS=3 acq <command>   # the real provider is the default (C88); no flag selects it
@@ -90,7 +91,7 @@ means something else is on this account — stop and find it.
 ## If something trips
 
 A tripwire trip is evidence to read, not a retry prompt. Write the cause
-in the ledger, wait at least 360 s, then `acq daemon reset-tripwire`.
+in the ledger, wait the post-violation time the standing rule gives (`LIVE-TESTING.md`), then `acq daemon reset-tripwire`.
 Never reset-and-retry. A ceiling halt leaves the queue waiting on disk:
 `acq jobs` (it reads the queue on disk once the halted daemon has idled
 out, C45), cancel what should not go out, then respawn. An interrupted

@@ -100,7 +100,7 @@ Knobs and defaults are in the README ("Knobs"); `acq daemon
 status` prints their state and `acq dash` shows a halt in red. What each
 one is, and whether it outlives the ladder:
 
-1. **Tripwire** (`ACQ_TRIPWIRE=1`, ladder-only). The first landed 429 on
+1. **Tripwire** (`ACQ_TRIPWIRE=1`; first contacts and the drivers). The first landed 429 on
    any route, HEAD and token included, or any 401/403/503, halts every
    later send until `acq daemon reset-tripwire`; persisted per provider
    across restarts. Since 2026-08-30 a halt leaves queued jobs *waiting*
@@ -119,7 +119,7 @@ one is, and whether it outlives the ladder:
    in transport is paced as if the server counted it.
 4. **Send journal** (`ACQ_JOURNAL`, permanent): one JSON line per actual
    send, never a token or body; the contract surface (`TESTING-NOTES.md`).
-5. **Send ceiling** (`ACQ_MAX_SENDS=<n>`, ladder-only): halt after `n`
+5. **Send ceiling** (`ACQ_MAX_SENDS=<n>`; first contacts and the drivers): halt after `n`
    sends this lifetime; not persisted, so a soak's respawn starts fresh.
    **The queue is persisted, the ceiling is not**: jobs halted by the
    ceiling resume under the next daemon's fresh ceiling. Before respawning
@@ -131,7 +131,7 @@ one is, and whether it outlives the ladder:
    had first contact on 2026-08-30 under the standing rule.
 7. **Keyring save failure is surfaced** in `daemon status` and is a stop
    condition (permanent); the in-memory token is kept until exit.
-8. **`ACQ_IDLE_SHUTDOWN=<secs>`** (permanent knob), set per rung.
+8. **`ACQ_IDLE_SHUTDOWN=<secs>`** (permanent knob), set per run.
 
 Each rail has a deterministic test against the mock with rails 1 and 5
 forced on; the suite passes unchanged with them off; the quality gate

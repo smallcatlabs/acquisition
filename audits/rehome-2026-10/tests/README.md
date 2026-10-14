@@ -3,8 +3,11 @@
 Note 36, step 1. One question per test: what change to the product
 makes this fail, and is that change a boundary? Read at `d1583b2e` by
 four runners, one group each, from the source alone; nothing was run.
-The classes are proposals. `verdict` is `open` on every row until the
-owner rules.
+The classes were proposals. Since 2026-10-13 the owner's verdicts are
+in: boundary and harness "as classed", fifteen mechanism tests
+accepted. Open still: sixteen weak tests, the two mechanism tests that
+are a ruling's only pin (C21, C5), the one that cannot fail and the
+duplicate.
 
 | Group | Tests | boundary | weak | mechanism | harness | cannot-fail | duplicate | Rows | Detail |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |

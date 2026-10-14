@@ -1,6 +1,6 @@
 # The parks read — result
 
-Read at `d1583b2e` under `BRIEF.md`; the tables are `parks.tsv`, `gaps.tsv`, `unparked.tsv`. Fates are proposals; `verdict` is `open` on every row until the owner rules.
+Read at `d1583b2e` under `BRIEF.md`; the tables are `parks.tsv`, `gaps.tsv`, `unparked.tsv`. Fates were proposals; every row has the owner's verdict since 2026-10-13 ("as classed, stays, and confirmed"; K19 "build in step 4"), K42 and K52 reworded by the session for the owner to read.
 
 - Rows: 73 = parked items enumerated. `tools/bothy.py check` counted 59 (told to this run, not run by it): 59 + 11 (the `decisions/daemon.md:36` lot is 12 items at its semicolons, counted there as 1) + 3 (C71, C73, C78 parked in place in `decisions/pricing.md`) = 73.
 - Per fate: stays 56, fires 11, fired 1, built 0, withdrawn 0, retune 5.
