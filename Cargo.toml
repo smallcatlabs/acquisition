@@ -15,6 +15,7 @@ members = [
 version = "1.0.0-beta.1"
 edition = "2024"
 license = "MIT OR Apache-2.0"
+publish = false
 repository = "https://github.com/smallcatlabs/acquisition"
 
 [workspace.dependencies]

@@ -1,11 +1,62 @@
-# cargo-deny, advisories only (C8 of the 2026-09-11 census, ruled
-# 2026-09-12): a daemon that holds real tokens earns a RustSec check, run
-# by the Linux workflow (`.github/workflows/gate-linux.yml`), never by
-# the local gate. Licenses, bans and sources wait on a shipping decision
-# (`decisions/daemon.md`, "Parked").
+# cargo-deny over the locked graph, run by the Linux workflow
+# (`.github/workflows/gate-linux.yml`), never by the local gate.
+# Advisories since 2026-09-12 (C8 of the 2026-09-11 census): a daemon
+# that holds real tokens earns a RustSec check. Licences, bans and
+# sources since the shipping decision (note 36, step 2;
+# `PLATFORMS-SLICE.md`, question 4, the owner's "ok" of 2026-10-14):
+# what ships in an archive is what this file admits.
+[graph]
+all-features = true
+
 [advisories]
 version = 2
 yanked = "deny"
 # Transitive crates nobody maintains (paste under ratatui, 2026-09-12) are
 # a warning; a vulnerability anywhere in the graph still fails.
 unmaintained = "workspace"
+
+# The licences the graph carried when the list was ruled; a crate under
+# any other fails until someone reads it. Two are admitted for one crate
+# each, so a second crate under either is read before it ships.
+[licenses]
+version = 2
+confidence-threshold = 0.9
+allow = [
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSL-1.0",
+    "ISC",
+    "MIT",
+    "Unicode-3.0",
+    "Unlicense",
+    "Zlib",
+]
+exceptions = [
+    # File-level copyleft, met by shipping it unmodified with its notice
+    # (the archive's notices file); under `directories`.
+    { allow = ["MPL-2.0"], crate = "option-ext" },
+    # Mozilla's root store as data, carried by reqwest's rustls.
+    { allow = ["CDLA-Permissive-2.0"], crate = "webpki-roots" },
+]
+
+[licenses.private]
+# The workspace's own crates are published nowhere and carry the
+# workspace's licence; they are checked like any other.
+ignore = false
+
+# Duplicate versions are the ecosystem's (windows-sys alone comes in four)
+# and nothing here acts on them, so they are not reported; a wildcard
+# version requirement is refused, the workspace's own path dependencies
+# excepted (the crates are `publish = false`).
+[bans]
+multiple-versions = "allow"
+wildcards = "deny"
+allow-wildcard-paths = true
+
+# crates.io and nothing else: no git dependency, no other registry.
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

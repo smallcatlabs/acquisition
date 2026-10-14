@@ -33,13 +33,14 @@ jobs:
         with:
           workspaces: .
 
-      # RustSec advisories over the locked graph (`deny.toml`): a daemon
-      # that holds real tokens earns the check. Here only — the local gate
-      # does not install cargo-deny (C8 of the 2026-09-11 census).
-      - name: Advisories
+      # cargo-deny over the locked graph (`deny.toml`): RustSec advisories,
+      # the licences an archive may carry, bans and sources. Here only —
+      # the local gate does not install cargo-deny (C8 of the 2026-09-11
+      # census).
+      - name: Dependencies
         uses: EmbarkStudios/cargo-deny-action@v2
         with:
-          command: check advisories
+          command: check advisories licenses bans sources
           manifest-path: Cargo.toml
 
       - name: Install a Secret Service

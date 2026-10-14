@@ -44,4 +44,3 @@ Scope this area has deferred, with the trigger that reopens it, so deferral neve
 - A GUI-hosted daemon → refused: the GUI spawns `acqd` like the CLI. Trigger: the GUI slice recording its spawn policy.
 - `spawned_by` on the daemon → `hello`/`daemon status`. Trigger: two spawners on one machine and a human needing to know which.
 - Hash-only artifact identity → `artifact.rs` (C84). Trigger: a false match from file identity, or a second install location.
-- cargo-deny's licenses, bans and sources (advisories run in the Linux workflow since 2026-09-12, `deny.toml`) → that workflow. Trigger: a shipping decision, which the owner's ruling of 2026-10-11 is (`README.md`); step 2 of `brainstorming-notes/36-the-road-to-the-agent-release.md` builds it.
