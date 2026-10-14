@@ -369,13 +369,16 @@ pub async fn refresh_apply(
     // something is left is the daemon asked what it already holds, on the
     // connection the submit needs anyway. (Applying spends, so the
     // interactive connect policy, lazy spawn included, is the right one —
-    // unlike the quote path, which promises to spend nothing.)
-    let facts = store.refresh_snapshot(plan.realm.as_str(), &plan.league, &annotations)?;
+    // unlike the quote path, which promises to spend nothing.) The facts
+    // are read again after the list: a fetch that finishes between the
+    // two reads is then in one of them, never in neither.
+    let mut facts = store.refresh_snapshot(plan.realm.as_str(), &plan.league, &annotations)?;
     let (mut unspent, mut spent) = plan.unspent(&facts, &[], &entry.username);
     let mut connected = None;
     if !unspent.is_empty() {
         let mut client = crate::connect(true).await?;
         if let Response::Jobs { jobs } = client.request(&Request::List).await? {
+            facts = store.refresh_snapshot(plan.realm.as_str(), &plan.league, &annotations)?;
             (unspent, spent) = plan.unspent(&facts, &jobs, &entry.username);
         }
         connected = Some(client);

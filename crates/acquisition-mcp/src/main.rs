@@ -890,7 +890,9 @@ impl AcqMcp {
         }
         // C111: a plan spends each request once — the store says what was
         // fetched after the plan's snapshot, the daemon what it already
-        // holds; only the rest is submitted.
+        // holds; only the rest is submitted. The facts are read again
+        // after the list, so a fetch that finishes between the two reads
+        // is in one of them.
         let store = Store::open(&account_path(&dir, &entry.username)).map_err(err)?;
         let facts = store
             .refresh_snapshot(plan.realm.as_str(), &plan.league, &annotations)
@@ -900,6 +902,9 @@ impl AcqMcp {
         if !unspent.is_empty() {
             let mut client = connect(true).await.map_err(err)?;
             if let Response::Jobs { jobs } = client.request(&Request::List).await.map_err(err)? {
+                let facts = store
+                    .refresh_snapshot(plan.realm.as_str(), &plan.league, &annotations)
+                    .map_err(err)?;
                 (unspent, spent) = plan.unspent(&facts, &jobs, &entry.username);
             }
             connected = Some(client);
