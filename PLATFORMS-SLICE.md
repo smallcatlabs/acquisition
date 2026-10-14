@@ -32,7 +32,28 @@ the choices were put with a recommendation and answered 2026-10-14.
    wording. The owner, verbatim: "should we have a subagent investigate
    this questions, or are you confident in your recommendation?", then
    "start the subagent" — a study of both, its recommendation brought
-   here before step 0's transport is written.
+   here before step 0's transport is written. The study (2026-10-14):
+   named pipes. tokio 1.53's `ServerOptions` has `first_pipe_instance`,
+   `reject_remote_clients` (on by default) and an unsafe
+   security-attributes hook (source read); a user-only DACL, the SID
+   and the client's check of the server's process token type-check
+   against windows-sys 0.61 (a probe, compiled for
+   `x86_64-pc-windows-msvc`, not yet run). AF_UNIX has no async support
+   on Windows — tokio#2201 open since 2020, three mio PRs closed
+   unmerged, `uds_windows` blocking and its listener unusable with
+   `async-io` — and gains no privacy (no peer credentials). A pipe
+   vanishes with its server, so the stale-socket probe and
+   `BoundSocket` are Unix-only. A squatted name becomes a refusal to
+   start, not an impersonation. Proposed in place of C83's "the socket
+   is derived from the root into a private per-user runtime directory",
+   a property both arms meet: *the daemon's endpoint is derived from the
+   world and the OS user, never chosen by hand; only that user can serve
+   or reach it, and a client speaks to it only after verifying the
+   server runs as that user.* The real-mode lock keeps its private
+   per-user directory. To run on the VM: the same-user token check, a
+   second user's squat and access refused, a daemon and a client at
+   different elevations. Estimated 500–650 lines, windows-sys a direct
+   `cfg(windows)` dependency of the store and the daemon or client.
 
 Answered (the owner's words verbatim):
 
