@@ -15,7 +15,7 @@ use acquisition_client::client::{
     Client, ConnectOptions, DaemonError, Observed, Signal, Subscription,
 };
 use acquisition_protocol::job::{JobInfo, JobState, Outcome};
-use acquisition_protocol::protocol::{Request, Response};
+use acquisition_protocol::protocol::{ErrorKind, Request, Response};
 use acquisition_protocol::provider::{self, GGG};
 use acquisition_protocol::realm::Realm;
 use acquisition_store::Resolve;
@@ -1265,7 +1265,18 @@ async fn run(cli: Cli) -> Result<()> {
                 Observed::Absent => return print_persisted_result(id, wait, cli.json),
                 observed => client_of(observed)?,
             };
-            if wait {
+            // Only a job still in the queue is waited for: a previous
+            // lifetime's result is served from retention (C45) and has no
+            // status to wait on.
+            if wait
+                && matches!(
+                    client.request(&Request::Result { id }).await?,
+                    Response::Error {
+                        kind: ErrorKind::WrongState,
+                        ..
+                    }
+                )
+            {
                 wait_for_job(&mut client, id, cli.json).await?;
             }
             print_result(&mut client, id, cli.json).await

@@ -5,13 +5,15 @@
 //! (the daemon's own writer), so what the verbs read is exactly what a
 //! daemon would have left: two waiting rows (one a child), one recorded
 //! running, one done that must not appear.
+//! And C6's retention beside it: a result a previous daemon left is
+//! served to `result --wait` as to `result`.
 
 use acquisition_store::jobs::{JobDb, JobRow, daemon_db_path};
 use serde_json::{Value, json};
 
 mod harness;
 
-use harness::{acq, scratch_tmp, sockets_under, sole_json, text};
+use harness::{acq, scratch_tmp, sockets_under, sole_json, start_daemon, text};
 
 fn row(id: u64, state: &str, parent: Option<u64>, updated_at: i64) -> JobRow {
     JobRow {
@@ -104,4 +106,30 @@ fn c45_an_observer_with_no_daemon_reads_the_queue_on_disk() {
     let out = acq(&fresh.0, &["jobs", "--json"]);
     assert!(out.status.success(), "{out:?}");
     assert_eq!(sole_json(&out)["persisted"], Value::Null);
+}
+
+/// C6, retention: a job finished by a previous daemon is no longer in
+/// the queue, so it has no status, but its result is still served.
+/// `result --wait` asked for the status first and refused such a job as
+/// unknown while `result` printed it.
+#[test]
+fn result_wait_serves_a_previous_daemons_result() {
+    let scratch = harness::scratch("rwait");
+    let base = scratch.0.clone();
+    let (daemon, _) = start_daemon(&base);
+    let out = acq(
+        &base,
+        &["submit", "sleep", "--params", r#"{"seconds":0}"#, "--json"],
+    );
+    assert!(out.status.success(), "{}", text(&out));
+    let id = sole_json(&out)["job_id"].as_u64().expect("the job's id");
+    assert!(acq(&base, &["daemon", "stop"]).status.success());
+    drop(daemon);
+
+    let (_daemon, _) = start_daemon(&base);
+    let plain = acq(&base, &["result", &id.to_string(), "--json"]);
+    assert!(plain.status.success(), "{}", text(&plain));
+    let waited = acq(&base, &["result", &id.to_string(), "--wait", "--json"]);
+    assert!(waited.status.success(), "{}", text(&waited));
+    assert_eq!(sole_json(&waited), sole_json(&plain));
 }
