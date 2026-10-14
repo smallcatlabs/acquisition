@@ -741,6 +741,95 @@ fn a_plan_file_applied_twice_sends_nothing_the_second_time() {
     assert_eq!(applies, 1, "{jobs:?}");
 }
 
+/// C111, across doors: a fetch `acq stash` queued spends the plan's
+/// action for that tab. The verb spells its request with `"sub": null`
+/// where a plan's omits `sub`, and the guard compared the two as JSON,
+/// so an apply behind a waiting `acq stash` queued the tab a second time.
+#[test]
+fn an_apply_behind_a_waiting_stash_fetch_does_not_queue_it_again() {
+    let scratch = harness::scratch("seat-door");
+    let base = scratch.0.clone();
+    let (_daemon, _pid) = start_daemon(&base);
+    let (apply, plan) = a_saved_plan(&base);
+    let tab = plan["actions"][0]["id"]
+        .as_str()
+        .expect("a tab id")
+        .to_string();
+    let other = plan["actions"][1]["id"].as_str().expect("a second tab");
+
+    // Spend the stash route's burst so the next fetches wait — on
+    // another tab, which spends that tab's action and not this one's.
+    let params = json!({ "realm": "pc", "league": "Standard", "id": other, "deep": false });
+    for _ in 0..20 {
+        let out = acq(
+            &base,
+            &[
+                "submit",
+                "stash",
+                "--params",
+                &params.to_string(),
+                "--detach",
+                "--json",
+            ],
+        );
+        assert!(out.status.success(), "{}", text(&out));
+    }
+    let open_jobs = || {
+        sole_json(&acq(&base, &["jobs", "--all", "--json"]))
+            .as_array()
+            .expect("a list of jobs")
+            .clone()
+    };
+    // Run `args` until `found` lists its job, then leave its client:
+    // the job stays.
+    let held = |args: &[&str], found: &dyn Fn(&[Value]) -> Option<Value>| {
+        let mut child = harness::command(&base, args)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .expect("spawning acq");
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        let job = loop {
+            if let Some(job) = found(&open_jobs()) {
+                break job;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "never listed: {args:?}"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        };
+        let _ = child.kill();
+        let _ = child.wait();
+        job
+    };
+
+    held(&["stash", &tab], &|jobs| {
+        jobs.iter()
+            .find(|j| j["kind"] == "stash" && j["params"].get("sub") == Some(&Value::Null))
+            .cloned()
+    });
+
+    let applied = held(&["refresh", &apply, "--json"], &|jobs| {
+        jobs.iter().find(|j| j["kind"] == "apply").cloned()
+    });
+    let sent: Vec<&Value> = applied["params"]["jobs"]
+        .as_array()
+        .expect("the apply's requests")
+        .iter()
+        .map(|job| &job["params"]["id"])
+        .collect();
+    assert!(
+        !sent.contains(&&json!(tab)),
+        "the apply queued the tab `acq stash` holds: {applied}"
+    );
+    assert_eq!(
+        sent.len() + 2,
+        plan["actions"].as_array().map_or(0, Vec::len),
+        "{applied}"
+    );
+}
+
 /// C111, the retry: an apply whose caller gave up while its fetches
 /// waited on the limiter is run again. The first apply's requests are
 /// still queued, so the store shows nothing fetched; the daemon's own

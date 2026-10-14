@@ -266,9 +266,9 @@ use acquisition_protocol::job::{JobId, JobInfo, MAX_429_RETRIES};
 use acquisition_protocol::protocol::Quote;
 use acquisition_protocol::realm::{Family, Realm};
 use acquisition_store::{
-    AnnotationError, AnnotationRow, Annotations, CharacterSnapshot, IntentValue, ListingBasis,
-    Provenance, RefreshSnapshot, SYNC_POLICY_KEY, SYNC_POLICY_KIND, SYNC_POLICY_SCOPE, TabSnapshot,
-    ValueError, check_value,
+    AnnotationError, AnnotationRow, Annotations, CharacterSnapshot, Endpoint, IntentValue,
+    ListingBasis, Provenance, RefreshSnapshot, SYNC_POLICY_KEY, SYNC_POLICY_KIND,
+    SYNC_POLICY_SCOPE, TabSnapshot, ValueError, check_value,
 };
 
 /// The plan envelope schema this build writes ([`RefreshPlan::plan_schema`]).
@@ -1270,8 +1270,11 @@ impl RefreshPlan {
     /// spent — in the plan's order. An action is spent when its target's
     /// `fetched_at` in `snapshot` (the plan's realm and league, read now)
     /// is not earlier than the snapshot the plan was compiled from, or when
-    /// `live` holds a waiting or running job of `account` with the same
-    /// `(kind, params)`. "Not earlier", since the stamps are whole
+    /// `live` holds a waiting or running job of `account` for the same
+    /// request: the same `Endpoint`, as the store decodes a job, so a
+    /// door that spells the request differently (`acq stash` sends
+    /// `"sub": null`, a deep fetch `"deep": true`) still spends it.
+    /// "Not earlier", since the stamps are whole
     /// seconds: a fetch that lands in the second the plan's snapshot was
     /// taken spends its action, or a plan applied and replayed within one
     /// second would send twice. The planner cannot have planned a target
@@ -1325,11 +1328,12 @@ impl RefreshPlan {
                 ),
             };
             let (kind, params) = action.job();
+            let request = Endpoint::from_job(kind, &params);
             let queued = || {
                 live.iter().find(|job| {
                     !job.state.is_terminal()
-                        && job.kind == kind
-                        && job.params == params
+                        && request.is_some()
+                        && Endpoint::from_job(&job.kind, &job.params) == request
                         && job.account.as_deref() == Some(account)
                 })
             };
