@@ -1677,9 +1677,12 @@ mod tests {
         );
     }
 
-    /// C35 — backup is a store-managed consistent snapshot, never a raw file copy; it never overwrites.
+    /// C35 — a backup is a whole, standalone annotation file that leaves
+    /// no partial and never overwrites. That the copy is consistent under
+    /// a concurrent writer is `VACUUM INTO`'s and no test here drives a
+    /// writer through an export: a torn copy fails too rarely to pin.
     #[test]
-    fn export_is_a_consistent_snapshot_and_never_overwrites() {
+    fn export_is_a_whole_standalone_file_and_never_overwrites() {
         let dir =
             std::env::temp_dir().join(format!("acq-ann-{}-{}", std::process::id(), crate::now()));
         let uuid = "00000000-0000-4000-8000-000000000001";

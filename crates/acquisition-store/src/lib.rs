@@ -3119,8 +3119,11 @@ mod tests {
         );
     }
 
+    /// Ten thousand items: the unchanged re-ingest reports no change and
+    /// is bounded. The first ingest's time is printed, never asserted, and
+    /// nothing here observes how many transactions either took.
     #[test]
-    fn a_large_tab_ingests_in_one_transaction_quickly() {
+    fn a_large_tab_reingested_unchanged_reports_nothing_within_five_seconds() {
         let mut s = Store::open_memory().unwrap();
         let items: Vec<Value> = (0..10_000)
             .map(|i| item(&format!("i{i}"), "Chaos Orb", i % 24))

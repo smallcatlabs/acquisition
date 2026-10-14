@@ -916,6 +916,15 @@ fn describe_is_as_large_as_its_text_says() {
         .find(|t| t["name"] == "describe")
         .and_then(|t| t["description"].as_str())
         .unwrap();
+    // The sizes the text states are the ones measured above: a text
+    // that says other numbers fails here and is checked again.
+    for stated in [
+        "The whole is over 100 KB",
+        "fields (some 10 KB)",
+        "(each under 4 KB)",
+    ] {
+        assert!(text.contains(stated), "{stated}: {text}");
+    }
     for section in [
         "fields",
         "line",

@@ -2399,10 +2399,11 @@ mod tests {
         }
     }
 
+    /// The parser over the line as this test writes it. That the daemon
+    /// still writes that line is `tests/apply_loop.rs`,
+    /// `a_failed_apply_counts_its_failed_requests_from_the_daemons_own_words`.
     #[test]
-    fn the_daemons_parent_failure_line_is_read_back_whole() {
-        // The exact shape `maybe_finish_parent` emits (daemon.rs), ids
-        // sorted at the source.
+    fn a_parent_failure_line_is_read_back_whole() {
         let (k, n, ids) = parse_children_failure(
             "4 of 5 child jobs failed: [222, 223, 224, 226] (acq result <id> for each)",
         )

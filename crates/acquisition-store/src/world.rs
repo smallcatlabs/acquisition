@@ -757,10 +757,10 @@ mod tests {
 
     /// C83: the private runtime directory is this user's: made 0700,
     /// brought back to 0700 when it drifted, refused when it is a symlink
-    /// or a file — and a non-UTF-8 root is refused as a world.
+    /// or a file.
     #[cfg(unix)]
     #[test]
-    fn c83_the_private_dir_is_this_users_and_a_root_is_utf8() {
+    fn c83_the_private_dir_is_this_users() {
         use std::os::unix::fs::{MetadataExt, PermissionsExt};
         let base = scratch("private");
         std::fs::create_dir_all(&base).unwrap();
@@ -791,16 +791,22 @@ mod tests {
             real_mode_lock_path().unwrap().parent(),
             Some(runtime.as_path())
         );
+        let _ = std::fs::remove_dir_all(&base);
+    }
 
+    /// C83: a non-UTF-8 root is refused as a world. Linux only: APFS
+    /// refuses an invalid byte sequence in a name (EILSEQ), so on macOS
+    /// no such directory can exist and the filesystem holds the property.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn c83_a_root_that_is_not_utf8_is_refused() {
         use std::os::unix::ffi::OsStrExt;
-        // APFS refuses an invalid byte sequence in a name (EILSEQ), so on
-        // macOS the filesystem holds the property; where a directory can
-        // carry one, the world refuses it.
+        let base = scratch("odd-root");
+        std::fs::create_dir_all(&base).unwrap();
         let odd = base.join(std::ffi::OsStr::from_bytes(b"r\xff"));
-        if std::fs::create_dir(&odd).is_ok() {
-            let err = World::at(&odd).unwrap_err();
-            assert!(err.to_string().contains("UTF-8"), "{err}");
-        }
+        std::fs::create_dir(&odd).unwrap();
+        let err = World::at(&odd).unwrap_err();
+        assert!(err.to_string().contains("UTF-8"), "{err}");
         let _ = std::fs::remove_dir_all(&base);
     }
 

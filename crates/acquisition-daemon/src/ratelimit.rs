@@ -4393,6 +4393,26 @@ mod tests {
             vec!["token-request-limit".to_string()],
             "one shared state, no account suffix"
         );
+        // Sends that do carry accounts, on a route whose policy is
+        // Ip-only: once each account's answer has named the policy there
+        // is one state for both, as for a mixed policy below. (Before an
+        // account's first answer its key is unknown and unpaced, which is
+        // why the token request goes on the bare key.)
+        let mut l = Limiter::new();
+        for account in ["Alice#1234", "Bob#0001"] {
+            run(
+                &mut l,
+                &endpoint_key("ip-route", Some(account)),
+                TOKEN,
+                &[1.0],
+                now,
+            );
+        }
+        assert_eq!(
+            l.statuses(now).len(),
+            1,
+            "an Ip-only policy is not split by the key's account"
+        );
     }
 
     /// A policy that mixes scopes is shared (conservative), and a send with

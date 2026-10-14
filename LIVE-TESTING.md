@@ -32,8 +32,8 @@ Replaces the preconditions and the "new hypothesis first" requirement.
   C88), from a terminal, on a fresh
   daemon (`acq daemon stop` first). Three, not one: a fresh daemon sends a
   token POST, then the HEAD probe, then the GET, and the ceiling counts
-  every method (`rails.rs`, "ceiling is per lifetime and counts every
-  method"). Two if the daemon already holds a valid access token.
+  every method (`rails.rs`,
+  `the_ceiling_counts_every_method_and_halts_at_its_number`). Two if the daemon already holds a valid access token.
 - **Read the journal before anything else.** The probe line must report
   0 hits on its policy; hits > 0 means something else is using this
   account (the C++ app, another CLI, another machine — counters are

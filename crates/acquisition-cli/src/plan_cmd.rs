@@ -2247,7 +2247,7 @@ mod tests {
     }
 
     #[test]
-    fn the_expanded_form_keeps_one_line_per_action_and_the_json_is_untouched() {
+    fn the_expanded_form_keeps_one_line_per_action_and_the_default_groups_them() {
         let mut plan = tiny_plan();
         plan.actions = wall();
         plan.logical_requests = plan.actions.len() as u64;

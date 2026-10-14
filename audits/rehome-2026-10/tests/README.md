@@ -5,9 +5,9 @@ makes this fail, and is that change a boundary? Read at `d1583b2e` by
 four runners, one group each, from the source alone; nothing was run.
 The classes were proposals. Since 2026-10-13 the owner's verdicts are
 in: boundary and harness "as classed", fifteen mechanism tests
-accepted. Open still: sixteen weak tests, the two mechanism tests that
-are a ruling's only pin (C21, C5), the one that cannot fail and the
-duplicate.
+accepted. The twenty that needed work have theirs: strengthened, rewritten at
+the driving surface, or renamed to what they hold, each row saying
+which; three are kept or reclassed on the session's call.
 
 | Group | Tests | boundary | weak | mechanism | harness | cannot-fail | duplicate | Rows | Detail |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |

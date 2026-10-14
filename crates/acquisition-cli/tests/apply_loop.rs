@@ -258,6 +258,52 @@ fn the_plan_apply_replan_loop_closes_against_the_mock() {
     let _ = std::fs::remove_dir_all(&base);
 }
 
+/// The CLI says how many of an apply's requests failed by reading the
+/// daemon's parent failure line (`k of n child jobs failed: [ids]`). The
+/// two crates share no code for that line, so only the real pair shows
+/// the words still match: a plan naming a tab the provider does not have
+/// fails that one child, and the report counts it.
+#[test]
+fn a_failed_apply_counts_its_failed_requests_from_the_daemons_own_words() {
+    let base = std::env::temp_dir().join(format!("acq-af-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    std::fs::create_dir_all(&base).unwrap();
+
+    login(&base);
+    let policy = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","max_age_seconds":3600}}}}}"#;
+    assert!(acq(&base, &["policy", "set", policy]).status.success());
+    assert!(acq(&base, &["stashes"]).status.success());
+    let mut plan = sole_json(&acq(&base, &["refresh", "--plan", "--json"]));
+    let planned = plan["logical_requests"].as_u64().expect("a count");
+    assert!(planned > 1, "{plan}");
+    // The quote names each job it priced, and a plan whose actions no
+    // longer match it is refused as malformed: it goes with the edit.
+    plan["actions"][0]["id"] = json!("no-such-tab");
+    plan.as_object_mut().unwrap().remove("quote");
+    let file = base.join("plan.json");
+    std::fs::write(&file, plan.to_string()).unwrap();
+
+    let out = acq(&base, &["refresh", &format!("--apply={}", file.display())]);
+    let said = String::from_utf8_lossy(&out.stdout).into_owned();
+    let stop = acq(&base, &["daemon", "stop"]);
+    assert_eq!(
+        out.status.code(),
+        Some(1),
+        "{said}{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(
+        said.contains(&format!(
+            "failed: 1 of {planned} requests failed, {} done\n",
+            planned - 1
+        )),
+        "stdout: {said}\nstderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(stop.status.success(), "{stop:?}");
+    let _ = std::fs::remove_dir_all(&base);
+}
+
 /// The scratch temp and runtime directory of one test, under `base`:
 /// `TMPDIR` (macOS's runtime fallback) and
 /// `XDG_RUNTIME_DIR` (Linux's runtime directory) both point here, so the

@@ -241,8 +241,12 @@ fn c91_every_reading_an_error_shows_is_a_text_the_parser_accepts() {
     }
 }
 
+/// A check of this file's own fixtures, and no product code is asked:
+/// it keeps `CONSTRUCTS` and the corpus naming each other, so that a
+/// construct listed here is one the other tests of this file ask the
+/// language. A construct added to the language and to neither passes.
 #[test]
-fn every_construct_of_the_reference_has_a_case_and_every_case_a_construct() {
+fn the_list_of_constructs_and_the_corpus_name_each_other() {
     let corpus = corpus();
     let cases: Vec<&Case> = corpus.case.iter().chain(&corpus.value).collect();
     for case in &cases {

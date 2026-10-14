@@ -708,8 +708,10 @@ mod tests {
         assert!(rails.record(&report(Some(401))).unwrap().contains("401"));
     }
 
+    /// That the ceiling is per lifetime is the next test's: a second
+    /// `Rails` over the same state starts at zero.
     #[test]
-    fn ceiling_is_per_lifetime_and_counts_every_method() {
+    fn the_ceiling_counts_every_method_and_halts_at_its_number() {
         let rails = Rails::with_config(RailsConfig {
             max_sends: Some(2),
             ..RailsConfig::default()
@@ -1001,11 +1003,13 @@ mod tests {
     }
 
     #[test]
-    fn iso_timestamp_is_well_formed() {
-        let ts = iso_utc(SystemTime::now());
-        assert_eq!(ts.len(), 24, "{ts}");
-        assert!(ts.starts_with("20"));
-        assert_eq!(&ts[10..11], "T");
+    fn iso_timestamp_is_the_utc_instant_to_the_millisecond() {
+        let at = |secs: u64, millis: u64| UNIX_EPOCH + Duration::from_millis(secs * 1000 + millis);
+        assert_eq!(iso_utc(at(0, 0)), "1970-01-01T00:00:00.000Z");
+        assert_eq!(iso_utc(at(1_700_000_000, 123)), "2023-11-14T22:13:20.123Z");
+        // A leap day, and the last second before a year turns.
+        assert_eq!(iso_utc(at(1_709_164_800, 0)), "2024-02-29T00:00:00.000Z");
+        assert_eq!(iso_utc(at(1_735_689_599, 999)), "2024-12-31T23:59:59.999Z");
     }
     #[test]
     fn a_head_trip_reports_headers_not_a_body() {

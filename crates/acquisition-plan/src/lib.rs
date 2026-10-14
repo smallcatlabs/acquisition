@@ -2426,9 +2426,19 @@ mod tests {
                 reason: FetchReason::ListedCountDisagrees { listed: 3, held: 1 },
             }]
         );
-        // An agreeing count cannot skip a stale fetch: at t=9000 the
-        // substash is fetched again even if the counts matched — the
-        // heuristic proves change, never freshness.
+        // An agreeing count proves nothing either way. A newer stub now
+        // counts what we hold (1 and 1): inside the window nothing is
+        // fetched for it, and past the window it cannot skip the stale
+        // fetch — the heuristic proves change, never freshness.
+        fetch(
+            &mut s,
+            json!({ "id": "m1", "name": "Maps", "type": "MapStash", "items": [], "children": [
+                { "id": "s1", "name": "", "type": "MapStash", "parent": "m1",
+                  "metadata": { "items": 1, "map": { "name": "Tier 16" } } } ] }),
+            1060,
+        );
+        let agreeing = plan(&s, &all_policy_value(3600), 1100);
+        assert!(agreeing.actions.is_empty(), "{:?}", agreeing.actions);
         let stale = plan(&s, &all_policy_value(3600), 9000);
         assert!(stale.actions.iter().any(|a| matches!(
             a,

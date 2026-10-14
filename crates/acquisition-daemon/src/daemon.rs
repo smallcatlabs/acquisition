@@ -7205,26 +7205,28 @@ mod dispatcher_tests {
             .submit("whoami".into(), json!({}), 0, "test".into(), None)
             .unwrap();
 
+        // Both jobs are dispatched and held behind the one token request
+        // the server has not answered — read as any client reads it, from
+        // the job list (C21: an auth wait occupies no dispatcher slot).
         arrived.await.unwrap();
         tokio::time::timeout(Duration::from_secs(1), async {
             loop {
-                let waiters = daemon
+                let running = daemon
                     .shared
                     .lock()
                     .unwrap()
-                    .auth
-                    .one()
-                    .refresh_flight
-                    .as_ref()
-                    .map_or(0, |flight| flight.result.receiver_count());
-                if waiters == 1 {
+                    .list(&daemon)
+                    .into_iter()
+                    .filter(|job| job.state == JobState::Running)
+                    .count();
+                if running == 2 {
                     break;
                 }
                 tokio::task::yield_now().await;
             }
         })
         .await
-        .expect("second job joined the refresh owner");
+        .expect("both jobs running behind the held refresh");
 
         let independent = daemon
             .submit(
@@ -7581,30 +7583,51 @@ mod dispatcher_tests {
         }
     }
 
-    #[test]
-    fn dispatcher_preserves_priority_within_a_scheduling_key() {
+    /// C5: on one scheduling key the higher priority goes out first,
+    /// whatever the order of submission — read at the wire: the server
+    /// answers its first GET "first", and the later-submitted,
+    /// higher-priority job is the one that holds it.
+    #[tokio::test]
+    async fn the_higher_priority_job_on_a_scheduling_key_reaches_the_wire_first() {
+        let policy = "X-Rate-Limit-Policy: dispatcher-test-policy\r\nX-Rate-Limit-Rules: Account\r\nX-Rate-Limit-Account: 100:1:60\r\nX-Rate-Limit-Account-State: 0:1:0\r\n";
+        let get = |marker: &str| ScriptedResponse {
+            method: "GET",
+            path: "/fetch",
+            status: "200 OK",
+            headers: policy.into(),
+            body: format!(r#"{{"items":["{marker}"]}}"#),
+        };
+        let responses = vec![
+            ScriptedResponse {
+                method: "HEAD",
+                path: "/fetch",
+                status: "204 No Content",
+                headers: policy.into(),
+                body: String::new(),
+            },
+            get("first"),
+            get("second"),
+        ];
+        let (base, requests, server) = scripted_server(responses).await;
         let clock = Arc::new(ManualClock::new());
-        let (daemon, log_path) = test_daemon("http://127.0.0.1:1", clock);
+        let (daemon, log_path) = test_daemon(&base, clock);
+        // Both are queued before anything dispatches.
         let low = daemon
             .submit("fetch".into(), json!({}), 1, "test".into(), None)
             .unwrap();
         let high = daemon
             .submit("fetch".into(), json!({}), 9, "test".into(), None)
             .unwrap();
+        let dispatcher = tokio::spawn(daemon.clone().dispatcher());
 
-        assert_eq!(daemon.pick_runnable(), vec![high]);
-        assert_eq!(
-            daemon
-                .shared
-                .lock()
-                .unwrap()
-                .active_jobs
-                .get(&high)
-                .map(String::as_str),
-            Some("fetch")
-        );
-        assert!(!daemon.shared.lock().unwrap().active_jobs.contains_key(&low));
-        let _ = std::fs::remove_file(log_path);
+        let (info, outcome) = wait_terminal(&daemon, high).await;
+        assert_eq!(info.state, JobState::Done);
+        assert_eq!(fetch_payload_marker(&outcome), "first");
+        let (info, outcome) = wait_terminal(&daemon, low).await;
+        assert_eq!(info.state, JobState::Done);
+        assert_eq!(fetch_payload_marker(&outcome), "second");
+        server.await.unwrap();
+        finish_harness_wire(dispatcher, &log_path, &requests);
     }
 
     /// Rung 10 (2026-08-24) with the tripwire off: a 503 with no rate
@@ -8185,13 +8208,14 @@ mod dispatcher_tests {
         let _ = std::fs::remove_file(&log_path);
     }
 
-    /// A failed *re-login* leaves the previously registered session exactly
-    /// as it was (staging never touches the session map), and the flow's
-    /// terminal result reports the failure even though `logged_in` stays
-    /// true — so `acq auth` cannot mistake the surviving session for this
-    /// login succeeding.
+    /// An aborted *re-login* leaves the previously registered session
+    /// exactly as it was (staging never touches the session map), and the
+    /// flow's terminal result reports the failure even though `logged_in`
+    /// stays true — so `acq auth` cannot mistake the surviving session for
+    /// this login succeeding. The abort is called here directly: that a
+    /// profile fetch which really fails reaches it is not driven.
     #[tokio::test]
-    async fn a_failed_relogin_keeps_the_old_session_and_reports_the_failure() {
+    async fn an_aborted_relogin_keeps_the_old_session_and_reports_the_failure() {
         let base = mockggg::start().await.unwrap();
         let (daemon, credentials, store_dir, log_path) = login_daemon(&base);
         let dispatcher = tokio::spawn(daemon.clone().dispatcher());
@@ -8202,8 +8226,8 @@ mod dispatcher_tests {
             s.auth.find("Alice#1234").unwrap().access_token.clone()
         };
 
-        // A re-login whose profile fetch fails (simulated at the abort
-        // step; the state machine is the same for every failure cause).
+        // A re-login aborted after staging, as a failed profile fetch
+        // aborts it.
         let g2 = daemon.begin_auth_flow();
         daemon
             .stage_auth_flow(g2, login_tokens("at-y.Alice#1234", "Alice#1234"))
@@ -8225,6 +8249,27 @@ mod dispatcher_tests {
         assert!(error.as_deref().is_some_and(|e| e.contains("simulated")));
         // The keyring still holds exactly the first login's entry.
         assert_eq!(credentials.saves.lock().unwrap().len(), 1);
+
+        dispatcher.abort();
+        let _ = std::fs::remove_dir_all(&store_dir);
+        let _ = std::fs::remove_file(&log_path);
+    }
+
+    /// A rejected refresh grant marks the account so the dead token is
+    /// never re-sent; only a completed login clears the mark, since until
+    /// then the keyring still held the rejected token.
+    #[tokio::test]
+    async fn a_completed_login_clears_the_dead_grant_mark() {
+        let base = mockggg::start().await.unwrap();
+        let (daemon, _credentials, store_dir, log_path) = login_daemon(&base);
+        let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+        let rails = daemon.choke.rails().clone();
+        assert!(rails.mark_refresh_failed("Alice#1234", "HTTP 400"));
+        assert!(rails.refresh_failed("Alice#1234").is_some());
+
+        run_login(&daemon, "at-x.Alice#1234", "Alice#1234").await;
+        assert_eq!(login_result(&daemon).1.as_deref(), Some("Alice#1234"));
+        assert_eq!(rails.refresh_failed("Alice#1234"), None);
 
         dispatcher.abort();
         let _ = std::fs::remove_dir_all(&store_dir);
@@ -8354,6 +8399,7 @@ mod dispatcher_tests {
         let (base, requests, server) = scripted_server(responses).await;
         let clock = Arc::new(ManualClock::new());
         let (daemon, log_path) = test_daemon(&base, clock.clone());
+        let started = clock.now();
         let dispatcher = tokio::spawn(daemon.clone().dispatcher());
         let id = daemon
             .submit("fetch".into(), json!({}), 0, "test".into(), None)
@@ -8365,6 +8411,11 @@ mod dispatcher_tests {
             panic!("exhausted job did not fail")
         };
         assert!(error.contains("giving up"));
+        assert!(
+            clock.now() - started < Duration::from_millis(3 * full_hold_ms()),
+            "the third 429's hold is not slept out before the job fails: {:?}",
+            clock.now() - started
+        );
         assert_eq!(requests.lock().unwrap().len(), 4, "HEAD plus three GETs");
         assert_eq!(
             journal_waits(&log_path),
@@ -8628,7 +8679,7 @@ mod dispatcher_tests {
     }
 
     #[tokio::test]
-    async fn ceiling_halts_after_n_sends_and_does_not_persist() {
+    async fn the_ceiling_halts_after_n_sends_and_holds_the_queue() {
         let responses = vec![
             ScriptedResponse::full("HEAD", "204 No Content", None, ""),
             ScriptedResponse::full("GET", "200 OK", None, r#"{"ok":true}"#),
@@ -9349,8 +9400,9 @@ mod dispatcher_tests {
         s.auth.keyring = "ok".into();
     }
 
+    /// The login arm is `a_completed_login_clears_the_dead_grant_mark`.
     #[tokio::test]
-    async fn rejected_refresh_grant_disables_further_refreshes_until_login_or_logout() {
+    async fn rejected_refresh_grant_disables_further_refreshes_until_logout() {
         let (base, requests, server) = token_server_answering(vec!["400 Bad Request"]).await;
         let clock = Arc::new(ManualClock::new());
         // Rails off: this is product behavior, not a ladder rail (L0-R13).
