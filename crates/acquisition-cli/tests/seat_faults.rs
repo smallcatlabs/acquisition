@@ -676,6 +676,47 @@ fn tabs_says_its_counts_first_and_counts_a_large_league() {
     );
     let all = stdout(&acq(&base, &["tabs", "--expand"]));
     assert!(all.contains("q40") && all.lines().count() > 41, "{all}");
+
+    // The next commands keep the league shown: they named Standard's
+    // defaults whatever league the summary was of.
+    let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
+    store
+        .record(
+            &Endpoint::Stashes {
+                realm: "pc".into(),
+                league: "Hard Mode".into(),
+            },
+            &json!({ "league": "Hard Mode" }),
+            200,
+            &json!({ "stashes": stashes }),
+            acquisition_store::now(),
+        )
+        .unwrap();
+    drop(store);
+    let said = stdout(&acq(&base, &["tabs", "--league", "Hard Mode"]));
+    let next = said.lines().last().unwrap_or_default();
+    assert!(
+        next.contains("`acq tabs --expand --league 'Hard Mode'` lists all 41"),
+        "{said}"
+    );
+    assert!(
+        next.contains(r#"`acq search --realm pc 'league="Hard Mode"' --count tab`"#),
+        "{said}"
+    );
+    let all = stdout(&acq(&base, &["tabs", "--expand", "--league", "Hard Mode"]));
+    assert!(all.contains("q40") && all.lines().count() > 41, "{all}");
+    let counted = acq(
+        &base,
+        &[
+            "search",
+            "--realm",
+            "pc",
+            r#"league="Hard Mode""#,
+            "--count",
+            "tab",
+        ],
+    );
+    assert!(counted.status.success(), "{}", text(&counted));
 }
 
 /// A daemon with `alice` logged in, a Standard policy over every tab and

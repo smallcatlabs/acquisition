@@ -314,11 +314,53 @@ pub fn tabs(realm: Realm, league: &str, expand: bool, json: bool) -> Result<()> 
     largest.truncate(10);
     println!("the ten with the most items:");
     print!("{}", render_tabs_table(&largest, now));
+    let (expand, count) = tabs_next(realm, league);
     println!(
-        "next: `acq tabs --expand` lists all {}; `acq search --count tab` counts what a query matches by tab",
+        "next: `{expand}` lists all {}; `{count}` counts what a query matches by tab",
         tabs.len()
     );
     Ok(())
+}
+
+/// The large league's next commands, over the league and realm just
+/// shown: `tabs` names them where they are not its defaults, and the
+/// search, whose scope is a realm, takes the league as a term — printed
+/// as every route is, so it runs as printed.
+fn tabs_next(realm: Realm, league: &str) -> (String, String) {
+    use acquisition_search::answer::{Counts, QueryInput, Request, Scope, View, shell_quoted};
+    use acquisition_search::tree::{Node, Op, Value as Term};
+    let mut expand = String::from("acq tabs --expand");
+    if league != "Standard" {
+        expand.push_str(&format!(" --league {}", shell_quoted(league)));
+    }
+    if realm != Realm::DEFAULT {
+        expand.push_str(&format!(" --realm {}", realm.as_str()));
+    }
+    let term = Node::Test {
+        field: "league".into(),
+        op: Op::Eq,
+        value: Term::Text(league.into()),
+    };
+    let count = Request {
+        scope: Scope {
+            realm: Some(acquisition_search::corpus::Realm::One(
+                realm.as_str().into(),
+            )),
+            ..Scope::default()
+        },
+        query: QueryInput {
+            text: Some(acquisition_search::print::print(&term)),
+            tree: None,
+        },
+        view: View::Counts(Counts {
+            keys: vec!["tab".into()],
+            sum: None,
+            limit: None,
+        }),
+        ..Request::default()
+    }
+    .command();
+    (expand, count)
 }
 
 /// `acq store characters`: the characters on record, from the shared
