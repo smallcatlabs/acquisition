@@ -1273,7 +1273,12 @@ impl RefreshPlan {
     /// `live` holds a waiting or running job of `account` for the same
     /// request: the same `Endpoint`, as the store decodes a job, so a
     /// door that spells the request differently (`acq stash` sends
-    /// `"sub": null`, a deep fetch `"deep": true`) still spends it.
+    /// `"sub": null`, a deep fetch `"deep": true`) still spends it. A
+    /// waiting or running apply of `account` holds the requests its
+    /// `params.jobs` lists, before its fan-out has submitted them: a
+    /// retry after an apply was accepted sends nothing it holds. A child
+    /// is named before an apply that lists the same request — the job
+    /// that fetches it.
     /// "Not earlier", since the stamps are whole
     /// seconds: a fetch that lands in the second the plan's snapshot was
     /// taken spends its action, or a plan applied and replayed within one
@@ -1329,14 +1334,25 @@ impl RefreshPlan {
             };
             let (kind, params) = action.job();
             let request = Endpoint::from_job(kind, &params);
-            let queued = || {
-                live.iter().find(|job| {
-                    !job.state.is_terminal()
-                        && request.is_some()
-                        && Endpoint::from_job(&job.kind, &job.params) == request
+            let open = || {
+                live.iter().filter(|job| {
+                    request.is_some()
+                        && !job.state.is_terminal()
                         && job.account.as_deref() == Some(account)
                 })
             };
+            let holds = |job: &&JobInfo| Endpoint::from_job(&job.kind, &job.params) == request;
+            let lists = |job: &&JobInfo| {
+                job.kind == "apply"
+                    && job.params["jobs"].as_array().is_some_and(|jobs| {
+                        jobs.iter().any(|child| {
+                            child["kind"].as_str().is_some_and(|kind| {
+                                Endpoint::from_job(kind, &child["params"]) == request
+                            })
+                        })
+                    })
+            };
+            let queued = || open().find(holds).or_else(|| open().find(lists));
             let by = match fetched {
                 Some(fetched_at) => Some(SpentBy::Fetched { fetched_at }),
                 None => queued().map(|job| SpentBy::Queued {
@@ -3223,6 +3239,106 @@ mod tests {
         assert_eq!(
             apply_params_of(&plan.actions, Some(3))["max_requests"],
             json!(3)
+        );
+    }
+
+    /// C111 — an open apply of the account holds the requests its
+    /// `params.jobs` lists before its fan-out submits them, compared as
+    /// the store decodes a job; a child holding the same request is named
+    /// before it; a finished apply and another account's spend nothing.
+    #[test]
+    fn an_open_apply_spends_the_requests_it_lists_and_a_child_is_named_first() {
+        use acquisition_protocol::job::JobState;
+        let mut s = store();
+        list(
+            &mut s,
+            json!([
+                { "id": "t1", "name": "One", "type": "PremiumStash", "index": 0 },
+                { "id": "t2", "name": "Two", "type": "PremiumStash", "index": 1 },
+                { "id": "t3", "name": "Three", "type": "PremiumStash", "index": 2 },
+            ]),
+            1000,
+        );
+        let policy = all_policy_value(3600);
+        let plan = plan(&s, &policy, 1400);
+        assert_eq!(plan.actions.len(), 3, "{:?}", plan.actions);
+        let facts = snapshot_with(&s, &policy);
+        let id_of = |action: &RefreshAction| match action {
+            RefreshAction::FetchTab { id, .. } => id.clone(),
+            other => panic!("{other:?}"),
+        };
+        let (t1, t2, t3) = (
+            id_of(&plan.actions[0]),
+            id_of(&plan.actions[1]),
+            id_of(&plan.actions[2]),
+        );
+        let job = |id, kind: &str, account: &str, state, parent, params| JobInfo {
+            id,
+            kind: kind.into(),
+            state,
+            priority: 0,
+            submitted_by: "test".into(),
+            eta_seconds: None,
+            parent,
+            retries: 0,
+            account: Some(account.into()),
+            params,
+        };
+        // The defaults omitted (realm, deep), as another door may spell it.
+        let listed = |ids: &[&str]| {
+            let jobs: Vec<Value> = ids
+                .iter()
+                .map(|id| json!({ "kind": "stash", "params": { "league": "Standard", "id": id } }))
+                .collect();
+            json!({ "jobs": jobs })
+        };
+        let live = [
+            job(
+                20,
+                "apply",
+                "tom",
+                JobState::Waiting,
+                None,
+                listed(&[&t1, &t2]),
+            ),
+            job(
+                21,
+                "stash",
+                "tom",
+                JobState::Waiting,
+                Some(20),
+                plan.actions[1].job().1,
+            ),
+            job(22, "apply", "tom", JobState::Done, None, listed(&[&t3])),
+            job(
+                23,
+                "apply",
+                "someone-else",
+                JobState::Running,
+                None,
+                listed(&[&t3]),
+            ),
+        ];
+        let (unspent, spent) = plan.unspent(&facts, &live, "tom");
+        assert_eq!(unspent, plan.actions[2..].to_vec());
+        assert_eq!(
+            spent,
+            vec![
+                Spent {
+                    action: plan.actions[0].clone(),
+                    by: SpentBy::Queued {
+                        job_id: 20,
+                        parent: None
+                    },
+                },
+                Spent {
+                    action: plan.actions[1].clone(),
+                    by: SpentBy::Queued {
+                        job_id: 21,
+                        parent: Some(20)
+                    },
+                },
+            ]
         );
     }
 
