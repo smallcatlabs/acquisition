@@ -286,6 +286,19 @@ second machine is that park's trigger.
   to December 11. Unsigned is defensible for this release because the
   C++ app has shipped unsigned to the same audience for years, and the
   SmartScreen question is measured at the Windows row above.
+  Narrowed by the owner, 2026-10-14, verbatim: "I want to table the
+  other distribution methods and stick to direct downloads from github
+  so keep that stuff from slowing down the critical path." The
+  session's reading, unopposed: tabled are
+  Windows signing and its procurement, macOS notarization, installers
+  and every channel beside the archives. Kept: Developer ID signing of
+  the macOS binaries in the release workflow, without notarization,
+  because a stable code identity is what keeps the keychain from
+  prompting per account on every update (the keychain-prompt park); an
+  archive fetched with `curl` carries no quarantine, so the README's
+  install line is a `curl … | tar -x`. PoE1's 3.30 league launches
+  2026-11-13, between steps 3 and 4; the owner, verbatim: "I don't
+  think that changes anything we are doing here".
 
 ## Step 3 — trade-URL import, inbound, PoE1
 
