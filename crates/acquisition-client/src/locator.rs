@@ -47,7 +47,7 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 
 /// The daemon executable's file name beside every frontend.
-pub const ACQD: &str = "acqd";
+pub const ACQD: &str = if cfg!(windows) { "acqd.exe" } else { "acqd" };
 
 /// No `acqd` beside the executable that wanted one.
 #[derive(Debug, Clone)]
@@ -131,10 +131,10 @@ mod tests {
         std::fs::write(&exe, b"").unwrap();
 
         let err = beside(&exe).unwrap_err();
-        assert_eq!(err.looked_for, dir.join("bin").join("acqd"));
+        assert_eq!(err.looked_for, dir.join("bin").join(ACQD));
         let text = err.to_string();
         assert!(
-            text.contains("no acqd beside")
+            text.contains(&format!("no {ACQD} beside"))
                 && text.contains("cargo build --workspace")
                 && text.contains(&exe.display().to_string()),
             "{text}"
@@ -142,13 +142,13 @@ mod tests {
 
         // A daemon elsewhere — on a PATH-like directory, one level up —
         // is not found: only the sibling counts.
-        std::fs::write(dir.join("acqd"), b"").unwrap();
+        std::fs::write(dir.join(ACQD), b"").unwrap();
         assert!(beside(&exe).is_err());
-        std::fs::write(dir.join("bin").join("acqd"), b"").unwrap();
-        assert_eq!(beside(&exe).unwrap(), dir.join("bin").join("acqd"));
+        std::fs::write(dir.join("bin").join(ACQD), b"").unwrap();
+        assert_eq!(beside(&exe).unwrap(), dir.join("bin").join(ACQD));
         // A directory named acqd is not the daemon.
-        std::fs::remove_file(dir.join("bin").join("acqd")).unwrap();
-        std::fs::create_dir(dir.join("bin").join("acqd")).unwrap();
+        std::fs::remove_file(dir.join("bin").join(ACQD)).unwrap();
+        std::fs::create_dir(dir.join("bin").join(ACQD)).unwrap();
         assert!(beside(&exe).is_err());
         let _ = std::fs::remove_dir_all(&dir);
     }

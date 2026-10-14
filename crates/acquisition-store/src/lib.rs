@@ -675,6 +675,8 @@ pub mod index;
 pub mod jobs;
 pub mod snapshot;
 pub mod world;
+#[cfg(windows)]
+pub mod world_windows;
 pub use annotations::{
     AnnotationError, AnnotationRow, Annotations, IntentValue, Provenance, ValueError,
     annotations_path, check_value,

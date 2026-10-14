@@ -131,9 +131,19 @@
 //!   is no daemon yet. A world that does not exist has no socket: a use
 //!   door creates the root first, an observer reports absence.
 //!
-//! Windows has no arm here yet (`README.md`, known gaps): the paths are
-//! computed, the locks use `std`'s portable file locking, the mode bits
-//! are Unix-only.
+//! ## The Windows arm (`PLATFORMS-SLICE.md`, step 0)
+//!
+//! - **The endpoint** is a named pipe, not a socket (C112;
+//!   [`World::socket_path`], `world_windows`).
+//! - **The runtime directory** is `%TEMP%\acq` — per user, under the
+//!   profile — and holds only the real-mode lock; the owner and mode
+//!   checks of [`private_dir`] are Unix-only.
+//! - **The locks** are `std`'s file locks, which on Windows are mandatory:
+//!   the holder's pid is written to `<lock>.pid` beside each lock as well,
+//!   where [`Lock::holder`] reads it.
+//! - **The root** is canonicalised without the verbatim `\\?\` prefix
+//!   where a plain spelling exists, so the name a user types is the name
+//!   `hello` carries and the id hashes.
 
 use std::fs::{File, OpenOptions, TryLockError};
 use std::io::{Read as _, Write as _};
@@ -281,6 +291,7 @@ impl World {
             io: e.to_string(),
             absent: e.kind() == std::io::ErrorKind::NotFound,
         })?;
+        let root = without_verbatim_prefix(root);
         if !root.is_dir() {
             return Err(WorldError {
                 intended,
@@ -375,11 +386,23 @@ impl World {
     /// directory finds no daemon (`NotFound`), and a socket in a directory
     /// someone else made is never used. The daemon makes the directory
     /// first ([`app_runtime_dir`]).
+    #[cfg(unix)]
     pub fn socket_path(&self) -> std::io::Result<PathBuf> {
         let runtime = runtime_dir_path();
         let path = self.socket_path_under(&runtime)?;
         existing_private_dir(&runtime)?;
         Ok(path)
+    }
+
+    /// The Windows arm (C112): the named pipe
+    /// `\\.\pipe\acq-<SID>-<world id>` — this user's SID and this
+    /// world's id, so two users on one world and two worlds of one user
+    /// never meet (`world_windows`). A pipe has no directory to verify;
+    /// its privacy is its DACL and the client's check of the server.
+    #[cfg(windows)]
+    pub fn socket_path(&self) -> std::io::Result<PathBuf> {
+        let sid = crate::world_windows::current_user_sid()?;
+        Ok(PathBuf::from(format!(r"\\.\pipe\acq-{sid}-{}", self.id())))
     }
 
     /// The pure derivation: this world's socket under `runtime`, refused
@@ -427,8 +450,40 @@ pub const SOCKET_PATH_MAX: usize = 103;
 fn runtime_dir_path() -> PathBuf {
     match BaseDirs::new().and_then(|b| b.runtime_dir().map(Path::to_path_buf)) {
         Some(runtime) => runtime.join("acq"),
+        // Windows: `%TEMP%` is under the user's profile, per user by
+        // construction; it holds only the real-mode lock (C112 puts the
+        // endpoint in the pipe namespace).
+        None if cfg!(windows) => std::env::temp_dir().join("acq"),
         None => std::env::temp_dir().join(format!("acq-{}", current_uid())),
     }
+}
+
+/// `\\?\C:\…` as `C:\…` and `\\?\UNC\server\share` as
+/// `\\server\share` (Windows; elsewhere the path as given):
+/// `canonicalize` returns the verbatim form, and the world's name — what
+/// `hello` carries, what the id hashes, what every report prints — is the
+/// form a user types. A verbatim path with no plain spelling (a component
+/// the plain form cannot carry) stays verbatim.
+fn without_verbatim_prefix(path: PathBuf) -> PathBuf {
+    #[cfg(windows)]
+    {
+        use std::path::{Component, Prefix};
+        let plain = match path.components().next() {
+            Some(Component::Prefix(p)) => match p.kind() {
+                Prefix::VerbatimDisk(_) => path.to_str().map(|s| s[4..].to_string()),
+                Prefix::VerbatimUNC(..) => path.to_str().map(|s| format!(r"\\{}", &s[8..])),
+                _ => None,
+            },
+            _ => None,
+        };
+        if let Some(plain) = plain
+            && plain.len() < 260
+            && !plain.split('\\').any(|c| c == "." || c == "..")
+        {
+            return PathBuf::from(plain);
+        }
+    }
+    path
 }
 
 /// This application's private per-user runtime directory
@@ -480,6 +535,7 @@ pub fn private_dir(path: &Path) -> std::io::Result<PathBuf> {
     if let Err(e) = std::fs::symlink_metadata(path)
         && e.kind() == ErrorKind::NotFound
     {
+        #[cfg_attr(not(unix), allow(unused_mut))]
         let mut builder = std::fs::DirBuilder::new();
         #[cfg(unix)]
         {
@@ -625,12 +681,26 @@ impl std::fmt::Display for LockError {
 impl std::error::Error for LockError {}
 
 impl Lock {
+    /// Where a lock's holder pid is read: the lock file itself on Unix,
+    /// `<lock>.pid` beside it on Windows ([`Lock::acquire`]).
+    pub fn pid_path(lock: &Path) -> PathBuf {
+        if cfg!(windows) {
+            lock.with_extension("pid")
+        } else {
+            lock.to_path_buf()
+        }
+    }
+
     /// The pid the holder wrote into the lock file at `path`, read
     /// without contending for the lock: what a client names when the
     /// daemon on a world accepts a connection and never answers (C86).
     /// `None` when there is no file, or no pid in it yet.
     pub fn holder(path: &Path) -> Option<u32> {
-        std::fs::read_to_string(path).ok()?.trim().parse().ok()
+        std::fs::read_to_string(Lock::pid_path(path))
+            .ok()?
+            .trim()
+            .parse()
+            .ok()
     }
 
     /// Take the lock at `path` (created if missing), or say who holds it.
@@ -651,11 +721,16 @@ impl Lock {
         match file.try_lock() {
             Ok(()) => {}
             Err(TryLockError::WouldBlock) => {
-                let mut text = String::new();
-                let _ = file.read_to_string(&mut text);
+                let holder = if cfg!(windows) {
+                    Lock::holder(path)
+                } else {
+                    let mut text = String::new();
+                    let _ = file.read_to_string(&mut text);
+                    text.trim().parse().ok()
+                };
                 return Err(LockError {
                     path: path.to_path_buf(),
-                    holder: text.trim().parse().ok(),
+                    holder,
                     io: None,
                 });
             }
@@ -665,6 +740,12 @@ impl Lock {
         let _ = file.set_len(0);
         let _ = writeln!(file, "{}", std::process::id());
         let _ = file.flush();
+        // Windows locks are mandatory (`LockFileEx` over the whole file):
+        // no other process can read the pid above, so it is written again
+        // beside the lock, where `holder` reads it.
+        if cfg!(windows) {
+            let _ = std::fs::write(Lock::pid_path(path), format!("{}\n", std::process::id()));
+        }
         Ok(Lock {
             _file: file,
             path: path.to_path_buf(),

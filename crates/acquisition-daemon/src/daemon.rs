@@ -109,7 +109,7 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::io::Write as _;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime};
 
@@ -118,8 +118,8 @@ use acquisition_store::world::{Lock, World, app_runtime_dir};
 use acquisition_store::{Endpoint, Index, Store, account_matches, account_path};
 use anyhow::Result;
 use serde_json::{Value, json};
-use tokio::io::{AsyncWriteExt, BufReader};
-use tokio::net::{TcpListener, UnixListener, UnixStream};
+use tokio::io::{AsyncWriteExt, BufReader, WriteHalf};
+use tokio::net::TcpListener;
 use tokio::sync::{Notify, broadcast, watch};
 
 use std::collections::VecDeque;
@@ -228,6 +228,7 @@ pub fn rotate_if_over(path: &std::path::Path, cap: u64) -> Result<Option<String>
 
 #[cfg(test)]
 mod diagnostics_tests {
+    #[cfg(unix)]
     use super::*;
 
     /// C83: a diagnostic over the cap is rotated to `<name>.1`; when it
@@ -884,17 +885,119 @@ impl Shared {
     }
 }
 
+/// A connection to the daemon's endpoint (C112): a Unix socket, or on
+/// Windows the server end of one instance of the world's named pipe.
+#[cfg(unix)]
+type Stream = tokio::net::UnixStream;
+#[cfg(windows)]
+type Stream = tokio::net::windows::named_pipe::NamedPipeServer;
+
+/// The daemon's end of its endpoint (C112): bound once at start, then
+/// one connection per `accept`.
+///
+/// - **Unix**: a socket in the private per-user runtime directory. A
+///   socket file left by a crash is probed — something answering is a
+///   live daemon and the start is refused — and removed; the bound
+///   file's identity is kept ([`BoundSocket`]) so the exit path unlinks
+///   only its own.
+/// - **Windows**: the world's named pipe, every instance created under a
+///   DACL granting this user alone (`world_windows`). The first instance
+///   is created as such, so a name another process holds refuses the
+///   start; each accepted connection is replaced by a fresh instance
+///   before it is handed on. A pipe vanishes with its server: there is
+///   no stale file to probe and nothing to unlink.
+#[cfg(unix)]
+struct Listener(tokio::net::UnixListener);
+#[cfg(windows)]
+struct Listener {
+    name: PathBuf,
+    next: Stream,
+}
+
+impl Listener {
+    #[cfg(unix)]
+    async fn bind(path: &Path) -> Result<(Listener, BoundSocket)> {
+        if path.exists() {
+            // Live daemon or stale socket from a crash?
+            if tokio::net::UnixStream::connect(path).await.is_ok() {
+                anyhow::bail!("daemon already running on {}", path.display());
+            }
+            std::fs::remove_file(path)?;
+        }
+        let listener = tokio::net::UnixListener::bind(path)
+            .map_err(|e| anyhow::anyhow!("could not bind {}: {e}", path.display()))?;
+        let bound = BoundSocket::of(path.to_path_buf()).map_err(|e| {
+            anyhow::anyhow!("identifying the socket {} just bound: {e}", path.display())
+        })?;
+        Ok((Listener(listener), bound))
+    }
+
+    #[cfg(windows)]
+    async fn bind(path: &Path) -> Result<(Listener, BoundSocket)> {
+        let first = Self::instance(path, true).map_err(|e| {
+            if e.kind() == std::io::ErrorKind::PermissionDenied {
+                anyhow::anyhow!(
+                    "the pipe {} is already held by another process; this daemon will not serve beside it (C112)",
+                    path.display()
+                )
+            } else {
+                anyhow::anyhow!("could not create the pipe {}: {e}", path.display())
+            }
+        })?;
+        Ok((
+            Listener {
+                name: path.to_path_buf(),
+                next: first,
+            },
+            BoundSocket,
+        ))
+    }
+
+    /// One instance of the pipe at `name`, this user's alone.
+    #[cfg(windows)]
+    fn instance(name: &Path, first: bool) -> std::io::Result<Stream> {
+        acquisition_store::world_windows::with_user_only_attributes(|attrs| {
+            // SAFETY: `attrs` is a SECURITY_ATTRIBUTES that lives until
+            // `with_user_only_attributes` returns, after this call.
+            unsafe {
+                tokio::net::windows::named_pipe::ServerOptions::new()
+                    .first_pipe_instance(first)
+                    .reject_remote_clients(true)
+                    .create_with_security_attributes_raw(name, attrs)
+            }
+        })
+    }
+
+    /// The next connection.
+    async fn accept(&mut self) -> std::io::Result<Stream> {
+        #[cfg(unix)]
+        {
+            Ok(self.0.accept().await?.0)
+        }
+        #[cfg(windows)]
+        {
+            self.next.connect().await?;
+            let fresh = Self::instance(&self.name, false)?;
+            Ok(std::mem::replace(&mut self.next, fresh))
+        }
+    }
+}
+
 /// The socket a daemon bound, with the file's identity at the time, so
 /// the exit path removes that file and not a successor's at the same
-/// path.
+/// path. Unix only: a Windows pipe leaves nothing behind.
+#[cfg(unix)]
 struct BoundSocket {
     path: PathBuf,
     dev: u64,
     ino: u64,
 }
+#[cfg(windows)]
+struct BoundSocket;
 
 impl BoundSocket {
     /// Identify the file just bound at `path`.
+    #[cfg(unix)]
     fn of(path: PathBuf) -> std::io::Result<BoundSocket> {
         use std::os::unix::fs::MetadataExt;
         let meta = std::fs::metadata(&path)?;
@@ -908,12 +1011,15 @@ impl BoundSocket {
     /// Remove the socket file if it is still the one bound; leave a
     /// successor's alone.
     fn remove_if_still_ours(&self) {
-        use std::os::unix::fs::MetadataExt;
-        if let Ok(meta) = std::fs::symlink_metadata(&self.path)
-            && meta.dev() == self.dev
-            && meta.ino() == self.ino
+        #[cfg(unix)]
         {
-            let _ = std::fs::remove_file(&self.path);
+            use std::os::unix::fs::MetadataExt;
+            if let Ok(meta) = std::fs::symlink_metadata(&self.path)
+                && meta.dev() == self.dev
+                && meta.ino() == self.ino
+            {
+                let _ = std::fs::remove_file(&self.path);
+            }
         }
     }
 }
@@ -3579,7 +3685,7 @@ resubmit if still wanted",
     /// answered in order, one at a time; a subscribed connection also
     /// carries `event` frames, and `resync_required` when the event
     /// channel overran it.
-    async fn handle_conn(self: Arc<Self>, stream: UnixStream) {
+    async fn handle_conn(self: Arc<Self>, stream: Stream) {
         {
             let now = self.choke.now();
             let mut s = self.shared.lock().unwrap();
@@ -3587,7 +3693,7 @@ resubmit if still wanted",
             s.last_activity = now;
         }
 
-        let (read, mut write) = stream.into_split();
+        let (read, mut write) = tokio::io::split(stream);
         let mut reader = BufReader::new(read);
         let mut events: Option<broadcast::Receiver<JobInfo>> = None;
         // Every connection begins with the hello exchange (C85): a
@@ -4421,7 +4527,7 @@ async fn wait_for_refresh(
 }
 
 async fn write_line<T: serde::Serialize>(
-    write: &mut tokio::net::unix::OwnedWriteHalf,
+    write: &mut WriteHalf<Stream>,
     response: &T,
 ) -> std::io::Result<()> {
     let mut line = serde_json::to_string(response).expect("response serializes");
@@ -4545,9 +4651,11 @@ async fn run_with_log(
     // The locks live here, as long as the daemon does.
     let (_world_lock, real_mode_lock) = locks;
     let provider_name = acquisition_protocol::provider::wanted();
-    // The rendezvous (C83, the split's step 6): the world's socket in the
-    // private per-user runtime directory, made here — the daemon is the
-    // one side that creates it; a client only verifies it.
+    // The rendezvous (C112): the world's endpoint, derived from the world
+    // and the user. On Unix a socket in the private per-user runtime
+    // directory, made here — the daemon is the one side that creates it;
+    // a client only verifies it. On Windows the directory holds only the
+    // real-mode lock and the endpoint is a pipe.
     app_runtime_dir().map_err(|e| anyhow::anyhow!("the runtime directory: {e}"))?;
     let path = world
         .socket_path()
@@ -4558,18 +4666,7 @@ async fn run_with_log(
     let rails_state = world.rails_state_path(provider_name);
     verify_state(&rails_state)?;
 
-    if path.exists() {
-        // Live daemon or stale socket from a crash?
-        if UnixStream::connect(&path).await.is_ok() {
-            anyhow::bail!("daemon already running on {}", path.display());
-        }
-        std::fs::remove_file(&path)?;
-    }
-    let listener = UnixListener::bind(&path)
-        .map_err(|e| anyhow::anyhow!("could not bind {}: {e}", path.display()))?;
-    let bound = BoundSocket::of(path.clone()).map_err(|e| {
-        anyhow::anyhow!("identifying the socket {} just bound: {e}", path.display())
-    })?;
+    let (mut listener, bound) = Listener::bind(&path).await?;
 
     // Who this daemon is (C84): the executable it runs from, identified
     // and hashed once, before the journal opens — its header names the
@@ -4765,7 +4862,7 @@ async fn run_with_log(
     tokio::spawn(daemon.clone().idle_watchdog());
 
     loop {
-        let (stream, _addr) = listener.accept().await?;
+        let stream = listener.accept().await?;
         tokio::spawn(daemon.clone().handle_conn(stream));
     }
 }

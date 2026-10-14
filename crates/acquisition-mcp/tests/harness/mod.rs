@@ -40,11 +40,20 @@ pub fn spawn_daemon(base: &Path, extra_env: &[(&str, &str)]) -> Daemon {
     let acqd = acquisition_client::locator::beside(Path::new(env!("CARGO_BIN_EXE_acq-mcp")))
         .unwrap_or_else(|e| panic!("{e}"));
     let exe = std::env::current_exe().expect("current exe");
-    let link = exe.parent().expect("a parent").join("acqd");
-    let target = Path::new("..").join("acqd");
+    let link = exe
+        .parent()
+        .expect("a parent")
+        .join(acquisition_client::locator::ACQD);
+    let target = Path::new("..").join(acquisition_client::locator::ACQD);
     if std::fs::read_link(&link).ok().as_deref() != Some(target.as_path()) {
         let _ = std::fs::remove_file(&link);
-        std::os::unix::fs::symlink(&target, &link)
+        #[cfg(unix)]
+        let placed = std::os::unix::fs::symlink(&target, &link);
+        // Windows: a file symlink needs Developer Mode or elevation (CI's
+        // runner is elevated; `PLATFORMS-SLICE.md`, observations).
+        #[cfg(windows)]
+        let placed = std::os::windows::fs::symlink_file(&target, &link);
+        placed
             .unwrap_or_else(|e| panic!("placing {} -> {}: {e}", link.display(), target.display()));
     }
     assert_eq!(
@@ -67,7 +76,7 @@ pub fn acq(base: &Path, args: &[&str]) -> std::process::Output {
     let acq = Path::new(env!("CARGO_BIN_EXE_acq-mcp"))
         .parent()
         .expect("a parent")
-        .join("acq");
+        .join(format!("acq{}", std::env::consts::EXE_SUFFIX));
     assert!(
         acq.exists(),
         "no acq beside acq-mcp at {}: run `cargo build --workspace` first (C82)",
@@ -88,6 +97,7 @@ pub fn no_daemon_appeared(base: &Path) -> bool {
 }
 
 /// Every Unix socket under `dir`, recursively.
+#[cfg(unix)]
 pub fn sockets_under(dir: &Path) -> Vec<PathBuf> {
     use std::os::unix::fs::FileTypeExt;
     let mut found = Vec::new();
@@ -103,6 +113,43 @@ pub fn sockets_under(dir: &Path) -> Vec<PathBuf> {
         }
     }
     found.sort();
+    found
+}
+
+/// Windows: there are no socket files, so the endpoints "under `dir`"
+/// are the live pipes (C112) of the worlds a test made beside it — every
+/// directory up to two levels under `dir`'s parent, the test's scratch
+/// base, taken as a root, and its pipe kept when the pipe namespace lists
+/// it. Each test has its own base, so tests running at once never see
+/// each other's.
+#[cfg(windows)]
+pub fn sockets_under(dir: &Path) -> Vec<PathBuf> {
+    fn dirs(at: &Path, depth: u32, out: &mut Vec<PathBuf>) {
+        let Ok(entries) = std::fs::read_dir(at) else {
+            return;
+        };
+        for entry in entries.flatten() {
+            if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                out.push(entry.path());
+                if depth > 1 {
+                    dirs(&entry.path(), depth - 1, out);
+                }
+            }
+        }
+    }
+    let Some(base) = dir.parent() else {
+        return Vec::new();
+    };
+    let mut roots = Vec::new();
+    dirs(base, 2, &mut roots);
+    let mut found: Vec<PathBuf> = roots
+        .iter()
+        .filter_map(|root| acquisition_store::world::World::at(root).ok())
+        .filter_map(|world| world.socket_path().ok())
+        .filter(|pipe| acquisition_client::endpoint::exists(pipe))
+        .collect();
+    found.sort();
+    found.dedup();
     found
 }
 

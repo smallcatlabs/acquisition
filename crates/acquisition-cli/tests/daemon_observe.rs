@@ -163,10 +163,10 @@ fn c10_observation_never_spawns_or_replaces_and_reports_the_mismatch() {
 /// placed beside it as `acqd`.
 fn stage(dir: &Path, sibling: Option<&Path>) -> PathBuf {
     std::fs::create_dir_all(dir).unwrap();
-    let acq = dir.join("acq");
+    let acq = dir.join(format!("acq{}", std::env::consts::EXE_SUFFIX));
     std::fs::copy(env!("CARGO_BIN_EXE_acq"), &acq).unwrap();
     if let Some(sibling) = sibling {
-        std::fs::copy(sibling, dir.join("acqd")).unwrap();
+        std::fs::copy(sibling, dir.join(acquisition_client::locator::ACQD)).unwrap();
     }
     acq
 }
@@ -244,7 +244,11 @@ fn c84_the_artifact_dimension_is_the_sibling_acqd_this_client_would_start() {
         status["socket"]
             .as_str()
             .unwrap()
-            .ends_with(&format!("/{}", world.socket_name())),
+            .ends_with(&if cfg!(windows) {
+                format!("-{}", world.id())
+            } else {
+                format!("/{}", world.socket_name())
+            }),
         "{status}"
     );
     assert!(
@@ -274,7 +278,11 @@ fn c84_the_artifact_dimension_is_the_sibling_acqd_this_client_would_start() {
     // the same artifact, settled by hash, and reported as a copy: the
     // daemon's path is the original, the sibling is the copy.
     let copy = stage(&base.join("copy"), Some(&real_acqd));
-    let copied_acqd = base.join("copy").join("acqd").canonicalize().unwrap();
+    let copied_acqd = base
+        .join("copy")
+        .join(acquisition_client::locator::ACQD)
+        .canonicalize()
+        .unwrap();
     let out = command_of(&copy, &base, &["daemon", "status", "--json"])
         .output()
         .unwrap();
@@ -327,7 +335,10 @@ fn c84_the_artifact_dimension_is_the_sibling_acqd_this_client_would_start() {
         Path::new(report["wanted"]["acqd"]["path"].as_str().unwrap())
             .canonicalize()
             .unwrap(),
-        base.join("bogus").join("acqd").canonicalize().unwrap(),
+        base.join("bogus")
+            .join(acquisition_client::locator::ACQD)
+            .canonicalize()
+            .unwrap(),
         "{report}"
     );
     assert!(

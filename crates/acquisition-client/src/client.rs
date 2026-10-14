@@ -212,9 +212,11 @@ use acquisition_store::world::{Lock, World, WorldError};
 use anyhow::{Context, Result, bail};
 use serde::Serialize;
 use serde_json::json;
-use tokio::io::{AsyncWriteExt, BufReader};
-use tokio::net::UnixStream;
-use tokio::net::unix::{OwnedReadHalf, OwnedWriteHalf};
+use tokio::io::{AsyncWriteExt, BufReader, ReadHalf, WriteHalf};
+
+use crate::endpoint::{Stream, connect as connect_endpoint};
+type OwnedReadHalf = ReadHalf<Stream>;
+type OwnedWriteHalf = WriteHalf<Stream>;
 
 /// A request the daemon refused, as the wire carries it (C85): the closed
 /// kind a frontend branches on and the message a person reads. Its
@@ -337,6 +339,13 @@ pub struct Unresponsive {
     pub holder: Option<u32>,
 }
 
+/// The command a person stops a pid with, as the report names it.
+const KILL: &str = if cfg!(windows) {
+    "taskkill /F /PID"
+} else {
+    "kill"
+};
+
 impl fmt::Display for Unresponsive {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -348,7 +357,7 @@ impl fmt::Display for Unresponsive {
         match self.holder {
             Some(pid) => write!(
                 f,
-                " — the world's lock names pid {pid}; stop it by hand (`kill {pid}`)"
+                " — the world's lock names pid {pid}; stop it by hand (`{KILL} {pid}`)"
             ),
             None => f.write_str(" — the world's lock names no holder"),
         }
@@ -1002,7 +1011,7 @@ fn world_socket(own: &Result<World, AbsentWorld>) -> Result<Option<PathBuf>> {
 /// What connecting to a world's socket found.
 enum Reached {
     /// Something is listening.
-    Listening { socket: PathBuf, stream: UnixStream },
+    Listening { socket: PathBuf, stream: Stream },
     /// Nothing is: the socket absent or refusing, or none to try.
     Nothing,
 }
@@ -1013,7 +1022,7 @@ async fn reach(socket: Option<PathBuf>) -> Result<Reached, (PathBuf, std::io::Er
     let Some(socket) = socket else {
         return Ok(Reached::Nothing);
     };
-    match UnixStream::connect(&socket).await {
+    match connect_endpoint(&socket).await {
         Ok(stream) => Ok(Reached::Listening { socket, stream }),
         Err(e) if is_absent(&e) => Ok(Reached::Nothing),
         Err(e) => Err((socket, e)),
@@ -1249,7 +1258,7 @@ impl Client {
     /// that never answers `hello` cannot be asked (C86): the error names
     /// `holder`, the world lock's recorded pid.
     async fn stop_over(
-        stream: UnixStream,
+        stream: Stream,
         at: Endpoint,
         own_world: Result<String, AbsentWorld>,
         holder: Option<u32>,
@@ -1269,11 +1278,11 @@ impl Client {
     /// that accepts and never answers is [`Handshake::Unresponsive`],
     /// which every door reports as its own verdict.
     async fn handshake(
-        stream: UnixStream,
+        stream: Stream,
         at: Endpoint,
         own_world: Result<String, AbsentWorld>,
     ) -> Result<Client, Handshake> {
-        let (read, write) = stream.into_split();
+        let (read, write) = tokio::io::split(stream);
         let mut reader = BufReader::new(read);
         let mut write = write;
         // What this side says about itself is for the daemon's log
@@ -1450,6 +1459,17 @@ fn spawn_daemon(world: &World) -> Result<Spawned, ConnectError> {
     let mut command = std::process::Command::new(&acqd);
     if std::env::var_os("ACQ_STORE_DIR").is_some() {
         command.env("ACQ_STORE_DIR", acquisition_store::world::intended_root());
+    }
+    // Windows: the daemon outlives the console that started it (C3) and
+    // opens no window of its own when a host without a console (an MCP
+    // host) spawns it — no console at all, and a process group of its
+    // own so a Ctrl-C at the caller's prompt never reaches it.
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const DETACHED_PROCESS: u32 = 0x0000_0008;
+        const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
+        command.creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP);
     }
     let child = command
         .stdin(std::process::Stdio::null())
@@ -1751,18 +1771,22 @@ mod tests {
     /// A scripted peer on a scratch socket: answers the handshake as a
     /// daemon would, then answers the stop request with `reply` — or
     /// hangs up when `reply` is `None`.
-    async fn peer_that_answers_stop_with(reply: Option<serde_json::Value>) -> UnixStream {
-        let dir = std::env::temp_dir().join(format!("acq-stop-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+    async fn peer_that_answers_stop_with(reply: Option<serde_json::Value>) -> Stream {
         static N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
         let n = N.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let path = dir.join(format!("{n}.sock"));
-        let _ = std::fs::remove_file(&path);
-        let listener = tokio::net::UnixListener::bind(&path).unwrap();
+        let path = if cfg!(windows) {
+            PathBuf::from(format!(r"\\.\pipe\acq-stop-{}-{n}", std::process::id()))
+        } else {
+            let dir = std::env::temp_dir().join(format!("acq-stop-{}", std::process::id()));
+            std::fs::create_dir_all(&dir).unwrap();
+            dir.join(format!("{n}.sock"))
+        };
+        let mut listener = crate::endpoint::Listener::bind(&path).unwrap();
+        let accept = async move { listener.accept().await.unwrap() };
         let peer_path = path.clone();
         tokio::spawn(async move {
-            let (stream, _) = listener.accept().await.unwrap();
-            let (read, mut write) = stream.into_split();
+            let stream = accept.await;
+            let (read, mut write) = tokio::io::split(stream);
             let mut lines = tokio::io::AsyncBufReadExt::lines(BufReader::new(read));
             let _hello = lines.next_line().await.unwrap().unwrap();
             let hello = BootstrapReply::Hello {
@@ -1785,7 +1809,7 @@ mod tests {
             // Dropping `write` hangs up either way.
             let _ = std::fs::remove_file(&peer_path);
         });
-        UnixStream::connect(&path).await.unwrap()
+        connect_endpoint(&path).await.unwrap()
     }
 
     /// The defect of review round 1: a stop that the peer refuses, answers

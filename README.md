@@ -187,7 +187,9 @@ the world, paths and rails state; read-site docs explain invalid values.
   so the pc tabs-and-characters policy must be set again before pc
   work. A per-realm merge is unbuilt; trigger: a second realm in daily
   use (`decisions/plans.md`, "Parked").
-- **Unix only.** No Windows named pipes yet; the protocol doesn't care.
+- **Windows is built, not yet run.** The named-pipe endpoint (C112) and
+  the world's Windows arm type-check; nothing has run on Windows until
+  its CI job and VM row (`PLATFORMS-SLICE.md`).
 - **A fetched character with an empty body prints `0` items in its row.**
   GGG sends empty arrays for a stripped character and for one that
   carries nothing, and `acq store characters` says which rows only in

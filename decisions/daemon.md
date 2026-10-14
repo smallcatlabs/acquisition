@@ -38,7 +38,6 @@ Scope this area has deferred, with the trigger that reopens it, so deferral neve
 - A second installation on one machine → a design event under C82 (the contract-as-use-condition model is the recorded alternative). Trigger: a consumer that needs one.
 - A keeper for frontends that never spawn (cron, a real-mode MCP), which is the foreground `acqd` contract: readiness, signals, exit codes, checkpointing, launchd/systemd → the daemon. Trigger: the first non-spawning consumer in daily use.
 - Correlation ids and multiplexed requests on one connection → C85 amended. Trigger: evidence a GUI needs them.
-- Windows: named pipes, `acqd.exe`, the runtime directory → the world's and locator's Windows arms. Trigger: a Windows build; step 2 of `brainstorming-notes/36-the-road-to-the-agent-release.md` builds it.
 - The credential store as an explicit choice: keyring 4’s `keyring-core` with one store crate per platform (the macOS protected keychain; oo7 or the Secret portal for a Flatpak) in place of keyring 3’s feature-selected backends → `auth.rs`. Trigger: a shipping decision, which the owner's ruling of 2026-10-11 is (`README.md`); step 2 of `brainstorming-notes/36-the-road-to-the-agent-release.md` builds it.
 - Artifact dependencies (`-Z bindeps`) → `acqd` as a dev-dependency of the frontends' tests, replacing the sibling lookup there. Trigger: bindeps stabilising.
 - `world.rs` out of the store crate → a crate of its own. Trigger: a frontend that must not link SQLite.

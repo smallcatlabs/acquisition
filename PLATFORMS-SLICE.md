@@ -96,7 +96,7 @@ One row per commit of the slice; a row is filled when it lands.
 
 | Step | Commits | What lands |
 | --- | --- | --- |
-| 0 Windows builds | — | the client's and daemon's transport behind one seam, named pipes on Windows (ruling 1); `BoundSocket` and the stale-socket probe Unix-only; the sibling as `acqd.exe` (`std::env::consts::EXE_SUFFIX`, C82); the spawn detached with no console window; the world's Windows arm (the runtime directory, the lock holder's pid readable, the canonical root's form); README's "Unix only" gap goes; the Windows park deleted |
+| 0 Windows builds | (this commit) | the client's and daemon's transport behind one seam, named pipes on Windows (ruling 1); `BoundSocket` and the stale-socket probe Unix-only; the sibling as `acqd.exe` (`locator::ACQD`, C82); the spawn detached with no console window; the world's Windows arm (`%TEMP%\acq` for the real-mode lock, the holder's pid in `<lock>.pid`, the root without its `\\?\` prefix); `world_windows` (the SID, the user-only DACL, the server check) and `acquisition_client::endpoint` (connect, exists, a test listener); the tests' harnesses on both endpoints; README's gap says built, not run; the Windows park deleted |
 | 1 Windows CI | — | a Windows job beside the Linux one, the gate on the mock harness, the keyring round trip against Credential Manager |
 | 2 credential store | — | the choice decided and written at `auth.rs`; the park deleted |
 | 3 cargo-deny | (this commit) | licences (question 4: the ten, MPL-2.0 for `option-ext` and CDLA-Permissive-2.0 for `webpki-roots` by exception), bans (wildcards; the workspace's crates `publish = false`, so their path dependencies pass) and sources (crates.io only) in `deny.toml`, the Linux workflow's step running all four; rustls 0.23.46 first (RUSTSEC-2026-0346, -0347, found by the same run); the park deleted |
@@ -126,35 +126,26 @@ holds it now.
 
 Data for the commit that touches each; none is a ruling.
 
-- **The Windows gap, measured 2026-10-14 at `4f49e285`**:
-  `cargo check --workspace --all-targets --keep-going --target
-  x86_64-pc-windows-msvc`, the C compiler and archiver stubbed (a check
-  never links; this Mac has no Windows SDK, and the VM showed every C
-  dependency compiles there). The protocol, store, plan and search
-  crates check clean; the store warns once (`world.rs`, an unused `mut`
-  off Unix — a `-D warnings` failure on Windows). `acquisition-client`
-  fails at the `tokio::net::UnixStream` imports (2 errors; 3 with its
-  tests), `acquisition-daemon` at `UnixListener`/`UnixStream` and
-  `BoundSocket`'s `dev`/`ino` (8); the CLI and MCP are never reached.
-  By reading, past the wall: `plan_cmd.rs`'s test binds a
-  `UnixListener`; `client/tests/contract.rs` (14 Unix sites), the CLI's
-  and MCP's harnesses (symlinks, `FileTypeExt`) and `cli/tests/world.rs`
-  (`OsStrExt`, already `cfg`'d).
-- **The lock holder on Windows.** `Lock::acquire` reads the holder's pid
-  from the locked file; `File::try_lock` is `LockFileEx`, a mandatory
-  lock, so the read fails and the refusal (and C86's report) loses its
-  pid. To verify on the VM before step 0's fix.
-- **The runtime directory off Unix.** `current_uid` is 0, so the
-  fallback is `%TEMP%\acq-0`, and `private_dir`'s owner and mode checks
-  are skipped; with ruling 1 only the real-mode lock lives there.
-- **The canonical root on Windows** is a verbatim `\\?\C:\…` path; the
-  world id hashes it and every report prints it. Its form is decided
-  before the first Windows world exists, since the socket name and the
-  log directory derive from the id.
-- **The spawn** (`spawn_daemon`) sets no creation flags: on Windows
-  `acqd` would share the caller's console and die with it, and an MCP
-  host with no console would open a window for it. `client.rs`'s
-  unresponsive report says `kill {pid}`.
+- **The Windows gap, measured 2026-10-14 at `4f49e285`** with
+  `cargo check --target x86_64-pc-windows-msvc`, the C compiler and
+  archiver stubbed (a check never links; this Mac has no Windows SDK,
+  and the VM showed every C dependency compiles there): the protocol,
+  store, plan and search crates checked; the client failed on the Unix
+  socket types, the daemon on them and `BoundSocket`'s `dev`/`ino`, and
+  the CLI and MCP were never reached. Step 0 closes it at the type level:
+  `cargo clippy --workspace --all-targets --all-features --target
+  x86_64-pc-windows-msvc -- -D warnings` is clean the same way. Nothing
+  has run on Windows.
+- **What step 0 leaves for a Windows machine** (CI's job, then the VM):
+  the suite itself — tests that pin Unix mechanics were gated only where
+  the type check forced it (the successor-socket exit test), so the
+  first Windows run will name the rest (the socket path cap in
+  `cli/tests/world.rs` is one); the study's checks — the same-user
+  token check, a second user's squat refused and its connection
+  denied, a daemon and a client at different elevations; the lock
+  holder's pid read from `<lock>.pid`; `canonicalize` on `subst` and
+  mapped drives; whether a host that runs its children in a job object
+  (an MCP host, a terminal) kills a detached `acqd` with it.
 - **Symlinks in the test harnesses** need Developer Mode or elevation on
   Windows: CI's runner is elevated, the VM's `acqtest` is a standard
   user.

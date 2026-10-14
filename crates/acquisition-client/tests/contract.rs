@@ -47,15 +47,17 @@ use std::time::{Duration, Instant};
 use acquisition_client::client::{
     Client, ConnectError, ConnectOptions, Observed, Signal, Subscription,
 };
+use acquisition_client::endpoint::{self, Listener, Stream};
 use acquisition_client::frame::{Frame, read_frame};
 use acquisition_protocol::job::JobState;
 use acquisition_protocol::protocol::{ErrorKind, MAX_FRAME_BYTES, Request, Response};
 use acquisition_protocol::{CONTRACT_REVISION, VERSION};
-use acquisition_store::world::World;
+use acquisition_store::world::{Lock, World};
 use serde_json::{Value, json};
-use tokio::io::{AsyncWriteExt, BufReader};
-use tokio::net::unix::{OwnedReadHalf, OwnedWriteHalf};
-use tokio::net::{UnixListener, UnixStream};
+use tokio::io::{AsyncWriteExt, BufReader, ReadHalf, WriteHalf};
+
+type OwnedReadHalf = ReadHalf<Stream>;
+type OwnedWriteHalf = WriteHalf<Stream>;
 
 /// The `acqd` the gate built (module doc): `target/<profile>/acqd`, one
 /// level above the `deps/` directory this test executable runs from —
@@ -70,7 +72,7 @@ fn acqd_for_tests() -> PathBuf {
     let profile_dir = deps_dir
         .parent()
         .unwrap_or_else(|| panic!("{} is not under target/<profile>/deps", exe.display()));
-    let acqd = profile_dir.join("acqd");
+    let acqd = profile_dir.join(acquisition_client::locator::ACQD);
     assert!(
         acqd.is_file(),
         "no daemon at {}: the contract tests drive the acqd the workspace build writes there — \
@@ -78,11 +80,17 @@ fn acqd_for_tests() -> PathBuf {
          does not build it)",
         acqd.display()
     );
-    let link = deps_dir.join("acqd");
-    let target = Path::new("..").join("acqd");
+    let link = deps_dir.join(acquisition_client::locator::ACQD);
+    let target = Path::new("..").join(acquisition_client::locator::ACQD);
     if std::fs::read_link(&link).ok().as_deref() != Some(target.as_path()) {
         let _ = std::fs::remove_file(&link);
-        std::os::unix::fs::symlink(&target, &link)
+        #[cfg(unix)]
+        let placed = std::os::unix::fs::symlink(&target, &link);
+        // Windows: a file symlink needs Developer Mode or elevation (CI's
+        // runner is elevated; `PLATFORMS-SLICE.md`, observations).
+        #[cfg(windows)]
+        let placed = std::os::windows::fs::symlink_file(&target, &link);
+        placed
             .unwrap_or_else(|e| panic!("placing {} -> {}: {e}", link.display(), target.display()));
     }
     let sibling = acquisition_client::locator::beside(&exe).unwrap_or_else(|e| panic!("{e}"));
@@ -255,10 +263,8 @@ struct Raw {
 
 impl Raw {
     async fn open() -> Raw {
-        let stream = UnixStream::connect(session_socket())
-            .await
-            .expect("connect");
-        let (read, write) = stream.into_split();
+        let stream = endpoint::connect(&session_socket()).await.expect("connect");
+        let (read, write) = tokio::io::split(stream);
         Raw {
             reader: BufReader::new(read),
             write,
@@ -430,20 +436,21 @@ async fn c85_the_daemon_identifies_itself_and_stops_across_a_contract_mismatch()
         .await;
     assert_eq!(reply, json!({ "resp": "stopping" }));
     daemon.wait_exit();
-    assert!(!session_socket().exists(), "the socket is removed on exit");
+    assert!(
+        !endpoint::exists(&session_socket()),
+        "the socket is removed on exit"
+    );
 }
 
 /// A scripted daemon of a future revision on the session's socket: answers
 /// every hello with `hello_reply`, every `daemon_stop` with `stop_reply`,
 /// anything else with an error of a kind this build does not know.
 async fn foreign_daemon(hello_reply: Value, stop_reply: Value) -> tokio::task::JoinHandle<()> {
-    let path = session_socket();
-    let _ = std::fs::remove_file(&path);
-    let listener = UnixListener::bind(&path).expect("bind");
+    let mut listener = Listener::bind(&session_socket()).expect("bind");
     tokio::spawn(async move {
         loop {
-            let (stream, _) = listener.accept().await.expect("accept");
-            let (read, mut write) = stream.into_split();
+            let stream = listener.accept().await.expect("accept");
+            let (read, mut write) = tokio::io::split(stream);
             let mut reader = BufReader::new(read);
             let hello_reply = hello_reply.clone();
             let stop_reply = stop_reply.clone();
@@ -472,13 +479,11 @@ async fn foreign_daemon(hello_reply: Value, stop_reply: Value) -> tokio::task::J
 /// shape of a wedged daemon. Every connection is held open until the
 /// task is aborted.
 fn silent_peer() -> tokio::task::JoinHandle<()> {
-    let path = session_socket();
-    let _ = std::fs::remove_file(&path);
-    let listener = UnixListener::bind(&path).expect("bind");
+    let mut listener = Listener::bind(&session_socket()).expect("bind");
     tokio::spawn(async move {
         let mut held = Vec::new();
         loop {
-            let (stream, _) = listener.accept().await.expect("accept");
+            let stream = listener.accept().await.expect("accept");
             held.push(stream);
         }
     })
@@ -497,6 +502,9 @@ async fn c86_a_peer_that_never_answers_hello_is_unresponsive_on_every_door_and_n
     // The lock a wedged daemon would still hold, with its pid in it.
     let world = World::observe().expect("the session's world");
     std::fs::write(world.lock_path(), "424242\n").expect("the lock file");
+    // Windows reads the holder beside the lock (a mandatory lock's file
+    // cannot be read by another process).
+    std::fs::write(Lock::pid_path(&world.lock_path()), "424242\n").expect("the pid file");
     let socket = session_socket().to_str().expect("utf-8").to_string();
 
     let started = Instant::now();
@@ -522,7 +530,12 @@ async fn c86_a_peer_that_never_answers_hello_is_unresponsive_on_every_door_and_n
     assert_eq!(found.holder, Some(424242));
     let sentence = found.to_string();
     assert!(
-        sentence.contains("did not answer hello within 5s") && sentence.contains("kill 424242"),
+        sentence.contains("did not answer hello within 5s")
+            && sentence.contains(if cfg!(windows) {
+                "taskkill /F /PID 424242"
+            } else {
+                "kill 424242"
+            }),
         "{sentence}"
     );
 
@@ -541,7 +554,7 @@ async fn c86_a_peer_that_never_answers_hello_is_unresponsive_on_every_door_and_n
     // Nothing spawned or replaced: the peer still holds the socket and
     // still accepts.
     assert!(!peer.is_finished(), "the peer is gone");
-    UnixStream::connect(session_socket())
+    endpoint::connect(&session_socket())
         .await
         .expect("the peer still listens on the session's socket");
     peer.abort();
@@ -685,7 +698,10 @@ async fn c83_a_daemon_on_another_world_is_refused_and_never_replaced() {
     let stopped = Client::stop_any().await.expect("stop").expect("a daemon");
     assert_eq!(stopped.pid(), pid);
     daemon.wait_exit();
-    assert!(!home_socket.exists(), "the socket is removed on exit");
+    assert!(
+        !endpoint::exists(&home_socket),
+        "the socket is removed on exit"
+    );
 
     // What the wire pins: a peer on this world's socket claiming another
     // root — the world judged first and named alone, never replaced by
@@ -1182,6 +1198,7 @@ async fn login(client: &mut Client, user: Option<&str>) {
 /// must survive the exit (seen in a rehearsal, 2026-09-11: a stop
 /// followed within a second by a start on the same world lost the new
 /// daemon's rendezvous).
+#[cfg(unix)]
 #[tokio::test]
 async fn c83_a_daemon_on_its_way_out_never_unlinks_a_successors_socket() {
     let s = session("exit");
@@ -1192,7 +1209,7 @@ async fn c83_a_daemon_on_its_way_out_never_unlinks_a_successors_socket() {
 
     // The successor's socket, in the predecessor's place.
     std::fs::remove_file(&socket).expect("unlink the live daemon's socket");
-    let successor = UnixListener::bind(&socket).expect("bind in its place");
+    let successor = tokio::net::UnixListener::bind(&socket).expect("bind in its place");
 
     let reply = held
         .ask(json!({ "req": "daemon_stop", "reason": "exit pin" }))
@@ -1204,7 +1221,7 @@ async fn c83_a_daemon_on_its_way_out_never_unlinks_a_successors_socket() {
         socket.exists(),
         "the exiting daemon unlinked the successor's socket"
     );
-    let probe = UnixStream::connect(&socket).await;
+    let probe = tokio::net::UnixStream::connect(&socket).await;
     assert!(probe.is_ok(), "the successor's socket no longer connects");
     let (_accepted, _) = successor.accept().await.expect("the successor accepts");
     drop(successor);

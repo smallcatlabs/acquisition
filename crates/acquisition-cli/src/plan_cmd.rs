@@ -1996,8 +1996,7 @@ mod tests {
             .unwrap()
             .socket_path()
             .unwrap();
-        let _ = std::fs::remove_file(&sock);
-        let _listener = tokio::net::UnixListener::bind(&sock).unwrap();
+        let _listener = acquisition_client::endpoint::Listener::bind(&sock).unwrap();
         let plan = tiny_plan();
         // The outer watchdog outlives the tested bound on purpose: if the
         // production timeout is ever removed, this test must fail cleanly
