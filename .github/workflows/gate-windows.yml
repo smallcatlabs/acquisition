@@ -45,12 +45,14 @@ jobs:
 
       # ACQ_CASES=full: the generated search properties at their full
       # counts, as on Linux. ACQ_KEYRING_ROUNDTRIP=1: the round trip
-      # against the runner user's Credential Manager.
+      # against the runner user's Credential Manager. --no-fail-fast: a
+      # platform's failures come in kinds, and one binary's must not hide
+      # the next's.
       - name: Test, with the keyring round trip against Credential Manager
         env:
           ACQ_KEYRING_ROUNDTRIP: "1"
           ACQ_CASES: full
-        run: cargo test --workspace --all-targets --locked
+        run: cargo test --workspace --all-targets --locked --no-fail-fast
 
       - name: Clippy
         run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings

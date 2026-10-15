@@ -327,6 +327,13 @@ pub enum ConnectError {
 /// checkpoint with its listener still open.
 pub const HELLO_WITHIN: Duration = Duration::from_secs(5);
 
+/// How long `daemon stop` waits, after the daemon's `stopping`, for the
+/// daemon to be gone: its exit checkpoints the store and the queue, then
+/// removes the endpoint (`exit_process`), and until then its listener
+/// still accepts a connection that only ever reads end-of-file. Past the
+/// bound the stop is still the daemon's acknowledged one.
+pub const STOPPED_WITHIN: Duration = Duration::from_secs(10);
+
 /// A peer that accepted a connection on the world's socket and did not
 /// answer `hello` within [`HELLO_WITHIN`] (C86). `holder` is the pid the
 /// world lock's file records — the daemon that took the world, if the
@@ -1242,7 +1249,19 @@ impl Client {
     async fn stop(&mut self) -> Result<()> {
         let bytes = self.exchange(&Bootstrap::DaemonStop).await?;
         match BootstrapReply::read(&bytes) {
-            Some(BootstrapReply::Stopping) => Ok(()),
+            Some(BootstrapReply::Stopping) => {
+                // Gone, not only going: this connection ends when the
+                // daemon's process does, after its endpoint is removed —
+                // so the next command finds no daemon rather than a
+                // dying one (first seen on CI's Windows runner).
+                let mut rest = Vec::new();
+                let _ = tokio::time::timeout(
+                    STOPPED_WITHIN,
+                    tokio::io::AsyncReadExt::read_to_end(&mut self.reader, &mut rest),
+                )
+                .await;
+                Ok(())
+            }
             _ => match error_message(&bytes) {
                 Some(message) => bail!("{} refused to stop: {message}", self.daemon),
                 None => bail!(

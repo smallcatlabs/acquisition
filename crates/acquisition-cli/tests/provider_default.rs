@@ -13,7 +13,7 @@ use std::process::Command;
 
 mod harness;
 
-use harness::{acq, acqd, command, isolate, scratch, sole_json, text};
+use harness::{acq, acqd, command, isolate, scratch, scratch_tmp, sockets_under, sole_json, text};
 
 #[test]
 fn c88_the_real_provider_is_the_default_and_the_retired_knob_is_refused() {
@@ -145,4 +145,33 @@ fn a_lazily_started_daemon_keeps_no_pipe_of_the_command_that_started_it() {
     assert_eq!(status["running"], true, "{status}");
     let out = acq(base, &["daemon", "stop", "--json"]);
     assert!(out.status.success(), "{}", text(&out));
+}
+
+/// `daemon stop` returns once the daemon is gone, not while it exits: its
+/// endpoint is already removed, so the next command finds no daemon. The
+/// daemon answers `stopping`, then checkpoints and removes its endpoint;
+/// a command in that window reached a dying daemon and read "daemon
+/// closed the connection" (first seen on CI's Windows runner, 2026-10-14).
+#[test]
+fn a_stopped_daemon_is_gone_when_the_stop_returns() {
+    let scratch = scratch("stop-gone");
+    let base = &scratch.0;
+    let out = acq(base, &["submit", "sleep", "--detach"]);
+    assert!(out.status.success(), "{}", text(&out));
+    assert_eq!(
+        sockets_under(&scratch_tmp(base)).len(),
+        1,
+        "a daemon started"
+    );
+    let out = acq(base, &["daemon", "stop", "--json"]);
+    assert!(out.status.success(), "{}", text(&out));
+    assert!(
+        sockets_under(&scratch_tmp(base)).is_empty(),
+        "the stop returned with the daemon's endpoint still there"
+    );
+    let report = sole_json(&acq(base, &["status", "999", "--json"]));
+    assert!(
+        report["error"].as_str().unwrap().contains("not running"),
+        "{report}"
+    );
 }
