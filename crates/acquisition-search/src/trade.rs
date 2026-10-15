@@ -135,23 +135,19 @@ pub fn decode_json(value: &Json) -> Result<Decoded, LanguageError> {
     })
 }
 
-/// The path of a URL: after the host when a scheme is given, up to the
-/// first `?` or `#`; a host followed by `?` or `#` has no path at all.
+/// The path of a URL: what stands between the host and the first `?` or
+/// `#`. The query and fragment are cut first, from the whole input, so a
+/// `/` inside them is never taken for the path — with a scheme or
+/// without, the one rule.
 fn path_of(input: &str) -> &str {
-    let after_host = match input.find("://") {
-        Some(at) => {
-            let rest = &input[at + 3..];
-            match rest.find(['/', '?', '#']) {
-                Some(i) if rest[i..].starts_with('/') => &rest[i..],
-                _ => "",
-            }
-        }
-        None => match input.find('/') {
-            Some(slash) => &input[slash..],
-            None => "",
-        },
+    let before_query = input.split(['?', '#']).next().unwrap_or("");
+    let after_scheme = match before_query.find("://") {
+        Some(at) => &before_query[at + 3..],
+        None => before_query,
     };
-    after_host.split(['?', '#']).next().unwrap_or("")
+    after_scheme
+        .find('/')
+        .map_or("", |slash| &after_scheme[slash..])
 }
 
 fn decode_url(input: &str) -> Result<Decoded, LanguageError> {
@@ -268,8 +264,10 @@ fn percent_decoded(s: &str) -> Result<String, LanguageError> {
     let mut i = 0;
     while i < bytes.len() {
         if bytes[i] == b'%' {
+            // two hex digits and nothing else: a number parser would take a sign
             let byte = s
                 .get(i + 1..i + 3)
+                .filter(|hex| hex.bytes().all(|b| b.is_ascii_hexdigit()))
                 .and_then(|hex| u8::from_str_radix(hex, 16).ok())
                 .ok_or_else(|| {
                     trade(format!(

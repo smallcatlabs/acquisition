@@ -304,6 +304,30 @@ fn c47_the_reviews_faults_a_doubled_slash_a_bad_escape_a_second_member_an_unboun
             ),
             "no escape",
         ),
+        // the second look: a query string before any path, with or without a
+        // scheme, and an escape a number parser would take as signed
+        (
+            format!("www.pathofexile.com?next=/trade/search/Standard/{}", q1.id),
+            "/trade/search/",
+        ),
+        (
+            format!("?next=/trade/search/Standard/{}", q1.id),
+            "/trade/search/",
+        ),
+        (
+            format!(
+                "https://www.pathofexile.com/trade/search/Bad%+ALeague/{}",
+                q1.id
+            ),
+            "no escape",
+        ),
+        (
+            format!(
+                "https://www.pathofexile.com/trade/search/Bad%-ALeague/{}",
+                q1.id
+            ),
+            "no escape",
+        ),
     ] {
         let e = refused(&url);
         assert_eq!(e.kind, ErrorKind::Trade, "{url}");
