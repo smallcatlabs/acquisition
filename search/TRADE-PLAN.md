@@ -149,7 +149,10 @@ grows at 3 so that 4's text parses on the build that writes it.
 
 ## What the build owes
 
-- Every count in a fixture worked by hand first (rule 3).
+- Every count in a fixture worked by hand first (rule 3), and every
+  count this brief states measured again by script before a fixture
+  rests on it — step 3's 812 and 37 rows, 643 of 643 maps, 40 fields:
+  step 2 found the brief's "every id once" untrue of the capture.
 - M3 rerun after step 3, on the copy, the row in `search/M3-LEDGER.md`.
 - A rule the catalogue does not state stops the step (rule 4): what a
   clause *means* comes to the owner or to the sitting; a name — a
@@ -171,7 +174,15 @@ grows at 3 so that 4's text parses on the build that writes it.
   many-numbered template compares; `term`; `uniquefoil`; the site's
   dps and quality. Each ambiguous until the sitting (K6).
 - The names of the 20 %-quality defence fields: the builder's,
-  printed by `--describe`.
+  printed by `--describe`. The catalogue already spells the 40 step-3
+  fields (`armour.q20`, `resolve.of`, …); step 3 takes those spellings
+  or changes the catalogue in the same commit. A dotted name parses as
+  one field name, as `sockets.red` does (checked 2026-10-15).
+- The catalogue has no loader: its header has the translation read it
+  at step 4, while step 0's acceptance arms the field check at step 3.
+  Step 3 builds the loader — the stat table's shape, parsed once, every
+  check a reviewer would make — with that check, so the fields it names
+  are checked on the build that writes them.
 - An id the site lists with two texts in one category (step 2's
   measurement: 172 ids, 229 pairs; a map's own wording beside the
   atlas's `your Maps`, and one text with its row breaks): whether its
