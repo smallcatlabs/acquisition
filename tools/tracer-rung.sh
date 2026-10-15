@@ -695,10 +695,13 @@ else
     unknown=$(jq -r '.unknown_tabs | join(" ")' "$RUN_DIR/plan-c1-offline.json")
     missing=0
     for id in $(echo "$SELECTION" | tr ',' ' '); do
-        # The id is the row's last column (`28db97c6`, the density
-        # validation's one change); a leading match read the old layout
-        # and aborted every id-list run since (2026-09-09, 2026-09-11).
-        if grep -E -- "[[:space:]]$id\$" "$RUN_DIR/tabs.txt"; then continue; fi
+        # By id in the JSON, never the text: the text's layout moved twice
+        # under this check (`28db97c6`'s columns; `76ef839b` counts a league
+        # of more than thirty tabs by type, its ids unlisted), and each move
+        # aborted a live id-list run that had passed (2026-09-09, 2026-09-11,
+        # 2026-10-15).
+        row=$(jq -r --arg id "$id" '.[] | select(.id == $id) | "\(.name)  \(.type)  \(.fetched_items // "-") items  \(.id)"' "$RUN_DIR/tabs.json")
+        if [ -n "$row" ]; then echo "$row"; continue; fi
         case " $unknown " in
         *" $id "*) echo "$id: not in the store — the first plan reported it as unknown (a typo, or a tab that is gone); never fetched" ;;
         *) echo "*** $id: selected, planned, but not in the store's tab list after the run" >&2; missing=1 ;;
