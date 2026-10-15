@@ -700,7 +700,7 @@ else
         # of more than thirty tabs by type, its ids unlisted), and each move
         # aborted a live id-list run that had passed (2026-09-09, 2026-09-11,
         # 2026-10-15).
-        row=$(jq -r --arg id "$id" '.[] | select(.id == $id) | "\(.name)  \(.type)  \(.fetched_items // "-") items  \(.id)"' "$RUN_DIR/tabs.json")
+        row=$(jq -r --arg id "$id" '.[] | select(.id == $id) | "\(.name)  \(.type)  \(.item_count) items  \(.id)"' "$RUN_DIR/tabs.json")
         if [ -n "$row" ]; then echo "$row"; continue; fi
         case " $unknown " in
         *" $id "*) echo "$id: not in the store — the first plan reported it as unknown (a typo, or a tab that is gone); never fetched" ;;
