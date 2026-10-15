@@ -98,7 +98,7 @@ One row per commit of the slice; a row is filled when it lands.
 | --- | --- | --- |
 | 0 Windows builds | `d3689894` | the client's and daemon's transport behind one seam, named pipes on Windows (ruling 1); `BoundSocket` and the stale-socket probe Unix-only; the sibling as `acqd.exe` (`locator::ACQD`, C82); the spawn detached with no console window; the world's Windows arm (`%TEMP%\acq` for the real-mode lock, the holder's pid in `<lock>.pid`, the root without its `\\?\` prefix); `world_windows` (the SID, the user-only DACL, the server check) and `acquisition_client::endpoint` (connect, exists, a test listener); the tests' harnesses on both endpoints; README's gap says built, not run; the Windows park deleted |
 | 1 Windows CI | `d831fc86`, `1ec073de`, `36559593` | the suite green on the VM (799 tests, Windows 11 ARM64): `acq` names itself `acq` in usage, the annotations export fsyncs through a write handle, a file's id is its volume serial and index (`world::file_id`, C84), every reported path is spelled plain (`world::canonical`), a spawned daemon inherits none of its caller's std handles; Unix mechanics gated or spelled per platform in the tests, the harnesses' sibling a hard link on Windows; `gate-windows.yml` beside the Linux workflow (build, the suite with the keyring round trip against Credential Manager, clippy); its first run found `daemon stop` returning while the daemon still exited, so the stop now waits for it; first green run 38665185349, 800 tests |
-| 2 credential store | — | the choice decided and written at `auth.rs`; the park deleted |
+| 2 credential store | (this commit) | keyring 3's feature-selected backends kept, decided and written at `auth.rs` ("keyring"): the protected keychain is out of a bare CLI's reach and no sandboxed package ships; each backend held by a live run or a CI round trip; the park narrowed to the alternative, triggered by a sandboxed package |
 | 3 cargo-deny | (this commit) | licences (question 4: the ten, MPL-2.0 for `option-ext` and CDLA-Permissive-2.0 for `webpki-roots` by exception), bans (wildcards; the workspace's crates `publish = false`, so their path dependencies pass) and sources (crates.io only) in `deny.toml`, the Linux workflow's step running all four; rustls 0.23.46 first (RUSTSEC-2026-0346, -0347, found by the same run); the park deleted |
 | 4 release workflow | — | per-target archives of `acq`, `acqd`, `acq-mcp`, the licences and the notices; macOS binaries Developer ID–signed with the hardened runtime and a timestamp, not notarized; C82's smoke per archive (extracted, `acq version --json` names the sibling, a symlinked `acq` resolves the same `acqd`, a mock login → status → stop); the packaging park deleted |
 | 5 keychain prompts | — | the park's remedy, or its record as a one-time cost, by what the macOS row shows |
@@ -110,7 +110,7 @@ One row per commit of the slice; a row is filled when it lands.
 | --- | --- | --- |
 | Windows: named pipes, `acqd.exe`, the runtime directory | 0, 1 | built |
 | Packaging: bundle layout, signed binaries, an installer, the CLI symlink | 4 | built as archives; the installer tabled (the narrowing) — the park's remainder stays with that trigger |
-| The credential store as an explicit choice | 2 | built; see the observation on the protected keychain |
+| The credential store as an explicit choice | 2 | decided (keyring 3 kept); the alternative stays parked behind a sandboxed package |
 | cargo-deny's licences, bans and sources | 3 | built |
 | The first start under a new code identity waits at the keychain prompts | 5 | the owner's first Developer ID start is a new identity with three accounts: it meets the trigger |
 
@@ -149,13 +149,6 @@ Data for the commit that touches each; none is a ruling.
   VM (`%LOCALAPPDATA%\Programs\Git\bin`) and on CI's runner. In
   PowerShell `'\''` does not read back; which shell a Windows agent runs
   printed commands in decides whether that matters.
-- **The protected keychain is out of reach** (Apple DTS, read
-  2026-10-14): it needs `keychain-access-groups`, a restricted
-  entitlement only a provisioning profile authorizes, which a bare
-  command-line tool cannot carry. keyring 3's `apple-native` (today's
-  build) uses the file-based keychain and needs none. The credential
-  park's keyring-core alternative names the protected keychain; for
-  this release the file keychain is the only macOS store either way.
 - **The curl install carries no quarantine**, so an unnotarized,
   Developer ID–signed binary runs without Gatekeeper's check; an
   archive fetched by a browser is quarantined, and Gatekeeper is

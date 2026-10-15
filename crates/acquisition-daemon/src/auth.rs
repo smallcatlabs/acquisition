@@ -161,6 +161,24 @@ async fn token_request(
 // service name comes from the provider, so mock and real sessions can
 // never cross.
 //
+// The store is a choice, made for the release (2026-10-14; the park "the
+// credential store as an explicit choice", `PLATFORMS-SLICE.md` step 2):
+// keyring 3's feature-selected backends, not keyring 4's `keyring-core`
+// with a store crate per platform. That alternative's two reasons do not
+// ship. The macOS protected keychain needs `keychain-access-groups`, a
+// restricted entitlement only a provisioning profile authorizes, which a
+// bare command-line tool cannot carry (Apple DTS, read 2026-10-14) — so
+// the file-based keychain `apple-native` uses is the only macOS store
+// either way. A Flatpak's Secret portal serves a sandbox the release does
+// not have (archives only, note 36). Each backend is held by what touched
+// it: macOS by live runs (tokens stored, restored and rotated,
+// `RUN-LEDGER.md` 2026-08-22 rungs 1 and 2; a signed `acqd`'s prompts,
+// 2026-09-12), Windows by the round trip against Credential Manager
+// (`.github/workflows/gate-windows.yml`), Linux by the round trip against
+// gnome-keyring (`gate-linux.yml`, and on the Ubuntu VM). Owner,
+// 2026-10-14, to that recommendation: "yes, let's go ahead". Reopened by
+// a sandboxed package (`decisions/daemon.md`, "Parked").
+//
 // One keyring entry per account: the entry's user is the GGG username
 // (`name#discriminator`), so two accounts on one provider never share a
 // secret. The account index (`acquisition_store::Index`) is how a daemon
