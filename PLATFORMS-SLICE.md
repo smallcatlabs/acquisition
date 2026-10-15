@@ -100,7 +100,7 @@ One row per commit of the slice; a row is filled when it lands.
 | 1 Windows CI | `d831fc86`, `1ec073de`, `36559593` | the suite green on the VM (799 tests, Windows 11 ARM64): `acq` names itself `acq` in usage, the annotations export fsyncs through a write handle, a file's id is its volume serial and index (`world::file_id`, C84), every reported path is spelled plain (`world::canonical`), a spawned daemon inherits none of its caller's std handles; Unix mechanics gated or spelled per platform in the tests, the harnesses' sibling a hard link on Windows; `gate-windows.yml` beside the Linux workflow (build, the suite with the keyring round trip against Credential Manager, clippy); its first run found `daemon stop` returning while the daemon still exited, so the stop now waits for it; first green run 38665185349, 800 tests |
 | 2 credential store | `82d32a55` | keyring 3's feature-selected backends kept, decided and written at `auth.rs` ("keyring"): the protected keychain is out of a bare CLI's reach and no sandboxed package ships; each backend held by a live run or a CI round trip; the park narrowed to the alternative, triggered by a sandboxed package |
 | 3 cargo-deny | (this commit) | licences (question 4: the ten, MPL-2.0 for `option-ext` and CDLA-Permissive-2.0 for `webpki-roots` by exception), bans (wildcards; the workspace's crates `publish = false`, so their path dependencies pass) and sources (crates.io only) in `deny.toml`, the Linux workflow's step running all four; rustls 0.23.46 first (RUSTSEC-2026-0346, -0347, found by the same run); the park deleted |
-| 4 release workflow | — | per-target archives of `acq`, `acqd`, `acq-mcp`, the licences and the notices; macOS binaries Developer ID–signed with the hardened runtime and a timestamp, not notarized; C82's smoke per archive (extracted, `acq version --json` names the sibling, a symlinked `acq` resolves the same `acqd`, a mock login → status → stop); the packaging park deleted |
+| 4 release workflow | `002ed057`, `a0041308`, (this commit) | `release.yml`: the five archives (ruling 2), each `acq`, `acqd`, `acq-mcp`, both licences and the cargo-about notices (`about.toml`: over every target, `tools/notices-check.sh` holding the five targets' crates named); `tools/release-package.sh`; `tools/release-smoke.sh` per archive where it was built (extracted, the sibling, a symlinked `acq` on macOS and Linux, a mock login → status → stop); `sign-macos` in the `release` environment (Developer ID, hardened runtime, timestamp, the requirement checked to name the team), not yet run; a tag drafts the release with SHA256SUMS; the first run found the Windows archive's other contract revision (CRLF in `Cargo.lock` and `*.sql`, now LF everywhere) and its lost upload; run 38669893318 green, the five archives one revision (`b380f843e6c1`); the packaging park narrowed to what the narrowing tabled |
 | 5 keychain prompts | — | the park's remedy, or its record as a one-time cost, by what the macOS row shows |
 | 6 live rows | — | macOS: the tracer rung on HEAD, then the release archive's first start; Windows: a first-contact row at a ceiling of two, then the tracer rung, SmartScreen measured on a downloaded archive; Linux (V4): a first-contact row; one `RUN-LEDGER.md` row each, human-run from a terminal (C88) |
 
@@ -109,7 +109,7 @@ One row per commit of the slice; a row is filled when it lands.
 | Park | Step | Fate in this slice |
 | --- | --- | --- |
 | Windows: named pipes, `acqd.exe`, the runtime directory | 0, 1 | built |
-| Packaging: bundle layout, signed binaries, an installer, the CLI symlink | 4 | built as archives; the installer tabled (the narrowing) — the park's remainder stays with that trigger |
+| Packaging: bundle layout, signed binaries, an installer, the CLI symlink | 4 | the archives and the macOS signature built; the park narrowed to the installer, Windows signing, notarization and other channels, behind the narrowing |
 | The credential store as an explicit choice | 2 | decided (keyring 3 kept); the alternative stays parked behind a sandboxed package |
 | cargo-deny's licences, bans and sources | 3 | built |
 | The first start under a new code identity waits at the keychain prompts | 5 | the owner's first Developer ID start is a new identity with three accounts: it meets the trigger |
@@ -155,6 +155,12 @@ Data for the commit that touches each; none is a ruling.
   expected to refuse it (unmeasured) — the README's install line is the `curl`
   one (note 36). Notarization would staple only to `.app`, `.dmg` or
   `.pkg`; a bare Mach-O is checked online at first run.
+- **The Linux archives' glibc floor is Ubuntu 22.04's (2.35)**: built on
+  the oldest hosted runner, so a distribution older than that cannot run
+  them. Musl static builds would lift the floor; nothing has asked.
+- **Signing is unmeasured**: `sign-macos` waits for the `release`
+  environment, its secrets and `APPLE_TEAM_ID`, which are the owner's to
+  set (ruling 6); its first run is the evidence step 5 reads.
 - **`ring` 0.17 needs clang** to build for `aarch64-pc-windows-msvc`
   (measured on the VM, VS Build Tools' LLVM component on `PATH`).
 - **The machines for the rows** (provisioned 2026-10-14, each with a
