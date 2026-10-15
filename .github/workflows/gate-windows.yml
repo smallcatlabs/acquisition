@@ -10,7 +10,8 @@ name: Gate (Windows)
 # The tests run the commands the search prints through `sh`: Git for
 # Windows' bin directory is on the runner's PATH. Nothing here talks to
 # GGG: every harness sets ACQ_PROVIDER=mock (C88) and no test process has
-# a terminal.
+# a terminal. First run green 2026-10-15 (run 38665185349, 800 tests, the
+# round trip among them).
 
 on:
   push:
