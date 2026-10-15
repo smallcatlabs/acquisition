@@ -166,18 +166,6 @@ fn c113_the_stat_table_loader_refuses_what_a_reviewer_would() {
         ),
         (HEAD.to_string(), StatTableError::NoStat),
         (
-            one().replace("id = \"stat_1\"", "id = \"\""),
-            StatTableError::BadId(String::new()),
-        ),
-        (
-            one().replace("id = \"stat_1\"", "id = \"explicit.stat_1\""),
-            StatTableError::BadId("explicit.stat_1".to_string()),
-        ),
-        (
-            one().replace("id = \"stat_1\"", "id = \"stat 1\""),
-            StatTableError::BadId("stat 1".to_string()),
-        ),
-        (
             second("id = \"stat_1\"\nin = [\"explicit\"]\ntexts = [\"another\"]"),
             StatTableError::DuplicateId(id()),
         ),
@@ -229,6 +217,29 @@ fn c113_the_stat_table_loader_refuses_what_a_reviewer_would() {
         // each refusal names what a reviewer fixes
         assert!(!expected.to_string().is_empty());
     }
+    // an id is what every id of the capture is, ASCII letters, digits, `_`
+    // and `|`: each of these is refused by it, spelled in the file as TOML
+    // spells it and named in the refusal as the loader read it
+    for (spelled, read) in [
+        ("", ""),
+        ("explicit.stat_1", "explicit.stat_1"),
+        ("stat 1", "stat 1"),
+        ("stat_1\\t", "stat_1\t"),
+        ("stat_1\\n", "stat_1\n"),
+        ("\\t \\n", "\t \n"),
+        ("stat\\u0001", "stat\u{1}"),
+        ("stat\\u00a0_1", "stat\u{a0}_1"),
+        ("stät_1", "stät_1"),
+    ] {
+        let bad = one().replace("id = \"stat_1\"", &format!("id = \"{spelled}\""));
+        assert_eq!(
+            StatTable::parse(&bad).unwrap_err(),
+            StatTableError::BadId(read.to_string()),
+            "{spelled}"
+        );
+    }
+    assert!(stats::is_id("stat_4089743927|1|66"));
+    assert!(stats::is_id("indexable_support_73"));
     // an unknown key, a missing one, a text that is no string: the file
     // does not parse
     for bad in [

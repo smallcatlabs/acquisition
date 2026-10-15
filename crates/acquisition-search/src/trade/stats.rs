@@ -26,7 +26,7 @@
 //!   clause matches is the translation's, never this table's.
 //! - **The loader checks what a reviewer would**: the version this build
 //!   expects ([`STAT_TABLE_VERSION`], the capture's date), a source named,
-//!   every id once, non-empty and with no category prefix or space in it,
+//!   every id once and an id ([`is_id`]: what every id of the capture is),
 //!   every row under at least one category, each one of the six and none
 //!   twice, every text non-empty and none twice under one id, and each of
 //!   the six categories carrying some id. A table that fails is a build
@@ -145,7 +145,7 @@ impl std::fmt::Display for StatTableError {
             StatTableError::NoStat => write!(f, "the stat table has no stat"),
             StatTableError::BadId(id) => write!(
                 f,
-                "the stat table has the id {id:?}, which is empty or holds a category prefix or a space"
+                "the stat table has the id {id:?}, which is not ASCII letters, digits, `_` and `|`"
             ),
             StatTableError::DuplicateId(id) => {
                 write!(f, "the stat table names the id {id:?} twice")
@@ -179,6 +179,18 @@ impl std::error::Error for StatTableError {}
 static TABLE: LazyLock<Result<StatTable, StatTableError>> =
     LazyLock::new(|| StatTable::parse(STAT_TABLE_TOML));
 
+/// Whether a word is a stat id as the table keys it: one ASCII letter,
+/// digit, `_` or `|` or more, which every id of the capture is (10,303 of
+/// 10,303, measured at step 2's review). Stated as what an id is, not as
+/// what it may not hold, so no category prefix, whitespace or control
+/// character passes by being one the rule forgot.
+pub fn is_id(word: &str) -> bool {
+    !word.is_empty()
+        && word
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'|')
+}
+
 /// The shipped table, parsed and checked once.
 pub fn table() -> Result<&'static StatTable, &'static StatTableError> {
     TABLE.as_ref()
@@ -205,7 +217,7 @@ impl StatTable {
         let mut by_id: HashMap<String, Stat> = HashMap::with_capacity(file.stats.len());
         let mut carried = 0u8;
         for row in file.stats {
-            if row.id.is_empty() || row.id.contains(['.', ' ']) {
+            if !is_id(&row.id) {
                 return Err(StatTableError::BadId(row.id));
             }
             if by_id.contains_key(&row.id) {
