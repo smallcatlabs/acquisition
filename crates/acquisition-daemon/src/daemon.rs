@@ -1466,8 +1466,13 @@ resubmit if still wanted",
     /// Log a rails trip once, the first time any send path notices it.
     fn announce_trip(&self) {
         if let Some(cause) = self.rails().take_unannounced_trip() {
+            let until = if cause.starts_with("ceiling:") {
+                "for the rest of this daemon's lifetime"
+            } else {
+                "until `acq daemon reset-tripwire`"
+            };
             self.note_error(&format!(
-                "LIVE-TEST RAILS TRIPPED: {cause} — sends refused until `acq daemon reset-tripwire`"
+                "LIVE-TEST RAILS TRIPPED: {cause} — sends refused {until}"
             ));
         }
     }

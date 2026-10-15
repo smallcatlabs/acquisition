@@ -389,11 +389,27 @@ impl Rails {
         let s = self.state.lock().unwrap();
         s.tripped
             .clone()
-            .or_else(|| s.ceiling_tripped.clone())
-            .or_else(|| {
-                (self.config.max_sends == Some(0)).then(|| "ceiling: 0 sends allowed".to_string())
-            })
+            .or_else(|| self.ceiling_met(&s))
             .map(|cause| format!("halted by live-test rails: {cause}"))
+    }
+
+    /// The ceiling holds on the count, not on a flag a reset could clear:
+    /// `reset-tripwire` on a daemon past its ceiling once let one more
+    /// send out per reset (2026-10-15). The lifetime's bound is the
+    /// lifetime's; only the next daemon starts fresh.
+    fn ceiling_met(&self, s: &State) -> Option<String> {
+        let max = self.config.max_sends?;
+        if max == 0 {
+            return Some("ceiling: 0 sends allowed".to_string());
+        }
+        (s.sends >= max).then(|| {
+            s.ceiling_tripped.clone().unwrap_or_else(|| {
+                format!(
+                    "ceiling: {} of {max} sends used this daemon lifetime",
+                    s.sends
+                )
+            })
+        })
     }
 
     /// Journal the exchange, count it toward the ceiling, and trip on a
@@ -475,7 +491,8 @@ impl Rails {
         self.state.lock().unwrap().unannounced.take()
     }
 
-    /// Clear both trip kinds. The refresh-failed mark is not a trip; it
+    /// Clear the violation trip. A met ceiling stands (`ceiling_met`): it
+    /// is the lifetime's. The refresh-failed mark is not a trip; it
     /// clears on login or logout.
     pub fn reset_tripwire(&self) {
         let mut s = self.state.lock().unwrap();
@@ -521,7 +538,7 @@ impl Rails {
         let s = self.state.lock().unwrap();
         RailsStatus {
             tripwire_enabled: self.config.tripwire,
-            halted: s.tripped.clone().or_else(|| s.ceiling_tripped.clone()),
+            halted: s.tripped.clone().or_else(|| self.ceiling_met(&s)),
             refresh_failed: (!s.refresh_failed.is_empty()).then(|| {
                 let mut v: Vec<String> = s
                     .refresh_failed
@@ -730,8 +747,11 @@ mod tests {
         );
         assert!(rails.halted().unwrap().contains("ceiling"));
         assert_eq!(rails.status().sends, 2);
+        // A reset does not reopen it: one more send per reset was the
+        // fault (2026-10-15).
         rails.reset_tripwire();
-        assert_eq!(rails.halted(), None);
+        assert!(rails.halted().unwrap().contains("ceiling: 2 of 2"));
+        assert!(rails.status().halted.unwrap().contains("ceiling"));
     }
 
     #[test]

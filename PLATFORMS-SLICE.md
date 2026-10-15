@@ -188,6 +188,7 @@ Data for the commit that touches each; none is a ruling.
 - **The Linux archives' glibc floor is Ubuntu 22.04's (2.35)**: built on
   the oldest hosted runner, so a distribution older than that cannot run
   them. Musl static builds would lift the floor; nothing has asked.
+  The aarch64 archive ran on Ubuntu 26.04's glibc 2.43 (2026-10-15).
 - **Signed, not notarized** (run 38727404964): `spctl -a -t execute`
   rejects each binary as "Unnotarized Developer ID" — Gatekeeper's
   verdict, which applies to a quarantined copy; the archive fetched with
