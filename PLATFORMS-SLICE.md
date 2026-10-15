@@ -139,11 +139,16 @@ Data for the commit that touches each; none is a ruling.
   naming the pipe (C112). The same-user check passes on every
   connection the suite makes, and the holder's pid is read from
   `<lock>.pid` by the lock tests.
-- **The study's checks still open on Windows**: one administrator's
-  daemon and client at different elevations (the first sitting ran the
-  two shells as two users, each reaching only its own pipe, so it
-  measured nothing new), and `canonicalize` on `subst` and mapped
-  drives.
+- **Mixed elevation, measured** (2026-10-15 on the VM, one
+  administrator, `windows-checks.ps1 elevation` each way round): both
+  shells derive one world and one pipe, and each reaches the daemon the
+  other started — status compatible, a request answered, `stop` from
+  the other side stops it. The pipe's DACL names the user, not the
+  token's integrity level, so an elevated daemon serves the same
+  user's unelevated clients for its life (until stop or idle exit);
+  expected otherwise before the sitting, and kept as found.
+- **The study's check still open on Windows**: `canonicalize` on
+  `subst` and mapped drives.
 - **A host's job object** (measured 2026-10-15 on the VM,
   `windows-checks.ps1 job`; an ssh session is itself in one): a lazily
   spawned `acqd` under a kill-on-close job died with it, even where the
