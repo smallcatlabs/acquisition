@@ -1,0 +1,204 @@
+name: Release
+
+# The release archives (`PLATFORMS-SLICE.md`, step 4; the matrix is the
+# owner's ruling 2): macOS aarch64 and x86_64 on an Apple-silicon runner,
+# Linux x86_64 and aarch64, Windows x86_64. Each archive holds `acq`,
+# `acqd` and `acq-mcp` side by side (C82), both licences and the
+# cargo-about notices (ruling 5), and is checked by
+# `tools/release-smoke.sh` where it was built — extracted, the sibling,
+# a symlinked `acq` (macOS, Linux), a mock login → status → stop. Nothing
+# here talks to GGG (C88: the smoke is mock-only).
+#
+# Dispatched by hand, the archives are this run's artifacts (ruling 3:
+# the tag waits for note 36's step 4); `sign` also signs the macOS
+# binaries. A `v*` tag always signs and drafts a GitHub release with the
+# archives and their SHA-256 sums. Signing runs in the `release`
+# environment (ruling 6: the owner its required reviewer; secrets
+# APPLE_DEVELOPER_ID_P12_BASE64 and APPLE_DEVELOPER_ID_P12_PASSWORD,
+# variable APPLE_TEAM_ID): Developer ID Application, the hardened runtime
+# and a secure timestamp, not notarized (the narrowing beside V5) — for
+# the keychain, whose item ACL names the signer (auth.rs, "keyring").
+
+on:
+  workflow_dispatch:
+    inputs:
+      sign:
+        description: Sign the macOS binaries (waits for the release environment's reviewer)
+        type: boolean
+        default: false
+  push:
+    tags: ["v*"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  notices:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install the pinned toolchain
+        run: rustup toolchain install
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-about
+      # Over every target (about.toml says why), then held to the five
+      # shipped targets' graphs by name.
+      - name: Generate the notices
+        run: cargo about generate --locked --all-features about.hbs -o THIRD-PARTY-NOTICES.md
+      - name: Every shipped crate is named
+        run: tools/notices-check.sh THIRD-PARTY-NOTICES.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: notices
+          path: THIRD-PARTY-NOTICES.md
+
+  build:
+    needs: notices
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-latest, target: aarch64-apple-darwin }
+          # Built on the same Apple-silicon runner; smoked under Rosetta.
+          - { os: macos-latest, target: x86_64-apple-darwin }
+          # The oldest hosted Ubuntu: its glibc is the archives' floor.
+          - { os: ubuntu-22.04, target: x86_64-unknown-linux-gnu }
+          - { os: ubuntu-22.04-arm, target: aarch64-unknown-linux-gnu }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc }
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install the pinned toolchain and the target
+        run: |
+          rustup toolchain install
+          rustup target add ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+      - name: Build
+        run: cargo build --release --locked --target ${{ matrix.target }} -p acquisition-cli -p acquisition-daemon -p acquisition-mcp
+      - uses: actions/download-artifact@v4
+        with:
+          name: notices
+      - name: Package
+        id: package
+        run: echo "archive=$(tools/release-package.sh ${{ matrix.target }} THIRD-PARTY-NOTICES.md dist)" >> "$GITHUB_OUTPUT"
+      # The x86_64 archive runs under Rosetta on the Apple-silicon runner.
+      - name: Rosetta
+        if: matrix.target == 'x86_64-apple-darwin'
+        run: arch -x86_64 /usr/bin/true 2>/dev/null || sudo softwareupdate --install-rosetta --agree-to-license
+      - name: Smoke
+        run: tools/release-smoke.sh "${{ steps.package.outputs.archive }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: acquisition-${{ matrix.target }}
+          path: ${{ steps.package.outputs.archive }}
+
+  # The macOS archives, signed: unpacked, each binary signed with the
+  # identifier tools/sign-acqd.sh uses for acqd (com.smallcatlabs.<name>),
+  # its designated requirement checked to name the team, packed again
+  # under the same name, smoked again, and uploaded over the unsigned one.
+  sign-macos:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.sign
+    environment: release
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [aarch64-apple-darwin, x86_64-apple-darwin]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v4
+        with:
+          name: acquisition-${{ matrix.target }}
+          path: dist
+      - name: Import the Developer ID identity into a throwaway keychain
+        env:
+          P12_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
+          TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+        run: |
+          [ -n "$P12_BASE64" ] && [ -n "$P12_PASSWORD" ] && [ -n "$TEAM_ID" ] \
+            || { echo "the release environment lacks the identity's secrets or APPLE_TEAM_ID" >&2; exit 1; }
+          kc=$RUNNER_TEMP/release.keychain-db
+          kcpass=$(openssl rand -hex 24)
+          security create-keychain -p "$kcpass" "$kc"
+          security set-keychain-settings -lut 3600 "$kc"
+          security unlock-keychain -p "$kcpass" "$kc"
+          printf '%s' "$P12_BASE64" | base64 --decode > "$RUNNER_TEMP/id.p12"
+          security import "$RUNNER_TEMP/id.p12" -k "$kc" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          rm -f "$RUNNER_TEMP/id.p12"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$kcpass" "$kc" >/dev/null
+          security list-keychains -d user -s "$kc" $(security list-keychains -d user | tr -d '"')
+          identity=$(security find-identity -v -p codesigning "$kc" \
+            | awk -v team="($TEAM_ID)" '/Developer ID Application/ && index($0, team) { print $2; exit }')
+          [ -n "$identity" ] || { echo "no Developer ID Application identity for team $TEAM_ID in the p12" >&2; exit 1; }
+          echo "CODESIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
+          echo "CODESIGN_KEYCHAIN=$kc" >> "$GITHUB_ENV"
+      - name: Sign, check and pack again
+        id: sign
+        env:
+          TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+        run: |
+          archive=$(ls dist/*.tar.gz)
+          name=$(basename "$archive" .tar.gz)
+          work=$(mktemp -d)
+          tar -xzf "$archive" -C "$work"
+          for b in acq acqd acq-mcp; do
+            f=$work/$name/$b
+            codesign --force --options runtime --timestamp \
+              --identifier "com.smallcatlabs.$b" \
+              --keychain "$CODESIGN_KEYCHAIN" -s "$CODESIGN_IDENTITY" "$f"
+            codesign --verify --strict --verbose=2 "$f"
+            # The proof is the requirement, not a valid signature (an
+            # ad-hoc one is valid too): it names the team.
+            req=$(codesign -d -r- "$f" 2>&1)
+            grep -Eq "certificate leaf\[subject\.OU\] = \"?$TEAM_ID\"?" <<<"$req" \
+              || { echo "$b: the designated requirement names no team $TEAM_ID: $req" >&2; exit 1; }
+            grep -q "identifier \"com.smallcatlabs.$b\"" <<<"$req" \
+              || { echo "$b: unexpected identifier: $req" >&2; exit 1; }
+          done
+          rm "$archive"
+          tar -czf "$archive" -C "$work" "$name"
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+      - name: Smoke the signed archive
+        run: tools/release-smoke.sh "${{ steps.sign.outputs.archive }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: acquisition-${{ matrix.target }}
+          path: ${{ steps.sign.outputs.archive }}
+          overwrite: true
+      - name: Remove the throwaway keychain
+        if: always()
+        run: |
+          [ -z "${CODESIGN_KEYCHAIN:-}" ] || security delete-keychain "$CODESIGN_KEYCHAIN" || true
+
+  # A tag drafts the release: every archive and SHA256SUMS. Published by
+  # the owner, by hand.
+  draft:
+    needs: [build, sign-macos]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: acquisition-*
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        run: cd dist && sha256sum * > SHA256SUMS && cat SHA256SUMS
+      - name: Draft the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" dist/* --repo "${{ github.repository }}" --draft --verify-tag --title "${{ github.ref_name }}"
