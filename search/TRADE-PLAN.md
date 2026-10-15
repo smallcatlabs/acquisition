@@ -84,7 +84,9 @@ grows at 3 so that 4's text parses on the build that writes it.
    its unit; one reader; `--describe fields` lists them with
    definitions; a property the item lacks is lacked, one unread is
    unread at its grain (rule 8). The 20 %-quality defences the same
-   way, by S26's rule. *Acceptance:* every field asked every way a
+   way, by S26's rule; and one derived field over the base type,
+   `map_tier`, the `(Tier N)` an ordinary map's base carries — a unique
+   map, which displays none, lacks it (the store copy, 2026-10-15). *Acceptance:* every field asked every way a
    number is (compare, sort, sum, count, undecided); the defences
    against the captures' `extended` figures — 812 rows — and the 37 of
    the fetch census; M3 rerun, the load's move measured and recorded.

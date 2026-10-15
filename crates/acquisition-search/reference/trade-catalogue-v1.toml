@@ -37,9 +37,9 @@
 # 136 rows — 4 for the URL, 8 for the query object's keys and the JSON,
 # 92 filters and 2 option rows, 10 for the stat groups (8 types, the
 # disabled and the option-valued filter), 20 for the stats (14 categories
-# and 6 line rules); 79 exact, 12 ambiguous, 36 unsupported, 9
+# and 6 line rules); 80 exact, 12 ambiguous, 35 unsupported, 9
 # listing-only. Every one of the capture's 93 filters, 14 categories and
-# 8 group types has a row. 57 fields named, 40 of them step 3's.
+# 8 group types has a row. 58 fields named, 40 of them step 3's.
 
 version = 1
 filters = "2026-09-12"
@@ -339,8 +339,10 @@ note = "no item of the private API carries a class requirement"
 key = "map_filters.map_tier"
 text = "Map Tier"
 shape = "minmax"
-disposition = "unsupported"
-note = "the private API displays no Map Tier property on this store's 4,712 maps (the census); the tier is a derivation from the area level, not built"
+disposition = "exact"
+lands = "map_tier>={min} map_tier<={max}"
+fields = ["map_tier"]
+note = "no map of the store copy displays a Map Tier property; the tier is the number in the base type, `Map (Tier 16)`, `Blighted Map (Tier 13)` (643 of 643 ordinary maps, 35 bases), read by a derived field over the base (C101); a unique map, which carries none displayed, lacks it; no capture holds a map, so the sitting carries one search as a control"
 
 [[row]]
 key = "map_filters.map_packsize"
