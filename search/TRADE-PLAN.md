@@ -172,3 +172,9 @@ grows at 3 so that 4's text parses on the build that writes it.
   dps and quality. Each ambiguous until the sitting (K6).
 - The names of the 20 %-quality defence fields: the builder's,
   printed by `--describe`.
+- An id the site lists with two texts in one category (step 2's
+  measurement: 172 ids, 229 pairs; a map's own wording beside the
+  atlas's `your Maps`, and one text with its row breaks): whether its
+  clause is a line of either text, and at what status. K6 states the
+  text with two ids (S66) and not this; step 4 brings it to the owner
+  or the sitting before writing it.
