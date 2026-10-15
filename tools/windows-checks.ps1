@@ -1,5 +1,5 @@
-# windows-checks.ps1 — the study's checks still open on Windows
-# (`PLATFORMS-SLICE.md`, observations): a second user, mixed elevation, a
+# windows-checks.ps1 — the study's checks on Windows, run at the guest
+# (`PLATFORMS-SLICE.md`, "What the runs taught"): a second user, mixed elevation, a
 # host that runs its children in a job object. Mock only (C88): every
 # daemon here is ACQ_PROVIDER=mock with ACQ_NO_KEYRING=1 in a scratch
 # store; nothing talks to GGG or touches a keychain. Each check prints
