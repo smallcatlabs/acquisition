@@ -142,16 +142,20 @@ run_case 'the store links tokio through a [dependencies.tokio] table' refuse 'ac
 
 echo '== the code: the search crate'"'"'s edges (C89)'
 SP='acquisition-search = { path = "../acquisition-search" }'
-# The store is linked since the build plan's step 4; the planner is the
-# edge C89 still holds open.
-run_case 'search links store and plan: what C89 allows'          pass   'ok      dependencies' adddep crates/acquisition-search/Cargo.toml 'acquisition-plan = { path = "../acquisition-plan" }'
+# The search links the store and the planner, the edges C89 allows, and
+# both are in the tree as it stands (the planner for the price a query
+# reads, C81): the clean tree is the case, an edit adding either again
+# only a manifest Cargo refuses.
+run_case 'search links store and plan: what C89 allows'          pass   'ok      dependencies' none
 run_case 'search links daemon directly'                          refuse 'acquisition-search     links acquisition-daemon —' adddep crates/acquisition-search/Cargo.toml "$DP"
 run_case 'search links client directly'                          refuse 'acquisition-search     links acquisition-client —' adddep crates/acquisition-search/Cargo.toml "$CP"
 run_case 'search links an async runtime'                         refuse 'acquisition-search     links tokio' adddep crates/acquisition-search/Cargo.toml 'tokio.workspace = true'
 run_case 'search → helper → daemon'                              refuse 'acquisition-search → acquisition-helper → acquisition-daemon' member_links_helper acquisition-search "[dependencies]\n$DP\n"
 run_case 'daemon links search directly'                          refuse 'acquisition-daemon     links acquisition-search —' adddep crates/acquisition-daemon/Cargo.toml "$SP"
 run_case 'daemon → helper → search'                              refuse 'acquisition-daemon → acquisition-helper → acquisition-search' member_links_helper acquisition-daemon "[dependencies]\n$SP\n"
-run_case 'plan links search directly'                            refuse 'acquisition-plan       links acquisition-search —' adddep crates/acquisition-plan/Cargo.toml "$SP"
+# The search links the planner, so this edge is a cycle and the refusal
+# is Cargo's, as for the store below.
+run_case 'plan links search directly (a cycle: Cargo refuses it first)' refuse 'cargo metadata failed' adddep crates/acquisition-plan/Cargo.toml "$SP"
 # The search links the store (the build plan, step 4), so this edge is a
 # cycle and the refusal is Cargo's, as for the store's other upward edges
 # above; the rule's own refusal is what it was while the search linked none.
