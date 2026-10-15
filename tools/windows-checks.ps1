@@ -28,7 +28,8 @@
 #                                         job? Three job kinds: MEASURED
 #
 # B learns A's pipe name from C:\acq-check\pipe-<A>.txt (pass -Pipe to
-# override). Run `stage` first, as the user whose build it is.
+# override). Run `stage` first, as the user whose build it is; it copies
+# this script to C:\acq-check, where every account runs it from.
 param(
     [Parameter(Mandatory = $true, Position = 0)]
     [ValidateSet('stage', 'serve', 'reach-other', 'squat', 'contend', 'stop', 'elevation', 'job')]
@@ -89,6 +90,8 @@ switch ($Check) {
         $src = Join-Path $PSScriptRoot '..\target\debug'
         New-Item -ItemType Directory -Force -Path $Bin | Out-Null
         foreach ($b in 'acq.exe', 'acqd.exe', 'acq-mcp.exe') { Copy-Item -Force (Join-Path $src $b) $Bin }
+        # This script too: the other accounts cannot read the stager's profile.
+        Copy-Item -Force $PSCommandPath $Root
         # Every local user may read and run them; only the stager writes.
         icacls $Bin /grant '*S-1-5-32-545:(OI)(CI)RX' | Out-Null
         icacls $Root /grant '*S-1-5-32-545:(OI)(CI)M' | Out-Null
