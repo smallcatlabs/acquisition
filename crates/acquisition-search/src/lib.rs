@@ -108,6 +108,9 @@
 //!   sum beside each count, every bucket a term with its route.
 //! - [`mod@describe`] — the language as this build knows it (C97), and the
 //!   limits it states (C102). [`mod@show`] — one item as the deriver sees it.
+//! - [`trade`] — the trade boundary (C113): a site search URL, its id or
+//!   its query JSON decoded with no network; the translation follows
+//!   (`search/TRADE-PLAN.md`).
 //!
 //! The parser knows the grammar and no field, class or computed value by
 //! name: a name is the binder's to know, so validity never depends on a
@@ -167,6 +170,10 @@
 //!   invariants on a one-value key, C95's sum over the three kinds, the
 //!   vocabulary's pasted term selecting its row, every bucket's route
 //!   followed by id.
+//! - **C113.** The decoder is [`trade`]'s doc; pinned by
+//!   `tests/trade_decode.rs` (the eight captured ids decode to exactly
+//!   their requests, S56; the URL forms of K6; every malformed input a
+//!   structured error; a PoE2 URL refused by name).
 //! - **C104.** Pinned by `tests/language.rs`: the round trip over
 //!   generated trees and over the corpus (`tests/language.toml`), where
 //!   every construct of the language has a case.
@@ -267,6 +274,7 @@ pub mod show;
 pub mod sockets;
 mod template;
 pub mod totals;
+pub mod trade;
 pub mod tree;
 
 pub use answer::{Answer, Request, answer};
@@ -286,4 +294,5 @@ pub use price::{PriceGap, PriceOf, Priced};
 pub use print::{print, print_value};
 pub use show::show;
 pub use totals::{TOTALS_TABLE_VERSION, TotalGap, TotalsTable, TotalsTableError};
+pub use trade::{Decoded, Source, decode, decode_json};
 pub use tree::{Collection, Member, Node, Number, Op, Probe, Value, ValueRef, check};

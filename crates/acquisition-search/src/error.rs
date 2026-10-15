@@ -84,6 +84,10 @@ pub enum ErrorKind {
     /// error of its own, never the unknown-name error, never undecided,
     /// never an empty answer (the build plan, rule 1).
     NotBuilt,
+    /// A trade site input that does not decode — not a search URL, not
+    /// an id, not the query JSON — or one the import refuses by name, a
+    /// PoE2 URL (C113; `trade.rs`).
+    Trade,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]

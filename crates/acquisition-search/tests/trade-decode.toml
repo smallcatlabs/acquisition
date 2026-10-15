@@ -1,0 +1,46 @@
+# The owner's eight searches of 2026-09-13 (search/trade-query/MANIFEST.md):
+# `id` is the search id the site returned (`raw/searches/<q>-search.json`,
+# local only — an id is its query gzipped and base64url-encoded, S56, and
+# carries no seller data), `query` the request's query object as the owner
+# posted it (search/trade-query/data/fetch-census.json, queries.<q>.request.query,
+# compact). Generated once from those two files; tests/trade_decode.rs reads it.
+
+[[search]]
+name = "q1"
+id = "H4sIAAAAAAAAA22Q0QqDMAxF_yXPItK6if7KEOlqlECn0sYxkf77Wn3Rzbzl3pvDJSs4Vjw7qFYYJ6ZxgArUsIBPNicYjxV4mXDTW0igI8Nod4PaIONnMqSJ03jQSFGWMi-yXIbsW5kZI_tFAXzPArUlp54Gw2GnjEOfXFNkIW4iF3nxR5FXlNrXh2Z74-aw_-RPWa0Y-9Eu5x9ojc4FNbU09PEdVlnicyhICD7OF8n2LPpIAQAA"
+query = '{"status":{"option":"any"},"stats":[{"type":"and","filters":[{"id":"explicit.stat_3299347043","value":{"min":60},"disabled":false},{"id":"explicit.stat_3372524247","value":{"min":30},"disabled":false}]}],"filters":{"type_filters":{"disabled":false,"filters":{"category":{"option":"accessory.ring"},"rarity":{"option":"rare"}}}}}'
+
+[[search]]
+name = "q2"
+id = "H4sIAAAAAAAAA1WOwQqDMBBE_2XPIqWVtPgrRSSatSykJmxWaAj590a9mL3NvNlhEgTRsgXoEzgv5FboQa8RcnOQAt4JJHo8fAMNLGQF-QRkio0_b2kmafeH8aFeN6W6-7ODPOThkj97xos2FPRksZQs2gassrMW_DiO9TL-uo3bybmyrExkzSR1pFgIeb8_K4yBUNwAAAA"
+query = '{"status":{"option":"any"},"stats":[{"type":"and","filters":[{"id":"explicit.stat_3680664274"}]}],"filters":{"type_filters":{"disabled":false,"filters":{"category":{"option":"armour.boots"},"rarity":{"option":"rare"}}}}}'
+
+[[search]]
+name = "q2b"
+id = "H4sIAAAAAAAAA3VQ0QqDMAz8lzyLDLch81eGSLRxBDoraYQV6b-v6osdLG-5u-QuWcEr6uKhWcHNym6CBnAKEIudScRzBQ0z7biBAka2SnIQbBJMn9nywFpuA93tUV2q-n6tIbaxPcmPNd2pN-yxt5R2jGg9ZdoBlV5OQh5M3m6RsncuBUsJBYU1lySIIMZEqqD5Y6ey5G4eLXXHlb9_2OoLlESlGCYBAAA"
+query = '{"status":{"option":"any"},"stats":[{"type":"and","filters":[{"id":"explicit.stat_492027537"}]}],"filters":{"type_filters":{"disabled":false,"filters":{"category":{"option":"armour.boots"},"rarity":{"option":"rare"}}},"trade_filters":{"disabled":true,"filters":{"sale_type":{"option":"any"}}}}}'
+
+[[search]]
+name = "q3"
+id = "H4sIAAAAAAAAA3VQXQuDMAz8L3kW0TH34V8ZIpmNo9C1pY1zIv3va_VFheUtd5e7JDN4Rh481DMYy9JoqAH1BCFbmEg8ZuDJ0oILyKCXismthBQRpq9VspOcp4G2vJ-L26W6VmXUflANlLzfMhqfiugqpMenojjYo_IUmtBsPNesdtMf9Dtth0wv46bd9iOhNTo3mvxonEiXOHSS96oIEYQQSXYo_iSyG_aBHhW16zeO_0r1AwOLxyVOAQAA"
+query = '{"status":{"option":"any"},"stats":[{"type":"and","filters":[{"id":"explicit.stat_1940865751","value":{"min":20},"disabled":false}]}],"filters":{"type_filters":{"disabled":false,"filters":{"category":{"option":"weapon.onesword"},"rarity":{"option":"rare"}}},"trade_filters":{"disabled":true,"filters":{"sale_type":{"option":"any"}}}}}'
+
+[[search]]
+name = "q3b"
+id = "H4sIAAAAAAAAA3VQXQuDMAz8L3kWmWPuw78yhmQ2jkLXljZORfrfF_VFB3tL7pK7SyaIjNxFqCZwnrWzUAHaEVK2MELcJ-DR04IryKDVhimshFYC0-CNbjTn80Jd3E6H67m8lIXMftB0NGu_cYDqWIqq0hGfhmSxRRMpPdJjo7l61Zt-UzbI9HJh3IXtCb2zubMUexfUHDxg0LyfEoggJSE5oPpnENFQvR77-45dcg4didgXMlUcbD0BAAA"
+query = '{"status":{"option":"any"},"stats":[{"type":"and","filters":[{"id":"explicit.stat_1940865751","value":{"max":25},"disabled":false}]}],"filters":{"type_filters":{"filters":{"category":{"option":"weapon.onesword"},"rarity":{"option":"rare"}}},"trade_filters":{"filters":{"sale_type":{"option":"any"}},"disabled":true}}}'
+
+[[search]]
+name = "q4"
+id = "H4sIAAAAAAAAA6WS0W6DMAxF_8XPCEGgoPErU4VSMG2klKDE6YZQ_r1JmTZgTN20vESOr3OuLU9giJM1UE2gBhKqhwp4P4KLHhmfeJ2AxgEf7y1E0AlJqEPi6KJpEU4gWq8aDNpWxfNVkyIuayk69KU3Li0G1FV4ziHxkFYYfpLoCzsuDbpjtKTtAvB9kKIRFAeDdZaV7MBylpdLwBuK84WgSncQ0e4_OWNJwsoXlv_vn7Qo06wsst_7-Wr5Q7UdVJG4vw3ieYvPzS9sNcr2310xFySfpuYtqRfxps-VtuGEZ6XH9d7pq7I6bi5oKCyg5lrQWuKfEJwfB5Dm7Q840nZNM1xiPTezXfNw7kM1zHoFAwAA"
+query = '{"status":{"option":"any"},"stats":[{"type":"and","filters":[]},{"filters":[{"id":"pseudo.pseudo_total_life","value":{"min":50},"disabled":false}],"type":"and"},{"filters":[{"id":"explicit.stat_3372524247","value":{"weight":1},"disabled":false},{"id":"explicit.stat_4220027924","value":{"weight":1},"disabled":false},{"id":"explicit.stat_1671376347","value":{"weight":1},"disabled":false}],"type":"weight","value":{"min":60}},{"filters":[{"id":"explicit.stat_3372524247"},{"id":"explicit.stat_4220027924"},{"id":"explicit.stat_1671376347"}],"type":"count","value":{"min":2}}],"filters":{"type_filters":{"disabled":false,"filters":{"category":{"option":"armour.chest"},"rarity":{"option":"rare"}}},"trade_filters":{"disabled":true,"filters":{"sale_type":{"option":"any"}}}}}'
+
+[[search]]
+name = "q5"
+id = "H4sIAAAAAAAAA42RzYrDMAyE30XnUnpc-iqlGK2tFIETB0leCMHvXiW-JIXC-mI8M_7GPyuooVWF-wplNi4T3AGnBdpld9x4rGDLTLue4AIDZyPpBieXZ6WayrVPwYphDgMLBSFlh0yRfNsf5kpbzcje8XPzgsSKv5mcMWBWas_2POB7bTisP_KnbESjV5HlfJEYSdXVK441k223EhS2c8wlgtbcHFnjfxtHFimyeQfUHussE0xfjm9SzyzFTKG_8uc_bOMNSORbZqYBAAA"
+query = '{"status":{"option":"any"},"stats":[{"type":"and","filters":[{"id":"pseudo.pseudo_total_fire_resistance","value":{"min":80},"disabled":false}]}],"filters":{"type_filters":{"disabled":false,"filters":{"category":{"option":"accessory.amulet"},"rarity":{"option":"rare"}}},"misc_filters":{"disabled":false,"filters":{"mirrored":{"option":"false"}}},"trade_filters":{"disabled":true,"filters":{"sale_type":{"option":"any"}}}}}'
+
+[[search]]
+name = "q6"
+id = "H4sIAAAAAAAAA3VR0W6DMAz8Fz9XFYWsXfsrU4U8cDdLoUGOqYZQ_n0OvEDX5S1357tzMkFU1CHCZYLQK4c7XADvI6TdzBjxMYGOPc14Czu4sVeSheDWYPrpPTes-zxQH4pjWRbvzjnzeKmoyvO5cqfCVeb2QD9QTu_Yog9vhQW3HPHTk03e0EdK13RdxS516tX9Sb_RCgrruFnPIMr7Naj0FWRLonRhkH3zTVEhJZN1HJvXaSrDNqxjkSCZWjnOnRYrFWz_af7HK6Knenn456_J5xccnkyxuQEAAA"
+query = '{"status":{"option":"any"},"stats":[{"type":"and","filters":[{"id":"explicit.stat_1062208444"},{"id":"explicit.stat_3299347043","value":{"min":150},"disabled":false}]}],"filters":{"type_filters":{"disabled":false,"filters":{"rarity":{"option":"rare"},"category":{"option":"armour.chest"}}},"misc_filters":{"disabled":true,"filters":{"mirrored":{"option":"false"}}},"trade_filters":{"disabled":true,"filters":{"sale_type":{"option":"any"}}}}}'
