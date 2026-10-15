@@ -1501,7 +1501,7 @@ fn describe_text(d: &Describe, index: bool) -> String {
         out.push_str("not built, refused by name\n");
         for n in &d.not_built {
             out.push_str(&format!(
-                "  {:<22}{:<20}{}\n",
+                "  {:<22}{:<32}{}\n",
                 n.construct,
                 n.step_text(),
                 n.what
