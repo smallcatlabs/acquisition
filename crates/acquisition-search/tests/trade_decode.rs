@@ -233,3 +233,127 @@ fn c113_the_query_json_is_the_envelope_or_the_query_alone() {
     // a leading newline or space is nothing
     assert_eq!(decode(&format!("\n  {}\n", query)).unwrap().query, query);
 }
+
+/// One gzip member of `bytes`, raw.
+fn gzipped(bytes: &[u8]) -> Vec<u8> {
+    let mut enc = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
+    enc.write_all(bytes).unwrap();
+    enc.finish().unwrap()
+}
+
+fn id_of(raw: &[u8]) -> String {
+    base64::Engine::encode(&base64::engine::general_purpose::URL_SAFE_NO_PAD, raw)
+}
+
+/// The first outside review of step 1 (Codex, 2026-10-15), four faults
+/// each pinned as it was found: an empty path segment that moved the
+/// realm into the league's place, a host's query string read as a path,
+/// an escape altered instead of refused, a second gzip member or junk
+/// after the first dropped instead of refused, and an id unbounded before
+/// it was decoded.
+#[test]
+fn c47_the_reviews_faults_a_doubled_slash_a_bad_escape_a_second_member_an_unbounded_id() {
+    let q1 = &fixture()[0];
+    let expected: Value = serde_json::from_str(&q1.query).unwrap();
+    // a doubled slash is refused, never skipped — the realm stays where the URL put it
+    for (url, says) in [
+        (
+            format!("https://www.pathofexile.com/trade/search/xbox//{}", q1.id),
+            "empty path segment",
+        ),
+        (
+            format!("https://www.pathofexile.com/trade/search/poe2//{}", q1.id),
+            "empty path segment",
+        ),
+        (
+            format!(
+                "https://www.pathofexile.com//trade/search/Standard/{}",
+                q1.id
+            ),
+            "empty path segment",
+        ),
+        (
+            format!("https://example.org?next=/trade/search/Standard/{}", q1.id),
+            "/trade/search/",
+        ),
+        (
+            format!(
+                "https://www.pathofexile.com#/trade/search/Standard/{}",
+                q1.id
+            ),
+            "/trade/search/",
+        ),
+        (
+            format!(
+                "https://www.pathofexile.com/trade/search/Bad%FFLeague/{}",
+                q1.id
+            ),
+            "UTF-8",
+        ),
+        (
+            format!(
+                "https://www.pathofexile.com/trade/search/Bad%ZZLeague/{}",
+                q1.id
+            ),
+            "no escape",
+        ),
+        (
+            format!(
+                "https://www.pathofexile.com/trade/search/Standard%2/{}",
+                q1.id
+            ),
+            "no escape",
+        ),
+    ] {
+        let e = refused(&url);
+        assert_eq!(e.kind, ErrorKind::Trade, "{url}");
+        assert!(
+            e.message.contains(says),
+            "`{url}` → {} (expected `{says}`)",
+            e.message
+        );
+    }
+    // one trailing slash is nothing; a league in any script decodes whole
+    let trailing = format!(
+        "https://www.pathofexile.com/trade/search/Standard/{}/",
+        q1.id
+    );
+    let d = decode(&trailing).unwrap();
+    assert_eq!(
+        (d.realm.as_deref(), d.league.as_deref()),
+        (Some("pc"), Some("Standard"))
+    );
+    assert_eq!(d.query, expected);
+    let accented = format!(
+        "https://www.pathofexile.com/trade/search/Stand%C3%A9rd/{}",
+        q1.id
+    );
+    assert_eq!(
+        decode(&accented).unwrap().league.as_deref(),
+        Some("Standérd")
+    );
+    let raw = format!("/trade/search/Standé/{}", q1.id);
+    assert_eq!(decode(&raw).unwrap().league.as_deref(), Some("Standé"));
+    // a second member, or junk, after the one member is refused, never dropped
+    let one = gzipped(b"{}");
+    assert_eq!(decode(&id_of(&one)).unwrap().query, json!({}));
+    let mut with_junk = one.clone();
+    with_junk.extend_from_slice(b"junk");
+    let mut two_members = one.clone();
+    two_members.extend_from_slice(&gzipped(br#"{"status":{"option":"any"}}"#));
+    for (raw, says) in [(with_junk, "4 bytes follow"), (two_members, "bytes follow")] {
+        let e = refused(&id_of(&raw));
+        assert_eq!(e.kind, ErrorKind::Trade);
+        assert!(
+            e.message.contains(says),
+            "{} (expected `{says}`)",
+            e.message
+        );
+    }
+    // the id's text is bounded before it is decoded: this one never reaches base64
+    let long = "A".repeat(acquisition_search::trade::MAX_ID + 1);
+    let e = refused(&long);
+    assert!(e.message.contains("longer than"), "{}", e.message);
+    let longest = fixture().iter().map(|s| s.id.len()).max().unwrap();
+    assert!(longest <= 368 && 368 < acquisition_search::trade::MAX_ID);
+}

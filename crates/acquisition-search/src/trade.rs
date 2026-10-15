@@ -7,21 +7,32 @@
 //! - **A URL is a request** (K6). `/trade/search/<league>/<id>` names the
 //!   pc realm; `/trade/search/(xbox|sony)/<league>/<id>` that console. The
 //!   realm is the scope and the league a term — both leave here as words,
-//!   for the translation to place (step 4). The site's `/live` suffix is
-//!   its live view of the same search and is dropped; a query string or
-//!   fragment is dropped; the league is percent-decoded. A `/trade2/` URL,
-//!   or the `poe2` realm, is refused by name before anything decodes:
-//!   inbound is PoE1 only (note 36, ruling 5).
+//!   for the translation to place (step 4). The path is what stands
+//!   between the host and the first `?` or `#`, read segment by segment:
+//!   an empty segment inside it is refused, never skipped, so a doubled
+//!   slash can never move a realm into the league's place (the first
+//!   outside review of the step); one trailing slash is nothing; the
+//!   site's `/live` suffix is its live view of the same search and is
+//!   dropped. The league is percent-decoded, and an escape that is no two
+//!   hex digits, or a decoding that is no UTF-8, is refused rather than
+//!   altered — a league is a term, and a changed one would answer nothing
+//!   with no word why. A `/trade2/` URL, or the `poe2` realm, is refused
+//!   by name before anything decodes: inbound is PoE1 only (note 36,
+//!   ruling 5).
 //! - **The id is the query object**, gzipped and base64url-encoded without
 //!   padding (S56; the eight captured ids, `tests/trade_decode.rs`). A
-//!   bare id decodes the same way. A malformed id — not base64, not gzip,
-//!   not JSON, not an object — is a structured error of kind `trade`
-//!   (C47), and the inflated size is bounded ([`MAX_INFLATED`]), so a
-//!   pasted id can never fill memory.
+//!   bare id decodes the same way. The id's text is bounded before it is
+//!   decoded ([`MAX_ID`]) and what it inflates to after ([`MAX_INFLATED`]),
+//!   so a pasted id can fill neither the decoder nor the inflater; the
+//!   bytes must be exactly one gzip member with nothing after it, so a
+//!   second member or trailing junk is refused, never dropped. A
+//!   malformed id — not base64, not gzip, not one member, not JSON, not an
+//!   object — is a structured error of kind `trade` (C47).
 //! - **The JSON is what the site posts**: the `{query, sort}` envelope, or
 //!   the query object alone. A sort is carried out for the report and
 //!   never applied (K6). Neither an id nor JSON fills a scope: a
-//!   [`Decoded`] from either carries no realm and no league.
+//!   [`Decoded`] from either carries no realm and no league. The JSON
+//!   text is the caller's and is not bounded here.
 //! - Nothing here reads the vocabulary or writes a word of the language:
 //!   that is the translation (step 4), which consumes a [`Decoded`].
 
@@ -60,6 +71,11 @@ pub struct Decoded {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sort: Option<Json>,
 }
+
+/// The longest id decoded: 64 KiB of text, where the longest captured id
+/// is 368 characters and the site refuses a query of 220 ids as too
+/// complex (the site-sitting skill's traps).
+pub const MAX_ID: usize = 64 << 10;
 
 /// The most an id may inflate to: a megabyte, where the longest captured
 /// query inflates to under a kilobyte.
@@ -119,14 +135,15 @@ pub fn decode_json(value: &Json) -> Result<Decoded, LanguageError> {
     })
 }
 
-fn decode_url(input: &str) -> Result<Decoded, LanguageError> {
-    // the path: after the host when a scheme is given, else from the first `/`
-    let path = match input.find("://") {
+/// The path of a URL: after the host when a scheme is given, up to the
+/// first `?` or `#`; a host followed by `?` or `#` has no path at all.
+fn path_of(input: &str) -> &str {
+    let after_host = match input.find("://") {
         Some(at) => {
             let rest = &input[at + 3..];
-            match rest.find('/') {
-                Some(slash) => &rest[slash..],
-                None => "",
+            match rest.find(['/', '?', '#']) {
+                Some(i) if rest[i..].starts_with('/') => &rest[i..],
+                _ => "",
             }
         }
         None => match input.find('/') {
@@ -134,18 +151,33 @@ fn decode_url(input: &str) -> Result<Decoded, LanguageError> {
             None => "",
         },
     };
-    let path = path.split(['?', '#']).next().unwrap_or("");
-    let mut segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
+    after_host.split(['?', '#']).next().unwrap_or("")
+}
+
+fn decode_url(input: &str) -> Result<Decoded, LanguageError> {
+    const SHAPE: &str = "not a trade search URL: `/trade/search/<league>/<id>` or `/trade/search/<realm>/<league>/<id>`";
+    let path = path_of(input);
+    let Some(path) = path.strip_prefix('/') else {
+        return Err(trade(SHAPE));
+    };
+    // one trailing slash is nothing; an empty segment anywhere else is refused
+    let path = path.strip_suffix('/').unwrap_or(path);
+    let mut segments: Vec<&str> = path.split('/').collect();
+    if segments.iter().any(|s| s.is_empty()) {
+        return Err(trade(
+            "not a trade search URL: an empty path segment (a doubled slash)",
+        ));
+    }
     if segments.last() == Some(&"live") {
         segments.pop();
     }
     match segments.first().copied() {
         Some("trade") => {}
         Some("trade2") => return Err(poe2("a `/trade2/` URL is the PoE2 site")),
-        _ => return Err(trade("not a trade search URL: no `/trade/search/` path")),
+        _ => return Err(trade(SHAPE)),
     }
     if segments.get(1).copied() != Some("search") {
-        return Err(trade("not a trade search URL: no `/trade/search/` path"));
+        return Err(trade(SHAPE));
     }
     let (realm, league, id) = match segments[2..] {
         [league, id] => ("pc", league, id),
@@ -165,25 +197,29 @@ fn decode_url(input: &str) -> Result<Decoded, LanguageError> {
                 }
             }
         }
-        _ => {
-            return Err(trade(
-                "not a trade search URL: `/trade/search/<league>/<id>` or `/trade/search/<realm>/<league>/<id>`",
-            ));
-        }
+        _ => return Err(trade(SHAPE)),
     };
+    let league = percent_decoded(league)?;
     let query = inflate(id)?;
     Ok(Decoded {
         source: Source::Url,
         realm: Some(realm.to_string()),
-        league: Some(percent_decoded(league)),
+        league: Some(league),
         query,
         sort: None,
     })
 }
 
-/// A search id to its query object: base64url without padding, gzip, JSON.
+/// A search id to its query object: base64url without padding, exactly
+/// one gzip member, JSON; each bound checked before the step it guards.
 fn inflate(id: &str) -> Result<Json, LanguageError> {
     let id = id.trim_end_matches('=');
+    if id.len() > MAX_ID {
+        return Err(trade(format!(
+            "not a search id: {} characters, longer than {MAX_ID}",
+            id.len()
+        )));
+    }
     let bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
         .decode(id)
         .map_err(|_| trade("not a search id: not base64url"))?;
@@ -191,13 +227,22 @@ fn inflate(id: &str) -> Result<Json, LanguageError> {
         return Err(trade("not a search id: not gzip"));
     }
     let mut inflated = Vec::new();
-    flate2::read::GzDecoder::new(bytes.as_slice())
+    // the bufread decoder reads one member and leaves the slice after it
+    let mut decoder = flate2::bufread::GzDecoder::new(bytes.as_slice());
+    (&mut decoder)
         .take(MAX_INFLATED as u64 + 1)
         .read_to_end(&mut inflated)
         .map_err(|e| trade(format!("not a search id: the gzip does not inflate: {e}")))?;
     if inflated.len() > MAX_INFLATED {
         return Err(trade(format!(
             "not a search id: it inflates past {MAX_INFLATED} bytes"
+        )));
+    }
+    let after = decoder.into_inner();
+    if !after.is_empty() {
+        return Err(trade(format!(
+            "not a search id: {} bytes follow the gzip member",
+            after.len()
         )));
     }
     let value: Json = serde_json::from_slice(&inflated).map_err(|e| {
@@ -214,27 +259,35 @@ fn inflate(id: &str) -> Result<Json, LanguageError> {
     }
 }
 
-/// `%20` and its kin, as a URL spells a league; a `+` is a plus, as the
-/// site spells none.
-fn percent_decoded(s: &str) -> String {
+/// `%20` and its kin, as a URL spells a league. An escape that is no two
+/// hex digits, or bytes that are no UTF-8, is refused: the league is a
+/// term, and an altered one would answer nothing with no word why.
+fn percent_decoded(s: &str) -> Result<String, LanguageError> {
     let bytes = s.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
     let mut i = 0;
     while i < bytes.len() {
-        if bytes[i] == b'%'
-            && i + 2 < bytes.len()
-            && let Some(byte) = s
+        if bytes[i] == b'%' {
+            let byte = s
                 .get(i + 1..i + 3)
                 .and_then(|hex| u8::from_str_radix(hex, 16).ok())
-        {
+                .ok_or_else(|| {
+                    trade(format!(
+                        "not a trade search URL: `{s}` has a `%` that is no escape"
+                    ))
+                })?;
             out.push(byte);
             i += 3;
-            continue;
+        } else {
+            out.push(bytes[i]);
+            i += 1;
         }
-        out.push(bytes[i]);
-        i += 1;
     }
-    String::from_utf8_lossy(&out).into_owned()
+    String::from_utf8(out).map_err(|_| {
+        trade(format!(
+            "not a trade search URL: `{s}` does not decode to UTF-8"
+        ))
+    })
 }
 
 fn trade(message: impl Into<String>) -> LanguageError {
