@@ -1483,26 +1483,44 @@ fn spawn_daemon(world: &World) -> Result<Spawned, ConnectError> {
     // opens no window of its own when a host without a console (an MCP
     // host) spawns it — no console at all, and a process group of its
     // own so a Ctrl-C at the caller's prompt never reaches it.
+    command
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null());
     #[cfg(windows)]
-    {
+    let spawned = {
         use std::os::windows::process::CommandExt;
         const DETACHED_PROCESS: u32 = 0x0000_0008;
         const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
-        command.creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP);
+        const CREATE_BREAKAWAY_FROM_JOB: u32 = 0x0100_0000;
+        const ERROR_ACCESS_DENIED: i32 = 5;
         // And it inherits no handle of this process's stdio: a caller
         // reading this process's output reaches end-of-file when this
         // process exits, not when the daemon does.
         acquisition_store::world_windows::disinherit_std_handles();
-    }
-    let child = command
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .spawn()
-        .map_err(|e| ConnectError::SpawnFailed {
-            acqd: Some(acqd.clone()),
-            log: format!("failed to spawn it: {e}"),
-        })?;
+        // Out of the caller's job object where the job allows it: a host
+        // that runs its children in a kill-on-close job (measured
+        // 2026-10-15, `tools/windows-checks.ps1 job`) would otherwise take
+        // the daemon with it when it exits. A job that forbids breakaway
+        // refuses the flag (access denied); the daemon then starts inside
+        // it, and lives as long as that host does.
+        command.creation_flags(
+            DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_BREAKAWAY_FROM_JOB,
+        );
+        match command.spawn() {
+            Err(e) if e.raw_os_error() == Some(ERROR_ACCESS_DENIED) => {
+                command.creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP);
+                command.spawn()
+            }
+            spawned => spawned,
+        }
+    };
+    #[cfg(not(windows))]
+    let spawned = command.spawn();
+    let child = spawned.map_err(|e| ConnectError::SpawnFailed {
+        acqd: Some(acqd.clone()),
+        log: format!("failed to spawn it: {e}"),
+    })?;
     Ok(Spawned {
         child,
         acqd,

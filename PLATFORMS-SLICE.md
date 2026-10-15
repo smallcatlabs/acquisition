@@ -134,11 +134,21 @@ Data for the commit that touches each; none is a ruling.
   holds the fixes, and the suite passes there.
 - **The study's checks still open on Windows**: a second user's squat
   refused and its connection denied, a daemon and a client at different
-  elevations, `canonicalize` on `subst` and mapped drives, and whether a
-  host that runs its children in a job object (an MCP host, a terminal)
-  kills a detached `acqd` with it. The same-user check passes on every
-  connection the suite makes, and the holder's pid is read from
-  `<lock>.pid` by the lock tests.
+  elevations, and `canonicalize` on `subst` and mapped drives;
+  `tools/windows-checks.ps1` runs the first two at the guest. The
+  same-user check passes on every connection the suite makes, and the
+  holder's pid is read from `<lock>.pid` by the lock tests.
+- **A host's job object** (measured 2026-10-15 on the VM,
+  `windows-checks.ps1 job`; an ssh session is itself in one): a lazily
+  spawned `acqd` under a kill-on-close job died with it, even where the
+  job allowed breakaway, and outlived a silent-breakaway job (libuv's,
+  under Node-based hosts). The spawn now asks to break away and falls
+  back when the job forbids it: the breakaway-allowed job no longer
+  takes the daemon. A host whose job forbids breakaway still ends the
+  daemon when it exits — its jobs in flight with it, and the limiter's
+  recent history, which a respawned daemon replaces by assuming the
+  worst (slower, never over a limit; the idle verdict keeps a daemon
+  alive for that history). Which hosts do that is unmeasured.
 - **Symlinks on Windows**: a standard user needs Developer Mode to make
   one, and one made so is an untrusted mount point to its readers
   (`canonicalize` fails, os error 448), so the test harnesses place a
