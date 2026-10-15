@@ -76,3 +76,35 @@ jobs:
 
       - name: Format
         run: cargo fmt --all -- --check
+
+  # The checks' own breakers: each breaks what a check guards and requires
+  # the check to refuse it by name, so a check that stopped refusing — one
+  # that passes everything — fails here. Beside the gate, not in it: they
+  # change rarely, and docs-check-breakers.sh edits the working tree's
+  # manifests and restores them on exit (2 min here), safe in a clean
+  # checkout and not under a session's edits. What they catch is the tree
+  # moving under a case: two of the dependency guard's had failed unseen
+  # since the search crate linked the planner (fb85d749).
+  # sign-acqd-breakers.sh is not here: it needs macOS's codesign.
+  breakers:
+    runs-on: ubuntu-latest
+    steps:
+      # The whole history: docs-check.sh refuses a cited commit it cannot
+      # find, and a shallow clone holds one commit.
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      # cargo metadata reads the graph the dependency guard checks; nothing
+      # is built.
+      - name: Install the pinned toolchain
+        run: rustup toolchain install
+
+      - name: The registry check's breakers
+        run: tools/bothy-breakers.sh
+
+      - name: The preflight's breakers
+        run: tools/preflight-breakers.sh
+
+      - name: The docs check's breakers
+        run: tools/docs-check-breakers.sh
