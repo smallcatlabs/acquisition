@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # docs-check.sh — the documentation half of the quality gate.
 #
-# Seven checks, all mechanical (P5, CONTEXT.md "Working style": a lint
+# Eight checks, all mechanical (P5, CONTEXT.md "Working style": a lint
 # where mechanical, a recorded property where stakes are real):
 #
 #   1. Byte budgets on the always-loaded documents. Every session reads
@@ -41,6 +41,10 @@
 #      that build, print and validate the query tree, and the one that
 #      computes what a line's group means, no source file names a
 #      group's tree (the build plan, step 4b; `group.rs`).
+#   8. The clone's hooks: `core.hooksPath` names `.githooks`, whose
+#      commit-msg hook writes Claude's trailer as `Assisted-by:`. A note,
+#      never a failure: a clone that only builds (CI) needs no hook, and
+#      the setting is the clone's, so `AGENTS.md` says to make it once.
 #
 # Exit 1 on any failure; the report names each offender.
 set -euo pipefail
@@ -516,6 +520,15 @@ elif [[ ! -f crates/acquisition-search/src/group.rs ]]; then
   fail=1
 else
   printf 'ok      %-13s a group'"'"'s tree is named by tree, parse, print, json, template and group alone (step 4b)\n' group
+fi
+
+# ---- 8. the clone's hooks --------------------------------------------------
+# Unset, git reads the empty .git/hooks and a commit keeps the trailer it
+# was written with: two of step 2's commits did (2026-10-15).
+if [[ $(git config --get core.hooksPath || true) == .githooks ]]; then
+  printf 'ok      %-13s core.hooksPath is .githooks: the commit-msg hook writes the trailer\n' hooks
+else
+  echo "note    hooks         core.hooksPath is not .githooks, so the commit-msg hook does not run: git config core.hooksPath .githooks (AGENTS.md)"
 fi
 
 exit $fail

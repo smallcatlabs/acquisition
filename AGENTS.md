@@ -97,6 +97,10 @@ python3 -I tools/bothy.py check
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
 ```
 
+Once per clone: `git config core.hooksPath .githooks`, whose commit-msg
+hook writes Claude's trailer as `Assisted-by:`; the docs check notes a
+clone without it.
+
 The generated search properties run a share of their cases here, fresh
 each run, and all of them in CI (`ACQ_CASES=full`); a failure prints
 the seed that draws its cases again (`PROPTEST_RNG_SEED`).
