@@ -110,9 +110,12 @@ switch ($Check) {
     }
 
     'stop' {
-        Use-Mock
-        $r = Acq @('daemon', 'stop', '--json')
-        Record 'PASS' "stop: $($r.Text)"
+        # Both of this user's worlds: serve's and elevation's.
+        foreach ($tag in 'store', 'elevation') {
+            Use-Mock $tag
+            $r = Acq @('daemon', 'stop', '--json')
+            Record 'PASS' "stop ($tag): $($r.Text)"
+        }
     }
 
     'reach-other' {
@@ -172,7 +175,15 @@ switch ($Check) {
         # Run in both shells: the first starts (or finds) a daemon, the
         # second reports what it sees of it. The store is this user's in
         # both, so both derive one world and one pipe.
+        # One administrator in both shells: an unelevated admin's token
+        # still lists Administrators, as deny-only.
+        if (-not (whoami /groups | Select-String -SimpleMatch 'S-1-5-32-544')) {
+            Record 'FAIL' "$Me is no administrator: run 'elevation' as one admin, unelevated and elevated"
+            exit 1
+        }
         Use-Mock 'elevation'
+        # Held up until 'stop', however long the walk to the other shell.
+        $env:ACQ_IDLE_SHUTDOWN = '900'
         $s = Acq @('daemon', 'status', '--json')
         if ($s.Text -match '"running":\s*true') {
             $j = $s.Text | ConvertFrom-Json
