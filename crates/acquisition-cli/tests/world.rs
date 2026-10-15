@@ -504,6 +504,71 @@ fn c83_the_rails_state_lives_in_the_world_and_reset_tripwire_clears_it() {
     std::fs::remove_dir_all(&current).unwrap();
 }
 
+/// The halt's advice follows its kind: a tripwire's persists in the world
+/// and waits out the post-violation time before `reset-tripwire`; a
+/// ceiling is the lifetime's alone, so `daemon status` sends the reader to
+/// the next daemon, never to the reset (seen 2026-10-15 on a first
+/// contact that met its ceiling exactly).
+#[test]
+fn a_ceiling_halt_is_advised_as_the_lifetimes_and_a_trip_as_a_reset() {
+    let scratch = scratch("halts");
+    let base = &scratch.0;
+
+    // The mock's open fetch probes its route first: that one send meets a
+    // ceiling of one exactly, and the fetch waits behind the halt.
+    let ceiling = [("ACQ_TRIPWIRE", "1"), ("ACQ_MAX_SENDS", "1")];
+    let (_daemon, _pid) = start_daemon(base, "store", &ceiling);
+    let out = acq_in(base, "store", &["submit", "fetch", "--detach"], &ceiling);
+    assert!(out.status.success(), "{out:?}");
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        let status = sole_json(&acq_in(
+            base,
+            "store",
+            &["daemon", "status", "--json"],
+            &ceiling,
+        ));
+        if status["rails"]["halted"].is_string() {
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "the ceiling never halted: {status}"
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    let said = text(&acq_in(base, "store", &["daemon", "status"], &ceiling));
+    assert!(
+        said.contains("HALTED: ceiling")
+            && said.contains("the next one starts fresh")
+            && !said.contains("reset-tripwire"),
+        "{said}"
+    );
+    let out = acq_in(base, "store", &["daemon", "stop", "--json"], &ceiling);
+    assert!(out.status.success(), "{out:?}");
+    wait_stopped(base, "store", &ceiling);
+
+    let trip = [("ACQ_TRIPWIRE", "1")];
+    let current = base.join("store").join("mock").join("rails.json");
+    std::fs::create_dir_all(current.parent().unwrap()).unwrap();
+    std::fs::write(
+        &current,
+        r#"{"tripped":"429 on GET /stash/Standard (staged trip)"}"#,
+    )
+    .unwrap();
+    let (_daemon, _pid) = start_daemon(base, "store", &trip);
+    let said = text(&acq_in(base, "store", &["daemon", "status"], &trip));
+    assert!(
+        said.contains("staged trip")
+            && said.contains("reset-tripwire")
+            && said.contains("post-violation"),
+        "{said}"
+    );
+    let out = acq_in(base, "store", &["daemon", "stop", "--json"], &trip);
+    assert!(out.status.success(), "{out:?}");
+    wait_stopped(base, "store", &trip);
+}
+
 /// C83: the log and the default journal live under the log directory,
 /// one subdirectory per world and provider, beside a `world` file naming
 /// the root; they are bounded — a log over the cap is rotated once at

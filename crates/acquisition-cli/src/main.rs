@@ -1477,9 +1477,18 @@ async fn run(cli: Cli) -> Result<()> {
                     );
                     if let Some(cause) = &rails.halted {
                         println!("HALTED: {cause}");
-                        println!(
-                            "        clear with `acq daemon reset-tripwire` after the post-violation wait"
-                        );
+                        // A ceiling is this lifetime's and never persisted
+                        // (rails.rs): no violation, nothing to reset — the
+                        // next daemon starts under a fresh one.
+                        if cause.starts_with("ceiling:") {
+                            println!(
+                                "        the ceiling is this daemon's alone: `acq daemon stop`, and the next one starts fresh (`acq jobs` first: queued jobs resume under it)"
+                            );
+                        } else {
+                            println!(
+                                "        clear with `acq daemon reset-tripwire` after the post-violation wait"
+                            );
+                        }
                     }
                     if keyring != "ok" {
                         println!("KEYRING: {keyring} — a rotated refresh token may be memory-only");

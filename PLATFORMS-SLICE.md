@@ -178,6 +178,13 @@ Data for the commit that touches each; none is a ruling.
   expected to refuse it (unmeasured) — the README's install line is the `curl`
   one (note 36). Notarization would staple only to `.app`, `.dmg` or
   `.pkg`; a bare Mach-O is checked online at first run.
+- **SmartScreen let the unsigned archive run** (2026-10-15, the Windows
+  guest, "Check apps and files" on): the x64 archive fetched in the guest's browser
+  from run 38727404964 and unpacked twice with Explorer kept
+  `ZoneId=3` on `acq.exe`; a double-click ran it with no dialog, and
+  `acq auth` and the daemon it spawned started with none. One machine
+  and one download: reputation is per file and per moment, so a tagged
+  release's archive may meet a dialog this did not.
 - **The Linux archives' glibc floor is Ubuntu 22.04's (2.35)**: built on
   the oldest hosted runner, so a distribution older than that cannot run
   them. Musl static builds would lift the floor; nothing has asked.
