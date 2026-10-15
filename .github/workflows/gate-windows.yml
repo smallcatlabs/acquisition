@@ -1,0 +1,56 @@
+name: Gate (Windows)
+
+# The quality gate on Windows x86_64 (AGENTS.md, "Quality gate";
+# PLATFORMS-SLICE.md, step 1): the build, the suite on the mock harness —
+# the named-pipe endpoint (C112), the world's Windows arm — and clippy,
+# which alone lints the `cfg(windows)` code. Formatting and cargo-deny do
+# not vary by platform and stay with the Linux workflow. Plus the
+# daemon's keyring round trip against Credential Manager
+# (acquisition-daemon/src/auth.rs, `keyring_round_trip_survives_a_fresh_entry`).
+# The tests run the commands the search prints through `sh`: Git for
+# Windows' bin directory is on the runner's PATH. Nothing here talks to
+# GGG: every harness sets ACQ_PROVIDER=mock (C88) and no test process has
+# a terminal.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v6
+
+      # The pinned toolchain and its components, as `rust-toolchain.toml`
+      # names them: the runner's rustup reads the file.
+      - name: Install the pinned toolchain
+        run: rustup toolchain install
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: .
+
+      # First, as the gate says: the process tests run the acqd this writes.
+      - name: Build
+        run: cargo build --workspace --locked
+
+      # ACQ_CASES=full: the generated search properties at their full
+      # counts, as on Linux. ACQ_KEYRING_ROUNDTRIP=1: the round trip
+      # against the runner user's Credential Manager.
+      - name: Test, with the keyring round trip against Credential Manager
+        env:
+          ACQ_KEYRING_ROUNDTRIP: "1"
+          ACQ_CASES: full
+        run: cargo test --workspace --all-targets --locked
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings

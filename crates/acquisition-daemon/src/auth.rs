@@ -227,7 +227,8 @@ mod tests {
     /// mock store, which a Linux build got until 2026-09-12 while reporting
     /// `keyring: ok` — fails here. Runs only under `ACQ_KEYRING_ROUNDTRIP=1`,
     /// against the real OS store, so the gate stays hermetic; CI runs it
-    /// against an unlocked gnome-keyring (`.github/workflows/gate-linux.yml`).
+    /// against an unlocked gnome-keyring (`.github/workflows/gate-linux.yml`)
+    /// and Credential Manager (`.github/workflows/gate-windows.yml`).
     #[test]
     fn keyring_round_trip_survives_a_fresh_entry() {
         if std::env::var_os("ACQ_KEYRING_ROUNDTRIP").is_none() {
