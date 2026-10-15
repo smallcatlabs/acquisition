@@ -22,7 +22,11 @@ jobs:
   gate:
     runs-on: ubuntu-latest
     steps:
+      # The whole history: the docs check refuses a cited commit it cannot
+      # find, and a shallow clone holds one commit.
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       # The pinned toolchain and its components, as `rust-toolchain.toml`
       # names them: the runner's rustup reads the file.
@@ -76,6 +80,16 @@ jobs:
 
       - name: Format
         run: cargo fmt --all -- --check
+
+      # The gate's two document checks (AGENTS.md, "Quality gate"): until
+      # these, a tree that broke either passed here unless a session had
+      # run the gate. The docs check reads the dependency graph through
+      # cargo metadata and jq; it notes, never fails on, the clone's hooks.
+      - name: The docs check
+        run: tools/docs-check.sh
+
+      - name: The registry check
+        run: python3 -I tools/bothy.py check
 
   # The checks' own breakers: each breaks what a check guards and requires
   # the check to refuse it by name, so a check that stopped refusing — one
