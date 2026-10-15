@@ -65,11 +65,12 @@ impl Sibling {
             path: path.to_path_buf(),
             io: io.to_string(),
         };
-        let canonical = path.canonicalize().map_err(unreadable)?;
+        let canonical = acquisition_store::world::canonical(path).map_err(unreadable)?;
         let file = std::fs::File::open(&canonical).map_err(unreadable)?;
         let meta = file.metadata().map_err(unreadable)?;
+        let id = acquisition_store::world::file_id(&file).map_err(unreadable)?;
         Ok(Sibling {
-            identity: FileIdentity::of_open(&canonical, &meta),
+            identity: FileIdentity::of_open(&canonical, &meta, id),
             file,
         })
     }
@@ -213,9 +214,10 @@ mod tests {
         let other = dir.join("other");
         std::fs::write(&other, b"other bytes entirely").unwrap();
 
-        let id = FileIdentity::of(&original).unwrap();
-        assert!(id.same_file_as(&FileIdentity::of(&original).unwrap()));
-        assert!(!id.same_file_as(&FileIdentity::of(&copy).unwrap()));
+        let identify = |path: &std::path::Path| Sibling::open(path).unwrap().identity;
+        let id = identify(&original);
+        assert!(id.same_file_as(&identify(&original)));
+        assert!(!id.same_file_as(&identify(&copy)));
         assert_eq!(sha256_of(&original).unwrap(), sha256_of(&copy).unwrap());
         assert_ne!(sha256_of(&original).unwrap(), sha256_of(&other).unwrap());
         assert_eq!(sha256_of(&original).unwrap().len(), 64);
@@ -237,7 +239,7 @@ mod tests {
         let v = judge(&copy);
         assert!(v.matches() && v.relation() == "same_bytes", "{v:?}");
         assert!(
-            matches!(&v, ArtifactVerdict::SameBytes { sibling } if sibling.path == copy.canonicalize().unwrap().to_string_lossy()),
+            matches!(&v, ArtifactVerdict::SameBytes { sibling } if sibling.path == acquisition_store::world::canonical(&copy).unwrap().to_string_lossy()),
             "{v:?}"
         );
         let v = judge(&other);
@@ -260,7 +262,7 @@ mod tests {
         let original = dir.join("acqd-original");
         std::fs::write(&original, b"the daemon's bytes").unwrap();
         let daemon = Artifact {
-            file: FileIdentity::of(&original).unwrap(),
+            file: Sibling::open(&original).unwrap().identity,
             sha256: sha256_of(&original).unwrap(),
         };
         let replacement = |path: &std::path::Path| {

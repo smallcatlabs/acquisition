@@ -126,12 +126,21 @@ fn c10_observation_never_spawns_or_replaces_and_reports_the_mismatch() {
     // The socket it was stopped through: this world's, in the scratch
     // runtime directory (C83), gone once the daemon has exited.
     let socket = PathBuf::from(stopped["socket"].as_str().unwrap());
-    assert!(
-        socket.starts_with(scratch_tmp(&base)) && socket.extension().is_some_and(|e| e == "sock"),
-        "{stopped}"
-    );
+    if cfg!(windows) {
+        // A pipe (C112): in the pipe namespace, named by this world.
+        assert!(
+            socket.to_string_lossy().starts_with(r"\\.\pipe\acq-"),
+            "{stopped}"
+        );
+    } else {
+        assert!(
+            socket.starts_with(scratch_tmp(&base))
+                && socket.extension().is_some_and(|e| e == "sock"),
+            "{stopped}"
+        );
+    }
     let deadline = Instant::now() + Duration::from_secs(10);
-    while socket.exists() {
+    while acquisition_client::endpoint::exists(&socket) {
         assert!(Instant::now() < deadline, "the daemon did not exit");
         std::thread::sleep(Duration::from_millis(20));
     }
@@ -147,7 +156,7 @@ fn c10_observation_never_spawns_or_replaces_and_reports_the_mismatch() {
         .expect("the stopped daemon's log");
     assert!(
         log.as_str()
-            .is_some_and(|l| l.ends_with("/mock/daemon.log")),
+            .is_some_and(|l| Path::new(l).ends_with("mock/daemon.log")),
         "{log}"
     );
     assert_eq!(
@@ -223,8 +232,7 @@ fn c84_the_artifact_dimension_is_the_sibling_acqd_this_client_would_start() {
     // and the paths this shell resolves are reported beside it.
     assert_eq!(
         status["world"],
-        base.join("store")
-            .canonicalize()
+        acquisition_store::world::canonical(&base.join("store"))
             .unwrap()
             .display()
             .to_string(),
@@ -278,11 +286,10 @@ fn c84_the_artifact_dimension_is_the_sibling_acqd_this_client_would_start() {
     // the same artifact, settled by hash, and reported as a copy: the
     // daemon's path is the original, the sibling is the copy.
     let copy = stage(&base.join("copy"), Some(&real_acqd));
-    let copied_acqd = base
-        .join("copy")
-        .join(acquisition_client::locator::ACQD)
-        .canonicalize()
-        .unwrap();
+    let copied_acqd = acquisition_store::world::canonical(
+        &base.join("copy").join(acquisition_client::locator::ACQD),
+    )
+    .unwrap();
     let out = command_of(&copy, &base, &["daemon", "status", "--json"])
         .output()
         .unwrap();
@@ -298,9 +305,10 @@ fn c84_the_artifact_dimension_is_the_sibling_acqd_this_client_would_start() {
         "the daemon's file is the original: {status}"
     );
     assert_eq!(
-        Path::new(status["wanted"]["acqd"]["path"].as_str().unwrap())
-            .canonicalize()
-            .unwrap(),
+        acquisition_store::world::canonical(Path::new(
+            status["wanted"]["acqd"]["path"].as_str().unwrap()
+        ))
+        .unwrap(),
         copied_acqd,
         "the sibling is the copy: {status}"
     );
@@ -384,7 +392,7 @@ fn c84_the_artifact_dimension_is_the_sibling_acqd_this_client_would_start() {
         report["wanted"]["acqd_absent"]
             .as_str()
             .unwrap()
-            .contains("no acqd beside"),
+            .contains(&format!("no {} beside", acquisition_client::locator::ACQD)),
         "{report}"
     );
     let out = command_of(&alone, &base, &["version", "--json"])

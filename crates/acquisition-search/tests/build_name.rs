@@ -71,7 +71,8 @@ fn a_file_of_a_kind_the_digest_does_not_know_stops_the_build() {
             .downcast_ref::<String>()
             .cloned()
             .unwrap_or_default();
-        assert!(said.contains(stray), "{stray}: {said}");
+        let named = stray.replace('/', std::path::MAIN_SEPARATOR_STR);
+        assert!(said.contains(&named), "{stray}: {said}");
         assert!(said.contains("add the kind or remove the file"), "{said}");
         let _ = std::fs::remove_dir_all(&root);
     }

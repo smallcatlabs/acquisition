@@ -1470,6 +1470,10 @@ fn spawn_daemon(world: &World) -> Result<Spawned, ConnectError> {
         const DETACHED_PROCESS: u32 = 0x0000_0008;
         const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
         command.creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP);
+        // And it inherits no handle of this process's stdio: a caller
+        // reading this process's output reaches end-of-file when this
+        // process exits, not when the daemon does.
+        acquisition_store::world_windows::disinherit_std_handles();
     }
     let child = command
         .stdin(std::process::Stdio::null())
@@ -1648,7 +1652,10 @@ mod tests {
         assert_eq!(report["socket"], "/run/acq/test.sock");
         assert_eq!(
             report["wanted"]["world"],
-            dir.canonicalize().unwrap().display().to_string()
+            acquisition_store::world::canonical(&dir)
+                .unwrap()
+                .display()
+                .to_string()
         );
         assert!(report["wanted"].get("world_absent").is_none(), "{report}");
         let text = elsewhere.to_string();

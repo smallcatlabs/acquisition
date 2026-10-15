@@ -158,8 +158,9 @@ fn c83_a_second_daemon_on_the_same_world_refuses_naming_the_holder() {
     // must not rotate it from under the incumbent (review 2026-09-11 —
     // the locks come before the log is touched).
     let log_path = daemon_log(base, "store", "mock");
+    // A write handle: Windows lets an append-only one change no length.
     std::fs::OpenOptions::new()
-        .append(true)
+        .write(true)
         .open(&log_path)
         .unwrap()
         .set_len(1u64 << 30)
@@ -235,8 +236,7 @@ fn c83_a_second_daemon_on_the_same_world_refuses_naming_the_holder() {
     assert_eq!(status["pid"], pid, "{status}");
     assert_eq!(
         status["world"],
-        base.join("store")
-            .canonicalize()
+        acquisition_store::world::canonical(&base.join("store"))
             .unwrap()
             .display()
             .to_string(),
@@ -374,8 +374,7 @@ fn c83_a_shell_on_another_world_has_its_own_rendezvous_and_never_replaces_this_d
     );
     assert_eq!(
         other["world"],
-        base.join("elsewhere")
-            .canonicalize()
+        acquisition_store::world::canonical(&base.join("elsewhere"))
             .unwrap()
             .display()
             .to_string(),
@@ -602,8 +601,7 @@ fn c83_diagnostics_live_under_the_log_directory_and_are_bounded() {
     let marker = log.parent().unwrap().parent().unwrap().join("world");
     assert_eq!(
         std::fs::read_to_string(&marker).unwrap().trim(),
-        base.join("store")
-            .canonicalize()
+        acquisition_store::world::canonical(&base.join("store"))
             .unwrap()
             .display()
             .to_string()
@@ -637,7 +635,9 @@ fn c83_diagnostics_live_under_the_log_directory_and_are_bounded() {
 /// C83: a socket path over the cap is refused by name — by the daemon
 /// before it binds, and by a shell before it connects — rather than by
 /// `bind`'s `ENAMETOOLONG`. Staged with a runtime directory deep enough
-/// to push the path past 103 bytes.
+/// to push the path past 103 bytes. Unix only: a named pipe's name is
+/// fixed-length and lives in no directory (C112).
+#[cfg(unix)]
 #[test]
 fn c83_a_socket_path_over_the_cap_is_refused_by_name() {
     let scratch = scratch("cap");

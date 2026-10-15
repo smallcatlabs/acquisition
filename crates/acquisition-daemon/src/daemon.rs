@@ -5890,6 +5890,8 @@ mod auth_session_tests {
                 .iter()
                 .any(|(_, m)| m.contains("no account"))
         );
+        // The daemon holds the store open, and Windows removes no open file.
+        drop(daemon);
         std::fs::remove_dir_all(&dir).unwrap();
         remove_test_log(&log_path);
     }

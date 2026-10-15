@@ -18,8 +18,8 @@
 //! nothing production reads it. Since the identity split's step 4 the
 //! client judges a daemon's artifact against the sibling the locator
 //! names (C84), and this executable has none — so `acqd_for_tests` also
-//! places a symlink named `acqd` beside the test executable, pointing at
-//! that same `target/<profile>/acqd`: the test executable then names the
+//! places a link named `acqd` beside the test executable (`place_link`)
+//! to that same `target/<profile>/acqd`: the test executable then names the
 //! daemon its build wrote on both paths, the harness's and the client's,
 //! and the locator's rule stays the one rule. A missing daemon fails
 //! before any test runs, naming the build step; a present one is named
@@ -62,8 +62,8 @@ type OwnedWriteHalf = WriteHalf<Stream>;
 /// The `acqd` the gate built (module doc): `target/<profile>/acqd`, one
 /// level above the `deps/` directory this test executable runs from —
 /// and, so the client in this process finds the same file as its
-/// sibling (C84 judges the artifact against it), a symlink of that name
-/// beside the test executable pointing one level up.
+/// sibling (C84 judges the artifact against it), a link of that name
+/// beside the test executable to the file one level up (`place_link`).
 fn acqd_for_tests() -> PathBuf {
     let exe = std::env::current_exe().expect("current exe");
     let deps_dir = exe
@@ -81,22 +81,10 @@ fn acqd_for_tests() -> PathBuf {
         acqd.display()
     );
     let link = deps_dir.join(acquisition_client::locator::ACQD);
-    let target = Path::new("..").join(acquisition_client::locator::ACQD);
-    if std::fs::read_link(&link).ok().as_deref() != Some(target.as_path()) {
-        let _ = std::fs::remove_file(&link);
-        #[cfg(unix)]
-        let placed = std::os::unix::fs::symlink(&target, &link);
-        // Windows: a file symlink needs Developer Mode or elevation (CI's
-        // runner is elevated; `PLATFORMS-SLICE.md`, observations).
-        #[cfg(windows)]
-        let placed = std::os::windows::fs::symlink_file(&target, &link);
-        placed
-            .unwrap_or_else(|e| panic!("placing {} -> {}: {e}", link.display(), target.display()));
-    }
+    place_link(&link, &acqd);
     let sibling = acquisition_client::locator::beside(&exe).unwrap_or_else(|e| panic!("{e}"));
-    assert_eq!(
-        sibling.canonicalize().expect("the sibling resolves"),
-        acqd.canonicalize().expect("the daemon resolves"),
+    assert!(
+        same_file(&sibling, &acqd),
         "the sibling the client sees is not the daemon the harness starts"
     );
     acqd
@@ -446,7 +434,9 @@ async fn c85_the_daemon_identifies_itself_and_stops_across_a_contract_mismatch()
 /// every hello with `hello_reply`, every `daemon_stop` with `stop_reply`,
 /// anything else with an error of a kind this build does not know.
 async fn foreign_daemon(hello_reply: Value, stop_reply: Value) -> tokio::task::JoinHandle<()> {
-    let mut listener = Listener::bind(&session_socket()).expect("bind");
+    let socket = session_socket();
+    let mut listener =
+        Listener::bind(&socket).unwrap_or_else(|e| panic!("bind {}: {e:?}", socket.display()));
     tokio::spawn(async move {
         loop {
             let stream = listener.accept().await.expect("accept");
@@ -479,7 +469,9 @@ async fn foreign_daemon(hello_reply: Value, stop_reply: Value) -> tokio::task::J
 /// shape of a wedged daemon. Every connection is held open until the
 /// task is aborted.
 fn silent_peer() -> tokio::task::JoinHandle<()> {
-    let mut listener = Listener::bind(&session_socket()).expect("bind");
+    let socket = session_socket();
+    let mut listener =
+        Listener::bind(&socket).unwrap_or_else(|e| panic!("bind {}: {e:?}", socket.display()));
     tokio::spawn(async move {
         let mut held = Vec::new();
         loop {
@@ -558,6 +550,7 @@ async fn c86_a_peer_that_never_answers_hello_is_unresponsive_on_every_door_and_n
         .await
         .expect("the peer still listens on the session's socket");
     peer.abort();
+    let _ = peer.await;
     drop(s);
 }
 
@@ -617,6 +610,7 @@ async fn c85_a_client_identifies_and_stops_a_foreign_daemon_across_a_contract_mi
     let stopped = Client::stop_any().await.expect("stop").expect("a daemon");
     assert_eq!(stopped.pid(), 4242);
     peer.abort();
+    let _ = peer.await;
 
     // The same daemon refusing the stop with an error of a future kind:
     // the message reaches the human; nothing counts as a stop.
@@ -631,6 +625,7 @@ async fn c85_a_client_identifies_and_stops_a_foreign_daemon_across_a_contract_mi
         "{err}"
     );
     peer.abort();
+    let _ = peer.await;
     let _ = std::fs::remove_file(session_socket());
 }
 
@@ -751,6 +746,7 @@ async fn c83_a_daemon_on_another_world_is_refused_and_never_replaced() {
     let stopped = Client::stop_any().await.expect("stop").expect("a daemon");
     assert_eq!(stopped.pid(), 4242);
     peer.abort();
+    let _ = peer.await;
     let _ = std::fs::remove_file(session_socket());
 }
 
@@ -1226,4 +1222,45 @@ async fn c83_a_daemon_on_its_way_out_never_unlinks_a_successors_socket() {
     let (_accepted, _) = successor.accept().await.expect("the successor accepts");
     drop(successor);
     let _ = std::fs::remove_file(&socket);
+}
+
+/// Place `link` as the daemon under another name (C82's clause for test
+/// executables): on Unix a symlink one level up, at the same file; on
+/// Windows a hard link — a symlink needs Developer Mode there, and one a
+/// standard user made is an untrusted mount point to its readers (os
+/// error 448) — placed again once a build has replaced the daemon. A
+/// test running beside this one may place it meanwhile.
+#[cfg_attr(unix, allow(unused_variables))]
+fn place_link(link: &Path, acqd: &Path) {
+    #[cfg(unix)]
+    {
+        let target = Path::new("..").join(acquisition_client::locator::ACQD);
+        if std::fs::read_link(link).ok().as_deref() != Some(target.as_path()) {
+            let _ = std::fs::remove_file(link);
+            if let Err(e) = std::os::unix::fs::symlink(&target, link)
+                && std::fs::read_link(link).ok().as_deref() != Some(target.as_path())
+            {
+                panic!("placing {} -> {}: {e}", link.display(), target.display());
+            }
+        }
+    }
+    #[cfg(windows)]
+    if !same_file(link, acqd) {
+        let _ = std::fs::remove_file(link);
+        if let Err(e) = std::fs::hard_link(acqd, link)
+            && !same_file(link, acqd)
+        {
+            panic!("linking {} to {}: {e}", link.display(), acqd.display());
+        }
+    }
+}
+
+/// Whether two paths open one file, by its id (C84).
+fn same_file(a: &Path, b: &Path) -> bool {
+    let id = |p: &Path| {
+        std::fs::File::open(p)
+            .and_then(|f| acquisition_store::world::file_id(&f))
+            .ok()
+    };
+    id(a).is_some() && id(a) == id(b)
 }

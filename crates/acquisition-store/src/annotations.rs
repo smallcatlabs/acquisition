@@ -1048,7 +1048,11 @@ impl Annotations {
             ))
             .into());
         }
-        std::fs::File::open(partial)?.sync_all()?;
+        // Opened for writing: Windows refuses to flush a read-only handle.
+        std::fs::OpenOptions::new()
+            .write(true)
+            .open(partial)?
+            .sync_all()?;
         Ok(())
     }
 }

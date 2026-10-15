@@ -99,7 +99,10 @@ pub type Accepted = tokio::net::UnixStream;
 pub type Accepted = tokio::net::windows::named_pipe::NamedPipeServer;
 
 impl Listener {
-    /// Listen at `path`; on Unix a socket file left there is replaced.
+    /// Listen at `path`. A peer's leftover is not refused: on Unix a
+    /// socket file left there is replaced, and on Windows a name still
+    /// held by a closed peer's last connections is joined — the next
+    /// client reaches this listener, the only one waiting for one.
     pub fn bind(path: &Path) -> std::io::Result<Listener> {
         #[cfg(unix)]
         {
@@ -112,9 +115,7 @@ impl Listener {
         {
             Ok(Listener {
                 name: path.to_path_buf(),
-                next: tokio::net::windows::named_pipe::ServerOptions::new()
-                    .first_pipe_instance(true)
-                    .create(path)?,
+                next: tokio::net::windows::named_pipe::ServerOptions::new().create(path)?,
             })
         }
     }

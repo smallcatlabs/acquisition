@@ -121,3 +121,28 @@ fn c88_a_real_mode_daemon_is_started_from_a_terminal_and_the_mock_from_anywhere(
     let out = acq(base, &["daemon", "stop", "--json"]);
     assert!(out.status.success(), "{}", text(&out));
 }
+
+/// A command that lazily starts a daemon hands it none of its own pipes:
+/// a caller reading the command's output sees end-of-file when the
+/// command exits, not when the daemon does. On Windows the daemon
+/// inherited every inheritable handle of `acq`, the captured stdout among
+/// them, so this read waited out the daemon's idle shutdown (found on the
+/// first Windows run, 2026-10-14; `PLATFORMS-SLICE.md`, step 1).
+#[test]
+fn a_lazily_started_daemon_keeps_no_pipe_of_the_command_that_started_it() {
+    let scratch = scratch("no-pipe");
+    let base = &scratch.0;
+    let started = std::time::Instant::now();
+    let out = acq(base, &["submit", "sleep", "--detach"]);
+    let took = started.elapsed();
+    assert!(out.status.success(), "{}", text(&out));
+    // The harness's idle shutdown is 30 s: a held pipe reads as that.
+    assert!(
+        took < std::time::Duration::from_secs(15),
+        "the output was read to its end only after {took:?}: the daemon held the pipe"
+    );
+    let status = sole_json(&acq(base, &["daemon", "status", "--json"]));
+    assert_eq!(status["running"], true, "{status}");
+    let out = acq(base, &["daemon", "stop", "--json"]);
+    assert!(out.status.success(), "{}", text(&out));
+}

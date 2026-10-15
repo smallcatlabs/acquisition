@@ -399,7 +399,10 @@ fn a_finished_jobs_result_is_answered_from_disk_with_no_daemon() {
     let status = sole_json(&acq(&base, &["daemon", "status", "--json"]));
     assert_eq!(status["running"], false, "{status}");
     let log = status["log"].as_str().expect("the last daemon's log");
-    assert!(log.ends_with("/mock/daemon.log"), "{status}");
+    assert!(
+        std::path::Path::new(log).ends_with("mock/daemon.log"),
+        "{status}"
+    );
     assert!(stdout(&acq(&base, &["daemon", "status"])).contains(&format!("last log: {log}")));
 }
 

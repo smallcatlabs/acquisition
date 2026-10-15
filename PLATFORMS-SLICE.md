@@ -96,8 +96,8 @@ One row per commit of the slice; a row is filled when it lands.
 
 | Step | Commits | What lands |
 | --- | --- | --- |
-| 0 Windows builds | (this commit) | the client's and daemon's transport behind one seam, named pipes on Windows (ruling 1); `BoundSocket` and the stale-socket probe Unix-only; the sibling as `acqd.exe` (`locator::ACQD`, C82); the spawn detached with no console window; the world's Windows arm (`%TEMP%\acq` for the real-mode lock, the holder's pid in `<lock>.pid`, the root without its `\\?\` prefix); `world_windows` (the SID, the user-only DACL, the server check) and `acquisition_client::endpoint` (connect, exists, a test listener); the tests' harnesses on both endpoints; README's gap says built, not run; the Windows park deleted |
-| 1 Windows CI | — | a Windows job beside the Linux one, the gate on the mock harness, the keyring round trip against Credential Manager |
+| 0 Windows builds | `d3689894` | the client's and daemon's transport behind one seam, named pipes on Windows (ruling 1); `BoundSocket` and the stale-socket probe Unix-only; the sibling as `acqd.exe` (`locator::ACQD`, C82); the spawn detached with no console window; the world's Windows arm (`%TEMP%\acq` for the real-mode lock, the holder's pid in `<lock>.pid`, the root without its `\\?\` prefix); `world_windows` (the SID, the user-only DACL, the server check) and `acquisition_client::endpoint` (connect, exists, a test listener); the tests' harnesses on both endpoints; README's gap says built, not run; the Windows park deleted |
+| 1 Windows CI | (this commit); the job next | the suite green on the VM (799 tests, Windows 11 ARM64): `acq` names itself `acq` in usage, the annotations export fsyncs through a write handle, a file's id is its volume serial and index (`world::file_id`, C84), every reported path is spelled plain (`world::canonical`), a spawned daemon inherits none of its caller's std handles; Unix mechanics gated or spelled per platform in the tests, the harnesses' sibling a hard link on Windows; then a Windows job beside the Linux one, the gate on the mock harness, the keyring round trip against Credential Manager |
 | 2 credential store | — | the choice decided and written at `auth.rs`; the park deleted |
 | 3 cargo-deny | (this commit) | licences (question 4: the ten, MPL-2.0 for `option-ext` and CDLA-Permissive-2.0 for `webpki-roots` by exception), bans (wildcards; the workspace's crates `publish = false`, so their path dependencies pass) and sources (crates.io only) in `deny.toml`, the Linux workflow's step running all four; rustls 0.23.46 first (RUSTSEC-2026-0346, -0347, found by the same run); the park deleted |
 | 4 release workflow | — | per-target archives of `acq`, `acqd`, `acq-mcp`, the licences and the notices; macOS binaries Developer ID–signed with the hardened runtime and a timestamp, not notarized; C82's smoke per archive (extracted, `acq version --json` names the sibling, a symlinked `acq` resolves the same `acqd`, a mock login → status → stop); the packaging park deleted |
@@ -128,27 +128,27 @@ Data for the commit that touches each; none is a ruling.
 
 - **The Windows gap, measured 2026-10-14 at `4f49e285`** with
   `cargo check --target x86_64-pc-windows-msvc`, the C compiler and
-  archiver stubbed (a check never links; this Mac has no Windows SDK,
-  and the VM showed every C dependency compiles there): the protocol,
-  store, plan and search crates checked; the client failed on the Unix
-  socket types, the daemon on them and `BoundSocket`'s `dev`/`ino`, and
-  the CLI and MCP were never reached. Step 0 closes it at the type level:
-  `cargo clippy --workspace --all-targets --all-features --target
-  x86_64-pc-windows-msvc -- -D warnings` is clean the same way. Nothing
-  has run on Windows.
-- **What step 0 leaves for a Windows machine** (CI's job, then the VM):
-  the suite itself — tests that pin Unix mechanics were gated only where
-  the type check forced it (the successor-socket exit test), so the
-  first Windows run will name the rest (the socket path cap in
-  `cli/tests/world.rs` is one); the study's checks — the same-user
-  token check, a second user's squat refused and its connection
-  denied, a daemon and a client at different elevations; the lock
-  holder's pid read from `<lock>.pid`; `canonicalize` on `subst` and
-  mapped drives; whether a host that runs its children in a job object
-  (an MCP host, a terminal) kills a detached `acqd` with it.
-- **Symlinks in the test harnesses** need Developer Mode or elevation on
-  Windows: CI's runner is elevated, the VM's `acqtest` is a standard
-  user.
+  archiver stubbed: the client and daemon failed on the Unix socket
+  types; step 0 closed it at the type level. The first run on the VM
+  (2026-10-14, `d3689894`) failed 53 of 800 tests; step 1's commit
+  holds the fixes, and the suite passes there.
+- **The study's checks still open on Windows**: a second user's squat
+  refused and its connection denied, a daemon and a client at different
+  elevations, `canonicalize` on `subst` and mapped drives, and whether a
+  host that runs its children in a job object (an MCP host, a terminal)
+  kills a detached `acqd` with it. The same-user check passes on every
+  connection the suite makes, and the holder's pid is read from
+  `<lock>.pid` by the lock tests.
+- **Symlinks on Windows**: a standard user needs Developer Mode to make
+  one, and one made so is an untrusted mount point to its readers
+  (`canonicalize` fails, os error 448), so the test harnesses place a
+  hard link instead. Step 4's "symlinked `acq`" smoke is a macOS and
+  Linux check; a user who symlinks `acq` on Windows meets the same 448.
+- **Printed commands are POSIX-quoted** (single quotes, `'\''` for an
+  apostrophe): the tests run them through `sh`, Git for Windows' on the
+  VM (`%LOCALAPPDATA%\Programs\Git\bin`) and on CI's runner. In
+  PowerShell `'\''` does not read back; which shell a Windows agent runs
+  printed commands in decides whether that matters.
 - **The protected keychain is out of reach** (Apple DTS, read
   2026-10-14): it needs `keychain-access-groups`, a restricted
   entitlement only a provisioning profile authorizes, which a bare
@@ -173,8 +173,9 @@ Data for the commit that touches each; none is a ruling.
   1.99.0 for both MSVC targets. One guest on the GGG account at a
   time, the Mac's daemon stopped (per-account counters, one public
   address). A snapshot taken after a real `acq auth` is never reverted:
-  it brings back a rotated refresh token. Builds may be driven over
-  ssh; keyring checks and live rows run at the guest's desktop, since
+  it brings back a rotated refresh token. Builds are driven over ssh
+  (key-only, the NAT subnet only, `acq-vm-setup/ssh-windows.ps1`);
+  keyring checks and live rows run at the guest's desktop, since
   key-auth ssh reaches neither Credential Manager nor an unlocked
   keyring, and C88 refuses a real daemon without a terminal.
 - **Tabled with the Microsoft Store** (asked 2026-10-14, verbatim: "how

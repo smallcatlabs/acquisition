@@ -103,8 +103,7 @@ fn c84_daemon_status_reports_the_identity_and_the_sibling_it_is_judged_against()
     );
     assert_eq!(
         status["world"],
-        base.join("store")
-            .canonicalize()
+        acquisition_store::world::canonical(&base.join("store"))
             .unwrap()
             .display()
             .to_string(),
@@ -127,7 +126,7 @@ fn c84_daemon_status_reports_the_identity_and_the_sibling_it_is_judged_against()
     assert!(
         status["log"].as_str().is_some_and(|log| log
             .starts_with(&base.join("logs").display().to_string())
-            && log.ends_with("/mock/daemon.log")),
+            && Path::new(log).ends_with("mock/daemon.log")),
         "{status}"
     );
     let pid = status["pid"].as_u64().unwrap();

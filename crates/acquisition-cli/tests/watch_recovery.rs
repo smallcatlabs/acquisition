@@ -12,6 +12,11 @@
 //! a re-read of the job rather than the hint. The watch has no other
 //! path (`main.rs`, `watch_jobs`), and a read that fails restarts the
 //! sequence; that stays a reading of the code, not a pin.
+//!
+//! Unix only: Windows has no stop signal. The watch's code is one on
+//! every platform, and the lag rule itself is pinned through the client
+//! on both (`acquisition-client/tests/contract.rs`, C85).
+#![cfg(unix)]
 
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};

@@ -5,7 +5,7 @@
 //! shared-contract revision ([`crate::CONTRACT_REVISION`]) answers "can I
 //! use it"; the artifact answers "is it the one I would start". At
 //! startup the daemon resolves its own executable, records the file's
-//! identity ([`FileIdentity`]: device, inode, length, modification time)
+//! identity ([`FileIdentity`]: the file id, length, modification time)
 //! and hashes it once (SHA-256, tens of milliseconds, once per lifetime),
 //! and reports all of it in `hello`. A client reads the identity of the
 //! sibling `acqd` it would spawn (C82) — one open, its metadata read,
@@ -23,10 +23,10 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 
 /// A file as the filesystem identifies it: enough to tell "the same
-/// file" from "another file at the same path" without reading it. On
-/// Unix `dev` and `ino` name the inode; elsewhere they are 0 and the
-/// length and modification time carry the comparison (the Windows arm is
-/// parked with the rest of the platform work).
+/// file" from "another file at the same path" without reading it. `dev`
+/// and `ino` are the file's id, read from its open handle by whoever
+/// identifies it (`acquisition_store::world::file_id`): the device and
+/// inode on Unix, the volume serial number and file index on Windows.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FileIdentity {
     /// The canonical path, as resolved by whoever opened it.
@@ -40,33 +40,16 @@ pub struct FileIdentity {
 }
 
 impl FileIdentity {
-    /// The identity of the file at `path`, canonicalised first: a
-    /// convenience for a look that reads nothing else. A side that also
-    /// hashes the file takes both from one open handle
-    /// ([`FileIdentity::of_open`]), so the identity and the bytes are one
-    /// snapshot.
-    pub fn of(path: &Path) -> std::io::Result<FileIdentity> {
-        let canonical = path.canonicalize()?;
-        let meta = std::fs::metadata(&canonical)?;
-        Ok(FileIdentity::of_open(&canonical, &meta))
-    }
-
-    /// The identity of an open file, from its handle's metadata; `path`
-    /// is the canonical path it was opened by. Whoever hashes the same
-    /// handle afterwards has hashed exactly this file.
-    pub fn of_open(path: &Path, meta: &std::fs::Metadata) -> FileIdentity {
+    /// The identity of an open file, from its handle's metadata and its
+    /// id (`dev`, `ino`); `path` is the canonical path it was opened by.
+    /// Whoever hashes the same handle afterwards has hashed exactly this
+    /// file.
+    pub fn of_open(path: &Path, meta: &std::fs::Metadata, (dev, ino): (u64, u64)) -> FileIdentity {
         let mtime_ns = meta
             .modified()
             .ok()
             .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
             .map_or(0, |d| u64::try_from(d.as_nanos()).unwrap_or(u64::MAX));
-        #[cfg(unix)]
-        let (dev, ino) = {
-            use std::os::unix::fs::MetadataExt;
-            (meta.dev(), meta.ino())
-        };
-        #[cfg(not(unix))]
-        let (dev, ino) = (0, 0);
         FileIdentity {
             path: path.to_string_lossy().into_owned(),
             len: meta.len(),
@@ -76,7 +59,7 @@ impl FileIdentity {
         }
     }
 
-    /// The same inode with the same length and modification time: the
+    /// The same file id with the same length and modification time: the
     /// same file, without reading it.
     pub fn same_file_as(&self, other: &FileIdentity) -> bool {
         self.dev == other.dev

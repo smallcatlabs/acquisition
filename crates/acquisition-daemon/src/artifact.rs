@@ -47,8 +47,7 @@ pub fn sha256_of_open(file: &mut std::fs::File) -> std::io::Result<String> {
 /// same handle — one snapshot. Once per lifetime, at startup.
 pub fn of_current_exe() -> Result<Artifact> {
     let exe = std::env::current_exe().context("resolving the daemon's own executable")?;
-    let canonical = exe
-        .canonicalize()
+    let canonical = acquisition_store::world::canonical(&exe)
         .with_context(|| format!("resolving the daemon's executable {}", exe.display()))?;
     let mut handle = std::fs::File::open(&canonical)
         .with_context(|| format!("opening the daemon's executable {}", canonical.display()))?;
@@ -58,7 +57,13 @@ pub fn of_current_exe() -> Result<Artifact> {
             canonical.display()
         )
     })?;
-    let file = FileIdentity::of_open(&canonical, &meta);
+    let id = acquisition_store::world::file_id(&handle).with_context(|| {
+        format!(
+            "identifying the daemon's executable {}",
+            canonical.display()
+        )
+    })?;
+    let file = FileIdentity::of_open(&canonical, &meta, id);
     let sha256 = sha256_of_open(&mut handle)
         .with_context(|| format!("hashing the daemon's executable {}", file.path))?;
     Ok(Artifact { file, sha256 })
@@ -74,12 +79,12 @@ mod tests {
     #[test]
     fn c84_the_artifact_is_this_executable_identified_and_hashed() {
         let artifact = of_current_exe().unwrap();
-        let exe = std::env::current_exe().unwrap().canonicalize().unwrap();
+        let exe = acquisition_store::world::canonical(&std::env::current_exe().unwrap()).unwrap();
         assert_eq!(Path::new(&artifact.file.path), exe.as_path());
         assert_eq!(artifact.sha256.len(), 64);
         assert!(artifact.sha256.bytes().all(|b| b.is_ascii_hexdigit()));
         assert_eq!(artifact.sha256, sha256_of(&exe).unwrap());
-        assert!(artifact.file.same_file_as(&FileIdentity::of(&exe).unwrap()));
+        assert!(artifact.file.same_file_as(&of_current_exe().unwrap().file));
         assert!(artifact.file.len > 0);
         // The digest is SHA-256, checked against the standard's own
         // vector and not against this module's function twice.

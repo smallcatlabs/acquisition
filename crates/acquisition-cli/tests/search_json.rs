@@ -1158,11 +1158,15 @@ fn a_query_with_an_apostrophe_is_read_from_stdin_and_routed_shell_quoted() {
         .unwrap();
     let a = sole_json(&child.wait_with_output().unwrap());
     assert_eq!(a["rows"][0]["id"], "kaom");
-    let shown = text(&acq(
-        &base,
-        &["search", "--query-file", "/dev/stdin", "--routes"],
-    ));
-    assert!(shown.contains("total   5 matches"), "{shown}");
+    // `/dev/stdin` names the empty stdin on Unix; Windows has no such path.
+    #[cfg(unix)]
+    {
+        let shown = text(&acq(
+            &base,
+            &["search", "--query-file", "/dev/stdin", "--routes"],
+        ));
+        assert!(shown.contains("total   5 matches"), "{shown}");
+    }
     let shown = {
         let mut child = command(&base, &["search", "--query-file", "-", "--routes"])
             .stdin(Stdio::piped())

@@ -107,7 +107,7 @@ pub fn acqd() -> Result<PathBuf, LocateError> {
         looked_for: PathBuf::new(),
         io: Some(e.to_string()),
     })?;
-    let canonical = exe.canonicalize().map_err(|e| LocateError {
+    let canonical = acquisition_store::world::canonical(&exe).map_err(|e| LocateError {
         exe: exe.clone(),
         looked_for: PathBuf::new(),
         io: Some(e.to_string()),

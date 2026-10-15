@@ -23,6 +23,10 @@
 //!   is refused before a byte is written. The pipe's owner is not used:
 //!   an elevated server's objects are owned by the Administrators group.
 //!
+//! Beside them, a file's id for C84's artifact identity ([`file_id`]),
+//! and the spawn's guard on this process's std handles
+//! ([`disinherit_std_handles`]): the same FFI, kept in one module.
+//!
 //! Every call here is FFI over `windows-sys`; each unsafe block names the
 //! handle or buffer whose lifetime it relies on.
 
@@ -30,13 +34,18 @@ use std::ffi::c_void;
 use std::io;
 use std::os::windows::io::RawHandle;
 
-use windows_sys::Win32::Foundation::{CloseHandle, HANDLE, LocalFree};
+use windows_sys::Win32::Foundation::{
+    CloseHandle, HANDLE, HANDLE_FLAG_INHERIT, LocalFree, SetHandleInformation,
+};
 use windows_sys::Win32::Security::Authorization::{
     ConvertSidToStringSidW, ConvertStringSecurityDescriptorToSecurityDescriptorW, SDDL_REVISION_1,
 };
 use windows_sys::Win32::Security::{
     EqualSid, GetTokenInformation, PSECURITY_DESCRIPTOR, PSID, SECURITY_ATTRIBUTES, TOKEN_QUERY,
     TOKEN_USER, TokenUser,
+};
+use windows_sys::Win32::Storage::FileSystem::{
+    BY_HANDLE_FILE_INFORMATION, GetFileInformationByHandle,
 };
 use windows_sys::Win32::System::Pipes::GetNamedPipeServerProcessId;
 use windows_sys::Win32::System::Threading::{
@@ -180,4 +189,44 @@ pub fn server_runs_as_current_user(pipe: RawHandle) -> io::Result<bool> {
     let me = TokenUserBuf::current()?;
     // SAFETY: both SIDs live in their buffers for the call.
     Ok(unsafe { EqualSid(server.sid(), me.sid()) } != 0)
+}
+
+/// The id of an open file: its volume serial number and its file index,
+/// from the handle (`crate::world::file_id`, C84).
+pub fn file_id(file: &std::fs::File) -> io::Result<(u64, u64)> {
+    use std::os::windows::io::AsRawHandle;
+    // SAFETY: an all-zero BY_HANDLE_FILE_INFORMATION is a valid value of
+    // a plain C struct, overwritten by the call.
+    let mut info: BY_HANDLE_FILE_INFORMATION = unsafe { std::mem::zeroed() };
+    // SAFETY: `file` is open for the call and `info` is ours to write.
+    if unsafe { GetFileInformationByHandle(file.as_raw_handle() as HANDLE, &mut info) } == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok((
+        u64::from(info.dwVolumeSerialNumber),
+        (u64::from(info.nFileIndexHigh) << 32) | u64::from(info.nFileIndexLow),
+    ))
+}
+
+/// Make this process's stdin, stdout and stderr non-inheritable, before
+/// it spawns a daemon that must outlive it. `CreateProcess` hands a child
+/// every inheritable handle, not only its stdio: a daemon that inherited
+/// the pipe a caller reads this process's output from would hold it open
+/// until the daemon exits, and the caller — a script, a test, an MCP
+/// host — would wait that long for end-of-file. A child spawned later
+/// with inherited stdio still gets it: `std` duplicates the handle it
+/// passes. A handle that is not there (no console) is skipped.
+pub fn disinherit_std_handles() {
+    use std::os::windows::io::AsRawHandle;
+    for handle in [
+        std::io::stdin().as_raw_handle(),
+        std::io::stdout().as_raw_handle(),
+        std::io::stderr().as_raw_handle(),
+    ] {
+        if !handle.is_null() {
+            // SAFETY: a std handle of this process, or a stale value the
+            // call refuses; only the inherit flag is changed.
+            unsafe { SetHandleInformation(handle as HANDLE, HANDLE_FLAG_INHERIT, 0) };
+        }
+    }
 }

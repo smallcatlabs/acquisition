@@ -32,7 +32,7 @@ pub fn spawn(
 /// the test runs, naming the build step; the test owns the pid. The
 /// tests also drive the client in-process, which judges the daemon's
 /// artifact against the `acqd` beside *this* executable (C84) — a test
-/// executable in `deps/` has none — so a symlink of that name is placed
+/// executable in `deps/` has none — so a link of that name (`place_link`) is placed
 /// beside it, pointing one level up at the same file: the test
 /// executable names the daemon its build wrote on both paths (C82's
 /// clause for test executables).
@@ -44,21 +44,9 @@ pub fn spawn_daemon(base: &Path, extra_env: &[(&str, &str)]) -> Daemon {
         .parent()
         .expect("a parent")
         .join(acquisition_client::locator::ACQD);
-    let target = Path::new("..").join(acquisition_client::locator::ACQD);
-    if std::fs::read_link(&link).ok().as_deref() != Some(target.as_path()) {
-        let _ = std::fs::remove_file(&link);
-        #[cfg(unix)]
-        let placed = std::os::unix::fs::symlink(&target, &link);
-        // Windows: a file symlink needs Developer Mode or elevation (CI's
-        // runner is elevated; `PLATFORMS-SLICE.md`, observations).
-        #[cfg(windows)]
-        let placed = std::os::windows::fs::symlink_file(&target, &link);
-        placed
-            .unwrap_or_else(|e| panic!("placing {} -> {}: {e}", link.display(), target.display()));
-    }
-    assert_eq!(
-        link.canonicalize().expect("the sibling resolves"),
-        acqd.canonicalize().expect("the daemon resolves"),
+    place_link(&link, &acqd);
+    assert!(
+        same_file(&link, &acqd),
         "the sibling the in-process client sees is not the daemon acq-mcp would spawn"
     );
     let mut cmd = Command::new(&acqd);
@@ -378,4 +366,45 @@ impl Mcp {
             Ok(v) => panic!("{tool} unexpectedly succeeded: {v}"),
         }
     }
+}
+
+/// Place `link` as the daemon under another name (C82's clause for test
+/// executables): on Unix a symlink one level up, at the same file; on
+/// Windows a hard link — a symlink needs Developer Mode there, and one a
+/// standard user made is an untrusted mount point to its readers (os
+/// error 448) — placed again once a build has replaced the daemon. A
+/// test running beside this one may place it meanwhile.
+#[cfg_attr(unix, allow(unused_variables))]
+fn place_link(link: &Path, acqd: &Path) {
+    #[cfg(unix)]
+    {
+        let target = Path::new("..").join(acquisition_client::locator::ACQD);
+        if std::fs::read_link(link).ok().as_deref() != Some(target.as_path()) {
+            let _ = std::fs::remove_file(link);
+            if let Err(e) = std::os::unix::fs::symlink(&target, link)
+                && std::fs::read_link(link).ok().as_deref() != Some(target.as_path())
+            {
+                panic!("placing {} -> {}: {e}", link.display(), target.display());
+            }
+        }
+    }
+    #[cfg(windows)]
+    if !same_file(link, acqd) {
+        let _ = std::fs::remove_file(link);
+        if let Err(e) = std::fs::hard_link(acqd, link)
+            && !same_file(link, acqd)
+        {
+            panic!("linking {} to {}: {e}", link.display(), acqd.display());
+        }
+    }
+}
+
+/// Whether two paths open one file, by its id (C84).
+fn same_file(a: &Path, b: &Path) -> bool {
+    let id = |p: &Path| {
+        std::fs::File::open(p)
+            .and_then(|f| acquisition_store::world::file_id(&f))
+            .ok()
+    };
+    id(a).is_some() && id(a) == id(b)
 }

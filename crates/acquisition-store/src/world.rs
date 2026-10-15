@@ -144,6 +144,9 @@
 //! - **The root** is canonicalised without the verbatim `\\?\` prefix
 //!   where a plain spelling exists, so the name a user types is the name
 //!   `hello` carries and the id hashes.
+//! - **Every reported path** is spelled the same way ([`canonical`]), and
+//!   a file's id ([`file_id`]) is its volume serial number and file
+//!   index, read from the open handle.
 
 use std::fs::{File, OpenOptions, TryLockError};
 use std::io::{Read as _, Write as _};
@@ -484,6 +487,31 @@ fn without_verbatim_prefix(path: PathBuf) -> PathBuf {
         }
     }
     path
+}
+
+/// `path` canonicalised, in the form a user types
+/// (`without_verbatim_prefix`): the spelling of every path a report
+/// prints — the world's root, the daemon's executable, the sibling it is
+/// judged against.
+pub fn canonical(path: &Path) -> std::io::Result<PathBuf> {
+    Ok(without_verbatim_prefix(path.canonicalize()?))
+}
+
+/// The id of an open file, which `FileIdentity` (the protocol crate)
+/// carries as `dev` and `ino` (C84): the device and inode on Unix, the
+/// volume serial number and file index on Windows — so a copy is another
+/// file on both, however its length and modification time compare.
+pub fn file_id(file: &File) -> std::io::Result<(u64, u64)> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        let meta = file.metadata()?;
+        Ok((meta.dev(), meta.ino()))
+    }
+    #[cfg(windows)]
+    {
+        crate::world_windows::file_id(file)
+    }
 }
 
 /// This application's private per-user runtime directory
@@ -830,7 +858,9 @@ mod tests {
         let held = Lock::acquire(&path).unwrap();
         assert_eq!(held.path(), path.as_path());
         assert_eq!(
-            std::fs::read_to_string(&path).unwrap().trim(),
+            std::fs::read_to_string(Lock::pid_path(&path))
+                .unwrap()
+                .trim(),
             std::process::id().to_string(),
             "the holder wrote its pid"
         );
@@ -939,19 +969,36 @@ mod tests {
         // when that derivation accepts it, and a refusal of the same
         // kind when it does not (a deep or non-UTF-8 runtime directory
         // is a valid environment; review 2026-09-11).
-        let runtime = runtime_dir_path();
-        match world.socket_path_under(&runtime) {
-            Ok(expected) => {
-                app_runtime_dir().unwrap();
-                assert_eq!(world.socket_path().unwrap(), expected);
-                assert_eq!(dotted.socket_path().unwrap(), expected);
+        #[cfg(unix)]
+        {
+            let runtime = runtime_dir_path();
+            match world.socket_path_under(&runtime) {
+                Ok(expected) => {
+                    app_runtime_dir().unwrap();
+                    assert_eq!(world.socket_path().unwrap(), expected);
+                    assert_eq!(dotted.socket_path().unwrap(), expected);
+                }
+                Err(e) => {
+                    assert_eq!(e.kind(), std::io::ErrorKind::InvalidInput, "{e}");
+                    let real = world.socket_path().unwrap_err();
+                    assert_eq!(real.kind(), std::io::ErrorKind::InvalidInput, "{real}");
+                    assert_eq!(real.to_string(), e.to_string());
+                }
             }
-            Err(e) => {
-                assert_eq!(e.kind(), std::io::ErrorKind::InvalidInput, "{e}");
-                let real = world.socket_path().unwrap_err();
-                assert_eq!(real.kind(), std::io::ErrorKind::InvalidInput, "{real}");
-                assert_eq!(real.to_string(), e.to_string());
-            }
+        }
+        // Windows (C112): the real door is the pipe of this user and this
+        // world, the same for two spellings of one root, another for
+        // another root.
+        #[cfg(windows)]
+        {
+            let sid = crate::world_windows::current_user_sid().unwrap();
+            let pipe = world.socket_path().unwrap();
+            assert_eq!(
+                pipe,
+                PathBuf::from(format!(r"\\.\pipe\acq-{sid}-{}", world.id()))
+            );
+            assert_eq!(dotted.socket_path().unwrap(), pipe);
+            assert_ne!(other.socket_path().unwrap(), pipe);
         }
         let deep = PathBuf::from("/").join("x".repeat(SOCKET_PATH_MAX));
         let err = world.socket_path_under(&deep).unwrap_err();

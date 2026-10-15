@@ -985,12 +985,17 @@ mod tests {
 
     #[test]
     fn unopenable_journal_is_reported_not_silent() {
+        // Under a regular file, which no platform opens as a directory (a
+        // missing root directory is one a Windows user may create).
+        let file = std::env::temp_dir().join(format!("acq-not-a-dir-{}", std::process::id()));
+        std::fs::write(&file, b"").unwrap();
         let rails = Rails::with_config(RailsConfig {
-            journal_path: Some(PathBuf::from("/nonexistent-dir/acq.jsonl")),
+            journal_path: Some(file.join("acq.jsonl")),
             ..RailsConfig::default()
         });
         assert!(rails.status().journal.unwrap().starts_with("NOT WRITTEN"));
         assert_eq!(rails.startup_warnings().len(), 1);
+        let _ = std::fs::remove_file(&file);
     }
 
     #[test]

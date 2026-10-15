@@ -214,6 +214,9 @@ pub(crate) async fn daemon_log_path(client: &mut Client) -> Option<String> {
 #[derive(Parser)]
 #[command(
     name = "acq",
+    // Usage lines name `acq`, never the file it was run as (`acq.exe`
+    // on Windows): the printed commands and the reference are one text.
+    bin_name = "acq",
     // `<pkg version> (contract <revision>)`: the contract half of the
     // handshake identity (C10, C84); `acq version --json` is the
     // structured form, with the sibling `acqd` beside it.
