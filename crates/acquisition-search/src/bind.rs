@@ -254,6 +254,9 @@ pub(crate) enum Thing {
     Character,
     Container,
     Id,
+    /// A property the game displays, read by its row of the property
+    /// table (`properties.rs`, C114).
+    Property(&'static crate::properties::Field),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -446,8 +449,19 @@ pub(crate) const FIELDS: &[FieldDef] = &[
     },
 ];
 
+/// Every field: the language's own, then the property table's
+/// (`properties.rs`, C114), each a number defined by its row.
+pub(crate) fn fields() -> impl Iterator<Item = &'static FieldDef> {
+    FIELDS.iter().chain(crate::properties::field_defs())
+}
+
 fn field(name: &str) -> Option<&'static FieldDef> {
-    FIELDS.iter().find(|f| f.name.eq_ignore_ascii_case(name))
+    fields().find(|f| f.name.eq_ignore_ascii_case(name))
+}
+
+/// Whether the language knows a field by this name, in any case.
+pub(crate) fn is_field(name: &str) -> bool {
+    field(name).is_some()
 }
 
 /// A closed value by any-case name, in the list's own spelling.
@@ -528,10 +542,7 @@ const LISTED_INLINE: usize = 12;
 
 /// A field's name, by the thing it names.
 pub(crate) fn field_name(thing: Thing) -> &'static str {
-    FIELDS
-        .iter()
-        .find(|f| f.thing == thing)
-        .map_or("", |f| f.name)
+    fields().find(|f| f.thing == thing).map_or("", |f| f.name)
 }
 
 // ---- the bound query -----------------------------------------------------------------
@@ -770,8 +781,7 @@ pub(crate) fn bind_key(text: &str) -> Result<Key, LanguageError> {
         return Ok(Key::Line(None));
     }
     let known = || -> Vec<&'static str> {
-        FIELDS
-            .iter()
+        fields()
             .filter(|f| !matches!(f.thing, Thing::Text | Thing::Id | Thing::Price))
             .map(|f| f.name)
             .chain(["line"])
@@ -1139,7 +1149,7 @@ fn known_field(
                 .collect(),
         ));
     }
-    let names: Vec<&'static str> = FIELDS.iter().map(|f| f.name).collect();
+    let names: Vec<&'static str> = fields().map(|f| f.name).collect();
     // a computed value is a name the language knows too (F10): near it,
     // offered as `pseudo.<name>`, and never listed among the fields
     let computed: Vec<String> = crate::pseudo::names()

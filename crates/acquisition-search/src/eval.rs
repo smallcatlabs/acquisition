@@ -242,7 +242,8 @@ fn body_key(thing: Thing) -> Option<&'static str> {
         | Thing::TabType
         | Thing::Character
         | Thing::Container
-        | Thing::Id => {
+        | Thing::Id
+        | Thing::Property(_) => {
             return None;
         }
     })
@@ -278,8 +279,19 @@ fn counted(held: &Held, thing: Thing) -> Counted {
     }
 }
 
-fn unread_for(held: &Held, thing: Thing) -> Vec<&Unread> {
-    match (thing, body_key(thing)) {
+fn unread_for(held: &Held, thing: Thing) -> Vec<Cow<'_, Unread>> {
+    // a property field's reasons are its reader's, made where it reads
+    // (`properties.rs`): one of them may be its own, the property shown
+    // as other than its row reads
+    if let Thing::Property(field) = thing {
+        return match crate::properties::read(field, &held.item) {
+            crate::properties::FieldRead::Unread(unread) => unread,
+            crate::properties::FieldRead::Value { .. } | crate::properties::FieldRead::Lacked => {
+                Vec::new()
+            }
+        };
+    }
+    let unread: Vec<&Unread> = match (thing, body_key(thing)) {
         // a phrase may sit in any displayed string: what holds one leaves
         // it open, and a flag or a stack size holds none
         (Thing::Text, _) => held
@@ -378,7 +390,8 @@ fn unread_for(held: &Held, thing: Thing) -> Vec<&Unread> {
             })
             .collect(),
         (_, None) => Vec::new(),
-    }
+    };
+    unread.into_iter().map(Cow::Borrowed).collect()
 }
 
 /// The text values a thing has on this item: none when it lacks it, two
@@ -428,7 +441,8 @@ pub(crate) fn texts(held: &Held, thing: Thing) -> Vec<&str> {
         | Thing::Price
         | Thing::PriceAmount
         | Thing::PriceLot
-        | Thing::Id => Vec::new(),
+        | Thing::Id
+        | Thing::Property(_) => Vec::new(),
     }
 }
 
@@ -444,6 +458,9 @@ pub(crate) fn number(held: &Held, thing: Thing) -> Option<f64> {
         }
         Thing::PriceAmount => held.price.price().and_then(|p| p.amount),
         Thing::PriceLot => held.price.price().and_then(|p| p.lot).map(|n| n as f64),
+        Thing::Property(field) => crate::properties::read(field, &held.item)
+            .value()
+            .map(Exact::as_f64),
         _ => None,
     }
 }
@@ -1206,6 +1223,33 @@ fn everything(term: &Term, held: &Held) -> Vec<Evidence> {
                 }))
                 .collect()
         }
+        // a property field shows its value, then what it read: the
+        // properties, and the enchant a q20 field found
+        Atom::Number {
+            thing: Thing::Property(field),
+            ..
+        } => match crate::properties::read(field, &held.item) {
+            crate::properties::FieldRead::Value {
+                value,
+                shown,
+                lines,
+            } => std::iter::once(Evidence::Value {
+                name: match &term.node {
+                    crate::tree::Node::Test { field, .. } => field.clone(),
+                    other => crate::print::print(other),
+                },
+                value: number_json(value.as_f64()),
+            })
+            .chain(shown.into_iter().map(|p| Evidence::Shown {
+                part: p.array.clone(),
+                text: p.text.clone(),
+            }))
+            .chain(lines.into_iter().map(line_evidence))
+            .collect(),
+            crate::properties::FieldRead::Lacked | crate::properties::FieldRead::Unread(_) => {
+                Vec::new()
+            }
+        },
         Atom::Number { thing, .. } => number(held, *thing)
             .map(|n| Evidence::Value {
                 name: match &term.node {
@@ -1335,7 +1379,7 @@ fn unread_of<'a>(atom: &Atom, held: &'a Held) -> Vec<Cow<'a, Unread>> {
         | Atom::Closed { thing, .. }
         | Atom::Number { thing, .. }
         | Atom::Has(thing)
-        | Atom::Undecided(BProbe::Field(thing)) => borrowed(unread_for(held, *thing)),
+        | Atom::Undecided(BProbe::Field(thing)) => unread_for(held, *thing),
         Atom::Is(flag) => borrowed(unread_flag(held, flag)),
         Atom::Links(linked) => borrowed(unread_links(held, linked)),
         Atom::Lines(group) => borrowed(unread_of_sum(held, group, None)),
@@ -1345,7 +1389,7 @@ fn unread_of<'a>(atom: &Atom, held: &'a Held) -> Vec<Cow<'a, Unread>> {
             SortKey::Projection { group, slot } | SortKey::Sum { group, slot } => {
                 borrowed(unread_of_sum(held, group, Some(slot.as_str())))
             }
-            SortKey::Number(thing) => borrowed(unread_for(held, *thing)),
+            SortKey::Number(thing) => unread_for(held, *thing),
             SortKey::Pseudo { named, .. } => pseudo::unread_of(*named, held),
         },
         Atom::Id(_) | Atom::Const(_) | Atom::Undecided(BProbe::Term(_)) => Vec::new(),

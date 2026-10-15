@@ -402,7 +402,13 @@ fn audit_the_vocabulary_lists_the_computed_values_a_narrowing_matches() {
         .filter(|b| b["bucket"] == "computed")
         .map(|b| (b["value"].as_str().unwrap(), b["count"].as_u64().unwrap()))
         .collect();
-    assert_eq!(computed, [("pseudo.dps", 2), ("pseudo.pdps", 1)]);
+    // `pseudo.edps` among them since step 3 of the trade brief, the sword
+    // and the wand displaying `Elemental Damage` and attacks per second;
+    // ranked by the count, as every row of the vocabulary is
+    assert_eq!(
+        computed,
+        [("pseudo.dps", 2), ("pseudo.edps", 2), ("pseudo.pdps", 1)]
+    );
     // `line` alone lists none (T5, the owner's ruling 2026-09-24, after
     // the audit's second round had it list every one): the templates are
     // cut by the limit as before, and the computed count is zero
@@ -645,7 +651,7 @@ fn c92_c95_a_computed_value_sorts_and_sums() {
 fn c97_describe_lists_every_computed_value_with_its_definition() {
     let whole = serde_json::to_value(describe(&[]).unwrap()).unwrap();
     let computed = whole["computed"].as_array().unwrap();
-    assert_eq!(computed.len(), 89);
+    assert_eq!(computed.len(), 90);
     assert_eq!(computed[0]["name"], "pseudo.total_cold_res");
     // the ranged family where the table's changes name it, before the
     // totals the later rounds added (step 9d-C)
@@ -662,9 +668,12 @@ fn c97_describe_lists_every_computed_value_with_its_definition() {
     assert_eq!(computed[85]["name"], "pseudo.total_all_attributes");
     assert_eq!(computed[86]["name"], "pseudo.dps");
     assert_eq!(computed[87]["kind"], "derived");
-    // the base defence percentile, the last derived field (step 9d-A)
-    assert_eq!(computed[88]["name"], "pseudo.defence_pct");
-    assert_eq!(computed[88]["kind"], "derived");
+    // elemental damage per second beside the other two (step 3 of the
+    // trade brief), then the base defence percentile, the last derived
+    // field (step 9d-A)
+    assert_eq!(computed[88]["name"], "pseudo.edps");
+    assert_eq!(computed[89]["name"], "pseudo.defence_pct");
+    assert_eq!(computed[89]["kind"], "derived");
     assert!(
         whole["totals"].as_str().unwrap().starts_with(
             "totals v6, 82 totals and 4 readings of them over pc, xbox, sony: the trade site’s pseudo stats"
@@ -690,7 +699,7 @@ fn c97_describe_lists_every_computed_value_with_its_definition() {
         ])
     );
     let block = serde_json::to_value(describe(&["pseudo".to_string()]).unwrap()).unwrap();
-    assert_eq!(block["computed"].as_array().unwrap().len(), 89);
+    assert_eq!(block["computed"].as_array().unwrap().len(), 90);
     // the percentile was refused by name until step 9d-A built it
     // (`tests/percentile.rs` holds its definition)
     let one = serde_json::to_value(describe(&["defence_pct".to_string()]).unwrap()).unwrap();

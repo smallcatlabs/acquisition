@@ -17,9 +17,7 @@
 
 use serde::Serialize;
 
-use crate::bind::{
-    self, FIELDS, ITEM_FLAGS, Kind, LINE_FLAGS, NOT_BUILT, NotBuilt, SOURCES, Thing,
-};
+use crate::bind::{self, ITEM_FLAGS, Kind, LINE_FLAGS, NOT_BUILT, NotBuilt, SOURCES, Thing};
 use crate::error::{ErrorKind, LanguageError};
 
 #[derive(Debug, Clone, Serialize)]
@@ -123,8 +121,7 @@ fn named(name: &str, kind: &'static str, what: &str) -> Named {
 /// of composition, a block by its name. An unknown name is an authoring
 /// error with the near ones offered.
 pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
-    let mut fields: Vec<Named> = FIELDS
-        .iter()
+    let mut fields: Vec<Named> = bind::fields()
         // the four colour fields are one entry, `sockets.<colour>`
         .filter(|f| !matches!(f.thing, Thing::SocketColour(_)))
         .map(|f| {
@@ -206,6 +203,9 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
                     f.what.to_string(),
                     vec!["ilvl>=84", "ilvl=80..84", "ilvl=..84"],
                 ),
+                // a property field prints its row's definition and the
+                // table's version (`properties.rs`, C114)
+                Thing::Property(field) => (f.what.to_string(), field.examples()),
                 _ => (f.what.to_string(), Vec::new()),
             };
             Named {
@@ -234,8 +234,7 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
         )
     });
     fields.push(Named {
-        values: FIELDS
-            .iter()
+        values: bind::fields()
             .map(|f| f.name)
             .filter(|n| !matches!(*n, "text" | "id"))
             .collect(),
@@ -400,8 +399,7 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
             "on a ranged line — a template with exactly one `# to #`: that pair, and their mean",
         ),
     ];
-    let keys: Vec<&'static str> = FIELDS
-        .iter()
+    let keys: Vec<&'static str> = bind::fields()
         .filter(|f| !matches!(f.name, "text" | "id" | "priced"))
         .map(|f| f.name)
         .chain(["line"])

@@ -44,7 +44,7 @@ No arguments.
 
 ### `describe`
 
-The query language `search` takes, as this build knows it (no store read): fields, what a line has, operators, closed value sets, slots, the computed values with their definitions, what a count takes, what is not built and the limits stated — or only the entries named. The whole is over 100 KB, most of it under `computed`: name what is needed instead. The sections are fields (some 10 KB), line, linked, values, composition, operators, slots, counts and explain (each under 4 KB), and computed; a single name — league, total_res — returns its own entry. A name it does not know is refused, and the refusal lists every name it knows.
+The query language `search` takes, as this build knows it (no store read): fields, what a line has, operators, closed value sets, slots, the computed values with their definitions, what a count takes, what is not built and the limits stated — or only the entries named. The whole is over 100 KB, most of it under `computed`: name what is needed instead. The sections are fields (some 20 KB), line, linked, values, composition, operators, slots, counts and explain (each under 4 KB), and computed; a single name — league, total_res — returns its own entry. A name it does not know is refused, and the refusal lists every name it knows.
 
 - `names` (array | null) — Only these entries: a section — `fields`, `line`, `linked`, `values`, `composition`, `operators`, `slots`, `computed`, `counts`, `explain` — or a name within one: `league`, `total_res`. Omitted: the whole language.
 

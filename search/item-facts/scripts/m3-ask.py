@@ -105,6 +105,13 @@ ASKS = [
     ("--print-request", ["", "--print-request"]),
     ("the empty query --membership all", ["", "--membership", "all"]),
     ("id: of an item that left", ["id:LEFT"]),
+    # trade step 3: the property fields (C114), read when asked, never at the load
+    ("trade 3: the empty query", [""]),
+    ("trade 3: a property field", ["quality>=20"]),
+    ("trade 3: a q20 defence", ["armour.q20>=500"]),
+    ("trade 3: map_tier sorted", ["has:map_tier", "--sort", "map_tier", "--desc", "--limit", "10"]),
+    ("trade 3: --count area_level", ["", "--count", "area_level"]),
+    ("trade 3: pseudo.edps", ["pseudo.edps>=100"]),
 ]
 
 def main():

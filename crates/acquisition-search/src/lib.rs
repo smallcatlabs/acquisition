@@ -1,6 +1,6 @@
 //! `acquisition-search` — item search over the store's read API (C89).
 //!
-//! Rulings: `decisions/search.md`, C89–C107, C109. The language as this build
+//! Rulings: `decisions/search.md`, C89–C107, C109, C113, C114. The language as this build
 //! knows it, an example per construct, is `--describe` ([`mod@describe`]);
 //! the rules that decide an answer are the module docs below, each under
 //! its decision's id; what the build met — the plan's rules, cited here as
@@ -54,7 +54,9 @@
 //! categories (step 9d-B), the base defence percentile (step 9d-A) and
 //! the why-not and the continuation (step 10: `--explain`, `--context
 //! corpus`, `show --against`; a `next`, a route read back): a request
-//! in, an answer out.
+//! in, an answer out. The trade brief (`search/TRADE-PLAN.md`) adds the
+//! decoder, the stat table and the catalogue (steps 1 to 3) and the
+//! property fields (step 3).
 //!
 //! - [`tree`] — the query tree (C91): one typed value, and [`check`], what
 //!   a tree must satisfy to be one the language can say.
@@ -108,8 +110,13 @@
 //!   sum beside each count, every bucket a term with its route.
 //! - [`mod@describe`] — the language as this build knows it (C97), and the
 //!   limits it states (C102). [`mod@show`] — one item as the deriver sees it.
+//! - [`properties`] — the property fields (C114): every numeric property
+//!   the trade site's filters read, a field named by its displayed name,
+//!   defined once in the property table and read by one reader; the
+//!   quality-normalised defences (S26) and a map's tier among them.
 //! - [`trade`] — the trade boundary (C113): a site search URL, its id or
-//!   its query JSON decoded with no network; the translation follows
+//!   its query JSON decoded with no network, the stat table and the
+//!   catalogue each loaded and checked; the translation follows
 //!   (`search/TRADE-PLAN.md`).
 //!
 //! The parser knows the grammar and no field, class or computed value by
@@ -173,7 +180,18 @@
 //! - **C113.** The decoder is [`trade`]'s doc; pinned by
 //!   `tests/trade_decode.rs` (the eight captured ids decode to exactly
 //!   their requests, S56; the URL forms of K6; every malformed input a
-//!   structured error; a PoE2 URL refused by name).
+//!   structured error; a PoE2 URL refused by name). The stat table and the
+//!   catalogue are [`trade::stats`]'s and [`trade::catalogue`]'s docs;
+//!   pinned by `tests/trade_stats.rs` and `tests/trade_catalogue.rs`
+//!   (every filter, stat category and group type of the captures a row;
+//!   every field named one the build binds; each defect refused).
+//! - **C114.** The property fields are [`properties`]'s doc and
+//!   `reference/properties-v1.toml`'s header; pinned by
+//!   `tests/properties.rs` (the shipped table; what its loader refuses;
+//!   every field asked every way a number is, on an item that has it, one
+//!   that lacks it and one that leaves it open; the q20 rule's arithmetic
+//!   and every captured figure of the site's within one of it; the tier;
+//!   `pseudo.edps`).
 //! - **C104.** Pinned by `tests/language.rs`: the round trip over
 //!   generated trees and over the corpus (`tests/language.toml`), where
 //!   every construct of the language has a case.
@@ -269,6 +287,7 @@ pub mod json;
 pub mod parse;
 pub mod price;
 pub mod print;
+pub mod properties;
 mod pseudo;
 pub mod show;
 pub mod sockets;
@@ -292,6 +311,7 @@ pub use json::{from_json, to_json};
 pub use parse::{parse, parse_value};
 pub use price::{PriceGap, PriceOf, Priced};
 pub use print::{print, print_value};
+pub use properties::{PROPERTY_TABLE_VERSION, PropertyTable, PropertyTableError};
 pub use show::show;
 pub use totals::{TOTALS_TABLE_VERSION, TotalGap, TotalsTable, TotalsTableError};
 pub use trade::{Decoded, Source, decode, decode_json};

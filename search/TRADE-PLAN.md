@@ -42,7 +42,7 @@ committed capture of 2026-09-12 and every oracle is a committed capture
 | The site's stat vocabulary | `search/trade-query/data/stats-2026-09-12.json` | the stat table, generated |
 | The site's filters and grammar | `search/trade-query/data/filters-2026-09-12.json`, `grammar.json` | the catalogue table, by hand |
 | The owner's eight searches (q1, q2, q2b, q3, q3b, q4, q5, q6) | `search/trade-query/data/fetch-census.json` (requests, 70 fetched items; q2b found none); the ids from `raw/searches/*-search.json`, local | the decode fixture; the acceptance set |
-| 864 sitting captures: 451 with ten fetched items, 78 with one to nine, 335 with none | `search/pseudo-stats/data/captures.json` | the oracle (the 451 and the 78); the 20 %-quality figures (`extended.ar|ev|es`, 812 rows) |
+| 864 sitting captures: 451 with ten fetched items, 78 with one to nine, 335 with none | `search/pseudo-stats/data/captures.json` | the oracle (the 451 and the 78); the 20 %-quality figures (`extended.ar|ev|es|ward`: 1,313 rows over the 4,819 listings fetched, measured at step 3 where this said 812) |
 | The site's property bridge (S55) | `grammar.json`, `property_type_to_field` | the property table |
 
 The raw captures were restored to `search/*/raw/` from the pre-swap
@@ -85,10 +85,12 @@ grows at 3 so that 4's text parses on the build that writes it.
    definitions; a property the item lacks is lacked, one unread is
    unread at its grain (rule 8). The 20 %-quality defences the same
    way, by S26's rule; and one derived field over the base type,
-   `map_tier`, the `(Tier N)` an ordinary map's base carries — a unique
-   map, which displays none, lacks it (the store copy, 2026-10-15). *Acceptance:* every field asked every way a
+   `map_tier`, the `(Tier N)` a map's base carries — on the census's
+   copy 1,105 maps over 35 bases, 48 of them unique maps whose base
+   carries it too, where this said 643 of 643 and a unique map none
+   (measured at step 3); a base with none lacks it. *Acceptance:* every field asked every way a
    number is (compare, sort, sum, count, undecided); the defences
-   against the captures' `extended` figures — 812 rows — and the 37 of
+   against the captures' `extended` figures — 1,313 rows — and the 37 of
    the fetch census; M3 rerun, the load's move measured and recorded.
 4. **The translation.** `trade.rs`: query object to a request and a
    report, clause by clause as the catalogue and K6 state — status, the
@@ -151,8 +153,9 @@ grows at 3 so that 4's text parses on the build that writes it.
 
 - Every count in a fixture worked by hand first (rule 3), and every
   count this brief states measured again by script before a fixture
-  rests on it — step 3's 812 and 37 rows, 643 of 643 maps, 40 fields:
-  step 2 found the brief's "every id once" untrue of the capture.
+  rests on it: step 2 found the brief's "every id once" untrue of the
+  capture, and step 3 its 812 rows (1,313) and 643 of 643 maps (1,105,
+  48 unique); its 37 rows and 40 fields held.
 - M3 rerun after step 3, on the copy, the row in `search/M3-LEDGER.md`.
 - A rule the catalogue does not state stops the step (rule 4): what a
   clause *means* comes to the owner or to the sitting; a name — a

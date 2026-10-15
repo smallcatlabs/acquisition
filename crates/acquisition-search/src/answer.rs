@@ -986,7 +986,9 @@ pub struct Example {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ViewOut {
-    Rows(RowsOut),
+    /// Boxed, as the explained node is: the continuation it carries holds
+    /// a request, the basis among it.
+    Rows(Box<RowsOut>),
     Counts(counts::CountsOut),
     Cross(counts::CrossOut),
     Explain(Box<ExplainOut>),
@@ -1524,7 +1526,7 @@ pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError>
     });
     let left_out = total.matched.saturating_sub(after + rows.len());
     let view = match &view {
-        BoundView::Rows { .. } => ViewOut::Rows(RowsOut {
+        BoundView::Rows { .. } => ViewOut::Rows(Box::new(RowsOut {
             limit,
             returned: rows.len(),
             after,
@@ -1554,7 +1556,7 @@ pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError>
             }),
             sort: sort.map(|(text, _)| text.clone()),
             desc,
-        }),
+        })),
         BoundView::Counts(bound) => ViewOut::Counts(counts::tables(bound, &counted)),
         BoundView::Cross(bound) => ViewOut::Cross(counts::crossed(bound, &counted)),
         BoundView::Explain(_) => {

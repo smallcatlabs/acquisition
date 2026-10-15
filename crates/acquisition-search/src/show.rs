@@ -230,10 +230,11 @@ fn read_one(
     let categories = category_tables()?;
     currency_table()?;
     if against.is_some() {
-        // a query may ask a total or the percentile: checked as a corpus
+        // a query may ask a total, the percentile or a property field: checked as a corpus
         // checks them before it is asked anything
         crate::corpus::totals_table()?;
         crate::corpus::defence_table()?;
+        crate::corpus::property_table()?;
     }
     let intent_revision = price::intent_revision(intent)?;
     let found = store

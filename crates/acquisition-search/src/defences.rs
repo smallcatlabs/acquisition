@@ -270,6 +270,16 @@ pub fn table() -> Result<&'static DefenceTable, &'static DefenceTableError> {
     TABLE.as_ref()
 }
 
+/// Whether a line of this template is the enchant under which quality
+/// does not multiply (J6): what the percentile and the q20 fields
+/// (`properties.rs`) both ask of the table.
+pub(crate) fn drops_quality(template: &str) -> bool {
+    table()
+        .ok()
+        .and_then(|t| t.line(template))
+        .is_some_and(|row| row.does == Does::DropQuality)
+}
+
 /// Why the percentile could not be established on an item, this field's
 /// part of C93's closed list of reasons: the kind a count tallies. One
 /// for each thing that can fail beyond what the deriver says unread (J33:

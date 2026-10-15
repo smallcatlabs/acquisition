@@ -35,7 +35,9 @@
 //!   text is the caller's and is not bounded here.
 //! - Nothing here reads the vocabulary or writes a word of the language:
 //!   that is the translation (step 4), which consumes a [`Decoded`]. The
-//!   vocabulary it will read is the stat table, [`stats`] (step 2).
+//!   vocabulary it will read is the stat table, [`stats`] (step 2), and
+//!   what each clause becomes the catalogue, [`catalogue`] (its loader
+//!   step 3's).
 
 use std::io::Read as _;
 
@@ -45,6 +47,7 @@ use serde_json::Value as Json;
 
 use crate::error::{ErrorKind, LanguageError};
 
+pub mod catalogue;
 pub mod stats;
 
 /// What the input was, for the report.

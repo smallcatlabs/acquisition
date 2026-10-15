@@ -235,6 +235,22 @@ impl Exact {
     pub fn whole(n: i128) -> Option<Exact> {
         n.checked_mul(UNITS as i128).map(Exact)
     }
+
+    /// The whole number this is, and none where it has a fraction.
+    pub fn as_whole(self) -> Option<i128> {
+        let units = UNITS as i128;
+        (self.0 % units == 0).then_some(self.0 / units)
+    }
+
+    /// A fraction cut toward nothing to the units — a gem's experience as
+    /// a percent of its level's (`properties.rs`), so that a number short
+    /// of a whole is never read as it; none where the units cannot hold
+    /// it.
+    pub fn cut(ratio: Ratio) -> Option<Exact> {
+        let scaled = ratio.num.checked_mul(UNITS as i128)?;
+        // toward nothing: `/` truncates, as `floor` does not below it
+        Some(Exact(scaled / ratio.den))
+    }
 }
 
 fn units(value: f64) -> i128 {

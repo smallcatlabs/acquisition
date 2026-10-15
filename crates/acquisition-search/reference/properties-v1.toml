@@ -1,0 +1,409 @@
+# The property table — v1 (C114, C101, C106; decisions/search.md), step 3
+# of search/TRADE-PLAN.md.
+#
+# Reference data: reviewed by hand, committed, shipped inside the binary
+# (`include_str!` in `src/properties.rs`), read-only, never in a store file,
+# printed field by field by `acq search --describe fields`, cited by version
+# in every basis (C98). One row per field over a property the game displays:
+# every numeric property the trade site's filters read that the catalogue
+# (reference/trade-catalogue-v1.toml) lands as a field, named by the
+# displayed name (owner, 2026-10-15: "build all using displayed names") —
+# lowercased, spaces as underscores, `.of` the second number of a `#/#`
+# value, `.q20` a defence at 20 % quality — and the one field over the base
+# type the catalogue names, `map_tier`. Written from GGG's bodies as the
+# census's store copy displays them (2026-09-13, 22,623 pc items) and the
+# site's property bridge (S55; search/trade-query/data/grammar.json,
+# `property_type_to_field`): data, what the game displays — never a
+# judgment. No general accessor: a property is reached by a row here (C101).
+#
+# What a row means. `name` is the field. `array` is the body's key the
+# property sits in (`properties`, `additionalProperties`, `requirements`);
+# `property` the names GGG gives it there, any one of them, as the deriver
+# shows them (markup reduced), a `{0}` kept where the name holds one;
+# `value` which of its values is read, from 0; `select` a value that must be
+# the word named for the property to be this field's — one property shape
+# for nine heist skills. `reads`:
+#   number       the value is a number: digits, a point and digits unless
+#                `whole`; a `+` before it where `plus`, the `unit` after it
+#                and then one of `marks` — each read where written, and
+#                nothing else beside it.
+#   numerator    the value is `a/b`, two whole numbers; the field is a.
+#   denominator  the same; the field is b.
+#   percent      the same; the field is the percent a is of b, cut to five
+#                decimals toward nothing, so 1 short of b is never 100.
+#   q20          the displayed defence, a whole number, with the item's
+#                quality taken out and 20 % put in (S26): the display times
+#                120 over (100 + the quality), rounded half up. At 20 %
+#                quality or more, or under the enchant `Quality does not
+#                increase Defences` (the defence table's row that drops
+#                quality, J6), the display itself. The quality is the
+#                `quality` row's reading; an item displaying none has none.
+#   tier         no property: the base type's ` (Tier N)`, the number N.
+#
+# One status (rule 8 of the plan, C93): an item that displays no such
+# property, and could hide none, lacks the field — known absence, false and
+# never zero. The field is unread — undecided, its comparisons open — where
+# the body, the array, or an element of it whose name is unread or is the
+# row's could not be read; where the property is displayed as other than the
+# row reads, or more than once; and for `q20` where the quality could not be
+# read, or, below 20 %, where an array of lines that may hold the enchant
+# could not be. Nothing else of the item opens it.
+#
+# The q20 rule against the site's own figure (`extended.ar|ev|es|ward` of a
+# fetched listing), measured when the table was written, by
+# tests/properties.rs: within one on every row — over the 4,819 items the
+# sitting's 864 captures fetched (search/pseudo-stats/data/captures.json),
+# 1,148 of 1,313 rows equal and 165 one off; over the owner's eight searches'
+# 70 (search/trade-query/data/fetch-census.json), 32 of 37 equal and 5 one
+# off. The site works from the roll, which the display has rounded, so the
+# display does not fix its figure; at 20 % quality or more, and under the
+# enchant, the site's figure is the display on all 164 rows.
+#
+# Measured on the census's store copy (2026-09-13): `(Tier N)` on 1,105
+# maps over 35 bases — 634 normal, 69 magic, 354 rare, 48 unique — and on
+# nothing else; no property of the copy is displayed twice, and every value
+# a row reads is in the shape its row states.
+
+version = 1
+source = "GGG's displayed properties as the census's store copy holds them (2026-09-13, 22,623 pc items), named as displayed; the site's property bridge (S55, search/trade-query/data/grammar.json); the q20 rule S26, measured against search/pseudo-stats/data/captures.json and search/trade-query/data/fetch-census.json"
+
+# ---- weapons ------------------------------------------------------------
+
+[[field]]
+name = "attacks_per_second"
+array = "properties"
+property = ["Attacks per Second"]
+reads = "number"
+definition = "a weapon's `Attacks per Second`, as displayed — local modifiers applied by the game"
+
+[[field]]
+name = "critical_strike_chance"
+array = "properties"
+property = ["Critical Strike Chance"]
+reads = "number"
+unit = "%"
+definition = "the displayed `Critical Strike Chance`, in percent: a weapon's, and a spell gem's, which the game displays under the same name"
+
+# ---- armour -------------------------------------------------------------
+
+[[field]]
+name = "chance_to_block"
+array = "properties"
+property = ["Chance to Block"]
+reads = "number"
+unit = "%"
+whole = true
+definition = "a shield's displayed `Chance to Block`, in percent"
+
+[[field]]
+name = "armour.q20"
+array = "properties"
+property = ["Armour"]
+reads = "q20"
+definition = "the displayed `Armour` at 20 % quality, as the trade site's Armour filter states it (S26): the display with the item's quality taken out and 20 % put in, rounded half up; at 20 % or more, or under `Quality does not increase Defences`, the display. Within one of the site's own figure, which works from the roll the display has rounded"
+
+[[field]]
+name = "evasion_rating.q20"
+array = "properties"
+property = ["Evasion Rating"]
+reads = "q20"
+definition = "the displayed `Evasion Rating` at 20 % quality, by `armour.q20`'s rule"
+
+[[field]]
+name = "energy_shield.q20"
+array = "properties"
+property = ["Energy Shield"]
+reads = "q20"
+definition = "the displayed `Energy Shield` at 20 % quality, by `armour.q20`'s rule"
+
+[[field]]
+name = "ward.q20"
+array = "properties"
+property = ["Ward"]
+reads = "q20"
+definition = "the displayed `Ward` at 20 % quality, by `armour.q20`'s rule"
+
+# ---- requirements -------------------------------------------------------
+
+[[field]]
+name = "str"
+array = "requirements"
+property = ["Str", "Strength"]
+reads = "number"
+whole = true
+definition = "the Strength the item requires: its `Str` requirement, `Strength` on some items; an item with neither lacks it"
+
+[[field]]
+name = "dex"
+array = "requirements"
+property = ["Dex", "Dexterity"]
+reads = "number"
+whole = true
+definition = "the Dexterity the item requires: its `Dex` requirement, `Dexterity` on some items"
+
+[[field]]
+name = "int"
+array = "requirements"
+property = ["Int", "Intelligence"]
+reads = "number"
+whole = true
+definition = "the Intelligence the item requires: its `Int` requirement, `Intelligence` on some items"
+
+# ---- maps ---------------------------------------------------------------
+
+[[field]]
+name = "map_tier"
+reads = "tier"
+definition = "a map's tier: the number in its base type, `Map (Tier 16)`, `Blighted Map (Tier 13)`, since no map displays a `Map Tier` property; an item whose base carries no `(Tier N)` lacks it"
+
+[[field]]
+name = "area_level"
+array = "properties"
+property = ["Area Level"]
+reads = "number"
+whole = true
+definition = "the displayed `Area Level`: a map's, a contract's or a logbook's own level"
+
+[[field]]
+name = "monster_pack_size"
+array = "properties"
+property = ["Monster Pack Size"]
+reads = "number"
+plus = true
+unit = "%"
+whole = true
+definition = "a map's displayed `Monster Pack Size`, in percent"
+
+[[field]]
+name = "item_quantity"
+array = "properties"
+property = ["Item Quantity"]
+reads = "number"
+plus = true
+unit = "%"
+whole = true
+definition = "the displayed `Item Quantity`, in percent: a map's, or an item's that displays one"
+
+[[field]]
+name = "item_rarity"
+array = "properties"
+property = ["Item Rarity"]
+reads = "number"
+plus = true
+unit = "%"
+whole = true
+definition = "the displayed `Item Rarity`, in percent"
+
+[[field]]
+name = "memory_strands"
+array = "properties"
+property = ["Memory Strands"]
+reads = "number"
+whole = true
+definition = "the displayed `Memory Strands`"
+
+# ---- heist --------------------------------------------------------------
+
+[[field]]
+name = "wings_revealed"
+array = "properties"
+property = ["Wings Revealed"]
+reads = "numerator"
+definition = "a blueprint's wings revealed: the first number of `Wings Revealed: a/b`"
+
+[[field]]
+name = "wings_revealed.of"
+array = "properties"
+property = ["Wings Revealed"]
+reads = "denominator"
+definition = "a blueprint's wings in all: the second number of `Wings Revealed: a/b`"
+
+[[field]]
+name = "escape_routes_revealed"
+array = "properties"
+property = ["Escape Routes Revealed"]
+reads = "numerator"
+definition = "the first number of `Escape Routes Revealed: a/b`"
+
+[[field]]
+name = "escape_routes_revealed.of"
+array = "properties"
+property = ["Escape Routes Revealed"]
+reads = "denominator"
+definition = "the second number of `Escape Routes Revealed: a/b`"
+
+[[field]]
+name = "reward_rooms_revealed"
+array = "properties"
+property = ["Reward Rooms Revealed"]
+reads = "numerator"
+definition = "the first number of `Reward Rooms Revealed: a/b`"
+
+[[field]]
+name = "reward_rooms_revealed.of"
+array = "properties"
+property = ["Reward Rooms Revealed"]
+reads = "denominator"
+definition = "the second number of `Reward Rooms Revealed: a/b`"
+
+[[field]]
+name = "lockpicking"
+array = "properties"
+property = ["Requires {1} (Level {0})"]
+value = 0
+select = { value = 1, is = "Lockpicking" }
+reads = "number"
+whole = true
+definition = "the level of Lockpicking a contract or blueprint requires: `Requires Lockpicking (Level n)`; a heist item's own requirement, `Requires Level n in Lockpicking`, is not read"
+
+[[field]]
+name = "brute_force"
+array = "properties"
+property = ["Requires {1} (Level {0})"]
+value = 0
+select = { value = 1, is = "Brute Force" }
+reads = "number"
+whole = true
+definition = "the level of Brute Force a contract or blueprint requires, as `lockpicking`"
+
+[[field]]
+name = "perception"
+array = "properties"
+property = ["Requires {1} (Level {0})"]
+value = 0
+select = { value = 1, is = "Perception" }
+reads = "number"
+whole = true
+definition = "the level of Perception a contract or blueprint requires, as `lockpicking`"
+
+[[field]]
+name = "demolition"
+array = "properties"
+property = ["Requires {1} (Level {0})"]
+value = 0
+select = { value = 1, is = "Demolition" }
+reads = "number"
+whole = true
+definition = "the level of Demolition a contract or blueprint requires, as `lockpicking`"
+
+[[field]]
+name = "counter_thaumaturgy"
+array = "properties"
+property = ["Requires {1} (Level {0})"]
+value = 0
+select = { value = 1, is = "Counter-Thaumaturgy" }
+reads = "number"
+whole = true
+definition = "the level of Counter-Thaumaturgy a contract or blueprint requires, as `lockpicking`"
+
+[[field]]
+name = "trap_disarmament"
+array = "properties"
+property = ["Requires {1} (Level {0})"]
+value = 0
+select = { value = 1, is = "Trap Disarmament" }
+reads = "number"
+whole = true
+definition = "the level of Trap Disarmament a contract or blueprint requires, as `lockpicking`"
+
+[[field]]
+name = "agility"
+array = "properties"
+property = ["Requires {1} (Level {0})"]
+value = 0
+select = { value = 1, is = "Agility" }
+reads = "number"
+whole = true
+definition = "the level of Agility a contract or blueprint requires, as `lockpicking`"
+
+[[field]]
+name = "deception"
+array = "properties"
+property = ["Requires {1} (Level {0})"]
+value = 0
+select = { value = 1, is = "Deception" }
+reads = "number"
+whole = true
+definition = "the level of Deception a contract or blueprint requires, as `lockpicking`"
+
+[[field]]
+name = "engineering"
+array = "properties"
+property = ["Requires {1} (Level {0})"]
+value = 0
+select = { value = 1, is = "Engineering" }
+reads = "number"
+whole = true
+definition = "the level of Engineering a contract or blueprint requires, as `lockpicking`"
+
+# ---- sanctum ------------------------------------------------------------
+
+[[field]]
+name = "resolve"
+array = "properties"
+property = ["Resolve: {0}/{1}"]
+value = 0
+reads = "number"
+whole = true
+definition = "a sanctum's resolve: the first number of `Resolve: a/b`"
+
+[[field]]
+name = "resolve.of"
+array = "properties"
+property = ["Resolve: {0}/{1}"]
+value = 1
+reads = "number"
+whole = true
+definition = "a sanctum's maximum resolve: the second number of `Resolve: a/b`"
+
+[[field]]
+name = "inspiration"
+array = "properties"
+property = ["Inspiration: {0}"]
+reads = "number"
+whole = true
+definition = "a sanctum's displayed `Inspiration`"
+
+[[field]]
+name = "aureus"
+array = "properties"
+property = ["Aureus: {0}"]
+reads = "number"
+whole = true
+definition = "a sanctum's displayed `Aureus`"
+
+# ---- gems and the rest --------------------------------------------------
+
+[[field]]
+name = "quality"
+array = "properties"
+property = ["Quality"]
+reads = "number"
+plus = true
+unit = "%"
+whole = true
+definition = "the displayed `Quality`, in percent; a catalysed ring's `Quality (Resistance Modifiers)`, a map's `Quality (Quantity)` and their kin are names of their own and not read"
+
+[[field]]
+name = "level"
+array = "properties"
+property = ["Level"]
+reads = "number"
+whole = true
+marks = [" (Max)"]
+definition = "a gem's displayed `Level`, `(Max)` beside it read and dropped; the level an item requires is `reqlevel`"
+
+[[field]]
+name = "experience"
+array = "additionalProperties"
+property = ["Experience"]
+reads = "percent"
+definition = "a gem's experience as the percent of its level's: `Experience: a/b` as 100 × a ÷ b, cut to five decimals toward nothing, so one point short is never 100"
+
+[[field]]
+name = "stored_experience"
+array = "properties"
+property = ["Stored Experience: {0}"]
+reads = "number"
+whole = true
+definition = "the displayed `Stored Experience`"

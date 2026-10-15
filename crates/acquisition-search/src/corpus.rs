@@ -20,7 +20,9 @@
 //!   beside them — the
 //!   derivation's version ([`DERIVATION`]), the class table's
 //!   (`class.rs`; C106), the category table's and the beast colour
-//!   table's (`category.rs`; C106) and the totals table's (`totals.rs`; C94). The store is named by twelve
+//!   table's (`category.rs`; C106), the totals table's (`totals.rs`; C94),
+//!   the defence table's (`defences.rs`) and the property table's
+//!   (`properties.rs`; C114). The store is named by twelve
 //!   hex digits of the SHA-256 of its file's canonical path, as C83 names
 //!   a world (owner, 2026-09-20: "(a') now and park (c)"): no path in an
 //!   answer, no migration, and two files of one account are two stores. A
@@ -84,6 +86,7 @@ use crate::defences::{self, DEFENCE_TABLE_VERSION};
 use crate::derive::{Facts, Item, Part, Unread, derive};
 use crate::error::SearchError;
 use crate::price::{self, CURRENCY_TABLE_VERSION, NOTE_PARSER_VERSION, Priced};
+use crate::properties::{self, PROPERTY_TABLE_VERSION};
 use crate::totals::{self, TOTALS_TABLE_VERSION, TotalsTable};
 
 /// The version of [`derive()`]'s reading of a body: it moves when the same
@@ -159,6 +162,8 @@ pub struct Basis {
     pub totals: u32,
     /// The defence table's version (C101, C106; `defences.rs`).
     pub defences: u32,
+    /// The property table's version (C114, C106; `properties.rs`).
+    pub properties: u32,
     /// The intent file's revision the prices were read at (C98, C81).
     pub intent: i64,
     /// The currency table's version (C68).
@@ -442,6 +447,7 @@ impl Basis {
             beast_colours: COLOUR_TABLE_VERSION,
             totals: TOTALS_TABLE_VERSION,
             defences: DEFENCE_TABLE_VERSION,
+            properties: PROPERTY_TABLE_VERSION,
             intent,
             currency: CURRENCY_TABLE_VERSION,
             notes: NOTE_PARSER_VERSION,
@@ -471,6 +477,12 @@ pub(crate) fn totals_table() -> Result<&'static TotalsTable, SearchError> {
 /// answers with (`defences.rs`).
 pub(crate) fn defence_table() -> Result<&'static defences::DefenceTable, SearchError> {
     defences::table().map_err(|e| SearchError::scope("defence_table", e.to_string()))
+}
+
+/// The property table, or the error a build whose table does not load
+/// answers with (`properties.rs`).
+pub(crate) fn property_table() -> Result<&'static properties::PropertyTable, SearchError> {
+    properties::table().map_err(|e| SearchError::scope("property_table", e.to_string()))
 }
 
 /// How many times a corpus is read again when the facts or the intent
@@ -530,6 +542,7 @@ impl Corpus {
         let categories = category_tables()?;
         totals_table()?;
         defence_table()?;
+        property_table()?;
         currency_table()?;
         let intent_revision = price::intent_revision(intent)?;
         let (mut corpus, leagues) =

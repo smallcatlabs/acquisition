@@ -897,7 +897,9 @@ fn describe_is_as_large_as_its_text_says() {
     let (whole, _) = seat.call("describe", &json!({}));
     assert!(whole.to_string().len() > 100_000);
     assert!(size(&mut seat, json!(["computed"])) > 50_000);
-    assert!(size(&mut seat, json!(["fields"])) < 16_000);
+    // some 20 KB since the property fields joined it (C114)
+    assert!(size(&mut seat, json!(["fields"])) < 24_000);
+    assert!(size(&mut seat, json!(["fields"])) > 16_000);
     for section in [
         "line",
         "linked",
@@ -920,7 +922,7 @@ fn describe_is_as_large_as_its_text_says() {
     // that says other numbers fails here and is checked again.
     for stated in [
         "The whole is over 100 KB",
-        "fields (some 10 KB)",
+        "fields (some 20 KB)",
         "(each under 4 KB)",
     ] {
         assert!(text.contains(stated), "{stated}: {text}");

@@ -47,11 +47,13 @@
 //!   pure function over the item's properties, its lines and reference
 //!   data, listed with its definition
 //!   under `pseudo.` by `--describe` (C97), never a total row. Built here:
-//!   `pseudo.dps` and `pseudo.pdps`, each attacks per second times the
+//!   `pseudo.dps`, `pseudo.pdps` and `pseudo.edps` (step 3 of
+//!   `search/TRADE-PLAN.md`), each attacks per second times the
 //!   mean of a damage range (S22), read from the properties as the game
 //!   displays them — `Physical Damage: 59-88`, `Attacks per Second: 1.25`
 //!   — quality applied as GGG has already applied it to what it displays.
 //!   `pdps` is the physical range's mean times the attacks per second;
+//!   `edps` the elemental ranges' means, summed, times it;
 //!   `dps` is the sum of the physical, every elemental and the chaos
 //!   range's means, times the attacks per second. An item with no
 //!   `Attacks per Second` property, or none of the damage properties a
@@ -126,8 +128,9 @@
 //!   - *Lacked* is an item, in a realm the table covers, that displays
 //!     none of the four defences — known absence (C93), claimed only
 //!     where everything that could display one was read.
-//!   - A defence bound on the site is inexact (C102), and a
-//!     quality-normalised defence is parked (`decisions/search.md`).
+//!   - A defence bound on the site is inexact (C102); the
+//!     quality-normalised defences are fields of their own, `armour.q20`
+//!     and its kin (`properties.rs`, C114).
 //! - **C94 — what no total reads (J29)** is `totals.rs`'s, said there
 //!   once (the owner, 2026-10-08: "Leave both out."): no total reads a
 //!   line of `crucibleMods` or `utilityMods`, and neither array unread
@@ -284,10 +287,12 @@
 //!   with no name is a property of no name and none of the field's; one
 //!   whose name it could not read may be any.
 //! - **A property is a whole number, once.** A defence is displayed as
-//!   digits alone and the quality as `+20%`, its sign and its `%` each
-//!   read where written; either displayed otherwise,
-//!   with other than one value, or more than once, is unread under
-//!   `properties`, said here, as a damage field's is. A base name the
+//!   digits alone, and displayed otherwise, with other than one value, or
+//!   more than once, is unread under `properties`, said here, as a damage
+//!   field's is. The quality is the `quality` field's one reading
+//!   (`properties.rs`, C114), which the q20 fields read too: `+20%`, its
+//!   sign and its `%` each read where written, one whole number of one
+//!   property, or unread there by the same words. A base name the
 //!   table holds on several rows is the one row all of whose defences the
 //!   item displays.
 //! - **The arithmetic is of whole numbers** (`exact::Ratio`; the record's
@@ -314,6 +319,7 @@ use crate::describe::Named as Entry;
 use crate::error::{ErrorKind, LanguageError};
 use crate::eval::{self, Evidence, Outcome, Truth};
 use crate::exact::{self, Exact, Ratio};
+use crate::properties::{self, FieldRead};
 use crate::sockets::Counted;
 use crate::totals::{self, Reading, ReadingKind, Total, TotalsTable};
 use crate::tree::{Node, Op, Value};
@@ -338,17 +344,25 @@ pub(crate) enum Named {
 pub(crate) enum Derived {
     Dps,
     Pdps,
+    /// Elemental damage per second (step 3 of `search/TRADE-PLAN.md`).
+    Edps,
     /// The base defence percentile ([`percentile`]).
     DefencePct,
 }
 
 impl Derived {
-    const ALL: [Derived; 3] = [Derived::Dps, Derived::Pdps, Derived::DefencePct];
+    const ALL: [Derived; 4] = [
+        Derived::Dps,
+        Derived::Pdps,
+        Derived::Edps,
+        Derived::DefencePct,
+    ];
 
     pub fn name(self) -> &'static str {
         match self {
             Derived::Dps => "dps",
             Derived::Pdps => "pdps",
+            Derived::Edps => "edps",
             Derived::DefencePct => "defence_pct",
         }
     }
@@ -360,6 +374,9 @@ impl Derived {
             }
             Derived::Pdps => {
                 "physical damage per second: the attacks per second times the mean of `Physical Damage`; an item lacking either property lacks it".to_string()
+            }
+            Derived::Edps => {
+                "elemental damage per second: the attacks per second times the mean of `Elemental Damage`, each of its ranges' means summed; an item lacking either property lacks it".to_string()
             }
             Derived::DefencePct => format!(
                 "{} Of the captured lines whose side the site's id names, each part holds on all: 442 of 442 explicit, 17 of 17 implicit on an eldritch item, 10 of 10 implicit on a synthesised item — counted by search/pseudo-stats/scripts/defence-twins.py. Ruled: the exact half J5, the twin J8, undecided J33, out of range J34, a realm with no table J35; the site's bound C102. {}",
@@ -381,7 +398,7 @@ impl Derived {
     /// One text, which [`Derived::definition`] prints whole and adds to.
     pub fn own_definition(self) -> String {
         match self {
-            Derived::Dps | Derived::Pdps => self.definition(),
+            Derived::Dps | Derived::Pdps | Derived::Edps => self.definition(),
             Derived::DefencePct => format!(
                 "the trade site's Base Percentile, by the site's own rule — \"{SITE_TIP}\": each of `Armour`, `Evasion Rating`, `Energy Shield` and `Ward` that the item's base ranges is worked back from the number displayed to the roll behind it, a roll being any whole number whose display is the item's — (the roll + what the item's own lines add) × (1 + the item's own increases) × (1 + the quality displayed), rounded half up — and the value is each roll's place in the base's range as a percentage, averaged over the defences and rounded half up to a whole number. One departure from the site's words: a display at an exact half admits both whole numbers as rolls. Under `Quality does not increase Defences` the quality is dropped. A line whose text a global stat displays too, a twin text, is told by where it sits: an explicit is the item's own; an implicit on an eldritch item, `searing` or `tangled`, is the global stat and left out; an implicit on a synthesised item is the item's own. A roll out of the base's range still reads, over 100 above its maximum and below 0 under its minimum, which no capture has shown: a line misread can show a number out of range. An item displaying none of the four defences lacks it. It is undecided, with the reason, wherever what the item shows does not give one value from lines whose side is established: in a realm with no table, on every item; a base the table lacks, holds more than once with nothing telling which, or no row of which fits what is displayed; a property, an array or a line unread; a twin implicit on an item of neither mark, of both, or whose mark is unread; a twin text in any other array; a line of a crucible node that the field reads, of which the site has not yet been asked; no roll giving the display; a base whose minimum is its maximum; several rolls giving different values. A defence bound on the trade site is inexact."
             ),
@@ -391,7 +408,7 @@ impl Derived {
     /// The bound a printed example compares the field with.
     fn example(self) -> u32 {
         match self {
-            Derived::Dps | Derived::Pdps => 300,
+            Derived::Dps | Derived::Pdps | Derived::Edps => 300,
             Derived::DefencePct => 80,
         }
     }
@@ -836,7 +853,9 @@ enum Inputs<'a> {
 fn derived_of(derived: Derived, held: &Held) -> Valued {
     let read = match derived {
         Derived::DefencePct => percentile(held).map(|read| read.value),
-        Derived::Dps | Derived::Pdps => inputs(derived, held).map(|read| read.value),
+        Derived::Dps | Derived::Pdps | Derived::Edps => {
+            inputs(derived, held).map(|read| read.value)
+        }
     };
     match read {
         Ok(value) => Valued::Value(value),
@@ -850,6 +869,7 @@ fn derived_of(derived: Derived, held: &Held) -> Valued {
 fn reads(derived: Derived) -> &'static [&'static str] {
     match derived {
         Derived::Pdps => &[ATTACKS_PER_SECOND, PHYSICAL],
+        Derived::Edps => &[ATTACKS_PER_SECOND, ELEMENTAL],
         Derived::Dps => &[ATTACKS_PER_SECOND, PHYSICAL, ELEMENTAL, CHAOS],
         Derived::DefencePct => &[],
     }
@@ -915,6 +935,7 @@ fn inputs(derived: Derived, held: &Held) -> Result<Read<'_>, Inputs<'_>> {
     let aps = property(ATTACKS_PER_SECOND);
     let damage: Vec<&Property> = match derived {
         Derived::Pdps => property(PHYSICAL).into_iter().collect(),
+        Derived::Edps => property(ELEMENTAL).into_iter().collect(),
         Derived::Dps => [PHYSICAL, ELEMENTAL, CHAOS]
             .into_iter()
             .filter_map(property)
@@ -967,9 +988,6 @@ fn inputs(derived: Derived, held: &Held) -> Result<Read<'_>, Inputs<'_>> {
 }
 
 // ---- the base defence percentile -------------------------------------------------------------------
-
-/// The property the quality is displayed under.
-const QUALITY: &str = "Quality";
 
 /// The item's marks J8 reads: an eldritch item's, and a synthesised one's.
 const ELDRITCH: [&str; 2] = ["searing", "tangled"];
@@ -1055,14 +1073,6 @@ fn gap(gap: PercentileGap, problem: String) -> Cow<'static, Unread> {
     })
 }
 
-/// A whole number as a property displays it: digits alone, within the
-/// crate's rule for a number (`exact::reads`).
-fn whole(text: &str) -> Option<i128> {
-    (!text.is_empty() && text.bytes().all(|b| b.is_ascii_digit()) && exact::reads(text))
-        .then(|| text.parse().ok())
-        .flatten()
-}
-
 /// The base defence percentile of an item (the module doc, C101): the
 /// one reading of it, which its value, its reasons and what a row shows
 /// of it all ask. Each stage answers before the next is read, so a
@@ -1122,12 +1132,10 @@ fn percentile(held: &Held) -> Result<Percentile<'_>, Inputs<'_>> {
     for defence in Defence::ALL {
         match named(defence.property()).as_slice() {
             [] => {}
-            [property] => match property.values.as_slice() {
-                [value] => match whole(value) {
-                    Some(number) => displayed.push((defence, number, property)),
-                    None => reasons.push(problem(property, "no whole number the search reads")),
-                },
-                _ => reasons.push(problem(property, "not one value")),
+            // one reading of a displayed defence, the q20 fields' too
+            [property] => match properties::defence(property) {
+                Ok(number) => displayed.push((defence, number, property)),
+                Err(reason) => reasons.push(reason),
             },
             [property, ..] => reasons.push(problem(property, "displayed more than once")),
         }
@@ -1141,25 +1149,21 @@ fn percentile(held: &Held) -> Result<Percentile<'_>, Inputs<'_>> {
         return Err(Inputs::Lacked);
     }
     // the quality is asked only of an item displaying a defence (rule 8)
-    let mut reasons = unread_named(&|name| name.eq_ignore_ascii_case(QUALITY), false);
-    let mut quality: Option<(i128, &Property)> = None;
-    match named(QUALITY).as_slice() {
-        [] => {}
-        [property] => match property.values.as_slice() {
-            [value] => {
-                let digits = value.strip_prefix('+').unwrap_or(value);
-                match whole(digits.strip_suffix('%').unwrap_or(digits)) {
-                    Some(number) => quality = Some((number, property)),
-                    None => reasons.push(problem(property, "no whole number the search reads")),
-                }
+    // the `quality` field's own reading (`properties.rs`): one maker of
+    // what the item's quality is, which the q20 fields read too
+    let quality: Option<(i128, &Property)> = match properties::quality(item) {
+        FieldRead::Unread(reasons) => return open(reasons),
+        FieldRead::Lacked => None,
+        FieldRead::Value { value, shown, .. } => match (value.as_whole(), shown.first()) {
+            (Some(number), Some(property)) => Some((number, *property)),
+            // the `quality` row reads whole numbers of one property alone,
+            // so neither arm below is met; each still says what it is
+            (None, Some(property)) => {
+                return open(vec![problem(property, "no whole number the search reads")]);
             }
-            _ => reasons.push(problem(property, "not one value")),
+            (_, None) => None,
         },
-        [property, ..] => reasons.push(problem(property, "displayed more than once")),
-    }
-    if !reasons.is_empty() {
-        return open(reasons);
-    }
+    };
 
     // the base: the one row of the table all of whose defences the item
     // displays
