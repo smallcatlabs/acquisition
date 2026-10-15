@@ -474,7 +474,7 @@ Submit any job kind by hand
 Usage: acq submit [OPTIONS] <KIND>
 
 Arguments:
-  <KIND>  A network kind — profile, characters, character, leagues, stashes, stash, refresh, apply — or a mock-only one: sleep, fetch, whoami (refused in real mode)
+  <KIND>  A network kind — profile, characters, character, leagues, stashes, stash, refresh, apply — or sleep, which never sends, or a mock-only one: fetch, whoami (refused in real mode)
 
 Options:
       --params <PARAMS>      JSON params, e.g. '{"seconds": 5}' [default: {}]

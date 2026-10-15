@@ -106,11 +106,13 @@ that POST; an unsigned `acqd` is asked twice per login after every
 rebuild. The signed one (the 2026-09-12 row) is asked once per keychain
 item on its first start under the identity — one prompt per persisted
 account, "Always Allow" — and never again: not on the token write, not
-after a rebuild. That first start waits at the prompts past the
-client's 5 s handshake deadline (C86), so the client reports the daemon
-unresponsive and names its pid for `kill` while it is only waiting on
-you. Do not kill it: answer the prompts, then run the command again —
-the daemon is up, or has idled out and its next start is silent.
+after a rebuild. The release archive's Developer ID
+`acqd` is another identity: asked once per item too (2026-10-15). That
+first start waits at the prompts past the client's 5 s handshake
+deadline (C86) and the command is lost; the report says to answer
+Keychain before it names the pid. Do not kill it: answer the prompts,
+then run the command again — the daemon is up, or has idled out and its
+next start is silent.
 
 Sleep and wakes (soaks): a closed laptop on AC dark-wakes every 15–60
 min (Power Nap) and cron runs during the wakes; on battery it sleeps for

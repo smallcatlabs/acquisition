@@ -418,8 +418,8 @@ is the per-location summary.")]
     /// Submit any job kind by hand.
     Submit {
         /// A network kind — profile, characters, character, leagues,
-        /// stashes, stash, refresh, apply — or a mock-only one: sleep,
-        /// fetch, whoami (refused in real mode).
+        /// stashes, stash, refresh, apply — or sleep, which never sends,
+        /// or a mock-only one: fetch, whoami (refused in real mode).
         kind: String,
         /// JSON params, e.g. '{"seconds": 5}'.
         #[arg(long, default_value = "{}")]

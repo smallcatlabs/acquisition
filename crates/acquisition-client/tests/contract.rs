@@ -530,6 +530,13 @@ async fn c86_a_peer_that_never_answers_hello_is_unresponsive_on_every_door_and_n
             }),
         "{sentence}"
     );
+    // On macOS a healthy daemon misses the deadline at Keychain's prompts
+    // too: the sentence says to answer them before it says to kill.
+    assert_eq!(
+        sentence.contains("if Keychain is asking"),
+        cfg!(target_os = "macos"),
+        "{sentence}"
+    );
 
     match connected {
         Err(ConnectError::Unresponsive(found)) => assert_eq!(found.holder, Some(424242)),

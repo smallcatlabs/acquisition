@@ -353,20 +353,33 @@ const KILL: &str = if cfg!(windows) {
     "kill"
 };
 
+/// Before the holder, on macOS: a healthy daemon also misses the deadline
+/// while Keychain asks about each persisted account, which a start under a
+/// code identity the items do not yet trust does once per item — measured
+/// 34 s for three prompts (`RUN-LEDGER.md`, 2026-10-15). The daemon has
+/// bound its socket and not yet begun accepting, so the kernel takes the
+/// connection and `hello` waits: the report says to answer, not to kill.
+const KEYCHAIN: &str = if cfg!(target_os = "macos") {
+    " — if Keychain is asking about \"acq\" (a new build's first start asks once per account), \
+     answer it and run the command again; otherwise"
+} else {
+    " —"
+};
+
 impl fmt::Display for Unresponsive {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "a daemon is listening at {} but did not answer hello within {}s",
+            "a daemon is listening at {} but did not answer hello within {}s{KEYCHAIN}",
             self.at.socket,
             HELLO_WITHIN.as_secs()
         )?;
         match self.holder {
             Some(pid) => write!(
                 f,
-                " — the world's lock names pid {pid}; stop it by hand (`{KILL} {pid}`)"
+                " the world's lock names pid {pid}; stop it by hand (`{KILL} {pid}`)"
             ),
-            None => f.write_str(" — the world's lock names no holder"),
+            None => f.write_str(" the world's lock names no holder"),
         }
     }
 }
