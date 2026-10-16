@@ -45,6 +45,7 @@ import csv
 import json
 import re
 import struct
+import urllib.parse
 import sys
 import zlib
 from pathlib import Path
@@ -1829,14 +1830,18 @@ class Composed:
     `decides`. A `{next}` in a row names the next search composed, whatever
     its name, a repeat's earlier one included."""
 
-    def __init__(self, letter, width, earlier):
-        self.letter, self.width, self.rows = letter, width, []
-        self.known = {json.dumps(r["query"], sort_keys=True): r["search"] for r in earlier}
+    def __init__(self, letter, width, earlier, league=LEAGUE):
+        self.letter, self.width, self.rows, self.league = letter, width, [], league
+        # a search is its league and its query: the same query in another
+        # league is another search
+        self.known = {(r.get("league", LEAGUE), json.dumps(r["query"], sort_keys=True)): r["search"]
+                      for r in earlier}
         self.mine = {}
         self.waiting = []
 
-    def add(self, decides, control, q):
-        key = json.dumps(q, sort_keys=True)
+    def add(self, decides, control, q, league=None):
+        league = league or self.league
+        key = (league, json.dumps(q, sort_keys=True))
         if key in self.known:
             name = self.known[key]
             if name in self.mine:
@@ -1845,6 +1850,8 @@ class Composed:
         else:
             name = f"{self.letter}{len(self.rows) + 1:0{self.width}d}"
             row = {"search": name, "decides": decides, "control": control, "query": q}
+            if league != LEAGUE:
+                row["league"] = league
             self.rows.append(row)
             self.known[key] = name
             self.mine[name] = row
@@ -2151,6 +2158,69 @@ def round_v(earlier):
     return composed.done()
 
 
+# Round w (step 7, 2026-10-16): what rounds t to v left undecided, read off
+# the splitter's counts before the captures were read — a pair that did not
+# part (Storm Cloud matched at `max` -99 and at -101 alike), a question put
+# in a form the site answers with nothing (`term` `Anvil` and `nvil`, 0
+# each), and coverage no listing met: a bound too high, or league content
+# Standard does not list, asked in the challenge league.
+CHALLENGE = "Allflame"  # the owner, 2026-10-16: "the current league is 'Allflame'"
+
+
+def round_w(earlier):
+    """w01–w05 the number `No Physical Damage` reads as; w06–w07 the free
+    text; w08–w11 graft and chart in the challenge league; w12–w13 two
+    coverage bounds lowered."""
+    composed = Composed("w", 2, earlier)
+    add = composed.add
+    phys = "explicit.stat_1509134228"  # `#% increased Physical Damage`
+
+    def bounded(value):
+        q = batch_query([{"type": "and", "filters": [{"id": phys, "disabled": False, "value": value}]}],
+                        None, "Long Bow")
+        return {"status": q["status"], "name": "Storm Cloud", **{k: v for k, v in q.items() if k != "status"}}
+
+    bracket = "t07 and t08 found Storm Cloud at `max` -99 and -101 alike, and h047 summed -120 over such bows"
+    add(f"no-physical-damage, the bracket: Storm Cloud at `max` -119 ({bracket}). Found, with w02 none: the number "
+        "is -120 or -121's side of it", "w03 and w04 close the bracket from below", bounded({"max": -119}))
+    add("no-physical-damage, the bracket: `max` -121. None, beside w01 found: over -121", "w01", bounded({"max": -121}))
+    add("no-physical-damage, the bracket from below: `min` -120. Found: -120 or more", "w04", bounded({"min": -120}))
+    add("no-physical-damage, the bracket from below: `min` -119. None, beside w03 found: under -119 — with w01 and "
+        "w02, -120", "w03", bounded({"min": -119}))
+    add("no-physical-damage, far below: `max` -1000. Found, the bracket finding nothing: the number lies far "
+        "under -120; none, the bracket answering: -120 stands", "w01–w04", bounded({"max": -1000}))
+    add("the free text, the whole name: `term` `The Anvil` (t50, `Anvil`, and t51, `nvil`, found nothing). Found: "
+        "the box matches a whole name; read the ten for what else it holds",
+        "t05, The Anvil by its name, found 10,000", batch_query([]) | {"term": "The Anvil"})
+    add("the free text, a base: `term` `Amber Amulet`. Found: the box matches a base's whole name too; the ten "
+        "say whether The Anvil is among them",
+        "t05", batch_query([]) | {"term": "Amber Amulet"})
+    standard_none = "Standard listed none at this sitting"
+    add(f"coverage in {CHALLENGE}: `type_filters.category=graft`, the category alone (u042: {standard_none})",
+        "the oracle (tests/trade_oracle.rs)", batch_query([], category("graft")), CHALLENGE)
+    add(f"coverage in {CHALLENGE}: `type_filters.category=chart` (u045: {standard_none})",
+        "the oracle (tests/trade_oracle.rs)", batch_query([], category("chart")), CHALLENGE)
+    add(f"the category track in {CHALLENGE}: whether `graft` holds `Battering Uulgraft` (J13; v106: {standard_none}). "
+        "Found: as the table rules; not found, w11 finding it: the table is brought back",
+        "w11, the type with no category, must find it", batch_query([], category("graft"), "Battering Uulgraft"),
+        CHALLENGE)
+    add(f"the pair in {CHALLENGE}: `Battering Uulgraft` with no category (v107: {standard_none})",
+        "the pair is the control", batch_query([], None, "Battering Uulgraft"), CHALLENGE)
+    add("coverage, `heist_filters.heist_max_escape_routes` at `min` 2 under `heistmission.blueprint` (u072 at 3 "
+        "found none)", "the oracle (tests/trade_oracle.rs)",
+        batch_query([], {**category("heistmission.blueprint"),
+                         "heist_filters": {"disabled": False, "filters": {"heist_max_escape_routes": {"min": 2}}}}))
+    add("coverage, `misc_filters.memory_level` at `min` 1 under `memoryline` (u104 at 2 found none)",
+        "the oracle (tests/trade_oracle.rs)",
+        batch_query([], {**category("memoryline"),
+                         "misc_filters": {"disabled": False, "filters": {"memory_level": {"min": 1}}}}))
+    rows = composed.done()
+    # every name above is written out: the round is its length
+    if len(rows) != 13:
+        raise SystemExit(f"round w has {len(rows)} searches, its names written for 13")
+    return rows
+
+
 def report():
     """b1, b2: the two searches a report of c3's twin id rests on."""
     twin = "explicit.stat_2543977012"
@@ -2187,10 +2257,13 @@ def verify():
         if decode(row["link"]) != json.loads(row["query"]):
             bad += 1
             print(f"DIFFER  {row['search']}")
+        if row["link"].rsplit("/", 2)[1] != urllib.parse.quote(row["league"]):
+            bad += 1
+            print(f"LEAGUE  {row['search']}: the link's league is not the row's")
         if not row["control"].strip():
             bad += 1
             print(f"NO CONTROL  {row['search']}")
-    print(f"{len(rows)} links decoded, {bad} differ from their query or lack a control")
+    print(f"{len(rows)} links decoded, {bad} differ from their query or their league, or lack a control")
     return 1 if bad else 0
 
 
@@ -2237,6 +2310,7 @@ def main():
     if method == "site":
         searches += round_u(searches)
         searches += round_v(searches)
+        searches += round_w(searches)
     seen = set()
     with OUT.open("w", newline="") as out:
         sheet = csv.writer(out, lineterminator="\n")
@@ -2246,23 +2320,24 @@ def main():
                 raise SystemExit(f"two searches named {row['search']}")
             seen.add(row["search"])
             body = json.dumps(row["query"], separators=(",", ":"), ensure_ascii=False)
+            league = row.get("league", LEAGUE)
             sheet.writerow(
                 [
                     row["search"],
                     row["decides"],
                     row["control"],
-                    LEAGUE,
-                    link(row["query"]),
+                    league,
+                    link(row["query"], league),
                     body,
                 ]
             )
             if method == "site":
-                print(f"{row['search']}  {link(row['query'])}")
+                print(f"{row['search']}  {link(row['query'], league)}")
     kinds = {"trade": 0, "park": 0, "pilot": 0, "check": 0, "line": 0, "pair": 0, "percentile line": 0,
              "percentile case": 0, "open question": 0}
     for row in searches:
         s = row["search"]
-        kind = ("trade" if s.startswith(("t", "u"))
+        kind = ("trade" if s.startswith(("t", "u", "w"))
                 else "park" if s.startswith("v")
                 else "pilot" if s.startswith("p")
                 else "check" if s.startswith(("c", "d", "b", "e", "f", "g", "h"))

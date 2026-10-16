@@ -99,8 +99,18 @@ def holds_cookie(har):
     return False
 
 
-def row_of(query, sheet):
-    names = [n for n, q in sheet.items() if bare(q) == bare(query)]
+def league_of(url):
+    """The league a search's own URL names: `/api/trade/search/<league>`."""
+    return urllib.parse.unquote(urllib.parse.urlparse(url).path.rsplit("/", 1)[1])
+
+
+def rows_of(league, query, sheet):
+    """The rows that ask a query in a league: a search is its league and its query."""
+    return [n for n, (lg, q) in sheet.items() if lg == league and bare(q) == bare(query)]
+
+
+def row_of(league, query, sheet):
+    names = rows_of(league, query, sheet)
     return names[0] if names else None
 
 
@@ -111,9 +121,10 @@ def asked(entry, sheet):
     try:
         if "/api/trade/search/" in url.path:
             posted = (entry["request"].get("postData") or {}).get("text")
-            return row_of(json.loads(posted)["query"], sheet) if posted else None
+            return row_of(league_of(entry["request"]["url"]), json.loads(posted)["query"], sheet) if posted else None
         ids = urllib.parse.parse_qs(url.query).get("query")
-        return row_of(decode(ids[0]), sheet) if ids else None
+        # a fetch names its search's id and no league: the query alone
+        return next((n for n, (_, q) in sheet.items() if bare(q) == bare(decode(ids[0]))), None) if ids else None
     except (ValueError, KeyError, OSError):
         return None
 
@@ -175,7 +186,7 @@ def read(har, sheet):
         record = {"at": entry.get("startedDateTime"), "bytes": raw, "limits": limits(entry)}
         if "/api/trade/search/" in url:
             query = decode(answer["id"])
-            names = [n for n, q in sheet.items() if bare(q) == bare(query)]
+            names = rows_of(league_of(url.split("?")[0]), query, sheet)
             # One query asked by several rows (round k re-asked four of round j's,
             # 2026-10-04): the capture is named for the first row that has none yet,
             # on disk or in this recording, so every sitting's answer is kept under
@@ -211,7 +222,7 @@ def main():
         return 2
     har = recording(Path(files[0]))
     with SHEET.open(newline="\n") as f:
-        sheet = {r["search"]: json.loads(r["query"]) for r in csv.DictReader(f)}
+        sheet = {r["search"]: (r["league"], json.loads(r["query"])) for r in csv.DictReader(f)}
     found, strays, problems = read(har, sheet)
     calls = shape(har, sheet)
 
