@@ -30,7 +30,8 @@
 //!   object — is a structured error of kind `trade` (C47).
 //! - **The JSON is what the site posts**: the `{query, sort}` envelope, or
 //!   the query object alone. A sort is carried out for the report and
-//!   never applied (K6). Neither an id nor JSON fills a scope: a
+//!   never applied (K6), and any other key of the envelope carried out
+//!   beside it, for the report to name. Neither an id nor JSON fills a scope: a
 //!   [`Decoded`] from either carries no realm and no league. The JSON
 //!   text is the caller's and is not bounded here.
 //! - Nothing here reads the vocabulary or writes a word of the language:
@@ -43,7 +44,7 @@ use std::io::Read as _;
 
 use base64::Engine as _;
 use serde::Serialize;
-use serde_json::Value as Json;
+use serde_json::{Map, Value as Json};
 
 use crate::error::{ErrorKind, LanguageError};
 
@@ -77,6 +78,10 @@ pub struct Decoded {
     /// The envelope's sort, when the JSON carried one; a URL carries none.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sort: Option<Json>,
+    /// The envelope's keys beside `query` and `sort`, which the
+    /// translation reports unsupported by name (K6).
+    #[serde(skip_serializing_if = "Map::is_empty")]
+    pub beside: Map<String, Json>,
 }
 
 /// The longest id decoded: 64 KiB of text, where the longest captured id
@@ -111,6 +116,7 @@ pub fn decode(input: &str) -> Result<Decoded, LanguageError> {
         league: None,
         query,
         sort: None,
+        beside: Map::new(),
     })
 }
 
@@ -123,15 +129,23 @@ pub fn decode_json(value: &Json) -> Result<Decoded, LanguageError> {
             json_kind(value)
         )));
     };
-    let (query, sort) = match object.get("query") {
-        Some(Json::Object(inner)) => (Json::Object(inner.clone()), object.get("sort").cloned()),
+    let (query, sort, beside) = match object.get("query") {
+        Some(Json::Object(inner)) => (
+            Json::Object(inner.clone()),
+            object.get("sort").cloned(),
+            object
+                .iter()
+                .filter(|(k, _)| !matches!(k.as_str(), "query" | "sort"))
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect(),
+        ),
         Some(other) => {
             return Err(trade(format!(
                 "the envelope's `query` is {}, not an object",
                 json_kind(other)
             )));
         }
-        None => (value.clone(), None),
+        None => (value.clone(), None, Map::new()),
     };
     Ok(Decoded {
         source: Source::Json,
@@ -139,6 +153,7 @@ pub fn decode_json(value: &Json) -> Result<Decoded, LanguageError> {
         league: None,
         query,
         sort,
+        beside,
     })
 }
 
@@ -210,6 +225,7 @@ fn decode_url(input: &str) -> Result<Decoded, LanguageError> {
         league: Some(league),
         query,
         sort: None,
+        beside: Map::new(),
     })
 }
 

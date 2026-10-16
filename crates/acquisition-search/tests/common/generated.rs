@@ -2601,7 +2601,7 @@ const SITE_WORDS: [&str; 12] = [
     "Iron Ring",
     "a \"b\"",
     "x\\y",
-    "{max}",
+    "{bounds}",
     "or",
     "-",
     "line(",

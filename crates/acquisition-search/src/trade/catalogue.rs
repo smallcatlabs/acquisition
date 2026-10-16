@@ -55,7 +55,7 @@ pub const FILTERS_CAPTURE: &str = "2026-09-12";
 /// part of a clause the translation reads (`translate.rs`, which fills
 /// every one).
 pub const PLACEHOLDERS: [&str; 11] = [
-    "min", "max", "value", "text", "option", "r", "g", "b", "w", "bounds", "total",
+    "value", "text", "option", "r", "g", "b", "w", "bounds", "total", "slot", "pinned",
 ];
 
 /// A clause's status when it runs (K6). `disabled`, the fifth, is the
@@ -304,7 +304,7 @@ fn knows(field: &str) -> bool {
     crate::bind::is_field(field)
 }
 
-/// The placeholders a text holds, `{min}` and its kin, in order; a brace
+/// The placeholders a text holds, `{bounds}` and its kin, in order; a brace
 /// never closed is returned with its brace and the rest, which is none.
 fn placeholders(text: &str) -> Vec<&str> {
     let mut out = Vec::new();

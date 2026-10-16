@@ -54,11 +54,11 @@ fails = ['''{"name": "Kaom's Way", "rarity": "Unique"}''']
 
 [[case]]
 name = "a name holding the language's own marks reaches the binder as one text"
-query = '''{"name": "a \"b\" or {max} \\ c"}'''
-text = '''name="a \"b\" or {max} \\ c"'''
+query = '''{"name": "a \"b\" or {bounds} \\ c"}'''
+text = '''name="a \"b\" or {bounds} \\ c"'''
 fidelity = "exact"
 statuses = { "name" = "exact" }
-matches = ['''{"name": "a \"b\" or {max} \\ c"}''']
+matches = ['''{"name": "a \"b\" or {bounds} \\ c"}''']
 fails = ['''{"name": "a"}''']
 
 [[case]]
@@ -565,11 +565,13 @@ matches = ['{}', '{"implicitMods": ["+70 to maximum Life"]}', '{"implicitMods": 
 fails = ['{"implicitMods": ["+50 to maximum Life"]}']
 
 [[case]]
-name = "if has no line for a pseudo: unsupported whole"
-query = '{"stats": [{"type": "if", "filters": [{"id": "implicit.stat_3299347043", "value": {"min": 60}}, {"id": "pseudo.pseudo_total_life", "value": {"min": 1}}]}]}'
-text = ''
-fidelity = "partial"
-statuses = { "stats.0" = "unsupported", "stats.0.0" = "unsupported", "stats.0.1" = "unsupported" }
+name = "if: a pseudo's presence is `has:`, as a line's is its line"
+query = '{"stats": [{"type": "if", "filters": [{"id": "implicit.stat_3299347043", "value": {"min": 60}}, {"id": "pseudo.pseudo_total_life", "value": {"min": 50}}]}]}'
+text = '(-line("# to maximum Life" source=implicit) or line("# to maximum Life" source=implicit arg1>=60)) (-has:pseudo.total_life or pseudo.total_life>=50)'
+fidelity = "exact"
+statuses = { "stats.0" = "exact", "stats.0.0" = "exact", "stats.0.1" = "exact" }
+matches = ['{}', '{"explicitMods": ["+60 to maximum Life"]}', '{"implicitMods": ["+70 to maximum Life"]}']
+fails = ['{"explicitMods": ["+30 to maximum Life"]}', '{"implicitMods": ["+50 to maximum Life"]}']
 
 [[case]]
 name = "count: each stat that meets its bound counts"
@@ -754,6 +756,136 @@ query = '{"stats": [{"type": "and", "filters": [{"id": "implicit.stat_3299347043
 text = ''
 fidelity = "partial"
 statuses = { "stats.0" = "exact", "stats.0.0" = "unsupported" }
+
+# ---- what a site object carries, read where it stands -----------------------------------------
+
+[[case]]
+name = "a key no row reads inside a filter's value makes that filter unsupported, by name"
+query = '{"filters": {"misc_filters": {"filters": {"ilvl": {"min": 60, "typo": 80}, "quality": {"min": 20}}}}}'
+text = 'quality>=20'
+fidelity = "partial"
+statuses = { "misc_filters.quality" = "ambiguous", "misc_filters.ilvl" = "unsupported" }
+
+[[case]]
+name = "a filter group carrying a key no row reads: the group and each filter of it unsupported"
+query = '{"filters": {"misc_filters": {"filters": {"ilvl": {"min": 60}}, "mode": "any"}, "type_filters": {"filters": {"rarity": {"option": "rare"}}}}}'
+text = 'rarity=rare'
+fidelity = "partial"
+statuses = { "type_filters.rarity" = "exact", "misc_filters.ilvl" = "unsupported", "misc_filters" = "unsupported" }
+
+[[case]]
+name = "a filter group whose filters stand under a key no row reads is said, never skipped"
+query = '{"filters": {"misc_filters": {"filter": {"ilvl": {"min": 60}}}}}'
+text = ''
+fidelity = "partial"
+statuses = { "misc_filters" = "unsupported" }
+
+[[case]]
+name = "a filter group sent with nothing in it states nothing"
+query = '{"filters": {"misc_filters": {"disabled": false}}}'
+text = ''
+fidelity = "exact"
+statuses = {}
+
+[[case]]
+name = "an option filter sent with no option states nothing, as one sent null does"
+query = '{"filters": {"misc_filters": {"filters": {"corrupted": {}, "identified": {"option": null}}}}}'
+text = 'true() true()'
+fidelity = "exact"
+statuses = { "misc_filters.corrupted" = "exact", "misc_filters.identified" = "exact" }
+matches = ['{}', '{"corrupted": true}']
+
+[[case]]
+name = "a filter no row names inside a disabled group is disabled, as its row's would be"
+query = '{"filters": {"misc_filters": {"disabled": true, "filters": {"nothing_here": {"min": 1}, "ilvl": {"min": 60}}}}}'
+text = ''
+fidelity = "exact"
+statuses = { "misc_filters.ilvl" = "disabled", "misc_filters.nothing_here" = "disabled" }
+
+[[case]]
+name = "a `disabled` that is no yes or no makes its clause unsupported"
+query = '{"filters": {"misc_filters": {"filters": {"ilvl": {"min": 60, "disabled": "yes"}}}}}'
+text = ''
+fidelity = "partial"
+statuses = { "misc_filters.ilvl" = "unsupported" }
+
+[[case]]
+name = "a stat value carrying a key no row reads, and a weight outside a weighted sum: each filter unsupported"
+query = '{"stats": [{"type": "and", "filters": [{"id": "explicit.stat_3299347043", "value": {"min": 60, "typo": 1}}, {"id": "implicit.stat_3299347043", "value": {"weight": 2}}, {"id": "implicit.stat_3372524247"}]}]}'
+text = 'line("#% to Fire Resistance" source=implicit)'
+fidelity = "partial"
+statuses = { "stats.0" = "exact", "stats.0.0" = "unsupported", "stats.0.1" = "unsupported", "stats.0.2" = "exact" }
+
+[[case]]
+name = "a stat group carrying a key no row reads is unsupported whole, `and` too"
+query = '{"stats": [{"type": "and", "mode": "x", "filters": [{"id": "explicit.stat_3299347043"}]}]}'
+text = ''
+fidelity = "partial"
+statuses = { "stats.0" = "unsupported", "stats.0.0" = "unsupported" }
+
+[[case]]
+name = "a stat group that is no object, one carrying bounds its type does not read, one whose filters stand under a key no row reads"
+query = '{"stats": ["x", {"type": "and", "value": {"min": 1}, "filters": [{"id": "explicit.stat_3299347043"}]}, {"type": "and", "filtres": []}]}'
+text = ''
+fidelity = "partial"
+statuses = { "stats.0" = "unsupported", "stats.1" = "unsupported", "stats.1.0" = "unsupported", "stats.2" = "unsupported" }
+
+[[case]]
+name = "the envelope's key beside its query and sort is named"
+query = '''{"query": {"name": "Kaom's Heart"}, "sort": {"price": "asc"}, "extra": 1}'''
+text = '''name="Kaom's Heart"'''
+fidelity = "partial"
+statuses = { "name" = "exact", "sort" = "listing_only", "envelope.extra" = "unsupported" }
+
+[[case]]
+name = "a name object carrying a key no row reads, and a base sent null, which states nothing"
+query = '''{"name": {"option": "Kaom's Heart", "typo": 1}, "type": null}'''
+text = 'true()'
+fidelity = "partial"
+statuses = { "name" = "unsupported", "type" = "exact" }
+
+[[case]]
+name = "a pseudo with no bound is its presence, as the site shows no pseudo for a total of nothing"
+query = '{"stats": [{"type": "and", "filters": [{"id": "pseudo.pseudo_total_life"}]}]}'
+text = 'has:pseudo.total_life'
+fidelity = "exact"
+statuses = { "stats.0" = "exact", "stats.0.0" = "exact" }
+matches = ['{"explicitMods": ["+30 to maximum Life"]}']
+fails = ['{}', '{"explicitMods": ["+21 to maximum Life", "-21 to maximum Life"]}']
+
+[[case]]
+name = "not over a pseudo with no bound: not present"
+query = '{"stats": [{"type": "not", "filters": [{"id": "pseudo.pseudo_total_life"}]}]}'
+text = '-has:pseudo.total_life'
+fidelity = "exact"
+statuses = { "stats.0" = "exact", "stats.0.0" = "exact" }
+matches = ['{}', '{"explicitMods": ["+21 to maximum Life", "-21 to maximum Life"]}']
+fails = ['{"explicitMods": ["+30 to maximum Life"]}']
+
+[[case]]
+name = "count over pseudos with no bound: each present one counts"
+query = '{"stats": [{"type": "count", "value": {"min": 2}, "filters": [{"id": "pseudo.pseudo_total_life"}, {"id": "pseudo.pseudo_total_fire_resistance"}, {"id": "pseudo.pseudo_total_cold_resistance"}]}]}'
+text = 'holds(has:pseudo.total_life, has:pseudo.total_fire_res, has:pseudo.total_cold_res)>=2'
+fidelity = "exact"
+statuses = { "stats.0" = "exact", "stats.0.0" = "exact", "stats.0.1" = "exact", "stats.0.2" = "exact" }
+matches = ['{"explicitMods": ["+30 to maximum Life", "+20% to Fire Resistance"]}', '{"explicitMods": ["+20% to Fire Resistance", "+20% to Cold Resistance"]}']
+fails = ['{"explicitMods": ["+30 to maximum Life"]}', '{"explicitMods": ["+30 to maximum Life", "+20% to Lightning Resistance"]}']
+
+[[case]]
+name = "a weighted sum whose bounds run backwards is unsupported in the binder's words, the rest kept"
+query = '{"stats": [{"type": "weight", "value": {"min": 1, "max": 0}, "filters": [{"id": "explicit.stat_3299347043", "value": {"weight": 1}}]}], "filters": {"misc_filters": {"filters": {"ilvl": {"min": 60}}}}}'
+text = 'ilvl>=60'
+fidelity = "partial"
+statuses = { "misc_filters.ilvl" = "exact", "stats.0" = "unsupported", "stats.0.0" = "unsupported" }
+matches = ['{"ilvl": 60}']
+fails = ['{"ilvl": 59}']
+
+[[case]]
+name = "a count whose bounds run backwards is unsupported in the binder's words, the rest kept"
+query = '{"stats": [{"type": "count", "value": {"min": 2, "max": 1}, "filters": [{"id": "implicit.stat_3299347043"}, {"id": "implicit.stat_3372524247"}]}], "filters": {"misc_filters": {"filters": {"ilvl": {"min": 60}}}}}'
+text = 'ilvl>=60'
+fidelity = "partial"
+statuses = { "misc_filters.ilvl" = "exact", "stats.0" = "unsupported", "stats.0.0" = "unsupported", "stats.0.1" = "unsupported" }
 
 # ---- the owner's eight searches (tests/trade-decode.toml) -------------------------------------
 

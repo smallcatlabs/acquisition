@@ -356,7 +356,7 @@ struct Stat {
 /// C113, K6: every one of the stat table's category and id pairs
 /// translates, alone and with a bound — each a filter of one `and`
 /// group — and holds what every translation holds; the statuses are the
-/// catalogue header's count — 5,948 exact, 7,891 ambiguous, 229
+/// catalogue header's count — 5,329 exact, 8,510 ambiguous, 229
 /// unsupported, the two-text ids every one — and 1,613 pairs carry a
 /// number written as a digit. Every pair and the counts where
 /// `ACQ_CASES=full` (CI); here a sixteenth of them, a fresh one each run,
@@ -408,7 +408,7 @@ fn c113_every_stat_id_of_the_table_translates() {
                 count(Status::Ambiguous),
                 count(Status::Unsupported)
             ],
-            [5_948, 7_891, 229],
+            [5_329, 8_510, 229],
             "{value}"
         );
         assert_eq!(read("stat.text.two"), 229);

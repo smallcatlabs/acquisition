@@ -69,8 +69,8 @@ least one (S106). A site bound on a ranged line is `avg` on the line
 (S47), exact once the word exists.
 
 **C113 (K6).** A URL is a request: its realm the scope, its league a
-term, the rest the query; a bare id or the query JSON fills no scope, so
-the ordinary rules apply; `--realm` beside a URL is a conflict; a sort,
+term, the rest the query; a bare id or the query JSON fills no scope;
+`--realm` beside a URL is a conflict; a sort,
 which only the JSON envelope carries, is reported, never applied. The id is
 the query object, gzipped and base64url-encoded (S56). Every clause
 has one of five statuses — exact, ambiguous, unsupported, listing-only,
@@ -86,7 +86,8 @@ no number; `+#` and a `(Local)` suffix are spelling, the suffix making
 the clause ambiguous (S72), as does a text with two ids (S66); an id of
 two texts in one category is unsupported (owner, 2026-10-15:
 "Unsupported until the sitting"); a pseudo
-the totals table names is that total or reading, any other unsupported.
+the totals table names is that total or reading, with no bound `has:` it
+(C94), any other unsupported.
 `not` is `-( … or … )`, `if` is `(-line(T) or line(T v))` per stat,
 `count` is `holds(…)=min..max`, a weighted group as K5. Every clause
 that runs owns one term path inside its group, a tautology its own, and

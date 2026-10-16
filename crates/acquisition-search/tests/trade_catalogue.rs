@@ -33,12 +33,14 @@ fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
             count(Disposition::Unsupported),
             count(Disposition::ListingOnly)
         ],
-        [66, 27, 37, 9]
+        [65, 28, 37, 9]
     );
     // the four defence filters ambiguous since step 3 measured the q20
     // rule against the site (`tests/properties.rs`), and the eleven rows
-    // step 3's measurement doubted since step 4, by the owner's verdicts
+    // step 3's measurement doubted since step 4, by the owner's verdicts,
+    // and the digit rule no capture shows (owner, 2026-10-16)
     for key in [
+        "stat.text.numbers",
         "armour_filters.ar",
         "armour_filters.ev",
         "armour_filters.es",
@@ -190,7 +192,7 @@ fn row(key: &str, body: &str) -> String {
 fn c113_the_catalogue_loader_refuses_what_a_reviewer_would() {
     let good = row(
         "misc_filters.ilvl",
-        "text = \"Item Level\"\nshape = \"minmax\"\ndisposition = \"exact\"\nlands = \"ilvl>={min} ilvl<={max}\"\nfields = [\"ilvl\"]",
+        "text = \"Item Level\"\nshape = \"minmax\"\ndisposition = \"exact\"\nlands = \"ilvl{bounds}\"\nfields = [\"ilvl\"]",
     );
     assert_eq!(
         Catalogue::parse(&format!("{HEAD}{good}"))
@@ -289,7 +291,7 @@ fn c113_the_catalogue_loader_refuses_what_a_reviewer_would() {
     for what in ["unsupported", "listing_only"] {
         assert_eq!(
             refused(one(&format!(
-                "disposition = \"{what}\"\nnote = \"n\"\nlands = \"ilvl>={{min}}\""
+                "disposition = \"{what}\"\nnote = \"n\"\nlands = \"ilvl{{bounds}}\""
             ))),
             CatalogueError::LandsWithoutRunning(key()),
             "{what}"
@@ -337,7 +339,7 @@ fn c113_the_catalogue_loader_refuses_what_a_reviewer_would() {
     // a field named and not written — `ilvl` is no part of `reqlevel`
     assert_eq!(
         refused(one(
-            "disposition = \"exact\"\nlands = \"reqlevel>={min}\"\nfields = [\"ilvl\", \"reqlevel\"]"
+            "disposition = \"exact\"\nlands = \"reqlevel{bounds}\"\nfields = [\"ilvl\", \"reqlevel\"]"
         )),
         CatalogueError::FieldNotLanded {
             key: key(),
@@ -346,7 +348,7 @@ fn c113_the_catalogue_loader_refuses_what_a_reviewer_would() {
     );
     assert_eq!(
         refused(one(
-            "disposition = \"exact\"\nlands = \"armour.q2>={min}\"\nfields = [\"armour.q2\"]"
+            "disposition = \"exact\"\nlands = \"armour.q2{bounds}\"\nfields = [\"armour.q2\"]"
         )),
         CatalogueError::UnknownField {
             key: key(),
@@ -356,7 +358,7 @@ fn c113_the_catalogue_loader_refuses_what_a_reviewer_would() {
     // a computed value the build does not define, and `is` as a field
     assert_eq!(
         refused(one(
-            "disposition = \"exact\"\nlands = \"pseudo.adps>={min}\"\nfields = [\"pseudo.adps\"]"
+            "disposition = \"exact\"\nlands = \"pseudo.adps{bounds}\"\nfields = [\"pseudo.adps\"]"
         )),
         CatalogueError::UnknownField {
             key: key(),
@@ -365,7 +367,7 @@ fn c113_the_catalogue_loader_refuses_what_a_reviewer_would() {
     );
     assert!(
         Catalogue::parse(&one(
-            "disposition = \"exact\"\nlands = \"is:split armour.q20>={min} pseudo.edps>={max}\"\nfields = [\"is\", \"armour.q20\", \"pseudo.edps\"]"
+            "disposition = \"exact\"\nlands = \"is:split armour.q20{bounds} pseudo.edps>={r}\"\nfields = [\"is\", \"armour.q20\", \"pseudo.edps\"]"
         ))
         .is_ok()
     );

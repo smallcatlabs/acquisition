@@ -10,25 +10,39 @@
 //!   text through the printer's quoting, a number as the printer writes
 //!   it, in one pass from the left so that what fills one placeholder is
 //!   never read for another; a term holding a placeholder the clause lacks
-//!   dropped, a range only when it lacks both sides and written as the
-//!   other side's comparison when it lacks one (`ilvl>=60`, as a person
-//!   types it), `true()` where the clause fills none — and the filled
+//!   dropped, `true()` where the clause fills none, a key absent and one
+//!   sent null alike; every bound made by one maker, `{bounds}`, as a
+//!   person types it (`ilvl>=60`) — and the filled
 //!   text is parsed and bound alone, so that no clause can
 //!   reach into another's and a text the binder refuses (an option no
 //!   closed set holds) is that clause unsupported by its name, with the
 //!   binder's words (`query.unknown`), never an error of the whole.
+//! - **A site object is read where it stands** (`read`): each level names
+//!   the keys it reads — a filter's value by its row's `shape`, a filter
+//!   group, a stat group and its value, a stat filter and its value, the
+//!   weight in a weighted sum alone — and the site's `disabled` is read
+//!   before anything else of the clause, which it marks disabled whatever
+//!   else it carries. Any other key, or a value that is no object, makes
+//!   unsupported, by name, the clause it could change: a filter, every
+//!   filter of its group and the group, a stat group whole, the envelope's
+//!   own key. What the translation does not read it never drops unsaid.
 //! - **A group is composed here from its filters' texts**, whole or not at
 //!   all, `and` excepted (K6): an unsupported filter of any other group
-//!   puts the group and every filter of it in the remainder. `and` and
+//!   puts the group and every filter of it in the remainder. Every node a
+//!   group composes is bound alone, as a clause's text is: one the binder
+//!   refuses — a count's or a sum's bounds that run backwards — is the
+//!   group unsupported with the binder's words, never an error of the
+//!   whole. `and` and
 //!   `if` leave each filter a term of the query; `not` is `-(a or b …)`,
 //!   `-a` for one; `count` is `holds(a, b …)` with the group's bounds;
 //!   a weighted sum is `sum(line(… or …).slot)` against the group's bounds
 //!   over its one weight (K5), the sum made by `tree::sum_of_lines`, since
 //!   a group's tree is named by the tree's own modules alone
-//!   (`tools/docs-check.sh` §7). `if` is, per stat, the stat's line as it
-//!   lands without its bounds and with them — `(-line(T) or line(T b))` —
-//!   and `true()` for a stat with none, the site's own no-op; the line
-//!   without its bounds is landed only for these two groups. The group
+//!   (`tools/docs-check.sh` §7). `if` is, per stat, not the stat's presence or
+//!   the stat with its bounds — `(-line(T) or line(T b))`,
+//!   `(-has:pseudo.X or pseudo.X>=v)` — and `true()` for a stat with none,
+//!   the site's own no-op; the presence is landed only for these two
+//!   groups. The group
 //!   rows' notes state each shape; this is its one maker.
 //! - **A stat's line** is the site's text for its id (`stats.rs`), with
 //!   its `(Local)` suffix dropped, read by the deriver's own scan of a
@@ -37,6 +51,9 @@
 //!   fixed to it (`arg2=4`); the bounds compare the text's own `#` —
 //!   `avg` on a ranged pair of them, the first of several, and none where
 //!   the text has no `#`, which is presence alone and drops a bound.
+//! - **A stat filter with no bound is the stat's presence**: a line's is
+//!   the line, a pseudo's `has:pseudo.X` — the site shows no pseudo for a
+//!   total of nothing, which the search reads as lacked (C94).
 //! - **Statuses are read where the clause is read.** A filter's status is
 //!   its category's row, worsened by each line rule that applies to its
 //!   text (a `(Local)` suffix, a text two ids share, several `#`) and, in
@@ -240,6 +257,13 @@ pub fn translate(decoded: &Decoded) -> Result<Translation, LanguageError> {
     if let Some(sort) = &decoded.sort {
         t.reported("sort", sort, "query.sort", None)?;
     }
+    for (key, value) in &decoded.beside {
+        t.unknown(
+            &format!("envelope.{key}"),
+            value,
+            &format!("the envelope's `{key}`, which no row reads"),
+        )?;
+    }
     t.finish(decoded, catalogue.version(), stats.version())
 }
 
@@ -277,13 +301,25 @@ struct StatRead {
     at: String,
     site: Json,
     landed: Landed,
-    /// The stat's line without its bounds, for `if` and a weighted sum.
-    bare: Option<Node>,
+    /// The stat on the item at all — a line without its bounds, `has:` a
+    /// value — for `if` and a weighted sum.
+    presence: Option<Node>,
     /// The slot a bound compares; none for a text with no `#`.
     slot: Option<String>,
     bounded: bool,
     weight: Option<Number>,
-    is_pseudo: bool,
+}
+
+/// Whether a group of `kind` reads its filters' presence beside them.
+fn presence_too(kind: &str) -> bool {
+    matches!(kind, "if" | "weight" | "weight2")
+}
+
+/// A stat filter's own keys and its value's, read (K6): the value, or none
+/// where it is absent or null.
+fn read_stat<'j>(filter: &'j Json, kind: &str) -> Result<Option<&'j Map<String, Json>>, String> {
+    read(Some(filter), &STAT_FILTER)?;
+    read(filter.get("value"), stat_value_keys(kind)).map_err(|why| format!("its value: {why}"))
 }
 
 struct Translator<'a> {
@@ -301,6 +337,9 @@ enum Fill {
     Number(Number),
     Name(String),
     Made(String),
+    /// `{bounds}` on a value a stat filter names with no bound: the term
+    /// `X{bounds}` is `has:X`, the value's presence (K6, C94).
+    Presence,
 }
 
 impl Fill {
@@ -309,6 +348,7 @@ impl Fill {
             Fill::Text(t) => print::quoted_text(t),
             Fill::Number(n) => print::number_text(*n),
             Fill::Name(n) | Fill::Made(n) => n.clone(),
+            Fill::Presence => String::new(),
         }
     }
 }
@@ -357,29 +397,16 @@ fn fill_sequence(
         let values: Vec<Option<Fill>> = names.iter().map(|n| get(n)).collect();
         let present = values.iter().filter(|v| v.is_some()).count();
         *filled += present;
-        // a range keeps a blank side; any other term needs all it names
-        let keep = if token.contains("..") {
-            present > 0
-        } else {
-            present == names.len()
-        };
-        if !keep {
+        // a term needs all it names
+        if present < names.len() {
             continue;
         }
-        // a range with one side is that side's comparison, as a person
-        // types it: `ilvl>=60`, never `ilvl=60..`
-        let mut written = token.to_string();
-        if let [.., low, high] = names.as_slice() {
-            let range = format!("={{{low}}}..{{{high}}}");
-            let n = names.len();
-            if let Some(prefix) = token.strip_suffix(&range) {
-                match (&values[n - 2], &values[n - 1]) {
-                    (Some(_), None) => written = format!("{prefix}>={{{low}}}"),
-                    (None, Some(_)) => written = format!("{prefix}<={{{high}}}"),
-                    _ => {}
-                }
-            }
-        }
+        let presence = values.iter().any(|v| matches!(v, Some(Fill::Presence)));
+        let written = if presence {
+            format!("has:{token}")
+        } else {
+            token.to_string()
+        };
         out.push(substituted(&written, &|name| {
             names
                 .iter()
@@ -447,7 +474,7 @@ fn terms(text: &str) -> Vec<&str> {
     out
 }
 
-/// The placeholders a term writes, `{min}` and its kin, in order.
+/// The placeholders a term writes, `{bounds}` and its kin, in order.
 fn placeholders(text: &str) -> Vec<&str> {
     let mut out = Vec::new();
     let mut rest = text;
@@ -462,8 +489,8 @@ fn placeholders(text: &str) -> Vec<&str> {
 
 /// A number the site sent, as the search reads one (`exact::reads`): none
 /// for a value absent or null, an error naming it for one outside the rule.
-fn number(value: &Json, key: &str) -> Result<Option<Number>, String> {
-    match value.get(key) {
+fn number(value: Option<&Map<String, Json>>, key: &str) -> Result<Option<Number>, String> {
+    match value.and_then(|v| v.get(key)) {
         None | Some(Json::Null) => Ok(None),
         Some(Json::Number(n)) => {
             let literal = n.to_string();
@@ -478,15 +505,78 @@ fn number(value: &Json, key: &str) -> Result<Option<Number>, String> {
     }
 }
 
-/// `slot>=min`, `slot<=max` or `slot=min..max`, or none where the clause
-/// has neither bound.
-fn bounds(slot: &str, min: Option<Number>, max: Option<Number>) -> Option<String> {
+/// `{bounds}`, the one maker of a bound's text: `>=min`, `<=max` or
+/// `=min..max`, as a person types it, or none where the clause has neither.
+fn bounds(min: Option<Number>, max: Option<Number>) -> Option<String> {
     let n = print::number_text;
     match (min, max) {
         (None, None) => None,
-        (Some(a), None) => Some(format!("{slot}>={}", n(a))),
-        (None, Some(b)) => Some(format!("{slot}<={}", n(b))),
-        (Some(a), Some(b)) => Some(format!("{slot}={}..{}", n(a), n(b))),
+        (Some(a), None) => Some(format!(">={}", n(a))),
+        (None, Some(b)) => Some(format!("<={}", n(b))),
+        (Some(a), Some(b)) => Some(format!("={}..{}", n(a), n(b))),
+    }
+}
+
+/// A site object where it stands, read: a key it carries that no list
+/// here names is unsupported by name (K6), and so is anything but an
+/// object; a value absent or null is an empty one.
+fn read<'j>(
+    value: Option<&'j Json>,
+    keys: &[&str],
+) -> Result<Option<&'j Map<String, Json>>, String> {
+    match value {
+        None | Some(Json::Null) => Ok(None),
+        Some(Json::Object(o)) => {
+            let strays: Vec<String> = o
+                .keys()
+                .filter(|k| !keys.contains(&k.as_str()))
+                .map(|k| format!("`{k}`"))
+                .collect();
+            if strays.is_empty() {
+                Ok(Some(o))
+            } else {
+                Err(format!(
+                    "it carries {}, which no row reads",
+                    strays.join(", ")
+                ))
+            }
+        }
+        Some(other) => Err(format!("{other} is no object")),
+    }
+}
+
+/// The site's `disabled` mark, read before anything else of its clause:
+/// a clause it marks is disabled whatever else it carries.
+fn disabled(value: &Json) -> Result<bool, String> {
+    match value.get("disabled") {
+        None | Some(Json::Null) | Some(Json::Bool(false)) => Ok(false),
+        Some(Json::Bool(true)) => Ok(true),
+        Some(other) => Err(format!("its `disabled` is {other}, no yes or no")),
+    }
+}
+
+/// The keys each site object reads (K6): a filter group's, a filter's by
+/// its row's shape, a stat group's and its value's, a stat filter's and
+/// its value's, the weight only in a weighted sum.
+const FILTER_GROUP: [&str; 2] = ["filters", "disabled"];
+const STAT_GROUP: [&str; 4] = ["type", "filters", "value", "disabled"];
+const GROUP_VALUE: [&str; 2] = ["min", "max"];
+const STAT_FILTER: [&str; 3] = ["id", "value", "disabled"];
+
+fn filter_keys(shape: &str) -> &'static [&'static str] {
+    match shape {
+        "option" => &["option", "disabled"],
+        "minmax" => &["min", "max", "disabled"],
+        "sockets" => &["min", "max", "r", "g", "b", "w", "disabled"],
+        "minmax_option" => &["min", "max", "option", "disabled"],
+        _ => &["disabled"],
+    }
+}
+
+fn stat_value_keys(kind: &str) -> &'static [&'static str] {
+    match kind {
+        "weight" | "weight2" => &["min", "max", "option", "weight"],
+        _ => &["min", "max", "option"],
     }
 }
 
@@ -598,13 +688,17 @@ impl Translator<'_> {
         Ok(landed)
     }
 
-    /// The URL's league, a query's `term`, `name` or `type`: a text.
+    /// The URL's league, a query's `term`, `name` or `type`: a text, or
+    /// null, which fills nothing.
     fn input(&mut self, at: &str, key: &str, value: &Json) -> Result<(), LanguageError> {
-        let Json::String(text) = value else {
-            return self.unknown(at, value, &format!("`{at}` is {value}, not a text"));
+        let text = match value {
+            Json::String(text) => Some(text.clone()),
+            Json::Null => None,
+            _ => return self.unknown(at, value, &format!("`{at}` is {value}, not a text")),
         };
-        let landed = self.land(key, &|name| {
-            (name == "value").then(|| Fill::Text(text.clone()))
+        let landed = self.land(key, &|name| match name {
+            "value" => text.clone().map(Fill::Text),
+            _ => None,
         })?;
         self.conjunct(at, value, landed);
         Ok(())
@@ -617,7 +711,10 @@ impl Translator<'_> {
             _ => {
                 let row = format!("query.{key}");
                 match value {
-                    Json::Object(o) if o.contains_key("option") => {
+                    Json::Object(o) => {
+                        if let Err(why) = read(Some(value), &["option", "discriminator"]) {
+                            return self.unknown(key, value, &why);
+                        }
                         let option = o.get("option").cloned().unwrap_or(Json::Null);
                         self.input(key, &row, &option)?;
                         if let Some(d) = o.get("discriminator").filter(|d| !d.is_null()) {
@@ -651,38 +748,81 @@ impl Translator<'_> {
                 .position(|r| r.key == key)
                 .unwrap_or(usize::MAX)
         };
-        let mut all: Vec<(usize, String, Json, bool)> = Vec::new();
+        // a filter, or a group no filter of which can be read: by its key
+        // alone, unsupported, its filters beside it
+        enum Entry {
+            Filter { disabled: bool, why: Option<String> },
+            Group(String),
+        }
+        let mut all: Vec<(usize, String, Json, Entry)> = Vec::new();
         for (group_id, group) in groups {
-            let disabled = group.get("disabled") == Some(&Json::Bool(true));
-            match group.get("filters") {
-                Some(Json::Object(each)) => {
-                    for (id, value) in each {
-                        let key = format!("{group_id}.{id}");
-                        all.push((order(&key), key, value.clone(), disabled));
-                    }
-                }
-                None => {}
-                Some(other) => {
-                    let key = format!("{group_id}.filters");
-                    all.push((usize::MAX, key, other.clone(), disabled));
+            // the site's mark first: a disabled group's filters are
+            // disabled whatever else it carries
+            let (off, why) = match disabled(group) {
+                Ok(true) => (true, None),
+                Ok(false) => match read(Some(group), &FILTER_GROUP) {
+                    Ok(_) => match group.get("filters") {
+                        None | Some(Json::Null | Json::Object(_)) => (false, None),
+                        Some(other) => {
+                            (false, Some(format!("its `filters` is {other}, no object")))
+                        }
+                    },
+                    Err(why) => (false, Some(why)),
+                },
+                Err(why) => (false, Some(why)),
+            };
+            if let Some(why) = &why {
+                all.push((
+                    usize::MAX,
+                    group_id.clone(),
+                    group.clone(),
+                    Entry::Group(why.clone()),
+                ));
+            }
+            if let Some(Json::Object(each)) = group.get("filters") {
+                for (id, value) in each {
+                    let key = format!("{group_id}.{id}");
+                    let why = why
+                        .as_ref()
+                        .map(|why| format!("its group `{group_id}` is unread: {why}"));
+                    all.push((
+                        order(&key),
+                        key,
+                        value.clone(),
+                        Entry::Filter { disabled: off, why },
+                    ));
                 }
             }
         }
         all.sort_by(|a, b| (a.0, &a.1).cmp(&(b.0, &b.1)));
-        for (_, key, value, disabled) in all {
-            self.filter(&key, &value, disabled)?;
+        for (_, key, value, entry) in all {
+            match entry {
+                Entry::Filter { disabled, why } => self.filter(&key, &value, disabled, why)?,
+                Entry::Group(why) => self.unknown(&key, &value, &why)?,
+            }
         }
         Ok(())
     }
 
-    fn filter(&mut self, key: &str, value: &Json, disabled: bool) -> Result<(), LanguageError> {
-        if self.catalogue.row(key).is_none() {
-            return self.unknown(key, value, &format!("no row names the filter `{key}`"));
-        }
-        if disabled || value.get("disabled") == Some(&Json::Bool(true)) {
+    /// One filter: the site's `disabled` read first, then its group's
+    /// reading, its row, and its value by the keys its row's shape reads.
+    fn filter(
+        &mut self,
+        key: &str,
+        value: &Json,
+        group_disabled: bool,
+        group_why: Option<String>,
+    ) -> Result<(), LanguageError> {
+        let known = self.catalogue.row(key).is_some();
+        let off = disabled(value);
+        if group_disabled || off == Ok(true) {
+            let mut rows = vec!["stats.filter.disabled".to_string()];
+            if known {
+                rows.insert(0, key.to_string());
+            }
             let mut landed = Landed {
                 status: Status::Disabled,
-                rows: vec![key.to_string(), "stats.filter.disabled".to_string()],
+                rows,
                 notes: self.note_of("stats.filter.disabled")?,
                 node: None,
             };
@@ -692,28 +832,44 @@ impl Translator<'_> {
             self.conjunct(key, value, landed);
             return Ok(());
         }
+        if !known {
+            return self.unknown(key, value, &format!("no row names the filter `{key}`"));
+        }
+        if let Some(why) = group_why {
+            return self.unknown_beside(key, value, &why);
+        }
+        if let Err(why) = off {
+            return self.unknown_beside(key, value, &why);
+        }
         let row = self.row(key)?;
         if !Status::of(row.disposition).runs() {
             return self.reported(key, value, key, None);
         }
-        if !value.is_object() {
-            return self.unknown_beside(key, value, &format!("its value {value} is no object"));
-        }
-        if let Some(option) = value.get("option") {
-            return self.option(key, value, option);
+        let shape = row.shape.clone().unwrap_or_default();
+        let fields = match read(Some(value), filter_keys(&shape)) {
+            Ok(fields) => fields,
+            Err(why) => return self.unknown_beside(key, value, &format!("its value: {why}")),
+        };
+        if shape == "option" {
+            return self.option(key, value, fields.and_then(|f| f.get("option")));
         }
         let mut numbers: Vec<(&str, Option<Number>)> = Vec::new();
         for name in ["min", "max", "r", "g", "b", "w"] {
-            match number(value, name) {
+            match number(fields, name) {
                 Ok(n) => numbers.push((name, n)),
                 Err(why) => return self.unknown_beside(key, value, &why),
             }
         }
-        let landed = self.land(key, &|name| {
+        let n = |name: &str| {
             numbers
                 .iter()
                 .find(|(n, _)| *n == name)
-                .and_then(|(_, v)| v.map(Fill::Number))
+                .and_then(|(_, v)| *v)
+        };
+        let made = bounds(n("min"), n("max"));
+        let landed = self.land(key, &|name| match name {
+            "bounds" => made.clone().map(Fill::Made),
+            _ => n(name).map(Fill::Number),
         })?;
         self.conjunct(key, value, landed);
         Ok(())
@@ -731,20 +887,25 @@ impl Translator<'_> {
     /// An option filter: an option with a row of its own lands that row;
     /// a row writing `{option}` lands the option; any other row reads
     /// `true` as its text and `false` as the not of it.
-    fn option(&mut self, key: &str, value: &Json, option: &Json) -> Result<(), LanguageError> {
+    fn option(
+        &mut self,
+        key: &str,
+        value: &Json,
+        option: Option<&Json>,
+    ) -> Result<(), LanguageError> {
         let option = match option {
-            // the site's "Any": the clause states nothing, whatever its row
-            // writes for an option
-            Json::Null => {
+            // no option, or the site's "Any": the clause fills nothing and
+            // so states nothing, whatever its row writes for an option
+            None | Some(Json::Null) => {
                 let mut landed = self.land(key, &|_| None)?;
                 landed.node = landed.node.map(|_| Node::Const(true));
                 self.conjunct(key, value, landed);
                 return Ok(());
             }
-            Json::String(s) => s.clone(),
-            Json::Bool(b) => b.to_string(),
-            Json::Number(n) => n.to_string(),
-            other => {
+            Some(Json::String(s)) => s.clone(),
+            Some(Json::Bool(b)) => b.to_string(),
+            Some(Json::Number(n)) => n.to_string(),
+            Some(other) => {
                 return self.unknown_beside(key, value, &format!("the option {other} is no word"));
             }
         };
@@ -784,9 +945,9 @@ impl Translator<'_> {
 
     // ---- stats ---------------------------------------------------------------------------
 
-    /// One stat filter, read alone; its line without its bounds too where
-    /// the group reads it (`if`, a weighted sum).
-    fn stat(&self, at: String, filter: &Json, bare_too: bool) -> Result<StatRead, LanguageError> {
+    /// One stat filter of a group of `kind`, read alone, with its presence:
+    /// the stat on the item at all, which it is where it has no bound.
+    fn stat(&self, at: String, filter: &Json, kind: &str) -> Result<StatRead, LanguageError> {
         let mut read = StatRead {
             at,
             site: filter.clone(),
@@ -796,27 +957,43 @@ impl Translator<'_> {
                 notes: Vec::new(),
                 node: None,
             },
-            bare: None,
+            presence: None,
             slot: None,
             bounded: false,
             weight: None,
-            is_pseudo: false,
         };
-        if filter.get("disabled") == Some(&Json::Bool(true)) {
-            read.landed = Landed {
-                status: Status::Disabled,
-                rows: vec!["stats.filter.disabled".to_string()],
-                notes: self.note_of("stats.filter.disabled")?,
-                node: None,
-            };
-            return Ok(read);
+        // the site's mark first, then the keys the filter and its value read
+        match disabled(filter) {
+            Ok(true) => {
+                read.landed = Landed {
+                    status: Status::Disabled,
+                    rows: vec!["stats.filter.disabled".to_string()],
+                    notes: self.note_of("stats.filter.disabled")?,
+                    node: None,
+                };
+                return Ok(read);
+            }
+            Ok(false) => {}
+            Err(why) => {
+                read.landed = self.unknown_landed(&why)?;
+                return Ok(read);
+            }
         }
+        let value = match read_stat(filter, kind) {
+            Ok(value) => value,
+            Err(why) => {
+                read.landed = self.unknown_landed(&why)?;
+                return Ok(read);
+            }
+        };
         let Some(Json::String(id)) = filter.get("id") else {
             read.landed = self.unknown_landed("a stat filter with no id")?;
             return Ok(read);
         };
-        let value = filter.get("value").cloned().unwrap_or(Json::Null);
-        if value.get("option").is_some_and(|o| !o.is_null()) {
+        if value
+            .and_then(|v| v.get("option"))
+            .is_some_and(|o| !o.is_null())
+        {
             read.landed = Landed {
                 status: Status::Unsupported,
                 rows: vec!["stats.filter.option".to_string()],
@@ -826,9 +1003,9 @@ impl Translator<'_> {
             return Ok(read);
         }
         let (min, max, weight) = match (
-            number(&value, "min"),
-            number(&value, "max"),
-            number(&value, "weight"),
+            number(value, "min"),
+            number(value, "max"),
+            number(value, "weight"),
         ) {
             (Ok(min), Ok(max), Ok(weight)) => (min, max, weight),
             (Err(why), _, _) | (_, Err(why), _) | (_, _, Err(why)) => {
@@ -838,12 +1015,12 @@ impl Translator<'_> {
         };
         read.bounded = min.is_some() || max.is_some();
         read.weight = weight;
+        let made = bounds(min, max);
         let Some((category, rest)) = id.split_once('.') else {
             read.landed = self.stat_unknown(id)?;
             return Ok(read);
         };
         if category == "pseudo" {
-            read.is_pseudo = true;
             let Some(total) = self.total_named(rest) else {
                 let mut notes = self.note_of("stat.pseudo")?;
                 notes.push(format!(
@@ -857,12 +1034,24 @@ impl Translator<'_> {
                 };
                 return Ok(read);
             };
-            read.landed = self.land("stat.pseudo", &|name| match name {
-                "total" => Some(Fill::Name(total.clone())),
-                "min" => min.map(Fill::Number),
-                "max" => max.map(Fill::Number),
-                _ => None,
-            })?;
+            let with = |b: Fill| {
+                let total = total.clone();
+                move |name: &str| match name {
+                    "total" => Some(Fill::Name(total.clone())),
+                    "bounds" => Some(match &b {
+                        Fill::Made(m) => Fill::Made(m.clone()),
+                        _ => Fill::Presence,
+                    }),
+                    _ => None,
+                }
+            };
+            read.landed = self.land(
+                "stat.pseudo",
+                &with(made.clone().map_or(Fill::Presence, Fill::Made)),
+            )?;
+            if presence_too(kind) && read.landed.status.runs() {
+                read.presence = self.land("stat.pseudo", &with(Fill::Presence))?.node;
+            }
             return Ok(read);
         }
         let key = format!("stat.{category}");
@@ -970,17 +1159,15 @@ impl Translator<'_> {
             rule(&mut rows, &mut notes, &mut status, "stat.text.bounds")?;
             notes.push("a bound on a text with no `#` is dropped: presence alone".to_string());
         }
-        let terms = |b: Option<String>| -> Option<String> {
-            let all: Vec<String> = pinned.iter().cloned().chain(b).collect();
-            (!all.is_empty()).then(|| all.join(" "))
-        };
-        let made = terms(read.slot.as_deref().and_then(|slot| bounds(slot, min, max)));
-        let unbounded = terms(None);
-        let text_owned = template.clone();
+        // a line's presence is the line itself: `{slot}{bounds}` dropped
+        let pinned = (!pinned.is_empty()).then(|| pinned.join(" "));
+        let slot = read.slot.clone();
         let with = |b: Option<String>| {
-            let text = text_owned.clone();
+            let (text, pinned, slot) = (template.clone(), pinned.clone(), slot.clone());
             move |name: &str| match name {
                 "text" => Some(Fill::Text(text.clone())),
+                "pinned" => pinned.clone().map(Fill::Made),
+                "slot" => slot.clone().map(Fill::Name),
                 "bounds" => b.clone().map(Fill::Made),
                 _ => None,
             }
@@ -991,8 +1178,8 @@ impl Translator<'_> {
             read.landed = bounded;
             return Ok(read);
         }
-        if bare_too {
-            read.bare = self.land(&key, &with(unbounded))?.node;
+        if presence_too(kind) {
+            read.presence = self.land(&key, &with(None))?.node;
         }
         read.landed = Landed {
             status,
@@ -1033,56 +1220,82 @@ impl Translator<'_> {
 
     fn group(&mut self, n: usize, group: &Json) -> Result<(), LanguageError> {
         let at = format!("stats.{n}");
-        let filters: &[Json] = match group.get("filters") {
+        let Json::Object(object) = group else {
+            return self.unknown(&at, group, &format!("{group} is no group"));
+        };
+        let filters: &[Json] = match object.get("filters") {
             Some(Json::Array(f)) => f,
             None | Some(Json::Null) => &[],
             Some(other) => {
-                return self.unknown(&at, other, "a group's `filters` is no list");
+                return self.unknown(&at, group, &format!("its `filters` is {other}, no list"));
             }
         };
-        // a group with no filters is no group: the page posts one
-        if filters.is_empty() {
-            return Ok(());
-        }
-        let kind = group.get("type").and_then(Json::as_str).unwrap_or("");
+        let kind = object.get("type").and_then(Json::as_str).unwrap_or("");
         let group_key = format!("stats.{kind}");
-        let bare_too = matches!(kind, "if" | "weight" | "weight2");
         let site = Json::Object(
-            group
-                .as_object()
-                .map(|o| {
-                    o.iter()
-                        .filter(|(k, _)| k.as_str() != "filters")
-                        .map(|(k, v)| (k.clone(), v.clone()))
-                        .collect::<Map<_, _>>()
-                })
-                .unwrap_or_default(),
+            object
+                .iter()
+                .filter(|(k, _)| k.as_str() != "filters")
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect::<Map<_, _>>(),
         );
-        let reads: Vec<StatRead> = filters
-            .iter()
-            .enumerate()
-            .map(|(m, f)| self.stat(format!("{at}.{m}"), f, bare_too))
-            .collect::<Result<_, _>>()?;
-        if group.get("disabled") == Some(&Json::Bool(true)) {
+        // the site's mark first: a disabled group's filters are disabled
+        // whatever else it carries
+        let off = disabled(group);
+        if off == Ok(true) && !filters.is_empty() {
             let notes = self.note_of("stats.filter.disabled")?;
-            let landed = Landed {
+            let landed = |rows: Vec<String>| Landed {
                 status: Status::Disabled,
-                rows: vec![group_key.clone(), "stats.filter.disabled".to_string()],
+                rows,
                 notes: notes.clone(),
                 node: None,
             };
-            self.push(&at, &site, &landed, Own::Nothing);
-            for read in reads {
-                let landed = Landed {
-                    status: Status::Disabled,
-                    rows: vec!["stats.filter.disabled".to_string()],
-                    notes: notes.clone(),
-                    node: None,
-                };
-                self.push(&read.at, &read.site, &landed, Own::Nothing);
+            let disabled = "stats.filter.disabled".to_string();
+            self.push(
+                &at,
+                &site,
+                &landed(vec![group_key.clone(), disabled.clone()]),
+                Own::Nothing,
+            );
+            for (m, filter) in filters.iter().enumerate() {
+                self.push(
+                    &format!("{at}.{m}"),
+                    filter,
+                    &landed(vec![disabled.clone()]),
+                    Own::Nothing,
+                );
             }
             return Ok(());
         }
+        // why the group, read whole, cannot be: its mark, a key no row
+        // reads, its value; the bounds only a count or a sum reads
+        let value_keys: &[&str] = match kind {
+            "count" | "weight" | "weight2" => &GROUP_VALUE,
+            _ => &[],
+        };
+        let mut why: Option<String> = off.err();
+        let group_value = match read(Some(group), &STAT_GROUP).and_then(|_| {
+            read(object.get("value"), value_keys).map_err(|w| format!("its value: {w}"))
+        }) {
+            Ok(value) => value,
+            Err(w) => {
+                why.get_or_insert(w);
+                None
+            }
+        };
+        // a group with no filters is no group, the page posts one; one
+        // that carries what no row reads is said
+        if filters.is_empty() {
+            return match why {
+                Some(why) => self.unknown(&at, group, &why),
+                None => Ok(()),
+            };
+        }
+        let reads: Vec<StatRead> = filters
+            .iter()
+            .enumerate()
+            .map(|(m, f)| self.stat(format!("{at}.{m}"), f, kind))
+            .collect::<Result<_, _>>()?;
         let row = match self.catalogue.row(&group_key) {
             Some(row) if Status::of(row.disposition).runs() => row,
             found => {
@@ -1103,14 +1316,14 @@ impl Translator<'_> {
         let group_status = Status::of(row.disposition);
         let group_rows = vec![group_key.clone()];
         let group_notes: Vec<String> = row.note.iter().cloned().collect();
-        if kind == "and" {
-            let landed = Landed {
-                status: group_status,
-                rows: group_rows,
-                notes: group_notes,
-                node: None,
-            };
-            self.push(&at, &site, &landed, Own::Conjuncts);
+        let group_landed = || Landed {
+            status: group_status,
+            rows: group_rows.clone(),
+            notes: group_notes.clone(),
+            node: None,
+        };
+        if kind == "and" && why.is_none() {
+            self.push(&at, &site, &group_landed(), Own::Conjuncts);
             for read in reads {
                 self.conjunct(&read.at, &read.site, read.landed);
             }
@@ -1120,174 +1333,79 @@ impl Translator<'_> {
             .iter()
             .filter(|r| r.landed.status != Status::Disabled)
             .collect();
-        // why the group cannot translate whole: a filter of it, or the
-        // group's own shape
-        let mut why: Option<String> = active
-            .iter()
-            .find(|r| r.landed.status == Status::Unsupported)
-            .map(|r| format!("its filter `{}` is unsupported", r.at));
-        if active.is_empty() {
-            why = Some("every filter of it is disabled".to_string());
+        if why.is_none() {
+            why = active
+                .iter()
+                .find(|r| r.landed.status == Status::Unsupported)
+                .map(|r| format!("its filter `{}` is unsupported", r.at));
         }
-        let group_value = group.get("value").cloned().unwrap_or(Json::Null);
-        let (gmin, gmax) = match (number(&group_value, "min"), number(&group_value, "max")) {
+        if active.is_empty() {
+            why.get_or_insert("every filter of it is disabled".to_string());
+        }
+        let (gmin, gmax) = match (number(group_value, "min"), number(group_value, "max")) {
             (Ok(a), Ok(b)) => (a, b),
             (Err(e), _) | (_, Err(e)) => {
                 why.get_or_insert(e);
                 (None, None)
             }
         };
-        if why.is_none() {
-            why = match kind {
-                "if" => active
-                    .iter()
-                    .find(|r| r.is_pseudo)
-                    .map(|r| format!("its filter `{}` is a pseudo, which has no line", r.at)),
-                "count" => count_bounds(gmin, gmax).err(),
-                "weight" | "weight2" => weighted(&active, gmin, gmax).err(),
-                _ => None,
-            };
-        }
-        if let Some(why) = why {
-            let mut notes = group_notes;
-            notes.push(format!("unsupported whole: {why}"));
-            let landed = Landed {
-                status: Status::Unsupported,
-                rows: group_rows,
-                notes,
-                node: None,
-            };
-            return self.refuse_group(&at, &site, landed, reads);
-        }
+        // what the group writes, each node bound alone as a filter's text
+        // is: one the binder refuses is the group unsupported, its words
+        let composed = match why {
+            Some(why) => Err(why),
+            None => compose(kind, &active, gmin, gmax)?
+                .and_then(|nodes| nodes.iter().try_for_each(alone).map(|()| nodes)),
+        };
+        let mut nodes = match composed {
+            Ok(nodes) => nodes,
+            Err(why) => {
+                let mut landed = group_landed();
+                landed.status = Status::Unsupported;
+                landed.notes.push(format!("unsupported whole: {why}"));
+                return self.refuse_group(&at, &site, landed, reads);
+            }
+        };
         match kind {
-            "not" => {
-                let mut nodes = Vec::new();
+            "not" | "count" => {
                 let mut filters = Vec::new();
-                for read in &reads {
-                    if read.landed.status == Status::Disabled {
-                        continue;
-                    }
-                    let mut landed = Landed {
-                        status: read.landed.status,
-                        rows: read.landed.rows.clone(),
-                        notes: read.landed.notes.clone(),
-                        node: None,
-                    };
-                    if read.bounded {
+                for read in &active {
+                    let mut landed = clone_landed(&read.landed);
+                    landed.node = None;
+                    if kind == "not" && read.bounded {
                         landed.status = landed.status.worse(Status::Ambiguous);
                         landed.rows.push(group_key.clone());
                         landed.notes.extend(group_notes.iter().cloned());
                     }
-                    nodes.push(written(read)?);
                     filters.push(landed);
                 }
-                let one = nodes.len() == 1;
-                let node = if one {
-                    Node::Not(Box::new(nodes.remove(0)))
-                } else {
-                    Node::Not(Box::new(Node::Any(nodes)))
-                };
-                let g = self.push(
-                    &at,
-                    &site,
-                    &Landed {
-                        status: group_status,
-                        rows: group_rows,
-                        notes: group_notes,
-                        node: None,
-                    },
-                    Own::Path { parent: None },
-                );
+                let g = self.push(&at, &site, &group_landed(), Own::Path { parent: None });
                 let mut owners = vec![(g, String::new())];
-                self.place(&reads, filters, g, &mut owners, |m| {
-                    if one {
-                        "0".to_string()
-                    } else {
-                        format!("0.{m}")
-                    }
+                let one = active.len() == 1;
+                self.place(&reads, filters, g, &mut owners, |m| match (kind, one) {
+                    ("not", true) => "0".to_string(),
+                    ("not", false) => format!("0.{m}"),
+                    _ => m.to_string(),
                 });
-                self.pieces.push(Piece { node, owners });
-            }
-            "count" => {
-                let (lo, hi) = count_bounds(gmin, gmax).map_err(trade)?;
-                let mut of = Vec::new();
-                let mut filters = Vec::new();
-                for read in &reads {
-                    if read.landed.status == Status::Disabled {
-                        continue;
-                    }
-                    of.push(written(read)?);
-                    filters.push(clone_landed(&read.landed));
-                }
-                let node = Node::Holds {
-                    of,
-                    min: lo,
-                    max: hi,
-                };
-                let g = self.push(
-                    &at,
-                    &site,
-                    &Landed {
-                        status: group_status,
-                        rows: group_rows,
-                        notes: group_notes,
-                        node: None,
-                    },
-                    Own::Path { parent: None },
-                );
-                let mut owners = vec![(g, String::new())];
-                self.place(&reads, filters, g, &mut owners, |m| m.to_string());
-                self.pieces.push(Piece { node, owners });
+                self.pieces.push(Piece {
+                    node: nodes.remove(0),
+                    owners,
+                });
             }
             "if" => {
-                self.push(
-                    &at,
-                    &site,
-                    &Landed {
-                        status: group_status,
-                        rows: group_rows,
-                        notes: group_notes,
-                        node: None,
-                    },
-                    Own::Conjuncts,
-                );
+                self.push(&at, &site, &group_landed(), Own::Conjuncts);
+                let mut nodes = nodes.into_iter();
                 for read in &reads {
+                    let mut landed = clone_landed(&read.landed);
                     if read.landed.status == Status::Disabled {
-                        let landed = clone_landed(&read.landed);
                         self.push(&read.at, &read.site, &landed, Own::Nothing);
                         continue;
                     }
-                    let node = match (&read.bare, &read.landed.node) {
-                        (Some(bare), Some(bounded)) if read.bounded => {
-                            Node::Any(vec![Node::Not(Box::new(bare.clone())), bounded.clone()])
-                        }
-                        _ => Node::Const(true),
-                    };
-                    let mut landed = clone_landed(&read.landed);
-                    landed.node = Some(node);
+                    landed.node = nodes.next();
                     self.conjunct(&read.at, &read.site, landed);
                 }
             }
             _ => {
-                // the weighted sums: `weighted` has said every filter is a
-                // line of one weight and one slot
-                let Weighted { sum, op, rhs } = weighted(&active, gmin, gmax).map_err(trade)?;
-                let node = Node::Compare {
-                    value: sum,
-                    op,
-                    rhs,
-                };
-                let g = self.push(
-                    &at,
-                    &site,
-                    &Landed {
-                        status: group_status,
-                        rows: group_rows,
-                        notes: group_notes,
-                        node: None,
-                    },
-                    Own::Path { parent: None },
-                );
+                let g = self.push(&at, &site, &group_landed(), Own::Path { parent: None });
                 for read in &reads {
                     let own = if read.landed.status == Status::Disabled {
                         Own::Nothing
@@ -1298,7 +1416,7 @@ impl Translator<'_> {
                     self.push(&read.at, &read.site, &landed, own);
                 }
                 self.pieces.push(Piece {
-                    node,
+                    node: nodes.remove(0),
                     owners: vec![(g, String::new())],
                 });
             }
@@ -1453,6 +1571,72 @@ impl Translator<'_> {
     }
 }
 
+/// What a group other than `and` writes (K6; the group rows' notes): `not`
+/// and `count` one node over its filters' nodes, a weighted sum one
+/// comparison, `if` one node per filter; why it cannot be written, or a
+/// build defect.
+fn compose(
+    kind: &str,
+    active: &[&StatRead],
+    min: Option<Number>,
+    max: Option<Number>,
+) -> Result<Result<Vec<Node>, String>, LanguageError> {
+    let each = || {
+        active
+            .iter()
+            .map(|r| written(r))
+            .collect::<Result<Vec<_>, _>>()
+    };
+    Ok(match kind {
+        "not" => {
+            let mut nodes = each()?;
+            let inner = if nodes.len() == 1 {
+                nodes.remove(0)
+            } else {
+                Node::Any(nodes)
+            };
+            Ok(vec![Node::Not(Box::new(inner))])
+        }
+        "count" => match count_bounds(min, max) {
+            Ok((lo, hi)) => Ok(vec![Node::Holds {
+                of: each()?,
+                min: lo,
+                max: hi,
+            }]),
+            Err(why) => Err(why),
+        },
+        // per stat: not on the item, or on it within its bounds; a stat
+        // with none is the site's own no-op
+        "if" => Ok(active
+            .iter()
+            .map(|read| match (&read.presence, &read.landed.node) {
+                _ if !read.bounded => Ok(Node::Const(true)),
+                (Some(presence), Some(bounded)) => Ok(Node::Any(vec![
+                    Node::Not(Box::new(presence.clone())),
+                    bounded.clone(),
+                ])),
+                _ => Err(trade(format!("`{}` runs and writes no presence", read.at))),
+            })
+            .collect::<Result<Vec<_>, _>>()?),
+        _ => weighted(active, min, max).map(|Weighted { sum, op, rhs }| {
+            vec![Node::Compare {
+                value: sum,
+                op,
+                rhs,
+            }]
+        }),
+    })
+}
+
+/// A node a group composes, bound alone as a filter's text is (`land`):
+/// the binder's words where it refuses it.
+fn alone(node: &Node) -> Result<(), String> {
+    let text = print::print(node);
+    bind::parse_query(&text)
+        .map(|_| ())
+        .map_err(|e| format!("`{text}` is refused: {}", e.message))
+}
+
 /// A running filter's node: every running stat row lands a text, so one
 /// with none is a build defect, said, never a term made up for it.
 fn written(read: &StatRead) -> Result<Node, LanguageError> {
@@ -1489,7 +1673,6 @@ fn count_bounds(
         (None, None) => Err(
             "it has no bound, and what the site makes of a count with none is unasked".to_string(),
         ),
-        (Some(a), Some(b)) if a > b => Err(format!("its bounds run from {a} down to {b}")),
         bounds => Ok(bounds),
     }
 }
@@ -1514,7 +1697,7 @@ fn weighted(
     let mut slots = std::collections::BTreeSet::new();
     let mut lines = Vec::new();
     for read in filters {
-        let Some(line @ Node::Members { .. }) = &read.bare else {
+        let Some(line @ Node::Members { .. }) = &read.presence else {
             return Err(format!("its filter `{}` is no line", read.at));
         };
         if read.bounded {

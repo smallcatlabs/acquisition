@@ -197,9 +197,10 @@ What step 4 opened:
   on Kill`, `1 Added Passive Skill is …`; 1,613 of the table's 14,068
   pairs, which the binder refused until it was read) is taken as the
   line's own, the slot fixed to it (`arg2=4`), the bounds on the text's
-  own `#`: the builder's reading, as spelling and `exact`, in the
-  catalogue's `stat.text.numbers`; the owner's to confirm or send to the
-  sitting.
+  own `#`: the builder's reading, which none of the 864 captures shows,
+  so ambiguous and a row for the sitting (owner, 2026-10-16: "i agree
+  with your recommendation with the sitting row"); the catalogue's
+  `stat.text.numbers`.
 - A `count` or weighted group with no bound of its own is unsupported:
   what the site makes of one is unasked — a row for the sitting.
 - q2 and q2b name the two ids of `+#% chance to Suppress Spell Damage`;
@@ -207,3 +208,7 @@ What step 4 opened:
   fetch census), so the two are not alike there, and the translation
   writes both as one line, ambiguous (S66): a row for the sitting, and
   step 6's excess, which it cannot see.
+- Every pseudo filter of the 864 captures is unbounded — 112 in `and`
+  groups, 37 in `not`, 21 in `if` of captures with fetched items — and
+  an unbounded pseudo is its presence, `has:` (C94; K6), so step 6 reads
+  them rather than excluding them by their remainder.
