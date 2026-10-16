@@ -1821,6 +1821,336 @@ def round_t():
     return rows
 
 
+class Composed:
+    """A round's rows, composed against every row before it: a query the
+    sheet already holds is not composed again — the recorder keeps a link
+    under one name, so a second row of it would go unread — and its search
+    is the earlier one, a question of this round merged into that row's
+    `decides`. A `{next}` in a row names the next search composed, whatever
+    its name, a repeat's earlier one included."""
+
+    def __init__(self, letter, width, earlier):
+        self.letter, self.width, self.rows = letter, width, []
+        self.known = {json.dumps(r["query"], sort_keys=True): r["search"] for r in earlier}
+        self.mine = {}
+        self.waiting = []
+
+    def add(self, decides, control, q):
+        key = json.dumps(q, sort_keys=True)
+        if key in self.known:
+            name = self.known[key]
+            if name in self.mine:
+                row = self.mine[name]
+                row["decides"] += f"; also: {decides}"
+        else:
+            name = f"{self.letter}{len(self.rows) + 1:0{self.width}d}"
+            row = {"search": name, "decides": decides, "control": control, "query": q}
+            self.rows.append(row)
+            self.known[key] = name
+            self.mine[name] = row
+        for waiting in self.waiting:
+            for field in ("decides", "control"):
+                waiting[field] = waiting[field].replace("{next}", name)
+        self.waiting = []
+        if name in self.mine and "{next}" in self.mine[name]["decides"] + self.mine[name]["control"]:
+            self.waiting.append(self.mine[name])
+        return name
+
+    def done(self):
+        if self.waiting:
+            raise SystemExit(f"{self.waiting[0]['search']} names a next search none follows")
+        return self.rows
+
+
+# Round u (the trade import, step 7): coverage. The oracle (step 6) checks
+# the translation only on the clauses the captured searches used: measured
+# at step 7a, 64 of the catalogue's 94 rows that run and 53 of its 82
+# category options had met no item the site returned, so their status
+# rested on hand-written fixtures alone. A search here exercises each, with
+# a bound that restricts where the row takes one; nothing is decided by
+# reading it — at step 7d the oracle asks the translated text of every item
+# returned, and an item it misses is a row. Rows round t already exercises
+# are left to it.
+COVERAGE_CATEGORIES = [
+    "weapon.bow", "weapon.claw", "weapon.basedagger", "weapon.oneaxe", "weapon.basesword", "weapon.rapier",
+    "weapon.basemace", "weapon.twoaxe", "weapon.twomace", "weapon.twosword", "armour.gloves", "armour.shield",
+    "armour.quiver", "accessory", "accessory.belt", "accessory.trinket", "gem", "gem.activegem", "gem.supportgem",
+    "gem.supportgemplus", "jewel", "jewel.base", "jewel.abyss", "jewel.cluster", "map.fragment", "map.invitation",
+    "leaguestone", "memoryline", "card", "heistequipment", "heistequipment.heistweapon", "heistequipment.heisttool",
+    "heistequipment.heistutility", "heistequipment.heistreward", "heistmission", "heistmission.contract",
+    "heistmission.blueprint", "logbook", "sanctum.research", "sanctum.relic", "tincture", "corpse", "idol", "graft",
+    "wombgift", "enshrouded", "chart", "currency.piece", "currency.resonator", "currency.fossil",
+    "currency.incubator", "currency.heistobjective", "currency.omen",
+]
+# (row, category or None, filter group, filter, value): the bounds are the
+# builder's, each one most listings of the category fail and some meet.
+COVERAGE_ROWS = [
+    ("type_filters.rarity=nonunique", "armour.helmet", "type_filters", "rarity", {"option": "nonunique"}),
+    ("weapon_filters.aps", "weapon.claw", "weapon_filters", "aps", {"min": 1.7}),
+    ("weapon_filters.edps", "weapon.bow", "weapon_filters", "edps", {"min": 200}),
+    ("armour_filters.ar", "armour.chest", "armour_filters", "ar", {"min": 1500}),
+    ("armour_filters.ev", "armour.chest", "armour_filters", "ev", {"min": 1500}),
+    ("armour_filters.es", "armour.chest", "armour_filters", "es", {"min": 400}),
+    ("armour_filters.block", "armour.shield", "armour_filters", "block", {"min": 28}),
+    ("socket_filters.sockets", "armour.chest", "socket_filters", "sockets", {"min": 6, "r": 2}),
+    ("socket_filters.links", "armour.chest", "socket_filters", "links", {"min": 6}),
+    ("req_filters.lvl", "weapon.onesword", "req_filters", "lvl", {"max": 20}),
+    ("req_filters.str", "armour.chest", "req_filters", "str", {"min": 150}),
+    ("req_filters.dex", "armour.boots", "req_filters", "dex", {"min": 150}),
+    ("req_filters.int", "armour.helmet", "req_filters", "int", {"min": 150}),
+    ("map_filters.map_tier", "map", "map_filters", "map_tier", {"min": 16}),
+    ("map_filters.map_packsize", "map", "map_filters", "map_packsize", {"min": 30}),
+    ("map_filters.map_iiq", "map", "map_filters", "map_iiq", {"min": 80}),
+    ("map_filters.map_iir", "map", "map_filters", "map_iir", {"min": 80}),
+    ("heist_filters.heist_wings", "heistmission.blueprint", "heist_filters", "heist_wings", {"min": 2}),
+    ("heist_filters.heist_max_wings", "heistmission.blueprint", "heist_filters", "heist_max_wings", {"min": 3}),
+    ("heist_filters.heist_escape_routes", "heistmission.blueprint", "heist_filters", "heist_escape_routes", {"min": 2}),
+    ("heist_filters.heist_max_escape_routes", "heistmission.blueprint", "heist_filters", "heist_max_escape_routes", {"min": 3}),
+    ("heist_filters.heist_reward_rooms", "heistmission.blueprint", "heist_filters", "heist_reward_rooms", {"min": 2}),
+    ("heist_filters.heist_max_reward_rooms", "heistmission.blueprint", "heist_filters", "heist_max_reward_rooms", {"min": 3}),
+    ("heist_filters.heist_brute_force", "heistmission.contract", "heist_filters", "heist_brute_force", {"min": 3}),
+    ("heist_filters.heist_perception", "heistmission.contract", "heist_filters", "heist_perception", {"min": 3}),
+    ("heist_filters.heist_demolition", "heistmission.contract", "heist_filters", "heist_demolition", {"min": 3}),
+    ("heist_filters.heist_counter_thaumaturgy", "heistmission.contract", "heist_filters", "heist_counter_thaumaturgy", {"min": 3}),
+    ("heist_filters.heist_trap_disarmament", "heistmission.contract", "heist_filters", "heist_trap_disarmament", {"min": 3}),
+    ("heist_filters.heist_agility", "heistmission.contract", "heist_filters", "heist_agility", {"min": 3}),
+    ("heist_filters.heist_deception", "heistmission.contract", "heist_filters", "heist_deception", {"min": 3}),
+    ("heist_filters.heist_engineering", "heistmission.contract", "heist_filters", "heist_engineering", {"min": 3}),
+    ("heist_filters.heist_lockpicking", "heistmission.contract", "heist_filters", "heist_lockpicking", {"min": 3}),
+    ("sanctum_filters.sanctum_resolve", "sanctum.research", "sanctum_filters", "sanctum_resolve", {"min": 40}),
+    ("sanctum_filters.sanctum_max_resolve", "sanctum.research", "sanctum_filters", "sanctum_max_resolve", {"min": 60}),
+    ("sanctum_filters.sanctum_inspiration", "sanctum.research", "sanctum_filters", "sanctum_inspiration", {"min": 10}),
+    ("sanctum_filters.sanctum_gold", "sanctum.research", "sanctum_filters", "sanctum_gold", {"min": 100}),
+    ("misc_filters.ilvl", "armour.helmet", "misc_filters", "ilvl", {"min": 86}),
+    ("misc_filters.gem_level", "gem.activegem", "misc_filters", "gem_level", {"min": 20}),
+    ("misc_filters.gem_level_progress", "gem.activegem", "misc_filters", "gem_level_progress", {"min": 50}),
+    ("misc_filters.gem_vaal", "gem.activegem", "misc_filters", "gem_vaal", {"option": "true"}),
+    ("misc_filters.gem_vaal=false", "gem.activegem", "misc_filters", "gem_vaal", {"option": "false"}),
+    ("misc_filters.fractured_item", "armour.boots", "misc_filters", "fractured_item", {"option": "true"}),
+    ("misc_filters.synthesised_item", "accessory.ring", "misc_filters", "synthesised_item", {"option": "true"}),
+    ("misc_filters.searing_item", "armour.helmet", "misc_filters", "searing_item", {"option": "true"}),
+    ("misc_filters.tangled_item", "armour.gloves", "misc_filters", "tangled_item", {"option": "true"}),
+    ("misc_filters.identified=false", "accessory.ring", "misc_filters", "identified", {"option": "false"}),
+    ("misc_filters.corrupted", "jewel", "misc_filters", "corrupted", {"option": "true"}),
+    ("misc_filters.corrupted=false", "jewel", "misc_filters", "corrupted", {"option": "false"}),
+    ("misc_filters.split", None, "misc_filters", "split", {"option": "true"}),
+    ("misc_filters.crafted", "weapon", "misc_filters", "crafted", {"option": "true"}),
+    ("misc_filters.veiled", None, "misc_filters", "veiled", {"option": "true"}),
+    ("misc_filters.vestigial", None, "misc_filters", "vestigial", {"option": "true"}),
+    ("misc_filters.memory_level", "memoryline", "misc_filters", "memory_level", {"min": 2}),
+    ("misc_filters.stored_experience", None, "misc_filters", "stored_experience", {"min": 1}),
+    ("misc_filters.stack_size", "currency", "misc_filters", "stack_size", {"min": 10}),
+    ("misc_filters.mutated", None, "misc_filters", "mutated", {"option": "true"}),
+]
+
+
+def round_u(earlier):
+    """A category alone, each no capture reached; then each filter row no
+    capture used, under a category that lists it. A search the sheet holds
+    already is that one (`Composed`)."""
+    composed = Composed("u", 3, earlier)
+
+    def add(decides, q):
+        composed.add(decides, "the oracle (tests/trade_oracle.rs): every item returned is matched by the translated "
+                     "text, or a row", q)
+
+    for option in COVERAGE_CATEGORIES:
+        add(f"coverage, `type_filters.category={option}`: the category alone, which no captured search used",
+            batch_query([], category(option)))
+    for row, option, group_id, name, value in COVERAGE_ROWS:
+        filters = dict(category(option)) if option else {}
+        if group_id == "type_filters":
+            filters["type_filters"]["filters"][name] = value
+        else:
+            filters[group_id] = {"disabled": False, "filters": {name: value}}
+        where = f" under `{option}`" if option else ""
+        add(f"coverage, `{row}` at {json.dumps(value)}{where}: a row no captured search used",
+            batch_query([], filters))
+    return composed.done()
+
+
+# Round v (step 7, the park "what no sitting has asked the site",
+# decisions/search.md): the questions the search's tracks left to the next
+# sitting, each where its track wrote it — the ranged family's and the
+# percentile's in their copy files' `a_sitting_would_ask`, the four
+# readings' and the name rules' in the README entries the park names
+# (search/OBSERVATIONS.md at 453a4429). Each is read by its track's own
+# script over the captures at step 7d; a search here composes the question
+# and names what the fetched items show.
+RANGED_COPY = TRACK / "data" / "ranged-expected-copy.csv"
+COUNT_AT_MOST = 64
+PERCENTILE_COPY = TRACK / "data" / "percentile-expected-copy.csv"
+# A category the site answers for an item that is no weapon: a line `to
+# Attacks` or `to Spells` is an accessory's, an armour's or a jewel's, and a
+# plain one off a weapon is the accessory's implicit the copy holds.
+NOT_A_WEAPON = "accessory"
+PERCENTILE_MARKS = {
+    "neither": {"synthesised_item": {"option": "false"}, "searing_item": {"option": "false"},
+                "tangled_item": {"option": "false"}},
+    "eldritch": {"searing_item": {"option": "true"}},
+    "synthesised": {"synthesised_item": {"option": "true"}},
+}
+# The name rules (categories-v1.toml, `rule`): each leaf with a base its rule
+# places, the tattoo's asked at round m. The invitation's is The Atlas: the
+# category README's Elderslayers is in no list the site gave (items, 2026-09-12).
+NAME_RULES = [
+    ("gem.supportgemplus", "Awakened Chain Support", "starts `Awakened `"),
+    ("jewel.cluster", "Large Cluster Jewel", "ends `Cluster Jewel`"),
+    ("map.invitation", "Maven's Invitation: The Atlas", "starts `Maven's Invitation`"),
+    ("map.scarab", "Ritual Scarab of Abundance", "holds `Scarab`, here inside the name"),
+    ("currency.fossil", "Dense Fossil", "ends ` Fossil`"),
+    ("currency.omen", "Omen of Amelioration", "starts `Omen of `"),
+]
+# The category README's "one search each would settle" (category, type).
+CATEGORY_SETTLES = [
+    ("map", "Polaric Invitation", "J3: an invitation not the Maven's takes `map`"),
+    ("map", "Voidborn Reliquary Key", "a key the export classes otherwise under `map`"),
+    ("currency", "Chaos Orb", "`currency` holds the plainest currency"),
+    ("currency", "Dense Fossil", "`currency` holds a fossil beside `currency.fossil`"),
+    ("graft", "Battering Uulgraft", "J13: a graft under `graft`"),
+    ("weapon.one", "Imperial Claw", "a claw under the one-handed grouping"),
+]
+
+
+def copy_questions(path):
+    rows = [r for r in csv.reader(path.open(newline="")) if r and not r[0].startswith("#")]
+    header = rows[0]
+    return [dict(zip(header, r)) for r in rows[1:] if dict(zip(header, r)).get("a_sitting_would_ask")]
+
+
+def site_ids(template, domain):
+    """The ids of a template under one domain, the `+` spelling the site writes tried too."""
+    out = []
+    for text in (template, "+" + template):
+        try:
+            out += [i for i in ids_of(text) if i.startswith(domain + ".")]
+        except SystemExit:
+            pass
+    return out
+
+
+def crucible_nodes(template):
+    found = []
+    for g in json.loads(STATS.read_text())["result"]:
+        if g["id"] != "crucible":
+            continue
+        for e in g["entries"]:
+            lines = re.sub(r" \(Tier \d+\)$", "", e["text"]).split("\n")
+            if template in [re.sub(r"\d+(?:\.\d+)?", "#", line) for line in lines]:
+                found.append(e["id"])
+    return found
+
+
+def round_v(earlier):
+    """v001 on: the ranged family's questions (ranged-expected-copy.csv), the
+    percentile's (percentile-expected-copy.csv), the four readings' three
+    unasked cases, the name rules with their pairs, and the category
+    README's settling searches with theirs."""
+    composed = Composed("v", 3, earlier)
+    add = composed.add
+
+    # 1. The ranged family: does the pseudo show for a line of this array, flag and side.
+    for d in copy_questions(RANGED_COPY):
+        template, side, array, flag = d["total_or_template"], d["status_or_side"], d["cause_or_array"], d["flags"]
+        pseudos = sorted(set(re.findall(r"pseudo\.pseudo_[a-z_]+", d["a_sitting_would_ask"])))
+        if array == "crucibleMods":
+            ids = crucible_nodes(template)
+        else:
+            domain = flag or {"implicitMods": "implicit", "enchantMods": "enchant", "explicitMods": "explicit"}[array]
+            ids = site_ids(template, domain)
+            if side == "weapon":
+                ids += site_ids(template + " (Local)", domain)
+        if not ids or not pseudos:
+            raise SystemExit(f"the ranged question on {template!r} ({side}, {array}, {flag}) names no id or no pseudo")
+        where = category("weapon") if side == "weapon" else (
+            None if (" to Attacks" in template or " to Spells" in template) else category(NOT_A_WEAPON))
+        # a count no larger than the largest the site has answered (64 ids, n03–n05)
+        parts = [ids[i:i + COUNT_AT_MOST] for i in range(0, len(ids), COUNT_AT_MOST)]
+        for n, part in enumerate(parts, 1):
+            of = f", part {n} of {len(parts)}" if len(parts) > 1 else ""
+            add(f"the ranged family ({RANGED_COPY.name}): {d['a_sitting_would_ask']} The ten fetched carry the line "
+                f"({len(part)} ids{of}, a count) and show the pseudos named (`if`) or none",
+                "read by scripts/ranged-expected.py over the captures, cell by cell (`captured_cells`)",
+                batch_query([group("count", part, {"min": 1}), group("if", pseudos)], where))
+
+    # 2. The percentile: does the site show the reading's value for this group of defence lines.
+    for d in copy_questions(PERCENTILE_COPY):
+        template, array, flag, mark = (d["class_or_template_or_shape"], d["array"], d["flags"], d["mark"])
+        if not array:
+            continue  # the roll cases, composed below
+        domain = flag if flag in ("crafted", "fractured") else {"implicitMods": "implicit", "explicitMods": "explicit"}[array]
+        # an armour piece's own defence line is the local stat, its twin the global
+        ids = site_ids(template, domain) + site_ids(template + " (Local)", domain)
+        if not ids:
+            raise SystemExit(f"the percentile question on {template!r} names no id")
+        filters = dict(category("armour"))
+        marks = dict(PERCENTILE_MARKS[mark])
+        if flag == "mutated":
+            marks["mutated"] = {"option": "true"}
+        filters["misc_filters"] = {"disabled": False, "filters": marks}
+        add(f"the percentile ({PERCENTILE_COPY.name}): {d['a_sitting_would_ask']} The ten fetched carry the line "
+            f"({len(ids)} ids, a count) and the site's `base_defence_percentile`",
+            "read by scripts/percentile-expected.py over the captures, cell by cell",
+            batch_query([group("count", ids, {"min": 1})], filters))
+    add("the percentile, a roll over the base's maximum (C10; J34): armour with `base_defence_percentile` `min` "
+        "101. Found: the site shows over 100 (i03 found none listed), and the ten say which display gives it",
+        "a found item is its own evidence; none found leaves C10 where i03 did",
+        batch_query([], {**category("armour"), **percentile_filter(101)}))
+    add("the percentile, a roll under the base's minimum (S3): armour with `base_defence_percentile` `max` -1. "
+        "Found: what the site shows of such an item",
+        "a found item is its own evidence",
+        batch_query([], {**category("armour"),
+                         "armour_filters": {"disabled": False, "filters": {"base_defence_percentile": {"max": -1}}}}))
+
+    # 3. The four readings: the cases no sitting asked (search/OBSERVATIONS.md at 453a4429, "since 9c").
+    totals = ["pseudo.pseudo_total_fire_resistance", "pseudo.pseudo_total_cold_resistance",
+              "pseudo.pseudo_total_lightning_resistance", "pseudo.pseudo_total_chaos_resistance"]
+    counts = ["pseudo.pseudo_count_resistances", "pseudo.pseudo_count_elemental_resistances"]
+    least_res, least_attr = "pseudo.pseudo_total_all_elemental_resistances", "pseudo.pseudo_total_all_attributes"
+    add("the readings: whether an item showing all four resistance totals ever shows no "
+        "`pseudo_count_resistances`. None found, {next} finding: never",
+        "{next}, the count shown (`if`) where this refuses it, must find items",
+        batch_query([group("and", totals), group("not", [counts[0]])]))
+    add("the readings' mutant: the four totals required, the count shown (`if`)",
+        "the mutant is the control",
+        batch_query([group("and", totals), group("if", [counts[0]])]))
+    add("the readings: the two counts of a ring showing none of the four totals — rings carrying no resistance "
+        "total, the counts shown (`if`): read the ten, a count of 0 or none",
+        "the ten fetched show the counts, or nothing",
+        batch_query([group("not", totals), group("if", counts)], category("accessory.ring")))
+    add("the readings: the elemental least of an item showing one of its three totals — fire required, cold and "
+        "lightning refused, the least shown (`if`): read the ten, a value or none",
+        "the ten fetched show it, or nothing",
+        batch_query([group("and", totals[:1]), group("not", totals[1:3]), group("if", [least_res])]))
+    add("the readings: the elemental least of an item showing two — fire and cold required, lightning refused, "
+        "the least shown (`if`)",
+        "the ten fetched show it, or nothing",
+        batch_query([group("and", totals[:2]), group("not", totals[2:3]), group("if", [least_res])]))
+    add("the readings: the attributes' least of an item showing one or two of its totals — Strength required, "
+        "Dexterity refused, the least shown (`if`)",
+        "the ten fetched show it, or nothing",
+        batch_query([group("and", ["pseudo.pseudo_total_strength"]), group("not", ["pseudo.pseudo_total_dexterity"]),
+                     group("if", [least_attr])]))
+
+    # 4. The name rules, each with its pair (round m's form).
+    for option, base, rule in NAME_RULES:
+        add(f"the name rule of `{option}` ({rule}): whether the leaf holds `{base}`. Found: the rule places it as the "
+            "site does. Not found, its pair finding it: the rule is too wide for this name",
+            "{next}, the type with no category, must find it",
+            batch_query([], category(option), base))
+        add(f"the pair: `{base}` with no category — that it is listed at all",
+            "the pair is the control",
+            batch_query([], None, base))
+    # 5. The category README's settling searches, each with its pair.
+    for option, base, why in CATEGORY_SETTLES:
+        add(f"the category track: whether `{option}` holds `{base}` ({why}). Found: as the table rules; not found, "
+            "its pair finding it: the table is brought back",
+            "{next}, the type with no category, must find it",
+            batch_query([], category(option), base))
+        add(f"the pair: `{base}` with no category", "the pair is the control", batch_query([], None, base))
+    return composed.done()
+
+
 def report():
     """b1, b2: the two searches a report of c3's twin id rests on."""
     twin = "explicit.stat_2543977012"
@@ -1904,6 +2234,9 @@ def main():
                         + round_five() + OPEN_QUESTION_SEARCHES + round_six() + round_i() + round_j() + round_k() + round_l() + round_m()
                         + round_n() + round_t()
                         if method == "site" else batch(method))
+    if method == "site":
+        searches += round_u(searches)
+        searches += round_v(searches)
     seen = set()
     with OUT.open("w", newline="") as out:
         sheet = csv.writer(out, lineterminator="\n")
@@ -1925,11 +2258,12 @@ def main():
             )
             if method == "site":
                 print(f"{row['search']}  {link(row['query'])}")
-    kinds = {"trade": 0, "pilot": 0, "check": 0, "line": 0, "pair": 0, "percentile line": 0,
+    kinds = {"trade": 0, "park": 0, "pilot": 0, "check": 0, "line": 0, "pair": 0, "percentile line": 0,
              "percentile case": 0, "open question": 0}
     for row in searches:
         s = row["search"]
-        kind = ("trade" if s.startswith("t")
+        kind = ("trade" if s.startswith(("t", "u"))
+                else "park" if s.startswith("v")
                 else "pilot" if s.startswith("p")
                 else "check" if s.startswith(("c", "d", "b", "e", "f", "g", "h"))
                 else "percentile case" if s.startswith("C")

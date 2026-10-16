@@ -145,8 +145,14 @@ grows at 3 so that 4's text parses on the build that writes it.
    K6's "what no sitting has asked", by the site-sitting skill, each
    search with its mutant: round t of `tools/trade-sheet.py`, 57
    searches (7a), the forms' presence shown by the captured ids and
-   their numbers asked a kind of relation at a time; the owner sits
-   it; the captures read; K6 and
+   their numbers asked a kind of relation at a time. Beside it, round
+   u, 107 searches of coverage — a category or a filter row no capture
+   reached, 53 of 82 categories and 64 of 94 rows that run having met
+   no item the site returned, so that the oracle reads the translation
+   on what the owner's store does not hold — and round v, 109, the
+   park's questions (owner, 2026-10-16: "yes let's fold them in. i'm ok
+   doing the larger ones as well"). The owner sits
+   them; the captures read; K6 and
    the catalogue amended and the "what no sitting has asked" park takes
    its rows off. Only where the intended meaning is still unsettled.
 8. **The seat.** The third of the search's, by the seat skill: a URL
