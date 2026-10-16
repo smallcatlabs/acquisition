@@ -25,6 +25,9 @@
 //!   equal on 1,148 of 1,313 captured rows and one off on 165, equal on 32
 //!   of the fetch census's 37 (`tests/properties.rs`). So the field is the
 //!   rule, rounded half up, and never claims to be the site's number.
+//!   The display standing above 20 % is the owner's, 2026-10-15,
+//!   verbatim: "yes, we need to able to handle qualities >20% because
+//!   there are legacy mechanics that can make this happen."
 //!
 //! # As built
 //!

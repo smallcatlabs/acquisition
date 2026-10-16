@@ -228,7 +228,7 @@ shape = "minmax"
 disposition = "ambiguous"
 lands = "armour.q20>={min} armour.q20<={max}"
 fields = ["armour.q20"]
-note = "the site's tip: base value, local modifiers and maximum quality; the field is the displayed Armour with the item's quality taken out and 20 % put in (S26) — within one of the site's own figure, which works from the roll the display has rounded: equal on 1,148 of the captures' 1,313 defence rows and one off on 165, equal on all 164 at 20 % quality or more or under the enchant (step 3, tests/properties.rs)"
+note = "the site's tip: base value, local modifiers and maximum quality; the field is the displayed Armour with the item's quality taken out and 20 % put in (S26) — within one of the site's own figure, which works from the roll the display has rounded: equal on 1,148 of the captures' 1,313 defence rows and one off on 165, equal on all 164 at 20 % quality or more or under the enchant (step 3, tests/properties.rs); the owner on ambiguous, 2026-10-15, verbatim: \"confirmed\""
 
 [[row]]
 key = "armour_filters.ev"
