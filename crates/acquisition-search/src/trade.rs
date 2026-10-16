@@ -34,10 +34,10 @@
 //!   [`Decoded`] from either carries no realm and no league. The JSON
 //!   text is the caller's and is not bounded here.
 //! - Nothing here reads the vocabulary or writes a word of the language:
-//!   that is the translation (step 4), which consumes a [`Decoded`]. The
-//!   vocabulary it will read is the stat table, [`stats`] (step 2), and
-//!   what each clause becomes the catalogue, [`catalogue`] (its loader
-//!   step 3's).
+//!   that is the translation, [`translate`] (step 4), which consumes a
+//!   [`Decoded`] and reads the stat table, [`stats`] (step 2), for the
+//!   vocabulary and the catalogue, [`catalogue`] (its loader step 3's),
+//!   for what each clause becomes.
 
 use std::io::Read as _;
 
@@ -49,6 +49,7 @@ use crate::error::{ErrorKind, LanguageError};
 
 pub mod catalogue;
 pub mod stats;
+pub mod translate;
 
 /// What the input was, for the report.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]

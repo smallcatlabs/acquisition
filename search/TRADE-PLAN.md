@@ -154,8 +154,9 @@ grows at 3 so that 4's text parses on the build that writes it.
 - Every count in a fixture worked by hand first (rule 3), and every
   count this brief states measured again by script before a fixture
   rests on it: step 2 found the brief's "every id once" untrue of the
-  capture, and step 3 its 812 rows (1,313) and 643 of 643 maps (1,105,
-  48 unique); its 37 rows and 40 fields held.
+  capture, step 3 its 812 rows (1,313) and 643 of 643 maps (1,105,
+  48 unique), its 37 rows and 40 fields holding, and step 4 the
+  catalogue's 230 explicit texts two ids share (227).
 - M3 rerun after step 3, on the copy, the row in `search/M3-LEDGER.md`.
 - A rule the catalogue does not state stops the step (rule 4): what a
   clause *means* comes to the owner or to the sitting; a name — a
@@ -172,25 +173,37 @@ grows at 3 so that 4's text parses on the build that writes it.
 
 ## Open at the opening
 
-- Whether an explicit id matches a crafted or fractured line of the
-  same stat on the site; a `not` group with a value; which number a
-  many-numbered template compares; `term`; `uniquefoil`; the site's
-  dps and quality. Each ambiguous until the sitting (K6).
-- An id the site lists with two texts in one category (step 2's
-  measurement: 172 ids, 229 pairs; a map's own wording beside the
-  atlas's `your Maps`, and one text with its row breaks): whether its
-  clause is a line of either text, and at what status. K6 states the
-  text with two ids (S66) and not this; step 4 brings it to the owner
-  or the sitting before writing it.
-- Three rows the catalogue calls `exact` that step 3's measurement
-  puts in doubt (the census copy of 2026-09-13, its 22,623 pc items),
-  each a meaning step 4 brings to the owner or the sitting before
-  writing it (rule 4). `weapon_filters.crit`: `Critical Strike Chance`
-  is displayed by 1,047 weapons, typed 12, and by 973 gems, untyped;
-  the field reads both, and whether the site's weapon filter reads a
-  gem's is unasked. `map_filters.area_level`: type 34 is `Area Level`
-  on 3,726 items and `Monster Level` on 5 (Blood-filled Vessels); the
-  field reads the first alone. The nine heist skills: the fields read
-  a contract's or blueprint's `Requires {1} (Level {0})` (3,587
-  properties); 183 heist items, brooches and cloaks, require
-  `Level {0} in {1}`, which no field reads.
+Step 4 brought the openings to the owner (2026-10-15) and settled each;
+every one is a row of the step 7 sitting, its words in K6 or in its
+catalogue row's note.
+
+- K6's six — an explicit id on a crafted or fractured line, a `not`
+  group with a value, which number a many-numbered template compares,
+  `term`, `uniquefoil`, the site's dps and quality: ambiguous until the
+  sitting (owner: "No — all stay ambiguous").
+- An id the site lists with two texts in one category (172 ids, 229
+  pairs, measured again): unsupported until the sitting (owner:
+  "Unsupported until the sitting"); the catalogue's `stat.text.two`.
+- `weapon_filters.crit` on a gem (owner: "Let's use a sitting to resolve
+  this so that it's aligned with the trade site searches."),
+  `map_filters.area_level` on a vessel's `Monster Level` and the nine
+  heist skills on a brooch's or cloak's `Level {0} in {1}` (owner: "Both
+  ambiguous"): ambiguous, each note naming the wording the field leaves
+  out.
+
+What step 4 opened:
+
+- A number the site's text writes as a digit (`…Phasing for 4 seconds
+  on Kill`, `1 Added Passive Skill is …`; 1,613 of the table's 14,068
+  pairs, which the binder refused until it was read) is taken as the
+  line's own, the slot fixed to it (`arg2=4`), the bounds on the text's
+  own `#`: the builder's reading, as spelling and `exact`, in the
+  catalogue's `stat.text.numbers`; the owner's to confirm or send to the
+  sitting.
+- A `count` or weighted group with no bound of its own is unsupported:
+  what the site makes of one is unasked — a row for the sitting.
+- q2 and q2b name the two ids of `+#% chance to Suppress Spell Damage`;
+  the site answered 10,000 listings to one and none to the other (the
+  fetch census), so the two are not alike there, and the translation
+  writes both as one line, ambiguous (S66): a row for the sitting, and
+  step 6's excess, which it cannot see.

@@ -212,6 +212,14 @@ fn value(rhs: &Value, op: Op, out: &mut String) {
     }
 }
 
+/// A number as the printer writes it: what the trade translation fills a
+/// numeric placeholder with (`trade/translate.rs`).
+pub(crate) fn number_text(n: Number) -> String {
+    let mut out = String::new();
+    number(n, &mut out);
+    out
+}
+
 fn number(n: Number, out: &mut String) {
     match n {
         Number::Int(i) => out.push_str(&i.to_string()),

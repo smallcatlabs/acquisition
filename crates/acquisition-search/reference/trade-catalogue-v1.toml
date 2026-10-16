@@ -23,28 +23,44 @@
 # `disposition` is K6's status for the clause when it runs: `exact`,
 # `ambiguous` (runs, with `note` in the report), `unsupported` (the
 # remainder), `listing_only` (no stash meaning; reported). A clause the
-# site sends `disabled` is `disabled` whatever its row says. `lands` is the
-# text the clause becomes, with `{min}`, `{max}`, `{value}`, `{text}`,
-# `{option}` filled from the clause; a bound the clause lacks drops its
-# comparison; a row with no `lands` writes nothing. `fields` names the
+# site sends `disabled` is `disabled` whatever its row says.
+# `lands` is the text the clause becomes (step 4, src/trade/translate.rs).
+# Its placeholders are filled from the clause and never stand inside
+# quotes, the loader refuses one that does: `{value}`, `{option}` and
+# `{text}` are written through the printer's quoting, `{min}`, `{max}`,
+# `{r}`, `{g}`, `{b}` and `{w}` as the printer writes a number, `{total}`
+# as a computed value's name, `{bounds}` as the comparison the line rule
+# below makes. A term of `lands` holding a placeholder the clause lacks
+# is dropped, and a range `{min}..{max}` only when it lacks both; a
+# clause that fills none of its row's placeholders states nothing, and
+# lands `true()`, the site's own no-op. An option row whose text names no
+# `{option}` reads `true` as its text and `false` as the not of it. A row
+# with no `lands` writes nothing, and a group's shape is its note: the
+# translation composes it from its filters' texts. `fields` names the
 # fields of the language the text needs, each written in `lands`: the
 # loader refuses one the build does not know (step 3, where the C114 fields
 # landed, named by the displayed property, lowercased, spaces as
 # underscores, `.of` the denominator of a `#/#` value, `.q20` a defence at
 # 20 % quality: reference/properties-v1.toml).
-# `note` is what the report prints beside an ambiguous or unsupported
-# clause. An option value or key no row names is unsupported by its name
-# (K6).
+# `note` is what the report prints beside the clause, and every ambiguous
+# or unsupported clause has one. An option value or key no row names is
+# unsupported by its name (K6), by `query.unknown`.
 #
 # Measured at writing (a script over this file, never a count by eye):
-# 136 rows — 4 for the URL, 8 for the query object's keys and the JSON,
-# 92 filters and 2 option rows, 10 for the stat groups (8 types, the
-# disabled and the option-valued filter), 20 for the stats (14 categories
-# and 6 line rules); 76 exact, 16 ambiguous, 35 unsupported, 9
-# listing-only — the four defence filters ambiguous since step 3 measured
-# them. Every one of the capture's 93 filters, 14 categories and 8 group
-# types has a row (tests/trade_catalogue.rs). 58 fields named, 40 of them
-# step 3's.
+# 139 rows — 4 for the URL, 9 for the query object's keys, the JSON and
+# what no row names, 92 filters and 2 option rows, 10 for the stat groups
+# (8 types, the disabled and the option-valued filter), 22 for the stats
+# (14 categories and 8 line rules); 66 exact, 27 ambiguous, 37
+# unsupported, 9 listing-only — the four defence filters ambiguous since
+# step 3 measured them, and since step 4 `weapon_filters.crit`,
+# `map_filters.area_level` and the nine heist skills on what step 3
+# measured, by the owner's verdicts on each row; `stat.text.two`,
+# `stat.text.numbers` and `query.unknown` are step 4's. Every one of the
+# capture's 93 filters, 14 categories and 8 group types has a row
+# (tests/trade_catalogue.rs). 58 fields named, 40 of them step 3's. Every
+# one of the stat table's 14,068 category and id pairs translates, alone
+# and with a bound (tests/trade_translate.rs): 5,948 exact, 7,891
+# ambiguous, 229 unsupported — the two-text ids, every one.
 
 version = 1
 filters = "2026-09-12"
@@ -60,7 +76,7 @@ note = "`/trade/search/<league>/<id>` is pc, `/trade/search/(xbox|sony)/<league>
 [[row]]
 key = "url.league"
 disposition = "exact"
-lands = 'league="{value}"'
+lands = "league={value}"
 fields = ["league"]
 note = "the league the URL names, a term like any other (C96); a bare id or a JSON query names none"
 
@@ -91,7 +107,7 @@ key = "query.term"
 text = "Search"
 shape = "input"
 disposition = "ambiguous"
-lands = '(name:"{value}" or typeline:"{value}")'
+lands = "(name:{value} or typeline:{value})"
 fields = ["name", "typeline"]
 note = "the site's free-text box matches names and bases by its own index; `:` is a contains test on each"
 
@@ -100,7 +116,7 @@ key = "query.name"
 text = "Name"
 shape = "input"
 disposition = "exact"
-lands = 'name="{value}"'
+lands = "name={value}"
 fields = ["name"]
 
 [[row]]
@@ -108,7 +124,7 @@ key = "query.type"
 text = "Base"
 shape = "input"
 disposition = "exact"
-lands = 'base="{value}"'
+lands = "base={value}"
 fields = ["base"]
 
 [[row]]
@@ -117,6 +133,11 @@ text = "Name variant"
 shape = "option"
 disposition = "unsupported"
 note = "a `{option, discriminator}` name or type names a variant (`legacy`, a league); the name or base lands, the variant does not: a unique's variant is a parked field (decisions/search.md)"
+
+[[row]]
+key = "query.unknown"
+disposition = "unsupported"
+note = "a key, a filter, a group type, an option or a value no row names or reads: unsupported by its name, never an error (K6)"
 
 [[row]]
 key = "query.sort"
@@ -138,7 +159,7 @@ key = "type_filters.category"
 text = "Item Category"
 shape = "option"
 disposition = "exact"
-lands = 'category="{option}"'
+lands = "category={option}"
 fields = ["category"]
 note = "the site's own ids, as the category table spells them (C106)"
 
@@ -181,23 +202,24 @@ key = "weapon_filters.aps"
 text = "Attacks per Second"
 shape = "minmax"
 disposition = "exact"
-lands = "attacks_per_second>={min} attacks_per_second<={max}"
+lands = "attacks_per_second={min}..{max}"
 fields = ["attacks_per_second"]
 
 [[row]]
 key = "weapon_filters.crit"
 text = "Critical Chance"
 shape = "minmax"
-disposition = "exact"
-lands = "critical_strike_chance>={min} critical_strike_chance<={max}"
+disposition = "ambiguous"
+lands = "critical_strike_chance={min}..{max}"
 fields = ["critical_strike_chance"]
+note = "the field reads `Critical Strike Chance` wherever it is displayed: on the census copy of 2026-09-13, 1,047 weapons (property type 12) and 973 gems (untyped); whether the site's weapon filter matches a gem is for a sitting — the owner, 2026-10-15, verbatim: \"Let's use a sitting to resolve this so that it's aligned with the trade site searches.\""
 
 [[row]]
 key = "weapon_filters.dps"
 text = "Damage per Second"
 shape = "minmax"
 disposition = "ambiguous"
-lands = "pseudo.dps>={min} pseudo.dps<={max}"
+lands = "pseudo.dps={min}..{max}"
 fields = ["pseudo.dps"]
 note = "`pseudo.dps` reads the damage as displayed, quality applied by the game; whether the site's figure puts 20 % quality in is unmeasured (K6)"
 
@@ -206,7 +228,7 @@ key = "weapon_filters.pdps"
 text = "Physical DPS"
 shape = "minmax"
 disposition = "ambiguous"
-lands = "pseudo.pdps>={min} pseudo.pdps<={max}"
+lands = "pseudo.pdps={min}..{max}"
 fields = ["pseudo.pdps"]
 note = "as `weapon_filters.dps`"
 
@@ -215,7 +237,7 @@ key = "weapon_filters.edps"
 text = "Elemental DPS"
 shape = "minmax"
 disposition = "ambiguous"
-lands = "pseudo.edps>={min} pseudo.edps<={max}"
+lands = "pseudo.edps={min}..{max}"
 fields = ["pseudo.edps"]
 note = "as `weapon_filters.dps`; `pseudo.edps` is built at step 3 beside `pseudo.pdps`, by the same rule over the elemental ranges"
 
@@ -226,7 +248,7 @@ key = "armour_filters.ar"
 text = "Armour"
 shape = "minmax"
 disposition = "ambiguous"
-lands = "armour.q20>={min} armour.q20<={max}"
+lands = "armour.q20={min}..{max}"
 fields = ["armour.q20"]
 note = "the site's tip: base value, local modifiers and maximum quality; the field is the displayed Armour with the item's quality taken out and 20 % put in (S26) — within one of the site's own figure, which works from the roll the display has rounded: equal on 1,148 of the captures' 1,313 defence rows and one off on 165, equal on all 164 at 20 % quality or more or under the enchant (step 3, tests/properties.rs); the owner on ambiguous, 2026-10-15, verbatim: \"confirmed\""
 
@@ -235,7 +257,7 @@ key = "armour_filters.ev"
 text = "Evasion"
 shape = "minmax"
 disposition = "ambiguous"
-lands = "evasion_rating.q20>={min} evasion_rating.q20<={max}"
+lands = "evasion_rating.q20={min}..{max}"
 fields = ["evasion_rating.q20"]
 note = "as `armour_filters.ar`"
 
@@ -244,7 +266,7 @@ key = "armour_filters.es"
 text = "Energy Shield"
 shape = "minmax"
 disposition = "ambiguous"
-lands = "energy_shield.q20>={min} energy_shield.q20<={max}"
+lands = "energy_shield.q20={min}..{max}"
 fields = ["energy_shield.q20"]
 note = "as `armour_filters.ar`"
 
@@ -253,7 +275,7 @@ key = "armour_filters.ward"
 text = "Ward"
 shape = "minmax"
 disposition = "ambiguous"
-lands = "ward.q20>={min} ward.q20<={max}"
+lands = "ward.q20={min}..{max}"
 fields = ["ward.q20"]
 note = "as `armour_filters.ar`; 15 items of the census carry Ward"
 
@@ -262,7 +284,7 @@ key = "armour_filters.block"
 text = "Block"
 shape = "minmax"
 disposition = "exact"
-lands = "chance_to_block>={min} chance_to_block<={max}"
+lands = "chance_to_block={min}..{max}"
 fields = ["chance_to_block"]
 note = "the site's tip: base value and local modifiers, no quality — the displayed value"
 
@@ -271,7 +293,7 @@ key = "armour_filters.base_defence_percentile"
 text = "Base Percentile"
 shape = "minmax"
 disposition = "exact"
-lands = "pseudo.defence_pct>={min} pseudo.defence_pct<={max}"
+lands = "pseudo.defence_pct={min}..{max}"
 fields = ["pseudo.defence_pct"]
 note = "the site's own stated rule, reproduced on 634 of 637 captured items (search/pseudo-stats/README.md)"
 
@@ -282,7 +304,7 @@ key = "socket_filters.sockets"
 text = "Sockets"
 shape = "sockets"
 disposition = "exact"
-lands = "sockets>={min} sockets<={max} sockets.red>={r} sockets.green>={g} sockets.blue>={b} sockets.white>={w}"
+lands = "sockets={min}..{max} sockets.red>={r} sockets.green>={g} sockets.blue>={b} sockets.white>={w}"
 fields = ["sockets", "sockets.red", "sockets.green", "sockets.blue", "sockets.white"]
 note = "a colour the clause lacks drops its comparison"
 
@@ -291,7 +313,7 @@ key = "socket_filters.links"
 text = "Link Groups"
 shape = "sockets"
 disposition = "exact"
-lands = "linked(size>={min} size<={max} red>={r} green>={g} blue>={b} white>={w})"
+lands = "linked(size={min}..{max} red>={r} green>={g} blue>={b} white>={w})"
 note = "one link group holds every count named (S59)"
 
 # ---- req_filters --------------------------------------------------------
@@ -301,7 +323,7 @@ key = "req_filters.lvl"
 text = "Level"
 shape = "minmax"
 disposition = "exact"
-lands = "reqlevel>={min} reqlevel<={max}"
+lands = "reqlevel={min}..{max}"
 fields = ["reqlevel"]
 
 [[row]]
@@ -309,7 +331,7 @@ key = "req_filters.str"
 text = "Strength"
 shape = "minmax"
 disposition = "exact"
-lands = "str>={min} str<={max}"
+lands = "str={min}..{max}"
 fields = ["str"]
 note = "the requirement row displays `Str`, and `Strength` on 32 items of the census: one field over both spellings"
 
@@ -318,7 +340,7 @@ key = "req_filters.dex"
 text = "Dexterity"
 shape = "minmax"
 disposition = "exact"
-lands = "dex>={min} dex<={max}"
+lands = "dex={min}..{max}"
 fields = ["dex"]
 note = "as `req_filters.str`: `Dex` and `Dexterity`"
 
@@ -327,7 +349,7 @@ key = "req_filters.int"
 text = "Intelligence"
 shape = "minmax"
 disposition = "exact"
-lands = "int>={min} int<={max}"
+lands = "int={min}..{max}"
 fields = ["int"]
 note = "as `req_filters.str`: `Int` and `Intelligence`"
 
@@ -345,7 +367,7 @@ key = "map_filters.map_tier"
 text = "Map Tier"
 shape = "minmax"
 disposition = "exact"
-lands = "map_tier>={min} map_tier<={max}"
+lands = "map_tier={min}..{max}"
 fields = ["map_tier"]
 note = "no map of the store copy displays a Map Tier property; the tier is the number in the base type, `Map (Tier 16)`, `Blighted Map (Tier 13)`, read by a field over the base (C101): on the census's copy of 2026-09-13, 1,105 maps over 35 bases, 48 of them unique maps whose base carries it too; a base with none lacks it; no capture holds a map, so the sitting carries one search as a control"
 
@@ -354,7 +376,7 @@ key = "map_filters.map_packsize"
 text = "Increased Packsize"
 shape = "minmax"
 disposition = "exact"
-lands = "monster_pack_size>={min} monster_pack_size<={max}"
+lands = "monster_pack_size={min}..{max}"
 fields = ["monster_pack_size"]
 
 [[row]]
@@ -362,7 +384,7 @@ key = "map_filters.map_iiq"
 text = "Increased Item Quantity"
 shape = "minmax"
 disposition = "exact"
-lands = "item_quantity>={min} item_quantity<={max}"
+lands = "item_quantity={min}..{max}"
 fields = ["item_quantity"]
 
 [[row]]
@@ -370,7 +392,7 @@ key = "map_filters.map_iir"
 text = "Increased Item Rarity"
 shape = "minmax"
 disposition = "exact"
-lands = "item_rarity>={min} item_rarity<={max}"
+lands = "item_rarity={min}..{max}"
 fields = ["item_rarity"]
 
 [[row]]
@@ -398,10 +420,10 @@ note = "as `map_filters.map_gold`"
 key = "map_filters.area_level"
 text = "Area Level"
 shape = "minmax"
-disposition = "exact"
-lands = "area_level>={min} area_level<={max}"
+disposition = "ambiguous"
+lands = "area_level={min}..{max}"
 fields = ["area_level"]
-note = "the displayed Area Level: a map's own level, which the site's filter reads (S90)"
+note = "the displayed Area Level: a map's own level, which the site's filter reads (S90); the same property type, 34, is displayed `Monster Level` on 5 Blood-filled Vessels of the census copy of 2026-09-13 beside 3,726 `Area Level`, and the field reads the first alone — whether the site matches a vessel is for a sitting; the owner on ambiguous, 2026-10-15, verbatim: \"Both ambiguous (Recommended)\""
 
 [[row]]
 key = "map_filters.map_series"
@@ -438,7 +460,7 @@ key = "heist_filters.heist_wings"
 text = "Wings Revealed"
 shape = "minmax"
 disposition = "exact"
-lands = "wings_revealed>={min} wings_revealed<={max}"
+lands = "wings_revealed={min}..{max}"
 fields = ["wings_revealed"]
 note = "the first number of `Wings Revealed: a/b`"
 
@@ -447,7 +469,7 @@ key = "heist_filters.heist_max_wings"
 text = "Total Wings"
 shape = "minmax"
 disposition = "exact"
-lands = "wings_revealed.of>={min} wings_revealed.of<={max}"
+lands = "wings_revealed.of={min}..{max}"
 fields = ["wings_revealed.of"]
 note = "the second number of `Wings Revealed: a/b`"
 
@@ -456,7 +478,7 @@ key = "heist_filters.heist_escape_routes"
 text = "Escape Routes Revealed"
 shape = "minmax"
 disposition = "exact"
-lands = "escape_routes_revealed>={min} escape_routes_revealed<={max}"
+lands = "escape_routes_revealed={min}..{max}"
 fields = ["escape_routes_revealed"]
 
 [[row]]
@@ -464,7 +486,7 @@ key = "heist_filters.heist_max_escape_routes"
 text = "Total Escape Routes"
 shape = "minmax"
 disposition = "exact"
-lands = "escape_routes_revealed.of>={min} escape_routes_revealed.of<={max}"
+lands = "escape_routes_revealed.of={min}..{max}"
 fields = ["escape_routes_revealed.of"]
 
 [[row]]
@@ -472,7 +494,7 @@ key = "heist_filters.heist_reward_rooms"
 text = "Reward Rooms Revealed"
 shape = "minmax"
 disposition = "exact"
-lands = "reward_rooms_revealed>={min} reward_rooms_revealed<={max}"
+lands = "reward_rooms_revealed={min}..{max}"
 fields = ["reward_rooms_revealed"]
 
 [[row]]
@@ -480,7 +502,7 @@ key = "heist_filters.heist_max_reward_rooms"
 text = "Total Reward Rooms"
 shape = "minmax"
 disposition = "exact"
-lands = "reward_rooms_revealed.of>={min} reward_rooms_revealed.of<={max}"
+lands = "reward_rooms_revealed.of={min}..{max}"
 fields = ["reward_rooms_revealed.of"]
 
 [[row]]
@@ -494,74 +516,82 @@ note = "`Heist Target: <name> (<value>)` is a word, not a number; a closed-set f
 key = "heist_filters.heist_lockpicking"
 text = "Lockpicking Level"
 shape = "minmax"
-disposition = "exact"
-lands = "lockpicking>={min} lockpicking<={max}"
+disposition = "ambiguous"
+lands = "lockpicking={min}..{max}"
 fields = ["lockpicking"]
-note = "the level of `Requires Lockpicking (Level n)`: one property shape, a field per skill it names"
+note = "the level of `Requires Lockpicking (Level n)`, a contract's or blueprint's (3,587 properties on the census copy of 2026-09-13): one property shape, a field per skill it names; 183 brooches and cloaks require `Level {0} in {1}`, which no field reads, and whether the site's filter matches them is for a sitting — the owner on ambiguous, 2026-10-15, verbatim: \"Both ambiguous (Recommended)\""
 
 [[row]]
 key = "heist_filters.heist_brute_force"
 text = "Brute Force Level"
 shape = "minmax"
-disposition = "exact"
-lands = "brute_force>={min} brute_force<={max}"
+disposition = "ambiguous"
+lands = "brute_force={min}..{max}"
 fields = ["brute_force"]
+note = "as `heist_filters.heist_lockpicking`"
 
 [[row]]
 key = "heist_filters.heist_perception"
 text = "Perception Level"
 shape = "minmax"
-disposition = "exact"
-lands = "perception>={min} perception<={max}"
+disposition = "ambiguous"
+lands = "perception={min}..{max}"
 fields = ["perception"]
+note = "as `heist_filters.heist_lockpicking`"
 
 [[row]]
 key = "heist_filters.heist_demolition"
 text = "Demolition Level"
 shape = "minmax"
-disposition = "exact"
-lands = "demolition>={min} demolition<={max}"
+disposition = "ambiguous"
+lands = "demolition={min}..{max}"
 fields = ["demolition"]
+note = "as `heist_filters.heist_lockpicking`"
 
 [[row]]
 key = "heist_filters.heist_counter_thaumaturgy"
 text = "Counter-Thaum. Level"
 shape = "minmax"
-disposition = "exact"
-lands = "counter_thaumaturgy>={min} counter_thaumaturgy<={max}"
+disposition = "ambiguous"
+lands = "counter_thaumaturgy={min}..{max}"
 fields = ["counter_thaumaturgy"]
+note = "as `heist_filters.heist_lockpicking`"
 
 [[row]]
 key = "heist_filters.heist_trap_disarmament"
 text = "Trap Disarmament Level"
 shape = "minmax"
-disposition = "exact"
-lands = "trap_disarmament>={min} trap_disarmament<={max}"
+disposition = "ambiguous"
+lands = "trap_disarmament={min}..{max}"
 fields = ["trap_disarmament"]
+note = "as `heist_filters.heist_lockpicking`"
 
 [[row]]
 key = "heist_filters.heist_agility"
 text = "Agility Level"
 shape = "minmax"
-disposition = "exact"
-lands = "agility>={min} agility<={max}"
+disposition = "ambiguous"
+lands = "agility={min}..{max}"
 fields = ["agility"]
+note = "as `heist_filters.heist_lockpicking`"
 
 [[row]]
 key = "heist_filters.heist_deception"
 text = "Deception Level"
 shape = "minmax"
-disposition = "exact"
-lands = "deception>={min} deception<={max}"
+disposition = "ambiguous"
+lands = "deception={min}..{max}"
 fields = ["deception"]
+note = "as `heist_filters.heist_lockpicking`"
 
 [[row]]
 key = "heist_filters.heist_engineering"
 text = "Engineering Level"
 shape = "minmax"
-disposition = "exact"
-lands = "engineering>={min} engineering<={max}"
+disposition = "ambiguous"
+lands = "engineering={min}..{max}"
 fields = ["engineering"]
+note = "as `heist_filters.heist_lockpicking`"
 
 # ---- sanctum_filters ----------------------------------------------------
 
@@ -570,7 +600,7 @@ key = "sanctum_filters.sanctum_resolve"
 text = "Resolve"
 shape = "minmax"
 disposition = "exact"
-lands = "resolve>={min} resolve<={max}"
+lands = "resolve={min}..{max}"
 fields = ["resolve"]
 note = "the first number of `Resolve: a/b`"
 
@@ -579,7 +609,7 @@ key = "sanctum_filters.sanctum_max_resolve"
 text = "Maximum Resolve"
 shape = "minmax"
 disposition = "exact"
-lands = "resolve.of>={min} resolve.of<={max}"
+lands = "resolve.of={min}..{max}"
 fields = ["resolve.of"]
 
 [[row]]
@@ -587,7 +617,7 @@ key = "sanctum_filters.sanctum_inspiration"
 text = "Inspiration"
 shape = "minmax"
 disposition = "exact"
-lands = "inspiration>={min} inspiration<={max}"
+lands = "inspiration={min}..{max}"
 fields = ["inspiration"]
 
 [[row]]
@@ -595,7 +625,7 @@ key = "sanctum_filters.sanctum_gold"
 text = "Aureus"
 shape = "minmax"
 disposition = "exact"
-lands = "aureus>={min} aureus<={max}"
+lands = "aureus={min}..{max}"
 fields = ["aureus"]
 
 # ---- ultimatum_filters --------------------------------------------------
@@ -635,7 +665,7 @@ key = "misc_filters.quality"
 text = "Quality"
 shape = "minmax"
 disposition = "ambiguous"
-lands = "quality>={min} quality<={max}"
+lands = "quality={min}..{max}"
 fields = ["quality"]
 note = "the displayed `Quality`; a catalysed ring's `Quality (Resistance Modifiers)` and a map's `Quality (Quantity)` are their own displayed names, and whether the site folds them in is for a sitting"
 
@@ -644,7 +674,7 @@ key = "misc_filters.ilvl"
 text = "Item Level"
 shape = "minmax"
 disposition = "exact"
-lands = "ilvl>={min} ilvl<={max}"
+lands = "ilvl={min}..{max}"
 fields = ["ilvl"]
 
 [[row]]
@@ -652,7 +682,7 @@ key = "misc_filters.gem_level"
 text = "Gem Level"
 shape = "minmax"
 disposition = "exact"
-lands = "level>={min} level<={max}"
+lands = "level={min}..{max}"
 fields = ["level"]
 note = "the displayed `Level` property, a gem's, one value; ` (Max)` written after the number, as `20 (Max)`, is read and dropped"
 
@@ -661,7 +691,7 @@ key = "misc_filters.gem_level_progress"
 text = "Gem Experience %"
 shape = "minmax"
 disposition = "exact"
-lands = "experience>={min} experience<={max}"
+lands = "experience={min}..{max}"
 fields = ["experience"]
 note = "`Experience: a/b` as the percent a is of b, which is what the site's filter reads"
 
@@ -789,7 +819,7 @@ key = "misc_filters.memory_level"
 text = "Memory Strands"
 shape = "minmax"
 disposition = "exact"
-lands = "memory_strands>={min} memory_strands<={max}"
+lands = "memory_strands={min}..{max}"
 fields = ["memory_strands"]
 
 [[row]]
@@ -804,7 +834,7 @@ key = "misc_filters.stored_experience"
 text = "Stored Experience"
 shape = "minmax"
 disposition = "exact"
-lands = "stored_experience>={min} stored_experience<={max}"
+lands = "stored_experience={min}..{max}"
 fields = ["stored_experience"]
 
 [[row]]
@@ -812,7 +842,7 @@ key = "misc_filters.stack_size"
 text = "Stack Size"
 shape = "minmax"
 disposition = "exact"
-lands = "stack>={min} stack<={max}"
+lands = "stack={min}..{max}"
 fields = ["stack"]
 note = "the first number of `Stack Size: a/b`, the field the search has"
 
@@ -906,42 +936,36 @@ note = "the market's price; the owner's own price is `price.amount`, asked by ha
 key = "stats.and"
 text = "And"
 disposition = "exact"
-lands = "{each}"
-note = "each filter a term; the one group that translates in part — a filter of it that is unsupported goes to the remainder alone"
+note = "each filter a term of the query, as if no group held it; the one group that translates in part — a filter of it that is unsupported goes to the remainder alone"
 
 [[row]]
 key = "stats.not"
 text = "Not"
 disposition = "exact"
-lands = "-({each} or …)"
-note = "whole or not at all; a filter carrying a value is ambiguous — whether the site excludes the stat's presence or its meeting the bound is for a sitting"
+note = "`-(a or b …)`, `-a` for one filter, each filter as it lands alone; whole or not at all; a filter carrying a value is ambiguous — whether the site excludes the stat's presence or its meeting the bound is for a sitting"
 
 [[row]]
 key = "stats.if"
 text = "If"
 disposition = "exact"
-lands = "(-line({T}) or line({T} {bounds}))"
-note = "per stat, by the site's tip: match if the stat is present and meets the bound; a stat with no bound is `true()` written as the site's own no-op; whole or not at all"
+note = "per stat, a term of the query, by the site's tip: match if the stat is present and meets the bound — `(-line(T) or line(T bounds))`, the stat's line as it lands without its bounds and with them; a stat with no bound is `true()` written as the site's own no-op; a pseudo has no line and is unsupported here; whole or not at all"
 
 [[row]]
 key = "stats.count"
 text = "Count"
 disposition = "exact"
-lands = "holds({each})={min}..{max}"
-note = "by the site's tip: each stat that meets its bound counts; whole or not at all"
+note = "`holds(a, b …)=min..max`, each filter as it lands alone: by the site's tip, each stat that meets its bound counts; the group's bounds whole numbers, one at least, or unsupported — what the site makes of a count with none is unasked; whole or not at all"
 
 [[row]]
 key = "stats.weight"
 text = "Weighted Sum"
 disposition = "exact"
-lands = "sum(line(template={T} or …).{slot})>={min}/{w}"
-note = "only with one weight on every stat, no per-stat bound and one slot (`arg1`, or `avg` on ranged lines alone); otherwise unsupported whole (K5: the guard a per-stat bound adds has no representation); S57"
+note = "`sum(line((T source) or …).slot)=min/w..max/w`: only with one weight w above zero on every stat, no per-stat bound, a bound on the group whose quotient by w is an exact decimal, a line for every stat and one slot (the same `#` of each, or `avg` on ranged lines alone); otherwise unsupported whole (K5: the guard a per-stat bound adds has no representation); S57"
 
 [[row]]
 key = "stats.weight2"
 text = "Weighted Sum v2"
 disposition = "exact"
-lands = "sum(line(template={T} or …).{slot})>={min}/{w}"
 note = "as `stats.weight`: with no per-stat bound the two tips state one sum"
 
 [[row]]
@@ -973,38 +997,38 @@ note = "an option-valued stat (88 pseudos: temple rooms, implicit tiers) names a
 [[row]]
 key = "stat.explicit"
 disposition = "ambiguous"
-lands = 'line("{text}" source=explicit {bounds})'
+lands = "line({text} source=explicit {bounds})"
 note = "whether the site's explicit id also matches the same stat's crafted or fractured line is for a sitting; until then the line's source alone"
 
 [[row]]
 key = "stat.implicit"
 disposition = "exact"
-lands = 'line("{text}" source=implicit {bounds})'
+lands = "line({text} source=implicit {bounds})"
 
 [[row]]
 key = "stat.fractured"
 disposition = "exact"
-lands = 'line("{text}" is:fractured {bounds})'
+lands = "line({text} is:fractured {bounds})"
 
 [[row]]
 key = "stat.crafted"
 disposition = "exact"
-lands = 'line("{text}" is:crafted {bounds})'
+lands = "line({text} is:crafted {bounds})"
 
 [[row]]
 key = "stat.enchant"
 disposition = "exact"
-lands = 'line("{text}" source=enchant {bounds})'
+lands = "line({text} source=enchant {bounds})"
 
 [[row]]
 key = "stat.scourge"
 disposition = "exact"
-lands = 'line("{text}" source=scourge {bounds})'
+lands = "line({text} source=scourge {bounds})"
 
 [[row]]
 key = "stat.pseudo"
 disposition = "exact"
-lands = "pseudo.{total}>={min} pseudo.{total}<={max}"
+lands = "pseudo.{total}={min}..{max}"
 note = "a pseudo the totals table names by its site name is that total or reading (C94, C101); any other pseudo is unsupported by its name"
 
 [[row]]
@@ -1047,12 +1071,17 @@ note = "a node by id, its text two lines with the tier baked in"
 [[row]]
 key = "stat.text.bounds"
 disposition = "exact"
-note = "`min` and `max` compare `arg1`; on a ranged template, one `# to #`, they compare `avg` (S47); a text with no `#` is presence alone; `+#` is spelling and lowers"
+note = "`min` and `max` compare the text's `#` — `arg1` where it is the first number; on a ranged template, one `# to #`, they compare `avg` (S47); a text with no `#` is presence alone, and a bound on it is dropped; `+#` is spelling and lowers"
+
+[[row]]
+key = "stat.text.numbers"
+disposition = "exact"
+note = "a number the site's text writes as a digit and not a `#` — `per 200 Accuracy Rating`, `1 Added Passive Skill is …` — is part of the line's text, as it is of the line the game displays: the template has `#` there and the slot is that number, `arg2=200`; the bounds compare the site's own `#` (1,613 of the capture's 14,068 category and id pairs)"
 
 [[row]]
 key = "stat.text.many"
 disposition = "ambiguous"
-note = "a template with several numbers and no single `# to #`: `arg1` is compared, and which number the site compares is for a sitting"
+note = "a text with several `#` and no single `# to #` among them: the first is compared, and which number the site compares is for a sitting"
 
 [[row]]
 key = "stat.text.local"
@@ -1062,12 +1091,17 @@ note = "a `(Local)` suffix is dropped — no private item displays it — and th
 [[row]]
 key = "stat.text.collision"
 disposition = "ambiguous"
-note = "a text the site gives two ids under one category (230 explicit): the line matches both, and the report names the other id (S66)"
+note = "a text the site gives two ids or more under one category (227 explicit, 34 enchant, 20 implicit, 15 fractured, one crafted, one scourge, measured at step 4): the line matches both, and the report names the other id (S66)"
 
 [[row]]
 key = "stat.text.rows"
 disposition = "exact"
 note = "a text of several rows is one line named by its whole text, a row break written `\\n` (C90)"
+
+[[row]]
+key = "stat.text.two"
+disposition = "unsupported"
+note = "an id the site lists with two texts or more under one category (172 ids in the capture, 229 category and id pairs; 162 of the ids a map's own wording beside the atlas's `your Maps`): the URL names the id and not the text, and which wordings the site's id matches is for a sitting — the owner, 2026-10-15, verbatim: \"Unsupported until the sitting\""
 
 [[row]]
 key = "stat.unknown"

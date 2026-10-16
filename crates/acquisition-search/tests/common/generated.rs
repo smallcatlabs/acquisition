@@ -2588,3 +2588,251 @@ pub fn members(
     cache.insert(key, ids.clone());
     Ok(ids)
 }
+
+// ---- a site query (the trade translation, step 4 of search/TRADE-PLAN.md) --------------------
+
+/// The words a site query's texts and options are drawn from: plain ones,
+/// and ones that carry the language's own marks — a quote, a backslash, a
+/// row break, a placeholder's braces, a keyword, a `#` — which the
+/// translation must hand the binder as one text.
+const SITE_WORDS: [&str; 12] = [
+    "Standard",
+    "Kaom's Heart",
+    "Iron Ring",
+    "a \"b\"",
+    "x\\y",
+    "{max}",
+    "or",
+    "-",
+    "line(",
+    "#",
+    "two\nrows",
+    "",
+];
+
+/// What a generated site query draws from: the catalogue's filter keys,
+/// `<group>.<filter>`, with the shape each takes, and the stat table's
+/// category and id pairs.
+struct SiteVocabulary {
+    filters: Vec<(String, String)>,
+    stats: Vec<String>,
+}
+
+fn site_vocabulary() -> &'static SiteVocabulary {
+    static VOCABULARY: std::sync::OnceLock<SiteVocabulary> = std::sync::OnceLock::new();
+    VOCABULARY.get_or_init(|| {
+        let catalogue = acquisition_search::trade::catalogue::catalogue().unwrap();
+        let filters = catalogue
+            .rows()
+            .iter()
+            .filter(|r| r.key.contains("_filters.") && !r.key.contains('='))
+            .filter_map(|r| Some((r.key.clone(), r.shape.clone()?)))
+            .collect();
+        let table: toml::Value =
+            toml::from_str(include_str!("../../reference/trade-stats-v1.toml")).unwrap();
+        let mut stats: Vec<String> = Vec::new();
+        for row in table["stat"].as_array().unwrap() {
+            let id = row["id"].as_str().unwrap();
+            for category in row["in"].as_array().unwrap() {
+                stats.push(format!("{}.{id}", category.as_str().unwrap()));
+            }
+        }
+        // a pseudo the totals table names, one it does not, and categories
+        // with no line
+        for extra in [
+            "pseudo.pseudo_total_life",
+            "pseudo.pseudo_total_resistance",
+            "pseudo.pseudo_nothing",
+            "imbued.x",
+            "delve.y",
+            "explicit.stat_1",
+        ] {
+            stats.push(extra.to_string());
+        }
+        SiteVocabulary { filters, stats }
+    })
+}
+
+/// A bound: absent, null, a small whole or tenths number, negative too,
+/// one outside the search's rule, or no number at all.
+fn site_number() -> BoxedStrategy<Option<Value>> {
+    prop_oneof![
+        3 => Just(None),
+        1 => Just(Some(Value::Null)),
+        6 => (LOW..=HIGH).prop_map(|n| Some(json!(n))),
+        2 => (LOW * 10..=HIGH * 10).prop_map(|n| Some(json!(f64::from(n) / 10.0))),
+        1 => Just(Some(json!(1e20))),
+        1 => Just(Some(json!("5"))),
+    ]
+    .boxed()
+}
+
+fn site_word() -> BoxedStrategy<String> {
+    prop::sample::select(SITE_WORDS.to_vec())
+        .prop_map(str::to_string)
+        .boxed()
+}
+
+/// The numbers of a value object, each drawn alone.
+fn site_value(keys: &'static [&'static str]) -> BoxedStrategy<Value> {
+    prop::collection::vec(site_number(), keys.len())
+        .prop_map(move |numbers| {
+            let mut value = Map::new();
+            for (key, n) in keys.iter().zip(numbers) {
+                if let Some(n) = n {
+                    value.insert((*key).to_string(), n);
+                }
+            }
+            Value::Object(value)
+        })
+        .boxed()
+}
+
+/// One filter of `filters`, by its shape: a min and max, an option — a
+/// word of its own, `true`, `false`, null, or any word — the socket
+/// counts, a text.
+fn site_filter() -> BoxedStrategy<(String, Value)> {
+    let filters = &site_vocabulary().filters;
+    let options = prop_oneof![
+        Just(json!("true")),
+        Just(json!("false")),
+        Just(Value::Null),
+        Just(json!("rare")),
+        Just(json!("accessory.ring")),
+        Just(json!("nonunique")),
+        Just(json!("uniquefoil")),
+        site_word().prop_map(Value::from),
+    ];
+    (
+        prop::sample::select(filters.clone()),
+        site_value(&["min", "max"]),
+        site_value(&["min", "max", "r", "g", "b", "w"]),
+        options,
+        site_word(),
+        prop::bool::weighted(0.1),
+    )
+        .prop_map(|((key, shape), minmax, sockets, option, text, disabled)| {
+            let mut value = match shape.as_str() {
+                "option" => json!({ "option": option }),
+                "sockets" => sockets,
+                "input" => json!({ "input": text }),
+                _ => minmax,
+            };
+            if disabled {
+                value["disabled"] = json!(true);
+            }
+            (key, value)
+        })
+        .boxed()
+}
+
+/// One stat filter: an id from the table, a pseudo or a category with no
+/// line; a min, a max, a weight, an option; disabled now and then.
+fn site_stat() -> BoxedStrategy<Value> {
+    let stats = &site_vocabulary().stats;
+    (
+        prop::sample::select(stats.clone()),
+        site_value(&["min", "max"]),
+        prop_oneof![
+            3 => Just(None),
+            3 => Just(Some(json!(1))),
+            1 => Just(Some(json!(2))),
+            1 => Just(Some(json!(0.5))),
+            1 => Just(Some(json!(3))),
+            1 => Just(Some(json!(-1))),
+        ],
+        prop::bool::weighted(0.05),
+        prop::bool::weighted(0.1),
+    )
+        .prop_map(|(id, mut value, weight, option, disabled)| {
+            if let Some(w) = weight {
+                value["weight"] = w;
+            }
+            if option {
+                value["option"] = json!(1);
+            }
+            let mut filter = json!({ "id": id, "value": value });
+            if disabled {
+                filter["disabled"] = json!(true);
+            }
+            filter
+        })
+        .boxed()
+}
+
+fn site_group() -> BoxedStrategy<Value> {
+    (
+        prop::sample::select(vec![
+            "and",
+            "and",
+            "not",
+            "if",
+            "count",
+            "weight",
+            "weight2",
+            "crucible",
+            "mercenary",
+            "xor",
+        ]),
+        prop::collection::vec(site_stat(), 0..4),
+        site_value(&["min", "max"]),
+        prop::bool::weighted(0.05),
+    )
+        .prop_map(|(kind, filters, value, disabled)| {
+            let mut group = json!({ "type": kind, "filters": filters, "value": value });
+            if disabled {
+                group["disabled"] = json!(true);
+            }
+            group
+        })
+        .boxed()
+}
+
+/// A site query: some of `status`, `term`, `name`, `type` (a text, or one
+/// with a variant), filters drawn from the catalogue, stat groups whose
+/// ids are drawn from the stat table, now and then a key no row names.
+pub fn site_query() -> BoxedStrategy<Value> {
+    (
+        prop::option::of(site_word()),
+        prop::option::of(site_word()),
+        prop::option::of((site_word(), prop::bool::ANY)),
+        prop::collection::vec(site_filter(), 0..5),
+        prop::collection::vec(site_group(), 0..3),
+        prop::bool::weighted(0.1),
+    )
+        .prop_map(|(term, name, base, filters, groups, stray)| {
+            let mut query = json!({ "status": { "option": "online" } });
+            if let Some(term) = term {
+                query["term"] = json!(term);
+            }
+            if let Some(name) = name {
+                query["name"] = json!(name);
+            }
+            if let Some((base, variant)) = base {
+                query["type"] = if variant {
+                    json!({ "option": base, "discriminator": "legacy" })
+                } else {
+                    json!(base)
+                };
+            }
+            let mut by_group = Map::new();
+            for (key, value) in filters {
+                let (group, filter) = key.split_once('.').unwrap();
+                let entry = by_group
+                    .entry(group.to_string())
+                    .or_insert_with(|| json!({ "filters": {} }));
+                entry["filters"][filter] = value;
+            }
+            if !by_group.is_empty() {
+                query["filters"] = Value::Object(by_group);
+            }
+            if !groups.is_empty() {
+                query["stats"] = json!(groups);
+            }
+            if stray {
+                query["seller"] = json!("x");
+            }
+            query
+        })
+        .boxed()
+}

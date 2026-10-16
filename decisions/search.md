@@ -33,7 +33,7 @@ Part of the decision registry (`CONTEXT.md`, "Decisions — the registry"): the 
 - **C106 — Reference data admits game data and community convention, never judgment.** Data is what the game files state (base ranges); convention is a concept with a published community definition (equipment, the trade site's categories). Both enter under C68 from a registered surface (C79), through the admission test the crate's doc states, and remove nothing: the user composes their own meaning from terms. Judgment — what is good, what it is worth, what to keep — is never embedded. Legacy stays the user's (S178, C107). *Why:* C102 gave base defences to the user while C101 built a field on them. *Details:* `lib.rs`, `class.rs`, `category.rs`. *Pinned:* `tests/class.rs`, `tests/category.rs`. Owner 2026-09-18: "I approve the proposed three-way line as amended."
 - **C107 — Legacy is the user's word; a source's own label may be a field.** No field, term or output of the search says "legacy" (S178, R8). What a registered source prints about an item — the variant label Path of Building gives a unique (`Pre 3.23.0`, `Current`) — is convention under C106 and may back a derived field (C101) that prints the label and the source's version; an item that fits an old and a current variant, or none, is undecided with its reason (C93). *Why:* the measurement found a source for a unique's variants and none, for any kind of item, that says what the game can still produce. *Evidence:* `search/legacy/README.md` at `77bca830`. Owner 2026-09-18: "legacy is not well-defined enough to become a field. Variant is better."
 
-- **C113 — Inbound, PoE1: a site search URL, its id or its query JSON is a third spelling of a query — decoded with no network, written as the language's text, run and labelled.** Owner, 2026-10-15: "run and label"; "accept the raw query json, too". Exact and ambiguous clauses run, the rest are reported; the remainder is the unsupported, and nonempty it makes the answer say it is not the site's. The URL's realm is the scope (C96): `/trade/search/<league>/…` is pc, `…/(xbox|sony)/<league>/…` a console; the league is a term; a PoE2 URL is refused by name. The stat vocabulary is reference data (C106) read by the translation alone (C90). *Why:* the text is what a person would have typed and can edit; a label is read, a refusal is a round trip. *Details:* K6.
+- **C113 — Inbound, PoE1: a site search URL, its id or its query JSON is a third spelling of a query — decoded with no network, written as the language's text, run and labelled.** Owner, 2026-10-15: "run and label"; "accept the raw query json, too". Exact and ambiguous clauses run, the rest are reported; the remainder is the unsupported, and nonempty it makes the answer say it is not the site's. The URL's realm is the scope (C96): `/trade/search/<league>/…` is pc, `…/(xbox|sony)/<league>/…` a console; the league is a term; a PoE2 URL is refused by name. The stat vocabulary is reference data (C106) read by the translation alone (C90). *Why:* the text is what a person would have typed and can edit; a label is read, a refusal is a round trip. *Details:* K6; `translate.rs`.
 - **C114 — Every numeric property the site's filters read is a field, named by its displayed name, defined once in one table.** Owner, 2026-10-15: "build all using displayed names". Quality, gem level, map tier and the rest of the site's bridge (S55), each a field over the displayed property, reviewed reference data (C106), listed in `--describe fields`; no general accessor (C101). The quality-normalised defences — `ar`, `ev`, `es`, `ward` at 20 % quality (S26) — are built in the same step (owner: "in this step"). *Why:* 25 of the site's 93 filters read a property the search reached only through `text:`. *Details:* `properties.rs`, and `reference/properties-v1.toml`'s header. *Pinned:* `acquisition-search/tests/properties.rs`.
 ## Parked (do not build yet; each with its trigger)
 
@@ -83,7 +83,9 @@ translates whole or not at all, `and` excepted. A hash-category stat is
 `line("T" …)` with the category as source or flag, `min` and `max` on
 `arg1`, on `avg` for a ranged template (S47), presence for a text with
 no number; `+#` and a `(Local)` suffix are spelling, the suffix making
-the clause ambiguous (S72), as does a text with two ids (S66); a pseudo
+the clause ambiguous (S72), as does a text with two ids (S66); an id of
+two texts in one category is unsupported (owner, 2026-10-15:
+"Unsupported until the sitting"); a pseudo
 the totals table names is that total or reading, any other unsupported.
 `not` is `-( … or … )`, `if` is `(-line(T) or line(T v))` per stat,
 `count` is `holds(…)=min..max`, a weighted group as K5. Every clause
@@ -91,4 +93,5 @@ that runs owns one term path inside its group, a tautology its own, and
 every path is a clause's.
 What no sitting has asked — an explicit id on a crafted line, a `not`
 with a value, which number a many-numbered template compares, dps and
-quality — is ambiguous until one has.
+quality, and each row whose note leaves it to one — is ambiguous until
+one has.

@@ -236,6 +236,27 @@ pub(crate) fn typed(text: &str) -> (String, Vec<f64>) {
 /// The same, each number with whether the search reads it as written
 /// (`exact::reads`): what the deriver keeps, and what it calls unread.
 pub(crate) fn read(text: &str) -> (String, Vec<(f64, bool)>) {
+    let (template, slots) = scan(text);
+    let numbers = slots.into_iter().flatten().collect();
+    (template, numbers)
+}
+
+/// The template of a text that may hold both `#` and numbers — the trade
+/// site's stat text, `#% chance to gain Phasing for 4 seconds on Kill` —
+/// and, for each `#` of it in order, the number that stood there, or none
+/// where the text had a `#` (`trade/translate.rs`). One scan with
+/// [`read`], so the two never part on what a number is.
+pub(crate) fn fixed(text: &str) -> (String, Vec<Option<f64>>) {
+    let (template, slots) = scan(text);
+    (
+        template,
+        slots.into_iter().map(|s| s.map(|(n, _)| n)).collect(),
+    )
+}
+
+/// The one scan: the template, and each `#` of it with the number taken
+/// out there, or none for a `#` the text already had.
+fn scan(text: &str) -> (String, Vec<Option<(f64, bool)>>) {
     let chars: Vec<char> = text.chars().collect();
     let mut out = String::new();
     let mut numbers = Vec::new();
@@ -266,12 +287,15 @@ pub(crate) fn read(text: &str) -> (String, Vec<(f64, bool)>) {
                 }
             }
             let literal: String = chars[start..i].iter().filter(|c| **c != ',').collect();
-            numbers.push((
+            numbers.push(Some((
                 literal.parse().unwrap_or(0.0),
                 crate::exact::reads(&literal),
-            ));
+            )));
             out.push('#');
         } else {
+            if c == '#' {
+                numbers.push(None);
+            }
             out.push(c);
             i += 1;
         }

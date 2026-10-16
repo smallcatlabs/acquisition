@@ -94,6 +94,9 @@ pub struct StatTable {
     version: String,
     source: String,
     by_id: HashMap<String, Stat>,
+    /// The ids each text names, by category: (category bit, text) to ids,
+    /// in the file's order.
+    by_text: HashMap<(u8, String), Vec<String>>,
 }
 
 /// Why a table text is not a table. Every arm names the offending row so a
@@ -215,6 +218,7 @@ impl StatTable {
             return Err(StatTableError::NoStat);
         }
         let mut by_id: HashMap<String, Stat> = HashMap::with_capacity(file.stats.len());
+        let mut by_text: HashMap<(u8, String), Vec<String>> = HashMap::new();
         let mut carried = 0u8;
         for row in file.stats {
             if !is_id(&row.id) {
@@ -258,6 +262,16 @@ impl StatTable {
                 }
             }
             carried |= categories;
+            for at in 0..HASH_CATEGORIES.len() {
+                if categories & (1 << at) != 0 {
+                    for text in &row.texts {
+                        by_text
+                            .entry((at as u8, text.clone()))
+                            .or_default()
+                            .push(row.id.clone());
+                    }
+                }
+            }
             by_id.insert(
                 row.id,
                 Stat {
@@ -273,6 +287,7 @@ impl StatTable {
             version: file.version,
             source: file.source,
             by_id,
+            by_text,
         })
     }
 
@@ -300,6 +315,18 @@ impl StatTable {
         let at = HASH_CATEGORIES.iter().position(|c| *c == category)?;
         let found = self.by_id.get(id)?;
         (found.categories & (1 << at) != 0).then_some(found.texts.as_slice())
+    }
+
+    /// The ids the site displays a text as under one hash category, read
+    /// exactly, in the file's order: two or more is the text S66 names
+    /// (the catalogue's `stat.text.collision`); none where the category is
+    /// no hash category.
+    pub fn ids_of(&self, category: &str, text: &str) -> &[String] {
+        HASH_CATEGORIES
+            .iter()
+            .position(|c| *c == category)
+            .and_then(|at| self.by_text.get(&(at as u8, text.to_string())))
+            .map_or(&[], Vec::as_slice)
     }
 
     /// The hash categories that carry an id, in the capture's order.

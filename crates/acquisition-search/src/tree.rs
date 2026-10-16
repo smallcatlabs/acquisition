@@ -446,6 +446,32 @@ pub fn forced(root: &Node, path: &str, value: bool) -> Option<Node> {
     found.then_some(out)
 }
 
+/// `sum(line(P or Q …).slot)`: the sum over the lines any of several line
+/// terms selects, each term's conditions one alternative of the one group
+/// — what the trade translation writes for a weighted sum (K5,
+/// `trade/translate.rs`); none where a term is no `line( … )`.
+pub(crate) fn sum_of_lines(terms: &[Node], slot: &str) -> Option<ValueRef> {
+    let mut alternatives = Vec::with_capacity(terms.len());
+    for term in terms {
+        match term {
+            Node::Members {
+                of: Collection::Lines,
+                where_,
+            } => alternatives.push((**where_).clone()),
+            _ => return None,
+        }
+    }
+    let lines = match alternatives.len() {
+        0 => return None,
+        1 => alternatives.remove(0),
+        _ => Member::Any(alternatives),
+    };
+    Some(ValueRef::Sum {
+        lines: Box::new(lines),
+        slot: slot.to_string(),
+    })
+}
+
 // ---- validity --------------------------------------------------------------
 
 fn invalid(kind: ErrorKind, message: impl Into<String>) -> LanguageError {

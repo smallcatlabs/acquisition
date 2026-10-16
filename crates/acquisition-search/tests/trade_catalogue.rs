@@ -24,7 +24,7 @@ const GRAMMAR: &str = include_str!("../../../search/trade-query/data/grammar.jso
 fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
     let c = catalogue::catalogue().unwrap();
     assert_eq!(c.version(), CATALOGUE_VERSION);
-    assert_eq!(c.rows().len(), 136);
+    assert_eq!(c.rows().len(), 139);
     let count = |d: Disposition| c.rows().iter().filter(|r| r.disposition == d).count();
     assert_eq!(
         [
@@ -33,20 +33,42 @@ fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
             count(Disposition::Unsupported),
             count(Disposition::ListingOnly)
         ],
-        [76, 16, 35, 9]
+        [66, 27, 37, 9]
     );
     // the four defence filters ambiguous since step 3 measured the q20
-    // rule against the site (`tests/properties.rs`)
-    for key in ["ar", "ev", "es", "ward"] {
-        let row = c.row(&format!("armour_filters.{key}")).unwrap();
+    // rule against the site (`tests/properties.rs`), and the eleven rows
+    // step 3's measurement doubted since step 4, by the owner's verdicts
+    for key in [
+        "armour_filters.ar",
+        "armour_filters.ev",
+        "armour_filters.es",
+        "armour_filters.ward",
+        "weapon_filters.crit",
+        "map_filters.area_level",
+        "heist_filters.heist_lockpicking",
+        "heist_filters.heist_brute_force",
+        "heist_filters.heist_perception",
+        "heist_filters.heist_demolition",
+        "heist_filters.heist_counter_thaumaturgy",
+        "heist_filters.heist_trap_disarmament",
+        "heist_filters.heist_agility",
+        "heist_filters.heist_deception",
+        "heist_filters.heist_engineering",
+    ] {
+        let row = c.row(key).unwrap();
         assert_eq!(row.disposition, Disposition::Ambiguous, "{key}");
     }
+    // the owner, 2026-10-15: "Unsupported until the sitting"
+    assert_eq!(
+        c.row("stat.text.two").unwrap().disposition,
+        Disposition::Unsupported
+    );
     assert_eq!(
         Catalogue::parse(catalogue::CATALOGUE_TOML)
             .unwrap()
             .rows()
             .len(),
-        136
+        139
     );
 }
 
@@ -288,6 +310,26 @@ fn c113_the_catalogue_loader_refuses_what_a_reviewer_would() {
             placeholder: "{min".to_string(),
         }
     );
+    // a placeholder inside quotes, where the printer's quoting of what
+    // fills it cannot reach (step 4); a quote escaped inside a quoted
+    // string does not end it
+    for lands in ["'league=\"{value}\"'", "'name=\"a\\\" {value}\"'"] {
+        assert_eq!(
+            refused(one(&format!("disposition = \"exact\"\nlands = {lands}"))),
+            CatalogueError::QuotedPlaceholder {
+                key: key(),
+                placeholder: "value".to_string()
+            },
+            "{lands}"
+        );
+    }
+    // bare, or beside a quoted text that holds none, it stands
+    for lands in ["'name={value} typeline~\"^a\"'", "'name=\"a\\\\\" {value}'"] {
+        assert!(
+            Catalogue::parse(&one(&format!("disposition = \"exact\"\nlands = {lands}"))).is_ok(),
+            "{lands}"
+        );
+    }
     assert_eq!(
         refused(one("disposition = \"exact\"\nfields = [\"ilvl\"]")),
         CatalogueError::FieldsWithoutLands(key())

@@ -1,8 +1,8 @@
 //! The trade catalogue (C113; K6 in `decisions/search.md`; step 0 of
 //! `search/TRADE-PLAN.md`, its loader step 3's): one row per clause the
 //! site's query can carry, with its status, the text it lands as and the
-//! note the report prints — what the translation reads (step 4) and
-//! `--describe trade` prints (step 5).
+//! note the report prints — what the translation reads
+//! ([`super::translate`], step 4) and `--describe trade` prints (step 5).
 //!
 //! # As built
 //!
@@ -17,7 +17,9 @@
 //!   header gives; a status of the four, a shape of the five; a note
 //!   beside every clause that runs as ambiguous or is unsupported, and
 //!   none empty; nothing landed by a clause that does not run; every
-//!   placeholder one the translation fills ([`PLACEHOLDERS`]); every field
+//!   placeholder one the translation fills ([`PLACEHOLDERS`]), and none
+//!   inside quotes, where the printer's quoting of its value cannot reach
+//!   (step 4); every field
 //!   named written in the row's text, and **every field named one this
 //!   build knows** — a field of the language, a property field
 //!   (`properties.rs`, C114), a computed value, or the `is:` word — so a
@@ -50,10 +52,10 @@ pub const CATALOGUE_VERSION: u32 = 1;
 pub const FILTERS_CAPTURE: &str = "2026-09-12";
 
 /// What a row's `lands` may be filled with (the file's header): each a
-/// part of a clause the translation reads.
-pub const PLACEHOLDERS: [&str; 14] = [
-    "min", "max", "value", "text", "option", "r", "g", "b", "w", "each", "T", "bounds", "total",
-    "slot",
+/// part of a clause the translation reads (`translate.rs`, which fills
+/// every one).
+pub const PLACEHOLDERS: [&str; 11] = [
+    "min", "max", "value", "text", "option", "r", "g", "b", "w", "bounds", "total",
 ];
 
 /// A clause's status when it runs (K6). `disabled`, the fifth, is the
@@ -175,6 +177,12 @@ pub enum CatalogueError {
         key: String,
         placeholder: String,
     },
+    /// A placeholder written inside quotes, where the printer's quoting of
+    /// what fills it cannot reach.
+    QuotedPlaceholder {
+        key: String,
+        placeholder: String,
+    },
     /// Fields named by a row that lands no text.
     FieldsWithoutLands(String),
     /// A field named that the row's text does not write.
@@ -236,6 +244,10 @@ impl std::fmt::Display for CatalogueError {
             CatalogueError::UnknownPlaceholder { key, placeholder } => write!(
                 f,
                 "the trade catalogue's {key:?} lands {{{placeholder}}}, which the translation does not fill"
+            ),
+            CatalogueError::QuotedPlaceholder { key, placeholder } => write!(
+                f,
+                "the trade catalogue's {key:?} writes {{{placeholder}}} inside quotes: a placeholder stands bare, and the translation quotes what fills it"
             ),
             CatalogueError::FieldsWithoutLands(key) => write!(
                 f,
@@ -311,6 +323,26 @@ fn placeholders(text: &str) -> Vec<&str> {
         }
     }
     out
+}
+
+/// The first placeholder a text writes inside a quoted string, where `\"`
+/// and `\\` are the only escapes (`parse.rs`).
+fn quoted_placeholder(text: &str) -> Option<&str> {
+    let mut quoted = false;
+    let mut escaped = false;
+    for (at, c) in text.char_indices() {
+        match c {
+            _ if escaped => escaped = false,
+            '\\' if quoted => escaped = true,
+            '"' => quoted = !quoted,
+            '{' if quoted => {
+                let rest = &text[at + 1..];
+                return Some(rest.find('}').map_or(rest, |close| &rest[..close]));
+            }
+            _ => {}
+        }
+    }
+    None
 }
 
 /// Whether a text writes a field: its name, where no letter, digit, `_`
@@ -406,6 +438,14 @@ impl Catalogue {
                     .find(|p| !PLACEHOLDERS.contains(p))
             {
                 return Err(CatalogueError::UnknownPlaceholder {
+                    placeholder: placeholder.to_string(),
+                    key,
+                });
+            }
+            if let Some(lands) = &row.lands
+                && let Some(placeholder) = quoted_placeholder(lands)
+            {
+                return Err(CatalogueError::QuotedPlaceholder {
                     placeholder: placeholder.to_string(),
                     key,
                 });

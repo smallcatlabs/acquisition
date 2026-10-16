@@ -55,8 +55,8 @@
 //! the why-not and the continuation (step 10: `--explain`, `--context
 //! corpus`, `show --against`; a `next`, a route read back): a request
 //! in, an answer out. The trade brief (`search/TRADE-PLAN.md`) adds the
-//! decoder, the stat table and the catalogue (steps 1 to 3) and the
-//! property fields (step 3).
+//! decoder, the stat table and the catalogue (steps 1 to 3), the
+//! property fields (step 3) and the translation (step 4).
 //!
 //! - [`tree`] — the query tree (C91): one typed value, and [`check`], what
 //!   a tree must satisfy to be one the language can say.
@@ -116,8 +116,9 @@
 //!   quality-normalised defences (S26) and a map's tier among them.
 //! - [`trade`] — the trade boundary (C113): a site search URL, its id or
 //!   its query JSON decoded with no network, the stat table and the
-//!   catalogue each loaded and checked; the translation follows
-//!   (`search/TRADE-PLAN.md`).
+//!   catalogue each loaded and checked, and [`trade::translate`]: a
+//!   decoded search to the query text a person would have typed, and a
+//!   report clause by clause.
 //!
 //! The parser knows the grammar and no field, class or computed value by
 //! name: a name is the binder's to know, so validity never depends on a
@@ -184,7 +185,13 @@
 //!   catalogue are [`trade::stats`]'s and [`trade::catalogue`]'s docs;
 //!   pinned by `tests/trade_stats.rs` and `tests/trade_catalogue.rs`
 //!   (every filter, stat category and group type of the captures a row;
-//!   every field named one the build binds; each defect refused).
+//!   every field named one the build binds; each defect refused). The
+//!   translation is [`trade::translate`]'s doc; pinned by
+//!   `tests/trade_translate.rs` (every fixture of `trade-translate.toml`,
+//!   its text worked by hand and asked of items that tell it from a
+//!   weaker reading; every catalogue row a fixture; every stat id of the
+//!   table; K6's guard, apart from the module's own; a generated site
+//!   query read back).
 //! - **C114.** The property fields are [`properties`]'s doc and
 //!   `reference/properties-v1.toml`'s header; pinned by
 //!   `tests/properties.rs` (the shipped table; what its loader refuses;
@@ -314,5 +321,6 @@ pub use print::{print, print_value};
 pub use properties::{PROPERTY_TABLE_VERSION, PropertyTable, PropertyTableError};
 pub use show::show;
 pub use totals::{TOTALS_TABLE_VERSION, TotalGap, TotalsTable, TotalsTableError};
+pub use trade::translate::{Fidelity, Translation, translate};
 pub use trade::{Decoded, Source, decode, decode_json};
 pub use tree::{Collection, Member, Node, Number, Op, Probe, Value, ValueRef, check};

@@ -1,0 +1,814 @@
+# The translation's fixtures (C113, K6; step 4 of search/TRADE-PLAN.md),
+# read by tests/trade_translate.rs. One case per catalogue row and per
+# group type at least; every expected text worked by hand from the row's
+# `lands` and the catalogue's header before the case ran.
+#
+# A case: `query` is the site's query object, or the `{query, sort}`
+# envelope, as JSON; `url` instead a URL whose `{q1}`-style word is that
+# captured id (tests/trade-decode.toml), whose query is the capture's.
+# `text` the canonical text; `realm` the scope a URL carries; `fidelity`;
+# `statuses` every clause the report holds, by where it stands, and its
+# status. `matches` and `fails` are item bodies (JSON, over a rare Iron
+# Ring in Standard; `_league` moves one) asked the text: every match
+# matches and no fail does. A restrictive clause's fail is an item a
+# weaker reading — a dropped bound, a lost source or flag, a lost not,
+# a count — would match; a tautology's matches are items that differ in
+# what it names. `covers` names the rows a case shows that no clause
+# reads: the URL's and the JSON's, which are the decoder's, and
+# `query.stats`'s empty group, which is no clause.
+
+# ---- the URL, the JSON, the query object's keys ----------------------------------------------
+
+[[case]]
+name = "a pc URL: the realm the scope, the league a term"
+url = "https://www.pathofexile.com/trade/search/Standard/{q2}"
+covers = ["url.realm", "url.id"]
+realm = "pc"
+text = 'league=Standard category="armour.boots" rarity=rare line("#% chance to Suppress Spell Damage" source=explicit)'
+fidelity = "ambiguous"
+statuses = { "url.league" = "exact", "status" = "listing_only", "type_filters.category" = "exact", "type_filters.rarity" = "exact", "stats.0" = "exact", "stats.0.0" = "ambiguous" }
+matches = ['{"baseType": "Iron Greaves", "typeLine": "Iron Greaves", "explicitMods": ["+12% chance to Suppress Spell Damage"]}']
+fails = [
+  '{"_league": "Hardcore", "baseType": "Iron Greaves", "typeLine": "Iron Greaves", "explicitMods": ["+12% chance to Suppress Spell Damage"]}',
+  '{"baseType": "Iron Greaves", "typeLine": "Iron Greaves", "implicitMods": ["+12% chance to Suppress Spell Damage"]}',
+]
+
+[[case]]
+name = "a console URL names its realm"
+url = "https://www.pathofexile.com/trade/search/xbox/Standard/{q2}"
+covers = ["url.realm", "url.id"]
+realm = "xbox"
+text = 'league=Standard category="armour.boots" rarity=rare line("#% chance to Suppress Spell Damage" source=explicit)'
+fidelity = "ambiguous"
+statuses = { "url.league" = "exact", "status" = "listing_only", "type_filters.category" = "exact", "type_filters.rarity" = "exact", "stats.0" = "exact", "stats.0.0" = "ambiguous" }
+
+[[case]]
+name = "the JSON envelope: its sort reported, never applied; a name the printer quotes"
+query = '''{"query": {"status": {"option": "online"}, "name": "Kaom's Heart"}, "sort": {"price": "asc"}}'''
+covers = ["json"]
+text = '''name="Kaom's Heart"'''
+fidelity = "exact"
+statuses = { "status" = "listing_only", "name" = "exact", "sort" = "listing_only" }
+matches = ['''{"name": "Kaom's Heart", "rarity": "Unique"}''']
+fails = ['''{"name": "Kaom's Way", "rarity": "Unique"}''']
+
+[[case]]
+name = "a name holding the language's own marks reaches the binder as one text"
+query = '''{"name": "a \"b\" or {max} \\ c"}'''
+text = '''name="a \"b\" or {max} \\ c"'''
+fidelity = "exact"
+statuses = { "name" = "exact" }
+matches = ['''{"name": "a \"b\" or {max} \\ c"}''']
+fails = ['''{"name": "a"}''']
+
+[[case]]
+name = "the free-text term"
+query = '{"term": "Kaom"}'
+text = 'name:Kaom or typeline:Kaom'
+fidelity = "ambiguous"
+statuses = { "term" = "ambiguous" }
+matches = ['''{"name": "Kaom's Heart"}''', '{"typeLine": "Kaom Plate"}']
+fails = ['{"name": "Abyssus"}']
+
+[[case]]
+name = "a base with its variant: the base lands, the variant is the remainder"
+query = '{"type": {"option": "Iron Ring", "discriminator": "legacy"}}'
+text = 'base="Iron Ring"'
+fidelity = "partial"
+statuses = { "type" = "exact", "type.discriminator" = "unsupported" }
+matches = ['{}']
+fails = ['{"baseType": "Gold Ring", "typeLine": "Gold Ring"}']
+
+[[case]]
+name = "a key no row names, and the page's empty group, which is no group"
+query = '{"type": "Iron Ring", "stats": [{"type": "and", "filters": []}], "seller": "x"}'
+covers = ["query.stats"]
+text = 'base="Iron Ring"'
+fidelity = "partial"
+statuses = { "type" = "exact", "seller" = "unsupported" }
+matches = ['{}']
+fails = ['{"baseType": "Gold Ring", "typeLine": "Gold Ring"}']
+
+# ---- type_filters -----------------------------------------------------------------------------
+
+[[case]]
+name = "category"
+query = '{"filters": {"type_filters": {"filters": {"category": {"option": "accessory.ring"}}}}}'
+text = 'category="accessory.ring"'
+fidelity = "exact"
+statuses = { "type_filters.category" = "exact" }
+matches = ['{}']
+fails = ['{"baseType": "Rusted Sword", "typeLine": "Rusted Sword"}']
+
+[[case]]
+name = "a category no closed set holds is unsupported with the binder's words"
+query = '{"filters": {"type_filters": {"filters": {"category": {"option": "armour.nope"}}}}}'
+text = ''
+fidelity = "partial"
+statuses = { "type_filters.category" = "unsupported" }
+
+[[case]]
+name = "rarity"
+query = '{"filters": {"type_filters": {"filters": {"rarity": {"option": "rare"}}}}}'
+text = 'rarity=rare'
+fidelity = "exact"
+statuses = { "type_filters.rarity" = "exact" }
+matches = ['{}']
+fails = ['{"rarity": "Magic"}']
+
+[[case]]
+name = "rarity: any but unique"
+query = '{"filters": {"type_filters": {"filters": {"rarity": {"option": "nonunique"}}}}}'
+text = '-rarity=unique'
+fidelity = "exact"
+statuses = { "type_filters.rarity" = "exact" }
+matches = ['{}', '{"rarity": "Magic"}']
+fails = ['{"rarity": "Unique"}']
+
+[[case]]
+name = "rarity: a foil unique, two terms, the whole query"
+query = '{"filters": {"type_filters": {"filters": {"rarity": {"option": "uniquefoil"}}}}}'
+text = 'rarity=unique is:isRelic'
+fidelity = "ambiguous"
+statuses = { "type_filters.rarity" = "ambiguous" }
+matches = ['{"rarity": "Unique", "isRelic": true}']
+fails = ['{"rarity": "Unique"}', '{"isRelic": true}']
+
+[[case]]
+name = "an option the site sends empty states nothing: the site's own no-op"
+query = '{"filters": {"type_filters": {"filters": {"rarity": {"option": null}}}, "misc_filters": {"filters": {"fractured_item": {"option": null}}}}}'
+text = 'true() true()'
+fidelity = "exact"
+statuses = { "type_filters.rarity" = "exact", "misc_filters.fractured_item" = "exact" }
+matches = ['{}', '{"rarity": "Magic"}', '{"fractured": true}']
+
+# ---- weapon_filters ---------------------------------------------------------------------------
+
+[[case]]
+name = "damage is unsupported"
+query = '{"filters": {"weapon_filters": {"filters": {"damage": {"min": 10}}}}}'
+text = ''
+fidelity = "partial"
+statuses = { "weapon_filters.damage" = "unsupported" }
+
+[[case]]
+name = "attacks per second, both bounds one range"
+query = '{"filters": {"weapon_filters": {"filters": {"aps": {"min": 1.2, "max": 1.5}}}}}'
+text = 'attacks_per_second=1.2..1.5'
+fidelity = "exact"
+statuses = { "weapon_filters.aps" = "exact" }
+matches = ['{"properties": [{"name": "Attacks per Second", "values": [["1.30", 0]], "displayMode": 0}]}']
+fails = ['{"properties": [{"name": "Attacks per Second", "values": [["1.60", 0]], "displayMode": 0}]}']
+
+[[case]]
+name = "critical chance"
+query = '{"filters": {"weapon_filters": {"filters": {"crit": {"min": 6}}}}}'
+text = 'critical_strike_chance>=6'
+fidelity = "ambiguous"
+statuses = { "weapon_filters.crit" = "ambiguous" }
+matches = ['{"properties": [{"name": "Critical Strike Chance", "values": [["6.50%", 0]], "displayMode": 0}]}']
+fails = ['{"properties": [{"name": "Critical Strike Chance", "values": [["5.00%", 0]], "displayMode": 0}]}']
+
+[[case]]
+name = "damage per second"
+query = '{"filters": {"weapon_filters": {"filters": {"dps": {"min": 100}}}}}'
+text = 'pseudo.dps>=100'
+fidelity = "ambiguous"
+statuses = { "weapon_filters.dps" = "ambiguous" }
+matches = ['{"properties": [{"name": "Physical Damage", "values": [["50-150", 0]], "displayMode": 0}, {"name": "Attacks per Second", "values": [["1.00", 0]], "displayMode": 0}]}']
+fails = ['{"properties": [{"name": "Physical Damage", "values": [["40-60", 0]], "displayMode": 0}, {"name": "Attacks per Second", "values": [["1.00", 0]], "displayMode": 0}]}']
+
+[[case]]
+name = "physical damage per second, at most"
+query = '{"filters": {"weapon_filters": {"filters": {"pdps": {"max": 60}}}}}'
+text = 'pseudo.pdps<=60'
+fidelity = "ambiguous"
+statuses = { "weapon_filters.pdps" = "ambiguous" }
+matches = ['{"properties": [{"name": "Physical Damage", "values": [["40-60", 0]], "displayMode": 0}, {"name": "Attacks per Second", "values": [["1.00", 0]], "displayMode": 0}]}']
+fails = ['{"properties": [{"name": "Physical Damage", "values": [["50-150", 0]], "displayMode": 0}, {"name": "Attacks per Second", "values": [["1.00", 0]], "displayMode": 0}]}']
+
+[[case]]
+name = "elemental damage per second"
+query = '{"filters": {"weapon_filters": {"filters": {"edps": {"min": 50}}}}}'
+text = 'pseudo.edps>=50'
+fidelity = "ambiguous"
+statuses = { "weapon_filters.edps" = "ambiguous" }
+matches = ['{"properties": [{"name": "Elemental Damage", "values": [["40-60", 4]], "displayMode": 0}, {"name": "Attacks per Second", "values": [["1.00", 0]], "displayMode": 0}]}']
+fails = ['{"properties": [{"name": "Elemental Damage", "values": [["10-20", 4]], "displayMode": 0}, {"name": "Attacks per Second", "values": [["1.00", 0]], "displayMode": 0}]}']
+
+# ---- armour_filters ---------------------------------------------------------------------------
+
+[[case]]
+name = "armour at 20 % quality"
+query = '{"filters": {"armour_filters": {"filters": {"ar": {"min": 100}}}}}'
+text = 'armour.q20>=100'
+fidelity = "ambiguous"
+statuses = { "armour_filters.ar" = "ambiguous" }
+matches = ['{"properties": [{"name": "Quality", "values": [["+20%", 1]], "displayMode": 0}, {"name": "Armour", "values": [["100", 1]], "displayMode": 0}]}']
+fails = ['{"properties": [{"name": "Quality", "values": [["+20%", 1]], "displayMode": 0}, {"name": "Armour", "values": [["50", 1]], "displayMode": 0}]}']
+
+[[case]]
+name = "evasion at 20 % quality"
+query = '{"filters": {"armour_filters": {"filters": {"ev": {"max": 100}}}}}'
+text = 'evasion_rating.q20<=100'
+fidelity = "ambiguous"
+statuses = { "armour_filters.ev" = "ambiguous" }
+matches = ['{"properties": [{"name": "Quality", "values": [["+20%", 1]], "displayMode": 0}, {"name": "Evasion Rating", "values": [["90", 1]], "displayMode": 0}]}']
+fails = ['{"properties": [{"name": "Quality", "values": [["+20%", 1]], "displayMode": 0}, {"name": "Evasion Rating", "values": [["150", 1]], "displayMode": 0}]}']
+
+[[case]]
+name = "energy shield at 20 % quality"
+query = '{"filters": {"armour_filters": {"filters": {"es": {"min": 100}}}}}'
+text = 'energy_shield.q20>=100'
+fidelity = "ambiguous"
+statuses = { "armour_filters.es" = "ambiguous" }
+matches = ['{"properties": [{"name": "Quality", "values": [["+20%", 1]], "displayMode": 0}, {"name": "Energy Shield", "values": [["120", 1]], "displayMode": 0}]}']
+fails = ['{"properties": [{"name": "Quality", "values": [["+20%", 1]], "displayMode": 0}, {"name": "Energy Shield", "values": [["80", 1]], "displayMode": 0}]}']
+
+[[case]]
+name = "ward at 20 % quality"
+query = '{"filters": {"armour_filters": {"filters": {"ward": {"min": 100}}}}}'
+text = 'ward.q20>=100'
+fidelity = "ambiguous"
+statuses = { "armour_filters.ward" = "ambiguous" }
+matches = ['{"properties": [{"name": "Quality", "values": [["+20%", 1]], "displayMode": 0}, {"name": "Ward", "values": [["120", 1]], "displayMode": 0}]}']
+fails = ['{"properties": [{"name": "Quality", "values": [["+20%", 1]], "displayMode": 0}, {"name": "Ward", "values": [["80", 1]], "displayMode": 0}]}']
+
+[[case]]
+name = "block"
+query = '{"filters": {"armour_filters": {"filters": {"block": {"min": 20}}}}}'
+text = 'chance_to_block>=20'
+fidelity = "exact"
+statuses = { "armour_filters.block" = "exact" }
+matches = ['{"properties": [{"name": "Chance to Block", "values": [["25%", 1]], "displayMode": 0}]}']
+fails = ['{"properties": [{"name": "Chance to Block", "values": [["15%", 1]], "displayMode": 0}]}']
+
+[[case]]
+name = "the base percentile: 50 and 19 (tests/percentile.rs)"
+query = '{"filters": {"armour_filters": {"filters": {"base_defence_percentile": {"min": 40}}}}}'
+text = 'pseudo.defence_pct>=40'
+fidelity = "exact"
+statuses = { "armour_filters.base_defence_percentile" = "exact" }
+matches = ['{"baseType": "Cone Helmet", "typeLine": "Cone Helmet", "rarity": "Normal", "properties": [{"name": "Armour", "values": [["44", 0]], "displayMode": 0}]}']
+fails = ['{"baseType": "Scale Doublet", "typeLine": "Scale Doublet", "rarity": "Normal", "properties": [{"name": "Armour", "values": [["100", 0]], "displayMode": 0}, {"name": "Evasion Rating", "values": [["103", 0]], "displayMode": 0}]}']
+
+# ---- socket_filters ---------------------------------------------------------------------------
+
+[[case]]
+name = "sockets with a colour: two terms, the whole query"
+query = '{"filters": {"socket_filters": {"filters": {"sockets": {"min": 3, "r": 1}}}}}'
+text = 'sockets>=3 sockets.red>=1'
+fidelity = "exact"
+statuses = { "socket_filters.sockets" = "exact" }
+matches = ['{"sockets": [{"group": 0, "attr": "S", "sColour": "R"}, {"group": 0, "attr": "D", "sColour": "G"}, {"group": 1, "attr": "I", "sColour": "B"}]}']
+fails = [
+  '{"sockets": [{"group": 0, "attr": "D", "sColour": "G"}, {"group": 0, "attr": "D", "sColour": "G"}, {"group": 1, "attr": "I", "sColour": "B"}]}',
+  '{"sockets": [{"group": 0, "attr": "S", "sColour": "R"}, {"group": 0, "attr": "D", "sColour": "G"}]}',
+]
+
+[[case]]
+name = "links: one group holds every count"
+query = '{"filters": {"socket_filters": {"filters": {"links": {"min": 3, "g": 2}}}}}'
+text = 'linked(size>=3 green>=2)'
+fidelity = "exact"
+statuses = { "socket_filters.links" = "exact" }
+matches = ['{"sockets": [{"group": 0, "attr": "S", "sColour": "R"}, {"group": 0, "attr": "D", "sColour": "G"}, {"group": 0, "attr": "D", "sColour": "G"}]}']
+fails = ['{"sockets": [{"group": 0, "attr": "S", "sColour": "R"}, {"group": 0, "attr": "D", "sColour": "G"}, {"group": 0, "attr": "I", "sColour": "B"}, {"group": 1, "attr": "D", "sColour": "G"}]}']
+
+# ---- req_filters ------------------------------------------------------------------------------
+
+[[case]]
+name = "level"
+query = '{"filters": {"req_filters": {"filters": {"lvl": {"min": 60}}}}}'
+text = 'reqlevel>=60'
+fidelity = "exact"
+statuses = { "req_filters.lvl" = "exact" }
+matches = ['{"requirements": [{"name": "Level", "values": [["64", 0]], "displayMode": 0}]}']
+fails = ['{"requirements": [{"name": "Level", "values": [["50", 0]], "displayMode": 0}]}']
+
+[[case]]
+name = "strength, dexterity, intelligence; and the class, unsupported"
+query = '{"filters": {"req_filters": {"filters": {"str": {"max": 100}, "dex": {"min": 10}, "int": {"min": 10, "max": 20}, "class": {"option": "witch"}}}}}'
+text = 'str<=100 dex>=10 int=10..20'
+fidelity = "partial"
+statuses = { "req_filters.str" = "exact", "req_filters.dex" = "exact", "req_filters.int" = "exact", "req_filters.class" = "unsupported" }
+matches = ['{"requirements": [{"name": "Str", "values": [["80", 0]], "displayMode": 1}, {"name": "Dex", "values": [["12", 0]], "displayMode": 1}, {"name": "Int", "values": [["14", 0]], "displayMode": 1}]}']
+fails = [
+  '{"requirements": [{"name": "Str", "values": [["155", 0]], "displayMode": 1}, {"name": "Dex", "values": [["12", 0]], "displayMode": 1}, {"name": "Int", "values": [["14", 0]], "displayMode": 1}]}',
+  '{"requirements": [{"name": "Str", "values": [["80", 0]], "displayMode": 1}, {"name": "Dex", "values": [["12", 0]], "displayMode": 1}, {"name": "Int", "values": [["24", 0]], "displayMode": 1}]}',
+]
+
+# ---- map_filters ------------------------------------------------------------------------------
+
+[[case]]
+name = "map tier, pack size, quantity, rarity"
+query = '{"filters": {"map_filters": {"filters": {"map_tier": {"min": 14}, "map_packsize": {"min": 20}, "map_iiq": {"min": 50}, "map_iir": {"min": 30}}}}}'
+text = 'map_tier>=14 monster_pack_size>=20 item_quantity>=50 item_rarity>=30'
+fidelity = "exact"
+statuses = { "map_filters.map_tier" = "exact", "map_filters.map_packsize" = "exact", "map_filters.map_iiq" = "exact", "map_filters.map_iir" = "exact" }
+matches = ['{"baseType": "Map (Tier 16)", "typeLine": "Map (Tier 16)", "properties": [{"name": "Monster Pack Size", "values": [["+23%", 1]], "displayMode": 0}, {"name": "Item Quantity", "values": [["+61%", 1]], "displayMode": 0}, {"name": "Item Rarity", "values": [["+36%", 1]], "displayMode": 0}]}']
+fails = [
+  '{"baseType": "Map (Tier 13)", "typeLine": "Map (Tier 13)", "properties": [{"name": "Monster Pack Size", "values": [["+23%", 1]], "displayMode": 0}, {"name": "Item Quantity", "values": [["+61%", 1]], "displayMode": 0}, {"name": "Item Rarity", "values": [["+36%", 1]], "displayMode": 0}]}',
+  '{"baseType": "Map (Tier 16)", "typeLine": "Map (Tier 16)", "properties": [{"name": "Monster Pack Size", "values": [["+10%", 1]], "displayMode": 0}, {"name": "Item Quantity", "values": [["+61%", 1]], "displayMode": 0}, {"name": "Item Rarity", "values": [["+36%", 1]], "displayMode": 0}]}',
+  '{"baseType": "Map (Tier 16)", "typeLine": "Map (Tier 16)", "properties": [{"name": "Monster Pack Size", "values": [["+23%", 1]], "displayMode": 0}, {"name": "Item Quantity", "values": [["+40%", 1]], "displayMode": 0}, {"name": "Item Rarity", "values": [["+36%", 1]], "displayMode": 0}]}',
+  '{"baseType": "Map (Tier 16)", "typeLine": "Map (Tier 16)", "properties": [{"name": "Monster Pack Size", "values": [["+23%", 1]], "displayMode": 0}, {"name": "Item Quantity", "values": [["+61%", 1]], "displayMode": 0}, {"name": "Item Rarity", "values": [["+20%", 1]], "displayMode": 0}]}',
+]
+
+[[case]]
+name = "area level"
+query = '{"filters": {"map_filters": {"filters": {"area_level": {"min": 80}}}}}'
+text = 'area_level>=80'
+fidelity = "ambiguous"
+statuses = { "map_filters.area_level" = "ambiguous" }
+matches = ['{"properties": [{"name": "Area Level", "values": [["83", 0]], "displayMode": 0}]}']
+fails = ['{"properties": [{"name": "Area Level", "values": [["75", 0]], "displayMode": 0}]}']
+
+[[case]]
+name = "the map filters no field reads"
+query = '{"filters": {"map_filters": {"filters": {"map_gold": {"min": 1}, "chart_sulphur": {"min": 1}, "chart_shape": {"option": "1"}, "map_series": {"option": "current"}, "map_blighted": {"option": "true"}, "map_uberblighted": {"option": "true"}, "map_completion_reward": {"option": "x"}}}}}'
+text = ''
+fidelity = "partial"
+statuses = { "map_filters.map_gold" = "unsupported", "map_filters.chart_sulphur" = "unsupported", "map_filters.chart_shape" = "unsupported", "map_filters.map_series" = "unsupported", "map_filters.map_blighted" = "unsupported", "map_filters.map_uberblighted" = "unsupported", "map_filters.map_completion_reward" = "unsupported" }
+
+# ---- heist_filters ----------------------------------------------------------------------------
+
+[[case]]
+name = "the wings, routes and rooms a contract reveals, and their totals"
+query = '{"filters": {"heist_filters": {"filters": {"heist_wings": {"min": 2}, "heist_max_wings": {"min": 3}, "heist_escape_routes": {"min": 2}, "heist_max_escape_routes": {"max": 6}, "heist_reward_rooms": {"min": 2}, "heist_max_reward_rooms": {"min": 8}, "heist_objective_value": {"option": "high"}}}}}'
+text = 'wings_revealed>=2 wings_revealed.of>=3 escape_routes_revealed>=2 escape_routes_revealed.of<=6 reward_rooms_revealed>=2 reward_rooms_revealed.of>=8'
+fidelity = "partial"
+statuses = { "heist_filters.heist_wings" = "exact", "heist_filters.heist_max_wings" = "exact", "heist_filters.heist_escape_routes" = "exact", "heist_filters.heist_max_escape_routes" = "exact", "heist_filters.heist_reward_rooms" = "exact", "heist_filters.heist_max_reward_rooms" = "exact", "heist_filters.heist_objective_value" = "unsupported" }
+matches = ['{"properties": [{"name": "Wings Revealed", "values": [["2/3", 0]], "displayMode": 0}, {"name": "Escape Routes Revealed", "values": [["2/6", 0]], "displayMode": 0}, {"name": "Reward Rooms Revealed", "values": [["2/8", 0]], "displayMode": 0}]}']
+fails = [
+  '{"properties": [{"name": "Wings Revealed", "values": [["1/3", 0]], "displayMode": 0}, {"name": "Escape Routes Revealed", "values": [["2/6", 0]], "displayMode": 0}, {"name": "Reward Rooms Revealed", "values": [["2/8", 0]], "displayMode": 0}]}',
+  '{"properties": [{"name": "Wings Revealed", "values": [["2/2", 0]], "displayMode": 0}, {"name": "Escape Routes Revealed", "values": [["2/6", 0]], "displayMode": 0}, {"name": "Reward Rooms Revealed", "values": [["2/8", 0]], "displayMode": 0}]}',
+  '{"properties": [{"name": "Wings Revealed", "values": [["2/3", 0]], "displayMode": 0}, {"name": "Escape Routes Revealed", "values": [["2/7", 0]], "displayMode": 0}, {"name": "Reward Rooms Revealed", "values": [["2/8", 0]], "displayMode": 0}]}',
+  '{"properties": [{"name": "Wings Revealed", "values": [["2/3", 0]], "displayMode": 0}, {"name": "Escape Routes Revealed", "values": [["2/6", 0]], "displayMode": 0}, {"name": "Reward Rooms Revealed", "values": [["2/7", 0]], "displayMode": 0}]}',
+]
+
+[[case]]
+name = "lockpicking: the level of its own skill, never another's"
+query = '{"filters": {"heist_filters": {"filters": {"heist_lockpicking": {"min": 3}}}}}'
+text = 'lockpicking>=3'
+fidelity = "ambiguous"
+statuses = { "heist_filters.heist_lockpicking" = "ambiguous" }
+matches = ['{"properties": [{"name": "Requires {1} (Level {0})", "values": [["4", 0], ["Lockpicking", 0]], "displayMode": 3}]}']
+fails = [
+  '{"properties": [{"name": "Requires {1} (Level {0})", "values": [["2", 0], ["Lockpicking", 0]], "displayMode": 3}]}',
+  '{"properties": [{"name": "Requires {1} (Level {0})", "values": [["5", 0], ["Agility", 0]], "displayMode": 3}]}',
+]
+
+[[case]]
+name = "the eight other heist skills"
+query = '{"filters": {"heist_filters": {"filters": {"heist_brute_force": {"min": 1}, "heist_perception": {"min": 1}, "heist_demolition": {"min": 1}, "heist_counter_thaumaturgy": {"min": 1}, "heist_trap_disarmament": {"min": 1}, "heist_agility": {"min": 1}, "heist_deception": {"min": 1}, "heist_engineering": {"min": 1}}}}}'
+text = 'brute_force>=1 perception>=1 demolition>=1 counter_thaumaturgy>=1 trap_disarmament>=1 agility>=1 deception>=1 engineering>=1'
+fidelity = "ambiguous"
+statuses = { "heist_filters.heist_brute_force" = "ambiguous", "heist_filters.heist_perception" = "ambiguous", "heist_filters.heist_demolition" = "ambiguous", "heist_filters.heist_counter_thaumaturgy" = "ambiguous", "heist_filters.heist_trap_disarmament" = "ambiguous", "heist_filters.heist_agility" = "ambiguous", "heist_filters.heist_deception" = "ambiguous", "heist_filters.heist_engineering" = "ambiguous" }
+matches = ['{"properties": [{"name": "Requires {1} (Level {0})", "values": [["1", 0], ["Brute Force", 0]], "displayMode": 3}, {"name": "Requires {1} (Level {0})", "values": [["1", 0], ["Perception", 0]], "displayMode": 3}, {"name": "Requires {1} (Level {0})", "values": [["1", 0], ["Demolition", 0]], "displayMode": 3}, {"name": "Requires {1} (Level {0})", "values": [["1", 0], ["Counter-Thaumaturgy", 0]], "displayMode": 3}, {"name": "Requires {1} (Level {0})", "values": [["1", 0], ["Trap Disarmament", 0]], "displayMode": 3}, {"name": "Requires {1} (Level {0})", "values": [["1", 0], ["Agility", 0]], "displayMode": 3}, {"name": "Requires {1} (Level {0})", "values": [["1", 0], ["Deception", 0]], "displayMode": 3}, {"name": "Requires {1} (Level {0})", "values": [["1", 0], ["Engineering", 0]], "displayMode": 3}]}']
+fails = ['{"properties": [{"name": "Requires {1} (Level {0})", "values": [["1", 0], ["Brute Force", 0]], "displayMode": 3}, {"name": "Requires {1} (Level {0})", "values": [["1", 0], ["Perception", 0]], "displayMode": 3}, {"name": "Requires {1} (Level {0})", "values": [["1", 0], ["Demolition", 0]], "displayMode": 3}, {"name": "Requires {1} (Level {0})", "values": [["1", 0], ["Counter-Thaumaturgy", 0]], "displayMode": 3}, {"name": "Requires {1} (Level {0})", "values": [["1", 0], ["Trap Disarmament", 0]], "displayMode": 3}, {"name": "Requires {1} (Level {0})", "values": [["1", 0], ["Agility", 0]], "displayMode": 3}, {"name": "Requires {1} (Level {0})", "values": [["1", 0], ["Deception", 0]], "displayMode": 3}]}']
+
+# ---- sanctum_filters --------------------------------------------------------------------------
+
+[[case]]
+name = "resolve, its maximum, inspiration, aureus"
+query = '{"filters": {"sanctum_filters": {"filters": {"sanctum_resolve": {"min": 200}, "sanctum_max_resolve": {"min": 300}, "sanctum_inspiration": {"min": 10}, "sanctum_gold": {"min": 100}}}}}'
+text = 'resolve>=200 resolve.of>=300 inspiration>=10 aureus>=100'
+fidelity = "exact"
+statuses = { "sanctum_filters.sanctum_resolve" = "exact", "sanctum_filters.sanctum_max_resolve" = "exact", "sanctum_filters.sanctum_inspiration" = "exact", "sanctum_filters.sanctum_gold" = "exact" }
+matches = ['{"properties": [{"name": "Resolve: {0}/{1}", "values": [["225", 0], ["300", 0]], "displayMode": 3}, {"name": "Inspiration: {0}", "values": [["12", 0]], "displayMode": 3}, {"name": "Aureus: {0}", "values": [["150", 0]], "displayMode": 3}]}']
+fails = [
+  '{"properties": [{"name": "Resolve: {0}/{1}", "values": [["150", 0], ["300", 0]], "displayMode": 3}, {"name": "Inspiration: {0}", "values": [["12", 0]], "displayMode": 3}, {"name": "Aureus: {0}", "values": [["150", 0]], "displayMode": 3}]}',
+  '{"properties": [{"name": "Resolve: {0}/{1}", "values": [["225", 0], ["250", 0]], "displayMode": 3}, {"name": "Inspiration: {0}", "values": [["12", 0]], "displayMode": 3}, {"name": "Aureus: {0}", "values": [["150", 0]], "displayMode": 3}]}',
+  '{"properties": [{"name": "Resolve: {0}/{1}", "values": [["225", 0], ["300", 0]], "displayMode": 3}, {"name": "Inspiration: {0}", "values": [["8", 0]], "displayMode": 3}, {"name": "Aureus: {0}", "values": [["150", 0]], "displayMode": 3}]}',
+  '{"properties": [{"name": "Resolve: {0}/{1}", "values": [["225", 0], ["300", 0]], "displayMode": 3}, {"name": "Inspiration: {0}", "values": [["12", 0]], "displayMode": 3}, {"name": "Aureus: {0}", "values": [["50", 0]], "displayMode": 3}]}',
+]
+
+# ---- ultimatum_filters ------------------------------------------------------------------------
+
+[[case]]
+name = "the ultimatum filters are unsupported"
+query = '{"filters": {"ultimatum_filters": {"filters": {"ultimatum_challenge": {"option": "Survival"}, "ultimatum_reward": {"option": "MirrorRare"}, "ultimatum_input": {"option": "x"}, "ultimatum_output": {"option": "y"}}}}}'
+text = ''
+fidelity = "partial"
+statuses = { "ultimatum_filters.ultimatum_challenge" = "unsupported", "ultimatum_filters.ultimatum_reward" = "unsupported", "ultimatum_filters.ultimatum_input" = "unsupported", "ultimatum_filters.ultimatum_output" = "unsupported" }
+
+# ---- misc_filters -----------------------------------------------------------------------------
+
+[[case]]
+name = "quality"
+query = '{"filters": {"misc_filters": {"filters": {"quality": {"min": 15}}}}}'
+text = 'quality>=15'
+fidelity = "ambiguous"
+statuses = { "misc_filters.quality" = "ambiguous" }
+matches = ['{"properties": [{"name": "Quality", "values": [["+20%", 1]], "displayMode": 0}]}']
+fails = ['{"properties": [{"name": "Quality", "values": [["+10%", 1]], "displayMode": 0}]}']
+
+[[case]]
+name = "item level, both bounds"
+query = '{"filters": {"misc_filters": {"filters": {"ilvl": {"min": 80, "max": 85}}}}}'
+text = 'ilvl=80..85'
+fidelity = "exact"
+statuses = { "misc_filters.ilvl" = "exact" }
+matches = ['{"ilvl": 82}']
+fails = ['{"ilvl": 86}', '{"ilvl": 79}']
+
+[[case]]
+name = "a minmax filter with no bound states nothing"
+query = '{"filters": {"misc_filters": {"filters": {"ilvl": {}}}}}'
+text = 'true()'
+fidelity = "exact"
+statuses = { "misc_filters.ilvl" = "exact" }
+matches = ['{"ilvl": 1}', '{"ilvl": 86}']
+
+[[case]]
+name = "a bound that is no number, and one outside the search's rule for a number"
+query = '{"filters": {"misc_filters": {"filters": {"ilvl": {"min": "80"}, "quality": {"min": 1e20}}}}}'
+text = ''
+fidelity = "partial"
+statuses = { "misc_filters.quality" = "unsupported", "misc_filters.ilvl" = "unsupported" }
+
+[[case]]
+name = "gem level and experience"
+query = '{"filters": {"misc_filters": {"filters": {"gem_level": {"min": 20}, "gem_level_progress": {"min": 50}}}}}'
+text = 'level>=20 experience>=50'
+fidelity = "exact"
+statuses = { "misc_filters.gem_level" = "exact", "misc_filters.gem_level_progress" = "exact" }
+matches = ['{"properties": [{"name": "Level", "values": [["20 (Max)", 0]], "displayMode": 0}], "additionalProperties": [{"name": "Experience", "values": [["2/3", 0]], "displayMode": 2}]}']
+fails = [
+  '{"properties": [{"name": "Level", "values": [["19", 0]], "displayMode": 0}], "additionalProperties": [{"name": "Experience", "values": [["2/3", 0]], "displayMode": 2}]}',
+  '{"properties": [{"name": "Level", "values": [["20 (Max)", 0]], "displayMode": 0}], "additionalProperties": [{"name": "Experience", "values": [["1/3", 0]], "displayMode": 2}]}',
+]
+
+[[case]]
+name = "a vaal gem, and not"
+query = '{"filters": {"misc_filters": {"filters": {"gem_vaal": {"option": "true"}, "corrupted": {"option": "false"}}}}}'
+text = 'typeline~"^Vaal " -is:corrupted'
+fidelity = "ambiguous"
+statuses = { "misc_filters.gem_vaal" = "ambiguous", "misc_filters.corrupted" = "exact" }
+matches = ['{"typeLine": "Vaal Grace", "baseType": "Vaal Grace"}']
+fails = ['{"typeLine": "Grace", "baseType": "Grace"}', '{"typeLine": "Vaal Grace", "baseType": "Vaal Grace", "corrupted": true}']
+
+[[case]]
+name = "the item's marks: true is the mark, false its not"
+query = '{"filters": {"misc_filters": {"filters": {"fractured_item": {"option": "true"}, "synthesised_item": {"option": "false"}, "searing_item": {"option": "true"}, "tangled_item": {"option": "false"}, "identified": {"option": "true"}, "mirrored": {"option": "false"}, "split": {"option": "false"}, "veiled": {"option": "false"}, "vestigial": {"option": "false"}, "mutated": {"option": "false"}}}}}'
+text = 'is:fractured -is:synthesised is:searing -is:tangled is:identified -is:duplicated -is:split -is:veiled -is:vestigial -is:mutated'
+fidelity = "exact"
+statuses = { "misc_filters.fractured_item" = "exact", "misc_filters.synthesised_item" = "exact", "misc_filters.searing_item" = "exact", "misc_filters.tangled_item" = "exact", "misc_filters.identified" = "exact", "misc_filters.mirrored" = "exact", "misc_filters.split" = "exact", "misc_filters.veiled" = "exact", "misc_filters.vestigial" = "exact", "misc_filters.mutated" = "exact" }
+matches = ['{"fractured": true, "searing": true}']
+fails = [
+  '{"searing": true}',
+  '{"fractured": true, "searing": true, "duplicated": true}',
+  '{"fractured": true, "searing": true, "mutated": true}',
+  '{"fractured": true}',
+]
+
+[[case]]
+name = "an option that is neither true nor false"
+query = '{"filters": {"misc_filters": {"filters": {"corrupted": {"option": "maybe"}}}}}'
+text = ''
+fidelity = "partial"
+statuses = { "misc_filters.corrupted" = "unsupported" }
+
+[[case]]
+name = "a crafted line, and a crucible one"
+query = '{"filters": {"misc_filters": {"filters": {"crafted": {"option": "true"}, "crucible_item": {"option": "true"}}}}}'
+text = 'line(is:crafted) line(source=crucible)'
+fidelity = "ambiguous"
+statuses = { "misc_filters.crafted" = "exact", "misc_filters.crucible_item" = "ambiguous" }
+matches = ['{"explicitMods": [{"description": "+20 to maximum Life", "flags": {"crafted": true}}], "crucibleMods": ["10% increased Attack Speed"]}']
+fails = [
+  '{"explicitMods": ["+20 to maximum Life"], "crucibleMods": ["10% increased Attack Speed"]}',
+  '{"explicitMods": [{"description": "+20 to maximum Life", "flags": {"crafted": true}}]}',
+]
+
+[[case]]
+name = "memory strands, stored experience, stack size"
+query = '{"filters": {"misc_filters": {"filters": {"memory_level": {"min": 2}, "stored_experience": {"min": 1000}, "stack_size": {"min": 5}}}}}'
+text = 'memory_strands>=2 stored_experience>=1000 stack>=5'
+fidelity = "exact"
+statuses = { "misc_filters.memory_level" = "exact", "misc_filters.stored_experience" = "exact", "misc_filters.stack_size" = "exact" }
+matches = ['{"stackSize": 10, "properties": [{"name": "Memory Strands", "values": [["30", 0]], "displayMode": 0}, {"name": "Stored Experience: {0}", "values": [["5000", 0]], "displayMode": 3}]}']
+fails = [
+  '{"stackSize": 3, "properties": [{"name": "Memory Strands", "values": [["30", 0]], "displayMode": 0}, {"name": "Stored Experience: {0}", "values": [["5000", 0]], "displayMode": 3}]}',
+  '{"stackSize": 10, "properties": [{"name": "Memory Strands", "values": [["1", 0]], "displayMode": 0}, {"name": "Stored Experience: {0}", "values": [["5000", 0]], "displayMode": 3}]}',
+  '{"stackSize": 10, "properties": [{"name": "Memory Strands", "values": [["30", 0]], "displayMode": 0}, {"name": "Stored Experience: {0}", "values": [["500", 0]], "displayMode": 3}]}',
+]
+
+[[case]]
+name = "the misc filters no field reads"
+query = '{"filters": {"misc_filters": {"filters": {"gem_transfigured": {"option": "true"}, "gem_imbued": {"option": "true"}, "foreseeing": {"option": "true"}, "intangibility": {"min": 1}, "alternate_art": {"option": "true"}, "foil_variation": {"option": "1"}, "corpse_type": {"option": "beast"}, "scourge_tier": {"min": 1}}}}}'
+text = ''
+fidelity = "partial"
+statuses = { "misc_filters.gem_transfigured" = "unsupported", "misc_filters.gem_imbued" = "unsupported", "misc_filters.foreseeing" = "unsupported", "misc_filters.intangibility" = "unsupported", "misc_filters.alternate_art" = "unsupported", "misc_filters.foil_variation" = "unsupported", "misc_filters.corpse_type" = "unsupported", "misc_filters.scourge_tier" = "unsupported" }
+
+[[case]]
+name = "a disabled group of filters, and a filter no row names"
+query = '{"filters": {"misc_filters": {"disabled": true, "filters": {"ilvl": {"min": 80}}}, "weapon_filters": {"filters": {"reach": {"min": 1}}}}}'
+text = ''
+fidelity = "partial"
+statuses = { "misc_filters.ilvl" = "disabled", "weapon_filters.reach" = "unsupported" }
+
+# ---- trade_filters ----------------------------------------------------------------------------
+
+[[case]]
+name = "the listing's filters are reported and leave the text alone"
+query = '{"type": "Iron Ring", "filters": {"trade_filters": {"filters": {"account": {"input": "x"}, "collapse": {"option": "true"}, "indexed": {"option": "1day"}, "sale_type": {"option": "priced"}, "fee": {"min": 1}, "price": {"min": 1, "option": "divine"}}}}}'
+text = 'base="Iron Ring"'
+fidelity = "exact"
+statuses = { "type" = "exact", "trade_filters.account" = "listing_only", "trade_filters.collapse" = "listing_only", "trade_filters.indexed" = "listing_only", "trade_filters.sale_type" = "listing_only", "trade_filters.fee" = "listing_only", "trade_filters.price" = "listing_only" }
+matches = ['{}']
+fails = ['{"baseType": "Gold Ring", "typeLine": "Gold Ring"}']
+
+# ---- the stat groups --------------------------------------------------------------------------
+
+[[case]]
+name = "and: each filter a term; an unsupported one to the remainder alone; a disabled one reported"
+query = '{"stats": [{"type": "and", "filters": [{"id": "explicit.stat_3299347043", "value": {"min": 60}}, {"id": "explicit.stat_0000000001"}, {"id": "explicit.stat_4220027924", "disabled": true}]}]}'
+text = 'line("# to maximum Life" source=explicit arg1>=60)'
+fidelity = "partial"
+statuses = { "stats.0" = "exact", "stats.0.0" = "ambiguous", "stats.0.1" = "unsupported", "stats.0.2" = "disabled" }
+matches = ['{"explicitMods": ["+70 to maximum Life"]}']
+fails = ['{"explicitMods": ["+50 to maximum Life"]}', '{"implicitMods": ["+70 to maximum Life"]}']
+
+[[case]]
+name = "not: none of its stats"
+query = '{"stats": [{"type": "not", "filters": [{"id": "explicit.stat_3299347043"}, {"id": "explicit.stat_3372524247"}]}]}'
+text = '-(line("# to maximum Life" source=explicit) or line("#% to Fire Resistance" source=explicit))'
+fidelity = "ambiguous"
+statuses = { "stats.0" = "exact", "stats.0.0" = "ambiguous", "stats.0.1" = "ambiguous" }
+matches = ['{"explicitMods": ["+30% to Cold Resistance"]}', '{"implicitMods": ["+20 to maximum Life"]}']
+fails = ['{"explicitMods": ["+70 to maximum Life"]}', '{"explicitMods": ["+30% to Fire Resistance"]}']
+
+[[case]]
+name = "not with a value: the bound written, the filter ambiguous"
+query = '{"stats": [{"type": "not", "filters": [{"id": "implicit.stat_3299347043", "value": {"min": 60}}]}]}'
+text = '-line("# to maximum Life" source=implicit arg1>=60)'
+fidelity = "ambiguous"
+statuses = { "stats.0" = "exact", "stats.0.0" = "ambiguous" }
+matches = ['{"implicitMods": ["+50 to maximum Life"]}', '{}']
+fails = ['{"implicitMods": ["+70 to maximum Life"]}']
+
+[[case]]
+name = "not translates whole or not at all"
+query = '{"stats": [{"type": "not", "filters": [{"id": "implicit.stat_3299347043"}, {"id": "imbued.x"}]}]}'
+text = ''
+fidelity = "partial"
+statuses = { "stats.0" = "unsupported", "stats.0.0" = "unsupported", "stats.0.1" = "unsupported" }
+
+[[case]]
+name = "if: a bounded stat where present; an unbounded one the site's no-op"
+query = '{"stats": [{"type": "if", "filters": [{"id": "implicit.stat_3299347043", "value": {"min": 60}}, {"id": "implicit.stat_3372524247"}]}]}'
+text = '(-line("# to maximum Life" source=implicit) or line("# to maximum Life" source=implicit arg1>=60)) true()'
+fidelity = "exact"
+statuses = { "stats.0" = "exact", "stats.0.0" = "exact", "stats.0.1" = "exact" }
+matches = ['{}', '{"implicitMods": ["+70 to maximum Life"]}', '{"implicitMods": ["+30% to Fire Resistance"]}']
+fails = ['{"implicitMods": ["+50 to maximum Life"]}']
+
+[[case]]
+name = "if has no line for a pseudo: unsupported whole"
+query = '{"stats": [{"type": "if", "filters": [{"id": "implicit.stat_3299347043", "value": {"min": 60}}, {"id": "pseudo.pseudo_total_life", "value": {"min": 1}}]}]}'
+text = ''
+fidelity = "partial"
+statuses = { "stats.0" = "unsupported", "stats.0.0" = "unsupported", "stats.0.1" = "unsupported" }
+
+[[case]]
+name = "count: each stat that meets its bound counts"
+query = '{"stats": [{"type": "count", "value": {"min": 2}, "filters": [{"id": "implicit.stat_3299347043", "value": {"min": 60}}, {"id": "implicit.stat_3372524247"}, {"id": "implicit.stat_4220027924"}]}]}'
+text = 'holds(line("# to maximum Life" source=implicit arg1>=60), line("#% to Fire Resistance" source=implicit), line("#% to Cold Resistance" source=implicit))>=2'
+fidelity = "exact"
+statuses = { "stats.0" = "exact", "stats.0.0" = "exact", "stats.0.1" = "exact", "stats.0.2" = "exact" }
+matches = ['{"implicitMods": ["+70 to maximum Life", "+30% to Fire Resistance"]}', '{"implicitMods": ["+30% to Cold Resistance", "+30% to Fire Resistance"]}']
+fails = ['{"implicitMods": ["+50 to maximum Life", "+30% to Fire Resistance"]}', '{"implicitMods": ["+30% to Fire Resistance"]}']
+
+[[case]]
+name = "count with an upper bound, a disabled filter left out"
+query = '{"stats": [{"type": "count", "value": {"min": 1, "max": 1}, "filters": [{"id": "implicit.stat_3372524247"}, {"id": "implicit.stat_4220027924"}, {"id": "implicit.stat_3299347043", "disabled": true}]}]}'
+text = 'holds(line("#% to Fire Resistance" source=implicit), line("#% to Cold Resistance" source=implicit))=1'
+fidelity = "exact"
+statuses = { "stats.0" = "exact", "stats.0.0" = "exact", "stats.0.1" = "exact", "stats.0.2" = "disabled" }
+matches = ['{"implicitMods": ["+30% to Fire Resistance", "+70 to maximum Life"]}']
+fails = ['{"implicitMods": ["+30% to Cold Resistance", "+30% to Fire Resistance"]}', '{}']
+
+[[case]]
+name = "count with no bound is unsupported"
+query = '{"stats": [{"type": "count", "filters": [{"id": "implicit.stat_3372524247"}]}]}'
+text = ''
+fidelity = "partial"
+statuses = { "stats.0" = "unsupported", "stats.0.0" = "unsupported" }
+
+[[case]]
+name = "weighted sum: one weight, one slot, the bound over the weight"
+query = '{"stats": [{"type": "weight", "value": {"min": 60}, "filters": [{"id": "implicit.stat_3372524247", "value": {"weight": 1}}, {"id": "implicit.stat_4220027924", "value": {"weight": 1}}]}]}'
+text = 'sum(line(("#% to Fire Resistance" source=implicit) or ("#% to Cold Resistance" source=implicit)).arg1)>=60'
+fidelity = "exact"
+statuses = { "stats.0" = "exact", "stats.0.0" = "exact", "stats.0.1" = "exact" }
+matches = ['{"implicitMods": ["+30% to Fire Resistance", "+30% to Cold Resistance"]}']
+fails = ['{"implicitMods": ["+30% to Fire Resistance", "+20% to Cold Resistance"]}', '{"explicitMods": ["+30% to Fire Resistance", "+30% to Cold Resistance"]}']
+
+[[case]]
+name = "weighted sum v2: a weight of two halves the bounds"
+query = '{"stats": [{"type": "weight2", "value": {"min": 60, "max": 81}, "filters": [{"id": "implicit.stat_3372524247", "value": {"weight": 2}}, {"id": "implicit.stat_4220027924", "value": {"weight": 2}}]}]}'
+text = 'sum(line(("#% to Fire Resistance" source=implicit) or ("#% to Cold Resistance" source=implicit)).arg1)=30..40.5'
+fidelity = "exact"
+statuses = { "stats.0" = "exact", "stats.0.0" = "exact", "stats.0.1" = "exact" }
+matches = ['{"implicitMods": ["+20% to Fire Resistance", "+10% to Cold Resistance"]}', '{"implicitMods": ["+20% to Fire Resistance", "+20% to Cold Resistance"]}']
+fails = ['{"implicitMods": ["+20% to Fire Resistance", "+5% to Cold Resistance"]}', '{"implicitMods": ["+30% to Fire Resistance", "+20% to Cold Resistance"]}']
+
+[[case]]
+name = "weighted sums the language cannot say: a quotient no decimal, a per-stat bound"
+query = '{"stats": [{"type": "weight", "value": {"min": 10}, "filters": [{"id": "implicit.stat_3372524247", "value": {"weight": 3}}]}, {"type": "weight", "value": {"min": 10}, "filters": [{"id": "implicit.stat_3372524247", "value": {"weight": 1, "min": 5}}]}]}'
+text = ''
+fidelity = "partial"
+statuses = { "stats.0" = "unsupported", "stats.0.0" = "unsupported", "stats.1" = "unsupported", "stats.1.0" = "unsupported" }
+
+[[case]]
+name = "the crucible and mercenary groups, a group type no row names, a disabled group"
+query = '{"stats": [{"type": "crucible", "filters": [{"id": "crucible.x"}]}, {"type": "mercenary", "filters": [{"id": "mercenary.y"}]}, {"type": "xor", "filters": [{"id": "implicit.stat_3372524247"}]}, {"type": "and", "disabled": true, "filters": [{"id": "implicit.stat_3372524247"}]}]}'
+text = ''
+fidelity = "partial"
+statuses = { "stats.0" = "unsupported", "stats.0.0" = "unsupported", "stats.1" = "unsupported", "stats.1.0" = "unsupported", "stats.2" = "unsupported", "stats.2.0" = "unsupported", "stats.3" = "disabled", "stats.3.0" = "disabled" }
+
+[[case]]
+name = "a stat with an option value"
+query = '{"stats": [{"type": "and", "filters": [{"id": "pseudo.pseudo_temple_x", "value": {"option": 1}}]}]}'
+text = ''
+fidelity = "partial"
+statuses = { "stats.0" = "exact", "stats.0.0" = "unsupported" }
+
+# ---- the stat categories and the line rule ----------------------------------------------------
+
+[[case]]
+name = "implicit"
+query = '{"stats": [{"type": "and", "filters": [{"id": "implicit.stat_3299347043", "value": {"min": 20}}]}]}'
+text = 'line("# to maximum Life" source=implicit arg1>=20)'
+fidelity = "exact"
+statuses = { "stats.0" = "exact", "stats.0.0" = "exact" }
+matches = ['{"implicitMods": ["+25 to maximum Life"]}']
+fails = ['{"explicitMods": ["+25 to maximum Life"]}', '{"implicitMods": ["+10 to maximum Life"]}']
+
+[[case]]
+name = "fractured and crafted are the line's flags"
+query = '{"stats": [{"type": "and", "filters": [{"id": "fractured.stat_3299347043"}, {"id": "crafted.stat_3372524247", "value": {"max": 30}}]}]}'
+text = 'line("# to maximum Life" is:fractured) line("#% to Fire Resistance" is:crafted arg1<=30)'
+fidelity = "exact"
+statuses = { "stats.0" = "exact", "stats.0.0" = "exact", "stats.0.1" = "exact" }
+matches = ['{"explicitMods": [{"description": "+70 to maximum Life", "flags": {"fractured": true}}, {"description": "+25% to Fire Resistance", "flags": {"crafted": true}}]}']
+fails = [
+  '{"explicitMods": ["+70 to maximum Life", {"description": "+25% to Fire Resistance", "flags": {"crafted": true}}]}',
+  '{"explicitMods": [{"description": "+70 to maximum Life", "flags": {"fractured": true}}, "+25% to Fire Resistance"]}',
+  '{"explicitMods": [{"description": "+70 to maximum Life", "flags": {"fractured": true}}, {"description": "+35% to Fire Resistance", "flags": {"crafted": true}}]}',
+]
+
+[[case]]
+name = "enchant and scourge"
+query = '{"stats": [{"type": "and", "filters": [{"id": "enchant.stat_4135304575", "value": {"min": 8}}, {"id": "scourge.stat_3299347043"}]}]}'
+text = '''line("#% increased Attack and Cast Speed if you've Killed Recently" source=enchant arg1>=8) line("# to maximum Life" source=scourge)'''
+fidelity = "exact"
+statuses = { "stats.0" = "exact", "stats.0.0" = "exact", "stats.0.1" = "exact" }
+matches = ['''{"enchantMods": ["10% increased Attack and Cast Speed if you've Killed Recently"], "scourgeMods": ["+20 to maximum Life"]}''']
+fails = [
+  '''{"enchantMods": ["5% increased Attack and Cast Speed if you've Killed Recently"], "scourgeMods": ["+20 to maximum Life"]}''',
+  '''{"enchantMods": ["10% increased Attack and Cast Speed if you've Killed Recently"], "explicitMods": ["+20 to maximum Life"]}''',
+]
+
+[[case]]
+name = "a pseudo the totals table names, and one it does not"
+query = '{"stats": [{"type": "and", "filters": [{"id": "pseudo.pseudo_total_life", "value": {"min": 50}}, {"id": "pseudo.pseudo_nothing_here"}]}]}'
+text = 'pseudo.total_life>=50'
+fidelity = "partial"
+statuses = { "stats.0" = "exact", "stats.0.0" = "exact", "stats.0.1" = "unsupported" }
+matches = ['{"implicitMods": ["+25 to maximum Life"], "explicitMods": ["+30 to maximum Life"]}']
+fails = ['{"explicitMods": ["+30 to maximum Life"]}']
+
+[[case]]
+name = "the categories with no line, and an id the table lacks"
+query = '{"stats": [{"type": "and", "filters": [{"id": "imbued.a"}, {"id": "mercenary.b"}, {"id": "veiled.c"}, {"id": "delve.d"}, {"id": "ultimatum.e"}, {"id": "sanctum.f"}, {"id": "crucible.g"}, {"id": "explicit.stat_1"}, {"id": "nonsense"}]}]}'
+text = ''
+fidelity = "partial"
+statuses = { "stats.0" = "exact", "stats.0.0" = "unsupported", "stats.0.1" = "unsupported", "stats.0.2" = "unsupported", "stats.0.3" = "unsupported", "stats.0.4" = "unsupported", "stats.0.5" = "unsupported", "stats.0.6" = "unsupported", "stats.0.7" = "unsupported", "stats.0.8" = "unsupported" }
+
+[[case]]
+name = "a ranged local line: the suffix dropped, the bound on avg"
+query = '{"stats": [{"type": "and", "filters": [{"id": "implicit.stat_1940865751", "value": {"min": 20}}]}]}'
+text = 'line("Adds # to # Physical Damage" source=implicit avg>=20)'
+fidelity = "ambiguous"
+statuses = { "stats.0" = "exact", "stats.0.0" = "ambiguous" }
+matches = ['{"implicitMods": ["Adds 15 to 30 Physical Damage"]}']
+fails = ['{"implicitMods": ["Adds 5 to 10 Physical Damage"]}', '{"implicitMods": ["Adds 15 to 20 Physical Damage"]}']
+
+[[case]]
+name = "a text two ids share"
+query = '{"stats": [{"type": "and", "filters": [{"id": "implicit.stat_3680664274"}]}]}'
+text = 'line("#% chance to Suppress Spell Damage" source=implicit)'
+fidelity = "ambiguous"
+statuses = { "stats.0" = "exact", "stats.0.0" = "ambiguous" }
+matches = ['{"implicitMods": ["+12% chance to Suppress Spell Damage"]}']
+fails = ['{"explicitMods": ["+12% chance to Suppress Spell Damage"]}']
+
+[[case]]
+name = "several numbers: the first compared"
+query = '{"stats": [{"type": "and", "filters": [{"id": "explicit.stat_3102860761", "value": {"min": 10}}]}]}'
+text = 'line("#% increased Movement Speed for # seconds on Throwing a Trap" source=explicit arg1>=10)'
+fidelity = "ambiguous"
+statuses = { "stats.0" = "exact", "stats.0.0" = "ambiguous" }
+matches = ['{"explicitMods": ["15% increased Movement Speed for 4 seconds on Throwing a Trap"]}']
+fails = ['{"explicitMods": ["5% increased Movement Speed for 14 seconds on Throwing a Trap"]}']
+
+[[case]]
+name = "a text of two rows"
+query = '{"stats": [{"type": "and", "filters": [{"id": "implicit.stat_3133323410", "value": {"min": 5}}]}]}'
+text = 'line("Bleeding Enemies you Kill Explode, dealing #% of\ntheir Maximum Life as Physical Damage" source=implicit arg1>=5)'
+fidelity = "exact"
+statuses = { "stats.0" = "exact", "stats.0.0" = "exact" }
+matches = ['{"implicitMods": ["Bleeding Enemies you Kill Explode, dealing 5% of\ntheir Maximum Life as Physical Damage"]}']
+fails = ['{"implicitMods": ["Bleeding Enemies you Kill Explode, dealing 3% of\ntheir Maximum Life as Physical Damage"]}']
+
+[[case]]
+name = "a number the site writes as a digit: the slot is that number"
+query = '{"stats": [{"type": "and", "filters": [{"id": "explicit.stat_2918708827", "value": {"min": 10}}]}]}'
+text = 'line("#% chance to gain Phasing for # seconds on Kill" source=explicit arg2=4 arg1>=10)'
+fidelity = "ambiguous"
+statuses = { "stats.0" = "exact", "stats.0.0" = "ambiguous" }
+matches = ['{"explicitMods": ["15% chance to gain Phasing for 4 seconds on Kill"]}']
+fails = ['{"explicitMods": ["15% chance to gain Phasing for 6 seconds on Kill"]}', '{"explicitMods": ["5% chance to gain Phasing for 4 seconds on Kill"]}']
+
+[[case]]
+name = "a text with no number: its bound dropped, presence alone"
+query = '{"stats": [{"type": "and", "filters": [{"id": "implicit.stat_876831634", "value": {"min": 1}}]}]}'
+text = 'line("Cannot be Frozen" source=implicit)'
+fidelity = "exact"
+statuses = { "stats.0" = "exact", "stats.0.0" = "exact" }
+matches = ['{"implicitMods": ["Cannot be Frozen"]}']
+fails = ['{"explicitMods": ["Cannot be Frozen"]}']
+
+[[case]]
+name = "an id the site lists with two texts in one category"
+query = '{"stats": [{"type": "and", "filters": [{"id": "enchant.stat_1837341489"}]}]}'
+text = ''
+fidelity = "partial"
+statuses = { "stats.0" = "exact", "stats.0.0" = "unsupported" }
+
+[[case]]
+name = "a stat bound that is no number"
+query = '{"stats": [{"type": "and", "filters": [{"id": "implicit.stat_3299347043", "value": {"min": "60"}}]}]}'
+text = ''
+fidelity = "partial"
+statuses = { "stats.0" = "exact", "stats.0.0" = "unsupported" }
+
+# ---- the owner's eight searches (tests/trade-decode.toml) -------------------------------------
+
+[[case]]
+name = "q1"
+url = "{q1}"
+text = 'category="accessory.ring" rarity=rare line("# to maximum Life" source=explicit arg1>=60) line("#% to Fire Resistance" source=explicit arg1>=30)'
+fidelity = "ambiguous"
+statuses = { "status" = "listing_only", "type_filters.category" = "exact", "type_filters.rarity" = "exact", "stats.0" = "exact", "stats.0.0" = "ambiguous", "stats.0.1" = "ambiguous" }
+
+[[case]]
+name = "q2"
+url = "{q2}"
+text = 'category="armour.boots" rarity=rare line("#% chance to Suppress Spell Damage" source=explicit)'
+fidelity = "ambiguous"
+statuses = { "status" = "listing_only", "type_filters.category" = "exact", "type_filters.rarity" = "exact", "stats.0" = "exact", "stats.0.0" = "ambiguous" }
+
+[[case]]
+name = "q2b"
+url = "{q2b}"
+text = 'category="armour.boots" rarity=rare line("#% chance to Suppress Spell Damage" source=explicit)'
+fidelity = "ambiguous"
+statuses = { "status" = "listing_only", "type_filters.category" = "exact", "type_filters.rarity" = "exact", "trade_filters.sale_type" = "disabled", "stats.0" = "exact", "stats.0.0" = "ambiguous" }
+
+[[case]]
+name = "q3"
+url = "{q3}"
+text = 'category="weapon.onesword" rarity=rare line("Adds # to # Physical Damage" source=explicit avg>=20)'
+fidelity = "ambiguous"
+statuses = { "status" = "listing_only", "type_filters.category" = "exact", "type_filters.rarity" = "exact", "trade_filters.sale_type" = "disabled", "stats.0" = "exact", "stats.0.0" = "ambiguous" }
+
+[[case]]
+name = "q3b"
+url = "{q3b}"
+text = 'category="weapon.onesword" rarity=rare line("Adds # to # Physical Damage" source=explicit avg<=25)'
+fidelity = "ambiguous"
+statuses = { "status" = "listing_only", "type_filters.category" = "exact", "type_filters.rarity" = "exact", "trade_filters.sale_type" = "disabled", "stats.0" = "exact", "stats.0.0" = "ambiguous" }
+
+[[case]]
+name = "q4"
+url = "{q4}"
+text = 'category="armour.chest" rarity=rare pseudo.total_life>=50 sum(line(("#% to Fire Resistance" source=explicit) or ("#% to Cold Resistance" source=explicit) or ("#% to Lightning Resistance" source=explicit)).arg1)>=60 holds(line("#% to Fire Resistance" source=explicit), line("#% to Cold Resistance" source=explicit), line("#% to Lightning Resistance" source=explicit))>=2'
+fidelity = "ambiguous"
+statuses = { "status" = "listing_only", "type_filters.category" = "exact", "type_filters.rarity" = "exact", "trade_filters.sale_type" = "disabled", "stats.1" = "exact", "stats.1.0" = "exact", "stats.2" = "exact", "stats.2.0" = "ambiguous", "stats.2.1" = "ambiguous", "stats.2.2" = "ambiguous", "stats.3" = "exact", "stats.3.0" = "ambiguous", "stats.3.1" = "ambiguous", "stats.3.2" = "ambiguous" }
+
+[[case]]
+name = "q5"
+url = "{q5}"
+text = 'category="accessory.amulet" rarity=rare -is:duplicated pseudo.total_fire_res>=80'
+fidelity = "exact"
+statuses = { "status" = "listing_only", "type_filters.category" = "exact", "type_filters.rarity" = "exact", "misc_filters.mirrored" = "exact", "trade_filters.sale_type" = "disabled", "stats.0" = "exact", "stats.0.0" = "exact" }
+
+[[case]]
+name = "q6"
+url = "{q6}"
+text = 'category="armour.chest" rarity=rare line("#% increased Armour" source=explicit) line("# to maximum Life" source=explicit arg1>=150)'
+fidelity = "ambiguous"
+statuses = { "status" = "listing_only", "type_filters.category" = "exact", "type_filters.rarity" = "exact", "misc_filters.mirrored" = "disabled", "trade_filters.sale_type" = "disabled", "stats.0" = "exact", "stats.0.0" = "ambiguous", "stats.0.1" = "ambiguous" }
