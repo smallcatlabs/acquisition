@@ -19,14 +19,18 @@
 //! and never guesses — and the finding that answers it: a fact of the
 //! site's captures, the owner's ruling, or a question for the sitting
 //! (step 7). The rows are the expected set exactly: a new disagreement and
-//! a vanished one each fail. A row of a fact of the site lies on a clause
-//! the report does not call exact, its catalogue row named, so that no
-//! clause is read as exact against what the captures show.
+//! a vanished one each fail. A fact of the site lies where the item meets
+//! it — the clauses under the refusing one whose term alone the item meets,
+//! the eldritch line a `not` excludes — and the report calls each of them
+//! ambiguous by the fact's catalogue row, so that no clause is read as
+//! exact against what the captures show, and no labelled sibling stands in
+//! for an unlabelled one (the outside review of step 6).
 
 mod common;
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use acquisition_search::trade::translate::Status;
 use acquisition_search::{Request, Translation, answer, decode_json, translate};
 use common::*;
 use serde::Deserialize;
@@ -128,9 +132,19 @@ fn matching(corpus: &acquisition_search::Corpus, text: &str) -> BTreeSet<usize> 
         .collect()
 }
 
-/// A disagreement: the search, the item, `missed` or `undecided`, and the
-/// top-level clauses that refuse it alone.
-type Disagreement = (String, usize, String, Vec<String>);
+/// An item the text does not match.
+struct Disagreement {
+    search: String,
+    item: usize,
+    /// `missed` or `undecided`.
+    outcome: String,
+    /// The top-level clauses whose term alone refuses the item.
+    refused_by: Vec<String>,
+    /// The clauses under those whose term alone the item meets: where a
+    /// fact of the site lies — the line a `not` excludes is the one the
+    /// item carries, never a sibling it does not.
+    met: Vec<String>,
+}
 
 fn disagreements(search: &Search, t: &Translation) -> Vec<Disagreement> {
     let mut s = store();
@@ -159,15 +173,11 @@ fn disagreements(search: &Search, t: &Translation) -> Vec<Disagreement> {
     } else {
         matching(&corpus, &format!("undecided({})", t.text))
     };
-    // each top-level clause's term alone: what refuses an item
-    let top: Vec<(String, BTreeSet<usize>)> = t
+    // every clause's term alone, by its path
+    let alone: Vec<(String, BTreeSet<usize>)> = t
         .clauses
         .iter()
-        .filter_map(|c| {
-            let path = c.path.as_ref()?;
-            let term = c.term.as_ref()?;
-            (!path.contains('.')).then(|| (path.clone(), matching(&corpus, term)))
-        })
+        .filter_map(|c| Some((c.path.clone()?, matching(&corpus, c.term.as_ref()?))))
         .collect();
     all.difference(&matched)
         .map(|&i| {
@@ -176,12 +186,25 @@ fn disagreements(search: &Search, t: &Translation) -> Vec<Disagreement> {
             } else {
                 "missed"
             };
-            let clauses = top
+            let refused_by: Vec<String> = alone
                 .iter()
-                .filter(|(_, m)| !m.contains(&i))
+                .filter(|(p, m)| !p.contains('.') && !m.contains(&i))
                 .map(|(p, _)| p.clone())
                 .collect();
-            (search.name.clone(), i, outcome.to_string(), clauses)
+            let met = alone
+                .iter()
+                .filter(|(p, m)| {
+                    m.contains(&i) && refused_by.iter().any(|r| p.starts_with(&format!("{r}.")))
+                })
+                .map(|(p, _)| p.clone())
+                .collect();
+            Disagreement {
+                search: search.name.clone(),
+                item: i,
+                outcome: outcome.to_string(),
+                refused_by,
+                met,
+            }
         })
         .collect()
 }
@@ -246,6 +269,7 @@ fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
     let (mut none, mut partial, mut ran, mut items, mut matched) =
         (Vec::new(), Vec::new(), 0, 0, 0);
     let mut found: BTreeMap<(String, usize), (String, Vec<String>)> = BTreeMap::new();
+    let mut met: BTreeMap<(String, usize), Vec<String>> = BTreeMap::new();
     let mut translations: BTreeMap<String, Translation> = BTreeMap::new();
     for search in searches() {
         if search.bodies.is_empty() {
@@ -261,8 +285,9 @@ fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
         items += search.bodies.len();
         let missed = disagreements(&search, &t);
         matched += search.bodies.len() - missed.len();
-        for (name, i, outcome, clauses) in missed {
-            found.insert((name, i), (outcome, clauses));
+        for d in missed {
+            found.insert((d.search.clone(), d.item), (d.outcome, d.refused_by));
+            met.insert((d.search, d.item), d.met);
         }
         translations.insert(search.name, t);
     }
@@ -294,22 +319,28 @@ fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
         "disagreements no row names: {new:#?}\nrows no longer found: {gone:#?}"
     );
 
-    // a fact of the site lies on a clause the report does not call exact
-    for ((search, i), (_, clauses, finding)) in &want {
+    // a fact of the site lies on the clauses the item meets under the one
+    // that refuses it, and the report calls each ambiguous by the fact's row
+    for ((search, i), (_, _, finding)) in &want {
         let Some(row) = &findings[finding].row else {
             continue;
         };
-        let t = &translations[search];
-        for clause in clauses {
-            let under = |c: &&acquisition_search::trade::translate::Clause| {
-                c.path
-                    .as_deref()
-                    .is_some_and(|p| p == clause || p.starts_with(&format!("{clause}.")))
-            };
+        let met = &met[&(search.clone(), *i)];
+        assert!(
+            !met.is_empty(),
+            "{search} item {i}: no clause the item meets"
+        );
+        for path in met {
+            let c = translations[search]
+                .clauses
+                .iter()
+                .find(|c| c.path.as_ref() == Some(path))
+                .unwrap();
             assert!(
-                t.clauses.iter().filter(under).any(|c| c.rows.contains(row)
-                    && c.status == acquisition_search::trade::translate::Status::Ambiguous),
-                "{search} item {i}: no clause under {clause} is ambiguous by {row}"
+                c.rows.contains(row) && c.status == Status::Ambiguous,
+                "{search} item {i}: {path} {:?} is {:?}, not ambiguous by {row}",
+                c.term,
+                c.status
             );
         }
     }
