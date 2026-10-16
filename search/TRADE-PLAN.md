@@ -176,19 +176,21 @@ grows at 3 so that 4's text parses on the build that writes it.
   same stat on the site; a `not` group with a value; which number a
   many-numbered template compares; `term`; `uniquefoil`; the site's
   dps and quality. Each ambiguous until the sitting (K6).
-- The names of the 20 %-quality defence fields: the builder's,
-  printed by `--describe`. The catalogue already spells the 40 step-3
-  fields (`armour.q20`, `resolve.of`, …); step 3 takes those spellings
-  or changes the catalogue in the same commit. A dotted name parses as
-  one field name, as `sockets.red` does (checked 2026-10-15).
-- The catalogue has no loader: its header has the translation read it
-  at step 4, while step 0's acceptance arms the field check at step 3.
-  Step 3 builds the loader — the stat table's shape, parsed once, every
-  check a reviewer would make — with that check, so the fields it names
-  are checked on the build that writes them.
 - An id the site lists with two texts in one category (step 2's
   measurement: 172 ids, 229 pairs; a map's own wording beside the
   atlas's `your Maps`, and one text with its row breaks): whether its
   clause is a line of either text, and at what status. K6 states the
   text with two ids (S66) and not this; step 4 brings it to the owner
   or the sitting before writing it.
+- Three rows the catalogue calls `exact` that step 3's measurement
+  puts in doubt (the census copy of 2026-09-13, its 22,623 pc items),
+  each a meaning step 4 brings to the owner or the sitting before
+  writing it (rule 4). `weapon_filters.crit`: `Critical Strike Chance`
+  is displayed by 1,047 weapons, typed 12, and by 973 gems, untyped;
+  the field reads both, and whether the site's weapon filter reads a
+  gem's is unasked. `map_filters.area_level`: type 34 is `Area Level`
+  on 3,726 items and `Monster Level` on 5 (Blood-filled Vessels); the
+  field reads the first alone. The nine heist skills: the fields read
+  a contract's or blueprint's `Requires {1} (Level {0})` (3,587
+  properties); 183 heist items, brooches and cloaks, require
+  `Level {0} in {1}`, which no field reads.
