@@ -840,6 +840,10 @@ fn c93_an_undecided_percentile_under_not_and_or() {
 ///   local stat displays, `10% increased Armour and Evasion`. Armour 44 is
 ///   (23 + 17) × 1.10.
 /// - `other`: an array that holds no defence line, read: a flask's own.
+/// - `quality_dropped`: a `Quality` whose values could not be read, under
+///   `Quality does not increase Defences`: the quality the enchant drops
+///   is never needed, so the roll is the display, as `enchant`'s is
+///   (`a_mark_a_multiplier_and_the_rolls_of_several_defences`).
 ///
 /// And beside them what does open it, so that the test is of the grain:
 /// `mark_twin`, the unread mark with an implicit twin a roll reads;
@@ -853,7 +857,17 @@ fn rule_8_what_the_percentile_does_not_ask_does_not_open_it() {
     let vest = |id: &str, armour_shown: &str, more: Value| {
         armour(id, "Plate Vest", "Rare", &[("Armour", armour_shown)], more)
     };
+    let mut quality_dropped = vest(
+        "quality_dropped",
+        "23",
+        json!({ "crucibleMods": ["Quality does not increase Defences"] }),
+    );
+    quality_dropped["properties"] = json!([
+        property("Armour", "23"),
+        { "name": "Quality", "values": 7, "displayMode": 0 }
+    ]);
     let s = one_tab(vec![
+        quality_dropped,
         vest(
             "no_roll",
             "23",
@@ -919,7 +933,14 @@ fn rule_8_what_the_percentile_does_not_ask_does_not_open_it() {
     assert_eq!(
         found("pseudo.defence_pct=50"),
         [
-            "crucible", "flag", "flags", "long", "mark", "no_roll", "other"
+            "crucible",
+            "flag",
+            "flags",
+            "long",
+            "mark",
+            "no_roll",
+            "other",
+            "quality_dropped"
         ]
     );
     assert_eq!(

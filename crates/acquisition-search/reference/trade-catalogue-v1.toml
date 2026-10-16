@@ -654,7 +654,7 @@ shape = "minmax"
 disposition = "exact"
 lands = "level>={min} level<={max}"
 fields = ["level"]
-note = "the displayed `Level` property, a gem's; `(Max)` beside it is a second value and no number"
+note = "the displayed `Level` property, a gem's, one value; ` (Max)` written after the number, as `20 (Max)`, is read and dropped"
 
 [[row]]
 key = "misc_filters.gem_level_progress"

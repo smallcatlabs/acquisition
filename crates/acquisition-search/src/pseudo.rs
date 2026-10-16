@@ -283,13 +283,16 @@
 //!   defence line; lines that take a defence to nothing or below leave
 //!   the display fixing no roll, which is several values. A flag is
 //!   never asked (J32): a line counts by its text. The quality is asked
-//!   only of an item displaying a defence. A property the deriver read
+//!   only of an item displaying a defence, and one not read opens the
+//!   field only where the enchant does not drop it. A property the deriver read
 //!   with no name is a property of no name and none of the field's; one
 //!   whose name it could not read may be any.
 //! - **A property is a whole number, once.** A defence is displayed as
 //!   digits alone, and displayed otherwise, with other than one value, or
-//!   more than once, is unread under `properties`, said here, as a damage
-//!   field's is. The quality is the `quality` field's one reading
+//!   more than once, is unread under `properties`, as a damage field's
+//!   and a property field's are: which property is the one so named, and
+//!   what was unread that may be it, are `properties.rs`'s one rule, which
+//!   every reader asks. The quality is the `quality` field's one reading
 //!   (`properties.rs`, C114), which the q20 fields read too: `+20%`, its
 //!   sign and its `%` each read where written, one whole number of one
 //!   property, or unread there by the same words. A base name the
@@ -864,113 +867,89 @@ fn derived_of(derived: Derived, held: &Held) -> Valued {
     }
 }
 
-/// The properties a damage field reads; the percentile's are its own
-/// ([`percentile`]).
-fn reads(derived: Derived) -> &'static [&'static str] {
+/// The damage a damage field reads, beside the attack speed; the
+/// percentile's properties are its own ([`percentile`]).
+fn damage(derived: Derived) -> &'static [&'static str] {
     match derived {
-        Derived::Pdps => &[ATTACKS_PER_SECOND, PHYSICAL],
-        Derived::Edps => &[ATTACKS_PER_SECOND, ELEMENTAL],
-        Derived::Dps => &[ATTACKS_PER_SECOND, PHYSICAL, ELEMENTAL, CHAOS],
+        Derived::Pdps => &[PHYSICAL],
+        Derived::Edps => &[ELEMENTAL],
+        Derived::Dps => &[PHYSICAL, ELEMENTAL, CHAOS],
         Derived::DefencePct => &[],
     }
 }
 
-/// The one reading of a damage field's inputs: what was unread of the
+/// The one reading of a damage field's inputs. What was unread of the
 /// properties leaves the field open where it may be a property the field
-/// reads — the array itself, an element with no readable name, or one
-/// named as the field's — and a property displayed as no number and no
-/// range, or whose product the units cannot hold, is unread under
-/// `properties`, said here.
+/// reads (`properties::unread_under`); each property is the one so named
+/// (`properties::one`), and the attack speed is the `attacks_per_second`
+/// field's own reading, so the field and this cannot disagree (rule 10).
+/// A property displayed more than once, as no number and no range, or
+/// whose product the units cannot hold, is unread under `properties`.
 fn inputs(derived: Derived, held: &Held) -> Result<Read<'_>, Inputs<'_>> {
     let item = &held.item;
-    let properties = Part::Properties("properties".to_string());
-    let unread: Vec<Cow<'_, Unread>> = item
-        .unread
-        .iter()
-        .filter(|u| {
-            u.part == Part::Body
-                || (u.part == properties
-                    && u.name.as_deref().is_none_or(|name| {
-                        reads(derived).iter().any(|r| r.eq_ignore_ascii_case(name))
-                    }))
-        })
-        .map(Cow::Borrowed)
-        .collect();
+    let names = damage(derived);
+    let unread = properties::unread_under(item, "properties", &|name| {
+        name.eq_ignore_ascii_case(ATTACKS_PER_SECOND)
+            || names.iter().any(|n| n.eq_ignore_ascii_case(name))
+    });
     if !unread.is_empty() {
         return Err(Inputs::Unread(unread));
     }
-    let property = |name: &str| {
-        item.properties
-            .iter()
-            .find(|p| p.array == "properties" && p.name.eq_ignore_ascii_case(name))
-    };
     let mut problems: Vec<Cow<'_, Unread>> = Vec::new();
-    let mut problem = |p: &Property, what: &str| {
-        problems.push(Cow::Owned(Unread {
-            part: properties.clone(),
-            problem: format!("`{}` is `{}`: {what}", p.name, p.values.join(", ")),
-            line: None,
-            name: Some(p.name.clone()),
-            socket: None,
-        }));
+    let mut damage: Vec<&Property> = Vec::new();
+    for name in names {
+        match properties::one(item, "properties", name) {
+            Ok(None) => {}
+            Ok(Some(property)) => damage.push(property),
+            Err(unread) => problems.push(unread),
+        }
+    }
+    let speed = properties::attacks_per_second(item);
+    if matches!(speed, FieldRead::Lacked) || (damage.is_empty() && problems.is_empty()) {
+        return Err(Inputs::Lacked);
+    }
+    let (speed, aps) = match speed {
+        FieldRead::Value { value, shown, .. } => (Some(value), shown.first().copied()),
+        FieldRead::Unread(unread) => {
+            problems.extend(unread);
+            (None, None)
+        }
+        FieldRead::Lacked => (None, None),
     };
     // the mean of a damage property: the sum of its ranges' means
-    let mean_of = |p: &Property, problem: &mut dyn FnMut(&Property, &str)| -> Option<Exact> {
+    let mean_of = |p: &Property, problems: &mut Vec<Cow<'_, Unread>>| -> Option<Exact> {
         let mut means = Vec::with_capacity(p.values.len());
         for value in &p.values {
             match range(value) {
                 Some((low, high)) => means.push(low.mid(high)),
                 None => {
-                    problem(p, "no number and no range of two the search reads");
+                    problems.push(properties::problem(
+                        p,
+                        "no number and no range of two the search reads",
+                    ));
                     return None;
                 }
             }
         }
         if means.is_empty() {
-            problem(p, "no value");
+            problems.push(properties::problem(p, "no value"));
             return None;
         }
         Some(Exact::sum(means))
     };
-    let aps = property(ATTACKS_PER_SECOND);
-    let damage: Vec<&Property> = match derived {
-        Derived::Pdps => property(PHYSICAL).into_iter().collect(),
-        Derived::Edps => property(ELEMENTAL).into_iter().collect(),
-        Derived::Dps => [PHYSICAL, ELEMENTAL, CHAOS]
-            .into_iter()
-            .filter_map(property)
-            .collect(),
-        Derived::DefencePct => Vec::new(),
-    };
-    let (Some(aps), false) = (aps, damage.is_empty()) else {
-        return Err(Inputs::Lacked);
-    };
-    let speed = match aps.values.as_slice() {
-        [one] => match number(one) {
-            Some(n) => Some(n),
-            None => {
-                problem(aps, "no number the search reads");
-                None
-            }
-        },
-        _ => {
-            problem(aps, "not one value");
-            None
-        }
-    };
-    let means: Vec<Option<Exact>> = damage.iter().map(|p| mean_of(p, &mut problem)).collect();
+    let means: Vec<Option<Exact>> = damage.iter().map(|p| mean_of(p, &mut problems)).collect();
     let product = match (speed, means.into_iter().collect::<Option<Vec<Exact>>>()) {
         (Some(speed), Some(means)) => {
             let mean = Exact::sum(means);
             let product = mean.times(speed);
-            if product.is_none() {
-                problem(
+            if let (None, Some(aps)) = (product, aps) {
+                problems.push(properties::problem(
                     aps,
                     &format!(
                         "times the damage's mean {}, a product of more decimals than the search reads",
                         mean.as_f64()
                     ),
-                );
+                ));
             }
             product
         }
@@ -982,7 +961,7 @@ fn inputs(derived: Derived, held: &Held) -> Result<Read<'_>, Inputs<'_>> {
     let Some(value) = product else {
         return Err(Inputs::Unread(Vec::new()));
     };
-    let mut shown: Vec<&Property> = std::iter::once(aps).chain(damage).collect();
+    let mut shown: Vec<&Property> = aps.into_iter().chain(damage).collect();
     shown.sort_by_key(|p| item.properties.iter().position(|q| std::ptr::eq(q, *p)));
     Ok(Read { value, shown })
 }
@@ -1078,7 +1057,7 @@ fn gap(gap: PercentileGap, problem: String) -> Cow<'static, Unread> {
 /// of it all ask. Each stage answers before the next is read, so a
 /// reason is of the first thing that could not be established: the
 /// realm's table, the properties, the base, the arrays, the side of each
-/// line, the rolls.
+/// line and the quality where the enchant does not drop it, the rolls.
 fn percentile(held: &Held) -> Result<Percentile<'_>, Inputs<'_>> {
     let item = &held.item;
     let table = match defences::table() {
@@ -1093,51 +1072,23 @@ fn percentile(held: &Held) -> Result<Percentile<'_>, Inputs<'_>> {
 
     // the properties: the four defences, and the quality
     let properties = Part::Properties("properties".to_string());
-    let named = |name: &str| {
-        item.properties
-            .iter()
-            .filter(|p| p.array == "properties" && p.name.eq_ignore_ascii_case(name))
-            .collect::<Vec<&Property>>()
-    };
-    let unread_named = |reads: &dyn Fn(&str) -> bool, nameless: bool| -> Vec<Cow<'_, Unread>> {
-        item.unread
-            .iter()
-            .filter(|u| {
-                (nameless && u.part == Part::Body)
-                    || (u.part == properties
-                        && match u.name.as_deref() {
-                            Some(name) => reads(name),
-                            None => nameless,
-                        })
-            })
-            .map(Cow::Borrowed)
-            .collect()
-    };
-    let problem = |p: &Property, what: &str| -> Cow<'static, Unread> {
-        Cow::Owned(Unread {
-            part: properties.clone(),
-            problem: format!("`{}` is `{}`: {what}", p.name, p.values.join(", ")),
-            line: None,
-            name: Some(p.name.clone()),
-            socket: None,
-        })
-    };
     let is_defence = |name: &str| {
         Defence::ALL
             .iter()
             .any(|d| d.property().eq_ignore_ascii_case(name))
     };
-    let mut reasons = unread_named(&is_defence, true);
+    // each defence the one so named, and read as the q20 fields read it
+    // (`properties.rs`): one reading of a displayed defence
+    let mut reasons = properties::unread_under(item, "properties", &is_defence);
     let mut displayed: Vec<(Defence, i128, &Property)> = Vec::new();
     for defence in Defence::ALL {
-        match named(defence.property()).as_slice() {
-            [] => {}
-            // one reading of a displayed defence, the q20 fields' too
-            [property] => match properties::defence(property) {
+        match properties::one(item, "properties", defence.property()) {
+            Ok(None) => {}
+            Ok(Some(property)) => match properties::defence(property, None) {
                 Ok(number) => displayed.push((defence, number, property)),
                 Err(reason) => reasons.push(reason),
             },
-            [property, ..] => reasons.push(problem(property, "displayed more than once")),
+            Err(reason) => reasons.push(reason),
         }
     }
     if !reasons.is_empty() {
@@ -1148,22 +1099,10 @@ fn percentile(held: &Held) -> Result<Percentile<'_>, Inputs<'_>> {
     if displayed.is_empty() {
         return Err(Inputs::Lacked);
     }
-    // the quality is asked only of an item displaying a defence (rule 8)
-    // the `quality` field's own reading (`properties.rs`): one maker of
-    // what the item's quality is, which the q20 fields read too
-    let quality: Option<(i128, &Property)> = match properties::quality(item) {
-        FieldRead::Unread(reasons) => return open(reasons),
-        FieldRead::Lacked => None,
-        FieldRead::Value { value, shown, .. } => match (value.as_whole(), shown.first()) {
-            (Some(number), Some(property)) => Some((number, *property)),
-            // the `quality` row reads whole numbers of one property alone,
-            // so neither arm below is met; each still says what it is
-            (None, Some(property)) => {
-                return open(vec![problem(property, "no whole number the search reads")]);
-            }
-            (_, None) => None,
-        },
-    };
+    // the quality is asked only of an item displaying a defence (rule 8),
+    // by the `quality` field's own reading (`properties.rs`), which the
+    // q20 fields read too; whether it is needed is the enchant's, below
+    let quality = properties::quality(item);
 
     // the base: the one row of the table all of whose defences the item
     // displays
@@ -1349,9 +1288,16 @@ fn percentile(held: &Held) -> Result<Percentile<'_>, Inputs<'_>> {
             }
         }
     }
-    let quality_term = match quality {
-        Some((number, _)) if !quality_dropped => number,
-        _ => 0,
+    // the quality, where the enchant does not drop it: one not read is a
+    // reason only then, and the reasons stop the rolls before the term is
+    // used
+    let quality_term = match (&quality, quality_dropped) {
+        (_, true) | (Ok(None), false) => 0,
+        (Ok(Some((number, _))), false) => *number,
+        (Err(unread), false) => {
+            reasons.extend(unread.iter().cloned());
+            0
+        }
     };
     let shown_of = |defence: Defence| {
         displayed
@@ -1443,7 +1389,7 @@ fn percentile(held: &Held) -> Result<Percentile<'_>, Inputs<'_>> {
         .iter()
         .filter(|(defence, _, _)| base.ranged(*defence))
         .map(|(_, _, property)| *property)
-        .chain(quality.map(|(_, property)| property))
+        .chain(quality.ok().flatten().map(|(_, property)| property))
         .collect();
     shown.sort_by_key(|p| item.properties.iter().position(|q| std::ptr::eq(q, *p)));
     let mut lines: Vec<&Line> = Vec::new();

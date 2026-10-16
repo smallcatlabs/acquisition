@@ -38,8 +38,9 @@
 //!   — a field, a word it reads in a field's place, `pseudo.`,
 //!   every row reading what its `reads` takes and nothing it does not, an
 //!   array the deriver keeps properties under, a property name given and
-//!   none twice, no two rows reading one value the same way, a q20 row
-//!   only beside a `quality` row, a definition. A table that fails is a
+//!   none twice, no two rows reading one value the same way, the rows
+//!   the search's own values read by name (`quality`,
+//!   `attacks_per_second`), a definition. A table that fails is a
 //!   build defect surfaced as [`PropertyTableError`] to whoever asks —
 //!   no corpus is loaded over it (`corpus.rs`) — never a partial table.
 //! - **One reader, at the property's grain (rule 8 of the plan).** What a
@@ -50,17 +51,24 @@
 //!   body, the array, an element whose name could not be read or is the
 //!   row's (`derive::Unread::name`). A property displayed as other than
 //!   the row reads, or more than once, is unread under its array, said
-//!   here, as a damage field's is (`pseudo.rs`); nothing else of the item
-//!   leaves the field open.
+//!   here; nothing else of the item leaves the field open. Which property
+//!   is the one so named, and what unread may be it, are one rule here
+//!   (`unread_under`, `one`) that the damage fields and the percentile
+//!   (`pseudo.rs`) ask too, so no two readers take different properties.
+//!   Every row reads its value the one way (`value_of`), so a row names
+//!   nothing its reading ignores.
 //! - **A number is read once** (`exact.rs`): the digits within the crate's
 //!   rule, a `+` and a unit each read where written and only where the row
 //!   names them, and a fraction made of whole numbers alone. A gem's
 //!   experience is the percent cut toward nothing to the units; the q20
 //!   product is rounded half up from a fraction, never from a float.
-//! - **The quality is one reading.** The q20 rows read the `quality` row,
-//!   and so does the base defence percentile (`pseudo.rs`, `quality`):
-//!   one maker of what the item's quality is (rule 10 of the plan); and
-//!   both read a displayed defence by `defence`.
+//! - **A value two fields read is read once** (rule 10 of the plan). The
+//!   q20 rows read the `quality` row, and so does the base defence
+//!   percentile (`pseudo.rs`): one maker of what the item's quality is;
+//!   both read a displayed defence by `defence`. The damage fields read
+//!   the `attacks_per_second` row. The q20 rule reads the quality and the
+//!   enchant before either decides, so what is unread of one leaves the
+//!   field open only where the other does not settle it.
 //! - **The version is on the basis** (C98): `properties`, beside the other
 //!   tables'.
 
@@ -100,8 +108,17 @@ const WORDS: [&str; 7] = [
     "false",
 ];
 
-/// The row the q20 rows and the percentile read the quality by.
+/// The rows the search's own values read by name, each with the property
+/// it must read a number of: the quality, by the q20 rows and the
+/// percentile (`pseudo.rs`); the attack speed, by the damage fields. A
+/// value two fields read is read once, by its row (rule 10 of the plan),
+/// so a table without one is refused.
 const QUALITY: &str = "quality";
+const ATTACKS_PER_SECOND: &str = "attacks_per_second";
+const READ_BY_NAME: [(&str, &str); 2] = [
+    (QUALITY, "Quality"),
+    (ATTACKS_PER_SECOND, "Attacks per Second"),
+];
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -258,8 +275,12 @@ pub enum PropertyTableError {
         field: String,
         other: String,
     },
-    /// A q20 row with no `quality` row reading a number of `Quality`.
-    NoQuality(String),
+    /// No row of this name reading a number of this property, which the
+    /// search's own values read by it.
+    NoRow {
+        row: &'static str,
+        property: &'static str,
+    },
     NoDefinition(String),
 }
 
@@ -303,9 +324,9 @@ impl std::fmt::Display for PropertyTableError {
                 f,
                 "the property table has {field:?} read what {other:?} reads, the same way"
             ),
-            PropertyTableError::NoQuality(field) => write!(
+            PropertyTableError::NoRow { row, property } => write!(
                 f,
-                "the property table's {field:?} reads the quality, and no `quality` row reads a number of `Quality`"
+                "the property table has no {row:?} row reading a number of `{property}`, which the search's own values read by it"
             ),
             PropertyTableError::NoDefinition(field) => {
                 write!(f, "the property table gives {field:?} no definition")
@@ -525,17 +546,16 @@ impl PropertyTable {
                 definition: row.definition,
             });
         }
-        // the q20 rule reads the quality by the `quality` row
-        let quality_read = fields.iter().any(|f| {
-            f.name == QUALITY
-                && f.reads == Reads::Number
-                && f.array.as_deref() == Some("properties")
-                && f.names("Quality")
-        });
-        if let Some(q20) = fields.iter().find(|f| f.reads == Reads::Q20)
-            && !quality_read
-        {
-            return Err(PropertyTableError::NoQuality(q20.name.clone()));
+        for (row, property) in READ_BY_NAME {
+            let read = fields.iter().any(|f| {
+                f.name == row
+                    && f.reads == Reads::Number
+                    && f.array.as_deref() == Some("properties")
+                    && f.names(property)
+            });
+            if !read {
+                return Err(PropertyTableError::NoRow { row, property });
+            }
         }
         Ok(PropertyTable {
             version: file.version,
@@ -600,10 +620,9 @@ pub(crate) fn read<'a>(field: &Field, item: &'a Item) -> FieldRead<'a> {
         Reads::Number => match found(field, item) {
             Err(unread) => FieldRead::Unread(unread),
             Ok(None) => FieldRead::Lacked,
-            Ok(Some(property)) => match value_of(field, property) {
-                None if field.value.is_some() => unread(property, "no such value"),
-                None => unread(property, "not one value"),
-                Some(text) => match number(field, text) {
+            Ok(Some(property)) => match value_of(field.value, property) {
+                Err(unread) => FieldRead::Unread(vec![unread]),
+                Ok(text) => match number(field, text) {
                     Some(value) => FieldRead::Value {
                         value,
                         shown: vec![property],
@@ -618,7 +637,11 @@ pub(crate) fn read<'a>(field: &Field, item: &'a Item) -> FieldRead<'a> {
             Err(unread) => FieldRead::Unread(unread),
             Ok(None) => FieldRead::Lacked,
             Ok(Some(property)) => {
-                let Some((a, b)) = value_of(field, property).and_then(pair) else {
+                let text = match value_of(field.value, property) {
+                    Ok(text) => text,
+                    Err(unread) => return FieldRead::Unread(vec![unread]),
+                };
+                let Some((a, b)) = pair(text) else {
                     return unread(property, "no `a/b` of whole numbers the search reads");
                 };
                 let value = match field.reads {
@@ -642,41 +665,109 @@ pub(crate) fn read<'a>(field: &Field, item: &'a Item) -> FieldRead<'a> {
     }
 }
 
-/// The item's quality as the `quality` row reads it: what the q20 rows
-/// and the base defence percentile (`pseudo.rs`) take it as.
-pub(crate) fn quality(item: &Item) -> FieldRead<'_> {
-    match table().ok().and_then(|t| t.field(QUALITY)) {
+/// A row the search's own values read by name (`READ_BY_NAME`), on an
+/// item.
+fn by_name<'a>(row: &str, item: &'a Item) -> FieldRead<'a> {
+    match table().ok().and_then(|t| t.field(row)) {
         Some(field) => read(field, item),
-        // the loader refuses a table with a q20 row and no `quality` row,
-        // and no corpus is loaded over a table that does not load
+        // the loader refuses a table without it, and no corpus is loaded
+        // over a table that does not load
         None => FieldRead::Lacked,
     }
 }
 
-/// The one property of the item the row reads, none, or what left that
-/// open: what was unread that may be it, or it displayed more than once.
-fn found<'a>(field: &Field, item: &'a Item) -> Result<Option<&'a Property>, Vec<Cow<'a, Unread>>> {
-    let array = field.array.as_deref().unwrap_or_default();
-    let part = Part::Properties(array.to_string());
-    let unread: Vec<Cow<'a, Unread>> = item
-        .unread
-        .iter()
-        .filter(|u| {
-            u.part == Part::Body
-                || (u.part == part && u.name.as_deref().is_none_or(|name| field.names(name)))
-        })
-        .map(Cow::Borrowed)
-        .collect();
-    if !unread.is_empty() {
-        return Err(unread);
+/// The item's attack speed as the `attacks_per_second` row reads it:
+/// what the damage fields (`pseudo.rs`) multiply by.
+pub(crate) fn attacks_per_second(item: &Item) -> FieldRead<'_> {
+    by_name(ATTACKS_PER_SECOND, item)
+}
+
+/// The item's quality as the `quality` row reads it, a whole percent and
+/// the property it was read from, none where it displays none: what the
+/// q20 rows and the base defence percentile (`pseudo.rs`) take it as.
+pub(crate) fn quality(item: &Item) -> Result<Option<(i128, &Property)>, Vec<Cow<'_, Unread>>> {
+    match by_name(QUALITY, item) {
+        FieldRead::Unread(unread) => Err(unread),
+        FieldRead::Lacked => Ok(None),
+        FieldRead::Value { value, shown, .. } => match (value.as_whole(), shown.first()) {
+            (Some(number), Some(property)) => Ok(Some((number, *property))),
+            // the `quality` row reads whole numbers of one property alone,
+            // so neither arm below is met; each still says what it is
+            (None, Some(property)) => {
+                Err(vec![problem(property, "no whole number the search reads")])
+            }
+            (_, None) => Ok(None),
+        },
     }
-    let held = if array == "requirements" {
+}
+
+/// What was unread of the item that may be a property of `array` the
+/// reader takes by one of these names: the body, the array itself, or an
+/// element of it whose name could not be read or is one of them. Every
+/// reader of a property asks it first (rule 8), so a property is lacked
+/// only where nothing that could display it was unread.
+pub(crate) fn unread_under<'a>(
+    item: &'a Item,
+    array: &str,
+    names: &dyn Fn(&str) -> bool,
+) -> Vec<Cow<'a, Unread>> {
+    let part = Part::Properties(array.to_string());
+    item.unread
+        .iter()
+        .filter(|u| u.part == Part::Body || (u.part == part && u.name.as_deref().is_none_or(names)))
+        .map(Cow::Borrowed)
+        .collect()
+}
+
+/// The one property among those displayed for one reading: none, it, or
+/// — displayed more than once — unread, said under its array. Every
+/// reader of a property takes it by this rule (rule 10), so no two can
+/// take different ones.
+fn the_one<'a>(
+    mut displayed: impl Iterator<Item = &'a Property>,
+) -> Result<Option<&'a Property>, Cow<'a, Unread>> {
+    match (displayed.next(), displayed.next()) {
+        (None, _) => Ok(None),
+        (Some(one), None) => Ok(Some(one)),
+        (Some(first), Some(_)) => Err(problem(first, "displayed more than once")),
+    }
+}
+
+/// The one property of `array` the item displays as `name`, by
+/// [`the_one`]'s rule: what a computed value of several properties reads
+/// each by (`pseudo.rs`), after asking [`unread_under`] of them all.
+pub(crate) fn one<'a>(
+    item: &'a Item,
+    array: &str,
+    name: &str,
+) -> Result<Option<&'a Property>, Cow<'a, Unread>> {
+    the_one(
+        held(item, array)
+            .iter()
+            .filter(|p| p.array == array && p.name.eq_ignore_ascii_case(name)),
+    )
+}
+
+/// The properties the deriver keeps for an array.
+fn held<'a>(item: &'a Item, array: &str) -> &'a [Property] {
+    if array == "requirements" {
         &item.requirements
     } else {
         &item.properties
-    };
+    }
+}
+
+/// The one property of the item the row reads, none, or what left that
+/// open: what was unread that may be it, a property of the row's shape
+/// that does not say whose it is, or it displayed more than once.
+fn found<'a>(field: &Field, item: &'a Item) -> Result<Option<&'a Property>, Vec<Cow<'a, Unread>>> {
+    let array = field.array.as_deref().unwrap_or_default();
+    let unread = unread_under(item, array, &|name| field.names(name));
+    if !unread.is_empty() {
+        return Err(unread);
+    }
     let mut its: Vec<&'a Property> = Vec::new();
-    for property in held
+    for property in held(item, array)
         .iter()
         .filter(|p| p.array == array && field.names(&p.name))
     {
@@ -693,14 +784,12 @@ fn found<'a>(field: &Field, item: &'a Item) -> Result<Option<&'a Property>, Vec<
             },
         }
     }
-    match its.as_slice() {
-        [] => Ok(None),
-        [one] => Ok(Some(one)),
-        [first, ..] => Err(vec![problem(first, "displayed more than once")]),
-    }
+    the_one(its.into_iter()).map_err(|unread| vec![unread])
 }
 
-fn problem<'a>(property: &Property, what: &str) -> Cow<'a, Unread> {
+/// A property displayed as the reader does not read it, said under its
+/// array: the one wording every reader of a property gives.
+pub(crate) fn problem<'a>(property: &Property, what: &str) -> Cow<'a, Unread> {
     Cow::Owned(Unread {
         part: Part::Properties(property.array.clone()),
         problem: format!(
@@ -749,14 +838,19 @@ fn number(field: &Field, text: &str) -> Option<Exact> {
         .map(Exact::of)
 }
 
-/// The value a row reads: the one named, or the one value of a property
-/// that displays one, and none otherwise.
-fn value_of<'a>(field: &Field, property: &'a Property) -> Option<&'a str> {
-    match field.value {
-        Some(at) => property.values.get(at).map(String::as_str),
+/// The value a row reads: the one it names, or the one value of a
+/// property that displays one — every row reads its value so, a q20 row
+/// too, so no row names a value its reading ignores.
+fn value_of<'b>(at: Option<usize>, property: &Property) -> Result<&str, Cow<'b, Unread>> {
+    match at {
+        Some(at) => property
+            .values
+            .get(at)
+            .map(String::as_str)
+            .ok_or_else(|| problem(property, "no such value")),
         None => match property.values.as_slice() {
-            [one] => Some(one.as_str()),
-            _ => None,
+            [one] => Ok(one.as_str()),
+            _ => Err(problem(property, "not one value")),
         },
     }
 }
@@ -772,35 +866,28 @@ fn pair(text: &str) -> Option<(i128, i128)> {
     Some((whole(a)?, whole(b)?))
 }
 
-/// The q20 rule (the table's header, S26).
+/// The q20 rule (the table's header, S26): the display stands where the
+/// quality is 20 % or more, or under the enchant that drops it; otherwise
+/// the display with the quality taken out and 20 % put in. Both facts are
+/// read before either decides, and one not established leaves the field
+/// open only where the other does not settle it (rule 8).
 fn q20<'a>(field: &Field, item: &'a Item) -> FieldRead<'a> {
     let (display, property) = match found(field, item) {
         Err(unread) => return FieldRead::Unread(unread),
         Ok(None) => return FieldRead::Lacked,
-        Ok(Some(property)) => match defence(property) {
+        Ok(Some(property)) => match defence(property, field.value) {
             Ok(display) => (display, property),
             Err(unread) => return FieldRead::Unread(vec![unread]),
         },
     };
-    // the quality is asked only of an item displaying the defence (rule 8)
+    // the quality and the enchant are asked only of an item displaying
+    // the defence (rule 8)
+    let quality = quality(item).map(|q| q.map_or((0, None), |(n, p)| (n, Some(p))));
+    let enchant = enchant(item);
     let mut shown = vec![property];
-    let quality = match quality(item) {
-        FieldRead::Unread(unread) => return FieldRead::Unread(unread),
-        FieldRead::Lacked => 0,
-        FieldRead::Value {
-            value, shown: of, ..
-        } => {
-            shown.extend(of.iter().copied());
-            match (value.as_whole(), of.first()) {
-                (Some(q), _) => q,
-                // the `quality` row reads whole numbers alone
-                (None, Some(quality)) => {
-                    return unread(quality, "no whole number the search reads");
-                }
-                (None, None) => return FieldRead::Lacked,
-            }
-        }
-    };
+    if let Ok((_, Some(of))) = quality {
+        shown.push(of);
+    }
     shown.sort_by_key(|p| item.properties.iter().position(|q| std::ptr::eq(q, *p)));
     let value = |n: Option<i128>, lines: Vec<&'a Line>| match n.and_then(Exact::whole) {
         Some(value) => FieldRead::Value {
@@ -810,25 +897,30 @@ fn q20<'a>(field: &Field, item: &'a Item) -> FieldRead<'a> {
         },
         None => unread(property, "past what the search computes with"),
     };
-    if quality >= Q20 {
-        return value(Some(display), Vec::new());
+    match (quality, enchant) {
+        (Ok((quality, _)), _) if quality >= Q20 => value(Some(display), Vec::new()),
+        (_, Ok(lines)) if !lines.is_empty() => value(Some(display), lines),
+        // the display × (100 + 20) ÷ (100 + the quality), rounded half up
+        (Ok((quality, _)), Ok(_)) => value(
+            Ratio::new(display * (100 + Q20), 100 + quality).and_then(Ratio::half_up),
+            Vec::new(),
+        ),
+        (quality, enchant) => FieldRead::Unread(
+            quality
+                .err()
+                .into_iter()
+                .chain(enchant.err())
+                .flatten()
+                .collect(),
+        ),
     }
-    // below 20 %, the enchant decides: wherever it sits, so an array of
-    // lines that could not be read may hold it
-    let open: Vec<Cow<'a, Unread>> = item
-        .unread
-        .iter()
-        .filter(|u| match &u.part {
-            Part::Lines(_) => true,
-            Part::Field(key) => key == "hybrid",
-            _ => false,
-        })
-        .map(Cow::Borrowed)
-        .collect();
-    if !open.is_empty() {
-        return FieldRead::Unread(open);
-    }
-    let enchant: Vec<&'a Line> = item
+}
+
+/// The lines of the enchant that drops quality (J6), none, or — none read
+/// and an array of lines unread, which may hold it wherever it sits —
+/// what was unread.
+fn enchant(item: &Item) -> Result<Vec<&Line>, Vec<Cow<'_, Unread>>> {
+    let enchant: Vec<&Line> = item
         .lines
         .iter()
         .filter(|line| {
@@ -840,25 +932,32 @@ fn q20<'a>(field: &Field, item: &'a Item) -> FieldRead<'a> {
         })
         .collect();
     if !enchant.is_empty() {
-        return value(Some(display), enchant);
+        return Ok(enchant);
     }
-    // the display × (100 + 20) ÷ (100 + the quality), rounded half up
-    value(
-        Ratio::new(display * (100 + Q20), 100 + quality).and_then(Ratio::half_up),
-        Vec::new(),
-    )
+    let open: Vec<Cow<'_, Unread>> = item
+        .unread
+        .iter()
+        .filter(|u| match &u.part {
+            Part::Lines(_) => true,
+            Part::Field(key) => key == "hybrid",
+            _ => false,
+        })
+        .map(Cow::Borrowed)
+        .collect();
+    if open.is_empty() {
+        Ok(enchant)
+    } else {
+        Err(open)
+    }
 }
 
-/// A defence as displayed — one value, digits alone — or why it is not:
-/// what the q20 fields and the base defence percentile (`pseudo.rs`)
-/// both read of `Armour` and its kin, one reading.
-pub(crate) fn defence<'a>(property: &Property) -> Result<i128, Cow<'a, Unread>> {
-    match property.values.as_slice() {
-        [value] => {
-            whole(value).ok_or_else(|| problem(property, "no whole number the search reads"))
-        }
-        _ => Err(problem(property, "not one value")),
-    }
+/// A defence as displayed — the value read as every row reads one
+/// (`value_of`), digits alone — or why it is not: what the q20 fields and
+/// the base defence percentile (`pseudo.rs`) both read of `Armour` and its
+/// kin, one reading.
+pub(crate) fn defence<'a>(property: &Property, at: Option<usize>) -> Result<i128, Cow<'a, Unread>> {
+    let text = value_of(at, property)?;
+    whole(text).ok_or_else(|| problem(property, "no whole number the search reads"))
 }
 
 /// A whole number as a defence is displayed: digits alone, within the
@@ -897,5 +996,53 @@ fn tier(item: &Item) -> FieldRead<'_> {
             lines: Vec::new(),
         },
         None => FieldRead::Lacked,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{FieldRead, PROPERTY_TABLE_TOML, PropertyTable, read};
+    use crate::derive::{Facts, derive};
+    use crate::exact::Exact;
+
+    /// Every row reads its value the one way (`value_of`), a q20 row too:
+    /// the `value` a row names is the value read, so no row names one its
+    /// reading ignores.
+    #[test]
+    fn a_q20_row_reads_the_value_it_names() {
+        let facts = Facts {
+            id: "i".to_string(),
+            realm: "pc".to_string(),
+            league: Some("Standard".to_string()),
+            location_kind: "stash".to_string(),
+            location_id: "t".to_string(),
+            container: None,
+            socketed_in: None,
+            first_seen: 0,
+            last_seen: 0,
+            removed_at: None,
+        };
+        let item = derive(
+            facts,
+            r#"{"id":"i","baseType":"B","properties":[{"name":"Armour","values":[["100",0]],"displayMode":0}]}"#,
+        );
+        let probe = |value: usize| {
+            let text = format!(
+                "{PROPERTY_TABLE_TOML}\n[[field]]\nname = \"probe\"\narray = \"properties\"\nproperty = [\"Armour\"]\nreads = \"q20\"\nvalue = {value}\ndefinition = \"d\"\n"
+            );
+            let table = PropertyTable::parse(&text).unwrap();
+            let field = table.field("probe").unwrap();
+            match read(field, &item) {
+                FieldRead::Value { value, .. } => Ok(value),
+                FieldRead::Unread(unread) => Err(unread[0].problem.clone()),
+                FieldRead::Lacked => Err("lacked".to_string()),
+            }
+        };
+        // the first value, 100 at no quality: 100 × 120 ÷ 100
+        assert_eq!(probe(0), Ok(Exact::whole(120).unwrap()));
+        assert_eq!(
+            probe(1),
+            Err("`Armour` is `100`: no such value".to_string())
+        );
     }
 }

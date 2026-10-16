@@ -67,8 +67,12 @@ fn row(name: &str, body: &str) -> String {
     format!("[[field]]\nname = \"{name}\"\n{body}\ndefinition = \"d\"\n")
 }
 
-const QUALITY_ROW: &str =
-    "array = \"properties\"\nproperty = [\"Quality\"]\nreads = \"number\"\nwhole = true";
+/// The rows the search's own values read by name, which every table
+/// carries: the quality, and the attack speed.
+const READ: &str = concat!(
+    "[[field]]\nname = \"quality\"\narray = \"properties\"\nproperty = [\"Quality\"]\nreads = \"number\"\nwhole = true\ndefinition = \"d\"\n",
+    "[[field]]\nname = \"attacks_per_second\"\narray = \"properties\"\nproperty = [\"Attacks per Second\"]\nreads = \"number\"\ndefinition = \"d\"\n",
+);
 
 /// What the loader refuses, each by the row it names.
 #[test]
@@ -77,7 +81,7 @@ fn c114_the_property_table_loader_refuses_what_a_reviewer_would() {
     let field = |name: &str| name.to_string();
     let plain = "array = \"properties\"\nproperty = [\"Armour\"]\nreads = \"number\"";
     // the shape of a good table, to break one part at a time
-    assert!(PropertyTable::parse(&format!("{HEAD}{}", row("a", plain))).is_ok());
+    assert!(PropertyTable::parse(&format!("{HEAD}{READ}{}", row("a", plain))).is_ok());
     assert_eq!(
         refused(format!("version = 2\nsource = \"s\"\n{}", row("a", plain))),
         PropertyTableError::Version {
@@ -226,19 +230,43 @@ fn c114_the_property_table_loader_refuses_what_a_reviewer_would() {
             other: field("a")
         }
     );
-    // a q20 row reads the quality by the `quality` row
-    let q20 = "array = \"properties\"\nproperty = [\"Armour\"]\nreads = \"q20\"";
+    // the rows the search's own values read by name: the quality, read
+    // by the q20 rows and the percentile, and the attack speed, read by
+    // the damage fields; each a number of its property
+    let quality = "array = \"properties\"\nproperty = [\"Quality\"]\nreads = \"number\"";
+    let speed = "array = \"properties\"\nproperty = [\"Attacks per Second\"]\nreads = \"number\"";
+    let no_row =
+        |row: &'static str, property: &'static str| PropertyTableError::NoRow { row, property };
     assert_eq!(
-        refused(format!("{HEAD}{}", row("a", q20))),
-        PropertyTableError::NoQuality(field("a"))
+        refused(format!("{HEAD}{}", row("a", plain))),
+        no_row("quality", "Quality")
     );
-    assert!(
-        PropertyTable::parse(&format!(
+    assert_eq!(
+        refused(format!(
             "{HEAD}{}{}",
-            row("a", q20),
-            row("quality", QUALITY_ROW)
-        ))
-        .is_ok()
+            row("quality", quality),
+            row("a", plain)
+        )),
+        no_row("attacks_per_second", "Attacks per Second")
+    );
+    assert_eq!(
+        refused(format!(
+            "{HEAD}{}{}",
+            row(
+                "quality",
+                "array = \"properties\"\nproperty = [\"Armour\"]\nreads = \"number\""
+            ),
+            row("attacks_per_second", speed)
+        )),
+        no_row("quality", "Quality")
+    );
+    assert_eq!(
+        refused(format!(
+            "{HEAD}{}{}",
+            row("quality", quality),
+            row("attacks_per_second", &speed.replace("number", "q20"))
+        )),
+        no_row("attacks_per_second", "Attacks per Second")
     );
     assert_eq!(
         refused(format!(
@@ -741,6 +769,11 @@ fn c114_every_field_is_asked_every_way_a_number_is() {
 
 /// One armour item's `armour.q20`, as the sort reads it.
 fn q20_of(more: Value) -> Value {
+    sort_of("armour.q20", more)
+}
+
+/// One item's value of a field, as the sort reads it.
+fn sort_of(field: &str, more: Value) -> Value {
     let mut s = store();
     list_tabs(&mut s, "pc", "Standard", json!([tab("a1", "A")]), 10);
     fetch_tab(
@@ -752,7 +785,7 @@ fn q20_of(more: Value) -> Value {
         vec![item("x", "X", "Base", "Rare", more)],
         20,
     );
-    let a = view(&s, "", json!({ "rows": { "sort": "armour.q20" } }));
+    let a = view(&s, "", json!({ "rows": { "sort": field } }));
     scalar(&a["rows"][0]["sort"])
 }
 
@@ -917,6 +950,118 @@ fn c114_the_tier_is_the_bases_and_edps_the_elemental_ranges() {
         json!({ "value": 171.25 })
     );
     assert_eq!(ids(&view(&s, "-has:pseudo.edps", json!({}))).len(), 6);
+}
+
+/// S26, rule 8: the q20 rule's display stands at 20 % or more or under
+/// the enchant, so either known settles it, whatever is unread of the
+/// other: under the enchant, a quality that could not be read, or an
+/// array of lines that is no array, leaves the display the value. Where
+/// neither settles it, what is unread opens it, both reasons named.
+#[test]
+fn rule_8_a_known_enchant_settles_q20_whatever_else_is_unread() {
+    let unread_quality = json!({ "name": "Quality", "values": 7, "displayMode": 0 });
+    let enchant = json!(["Quality does not increase Defences"]);
+    // under the enchant, the quality unread
+    assert_eq!(
+        q20_of(json!({
+            "properties": [unread_quality, prop("Armour", &["100"], 0)],
+            "enchantMods": enchant,
+        })),
+        json!({ "value": 100 })
+    );
+    // under the enchant, another array of lines unread
+    assert_eq!(
+        q20_of(json!({
+            "properties": [prop("Quality", &["+5%"], 0), prop("Armour", &["100"], 0)],
+            "enchantMods": enchant,
+            "implicitMods": "no array",
+        })),
+        json!({ "value": 100 })
+    );
+    // neither settles it: the quality unread and no enchant read
+    assert_eq!(
+        q20_of(json!({ "properties": [unread_quality, prop("Armour", &["100"], 0)] })),
+        json!({ "status": "incomplete" })
+    );
+    // the quality unread and an array that may hold the enchant: both
+    // are the reasons
+    let mut s = store();
+    list_tabs(&mut s, "pc", "Standard", json!([tab("a1", "A")]), 10);
+    fetch_tab(
+        &mut s,
+        "pc",
+        "Standard",
+        "a1",
+        "A",
+        vec![item(
+            "x",
+            "X",
+            "Base",
+            "Rare",
+            json!({
+                "properties": [unread_quality, prop("Armour", &["100"], 0)],
+                "enchantMods": 7,
+            }),
+        )],
+        20,
+    );
+    let a = view(&s, "has:armour.q20", json!({}));
+    let reasons: Vec<&str> = a["total"]["undecided_reasons"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["unread"].as_str().unwrap())
+        .collect();
+    assert_eq!(reasons, ["`properties`", "enchant lines"], "{a}");
+}
+
+/// Rule 10: the damage fields read the attack speed as the
+/// `attacks_per_second` field reads it, and each damage property as the
+/// one so named, so a property displayed twice leaves every reader of it
+/// open, in either order — never the first taken.
+#[test]
+fn rule_10_the_damage_fields_and_attacks_per_second_read_one_attack_speed() {
+    let twice = |first: &str, second: &str| {
+        props(vec![
+            prop("Attacks per Second", &[first], 0),
+            prop("Attacks per Second", &[second], 0),
+            prop("Elemental Damage", &["10-20"], 0),
+        ])
+    };
+    for more in [twice("1", "2"), twice("2", "1")] {
+        for field in ["attacks_per_second", "pseudo.edps", "pseudo.dps"] {
+            assert_eq!(
+                sort_of(field, more.clone()),
+                json!({ "status": "incomplete" }),
+                "{field}"
+            );
+        }
+    }
+    // a damage property displayed twice
+    let more = props(vec![
+        prop("Attacks per Second", &["1"], 0),
+        prop("Physical Damage", &["10-20"], 0),
+        prop("Physical Damage", &["30-40"], 0),
+    ]);
+    for field in ["pseudo.pdps", "pseudo.dps"] {
+        assert_eq!(
+            sort_of(field, more.clone()),
+            json!({ "status": "incomplete" }),
+            "{field}"
+        );
+    }
+    assert_eq!(sort_of("attacks_per_second", more), json!({ "value": 1 }));
+    // once each, read: 1.5 × 15
+    assert_eq!(
+        sort_of(
+            "pseudo.edps",
+            props(vec![
+                prop("Attacks per Second", &["1.5"], 0),
+                prop("Elemental Damage", &["10-20"], 0),
+            ])
+        ),
+        json!({ "value": 22.5 })
+    );
 }
 
 // ---- the q20 rule against the site ------------------------------------------------------------

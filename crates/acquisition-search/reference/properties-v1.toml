@@ -20,7 +20,8 @@
 # property sits in (`properties`, `additionalProperties`, `requirements`);
 # `property` the names GGG gives it there, any one of them, as the deriver
 # shows them (markup reduced), a `{0}` kept where the name holds one;
-# `value` which of its values is read, from 0; `select` a value that must be
+# `value` which of its values is read, from 0, by every row that reads a
+# property, a q20 row too; `select` a value that must be
 # the word named for the property to be this field's — one property shape
 # for nine heist skills. `reads`:
 #   number       the value is a number: digits, a point and digits unless
@@ -38,6 +39,9 @@
 #                increase Defences` (the defence table's row that drops
 #                quality, J6), the display itself. The quality is the
 #                `quality` row's reading; an item displaying none has none.
+#                The `quality` and `attacks_per_second` rows are read by the
+#                search's own values (the q20 rows, the percentile, the
+#                damage fields), so the loader refuses a table without them.
 #   tier         no property: the base type's ` (Tier N)`, the number N.
 #
 # One status (rule 8 of the plan, C93): an item that displays no such
@@ -45,9 +49,10 @@
 # never zero. The field is unread — undecided, its comparisons open — where
 # the body, the array, or an element of it whose name is unread or is the
 # row's could not be read; where the property is displayed as other than the
-# row reads, or more than once; and for `q20` where the quality could not be
-# read, or, below 20 %, where an array of lines that may hold the enchant
-# could not be. Nothing else of the item opens it.
+# row reads, or more than once; and for `q20` where neither the quality nor
+# the enchant settles it — the quality could not be read, or, with no
+# enchant read, an array of lines that may hold it could not be, and
+# neither is known to keep the display. Nothing else of the item opens it.
 #
 # The q20 rule against the site's own figure (`extended.ar|ev|es|ward` of a
 # fetched listing), measured when the table was written, by
