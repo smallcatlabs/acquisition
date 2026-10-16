@@ -67,96 +67,96 @@ class,Warstaves,lacked,,,,,,39,,,,,
 class,Wombgifts,lacked,,,,,,50,,,,,
 class,not in the class table,lacked,,,,,,388,,,,,
 lines,# to Armour,flat,not read: of a type no roll reads,line-of-no-roll,explicitMods,crafted,neither,4,4,0,0,no,"does the site show the reading's value of an item whose `# to Armour` in `explicitMods` (crafted), mark `neither`, is of a type its base ranges none of?"
-lines,# to Armour,flat,not read: of a type no roll reads,line-of-no-roll,implicitMods,-,synthesised,1,1,0,0,no,"does the site show the reading's value of an item whose `# to Armour` in `implicitMods` (-), mark `synthesised`, is of a type its base ranges none of?"
-lines,# to Armour,flat,taken: flat ar,twin-explicit,explicitMods,-,eldritch,14,14,98,98,yes,
-lines,# to Armour,flat,taken: flat ar,twin-explicit,explicitMods,-,neither,168,168,14,14,yes,
-lines,# to Armour,flat,taken: flat ar,twin-explicit,explicitMods,-,synthesised,6,6,4,4,yes,
-lines,# to Armour,flat,taken: flat ar,twin-explicit,explicitMods,crafted,neither,5,5,0,0,no,does the site show the reading's value of an item whose explicit `# to Armour` is the line (crafted) on an item of the mark `neither` — the line the item's own?
-lines,# to Armour,flat,taken: flat ar,twin-explicit,explicitMods,fractured,eldritch,1,1,0,0,no,does the site show the reading's value of an item whose explicit `# to Armour` is the line (fractured) on an item of the mark `eldritch` — the line the item's own?
-lines,# to Armour,flat,taken: flat ar,twin-explicit,explicitMods,fractured,neither,2,2,0,0,no,does the site show the reading's value of an item whose explicit `# to Armour` is the line (fractured) on an item of the mark `neither` — the line the item's own?
+lines,# to Armour,flat,not read: of a type no roll reads,line-of-no-roll,implicitMods,-,synthesised,1,1,3,3,yes,
+lines,# to Armour,flat,taken: flat ar,twin-explicit,explicitMods,-,eldritch,14,14,117,117,yes,
+lines,# to Armour,flat,taken: flat ar,twin-explicit,explicitMods,-,neither,168,168,56,56,yes,
+lines,# to Armour,flat,taken: flat ar,twin-explicit,explicitMods,-,synthesised,6,6,14,14,yes,
+lines,# to Armour,flat,taken: flat ar,twin-explicit,explicitMods,crafted,neither,5,5,10,10,yes,
+lines,# to Armour,flat,taken: flat ar,twin-explicit,explicitMods,fractured,eldritch,1,1,10,10,yes,
+lines,# to Armour,flat,taken: flat ar,twin-explicit,explicitMods,fractured,neither,2,2,15,15,yes,
 lines,# to Armour,flat,taken: flat ar,twin-explicit,explicitMods,mutated,neither,2,2,0,0,no,does the site show the reading's value of an item whose explicit `# to Armour` is the line (mutated) on an item of the mark `neither` — the line the item's own?
 lines,# to Evasion Rating,flat,not read: of a type no roll reads,line-of-no-roll,explicitMods,-,neither,1,1,34,34,yes,
 lines,# to Evasion Rating,flat,not read: of a type no roll reads,line-of-no-roll,implicitMods,-,synthesised,1,1,1,1,yes,
-lines,# to Evasion Rating,flat,taken: flat ev,twin-explicit,explicitMods,-,eldritch,10,10,92,92,yes,
-lines,# to Evasion Rating,flat,taken: flat ev,twin-explicit,explicitMods,-,neither,182,182,18,18,yes,
-lines,# to Evasion Rating,flat,taken: flat ev,twin-explicit,explicitMods,-,synthesised,5,5,1,1,yes,
-lines,# to Evasion Rating,flat,taken: flat ev,twin-explicit,explicitMods,crafted,eldritch,1,1,0,0,no,does the site show the reading's value of an item whose explicit `# to Evasion Rating` is the line (crafted) on an item of the mark `eldritch` — the line the item's own?
-lines,# to Evasion Rating,flat,taken: flat ev,twin-explicit,explicitMods,crafted,neither,1,1,0,0,no,does the site show the reading's value of an item whose explicit `# to Evasion Rating` is the line (crafted) on an item of the mark `neither` — the line the item's own?
-lines,# to Evasion Rating,flat,taken: flat ev,twin-explicit,explicitMods,fractured,neither,1,1,1,1,yes,
+lines,# to Evasion Rating,flat,taken: flat ev,twin-explicit,explicitMods,-,eldritch,10,10,112,112,yes,
+lines,# to Evasion Rating,flat,taken: flat ev,twin-explicit,explicitMods,-,neither,182,182,51,51,yes,
+lines,# to Evasion Rating,flat,taken: flat ev,twin-explicit,explicitMods,-,synthesised,5,5,15,15,yes,
+lines,# to Evasion Rating,flat,taken: flat ev,twin-explicit,explicitMods,crafted,eldritch,1,1,8,8,yes,
+lines,# to Evasion Rating,flat,taken: flat ev,twin-explicit,explicitMods,crafted,neither,1,1,8,8,yes,
+lines,# to Evasion Rating,flat,taken: flat ev,twin-explicit,explicitMods,fractured,neither,1,1,10,10,yes,
 lines,# to Ward,flat,not read: of a type no roll reads,line-of-no-roll,explicitMods,-,neither,1,1,1,1,yes,
-lines,# to Ward,flat,taken: flat ward,twin-explicit,explicitMods,-,eldritch,1,1,3,3,yes,
+lines,# to Ward,flat,taken: flat ward,twin-explicit,explicitMods,-,eldritch,1,1,5,5,yes,
 lines,# to Ward,flat,taken: flat ward,twin-explicit,explicitMods,-,neither,4,4,4,4,yes,
-lines,# to maximum Energy Shield,flat,not read: of a type no roll reads,line-of-no-roll,explicitMods,-,neither,8,8,1,1,yes,
-lines,# to maximum Energy Shield,flat,taken: flat es,twin-explicit,explicitMods,-,eldritch,8,8,102,102,yes,
-lines,# to maximum Energy Shield,flat,taken: flat es,twin-explicit,explicitMods,-,neither,261,261,85,85,yes,
-lines,# to maximum Energy Shield,flat,taken: flat es,twin-explicit,explicitMods,-,synthesised,1,1,1,1,yes,
-lines,# to maximum Energy Shield,flat,taken: flat es,twin-explicit,explicitMods,crafted,eldritch,3,3,0,0,no,does the site show the reading's value of an item whose explicit `# to maximum Energy Shield` is the line (crafted) on an item of the mark `eldritch` — the line the item's own?
-lines,# to maximum Energy Shield,flat,taken: flat es,twin-explicit,explicitMods,crafted,neither,4,4,0,0,no,does the site show the reading's value of an item whose explicit `# to maximum Energy Shield` is the line (crafted) on an item of the mark `neither` — the line the item's own?
-lines,# to maximum Energy Shield,flat,taken: flat es,twin-explicit,explicitMods,fractured,eldritch,1,1,0,0,no,does the site show the reading's value of an item whose explicit `# to maximum Energy Shield` is the line (fractured) on an item of the mark `eldritch` — the line the item's own?
-lines,# to maximum Energy Shield,flat,taken: flat es,twin-explicit,explicitMods,fractured,neither,4,4,0,0,no,does the site show the reading's value of an item whose explicit `# to maximum Energy Shield` is the line (fractured) on an item of the mark `neither` — the line the item's own?
-lines,# to maximum Energy Shield,flat,taken: flat es,twin-synthesised,implicitMods,-,synthesised,2,2,0,0,no,does the site show the reading's value of a synthesised item whose implicit `# to maximum Energy Shield` is the item's own?
+lines,# to maximum Energy Shield,flat,not read: of a type no roll reads,line-of-no-roll,explicitMods,-,neither,8,8,5,5,yes,
+lines,# to maximum Energy Shield,flat,taken: flat es,twin-explicit,explicitMods,-,eldritch,8,8,118,118,yes,
+lines,# to maximum Energy Shield,flat,taken: flat es,twin-explicit,explicitMods,-,neither,261,261,121,121,yes,
+lines,# to maximum Energy Shield,flat,taken: flat es,twin-explicit,explicitMods,-,synthesised,1,1,6,6,yes,
+lines,# to maximum Energy Shield,flat,taken: flat es,twin-explicit,explicitMods,crafted,eldritch,3,3,10,10,yes,
+lines,# to maximum Energy Shield,flat,taken: flat es,twin-explicit,explicitMods,crafted,neither,4,4,9,9,yes,
+lines,# to maximum Energy Shield,flat,taken: flat es,twin-explicit,explicitMods,fractured,eldritch,1,1,12,12,yes,
+lines,# to maximum Energy Shield,flat,taken: flat es,twin-explicit,explicitMods,fractured,neither,4,4,17,17,yes,
+lines,# to maximum Energy Shield,flat,taken: flat es,twin-synthesised,implicitMods,-,synthesised,2,2,5,5,yes,
 lines,#% increased Armour,inc,not read: of a type no roll reads,line-of-no-roll,implicitMods,-,synthesised,2,2,2,2,yes,
-lines,#% increased Armour,inc,taken: inc ar,twin-explicit,explicitMods,-,eldritch,12,12,46,46,yes,
-lines,#% increased Armour,inc,taken: inc ar,twin-explicit,explicitMods,-,neither,151,151,11,11,yes,
-lines,#% increased Armour,inc,taken: inc ar,twin-explicit,explicitMods,crafted,eldritch,1,1,1,1,yes,
-lines,#% increased Armour,inc,taken: inc ar,twin-explicit,explicitMods,crafted,neither,7,7,0,0,no,does the site show the reading's value of an item whose explicit `#% increased Armour` is the line (crafted) on an item of the mark `neither` — the line the item's own?
-lines,#% increased Armour,inc,taken: inc ar,twin-explicit,explicitMods,fractured,neither,3,3,0,0,no,does the site show the reading's value of an item whose explicit `#% increased Armour` is the line (fractured) on an item of the mark `neither` — the line the item's own?
-lines,#% increased Armour,inc,taken: inc ar,twin-synthesised,implicitMods,-,synthesised,1,1,2,2,yes,
-lines,#% increased Armour and Energy Shield,inc,taken: inc ar/es,local-only,explicitMods,-,eldritch,8,8,22,22,yes,
-lines,#% increased Armour and Energy Shield,inc,taken: inc ar/es,local-only,explicitMods,-,neither,165,165,40,40,yes,
-lines,#% increased Armour and Energy Shield,inc,taken: inc ar/es,local-only,explicitMods,-,synthesised,6,6,0,0,no,does the site show the reading's value of an item whose `#% increased Armour and Energy Shield` sits in `explicitMods` (-) on an item of the mark `synthesised` — the line the item's own?
-lines,#% increased Armour and Energy Shield,inc,taken: inc ar/es,local-only,explicitMods,crafted,eldritch,2,2,0,0,no,does the site show the reading's value of an item whose `#% increased Armour and Energy Shield` sits in `explicitMods` (crafted) on an item of the mark `eldritch` — the line the item's own?
-lines,#% increased Armour and Energy Shield,inc,taken: inc ar/es,local-only,explicitMods,crafted,neither,1,1,0,0,no,does the site show the reading's value of an item whose `#% increased Armour and Energy Shield` sits in `explicitMods` (crafted) on an item of the mark `neither` — the line the item's own?
-lines,#% increased Armour and Energy Shield,inc,taken: inc ar/es,local-only,explicitMods,fractured,eldritch,1,1,0,0,no,does the site show the reading's value of an item whose `#% increased Armour and Energy Shield` sits in `explicitMods` (fractured) on an item of the mark `eldritch` — the line the item's own?
-lines,#% increased Armour and Energy Shield,inc,taken: inc ar/es,local-only,explicitMods,fractured,neither,2,2,0,0,no,does the site show the reading's value of an item whose `#% increased Armour and Energy Shield` sits in `explicitMods` (fractured) on an item of the mark `neither` — the line the item's own?
-lines,#% increased Armour and Evasion,inc,taken: inc ar/ev,local-only,explicitMods,-,eldritch,15,15,39,39,yes,
-lines,#% increased Armour and Evasion,inc,taken: inc ar/ev,local-only,explicitMods,-,neither,155,155,16,16,yes,
-lines,#% increased Armour and Evasion,inc,taken: inc ar/ev,local-only,explicitMods,-,synthesised,1,1,0,0,no,does the site show the reading's value of an item whose `#% increased Armour and Evasion` sits in `explicitMods` (-) on an item of the mark `synthesised` — the line the item's own?
-lines,#% increased Armour and Evasion,inc,taken: inc ar/ev,local-only,explicitMods,crafted,eldritch,2,2,1,1,yes,
-lines,#% increased Armour and Evasion,inc,taken: inc ar/ev,local-only,explicitMods,crafted,neither,3,3,0,0,no,does the site show the reading's value of an item whose `#% increased Armour and Evasion` sits in `explicitMods` (crafted) on an item of the mark `neither` — the line the item's own?
-lines,"#% increased Armour, Evasion and Energy Shield",inc,taken: inc ar/ev,local-only,explicitMods,crafted,eldritch,1,1,0,0,no,"does the site show the reading's value of an item whose `#% increased Armour, Evasion and Energy Shield` sits in `explicitMods` (crafted) on an item of the mark `eldritch` — the line the item's own?"
-lines,#% increased Energy Shield,inc,not read: of a type no roll reads,line-of-no-roll,implicitMods,-,synthesised,2,2,0,0,no,"does the site show the reading's value of an item whose `#% increased Energy Shield` in `implicitMods` (-), mark `synthesised`, is of a type its base ranges none of?"
-lines,#% increased Energy Shield,inc,taken: inc es,local-only,explicitMods,-,eldritch,8,8,39,39,yes,
-lines,#% increased Energy Shield,inc,taken: inc es,local-only,explicitMods,-,neither,184,184,16,16,yes,
-lines,#% increased Energy Shield,inc,taken: inc es,local-only,explicitMods,-,synthesised,4,4,0,0,no,does the site show the reading's value of an item whose `#% increased Energy Shield` sits in `explicitMods` (-) on an item of the mark `synthesised` — the line the item's own?
-lines,#% increased Energy Shield,inc,taken: inc es,local-only,explicitMods,crafted,eldritch,1,1,1,1,yes,
-lines,#% increased Energy Shield,inc,taken: inc es,local-only,explicitMods,crafted,neither,8,8,0,0,no,does the site show the reading's value of an item whose `#% increased Energy Shield` sits in `explicitMods` (crafted) on an item of the mark `neither` — the line the item's own?
-lines,#% increased Energy Shield,inc,taken: inc es,local-only,explicitMods,fractured,neither,3,3,0,0,no,does the site show the reading's value of an item whose `#% increased Energy Shield` sits in `explicitMods` (fractured) on an item of the mark `neither` — the line the item's own?
-lines,#% increased Energy Shield,inc,taken: inc es,local-only,implicitMods,-,synthesised,3,3,0,0,no,does the site show the reading's value of an item whose `#% increased Energy Shield` sits in `implicitMods` (-) on an item of the mark `synthesised` — the line the item's own?
-lines,#% increased Evasion Rating,inc,left out: the global stat,twin-eldritch,implicitMods,-,eldritch,1,1,6,6,yes,
+lines,#% increased Armour,inc,taken: inc ar,twin-explicit,explicitMods,-,eldritch,12,12,52,52,yes,
+lines,#% increased Armour,inc,taken: inc ar,twin-explicit,explicitMods,-,neither,151,151,47,47,yes,
+lines,#% increased Armour,inc,taken: inc ar,twin-explicit,explicitMods,crafted,eldritch,1,1,3,3,yes,
+lines,#% increased Armour,inc,taken: inc ar,twin-explicit,explicitMods,crafted,neither,7,7,12,12,yes,
+lines,#% increased Armour,inc,taken: inc ar,twin-explicit,explicitMods,fractured,neither,3,3,11,11,yes,
+lines,#% increased Armour,inc,taken: inc ar,twin-synthesised,implicitMods,-,synthesised,1,1,4,4,yes,
+lines,#% increased Armour and Energy Shield,inc,taken: inc ar/es,local-only,explicitMods,-,eldritch,8,8,31,31,yes,
+lines,#% increased Armour and Energy Shield,inc,taken: inc ar/es,local-only,explicitMods,-,neither,165,165,58,58,yes,
+lines,#% increased Armour and Energy Shield,inc,taken: inc ar/es,local-only,explicitMods,-,synthesised,6,6,12,12,yes,
+lines,#% increased Armour and Energy Shield,inc,taken: inc ar/es,local-only,explicitMods,crafted,eldritch,2,2,9,9,yes,
+lines,#% increased Armour and Energy Shield,inc,taken: inc ar/es,local-only,explicitMods,crafted,neither,1,1,6,6,yes,
+lines,#% increased Armour and Energy Shield,inc,taken: inc ar/es,local-only,explicitMods,fractured,eldritch,1,1,10,10,yes,
+lines,#% increased Armour and Energy Shield,inc,taken: inc ar/es,local-only,explicitMods,fractured,neither,2,2,11,11,yes,
+lines,#% increased Armour and Evasion,inc,taken: inc ar/ev,local-only,explicitMods,-,eldritch,15,15,47,47,yes,
+lines,#% increased Armour and Evasion,inc,taken: inc ar/ev,local-only,explicitMods,-,neither,155,155,38,38,yes,
+lines,#% increased Armour and Evasion,inc,taken: inc ar/ev,local-only,explicitMods,-,synthesised,1,1,11,11,yes,
+lines,#% increased Armour and Evasion,inc,taken: inc ar/ev,local-only,explicitMods,crafted,eldritch,2,2,3,3,yes,
+lines,#% increased Armour and Evasion,inc,taken: inc ar/ev,local-only,explicitMods,crafted,neither,3,3,12,12,yes,
+lines,"#% increased Armour, Evasion and Energy Shield",inc,taken: inc ar/ev,local-only,explicitMods,crafted,eldritch,1,1,3,3,yes,
+lines,#% increased Energy Shield,inc,not read: of a type no roll reads,line-of-no-roll,implicitMods,-,synthesised,2,2,3,3,yes,
+lines,#% increased Energy Shield,inc,taken: inc es,local-only,explicitMods,-,eldritch,8,8,49,49,yes,
+lines,#% increased Energy Shield,inc,taken: inc es,local-only,explicitMods,-,neither,184,184,56,56,yes,
+lines,#% increased Energy Shield,inc,taken: inc es,local-only,explicitMods,-,synthesised,4,4,11,11,yes,
+lines,#% increased Energy Shield,inc,taken: inc es,local-only,explicitMods,crafted,eldritch,1,1,6,6,yes,
+lines,#% increased Energy Shield,inc,taken: inc es,local-only,explicitMods,crafted,neither,8,8,9,9,yes,
+lines,#% increased Energy Shield,inc,taken: inc es,local-only,explicitMods,fractured,neither,3,3,10,10,yes,
+lines,#% increased Energy Shield,inc,taken: inc es,local-only,implicitMods,-,synthesised,3,3,8,8,yes,
+lines,#% increased Evasion Rating,inc,left out: the global stat,twin-eldritch,implicitMods,-,eldritch,1,1,7,7,yes,
 lines,#% increased Evasion Rating,inc,not read: of a type no roll reads,line-of-no-roll,implicitMods,-,synthesised,1,1,1,1,yes,
-lines,#% increased Evasion Rating,inc,taken: inc ev,twin-explicit,explicitMods,-,eldritch,5,5,51,51,yes,
-lines,#% increased Evasion Rating,inc,taken: inc ev,twin-explicit,explicitMods,-,neither,201,201,16,16,yes,
-lines,#% increased Evasion Rating,inc,taken: inc ev,twin-explicit,explicitMods,-,synthesised,4,4,0,0,no,does the site show the reading's value of an item whose explicit `#% increased Evasion Rating` is the line (-) on an item of the mark `synthesised` — the line the item's own?
-lines,#% increased Evasion Rating,inc,taken: inc ev,twin-explicit,explicitMods,crafted,eldritch,2,2,0,0,no,does the site show the reading's value of an item whose explicit `#% increased Evasion Rating` is the line (crafted) on an item of the mark `eldritch` — the line the item's own?
-lines,#% increased Evasion Rating,inc,taken: inc ev,twin-explicit,explicitMods,crafted,neither,5,5,0,0,no,does the site show the reading's value of an item whose explicit `#% increased Evasion Rating` is the line (crafted) on an item of the mark `neither` — the line the item's own?
-lines,#% increased Evasion Rating,inc,taken: inc ev,twin-explicit,explicitMods,fractured,neither,2,2,0,0,no,does the site show the reading's value of an item whose explicit `#% increased Evasion Rating` is the line (fractured) on an item of the mark `neither` — the line the item's own?
+lines,#% increased Evasion Rating,inc,taken: inc ev,twin-explicit,explicitMods,-,eldritch,5,5,64,64,yes,
+lines,#% increased Evasion Rating,inc,taken: inc ev,twin-explicit,explicitMods,-,neither,201,201,53,53,yes,
+lines,#% increased Evasion Rating,inc,taken: inc ev,twin-explicit,explicitMods,-,synthesised,4,4,10,10,yes,
+lines,#% increased Evasion Rating,inc,taken: inc ev,twin-explicit,explicitMods,crafted,eldritch,2,2,10,10,yes,
+lines,#% increased Evasion Rating,inc,taken: inc ev,twin-explicit,explicitMods,crafted,neither,5,5,15,15,yes,
+lines,#% increased Evasion Rating,inc,taken: inc ev,twin-explicit,explicitMods,fractured,neither,2,2,10,10,yes,
 lines,#% increased Evasion Rating,inc,taken: inc ev,twin-synthesised,implicitMods,-,synthesised,1,1,1,1,yes,
-lines,#% increased Evasion and Energy Shield,inc,taken: inc ev/es,local-only,explicitMods,-,eldritch,5,5,53,53,yes,
-lines,#% increased Evasion and Energy Shield,inc,taken: inc ev/es,local-only,explicitMods,-,neither,125,125,8,8,yes,
-lines,#% increased Evasion and Energy Shield,inc,taken: inc ev/es,local-only,explicitMods,-,synthesised,5,5,1,1,yes,
-lines,#% increased Evasion and Energy Shield,inc,taken: inc ev/es,local-only,explicitMods,crafted,neither,2,2,1,1,yes,
-lines,#% increased Ward,inc,taken: inc ward,twin-explicit,explicitMods,-,eldritch,1,1,4,4,yes,
+lines,#% increased Evasion and Energy Shield,inc,taken: inc ev/es,local-only,explicitMods,-,eldritch,5,5,61,61,yes,
+lines,#% increased Evasion and Energy Shield,inc,taken: inc ev/es,local-only,explicitMods,-,neither,125,125,21,21,yes,
+lines,#% increased Evasion and Energy Shield,inc,taken: inc ev/es,local-only,explicitMods,-,synthesised,5,5,6,6,yes,
+lines,#% increased Evasion and Energy Shield,inc,taken: inc ev/es,local-only,explicitMods,crafted,neither,2,2,2,2,yes,
+lines,#% increased Ward,inc,taken: inc ward,twin-explicit,explicitMods,-,eldritch,1,1,6,6,yes,
 lines,#% increased Ward,inc,taken: inc ward,twin-explicit,explicitMods,-,neither,5,5,5,5,yes,
 lines,Quality does not increase Defences,no-quality,taken: the quality term dropped,enchant,enchantMods,-,eldritch,1,1,3,3,yes,
-lines,Quality does not increase Defences,no-quality,taken: the quality term dropped,enchant,enchantMods,-,neither,1,1,6,6,yes,
-shape,C1: three defence types,value,,three-types,,,,3,,9,,yes,
+lines,Quality does not increase Defences,no-quality,taken: the quality term dropped,enchant,enchantMods,-,neither,1,1,7,7,yes,
+shape,C1: three defence types,value,,three-types,,,,3,,11,,yes,
 shape,C2: ward,value,,ward,,,,13,,11,,yes,
-shape,C3: a shield,value,,base,,,,268,,23,,yes,
-shape,C4: a helmet,value,,base,,,,744,,235,,yes,
-shape,C5: gloves,value,,base,,,,402,,152,,yes,
-shape,C6: quality above 20,value,,quality,,,,27,,9,,yes,
-shape,C7: `Quality does not increase Defences`,value,,enchant,,,,2,,10,,yes,
-shape,C8: a unique,value,,base,,,,878,,176,,yes,
-shape,C9: a defence displayed that the base lacks,value,,not-of-base,,,,16,,39,,yes,
+shape,C3: a shield,value,,base,,,,268,,79,,yes,
+shape,C4: a helmet,value,,base,,,,744,,346,,yes,
+shape,C5: gloves,value,,base,,,,402,,252,,yes,
+shape,C6: quality above 20,value,,quality,,,,27,,20,,yes,
+shape,C7: `Quality does not increase Defences`,value,,enchant,,,,2,,11,,yes,
+shape,C8: a unique,value,,base,,,,878,,279,,yes,
+shape,C9: a defence displayed that the base lacks,value,,not-of-base,,,,16,,52,,yes,
 shape,C10: a roll over the base's maximum,value,,roll-over-max,,,,0,,0,,none on the copy,does the site show over 100 of an item whose display no roll of the base's range gives and one above it does (i03 found none listed)?
 shape,C12: a display at an exact half (J5),value,,half,,,,7,,3,,yes,
 shape,C13: a `reduced` local line,value,,reduced,,,,0,,1,,yes,
-shape,"C14: an eldritch implicit twin of a type a roll reads, left out",value,,twin-eldritch,,,,1,,10,,yes,
-shape,"S1: a synthesised implicit twin, the item's own",value,,twin-synthesised,,,,4,,3,,yes,
-shape,S2: a base name the range table holds more than once,value,,base-held-twice,,,,17,,4,,yes,
+shape,"C14: an eldritch implicit twin of a type a roll reads, left out",value,,twin-eldritch,,,,1,,12,,yes,
+shape,"S1: a synthesised implicit twin, the item's own",value,,twin-synthesised,,,,4,,17,,yes,
+shape,S2: a base name the range table holds more than once,value,,base-held-twice,,,,17,,8,,yes,
 shape,S3: a roll under the base's minimum,value,,roll-under-min,,,,0,,0,,none on the copy,what does the site show of an item whose display only a roll under the base's minimum gives?
 shape,"S4: more than one roll gives a display, one value",value,,several-rolls-one-value,,,,0,,0,,none on the copy,does the site show the reading's value of an item whose display more than one roll gives?
-shape,"S5: a text only a local stat displays, outside `explicitMods`",value,,local-only,,,,3,,1,,yes,
-shape,"S6: a line under a flag, taken",value,,J32 (flag-unread's ground),,,,68,,9,,yes,
-shape,none: none of them,value,,roll,,,,450,,139,,yes,
+shape,"S5: a text only a local stat displays, outside `explicitMods`",value,,local-only,,,,3,,8,,yes,
+shape,"S6: a line under a flag, taken",value,,J32 (flag-unread's ground),,,,68,,247,,yes,
+shape,none: none of them,value,,roll,,,,450,,218,,yes,

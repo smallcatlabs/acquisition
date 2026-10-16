@@ -23,6 +23,13 @@
 # 25 the twin and 10 the skill gems by the owner's rulings, 2 (one item
 # twice) the scourge line, 1 q6. Classified by a script from each item's
 # lines, and each item's lines read by hand against its finding.
+# Step 7's sitting (rounds t to w, 2026-10-16) added 242 searches run and
+# 2,402 items, 192 of them missed in 26 rows, none undecided: 760 searches,
+# 7,135 items, 6,446 matched, 689 missed in 81 rows. Each of the sitting's
+# rows is a search that asked its question, classified by the search, its
+# items read by hand. Its questions answered, three findings moved from the
+# sitting to the owner's ruling and eight were added under it; each states
+# what step 7e builds, and a row it builds leaves the set.
 
 [[finding]]
 key = "eldritch-not"
@@ -42,21 +49,58 @@ cites = "`# to Level of Socketed Skill Gems`, which the site leaves out of `+# t
 
 [[finding]]
 key = "reduced-spelling"
-home = "sitting"
-cites = "the site files a line's `reduced` spelling under its `increased` id, below nothing, for a pseudo and a weighted group (search/pseudo-stats/README.md: 60 readings of 61; h042–h052); the translation writes the `increased` text alone"
-asks = "whether a plain stat filter on an `increased` id finds the `reduced` spelling — by its presence alone, and under a `max` below nothing — and reads its number as below nothing"
+home = "ruling"
+cites = "the site files a line's `reduced` spelling under its `increased` id and reads its number below nothing: The Anvil's `10% reduced Attack Speed` meets `max` -5 and not -11 (t01–t03), and The Blood Reaper's `increased Mana Cost` under the `reduced` text meets `max` -1 (t04) — a stat however displayed (round t, 2026-10-16); the owner, 2026-10-16, on the sitting's findings: \"I accept all your recommendations.\" How a bound on a stat of an opposite-sign form is written is the open choice of search/TRADE-PLAN.md, \"What step 7 found\""
 
 [[finding]]
 key = "no-physical-damage"
-home = "sitting"
-cites = "the captures' line hashes file `No Physical Damage` under the id of `#% increased Physical Damage` (stat_1509134228; e061, h046, h047); the stat table lists that text alone"
-asks = "what number the site reads `No Physical Damage` as under its id — bounds about -100 — and whether its presence alone finds it"
+home = "ruling"
+cites = "the site files `No Physical Damage` under the id of `#% increased Physical Damage` (e061, h046, h047) with a number the text never shows: about -120 and not one number — Storm Clouds of one display meet `min` -119 and others not (t07–t09, w01–w05); the owner, 2026-10-16, on the sitting's findings: \"I accept all your recommendations.\" Presence alone is read from it"
 
 [[finding]]
 key = "stat-summed"
-home = "sitting"
-cites = "q6, the owner's: `explicit.stat_3299347043` with `min` 150 returned an item whose explicit Life lines are +40 and +117 (fractured), none reaching it alone and the two together; the translation compares one line (C92)"
-asks = "whether a bounded stat filter compares the item's sum of the stat's lines or one line — q6's item at `min` 157 and at 158"
+home = "ruling"
+cites = "an explicit id holds the stat's crafted and fractured lines (t13, t15: none listed outside it) and a bound compares their sum: every item of t17 and t18 meets `min` 150 by two Life lines and by neither alone, and q6's item meets 157 and not 158 (t19, t20; q6, the owner's); the translation compares one line (C92); the owner, 2026-10-16, on the sitting's findings: \"I accept all your recommendations.\" A bound is `sum(line(T source=explicit).arg1)`"
+
+[[finding]]
+key = "displayed-forms"
+home = "ruling"
+cites = "the site files a stat's other displays under its id: an elided 100 % (`Trigger Commandment of Ire when Hit`, met at `min` 100, t10, t11), `an` for one (`Projectiles Pierce an additional Target`, met at 1..1, t12), a plural (`… for 4 seconds`, t27, t29); the translation writes the listed text alone (the forms measured at step 7a: 72 under 71 ids); the owner, 2026-10-16, on the sitting's findings: \"I accept all your recommendations.\" How a numberless form meets a bound is the open choice of search/TRADE-PLAN.md, \"What step 7 found\""
+
+[[finding]]
+key = "dps-at-quality"
+home = "ruling"
+cites = "the site's `pdps` and `dps` put 20 % quality in: a weapon of no quality displaying 347 physical dps meets `pdps` `min` 400, 416 at 20 % (t41; t42, 8 of 10); `pseudo.dps` reads the damage as displayed; the owner, 2026-10-16, on the sitting's findings: \"I accept all your recommendations.\" The filters land on the damage at 20 % quality"
+
+[[finding]]
+key = "area-level-monster-level"
+home = "ruling"
+cites = "the site's `area_level` reads a Blood-filled Vessel's `Monster Level` (t46, 10 of 10); the field reads `Area Level` alone; the owner, 2026-10-16, on the sitting's findings: \"I accept all your recommendations.\" The field reads both"
+
+[[finding]]
+key = "heist-skill-requirement"
+home = "ruling"
+cites = "the site's heist skill filters read a lockpick's `Level n in Lockpicking` requirement (t48, 10 of 10); the field reads a contract's `Requires Lockpicking (Level n)` alone; the owner, 2026-10-16, on the sitting's findings: \"I accept all your recommendations.\" The field reads both"
+
+[[finding]]
+key = "catalyst-quality"
+home = "ruling"
+cites = "the site's `quality` folds a ring's `Quality (Attribute Modifiers)` and its kind in (t49, 10 of 10); the field reads `Quality` alone; the owner, 2026-10-16, on the sitting's findings: \"I accept all your recommendations.\" The field folds them in"
+
+[[finding]]
+key = "no-requirement"
+home = "ruling"
+cites = "an item with no requirement meets the site's `req_filters.lvl` `max` 20 (u061: Redbeak, twice); `reqlevel` lacks it; the owner, 2026-10-16, on the sitting's findings: \"I accept all your recommendations.\" No requirement meets any maximum"
+
+[[finding]]
+key = "map-tier-unnamed"
+home = "ruling"
+cites = "the site gives Shaper Guardian Map, whose base names no tier, tier 16 (u065); `map_tier` reads the base's `(Tier N)` alone; the owner, 2026-10-16: \"Let's do a tier table for maps, either now or parked for later based on your judgement\" — parked, no registered source holding tiers (decisions/search.md); until it is built such a map is ambiguous under `map_tier`"
+
+[[finding]]
+key = "gem-at-max-level"
+home = "ruling"
+cites = "a gem at its maximum level, which displays no experience, meets the site's `gem_level_progress` `min` 50 (u090: `Portal`, `Level 1 (Max)`); `experience` lacks it; the owner, 2026-10-16, on the sitting's findings: \"I accept all your recommendations.\" A gem at its maximum level is at 100 %"
 
 [[finding]]
 key = "scourge-in-sum"
@@ -448,3 +492,185 @@ items = [8]
 outcome = "missed"
 clauses = ["3"]
 finding = "stat-summed"
+
+[[row]]
+search = "t01"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["2"]
+finding = "reduced-spelling"
+
+[[row]]
+search = "t02"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["2"]
+finding = "reduced-spelling"
+
+[[row]]
+search = "t03"
+items = [0, 1, 2, 3, 4, 5, 6]
+outcome = "missed"
+clauses = ["2"]
+finding = "reduced-spelling"
+
+[[row]]
+search = "t04"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["2"]
+finding = "reduced-spelling"
+
+[[row]]
+search = "t07"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["2"]
+finding = "no-physical-damage"
+
+[[row]]
+search = "t08"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["2"]
+finding = "no-physical-damage"
+
+[[row]]
+search = "t09"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["2"]
+finding = "no-physical-damage"
+
+[[row]]
+search = "t10"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["0"]
+finding = "displayed-forms"
+
+[[row]]
+search = "t11"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["0"]
+finding = "displayed-forms"
+
+[[row]]
+search = "t12"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["0"]
+finding = "displayed-forms"
+
+[[row]]
+search = "t17"
+items = [0, 2, 3, 4, 5, 7]
+outcome = "missed"
+clauses = ["1"]
+finding = "stat-summed"
+
+[[row]]
+search = "t18"
+items = [0, 2, 3, 6, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "stat-summed"
+
+[[row]]
+search = "t19"
+items = [0]
+outcome = "missed"
+clauses = ["1"]
+finding = "stat-summed"
+
+[[row]]
+search = "t27"
+items = [1, 2, 3, 4, 6, 7, 8]
+outcome = "missed"
+clauses = ["0"]
+finding = "displayed-forms"
+
+[[row]]
+search = "t29"
+items = [0, 2, 3, 4, 5, 7, 9]
+outcome = "missed"
+clauses = ["0"]
+finding = "displayed-forms"
+
+[[row]]
+search = "t41"
+items = [5]
+outcome = "missed"
+clauses = ["1"]
+finding = "dps-at-quality"
+
+[[row]]
+search = "t42"
+items = [0, 1, 2, 3, 4, 5, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "dps-at-quality"
+
+[[row]]
+search = "t46"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "area-level-monster-level"
+
+[[row]]
+search = "t48"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "heist-skill-requirement"
+
+[[row]]
+search = "t49"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "catalyst-quality"
+
+[[row]]
+search = "u061"
+items = [1, 7]
+outcome = "missed"
+clauses = ["1"]
+finding = "no-requirement"
+
+[[row]]
+search = "u065"
+items = [6]
+outcome = "missed"
+clauses = ["1"]
+finding = "map-tier-unnamed"
+
+[[row]]
+search = "u090"
+items = [9]
+outcome = "missed"
+clauses = ["1"]
+finding = "gem-at-max-level"
+
+[[row]]
+search = "w01"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["2"]
+finding = "no-physical-damage"
+
+[[row]]
+search = "w03"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["2"]
+finding = "no-physical-damage"
+
+[[row]]
+search = "w04"
+items = [0, 1, 2, 3, 4, 5]
+outcome = "missed"
+clauses = ["2"]
+finding = "no-physical-damage"

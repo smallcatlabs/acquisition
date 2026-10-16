@@ -270,3 +270,67 @@ approach sounds good"):
   oracle's rows show it missing `reduced` lines: said here and in the
   rows, not labelled, since a label rule now would be a design the
   sitting replaces.
+
+What step 7 found (the sitting, rounds t to w, sat and read 2026-10-16;
+the rows are `tests/trade-oracle.toml`'s, each finding stating what 7e
+builds; the owner, verbatim: "I accept all your recommendations."):
+
+- A site stat is the item's stat however displayed: a `reduced`
+  spelling under its `increased` id below nothing, and the inverse
+  (t01–t04); an elided 100 % as 100 (t10), `an` as one (t12); a plural
+  the same number (t27). An explicit id holds the stat's crafted and
+  fractured lines, and a bound compares their sum (t13–t20; q6's item at
+  157 and not 158). `No Physical Damage`'s number is hidden — about
+  -120, and not one number (t07–t09, w01–w05) — so presence alone.
+- The property filters read more widely than the fields: `dps` and
+  `pdps` at 20 % quality (t41, t42), `area_level` a vessel's `Monster
+  Level` (t46), a heist skill a lockpick's `Level n in …` (t48),
+  `quality` a catalyst's (t49); `crit` reads no gem (t44). Each field
+  follows the site. Of a property the item lacks: no requirement meets
+  any maximum (u061), a gem at its maximum level is at 100 % (u090).
+- The smaller clauses: the free text is a whole name or base (t50,
+  t51, w06, w07); a `count` with no bound restricts nothing (t37), a
+  weighted sum with none needs one stat present (t38); a `not` with a
+  value excludes the bound's meeting (t24); `uniquefoil` is the relic
+  mark (t52); `map_blighted` the `Blighted` prefix (t55, t56); a key a
+  site object sends null is absent (u059, the translation's reader).
+- Coverage (round u, 104 searches of 53 categories and 64 rows no
+  capture had reached) found the translation sound but for the three
+  absent properties above; the park's questions (round v) agree with
+  the tables but two ranged cells and two percentile groups unreached;
+  a crucible defence line is the item's own (J33's question); the site
+  gives a percentile to an item showing no defence, which stays
+  lacked (the owner's acceptance). Open: e043's weighted sum of 28; the
+  crucible mark (t54 did not part its readings); grafts, listed in no
+  league.
+- The map tier table: parked (the owner, 2026-10-16: "Let's do a tier
+  table for maps, either now or parked for later based on your
+  judgement"), no registered source holding a tier its base does not
+  name; such a map is ambiguous under `map_tier` until it is built.
+
+**The choice before 7e** (open, the owner's: the language is his
+boundary). `sum( … )` adds the numbers of the lines it selects, with no
+sign and no constant, so a bound on a stat with an opposite-sign form
+(`reduced`) or a numberless one (an elided 100 %, `an`) has no exact
+text. Presence over every form, the explicit sum and the same-sign
+forms are exact today. Two ways:
+
+- **A, the translation alone** (the builder's recommendation): same-sign
+  numbered forms in the sum; a numberless form of a known number an
+  alternative (`or line(E)`) exactly when its number meets the bound,
+  decided as the text is written; a stat of an opposite-sign form, its
+  positive minimum over the positive forms and ambiguous (an item of
+  both reads high), any other bound unsupported; a form no sitting read
+  (`Lucky`, another wording, a dropped `(Shields)`) and `No Physical
+  Damage` presence alone. No new tree node; what it cannot say exactly
+  it says in the report.
+- **B, a named stat value** — `stat("#% increased Attack Speed")>=10`,
+  the item's stat however displayed, from a reference table of forms
+  and their readings as `pseudo.` totals are: exact wherever a reading
+  is known, and a person's to type as well as the import's. A new value
+  kind, against the brief's "no new tree node"; the larger build.
+
+The material: the forms measured at 7a (72 under 71 ids, through the
+translation and the deriver), the sitting's readings above, the totals
+table's rows with their weights (`totals.rs`, *a weight*), and
+`tree::sum_of_lines`.

@@ -209,14 +209,18 @@ fn disagreements(search: &Search, t: &Translation) -> Vec<Disagreement> {
         .collect()
 }
 
-/// Step 6's acceptance: over the 451 captures with ten fetched items and
-/// the 78 with one to nine, and the owner's seven searches that fetched
-/// any, every one whose translation has no remainder runs, and every item
-/// the site returned that the text does not match is a row of the expected
-/// set, which is exactly what is found. The 335 captures with no item, and
-/// q2b, which found none, are excluded by name; so are the 18 whose
-/// translation has a remainder — 13 weighted groups of mixed weights,
-/// outside the brief, and the 5 crucible-node searches.
+/// Step 6's acceptance, and step 7's sitting read by it: over the
+/// captures with fetched items — the 529 of the pseudo track's sittings,
+/// the 260 of step 7's rounds t to w — and the owner's seven searches
+/// that fetched any, every one whose translation has no remainder runs,
+/// and every item the site returned that the text does not match is a row
+/// of the expected set, which is exactly what is found. The searches with
+/// no item (335, q2b, and 26 of step 7's) are excluded by name; so are the
+/// 36 whose translation has a remainder — 13 weighted groups of mixed
+/// weights, outside the brief, 15 crucible-node searches, and step 7's
+/// questions the build leaves unsupported until it is answered: two ids of
+/// two texts, two groups with no bound, the damage filter, `map_blighted`,
+/// and a socket filter whose unset colours the site sends null (u059).
 #[test]
 fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
     let expected: Expected = toml::from_str(EXPECTED).unwrap();
@@ -291,14 +295,16 @@ fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
         }
         translations.insert(search.name, t);
     }
-    assert_eq!((none.len(), ran, items, matched), (336, 518, 4733, 4236));
+    assert_eq!((none.len(), ran, items, matched), (362, 760, 7135, 6446));
     assert!(none.contains(&"q2b".to_string()));
     partial.sort();
     assert_eq!(
         partial,
         [
             "d01", "d02", "f011", "f012", "f017", "f018", "f019", "h004", "n01", "n02", "n03",
-            "n04", "n05", "n17", "n20", "n21", "n22", "n23"
+            "n04", "n05", "n17", "n20", "n21", "n22", "n23", "t35", "t36", "t37", "t38", "t43",
+            "t55", "t56", "u059", "v001", "v006", "v013", "v023", "v029", "v036", "v040", "v041",
+            "v049", "v050"
         ]
     );
 

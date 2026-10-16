@@ -153,6 +153,17 @@ at a time, and the export is every twenty-five links.
   round i's eight searches were refused by the splitter, and then by the
   extract after the splitter alone was taught (2026-10-01): a query's
   shape has one reader, `tools/trade_query.py`, and no tool its own.
+- **A filter the page sends fills what was not set with null**: a
+  socket filter's unset colours (u059, 2026-10-16). `bare()` reads a key
+  sent null as a key not sent; a translation reads it so too.
+- **A search is its league and its query.** The same query in another
+  league is another row (round w asked league content in the challenge
+  league): the sheet writes the row's league, the composer keys on both,
+  and the splitter reads the league from the search's own URL.
+- **Read the splitter's counts before the captures, while the owner is
+  at the browser**: a pair that did not part, a form the site answers
+  with nothing, a bound no listing meets — each is a repair round of a
+  few searches that day (round w), not a sitting a week later.
 - **A number in a document is measured by a script after the last
   edit**, never read off the screen or recalled: counts, times, ranges.
 - **A command that commits stops at the first error**: `set -e` on its

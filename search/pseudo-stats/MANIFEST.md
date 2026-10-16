@@ -194,3 +194,22 @@ round m was: one fragment per call, 38 files under
 | File | Bytes | Captured | sha256 |
 | --- | --- | --- | --- |
 | `raw/searches/n-fragments/` (38 files; the hash is of the sorted files' sha256s, one a line) | 796626 | 2026-10-08 02:40 – 02:44 | `29de9910d6c87fb601c7d736b1f680e4226a4d8e28b0dc3ff84b1fffebd71fbe` |
+
+Rounds t, u and v (the trade import, step 7 of `search/TRADE-PLAN.md`), then
+round w, 2026-10-16, 12:35 to 13:50 by the machine's clock, US Eastern (16:35 to
+17:50 UTC), by the owner, from the links of `data/search-sheet.csv` at
+`7032f767` (round t) and `e062401e` (rounds u and v), and round w at `6af5b846`
+in the hour after, four of its searches in the challenge league `Allflame`;
+saved as round m was, one fragment per call. Every body held, no cookie; all
+286 searches answered. `tools/trade-split.py --write` wrote their captures; it
+refused a second answer to t36, opened twice 33 s apart, the first kept, and
+five fetches that belong to no search (the results page loading more, after
+u025 and v092). u059 matched its row once a key sent null was read as a key
+not sent (`tools/trade_query.py`).
+
+| File | Bytes | Captured | sha256 |
+| --- | --- | --- | --- |
+| `raw/searches/t-fragments/` (108 files; the hash is of the sorted files' sha256s, one a line) | 2237053 | 2026-10-16 16:35 – 16:52 UTC | `ac29fcf7a8a596e472b6d8c86fd44fe5aa4891943355bac495a6dac457345acb` |
+| `raw/searches/u-fragments/` (210 files; as above) | 4418033 | 2026-10-16 16:54 – 17:16 UTC | `fb995bd84cb4deb611f4435941388aeb781144e0a016230e83038246715e79fc` |
+| `raw/searches/v-fragments/` (216 files; as above) | 5140491 | 2026-10-16 17:16 – 17:39 UTC | `41240f6a38be7430545cab109f2c17faf8d9b6cdf41466daffc8599e48237a0e` |
+| `raw/searches/w-fragments/` (19 files; as above) | 216823 | 2026-10-16 17:47 – 17:50 UTC | `5940ad308653cbe61c9c3a6fc5116d844f4661edb9fe6755b7883fd60d44fa50` |

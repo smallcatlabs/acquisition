@@ -145,6 +145,12 @@ arithmetic, each of its 42 steps citing its sentence. `data/percentile-expected.
   `j5-off` 0 / 7, `local-only-explicit-only` 0 / 1. **On the ruling alone**, 9, each 0 / 0: `realm`,
   `property-unread-ignored`, `base-lacking-is-lacked`, `array-unread-ignored`, `whole-text`,
   `flag-unread-opens`, `unmarked-twin-own`, `twin-of-no-roll-opens`, `range-bound`.
+- **Read again over the trade import's sitting** (step 7 of `../TRADE-PLAN.md`, rounds t to w, 2026-10-16):
+  7,431 cells, 5 disagreeing — u060, Simple Robes that show no defence, the site 0, 50 and 17 where the
+  reading is lacked, kept so (the owner, 2026-10-16: "I accept all your recommendations") — and 2 not
+  comparable: t54, a defence line in `crucibleMods` the site reads as the item's own (59, J33's question,
+  answered), and v067, Two-Toned Boots of three range rows, the site 0. The evidence over every capture:
+  2,758 readings of an item under a pseudo, none disagreeing.
 - **Not asked**: of the copy's 74 groups of lines 32, holding 91 of 1822 (each with its question in the copy
   file); no shape. An explicit twin the item's own (J8) under a flag — crafted 8 groups, 28 lines; fractured
   6, 13; mutated 1, 2 — or on a synthesised item, 1, 4. A text a local stat alone displays (the join): crafted

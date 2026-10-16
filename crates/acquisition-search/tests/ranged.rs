@@ -252,7 +252,7 @@ fn kind_of(cause: &str) -> &'static str {
     }
 }
 
-/// C94, J7, J29–J31: every row of the expected answers — 598 cases of
+/// C94, J7, J29–J31: every row of the expected answers — 1,098 cases of
 /// the facts the row gives, put into a store through its ingest, each
 /// line in the array and under the flags the row gives — is answered as
 /// the row says. Each of the 21 totals is asked of each case: lacked, by
@@ -263,7 +263,7 @@ fn kind_of(cause: &str) -> &'static str {
 #[test]
 fn c94_every_row_of_the_ranged_expected_answers_is_answered_as_the_row_says() {
     let cases = cases();
-    assert_eq!(cases.len(), 598);
+    assert_eq!(cases.len(), 1098);
     let totals: BTreeSet<String> = cases
         .iter()
         .flat_map(|case| case.cells.keys().cloned())
@@ -286,7 +286,7 @@ fn c94_every_row_of_the_ranged_expected_answers_is_answered_as_the_row_says() {
     }
     assert_eq!(
         cases.iter().map(|c| lines_of(c).1).sum::<usize>(),
-        2687,
+        4742,
         "the lines the table left out as no row's"
     );
 
@@ -396,18 +396,20 @@ fn c94_every_row_of_the_ranged_expected_answers_is_answered_as_the_row_says() {
             }
         }
     }
-    // every cell asked: 598 cases of 21 totals, the table's 615 lacked
-    // rows and each total a case does not list
-    assert_eq!(asked.0 + asked.1 + asked.2, 598 * 21);
+    // every cell asked: 1,098 cases of 21 totals (598 before step 7's
+    // sitting), the table's 1,124 lacked rows and each total a case does
+    // not list
+    assert_eq!(asked.0 + asked.1 + asked.2, 1098 * 21);
     // the table's own tally (`ranged-expected.py`, rows by kind and
-    // status): 2387 values and 52 undecided since J32, three cells of
+    // status): 4,229 values (2,387 before step 7's sitting) and 52
+    // undecided since J32, three cells of
     // `r-unread-flag` a value where the table read a flag no row asks
-    assert_eq!((asked.1, asked.2), (2387, 52));
+    assert_eq!((asked.1, asked.2), (4229, 52));
     assert!(
         faults.is_empty(),
         "{} cells of {} are not answered as the table says:\n{}",
         faults.len(),
-        598 * 21,
+        1098 * 21,
         faults.join("\n")
     );
 }
@@ -833,7 +835,8 @@ fn total_named(site: &str) -> Option<String> {
 /// (`search/pseudo-stats/data/captures.json`), entered whole — every line
 /// the capture holds in the array it came in, never the table's `lines`
 /// column — answers each such pseudo's number as the total's `avg`, a
-/// value and no subtotal: 459 cells, of 459 items. It holds the totals to
+/// value and no subtotal: 837 cells, of 802 items (459 of 459 before
+/// step 7's sitting, whose round v asked the family's open cells). It holds the totals to
 /// what the site counted on real items, the lines no row names among
 /// them; it asks nothing of a total the site did not show.
 #[test]
@@ -880,7 +883,7 @@ fn c94_every_captured_item_entered_whole_answers_the_sites_number() {
             ));
         }
     }
-    assert_eq!((bodies.len(), shown.len()), (459, 459));
+    assert_eq!((bodies.len(), shown.len()), (802, 837));
     let mut s = store();
     list_tabs(&mut s, "pc", "Standard", json!([tab("w", "Whole")]), 10);
     fetch_tab(&mut s, "pc", "Standard", "w", "Whole", bodies, 20);
