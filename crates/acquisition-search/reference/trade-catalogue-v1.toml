@@ -5,8 +5,9 @@
 # (`include_str!` in `src/trade/catalogue.rs`, whose loader holds a row to
 # what this header says, step 3; the translation reads it at step 4),
 # read-only, enumerable by
-# `acq search --describe trade`, cited by version in the basis of every
-# answer a translation produced (C98). One row per clause the site's
+# `acq search --describe trade`, cited by version in the report of every
+# answer a translation produced, its `query.trade`; the build its basis
+# names digests it (C98). One row per clause the site's
 # query can carry: each top-level key of the query object, each filter of
 # the filters capture of 2026-09-12 (search/trade-query/data/filters-2026-09-12.json,
 # 93 in 12 groups), each stat category of the stats capture (14) and each

@@ -51,6 +51,9 @@
 //!   document serialized, for a host that reads no structured content.
 //! - **H5 — an offer that is a command is a request too**: a refusal's
 //!   `offers`, made in the search crate (`error::Offered`).
+//! - **A trade site search is a request's query** (C113):
+//!   `{"trade": …}`, read and translated by the same reader, so nothing
+//!   here translates; `show`'s `against` takes it as a query too.
 //! - **A refusal is a result marked `isError`** holding the CLI's
 //!   failure document — `error`, `kind`, `readings`, `offers` — never a
 //!   JSON-RPC error, whose `data` a host need not show the model (the
@@ -490,7 +493,7 @@ impl schemars::JsonSchema for RequestParams {
                 },
                 "query": {
                     "type": "object",
-                    "description": "{\"text\": a query in the language `describe` prints} or {\"tree\": the tree an answer returned}, never both. Omitted: every item in scope. A refinement is the old text in parentheses and a new term."
+                    "description": "{\"text\": a query in the language `describe` prints} or {\"tree\": the tree an answer returned}, never both. Omitted: every item in scope. A refinement is the old text in parentheses and a new term. Or {\"trade\": a trade site search}: its URL, its id or its query JSON as a string, or the query JSON as an object (PoE1), translated with no network to the text a person would type; the answer's `query.trade` holds every clause with its status — exact, ambiguous, unsupported, listing_only, disabled — the `remainder` that did not run, and `fidelity`: partial where the remainder is not empty, the answer then not the site's. A URL's realm is the scope, so `scope.realm` beside one is the URL's or nothing; an id or JSON takes a realm as a text does. A `text` sent beside `trade` must be the one it translates to, as `view.rows.next` sends it: an edited text is refused — drop `trade` to run the edit as your own query. `describe` with names [\"trade\"] says what each clause becomes."
                 },
                 "view": {
                     "type": "object",
@@ -538,8 +541,8 @@ struct ShowParams {
     id: String,
     /// Also return the body as the store holds it, verbatim.
     body: Option<bool>,
-    /// Why the item does or does not match a query: `{"text": …}` or
-    /// `{"tree": …}`, as a request's `query`.
+    /// Why the item does or does not match a query: `{"text": …}`,
+    /// `{"tree": …}` or `{"trade": …}`, as a request's `query`.
     against: Option<Value>,
     /// Account selector (username with or without `#discriminator`, or
     /// uuid); required only when several accounts are known.
@@ -688,7 +691,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Item search over the shared store (no daemon, no network): a query in the language `describe` prints, asked of every item in scope. The arguments are the request: {} is every item; {\"query\": {\"text\": \"class:ring rarity=rare\"}} is a query. The answer is one JSON document: `query` (the text as understood, and its tree), `scope` (account, realm, what was and was not fetched), `basis` (what the answer was computed from), `terms` (for each term how many items matched, failed, lacked the thing or were undecided), `total`, `view`, and `rows` — id, name, base, rarity, place by name and id, and the lines each term touched, never the item's body, which is `show`. Rows past the limit are counted in `view.rows.left_out`, and `view.rows.next` is the request for the rows after: send it back whole. Every count that is not zero holds the request that returns exactly its members, and a zero total offers requests under `zero.offers`: any of them is sent back as printed. A count-first look is {\"view\": {\"counts\": {\"keys\": [\"tab\", \"rarity\"]}}}; the vocabulary of lines is the key `line`, or `line:<text>` narrowed. A key is one entry of `keys`: a terminal's list `line:resist,life` is [\"line:resist\", \"line:life\"], and a comma inside an entry is part of its text. A time is seconds since 1970, UTC. `describe` and the messages name a terminal's flags: --count, --cross, --sum, --sort, --desc, --limit and --explain are `view`'s fields, --context is `context`, --realm and --membership are `scope`'s, and --next is `view.rows.next` sent back. A refusal is a result marked isError: `error`, `kind`, `readings` (what may have been meant, as a terminal would type it: a query text, a name, a flag or a whole `acq` command) and, where a way on is a search, `offers` (the same as requests to send instead)."
+        description = "Item search over the shared store (no daemon, no network): a query in the language `describe` prints, asked of every item in scope. The arguments are the request: {} is every item; {\"query\": {\"text\": \"class:ring rarity=rare\"}} is a query, and {\"query\": {\"trade\": a trade site URL}} a site search translated to one. The answer is one JSON document: `query` (the text as understood, and its tree), `scope` (account, realm, what was and was not fetched), `basis` (what the answer was computed from), `terms` (for each term how many items matched, failed, lacked the thing or were undecided), `total`, `view`, and `rows` — id, name, base, rarity, place by name and id, and the lines each term touched, never the item's body, which is `show`. Rows past the limit are counted in `view.rows.left_out`, and `view.rows.next` is the request for the rows after: send it back whole. Every count that is not zero holds the request that returns exactly its members, and a zero total offers requests under `zero.offers`: any of them is sent back as printed. A count-first look is {\"view\": {\"counts\": {\"keys\": [\"tab\", \"rarity\"]}}}; the vocabulary of lines is the key `line`, or `line:<text>` narrowed. A key is one entry of `keys`: a terminal's list `line:resist,life` is [\"line:resist\", \"line:life\"], and a comma inside an entry is part of its text. A time is seconds since 1970, UTC. `describe` and the messages name a terminal's flags: --count, --cross, --sum, --sort, --desc, --limit and --explain are `view`'s fields, --context is `context`, --realm and --membership are `scope`'s, and --next is `view.rows.next` sent back. A refusal is a result marked isError: `error`, `kind`, `readings` (what may have been meant, as a terminal would type it: a query text, a name, a flag or a whole `acq` command) and, where a way on is a search, `offers` (the same as requests to send instead)."
     )]
     fn search(&self, Parameters(RequestParams(args)): Parameters<RequestParams>) -> Told {
         let asked = match Asked::read(&Value::Object(args)) {
@@ -715,7 +718,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "The query language `search` takes, as this build knows it (no store read): fields, what a line has, operators, closed value sets, slots, the computed values with their definitions, what a count takes, what is not built and the limits stated — or only the entries named. The whole is over 100 KB, most of it under `computed`: name what is needed instead. The sections are fields (some 20 KB), line, linked, values, composition, operators, slots, counts and explain (each under 4 KB), and computed; a single name — league, total_res — returns its own entry. A name it does not know is refused, and the refusal lists every name it knows."
+        description = "The query language `search` takes, as this build knows it (no store read): fields, what a line has, operators, closed value sets, slots, the computed values with their definitions, what a count takes, what a trade site search's clauses become, what is not built and the limits stated — or only the entries named. The whole is over 100 KB, most of it under `computed`: name what is needed instead. The sections are fields (some 20 KB), line, linked, values, composition, operators, slots, counts and explain (each under 4 KB), trade (some 25 KB) and computed; a single name — league, total_res — returns its own entry. A name it does not know is refused, and the refusal lists every name it knows."
     )]
     fn describe(&self, Parameters(p): Parameters<Args<DescribeParams>>) -> Told {
         let p = match p.read() {
@@ -1117,7 +1120,9 @@ impl ServerHandler for AcqMcp {
              from. Begin with search with no arguments, for what the store holds — over a \
              store of several realms that is refused, and the refusal's offers are the \
              request in each realm: send one back — and describe with names \
-             [\"fields\"], for what a query may ask: describe whole is over 100 KB. No \
+             [\"fields\"], for what a query may ask: describe whole is over 100 KB. A \
+             trade site search — its URL, id or query JSON — is the query \
+             {{\"trade\": …}}, translated to the text a person would type. No \
              tool says what an item is worth: a price is the owner's own listing. The \
              store tools (search, show, accounts, tabs, characters, \
              store_status, item_events) read the shared SQLite \

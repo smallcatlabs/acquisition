@@ -6,8 +6,7 @@
 //! # Decisions as recorded
 //!
 //! - **C113 (K6), taken from the contract detail at step 4** (verbatim;
-//!   what a URL is and its scope stay there until the surface takes them,
-//!   step 5).
+//!   what a URL is and its scope are `answer.rs`'s, taken at step 5).
 //!   Every clause has one of five statuses — exact, ambiguous, unsupported,
 //!   listing-only, disabled — from one catalogue table the translation
 //!   reads, `--describe trade` prints and a test walks, an unknown key or

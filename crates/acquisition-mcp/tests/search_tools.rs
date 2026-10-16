@@ -897,6 +897,9 @@ fn describe_is_as_large_as_its_text_says() {
     let (whole, _) = seat.call("describe", &json!({}));
     assert!(whole.to_string().len() > 100_000);
     assert!(size(&mut seat, json!(["computed"])) > 50_000);
+    // some 25 KB, the trade catalogue's rows (C113)
+    assert!(size(&mut seat, json!(["trade"])) < 30_000);
+    assert!(size(&mut seat, json!(["trade"])) > 22_000);
     // some 20 KB since the property fields joined it (C114)
     assert!(size(&mut seat, json!(["fields"])) < 24_000);
     assert!(size(&mut seat, json!(["fields"])) > 16_000);
@@ -924,6 +927,7 @@ fn describe_is_as_large_as_its_text_says() {
         "The whole is over 100 KB",
         "fields (some 20 KB)",
         "(each under 4 KB)",
+        "trade (some 25 KB)",
     ] {
         assert!(text.contains(stated), "{stated}: {text}");
     }
@@ -938,7 +942,77 @@ fn describe_is_as_large_as_its_text_says() {
         "computed",
         "counts",
         "explain",
+        "trade",
     ] {
         assert!(text.contains(section), "{section}: {text}");
     }
+}
+
+/// TRADE_ID of the CLI's `tests/search_json.rs`, the same search: the
+/// status listing-only, the life line at 70 or more on an explicit line,
+/// and a count with no bound of its own in the remainder.
+const TRADE_ID: &str = "H4sIAAAAAAAA_5WM0QqDMAxF_yXPZYgVRH9liBTNINClRdOxUfLvRgd73-s995wKuwQpO4wVUhZKDCMkjsQI6i5o7F5BPhkNBV7BwYOi4PYFtNqM7xxpIbmdwuzbYfBd33Tevq8QC575J1m7b1Qndb_ekgrLX0XTJz0AXIqRsbcAAAA";
+
+/// C113, step 5 of the trade brief: the `query` takes `{"trade": …}` —
+/// a URL, an id or the query JSON as a string, or the JSON as an object —
+/// and answers as `acq search --request` does, its report under
+/// `query.trade`. Worked by hand over the fixture: the life line at 70
+/// or more on an explicit line holds of r1 (95), r2 (75 explicit) and
+/// kaom (500) — 3. A `next` keeps the site search and its label; a text
+/// beside it that is not its translation is refused; a scope realm beside
+/// a URL is the URL's or nothing; `describe` names `trade`.
+#[test]
+fn a_site_search_is_a_query_and_its_report_stands_in_the_answer() {
+    let mut seat = Seat::new();
+    let url = format!("https://www.pathofexile.com/trade/search/Standard/{TRADE_ID}");
+    let first =
+        seat.answer(&json!({ "query": { "trade": url }, "view": { "rows": { "limit": 2 } } }));
+    assert_eq!(ids(&first), ["r1", "r2"]);
+    assert_eq!(first["total"]["matched"], 3);
+    let trade = &first["query"]["trade"];
+    assert_eq!(trade["source"], "url");
+    assert_eq!(trade["fidelity"], "partial");
+    assert_eq!(trade["remainder"], json!(["stats.1", "stats.1.0"]));
+    assert_eq!(first["scope"]["realm"], "pc");
+
+    let next = first["view"]["rows"]["next"].clone();
+    assert_eq!(next["request"]["query"]["trade"], json!(url), "{next}");
+    let second = seat.answer(&next);
+    assert_eq!(ids(&second), ["kaom"]);
+    assert_eq!(second["query"]["trade"], first["query"]["trade"]);
+
+    // the query JSON as an object: no league, so no league term
+    let object =
+        seat.answer(&json!({ "query": { "trade": { "query": { "name": "Kaom's Heart" } } } }));
+    assert_eq!(object["query"]["text"], "name=\"Kaom's Heart\"");
+    assert_eq!(object["query"]["trade"]["source"], "json");
+    assert_eq!(ids(&object), ["kaom"]);
+
+    let edited = json!({ "query": { "trade": url, "text": "league=Standard" } });
+    let e = seat.refusal(&edited);
+    assert_eq!(e["kind"], "trade", "{e}");
+    let e = seat.refusal(&json!({ "scope": { "realm": "sony" }, "query": { "trade": url } }));
+    assert_eq!(e["kind"], "trade", "{e}");
+    let resolved = seat.answer(&json!({ "scope": { "realm": "pc" }, "query": { "trade": url } }));
+    assert_eq!(resolved["query"], json!(first["query"]));
+    let e = seat.refusal(&json!({ "query": { "trade": 7 } }));
+    assert_eq!(e["kind"], "trade", "{e}");
+
+    // `show`'s against takes it as a query, its report beside the text
+    let (shown, refused) = seat.call(
+        "show",
+        &json!({ "id": "plain", "against": { "trade": url } }),
+    );
+    assert!(!refused, "{shown}");
+    assert_eq!(shown["against"]["query"]["text"], first["query"]["text"]);
+    assert_eq!(shown["against"]["query"]["trade"], first["query"]["trade"]);
+    assert_eq!(shown["against"]["outcome"], "no_match");
+
+    let (described, refused) = seat.call("describe", &json!({ "names": ["trade"] }));
+    assert!(!refused, "{described}");
+    assert_eq!(
+        described,
+        cli(&seat.base, &["search", "--describe", "trade"]).0
+    );
+    assert!(described["trade"]["rows"].as_array().unwrap().len() > 100);
 }

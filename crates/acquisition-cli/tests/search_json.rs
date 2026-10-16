@@ -2591,3 +2591,464 @@ fn a_refusal_offers_requests_beside_its_readings() {
     let err = String::from_utf8(shown.stderr).unwrap();
     assert!(err.contains("    --realm pc\n    --realm poe2\n"), "{err}");
 }
+
+/// A site search composed for these tests in the site's own form — its
+/// query object gzipped and base64url-encoded (S56) — over the fixture:
+/// `{"status":{"option":"online"},"stats":[{"type":"and","filters":[{"id":"explicit.stat_3299347043","value":{"min":70}}]},{"type":"count","filters":[{"id":"explicit.stat_3299347043"}]}]}`:
+/// the status listing-only, the life line with its bound exact, and a
+/// count with no bound of its own, unsupported — so the translation is
+/// partial.
+const TRADE_ID: &str = "H4sIAAAAAAAA_5WM0QqDMAxF_yXPZYgVRH9liBTNINClRdOxUfLvRgd73-s995wKuwQpO4wVUhZKDCMkjsQI6i5o7F5BPhkNBV7BwYOi4PYFtNqM7xxpIbmdwuzbYfBd33Tevq8QC575J1m7b1Qndb_ekgrLX0XTJz0AXIqRsbcAAAA";
+
+fn trade_url() -> String {
+    format!("https://www.pathofexile.com/trade/search/Standard/{TRADE_ID}")
+}
+
+/// What TRADE_ID translates to under its URL, worked by hand from the
+/// catalogue: the league a term, the status reported, the life line with
+/// its source and its bound, the count in the remainder whole.
+const TRADE_TEXT: &str = r##"league=Standard line("# to maximum Life" source=explicit arg1>=70)"##;
+
+/// Each clause's place and status, as the report gives them.
+fn statuses(trade: &Value) -> Vec<(String, String)> {
+    trade["clauses"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| {
+            (
+                c["at"].as_str().unwrap().to_string(),
+                c["status"].as_str().unwrap().to_string(),
+            )
+        })
+        .collect()
+}
+
+/// C113, step 5 of the trade brief: a site search URL in place of a
+/// query is run over the store and labelled — the answer's query carries
+/// the report, the text opens with the fidelity and every clause that did
+/// not run — and the request `--print-request` prints, the site search
+/// beside the text it translates to, reads back as the same answer.
+/// Over the fixture, worked by hand: `league=Standard` holds of all five
+/// items; the life line at 70 or more on an explicit line holds of r1
+/// (95), r2 (75 explicit, the 20 implicit not read by the term), kaom
+/// (500), fails r3 (40) and is lacked by plain — 3 matches.
+#[test]
+fn c113_a_site_search_url_runs_labelled_and_its_printed_request_reads_back() {
+    let base = base();
+    seed(&base);
+    let url = trade_url();
+    let answer = sole_json(&acq(&base, &["--json", "search", "--trade", &url]));
+    assert_eq!(answer["query"]["text"], TRADE_TEXT);
+    assert_eq!(answer["scope"]["realm"], "pc");
+    assert_eq!(answer["total"]["matched"], 3);
+    let trade = &answer["query"]["trade"];
+    assert_eq!(trade["source"], "url");
+    assert_eq!(trade["fidelity"], "partial");
+    assert_eq!(trade["remainder"], json!(["stats.1", "stats.1.0"]));
+    assert_eq!(trade["catalogue"], 1);
+    assert_eq!(trade["stats"], "2026-09-12");
+    assert_eq!(
+        statuses(trade),
+        [
+            ("url.league", "exact"),
+            ("status", "listing_only"),
+            ("stats.0", "exact"),
+            ("stats.0.0", "ambiguous"),
+            ("stats.1", "unsupported"),
+            ("stats.1.0", "unsupported"),
+        ]
+        .map(|(at, s)| (at.to_string(), s.to_string()))
+    );
+    // the basis is the corpus's: the tables the translation read are the
+    // report's, the build that digests them the basis's
+    assert!(
+        answer["basis"].get("trade").is_none(),
+        "{}",
+        answer["basis"]
+    );
+
+    // the text opens with the translation, its remainder loud, each
+    // clause with the reason for its status, and only then the query
+    let shown = text(&acq(&base, &["search", "--trade", &url]));
+    let lines: Vec<&str> = shown.lines().collect();
+    assert_eq!(
+        lines[0],
+        "trade   from a URL: PARTIAL — 2 clauses not run, so this is not the site's search"
+    );
+    assert!(
+        lines[1].starts_with("        NOT RUN   stats.1    unsupported whole: it has no bound"),
+        "{shown}"
+    );
+    assert!(
+        lines[2].starts_with("        NOT RUN   stats.1.0  its group `stats.1`"),
+        "{shown}"
+    );
+    assert!(
+        lines[3].starts_with("        ambiguous stats.0.0  whether the site's explicit id"),
+        "{shown}"
+    );
+    assert_eq!(
+        lines[4],
+        "        reported  1 with no stash meaning — listing-only or disabled on the site: status"
+    );
+    assert_eq!(lines[5], format!("query   {TRADE_TEXT}"));
+
+    // --print-request: the site search beside the text it translates to,
+    // the realm the URL's
+    let printed = sole_json(&acq(&base, &["search", "--trade", &url, "--print-request"]));
+    assert_eq!(
+        printed["query"],
+        json!({ "text": TRADE_TEXT, "trade": url }),
+        "{printed}"
+    );
+    assert_eq!(printed["scope"]["realm"], "pc");
+    let file = base.join("request.json");
+    std::fs::write(&file, printed.to_string()).unwrap();
+    let again = sole_json(&acq(
+        &base,
+        &["--json", "search", "--request", file.to_str().unwrap()],
+    ));
+    assert_eq!(again["query"], answer["query"]);
+    assert_eq!(again["rows"], answer["rows"]);
+
+    // an edit beside the site search is refused, never run under its
+    // label; the translation is the reading, and dropping `trade` runs
+    // the edit as a query of one's own, unlabelled
+    let mut edited = printed.clone();
+    edited["query"]["text"] = json!(format!("{TRADE_TEXT} rarity=rare"));
+    std::fs::write(&file, edited.to_string()).unwrap();
+    let out = acq(
+        &base,
+        &["--json", "search", "--request", file.to_str().unwrap()],
+    );
+    assert_eq!(out.status.code(), Some(1));
+    let refused = sole_json(&out);
+    assert_eq!(refused["kind"], "trade", "{refused}");
+    assert_eq!(refused["readings"], json!([TRADE_TEXT]), "{refused}");
+    edited["query"].as_object_mut().unwrap().remove("trade");
+    std::fs::write(&file, edited.to_string()).unwrap();
+    let own = sole_json(&acq(
+        &base,
+        &["--json", "search", "--request", file.to_str().unwrap()],
+    ));
+    assert!(own["query"].get("trade").is_none(), "{own}");
+    // r1 and r2; kaom is unique
+    assert_eq!(own["total"]["matched"], 2);
+}
+
+/// K6: a URL's realm is the scope, so `--realm` beside one is a conflict
+/// — the same realm included, the flag having nothing to say — and a
+/// request whose scope names another realm than its URL is refused; an id
+/// names none, takes `--realm` as a query does and lands no league term.
+/// `--trade` stands in place of a query, never beside one, and a request
+/// read whole takes none beside it.
+#[test]
+fn k6_a_realm_beside_a_url_conflicts_and_an_id_takes_one() {
+    let base = base();
+    seed(&base);
+    let url = trade_url();
+    for realm in ["pc", "xbox"] {
+        let out = acq(
+            &base,
+            &["--json", "search", "--trade", &url, "--realm", realm],
+        );
+        assert_eq!(out.status.code(), Some(1), "--realm {realm}");
+        let e = sole_json(&out);
+        assert_eq!(e["kind"], "trade", "{e}");
+        assert!(
+            e["error"]
+                .as_str()
+                .unwrap()
+                .contains("the URL's realm, `pc`"),
+            "{e}"
+        );
+    }
+    let by_id = sole_json(&acq(
+        &base,
+        &["--json", "search", "--trade", TRADE_ID, "--realm", "pc"],
+    ));
+    assert_eq!(by_id["query"]["trade"]["source"], "id");
+    assert_eq!(
+        by_id["query"]["text"],
+        r##"line("# to maximum Life" source=explicit arg1>=70)"##
+    );
+    assert_eq!(by_id["total"]["matched"], 3);
+
+    let file = base.join("request.json");
+    std::fs::write(
+        &file,
+        json!({ "scope": { "realm": "xbox" }, "query": { "trade": url } }).to_string(),
+    )
+    .unwrap();
+    let out = acq(
+        &base,
+        &["--json", "search", "--request", file.to_str().unwrap()],
+    );
+    assert_eq!(out.status.code(), Some(1));
+    let e = sole_json(&out);
+    assert_eq!(e["kind"], "trade", "{e}");
+    assert!(
+        e["error"]
+            .as_str()
+            .unwrap()
+            .contains("the realm `xbox` and its trade URL `pc`"),
+        "{e}"
+    );
+
+    // in place of a query: the parser refuses the two together (C11's
+    // usage arm), and a request read whole takes neither
+    for args in [
+        vec!["--json", "search", "rarity=rare", "--trade", TRADE_ID],
+        vec!["--json", "search", "--query-file", "-", "--trade", TRADE_ID],
+        vec!["--json", "search", "--trade", TRADE_ID, "--trade-file", "-"],
+    ] {
+        let out = acq(&base, &args);
+        assert_eq!(out.status.code(), Some(2), "{args:?}");
+        assert_eq!(sole_json(&out)["kind"], "usage", "{args:?}");
+    }
+    for flag in ["--trade", "--trade-file"] {
+        let out = acq(
+            &base,
+            &[
+                "--json",
+                "search",
+                "--request",
+                file.to_str().unwrap(),
+                flag,
+                TRADE_ID,
+            ],
+        );
+        assert_eq!(out.status.code(), Some(1), "{flag}");
+        let e = sole_json(&out);
+        assert!(
+            e["error"]
+                .as_str()
+                .unwrap()
+                .contains(&format!("{flag} has nowhere to stand")),
+            "{e}"
+        );
+    }
+}
+
+/// `--trade-file -`: the site's query JSON from stdin, its envelope's
+/// sort reported and never applied, a name with an apostrophe written as
+/// the printer quotes it. Fills no scope: over a store of one realm the
+/// realm resolves as a query's does.
+#[test]
+fn c113_the_query_json_is_read_from_stdin_and_its_sort_is_reported() {
+    let base = base();
+    seed(&base);
+    let mut child = command(&base, &["--json", "search", "--trade-file", "-"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(
+            br#"{"query": {"status": {"option": "online"}, "name": "Kaom's Heart"}, "sort": {"price": "asc"}}"#,
+        )
+        .unwrap();
+    let out = child.wait_with_output().unwrap();
+    assert!(out.status.success());
+    let answer = sole_json(&out);
+    assert_eq!(answer["query"]["text"], r#"name="Kaom's Heart""#);
+    assert_eq!(answer["scope"]["realm"], "pc");
+    let trade = &answer["query"]["trade"];
+    assert_eq!(trade["source"], "json");
+    assert_eq!(trade["fidelity"], "exact");
+    assert_eq!(
+        statuses(trade),
+        [
+            ("status", "listing_only"),
+            ("name", "exact"),
+            ("sort", "listing_only")
+        ]
+        .map(|(at, s)| (at.to_string(), s.to_string()))
+    );
+    assert_eq!(ids_of(&answer), ["kaom"]);
+}
+
+fn ids_of(answer: &Value) -> Vec<&str> {
+    answer["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|row| row["id"].as_str().unwrap())
+        .collect()
+}
+
+/// Rule 5 over a translated search: every command its answers print runs
+/// as printed — a continuation that keeps the label, the routes, which
+/// are queries of their own and carry none, what a zero answer offers, a
+/// realm offered for an id over two realms and for the query JSON, and
+/// the search from its start across a changed basis, each carrying the
+/// site search where it is the site's.
+#[test]
+fn rule_5_every_command_a_translated_answer_prints_runs() {
+    let base = base();
+    seed(&base);
+    let url = trade_url();
+
+    // the continuation: the token carries the site search, page 2 its label
+    let shown = text(&acq(&base, &["search", "--trade", &url, "--limit", "1"]));
+    let more = printed_commands(
+        shown
+            .lines()
+            .find(|line| line.starts_with("more    "))
+            .unwrap_or_else(|| panic!("{shown}")),
+    )
+    .remove(0);
+    let page = run_printed(&base, &more);
+    assert!(page.status.success(), "{more}");
+    let page = sole_json(&page);
+    assert_eq!(page["query"]["trade"]["fidelity"], "partial", "{page}");
+    assert_eq!(page["view"]["rows"]["after"], 1);
+
+    // the routes: each a query of its own, unlabelled
+    let routes = text(&acq(&base, &["search", "--trade", &url, "--routes"]));
+    let commands = printed_commands(&routes);
+    assert!(commands.len() >= 4, "{routes}");
+    for command in &commands {
+        let out = run_printed(&base, command);
+        assert!(out.status.success(), "{command}");
+        assert!(sole_json(&out)["query"].get("trade").is_none(), "{command}");
+    }
+
+    // a zero answer: its offers run
+    let hardcore = url.replace("/Standard/", "/Hardcore/");
+    let zero = text(&acq(&base, &["search", "--trade", &hardcore]));
+    assert!(zero.contains("total   0 matches"), "{zero}");
+    let offered = printed_commands(&zero);
+    assert!(!offered.is_empty(), "{zero}");
+    for command in &offered {
+        assert!(run_printed(&base, command).status.success(), "{command}");
+    }
+
+    // across a changed basis, the way on is the site search from its
+    // start: a URL's with no realm, the URL naming it; the query JSON an
+    // agent sends as an object, as its text, shell-quoted round its
+    // apostrophe, with the realm the answer resolved
+    let token = |args: &[&str]| {
+        sole_json(&acq(&base, args))["view"]["rows"]["next"]["token"]
+            .as_str()
+            .unwrap_or_else(|| panic!("no next: {args:?}"))
+            .to_string()
+    };
+    let by_url = token(&["--json", "search", "--trade", &url, "--limit", "1"]);
+    let file = base.join("request.json");
+    std::fs::write(
+        &file,
+        json!({ "query": { "trade": { "query": { "name": "Kaom's Heart" }, "sort": { "price": "asc" } } },
+                "view": { "rows": { "limit": 0 } } })
+        .to_string(),
+    )
+    .unwrap();
+    let kaom = sole_json(&acq(
+        &base,
+        &["--json", "search", "--request", file.to_str().unwrap()],
+    ));
+    assert_eq!(kaom["query"]["trade"]["source"], "json");
+    // a continuation at its start, as an answer's `next` is made: the
+    // request resolved, the query JSON and its text, the basis and a place
+    let by_json: acquisition_search::answer::Request = serde_json::from_value(json!({
+        "scope": { "account": USER, "realm": "pc", "membership": "live" },
+        "query": { "text": kaom["query"]["text"],
+                   "trade": { "query": { "name": "Kaom's Heart" }, "sort": { "price": "asc" } } },
+        "view": { "rows": { "limit": 1, "after": 0 } },
+        "basis": kaom["basis"],
+    }))
+    .unwrap();
+    let by_json = by_json.token();
+    seed_more(&base);
+    for (token, source, quoted) in [
+        (&by_url, "url", format!("--trade {url} ")),
+        (
+            &by_json,
+            "json",
+            r#"--realm pc --trade '{"query":{"name":"Kaom'\''s Heart"},"sort":{"price":"asc"}}'"#
+                .to_string(),
+        ),
+    ] {
+        let out = acq(&base, &["search", "--next", token]);
+        assert_eq!(out.status.code(), Some(1));
+        let said = String::from_utf8_lossy(&out.stderr).to_string();
+        let start = printed_commands(&said);
+        assert_eq!(start.len(), 1, "{said}");
+        assert!(start[0].contains(&quoted), "{said}");
+        let out = run_printed(&base, &start[0]);
+        assert!(out.status.success(), "{}", start[0]);
+        assert_eq!(sole_json(&out)["query"]["trade"]["source"], source);
+    }
+
+    // an id over two realms (seed_more added poe2): each realm offered
+    // as the site search in it, sent back as printed
+    let out = acq(&base, &["--json", "search", "--trade", TRADE_ID]);
+    assert_eq!(out.status.code(), Some(1));
+    let e = sole_json(&out);
+    assert_eq!(e["kind"], "realm_needed", "{e}");
+    let offers = e["offers"].as_array().unwrap();
+    assert_eq!(offers.len(), 2, "{e}");
+    for offer in offers.iter().map(|o| &o["request"]) {
+        assert_eq!(offer["query"]["trade"], TRADE_ID, "{offer}");
+        std::fs::write(&file, offer.to_string()).unwrap();
+        let out = acq(
+            &base,
+            &["--json", "search", "--request", file.to_str().unwrap()],
+        );
+        assert!(out.status.success(), "{offer}");
+        assert_eq!(sole_json(&out)["query"]["trade"]["source"], "id", "{offer}");
+    }
+}
+
+/// `--describe trade` is the catalogue: every row, its status and what it
+/// lands as; the bare index names it in one line; the JSON whole holds it.
+#[test]
+fn describe_trade_is_the_catalogue() {
+    let base = base();
+    let named = sole_json(&acq(&base, &["--json", "search", "--describe", "trade"]));
+    let rows = named["trade"]["rows"].as_array().unwrap();
+    let catalogue = acquisition_search::trade::catalogue::catalogue().unwrap();
+    assert_eq!(rows.len(), catalogue.rows().len());
+    assert_eq!(named["trade"]["version"], catalogue.version());
+    let league = rows.iter().find(|r| r["key"] == "url.league").unwrap();
+    assert_eq!(league["status"], "exact");
+    assert_eq!(league["lands"], "league={value}");
+    assert!(named["fields"].as_array().unwrap().is_empty());
+
+    let shown = text(&acq(&base, &["search", "--describe", "trade"]));
+    assert!(
+        shown.starts_with("trade — the catalogue v1, the site's stats of 2026-09-12"),
+        "{shown}"
+    );
+    assert!(shown.contains("\n  url.league "), "{shown}");
+
+    let index = text(&acq(&base, &["search", "--describe"]));
+    let line = format!(
+        "trade — what `--trade` makes of each clause a site search can carry, {} rows: `--describe trade`",
+        rows.len()
+    );
+    assert!(index.lines().any(|l| l == line), "{index}");
+    assert!(
+        !index.contains("\n  url.league "),
+        "the index names the block only"
+    );
+    let whole = sole_json(&acq(&base, &["--json", "search", "--describe"]));
+    assert_eq!(whole["trade"], named["trade"]);
+    // a named entry elsewhere leaves the catalogue out
+    let league_only = sole_json(&acq(&base, &["--json", "search", "--describe", "league"]));
+    assert!(league_only.get("trade").is_none(), "{league_only}");
+
+    // the sizes `--describe`'s help states are the ones measured here: a
+    // help that says other numbers fails, and is checked again (the help
+    // said 36 KB of an index of 47 before the catalogue joined it)
+    assert!((42_000..52_000).contains(&index.len()), "{}", index.len());
+    let all = text(&acq(&base, &["search", "--describe", "all"]));
+    assert!(all.len() > 150_000, "{}", all.len());
+    let help = text(&acq(&base, &["search", "--help"]));
+    assert!(help.contains("(about 47 KB)"), "{help}");
+    assert!(help.contains("over 150 KB"), "{help}");
+}

@@ -56,7 +56,8 @@
 //! corpus`, `show --against`; a `next`, a route read back): a request
 //! in, an answer out. The trade brief (`search/TRADE-PLAN.md`) adds the
 //! decoder, the stat table and the catalogue (steps 1 to 3), the
-//! property fields (step 3) and the translation (step 4).
+//! property fields (step 3), the translation (step 4) and the surface
+//! (step 5: a request's `query.trade`, `answer.rs`).
 //!
 //! - [`tree`] — the query tree (C91): one typed value, and [`check`], what
 //!   a tree must satisfy to be one the language can say.
@@ -191,7 +192,12 @@
 //!   its text worked by hand and asked of items that tell it from a
 //!   weaker reading; every catalogue row a fixture; every stat id of the
 //!   table; K6's guard, apart from the module's own; a generated site
-//!   query read back).
+//!   query read back). The surface — a site search as a request's query,
+//!   its report in the answer, its realm the scope, its printed request
+//!   read back, every command printed run, `--describe trade` — is
+//!   [`mod@answer`]'s doc; pinned at the CLI by
+//!   `acquisition-cli/tests/search_json.rs` and at the MCP by
+//!   `acquisition-mcp/tests/search_tools.rs`.
 //! - **C114.** The property fields are [`properties`]'s doc and
 //!   `reference/properties-v1.toml`'s header; pinned by
 //!   `tests/properties.rs` (the shipped table; what its loader refuses;

@@ -171,6 +171,7 @@ fn against_held(query: &Query, held: &Held) -> Against {
         query: QueryOut {
             text: query.text(),
             tree: crate::json::to_json(&query.root),
+            trade: None,
         },
         outcome: truth_word(eval::truth(&query.bound, &outcomes)),
         nodes,
@@ -190,7 +191,8 @@ pub fn show(
 
 /// [`show`], and beside the item why it does or does not match `query`
 /// (the module doc). A query the binder refuses is that error, said
-/// before the store is read.
+/// before the store is read; a site search's report stands beside the
+/// query it translated to, as in an answer.
 pub fn against(
     store: &Store,
     intent: &Annotations,
@@ -198,8 +200,12 @@ pub fn against(
     body: bool,
     query: &QueryInput,
 ) -> Result<Shown, SearchError> {
-    let query = query.bind()?;
-    shown(store, intent, id, body, Some(&query))
+    let (query, translation) = query.read()?;
+    let mut shown = shown(store, intent, id, body, Some(&query))?;
+    if let Some(against) = &mut shown.against {
+        against.query.trade = translation.map(crate::answer::TradeOut::from);
+    }
+    Ok(shown)
 }
 
 fn shown(
@@ -362,6 +368,7 @@ fn not_shown(
             query: crate::answer::QueryInput {
                 text: Some(format!("id:{id}")),
                 tree: None,
+                trade: None,
             },
             ..Default::default()
         };

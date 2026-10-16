@@ -38,6 +38,14 @@
 //! - **The query may come from a file or stdin** (`--query-file`, the
 //!   plan's gap 2): a template with an apostrophe cannot be typed plainly
 //!   inside a shell's single quotes. A route is printed shell-quoted.
+//! - **`--trade` and `--trade-file` are a query's third spelling**
+//!   (C113): the site search is the request's `query.trade`, translated by
+//!   the crate at every read (`answer.rs`), and `--print-request` writes
+//!   the text it translates to beside it. `--realm` beside a URL is K6's
+//!   conflict, said here before anything is read, the same realm
+//!   included; the request's own rule, a scope beside a URL being the
+//!   URL's, is the crate's. The text opens with the translation, its
+//!   remainder loud (`trade_text`).
 //! - **The intent file is opened beside the store** (`plan_cmd::open_intent`,
 //!   as `acq price` opens it): the effective price a query reads is the
 //!   listing state's (C81, C100), and every basis names the intent
@@ -46,12 +54,15 @@
 use std::io::Read as _;
 
 use acquisition_search::answer::{
-    Answer, Asked, Context, Count, DEFAULT_LIMIT, Membership, Request, Rows, Scope, View, ViewOut,
+    Answer, Asked, Context, Count, DEFAULT_LIMIT, Membership, Request, Rows, Scope, TradeOut, View,
+    ViewOut,
 };
 use acquisition_search::corpus::Realm;
 use acquisition_search::counts::{Bucket, CrossOut, Label, SumOf, Summed, Table};
 use acquisition_search::describe::Describe;
 use acquisition_search::show::Shown;
+use acquisition_search::trade::Source;
+use acquisition_search::trade::translate::{Clause, Fidelity, Status};
 use acquisition_search::{Priced, SearchError, answer, describe, not_built, show};
 use acquisition_store::{Store, account_path};
 use anyhow::{Context as _, Result};
@@ -83,6 +94,24 @@ pub struct SearchArgs {
     /// apostrophe needs no shell quoting this way.
     #[arg(long, value_name = "FILE|-", conflicts_with = "query")]
     pub query_file: Option<String>,
+    /// A trade site search in place of a query, translated with no
+    /// network to the query a person would type: its URL
+    /// (`https://www.pathofexile.com/trade/search/<league>/<id>`, or
+    /// `…/search/xbox/<league>/<id>` and `sony` for a console), its id
+    /// alone, or its query JSON. A URL's realm is the search's scope, so
+    /// `--realm` beside one is an error; an id or JSON names no realm and
+    /// takes `--realm` as a query does. The answer opens with how
+    /// faithful the translation is and every clause it could not run;
+    /// the clauses, each with its status, are its JSON's `query.trade`,
+    /// and `--describe trade` is what becomes of each. The site's sort is
+    /// reported, never applied. PoE1 only.
+    #[arg(long, value_name = "URL|ID", conflicts_with_all = ["query", "query_file"])]
+    pub trade: Option<String>,
+    /// `--trade`, read from a file or from stdin with `-`: the query JSON
+    /// as the site posts it, `{"query": …, "sort": …}` or the query
+    /// object alone, needs no shell quoting this way.
+    #[arg(long, value_name = "FILE|-", conflicts_with_all = ["query", "query_file", "trade"])]
+    pub trade_file: Option<String>,
     /// Order the rows by a value: `ilvl`, `stack`, `'line("T").arg1'`,
     /// `'sum("T")'`, `pseudo.total_res`. A line's scalar is its largest
     /// satisfying occurrence; an item with none sorts last either way
@@ -105,11 +134,12 @@ pub struct SearchArgs {
     /// what a line has, operators, closed value sets, slots, how terms
     /// compose, what a count takes, what is not built and the limits
     /// stated, with each computed value and category by name and one
-    /// line (about 36 KB). Named, those entries whole with their
+    /// line (about 47 KB). Named, those entries whole with their
     /// definitions (`--describe league,line,pseudo.total_res`; a block's
-    /// name is one: `--describe computed`). `--describe all` is every
-    /// entry whole, over 100 KB. `--json` is whole unless entries are
-    /// named.
+    /// name is one: `--describe computed`, and `--describe trade` what
+    /// `--trade` makes of each clause of a site search). `--describe
+    /// all` is every entry whole, over 150 KB. `--json` is whole unless
+    /// entries are named.
     #[arg(long, value_name = "NAME,…", num_args = 0..=1, value_delimiter = ',')]
     pub describe: Option<Vec<String>>,
     /// Count the matches by a key, one table for each key named, and show
@@ -252,6 +282,8 @@ pub fn search(args: SearchArgs, json: bool) -> Result<()> {
     let typed = [
         ("a query", args.query.is_some()),
         ("--query-file", args.query_file.is_some()),
+        ("--trade", args.trade.is_some()),
+        ("--trade-file", args.trade_file.is_some()),
         ("--realm", args.realm.is_some()),
         ("--membership", args.membership.is_some()),
         ("--sort", args.sort.is_some()),
@@ -339,16 +371,40 @@ pub fn search(args: SearchArgs, json: bool) -> Result<()> {
         let described = describe(asked).map_err(|e| fail(e.into(), json))?;
         return emit(&described, json, |d| describe_text(d, index));
     }
-    let text = match &args.query_file {
-        Some(path) if path == "-" => {
+    let read = |path: &str, what: &str| -> Result<String> {
+        if path == "-" {
             let mut text = String::new();
             std::io::stdin().read_to_string(&mut text)?;
-            text
+            Ok(text)
+        } else {
+            std::fs::read_to_string(path).with_context(|| format!("reading the {what} from {path}"))
         }
-        Some(path) => std::fs::read_to_string(path)
-            .with_context(|| format!("reading the query from {path}"))?,
+    };
+    let text = match &args.query_file {
+        Some(path) => read(path, "query")?,
         None => args.query.clone().unwrap_or_default(),
     };
+    let trade = match (&args.trade, &args.trade_file) {
+        (Some(trade), _) => Some(trade.clone()),
+        (None, Some(path)) => Some(read(path, "site search")?),
+        (None, None) => None,
+    };
+    // a URL's realm is the scope (K6): the flag beside one says it twice
+    if let (Some(word), Some(trade)) = (&args.realm, &trade)
+        && let Ok(decoded) = acquisition_search::decode(trade)
+        && let Some(url) = decoded.realm
+    {
+        return Err(fail(
+            SearchError::Scope {
+                kind: "trade",
+                message: format!(
+                    "`--realm {word}` beside a trade URL: the URL's realm, `{url}`, is the search's scope — leave `--realm` out, or give the search's id, which names no realm"
+                ),
+                offers: Vec::new(),
+            },
+            json,
+        ));
+    }
     let realm = match &args.realm {
         Some(word) => Some(Realm::parse(word).map_err(|e| fail(e, json))?),
         None => None,
@@ -420,8 +476,9 @@ pub fn search(args: SearchArgs, json: bool) -> Result<()> {
             ..Scope::default()
         },
         query: acquisition_search::answer::QueryInput {
-            text: Some(text.trim().to_string()),
+            text: trade.is_none().then(|| text.trim().to_string()),
             tree: None,
+            trade: trade.map(serde_json::Value::String),
         },
         view,
         context,
@@ -443,6 +500,12 @@ pub fn search(args: SearchArgs, json: bool) -> Result<()> {
                 .unwrap_or_else(|| corpus.basis.account.clone()),
         );
         request.scope.realm = Some(corpus.realm.clone());
+        // a site search is printed beside the text it translates to,
+        // which reading it back holds the translation to
+        if request.query.trade.is_some() {
+            let query = request.bind().map_err(|e| fail(e.into(), json))?;
+            request.query.text = Some(query.text());
+        }
         println!("{}", serde_json::to_string_pretty(&request)?);
         return Ok(());
     }
@@ -559,6 +622,7 @@ pub fn show_item(args: ShowArgs, json: bool) -> Result<()> {
         .against
         .as_ref()
         .map(|text| acquisition_search::answer::QueryInput {
+            trade: None,
             text: Some(text.trim().to_string()),
             tree: None,
         });
@@ -687,6 +751,76 @@ fn evidence_text(evidence: &acquisition_search::answer::Evidence) -> String {
     }
 }
 
+/// A site search's translation as an answer opens with it: one line,
+/// how far the text is the site's search, then each clause that did not
+/// run and each that runs as the site may not read it, with its note —
+/// ten of each listed and the rest counted (C53) — and the clauses with
+/// no stash meaning counted on one line. The whole is the JSON's
+/// `query.trade`.
+fn trade_text(t: &TradeOut) -> Vec<String> {
+    let from = match t.source {
+        Source::Url => "a URL",
+        Source::Id => "a search id",
+        Source::Json => "the query JSON",
+    };
+    let of = |status: Status| -> Vec<&Clause> {
+        t.clauses.iter().filter(|c| c.status == status).collect()
+    };
+    let (unsupported, ambiguous) = (of(Status::Unsupported), of(Status::Ambiguous));
+    let reported: Vec<&Clause> = t
+        .clauses
+        .iter()
+        .filter(|c| matches!(c.status, Status::ListingOnly | Status::Disabled))
+        .collect();
+    let mut out = vec![match t.fidelity {
+        Fidelity::Partial => format!(
+            "trade   from {from}: PARTIAL — {} not run, so this is not the site's search",
+            plural(unsupported.len(), "clause", "clauses")
+        ),
+        Fidelity::Ambiguous => format!(
+            "trade   from {from}: ambiguous — every clause ran, {} as the site may not read {}",
+            ambiguous.len(),
+            if ambiguous.len() == 1 { "it" } else { "them" }
+        ),
+        Fidelity::Exact => format!(
+            "trade   from {from}: exact — every clause with a stash meaning ran as the site reads it"
+        ),
+    }];
+    let width = unsupported
+        .iter()
+        .chain(&ambiguous)
+        .map(|c| c.at.chars().count() + 2)
+        .max()
+        .unwrap_or(0);
+    for (word, clauses) in [("NOT RUN  ", &unsupported), ("ambiguous", &ambiguous)] {
+        for c in clauses.iter().take(10) {
+            out.push(format!(
+                "        {word} {:<width$}{}",
+                c.at,
+                c.notes.last().map_or("", String::as_str)
+            ));
+        }
+        if clauses.len() > 10 {
+            out.push(format!(
+                "        {word} … and {} more: the JSON's query.trade.clauses",
+                clauses.len() - 10
+            ));
+        }
+    }
+    if !reported.is_empty() {
+        let mut ats: Vec<&str> = reported.iter().take(10).map(|c| c.at.as_str()).collect();
+        if reported.len() > 10 {
+            ats.push("…");
+        }
+        out.push(format!(
+            "        reported  {} with no stash meaning — listing-only or disabled on the site: {}",
+            reported.len(),
+            ats.join(", ")
+        ));
+    }
+    out
+}
+
 fn answer_text(a: &Answer, all_routes: bool) -> String {
     let now = acquisition_store::now();
     let mut out = String::new();
@@ -694,6 +828,11 @@ fn answer_text(a: &Answer, all_routes: bool) -> String {
         out.push_str(s.trim_end());
         out.push('\n');
     };
+    // a site search's translation opens the answer, its remainder loud
+    let typed = a.set_aside.as_ref().unwrap_or(&a.query);
+    if let Some(trade) = &typed.trade {
+        trade_text(trade).into_iter().for_each(&mut line);
+    }
     let query = if a.query.text.is_empty() {
         "(every item in scope)"
     } else {
@@ -1494,6 +1633,37 @@ fn describe_text(d: &Describe, index: bool) -> String {
             out.push_str(&format!("  {:<30}{}\n", c.id, c.text));
             if !index {
                 out.push_str(&format!("  {:<30}  {}\n", "", c.holds));
+            }
+        }
+    }
+    // the catalogue is a block of its own: the index names it
+    if let Some(trade) = &d.trade {
+        if index {
+            out.push_str(&format!(
+                "trade — what `--trade` makes of each clause a site search can carry, {} rows: `--describe trade`\n",
+                trade.rows.len()
+            ));
+        } else {
+            out.push_str(&format!(
+                "trade — the catalogue v{}, the site's stats of {}: each clause a site search can carry, its status when it runs, and the text it becomes\n",
+                trade.version, trade.stats
+            ));
+            let key = trade
+                .rows
+                .iter()
+                .map(|r| r.key.chars().count() + 2)
+                .max()
+                .unwrap_or(0);
+            for r in &trade.rows {
+                out.push_str(&format!(
+                    "  {:<key$}{:<14}{}\n",
+                    r.key,
+                    r.status,
+                    r.lands.as_deref().unwrap_or("—")
+                ));
+                for said in r.text.iter().chain(&r.note) {
+                    out.push_str(&format!("  {:<key$}{:<14}{said}\n", "", ""));
+                }
             }
         }
     }

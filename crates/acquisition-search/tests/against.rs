@@ -16,6 +16,7 @@ fn against(s: &Store, id: &str, query: &str) -> Result<Value, Value> {
     let query = QueryInput {
         text: Some(query.to_string()),
         tree: None,
+        trade: None,
     };
     acquisition_search::show::against(s, &intent(s), id, false, &query)
         .map(|shown| serde_json::to_value(shown).unwrap())

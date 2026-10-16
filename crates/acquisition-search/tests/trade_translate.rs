@@ -15,12 +15,15 @@
 //!   and the statuses are what the catalogue's header counts.
 //! - **A generated site query** — filters, groups and ids drawn from the
 //!   catalogue and the stat table — translates, its text binds, its
-//!   print reads back to the same tree, and the guard holds.
+//!   print reads back to the same tree, and the guard holds; and as a
+//!   request's query, alone and beside its own text, it reads as the
+//!   same translation (step 5).
 
 mod common;
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use acquisition_search::answer::QueryInput;
 use acquisition_search::trade::translate::{Status, Translation};
 use acquisition_search::tree::{self, Node};
 use acquisition_search::{ErrorKind, decode, from_json, parse_query, print, translate};
@@ -28,6 +31,7 @@ use common::generated::{config, site_query};
 use common::*;
 use proptest::prelude::*;
 use serde::Deserialize;
+use serde_json::Value as Json;
 use serde_json::{Value, json};
 
 #[derive(Deserialize)]
@@ -437,5 +441,21 @@ proptest! {
         let report = serde_json::to_value(&t).unwrap();
         let carried: Node = from_json(&report["tree"]).unwrap();
         prop_assert_eq!(&carried, &t.tree);
+        // as a request's query (step 5): the site search alone, as an
+        // object and as its text, and beside the text it translates to —
+        // what a printed request and a continuation send — read as the
+        // translation, its report this build's
+        for trade in [query.clone(), Json::String(query.to_string())] {
+            for text in [None, Some(t.text.clone())] {
+                let input = QueryInput { text, tree: None, trade: Some(trade.clone()) };
+                let (bound, again) = input
+                    .read()
+                    .map_err(|e| TestCaseError::fail(format!("{query}: {e}")))?;
+                prop_assert_eq!(bound.text(), t.text.clone());
+                let again = again.unwrap();
+                prop_assert_eq!(again.clauses, t.clauses.clone());
+                prop_assert_eq!(again.fidelity, t.fidelity);
+            }
+        }
     }
 }

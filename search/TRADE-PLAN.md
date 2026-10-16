@@ -118,8 +118,9 @@ grows at 3 so that 4's text parses on the build that writes it.
    carries `trade` — source, clauses with statuses, remainder,
    `fidelity`; the text rendering opens with the translation's one
    line and the remainder, loud. `--print-request` is unchanged: the
-   request it prints carries the translated text and the report, and
-   `--request` reads it back. `--describe trade` is the catalogue.
+   request it prints carries the site search beside the text it
+   translates to, and `--request` reads it back, translating again.
+   `--describe trade` is the catalogue.
    *Acceptance:* `tests/search_json.rs` and the MCP's tests pin the
    JSON; the references regenerate; the tour gains one line.
 6. **The oracle: missed matches.** `tests/trade_oracle.rs`: for every
@@ -214,3 +215,12 @@ What step 4 opened:
   groups, 37 in `not`, 21 in `if` of captures with fetched items — and
   an unbounded pseudo is its presence, `has:` (C94; K6), so step 6 reads
   them rather than excluding them by their remainder.
+
+What step 5 opened:
+
+- What a printed request and a continuation carry beside the text: the
+  site search itself, translated again at every read and the text held
+  to it, where this said the report, which a caller would carry as a
+  label, stale or edited (owner, 2026-10-16, choosing "Site search,
+  re-translated"). The report is the answer's alone, and the tables'
+  versions are the report's, the basis being the corpus's.

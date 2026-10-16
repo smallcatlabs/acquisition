@@ -108,6 +108,7 @@ acq store characters [--realm R] [--league L]   # character locations, ages and 
 acq search [--realm R] ['<query>'] [--sort V [--desc]] [--limit N] [--routes]   # item search: scope, basis, counts per term, rows; a store of two realms needs --realm (pc, poe2, all)
 acq search ['<query>'] --count KEY,… | --cross KEY,KEY [--sum V]   # the matches counted by key, one table each or one crossed; line[:text,…] is the vocabulary
 acq search --describe [name,…|all]   # the query language: bare an index, a name or `all` its entries whole
+acq search --trade <URL|ID> | --trade-file <FILE|->   # a trade site search (PoE1) as the query a person would type, run and labelled clause by clause
 acq show <id> [--body]   # one item as the search derives it; the stored body on request
 acq store status | events [--hours N] | refused [id]   # counts; ingest events; malformed bodies
 acq store import <snapshot.json> | rebuild   # replay a retired-pull snapshot; re-extract columns

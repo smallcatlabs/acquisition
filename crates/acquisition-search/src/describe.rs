@@ -13,7 +13,11 @@
 //! named by can be asked for alone. Printed from the binder's own tables,
 //! so the help cannot say a name the binder refuses. The category ids are
 //! rows of their own (`category.rs`): each with the site's text for it and
-//! what makes it hold, printed whole and beside the field `category`.
+//! what makes it hold, printed whole and beside the field `category`. The
+//! trade catalogue is a block of its own (C113; `trade/catalogue.rs`):
+//! every clause a site search can carry, its status and the text it
+//! becomes, printed whole and where `trade` is named; the index names it
+//! in one line.
 
 use serde::Serialize;
 
@@ -49,6 +53,11 @@ pub struct Describe {
     /// `category` where that is named.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub categories: Vec<crate::category::Described>,
+    /// The trade catalogue (C113; `trade/catalogue.rs`): every clause a
+    /// site search can carry, with what `--trade` makes of it — printed
+    /// whole, and where `trade` is named.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trade: Option<TradeCatalogue>,
     pub not_built: Vec<NotBuilt>,
     pub limits: Vec<Limit>,
 }
@@ -63,6 +72,52 @@ pub struct Named {
     pub values: Vec<&'static str>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub examples: Vec<&'static str>,
+}
+
+/// The trade catalogue as `--describe trade` prints it: its version, the
+/// stat table's beside it, and a row per clause.
+#[derive(Debug, Clone, Serialize)]
+pub struct TradeCatalogue {
+    pub version: u32,
+    /// The stat table's version: the capture its ids and texts are from.
+    pub stats: String,
+    pub rows: Vec<TradeRow>,
+}
+
+/// One clause of a site search: its key as the query object spells it,
+/// the site's label, its status when it runs, the text it becomes — with
+/// the placeholders the catalogue's header defines — and its note.
+#[derive(Debug, Clone, Serialize)]
+pub struct TradeRow {
+    pub key: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    pub status: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lands: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+}
+
+fn trade_catalogue() -> Result<TradeCatalogue, LanguageError> {
+    let defect = |e: String| LanguageError::new(ErrorKind::Trade, e);
+    let catalogue = crate::trade::catalogue::catalogue().map_err(|e| defect(e.to_string()))?;
+    let stats = crate::trade::stats::table().map_err(|e| defect(e.to_string()))?;
+    Ok(TradeCatalogue {
+        version: catalogue.version(),
+        stats: stats.version().to_string(),
+        rows: catalogue
+            .rows()
+            .iter()
+            .map(|row| TradeRow {
+                key: row.key.clone(),
+                text: row.text.clone(),
+                status: row.disposition.word(),
+                lands: row.lands.clone(),
+                note: row.note.clone(),
+            })
+            .collect(),
+    })
 }
 
 /// One limit of the digest's register, in its wording (C102).
@@ -474,6 +529,7 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
         categories: crate::category::tables()
             .map(|tables| tables.described())
             .unwrap_or_default(),
+        trade: Some(trade_catalogue()?),
         not_built: NOT_BUILT.to_vec(),
         limits: LIMITS.to_vec(),
     };
@@ -514,7 +570,7 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
             || (entry.starts_with("arg1") && crate::tree::arg_index(asked).is_some())
     };
     // `pseudo` names the computed block, as the namespace does
-    const BLOCKS: [&str; 11] = [
+    const BLOCKS: [&str; 12] = [
         "fields",
         "line",
         "linked",
@@ -526,6 +582,7 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
         "pseudo",
         "counts",
         "explain",
+        "trade",
     ];
     let entries = |d: &Describe| -> Vec<String> {
         [
@@ -600,6 +657,12 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
         .any(|asked| asked.eq_ignore_ascii_case(crate::category::FIELD))
     {
         out.categories.clear();
+    }
+    if !names
+        .iter()
+        .any(|asked| asked.eq_ignore_ascii_case("trade"))
+    {
+        out.trade = None;
     }
     out.not_built.clear();
     out.limits.clear();

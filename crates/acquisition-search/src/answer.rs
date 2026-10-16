@@ -82,7 +82,39 @@
 //! A crossed cell's route carries both keys. Paths (`0`…`4`, `3.1`) belong
 //! to this exact returned query; after an edit, use the next answer's.
 //!
+//! # Decisions as recorded
+//!
+//! - **C113 (K6), taken from the contract detail at step 5** of
+//!   `search/TRADE-PLAN.md` (verbatim): A URL is a request: its realm the
+//!   scope, its league a term, the rest the query; a bare id or the query
+//!   JSON fills no scope; `--realm` beside a URL is a conflict; a sort,
+//!   which only the JSON envelope carries, is reported, never applied.
+//!
 //! # As built
+//!
+//! - **A site search is a query's third spelling** (C113; the brief's
+//!   step 5): `query.trade` holds it — a URL, an id or the query JSON as
+//!   a string, or the JSON as an object — and every read translates it
+//!   again ([`trade::translate`]), so the report an answer holds is this
+//!   build's and no caller's. The query is the translation's text, bound;
+//!   a text or a tree sent beside it, as a printed request and a
+//!   continuation send one, must be that text, and one that is not —
+//!   edited, or translated by another build's tables — is refused with
+//!   the translation as its reading, never run under the site's label
+//!   (the owner, 2026-10-16, choosing this over the report carried as a
+//!   label: "Site search, re-translated"). The answer's query carries the
+//!   report, `trade`: the source, the fidelity, the remainder, every
+//!   clause, and the versions of the catalogue and the stat table. They
+//!   are the report's, not the basis's, which is the corpus's: a route's
+//!   `counted_at` would otherwise move with no corpus moving, and the
+//!   build the basis names digests both tables (`build.rs`). The URL's
+//!   realm is the scope ([`Request::realm`]): a scope's realm beside it
+//!   is the resolved form an answer prints and must be the URL's. A
+//!   continuation and the start offered across a changed basis carry the
+//!   site search; a route, an offer to explain and a forced query are
+//!   queries of their own and carry none. A command made of a request
+//!   that carries one is `--trade` and that search
+//!   ([`Request::command`]), with no `--realm` where its URL names one.
 //!
 //! - **The request** — `{account, realm | all, membership}`, the query, a
 //!   view, and a basis when it continues (C98, C100; a route carries none, B3). A
@@ -244,6 +276,8 @@ use crate::error::{LanguageError, SearchError};
 use crate::eval::{self, Outcome, Scalar, Truth};
 pub use crate::eval::{Evidence, Reason};
 use crate::group;
+use crate::trade::translate::{Clause, Fidelity, Translation};
+use crate::trade::{self, Decoded, Source};
 use crate::tree::{Collection, Node, Op, Probe, Value, ValueRef};
 use crate::{json, parse, print};
 
@@ -367,7 +401,11 @@ impl Membership {
     }
 }
 
-/// The query as text or as a tree; an answer returns both (C104).
+/// The query as text or as a tree; an answer returns both (C104). Or a
+/// trade site search (C113), its third spelling: a URL, an id or the
+/// query JSON as a string, or the query JSON as an object, translated at
+/// every read — and a text or a tree beside it is held to be the one the
+/// site's search translates to (the module doc).
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct QueryInput {
@@ -375,6 +413,8 @@ pub struct QueryInput {
     pub text: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tree: Option<Json>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trade: Option<Json>,
 }
 
 /// What an answer shows of its matches: rows, or counts of them — one
@@ -439,14 +479,68 @@ pub struct Rows {
 impl QueryInput {
     /// The query, parsed or read, and bound.
     pub fn bind(&self) -> Result<Query, LanguageError> {
-        match (&self.text, &self.tree) {
-            (Some(_), Some(_)) => Err(LanguageError::new(
-                crate::error::ErrorKind::Tree,
-                "a request sends `text` or `tree`, never both: an answer returns both",
+        self.read().map(|(query, _)| query)
+    }
+
+    /// The query, and the translation it is where the request carries a
+    /// site search: the translation's text, bound, with a text or a tree
+    /// beside it held to be that text. One that is not was edited after
+    /// the translation, or translated by another build: it is refused,
+    /// never run under the site's label.
+    pub fn read(&self) -> Result<(Query, Option<Translation>), LanguageError> {
+        let given = match (&self.text, &self.tree) {
+            (Some(_), Some(_)) => {
+                return Err(LanguageError::new(
+                    crate::error::ErrorKind::Tree,
+                    "a request sends `text` or `tree`, never both: an answer returns both",
+                ));
+            }
+            (Some(text), None) => Some(bind::parse_query(text)?),
+            (None, Some(tree)) => Some(bind::bind(&json::from_json(tree)?)?),
+            (None, None) => None,
+        };
+        let Some(decoded) = self.decoded()? else {
+            return match given {
+                Some(query) => Ok((query, None)),
+                None => Ok((bind::parse_query("")?, None)),
+            };
+        };
+        let translation = trade::translate::translate(&decoded)?;
+        if let Some(given) = given
+            && given.text() != translation.text
+        {
+            return Err(LanguageError::new(
+                crate::error::ErrorKind::Trade,
+                format!(
+                    "the query beside `trade` is not the text this build translates the site's search to — `{}`: a request that carries `trade` runs the site's search, so drop `trade` to run the edit as a query of your own, labelled as yours",
+                    translation.text
+                ),
+            )
+            .with_readings(vec![translation.text.clone()]));
+        }
+        Ok((bind::parse_query(&translation.text)?, Some(translation)))
+    }
+
+    /// The site search the query carries, decoded with no network (C113):
+    /// a string is a URL, an id or the query JSON, an object the query
+    /// JSON.
+    pub fn decoded(&self) -> Result<Option<Decoded>, LanguageError> {
+        match &self.trade {
+            None => Ok(None),
+            Some(Json::String(input)) => trade::decode(input).map(Some),
+            Some(value @ Json::Object(_)) => trade::decode_json(value).map(Some),
+            Some(_) => Err(LanguageError::new(
+                crate::error::ErrorKind::Trade,
+                "`trade` is a site search URL, its id or its query JSON as a string, or the query JSON as an object",
             )),
-            (Some(text), None) => bind::parse_query(text),
-            (None, Some(tree)) => bind::bind(&json::from_json(tree)?),
-            (None, None) => bind::parse_query(""),
+        }
+    }
+
+    /// The site search as a terminal types it after `--trade`.
+    fn trade_word(&self) -> Option<String> {
+        match self.trade.as_ref()? {
+            Json::String(input) => Some(input.clone()),
+            other => Some(other.to_string()),
         }
     }
 }
@@ -462,24 +556,51 @@ impl Request {
         self.query.bind()
     }
 
+    /// The realm the request is asked in: the scope's, or the one its
+    /// site search's URL names, which is the search's scope (K6). The
+    /// two never differ: a request's scope beside a URL is the resolved
+    /// form an answer prints, and one that names another realm, or all,
+    /// is refused.
+    pub fn realm(&self) -> Result<Option<Realm>, LanguageError> {
+        let url = self.query.decoded()?.and_then(|decoded| decoded.realm);
+        match (&self.scope.realm, url) {
+            (Some(realm), Some(url)) if realm.as_str() != url => Err(LanguageError::new(
+                crate::error::ErrorKind::Trade,
+                format!(
+                    "the request names the realm `{}` and its trade URL `{url}`: a URL's realm is the search's scope — leave the scope's realm out, or send the search's id, which names none",
+                    realm.as_str()
+                ),
+            )),
+            (Some(realm), _) => Ok(Some(realm.clone())),
+            (None, url) => Ok(url.map(Realm::One)),
+        }
+    }
+
     /// The query the answer is of, and the one set aside: under `corpus`
     /// the empty query, the typed one beside it — still read, so that one
     /// that does not bind is the error it is in any context. Explain is
     /// of the query typed, so beside `corpus` it is the view's error.
-    fn asked(&self) -> Result<(Query, Option<Query>), LanguageError> {
+    /// The site search's translation, where the query is one, is the
+    /// typed query's, and stands with it.
+    fn asked(&self) -> Result<Asking, LanguageError> {
         if self.context == Context::Corpus && matches!(self.view, View::Explain(_)) {
             return Err(LanguageError::new(
                 crate::error::ErrorKind::View,
                 "`--explain` is of the query typed, and `--context corpus` sets it aside: ask one or the other",
             ));
         }
-        let typed = self.bind()?;
+        let (typed, translation) = self.query.read()?;
         Ok(match self.context {
-            Context::Matches => (typed, None),
-            Context::Corpus => (
-                bind::parse_query("")?,
-                (!is_empty(&typed.root)).then_some(typed),
-            ),
+            Context::Matches => Asking {
+                query: typed,
+                set_aside: None,
+                translation,
+            },
+            Context::Corpus => Asking {
+                query: bind::parse_query("")?,
+                set_aside: (!is_empty(&typed.root) || translation.is_some()).then_some(typed),
+                translation,
+            },
         })
     }
 
@@ -543,23 +664,30 @@ impl Request {
         store: &acquisition_store::Store,
         intent: &acquisition_store::Annotations,
     ) -> Result<Corpus, SearchError> {
-        Corpus::load_of(
-            store,
-            intent,
-            self.scope.realm.as_ref(),
-            self.scope.membership,
-        )
-        .map_err(|e| e.asked_by(self))
+        let realm = self.realm()?;
+        Corpus::load_of(store, intent, realm.as_ref(), self.scope.membership)
+            .map_err(|e| e.asked_by(self))
     }
 
     /// Every authoring error the request holds — the query's, the sort's,
-    /// the view's, a path the query lacks — with no store read: what an
-    /// adapter asks before it opens one.
+    /// the view's, a path the query lacks, a realm its site search's URL
+    /// contradicts — with no store read: what an adapter asks before it
+    /// opens one.
     pub fn check(&self) -> Result<(), LanguageError> {
         self.place()?;
-        let (query, _) = self.asked()?;
-        self.view.bound()?.of(&query).map(|_| ())
+        self.realm()?;
+        let asking = self.asked()?;
+        self.view.bound()?.of(&asking.query).map(|_| ())
     }
+}
+
+/// What a request asks: the query answered, the one set aside under the
+/// corpus context, and the typed query's translation where it was a
+/// site search.
+struct Asking {
+    query: Query,
+    set_aside: Option<Query>,
+    translation: Option<Translation>,
 }
 
 /// What a token starts with: the format, so that another is told apart.
@@ -854,6 +982,38 @@ pub struct Answer {
 pub struct QueryOut {
     pub text: String,
     pub tree: Json,
+    /// Where the query is a site search translated (C113): the report.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trade: Option<TradeOut>,
+}
+
+/// A site search's translation as the answer reports it (C113, K6): what
+/// the input was, every clause with its status, the remainder and the
+/// fidelity, and the versions of the two tables it was read by — the
+/// catalogue and the stat table, which the build named in the basis
+/// digests (`build.rs`). The text and the tree are the query's own.
+#[derive(Debug, Clone, Serialize)]
+pub struct TradeOut {
+    pub source: Source,
+    pub fidelity: Fidelity,
+    /// The `at` of every unsupported clause: what the text does not say.
+    pub remainder: Vec<String>,
+    pub clauses: Vec<Clause>,
+    pub catalogue: u32,
+    pub stats: String,
+}
+
+impl From<Translation> for TradeOut {
+    fn from(t: Translation) -> TradeOut {
+        TradeOut {
+            source: t.source,
+            fidelity: t.fidelity,
+            remainder: t.remainder,
+            clauses: t.clauses,
+            catalogue: t.catalogue,
+            stats: t.stats,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1193,7 +1353,7 @@ pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError>
             ),
         ));
     }
-    if let Some(realm) = &request.scope.realm
+    if let Some(realm) = &request.realm()?
         && *realm != corpus.realm
     {
         return Err(SearchError::scope(
@@ -1205,7 +1365,11 @@ pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError>
             ),
         ));
     }
-    let (query, set_aside) = request.asked()?;
+    let Asking {
+        query,
+        set_aside,
+        translation,
+    } = request.asked()?;
     let view = request.view.bound()?;
     let explained = view.of(&query)?;
     let typed = set_aside.as_ref().unwrap_or(&query).text();
@@ -1228,6 +1392,7 @@ pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError>
             start.query = QueryInput {
                 text: Some(typed),
                 tree: None,
+                trade: request.query.trade.clone(),
             };
             start.basis = None;
             if let View::Rows(rows) = &mut start.view {
@@ -1539,6 +1704,7 @@ pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError>
                     query: QueryInput {
                         text: Some(typed.clone()),
                         tree: None,
+                        trade: request.query.trade.clone(),
                     },
                     view: View::Rows(Rows {
                         limit: Some(limit),
@@ -1583,15 +1749,23 @@ pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError>
             }))
         }
     };
+    // the site's search is the typed query's: its report stands with it
+    let trade = translation.map(TradeOut::from);
+    let (trade, set_aside_trade) = match set_aside {
+        Some(_) => (None, trade),
+        None => (trade, None),
+    };
     Ok(Answer {
         before: None,
         query: QueryOut {
             text: query.text(),
             tree: json::to_json(&query.root),
+            trade,
         },
         set_aside: set_aside.map(|typed| QueryOut {
             text: typed.text(),
             tree: json::to_json(&typed.root),
+            trade: set_aside_trade,
         }),
         scope: ScopeOut {
             account: Account {
@@ -1632,6 +1806,7 @@ fn forced(
             query: QueryInput {
                 text: None,
                 tree: Some(tree.clone()),
+                trade: None,
             },
             view: View::Rows(Rows {
                 limit: Some(0),
@@ -1646,6 +1821,7 @@ fn forced(
         query: QueryOut {
             text: print::print(&transformed),
             tree,
+            trade: None,
         },
         matched: router.count(asked.total.matched, Some(&transformed)),
         undecided: router.count(asked.total.undecided.count, Some(&undecided)),
@@ -1747,6 +1923,7 @@ impl Router<'_> {
             query: QueryInput {
                 text: Some(print::print(node)),
                 tree: None,
+                trade: None,
             },
             view,
             context,
@@ -2279,7 +2456,9 @@ impl Request {
     /// The request as a command a terminal takes: the query, then the
     /// view where it is not the default rows, then the context where it
     /// is not the matches. A request that carries a tree and no text has
-    /// none of its own: an answer returns the text.
+    /// none of its own: an answer returns the text. One that carries a
+    /// site search is `--trade` and that search, and no realm where its
+    /// URL names one: `--realm` beside a URL is a conflict (K6).
     pub fn command(&self) -> String {
         let scope = &self.scope;
         let mut out = String::new();
@@ -2290,6 +2469,20 @@ impl Request {
         self.view_flags(&mut out);
         if self.context == Context::Corpus {
             out.push_str(" --context corpus");
+        }
+        if let Some(word) = self.query.trade_word() {
+            let url = self.query.decoded().ok().flatten().and_then(|d| d.realm);
+            let mut command = opening(
+                "search",
+                scope.account.as_deref(),
+                match url {
+                    Some(_) => None,
+                    None => scope.realm.as_ref().map(Realm::as_str),
+                },
+            );
+            command.push_str(&format!(" --trade {}", shell_quoted(&word)));
+            command.push_str(&out);
+            return command;
         }
         command_with(
             "search",

@@ -588,6 +588,7 @@ fn aq3_a_row_names_what_matched_and_a_zero_answer_names_the_scope() {
         let query = acquisition_search::answer::QueryInput {
             text: Some(AQ3.to_string()),
             tree: None,
+            trade: None,
         };
         serde_json::to_value(
             acquisition_search::show::against(&s, &intent(&s), id, false, &query).unwrap(),

@@ -68,11 +68,9 @@ field exists. Several ids for one line go out as a `count` of at
 least one (S106). A site bound on a ranged line is `avg` on the line
 (S47), exact once the word exists.
 
-**C113 (K6).** A URL is a request: its realm the scope, its league a
-term, the rest the query; a bare id or the query JSON fills no scope;
-`--realm` beside a URL is a conflict; a sort,
-which only the JSON envelope carries, is reported, never applied.
-The rest, taken at step 4 of `search/TRADE-PLAN.md`, is the code's
-doc: the id is `acquisition-search/src/trade.rs`'s, the clauses, their
-statuses, the groups, the line and what no sitting has asked
+**C113 (K6).** Taken whole by the code, at steps 4 and 5 of
+`search/TRADE-PLAN.md`: what a URL is, its scope and its sort are
+`acquisition-search/src/answer.rs`'s doc; the id is
+`acquisition-search/src/trade.rs`'s; the clauses, their statuses, the
+groups, the line and what no sitting has asked
 `acquisition-search/src/trade/translate.rs`'s.

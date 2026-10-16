@@ -351,6 +351,7 @@ fn tabs_next(realm: Realm, league: &str) -> (String, String) {
         query: QueryInput {
             text: Some(acquisition_search::print::print(&term)),
             tree: None,
+            trade: None,
         },
         view: View::Counts(Counts {
             keys: vec!["tab".into()],
