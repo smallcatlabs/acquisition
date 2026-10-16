@@ -168,7 +168,7 @@ note = "carried by the JSON envelope alone, never by a URL; reported and never a
 key = "query.stats"
 text = "Stat groups"
 disposition = "exact"
-note = "each group by its type's row below; a group with no filters is no group (the page posts one)"
+note = "each group by its type's row below; a group's filters are those the site leaves enabled: with none, `and`, `not` and `if` restrict nothing and write nothing — no clause where none was posted (the page posts one) — and a count or a weighted sum of none is unsupported, what the site makes of one unasked"
 
 # ---- type_filters -------------------------------------------------------
 
@@ -1002,7 +1002,7 @@ note = "a warrant's skill and supports; no line of the private API is read as on
 key = "stats.filter.disabled"
 text = "a disabled stat"
 disposition = "listing_only"
-note = "a filter the site sends `disabled: true` is dropped and reported as disabled, whatever its category; a disabled group the same"
+note = "a filter the site sends `disabled: true` is dropped and reported as disabled, whatever its category or anything else it carries; a disabled group the same, and every filter of it"
 
 [[row]]
 key = "stats.filter.option"

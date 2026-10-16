@@ -201,8 +201,10 @@ What step 4 opened:
   so ambiguous and a row for the sitting (owner, 2026-10-16: "i agree
   with your recommendation with the sitting row"); the catalogue's
   `stat.text.numbers`.
-- A `count` or weighted group with no bound of its own is unsupported:
-  what the site makes of one is unasked — a row for the sitting.
+- A `count` or weighted group with no bound of its own, or with no
+  filter the site leaves enabled, is unsupported: what the site makes of
+  one is unasked — a row for the sitting. An `and`, `not` or `if` with
+  none restricts nothing and writes nothing.
 - q2 and q2b name the two ids of `+#% chance to Suppress Spell Damage`;
   the site answered 10,000 listings to one and none to the other (the
   fetch census), so the two are not alike there, and the translation

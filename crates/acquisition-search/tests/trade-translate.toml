@@ -887,6 +887,30 @@ text = 'ilvl>=60'
 fidelity = "partial"
 statuses = { "misc_filters.ilvl" = "exact", "stats.0" = "unsupported", "stats.0.0" = "unsupported", "stats.0.1" = "unsupported" }
 
+[[case]]
+name = "a disabled group is disabled before its filters are read: filters no list, misspelt, or none"
+query = '{"stats": [{"type": "and", "disabled": true, "filters": 42}, {"type": "and", "disabled": true, "filtres": []}, {"type": "not", "disabled": true, "filters": []}]}'
+text = ''
+fidelity = "exact"
+statuses = { "stats.0" = "disabled", "stats.1" = "disabled", "stats.2" = "disabled" }
+
+[[case]]
+name = "a not and an if with no filter enabled restrict nothing, and the page's empty not is no group"
+query = '{"stats": [{"type": "not", "filters": [{"id": "explicit.stat_3299347043", "disabled": true}]}, {"type": "if", "filters": [{"id": "explicit.stat_3299347043", "value": {"min": 60}, "disabled": true}]}, {"type": "not", "filters": []}]}'
+text = ''
+fidelity = "exact"
+statuses = { "stats.0" = "exact", "stats.0.0" = "disabled", "stats.1" = "exact", "stats.1.0" = "disabled" }
+matches = ['{}', '{"explicitMods": ["+30 to maximum Life"]}']
+
+[[case]]
+name = "a count and a weighted sum with no filter enabled are unsupported: what the site makes of a group of none is unasked"
+query = '{"stats": [{"type": "count", "value": {"min": 1}, "filters": [{"id": "explicit.stat_3299347043", "disabled": true}]}, {"type": "weight", "value": {"min": 1}, "filters": [{"id": "explicit.stat_3299347043", "value": {"weight": 1}, "disabled": true}]}, {"type": "count", "value": {"min": 1}, "filters": []}], "filters": {"misc_filters": {"filters": {"ilvl": {"min": 60}}}}}'
+text = 'ilvl>=60'
+fidelity = "partial"
+statuses = { "misc_filters.ilvl" = "exact", "stats.0" = "unsupported", "stats.0.0" = "disabled", "stats.1" = "unsupported", "stats.1.0" = "disabled", "stats.2" = "unsupported" }
+matches = ['{"ilvl": 60}']
+fails = ['{"ilvl": 59}']
+
 # ---- the owner's eight searches (tests/trade-decode.toml) -------------------------------------
 
 [[case]]

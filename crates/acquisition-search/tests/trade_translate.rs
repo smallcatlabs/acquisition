@@ -102,8 +102,8 @@ fn word(status: Status) -> String {
 
 /// K6's guard, read off the report alone (the module's own check is
 /// apart): every running clause owns one path of the tree or is one the
-/// tree gives none — an `and` or `if` group, a filter inside a weighted
-/// sum; no path twice; every path of the tree under a clause's; a clause
+/// tree gives none — an `and` or `if` group, a group none of whose
+/// filters runs, a filter inside a weighted sum; no path twice; every path of the tree under a clause's; a clause
 /// that does not run owns none and writes nothing.
 fn guard(t: &Translation) -> Result<(), String> {
     let report = serde_json::to_value(t).unwrap();
@@ -160,7 +160,14 @@ fn guard(t: &Translation) -> Result<(), String> {
                 }
             }
             None => {
+                let inside = format!("{}.", c.at);
+                let none_runs = || {
+                    !t.clauses
+                        .iter()
+                        .any(|f| f.at.starts_with(&inside) && f.status.runs())
+                };
                 let ownless = matches!(group_row(&c.at), Some("stats.and" | "stats.if"))
+                    || (group_row(&c.at).is_some() && none_runs())
                     || matches!(group_row(group_of), Some("stats.weight" | "stats.weight2"));
                 if !ownless {
                     return Err(format!("{} runs and owns no path", c.at));

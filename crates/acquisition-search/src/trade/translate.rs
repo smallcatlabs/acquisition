@@ -80,7 +80,8 @@
 //!   twice, a `not`'s or a `count`'s filter strictly under its group's;
 //!   every path of the tree lies under a clause's; and the clauses that
 //!   own none are exactly those the tree cannot give one — an `and` or
-//!   an `if` group, which writes no node of its own, and a weighted sum's
+//!   an `if` group, and a group with no filter the site leaves enabled,
+//!   which write no node of their own, and a weighted sum's
 //!   filters, conditions inside `sum( … )`, which take no path. A query
 //!   that is one clause owns the root, written `""`.
 //! - **Fidelity** is the worst status among the clauses with a stash
@@ -273,7 +274,8 @@ enum Own {
     /// A path, once the root is laid out; `parent` the group clause it
     /// lies strictly under, if any.
     Path { parent: Option<usize> },
-    /// A group that writes no node of its own: `and`, `if`.
+    /// A group that writes no node of its own: `and`, `if`, and any group
+    /// with no filter the site leaves enabled.
     Conjuncts,
     /// A condition inside `sum( … )`, which takes no path.
     InsideSum,
@@ -1223,13 +1225,6 @@ impl Translator<'_> {
         let Json::Object(object) = group else {
             return self.unknown(&at, group, &format!("{group} is no group"));
         };
-        let filters: &[Json] = match object.get("filters") {
-            Some(Json::Array(f)) => f,
-            None | Some(Json::Null) => &[],
-            Some(other) => {
-                return self.unknown(&at, group, &format!("its `filters` is {other}, no list"));
-            }
-        };
         let kind = object.get("type").and_then(Json::as_str).unwrap_or("");
         let group_key = format!("stats.{kind}");
         let site = Json::Object(
@@ -1239,10 +1234,10 @@ impl Translator<'_> {
                 .map(|(k, v)| (k.clone(), v.clone()))
                 .collect::<Map<_, _>>(),
         );
-        // the site's mark first: a disabled group's filters are disabled
-        // whatever else it carries
+        // the site's mark first, before anything else the group carries: a
+        // disabled group is disabled, and so is each filter of it
         let off = disabled(group);
-        if off == Ok(true) && !filters.is_empty() {
+        if off == Ok(true) {
             let notes = self.note_of("stats.filter.disabled")?;
             let landed = |rows: Vec<String>| Landed {
                 status: Status::Disabled,
@@ -1257,23 +1252,34 @@ impl Translator<'_> {
                 &landed(vec![group_key.clone(), disabled.clone()]),
                 Own::Nothing,
             );
-            for (m, filter) in filters.iter().enumerate() {
-                self.push(
-                    &format!("{at}.{m}"),
-                    filter,
-                    &landed(vec![disabled.clone()]),
-                    Own::Nothing,
-                );
+            if let Some(Json::Array(filters)) = object.get("filters") {
+                for (m, filter) in filters.iter().enumerate() {
+                    self.push(
+                        &format!("{at}.{m}"),
+                        filter,
+                        &landed(vec![disabled.clone()]),
+                        Own::Nothing,
+                    );
+                }
             }
             return Ok(());
         }
         // why the group, read whole, cannot be: its mark, a key no row
-        // reads, its value; the bounds only a count or a sum reads
+        // reads, its filters no list, its value; the bounds only a count
+        // or a sum reads
+        let mut why: Option<String> = off.err();
+        let filters: &[Json] = match object.get("filters") {
+            Some(Json::Array(f)) => f,
+            None | Some(Json::Null) => &[],
+            Some(other) => {
+                why.get_or_insert(format!("its `filters` is {other}, no list"));
+                &[]
+            }
+        };
         let value_keys: &[&str] = match kind {
             "count" | "weight" | "weight2" => &GROUP_VALUE,
             _ => &[],
         };
-        let mut why: Option<String> = off.err();
         let group_value = match read(Some(group), &STAT_GROUP).and_then(|_| {
             read(object.get("value"), value_keys).map_err(|w| format!("its value: {w}"))
         }) {
@@ -1283,14 +1289,6 @@ impl Translator<'_> {
                 None
             }
         };
-        // a group with no filters is no group, the page posts one; one
-        // that carries what no row reads is said
-        if filters.is_empty() {
-            return match why {
-                Some(why) => self.unknown(&at, group, &why),
-                None => Ok(()),
-            };
-        }
         let reads: Vec<StatRead> = filters
             .iter()
             .enumerate()
@@ -1322,6 +1320,29 @@ impl Translator<'_> {
             notes: group_notes.clone(),
             node: None,
         };
+        let active: Vec<&StatRead> = reads
+            .iter()
+            .filter(|r| r.landed.status != Status::Disabled)
+            .collect();
+        // a group's filters are those the site leaves enabled; with none,
+        // `and`, `not` and `if` restrict nothing and write no node — and no
+        // clause where none was posted, the page's own empty group — and a
+        // count or a sum of none is unasked
+        if active.is_empty() && why.is_none() {
+            if matches!(kind, "and" | "not" | "if") {
+                if !reads.is_empty() {
+                    self.push(&at, &site, &group_landed(), Own::Conjuncts);
+                    for read in reads {
+                        self.conjunct(&read.at, &read.site, read.landed);
+                    }
+                }
+                return Ok(());
+            }
+            why = Some(
+                "no filter of it is enabled, and what the site makes of a group of none is unasked"
+                    .to_string(),
+            );
+        }
         if kind == "and" && why.is_none() {
             self.push(&at, &site, &group_landed(), Own::Conjuncts);
             for read in reads {
@@ -1329,18 +1350,11 @@ impl Translator<'_> {
             }
             return Ok(());
         }
-        let active: Vec<&StatRead> = reads
-            .iter()
-            .filter(|r| r.landed.status != Status::Disabled)
-            .collect();
         if why.is_none() {
             why = active
                 .iter()
                 .find(|r| r.landed.status == Status::Unsupported)
                 .map(|r| format!("its filter `{}` is unsupported", r.at));
-        }
-        if active.is_empty() {
-            why.get_or_insert("every filter of it is disabled".to_string());
         }
         let (gmin, gmax) = match (number(group_value, "min"), number(group_value, "max")) {
             (Ok(a), Ok(b)) => (a, b),
