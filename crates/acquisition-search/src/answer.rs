@@ -108,8 +108,14 @@
 //!   are the report's, not the basis's, which is the corpus's: a route's
 //!   `counted_at` would otherwise move with no corpus moving, and the
 //!   build the basis names digests both tables (`build.rs`). The URL's
-//!   realm is the scope ([`Request::realm`]): a scope's realm beside it
-//!   is the resolved form an answer prints and must be the URL's. A
+//!   realm is the scope, and is in no term of the text, so a site search
+//!   is read in a realm or not at all: [`QueryInput::read`] takes the
+//!   realm its caller asks in — a request's scope, the realm of the item
+//!   `show` holds — and refuses a URL that names another; a scope beside
+//!   a URL is the resolved form an answer prints. It is the one reader of
+//!   a site search, so none decodes one for itself and leaves the realm
+//!   behind (the outside review of step 5: `show` read the query alone
+//!   and showed a pc item matching an xbox URL). A
 //!   continuation and the start offered across a changed basis carry the
 //!   site search; a route, an offer to explain and a forced query are
 //!   queries of their own and carry none. A command made of a request
@@ -476,18 +482,32 @@ pub struct Rows {
     pub after: Option<usize>,
 }
 
-impl QueryInput {
-    /// The query, parsed or read, and bound.
-    pub fn bind(&self) -> Result<Query, LanguageError> {
-        self.read().map(|(query, _)| query)
-    }
+/// A query input read in a realm ([`QueryInput::read`]): the query, the
+/// realm it is asked in, and the translation where it was a site search.
+#[derive(Debug, Clone)]
+pub struct Read {
+    pub query: Query,
+    /// The realm asked in, or the one the site search's URL names where
+    /// none was: none where neither names one.
+    pub realm: Option<Realm>,
+    pub translation: Option<Translation>,
+}
 
-    /// The query, and the translation it is where the request carries a
-    /// site search: the translation's text, bound, with a text or a tree
-    /// beside it held to be that text. One that is not was edited after
-    /// the translation, or translated by another build: it is refused,
-    /// never run under the site's label.
-    pub fn read(&self) -> Result<(Query, Option<Translation>), LanguageError> {
+impl QueryInput {
+    /// The query read in a realm, and the translation it is where the
+    /// input carries a site search: the translation's text, bound, with a
+    /// text or a tree beside it held to be that text. One that is not was
+    /// edited after the translation, or translated by another build: it
+    /// is refused, never run under the site's label.
+    ///
+    /// A site search is a request, its URL's realm its scope (K6), and
+    /// the realm is in no term of its text: so it is read in a realm or
+    /// not at all. `realm` is the one the caller asks in — a request's
+    /// scope, the realm of the item `show` holds — and none where the
+    /// caller states none; a URL that names another is refused here, the
+    /// one place a site search's realm is read, so no reader can leave
+    /// it behind.
+    pub fn read(&self, realm: Option<&Realm>) -> Result<Read, LanguageError> {
         let given = match (&self.text, &self.tree) {
             (Some(_), Some(_)) => {
                 return Err(LanguageError::new(
@@ -500,10 +520,27 @@ impl QueryInput {
             (None, None) => None,
         };
         let Some(decoded) = self.decoded()? else {
-            return match given {
-                Some(query) => Ok((query, None)),
-                None => Ok((bind::parse_query("")?, None)),
-            };
+            return Ok(Read {
+                query: match given {
+                    Some(query) => query,
+                    None => bind::parse_query("")?,
+                },
+                realm: realm.cloned(),
+                translation: None,
+            });
+        };
+        let realm = match (realm, &decoded.realm) {
+            (Some(asked), Some(url)) if asked.as_str() != url => {
+                return Err(LanguageError::new(
+                    crate::error::ErrorKind::Trade,
+                    format!(
+                        "the site search's URL names the realm `{url}`, and this is asked in `{}`: a URL's realm is the search's scope, which nothing outside it is in — ask in `{url}`, or send the search's id, which names no realm",
+                        asked.as_str()
+                    ),
+                ));
+            }
+            (Some(asked), _) => Some(asked.clone()),
+            (None, url) => url.clone().map(Realm::One),
         };
         let translation = trade::translate::translate(&decoded)?;
         if let Some(given) = given
@@ -518,13 +555,17 @@ impl QueryInput {
             )
             .with_readings(vec![translation.text.clone()]));
         }
-        Ok((bind::parse_query(&translation.text)?, Some(translation)))
+        Ok(Read {
+            query: bind::parse_query(&translation.text)?,
+            realm,
+            translation: Some(translation),
+        })
     }
 
     /// The site search the query carries, decoded with no network (C113):
     /// a string is a URL, an id or the query JSON, an object the query
-    /// JSON.
-    pub fn decoded(&self) -> Result<Option<Decoded>, LanguageError> {
+    /// JSON. Read by [`QueryInput::read`] alone.
+    fn decoded(&self) -> Result<Option<Decoded>, LanguageError> {
         match &self.trade {
             None => Ok(None),
             Some(Json::String(input)) => trade::decode(input).map(Some),
@@ -551,29 +592,22 @@ fn is_empty(root: &Node) -> bool {
 }
 
 impl Request {
+    /// The request's query, read in its scope ([`QueryInput::read`]).
+    pub fn read(&self) -> Result<Read, LanguageError> {
+        self.query.read(self.scope.realm.as_ref())
+    }
+
     /// The query of a request as typed, parsed or read, and bound.
     pub fn bind(&self) -> Result<Query, LanguageError> {
-        self.query.bind()
+        self.read().map(|read| read.query)
     }
 
     /// The realm the request is asked in: the scope's, or the one its
-    /// site search's URL names, which is the search's scope (K6). The
-    /// two never differ: a request's scope beside a URL is the resolved
-    /// form an answer prints, and one that names another realm, or all,
-    /// is refused.
+    /// site search's URL names, which is the search's scope (K6) — a
+    /// scope beside a URL being the resolved form an answer prints, and
+    /// one that names another realm, or all, refused.
     pub fn realm(&self) -> Result<Option<Realm>, LanguageError> {
-        let url = self.query.decoded()?.and_then(|decoded| decoded.realm);
-        match (&self.scope.realm, url) {
-            (Some(realm), Some(url)) if realm.as_str() != url => Err(LanguageError::new(
-                crate::error::ErrorKind::Trade,
-                format!(
-                    "the request names the realm `{}` and its trade URL `{url}`: a URL's realm is the search's scope — leave the scope's realm out, or send the search's id, which names none",
-                    realm.as_str()
-                ),
-            )),
-            (Some(realm), _) => Ok(Some(realm.clone())),
-            (None, url) => Ok(url.map(Realm::One)),
-        }
+        self.read().map(|read| read.realm)
     }
 
     /// The query the answer is of, and the one set aside: under `corpus`
@@ -589,7 +623,11 @@ impl Request {
                 "`--explain` is of the query typed, and `--context corpus` sets it aside: ask one or the other",
             ));
         }
-        let (typed, translation) = self.query.read()?;
+        let Read {
+            query: typed,
+            translation,
+            ..
+        } = self.read()?;
         Ok(match self.context {
             Context::Matches => Asking {
                 query: typed,
@@ -2471,7 +2509,9 @@ impl Request {
             out.push_str(" --context corpus");
         }
         if let Some(word) = self.query.trade_word() {
-            let url = self.query.decoded().ok().flatten().and_then(|d| d.realm);
+            // the realm the site search names by itself, read where every
+            // reader reads it
+            let url = self.query.read(None).ok().and_then(|read| read.realm);
             let mut command = opening(
                 "search",
                 scope.account.as_deref(),

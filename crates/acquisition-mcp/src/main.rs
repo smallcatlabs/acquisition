@@ -752,7 +752,7 @@ impl AcqMcp {
             }
         };
         // an authoring error is said before the store is read
-        if let Some(Err(e)) = against.as_ref().map(QueryInput::bind) {
+        if let Some(Err(e)) = against.as_ref().map(|q| q.read(None)) {
             return Ok(refused(e));
         }
         let (store, intent) = match open_search(p.account.as_deref(), "account") {

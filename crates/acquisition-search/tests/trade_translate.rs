@@ -448,11 +448,11 @@ proptest! {
         for trade in [query.clone(), Json::String(query.to_string())] {
             for text in [None, Some(t.text.clone())] {
                 let input = QueryInput { text, tree: None, trade: Some(trade.clone()) };
-                let (bound, again) = input
-                    .read()
+                let read = input
+                    .read(None)
                     .map_err(|e| TestCaseError::fail(format!("{query}: {e}")))?;
-                prop_assert_eq!(bound.text(), t.text.clone());
-                let again = again.unwrap();
+                prop_assert_eq!(read.query.text(), t.text.clone());
+                let again = read.translation.unwrap();
                 prop_assert_eq!(again.clauses, t.clauses.clone());
                 prop_assert_eq!(again.fidelity, t.fidelity);
             }

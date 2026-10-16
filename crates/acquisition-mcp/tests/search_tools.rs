@@ -1007,6 +1007,12 @@ fn a_site_search_is_a_query_and_its_report_stands_in_the_answer() {
     assert_eq!(shown["against"]["query"]["text"], first["query"]["text"]);
     assert_eq!(shown["against"]["query"]["trade"], first["query"]["trade"]);
     assert_eq!(shown["against"]["outcome"], "no_match");
+    // and only in the item's realm: the URL's is the search's scope (K6;
+    // the outside review of step 5: an xbox URL showed a pc item a match)
+    let xbox = url.replace("/search/", "/search/xbox/");
+    let (e, refused) = seat.call("show", &json!({ "id": "r1", "against": { "trade": xbox } }));
+    assert!(refused, "{e}");
+    assert_eq!(e["kind"], "trade", "{e}");
 
     let (described, refused) = seat.call("describe", &json!({ "names": ["trade"] }));
     assert!(!refused, "{described}");

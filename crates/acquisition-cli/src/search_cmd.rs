@@ -389,10 +389,21 @@ pub fn search(args: SearchArgs, json: bool) -> Result<()> {
         (None, Some(path)) => Some(read(path, "site search")?),
         (None, None) => None,
     };
-    // a URL's realm is the scope (K6): the flag beside one says it twice
+    // a URL's realm is the scope (K6): the flag beside one says it twice;
+    // the realm the search names, read where every reader reads it, and an
+    // input that does not read left to the request to refuse
+    let named = |trade: &str| {
+        acquisition_search::answer::QueryInput {
+            trade: Some(serde_json::Value::String(trade.to_string())),
+            ..Default::default()
+        }
+        .read(None)
+        .ok()
+        .and_then(|read| read.realm)
+        .map(|realm| realm.as_str().to_string())
+    };
     if let (Some(word), Some(trade)) = (&args.realm, &trade)
-        && let Ok(decoded) = acquisition_search::decode(trade)
-        && let Some(url) = decoded.realm
+        && let Some(url) = named(trade)
     {
         return Err(fail(
             SearchError::Scope {
@@ -628,7 +639,7 @@ pub fn show_item(args: ShowArgs, json: bool) -> Result<()> {
         });
     // an authoring error is said before the store is read
     if let Some(query) = &against {
-        query.bind().map_err(|e| fail(e.into(), json))?;
+        query.read(None).map_err(|e| fail(e.into(), json))?;
     }
     let (store, intent) = open_store_and_intent()?;
     let shown = match &against {

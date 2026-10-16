@@ -328,3 +328,48 @@ fn against_an_undecided_term_says_its_own_reason_and_no_others() {
         a["nodes"][1]["shows"][0]["undecided"]["unread"]
     );
 }
+
+/// C113, K6: a site search is a request, its URL's realm its scope, and
+/// the realm is in no term of its text — so `against` reads it in the
+/// item's realm. The outside review of step 5 found an xbox URL showing
+/// a pc item as a match, fidelity exact, where a search of that URL
+/// never holds the item. Here, r1, a pc ring in Standard, against the
+/// empty site search (`{}`, whose text is the league alone): under an
+/// xbox URL refused, naming both realms; under a pc URL, and as the id,
+/// which names no realm, a match with the report beside it.
+#[test]
+fn k6_a_site_search_is_asked_of_an_item_in_its_own_realm_alone() {
+    let s = worked();
+    const EMPTY: &str = "H4sIAAAAAAAA_6uuBQBDv6ajAgAAAA";
+    let asked = |trade: String| {
+        let query = QueryInput {
+            trade: Some(json!(trade)),
+            ..QueryInput::default()
+        };
+        acquisition_search::show::against(&s, &intent(&s), "r1", false, &query)
+            .map(|shown| serde_json::to_value(shown).unwrap())
+            .map_err(|e| e.to_json())
+    };
+    let e = asked(format!(
+        "https://www.pathofexile.com/trade/search/xbox/Standard/{EMPTY}"
+    ))
+    .unwrap_err();
+    assert_eq!(e["kind"], "trade", "{e}");
+    let said = e["error"].as_str().unwrap();
+    assert!(
+        said.contains("names the realm `xbox`, and this is asked in `pc`"),
+        "{e}"
+    );
+    for (trade, source) in [
+        (
+            format!("https://www.pathofexile.com/trade/search/Standard/{EMPTY}"),
+            "url",
+        ),
+        (EMPTY.to_string(), "id"),
+    ] {
+        let shown = asked(trade).unwrap();
+        assert_eq!(shown["place"]["realm"], "pc");
+        assert_eq!(shown["against"]["outcome"], "match", "{shown}");
+        assert_eq!(shown["against"]["query"]["trade"]["source"], source);
+    }
+}

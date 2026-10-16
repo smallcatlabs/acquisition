@@ -34,7 +34,10 @@
 //! uses and bounded as a row is (`eval::against`). The item is asked as a
 //! corpus asks each of its items — the same deriver, class, category and
 //! price, the one evaluator — at the basis `show` names; it compares no
-//! other basis.
+//! other basis. The query is read in the item's realm
+//! (`QueryInput::read`): a site search whose URL names another realm is
+//! refused, as a search in that realm never holds the item, and its
+//! report stands beside the query it translated to, as in an answer.
 
 use acquisition_store::corpus::{LocationRow, Membership, RealmScope};
 use acquisition_store::{Annotations, Store};
@@ -191,8 +194,8 @@ pub fn show(
 
 /// [`show`], and beside the item why it does or does not match `query`
 /// (the module doc). A query the binder refuses is that error, said
-/// before the store is read; a site search's report stands beside the
-/// query it translated to, as in an answer.
+/// before the store is read; a site search is read in the item's realm
+/// (the module doc).
 pub fn against(
     store: &Store,
     intent: &Annotations,
@@ -200,12 +203,10 @@ pub fn against(
     body: bool,
     query: &QueryInput,
 ) -> Result<Shown, SearchError> {
-    let (query, translation) = query.read()?;
-    let mut shown = shown(store, intent, id, body, Some(&query))?;
-    if let Some(against) = &mut shown.against {
-        against.query.trade = translation.map(crate::answer::TradeOut::from);
-    }
-    Ok(shown)
+    // an authoring error before the store is read; the query asked is
+    // the one read in the item's realm, once the item is found
+    query.read(None)?;
+    shown(store, intent, id, body, Some(query))
 }
 
 fn shown(
@@ -213,7 +214,7 @@ fn shown(
     intent: &Annotations,
     id: &str,
     body: bool,
-    against: Option<&Query>,
+    against: Option<&QueryInput>,
 ) -> Result<Shown, SearchError> {
     for _ in 0..REREADS {
         if let Some(shown) = read_one(store, intent, id, body, against)? {
@@ -230,7 +231,7 @@ fn read_one(
     intent: &Annotations,
     id: &str,
     body: bool,
-    against: Option<&Query>,
+    against: Option<&QueryInput>,
 ) -> Result<Option<Shown>, SearchError> {
     let table = class_table()?;
     let categories = category_tables()?;
@@ -303,20 +304,27 @@ fn read_one(
         None => price::of_item(&mut prices, id),
     };
     let class = table.classify(&item);
-    // the item held as a corpus holds each of its items, asked by the one
-    // evaluator
-    let against = against.map(|query| {
-        against_held(
-            query,
-            &Held {
-                category: categories.of(&item, &class),
-                class: class.clone(),
-                item: item.clone(),
-                place: place.clone(),
-                price: priced.clone(),
-            },
-        )
-    });
+    // the query read in the item's realm, its scope: a site search whose
+    // URL names another is refused as a search in that realm would never
+    // hold the item; then the item held as a corpus holds each of its
+    // items, asked by the one evaluator
+    let against = against
+        .map(|input| -> Result<Against, SearchError> {
+            let read = input.read(Some(&crate::corpus::Realm::One(place.realm.clone())))?;
+            let mut against = against_held(
+                &read.query,
+                &Held {
+                    category: categories.of(&item, &class),
+                    class: class.clone(),
+                    item: item.clone(),
+                    place: place.clone(),
+                    price: priced.clone(),
+                },
+            );
+            against.query.trade = read.translation.map(crate::answer::TradeOut::from);
+            Ok(against)
+        })
+        .transpose()?;
     let lines = std::mem::take(&mut item.lines)
         .into_iter()
         .map(|line| ShownLine {

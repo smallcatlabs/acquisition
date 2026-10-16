@@ -2792,7 +2792,7 @@ fn k6_a_realm_beside_a_url_conflicts_and_an_id_takes_one() {
         e["error"]
             .as_str()
             .unwrap()
-            .contains("the realm `xbox` and its trade URL `pc`"),
+            .contains("URL names the realm `pc`, and this is asked in `xbox`"),
         "{e}"
     );
 
