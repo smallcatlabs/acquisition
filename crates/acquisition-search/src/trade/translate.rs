@@ -83,7 +83,11 @@
 //! - **Statuses are read where the clause is read.** A filter's status is
 //!   its category's row, worsened by each line rule that applies to its
 //!   text (a `(Local)` suffix, a text two ids share, several `#`) and, in
-//!   a `not`, by a value; a group's is its row's. The
+//!   a `not`, by a value and by an eldritch form's text: the site lets
+//!   some items carrying that form through a `not` on its id, a fact of
+//!   the captures (`search/pseudo-stats/README.md`, round four) the
+//!   oracle met on 377 items (step 6, `tests/trade_oracle.rs`), so the
+//!   exclusion is ambiguous, never exact. A group's is its row's. The
 //!   site's `disabled` is `disabled` whatever the row says. A stat id the
 //!   site lists with two texts in one category is unsupported (the
 //!   owner, 2026-10-15: "Unsupported until the sitting").
@@ -337,6 +341,15 @@ struct StatRead {
     bounded: bool,
     weight: Option<Number>,
 }
+
+/// How a line's two eldritch forms open: the line under an eldritch
+/// influence, which the site counts as the line and which a `not` on its
+/// id does not always exclude (`search/pseudo-stats/README.md`, round
+/// four).
+const ELDRITCH: [&str; 2] = [
+    "While a Unique Enemy is in your Presence, ",
+    "While a Pinnacle Atlas Boss is in your Presence, ",
+];
 
 /// Whether a group of `kind` reads its filters' presence beside them.
 fn presence_too(kind: &str) -> bool {
@@ -1150,6 +1163,9 @@ impl Translator<'_> {
         }
         if text.contains('\n') {
             rule(&mut rows, &mut notes, &mut status, "stat.text.rows")?;
+        }
+        if kind == "not" && ELDRITCH.iter().any(|form| text.starts_with(form)) {
+            rule(&mut rows, &mut notes, &mut status, "stat.text.eldritch")?;
         }
         // a number the site's text writes as a digit is part of the line's
         // text: the template has `#` there, and the slot is that number;

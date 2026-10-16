@@ -22,7 +22,8 @@ Headline:
 
 Per-row detail: `data/candidates.csv` (`scripts/candidates.py`), `data/percentile-check.csv`
 (`scripts/percentile.py`), `data/search-sheet.csv` (`tools/trade-sheet.py`), `data/captures.json`
-(`tools/trade-captures.py`, the owner's captures scrubbed), `data/evidence.csv` (`tools/trade-evidence.py`).
+(`tools/trade-captures.py`, the owner's captures scrubbed; beside it `data/bodies.json`, each fetched
+item as the site sent it, for the trade oracle), `data/evidence.csv` (`tools/trade-evidence.py`).
 Each regenerates byte-for-byte; run `percentile.py` before `candidates.py`, which reads its output.
 
 Moved from this page when it passed its guide, verbatim: `data/part1-detail.md`, `data/sittings-detail.md`;

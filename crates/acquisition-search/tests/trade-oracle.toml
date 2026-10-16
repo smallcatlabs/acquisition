@@ -1,0 +1,450 @@
+# The oracle's expected disagreements (C113, K6; step 6 of
+# search/TRADE-PLAN.md), read by tests/trade_oracle.rs: every item the site
+# returned for a search whose translation has no remainder, that the
+# translated text does not match. The set is exact — a new disagreement and
+# a vanished one each fail the test.
+#
+# A `finding` is stated once: `home` is where its answer lives — `site`, a
+# fact of the captures, its clause labelled by the catalogue `row` it names
+# (and the test holds that clause ambiguous); `ruling`, the owner's, quoted;
+# `sitting`, a question for step 7, `asks` what the sitting is to settle,
+# each answered by searches with a mutant (the site-sitting skill). Nothing
+# here is a tolerance: each is the site reading a clause otherwise, and the
+# translation is fixed when its finding is answered.
+#
+# A `row` is one search's items under one finding: `items` by their index in
+# the fetch (search/pseudo-stats/data/bodies.json), `outcome` `missed` or
+# `undecided`, `clauses` the paths of the top-level clauses whose term alone
+# refuses the item (the translation's report, `path`).
+#
+# Measured at writing (2026-10-16), by the test: 518 searches run, 4,733
+# items, 4,236 matched, 497 missed in 55 rows, none undecided — 377 items
+# the eldritch `not`, 61 the `reduced` spelling, 21 `No Physical Damage`,
+# 25 the twin and 10 the skill gems by the owner's rulings, 2 (one item
+# twice) the scourge line, 1 q6. Classified by a script from each item's
+# lines, and each item's lines read by hand against its finding.
+
+[[finding]]
+key = "eldritch-not"
+home = "site"
+row = "stat.text.eldritch"
+cites = "search/pseudo-stats/README.md, 'Two things the searches could not do': a `not` on an eldritch form's id lets some items carrying it through (round four, 227 items); unexplained, which items it lets through unread"
+
+[[finding]]
+key = "twin-counted"
+home = "ruling"
+cites = "the twin id of `+# to Strength and Intelligence` on That Which Was Taken, which the site leaves out of total life, Strength and Intelligence (c3, b1, b2, e053, e057) and the totals table counts — the owner, step 9c (search/LEDGER.md): \"I believe this is a bug. Let's count the mod\"; the park in decisions/search.md"
+
+[[finding]]
+key = "socketed-gems-counted"
+home = "ruling"
+cites = "`# to Level of Socketed Skill Gems`, which the site leaves out of `+# total to Level of Socketed Skill Gems` (e103, f030, f031) and the totals table counts — the owner, step 9c (search/LEDGER.md; search/pseudo-stats/data/table-changes.csv): \"yes, include the socketed skill gems\""
+
+[[finding]]
+key = "reduced-spelling"
+home = "sitting"
+cites = "the site files a line's `reduced` spelling under its `increased` id, below nothing, for a pseudo and a weighted group (search/pseudo-stats/README.md: 60 readings of 61; h042–h052); the translation writes the `increased` text alone"
+asks = "whether a plain stat filter on an `increased` id finds the `reduced` spelling — by its presence alone, and under a `max` below nothing — and reads its number as below nothing"
+
+[[finding]]
+key = "no-physical-damage"
+home = "sitting"
+cites = "the captures' line hashes file `No Physical Damage` under the id of `#% increased Physical Damage` (stat_1509134228; e061, h046, h047); the stat table lists that text alone"
+asks = "what number the site reads `No Physical Damage` as under its id — bounds about -100 — and whether its presence alone finds it"
+
+[[finding]]
+key = "stat-summed"
+home = "sitting"
+cites = "q6, the owner's: `explicit.stat_3299347043` with `min` 150 returned an item whose explicit Life lines are +40 and +117 (fractured), none reaching it alone and the two together; the translation compares one line (C92)"
+asks = "whether a bounded stat filter compares the item's sum of the stat's lines or one line — q6's item at `min` 157 and at 158"
+
+[[finding]]
+key = "scourge-in-sum"
+home = "sitting"
+cites = "e043 and f005 returned one item, crafted `+28% to Fire Resistance` and scourge `-28% to Fire Resistance`, under a weighted group naming both ids with `min` 0.5; the site showed its sum as 28 and its total as nothing (a sum of nothing, search/pseudo-stats/README.md)"
+asks = "whether a weighted group counts a scourge line — the item under the scourge id alone, and the crafted id alone"
+
+[[row]]
+search = "c3"
+items = [0, 1, 4, 5, 7]
+outcome = "missed"
+clauses = ["1"]
+finding = "twin-counted"
+
+[[row]]
+search = "c4"
+items = [3, 5]
+outcome = "missed"
+clauses = ["0"]
+finding = "reduced-spelling"
+
+[[row]]
+search = "e038"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "e043"
+items = [0]
+outcome = "missed"
+clauses = ["0"]
+finding = "scourge-in-sum"
+
+[[row]]
+search = "e053"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "twin-counted"
+
+[[row]]
+search = "e057"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "twin-counted"
+
+[[row]]
+search = "e061"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["0"]
+finding = "no-physical-damage"
+
+[[row]]
+search = "e103"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "socketed-gems-counted"
+
+[[row]]
+search = "f001"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "f004"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "f005"
+items = [0]
+outcome = "missed"
+clauses = ["0"]
+finding = "scourge-in-sum"
+
+[[row]]
+search = "f007"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "f010"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "f014"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "f016"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "f024"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "f026"
+items = [1, 2, 3, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "f028"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "f046"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "f048"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "f050"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "f052"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "f054"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "f056"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "f058"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "f060"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "f062"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "f064"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "f066"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "f068"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "f070"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "f072"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "g008"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "g020"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "g043"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "h007"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "h013"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "h015"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "h017"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "h019"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "h021"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "h023"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "h025"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "h027"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "h029"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "h033"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "eldritch-not"
+
+[[row]]
+search = "h042"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "reduced-spelling"
+
+[[row]]
+search = "h044"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "reduced-spelling"
+
+[[row]]
+search = "h046"
+items = [2]
+outcome = "missed"
+clauses = ["1"]
+finding = "no-physical-damage"
+
+[[row]]
+search = "h046"
+items = [0, 1, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "reduced-spelling"
+
+[[row]]
+search = "h047"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["0"]
+finding = "no-physical-damage"
+
+[[row]]
+search = "h048"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "reduced-spelling"
+
+[[row]]
+search = "h050"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "reduced-spelling"
+
+[[row]]
+search = "h052"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "reduced-spelling"
+
+[[row]]
+search = "q6"
+items = [8]
+outcome = "missed"
+clauses = ["3"]
+finding = "stat-summed"

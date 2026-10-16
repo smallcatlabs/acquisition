@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""The owner's captures as a scrubbed extract: search/pseudo-stats/data/captures.json.
+"""The owner's captures as scrubbed extracts: search/pseudo-stats/data/captures.json
+and search/pseudo-stats/data/bodies.json.
 
 Reads search/pseudo-stats/raw/searches/<search>-search.json and <search>-fetch.json, with any
 further page of the same search as <search>-fetch-2.json, -3 and so on (local
@@ -9,6 +10,19 @@ is the sheet's query, the response's counts, and for each fetched item only
 what the evidence reads — its names, rarity, properties, the site's computed
 `extended` figures, and every line with its domain, hash, flags and mods.
 No item id, icon, seller, price, stash position or token leaves raw/.
+
+Beside it, bodies.json holds each fetched item as the site sent it, for the
+trade oracle (search/TRADE-PLAN.md, step 6), which enters it through the
+store's ingest: a stash item's own keys, every one the site sent, less the
+item id, every icon and the price note, which may not leave raw/, and less
+`extended` and `pseudoMods`, the site's own computations, which no stash body
+carries. The extract above reads a selection and reshapes it; an item rebuilt
+from that selection loses what the search reads (`descrText`, which makes a
+beast a beast; `ilvl`, `identified`, `sockets`, `corrupted`), so the oracle
+reads this one alone. It holds the captures' searches by name, in fetch order,
+and under `census` the owner's eight searches of 2026-09-13
+(search/trade-query/raw/searches, MANIFEST.md there), whose committed census
+reshapes its items as the extract does. One item to a line.
 
     tools/trade-captures.py             # write search/pseudo-stats/data/captures.json
     tools/trade-captures.py --check     # say what is in raw/ and write nothing
@@ -40,6 +54,12 @@ TRACK = Path(__file__).resolve().parents[1] / "search" / "pseudo-stats"
 RAW = TRACK / "raw" / "searches"
 SHEET = TRACK / "data" / "search-sheet.csv"
 OUT = TRACK / "data" / "captures.json"
+BODIES = TRACK / "data" / "bodies.json"
+CENSUS_RAW = TRACK.parent / "trade-query" / "raw" / "searches"
+CENSUS = ["q1", "q2", "q2b", "q3", "q3b", "q4", "q5", "q6"]
+# What leaves a body: what may not leave raw/, and what the site alone computes;
+# an icon at any depth (a crucible tree's nodes carry their own)
+NOT_A_BODY = ("id", "icon", "note", "extended", "pseudoMods")
 
 ARRAYS = [
     "enchantMods", "implicitMods", "fracturedMods", "explicitMods", "craftedMods",
@@ -88,6 +108,42 @@ def item(raw):
     }
 
 
+def body(raw):
+    def iconless(v):
+        if isinstance(v, dict):
+            return {k: iconless(x) for k, x in v.items() if k != "icon"}
+        if isinstance(v, list):
+            return [iconless(x) for x in v]
+        return v
+    return {k: iconless(v) for k, v in raw.items() if k not in NOT_A_BODY}
+
+
+def fetched(pages):
+    """Every item of a search's fetch pages, as the site sent it, in order."""
+    items = []
+    for fetch in pages:
+        if fetch.exists() and fetch.stat().st_size:
+            items += [r["item"] for r in json.loads(fetch.read_text())["result"]]
+    return items
+
+
+def bodies_text(searches_bodies, census_bodies):
+    """The bodies file: one item to a line, so a diff names the item."""
+    out = ['{', ' "_generated": "by tools/trade-captures.py from raw/searches (MANIFEST.md) — do not edit",']
+    for key, group in (("searches", searches_bodies), ("census", census_bodies)):
+        out.append(f' "{key}": {{')
+        names = list(group)
+        for n, name in enumerate(names):
+            items = group[name]
+            out.append(f'  {json.dumps(name)}: [')
+            out += [f'   {json.dumps(b, ensure_ascii=False)}' + ("," if i < len(items) - 1 else "")
+                    for i, b in enumerate(items)]
+            out.append('  ]' + ("," if n < len(names) - 1 else ""))
+        out.append(' }' + ("," if key == "searches" else ""))
+    out.append('}')
+    return "\n".join(out) + "\n"
+
+
 def searches():
     return sorted(p.name[: -len("-search.json")] for p in RAW.glob("*-search.json"))
 
@@ -113,6 +169,7 @@ def main():
         "_generated": "by tools/trade-captures.py from raw/searches (MANIFEST.md) — do not edit",
         "searches": {},
     }
+    bodies = {}
     for name in searches():
         saved = (RAW / f"{name}-search.json").read_text()
         if not saved.strip():
@@ -139,21 +196,33 @@ def main():
         pages = [RAW / f"{name}-fetch.json"] + sorted(
             RAW.glob(f"{name}-fetch-*.json"), key=lambda p: int(p.stem.rsplit("-", 1)[1])
         )
-        for fetch in pages:
-            if fetch.exists() and fetch.stat().st_size:
-                entry["fetched"] += [item(r["item"]) for r in json.loads(fetch.read_text())["result"]]
+        raws = fetched(pages)
+        entry["fetched"] = [item(r) for r in raws]
+        if raws:
+            bodies[name] = [body(r) for r in raws]
         out["searches"][name] = entry
         print(f"{name}: sheet query {entry['sheet_query']}; total {answer.get('total')}; "
               f"{entry['ids_returned']} ids; {len(entry['fetched'])} items fetched")
-    text = json.dumps(out, indent=1, ensure_ascii=False) + "\n"
-    for bad in SCRUBBED:
-        if bad in text:
-            raise SystemExit(f"scrub guard: {bad!r} would leave raw/")
+    census = {}
+    for name in CENSUS:
+        raws = fetched([CENSUS_RAW / f"{name}-fetch.json"])
+        if raws:
+            census[name] = [body(r) for r in raws]
+    print(f"census: {sum(len(b) for b in census.values())} items over {len(census)} searches")
+    texts = {
+        OUT: json.dumps(out, indent=1, ensure_ascii=False) + "\n",
+        BODIES: bodies_text(bodies, census),
+    }
+    for path, text in texts.items():
+        for bad in SCRUBBED:
+            if bad in text:
+                raise SystemExit(f"scrub guard: {bad!r} would leave raw/ in {path.name}")
     if not write:
         print("--check: nothing written")
         return 0
-    OUT.write_text(text)
-    print(f"wrote {OUT.relative_to(TRACK.parent.parent)}, {len(text.encode())} bytes; scrub guard passed")
+    for path, text in texts.items():
+        path.write_text(text)
+        print(f"wrote {path.relative_to(TRACK.parent.parent)}, {len(text.encode())} bytes; scrub guard passed")
     return 0
 
 

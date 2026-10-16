@@ -44,6 +44,7 @@ committed capture of 2026-09-12 and every oracle is a committed capture
 | The owner's eight searches (q1, q2, q2b, q3, q3b, q4, q5, q6) | `search/trade-query/data/fetch-census.json` (requests, 70 fetched items; q2b found none); the ids from `raw/searches/*-search.json`, local | the decode fixture; the acceptance set |
 | 864 sitting captures: 451 with ten fetched items, 78 with one to nine, 335 with none | `search/pseudo-stats/data/captures.json` | the oracle (the 451 and the 78); the 20 %-quality figures (`extended.ar|ev|es|ward`: 1,313 rows over the 4,819 listings fetched, measured at step 3 where this said 812) |
 | The site's property bridge (S55) | `grammar.json`, `property_type_to_field` | the property table |
+| The fetched items as the site sent them, scrubbed | `search/pseudo-stats/data/bodies.json` (`tools/trade-captures.py`; 4,819 items, and the census's 70) | the oracle's items (step 6) |
 
 The raw captures were restored to `search/*/raw/` from the pre-swap
 clone on 2026-10-15, hashes checked against the manifests;
@@ -135,8 +136,12 @@ grows at 3 so that 4's text parses on the build that writes it.
    read as exact to pass. The eight owner searches the same.
    *Acceptance:* 0 disagreements over the 451 and the 78, or each one
    a named row of the sitting below; the 335 with no items excluded by
-   name.
-7. **The sitting.** Composed after step 6 from its disagreements and
+   name. *As opened* (below, "What step 6 opened"): each disagreement a
+   row whose finding is a fact of the captures, the owner's ruling or a
+   question for the sitting, the set exact; an undecided item a
+   disagreement of its own kind.
+7. **The sitting.** Composed after step 6 from its disagreements — the
+   `asks` of `tests/trade-oracle.toml`'s sitting findings — and
    K6's "what no sitting has asked", by the site-sitting skill, each
    search with its mutant; the owner sits it; the captures read; K6 and
    the catalogue amended and the "what no sitting has asked" park takes
@@ -224,3 +229,30 @@ What step 5 opened:
   label, stale or edited (owner, 2026-10-16, choosing "Site search,
   re-translated"). The report is the answer's alone, and the tables'
   versions are the report's, the basis being the corpus's.
+
+What step 6 opened (measured 2026-10-16, before the oracle was written;
+the owner, verbatim: "I'm inclined to accept your recommendations, with
+the caveat that I prefer using sittings to answer questions so that we
+don't have to guess or over-generalize our design", then "yes, this
+approach sounds good"):
+
+- The extract's items lose what the search reads (the bestiary text,
+  the item level): rebuilt from it, 3,438 of 4,733 items missed; as the
+  site sent them, 497. The oracle reads `bodies.json` alone.
+- Of the 497, every item fails one top-level clause, so a row names its
+  clause. 377 are a fact the pseudo track found (a `not` on an eldritch
+  form's id lets items through): the clause is ambiguous by
+  `stat.text.eldritch`, the step's one translation change. 35 are the
+  owner's totals rulings at 9c. The other 85 — the `reduced` spelling,
+  `No Physical Damage`, q6's two lines that meet a bound together, a
+  scourge line in a sum — are one question, whether the site's stat is a
+  line or the item's stat however displayed, possibly summed; each a
+  sitting row, and nothing built until the sitting answers. The captures
+  show 67 (id, displayed text) pairs the stat table lacks, 401 of 10,517
+  lines with an id (27 `reduced`), the material for that answer —
+  measured by a script's own templating, not the deriver's, so a
+  count to take again before a row rests on it.
+- Until step 7, a clause on an `increased` id reports exact while the
+  oracle's rows show it missing `reduced` lines: said here and in the
+  rows, not labelled, since a label rule now would be a design the
+  sitting replaces.

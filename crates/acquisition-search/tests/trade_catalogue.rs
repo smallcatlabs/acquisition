@@ -24,7 +24,7 @@ const GRAMMAR: &str = include_str!("../../../search/trade-query/data/grammar.jso
 fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
     let c = catalogue::catalogue().unwrap();
     assert_eq!(c.version(), CATALOGUE_VERSION);
-    assert_eq!(c.rows().len(), 139);
+    assert_eq!(c.rows().len(), 140);
     let count = |d: Disposition| c.rows().iter().filter(|r| r.disposition == d).count();
     assert_eq!(
         [
@@ -33,14 +33,17 @@ fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
             count(Disposition::Unsupported),
             count(Disposition::ListingOnly)
         ],
-        [65, 28, 37, 9]
+        [65, 29, 37, 9]
     );
     // the four defence filters ambiguous since step 3 measured the q20
     // rule against the site (`tests/properties.rs`), and the eleven rows
     // step 3's measurement doubted since step 4, by the owner's verdicts,
-    // and the digit rule no capture shows (owner, 2026-10-16)
+    // and the digit rule no capture shows (owner, 2026-10-16), and since
+    // step 6 an eldritch form in a `not`, which the site's captures let
+    // through (`tests/trade_oracle.rs`)
     for key in [
         "stat.text.numbers",
+        "stat.text.eldritch",
         "armour_filters.ar",
         "armour_filters.ev",
         "armour_filters.es",
@@ -70,7 +73,7 @@ fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
             .unwrap()
             .rows()
             .len(),
-        139
+        140
     );
 }
 

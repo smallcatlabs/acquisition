@@ -65,16 +65,16 @@
 # unsupported by its name (K6), by `query.unknown`.
 #
 # Measured at writing (a script over this file, never a count by eye):
-# 139 rows — 4 for the URL, 9 for the query object's keys, the JSON and
+# 140 rows — 4 for the URL, 9 for the query object's keys, the JSON and
 # what no row names, 92 filters and 2 option rows, 10 for the stat groups
-# (8 types, the disabled and the option-valued filter), 22 for the stats
-# (14 categories and 8 line rules); 65 exact, 28 ambiguous, 37
+# (8 types, the disabled and the option-valued filter), 23 for the stats
+# (14 categories and 9 line rules); 65 exact, 29 ambiguous, 37
 # unsupported, 9 listing-only — the four defence filters ambiguous since
 # step 3 measured them, and since step 4 `weapon_filters.crit`,
 # `map_filters.area_level`, the nine heist skills on what step 3
 # measured and `stat.text.numbers`, which no capture shows, by the
 # owner's verdicts on each row; `stat.text.two`, `stat.text.numbers` and
-# `query.unknown` are step 4's. Every one of the
+# `query.unknown` are step 4's, `stat.text.eldritch` step 6's. Every one of the
 # capture's 93 filters, 14 categories and 8 group types has a row
 # (tests/trade_catalogue.rs). 58 fields named, 40 of them step 3's. Every
 # one of the stat table's 14,068 category and id pairs translates, alone
@@ -1111,6 +1111,11 @@ note = "a `(Local)` suffix is dropped — no private item displays it — and th
 key = "stat.text.collision"
 disposition = "ambiguous"
 note = "a text the site gives two ids or more under one category (227 explicit, 34 enchant, 20 implicit, 15 fractured, one crafted, one scourge, measured at step 4): the line matches both, and the report names the other id (S66)"
+
+[[row]]
+key = "stat.text.eldritch"
+disposition = "ambiguous"
+note = "in a `not`, an eldritch form's text — `While a Unique Enemy is in your Presence, …`, `While a Pinnacle Atlas Boss is in your Presence, …`: the site lets some items carrying the form through a `not` on its id (search/pseudo-stats/README.md, round four: 227 items; the trade oracle, step 6: 377), so the line excludes more than the site does"
 
 [[row]]
 key = "stat.text.rows"

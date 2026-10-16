@@ -197,7 +197,11 @@
 //!   read back, every command printed run, `--describe trade` — is
 //!   [`mod@answer`]'s doc; pinned at the CLI by
 //!   `acquisition-cli/tests/search_json.rs` and at the MCP by
-//!   `acquisition-mcp/tests/search_tools.rs`.
+//!   `acquisition-mcp/tests/search_tools.rs`. Against the site, by
+//!   `tests/trade_oracle.rs`: every item the site returned for a search
+//!   that translates whole, entered as the site sent it, is matched or a
+//!   row of `trade-oracle.toml`, its finding a fact of the captures, the
+//!   owner's ruling or a question for the sitting (step 6).
 //! - **C114.** The property fields are [`properties`]'s doc and
 //!   `reference/properties-v1.toml`'s header; pinned by
 //!   `tests/properties.rs` (the shipped table; what its loader refuses;

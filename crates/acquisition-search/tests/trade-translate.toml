@@ -549,6 +549,15 @@ matches = ['{"implicitMods": ["+50 to maximum Life"]}', '{}']
 fails = ['{"implicitMods": ["+70 to maximum Life"]}']
 
 [[case]]
+name = "not on an eldritch form: the line excluded, the filter ambiguous; the same id in an and exact"
+query = '{"stats": [{"type": "not", "filters": [{"id": "implicit.stat_3864103630"}]}, {"type": "and", "filters": [{"id": "implicit.stat_2446980928"}]}]}'
+text = '-line("While a Pinnacle Atlas Boss is in your Presence, #% to Cold Resistance" source=implicit) line("While a Pinnacle Atlas Boss is in your Presence, #% increased Attack Speed" source=implicit)'
+fidelity = "ambiguous"
+statuses = { "stats.0" = "exact", "stats.0.0" = "ambiguous", "stats.1" = "exact", "stats.1.0" = "exact" }
+matches = ['{"implicitMods": ["While a Pinnacle Atlas Boss is in your Presence, 18% increased Attack Speed"]}']
+fails = ['{"implicitMods": ["While a Pinnacle Atlas Boss is in your Presence, +29% to Cold Resistance", "While a Pinnacle Atlas Boss is in your Presence, 18% increased Attack Speed"]}']
+
+[[case]]
 name = "not translates whole or not at all"
 query = '{"stats": [{"type": "not", "filters": [{"id": "implicit.stat_3299347043"}, {"id": "imbued.x"}]}]}'
 text = ''
