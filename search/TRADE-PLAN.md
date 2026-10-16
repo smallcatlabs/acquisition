@@ -143,7 +143,10 @@ grows at 3 so that 4's text parses on the build that writes it.
 7. **The sitting.** Composed after step 6 from its disagreements — the
    `asks` of `tests/trade-oracle.toml`'s sitting findings — and
    K6's "what no sitting has asked", by the site-sitting skill, each
-   search with its mutant; the owner sits it; the captures read; K6 and
+   search with its mutant: round t of `tools/trade-sheet.py`, 57
+   searches (7a), the forms' presence shown by the captured ids and
+   their numbers asked a kind of relation at a time; the owner sits
+   it; the captures read; K6 and
    the catalogue amended and the "what no sitting has asked" park takes
    its rows off. Only where the intended meaning is still unsettled.
 8. **The seat.** The third of the search's, by the seat skill: a URL
@@ -247,11 +250,16 @@ approach sounds good"):
   `No Physical Damage`, q6's two lines that meet a bound together, a
   scourge line in a sum — are one question, whether the site's stat is a
   line or the item's stat however displayed, possibly summed; each a
-  sitting row, and nothing built until the sitting answers. The captures
-  show 67 (id, displayed text) pairs the stat table lacks, 401 of 10,517
-  lines with an id (27 `reduced`), the material for that answer —
-  measured by a script's own templating, not the deriver's, so a
-  count to take again before a row rests on it.
+  sitting row, and nothing built until the sitting answers. The
+  material for that answer, measured at 7a through the translation and
+  the deriver (each captured line asked the term its id translates to):
+  of 10,930 captured lines with an id, 10,428 match their id's term,
+  100 lie under ids the translation leaves unsupported, and 402 are
+  missed, 72 displayed forms under 71 ids — the opposite word (35
+  forms: `reduced` for `increased`, the inverse, `Lucky`), `No
+  Physical Damage` (2), and a number elided or spelled (a 100 % chance
+  dropped, `an` for one, singular for plural) or another text. Where
+  this said 67 pairs and 401 lines it was a script's own templating.
 - Until step 7, a clause on an `increased` id reports exact while the
   oracle's rows show it missing `reduced` lines: said here and in the
   rows, not labelled, since a label rule now would be a design the

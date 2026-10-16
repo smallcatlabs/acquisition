@@ -1509,6 +1509,318 @@ def round_n():
     return rows
 
 
+# Round t (the trade import, step 7 of search/TRADE-PLAN.md): what the
+# translation leaves to the site — the questions of the trade oracle's
+# sitting findings (crates/acquisition-search/tests/trade-oracle.toml, `asks`)
+# and the catalogue rows a sitting is to settle
+# (crates/acquisition-search/reference/trade-catalogue-v1.toml). Each search
+# is decided by what it finds beside its pair, or by the ten items it
+# fetches, read against the catalogue's reading; the items each names are
+# ones the captures hold (search/pseudo-stats/data/bodies.json).
+
+
+def round_t():
+    """t01–t12 a stat displayed otherwise than its listed text: its number
+    read below nothing, as -100, as 100, as 1; t13–t20 an explicit id on a
+    crafted or fractured line, and a stat's lines summed; t21–t23 a scourge
+    line in a weighted sum; t24–t26 a `not` with a value; t27–t32 which
+    number a text compares, its `#` or a digit it writes; t33–t36 two ids of
+    one text, and an id of two texts; t37–t40 a group with no bound; t41–t56
+    the property filters, the free text and the marks; t57 t12's control. A search that can
+    find nothing names its pair or its mutant; one read by its ten fetched
+    says what each reading would show."""
+    rows = []
+
+    def add(decides, control, q):
+        rows.append({"search": f"t{len(rows) + 1:02d}", "decides": decides, "control": control, "query": q})
+        return rows[-1]["search"]
+
+    def stat(sid, value=None):
+        f = {"id": sid, "disabled": False}
+        if value is not None:
+            f["value"] = value
+        return f
+
+    def stats(kind, filters, value=None):
+        out = {"type": kind, "filters": filters}
+        if value is not None:
+            out["value"] = value
+        return out
+
+    def ask(groups, filters=None, item_type=None, name=None, term=None):
+        q = batch_query(groups, filters, item_type)
+        if name:
+            q = {"status": q["status"], "name": name, **{k: v for k, v in q.items() if k != "status"}}
+        if term:
+            q = {"status": q["status"], "term": term, **{k: v for k, v in q.items() if k != "status"}}
+        return q
+
+    def filt(group_id, **filters):
+        return {group_id: {"disabled": False, "filters": filters}}
+
+    def merge(*parts):
+        out = {}
+        for p in parts:
+            out.update(p)
+        return out
+
+    # 1. A stat displayed otherwise than its listed text. The captures' line
+    # hashes file each form under the id (the oracle's findings), so presence
+    # is shown; what each search asks is the number the site reads.
+    speed = "explicit.stat_681332047"  # `#% increased Attack Speed`
+    add("reduced-spelling, presence: whether `The Anvil` (Amber Amulet), whose line is `10% reduced Attack Speed` "
+            f"filed under {speed} (`#% increased Attack Speed`), is found by that id with no bound. Found: the id's "
+            "presence holds the `reduced` spelling",
+            "t05, The Anvil with no stat, must find it",
+            ask([stats("and", [stat(speed)])], item_type="Amber Amulet", name="The Anvil"))
+    add(f"reduced-spelling, the number: The Anvil under {speed} with `max` -5. Found, t03 none: the site reads "
+        "`10% reduced` as -10 under the `increased` id. Not found: it reads no negative there",
+        "t01, the same id with no bound, finds it",
+        ask([stats("and", [stat(speed, {"max": -5})])], item_type="Amber Amulet", name="The Anvil"))
+    add(f"reduced-spelling, the number's mutant: `max` -11, which -10 does not meet. None found beside the search "
+        "before it finding: -10 exactly, read from the text. Found: the site's number is not the text's",
+        "t01 finds it",
+        ask([stats("and", [stat(speed, {"max": -11})])], item_type="Amber Amulet", name="The Anvil"))
+    mana = "explicit.stat_474294393"  # `#% reduced Mana Cost of Skills`
+    add(f"the inverse spelling: whether `The Blood Reaper` (Headsman Axe), whose line `#% increased Mana Cost of "
+        f"Skills` is filed under {mana} (listed `#% reduced Mana Cost of Skills`), is found with `max` -1. Found: the "
+        "`increased` spelling of a `reduced` text is read below nothing, the rule of the search before it turned "
+        "round. Not found, its pair finding it: the site reads it otherwise",
+        "t06, The Blood Reaper with no stat, must find it",
+        ask([stats("and", [stat(mana, {"max": -1})])], item_type="Headsman Axe", name="The Blood Reaper"))
+    add("the pair of The Anvil's and The Blood Reaper's searches: each unique by its name with no stat — that it is "
+        "listed at all. This one The Anvil",
+        "the pair is the control: nothing found means the searches beside it say nothing",
+        ask([], item_type="Amber Amulet", name="The Anvil"))
+    add("the pair, The Blood Reaper by its name with no stat",
+        "the pair is the control",
+        ask([], item_type="Headsman Axe", name="The Blood Reaper"))
+    phys = "explicit.stat_1509134228"  # `#% increased Physical Damage`
+    add(f"no-physical-damage, the number: `Storm Cloud` (Long Bow), whose `No Physical Damage` is filed under "
+            f"{phys} (`#% increased Physical Damage`), with `max` -99. Found, t08 none: the site reads it as "
+            "-100. None: as no number below -99",
+            "t09, Storm Cloud under the id with no bound, must find it",
+            ask([stats("and", [stat(phys, {"max": -99})])], item_type="Long Bow", name="Storm Cloud"))
+    add(f"no-physical-damage, the mutant: `max` -101. None found beside t07 finding: -100 exactly",
+        "t09 finds it",
+        ask([stats("and", [stat(phys, {"max": -101})])], item_type="Long Bow", name="Storm Cloud"))
+    add("no-physical-damage, presence: Storm Cloud under the id with no bound. Found: the id's presence holds "
+        "`No Physical Damage`; not found, Storm Cloud is unlisted and the two before say nothing",
+        "this search is the control of the two before it",
+        ask([stats("and", [stat(phys)])], item_type="Long Bow", name="Storm Cloud"))
+    ire = "enchant.stat_620045439"  # `#% chance to Trigger Commandment of Ire when Hit`
+    add(f"an elided 100 %: {ire}, listed `#% chance to Trigger Commandment of Ire when Hit`, displayed `Trigger "
+        "Commandment of Ire when Hit` on the captures' Runic Gauntlets, with `min` 100. Found: the line with no "
+        "number is read as 100; the ten fetched show whether each displays the number or not",
+        "t11, the id with no bound, must find items",
+        ask([stats("and", [stat(ire, {"min": 100})])]))
+    add(f"the elided 100 %'s control: {ire} with no bound; the ten fetched show the line's forms",
+        "the control",
+        ask([stats("and", [stat(ire)])]))
+    pierce = "implicit.stat_2067062068"  # `Projectiles Pierce # additional Targets`
+    add(f"`an` for one: {pierce}, listed `Projectiles Pierce # additional Targets`, displayed `Projectiles Pierce an "
+        "additional Target`, with `min` 1 and `max` 1. Found, the ten fetched displaying `an additional Target`: "
+        "the word is read as 1",
+        "t57, the id with no bound, must find items",
+        ask([stats("and", [stat(pierce, {"min": 1, "max": 1})])]))
+
+    # 2. An explicit id on a crafted or fractured line (K6), and a stat's lines summed (the oracle's q6).
+    life = "3299347043"  # `+# to maximum Life`
+    for domain in ("crafted", "fractured"):
+        m = f"t{len(rows) + 2:02d}"
+        add(f"an explicit id on a {domain} line: items carrying `{domain}.stat_{life}` (Life) and none of "
+            f"`explicit.stat_{life}`, a `not`. None found, {m} finding items: the explicit id holds the {domain} "
+            f"line (every such item excluded). Found: it does not, and the fetched items' lines show a {domain} "
+            "Life line with no explicit one",
+            f"{m}, the {domain} id alone, must find items",
+            ask([stats("and", [stat(f"{domain}.stat_{life}")]), stats("not", [stat(f"explicit.stat_{life}")])]))
+        add(f"the {domain} id alone: that items carry a {domain} Life line at all",
+            "the control of the search before it",
+            ask([stats("and", [stat(f"{domain}.stat_{life}")])]))
+    for domain, bound, below in (("fractured", 150, 100), ("crafted", 150, 100)):
+        add(f"stat-summed: chests under `explicit.stat_{life}` with `min` {bound} and `{domain}.stat_{life}` with "
+            f"`max` {below}: read the ten fetched. An item none of whose Life lines reaches {bound} while they do "
+            f"together: the site compares the item's sum of the stat's lines (q6: +40 and +117 fractured at `min` "
+            "150). Every item with one line of the bound: one line is compared, and q6 is another reading",
+            f"q6, the owner's, item 8 found so; the {domain} id's control above",
+            ask([stats("and", [stat(f"explicit.stat_{life}", {"min": bound}), stat(f"{domain}.stat_{life}", {"max": below})])],
+                category("armour.chest")))
+    add(f"stat-summed, q6's own item at the edge: chests under `explicit.stat_{life}` with `min` 157 and "
+        f"`fractured.stat_{life}` with `max` 117 and `min` 117. Found with +40 and +117 among them: the sum (157); "
+        "read beside t20",
+        "t20, the same at `min` 158, must find no such item",
+        ask([stats("and", [stat(f"explicit.stat_{life}", {"min": 157}), stat(f"fractured.stat_{life}", {"min": 117, "max": 117})])],
+            category("armour.chest")))
+    add(f"stat-summed, the mutant: `min` 158. An item of +40 and +117 found here: the site's number is not the sum",
+        "the search before it",
+        ask([stats("and", [stat(f"explicit.stat_{life}", {"min": 158}), stat(f"fractured.stat_{life}", {"min": 117, "max": 117})])],
+            category("armour.chest")))
+
+    # 3. A scourge line in a weighted sum (e043, f005).
+    fire = "3372524247"  # `+#% to Fire Resistance`
+    add(f"scourge-in-sum, the plain filter: `scourge.stat_{fire}` with `max` -1. Found: a plain filter reads the "
+        "scourge downside below nothing (as e043's `-28% to Fire Resistance`)",
+        "t23, the scourge id with `min` 1, must find items",
+        ask([stats("and", [stat(f"scourge.stat_{fire}", {"max": -1})])]))
+    add(f"scourge-in-sum, the weighted group: `scourge.stat_{fire}` alone in a `weight2` with `max` -1. None found "
+        "beside the search before it finding: a weighted sum leaves the scourge downside out, as e043's 28 over "
+        "+28 and -28 says. Found: it counts it, and e043's 28 is another reading",
+        "the search before it",
+        ask([stats("weight2", [stat(f"scourge.stat_{fire}", {"weight": 1})], {"max": -1})]))
+    add(f"scourge-in-sum's control: `scourge.stat_{fire}` with `min` 1, the upside",
+        "the control",
+        ask([stats("and", [stat(f"scourge.stat_{fire}", {"min": 1})])]))
+
+    # 4. A `not` with a value (K6).
+    m = "t25"
+    add(f"a `not` with a value: rings under `explicit.stat_{life}` and a `not` of the same id with `min` 100. Found, "
+        "the ten carrying Life under 100: the `not` excludes the bound's meeting, never the presence. None found, "
+        f"{m} finding: it excludes the stat's presence",
+        f"{m}, the `not` at `min` 1000, must find rings",
+        ask([stats("and", [stat(f"explicit.stat_{life}")]), stats("not", [stat(f"explicit.stat_{life}", {"min": 100})])],
+            category("accessory.ring")))
+    add(f"the `not` with a value, a bound no ring meets (`min` 100 in the search before is now 1000)",
+        "the control of the search before it",
+        ask([stats("and", [stat(f"explicit.stat_{life}")]), stats("not", [stat(f"explicit.stat_{life}", {"min": 1000})])],
+            category("accessory.ring")))
+    add("the `not` with a value's own control: rings under the id alone",
+        "the control",
+        ask([stats("and", [stat(f"explicit.stat_{life}")])], category("accessory.ring")))
+
+    # 5. Which number a text compares: its `#` of several, or a digit it writes (K6; `stat.text.many`, `stat.text.numbers`).
+    ground = "explicit.stat_3595254837"  # `Drops Burning Ground while moving, dealing # Fire Damage per second for # second`
+    add(f"which `#` is compared: {ground}, `Drops Burning Ground while moving, dealing # Fire Damage per second for # "
+        "second`, with `min` 1000. Found, t28 none: the first `#`, the damage (the captures' Titan Greaves: 2500 "
+        "for 4 seconds)",
+        "t29, the id with no bound, must find items",
+        ask([stats("and", [stat(ground, {"min": 1000})])]))
+    add("which `#` is compared, the mutant: `min` 3 and `max` 5. Found, the search before none: the second, the "
+        "seconds. Both found: neither alone",
+        "t29, the id with no bound",
+        ask([stats("and", [stat(ground, {"min": 3, "max": 5})])]))
+    add(f"the control: {ground} with no bound; the ten fetched show both numbers",
+        "the control",
+        ask([stats("and", [stat(ground)])]))
+    caged = "explicit.stat_2594215131"  # `#% increased Physical Weapon Damage per 10 Strength`
+    add(f"a digit the text writes: {caged}, `#% increased Physical Weapon Damage per 10 Strength` (Pillar of the "
+        "Caged God, 16 on the captures), with `min` 15. Found, t31 none: the bound compares the text's `#`, as "
+        "the catalogue reads it (`stat.text.numbers`). None, the next found: it compares the 10",
+        "t32, the id with no bound, must find items",
+        ask([stats("and", [stat(caged, {"min": 15})])]))
+    add("a digit the text writes, the mutant: `max` 12",
+        "the search before it",
+        ask([stats("and", [stat(caged, {"max": 12})])]))
+    add(f"the control: {caged} with no bound; the ten fetched show the line's numbers",
+        "the control",
+        ask([stats("and", [stat(caged)])]))
+
+    # 6. Two ids of one text (S66; q2, q2b), and an id of two texts (`stat.text.two`).
+    add("q2b's id, `explicit.stat_492027537` (`+#% chance to Suppress Spell Damage`, as q2's), on any item: q2b "
+        "found none on boots. None here: the id is never filed, and the text is q2's id alone. Found: the ten show "
+        "where",
+        "t34, q2's id on any item, finds items",
+        ask([stats("and", [stat("explicit.stat_492027537")])]))
+    add("q2's id, `explicit.stat_3680664274`, on any item: the control of the search before it",
+        "the control",
+        ask([stats("and", [stat("explicit.stat_3680664274")])]))
+    for sid, texts in (("explicit.stat_124877078", "`Unique Boss deals #% increased Damage` and `Map Bosses deal #% increased Damage`"),
+                       ("explicit.stat_3126771445", "`#% increased number of Rare Monsters` and `#% increased number of Rare Monsters in your Maps`")):
+        add(f"an id of two texts: {sid}, listed as {texts}; read the ten fetched — which wording each displays, and "
+            "on what. Both wordings among them: the id holds both, and the translation may write it as either. One: "
+            "the other is another item's",
+            "the search finds items, or the id is never filed",
+            ask([stats("and", [stat(sid)])]))
+
+    # 7. A group with no bound (the catalogue: unsupported, the site's reading unasked).
+    res = "explicit.stat_4220027924"  # `+#% to Cold Resistance`
+    add(f"a `count` with no bound: rings under a `count` of `explicit.stat_{life}` and {res}, no `min` or `max`. "
+        "Read the ten: every one carrying both, the count is at least the number of its filters; one with either, "
+        "at least one; any ring, no restriction",
+        "t39, the same rings under the two in an `and`",
+        ask([stats("count", [stat(f"explicit.stat_{life}"), stat(res)])], category("accessory.ring")))
+    add(f"a weighted sum with no bound: the two in a `weight2`, each weight 1, no `min` or `max`; read the ten as "
+        "the search before it",
+        "t39, the same rings under the two in an `and`",
+        ask([stats("weight2", [stat(f"explicit.stat_{life}", {"weight": 1}), stat(res, {"weight": 1})])],
+            category("accessory.ring")))
+    add("the two in an `and`: rings carrying both, the control of the two before",
+        "the control",
+        ask([stats("and", [stat(f"explicit.stat_{life}"), stat(res)])], category("accessory.ring")))
+    add("rings with no stat: what the site lists first, beside the three before",
+        "the control",
+        ask([], category("accessory.ring")))
+
+    # 8. The property filters, the free text and the marks (the catalogue's rows the sitting settles).
+    add("the site's dps and quality: two-handed melee weapons, `weapon_filters.pdps` `min` 400. Read the ten: one "
+        "whose displayed Physical Damage at its own quality gives under 400, and at 20 % 400 or more: the site's "
+        "figure puts 20 % quality in. Every one 400 or more as displayed: as displayed, or every one at 20 %",
+        "the ten fetched carry their own quality and damage",
+        ask([], merge(category("weapon.twomelee"), filt("weapon_filters", pdps={"min": 400}))))
+    add("as the search before, `weapon_filters.dps` `min` 500 over the elemental and the physical",
+        "the ten fetched carry their own quality and damage",
+        ask([], merge(category("weapon.twomelee"), filt("weapon_filters", dps={"min": 500}))))
+    add("the site's damage filter, `weapon_filters.damage` `min` 200 on bows: read the ten — which displayed "
+        "damages the site's figure sums (physical, elemental, chaos; the average or the top)",
+        "the ten fetched carry their damage",
+        ask([], merge(category("weapon.bow"), filt("weapon_filters", damage={"min": 200}))))
+    add("`weapon_filters.crit` on a gem: skill gems with `crit` `min` 5. Found: the weapon's filter reads a gem's "
+        "displayed `Critical Strike Chance` (the catalogue's reading); none, the next found: it does not",
+        "t45, skill gems with no filter, finds gems",
+        ask([], merge(category("gem.activegem"), filt("weapon_filters", crit={"min": 5}))))
+    add("skill gems with no filter: the control of the search before",
+        "the control",
+        ask([], category("gem.activegem")))
+    add("`map_filters.area_level` on a vessel: `Blood-filled Vessel` with `area_level` `min` 1. Found: the filter "
+        "reads the vessel's `Monster Level`; none, the next found: it does not",
+        "t47, the vessel with no filter",
+        ask([], filt("map_filters", area_level={"min": 1}), "Blood-filled Vessel"))
+    add("`Blood-filled Vessel` with no filter: the control of the search before",
+        "the control",
+        ask([], None, "Blood-filled Vessel"))
+    add("the heist skills on a brooch or a cloak: heist equipment with `heist_lockpicking` `min` 1. Read the ten: "
+        "a brooch or cloak requiring `Level n in Lockpicking` among them: the filter reads that shape too",
+        "the ten fetched carry their requirements",
+        ask([], merge(category("heistequipment"), filt("heist_filters", heist_lockpicking={"min": 1}))))
+    add("`misc_filters.quality` on a catalysed ring: rings with `quality` `min` 1. Read the ten: a ring whose only "
+        "quality is `Quality (Resistance Modifiers)` or another of its kind: the filter folds them in",
+        "the ten fetched carry their properties",
+        ask([], merge(category("accessory.ring"), filt("misc_filters", quality={"min": 1}))))
+    add("the free text: `term` `Anvil`. Read the ten: The Anvil by its name, and any base or other name holding the "
+        "word: what the box matches",
+        "t51, the same mid-word",
+        ask([], term="Anvil"))
+    add("the free text, mid-word: `term` `nvil`. Found The Anvil: the box is a contains test, as the catalogue "
+        "writes it (`name:` or `typeline:`); none: a word or a prefix",
+        "the search before it finds The Anvil",
+        ask([], term="nvil"))
+    add("`rarity` `uniquefoil`: read the ten — whether each carries the body's relic mark (`isRelic`) and what "
+        "else sets it apart",
+        "t53, `rarity` `unique`",
+        ask([], filt("type_filters", rarity={"option": "uniquefoil"})))
+    add("`rarity` `unique`: the control of the search before — what the ten of a plain unique carry",
+        "the control",
+        ask([], filt("type_filters", rarity={"option": "unique"})))
+    add("`misc_filters.crucible_item` `true`: read the ten — whether each has a crucible tree with a node "
+        "allocated, or a tree alone",
+        "the ten fetched carry their tree",
+        ask([], filt("misc_filters", crucible_item={"option": "true"})))
+    add("`map_filters.map_blighted` `true` on `Map (Tier 13)`: read the ten — each typeline's `Blighted` prefix, "
+        "and whether any is not; with the next, whether the filter is the prefix or a mark",
+        "t56, the same base with `map_blighted` `false`",
+        ask([], filt("map_filters", map_blighted={"option": "true"}), "Map (Tier 13)"))
+    add("the same base with `map_blighted` `false`: none with the prefix among the ten, beside the search before",
+        "the search before it",
+        ask([], filt("map_filters", map_blighted={"option": "false"}), "Map (Tier 13)"))
+    # t12's control, added after the round was numbered
+    add(f"`an` for one, the control of t12: {pierce} with no bound; the ten fetched show the line's forms",
+        "the control",
+        ask([stats("and", [stat(pierce)])]))
+    # every name above is written out: the round is its length
+    if len(rows) != 57:
+        raise SystemExit(f"round t has {len(rows)} searches, its names written for 57")
+    return rows
+
+
 def report():
     """b1, b2: the two searches a report of c3's twin id rests on."""
     twin = "explicit.stat_2543977012"
@@ -1590,7 +1902,7 @@ def main():
         return 2
     searches = PILOT + (checks() + round_two() + report() + round_three() + round_four()
                         + round_five() + OPEN_QUESTION_SEARCHES + round_six() + round_i() + round_j() + round_k() + round_l() + round_m()
-                        + round_n()
+                        + round_n() + round_t()
                         if method == "site" else batch(method))
     seen = set()
     with OUT.open("w", newline="") as out:
@@ -1613,11 +1925,12 @@ def main():
             )
             if method == "site":
                 print(f"{row['search']}  {link(row['query'])}")
-    kinds = {"pilot": 0, "check": 0, "line": 0, "pair": 0, "percentile line": 0,
+    kinds = {"trade": 0, "pilot": 0, "check": 0, "line": 0, "pair": 0, "percentile line": 0,
              "percentile case": 0, "open question": 0}
     for row in searches:
         s = row["search"]
-        kind = ("pilot" if s.startswith("p")
+        kind = ("trade" if s.startswith("t")
+                else "pilot" if s.startswith("p")
                 else "check" if s.startswith(("c", "d", "b", "e", "f", "g", "h"))
                 else "percentile case" if s.startswith("C")
                 else "open question" if s.startswith("R")
