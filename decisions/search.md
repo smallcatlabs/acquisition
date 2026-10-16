@@ -71,28 +71,8 @@ least one (S106). A site bound on a ranged line is `avg` on the line
 **C113 (K6).** A URL is a request: its realm the scope, its league a
 term, the rest the query; a bare id or the query JSON fills no scope;
 `--realm` beside a URL is a conflict; a sort,
-which only the JSON envelope carries, is reported, never applied. The id is
-the query object, gzipped and base64url-encoded (S56). Every clause
-has one of five statuses — exact, ambiguous, unsupported, listing-only,
-disabled — from one catalogue table the translation reads, `--describe
-trade` prints and a test walks, an unknown key or option unsupported by
-name. `fidelity` is the worst status among the clauses with
-stash meaning — exact, ambiguous, or partial when the remainder is
-nonempty — promising the item predicate alone. A stat group
-translates whole or not at all, `and` excepted. A hash-category stat is
-`line("T" …)` with the category as source or flag, `min` and `max` on
-`arg1`, on `avg` for a ranged template (S47), presence for a text with
-no number; `+#` and a `(Local)` suffix are spelling, the suffix making
-the clause ambiguous (S72), as does a text with two ids (S66); an id of
-two texts in one category is unsupported (owner, 2026-10-15:
-"Unsupported until the sitting"); a pseudo
-the totals table names is that total or reading, with no bound `has:` it
-(C94), any other unsupported.
-`not` is `-( … or … )`, `if` is `(-line(T) or line(T v))` per stat,
-`count` is `holds(…)=min..max`, a weighted group as K5. Every clause
-that runs owns one term path inside its group, a tautology its own, and
-every path is a clause's.
-What no sitting has asked — an explicit id on a crafted line, a `not`
-with a value, which number a many-numbered template compares, dps and
-quality, and each row whose note leaves it to one — is ambiguous until
-one has.
+which only the JSON envelope carries, is reported, never applied.
+The rest, taken at step 4 of `search/TRADE-PLAN.md`, is the code's
+doc: the id is `acquisition-search/src/trade.rs`'s, the clauses, their
+statuses, the groups, the line and what no sitting has asked
+`acquisition-search/src/trade/translate.rs`'s.

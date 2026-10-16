@@ -1,6 +1,12 @@
 //! The trade boundary (C99, C113; the contract detail K6 in
-//! `decisions/search.md`): a site search URL, its id or its query JSON,
-//! decoded with no network. The brief is `search/TRADE-PLAN.md`.
+//! `decisions/search.md`, its id's form taken here): a site search URL, its
+//! id or its query JSON, decoded with no network. The brief is
+//! `search/TRADE-PLAN.md`.
+//!
+//! # Decisions as recorded
+//!
+//! - **C113 (K6), taken from the contract detail at step 4** (verbatim):
+//!   The id is the query object, gzipped and base64url-encoded (S56).
 //!
 //! # As built (step 1 of the brief: decode)
 //!

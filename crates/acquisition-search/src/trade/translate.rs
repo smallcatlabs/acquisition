@@ -1,7 +1,34 @@
-//! The translation (C113, C99; the contract detail K6 in
-//! `decisions/search.md`; step 4 of `search/TRADE-PLAN.md`): a decoded site
-//! search to the query text a person would have typed, and a report, clause
-//! by clause, of what each became.
+//! The translation (C113, C99; the contract detail K6, taken here; step 4
+//! of `search/TRADE-PLAN.md`): a decoded site search to the query text a
+//! person would have typed, and a report, clause by clause, of what each
+//! became.
+//!
+//! # Decisions as recorded
+//!
+//! - **C113 (K6), taken from the contract detail at step 4** (verbatim;
+//!   what a URL is and its scope stay there until the surface takes them,
+//!   step 5).
+//!   Every clause has one of five statuses — exact, ambiguous, unsupported,
+//!   listing-only, disabled — from one catalogue table the translation
+//!   reads, `--describe trade` prints and a test walks, an unknown key or
+//!   option unsupported by name. `fidelity` is the worst status among the
+//!   clauses with stash meaning — exact, ambiguous, or partial when the
+//!   remainder is nonempty — promising the item predicate alone. A stat
+//!   group translates whole or not at all, `and` excepted. A hash-category
+//!   stat is `line("T" …)` with the category as source or flag, `min` and
+//!   `max` on `arg1`, on `avg` for a ranged template (S47), presence for a
+//!   text with no number; `+#` and a `(Local)` suffix are spelling, the
+//!   suffix making the clause ambiguous (S72), as does a text with two ids
+//!   (S66); an id of two texts in one category is unsupported (owner,
+//!   2026-10-15: "Unsupported until the sitting"); a pseudo the totals
+//!   table names is that total or reading, with no bound `has:` it (C94),
+//!   any other unsupported. `not` is `-( … or … )`, `if` is `(-line(T) or
+//!   line(T v))` per stat, `count` is `holds(…)=min..max`, a weighted group
+//!   as K5. Every clause that runs owns one term path inside its group, a
+//!   tautology its own, and every path is a clause's. What no sitting has
+//!   asked — an explicit id on a crafted line, a `not` with a value, which
+//!   number a many-numbered template compares, dps and quality, and each
+//!   row whose note leaves it to one — is ambiguous until one has.
 //!
 //! # As built
 //!

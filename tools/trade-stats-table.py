@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The stat table (C113, C106; K6, decisions/search.md): every stat id of the
+"""The stat table (C113, C106; K6, src/trade/translate.rs): every stat id of the
 trade site's six hash categories, the categories that carry it and the text
 the site displays for it — regenerated from the dated capture of the site's
 stat vocabulary into the reviewed file the search crate ships. Step 2 of
@@ -128,7 +128,7 @@ def main():
     pairs = sum(len(texts[r]) for r in first)
     out = [
         "# The stat table — the capture of 2026-09-12 (C113, C106; K6 in",
-        "# decisions/search.md), step 2 of search/TRADE-PLAN.md.",
+        "# src/trade/translate.rs), step 2 of search/TRADE-PLAN.md.",
         "#",
         "# Reference data: generated, committed, shipped inside the binary",
         "# (`include_str!` in `src/trade/stats.rs`), read-only, read by the",
