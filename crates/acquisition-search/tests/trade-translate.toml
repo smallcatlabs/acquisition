@@ -1129,3 +1129,24 @@ fails = [
   '{"properties": [{"name": "Quality", "values": [["+20%", 1]], "displayMode": 0}, {"name": "Physical Damage", "values": [["40-50", 0]], "displayMode": 0}, {"name": "Attacks per Second", "values": [["1.00", 0]], "displayMode": 0}]}',
   '{"properties": [{"name": "Physical Damage", "values": [["35-45", 0]], "displayMode": 0}, {"name": "Attacks per Second", "values": [["1.00", 0]], "displayMode": 0}]}',
 ]
+
+[[case]]
+name = "another value of an enumeration and another stat's flag are no forms (the outside review of 7e)"
+query = '{"stats": [{"type": "and", "filters": [{"id": "explicit.stat_222333372"}, {"id": "explicit.stat_3168635562"}]}]}'
+text = 'line("Legion Encounters in your Maps have no Timer\nBreaking out Monsters and Chests that are in stasis progressively causes a Schism\nLegion Encounters in your Maps begin once the Schism has occurred" source=explicit) line("Warcries have infinite Power" source=explicit)'
+fidelity = "exact"
+statuses = { "stats.0" = "exact", "stats.0.0" = "exact", "stats.0.1" = "exact" }
+matches = ['{"explicitMods": ["Legion Encounters in your Maps have no Timer\nBreaking out Monsters and Chests that are in stasis progressively causes a Schism\nLegion Encounters in your Maps begin once the Schism has occurred", "Warcries have infinite Power"]}']
+fails = [
+  '{"explicitMods": ["Blight Monsters in your Maps take 75% less Damage from Players and their Minions\nBlight Towers and their Minions in your Maps deal 300% more Damage", "Warcries have infinite Power"]}',
+  '{"explicitMods": ["Legion Encounters in your Maps have no Timer\nBreaking out Monsters and Chests that are in stasis progressively causes a Schism\nLegion Encounters in your Maps begin once the Schism has occurred", "Warcries count total Power of Enemies in Range"]}',
+]
+
+[[case]]
+name = "another wording the game data gives: matched, and the clause ambiguous"
+query = '{"stats": [{"type": "and", "filters": [{"id": "explicit.stat_286947568"}]}]}'
+text = 'line(("Players Prevent #% of Suppressed Spell Damage" or "Players have #% to amount of Suppressed Spell Damage Prevented") source=explicit)'
+fidelity = "ambiguous"
+statuses = { "stats.0" = "exact", "stats.0.0" = "ambiguous" }
+matches = ['{"explicitMods": ["Players have -1% to amount of Suppressed Spell Damage Prevented"]}', '{"explicitMods": ["Players Prevent +3% of Suppressed Spell Damage"]}']
+fails = ['{"explicitMods": ["Monsters have 3% to amount of Suppressed Spell Damage Prevented"]}']

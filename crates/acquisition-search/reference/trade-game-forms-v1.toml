@@ -17,9 +17,9 @@
 # `plural`, `other`. A text with `forms = []` is joined and the game shows it
 # no other way. A text with no row is joined nowhere.
 #
-# Measured at generation: 6841 texts joined, 2651 of them with a
-# form; 2712 forms — 1934 opposite, 378 numberless,
-# 127 plural, 273 other.
+# Measured at generation: 6841 texts joined, 2643 of them with a
+# form; 2687 forms — 1930 opposite, 373 numberless,
+# 127 plural, 257 other.
 
 version = 1
 stats = "2026-09-12"
@@ -367,8 +367,6 @@ forms = [
 text = "#% increased Duration"
 forms = [
     { form = "#% reduced Duration", kind = "opposite" },
-    { form = "#% increased Duration. -1% to this value when used", kind = "other" },
-    { form = "#% reduced Duration. -1% to this value when used", kind = "opposite" },
 ]
 
 [[text]]
@@ -515,8 +513,6 @@ forms = []
 text = "#% increased Charges per use"
 forms = [
     { form = "#% reduced Charges per use", kind = "opposite" },
-    { form = "#% increased Charges per use. -1% to this value when used", kind = "other" },
-    { form = "#% reduced Charges per use. -1% to this value when used", kind = "opposite" },
 ]
 
 [[text]]
@@ -530,7 +526,6 @@ forms = []
 [[text]]
 text = "#% chance to Freeze"
 forms = [
-    { form = "Always Freezes Enemies on Hit", kind = "numberless" },
     { form = "Always Freeze", kind = "numberless" },
 ]
 
@@ -586,7 +581,6 @@ forms = [
 [[text]]
 text = "Attacks have #% chance to cause Bleeding"
 forms = [
-    { form = "Attacks cannot cause Bleeding", kind = "numberless" },
     { form = "Attacks cause Bleeding", kind = "numberless" },
 ]
 
@@ -714,8 +708,6 @@ forms = [
 text = "#% increased effect"
 forms = [
     { form = "#% reduced effect", kind = "opposite" },
-    { form = "#% increased effect. -1% to this value when used", kind = "other" },
-    { form = "#% reduced effect. -1% to this value when used", kind = "opposite" },
 ]
 
 [[text]]
@@ -1363,9 +1355,7 @@ forms = []
 
 [[text]]
 text = "+# to Maximum Charges"
-forms = [
-    { form = "# to Maximum Charges. -1 to this value when used", kind = "other" },
-]
+forms = []
 
 [[text]]
 text = "#% chance to Avoid being Stunned"
@@ -3464,7 +3454,6 @@ forms = []
 text = "Consumes 1 Frenzy Charge on use"
 forms = [
     { form = "Consumes # Frenzy Charges on use", kind = "other" },
-    { form = "Consumes Frenzy Charges on use", kind = "numberless" },
 ]
 
 [[text]]
@@ -5231,9 +5220,7 @@ forms = []
 
 [[text]]
 text = "Immortal Ambition"
-forms = [
-    { form = "Your Energy Shield starts at zero", kind = "other" },
-]
+forms = []
 
 [[text]]
 text = "#% increased Endurance, Frenzy and Power Charge Duration"
@@ -10130,10 +10117,7 @@ forms = [
 
 [[text]]
 text = "Legion Encounters in your Maps have no Timer\nBreaking out Monsters and Chests that are in stasis progressively causes a Schism\nLegion Encounters in your Maps begin once the Schism has occurred"
-forms = [
-    { form = "Blight Monsters in your Maps take 75% less Damage from Players and their Minions\nBlight Towers and their Minions in your Maps deal 300% more Damage", kind = "other" },
-    { form = "Beyond Portals in your Maps cannot spawn Unique Bosses\nBeyond Portals in your Maps have 50% less Merging Radius", kind = "other" },
-]
+forms = []
 
 [[text]]
 text = "Armour is increased by Overcapped Fire Resistance"
@@ -10149,11 +10133,7 @@ forms = []
 
 [[text]]
 text = "Tormented Spirits in your Maps can Possess Players for 20 seconds\nTormented Spirits in your Maps cannot Possess Monsters"
-forms = [
-    { form = "Blight Monsters in your Maps take 75% less Damage from Players and their Minions\nBlight Towers and their Minions in your Maps deal 300% more Damage", kind = "other" },
-    { form = "Delirium Fog in your Maps never dissipates\nDelirium Orbs cannot be found in your Maps\nSimulacrum Splinters cannot be found in your Maps", kind = "numberless" },
-    { form = "Beyond Portals in your Maps cannot spawn Unique Bosses\nBeyond Portals in your Maps have 50% less Merging Radius", kind = "other" },
-]
+forms = []
 
 [[text]]
 text = "#% chance to Trigger Level 1 Blood Rage when you Kill an Enemy"
@@ -12597,12 +12577,7 @@ forms = []
 
 [[text]]
 text = "Warcries have infinite Power"
-forms = [
-    { form = "Warcries count total Power of Enemies in Range", kind = "other" },
-    { form = "Warcries count total Power of Enemies and Allies in Range", kind = "other" },
-    { form = "Warcries count total Power of Enemies and Corpses in Range", kind = "other" },
-    { form = "Warcries count total Power of Enemies, Aliies and Corpses in Range", kind = "other" },
-]
+forms = []
 
 [[text]]
 text = "#% chance to Recover 10% of Mana when you use a Skill while affected by Clarity"
@@ -18148,9 +18123,7 @@ forms = [
 
 [[text]]
 text = "You and nearby Allies have 30% increased Mana Regeneration Rate"
-forms = [
-    { form = "You and nearby Allies have 30% reduced Mana Regeneration Rate", kind = "opposite" },
-]
+forms = []
 
 [[text]]
 text = "Melee Attacks have +#% to Critical Strike Chance against Excommunicated Enemies"
@@ -20233,7 +20206,6 @@ forms = []
 [[text]]
 text = "Mana is increased by 50% of Overcapped Lightning Resistance"
 forms = [
-    { form = "Mana is increased by Overcapped Lightning Resistance", kind = "numberless" },
     { form = "Mana is increased by 1% per #% Overcapped Lightning Resistance", kind = "other" },
 ]
 
@@ -21041,10 +21013,7 @@ forms = []
 
 [[text]]
 text = "Grants Level 20 Summon Shaper Memory\nGrants Level 20 Shaper's Devastation, which will be used by Shaper Memory"
-forms = [
-    { form = "Grants Level 20 Summon Shaper Memory\nGrants Level 20 Shaper's Ire, which will be used by Shaper Memory", kind = "other" },
-    { form = "Grants Level 20 Summon Shaper Memory\nGrants Level 20 Shaper's Despair, which will be used by Shaper Memory", kind = "other" },
-]
+forms = []
 
 [[text]]
 text = "#% increased Critical Strike Chance with Traps"
@@ -22786,9 +22755,7 @@ forms = []
 
 [[text]]
 text = "Area contains a Rare Monster carrying a Tier 2 Talisman"
-forms = [
-    { form = "Area contains a Unique Monster carrying a Tier 3 Talisman", kind = "other" },
-]
+forms = []
 
 [[text]]
 text = "#% chance in Heists for Items to drop with Elder Influence"

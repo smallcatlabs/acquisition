@@ -168,6 +168,11 @@ text = "#% increased Global Critical Strike Chance"
 form = "#% increased Critical Strike Chance"
 kind = "other"
 
+[[form]]
+text = "Consumes 1 Frenzy Charge on use"
+form = "Consumes Frenzy Charges on use"
+kind = "numberless"
+
 # ---- refused by name: the forms that are themselves listed texts ----------
 
 [[refused]]

@@ -1044,16 +1044,21 @@ fn q20<'a>(field: &Field, item: &'a Item) -> FieldRead<'a> {
 /// and an array of lines unread, which may hold it wherever it sits —
 /// what was unread.
 fn enchant(item: &Item) -> Result<Vec<&Line>, Vec<Cow<'_, Unread>>> {
+    lines_named(item, &crate::defences::drops_quality)
+}
+
+/// The lines whose template, or a row's, a rule names, none, or — none
+/// read and an array of lines unread, which may hold one wherever it sits
+/// — what was unread: one reading of an enchant that settles a value, the
+/// defences' (J6) and the physical damage's (`pseudo.rs`).
+pub(crate) fn lines_named<'a>(
+    item: &'a Item,
+    names: &dyn Fn(&str) -> bool,
+) -> Result<Vec<&'a Line>, Vec<Cow<'a, Unread>>> {
     let enchant: Vec<&Line> = item
         .lines
         .iter()
-        .filter(|line| {
-            crate::defences::drops_quality(&line.template)
-                || line
-                    .rows
-                    .iter()
-                    .any(|row| crate::defences::drops_quality(&row.template))
-        })
+        .filter(|line| names(&line.template) || line.rows.iter().any(|row| names(&row.template)))
         .collect();
     if !enchant.is_empty() {
         return Ok(enchant);

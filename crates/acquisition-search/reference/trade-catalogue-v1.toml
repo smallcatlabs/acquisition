@@ -71,10 +71,10 @@
 # unsupported by its name (K6), by `query.unknown`.
 #
 # Measured at writing (a script over this file, never a count by eye):
-# 142 rows — 4 for the URL, 9 for the query object's keys, the JSON and
+# 143 rows — 4 for the URL, 9 for the query object's keys, the JSON and
 # what no row names, 92 filters and 2 option rows, 10 for the stat groups
-# (8 types, the disabled and the option-valued filter), 25 for the stats
-# (14 categories and 11 line rules); 76 exact, 20 ambiguous, 37
+# (8 types, the disabled and the option-valued filter), 26 for the stats
+# (14 categories and 12 line rules); 76 exact, 21 ambiguous, 37
 # unsupported, 9 listing-only — the four defence filters ambiguous since
 # step 3 measured them, and since step 4 `weapon_filters.crit` and
 # `stat.text.numbers`, which no capture shows, by the owner's verdicts on
@@ -85,13 +85,14 @@
 # and `pdps` on the damage at 20 % quality, within one of the site's;
 # `map_filters.map_tier` ambiguous for a base naming no tier; the four
 # requirement rows' `lacked`; `stat.text.forms` and `stat.text.refused`,
-# the forms tables' (reference/trade-forms-v1.toml, trade-game-forms-v1.toml).
+# and since its outside review `stat.text.wording`, the forms tables'
+# (reference/trade-forms-v1.toml, trade-game-forms-v1.toml).
 # Every one of the capture's 93 filters, 14 categories and 8 group types
 # has a row (tests/trade_catalogue.rs). 58 fields named. Every one of the
 # stat table's 14,068 category and id pairs translates, alone and with a
-# bound (tests/trade_translate.rs): alone 11,474 exact, 2,365 ambiguous,
-# 229 unsupported — the two-text ids, every one; with a bound 7,546, 6,293
-# and 229, 4,464 of them by `stat.text.forms`.
+# bound (tests/trade_translate.rs): alone 11,232 exact, 2,607 ambiguous,
+# 229 unsupported — the two-text ids, every one; with a bound 7,357, 6,482
+# and 229, 4,461 of them by `stat.text.forms`; 300 by `stat.text.wording`.
 
 version = 1
 filters = "2026-09-12"
@@ -1138,6 +1139,11 @@ note = "a bound on a stat the game also displays another way (reference/trade-fo
 key = "stat.text.refused"
 disposition = "ambiguous"
 note = "a text whose forms the forms table refuses by name: its numberless display is a text the site lists under another id (`#% chance to Curse Enemies with Enfeeble on Hit` and `Curse Enemies with Enfeeble on Hit`), or it carries both words of a pair; an item's line may be either stat's, so the line matches both — the text, and the listed text the form would be"
+
+[[row]]
+key = "stat.text.wording"
+disposition = "ambiguous"
+note = "a stat the game data also displays in another wording (reference/trade-game-forms-v1.toml, kind `other`): the line matches it, but that the site files it under the id is read from the game's stat descriptions, which no capture or sitting shows; a wording the captures show is the hand table's, exact"
 
 [[row]]
 key = "stat.text.eldritch"

@@ -393,7 +393,7 @@ impl Derived {
                 "damage per second at 20 % quality, as the trade site's Damage per Second states it (t42): `pseudo.dps` with the physical range as `pseudo.pdps_q20` reads it — elemental and chaos damage, which quality does not raise, as displayed".to_string()
             }
             Derived::PdpsQ20 => {
-                "physical damage per second at 20 % quality, as the trade site's Physical DPS states it (t41): each end of `Physical Damage` with the item's quality taken out and 20 % put in — the display × 120 ÷ (100 + the quality), rounded half up, and the display at 20 % or more — its mean times the attacks per second. Within one of the site's own figure at the mean, which works from the roll the display has rounded: equal on 902 of the captures' 1,095 weapons, a half off on 181 and one off on 12".to_string()
+                "physical damage per second at 20 % quality, as the trade site's Physical DPS states it (t41): each end of `Physical Damage` with the item's quality taken out and 20 % put in — the display × 120 ÷ (100 + the quality), rounded half up, and the display at 20 % or more — its mean times the attacks per second; under the enchant `Quality does not increase Physical Damage`, the display. Within one of the site's own figure at the mean, which works from the roll the display has rounded: equal on 902 of the captures' 1,095 weapons, a half off on 181 and one off on 12".to_string()
             }
             Derived::DefencePct => format!(
                 "{} Of the captured lines whose side the site's id names, each part holds on all: 442 of 442 explicit, 17 of 17 implicit on an eldritch item, 10 of 10 implicit on a synthesised item — counted by search/pseudo-stats/scripts/defence-twins.py. Ruled: the exact half J5, the twin J8, undecided J33, out of range J34, a realm with no table J35; the site's bound C102. {}",
@@ -856,6 +856,11 @@ fn least_of(table: &TotalsTable, reading: &Reading, held: &Held) -> Valued {
 const ATTACKS_PER_SECOND: &str = "Attacks per Second";
 const PHYSICAL: &str = "Physical Damage";
 const ELEMENTAL: &str = "Elemental Damage";
+/// The enchant under which quality raises no physical damage, so the q20
+/// damage is the display (the outside review of 7e).
+const NO_QUALITY: &str = "Quality does not increase Physical Damage";
+/// The quality at and past which the display is the damage at 20 %.
+const Q20: i128 = 20;
 const CHAOS: &str = "Chaos Damage";
 
 /// What a derived field read on an item.
@@ -940,14 +945,23 @@ fn inputs(derived: Derived, held: &Held) -> Result<Read<'_>, Inputs<'_>> {
     let physical = |p: &Property| p.name.eq_ignore_ascii_case(PHYSICAL);
     let mut quality_shown: Option<&Property> = None;
     let quality: Option<i128> = if q20 && damage.iter().any(|p| physical(p)) {
-        match properties::quality(item) {
-            Ok(None) => Some(0),
-            Ok(Some((quality, property))) => {
-                quality_shown = Some(property);
-                Some(quality)
-            }
-            Err(unread) => {
-                problems.extend(unread);
+        // the quality and the enchant read before either decides, as the
+        // q20 defences read theirs (`properties::q20`): one unread leaves
+        // the value open only where the other does not settle it
+        let quality = properties::quality(item);
+        if let Ok(Some((_, property))) = quality {
+            quality_shown = Some(property);
+        }
+        let enchant = properties::lines_named(item, &|t| t.eq_ignore_ascii_case(NO_QUALITY));
+        match (quality, enchant) {
+            (Ok(q), _) if q.is_some_and(|(n, _)| n >= Q20) => q.map(|(n, _)| n),
+            // the enchant: quality raises no physical damage, so the
+            // display stands, as it does at 20 % (`at_twenty`); the site's
+            // own figure is unaugmented under it (n03, n05, u100)
+            (_, Ok(lines)) if !lines.is_empty() => Some(Q20),
+            (Ok(q), Ok(_)) => Some(q.map_or(0, |(n, _)| n)),
+            (quality, enchant) => {
+                problems.extend(quality.err().into_iter().chain(enchant.err()).flatten());
                 None
             }
         }
@@ -1024,7 +1038,7 @@ fn inputs(derived: Derived, held: &Held) -> Result<Read<'_>, Inputs<'_>> {
 /// end that is no whole number.
 fn at_twenty(end: Exact, quality: i128) -> Option<Exact> {
     let n = end.as_whole()?;
-    if quality >= 20 {
+    if quality >= Q20 {
         return Some(end);
     }
     Ratio::new(n * 120, 100 + quality)

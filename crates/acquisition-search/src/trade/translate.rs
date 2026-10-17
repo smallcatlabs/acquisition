@@ -106,8 +106,12 @@
 //!   below zero, which its number decides: a person editing such a minimum
 //!   above zero leaves a guard that no longer changes the answer, and one
 //!   editing a minimum down to zero must add it. A form no sum can hold — opposite, numberless,
-//!   another wording — labels the bound `stat.text.forms`, and a refused
-//!   one the clause `stat.text.refused`, bounded or not.
+//!   another wording — labels the bound `stat.text.forms`, a refused one
+//!   the clause `stat.text.refused`, bounded or not, and another wording
+//!   the game data gives the clause `stat.text.wording`, bounded or not:
+//!   the line matches it, and that the site files it under the id is the
+//!   generator's reading, which no capture shows (the outside review of
+//!   7e). A wording the captures show is a row of the hand table, exact.
 //! - **Statuses are read where the clause is read.** A filter's status is
 //!   its category's row, worsened by each line rule that applies to its
 //!   text (a `(Local)` suffix, a text two ids share, several `#`, a form
@@ -1341,6 +1345,21 @@ impl Translator<'_> {
                     print::quoted_text(&refused.text)
                 ),
             });
+        }
+        // another wording the game data gives and no capture or sitting has
+        // read: matched, and never vouched for
+        let inferred: Vec<String> = forms
+            .known
+            .iter()
+            .filter(|f| f.kind == Kind::Other && f.by == "game")
+            .map(|f| print::quoted_text(&f.text))
+            .collect();
+        if !inferred.is_empty() {
+            rule(&mut rows, &mut notes, &mut status, "stat.text.wording")?;
+            notes.push(format!(
+                "its wordings the game data gives: {}",
+                inferred.join(", ")
+            ));
         }
         for form in forms.known {
             let shown = Shown::of(&form.text);

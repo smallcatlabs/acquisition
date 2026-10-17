@@ -33,9 +33,9 @@ const BODIES: &str = include_str!("../../../search/pseudo-stats/data/bodies.json
 
 /// The choice before 7e: the shipped table loads at its version and the
 /// stat table's date; over the stat table's distinct texts, the game's
-/// forms reach 2,655 of the 6,841 the export joins, and the rules the
+/// forms reach 2,647 of the 6,841 the export joins, and the rules the
 /// texts it joins nowhere — the opposite words 618, `#% chance to` 24,
-/// `have #% chance to` 193, `have a` 22 — and the rows 13; and the
+/// `have #% chance to` 193, `have a` 22 — and the rows 14; and the
 /// refusals are exactly what the walk finds: 6 forms of the game's that
 /// are listed texts, 1 a row's, 5 by `have #% chance to` and 2 by `have a`,
 /// none by `#% chance to` and no text a rule meets with both words of a
@@ -54,8 +54,8 @@ fn the_choice_before_7e_every_collision_is_refused_by_name() {
             ("chance", 24),
             ("have", 193),
             ("have_a", 22),
-            ("game", 2655),
-            ("form", 13)
+            ("game", 2647),
+            ("form", 14)
         ]
     );
     let refused: BTreeSet<(String, String, Option<String>)> = table

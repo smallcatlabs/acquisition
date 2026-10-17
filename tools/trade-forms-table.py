@@ -29,12 +29,14 @@ Rules, each a reading of the export and never a judgment (C106):
      and the forms table's rules stand for it (`reference/trade-forms-v1.toml`).
      Not a form: a string that is, or holds as a row, the text of another
      id the same entry names — an entry of one value per id (a timeless
-     jewel's nobles) groups other stats, not other displays; beside a text
-     that shows no number, a string that shows none either for values its
-     own string's do not reach — another value of an enumeration (a map's
-     league mechanic), not another display; and a string of several rows
-     one of which is the text, which the line already is (C90: a mod over
-     several rows is named by any one).
+     jewel's nobles) groups other stats, not other displays; a string
+     that is not the text's stat by its conditions (`one_stat`: every stat
+     the two part on a number one of them shows, a `negated` condition the
+     values outside its range) — another value of an enumeration, another
+     stat's flag; and a string of several rows one of which is the text,
+     which the line already is (C90: a mod over several rows is named by
+     any one). A text whose own string the entry does not hold keeps its
+     strings, `other`.
   2. An id the stat table lists with two texts is left out: the
      translation leaves it unsupported, and which text a string is of is
      not said.
@@ -105,15 +107,36 @@ def word(w):
     return w
 
 
-def disjoint(a, b):
-    """Whether two strings of an entry stand for values that never meet: on
-    some index, the ranges their conditions allow do not overlap."""
-    for ca, cb in zip(a["condition"], b["condition"]):
-        lo = max(x for x in (ca["min"], cb["min"], float("-inf")) if x is not None)
-        hi = min(x for x in (ca["max"], cb["max"], float("inf")) if x is not None)
-        if lo > hi:
-            return True
-    return False
+def meet(a, b):
+    """Whether two conditions on one stat of an entry allow a value in
+    common: each a range, `negated` the values outside it."""
+    def span(c):
+        return (c["min"] if c["min"] is not None else float("-inf"),
+                c["max"] if c["max"] is not None else float("inf"),
+                bool(c.get("negated")))
+    (l1, h1, n1), (l2, h2, n2) = span(a), span(b)
+    if not n1 and not n2:
+        return max(l1, l2) <= min(h1, h2)
+    if n1 and n2:
+        return True
+    (lo, hi), (other_lo, other_hi) = ((l1, h1), (l2, h2)) if n1 else ((l2, h2), (l1, h1))
+    return other_lo < lo or other_hi > hi
+
+
+def shows(s):
+    """The stats of an entry a string displays the number of."""
+    return {i for i, f in enumerate(s["format"]) if f != "ignore" and "{%d}" % i in s["string"]}
+
+
+def one_stat(own, s):
+    """Rule 1's identity: two strings of an entry display one stat where
+    every stat their conditions part on is a number one of them shows —
+    `reduced` beside `increased`, a number left out at a bound of it, a
+    plural — and not where they part on a stat neither shows: another value
+    of an enumeration (a map's league mechanic), another stat's flag (a
+    warcry's infinite Power beside its counting)."""
+    parted = {i for i, (a, b) in enumerate(zip(own["condition"], s["condition"])) if not meet(a, b)}
+    return parted <= (shows(own) | shows(s))
 
 
 def kind_of(text, form, shown_negated, count):
@@ -172,7 +195,7 @@ def main():
                     continue
                 if len(rows_of) > 1 and key(text) in rows_of:
                     continue
-                if own and count(text) == 0 and count(form) == 0 and disjoint(own[0], s):
+                if own and not any(one_stat(o, s) for o in own):
                     continue
                 keys.add(key(form))
                 negated = any(h.startswith("negate") for hs in s["index_handlers"] for h in hs)

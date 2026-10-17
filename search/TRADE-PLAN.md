@@ -392,6 +392,19 @@ table's rows with their weights (`totals.rs`, *a weight*), and
   form would be a listed one is joined, and the game elides none of them. Every one of the captures' 21,616 lines under a
   hash id is met by its id's presence term but 56 under an id left
   unsupported and 5 under a refusal (`tests/trade_forms.rs`).
+- Its outside review (three findings): the generator took every string
+  of a game entry for one stat's, and so read an enumeration's other
+  values (Legion beside Blight) and another stat's flag (a warcry's
+  infinite Power beside its counting) as forms, matched and called exact;
+  now two strings are one stat's where every stat their conditions part
+  on is a number one of them shows, `negated` read (2,687 forms, the
+  witnesses fixtures), and a wording the game data gives that no capture
+  shows labels its clause `stat.text.wording` — matched, never vouched
+  for (the owner's choice, 2026-10-17); one capture's form it dropped is a
+  hand row again (15). The damage at 20 % ignored `Quality does not
+  increase Physical Damage`, which every capture carried at 20 % or more:
+  read now as the defences read their enchant, and asked below 20 %. The
+  third, the findings below, is step 7f's.
 - Not built, from "What step 7 found", none a row of the oracle: the free
   text a whole name or base (t50, t51, w06, w07); a `count` with no bound
   restricting nothing (t37), a weighted sum with none needing one stat
