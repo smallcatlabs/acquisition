@@ -90,6 +90,14 @@ fn searches() -> Vec<Search> {
     let captures: Value = serde_json::from_str(CAPTURES).unwrap();
     let bodies: Value = serde_json::from_str(BODIES).unwrap();
     let census: Value = serde_json::from_str(CENSUS).unwrap();
+    // One generation's two files: each names the raw it was made from, and
+    // a pair whose counts agree may still be a new item beside an old body
+    // (the outside review of 373c541a).
+    assert!(captures["_raw"].is_string(), "the extract names no raw");
+    assert_eq!(
+        captures["_raw"], bodies["_raw"],
+        "the extract and the bodies were made from other raw: written apart"
+    );
     let of = |group: &str, name: &str| -> Vec<Value> {
         bodies[group][name].as_array().cloned().unwrap_or_default()
     };

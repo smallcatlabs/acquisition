@@ -1,5 +1,6 @@
 {
  "_generated": "by tools/trade-captures.py from raw/searches (MANIFEST.md) — do not edit",
+ "_raw": "9bcef29bd5cb85fb1ca1c61583abbe0391501293c140c490b521ac64931ab3b5",
  "searches": {
   "R1": [
    {"verified": true, "w": 1, "h": 1, "league": "Standard", "name": "Thread of Hope", "typeLine": "Crimson Jewel", "baseType": "Crimson Jewel", "rarity": "Unique", "ilvl": 86, "identified": true, "properties": [{"name": "Radius", "values": [["Variable", 1]], "displayMode": 0, "type": 24}], "explicitMods": [{"description": "Only affects Passives in Small Ring", "domain": "explicit", "hash": "stat.explicit.stat_3642528642|1", "mods": [{"magnitudes": [{"min": 1, "max": 1}]}]}, {"description": "Passive Skills in Radius can be Allocated without being connected to your tree\n-17% to all Elemental Resistances\nPassage", "domain": "explicit", "hash": "stat.explicit.stat_2901986750"}], "descrText": "Place into an allocated Jewel Socket on the Passive Skill Tree. Right click to remove from the Socket.", "flavourText": ["Though we cannot touch; one thought, one wish, through centuries alone in darkness."], "frameType": 3, "frameTypeId": "Unique"},

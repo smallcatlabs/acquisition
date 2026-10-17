@@ -107,9 +107,13 @@ def fetched(group="searches", extract=EXTRACT, bodies=BODIES):
     """{name: [(item, body)]} over `group` ("searches" or "census"): each
     item fetched as the extract reads it and as the site sent it, in fetch
     order — the two files `trade-captures.py` writes together, paired here.
-    Refuses two files that do not hold the same searches' items."""
-    items = json.loads(Path(extract).read_text())[group]
-    sent = json.loads(Path(bodies).read_text())[group]
+    Refuses two files made from other raw (`_raw`, one generation's) or not
+    holding the same searches' items."""
+    whole, sent_whole = json.loads(Path(extract).read_text()), json.loads(Path(bodies).read_text())
+    if not whole.get("_raw") or whole.get("_raw") != sent_whole.get("_raw"):
+        raise SystemExit(f"{Path(extract).name} and {Path(bodies).name} were made from other raw (`_raw`): "
+                         "written apart (tools/trade-captures.py writes both)")
+    items, sent = whole[group], sent_whole[group]
     out = {}
     for name, entry in items.items():
         listed = entry["fetched"] if group == "searches" else entry
@@ -163,7 +167,8 @@ def self_test():
         if not (got == want or isinstance(want, str) and isinstance(got, str) and want in got):
             failed += 1
             print(f"DIFFER  {name}: {got}")
-    # The two extracts paired: by place within a search, every search of both.
+    # The two extracts paired: one generation's, by place within a search,
+    # every search of both. (case, extract, bodies, want[, the bodies' _raw])
     pairs = [
         ("each item beside its body, in order",
          {"s": {"fetched": [{"i": 1}, {"i": 2}]}, "z": {"fetched": []}}, {"s": [{"b": 1}, {"b": 2}]},
@@ -172,12 +177,14 @@ def self_test():
          {"s": {"fetched": [{"i": 1}]}}, {"s": [{"b": 1}, {"b": 2}]}, "written apart"),
         ("bodies of a search the extract does not hold are refused",
          {"s": {"fetched": []}}, {"t": [{"b": 1}]}, "written apart"),
+        ("another generation's bodies, as many and as named, are refused",
+         {"s": {"fetched": [{"i": "new"}]}}, {"s": [{"b": "old", "searing": True}]}, "made from other raw", "g0"),
     ]
-    for name, items, bodies, want in pairs:
+    for name, items, bodies, want, *other in pairs:
         with tempfile.TemporaryDirectory() as tmp:
             extract, sent = Path(tmp) / "e.json", Path(tmp) / "b.json"
-            extract.write_text(json.dumps({"searches": items}))
-            sent.write_text(json.dumps({"searches": bodies}))
+            extract.write_text(json.dumps({"_raw": "g1", "searches": items}))
+            sent.write_text(json.dumps({"_raw": (other or ["g1"])[0], "searches": bodies}))
             try:
                 got = fetched("searches", extract, sent)
             except SystemExit as refusal:

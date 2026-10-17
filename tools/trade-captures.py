@@ -36,6 +36,11 @@ base). So the extract carries what those scripts read: each item's
 `item_class`, the clipboard's `Item Class:` line and nothing else of it,
 and under `census` the eight searches' items, as `bodies.json` holds them.
 `trade_query.fetched` pairs the two files' items, and nothing else does.
+Each file names the raw it was made from, `_raw`: the sha256 of the two
+inventories, so a pair is one generation when the two agree, and a pairing
+refuses two that do not (the outside review of 373c541a: a write that
+failed on the second file left a new item beside an old body, and the
+pairing, counting items, took them together).
 
 A capture is read by `trade_query.capture`, the one reader of one: a search
 file saved empty is a search not yet captured and is passed over, a listing
@@ -61,7 +66,7 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from sources import CAPTURES as RAW, CENSUS as CENSUS_RAW, require  # noqa: E402
+from sources import CAPTURES as RAW, CENSUS as CENSUS_RAW, INVENTORIES, digest, require  # noqa: E402
 from trade_query import asking, bare, capture, sheet  # noqa: E402
 
 TRACK = Path(__file__).resolve().parents[1] / "search" / "pseudo-stats"
@@ -137,9 +142,10 @@ def body(raw):
     return {k: iconless(v) for k, v in raw.items() if k not in NOT_A_BODY}
 
 
-def bodies_text(searches_bodies, census_bodies):
+def bodies_text(searches_bodies, census_bodies, generation):
     """The bodies file: one item to a line, so a diff names the item."""
-    out = ['{', ' "_generated": "by tools/trade-captures.py from raw/searches (MANIFEST.md) — do not edit",']
+    out = ['{', ' "_generated": "by tools/trade-captures.py from raw/searches (MANIFEST.md) — do not edit",',
+           f' "_raw": "{generation}",']
     for key, group in (("searches", searches_bodies), ("census", census_bodies)):
         out.append(f' "{key}": {{')
         names = list(group)
@@ -174,9 +180,12 @@ def main():
         print(__doc__)
         return 2
     require(RAW, CENSUS_RAW)
+    # the raw these files are made from: what a pairing of the two checks
+    generation = digest(b"".join(INVENTORIES[d].read_bytes() for d in (RAW, CENSUS_RAW)))
     rows = sheet()
     out = {
         "_generated": "by tools/trade-captures.py from raw/searches (MANIFEST.md) — do not edit",
+        "_raw": generation,
         "searches": {},
     }
     bodies = {}
@@ -219,7 +228,7 @@ def main():
     print(f"census: {sum(len(b) for b in census.values())} items over {len(census)} searches")
     texts = {
         OUT: json.dumps(out, indent=1, ensure_ascii=False) + "\n",
-        BODIES: bodies_text(bodies, census),
+        BODIES: bodies_text(bodies, census, generation),
     }
     for path, text in texts.items():
         for bad in SCRUBBED:
