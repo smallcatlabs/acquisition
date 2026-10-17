@@ -68,7 +68,7 @@ cites = "`# to Level of Socketed Skill Gems`, which the site leaves out of `+# t
 key = "reduced-spelling"
 home = "ruling"
 row = "stat.text.forms"
-cites = "the site files a line's `reduced` spelling under its `increased` id and reads its number below nothing: The Anvil's `10% reduced Attack Speed` meets `max` -5 and not -11 (t01–t03), and The Blood Reaper's `increased Mana Cost` under the `reduced` text meets `max` -1 (t04) — a stat however displayed (round t, 2026-10-16); the owner, 2026-10-16, on the sitting's findings: \"I accept all your recommendations.\" Built at 7e under the choice before it (the owner, 2026-10-17): presence over every form, and a bound the sum of the text and its plurals, ambiguous by its row until the park \"A named stat value\" (decisions/search.md)"
+cites = "the site files a line's `reduced` spelling under its `increased` id and reads its number below nothing: The Anvil's `10% reduced Attack Speed` meets `max` -5 and not -11 (t01–t03), and The Blood Reaper's `increased Mana Cost` under the `reduced` text meets `max` -1 (t04) — a stat however displayed (round t, 2026-10-16); the owner, 2026-10-16, on the sitting's findings: \"I accept all your recommendations.\" Built at 7e under the choice before it (the owner, 2026-10-17): presence over every form, and a bound the sum of the text and its plurals, ambiguous by its row until the park \"A named stat value\" (decisions/trade.md)"
 
 [[finding]]
 key = "no-physical-damage"

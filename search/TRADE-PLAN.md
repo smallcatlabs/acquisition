@@ -65,7 +65,7 @@ the next. Steps 0 to 7: the brief at `77666ea4`.
 8. **The seat.** The third of the search's, by the seat skill: a URL
    from a friend, what in my stash matches, in a person's words — one
    of them bounding an `increased` stat, so the named stat value's park
-   (`decisions/search.md`) meets its trigger or does not, on evidence;
+   (`decisions/trade.md`) meets its trigger or does not, on evidence;
    and, where a person would, a map searched by its Base and a weighted
    sum over a scourge stat, so the two questions 7f labelled
    (`blighted-base`, `scourge-in-sum`: `tests/trade-oracle.toml`) meet a

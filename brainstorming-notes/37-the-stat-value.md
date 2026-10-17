@@ -12,8 +12,8 @@ the owner's census (`search/trade-query/data/fetch-census.json`), by
 one-off scripts whose counts are in the tables below; a count here was
 measured in this session and nowhere else.
 
-This note is deliberation: it is cited by the park "A named stat value"
-in `decisions/search.md` and deleted when that park is built or
+This note is deliberation: it is cited by the park "A named stat value" in
+`decisions/trade.md` (split from `decisions/search.md` 2026-10-17) and deleted when that park is built or
 dropped, cited afterwards as "note 37 at `<commit>`". The decision is
 the owner's, quoted at the end; the brief carries what 7e builds.
 

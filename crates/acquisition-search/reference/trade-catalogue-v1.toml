@@ -1143,7 +1143,7 @@ note = "a text the site gives two ids or more under one category (227 explicit, 
 [[row]]
 key = "stat.text.forms"
 disposition = "ambiguous"
-note = "a bound on a stat the game also displays another way (reference/trade-forms-v1.toml): the site reads the stat however displayed — `reduced` under an `increased` id below nothing (t01–t04), an elided 100 % as 100 (t10), `an` as one (t12), `No Physical Damage` at a number it hides (t07–t09, w01–w05) — and the language sums displayed lines with no sign; the bound sums the text and its plurals alone, never one moved onto a form, so the text means what it says after an edit; exact once the language can name a stat however displayed: the park \"A named stat value\" (decisions/search.md)"
+note = "a bound on a stat the game also displays another way (reference/trade-forms-v1.toml): the site reads the stat however displayed — `reduced` under an `increased` id below nothing (t01–t04), an elided 100 % as 100 (t10), `an` as one (t12), `No Physical Damage` at a number it hides (t07–t09, w01–w05) — and the language sums displayed lines with no sign; the bound sums the text and its plurals alone, never one moved onto a form, so the text means what it says after an edit; exact once the language can name a stat however displayed: the park \"A named stat value\" (decisions/trade.md)"
 
 [[row]]
 key = "stat.text.refused"

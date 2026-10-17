@@ -84,7 +84,7 @@ sections as decisions.
 | 0. The ruling written down | 2026-10-18 | the "shipping decision" triggers now have a dated event to cite | — |
 | 1. Rehome, with the reads and the seat beside it | 2026-10-18 | the toolchain pin, fired at `cfd3dc9c` (`decisions/daemon.md`) | V1 identity `acq`; V2 version `1.0.0-beta.1`, tag `v…`, pre-release; V3 pin `1.99.0` |
 | 2. Three platforms, released from GitHub | 2026-11-01 | Windows; packaging; the credential store as an explicit choice; cargo-deny's licenses, bans and sources; the first-start keychain prompts (all `decisions/daemon.md`) | V4 a Linux VM row; V5 macOS Developer ID now, Windows unsigned, procurement in parallel |
-| 3. Trade-URL import, inbound, PoE1 | 2026-11-15 | the trade translation (`decisions/search.md`); "what no sitting has asked the site" in part, by the sitting it needs | V6 the fix round inside the slice |
+| 3. Trade-URL import, inbound, PoE1 | 2026-11-15 | the trade translation (`decisions/trade.md`, split from search 2026-10-17); "what no sitting has asked the site" in part, by the sitting it needs | V6 the fix round inside the slice |
 | 4. The release | 2026-11-22 | pricing on the MCP, fired or discarded by the seat's record (`decisions/frontends.md`) | V7 the policies' positions fixed, wording drafted here |
 | 5. Slack | 2026-12-10 | nothing planned | — |
 | 6. Launch-day first contact | 2026-12-11 | PoE2 currencies (`decisions/pricing.md`); per-realm merge at `policy set` (`decisions/plans.md`) on the second realm's first day of daily use; a PoE2 route under C59 is one row plus a first-contact sample | — |
