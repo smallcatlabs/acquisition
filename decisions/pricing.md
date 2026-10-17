@@ -24,7 +24,7 @@ Every line here was accepted as written by the owner on 2026-09-03; the lines da
 
 ## Parked (do not build yet; each with its trigger)
 
-Scope this area has deferred, with the trigger that reopens it, so deferral never needs re-arguing. An entry is deleted in the commit that builds it, never because its trigger fired; one whose trigger has fired and that nothing has built yet stays and names the step or slice that builds it; what crosses every area is parked in `CONTEXT.md` instead. An entry is the item, where it lands, and the trigger that reopens it, with at most one clause of why; a workaround is a README known gap, history is git. C71 and C78 are parked in place above, under their ids; C73's trigger is the first entry below.
+Scope this area has deferred, under the rules of `CONTEXT.md`, "Parked". C71 and C78 are parked in place above, under their ids; C73's trigger is the first entry below.
 
 - The legacy import's build (C73) → the one compiler (C71), read from the 0.18 userstore. Trigger: the replace ruling (owner, 2026-10-11: "Rust sits beside c++ now and replaces later"; the replace is undated). Evidence: `PRICING-SLICE.md` at `c3dd5eb7`.
 - Third-party price feeds (market prices, suggested prices) → a governed surface under C79. Trigger: currency ratios or a "suggest a price" consumer.

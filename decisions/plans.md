@@ -18,7 +18,7 @@ Part of the decision registry (`CONTEXT.md`, "Decisions — the registry"): the 
 
 ## Parked (do not build yet; each with its trigger)
 
-Scope this area has deferred, with the trigger that reopens it, so deferral never needs re-arguing. An entry is deleted in the commit that builds it, never because its trigger fired; one whose trigger has fired and that nothing has built yet stays and names the step or slice that builds it; what crosses every area is parked in `CONTEXT.md` instead. An entry is the item, where it lands, and the trigger that reopens it, with at most one clause of why; a workaround is a README known gap, history is git.
+Scope this area has deferred, under the rules of `CONTEXT.md`, "Parked".
 
 - Coverage advice in `refresh --plan` (the planner naming priced locations outside coverage) → the planner. Trigger: `price status` and the render's report (C72) proving the wrong place for it.
 - `aging` in the plan (C77) → a quote-bearing plan. Trigger: a cycle estimate that is trusted — on a fresh daemon the quote says only "no ETA until the policy is learned", and a long-lived daemon's is untested.

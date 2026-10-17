@@ -20,7 +20,7 @@ Part of the decision registry (`CONTEXT.md`, "Decisions — the registry"): the 
 
 ## Parked (do not build yet; each with its trigger)
 
-Scope this area has deferred, with the trigger that reopens it, so deferral never needs re-arguing. An entry is deleted in the commit that builds it, never because its trigger fired; one whose trigger has fired and that nothing has built yet stays and names the step or slice that builds it; what crosses every area is parked in `CONTEXT.md` instead. An entry is the item, where it lands, and the trigger that reopens it, with at most one clause of why; a workaround is a README known gap, history is git.
+Scope this area has deferred, under the rules of `CONTEXT.md`, "Parked".
 
 - Wire-send budget → enforcement over actual sends, beside C42's logical bound. Trigger: a consumer that needs it.
 - The invalid-request (4xx) threshold → a ground-truth claim. Trigger: observed at a first contact (from the 2026-09-02 documentation read; not yet observed).

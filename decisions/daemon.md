@@ -30,7 +30,7 @@ Part of the decision registry (`CONTEXT.md`, "Decisions — the registry"): the 
 
 ## Parked (do not build yet; each with its trigger)
 
-Scope this area has deferred, with the trigger that reopens it, so deferral never needs re-arguing. An entry is deleted in the commit that builds it, never because its trigger fired; one whose trigger has fired and that nothing has built yet stays and names the step or slice that builds it; what crosses every area is parked in `CONTEXT.md` instead. An entry is the item, where it lands, and the trigger that reopens it, with at most one clause of why; a workaround is a README known gap, history is git.
+Scope this area has deferred, under the rules of `CONTEXT.md`, "Parked".
 
 - Priority levels (how many; named or numeric) → the caller states its urgency regardless of frontend; an agent in a live conversation is interactive. Trigger: a second priority level in use (C5 keeps the field).
 - Packaging beyond the archives (this entry and the nine below are the packet's parking lot, note 18 §5 at `decda84e`): an installer, Windows signing, notarization and every channel beside the GitHub archives (the archives and the macOS Developer ID signature are built: `.github/workflows/release.yml`, `PLATFORMS-SLICE.md` step 4) → the release workflow, with C82 as the acceptance criterion (`tools/release-smoke.sh`); what was read on the Microsoft Store is in `PLATFORMS-SLICE.md`. Trigger: the owner reopening a channel the narrowing of 2026-10-14 tabled (`brainstorming-notes/36-the-road-to-the-agent-release.md`, beside V5), or a user stopped by Gatekeeper on a browser-fetched macOS archive or by SmartScreen on a released Windows one (neither met, 2026-10-15).
