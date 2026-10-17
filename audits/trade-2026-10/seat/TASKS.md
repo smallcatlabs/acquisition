@@ -34,7 +34,7 @@ it might not."
 - **T6 — maps.** "And I want to run blighted maps. This is his
   search for the maps:"
   `https://www.pathofexile.com/trade/search/Standard/H4sIAAAAAAAAE12OMQ6AIBAE_7I1jYkVXzHGYDj1EgUCR0EIfzdSqVvtzjRbkcRITtAVPgh7Bw3jCprqJkFPFVICdW6hsPEpFB8xt_k1Ky4Tltf8GWGKvbODHsamOl1P3g8h-zkgMRPakxv0ojqsoAAAAA`
-  Then: "How many of each tier do I have?"
+  Then: "Of those, how many of each tier do I have?"
 - **T7 — what I'd take.** "So, if I start mapping tomorrow: which one
   ring, one pair of boots and one shield of mine would you hand me, and
   where do I pick each up? Show me everything you know about the

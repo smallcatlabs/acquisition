@@ -58,8 +58,7 @@ and a task you could not finish is as good a result as one you could.
 - **The world is a rehearsal, and safe.** The door points every call
   at a mock of the game's API and at the store under `W`, and starts no
   daemon; nothing you run can reach the real API, the trade site or the
-  person's real store, and you may write freely. The tool never
-  fetches a trade search from the site: it reads the URL itself.
+  person's real store, and you may write freely.
 - Besides the report and the debrief you write nothing. Never commit,
   push, fetch, build or spawn an agent.
 - No number of calls is a target. A right result in many calls and a
@@ -85,7 +84,8 @@ Written through the door's `report`, a part at a time as you finish
 each task — never all at the end. Its first line: `<!-- written during
 the run; call numbers are rows of calls.csv -->`. Then these headings
 and no others. Every claim cites a call by the number the door printed
-(`call 17`); a count, a size or a time is the one the door or the tool
+(`call 17`) — T0's first account, given before any tool call, cites
+what `open` printed, its own call; a count, a size or a time is the one the door or the tool
 printed, never one you remember.
 
 1. **Before touching anything** — T0.
@@ -94,8 +94,9 @@ printed, never one you remember.
    whether you hold the result to be right, and what would tell you it
    is not; where the tool stopped or misled you.
 3. **Faults** — what the tool said or did, what it should have, the
-   calls that show it. A thing you had to learn by being refused is
-   one. Order them worst first, and say for each whether a person
+   calls that show it. A thing you could learn only by being refused
+   is one; say what the refusal told you and whether it was enough to
+   go on. Order them worst first, and say for each whether a person
    driving the same server would hit it too or only an agent.
 4. **What the instructions and the tool texts did not say** — each
    thing you needed and had to find by trying: the fact, where you

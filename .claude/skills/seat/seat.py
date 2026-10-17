@@ -167,6 +167,14 @@ def run(a):
         stdin = sys.stdin.read()
     elif a.stdin:
         stdin = open(a.stdin).read()
+    # What the command read, as it read it: its stdin, and each work file an argument names,
+    # so a call's file holds its input even after the file is rewritten.
+    inputs = "" if stdin is None else f"--- stdin\n{stdin}\n"
+    for path in sorted({m for arg in a.args for m in re.findall(re.escape(os.path.join(WORLD, "work") + os.sep) + r"[^\s,=]+", arg)}):
+        try:
+            inputs += f"--- {path}\n{open(path).read()}\n"
+        except OSError as e:
+            inputs += f"--- {path}\n(unread: {e.strerror})\n"
     t0 = time.perf_counter()
     try:
         p = subprocess.run([exe("acq")] + a.args, env=env(), input=stdin, capture_output=True, text=True, timeout=a.timeout,
@@ -185,7 +193,7 @@ def run(a):
     ob, eb = len(out.encode()), len(err.encode())
     whole = ob + eb <= SHOWN
     n = log([a.t, json.dumps(a.args), code, ob, eb, wall, "whole" if whole else "head", a.note or ""],
-            f"$ acq {' '.join(a.args)}\n--- stdout\n{out}\n--- stderr\n{err}")
+            f"$ acq {' '.join(a.args)}\n{inputs}--- stdout\n{out}\n--- stderr\n{err}")
     print(f"[call {n}] acq {' '.join(a.args)}\n[exit {code} · stdout {ob} bytes · stderr {eb} bytes · {wall} ms]")
     if whole:
         if out:

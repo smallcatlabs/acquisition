@@ -61,8 +61,6 @@ result as one you could.
   command at a mock of the game's API and at the store under `W`, and
   starts no daemon; nothing you run can reach the real API, the trade
   site or the person's real store, and you may write and price freely.
-  The tool never fetches a trade search from the site: it reads the
-  URL itself.
 - Besides the report, the debrief and work files you write nothing.
   Never commit, push, fetch, build or spawn an agent.
 - No number of commands is a target. A right result in many commands
@@ -88,7 +86,8 @@ Written through the door's `report`, a part at a time as you finish
 each task — never all at the end. Its first line: `<!-- written during
 the run; call numbers are rows of calls.csv -->`. Then these headings
 and no others. Every claim cites a command by the number the door
-printed (`call 17`); a count, a size or a time is the one the door or
+printed (`call 17`) — T0's first account, given before any command,
+cites what it read in `TOUR.md`; a count, a size or a time is the one the door or
 the tool printed, never one you remember.
 
 1. **Before touching anything** — T0.
@@ -97,8 +96,9 @@ the tool printed, never one you remember.
    number; whether you hold the result to be right, and what would tell
    you it is not; where the tool stopped or misled you.
 3. **Faults** — what the tool said or did, what it should have, the
-   calls that show it. A thing you had to learn by being refused is
-   one. Order them worst first, and say for each whether a person at a
+   calls that show it. A thing you could learn only by being refused
+   is one; say what the refusal told you and whether it was enough to
+   go on. Order them worst first, and say for each whether a person at a
    keyboard would hit it too or only an agent.
 4. **What the tour and the help did not say** — each thing you needed
    and had to find by trying: the fact, where you expected to read it,
