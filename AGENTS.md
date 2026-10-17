@@ -64,7 +64,10 @@ range — `git log` — and nothing restates it.
 
 ## Procedures (loaded when needed; one home each)
 
-Each skill's own description says when it applies.
+Each skill's frontmatter description says when it applies; a harness
+that does not list these skills still needs them read, so read the
+descriptions here before working. The session close runs before the
+last commit of any session.
 
 - Live run: `.claude/skills/live-run/SKILL.md`
 - Mock session: `.claude/skills/mock-session/SKILL.md`
