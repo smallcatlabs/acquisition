@@ -98,8 +98,7 @@ def setup(a):
     if a.facts:
         facts = os.path.join(WORLD, "copy.db")
         backup(os.path.join(OWNER, a.facts), facts)
-        subprocess.run([exe("copy-as-store"), facts, STORE], check=True, capture_output=True, text=True)
-        os.remove(facts)
+        subprocess.run([exe("copy-as-store"), facts, STORE], check=True, capture_output=True, text=True)  # moves the copy into STORE
         index = open(os.path.join(STORE, "mock", "accounts.json")).read()
         for f in sorted(os.listdir(OWNER)):
             if f.endswith(".annotations.db") and f.split(".")[0] in index:
