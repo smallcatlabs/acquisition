@@ -62,7 +62,9 @@ clone on 2026-10-15, hashes checked against the manifests;
 Each step lands green on the gate and is reviewed from outside before
 the next. Steps 0 to 7: the brief at `77666ea4`.
 
-8. **The seat.** The third of the search's, by the seat skill: a URL
+8. **The seat.** The third of the search's, by the seat skill, under
+   `audits/trade-2026-10/seat/PLAN.md` (both surfaces, serial, a
+   debrief after each report): a URL
    from a friend, what in my stash matches, in a person's words — one
    of them bounding an `increased` stat, so the named stat value's park
    (`decisions/trade.md`) meets its trigger or does not, on evidence;
