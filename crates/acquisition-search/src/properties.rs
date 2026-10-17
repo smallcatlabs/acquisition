@@ -1098,6 +1098,15 @@ fn whole(text: &str) -> Option<i128> {
 }
 
 /// A map's tier, the number its base type ends in: ` (Tier N)`.
+/// The tier a base names, ` (Tier N)` at its end: the one reading of it,
+/// `map_tier`'s and the trade translation's (a Base naming a map, whose
+/// blighted form the site returns under it too).
+pub(crate) fn tier_of(base: &str) -> Option<i128> {
+    base.strip_suffix(')')
+        .and_then(|rest| rest.rsplit_once(" (Tier "))
+        .and_then(|(_, n)| whole(n))
+}
+
 fn tier(item: &Item) -> FieldRead<'_> {
     let Some(base) = item.base.as_deref() else {
         let unread: Vec<Cow<'_, Unread>> = item
@@ -1114,11 +1123,7 @@ fn tier(item: &Item) -> FieldRead<'_> {
             FieldRead::Unread(unread)
         };
     };
-    let tier = base
-        .strip_suffix(')')
-        .and_then(|rest| rest.rsplit_once(" (Tier "))
-        .and_then(|(_, n)| whole(n));
-    match tier.and_then(Exact::whole) {
+    match tier_of(base).and_then(Exact::whole) {
         Some(value) => FieldRead::Value {
             value,
             shown: Vec::new(),

@@ -71,22 +71,25 @@
 # unsupported by its name (K6), by `query.unknown`.
 #
 # Measured at writing (a script over this file, never a count by eye):
-# 143 rows — 4 for the URL, 9 for the query object's keys, the JSON and
+# 145 rows — 4 for the URL, 10 for the query object's keys, the JSON and
 # what no row names, 92 filters and 2 option rows, 10 for the stat groups
-# (8 types, the disabled and the option-valued filter), 26 for the stats
-# (14 categories and 12 line rules); 76 exact, 21 ambiguous, 37
+# (8 types, the disabled and the option-valued filter), 27 for the stats
+# (14 categories and 13 line rules); 80 exact, 20 ambiguous, 36
 # unsupported, 9 listing-only — the four defence filters ambiguous since
-# step 3 measured them, and since step 4 `weapon_filters.crit` and
-# `stat.text.numbers`, which no capture shows, by the owner's verdicts on
-# each row; `stat.text.two`, `stat.text.numbers` and `query.unknown` are
-# step 4's, `stat.text.eldritch` step 6's. Step 7e built what the sitting
-# of 2026-10-16 settled: `stat.explicit`, `map_filters.area_level`, the
-# nine heist skills and `weapon_filters.edps` exact; `weapon_filters.dps`
-# and `pdps` on the damage at 20 % quality, within one of the site's;
+# step 3 measured them, and since step 4 `stat.text.numbers`, which no
+# capture shows, by the owner's verdict; `stat.text.two`,
+# `stat.text.numbers` and `query.unknown` are step 4's,
+# `stat.text.eldritch` step 6's. Step 7e built what the sitting of
+# 2026-10-16 settled: `stat.explicit`, `map_filters.area_level`, the nine
+# heist skills and `weapon_filters.edps` exact; `weapon_filters.dps` and
+# `pdps` on the damage at 20 % quality, within one of the site's;
 # `map_filters.map_tier` ambiguous for a base naming no tier; the four
 # requirement rows' `lacked`; `stat.text.forms` and `stat.text.refused`,
 # and since its outside review `stat.text.wording`, the forms tables'
-# (reference/trade-forms-v1.toml, trade-game-forms-v1.toml).
+# (reference/trade-forms-v1.toml, trade-game-forms-v1.toml). Step 7f the
+# rest: `query.term`, `uniquefoil`, `crit` and `map_blighted` exact, and
+# since its outside review the two open questions labelled where they
+# stand, `query.type.map` and `stat.scourge.summed`.
 # Every one of the capture's 93 filters, 14 categories and 8 group types
 # has a row (tests/trade_catalogue.rs). 58 fields named. Every one of the
 # stat table's 14,068 category and id pairs translates, alone and with a
@@ -158,6 +161,11 @@ shape = "input"
 disposition = "exact"
 lands = "base={value}"
 fields = ["base"]
+
+[[row]]
+key = "query.type.map"
+disposition = "ambiguous"
+note = "a Base naming a map's tier, ` (Tier N)`: the site returns the map's blighted form under it too, a base the body names `Blighted Map (Tier 13)` under `Map (Tier 13)` (t55), which `base=` does not match; how the site names a blighted map's base is for a sitting (`blighted-base`, tests/trade-oracle.toml)"
 
 [[row]]
 key = "query.name.discriminator"
@@ -1141,6 +1149,11 @@ note = "a bound on a stat the game also displays another way (reference/trade-fo
 key = "stat.text.refused"
 disposition = "ambiguous"
 note = "a text whose forms the forms table refuses by name: its numberless display is a text the site lists under another id (`#% chance to Curse Enemies with Enfeeble on Hit` and `Curse Enemies with Enfeeble on Hit`), or it carries both words of a pair; an item's line may be either stat's, so the line matches both — the text, and the listed text the form would be"
+
+[[row]]
+key = "stat.scourge.summed"
+disposition = "ambiguous"
+note = "a scourge stat in a weighted sum: e043 and f005 returned an item of crafted `+28% to Fire Resistance` and scourge `-28%` under a sum of both ids at `min` 0.5, the site's sum 28, as if it left the scourge line out; the line is summed here, and what the site does is for a sitting (`scourge-in-sum`, tests/trade-oracle.toml)"
 
 [[row]]
 key = "stat.text.wording"

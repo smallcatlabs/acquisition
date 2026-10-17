@@ -286,6 +286,24 @@ fn trade(message: impl Into<String>) -> LanguageError {
 /// build ships that does not load, or a translation that broke its own
 /// guard — a build defect, said, never a partial answer.
 pub fn translate(decoded: &Decoded) -> Result<Translation, LanguageError> {
+    // a key a site object sends null is absent (u059), said once, here,
+    // before anything reads a key: every reader below meets the query as if
+    // the key were never sent
+    let decoded = &Decoded {
+        query: absent_nulls(&decoded.query),
+        sort: decoded
+            .sort
+            .as_ref()
+            .filter(|s| !s.is_null())
+            .map(absent_nulls),
+        beside: decoded
+            .beside
+            .iter()
+            .filter(|(_, v)| !v.is_null())
+            .map(|(k, v)| (k.clone(), absent_nulls(v)))
+            .collect(),
+        ..decoded.clone()
+    };
     let catalogue = catalogue::catalogue().map_err(|e| trade(e.to_string()))?;
     let stats = stats::table().map_err(|e| trade(e.to_string()))?;
     let totals = totals::table().map_err(|e| trade(e.to_string()))?;
@@ -347,6 +365,22 @@ pub fn translate(decoded: &Decoded) -> Result<Translation, LanguageError> {
         stats.version(),
         forms.version(),
     )
+}
+
+/// A site object with every key sent null taken out, at every depth; an
+/// array's elements are kept where they stand, a null among them read as
+/// what it is.
+fn absent_nulls(value: &Json) -> Json {
+    match value {
+        Json::Object(o) => Json::Object(
+            o.iter()
+                .filter(|(_, v)| !v.is_null())
+                .map(|(k, v)| (k.clone(), absent_nulls(v)))
+                .collect(),
+        ),
+        Json::Array(a) => Json::Array(a.iter().map(absent_nulls).collect()),
+        other => other.clone(),
+    }
 }
 
 /// What a clause owns of the tree, for the guard.
@@ -872,6 +906,30 @@ impl Translator<'_> {
     }
 
     fn top(&mut self, key: &str, value: &Json) -> Result<(), LanguageError> {
+        let at = self.clauses.len();
+        self.top_read(key, value)?;
+        // a Base naming a map's tier: the site returns its blighted form
+        // under it too (t55, `blighted-base`), which `base=` does not
+        let named = match value {
+            Json::Object(o) => o.get("option"),
+            other => Some(other),
+        };
+        if key == "type"
+            && let Some(Json::String(base)) = named
+            && crate::properties::tier_of(base).is_some()
+        {
+            let r = self.row("query.type.map")?;
+            let (disposition, note) = (r.disposition, r.note.clone());
+            if let Some(c) = self.clauses.get_mut(at).filter(|c| c.status.runs()) {
+                c.status = c.status.worse(Status::of(disposition));
+                c.rows.push("query.type.map".to_string());
+                c.notes.extend(note);
+            }
+        }
+        Ok(())
+    }
+
+    fn top_read(&mut self, key: &str, value: &Json) -> Result<(), LanguageError> {
         match key {
             "status" => self.reported("status", value, "query.status", None),
             "term" => self.input("term", "query.term", value),
@@ -1310,6 +1368,11 @@ impl Translator<'_> {
         if text.contains('\n') {
             rule(&mut rows, &mut notes, &mut status, "stat.text.rows")?;
         }
+        // a scourge line in a weighted sum: whether the site sums one is
+        // unasked (e043, f005: `scourge-in-sum`)
+        if in_a_sum && category == "scourge" {
+            rule(&mut rows, &mut notes, &mut status, "stat.scourge.summed")?;
+        }
         if kind == "not" && ELDRITCH.iter().any(|form| text.starts_with(form)) {
             rule(&mut rows, &mut notes, &mut status, "stat.text.eldritch")?;
         }
@@ -1620,7 +1683,10 @@ impl Translator<'_> {
         // (t38), the stats' presences one or the other
         let kind = match (kind, gmin.is_none() && gmax.is_none()) {
             ("count", true) => "count_none",
-            ("weight" | "weight2", true) => "present",
+            // only where no stat carries a bound of its own: a guarded
+            // stat in a sum of no bound is no shape a sitting has asked,
+            // and stays K5's refusal (the outside review of 8f293ff3)
+            ("weight" | "weight2", true) if !active.iter().any(|r| r.bounded) => "present",
             (kind, _) => kind,
         };
         // what the group writes, each node bound alone as a filter's text

@@ -57,9 +57,12 @@ struct Finding {
     /// `site`, `ruling` or `sitting`.
     home: String,
     cites: String,
-    /// For a fact of the site: the catalogue row its clause names.
+    /// The catalogue row that labels its clause ambiguous.
     #[serde(default)]
     row: Option<String>,
+    /// A ruling by which the owner chose to differ from the site: no row.
+    #[serde(default)]
+    differs: bool,
     /// For a question of the sitting: what it is to settle.
     #[serde(default)]
     asks: Option<String>,
@@ -260,14 +263,17 @@ fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
             f.home
         );
         assert!(!f.cites.is_empty(), "{}", f.key);
-        assert!(
-            f.home != "site" || f.row.is_some(),
-            "{}: a fact names its row",
+        // every disagreement under a label, but where the owner chose to
+        // differ from the site
+        assert_eq!(
+            f.row.is_none(),
+            f.differs,
+            "{}: a finding names its row, or differs by a ruling",
             f.key
         );
         assert!(
-            f.home != "sitting" || f.row.is_none(),
-            "{}: a question labels nothing",
+            f.home == "ruling" || !f.differs,
+            "{}: only a ruling differs",
             f.key
         );
         assert_eq!(
@@ -352,12 +358,12 @@ fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
         "disagreements no row names: {new:#?}\nrows no longer found: {gone:#?}"
     );
 
-    // a ruling the build leaves ambiguous: the clause that refuses the
-    // item, or a filter under it, is ambiguous by the finding's row — no
-    // row of the set is a clause reported exact (step 7e)
+    // a ruling or a question: the clause that refuses the item, or a filter
+    // under it, is ambiguous by the finding's row — no row of the set is a
+    // clause reported exact (step 7e; a question too since 8f293ff3's review)
     for ((search, i), (_, refused_by, finding)) in &want {
         let f = findings[finding];
-        let (Some(row), "ruling") = (&f.row, f.home.as_str()) else {
+        let Some(row) = f.row.as_ref().filter(|_| f.home != "site") else {
             continue;
         };
         let t = &translations[search];

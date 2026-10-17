@@ -457,6 +457,22 @@ fn c113_every_stat_id_of_the_table_translates() {
     }
 }
 
+/// A site query with a null-valued key, `nulled`, beside every key of
+/// every object it holds — the query object's, each group's, each filter's
+/// and each value's.
+fn with_nulls(value: &Json) -> Json {
+    match value {
+        Json::Object(o) => {
+            let mut out: serde_json::Map<String, Json> =
+                o.iter().map(|(k, v)| (k.clone(), with_nulls(v))).collect();
+            out.insert("nulled".to_string(), Json::Null);
+            Json::Object(out)
+        }
+        Json::Array(a) => Json::Array(a.iter().map(with_nulls).collect()),
+        other => other.clone(),
+    }
+}
+
 proptest! {
     #![proptest_config(config(64, 512))]
 
@@ -471,6 +487,14 @@ proptest! {
         let report = serde_json::to_value(&t).unwrap();
         let carried: Node = from_json(&report["tree"]).unwrap();
         prop_assert_eq!(&carried, &t.tree);
+        // a key sent null is absent wherever it stands (u059; the outside
+        // review of 8f293ff3): the query with a null beside every key it
+        // holds, and every filter's own, translates as the query
+        let nulled = translate(&decode(&with_nulls(&query).to_string()).unwrap())
+            .map_err(|e| TestCaseError::fail(format!("{query}: {e}")))?;
+        prop_assert_eq!(&nulled.text, &t.text);
+        prop_assert_eq!(&nulled.clauses, &t.clauses);
+        prop_assert_eq!(nulled.fidelity, t.fidelity);
         // as a request's query (step 5): the site search alone, as an
         // object and as its text, and beside the text it translates to —
         // what a printed request and a continuation send — read as the

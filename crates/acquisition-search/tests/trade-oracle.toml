@@ -6,9 +6,12 @@
 #
 # A `finding` is stated once: `home` is where its answer lives — `site`, a
 # fact of the captures, its clause labelled by the catalogue `row` it names
-# (and the test holds that clause ambiguous); `ruling`, the owner's, quoted,
-# with the `row` that labels its clause where the build leaves it ambiguous
-# (and the test holds the refusing clause, or a filter under it, so);
+# (and the test holds that clause ambiguous); `ruling`, the owner's, quoted;
+# `sitting`, a question for a sitting. Every finding names the `row` that
+# labels its clause, and the test holds the clause, or a filter under it,
+# ambiguous by it — no expected disagreement sits under a clause reported
+# exact — but a ruling by which the owner chose to differ from the site,
+# `differs = true`, which names none (the outside review of 8f293ff3);
 # `sitting`, a question for step 7, `asks` what the sitting is to settle,
 # each answered by searches with a mutant (the site-sitting skill). Nothing
 # here is a tolerance: each is the site reading a clause otherwise, and the
@@ -51,11 +54,13 @@ cites = "search/pseudo-stats/README.md, 'Two things the searches could not do': 
 
 [[finding]]
 key = "twin-counted"
+differs = true
 home = "ruling"
 cites = "the twin id of `+# to Strength and Intelligence` on That Which Was Taken, which the site leaves out of total life, Strength and Intelligence (c3, b1, b2, e053, e057) and the totals table counts — the owner, step 9c (search/LEDGER.md): \"I believe this is a bug. Let's count the mod\"; the park in decisions/search.md"
 
 [[finding]]
 key = "socketed-gems-counted"
+differs = true
 home = "ruling"
 cites = "`# to Level of Socketed Skill Gems`, which the site leaves out of `+# total to Level of Socketed Skill Gems` (e103, f030, f031) and the totals table counts — the owner, step 9c (search/LEDGER.md; search/pseudo-stats/data/table-changes.csv): \"yes, include the socketed skill gems\""
 
@@ -85,12 +90,14 @@ cites = "the site gives Shaper Guardian Map, whose base names no tier, tier 16 (
 
 [[finding]]
 key = "scourge-in-sum"
+row = "stat.scourge.summed"
 home = "sitting"
 cites = "e043 and f005 returned one item, crafted `+28% to Fire Resistance` and scourge `-28% to Fire Resistance`, under a weighted group naming both ids with `min` 0.5; the site showed its sum as 28 and its total as nothing (a sum of nothing, search/pseudo-stats/README.md)"
 asks = "whether a weighted group counts a scourge line — the item under the scourge id alone, and the crafted id alone"
 
 [[finding]]
 key = "blighted-base"
+row = "query.type.map"
 home = "sitting"
 cites = "t55 asked `map_blighted` `true` under the Base `Map (Tier 13)`, and the site returned ten maps whose base the body names `Blighted Map (Tier 13)` (search/pseudo-stats/data/bodies.json): its Base reads a blighted map's base without the prefix; `base=` is the whole base (step 7f, when t55 first ran)"
 asks = "whether the site's Base names a blighted map by its unblighted base alone — `Blighted Map (Tier 13)` under `type` `Map (Tier 13)`, and under `type` `Blighted Map (Tier 13)` — and whether any other prefix (`Blight-ravaged`) is read so"

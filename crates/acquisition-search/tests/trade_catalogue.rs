@@ -24,7 +24,7 @@ const GRAMMAR: &str = include_str!("../../../search/trade-query/data/grammar.jso
 fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
     let c = catalogue::catalogue().unwrap();
     assert_eq!(c.version(), CATALOGUE_VERSION);
-    assert_eq!(c.rows().len(), 143);
+    assert_eq!(c.rows().len(), 145);
     let count = |d: Disposition| c.rows().iter().filter(|r| r.disposition == d).count();
     assert_eq!(
         [
@@ -33,7 +33,7 @@ fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
             count(Disposition::Unsupported),
             count(Disposition::ListingOnly)
         ],
-        [80, 18, 36, 9]
+        [80, 20, 36, 9]
     );
     // the four defence filters ambiguous since step 3 measured the q20
     // rule against the site (`tests/properties.rs`), and the digit rule no
@@ -50,6 +50,8 @@ fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
         "stat.text.forms",
         "stat.text.refused",
         "stat.text.wording",
+        "stat.scourge.summed",
+        "query.type.map",
         "armour_filters.ar",
         "armour_filters.ev",
         "armour_filters.es",
@@ -108,7 +110,7 @@ fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
             .unwrap()
             .rows()
             .len(),
-        143
+        145
     );
 }
 

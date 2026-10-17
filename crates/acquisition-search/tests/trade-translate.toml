@@ -906,11 +906,11 @@ fidelity = "partial"
 statuses = { "name" = "exact", "sort" = "listing_only", "envelope.extra" = "unsupported" }
 
 [[case]]
-name = "a name object carrying a key no row reads, and a base sent null, which states nothing"
+name = "a name object carrying a key no row reads, and a base sent null, which is absent"
 query = '''{"name": {"option": "Kaom's Heart", "typo": 1}, "type": null}'''
-text = 'true()'
+text = ''
 fidelity = "partial"
-statuses = { "name" = "unsupported", "type" = "exact" }
+statuses = { "name" = "unsupported" }
 
 [[case]]
 name = "a pseudo with no bound is its presence, as the site shows no pseudo for a total of nothing"
@@ -1185,3 +1185,31 @@ fidelity = "ambiguous"
 statuses = { "stats.0" = "exact", "stats.0.0" = "ambiguous" }
 matches = ['{"explicitMods": ["Players have -1% to amount of Suppressed Spell Damage Prevented"]}', '{"explicitMods": ["Players Prevent +3% of Suppressed Spell Damage"]}']
 fails = ['{"explicitMods": ["Monsters have 3% to amount of Suppressed Spell Damage Prevented"]}']
+
+[[case]]
+name = "a weighted sum with no bound whose stat carries one: K5's refusal, no shape a sitting asked (the outside review of 8f293ff3)"
+query = '{"stats": [{"type": "weight2", "filters": [{"id": "explicit.stat_3299347043", "value": {"min": 100, "weight": 1}}]}]}'
+text = ''
+fidelity = "partial"
+statuses = { "stats.0" = "unsupported", "stats.0.0" = "unsupported" }
+
+[[case]]
+name = "a Base naming a map's tier is ambiguous: the site returns its blighted form under it (t55, blighted-base)"
+query = '{"type": "Map (Tier 13)", "filters": {"map_filters": {"filters": {"map_blighted": {"option": "true"}}}}}'
+text = 'base="Map (Tier 13)" typeline~"^Blighted "'
+fidelity = "ambiguous"
+statuses = { "type" = "ambiguous", "map_filters.map_blighted" = "exact" }
+
+[[case]]
+name = "a scourge stat in a weighted sum is ambiguous (e043, f005: scourge-in-sum)"
+query = '{"stats": [{"type": "weight2", "value": {"min": 0.5}, "filters": [{"id": "crafted.stat_3372524247", "value": {"weight": 1}}, {"id": "scourge.stat_3372524247", "value": {"weight": 1}}]}]}'
+text = 'sum(line(("#% to Fire Resistance" is:crafted) or ("#% to Fire Resistance" source=scourge)).arg1)>=0.5'
+fidelity = "ambiguous"
+statuses = { "stats.0" = "exact", "stats.0.0" = "exact", "stats.0.1" = "ambiguous" }
+
+[[case]]
+name = "a key sent null is absent wherever it stands: the query's stats, a filter, a group (the outside review of 8f293ff3)"
+query = '{"stats": null, "name": null, "filters": {"map_filters": {"filters": {"map_uberblighted": null}}, "misc_filters": null}}'
+text = ''
+fidelity = "exact"
+statuses = {}

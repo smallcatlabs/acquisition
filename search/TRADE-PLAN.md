@@ -422,3 +422,14 @@ table's rows with their weights (`totals.rs`, *a weight*), and
   they were, each its note's: the crucible mark (t54 did not part its
   readings), which number a many-numbered text compares, the scourge line
   in a sum (e043), and the step-7 opens above.
+- Its outside review (three findings): an unbounded weighted sum was read
+  as presence even where a stat carried its own bound, which t38 never
+  asked — that one keeps K5's refusal; `blighted-base` stood under a Base
+  reported exact — the oracle now holds every expected disagreement under
+  a label but the rulings by which the owner differs from the site
+  (`differs`), so the Base naming a map's tier is ambiguous
+  (`query.type.map`) and so is a scourge stat in a weighted sum
+  (`stat.scourge.summed`, e043); and a key sent null was absent at one
+  reader and not others — now taken out once, where the query enters the
+  translation, and a generated query with a null beside every key
+  translates as itself. The catalogue 145 rows, 80 exact, 20 ambiguous.
