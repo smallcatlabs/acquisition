@@ -9,7 +9,7 @@ clone at another commit is a refusal, and nothing is written):
   ../trade-query/data/filters-2026-09-12.json   the trade site's 83 category ids (`type_filters.category`)
   ../item-facts/raw/spike-GERWARIC_7694-2026-09-13.db, ../item-facts/raw/cpp-userstore-GERWARIC_7694-2026-09-13.db
                                                  the corpus's `baseType` values (local only)
-  ../trade-query/raw/searches/                  the `Item Class:` line of listed items (local only)
+  ../pseudo-stats/data/captures.json            `census`: the `Item Class:` line of the 2026-09-13 searches' items
 
 Outputs (data/, regenerable; the first line names this script and its inputs):
   base-taxonomy.csv         one row per export base name: class, class name, export category, tags, release state,
@@ -22,20 +22,18 @@ Printed: the 83 ids by how they are generated, the coarse-category agreement, co
 
 import collections
 import csv
-import glob
 import json
 import os
 import sqlite3
 import sys
-import base64
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TRACK = os.path.dirname(HERE)
 SEARCH = os.path.dirname(TRACK)
 ROOT = os.path.dirname(SEARCH)
 sys.path.insert(0, os.path.join(ROOT, "tools"))
-from sources import CENSUS, CORPUS, POE1, require  # noqa: E402  the clone, at the manifest's commit; the raw, local
-from trade_query import capture  # noqa: E402  the one reader of a capture
+from sources import CORPUS, POE1, require  # noqa: E402  the clone, at the manifest's commit; the corpus, local
+from trade_query import fetched  # noqa: E402  the extract's items
 DATA = os.path.join(TRACK, "data")
 TQ = os.path.join(SEARCH, "trade-query", "data")
 RAW_SPIKE, RAW_CPP = CORPUS
@@ -117,21 +115,18 @@ def corpus():
 
 
 def fetch_classes():
-    """baseType -> the clipboard's `Item Class:` line, over the owner's 2026-09-13 searches, read through the
-    one reader of a capture (tools/trade_query.py)."""
+    """baseType -> the clipboard's `Item Class:` line, over the owner's 2026-09-13 searches, as the extract
+    carries it (../pseudo-stats/data/captures.json, `census`; tools/trade-captures.py)."""
     out = {}
-    for f in sorted(glob.glob(os.path.join(CENSUS, "*-search.json"))):
-        for it in capture(CENSUS, os.path.basename(f)[: -len("-search.json")])[1]:
-            t = it.get("extended", {}).get("text")
-            if t:
-                first = base64.b64decode(t).decode("utf-8", "replace").split("\n")[0].rstrip("\r")  # the clipboard text is CRLF
-                if first.startswith("Item Class: "):
-                    out[it.get("baseType")] = first[len("Item Class: "):]
+    for pairs in fetched("census").values():
+        for it, _ in pairs:
+            if it["item_class"]:
+                out[it["baseType"]] = it["item_class"]
     return out
 
 
 def main():
-    require(POE1, *CORPUS, CENSUS)
+    require(POE1, *CORPUS)
     os.makedirs(DATA, exist_ok=True)
     bases = json.load(open(os.path.join(POE1, "data", "base_items.json")))
     classes = json.load(open(os.path.join(POE1, "data", "item_classes.json")))

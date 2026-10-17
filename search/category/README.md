@@ -97,7 +97,7 @@ The site's coarse list checks only at the parent's level, so no leaf under a pre
 
 ## Round j
 
-Open questions 1–6 as `tools/trade-sheet.py`'s `round_j`, 40 searches, each with its pair (`data/round-j.csv`; what each decides is its sheet row). Sat 2026-10-01. `scripts/round-j-read.py` reads every capture (`data/round-j-read.csv`: totals, fetched bases and clipboard classes, the pair) from `../pseudo-stats/data/captures.json`, the class line from the raw fetches. A zero is read only beside a pair that finds the type.
+Open questions 1–6 as `tools/trade-sheet.py`'s `round_j`, 40 searches, each with its pair (`data/round-j.csv`; what each decides is its sheet row). Sat 2026-10-01. `scripts/round-j-read.py` reads every capture (`data/round-j-read.csv`: totals, fetched bases and clipboard classes, the pair) from `../pseudo-stats/data/captures.json`, the class line among them. A zero is read only beside a pair that finds the type.
 
 | Question | Searches | Decided |
 | --- | --- | --- |

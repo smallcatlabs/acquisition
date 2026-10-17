@@ -35,9 +35,9 @@ lines whose best pair is `sources-differ`, `text-only`, `one-source`,
 the first pass's open question 5 (R1).
 
 The self-test reads `search/trade-query/raw/searches/` (local only, never
-committed): for every `<q>-request.json` with a `<q>-search.json` beside it,
-the id composed from the request must equal the id the site returned. It
-skips, saying so, where the captures are absent.
+committed): for every `<q>-request.json` with a capture beside it (read by
+`trade_query.capture`), the id composed from the request must equal the id
+the site returned. It skips, saying so, where the captures are absent.
 
 Each search names what it decides. A search whose answer would read the same
 under two hypotheses is not a search: every one carries a control — a pseudo
@@ -520,6 +520,7 @@ def checks():
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import trade_rows as table  # noqa: E402
+from trade_query import capture  # noqa: E402
 
 
 def weighted(version, ids, extra=(), at_least=0.5):
@@ -2343,10 +2344,10 @@ def self_test():
     failed = 0
     checked = 0
     for request in requests:
-        answer = request.with_name(request.name.replace("-request", "-search"))
-        if not answer.exists() or answer.stat().st_size == 0:
+        read = capture(CAPTURED, request.name[: -len("-request.json")])
+        if read is None:
             continue
-        want = json.loads(answer.read_text())["id"]
+        want = read[0]["id"]
         got = compose(json.loads(request.read_text())["query"])
         checked += 1
         if got != want:

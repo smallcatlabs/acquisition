@@ -62,7 +62,13 @@
 #      clones and reads a zero beside its own league alone); a capture
 #      is read by one reader, which counts a listing sent null and
 #      refuses one its search did not return (`tools/trade_query.py
-#      --self-test`); and the splitter writes a capture whole.
+#      --self-test`); and the splitter writes a capture whole. And from
+#      the outside review of 555c4f58: a raw directory is held to its
+#      inventory, so a missing search or page is a refusal and never a
+#      smaller extract (`sources.py`); no script joins a local capture to
+#      a committed extract — the extract's two files are paired in one
+#      place (`trade_query.py`); and a unit is staged, read back and put
+#      in place with the old one set aside until it is (`trade-split.py`).
 #
 # Exit 1 on any failure; the report names each offender.
 set -euo pipefail

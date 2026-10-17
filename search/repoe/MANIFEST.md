@@ -48,7 +48,7 @@ Files scoped but not read by an extract: `mods_by_base.json` (which mods roll on
 | File | Track | Read by |
 | --- | --- | --- |
 | `data/stats-2026-09-12.json`, `items-2026-09-12.json`, `filters-2026-09-12.json` | trade-query (`MANIFEST.md` there) | `trade-stat-map.py`, `hash-check.py`, `base-taxonomy.py` |
-| `raw/searches/*-fetch.json` (local) | trade-query | `base-taxonomy.py` — the `Item Class:` clipboard line of 46 listed base types |
+| `data/captures.json`, `census` (the owner's 2026-09-13 searches, from trade-query's `raw/searches/`) | pseudo-stats | `base-taxonomy.py` — the `Item Class:` clipboard line of 46 listed base types |
 | `data/mod-templates.csv` | item-facts | `template-vs-translation.py` |
 | `raw/spike-…db`, `raw/cpp-userstore-…db` (local), `scripts/census.py` | item-facts | `base-taxonomy.py` (the corpus's `baseType` values), `template-vs-translation.py` (imports the census's template rule to split lines by frame type) |
 

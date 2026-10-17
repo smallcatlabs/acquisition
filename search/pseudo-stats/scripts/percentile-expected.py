@@ -28,16 +28,15 @@ the trade site's `(Local)` texts to the export's local defence stats, the
 stat displays too (a twin text): defence-twins.py's (`twin_texts`). The realms
 with a table are the shipped class table's, made from the same export as the
 ranges. A captured item's marks are read as defence-twins.py reads them, from
-the fetch it came from (raw/searches/<search>-fetch*.json, local only, the n-th
-item of a search's pages the extract's n-th, checked by base, through the one
-reader of a capture, tools/trade_query.py; only the three key names leave
-raw/). The fetch census keeps no mark: its items' marks are `(not kept)`. The reading
+its body as the site sent it (data/bodies.json, paired with the extract's
+item by tools/trade_query.py, `fetched`; the three key names alone). The
+fetch census keeps no mark: its items' marks are `(not kept)`. The reading
 asks a mark of an implicit twin text alone; the marks of the others say which
 group of lines a captured line is counted in (step 5).
 
 Numbers are exact: a displayed number is a fraction, never a float.
 
-Inputs: data/captures.json, raw/searches/, ../trade-query/data/
+Inputs: data/captures.json, data/bodies.json, ../trade-query/data/
 fetch-census.json, ../repoe/data/base-defences.csv, ../repoe/data/
 trade-stat-map.csv, crates/acquisition-search/reference/classes-v1.toml, and
 the owner's store copy, read-only (../item-facts/raw/m3/store/mock/
@@ -69,13 +68,12 @@ TRACK = P.TRACK
 SEARCH = P.SEARCH
 ROOT = SEARCH.parent
 CAPTURES = TRACK / "data" / "captures.json"
-RAW = P.RAW
 FETCH = SEARCH / "trade-query/data/fetch-census.json"
 STORE = S.STORE
 CLASSES = S.CLASSES
 OUT = TRACK / "data" / "percentile-expected.csv"
 OUT_COPY = TRACK / "data" / "percentile-expected-copy.csv"
-INPUTS = ("data/captures.json, raw/searches/*-fetch*.json (a captured item's marks, the key names alone), "
+INPUTS = ("data/captures.json, data/bodies.json (a captured item's marks, the key names alone), "
           "../trade-query/data/fetch-census.json, ../repoe/data/base-defences.csv, "
           "../repoe/data/trade-stat-map.csv, crates/acquisition-search/reference/classes-v1.toml, "
           "../item-facts/raw/m3/store/mock/GERWARIC_7694.db (read-only)")
@@ -710,18 +708,11 @@ def captured_facts(raw, marks):
     return facts, beside
 
 
-def raw_marks(captures):
-    """{case: {mark: True}} from raw/searches, as defence-twins.py reads an item's marks, through the one
-    reader of a capture (tools/trade_query.py), whose n-th item is the extract's n-th."""
-    out = {}
-    for name, capture in captures.items():
-        items = P.capture(RAW, name)[1]
-        for index, item in enumerate(capture["fetched"] or []):
-            if index >= len(items) or items[index].get("baseType") != item.get("baseType"):
-                raise SystemExit(f"{name}[{index}]: raw/ does not hold the extract's item at its place: "
-                                 "the extract is behind its captures (tools/trade-captures.py)")
-            out[f"{name}[{index}]"] = {k: items[index][k] for k in MARKS if k in items[index]}
-    return out
+def body_marks():
+    """{case: {mark: True}} from each captured item's body, as defence-twins.py reads an item's marks,
+    paired with the extract's item by the one pairing of the two (tools/trade_query.py, `fetched`)."""
+    return {f"{name}[{index}]": {k: body[k] for k in MARKS if k in body}
+            for name, pairs in P.fetched("searches").items() for index, (_, body) in enumerate(pairs)}
 
 
 def has_implicit_twin(tables, raw):
@@ -734,9 +725,9 @@ def captured_cases(tables):
     (case, source, raw, facts, beside, same_as, site value or None)."""
     out, first, counts = [], {}, Counter()
     captures = json.loads(CAPTURES.read_text())["searches"]
-    from_raw = raw_marks(captures)
+    from_body = body_marks()
     counts["searches"] = len(captures)
-    counts["marks from raw"] = len(from_raw)
+    counts["marks from bodies"] = len(from_body)
     for name, capture in captures.items():
         for index, raw in enumerate(capture["fetched"] or []):
             case = f"{name}[{index}]"
@@ -744,7 +735,7 @@ def captured_cases(tables):
             same = first.get(key, "")
             if not same:
                 first[key] = case
-            kept = from_raw[case]  # the fetch's own marks
+            kept = from_body[case]  # the fetch's own marks
             facts, beside = captured_facts(raw, kept)
             site = raw.get("extended", {}).get("base_defence_percentile")
             counts["fetched rows"] += 1
@@ -1234,7 +1225,7 @@ def main():
         print(__doc__)
         return 2
 
-    P.require(RAW, STORE)
+    P.require(STORE)
     tables = Tables()
     cases, counts = captured_cases(tables)
 
@@ -1280,7 +1271,7 @@ def main():
           f"— those carrying the site's value, the base read from the type line, the census keeping no "
           f"`baseType`; left out, {counts['fetch-census rows left out']} — the site showed no value of them, "
           f"and with no `baseType` and no mark kept nothing says what a magic one's base is")
-    print(f"marks: {counts['marks from raw']} captured rows' from raw/searches; not kept, the census's, "
+    print(f"marks: {counts['marks from bodies']} captured rows' from data/bodies.json; not kept, the census's, "
           f"{counts['marks not kept']} (of them carrying an implicit twin text: "
           f"{counts['marks not kept, an implicit twin']})")
     cap = []  # (case, source, facts, ans, site, same, beside)

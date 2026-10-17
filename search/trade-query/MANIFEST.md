@@ -19,7 +19,7 @@ Still to capture (the README, "Inputs"): one search request body and its respons
 
 ## The owner's searches, 2026-09-13, 08:09–09:26 US Central (13:09–14:26 UTC), Standard league, PC realm
 
-Per query: the request body (`-request`), the search response (`-search`), the first `fetch` response (`-fetch`, the ten items the page fetched: carries seller accounts, whisper and hideout tokens — raw only, never `data/`). The owner: "In a couple cases I added additional search terms to make sure we saw results with the kinds of items you were looking for." `q2b` returned no results, so no fetch happened and its fetch file is empty. `q1-request` and `q1-search` were first saved empty and refilled at 09:21; `q3b` (the q3 stat with `max: 25`) was added at 09:25 to close Q3.
+Per query: the request body (`-request`), the search response (`-search`), the first `fetch` response (`-fetch`, the ten items the page fetched: carries seller accounts, whisper and hideout tokens — raw only, never `data/`). The owner: "In a couple cases I added additional search terms to make sure we saw results with the kinds of items you were looking for." `q2b` returned no results, so no fetch happened and its fetch file is empty. `q1-request` and `q1-search` were first saved empty and refilled at 09:21; `q3b` (the q3 stat with `max: 25`) was added at 09:25 to close Q3. The table's digests, in `sha256sum`'s form, are `data/raw-searches.sha256`, the inventory `tools/sources.py` holds `raw/searches/` to before the extract reads it.
 
 | File | Bytes | sha256 |
 | --- | --- | --- |

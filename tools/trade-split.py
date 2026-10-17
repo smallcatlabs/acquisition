@@ -43,32 +43,42 @@ committed), and delete it once the captures are written.
 together or not at all, each page as the site sent it — a fetch of listings
 the site sent null for too, which the one reader of a capture counts
 (`trade_query.capture`). A capture on disk that differs is kept whole, and
-the run exits 1; under --replace every file of it is removed before the new
-one is written, so no page of an old capture outlives it (the outside review
-of 606b4a17: a capture was compared and kept file by file, and a run that
-kept some exited 0).
+the run exits 1; under --replace no page of the old capture outlives it (the
+outside review of 606b4a17: a capture was compared and kept file by file,
+and a run that kept some exited 0). A unit is staged whole in a folder
+beside the captures and read back by `capture` before it is placed; the old
+unit's files are set aside in that folder until every new file is in, and
+put back if one cannot be (the outside review of 555c4f58: a write that
+failed on a fetch page left a new search and no old capture, which the
+reader took for one with nothing fetched). The captures' inventory
+(`sources.py`) is written after each unit; this script is its one writer,
+and refuses to split into a directory that is not as it records.
 
 What it refuses: a search response whose query is no row of the sheet (named,
 not written); a fetch of no search in the recording, or of searches of two
 rows with no item to tell them apart; a search with a fetch that recorded no
 answer; a row answered twice with different results (the later one kept,
-whole, only under --replace); a capture already on disk with other files.
+whole, only under --replace); a capture already on disk with other files;
+a unit the one reader of a capture refuses.
 """
 
 import base64
 import csv
 import gzip
 import json
+import os
+import shutil
 import sys
 import tempfile
 import urllib.parse
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from trade_query import asking, bare, sheet  # noqa: E402
+from sources import CAPTURES, INVENTORIES, record, require, unlike  # noqa: E402
+from trade_query import asking, bare, capture, sheet  # noqa: E402
 
 TRACK = Path(__file__).resolve().parents[1] / "search" / "pseudo-stats"
-RAW = TRACK / "raw" / "searches"
+RAW = CAPTURES
 SHAPE = TRACK / "data" / "recording-shape.csv"
 
 # A search response under this many bytes lists a handful of results at most
@@ -252,28 +262,66 @@ def self_test():
             failed += 1
             print(f"DIFFER  {name}: {got}")
 
-    # Writing a capture whole (the outside review of 606b4a17): (case, on
-    # disk before, the units, replace, on disk after, captures written, rows kept)
-    a = {"r-search.json": b"A", "r-fetch.json": b"a1", "r-fetch-2.json": b"a2"}
-    b = {"r-search.json": b"B", "r-fetch.json": b"b1"}
+    # Writing a capture whole (the outside reviews of 606b4a17 and 555c4f58):
+    # (case, on disk before, the units, replace, a file whose write or
+    # placing fails, on disk after, captures written, rows kept)
+    def unit(row, ids, *pages):
+        out = {f"{row}-search.json": json.dumps({"id": "x", "result": ids}).encode()}
+        for k, page in enumerate(pages, start=1):
+            out[f"{row}-fetch.json" if k == 1 else f"{row}-fetch-{k}.json"] = json.dumps(
+                {"result": [None if i is None else {"id": i, "item": {}} for i in page]}).encode()
+        return out
+    a = unit("r", ["a1", "a2"], ["a1"], ["a2"])
+    b = unit("r", ["b1"], ["b1"])
+    foreign = unit("r", ["b1"], ["z9"])
     writes = [
-        ("the same capture is left, nothing written", a, {"r": a}, False, a, 0, []),
-        ("a capture that differs is kept whole, a refusal", a, {"r": b}, False, a, 0, ["r"]),
-        ("under --replace no page of the old capture outlives it", a, {"r": b}, True, b, 1, []),
-        ("a search saved empty is no capture yet", {"r-search.json": b""}, {"r": b}, False, b, 1, []),
-        ("a page of listings sent null is a page of its capture", {}, {"r": {"r-search.json": b"A",
-         "r-fetch.json": b'{"result":[null]}'}}, False, {"r-search.json": b"A", "r-fetch.json": b'{"result":[null]}'}, 1, []),
+        ("the same capture is left, nothing written", a, {"r": a}, False, None, a, 0, []),
+        ("a capture that differs is kept whole, a refusal", a, {"r": b}, False, None, a, 0, ["r"]),
+        ("under --replace no page of the old capture outlives it", a, {"r": b}, True, None, b, 1, []),
+        ("a search saved empty is no capture yet", {"r-search.json": b""}, {"r": b}, False, None, b, 1, []),
+        ("a page of listings sent null is a page of its capture", {}, {"r": unit("r", ["n1"], [None])},
+         False, None, unit("r", ["n1"], [None]), 1, []),
+        ("a unit the one reader refuses is not written, the old one kept", a, {"r": foreign}, True, None, a, 0, ["r"]),
+        ("a write that fails on a fetch page leaves the old capture whole", a, {"r": b}, True,
+         ("write", "r-fetch.json"), a, None, None),
+        ("a placing that fails on a fetch page puts the old capture back", a, {"r": b}, True,
+         ("place", "r-fetch.json"), a, None, None),
     ]
-    for name, before, units, replace, after, want_written, want_kept in writes:
+    real_write, real_replace = Path.write_bytes, os.replace
+    for name, before, units, replace, fails, after, want_written, want_kept in writes:
         with tempfile.TemporaryDirectory() as tmp:
-            raw = Path(tmp)
+            raw, listed = Path(tmp) / "raw", Path(tmp) / "raw.sha256"
+            raw.mkdir()
             for f, data in before.items():
                 (raw / f).write_bytes(data)
-            got = write(units, raw, replace)
-            disk = {p.name: p.read_bytes() for p in raw.iterdir()}
-        if got != (want_written, want_kept) or disk != after:
+            record(listed, before)
+
+            once = [fails]
+
+            def write_bytes(path, data):
+                if once[0] == ("write", path.name):
+                    once[0] = None
+                    raise OSError("injected")
+                return real_write(path, data)
+
+            def replace_to(src, dst):
+                if once[0] == ("place", Path(dst).name) and Path(dst).parent == raw:
+                    once[0] = None
+                    raise OSError("injected")
+                return real_replace(src, dst)
+            Path.write_bytes, os.replace = write_bytes, replace_to
+            try:
+                written, kept = write(units, raw, replace, listed)
+                got = (written, [r for r, _ in kept])
+            except OSError:
+                got = (None, None)
+            finally:
+                Path.write_bytes, os.replace = real_write, real_replace
+            disk = {p.name: p.read_bytes() if p.is_file() else "a folder left" for p in raw.iterdir()}
+            unheld = unlike(raw, listed)
+        if got != (want_written, want_kept) or disk != after or unheld:
             failed += 1
-            print(f"DIFFER  {name}: wrote {got}, on disk {sorted(disk)}")
+            print(f"DIFFER  {name}: wrote {got}, on disk {sorted(disk)}, unlike its inventory {unheld}")
 
     # Composing a capture whole: every fetch is a page, a fetch with no answer
     # leaves the search unwritten, a second answer is refused unless --replace.
@@ -362,12 +410,16 @@ def held(raw, row):
     return {p.name: p.read_bytes() for p in paths if p.exists()}
 
 
-def write(units, raw, replace):
+def write(units, raw, replace, inventory):
     """Write each unit whole: a capture on disk with the same files is left,
-    one with others is kept whole unless `replace`, which removes every file
-    of it first, so no page of the old one outlives it. A search saved empty
-    is a search not yet captured (`trade_query.capture`). Returns (captures
-    written, rows kept)."""
+    one with others is kept whole unless `replace`, under which no page of
+    the old one outlives it. A search saved empty is a search not yet
+    captured (`trade_query.capture`). Each unit is staged in a folder beside
+    the captures and read back by `capture`; then the old unit's files go
+    into that folder, the new ones take their place, the inventory records
+    them, and the folder goes. A failure before the switch leaves the old
+    unit as it was; one during it puts the old unit back. Returns (captures
+    written, [(row, why it was not)])."""
     raw.mkdir(parents=True, exist_ok=True)
     written, kept = 0, []
     for row, unit in units.items():
@@ -375,12 +427,37 @@ def write(units, raw, replace):
         if old == unit:
             continue
         if old.get(f"{row}-search.json") and not replace:
-            kept.append(row)
+            kept.append((row, "its capture on disk differs, and is kept whole (say --replace)"))
             continue
-        for name in old:
-            (raw / name).unlink()
-        for name, data in unit.items():
-            (raw / name).write_bytes(data)
+        stage = Path(tempfile.mkdtemp(prefix=f".{row}-", dir=raw))
+        try:
+            for name, data in unit.items():
+                (stage / name).write_bytes(data)
+            capture(stage, row)
+        except ValueError as refusal:
+            kept.append((row, f"the one reader of a capture refuses it: {refusal}"))
+            shutil.rmtree(stage)
+            continue
+        except BaseException:
+            shutil.rmtree(stage)
+            raise
+        aside, placed = stage / "old", []
+        aside.mkdir()
+        try:
+            for name in old:
+                os.replace(raw / name, aside / name)
+            for name in unit:
+                os.replace(stage / name, raw / name)
+                placed.append(name)
+        except BaseException:
+            for name in placed:
+                os.replace(raw / name, stage / name)
+            for name in os.listdir(aside):
+                os.replace(aside / name, raw / name)
+            shutil.rmtree(stage)
+            raise
+        record(inventory, unit, removed=old.keys() - unit.keys())
+        shutil.rmtree(stage)
         written += 1
     return written, kept
 
@@ -394,6 +471,7 @@ def main():
     if len(files) != 1 or flags - {"--write", "--replace", "--shape"}:
         print(__doc__)
         return 2
+    require(RAW)
     har = recording(Path(files[0]))
     rows = sheet()
     calls = walk(har, rows)
@@ -460,9 +538,9 @@ def main():
     if "--write" not in flags:
         print("nothing written (say --write)")
         return 1 if refused or strays or problems else 0
-    written, kept = write(units, RAW, "--replace" in flags)
-    for row in kept:
-        print(f"KEPT     {row}: its capture on disk differs, and is kept whole (say --replace)")
+    written, kept = write(units, RAW, "--replace" in flags, INVENTORIES[RAW])
+    for row, why in kept:
+        print(f"KEPT     {row}: {why}")
     print(f"{written} captures written under {RAW.relative_to(TRACK.parent.parent)}")
     return 1 if refused or kept or strays or problems else 0
 

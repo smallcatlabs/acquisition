@@ -21,8 +21,9 @@ network (C79; SURFACES.md, the trade site's rows: access method `browser`).
     tools/trade-pages.py h --check     # round h's pages on disk against the sheet; writes nothing
 
 A round is the letter its rows' names open with (`h` for h001–h053). A row
-has a capture when raw/searches/<row>-search.json holds anything, so the
-same command after a sitting writes pages for what is still missing. A
+has a capture when the captures' inventory records its search file holding
+anything (search/pseudo-stats/data/raw-searches.sha256, `sources.py`), so
+the same command after a sitting writes pages for what is still missing. A
 round's earlier pages are removed before its pages are written. Every write
 also writes tools/sitting-recorder/rows.json, the sheet's links each with its
 row's name (not committed): reload the recorder after it.
@@ -40,6 +41,7 @@ twice.
 
 import base64
 import csv
+import functools
 import html
 import json
 import re
@@ -47,9 +49,11 @@ import sys
 import zlib
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from sources import CAPTURES, INVENTORIES, digest, inventory  # noqa: E402
+
 TRACK = Path(__file__).resolve().parents[1] / "search" / "pseudo-stats"
 SHEET = TRACK / "data" / "search-sheet.csv"
-RAW = TRACK / "raw" / "searches"
 PAGES = TRACK / "raw" / "sitting"
 # Which row each of the sheet's links is, for the recorder to name its files by.
 ROWS = Path(__file__).resolve().parent / "sitting-recorder" / "rows.json"
@@ -204,9 +208,13 @@ def read_sheet():
         return list(csv.DictReader(fh))
 
 
+@functools.cache
+def recorded():
+    return inventory(INVENTORIES[CAPTURES])
+
+
 def captured(name):
-    path = RAW / f"{name}-search.json"
-    return path.exists() and path.stat().st_size > 0
+    return recorded().get(f"{name}-search.json", digest(b"")) != digest(b"")
 
 
 def page(name, rows, number, count, following):

@@ -28,10 +28,21 @@ reshapes its items as the extract does. One item to a line.
     tools/trade-captures.py --check     # say what is in raw/ and write nothing
     tools/trade-captures.py --manifest  # print the manifest's rows for what is in raw/
 
+This script is raw/'s one reader; every other script reads the two files it
+writes, which one run writes from one read, so no script joins a local
+capture to a committed extract (the outside review of 555c4f58: a replaced
+capture's marks were joined to the old extract's item by its place and its
+base). So the extract carries what those scripts read: each item's
+`item_class`, the clipboard's `Item Class:` line and nothing else of it,
+and under `census` the eight searches' items, as `bodies.json` holds them.
+`trade_query.fetched` pairs the two files' items, and nothing else does.
+
 A capture is read by `trade_query.capture`, the one reader of one: a search
 file saved empty is a search not yet captured and is passed over, a listing
 the site sent null for is counted and skipped. Nothing is written unless
-both raw directories are present (`sources.require`). A capture
+both raw directories hold what their inventories record
+(`sources.require`): a missing search or page is a refusal, never a smaller
+extract. A capture
 whose returned query is not its own row's is left out of the extract and named
 with the row it does answer: a mislabelled capture is no evidence for its name.
 
@@ -91,12 +102,20 @@ def line(entry):
     }
 
 
+def item_class(raw):
+    """The clipboard's `Item Class:` line, its first (CRLF), or None."""
+    text = (raw.get("extended") or {}).get("text")
+    first = base64.b64decode(text).decode("utf-8", "replace").split("\n")[0].rstrip("\r") if text else ""
+    return first[len("Item Class: "):] if first.startswith("Item Class: ") else None
+
+
 def item(raw):
     extended = raw.get("extended", {})
     return {
         "name": raw.get("name"),
         "typeLine": raw.get("typeLine"),
         "baseType": raw.get("baseType"),
+        "item_class": item_class(raw),
         "rarity": raw.get("rarity"),
         "frameType": raw.get("frameType"),
         "properties": [
@@ -191,8 +210,10 @@ def main():
               f"{entry['ids_returned']} ids; {len(entry['fetched'])} items fetched"
               + (f", {unsent} listings the site sent no item for" if unsent else ""))
     census = {}
+    out["census"] = {}
     for name in CENSUS:
         _, raws, _ = capture(CENSUS_RAW, name)
+        out["census"][name] = [item(r) for r in raws]
         if raws:
             census[name] = [body(r) for r in raws]
     print(f"census: {sum(len(b) for b in census.values())} items over {len(census)} searches")

@@ -13,7 +13,10 @@ the searches are `data/search-sheet.csv`, a person opens each link, a sitting
 is recorded and split by `tools/trade-split.py`. The pages a sitting is
 run from, `raw/sitting/`, are the sheet's links laid out by
 `tools/trade-pages.py`: written again from the sheet at any time, and no
-capture.
+capture. Every capture file the splitter writes under `raw/searches/` is
+recorded with its sha256 in `data/raw-searches.sha256` (`tools/sources.py`),
+which a restore is checked against (`shasum -a 256 -c` in the directory);
+the recordings below are listed here.
 
 A fetch response carries seller accounts and whisper tokens: `raw/`
 only, never `data/`. What is committed is an extract, scrubbed, its

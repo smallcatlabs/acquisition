@@ -72,8 +72,8 @@ TRACK = Path(__file__).resolve().parents[1]
 SEARCH = TRACK.parent
 REPO = SEARCH.parent
 sys.path.insert(0, str(REPO / "tools"))
-from sources import CAPTURES as RAW, COPY, POE1, require  # noqa: E402  the clone, pinned; the raw, local
-from trade_query import capture  # noqa: E402  the one reader of a capture
+from sources import COPY, POE1, require  # noqa: E402  the clone, pinned; the copy, local
+from trade_query import fetched  # noqa: E402,F401  the one pairing of the extract and its bodies, for P.fetched
 OUT = TRACK / "data" / "percentile-check.csv"
 CAPTURES = TRACK / "data" / "captures.json"
 CAPTURE_OUT = TRACK / "data" / "percentile-captures.csv"

@@ -26,7 +26,7 @@ ROOT = os.path.dirname(SEARCH)
 DATA = os.path.join(TRACK, "data")
 
 sys.path.insert(0, os.path.join(ROOT, "tools"))
-from sources import APT, CENSUS, COPY, POB, POE1, require  # noqa: E402  the clones, pinned; the raw, local
+from sources import APT, COPY, POB, POE1, require  # noqa: E402  the clones, pinned; the copy, local
 
 TQ = os.path.join(SEARCH, "trade-query", "data")
 TABLE = os.path.join(ROOT, "crates", "acquisition-search", "reference", "classes-v1.toml")

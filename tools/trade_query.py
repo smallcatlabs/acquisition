@@ -30,6 +30,12 @@ u025, v092, v093) was a crash in one, an empty item in another, and a page
 not written by the splitter. `capture()` reads every page, counts a null
 listing and skips it, and refuses a listing its search did not return, so
 every reader's n-th item is the same item.
+
+Its one caller is the extract (`trade-captures.py`): every other script
+reads the two files the extract writes in one run from one read of raw/,
+paired by `fetched()` and nowhere else (the outside review of 555c4f58: a
+script that joined a local capture to the committed extract by an item's
+place and base took a replaced capture's marks for the old item's).
 """
 
 import csv
@@ -38,7 +44,10 @@ import sys
 import tempfile
 from pathlib import Path
 
-SHEET = Path(__file__).resolve().parents[1] / "search" / "pseudo-stats" / "data" / "search-sheet.csv"
+DATA = Path(__file__).resolve().parents[1] / "search" / "pseudo-stats" / "data"
+SHEET = DATA / "search-sheet.csv"
+EXTRACT = DATA / "captures.json"
+BODIES = DATA / "bodies.json"
 
 
 def bare(node):
@@ -94,11 +103,31 @@ def capture(raw, name):
     return answer, items, unsent
 
 
+def fetched(group="searches", extract=EXTRACT, bodies=BODIES):
+    """{name: [(item, body)]} over `group` ("searches" or "census"): each
+    item fetched as the extract reads it and as the site sent it, in fetch
+    order — the two files `trade-captures.py` writes together, paired here.
+    Refuses two files that do not hold the same searches' items."""
+    items = json.loads(Path(extract).read_text())[group]
+    sent = json.loads(Path(bodies).read_text())[group]
+    out = {}
+    for name, entry in items.items():
+        listed = entry["fetched"] if group == "searches" else entry
+        if len(listed) != len(sent.get(name, [])):
+            raise SystemExit(f"{name}: {Path(extract).name} holds {len(listed)} items and {Path(bodies).name} "
+                             f"{len(sent.get(name, []))}: written apart (tools/trade-captures.py writes both)")
+        out[name] = list(zip(listed, sent.get(name, [])))
+    if sent.keys() - items.keys():
+        raise SystemExit(f"{Path(bodies).name} holds searches {Path(extract).name} does not: written apart")
+    return out
+
+
 def self_test():
     """Captures made here, read by `capture`: a page of items and nulls (a
     crash in the extract, the outside review of 606b4a17), a page of nulls
     alone, a listing its search did not return, pages read in number order,
-    a search or a page saved empty."""
+    a search or a page saved empty; and the two extracts paired, or refused
+    when written apart."""
     def listing(i):
         return {"id": i, "item": {"baseType": i}}
 
@@ -134,7 +163,29 @@ def self_test():
         if not (got == want or isinstance(want, str) and isinstance(got, str) and want in got):
             failed += 1
             print(f"DIFFER  {name}: {got}")
-    print(f"{len(cases)} captures made here read, {failed} differ")
+    # The two extracts paired: by place within a search, every search of both.
+    pairs = [
+        ("each item beside its body, in order",
+         {"s": {"fetched": [{"i": 1}, {"i": 2}]}, "z": {"fetched": []}}, {"s": [{"b": 1}, {"b": 2}]},
+         {"s": [({"i": 1}, {"b": 1}), ({"i": 2}, {"b": 2})], "z": []}),
+        ("a search whose items and bodies differ in number is refused",
+         {"s": {"fetched": [{"i": 1}]}}, {"s": [{"b": 1}, {"b": 2}]}, "written apart"),
+        ("bodies of a search the extract does not hold are refused",
+         {"s": {"fetched": []}}, {"t": [{"b": 1}]}, "written apart"),
+    ]
+    for name, items, bodies, want in pairs:
+        with tempfile.TemporaryDirectory() as tmp:
+            extract, sent = Path(tmp) / "e.json", Path(tmp) / "b.json"
+            extract.write_text(json.dumps({"searches": items}))
+            sent.write_text(json.dumps({"searches": bodies}))
+            try:
+                got = fetched("searches", extract, sent)
+            except SystemExit as refusal:
+                got = str(refusal)
+        if not (got == want or isinstance(want, str) and isinstance(got, str) and want in got):
+            failed += 1
+            print(f"DIFFER  {name}: {got}")
+    print(f"{len(cases)} captures made here read, {len(pairs)} extracts paired, {failed} differ")
     return 1 if failed else 0
 
 

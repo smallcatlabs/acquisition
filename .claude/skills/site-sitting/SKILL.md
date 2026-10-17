@@ -88,8 +88,10 @@ at a time, and the export is every twenty-five links.
 
 6. `tools/trade-split.py <file.har>` says what the recording holds and
    writes nothing; `--write` writes each capture under the name of the
-   row its query answers. The recording stays under `raw/`, never
-   committed; its row goes in the track's `MANIFEST.md`.
+   row its query answers, and records it in the captures' inventory,
+   `data/raw-searches.sha256` (committed with the extract). The
+   recording stays under `raw/`, never committed; its row goes in the
+   track's `MANIFEST.md`.
 7. `tools/trade-captures.py --check`, then without the flag:
    `data/captures.json`, scrubbed, its guard refusing seller data.
 8. `tools/trade-evidence.py`: every capture against each pseudo's
@@ -153,13 +155,18 @@ at a time, and the export is every twenty-five links.
 - **A capture is one unit, read by one reader.** The splitter writes a
   search and every fetch of it together — a page of listings the site
   sent null for too — keeps a capture that differs whole and exits 1,
-  and under `--replace` removes every file of the old one first.
-  Every script reads raw through `tools/trade_query.py`'s `capture()`,
-  which counts a null listing and refuses one its search did not
-  return; each requires its inputs (`tools/sources.py`) and refuses,
-  writing nothing, when one is absent (the outside review of
-  `606b4a17`: a fetch of nulls crashed one reader, and a script without
-  its clone wrote 16 grouping members out).
+  and under `--replace` stages the new one, reads it back, and sets
+  the old one aside until every new file is in. Raw is read by the
+  extract alone, through `tools/trade_query.py`'s `capture()`, which
+  counts a null listing and refuses one its search did not return;
+  every other script reads the extract's two files, paired by
+  `fetched()`. Each requires its inputs (`tools/sources.py`) and
+  refuses, writing nothing, when one is absent — a raw directory is
+  held to its inventory as a clone is to its pin (the outside reviews
+  of `606b4a17` and `555c4f58`: a fetch of nulls crashed one reader, a
+  script without its clone wrote 16 grouping members out, a restore
+  without t01 wrote a smaller extract, and a replaced capture's marks
+  were joined to the old extract's item).
 - **The page posts an empty stats group where the sheet has none**:
   `stats: []` goes out as one `and` group with no filters, so four of
   round i's eight searches were refused by the splitter, and then by the
