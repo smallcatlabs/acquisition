@@ -54,16 +54,24 @@ of this in serial so we don't have to worry about concurrency"; the store: "Let'
   1. `https://www.pathofexile.com/trade/search/Standard/H4sIAAAAAAAAE42R3WrDMAyF3-Vcm9KO7cavUkrwbKUTeHawlFET_O4jDR0tCWG-kfX3cSRNEHU6CuyEPCjnBAuXKpq5ZwT2PEHrQPd4gEHPUaksCQ6wGITGkA-L6TSri13knmDw4-JIM_ubE-zHsRkEFvcZKcD2Lgo1s0MJdFMqrHWFettCXWbYv-T5L5elKyQs6pJfS93k70ntudAe8H1TsHms1ucx6arp1OaSv4mWQ3RP_tPXO6VrLvX1kt6TSC71UDhd0eb3C2hxhVrzAQAA`
   2. `https://www.pathofexile.com/trade/search/Standard/H4sIAAAAAAAAE5WQ2wrCMAyG3yXXRaYiQl9FpMQ1k0LXjCYTxui7yzaRTb0xNzmR708ygihqL2BH4E4DJ7CAaYBi5o6AvYygQ0dz3YOBJkSlvDSCBwudUO95tzgXUp0Jhbxr-UEtJXXSEU2TD4w9TUptSGAPp2LAB8FbJA-2wShUzE-msmJ0FGccRpdJgiimmr6o-6r6ExtD8405_1ruWq6r85e3uFW-CmtUunMetn_NLfd5d2NWgVKKeVXWjA_NjR7m937HqiqTPQEhnjSNwAEAAA`
   3. `https://www.pathofexile.com/trade/search/Standard/H4sIAAAAAAAAE3VPXQvCMAz8L_dchhPxo39FpFSbaaBbS5uJY_S_y9wetgfzkuQuyV1GZLHSZ-gRIQqHDhq2G1DUj8nQ1xEyRPrhDgoNe6E0E-ygQZ_o-cFSTQvmsL-cj6f6tEdRy0DM1LtQzclIEOuN54ag8La-p0m85Q663u2KguNs754cdGN9pnIrt5Xq7Mas-lX5sELPkIbtO6kNfaryi8k7lFLUAv05YtPG0BRfIcEDZicBAAA`
-  Before the briefs are committed the session decodes each in the
-  world (`--print-request`) and records what each translates to and
+  4. `https://www.pathofexile.com/trade/search/Standard/H4sIAAAAAAAAE12OMQ6AIBAE_7I1jYkVXzHGYDj1EgUCR0EIfzdSqVvtzjRbkcRITtAVPgh7Bw3jCprqJkFPFVICdW6hsPEpFB8xt_k1Ky4Tltf8GWGKvbODHsamOl1P3g8h-zkgMRPakxv0ojqsoAAAAA`
+  5. `https://www.pathofexile.com/trade/search/Standard/H4sIAAAAAAAAE52OUQuCQBCE_8s8H1FqCPtXQuLyVlu4VLy1kuP-e5wU-Nzj7Mx8OxFBrS4BFDFOKuMAgh1WJLM5AXSJ0HXi7e5g0IlXnrPRJBN3MkIcCPyevLSih9y_lmVdnIuqqGoYPK1fOL96sfR3BZ2SgZNgb54dqLM-cGZunNCOy9zzv5jG_GZ_U7veQwZQeUypSR_2XspvAQEAAA`
+  6. `https://www.pathofexile.com/trade/search/Standard/H4sIAAAAAAAAEyWMUQqDMBAF7_K-Q1ErtO5VipS0WWEhjaG7SiXk7kX9nWGmQM3boqCCOZvMCQSfNlR3GAU9CmzLfPAAh0mi8fcUEkDgX47yFrvswfM6tLf-PrR9B4fVx4X390cSqGuqQxD1r8gBNPmoXMc61j_RF1xohgAAAA`
+  The last three the owner built on the site for the tasks below, on
+  the store's measure (2026-10-17): a blighted map by its tier, a
+  weighted sum over explicit and scourge Fire Resistance, a bound on
+  `increased` Rarity. Before the briefs are committed the session
+  decodes each in a world copied from the pristine store, made before
+  step 1 for this (`--print-request`) and records what each translates to and
   with what remainder, in its handoff and nowhere the runner reads; a
   URL the build refuses is reported to the owner, never swapped.
 - The tasks step 8 names (`search/TRADE-PLAN.md`): a URL from a
   friend, what in my stash matches, in a person's words; one of them
-  bounding an `increased` stat; a map searched by its Base; a weighted
-  sum over a scourge stat. The three URLs are the material for the
-  first; the other three are composed by the writer in a person's
-  words, each confirmed to run on the build.
+  bounding an `increased` stat; a map; a weighted sum over a scourge
+  stat. The six URLs are their material, each handed over in a
+  person's words and confirmed to run on the build. A map by its Base
+  was asked and is not here: the site's form offers no tiered map Base,
+  so `blighted-base` stays the sitting's (`TRADE-SLICE.md`).
 
 ## Steps, each with its acceptance
 
@@ -126,7 +134,7 @@ of this in serial so we don't have to worry about concurrency"; the store: "Let'
    world (the mock-session skill) before it is believed; the record
    says how many calls were read against each report. A fault that is
    a ruling's consequence — the stat-value park's trigger meeting its
-   evidence, `blighted-base`, `scourge-in-sum` — goes to the owner
+   evidence, `scourge-in-sum` — goes to the owner
    before the round, not to the reviewer. A difference between the two
    surfaces' answers to one task is a finding of its own.
 7. **The fix round.** One commit per fault, each held by a test in

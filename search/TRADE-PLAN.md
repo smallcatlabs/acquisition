@@ -68,10 +68,14 @@ the next. Steps 0 to 7: the brief at `77666ea4`.
    from a friend, what in my stash matches, in a person's words — one
    of them bounding an `increased` stat, so the named stat value's park
    (`decisions/trade.md`) meets its trigger or does not, on evidence;
-   and, where a person would, a map searched by its Base and a weighted
-   sum over a scourge stat, so the two questions 7f labelled
-   (`blighted-base`, `scourge-in-sum`: `tests/trade-oracle.toml`) meet a
-   reader;
+   and a weighted sum over a scourge stat, so `scourge-in-sum`
+   (`tests/trade-oracle.toml`) meets a reader; each a site search the
+   owner built in a browser. `blighted-base` meets none: the site's
+   form offers no tiered map Base (its item list,
+   `search/trade-query/data/items-2026-09-12.json`: 6,005 types, none
+   naming a tier, a map's base the one type `Map`), so a person cannot
+   make the shape t55's composed URL asked, and it stays the sitting's
+   (2026-10-17);
    the fix round inside the step (V6), its faults held by
    `tests/seat_faults.rs`, anything new a park with a trigger.
 9. **Close.** `TRADE-SLICE.md` gains the seat's rows and is cut to
@@ -113,10 +117,10 @@ the next. Steps 0 to 7: the brief at `77666ea4`.
   ambiguous by `stat.text.forms`, naming the named stat value's park
   (`decisions/trade.md`); the seat's `increased` ask meets its trigger
   or does not, on evidence.
-- `blighted-base` (`query.type.map`) and `scourge-in-sum`
-  (`stat.scourge.summed`, e043): `tests/trade-oracle.toml`, labelled;
-  the seat's map by its Base and weighted sum over a scourge stat meet
-  a reader.
+- `scourge-in-sum` (`stat.scourge.summed`, e043):
+  `tests/trade-oracle.toml`, labelled; the seat's weighted sum over a
+  scourge stat meets a reader. `blighted-base` (`query.type.map`) is the
+  sitting's alone: no seat reaches it (step 8).
 - Each its note's, for the next sitting: the crucible mark (t54 did not
   part its readings); which number a many-numbered text compares;
   grafts, listed in no league; Maven's Invitations, listed and no item

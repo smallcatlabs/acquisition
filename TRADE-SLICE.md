@@ -142,6 +142,10 @@ number here was measured, never recalled.
   (Recommended)". Step 7f: "yes, go ahead, including 7f".
 - This record and `decisions/trade.md` (2026-10-17): "i accept your
   recommendations. go ahead".
+- The seat's site searches (2026-10-17): "You make them on the site
+  (Recommended)"; the map search by tier and blighted, the site's form
+  offering no tiered Base: "yes, agreed, and record what we found
+  before proceeding".
 
 ## Where the open observations went
 
@@ -149,7 +153,7 @@ number here was measured, never recalled.
 | --- | --- |
 | A bound on a stat with an opposite-sign or numberless form | the named stat value park (`decisions/trade.md`); the clause ambiguous by `stat.text.forms`; the seat's `increased` ask |
 | e043's weighted sum of 28, a scourge stat in a weighted sum | `stat.scourge.summed`; the user-authored weighted sums park; the seat's `scourge-in-sum` |
-| `blighted-base`: the site's Base reads `Blighted Map (Tier 13)` as `Map (Tier 13)` | `query.type.map`; the seat |
+| `blighted-base`: the site's Base reads `Blighted Map (Tier 13)` as `Map (Tier 13)` | `query.type.map`; the sitting alone — the site's form offers no tiered map Base (its item list, `search/trade-query/data/items-2026-09-12.json`: 6,005 types, none naming a tier, a map's base the one type `Map`): a person cannot make the shape t55's composed URL asked, so no seat reaches it (2026-10-17) |
 | The crucible mark (t54 did not part its readings) | its note; the next sitting |
 | Which number a many-numbered text compares | its note; the next sitting |
 | Grafts, listed in no league; Maven's Invitations, listed and no item sent | its note; `map.invitation` met no item the oracle could read |
