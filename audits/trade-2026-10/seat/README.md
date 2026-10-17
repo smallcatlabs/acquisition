@@ -38,8 +38,15 @@ the session's at list price.
 | Run | Model | Session | Calls | Cut | Turns | Cost | Files |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | cli-opus | `claude-opus-5-5` | `b12c3dbb` | 34 | none | 46 + 2 | $2.27 | `calls-cli-opus.csv`, `REPORT-cli-opus.md`, `DEBRIEF-cli-opus.md` |
+| mcp-opus | `claude-opus-5-5` | `493d51e7` | 39 | call 9 (`tabs`, 745,672 bytes) | 57 + 2 | $3.60 | `calls-mcp-opus.csv`, `REPORT-mcp-opus.md`, `DEBRIEF-mcp-opus.md` |
 
 cli-opus: one command denied by the rails (a shell line not starting
 with the door), run again through it; one file read outside W — the
 harness's own spill of calls 9 and 10's joined output, named in the
 report's "Left out" and the debrief's answer 7.
+
+mcp-opus: one door call denied by the rails — a heredoc whose JSON
+body held escaped quotes and a `#`, refused by the harness's permission
+check before the door ran — sent again inline (call 26). The harness
+moved call 10's 31 KB result to a file the runner did not open, so call
+10 went unread; the door's cut of call 9 is the one `head` row.
