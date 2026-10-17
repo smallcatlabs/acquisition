@@ -49,18 +49,6 @@ Only the **cross-cutting** decisions are here, because an agent must know them b
 - **C79 — Surfaces GGG does not sanction — the trade site, the forums, third-party feeds — are governed inputs, never runtime dependencies, and permission attaches to the access method.** The daemon never touches them; no store read, plan compile or apply depends on one; each is registered with its status, terms exposure, access method and cadence. A human may read one; tooling fetches one only from an official export or with explicit permission recorded in its entry. What a surface yields lands as claims or reviewed reference data, sources cited. One used as an *effect* needs its own boundary session first. *Why:* Acquisition predates the API and has always used such surfaces; the relationship is protected by keeping them deliberate, not by pretending otherwise. Ruled 2026-09-03.
 - **C110 — The Rust workspace is MIT OR Apache-2.0, and nothing in it derives from the expression in a C++ file whose copyright header names anyone but the owner.** The C++ app stays GPL-3.0. Its behaviour and GGG's facts may be read and distilled, cited by claim or `acquisition-qt@<hash>`; nothing is ever transcribed. *Why:* the C++ tree has 12 blame authors and the Rust tree must stay relicensable by one; the owner's and contributors' copyright is the only thing the licence files assert. Audited 2026-10-11 at 6ce6500f: 0 shared comment runs, 20 shared literals all game words, 54 reader findings none copied at HEAD; one superseded draft (51a33751) copied the C++ currency aliases and stays GPL in history — owner: "accepted". *Evidence:* `audits/relicense-2026-10/`. Ruled 2026-10-11.
 
-## Interfaces (boundaries are specified; internals are not)
-
-None of these interfaces are locked down more than anything else in this document.
-
-### Daemon job protocol
-
-The live definition is `crates/acquisition-protocol/src/protocol.rs` (request/response/event enums, job states). Its boundary properties are the decision lines above; the verb list is internals.
-
-### CLI shape
-
-The live verb list is `acq --help`; the README's tour shows the shape. Properties: default mode is blocking-with-progress ("rate limited, starting in ~4m37s..."), `--detach` is the async/job mode; `--json` on every command is C11, and what `daemon status|stop` are for is C3.
-
 ## Parked (cross-cutting only; do not build yet)
 
 Scope deferred with its trigger, so deferral never needs re-arguing: something someone would propose and the project has decided not to make yet. A trigger nobody could observe is rot (accepted by the owner 2026-10-12). An area's parked items and open questions live in its `decisions/<area>.md` under "Parked", read before touching the area; only what crosses every area is here. An entry is deleted in the commit that builds it, never because its trigger fired; one whose trigger has fired and that nothing has built yet stays and names the step or slice that builds it. A trigger names evidence, never a point in the sequence; a step of the sequence note schedules a park by pointing at it, and the park keeps its trigger. An entry is the item, where it lands, and the trigger that reopens it, with at most one clause of why; a workaround is a README known gap, history is git.
