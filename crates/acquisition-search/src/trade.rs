@@ -1,5 +1,5 @@
 //! The trade boundary (C99, C113; the contract detail K6 in
-//! `decisions/search.md`, its id's form taken here): a site search URL, its
+//! `decisions/trade.md`, its id's form taken here): a site search URL, its
 //! id or its query JSON, decoded with no network. The brief is
 //! `search/TRADE-PLAN.md`.
 //!
@@ -324,7 +324,7 @@ fn trade(message: impl Into<String>) -> LanguageError {
 
 fn poe2(what: &str) -> LanguageError {
     trade(format!(
-        "{what}: the import is inbound for PoE1 only; PoE2's trade data is parked (decisions/search.md)"
+        "{what}: the import is inbound for PoE1 only; PoE2's trade data is parked (decisions/trade.md)"
     ))
 }
 

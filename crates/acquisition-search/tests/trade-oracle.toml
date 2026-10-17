@@ -86,7 +86,7 @@ cites = "the site files a stat's other displays under its id: an elided 100 % (`
 key = "map-tier-unnamed"
 home = "ruling"
 row = "map_filters.map_tier"
-cites = "the site gives Shaper Guardian Map, whose base names no tier, tier 16 (u065); `map_tier` reads the base's `(Tier N)` alone; the owner, 2026-10-16: \"Let's do a tier table for maps, either now or parked for later based on your judgement\" — parked, no registered source holding tiers (decisions/search.md); until it is built such a map is ambiguous under `map_tier`"
+cites = "the site gives Shaper Guardian Map, whose base names no tier, tier 16 (u065); `map_tier` reads the base's `(Tier N)` alone; the owner, 2026-10-16: \"Let's do a tier table for maps, either now or parked for later based on your judgement\" — parked, no registered source holding tiers (decisions/trade.md); until it is built such a map is ambiguous under `map_tier`"
 
 [[finding]]
 key = "scourge-in-sum"

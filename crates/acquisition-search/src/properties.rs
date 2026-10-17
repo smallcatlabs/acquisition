@@ -1,4 +1,4 @@
-//! The property fields (C114, C101, C106; step 3 of
+//! The property fields (C114, C101, C106, `decisions/trade.md`; step 3 of
 //! `search/TRADE-PLAN.md`): every numeric property the trade site's
 //! filters read, a field named by its displayed name — `quality`,
 //! `attacks_per_second`, `wings_revealed.of` — defined once, in one table,

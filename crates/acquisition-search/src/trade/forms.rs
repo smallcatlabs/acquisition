@@ -1,4 +1,4 @@
-//! The forms table (C113, C106; step 7e of `search/TRADE-PLAN.md`): the
+//! The forms table (C113, C106, `decisions/trade.md`; step 7e of `search/TRADE-PLAN.md`): the
 //! other ways the game displays a stat the trade site files under one id —
 //! the opposite word below nothing, a number the display leaves out, a
 //! plural, another wording — read by the translation alone
@@ -14,7 +14,7 @@
 //!   which elide to a numberless display, the exceptions — reference data
 //!   (C106) read by the translation alone, so the park lifts it rather than
 //!   finds it again". The park is "A named stat value"
-//!   (`decisions/search.md`).
+//!   (`decisions/trade.md`).
 //! - **The game's forms first, the brief's rules beside** (the owner,
 //!   2026-10-17, during 7e, choosing "Game data, rules beside"): the
 //!   brief's blanket rules named forms the game never shows — `#% chance

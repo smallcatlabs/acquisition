@@ -414,7 +414,7 @@ shape = "minmax"
 disposition = "ambiguous"
 lands = "map_tier{bounds}"
 fields = ["map_tier"]
-note = "no map of the store copy displays a Map Tier property; the tier is the number in the base type, `Map (Tier 16)`, `Blighted Map (Tier 13)`, read by a field over the base (C101): on the census's copy of 2026-09-13, 1,105 maps over 35 bases, 48 of them unique maps whose base carries it too; a base with none lacks it, where the site gives such a map a tier (u065: Shaper Guardian Map at 16) — ambiguous until a tier table is built, the park \"A map tier table\" (decisions/search.md; the owner, 2026-10-16: \"Let's do a tier table for maps, either now or parked for later based on your judgement\")"
+note = "no map of the store copy displays a Map Tier property; the tier is the number in the base type, `Map (Tier 16)`, `Blighted Map (Tier 13)`, read by a field over the base (C101): on the census's copy of 2026-09-13, 1,105 maps over 35 bases, 48 of them unique maps whose base carries it too; a base with none lacks it, where the site gives such a map a tier (u065: Shaper Guardian Map at 16) — ambiguous until a tier table is built, the park \"A map tier table\" (decisions/trade.md; the owner, 2026-10-16: \"Let's do a tier table for maps, either now or parked for later based on your judgement\")"
 
 [[row]]
 key = "map_filters.map_packsize"

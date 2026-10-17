@@ -1,4 +1,4 @@
-//! The stat table (C113, C106; K6, taken by `translate.rs`; step 2 of
+//! The stat table (C113, C106, `decisions/trade.md`; K6, taken by `translate.rs`; step 2 of
 //! `search/TRADE-PLAN.md`): the trade site's stat ids in its six hash
 //! categories, to the text the site displays for each — the vocabulary
 //! the translation writes a `line("…")` from (step 4), and nothing else

@@ -14,7 +14,7 @@ there, and its rules are below. The full text as it stood in the plan —
 every audit round in its own section, the step 4b brief, the first
 showing of the store's read — is the plan at `2d25cb03`.
 
-The rulings are `decisions/search.md` (C89–C107) and `decisions/store.md`
+The rulings are `decisions/search.md` (C89–C107; C99 in `decisions/trade.md` since the split) and `decisions/store.md`
 (C108); the language is `acq search --describe` and the contract
 detail the crate's module docs; the acceptance set and the limits
 register are `search/DIGEST.md`; the rows — the step ledger, the holes
