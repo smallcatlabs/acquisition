@@ -54,6 +54,7 @@ refresh and daemon split, also read the crates' module docs (refresh:
 | store, planner or plan slice | `REFRESH-SLICE.md` |
 | protocol, client, daemon lifecycle or world | `DAEMON-SPLIT-SLICE.md` |
 | item search | `SEARCH-SLICE.md` |
+| the trade import (open) | `TRADE-SLICE.md` |
 | platform arms, packaging or release | `PLATFORMS-SLICE.md` |
 
 Facts about GGG live in `docs/design/network-ground-truth.md` (and the

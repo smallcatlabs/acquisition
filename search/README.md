@@ -104,7 +104,7 @@ the surface, history: files 10 and 11 are what was harvested, and the
 owner's words are whole in file 11. The build ran under
 `BUILD-PLAN.md`, the brief, deleted at the close and whole at
 `453a4429`; the inbound trade translation (note 36, step 3) runs under
-`TRADE-PLAN.md`, opened 2026-10-15; what it met is the record, its rows — the step ledger, the
+`TRADE-PLAN.md`, opened 2026-10-15, its record `TRADE-SLICE.md`; what the search's build met is its record, its rows — the step ledger, the
 holes ruled — `LEDGER.md`, looked up by the row, and its measurements —
 the tables, commands and numbers on the owner's copy — `MEASUREMENTS.md`,
 read by the block named. What a step saw that stayed open is a park in

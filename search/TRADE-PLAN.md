@@ -6,7 +6,7 @@ contract detail K6); closes by 2026-11-15. This file is the brief the
 build runs under, in the mold of `search/BUILD-PLAN.md` at `453a4429`:
 the steps, each with its acceptance, what the build owes, and what it
 leaves out. It is deleted at the close and cited at its commit; the
-record is `SEARCH-SLICE.md`, which gains the step's rows. The slice's
+record is `TRADE-SLICE.md`, opened 2026-10-17. The slice's
 rules 1 to 10 (`SEARCH-SLICE.md`, "The plan's rules") bind every step
 below as they bound the search's, and its shapes of fault are the
 review's checklist. Reviewed from outside before the build (Astra with
@@ -165,10 +165,10 @@ grows at 3 so that 4's text parses on the build that writes it.
    reader;
    the fix round inside the step (V6), its faults held by
    `tests/seat_faults.rs`, anything new a park with a trigger.
-9. **Close.** `SEARCH-SLICE.md` gains the step's rows (its budget is
-   24,000 bytes; 21,355 at opening — a record of its own if it does
-   not fit); the park entry rewritten; `search/README.md`'s tracks
-   table; this file deleted; the session-close skill.
+9. **Close.** `TRADE-SLICE.md` gains the seat's rows and is cut to
+   its closed form; the park entries rewritten (`decisions/trade.md`,
+   `decisions/search.md`); `search/README.md`'s tracks table; this
+   file deleted; the session-close skill.
 
 ## What the build owes
 

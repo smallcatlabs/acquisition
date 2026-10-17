@@ -95,6 +95,7 @@ budget README.md       15000
 budget LIVE-TESTING.md 15000
 budget SEARCH-SLICE.md 24000  # the closed record, read whole before a search change: the plan's rules, the shapes of fault and a verdict per measurement. Its rows are search/LEDGER.md and its tables search/MEASUREMENTS.md, neither budgeted: a line per step and per hole, a block per measurement, each looked up and never loaded whole
 budget decisions/search.md 28000
+budget TRADE-SLICE.md   16000  # the trade import's record, open until step 9: its step ledger, shapes of fault, verdicts and where each observation went
 budget decisions/trade.md  16000  # the trade boundary, split from search 2026-10-17: C99, C113, C114, the contract detail and the parks the outbound half and PoE2 will grow
 # search/M3-LEDGER.md has no budget: one row per M3 run, append-only.
 # RUN-LEDGER.md has no budget: one row per live run, append-only by
@@ -137,7 +138,7 @@ done <"$reg"
 ids=$(grep -oE '^- \*\*C[0-9]+' "$reg" | sed 's/^- \*\*//' | sort -u)
 count=$(printf '%s\n' "$ids" | grep -c .)
 if ((over > 0)); then fail=1; else printf 'ok      %-18s %5d decisions, every entry within %d bytes\n' registry "$count" "$ENTRY_LIMIT"; fi
-cited=$(grep -rhoE '\bC[0-9]+\b' crates tools README.md search/DIGEST.md LIVE-TESTING.md RUN-LEDGER.md TESTING-NOTES.md SURFACES.md REFRESH-SLICE.md PRICING-SLICE.md SEARCH-SLICE.md search/MEASUREMENTS.md search/LEDGER.md DAEMON-SPLIT-SLICE.md NETWORK-CLEANUP.md PLATFORMS-SLICE.md AGENTS.md .claude 2>/dev/null \
+cited=$(grep -rhoE '\bC[0-9]+\b' crates tools README.md search/DIGEST.md LIVE-TESTING.md RUN-LEDGER.md TESTING-NOTES.md SURFACES.md REFRESH-SLICE.md PRICING-SLICE.md SEARCH-SLICE.md TRADE-SLICE.md search/MEASUREMENTS.md search/LEDGER.md DAEMON-SPLIT-SLICE.md NETWORK-CLEANUP.md PLATFORMS-SLICE.md AGENTS.md .claude 2>/dev/null \
   --include='*.rs' --include='*.sh' --include='*.py' --include='*.md' | sort -u)
 unknown=$(comm -13 <(printf '%s\n' "$ids") <(printf '%s\n' "$cited") | grep . || true)
 if [[ -n $unknown ]]; then
@@ -155,7 +156,7 @@ rm -f "$reg"
 # that resolves only because another branch is fetched dies in a clone
 # of this branch: five did on 2026-10-11, master-side twins of
 # cherry-picked ground-truth commits and one review-branch commit.
-governed=(crates tools README.md search/DIGEST.md LIVE-TESTING.md RUN-LEDGER.md TESTING-NOTES.md SURFACES.md REFRESH-SLICE.md PRICING-SLICE.md SEARCH-SLICE.md search/MEASUREMENTS.md search/LEDGER.md DAEMON-SPLIT-SLICE.md NETWORK-CLEANUP.md PLATFORMS-SLICE.md AGENTS.md CONTEXT.md decisions .claude)
+governed=(crates tools README.md search/DIGEST.md LIVE-TESTING.md RUN-LEDGER.md TESTING-NOTES.md SURFACES.md REFRESH-SLICE.md PRICING-SLICE.md SEARCH-SLICE.md TRADE-SLICE.md search/MEASUREMENTS.md search/LEDGER.md DAEMON-SPLIT-SLICE.md NETWORK-CLEANUP.md PLATFORMS-SLICE.md AGENTS.md CONTEXT.md decisions .claude)
 revs=$(git rev-list HEAD)
 dead=0; checked=0
 while read -r h; do
@@ -507,7 +508,7 @@ fi
 # never a judgment call. The notes are not scanned for citations of each
 # other — a note cannot keep another alive.
 notes=$(ls brainstorming-notes/*.md 2>/dev/null | sed -E 's#.*/([0-9]+)-.*#\1#' | sort -u)
-note_cites=$(grep -rhoE 'brainstorming-notes[/ ][0-9]+' crates tools README.md CONTEXT.md AGENTS.md LIVE-TESTING.md RUN-LEDGER.md TESTING-NOTES.md SURFACES.md REFRESH-SLICE.md PRICING-SLICE.md SEARCH-SLICE.md DAEMON-SPLIT-SLICE.md NETWORK-CLEANUP.md PLATFORMS-SLICE.md decisions search .claude 2>/dev/null \
+note_cites=$(grep -rhoE 'brainstorming-notes[/ ][0-9]+' crates tools README.md CONTEXT.md AGENTS.md LIVE-TESTING.md RUN-LEDGER.md TESTING-NOTES.md SURFACES.md REFRESH-SLICE.md PRICING-SLICE.md SEARCH-SLICE.md TRADE-SLICE.md DAEMON-SPLIT-SLICE.md NETWORK-CLEANUP.md PLATFORMS-SLICE.md decisions search .claude 2>/dev/null \
   --include='*.rs' --include='*.sh' --include='*.py' --include='*.md' | sed -E 's#.*[/ ]##' | sort -u)
 gone=$(comm -13 <(printf '%s\n' "$notes") <(printf '%s\n' "$note_cites") | grep . || true)
 if [[ -n $gone ]]; then
