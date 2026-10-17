@@ -1,5 +1,5 @@
-//! The forms table (C113, C106; step 7e of `search/TRADE-PLAN.md`, "The
-//! choice before 7e"): the other displays of a stat the trade site files
+//! The forms table (C113, C106; step 7e of the trade brief,
+//! `search/TRADE-PLAN.md` at `77666ea4`, "The choice before 7e"): the other displays of a stat the trade site files
 //! under one id, read by the translation alone.
 //!
 //! - **The vocabulary is walked** and every form the game, a rule or a row

@@ -29,7 +29,8 @@
 //!   whose note leaves it to one — is ambiguous until one has.
 //! - **What step 7's sitting settled, built at 7e** (the owner, 2026-10-16:
 //!   "I accept all your recommendations"; 2026-10-17, "The choice before
-//!   7e" in `search/TRADE-PLAN.md`: the translation alone ships, a named
+//!   7e" in the brief at `77666ea4` and `brainstorming-notes/37-the-stat-value.md`:
+//!   the translation alone ships, a named
 //!   stat value is parked). A site stat is the item's stat however
 //!   displayed: a bound on it is `sum(line(T source=…).arg1)` over the
 //!   sources the id admits — an explicit id holds the stat's crafted and

@@ -139,7 +139,7 @@ CITES = {
     "J33": "LEDGER 9d, J33 (2026-10-08): the percentile is a value only where what the item shows gives one "
            "value from lines whose side is established; anywhere else it is undecided, and the reason says "
            "which part failed",
-    "t54": "the trade brief's step 7 (search/TRADE-PLAN.md, `What step 7 found`; the owner, 2026-10-16: "
+    "t54": "the trade brief's step 7 (search/TRADE-PLAN.md at 77666ea4, `What step 7 found`; the owner, 2026-10-16: "
            "`I accept all your recommendations`): the site reads a defence line in `crucibleMods` as the "
            "item's own (t54: 59) — J33's `until the site is asked`, asked; built at step 7f",
     "J34": "LEDGER 9d, J34 (2026-10-08; the owner: `keep reads over 100`): a roll over the base's maximum "
