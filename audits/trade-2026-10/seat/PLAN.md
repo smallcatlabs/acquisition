@@ -70,14 +70,16 @@ of this in serial so we don't have to worry about concurrency"; the store: "Let'
 0. **The doors.** The CLI door (`.claude/skills/seat/seat.py`) takes
    its world root and the directory of the binaries it runs as
    arguments instead of deriving them from the repository, and gains a
-   `debrief` command beside `report`, appending to `DEBRIEF.md`. The
+   `debrief` command beside `report`, appending to the world's
+   `DEBRIEF.md`. The
    MCP door comes back from `8da019ad` into the skill's directory beside
    it, with the same arguments, the same `calls.csv` row per call and
    the same `report` and `debrief`, driving the release `acq-mcp` over
    stdio; the skill's text names both. Nothing a runner can reach spawns
    a daemon or touches the real provider: every command carries the
    mock provider, the world's store directory and no-spawn (C88).
-   *Acceptance:* each door, in a scratch world outside the repository:
+   `login` needs a daemon, so it works only in a world set up with
+   `--daemon`; this seat's worlds never have it. *Acceptance:* each door, in a scratch world outside the repository:
    setup, one call, `report`, `debrief`, teardown, with the row and the
    files as described; the gate green.
 1. **The briefs.** `TASKS.md` (shared: `T0` orient before touching
@@ -86,16 +88,19 @@ of this in serial so we don't have to worry about concurrency"; the store: "Let'
    is, the two things the runner may read, the door's commands and that
    nothing else touches the tool, outputs read as printed, the world,
    the report's headings, the acceptance sentence, the last message of
-   at most 300 words), and `DEBRIEF.md` (the questions below, verbatim,
-   identical for both). *Acceptance:* committed; **review 1**, outside,
+   at most 300 words), and `DEBRIEF-QUESTIONS.md` (the questions below,
+   verbatim, identical for both; the answers are the world's
+   `DEBRIEF.md`). *Acceptance:* committed; **review 1**, outside,
    reads the briefs for an expectation that leaks, a task the build
    refuses, and a world the door cannot make; its findings fixed and
    committed before any build or run.
 2. **The build and the worlds.** `cargo build --release -p
    acquisition-cli -p acquisition-mcp` and the store copier, once; the
    binaries copied into each world, their sha256 in the handoff and the
-   record; the store copy made once, the daemon stopped, and the same
-   copy given to both worlds. Worlds live outside the repository, under
+   record; the store copy made once, the daemon stopped, into a world
+   nobody runs in (`setup --facts`), and every run's world, the Sonnet
+   round's too, copied from that one (`setup --store`), since a runner
+   may write its world's store. Worlds live outside the repository, under
    the owner's home, one directory per surface holding the brief, the
    tour copy (CLI), the door, the binaries and the store; nothing else.
    *Acceptance:* the door's setup reports the world; no build runs from
@@ -105,7 +110,9 @@ of this in serial so we don't have to worry about concurrency"; the store: "Let'
    brief's path and the prohibitions, nothing of what is expected. When its
    report is written, a second message carries the debrief, answered
    through the door. `calls.csv`, `REPORT.md`, `DEBRIEF.md` copied into
-   this directory and committed as the run's record. *Acceptance:* the
+   this directory as `calls-cli-opus.csv`, `REPORT-cli-opus.md` and
+   `DEBRIEF-cli-opus.md` (each run by its surface and model) and
+   committed as the run's record. *Acceptance:* the
    report cites calls by number; the debrief's last answer is to the
    open question.
 4. **The Opus MCP run.** The same, a fresh subagent, launched after
@@ -168,6 +175,12 @@ numbers where it can and marked "impression" where it cannot:
   made once, the owner's files never written (C35).
 - Nothing reaches GGG: the doors set the mock provider, the world's
   store and no-spawn on every command; this seat needs no daemon.
+- A cut is the door's, never the tool's: both doors show a result
+  whole up to 60,000 bytes and then its first 3,000 characters, say so
+  where they cut, and mark the row `head` in `calls.csv`; a host's own
+  limit is another matter. A fault that rests on a cut row is read
+  against the whole output in the world's `calls/` before it is the
+  tool's, and the record names the rule beside the runs it touched.
 - A brief's expectation leak found at review 1 is fixed before the run,
   not noted for after.
 
