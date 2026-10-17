@@ -16,7 +16,7 @@ each link).
     tools/trade-split.py <file.har> --write --replace   # and overwrite a capture that differs
     tools/trade-split.py <file.har> --shape    # write search/pseudo-stats/data/recording-shape.csv
     tools/trade-split.py <folder>              # the recorder's files, read as one recording
-    tools/trade-split.py --self-test           # split recordings made here, the fetch's search held
+    tools/trade-split.py --self-test           # split and write recordings made here
 
 **The recorder's folder is one recording.** `tools/sitting-recorder`, loaded
 in the browser, saves each search and each fetch as it is answered, a file of
@@ -39,12 +39,20 @@ and no other header, and says whether the file holds a cookie at all. Export
 the recording sanitized where the browser offers it, keep it under raw/ (never
 committed), and delete it once the captures are written.
 
+**A capture is one unit.** A search and every fetch of it are written
+together or not at all, each page as the site sent it — a fetch of listings
+the site sent null for too, which the one reader of a capture counts
+(`trade_query.capture`). A capture on disk that differs is kept whole, and
+the run exits 1; under --replace every file of it is removed before the new
+one is written, so no page of an old capture outlives it (the outside review
+of 606b4a17: a capture was compared and kept file by file, and a run that
+kept some exited 0).
+
 What it refuses: a search response whose query is no row of the sheet (named,
 not written); a fetch of no search in the recording, or of searches of two
-rows with no item to tell them apart; a row answered twice with different
-results (the later one kept only under --replace); a capture already on disk
-with other bytes. A fetch of listings the site sent no item for is its
-search's and is not written.
+rows with no item to tell them apart; a search with a fetch that recorded no
+answer; a row answered twice with different results (the later one kept,
+whole, only under --replace); a capture already on disk with other files.
 """
 
 import base64
@@ -52,6 +60,7 @@ import csv
 import gzip
 import json
 import sys
+import tempfile
 import urllib.parse
 from pathlib import Path
 
@@ -145,11 +154,15 @@ def walk(har, rows):
         if search:
             names = [] if call["query"] is None else asking(league_of(url.path), call["query"], rows)
             # One query asked by several rows (round k re-asked four of round j's,
-            # 2026-10-04): the search is named for the first row that has none yet,
-            # on disk or in this recording, so every sitting's answer is kept under
-            # the row that asked it that day; a query no row asks is refused.
+            # 2026-10-04): the search is named for the row whose capture on disk is
+            # this answer, else the first row that has none yet, on disk or in this
+            # recording, so every sitting's answer is kept under the row that asked
+            # it that day and a recording splits the same the second time; a query
+            # no row asks is refused.
+            mine = [n for n in names if n not in taken and raw is not None
+                    and (RAW / f"{n}-search.json").exists() and (RAW / f"{n}-search.json").read_bytes() == raw]
             free = [n for n in names if n not in taken and not (RAW / f"{n}-search.json").exists()]
-            call.update(row=(free or names or [None])[0], ids=set(answer.get("result", [])) if answer else set(),
+            call.update(row=(mine or free or names or [None])[0], ids=set(answer.get("result", [])) if answer else set(),
                         total=answer.get("total") if answer else None, fetches=[])
             taken.add(call["row"])
         else:
@@ -175,11 +188,13 @@ def self_test():
     """The fetch's search, held on recordings made here (the outside review
     of step 7): one query asked in two leagues, a fetch after each, with
     bodies and without; a fetch of no search; a fetch the site sent no item
-    for. Rows named so that no capture on disk is one of them."""
+    for; a query two captured rows ask, split again. Each over a raw
+    directory made here."""
     query = {"query": {"status": {"option": "any"}, "type": "Chart"}}
     token = base64.urlsafe_b64encode(gzip.compress(json.dumps(query["query"]).encode())).decode().rstrip("=")
     other = base64.urlsafe_b64encode(gzip.compress(b'{"type":"Other"}')).decode().rstrip("=")
-    rows = {"self-a": ("Standard", query["query"]), "self-b": ("Allflame", query["query"])}
+    rows = {"self-a": ("Standard", query["query"]), "self-b": ("Allflame", query["query"]),
+            "self-c": ("Standard", query["query"])}
 
     def search(league, ids, bodies=True):
         text = json.dumps({"id": token, "result": ids, "total": len(ids)}) if bodies else None
@@ -192,8 +207,18 @@ def self_test():
         return {"startedDateTime": "", "request": {"url": f"https://x/api/trade/fetch/{','.join(ids)}?query={of}"},
                 "response": {"status": 200, "content": {"size": 1, **({"text": text} if text else {})}}}
 
-    def rows_of(entries):
-        return [(c["kind"], c["row"], bool(c["why"])) for c in walk({"log": {"entries": entries}}, rows)]
+    def rows_of(entries, on_disk=None):
+        global RAW
+        kept, RAW = RAW, Path(tempfile.mkdtemp())
+        try:
+            for f, data in (on_disk or {}).items():
+                (RAW / f).write_text(data)
+            return [(c["kind"], c["row"], bool(c["why"])) for c in walk({"log": {"entries": entries}}, rows)]
+        finally:
+            for f in RAW.iterdir():
+                f.unlink()
+            RAW.rmdir()
+            RAW = kept
 
     cases = [
         ("a fetch is the search's it follows, in its league",
@@ -214,14 +239,64 @@ def self_test():
         ("a fetch the site sent no item for: its search's",
          [search("Allflame", ["b1"]), fetch(["b1"], sent=False)],
          [("search", "self-b", False), ("fetch", "self-b", False)]),
+        ("a query two rows ask, both captured: the row whose capture is this answer, split again",
+         [search("Standard", ["c1"])],
+         [("search", "self-c", False)],
+         {"self-a-search.json": json.dumps({"id": token, "result": ["a1"], "total": 1}),
+          "self-c-search.json": json.dumps({"id": token, "result": ["c1"], "total": 1})}),
     ]
     failed = 0
-    for name, entries, want in cases:
-        got = rows_of(entries)
+    for name, entries, want, *on_disk in cases:
+        got = rows_of(entries, *on_disk)
         if got != want:
             failed += 1
             print(f"DIFFER  {name}: {got}")
-    print(f"{len(cases)} recordings made here split, {failed} differ")
+
+    # Writing a capture whole (the outside review of 606b4a17): (case, on
+    # disk before, the units, replace, on disk after, captures written, rows kept)
+    a = {"r-search.json": b"A", "r-fetch.json": b"a1", "r-fetch-2.json": b"a2"}
+    b = {"r-search.json": b"B", "r-fetch.json": b"b1"}
+    writes = [
+        ("the same capture is left, nothing written", a, {"r": a}, False, a, 0, []),
+        ("a capture that differs is kept whole, a refusal", a, {"r": b}, False, a, 0, ["r"]),
+        ("under --replace no page of the old capture outlives it", a, {"r": b}, True, b, 1, []),
+        ("a search saved empty is no capture yet", {"r-search.json": b""}, {"r": b}, False, b, 1, []),
+        ("a page of listings sent null is a page of its capture", {}, {"r": {"r-search.json": b"A",
+         "r-fetch.json": b'{"result":[null]}'}}, False, {"r-search.json": b"A", "r-fetch.json": b'{"result":[null]}'}, 1, []),
+    ]
+    for name, before, units, replace, after, want_written, want_kept in writes:
+        with tempfile.TemporaryDirectory() as tmp:
+            raw = Path(tmp)
+            for f, data in before.items():
+                (raw / f).write_bytes(data)
+            got = write(units, raw, replace)
+            disk = {p.name: p.read_bytes() for p in raw.iterdir()}
+        if got != (want_written, want_kept) or disk != after:
+            failed += 1
+            print(f"DIFFER  {name}: wrote {got}, on disk {sorted(disk)}")
+
+    # Composing a capture whole: every fetch is a page, a fetch with no answer
+    # leaves the search unwritten, a second answer is refused unless --replace.
+    def found(row, *fetches):
+        return {"row": row, "at": "", "total": 1, "bytes": b"S" + row.encode(),
+                "fetches": [{"bytes": f} for f in fetches]}
+    composes = [
+        ("every fetch a page, a page of nulls among them",
+         [found("r", b"f1", b'{"result":[null]}')], False, {"r": ["r-search.json", "r-fetch.json", "r-fetch-2.json"]}, 0),
+        ("a fetch that recorded no answer leaves its search unwritten",
+         [found("r", b"f1", None)], False, {}, 1),
+        ("a row answered twice with other results: the first kept, refused",
+         [found("r", b"f1", b"f2"), found("r", b"g1")], False, {"r": ["r-search.json", "r-fetch.json", "r-fetch-2.json"]}, 1),
+        ("under --replace the later answer whole, no page of the first",
+         [found("r", b"f1", b"f2"), found("r", b"g1")], True, {"r": ["r-search.json", "r-fetch.json"]}, 0),
+    ]
+    for name, searches, replace, want, want_refused in composes:
+        units, refusals = compose(searches, replace)
+        if {r: list(u) for r, u in units.items()} != want or len(refusals) != want_refused:
+            failed += 1
+            print(f"DIFFER  {name}: {units}, {refusals}")
+    print(f"{len(cases)} recordings made here split, {len(writes) + len(composes)} captures composed and written, "
+          f"{failed} differ")
     return 1 if failed else 0
 
 
@@ -253,6 +328,63 @@ def peak(calls):
 
 
 
+def compose(found, replace=False):
+    """Each row's capture as one unit, {row: {file name: bytes}}: its search
+    and every fetch of it as the site sent it, in order, a fetch of listings
+    the site sent null for among them — what such a page means is the
+    reader's to say (`trade_query.capture`), not this script's. A search
+    whose query is no row, a search with a fetch that recorded no answer (a
+    part of a capture is none), and a row answered twice with other results
+    are refused, the first answer kept — the later one whole under
+    `replace`."""
+    units, refusals = {}, []
+    for s in found:
+        row = s["row"]
+        if row is None:
+            refusals.append(f"REFUSED  {s['at']}  a search whose query is no row of the sheet (total {s['total']})")
+            continue
+        if any(f["bytes"] is None for f in s["fetches"]):
+            refusals.append(f"REFUSED  {row}  a fetch of it recorded no answer: its capture would be part of one")
+            continue
+        unit = {f"{row}-search.json": s["bytes"]}
+        for page, fetch in enumerate(s["fetches"], start=1):
+            unit[f"{row}-fetch.json" if page == 1 else f"{row}-fetch-{page}.json"] = fetch["bytes"]
+        if row in units and units[row] != unit and not replace:
+            refusals.append(f"REFUSED  {row}  answered twice, with other results; the first is kept")
+            continue
+        units[row] = unit
+    return units, refusals
+
+
+def held(raw, row):
+    """A row's capture on disk, {file name: bytes}: its search and every fetch page."""
+    paths = [raw / f"{row}-search.json", raw / f"{row}-fetch.json", *raw.glob(f"{row}-fetch-*.json")]
+    return {p.name: p.read_bytes() for p in paths if p.exists()}
+
+
+def write(units, raw, replace):
+    """Write each unit whole: a capture on disk with the same files is left,
+    one with others is kept whole unless `replace`, which removes every file
+    of it first, so no page of the old one outlives it. A search saved empty
+    is a search not yet captured (`trade_query.capture`). Returns (captures
+    written, rows kept)."""
+    raw.mkdir(parents=True, exist_ok=True)
+    written, kept = 0, []
+    for row, unit in units.items():
+        old = held(raw, row)
+        if old == unit:
+            continue
+        if old.get(f"{row}-search.json") and not replace:
+            kept.append(row)
+            continue
+        for name in old:
+            (raw / name).unlink()
+        for name, data in unit.items():
+            (raw / name).write_bytes(data)
+        written += 1
+    return written, kept
+
+
 def main():
     args = sys.argv[1:]
     if args == ["--self-test"]:
@@ -273,32 +405,17 @@ def main():
     print("the recording holds a cookie: " + (
         "YES — keep it under raw/ and delete it once the captures are written"
         if holds_cookie(har) else "no"))
-    writes = {}
-    refused = 0
-    for s in found:
-        if s["row"] is None:
-            refused += 1
-            print(f"REFUSED  {s['at']}  a search whose query is no row of the sheet (total {s['total']})")
-            continue
-        # a fetch of listings the site sent no item for (every result null)
-        # is its search's, and no capture: there is nothing in it to read
-        pages = [f for f in s["fetches"] if f["bytes"] is not None and f["items"]]
-        empty = len([f for f in s["fetches"] if f["bytes"] is not None and not f["items"]])
-        files_of = {f"{s['row']}-search.json": s["bytes"]}
-        for page, fetch in enumerate(pages, start=1):
-            files_of[f"{s['row']}-fetch.json" if page == 1 else f"{s['row']}-fetch-{page}.json"] = fetch["bytes"]
-        if f"{s['row']}-search.json" in writes:
-            same = writes[f"{s['row']}-search.json"] == s["bytes"]
-            if same or "--replace" not in flags:
-                refused += 0 if same else 1
-                print(f"{'again  ' if same else 'REFUSED'}  {s['row']}  answered twice"
-                      + ("" if same else ", with other results; the first is kept"))
-                continue
-        writes.update(files_of)
-        print(f"{s['row']:<8} total {s['total']}; {len(pages)} fetch"
-              + ("" if len(pages) == 1 else "es")
-              + (f", and {empty} of listings the site sent no item for" if empty else "")
-              + ("" if s["fetches"] or not s["total"] else "  — results and no fetch recorded"))
+    units, refusals = compose(found, "--replace" in flags)
+    refused = len(refusals)
+    for line in refusals:
+        print(line)
+    for row, unit in units.items():
+        pages = [unit[n] for n in unit if "-fetch" in n]
+        empty = sum(1 for page in pages if not any(json.loads(page).get("result") or []))
+        total = json.loads(unit[f"{row}-search.json"]).get("total")
+        print(f"{row:<8} total {total}; {len(pages)} fetch" + ("" if len(pages) == 1 else "es")
+              + (f", {empty} of them of listings the site sent no item for" if empty else "")
+              + ("" if pages or not total else "  — results and no fetch recorded"))
     for stray in strays:
         print(f"REFUSED  {stray['at']}  {stray['why']}")
     bodiless = [c for c in calls if not c["body"]]
@@ -317,7 +434,7 @@ def main():
                          else "no fetch followed: nothing found" if (c["size"] or 0) < SMALL
                          else "results, and no fetch recorded")
                       + ("" if c["body"] else "  (no body)"))
-    missing = [n for n in rows if f"{n}-search.json" not in writes and not (RAW / f"{n}-search.json").exists()]
+    missing = [n for n in rows if n not in units and not (RAW / f"{n}-search.json").exists()]
     print(f"{len(found)} searches in the recording; rows of the sheet with no capture anywhere: "
           + (", ".join(missing) if missing else "none"))
 
@@ -343,20 +460,11 @@ def main():
     if "--write" not in flags:
         print("nothing written (say --write)")
         return 1 if refused or strays or problems else 0
-    RAW.mkdir(parents=True, exist_ok=True)
-    written = 0
-    for name, data in writes.items():
-        path = RAW / name
-        if path.exists() and path.stat().st_size and path.read_bytes() != data:
-            if "--replace" not in flags:
-                print(f"KEPT     {name}: a capture with other bytes is on disk (say --replace)")
-                continue
-        if not path.exists() or path.read_bytes() != data:
-            path.write_bytes(data)
-            written += 1
-    print(f"{written} files written under {RAW.relative_to(TRACK.parent.parent)}")
-    return 1 if refused or strays or problems else 0
-
+    written, kept = write(units, RAW, "--replace" in flags)
+    for row in kept:
+        print(f"KEPT     {row}: its capture on disk differs, and is kept whole (say --replace)")
+    print(f"{written} captures written under {RAW.relative_to(TRACK.parent.parent)}")
+    return 1 if refused or kept or strays or problems else 0
 
 if __name__ == "__main__":
     sys.exit(main())

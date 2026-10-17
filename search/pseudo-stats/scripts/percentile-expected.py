@@ -29,21 +29,20 @@ stat displays too (a twin text): defence-twins.py's (`twin_texts`). The realms
 with a table are the shipped class table's, made from the same export as the
 ranges. A captured item's marks are read as defence-twins.py reads them, from
 the fetch it came from (raw/searches/<search>-fetch*.json, local only, the n-th
-item of a search's pages the extract's n-th, checked by base; only the three
-key names leave raw/); where raw/ is absent, from data/defence-twins.csv, which
-holds them for every captured item showing a defence and carrying a twin line,
-and an item it does not hold has its marks written `(not kept)`. The reading
+item of a search's pages the extract's n-th, checked by base, through the one
+reader of a capture, tools/trade_query.py; only the three key names leave
+raw/). The fetch census keeps no mark: its items' marks are `(not kept)`. The reading
 asks a mark of an implicit twin text alone; the marks of the others say which
 group of lines a captured line is counted in (step 5).
 
 Numbers are exact: a displayed number is a fraction, never a float.
 
-Inputs: data/captures.json, raw/searches/, data/defence-twins.csv, ../trade-query/data/
+Inputs: data/captures.json, raw/searches/, ../trade-query/data/
 fetch-census.json, ../repoe/data/base-defences.csv, ../repoe/data/
 trade-stat-map.csv, crates/acquisition-search/reference/classes-v1.toml, and
 the owner's store copy, read-only (../item-facts/raw/m3/store/mock/
-GERWARIC_7694.db, `mode=ro`). A local input that is absent is named and the
-script goes on with what is there.
+GERWARIC_7694.db, `mode=ro`). Every one is required before any is read
+(tools/sources.py): an absent input is a refusal, and nothing is written.
 """
 
 import csv
@@ -70,15 +69,13 @@ TRACK = P.TRACK
 SEARCH = P.SEARCH
 ROOT = SEARCH.parent
 CAPTURES = TRACK / "data" / "captures.json"
-TWINS_CSV = TRACK / "data" / "defence-twins.csv"
-RAW = TRACK / "raw" / "searches"
+RAW = P.RAW
 FETCH = SEARCH / "trade-query/data/fetch-census.json"
 STORE = S.STORE
 CLASSES = S.CLASSES
 OUT = TRACK / "data" / "percentile-expected.csv"
 OUT_COPY = TRACK / "data" / "percentile-expected-copy.csv"
-INPUTS = ("data/captures.json, raw/searches/*-fetch*.json (a captured item's marks, the key names alone; "
-          "where absent, data/defence-twins.csv's), "
+INPUTS = ("data/captures.json, raw/searches/*-fetch*.json (a captured item's marks, the key names alone), "
           "../trade-query/data/fetch-census.json, ../repoe/data/base-defences.csv, "
           "../repoe/data/trade-stat-map.csv, crates/acquisition-search/reference/classes-v1.toml, "
           "../item-facts/raw/m3/store/mock/GERWARIC_7694.db (read-only)")
@@ -713,35 +710,17 @@ def captured_facts(raw, marks):
     return facts, beside
 
 
-def captured_marks():
-    """{locator: {mark: True}} from data/defence-twins.csv, which holds an item's marks where it shows a
-    defence and carries a twin line; the first row holding an item."""
-    out = {}
-    if not TWINS_CSV.exists():
-        return out
-    with TWINS_CSV.open(newline="\n") as fh:
-        next(fh)
-        for row in csv.DictReader(fh):
-            if row["source"] == "captures":
-                out[row["locator"]] = {m: True for m in row["marks"].split(";") if m in MARKS}
-    return out
-
-
 def raw_marks(captures):
-    """{case: {mark: True}} from raw/searches, as defence-twins.py reads an item's marks; a case the fetch
-    does not hold at its place is left out."""
+    """{case: {mark: True}} from raw/searches, as defence-twins.py reads an item's marks, through the one
+    reader of a capture (tools/trade_query.py), whose n-th item is the extract's n-th."""
     out = {}
-    if not RAW.is_dir():
-        return out
     for name, capture in captures.items():
-        items = []
-        for fetch in [RAW / f"{name}-fetch.json"] + sorted(
-                RAW.glob(f"{name}-fetch-*.json"), key=lambda p: int(p.stem.rsplit("-", 1)[1])):
-            if fetch.exists() and fetch.stat().st_size:
-                items += [r["item"] for r in json.loads(fetch.read_text())["result"]]
+        items = P.capture(RAW, name)[1]
         for index, item in enumerate(capture["fetched"] or []):
-            if index < len(items) and items[index].get("baseType") == item.get("baseType"):
-                out[f"{name}[{index}]"] = {k: items[index][k] for k in MARKS if k in items[index]}
+            if index >= len(items) or items[index].get("baseType") != item.get("baseType"):
+                raise SystemExit(f"{name}[{index}]: raw/ does not hold the extract's item at its place: "
+                                 "the extract is behind its captures (tools/trade-captures.py)")
+            out[f"{name}[{index}]"] = {k: items[index][k] for k in MARKS if k in items[index]}
     return out
 
 
@@ -754,16 +733,10 @@ def captured_cases(tables):
     """Every captured case, in the captures' order then the fetch census's:
     (case, source, raw, facts, beside, same_as, site value or None)."""
     out, first, counts = [], {}, Counter()
-    marks = captured_marks()
-    marks_by_key = {}
-    captures = json.loads(CAPTURES.read_text())["searches"] if CAPTURES.exists() else {}
+    captures = json.loads(CAPTURES.read_text())["searches"]
     from_raw = raw_marks(captures)
     counts["searches"] = len(captures)
     counts["marks from raw"] = len(from_raw)
-    for case, kept in marks.items():
-        if case in from_raw:
-            counts["marks in both"] += 1
-            counts["marks in both, the same"] += {k for k, v in from_raw[case].items() if v is True} == set(kept)
     for name, capture in captures.items():
         for index, raw in enumerate(capture["fetched"] or []):
             case = f"{name}[{index}]"
@@ -771,42 +744,35 @@ def captured_cases(tables):
             same = first.get(key, "")
             if not same:
                 first[key] = case
-                marks_by_key[key] = marks.get(case)
-            # the fetch's own marks; else defence-twins.csv's, held at the first row holding the item; else
-            # not kept, which the reading says where it meets an implicit twin
-            kept = from_raw.get(case, marks_by_key[key])
-            counts["marks not kept"] += kept is None
+            kept = from_raw[case]  # the fetch's own marks
             facts, beside = captured_facts(raw, kept)
             site = raw.get("extended", {}).get("base_defence_percentile")
             counts["fetched rows"] += 1
             counts["carrying the site's value"] += site is not None
             out.append((case, "captures.json", raw, facts, beside, same, site))
-    if FETCH.exists():
-        for qid, query in json.loads(FETCH.read_text())["queries"].items():
-            for index, raw in enumerate(query["fetched"]):
-                counts["fetch-census rows"] += 1
-                site = raw.get("extended", {}).get("base_defence_percentile")
-                if site is None:
-                    counts["fetch-census rows left out"] += 1
-                    continue
-                case = f"{qid}[{index}]"
-                key = item_key(raw)
-                same = first.get(key, "")
-                if not same:
-                    first[key] = case
-                # the census keeps no mark
-                counts["marks not kept"] += 1
-                counts["marks not kept, an implicit twin"] += has_implicit_twin(tables, raw)
-                facts, beside = captured_facts(raw, None)
-                counts["fetch-census rows read"] += 1
-                out.append((case, "fetch-census.json", raw, facts, beside, same, site))
+    for qid, query in json.loads(FETCH.read_text())["queries"].items():
+        for index, raw in enumerate(query["fetched"]):
+            counts["fetch-census rows"] += 1
+            site = raw.get("extended", {}).get("base_defence_percentile")
+            if site is None:
+                counts["fetch-census rows left out"] += 1
+                continue
+            case = f"{qid}[{index}]"
+            key = item_key(raw)
+            same = first.get(key, "")
+            if not same:
+                first[key] = case
+            # the census keeps no mark
+            counts["marks not kept"] += 1
+            counts["marks not kept, an implicit twin"] += has_implicit_twin(tables, raw)
+            facts, beside = captured_facts(raw, None)
+            counts["fetch-census rows read"] += 1
+            out.append((case, "fetch-census.json", raw, facts, beside, same, site))
     return out, counts
 
 
 def copy_items():
     """Every live item of the copy, in an order that holds no id: the facts, and the realm."""
-    if not STORE.exists():
-        return []
     db = sqlite3.connect(f"file:{STORE}?mode=ro", uri=True)
     out = []
     for realm, rarity, body in db.execute("select realm, rarity, json from items where removed_at is null"):
@@ -1268,9 +1234,7 @@ def main():
         print(__doc__)
         return 2
 
-    absent = [str(p.relative_to(ROOT)) for p in (CAPTURES, RAW, TWINS_CSV, FETCH, STORE) if not p.exists()]
-    print("local inputs absent: " + ("; ".join(absent) if absent else "none")
-          + " (the clones are not read by this script)")
+    P.require(RAW, STORE)
     tables = Tables()
     cases, counts = captured_cases(tables)
 
@@ -1316,8 +1280,7 @@ def main():
           f"— those carrying the site's value, the base read from the type line, the census keeping no "
           f"`baseType`; left out, {counts['fetch-census rows left out']} — the site showed no value of them, "
           f"and with no `baseType` and no mark kept nothing says what a magic one's base is")
-    print(f"marks: {counts['marks from raw']} captured rows' from raw/searches; defence-twins.csv holds "
-          f"{counts['marks in both']} of those rows, {counts['marks in both, the same']} the same; not kept "
+    print(f"marks: {counts['marks from raw']} captured rows' from raw/searches; not kept, the census's, "
           f"{counts['marks not kept']} (of them carrying an implicit twin text: "
           f"{counts['marks not kept, an implicit twin']})")
     cap = []  # (case, source, facts, ans, site, same, beside)
@@ -1377,7 +1340,7 @@ def main():
     # -- step 3, ruled ------------------------------------------------------------------------------------
     print("\n== ruled ==")
     copy = copy_items()
-    print(f"the copy: {len(copy)} live items" + ("" if copy else " — absent: every ruled case is composed"))
+    print(f"the copy: {len(copy)} live items")
     copy_answers = []
     captured_keys = {(c[2]["base"], c[2]["rarity"], properties_text(c[2]), lines_text(tables, c[2])) for c in cap}
     for item in copy:

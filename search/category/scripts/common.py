@@ -1,7 +1,8 @@
 """category: what the three scripts share — the pinned inputs, the readings, the copy.
 
-Not run on its own. Every input is read-only; a clone at another commit is refused, as
-search/repoe/scripts/base-taxonomy.py refuses (a pull is a new manifest row first).
+Not run on its own. Every input is read-only, and each reader here requires what it reads
+(tools/sources.py): an absent input, or a clone at another commit, is a refusal, never a reading
+of what is there.
 
 The export's class -> trade id map and its name rules are not restated here: they are imported
 from search/repoe/scripts/base-taxonomy.py (CLASS_TO_TRADE, NAME_RULES, PARENTS, predict), so the
@@ -15,7 +16,6 @@ import json
 import os
 import re
 import sqlite3
-import subprocess
 import sys
 import tomllib
 
@@ -23,19 +23,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 TRACK = os.path.dirname(HERE)
 SEARCH = os.path.dirname(TRACK)
 ROOT = os.path.dirname(SEARCH)
-CLONES = os.environ.get("ACQ_CLONES") or os.path.dirname(ROOT)  # the sibling clones (poe1, repoe, PathOfBuilding); ACQ_CLONES names another directory
 DATA = os.path.join(TRACK, "data")
 
-POE1 = os.path.join(CLONES, "poe1")
-POE1_COMMIT = "e2bd511a0133bbe6c1ab548ef1285cb99f3cf0e9"  # search/repoe/MANIFEST.md
-POB = os.path.join(CLONES, "PathOfBuilding")
-POB_COMMIT = "16de4b82d57f1c0de6eb40f37143c32d4da36a02"  # search/repoe/MANIFEST.md
-APT = os.path.join(CLONES, "awakened-poe-trade")
-APT_COMMIT = "ce551eb7a9b704fbdcc2478eebb26be8f91786c7"  # search/prior-art/MANIFEST.md at 40b55e79
+sys.path.insert(0, os.path.join(ROOT, "tools"))
+from sources import APT, CENSUS, COPY, POB, POE1, require  # noqa: E402  the clones, pinned; the raw, local
 
 TQ = os.path.join(SEARCH, "trade-query", "data")
-TQ_FETCHES = os.path.join(SEARCH, "trade-query", "raw", "searches")
-COPY = os.path.join(SEARCH, "item-facts", "raw", "m3", "store", "mock", "GERWARIC_7694.db")
 TABLE = os.path.join(ROOT, "crates", "acquisition-search", "reference", "classes-v1.toml")
 TAXONOMY = os.path.join(SEARCH, "repoe", "scripts", "base-taxonomy.py")
 
@@ -46,12 +39,6 @@ QUEST_CLASS = "Quest Items"
 
 BEASTS = ["monster.beast", "monster.yellowbeast", "monster.redbeast"]
 BEAST_HELP = "Right-click to add this to your bestiary."  # the body's descrText; APT's BEAST_HELP (client_strings.js line 57)
-
-
-def pinned(path, commit):
-    head = subprocess.run(["git", "-C", path, "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
-    if head != commit:
-        sys.exit(f"{path} is at {head}, not the pinned {commit}: a pull is a new manifest row before re-running")
 
 
 def taxonomy():
@@ -101,7 +88,7 @@ class Export:
     reads it), transfigured gems by display name (rule 2 of tools/class-table.py), and the classes."""
 
     def __init__(self):
-        pinned(POE1, POE1_COMMIT)
+        require(POE1)
         d = os.path.join(POE1, "data")
         self.bases = json.load(open(os.path.join(d, "base_items.json")))
         self.classes = json.load(open(os.path.join(d, "item_classes.json")))
@@ -154,10 +141,8 @@ def shown(raw):
 
 
 def copy_items():
-    """Every live pc item of the copy, read-only: (id, league, location_kind, json dict).
-    Returns None when the copy is absent (every count that needs it is then an open question)."""
-    if not os.path.exists(COPY):
-        return None
+    """Every live pc item of the copy, read-only: (id, league, location_kind, json dict)."""
+    require(COPY)
     db = sqlite3.connect(f"file:{COPY}?mode=ro", uri=True)
     rows = db.execute("SELECT id, league, location_kind, json FROM items WHERE realm = 'pc' AND removed_at IS NULL ORDER BY id").fetchall()
     db.close()
@@ -220,7 +205,7 @@ def apt():
     """Awakened PoE Trade: base name -> trade id, by items.ndjson's craftable.category through
     CATEGORY_TO_TRADE_ID (pathofexile-trade.ts) and the ItemCategory enum (parser/meta.ts).
     Returns (placements {name: id}, unmapped {name: category}, the map {category string: id}, beasts [names])."""
-    pinned(APT, APT_COMMIT)
+    require(APT)
     meta = open(os.path.join(APT, "renderer", "src", "parser", "meta.ts")).read()
     enum = dict(re.findall(r"^\s+(\w+) = '([^']+)'", meta.split("export enum ItemCategory")[1].split("}")[0], re.M))
     trade_ts = open(os.path.join(APT, "renderer", "src", "web", "price-check", "trade", "pathofexile-trade.ts")).read()
@@ -252,7 +237,7 @@ def pob():
     """Path of Building: every base in src/Data/Bases/*.lua with its type and subType, placed by
     M.getTradeCategory (src/Classes/TradeHelpers.lua), whose branches are read from the file, not
     transcribed. Returns (placements {name: id or ''}, info {name: (type, subType, file)}, the function's line)."""
-    pinned(POB, POB_COMMIT)
+    require(POB)
     info = {}
     bdir = os.path.join(POB, "src", "Data", "Bases")
     for fn in sorted(os.listdir(bdir)):
@@ -298,32 +283,3 @@ def pob():
         return ""
 
     return {n: trade(t, s) for n, (t, s, _) in info.items()}, info, start + 1
-
-
-def site_fetches():
-    """The trade-query captures (raw, local): per category option searched, the base types the
-    first fetch returned, with the clipboard `Item Class:` line. {category: Counter((baseType, class))}.
-    Only category, base type and class are read; nothing about a seller."""
-    import base64
-    import glob
-    out = collections.defaultdict(collections.Counter)
-    for req in sorted(glob.glob(os.path.join(TQ_FETCHES, "*-request.json"))):
-        q = os.path.basename(req)[: -len("-request.json")]
-        try:
-            body = json.load(open(req))
-        except ValueError:
-            continue
-        cat = (((body.get("query") or {}).get("filters") or {}).get("type_filters") or {}).get("filters", {}).get("category", {}).get("option")
-        fetch = os.path.join(TQ_FETCHES, q + "-fetch.json")
-        if not cat or not os.path.exists(fetch) or os.path.getsize(fetch) == 0:
-            continue
-        for r in json.load(open(fetch)).get("result", []):
-            it = r["item"]
-            t = (it.get("extended") or {}).get("text")
-            klass = ""
-            if t:
-                first = base64.b64decode(t).decode("utf-8", "replace").split("\n")[0].rstrip("\r")
-                if first.startswith("Item Class: "):
-                    klass = first[len("Item Class: "):]
-            out[cat][(it.get("baseType"), klass)] += 1
-    return out

@@ -7,8 +7,8 @@ into the reviewed file the search crate ships.
     python3 tools/class-table.py            # writes crates/acquisition-search/reference/classes-v1.toml
     python3 tools/class-table.py --check    # exits 1 when the file on disk differs from what the clone gives
 
-Inputs (read-only; the clone must sit at POE1_COMMIT or this refuses to run —
-a pull is a new commit here and a reviewed diff of the table, never a silent
+Inputs (read-only; the clone must sit at its pin in tools/sources.py or this refuses to run —
+a pull is a new commit there and a reviewed diff of the table, never a silent
 regeneration):
   ../poe1/data/base_items.json     every base: name, item class, release state
   ../poe1/data/item_classes.json   the classes: their display names
@@ -34,25 +34,15 @@ header prints are measured at generation.
 import collections
 import json
 import os
-import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-# the clones sit beside the repository (search/repoe/MANIFEST.md, "The clones")
-# the sibling clone, as search/category/scripts/common.py finds it (ACQ_CLONES
-# names another directory); three levels up was the path before the root swap
-POE1 = os.path.join(os.environ.get("ACQ_CLONES") or os.path.normpath(os.path.join(ROOT, "..")), "poe1")
-POE1_COMMIT = "e2bd511a0133bbe6c1ab548ef1285cb99f3cf0e9"  # search/repoe/MANIFEST.md
+sys.path.insert(0, HERE)
+from sources import PINS, POE1, require  # noqa: E402  the clone, at its pin (search/repoe/MANIFEST.md)
 OUT = os.path.join(ROOT, "crates", "acquisition-search", "reference", "classes-v1.toml")
 VERSION = 1
 REALMS = ["pc", "xbox", "sony"]  # the PoE1 export; poe2 has no table yet
-
-
-def pinned(path, commit):
-    head = subprocess.run(["git", "-C", path, "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
-    if head != commit:
-        sys.exit(f"{path} is at {head}, not the pinned {commit}: a pull is a new commit in this script and a reviewed diff of the table")
 
 
 def toml_str(s):
@@ -61,7 +51,7 @@ def toml_str(s):
 
 def main():
     check = "--check" in sys.argv[1:]
-    pinned(POE1, POE1_COMMIT)
+    require(POE1)
     bases = json.load(open(os.path.join(POE1, "data", "base_items.json")))
     classes = json.load(open(os.path.join(POE1, "data", "item_classes.json")))
     gems = json.load(open(os.path.join(POE1, "data", "gems.json")))
@@ -120,7 +110,7 @@ def main():
         "",
         f"version = {VERSION}",
         f"realms = [{', '.join(toml_str(r) for r in REALMS)}]",
-        f"source = {toml_str(f'RePoE poe1 export @ {POE1_COMMIT[:8]} (game {game}): base_items.json, item_classes.json, gems.json; the owner’s clone of 2026-09-13, SURFACES.md')}",
+        f"source = {toml_str(f'RePoE poe1 export @ {PINS["poe1"][:8]} (game {game}): base_items.json, item_classes.json, gems.json; the owner’s clone of 2026-09-13, SURFACES.md')}",
         f"game = {toml_str(game)}",
         'generated_by = "tools/class-table.py"',
         "",
@@ -136,7 +126,7 @@ def main():
     text = "\n".join(out)
     if check:
         if not os.path.exists(OUT) or open(OUT, newline="").read() != text:
-            sys.exit(f"{OUT} differs from what the clone at {POE1_COMMIT[:8]} gives: regenerate and review the diff")
+            sys.exit(f"{OUT} differs from what the clone at {PINS["poe1"][:8]} gives: regenerate and review the diff")
         print(f"ok      {os.path.relpath(OUT, ROOT)} is what the clone gives")
         return
     os.makedirs(os.path.dirname(OUT), exist_ok=True)

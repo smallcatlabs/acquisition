@@ -28,7 +28,10 @@ reshapes its items as the extract does. One item to a line.
     tools/trade-captures.py --check     # say what is in raw/ and write nothing
     tools/trade-captures.py --manifest  # print the manifest's rows for what is in raw/
 
-A file saved empty is a search not yet captured and is passed over. A capture
+A capture is read by `trade_query.capture`, the one reader of one: a search
+file saved empty is a search not yet captured and is passed over, a listing
+the site sent null for is counted and skipped. Nothing is written unless
+both raw directories are present (`sources.require`). A capture
 whose returned query is not its own row's is left out of the extract and named
 with the row it does answer: a mislabelled capture is no evidence for its name.
 
@@ -47,13 +50,12 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from trade_query import asking, bare, sheet  # noqa: E402
+from sources import CAPTURES as RAW, CENSUS as CENSUS_RAW, require  # noqa: E402
+from trade_query import asking, bare, capture, sheet  # noqa: E402
 
 TRACK = Path(__file__).resolve().parents[1] / "search" / "pseudo-stats"
-RAW = TRACK / "raw" / "searches"
 OUT = TRACK / "data" / "captures.json"
 BODIES = TRACK / "data" / "bodies.json"
-CENSUS_RAW = TRACK.parent / "trade-query" / "raw" / "searches"
 CENSUS = ["q1", "q2", "q2b", "q3", "q3b", "q4", "q5", "q6"]
 # What leaves a body: what may not leave raw/, and what the site alone computes;
 # an icon at any depth (a crucible tree's nodes carry their own)
@@ -116,15 +118,6 @@ def body(raw):
     return {k: iconless(v) for k, v in raw.items() if k not in NOT_A_BODY}
 
 
-def fetched(pages):
-    """Every item of a search's fetch pages, as the site sent it, in order."""
-    items = []
-    for fetch in pages:
-        if fetch.exists() and fetch.stat().st_size:
-            items += [r["item"] for r in json.loads(fetch.read_text())["result"]]
-    return items
-
-
 def bodies_text(searches_bodies, census_bodies):
     """The bodies file: one item to a line, so a diff names the item."""
     out = ['{', ' "_generated": "by tools/trade-captures.py from raw/searches (MANIFEST.md) — do not edit",']
@@ -161,6 +154,7 @@ def main():
     if sys.argv[1:] not in ([], ["--check"]):
         print(__doc__)
         return 2
+    require(RAW, CENSUS_RAW)
     rows = sheet()
     out = {
         "_generated": "by tools/trade-captures.py from raw/searches (MANIFEST.md) — do not edit",
@@ -168,11 +162,11 @@ def main():
     }
     bodies = {}
     for name in searches():
-        saved = (RAW / f"{name}-search.json").read_text()
-        if not saved.strip():
+        read = capture(RAW, name)
+        if read is None:
             print(f"{name}: not yet captured (the file is empty)")
             continue
-        answer = json.loads(saved)
+        answer, raws, unsent = read
         returned = decode(answer["id"])
         if name in rows and bare(returned) != bare(rows[name][1]):
             # the splitter named the capture in its row's league
@@ -189,19 +183,16 @@ def main():
             "ids_returned": len(answer.get("result", [])),
             "fetched": [],
         }
-        pages = [RAW / f"{name}-fetch.json"] + sorted(
-            RAW.glob(f"{name}-fetch-*.json"), key=lambda p: int(p.stem.rsplit("-", 1)[1])
-        )
-        raws = fetched(pages)
         entry["fetched"] = [item(r) for r in raws]
         if raws:
             bodies[name] = [body(r) for r in raws]
         out["searches"][name] = entry
         print(f"{name}: sheet query {entry['sheet_query']}; total {answer.get('total')}; "
-              f"{entry['ids_returned']} ids; {len(entry['fetched'])} items fetched")
+              f"{entry['ids_returned']} ids; {len(entry['fetched'])} items fetched"
+              + (f", {unsent} listings the site sent no item for" if unsent else ""))
     census = {}
     for name in CENSUS:
-        raws = fetched([CENSUS_RAW / f"{name}-fetch.json"])
+        _, raws, _ = capture(CENSUS_RAW, name)
         if raws:
             census[name] = [body(r) for r in raws]
     print(f"census: {sum(len(b) for b in census.values())} items over {len(census)} searches")

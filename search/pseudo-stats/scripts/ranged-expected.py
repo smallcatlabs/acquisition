@@ -37,8 +37,9 @@ Inputs: data/table-changes.csv, data/captures.json, data/ranged-census.csv,
 data/ranged-uniques.csv, the three shipped tables, ../repoe/data/
 class-to-trade-category.csv, ../trade-query/data/stats-2026-09-12.json (the
 `(Local)` ids, beside the reading), and the owner's store copy, read-only
-(../item-facts/raw/m3/store/mock/GERWARIC_7694.db, `mode=ro`). A local input
-that is absent is named and the script goes on with what is there.
+(../item-facts/raw/m3/store/mock/GERWARIC_7694.db, `mode=ro`). The copy is
+required before anything is read (tools/sources.py): without it the script
+refuses, and nothing is written.
 
 Numbers are exact: a displayed number is a fraction, never a float.
 """
@@ -53,6 +54,9 @@ from collections import Counter, defaultdict
 from fractions import Fraction
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "tools"))
+from sources import COPY, require  # noqa: E402  the owner's store copy, local
+
 TRACK = Path(__file__).resolve().parents[1]
 SEARCH = TRACK.parent
 ROOT = SEARCH.parent
@@ -65,7 +69,7 @@ CATEGORIES = ROOT / "crates/acquisition-search/reference/categories-v1.toml"
 TOTALS = ROOT / "crates/acquisition-search/reference/totals-v6.toml"
 TRADE_CLASSES = SEARCH / "repoe/data/class-to-trade-category.csv"
 TRADE_STATS = SEARCH / "trade-query/data/stats-2026-09-12.json"
-STORE = SEARCH / "item-facts/raw/m3/store/mock/GERWARIC_7694.db"
+STORE = COPY
 OUT = TRACK / "data" / "ranged-expected.csv"
 OUT_COPY = TRACK / "data" / "ranged-expected-copy.csv"
 INPUTS = ("data/table-changes.csv, data/captures.json, data/ranged-uniques.csv, "
@@ -403,15 +407,13 @@ def read(tables, item, broken=None):
 # ---- the site, read beside the reading ------------------------------------------------------------
 
 def local_ids():
-    """The ids of the site's `(Local)` twins, or None where the stats file is absent."""
-    if not TRADE_STATS.exists():
-        return None
+    """The ids of the site's `(Local)` twins."""
     return {e["id"] for g in json.loads(TRADE_STATS.read_text())["result"] for e in g["entries"]
             if e["text"].endswith(" (Local)")}
 
 
 def site_twin(entry, local):
-    if local is None or not entry.get("hash"):
+    if not entry.get("hash"):
         return "unknown"
     return "local" if entry["hash"].removeprefix("stat.") in local else "global"
 
@@ -781,11 +783,9 @@ def main():
         print(__doc__)
         return 2
 
-    absent = [str(p.relative_to(ROOT)) for p in (CAPTURES, STORE, TRADE_STATS, UNIQUES, CENSUS, TRADE_CLASSES)
-              if not p.exists()]
-    print("local inputs absent: " + ("; ".join(absent) if absent else "none"))
+    require(STORE)
     tables = Tables()
-    captures = json.loads(CAPTURES.read_text())["searches"] if CAPTURES.exists() else {}
+    captures = json.loads(CAPTURES.read_text())["searches"]
 
     if only_break:
         cells, disagree, open_ = disagreements(tables, captures, only_break)
@@ -812,18 +812,12 @@ def main():
         print(f"  rule: {rule}")
 
     print("\n== what a weapon is: the category table beside ranged-census.py's file, class by class ==")
-    if TRADE_CLASSES.exists():
-        with TRADE_CLASSES.open(newline="\n") as fh:
-            next(fh)
-            trade = {r["class_name"]: r["trade_id"] for r in csv.DictReader(fh) if r["class_name"]}
-    else:
-        trade = None
-        print(f"{TRADE_CLASSES.relative_to(ROOT)} is absent: the comparison is not made")
+    with TRADE_CLASSES.open(newline="\n") as fh:
+        next(fh)
+        trade = {r["class_name"]: r["trade_id"] for r in csv.DictReader(fh) if r["class_name"]}
     same = differ = missing = 0
     for cls in tables.class_names:
         ours = tables.class_is_weapon(cls)
-        if trade is None:
-            continue
         if cls not in trade:
             missing += 1
             print(f"  {cls}: category table {'weapon' if ours else 'not a weapon'}; the census's file has no "
@@ -836,11 +830,10 @@ def main():
         print(f"  {cls}: category table {'weapon' if ours else 'not a weapon'}"
               f" ({tables.leaf.get(cls) or 'no id'}); census's file {'weapon' if theirs else 'not a weapon'}"
               f" ({trade[cls] or 'no id'}) — {verdict}")
-    if trade is not None:
-        print(f"{len(tables.class_names)} classes of the class table: {same} the same, {differ} differ, "
-              f"{missing} with no row in the census's file; "
-              f"{sum(1 for c in tables.class_names if tables.class_is_weapon(c))} are weapons by the "
-              f"category table")
+    print(f"{len(tables.class_names)} classes of the class table: {same} the same, {differ} differ, "
+          f"{missing} with no row in the census's file; "
+          f"{sum(1 for c in tables.class_names if tables.class_is_weapon(c))} are weapons by the "
+          f"category table")
     both = sorted(b for b, names in tables.classes.items()
                   if len({tables.class_is_weapon(n, b) for n in names}) > 1)
     print(f"bases under classes of both kinds: {len(both)}: {', '.join(both)}")
@@ -985,21 +978,17 @@ def main():
     print(f"captured lines of the family whose text holds a line break: {breaks_in_captures}")
 
     # -- the copy ------------------------------------------------------------------------------------
-    copy = copy_items() if STORE.exists() else []
-    if not STORE.exists():
-        print(f"\n{STORE.relative_to(ROOT)} is absent: no ruled case is an item of the copy, and steps 5 and 6 "
-              f"are not made")
+    copy = copy_items()
 
     # -- the ruled cases -----------------------------------------------------------------------------
     print("\n== the ruled cases ==")
     limit = set()
-    if UNIQUES.exists():
-        with UNIQUES.open(newline="\n") as fh:
-            next(fh)
-            for r in csv.DictReader(fh):
-                if (r["weapon"] == "weapon" and r["export_says"].startswith("cannot say")
-                        and r["site_says"] == "not captured" and r["realm"] == "pc"):
-                    limit.add((r["unique"], r["base"], r["line"]))
+    with UNIQUES.open(newline="\n") as fh:
+        next(fh)
+        for r in csv.DictReader(fh):
+            if (r["weapon"] == "weapon" and r["export_says"].startswith("cannot say")
+                    and r["site_says"] == "not captured" and r["realm"] == "pc"):
+                limit.add((r["unique"], r["base"], r["line"]))
     used = set()
     for case, sentence, wanted, marks in ruled_from_copy(tables, limit):
         # an item the captures do not hold: not by its lines, and a unique not by its name either
@@ -1306,11 +1295,10 @@ def main():
                             n += 1
             mine_items += n > 0
         theirs = Counter()
-        if CENSUS.exists():
-            with CENSUS.open(newline="\n") as fh:
-                next(fh)
-                for r in csv.DictReader(fh):
-                    theirs[r["weapon"]] += int(r["lines"])
+        with CENSUS.open(newline="\n") as fh:
+            next(fh)
+            for r in csv.DictReader(fh):
+                theirs[r["weapon"]] += int(r["lines"])
         print(f"items carrying an unsuffixed line of the family, every live item: {mine_items}, "
               f"{sum(mine_lines.values())} lines — " + "; ".join(f"{k} {v}" for k, v in sorted(mine_lines.items())))
         print("data/ranged-census.csv: " + f"{sum(theirs.values())} lines — "

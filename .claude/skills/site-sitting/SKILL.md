@@ -145,9 +145,21 @@ at a time, and the export is every twenty-five links.
   `"disabled":false`: compare queries with those removed, never ids.
 - **A round that re-asks a captured query gets it filed under the
   earlier row.** Round k asked four of round j's queries again under
-  new names (2026-10-04); the splitter now names such a capture for
-  the first row still without one, so each day's answer is kept, but
-  a composer checks the new round's queries against the sheet first.
+  new names (2026-10-04); the splitter names such a capture for the
+  row whose capture on disk is that answer, else the first row still
+  without one, so each day's answer is kept and a recording splits the
+  same twice, but a composer checks the new round's queries against the
+  sheet first.
+- **A capture is one unit, read by one reader.** The splitter writes a
+  search and every fetch of it together — a page of listings the site
+  sent null for too — keeps a capture that differs whole and exits 1,
+  and under `--replace` removes every file of the old one first.
+  Every script reads raw through `tools/trade_query.py`'s `capture()`,
+  which counts a null listing and refuses one its search did not
+  return; each requires its inputs (`tools/sources.py`) and refuses,
+  writing nothing, when one is absent (the outside review of
+  `606b4a17`: a fetch of nulls crashed one reader, and a script without
+  its clone wrote 16 grouping members out).
 - **The page posts an empty stats group where the sheet has none**:
   `stats: []` goes out as one `and` group with no filters, so four of
   round i's eight searches were refused by the splitter, and then by the

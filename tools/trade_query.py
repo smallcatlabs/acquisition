@@ -1,5 +1,7 @@
-"""What the trade site does to a query on the way back, and which row of the
-sheet a search is, read in one place.
+"""What the trade site does to a query on the way back, which row of the
+sheet a search is, and what a capture of one holds, read in one place.
+
+    tools/trade_query.py --self-test    # captures made here, read
 
 The site rewrites a query it answers: every `"disabled": false` is dropped,
 keys are reordered, and its page posts `stats: []` as one `and` group with
@@ -18,10 +20,22 @@ to the splitter's searches, and not to the splitter's fetches or the
 extract, which went on finding a row by its query alone (the outside review
 of step 7): every tool that asks which row a call or a capture answers asks
 `asking()`, over the rows `sheet()` reads.
+
+A capture is one unit, read here alone (the outside review of 606b4a17):
+a search's answer and its fetch pages in order, `<name>-search.json`,
+`<name>-fetch.json`, `-fetch-2.json` and on, as the splitter writes them
+whole. Five scripts had each read the pages their own way, and a listing
+the site sent null for (a listing gone between the search and the fetch:
+u025, v092, v093) was a crash in one, an empty item in another, and a page
+not written by the splitter. `capture()` reads every page, counts a null
+listing and skips it, and refuses a listing its search did not return, so
+every reader's n-th item is the same item.
 """
 
 import csv
 import json
+import sys
+import tempfile
 from pathlib import Path
 
 SHEET = Path(__file__).resolve().parents[1] / "search" / "pseudo-stats" / "data" / "search-sheet.csv"
@@ -51,3 +65,81 @@ def asking(league, query, rows):
     """The names of the rows that ask a query in a league, in the sheet's order."""
     want = bare(query)
     return [n for n, (lg, q) in rows.items() if lg == league and bare(q) == want]
+
+
+def capture(raw, name):
+    """A search's capture: (its answer, every item fetched in order, how many
+    listings the site sent null for); None where the search file is saved
+    empty, a search not yet captured. A fetch page saved empty holds no
+    listing. Refuses a listing that is not among the search's results."""
+    raw = Path(raw)
+    saved = (raw / f"{name}-search.json").read_text()
+    if not saved.strip():
+        return None
+    answer = json.loads(saved)
+    returned = set(answer.get("result") or [])
+    pages = [raw / f"{name}-fetch.json"] + sorted(raw.glob(f"{name}-fetch-*.json"),
+                                                  key=lambda p: int(p.stem.rsplit("-", 1)[1]))
+    items, unsent = [], 0
+    for page in pages:
+        if not page.exists() or not page.stat().st_size:
+            continue
+        for listing in json.loads(page.read_text())["result"]:
+            if listing is None:
+                unsent += 1
+            elif listing["id"] not in returned:
+                raise ValueError(f"{page.name}: a listing its search {name} did not return")
+            else:
+                items.append(listing["item"])
+    return answer, items, unsent
+
+
+def self_test():
+    """Captures made here, read by `capture`: a page of items and nulls (a
+    crash in the extract, the outside review of 606b4a17), a page of nulls
+    alone, a listing its search did not return, pages read in number order,
+    a search or a page saved empty."""
+    def listing(i):
+        return {"id": i, "item": {"baseType": i}}
+
+    cases = [
+        ("a page of items and nulls: the items in order, the nulls counted",
+         {"s": ["a", "b", "c"]}, {"s": [[listing("a"), None, listing("c")]]}, "s", (["a", "c"], 1)),
+        ("a page of nulls alone: no item, every listing counted",
+         {"s": ["a", "b"]}, {"s": [[None, None]]}, "s", ([], 2)),
+        ("a listing its search did not return is refused",
+         {"s": ["a"]}, {"s": [[listing("a"), listing("z")]]}, "s", "did not return"),
+        ("pages in number order, the tenth after the second",
+         {"s": list("abcdefghij")}, {"s": [[listing(c)] for c in "abcdefghij"]}, "s", (list("abcdefghij"), 0)),
+        ("a page saved empty holds no listing",
+         {"s": ["a"]}, {"s": [""]}, "s", ([], 0)),
+        ("a search saved empty is not yet captured",
+         {"s": ""}, {}, "s", None),
+    ]
+    failed = 0
+    for name, searches, pages, asked, want in cases:
+        with tempfile.TemporaryDirectory() as tmp:
+            raw = Path(tmp)
+            for n, ids in searches.items():
+                (raw / f"{n}-search.json").write_text("" if ids == "" else json.dumps({"id": "x", "result": ids}))
+            for n, fetches in pages.items():
+                for k, page in enumerate(fetches, start=1):
+                    path = raw / (f"{n}-fetch.json" if k == 1 else f"{n}-fetch-{k}.json")
+                    path.write_text("" if page == "" else json.dumps({"result": page}))
+            try:
+                read = capture(raw, asked)
+                got = None if read is None else ([i["baseType"] for i in read[1]], read[2])
+            except ValueError as refusal:
+                got = str(refusal)
+        if not (got == want or isinstance(want, str) and isinstance(got, str) and want in got):
+            failed += 1
+            print(f"DIFFER  {name}: {got}")
+    print(f"{len(cases)} captures made here read, {failed} differ")
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    if sys.argv[1:] != ["--self-test"]:
+        print(__doc__)
+        sys.exit(2)
+    sys.exit(self_test())

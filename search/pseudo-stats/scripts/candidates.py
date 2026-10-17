@@ -51,8 +51,6 @@ import csv
 import itertools
 import json
 import re
-import subprocess
-import os
 import sys
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -60,7 +58,8 @@ from pathlib import Path
 TRACK = Path(__file__).resolve().parents[1]
 SEARCH = TRACK.parent
 REPO = SEARCH.parent
-CLONES = Path(os.environ["ACQ_CLONES"]) if os.environ.get("ACQ_CLONES") else REPO.parent  # the sibling clones; ACQ_CLONES names another directory
+sys.path.insert(0, str(REPO / "tools"))
+from sources import APT, CLONES, PINS, POB, POE1, require  # noqa: E402  the clones, pinned
 OUT = TRACK / "data" / "candidates.csv"
 
 STATS_CAPTURE = SEARCH / "trade-query/data/stats-2026-09-12.json"
@@ -72,11 +71,6 @@ TOTALS = REPO / "search/pseudo-stats/data/totals-v1.toml"
 PSEUDOMODS = SEARCH / "cpp-search/data/pseudomods.toml"
 PERCENTILE_CHECK = TRACK / "data/percentile-check.csv"  # scripts/percentile.py, run first
 
-CLONE_COMMITS = {
-    "poe1": "e2bd511a",
-    "PathOfBuilding": "16de4b82",
-    "awakened-poe-trade": "ce551eb7",
-}
 EXPORT_STATS = "poe1@e2bd511a:data/stats.json"
 APT_INDEX = "awakened-poe-trade@ce551eb7:renderer/src/web/price-check/filters/pseudo/index.ts"
 APT_Q20 = "awakened-poe-trade@ce551eb7:renderer/src/parser/calc-q20.ts"
@@ -507,7 +501,7 @@ def build():
     trade_by_entry = load_trade_by_entry()
     counted, counted_rows = load_totals()
     cpp_speaks = load_cpp_speaks()
-    export = json.loads((CLONES / "poe1/data/stats.json").read_text())
+    export = json.loads((POE1 / "data/stats.json").read_text())
 
     order = [p for p, _, _ in WORDS]
     words = {p: (scope, groups) for p, scope, groups in WORDS}
@@ -738,7 +732,7 @@ def spawn_report(rows):
     """For the ranged family's own templates: the export's mods carrying each
     stat behind them (poe1 data/mods.json), by domain and generation type, and
     the item tags they spawn on with a weight above zero."""
-    mods = json.loads((CLONES / "poe1/data/mods.json").read_text())
+    mods = json.loads((POE1 / "data/mods.json").read_text())
     print()
     print("where the stats behind the unsuffixed ranged templates can appear (poe1@e2bd511a data/mods.json):")
     stats = sorted({e.split("=")[0] for r in rows if "pseudo_adds_" in r["pseudo"]
@@ -760,11 +754,7 @@ def spawn_report(rows):
 
 def check():
     """Open every locator in the written file at its commit."""
-    heads = {}
-    for name, commit in CLONE_COMMITS.items():
-        head = subprocess.run(["git", "-C", str(CLONES / name), "rev-parse", "HEAD"],
-                              capture_output=True, text=True).stdout.strip()
-        heads[name] = head.startswith(commit)
+    require(POE1, POB, APT)
     probes = {}
     for pid, t, _, loc, probe in APT_NAMES:
         probes[(pid, t, loc)] = probe
@@ -774,7 +764,7 @@ def check():
         for row in csv.DictReader(fh):
             for loc in row["sources"].split(";"):
                 seen += 1
-                ok = open_locator(loc, row, heads, probes, fetch)
+                ok = open_locator(loc, row, probes, fetch)
                 if not ok:
                     bad += 1
                     print(f"DOES NOT OPEN  {row['pseudo']} / {row['template']}: {loc}")
@@ -782,7 +772,7 @@ def check():
     return 1 if bad else 0
 
 
-def open_locator(loc, row, heads, probes, fetch):
+def open_locator(loc, row, probes, fetch):
     if loc.startswith(P_FETCH + " "):
         path = loc.split(" ", 1)[1]
         m = re.match(r"queries\.(\w+)\.fetched\[(\d+)\]\.lines\.pseudoMods\[(\d+)\]$", path)
@@ -795,7 +785,7 @@ def open_locator(loc, row, heads, probes, fetch):
         return False
     clone, commit, path, ranges = m.groups()
     if clone:
-        if not heads.get(clone) or not CLONE_COMMITS[clone].startswith(commit):
+        if not PINS.get(clone, "").startswith(commit):
             return False
         file = CLONES / clone / path
     else:
@@ -833,6 +823,7 @@ def main():
     if sys.argv[1:]:
         print(__doc__)
         return 2
+    require(POE1)
     rows, site_checked, templates, entries, export = build()
     write(rows)
     report(rows, site_checked, templates, entries, export)

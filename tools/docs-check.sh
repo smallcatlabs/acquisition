@@ -55,7 +55,14 @@
 #      And the shipped category table is what its committed sources give
 #      (`tools/category-table.py --check`): the reading that closed step
 #      7d found it six citations behind the grouping members it is
-#      written from, which nothing had checked.
+#      written from, which nothing had checked. And from the outside
+#      review of 606b4a17: a generator refuses an absent input rather
+#      than reading what is there (`tools/sources.py --self-test`; and
+#      category's `expected.py --self-test`, which runs it without its
+#      clones and reads a zero beside its own league alone); a capture
+#      is read by one reader, which counts a listing sent null and
+#      refuses one its search did not return (`tools/trade_query.py
+#      --self-test`); and the splitter writes a capture whole.
 #
 # Exit 1 on any failure; the report names each offender.
 set -euo pipefail
@@ -544,7 +551,9 @@ fi
 
 # ---- 9. the sitting's tools ------------------------------------------------
 for check in "sheet tools/trade-sheet.py --verify" "split tools/trade-split.py --self-test" \
-             "category tools/category-table.py --check"; do
+             "category tools/category-table.py --check" "sources tools/sources.py --self-test" \
+             "capture tools/trade_query.py --self-test" \
+             "expected search/category/scripts/expected.py --self-test"; do
   read -r name tool flag <<<"$check"
   if said=$(python3 -I "$tool" "$flag" 2>&1); then
     printf 'ok      %-13s %s\n' "$name" "$(tail -1 <<<"$said" | sed 's/^ok *//')"

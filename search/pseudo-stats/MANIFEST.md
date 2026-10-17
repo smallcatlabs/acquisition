@@ -205,8 +205,12 @@ saved as round m was, one fragment per call. Every body held, no cookie; all
 refused a second answer to t36, opened twice 33 s apart, the first kept. Five
 fetches it then called no search's are their searches', the three Maven's
 Invitation searches (u025, v092, v093; 4,811 listed each): the site sent a
-null for every listing asked, so there is no item to write (the splitter's
-fix after the outside review of step 7). u059 matched its row once a key sent null was read as a key
+null for every listing asked (the splitter's fix after the outside review of
+step 7). After the review of `606b4a17` a capture is written whole, so those
+five pages were written beside their searches, as the site sent them
+(`u025-fetch.json`, `v092-fetch.json` to `-fetch-3.json`, `v093-fetch.json`,
+62 bytes each); the one reader of a capture counts their 50 listings and
+reads no item. u059 matched its row once a key sent null was read as a key
 not sent (`tools/trade_query.py`).
 
 | File | Bytes | Captured | sha256 |
