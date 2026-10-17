@@ -3,10 +3,9 @@
 You are at the root of `smallcatlabs/acquisition`, branch `main`: a
 Cargo workspace implementing Acquisition (`README.md`, the charter and
 crate index). The C++ app is its own repository, `acquisition-qt`
-(GPL-3.0); its build and Qt guidance does not apply here. ADR 0003
-(rewrite vs. evolve) lives there, is the owner's call and needs nothing
-from you. History before the root swap is under `spikes/rust-playground/`
-(tag `playground-end`).
+(GPL-3.0); its build and Qt guidance does not apply here. History
+before the root swap is under `spikes/rust-playground/` (tag
+`playground-end`).
 
 ## Read before changing anything
 
@@ -36,16 +35,10 @@ Then, only when the work touches it:
   the permission recorded in the surface's row.
 - Before touching item search: `search/README.md` — one track per
   subdirectory, with the slice's rules in force.
-- Before touching an area, read its decisions and parks:
-  `decisions/daemon.md` (daemon, jobs, protocol, accounts),
-  `decisions/network.md` (limiter, gate, rails, OAuth traffic),
-  `decisions/store.md` (ingest, facts, realm, characters),
-  `decisions/plans.md` (sync policy, planner, quote, apply),
-  `decisions/pricing.md` (buyout intent, listing state, currency table,
-  price plans, import, render), `decisions/frontends.md` (CLI, MCP,
-  rendering), `decisions/search.md` (item search: the crate,
-  the line, the query, the answer, the basis, the trade boundary).
-  Each module doc names its decision file and ids at the top.
+- Before touching an area, read its decisions and parks,
+  `decisions/<area>.md`; the areas and their ids are the index in
+  `CONTEXT.md`, "Decisions — the registry", and each module doc names
+  its decision file and ids at the top.
   `python3 -I tools/bothy.py pack --path <file>` prints them, with the
   invariants and the cross-cutting rulings, as one document.
 
@@ -100,10 +93,6 @@ RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
 Once per clone: `git config core.hooksPath .githooks`, whose commit-msg
 hook writes Claude's trailer as `Assisted-by:`; the docs check notes a
 clone without it.
-
-The generated search properties run a share of their cases here, fresh
-each run, and all of them in CI (`ACQ_CASES=full`); a failure prints
-the seed that draws its cases again (`PROPTEST_RNG_SEED`).
 
 Build first, and again before any smoke or live run (C82). If contract
 inputs change after building — including a formatting edit — build
