@@ -114,6 +114,9 @@ const WORDS: [&str; 7] = [
 /// value two fields read is read once, by its row (rule 10 of the plan),
 /// so a table without one is refused.
 const QUALITY: &str = "quality";
+/// The row a gem's level is read by, whose mark (`20 (Max)`) says the gem
+/// is at its maximum: what an `at_max` row asks (`experience`).
+const LEVEL: &str = "level";
 const ATTACKS_PER_SECOND: &str = "attacks_per_second";
 const READ_BY_NAME: [(&str, &str); 2] = [
     (QUALITY, "Quality"),
@@ -138,6 +141,8 @@ struct RowIn {
     property: Vec<String>,
     value: Option<usize>,
     select: Option<SelectIn>,
+    also: Option<AlsoIn>,
+    at_max: Option<u32>,
     reads: String,
     #[serde(default)]
     plus: bool,
@@ -147,6 +152,13 @@ struct RowIn {
     #[serde(default)]
     marks: Vec<String>,
     definition: String,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct AlsoIn {
+    array: String,
+    property: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -190,6 +202,12 @@ pub struct Field {
     value: Option<usize>,
     /// A value that must be the word for the property to be this field's.
     select: Option<(usize, String)>,
+    /// A second array the property is displayed in, by its names there,
+    /// read by the same value and select.
+    also: Option<(String, Vec<String>)>,
+    /// What an item displaying none reads where its gem is at its maximum
+    /// level (`percent` rows alone).
+    at_max: Option<u32>,
     reads: Reads,
     plus: bool,
     unit: String,
@@ -223,6 +241,19 @@ impl Field {
 
     fn names(&self, name: &str) -> bool {
         self.property.iter().any(|p| p.eq_ignore_ascii_case(name))
+    }
+
+    /// The arrays the field reads, each with its names there: its own, and
+    /// the one it is also displayed in.
+    fn places(&self) -> Vec<(&str, &[String])> {
+        let mut places: Vec<(&str, &[String])> = Vec::new();
+        if let Some(array) = &self.array {
+            places.push((array.as_str(), self.property.as_slice()));
+        }
+        if let Some((array, names)) = &self.also {
+            places.push((array.as_str(), names.as_slice()));
+        }
+        places
     }
 }
 
@@ -500,6 +531,40 @@ impl PropertyTable {
                 Some(select) => Some((select.value, select.is)),
                 None => None,
             };
+            let also = match row.also {
+                None => None,
+                Some(_) if reads != Reads::Number => {
+                    return Err(shape(
+                        &name,
+                        "is also displayed elsewhere, which only `number` reads",
+                    ));
+                }
+                Some(also) if !ARRAYS.contains(&also.array.as_str()) => {
+                    return Err(PropertyTableError::UnknownArray {
+                        field: name,
+                        array: also.array,
+                    });
+                }
+                Some(also) if row.array.as_deref() == Some(also.array.as_str()) => {
+                    return Err(shape(&name, "is also displayed in its own array"));
+                }
+                Some(also)
+                    if also.property.is_empty()
+                        || also.property.iter().any(|p| p.trim().is_empty()) =>
+                {
+                    return Err(shape(
+                        &name,
+                        "names no property, or an empty one, where it is also displayed",
+                    ));
+                }
+                Some(also) => Some((also.array, also.property)),
+            };
+            if row.at_max.is_some() && reads != Reads::Percent {
+                return Err(shape(
+                    &name,
+                    "reads a value at the maximum level, which only `percent` reads",
+                ));
+            }
             if row.definition.trim().is_empty() {
                 return Err(PropertyTableError::NoDefinition(name));
             }
@@ -512,7 +577,7 @@ impl PropertyTable {
                 .collect();
             property.sort();
             let reading = format!(
-                "{:?} {:?} {value:?} {:?} {reads:?}",
+                "{:?} {:?} {also:?} {value:?} {:?} {reads:?}",
                 row.array,
                 property,
                 select
@@ -538,12 +603,24 @@ impl PropertyTable {
                 property: row.property,
                 value,
                 select,
+                also,
+                at_max: row.at_max,
                 reads,
                 plus: row.plus,
                 unit,
                 whole: row.whole,
                 marks: row.marks,
                 definition: row.definition,
+            });
+        }
+        if fields.iter().any(|f| f.at_max.is_some())
+            && !fields
+                .iter()
+                .any(|f| f.name == LEVEL && f.reads == Reads::Number && !f.marks.is_empty())
+        {
+            return Err(PropertyTableError::NoRow {
+                row: LEVEL,
+                property: "Level",
             });
         }
         for (row, property) in READ_BY_NAME {
@@ -635,7 +712,23 @@ pub(crate) fn read<'a>(field: &Field, item: &'a Item) -> FieldRead<'a> {
         },
         Reads::Numerator | Reads::Denominator | Reads::Percent => match found(field, item) {
             Err(unread) => FieldRead::Unread(unread),
-            Ok(None) => FieldRead::Lacked,
+            Ok(None) => match field.at_max {
+                None => FieldRead::Lacked,
+                // a gem at its maximum level displays no experience, and is
+                // at its maximum (u090)
+                Some(at) => match maxed(item) {
+                    Err(unread) => FieldRead::Unread(unread),
+                    Ok(None) => FieldRead::Lacked,
+                    Ok(Some(level)) => match Exact::whole(i128::from(at)) {
+                        Some(value) => FieldRead::Value {
+                            value,
+                            shown: vec![level],
+                            lines: Vec::new(),
+                        },
+                        None => unread(level, "past what the search computes with"),
+                    },
+                },
+            },
             Ok(Some(property)) => {
                 let text = match value_of(field.value, property) {
                     Ok(text) => text,
@@ -673,6 +766,26 @@ fn by_name<'a>(row: &str, item: &'a Item) -> FieldRead<'a> {
         // the loader refuses a table without it, and no corpus is loaded
         // over a table that does not load
         None => FieldRead::Lacked,
+    }
+}
+
+/// The property showing the item's gem at its maximum level — the `level`
+/// row's, its value beside one of that row's marks (`20 (Max)`) — or none,
+/// or what left it open.
+fn maxed(item: &Item) -> Result<Option<&Property>, Vec<Cow<'_, Unread>>> {
+    let Some(level) = table().ok().and_then(|t| t.field(LEVEL)) else {
+        return Ok(None);
+    };
+    match found(level, item)? {
+        None => Ok(None),
+        Some(property) => {
+            let text = value_of(level.value, property).map_err(|u| vec![u])?;
+            Ok(level
+                .marks
+                .iter()
+                .any(|m| text.ends_with(m.as_str()))
+                .then_some(property))
+        }
     }
 }
 
@@ -761,16 +874,27 @@ fn held<'a>(item: &'a Item, array: &str) -> &'a [Property] {
 /// open: what was unread that may be it, a property of the row's shape
 /// that does not say whose it is, or it displayed more than once.
 fn found<'a>(field: &Field, item: &'a Item) -> Result<Option<&'a Property>, Vec<Cow<'a, Unread>>> {
-    let array = field.array.as_deref().unwrap_or_default();
-    let unread = unread_under(item, array, &|name| field.names(name));
+    let places = field.places();
+    let mut unread: Vec<Cow<'a, Unread>> = Vec::new();
+    for (array, names) in &places {
+        for u in unread_under(item, array, &|name| {
+            names.iter().any(|p| p.eq_ignore_ascii_case(name))
+        }) {
+            // the body unread is said once, whichever array asks
+            if !unread.contains(&u) {
+                unread.push(u);
+            }
+        }
+    }
     if !unread.is_empty() {
         return Err(unread);
     }
     let mut its: Vec<&'a Property> = Vec::new();
-    for property in held(item, array)
-        .iter()
-        .filter(|p| p.array == array && field.names(&p.name))
-    {
+    for property in places.iter().flat_map(|(array, names)| {
+        held(item, array).iter().filter(move |p| {
+            p.array == *array && names.iter().any(|n| n.eq_ignore_ascii_case(&p.name))
+        })
+    }) {
         match &field.select {
             None => its.push(property),
             Some((at, word)) => match property.values.get(*at) {

@@ -329,6 +329,15 @@ impl StatTable {
             .map_or(&[], Vec::as_slice)
     }
 
+    /// Every text the table lists, under any id and category, each once
+    /// for each id that carries it: what the forms table is checked by
+    /// (`forms.rs`).
+    pub fn every_text(&self) -> impl Iterator<Item = &str> {
+        self.by_id
+            .values()
+            .flat_map(|s| s.texts.iter().map(String::as_str))
+    }
+
     /// The hash categories that carry an id, in the capture's order.
     pub fn categories(&self, id: &str) -> Vec<&'static str> {
         let Some(found) = self.by_id.get(id) else {

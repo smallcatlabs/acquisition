@@ -55,6 +55,7 @@ use serde_json::{Map, Value as Json};
 use crate::error::{ErrorKind, LanguageError};
 
 pub mod catalogue;
+pub mod forms;
 pub mod stats;
 pub mod translate;
 

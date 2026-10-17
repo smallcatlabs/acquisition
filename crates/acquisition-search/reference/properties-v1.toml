@@ -23,7 +23,18 @@
 # `value` which of its values is read, from 0, by every row that reads a
 # property, a q20 row too; `select` a value that must be
 # the word named for the property to be this field's — one property shape
-# for nine heist skills. `reads`:
+# for nine heist skills; `also` a second array the property is displayed
+# in, by its names there, read by the same value and select (a heist
+# item's own requirement, `Level {0} in {1}`, t48); `at_max`, on a
+# `percent` row, the value of an item displaying none whose `level` row
+# reads its value beside a mark — a gem at its maximum level displays no
+# experience, and the trade site reads it at 100 (u090). The sitting of
+# 2026-10-16 (rounds t to w, tests/trade-oracle.toml) widened four rows to
+# what the site's filter reads: `area_level` a vessel's `Monster Level`
+# (t46), the heist skills a heist item's requirement (t48), `quality` the
+# twelve catalysts' kinds (t49; ten in the captures, the twelve named in
+# PathOfBuilding at its pin, src/Classes/ItemsTab.lua), `experience` a gem
+# at its maximum (u090). `reads`:
 #   number       the value is a number: digits, a point and digits unless
 #                `whole`; a `+` before it where `plus`, the `unit` after it
 #                and then one of `marks` — each read where written, and
@@ -164,10 +175,10 @@ definition = "a map's tier: the number in its base type, `Map (Tier 16)`, `Bligh
 [[field]]
 name = "area_level"
 array = "properties"
-property = ["Area Level"]
+property = ["Area Level", "Monster Level"]
 reads = "number"
 whole = true
-definition = "the displayed `Area Level`: a map's, a contract's or a logbook's own level"
+definition = "the displayed `Area Level`: a map's, a contract's or a logbook's own level; a Blood-filled Vessel's `Monster Level`, the same property, which the trade site's Area Level reads (t46)"
 
 [[field]]
 name = "monster_pack_size"
@@ -257,9 +268,10 @@ array = "properties"
 property = ["Requires {1} (Level {0})"]
 value = 0
 select = { value = 1, is = "Lockpicking" }
+also = { array = "requirements", property = ["Level {0} in {1}"] }
 reads = "number"
 whole = true
-definition = "the level of Lockpicking a contract or blueprint requires: `Requires Lockpicking (Level n)`; a heist item's own requirement, `Requires Level n in Lockpicking`, is not read"
+definition = "the level of Lockpicking a contract or blueprint requires, `Requires Lockpicking (Level n)`, or a heist item requires of its wearer, `Requires Level n in Lockpicking`, which the trade site's skill filter reads too (t48)"
 
 [[field]]
 name = "brute_force"
@@ -267,6 +279,7 @@ array = "properties"
 property = ["Requires {1} (Level {0})"]
 value = 0
 select = { value = 1, is = "Brute Force" }
+also = { array = "requirements", property = ["Level {0} in {1}"] }
 reads = "number"
 whole = true
 definition = "the level of Brute Force a contract or blueprint requires, as `lockpicking`"
@@ -277,6 +290,7 @@ array = "properties"
 property = ["Requires {1} (Level {0})"]
 value = 0
 select = { value = 1, is = "Perception" }
+also = { array = "requirements", property = ["Level {0} in {1}"] }
 reads = "number"
 whole = true
 definition = "the level of Perception a contract or blueprint requires, as `lockpicking`"
@@ -287,6 +301,7 @@ array = "properties"
 property = ["Requires {1} (Level {0})"]
 value = 0
 select = { value = 1, is = "Demolition" }
+also = { array = "requirements", property = ["Level {0} in {1}"] }
 reads = "number"
 whole = true
 definition = "the level of Demolition a contract or blueprint requires, as `lockpicking`"
@@ -297,6 +312,7 @@ array = "properties"
 property = ["Requires {1} (Level {0})"]
 value = 0
 select = { value = 1, is = "Counter-Thaumaturgy" }
+also = { array = "requirements", property = ["Level {0} in {1}"] }
 reads = "number"
 whole = true
 definition = "the level of Counter-Thaumaturgy a contract or blueprint requires, as `lockpicking`"
@@ -307,6 +323,7 @@ array = "properties"
 property = ["Requires {1} (Level {0})"]
 value = 0
 select = { value = 1, is = "Trap Disarmament" }
+also = { array = "requirements", property = ["Level {0} in {1}"] }
 reads = "number"
 whole = true
 definition = "the level of Trap Disarmament a contract or blueprint requires, as `lockpicking`"
@@ -317,6 +334,7 @@ array = "properties"
 property = ["Requires {1} (Level {0})"]
 value = 0
 select = { value = 1, is = "Agility" }
+also = { array = "requirements", property = ["Level {0} in {1}"] }
 reads = "number"
 whole = true
 definition = "the level of Agility a contract or blueprint requires, as `lockpicking`"
@@ -327,6 +345,7 @@ array = "properties"
 property = ["Requires {1} (Level {0})"]
 value = 0
 select = { value = 1, is = "Deception" }
+also = { array = "requirements", property = ["Level {0} in {1}"] }
 reads = "number"
 whole = true
 definition = "the level of Deception a contract or blueprint requires, as `lockpicking`"
@@ -337,6 +356,7 @@ array = "properties"
 property = ["Requires {1} (Level {0})"]
 value = 0
 select = { value = 1, is = "Engineering" }
+also = { array = "requirements", property = ["Level {0} in {1}"] }
 reads = "number"
 whole = true
 definition = "the level of Engineering a contract or blueprint requires, as `lockpicking`"
@@ -382,12 +402,26 @@ definition = "a sanctum's displayed `Aureus`"
 [[field]]
 name = "quality"
 array = "properties"
-property = ["Quality"]
+property = [
+    "Quality",
+    "Quality (Attack Modifiers)",
+    "Quality (Attribute Modifiers)",
+    "Quality (Caster Modifiers)",
+    "Quality (Critical Modifiers)",
+    "Quality (Defence Modifiers)",
+    "Quality (Elemental Damage Modifiers)",
+    "Quality (Life and Mana Modifiers)",
+    "Quality (Physical and Chaos Damage Modifiers)",
+    "Quality (Prefix Modifiers)",
+    "Quality (Resistance Modifiers)",
+    "Quality (Speed Modifiers)",
+    "Quality (Suffix Modifiers)",
+]
 reads = "number"
 plus = true
 unit = "%"
 whole = true
-definition = "the displayed `Quality`, in percent; a catalysed ring's `Quality (Resistance Modifiers)`, a map's `Quality (Quantity)` and their kin are names of their own and not read"
+definition = "the displayed `Quality`, in percent, and a catalysed ring's or amulet's, `Quality (Resistance Modifiers)` and its eleven kin, which the trade site's Quality reads too (t49); a map's `Quality (Quantity)` and its kin are names of their own and not read"
 
 [[field]]
 name = "level"
@@ -403,7 +437,8 @@ name = "experience"
 array = "additionalProperties"
 property = ["Experience"]
 reads = "percent"
-definition = "a gem's experience as the percent of its level's: `Experience: a/b` as 100 × a ÷ b, cut to five decimals toward nothing, so one point short is never 100"
+at_max = 100
+definition = "a gem's experience as the percent of its level's: `Experience: a/b` as 100 × a ÷ b, cut to five decimals toward nothing, so one point short is never 100; a gem at its maximum level, `Level 20 (Max)`, displays none and is at 100, as the trade site reads it (u090)"
 
 [[field]]
 name = "stored_experience"

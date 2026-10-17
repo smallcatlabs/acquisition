@@ -260,10 +260,14 @@ fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
             f.home
         );
         assert!(!f.cites.is_empty(), "{}", f.key);
-        assert_eq!(
-            f.home == "site",
-            f.row.is_some(),
+        assert!(
+            f.home != "site" || f.row.is_some(),
             "{}: a fact names its row",
+            f.key
+        );
+        assert!(
+            f.home != "sitting" || f.row.is_none(),
+            "{}: a question labels nothing",
             f.key
         );
         assert_eq!(
@@ -319,7 +323,7 @@ fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
         }
         translations.insert(search.name, t);
     }
-    assert_eq!((none.len(), ran, items, matched), (362, 760, 7135, 6446));
+    assert_eq!((none.len(), ran, items, matched), (362, 760, 7135, 6547));
     assert!(none.contains(&"q2b".to_string()));
     partial.sort();
     assert_eq!(
@@ -349,10 +353,42 @@ fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
         "disagreements no row names: {new:#?}\nrows no longer found: {gone:#?}"
     );
 
+    // a ruling the build leaves ambiguous: the clause that refuses the
+    // item, or a filter under it, is ambiguous by the finding's row — no
+    // row of the set is a clause reported exact (step 7e)
+    for ((search, i), (_, refused_by, finding)) in &want {
+        let f = findings[finding];
+        let (Some(row), "ruling") = (&f.row, f.home.as_str()) else {
+            continue;
+        };
+        let t = &translations[search];
+        for path in refused_by {
+            let at = &t
+                .clauses
+                .iter()
+                .find(|c| c.path.as_ref() == Some(path))
+                .unwrap()
+                .at;
+            let labelled = t.clauses.iter().any(|c| {
+                (c.at == *at || c.at.starts_with(&format!("{at}.")))
+                    && c.status == Status::Ambiguous
+                    && c.rows.contains(row)
+            });
+            assert!(
+                labelled,
+                "{search} item {i}: {path} is refused and nothing under it is ambiguous by {row}"
+            );
+        }
+    }
+
     // a fact of the site lies on the clauses the item meets under the one
     // that refuses it, and the report calls each ambiguous by the fact's row
     for ((search, i), (_, _, finding)) in &want {
-        let Some(row) = &findings[finding].row else {
+        let Some(row) = findings[finding]
+            .row
+            .as_ref()
+            .filter(|_| findings[finding].home == "site")
+        else {
             continue;
         };
         let met = &met[&(search.clone(), *i)];

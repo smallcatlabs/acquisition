@@ -158,7 +158,7 @@ pub(crate) fn check_slot(template: &str, slot: &str) -> Result<(), LanguageError
 /// Where a sign sits directly before a `#`: `+# to maximum Life`, as the
 /// game and the trade site write it. A `+` or `-` straight after a `#`, a
 /// digit or a `)` is a range dash — `(#-#)` — never a sign.
-fn signs(template: &str) -> Vec<(usize, char)> {
+pub(crate) fn signs(template: &str) -> Vec<(usize, char)> {
     let chars: Vec<(usize, char)> = template.char_indices().collect();
     let mut found = Vec::new();
     for (i, &(at, c)) in chars.iter().enumerate() {

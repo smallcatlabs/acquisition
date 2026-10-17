@@ -1027,9 +1027,9 @@ pub struct QueryOut {
 
 /// A site search's translation as the answer reports it (C113, K6): what
 /// the input was, every clause with its status, the remainder and the
-/// fidelity, and the versions of the two tables it was read by — the
-/// catalogue and the stat table, which the build named in the basis
-/// digests (`build.rs`). The text and the tree are the query's own.
+/// fidelity, and the versions of the three tables it was read by — the
+/// catalogue, the stat table and the forms table, which the build named
+/// in the basis digests (`build.rs`). The text and the tree are the query's own.
 #[derive(Debug, Clone, Serialize)]
 pub struct TradeOut {
     pub source: Source,
@@ -1039,6 +1039,7 @@ pub struct TradeOut {
     pub clauses: Vec<Clause>,
     pub catalogue: u32,
     pub stats: String,
+    pub forms: u32,
 }
 
 impl From<Translation> for TradeOut {
@@ -1050,6 +1051,7 @@ impl From<Translation> for TradeOut {
             clauses: t.clauses,
             catalogue: t.catalogue,
             stats: t.stats,
+            forms: t.forms,
         }
     }
 }

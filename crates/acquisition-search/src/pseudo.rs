@@ -349,15 +349,21 @@ pub(crate) enum Derived {
     Pdps,
     /// Elemental damage per second (step 3 of `search/TRADE-PLAN.md`).
     Edps,
+    /// `dps` and `pdps` at 20 % quality, as the trade site's filters state
+    /// them (t41, t42; step 7e).
+    DpsQ20,
+    PdpsQ20,
     /// The base defence percentile ([`percentile`]).
     DefencePct,
 }
 
 impl Derived {
-    const ALL: [Derived; 4] = [
+    const ALL: [Derived; 6] = [
         Derived::Dps,
         Derived::Pdps,
         Derived::Edps,
+        Derived::DpsQ20,
+        Derived::PdpsQ20,
         Derived::DefencePct,
     ];
 
@@ -366,6 +372,8 @@ impl Derived {
             Derived::Dps => "dps",
             Derived::Pdps => "pdps",
             Derived::Edps => "edps",
+            Derived::DpsQ20 => "dps_q20",
+            Derived::PdpsQ20 => "pdps_q20",
             Derived::DefencePct => "defence_pct",
         }
     }
@@ -380,6 +388,12 @@ impl Derived {
             }
             Derived::Edps => {
                 "elemental damage per second: the attacks per second times the mean of `Elemental Damage`, each of its ranges' means summed; an item lacking either property lacks it".to_string()
+            }
+            Derived::DpsQ20 => {
+                "damage per second at 20 % quality, as the trade site's Damage per Second states it (t42): `pseudo.dps` with the physical range as `pseudo.pdps_q20` reads it — elemental and chaos damage, which quality does not raise, as displayed".to_string()
+            }
+            Derived::PdpsQ20 => {
+                "physical damage per second at 20 % quality, as the trade site's Physical DPS states it (t41): each end of `Physical Damage` with the item's quality taken out and 20 % put in — the display × 120 ÷ (100 + the quality), rounded half up, and the display at 20 % or more — its mean times the attacks per second. Within one of the site's own figure at the mean, which works from the roll the display has rounded: equal on 902 of the captures' 1,095 weapons, a half off on 181 and one off on 12".to_string()
             }
             Derived::DefencePct => format!(
                 "{} Of the captured lines whose side the site's id names, each part holds on all: 442 of 442 explicit, 17 of 17 implicit on an eldritch item, 10 of 10 implicit on a synthesised item — counted by search/pseudo-stats/scripts/defence-twins.py. Ruled: the exact half J5, the twin J8, undecided J33, out of range J34, a realm with no table J35; the site's bound C102. {}",
@@ -401,7 +415,9 @@ impl Derived {
     /// One text, which [`Derived::definition`] prints whole and adds to.
     pub fn own_definition(self) -> String {
         match self {
-            Derived::Dps | Derived::Pdps | Derived::Edps => self.definition(),
+            Derived::Dps | Derived::Pdps | Derived::Edps | Derived::DpsQ20 | Derived::PdpsQ20 => {
+                self.definition()
+            }
             Derived::DefencePct => format!(
                 "the trade site's Base Percentile, by the site's own rule — \"{SITE_TIP}\": each of `Armour`, `Evasion Rating`, `Energy Shield` and `Ward` that the item's base ranges is worked back from the number displayed to the roll behind it, a roll being any whole number whose display is the item's — (the roll + what the item's own lines add) × (1 + the item's own increases) × (1 + the quality displayed), rounded half up — and the value is each roll's place in the base's range as a percentage, averaged over the defences and rounded half up to a whole number. One departure from the site's words: a display at an exact half admits both whole numbers as rolls. Under `Quality does not increase Defences` the quality is dropped. A line whose text a global stat displays too, a twin text, is told by where it sits: an explicit is the item's own; an implicit on an eldritch item, `searing` or `tangled`, is the global stat and left out; an implicit on a synthesised item is the item's own. A roll out of the base's range still reads, over 100 above its maximum and below 0 under its minimum, which no capture has shown: a line misread can show a number out of range. An item displaying none of the four defences lacks it. It is undecided, with the reason, wherever what the item shows does not give one value from lines whose side is established: in a realm with no table, on every item; a base the table lacks, holds more than once with nothing telling which, or no row of which fits what is displayed; a property, an array or a line unread; a twin implicit on an item of neither mark, of both, or whose mark is unread; a twin text in any other array; a line of a crucible node that the field reads, of which the site has not yet been asked; no roll giving the display; a base whose minimum is its maximum; several rolls giving different values. A defence bound on the trade site is inexact."
             ),
@@ -411,7 +427,9 @@ impl Derived {
     /// The bound a printed example compares the field with.
     fn example(self) -> u32 {
         match self {
-            Derived::Dps | Derived::Pdps | Derived::Edps => 300,
+            Derived::Dps | Derived::Pdps | Derived::Edps | Derived::DpsQ20 | Derived::PdpsQ20 => {
+                300
+            }
             Derived::DefencePct => 80,
         }
     }
@@ -856,7 +874,7 @@ enum Inputs<'a> {
 fn derived_of(derived: Derived, held: &Held) -> Valued {
     let read = match derived {
         Derived::DefencePct => percentile(held).map(|read| read.value),
-        Derived::Dps | Derived::Pdps | Derived::Edps => {
+        Derived::Dps | Derived::Pdps | Derived::Edps | Derived::DpsQ20 | Derived::PdpsQ20 => {
             inputs(derived, held).map(|read| read.value)
         }
     };
@@ -871,9 +889,9 @@ fn derived_of(derived: Derived, held: &Held) -> Valued {
 /// percentile's properties are its own ([`percentile`]).
 fn damage(derived: Derived) -> &'static [&'static str] {
     match derived {
-        Derived::Pdps => &[PHYSICAL],
+        Derived::Pdps | Derived::PdpsQ20 => &[PHYSICAL],
         Derived::Edps => &[ELEMENTAL],
-        Derived::Dps => &[PHYSICAL, ELEMENTAL, CHAOS],
+        Derived::Dps | Derived::DpsQ20 => &[PHYSICAL, ELEMENTAL, CHAOS],
         Derived::DefencePct => &[],
     }
 }
@@ -916,11 +934,45 @@ fn inputs(derived: Derived, held: &Held) -> Result<Read<'_>, Inputs<'_>> {
         }
         FieldRead::Lacked => (None, None),
     };
+    // at 20 % quality, the physical range alone: the item's quality as
+    // the `quality` row reads it (rule 10), none displayed none
+    let q20 = matches!(derived, Derived::DpsQ20 | Derived::PdpsQ20);
+    let physical = |p: &Property| p.name.eq_ignore_ascii_case(PHYSICAL);
+    let mut quality_shown: Option<&Property> = None;
+    let quality: Option<i128> = if q20 && damage.iter().any(|p| physical(p)) {
+        match properties::quality(item) {
+            Ok(None) => Some(0),
+            Ok(Some((quality, property))) => {
+                quality_shown = Some(property);
+                Some(quality)
+            }
+            Err(unread) => {
+                problems.extend(unread);
+                None
+            }
+        }
+    } else {
+        None
+    };
     // the mean of a damage property: the sum of its ranges' means
     let mean_of = |p: &Property, problems: &mut Vec<Cow<'_, Unread>>| -> Option<Exact> {
         let mut means = Vec::with_capacity(p.values.len());
         for value in &p.values {
             match range(value) {
+                Some((low, high)) if q20 && physical(p) => {
+                    match quality.map(|q| (at_twenty(low, q), at_twenty(high, q))) {
+                        Some((Some(low), Some(high))) => means.push(low.mid(high)),
+                        // the quality unread is said where it was read
+                        None => means.push(low.mid(high)),
+                        Some(_) => {
+                            problems.push(properties::problem(
+                                p,
+                                "no whole numbers to put 20 % quality in",
+                            ));
+                            return None;
+                        }
+                    }
+                }
                 Some((low, high)) => means.push(low.mid(high)),
                 None => {
                     problems.push(properties::problem(
@@ -961,9 +1013,23 @@ fn inputs(derived: Derived, held: &Held) -> Result<Read<'_>, Inputs<'_>> {
     let Some(value) = product else {
         return Err(Inputs::Unread(Vec::new()));
     };
-    let mut shown: Vec<&Property> = aps.into_iter().chain(damage).collect();
+    let mut shown: Vec<&Property> = aps.into_iter().chain(damage).chain(quality_shown).collect();
     shown.sort_by_key(|p| item.properties.iter().position(|q| std::ptr::eq(q, *p)));
     Ok(Read { value, shown })
+}
+
+/// A damage range's end at 20 % quality (S26's rule, as the q20 defences
+/// are: `properties.rs`): the display × 120 ÷ (100 + the quality), rounded
+/// half up, and the display where the quality is 20 % or more; none for an
+/// end that is no whole number.
+fn at_twenty(end: Exact, quality: i128) -> Option<Exact> {
+    let n = end.as_whole()?;
+    if quality >= 20 {
+        return Some(end);
+    }
+    Ratio::new(n * 120, 100 + quality)
+        .and_then(Ratio::half_up)
+        .and_then(Exact::whole)
 }
 
 // ---- the base defence percentile -------------------------------------------------------------------

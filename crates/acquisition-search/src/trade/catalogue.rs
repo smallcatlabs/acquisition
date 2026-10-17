@@ -54,8 +54,8 @@ pub const FILTERS_CAPTURE: &str = "2026-09-12";
 /// What a row's `lands` may be filled with (the file's header): each a
 /// part of a clause the translation reads (`translate.rs`, which fills
 /// every one).
-pub const PLACEHOLDERS: [&str; 11] = [
-    "value", "text", "option", "r", "g", "b", "w", "bounds", "total", "slot", "pinned",
+pub const PLACEHOLDERS: [&str; 9] = [
+    "value", "text", "option", "r", "g", "b", "w", "bounds", "total",
 ];
 
 /// A clause's status when it runs (K6). `disabled`, the fifth, is the
@@ -113,6 +113,7 @@ struct RowIn {
     lands: Option<String>,
     #[serde(default)]
     fields: Vec<String>,
+    lacked: Option<String>,
     note: Option<String>,
 }
 
@@ -127,6 +128,9 @@ pub struct Row {
     /// The text it becomes, with its placeholders.
     pub lands: Option<String>,
     pub fields: Vec<String>,
+    /// An item lacking the row's one field meets a maximum alone (the
+    /// file's header: `lacked = "meets_maximum"`).
+    pub lacked_meets_maximum: bool,
     pub note: Option<String>,
 }
 
@@ -195,6 +199,9 @@ pub enum CatalogueError {
         key: String,
         field: String,
     },
+    /// A `lacked` that is not `meets_maximum`, or on a row whose text is
+    /// not one field's bounds.
+    Lacked(String),
 }
 
 impl std::fmt::Display for CatalogueError {
@@ -260,6 +267,10 @@ impl std::fmt::Display for CatalogueError {
             CatalogueError::UnknownField { key, field } => write!(
                 f,
                 "the trade catalogue names {field:?} for {key:?}, which this build does not know"
+            ),
+            CatalogueError::Lacked(key) => write!(
+                f,
+                "the trade catalogue gives {key:?} a `lacked`, which is `meets_maximum` on a row landing one field's `{{bounds}}` alone"
             ),
         }
     }
@@ -470,6 +481,13 @@ impl Catalogue {
                     key,
                 });
             }
+            let lacked_meets_maximum = match row.lacked.as_deref() {
+                None => false,
+                Some("meets_maximum") if matches!(row.fields.as_slice(), [one] if row.lands.as_deref() == Some(format!("{one}{{bounds}}").as_str())) => {
+                    true
+                }
+                Some(_) => return Err(CatalogueError::Lacked(key)),
+            };
             rows.push(Row {
                 key,
                 text: row.text,
@@ -477,6 +495,7 @@ impl Catalogue {
                 disposition,
                 lands: row.lands,
                 fields: row.fields,
+                lacked_meets_maximum,
                 note: row.note,
             });
         }

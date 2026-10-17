@@ -24,7 +24,7 @@ const GRAMMAR: &str = include_str!("../../../search/trade-query/data/grammar.jso
 fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
     let c = catalogue::catalogue().unwrap();
     assert_eq!(c.version(), CATALOGUE_VERSION);
-    assert_eq!(c.rows().len(), 140);
+    assert_eq!(c.rows().len(), 142);
     let count = |d: Disposition| c.rows().iter().filter(|r| r.disposition == d).count();
     assert_eq!(
         [
@@ -33,22 +33,40 @@ fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
             count(Disposition::Unsupported),
             count(Disposition::ListingOnly)
         ],
-        [65, 29, 37, 9]
+        [76, 20, 37, 9]
     );
     // the four defence filters ambiguous since step 3 measured the q20
-    // rule against the site (`tests/properties.rs`), and the eleven rows
-    // step 3's measurement doubted since step 4, by the owner's verdicts,
-    // and the digit rule no capture shows (owner, 2026-10-16), and since
-    // step 6 an eldritch form in a `not`, which the site's captures let
-    // through (`tests/trade_oracle.rs`)
+    // rule against the site (`tests/properties.rs`), and the digit rule no
+    // capture shows (owner, 2026-10-16), and since step 6 an eldritch form
+    // in a `not`, which the site's captures let through
+    // (`tests/trade_oracle.rs`); since step 7e the damage at 20 % quality,
+    // within one of the site's (`tests/trade_dps.rs`), a stat a form of
+    // which no sum holds and a refused form (the park "A named stat
+    // value"), and a map whose base names no tier (u065)
     for key in [
         "stat.text.numbers",
         "stat.text.eldritch",
+        "stat.text.forms",
+        "stat.text.refused",
         "armour_filters.ar",
         "armour_filters.ev",
         "armour_filters.es",
         "armour_filters.ward",
         "weapon_filters.crit",
+        "weapon_filters.dps",
+        "weapon_filters.pdps",
+        "map_filters.map_tier",
+    ] {
+        let row = c.row(key).unwrap();
+        assert_eq!(row.disposition, Disposition::Ambiguous, "{key}");
+    }
+    // the rows the sitting of 2026-10-16 settled, built at step 7e: an
+    // explicit id holds the stat's crafted and fractured lines (t13, t15),
+    // a vessel's Monster Level (t46) and a heist item's own requirement
+    // (t48) are the site's, and the elemental damage is its own figure
+    for key in [
+        "stat.explicit",
+        "weapon_filters.edps",
         "map_filters.area_level",
         "heist_filters.heist_lockpicking",
         "heist_filters.heist_brute_force",
@@ -61,7 +79,16 @@ fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
         "heist_filters.heist_engineering",
     ] {
         let row = c.row(key).unwrap();
-        assert_eq!(row.disposition, Disposition::Ambiguous, "{key}");
+        assert_eq!(row.disposition, Disposition::Exact, "{key}");
+    }
+    // no requirement meets a maximum (u061): the four requirement rows
+    for key in [
+        "req_filters.lvl",
+        "req_filters.str",
+        "req_filters.dex",
+        "req_filters.int",
+    ] {
+        assert!(c.row(key).unwrap().lacked_meets_maximum, "{key}");
     }
     // the owner, 2026-10-15: "Unsupported until the sitting"
     assert_eq!(
@@ -73,7 +100,7 @@ fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
             .unwrap()
             .rows()
             .len(),
-        140
+        142
     );
 }
 
@@ -156,8 +183,6 @@ fn c114_every_field_the_catalogue_names_binds() {
         "category",
         "rarity",
         "is",
-        "pseudo.dps",
-        "pseudo.pdps",
         "pseudo.defence_pct",
         "sockets",
         "sockets.red",
@@ -171,16 +196,18 @@ fn c114_every_field_the_catalogue_names_binds() {
     .into_iter()
     .collect();
     assert!(before.is_subset(&named));
-    // … and the 40 it built: the property table's 39 and one computed value
+    // … and the 42 built since: step 3's 40, the property table's 39 and
+    // one computed value, and step 7e's two, the damage at 20 % quality the
+    // dps rows land on in place of `pseudo.dps` and `pseudo.pdps` (t41, t42)
     let built: BTreeSet<&str> = named.difference(&before).copied().collect();
-    assert_eq!(built.len(), 40);
+    assert_eq!(built.len(), 42);
     let mut table: BTreeSet<&str> = acquisition_search::properties::table()
         .unwrap()
         .fields()
         .iter()
         .map(|f| f.name())
         .collect();
-    table.insert("pseudo.edps");
+    table.extend(["pseudo.edps", "pseudo.dps_q20", "pseudo.pdps_q20"]);
     assert_eq!(built, table);
 }
 

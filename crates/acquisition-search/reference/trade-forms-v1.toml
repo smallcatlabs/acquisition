@@ -1,0 +1,241 @@
+# The forms table — v1 (C113, C106; src/trade/forms.rs), step 7e of
+# search/TRADE-PLAN.md.
+#
+# Reference data: reviewed by hand, committed, shipped inside the binary
+# (`include_str!` in `src/trade/forms.rs`), read-only, read by the
+# translation alone (C90: a stat id exists only at the trade boundary) and
+# cited by version in the report of every answer a translation produced,
+# beside the catalogue's and the stat table's. The sitting of 2026-10-16
+# (rounds t to w) found the site's stat the item's stat however displayed
+# (tests/trade-oracle.toml: `reduced-spelling`, `displayed-forms`,
+# `no-physical-damage`). The forms are first the game's own, generated
+# beside this file (reference/trade-game-forms-v1.toml, from the PoE1
+# export's stat descriptions; the owner, 2026-10-17, choosing "Game data,
+# rules beside" when the brief's blanket rules were found to name forms the
+# game never shows); this file holds what the export cannot say. What the
+# game displays and the site files under one id, never a judgment. The park
+# "A named stat value" (decisions/search.md; brainstorming-notes/37) lifts
+# both.
+#
+# What a row means. A stat's site text (as the stat table lists it, its
+# ` (Local)` suffix dropped where it has one) displays as the text and as
+# each of its forms; a form is written in the site's spelling, `#` where
+# the number varies and a digit where the text has one, and is compared as
+# the deriver compares a template (case aside, a `+` before a `#` spelling).
+# A text the export joins takes the game's forms and no rule here; one it
+# joins nowhere takes the rules.
+#
+#   [[opposite]]  two words a number's sign spells: an unjoined text with
+#                 an open `#` and one of them displays with the other, its
+#                 number below nothing — every combination where it has
+#                 several. A text carrying both words of a pair is refused
+#                 by name.
+#   [[elision]]   a numberless display: an unjoined text holding `drop` (at
+#                 its start where `at = "start"`) displays without it at
+#                 `number`, its first letter a capital.
+#   [[form]]      a form the captures show that neither the export nor a
+#                 rule gives (search/pseudo-stats/data/bodies.json, each
+#                 mod's `hash`), by `kind`:
+#                 plural      the same numbers, a noun's plural or singular
+#                             (t27, t29: `for # second` as `for 4 seconds`);
+#                 opposite    another wording below nothing;
+#                 numberless  a number the display leaves out, `number` it
+#                             where it is one (`an` for one) and none where
+#                             it is hidden (`No Physical Damage`, t07–t09,
+#                             w01–w05: about -120 and not one number);
+#                 other       another wording the captures file under the
+#                             id, which no sitting has read.
+#                 A row the export already gives is refused by the loader.
+#   [[refused]]   a form that is itself a text the site lists, by name:
+#                 `rule` what made it — `game`, `form`, `opposite` or an
+#                 elision's key — and `form` the listed text, or none for a
+#                 text carrying both words of a pair. The form is left out,
+#                 and the translation calls the text, and the listed text,
+#                 ambiguous: an item's line may be filed under either.
+#
+# What the translation reads of it (src/trade/translate.rs): a stat's
+# presence is the line over its text and every form; a bound sums the
+# text and its `plural` forms alone, and a stat with any other form is
+# ambiguous with a note naming the park — the bound is never moved onto a
+# form, so the text means what it says after an edit. Only the kind is
+# read; `number` is data for the park.
+#
+# Measured at writing (tests/trade_forms.rs, which walks the stat table and
+# holds the captures to the forms): the rules' reach, the collisions
+# refused, the captured lines met, each pinned there.
+
+version = 1
+stats = "2026-09-12"
+source = "the sitting of 2026-10-16, rounds t to w (tests/trade-oracle.toml), the lines the site filed under each id in its captures (search/pseudo-stats/data/bodies.json), read through the deriver, and the game's forms beside it (reference/trade-game-forms-v1.toml)"
+
+# ---- the opposite words (t01–t04: `reduced` under an `increased` id, below
+# nothing, and the inverse) ------------------------------------------------
+
+[[opposite]]
+words = ["increased", "reduced"]
+
+[[opposite]]
+words = ["more", "less"]
+
+# ---- the elisions (t10, t11: `Trigger Commandment of Ire when Hit` under
+# `#% chance to Trigger …`, at 100) ----------------------------------------
+
+[[elision]]
+key = "chance"
+drop = "#% chance to "
+at = "start"
+number = 100
+
+[[elision]]
+key = "have"
+drop = "have #% chance to "
+number = 100
+
+[[elision]]
+key = "have_a"
+drop = "have a #% chance to "
+number = 100
+
+# ---- the forms the captures show that the export and the rules do not -----
+
+[[form]]
+text = "#% increased Hiring Fee of Rogues"
+form = "#% reduced Hiring Fee"
+kind = "opposite"
+
+[[form]]
+text = "Chance to Block is Unlucky"
+form = "Chance to Block is Lucky"
+kind = "opposite"
+
+[[form]]
+text = "+#% Chance to Block (Shields)"
+form = "#% Chance to Block"
+kind = "other"
+
+[[form]]
+text = "While a Unique Enemy is in your Presence, Melee Hits Fortify"
+form = "While a Unique Enemy is in your Presence, Melee Hits have #% chance to Fortify"
+kind = "other"
+
+[[form]]
+text = "Rhoa Feather Lure"
+form = "Siren Worm Bait"
+kind = "other"
+
+[[form]]
+text = "Rhoa Feather Lure"
+form = "Thaumaturgical Lure"
+kind = "other"
+
+[[form]]
+text = "Area is inhabited by Redblade Warbands"
+form = "Next Area will be inhabited by Mutewind Warbands"
+kind = "other"
+
+[[form]]
+text = "Area contains a Breach"
+form = "Next Area will contain a Breach"
+kind = "other"
+
+[[form]]
+text = "Area contains a Rogue Exile"
+form = "Next Area will contain a Rogue Exile"
+kind = "other"
+
+[[form]]
+text = "Area contains a Monster possessed by an Ancient Talisman"
+form = "Next Area will contain a Monster possessed by an Ancient Talisman"
+kind = "other"
+
+[[form]]
+text = "Area contains up to 1 Shrine"
+form = "Next Area will contain up to 1 Shrine"
+kind = "other"
+
+[[form]]
+text = "Area contains at least 1 Warband Pack"
+form = "Next Area will contain at least 1 Warband Pack"
+kind = "other"
+
+[[form]]
+text = "Slaying Enemies in a kill streak grants Rampage bonuses"
+form = "Slaying Enemies in a kill streak in next Area will grant Rampage bonuses"
+kind = "other"
+
+[[form]]
+text = "#% increased Global Critical Strike Chance"
+form = "#% increased Critical Strike Chance"
+kind = "other"
+
+# ---- refused by name: the forms that are themselves listed texts ----------
+
+[[refused]]
+text = "#% Chance to Block Spell Damage (Legacy)"
+rule = "game"
+form = "#% Chance to Block Spell Damage"
+
+[[refused]]
+text = "#% Chance to Trigger Level 18 Summon Spectral Wolf on Kill"
+rule = "game"
+form = "Trigger Level 10 Summon Spectral Wolf on Kill"
+
+[[refused]]
+text = "#% increased Experience gain (Maps)"
+rule = "game"
+form = "#% increased Experience gain"
+
+[[refused]]
+text = "#% increased Global Critical Strike Chance"
+rule = "form"
+form = "#% increased Critical Strike Chance"
+
+[[refused]]
+text = "+#% Chance to Block Attack Damage while wielding a Staff (Staves)"
+rule = "game"
+form = "+#% Chance to Block Attack Damage while wielding a Staff"
+
+[[refused]]
+text = "Gain an Endurance Charge each second while Stationary"
+rule = "game"
+form = "Gain an Endurance Charge every 4 seconds while Stationary"
+
+[[refused]]
+text = "Shocks you inflict spread to other Enemies within # metre"
+rule = "game"
+form = "Shocks you inflict spread to other Enemies within 1.5 metres"
+
+[[refused]]
+text = "Your Maps have #% chance to contain an additional Imprisoned Monster"
+rule = "have"
+form = "Your Maps contain an additional Imprisoned Monster"
+
+[[refused]]
+text = "Your Maps have +#% chance to contain Ritual Altars"
+rule = "have"
+form = "Your Maps contain Ritual Altars"
+
+[[refused]]
+text = "Your Maps have +#% chance to contain a Blight Encounter"
+rule = "have"
+form = "Your Maps contain a Blight Encounter"
+
+[[refused]]
+text = "Your Maps have +#% chance to contain a Mirror of Delirium"
+rule = "have"
+form = "Your Maps contain a Mirror of Delirium"
+
+[[refused]]
+text = "Your Maps have +#% chance to contain an Ultimatum Encounter"
+rule = "have"
+form = "Your Maps contain an Ultimatum Encounter"
+
+[[refused]]
+text = "Your Maps have a #% chance to contain an additional Harbinger"
+rule = "have_a"
+form = "Your Maps contain an additional Harbinger"
+
+[[refused]]
+text = "Your Maps have a #% chance to contain an additional Shrine"
+rule = "have_a"
+form = "Your Maps contain an additional Shrine"

@@ -358,3 +358,46 @@ The material: the forms measured at 7a (72 under 71 ids, through the
 translation and the deriver), the sitting's readings above, the totals
 table's rows with their weights (`totals.rs`, *a weight*), and
 `tree::sum_of_lines`.
+
+**What 7e built** (2026-10-17; the oracle's rows, `tests/trade-oracle.toml`):
+
+- Every `ruling` finding as it states, under the choice above, but the
+  two the search counts against the site by the owner's earlier rulings
+  (the twin, the socketed gems): a bound is the stat's sum over the
+  lines its id admits, the line's presence beside a maximum — and beside
+  a minimum at or below zero, the same reason the brief gives, which its
+  rule did not reach (w03's `min` -120 would otherwise meet every item
+  lacking the stat); presence over every form; a bound on a stat with a
+  form no sum holds ambiguous by `stat.text.forms`, naming the park; the
+  fields as the site reads them (`area_level`, the heist skills,
+  `quality`, `experience`), the damage at 20 % quality
+  (`pseudo.pdps_q20`, `pseudo.dps_q20`: within one of the site's at the
+  mean, 902, 181 and 12 of the captures' 1,095 weapons), no requirement
+  under a maximum, `map_tier` ambiguous. 101 items left the set in 17
+  rows and none came in: 6,547 of 7,135 matched, 588 missed in 64 rows,
+  what stays ambiguous held to its row by the test.
+- The forms. The brief's blanket rules, measured against the PoE1
+  export's stat descriptions during the step, named forms the game never
+  displays: `#% chance to X` elides at 100 % for 212 of the 372 texts the
+  export joins and not for 160 (`Suppress Spell Damage`, in the owner's
+  q2), and 316 of 2,235 joined texts with a sign word have no opposite
+  display. The owner, 2026-10-17, choosing among three: "Game data, rules
+  beside (Recommended)". So the game's forms are generated
+  (`tools/trade-forms-table.py`, `reference/trade-game-forms-v1.toml`:
+  6,841 texts joined, 2,712 forms), the rules stand for the texts the
+  export joins nowhere, and `reference/trade-forms-v1.toml` holds them,
+  the 14 forms the captures show that neither gives, and 14 refusals by
+  name — every form that is a listed text, 6 the game's, 1 a row's, 7 by
+  the `have` elisions; none by `#% chance to`: every text whose elided
+  form would be a listed one is joined, and the game elides none of them. Every one of the captures' 21,616 lines under a
+  hash id is met by its id's presence term but 56 under an id left
+  unsupported and 5 under a refusal (`tests/trade_forms.rs`).
+- Not built, from "What step 7 found", none a row of the oracle: the free
+  text a whole name or base (t50, t51, w06, w07); a `count` with no bound
+  restricting nothing (t37), a weighted sum with none needing one stat
+  (t38); a `not` with a value read as the bound's meeting (t24), written
+  so and still labelled; `uniquefoil` the relic mark (t52);
+  `map_blighted` the `Blighted` prefix (t55, t56); a key a site object
+  sends null absent (u059); `crit` reading no gem (t44). Each still
+  stands as the catalogue labels it, for the owner to place before the
+  seat.

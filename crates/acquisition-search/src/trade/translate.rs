@@ -25,9 +25,22 @@
 //!   line(T v))` per stat, `count` is `holds(…)=min..max`, a weighted group
 //!   as K5. Every clause that runs owns one term path inside its group, a
 //!   tautology its own, and every path is a clause's. What no sitting has
-//!   asked — an explicit id on a crafted line, a `not` with a value, which
-//!   number a many-numbered template compares, dps and quality, and each
-//!   row whose note leaves it to one — is ambiguous until one has.
+//!   asked — a `not` with a value, which number a many-numbered template
+//!   compares, and each row whose note leaves it to one — is ambiguous
+//!   until one has.
+//! - **What step 7's sitting settled, built at 7e** (the owner, 2026-10-16:
+//!   "I accept all your recommendations"; 2026-10-17, "The choice before
+//!   7e" in `search/TRADE-PLAN.md`: the translation alone ships, a named
+//!   stat value is parked). A site stat is the item's stat however
+//!   displayed: a bound on it is `sum(line(T source=…).arg1)` over the
+//!   sources the id admits — an explicit id holds the stat's crafted and
+//!   fractured lines — with the line's presence beside a maximum, since a
+//!   sum of nothing is zero (C95); a stat with a numberless or
+//!   opposite-sign form is ambiguous with a note naming the park — label,
+//!   never compute an alternative from the bound; `No Physical Damage`,
+//!   and any form no sitting read, is presence alone. The forms are one
+//!   reference table beside the catalogue (C106), read here alone
+//!   (`forms.rs`).
 //!
 //! # As built
 //!
@@ -71,19 +84,35 @@
 //!   groups. The group
 //!   rows' notes state each shape; this is its one maker.
 //! - **A stat's line** is the site's text for its id (`stats.rs`), with
-//!   its `(Local)` suffix dropped, read by the deriver's own scan of a
-//!   displayed string (`template::fixed`): a number the text writes as a
+//!   its `(Local)` suffix dropped, and each of its forms (`forms.rs`), one
+//!   group's alternatives, each read by the deriver's own scan of a
+//!   displayed string (`template::fixed`): a number a display writes as a
 //!   digit is the line's own, the template has `#` there and the slot is
-//!   fixed to it (`arg2=4`); the bounds compare the text's own `#` —
-//!   `avg` on a ranged pair of them, the first of several, and none where
-//!   the text has no `#`, which is presence alone and drops a bound.
+//!   fixed to it beside it (`("T" arg2=4)`). The row's `lands` is that
+//!   line under the category's source or flag.
 //! - **A stat filter with no bound is the stat's presence**: a line's is
-//!   the line, a pseudo's `has:pseudo.X` — the site shows no pseudo for a
-//!   total of nothing, which the search reads as lacked (C94).
+//!   the line over every form, a pseudo's `has:pseudo.X` — the site shows
+//!   no pseudo for a total of nothing, which the search reads as lacked
+//!   (C94).
+//! - **A bound is a sum** (`stat.text.bounds`): over the line of the text
+//!   and its plural forms alone, `sum(L.slot)` compared as the site's
+//!   `min` and `max` say, made by `tree::sum_of_lines` as a weighted sum's
+//!   is, the slot the text's own `#` — `avg` on a ranged pair of them, the
+//!   first of several — and none where the text has no `#`, which is
+//!   presence alone and drops the bound. Beside a maximum the line `L`
+//!   itself, conjoined, since a sum of nothing is zero and meets it where
+//!   the site's stat of nothing meets none — by the bound's side, so an
+//!   edit of its number keeps the meaning — and beside a minimum at or
+//!   below zero, which its number decides: a person editing such a minimum
+//!   above zero leaves a guard that no longer changes the answer, and one
+//!   editing a minimum down to zero must add it. A form no sum can hold — opposite, numberless,
+//!   another wording — labels the bound `stat.text.forms`, and a refused
+//!   one the clause `stat.text.refused`, bounded or not.
 //! - **Statuses are read where the clause is read.** A filter's status is
 //!   its category's row, worsened by each line rule that applies to its
-//!   text (a `(Local)` suffix, a text two ids share, several `#`) and, in
-//!   a `not`, by a value and by an eldritch form's text: the site lets
+//!   text (a `(Local)` suffix, a text two ids share, several `#`, a form
+//!   no sum holds under a bound, a refused form) and, in a `not`, by a
+//!   value and by an eldritch form's text: the site lets
 //!   some items carrying that form through a `not` on its id, a fact of
 //!   the captures (`search/pseudo-stats/README.md`, round four) the
 //!   oracle met on 377 items (step 6, `tests/trade_oracle.rs`), so the
@@ -95,6 +124,10 @@
 //!   number** (`exact::reads`): one outside it is the clause unsupported,
 //!   never rounded. A weighted sum's quotient is exact or the group is
 //!   unsupported.
+//! - **A field the site's filter reads past a lack** (`lacked =
+//!   "meets_maximum"` on its row): with a maximum and no minimum, an item
+//!   lacking the field meets the clause, `(F<=max or -has:F)` — no
+//!   requirement meets any maximum (u061).
 //! - **The text is the product.** The clauses' nodes are the conjuncts of
 //!   the query in the report's order — the URL's league, then the query
 //!   object's `status`, `term`, `name`, `type`, its filters in the
@@ -125,6 +158,7 @@ use serde::Serialize;
 use serde_json::{Map, Value as Json};
 
 use super::catalogue::{self, Catalogue, Disposition, Row};
+use super::forms::{self, FormsTable, Kind};
 use super::stats::{self, StatTable};
 use super::{Decoded, Source};
 use crate::error::{ErrorKind, LanguageError};
@@ -225,9 +259,11 @@ pub struct Translation {
     /// The `at` of every unsupported clause.
     pub remainder: Vec<String>,
     pub fidelity: Fidelity,
-    /// The catalogue's version and the stat table's, for the basis (C98).
+    /// The catalogue's version, the stat table's and the forms table's,
+    /// for the basis (C98).
     pub catalogue: u32,
     pub stats: String,
+    pub forms: u32,
 }
 
 fn tree_json<S: serde::Serializer>(tree: &Node, s: S) -> Result<S::Ok, S::Error> {
@@ -245,10 +281,12 @@ pub fn translate(decoded: &Decoded) -> Result<Translation, LanguageError> {
     let catalogue = catalogue::catalogue().map_err(|e| trade(e.to_string()))?;
     let stats = stats::table().map_err(|e| trade(e.to_string()))?;
     let totals = totals::table().map_err(|e| trade(e.to_string()))?;
+    let forms = forms::table().map_err(|e| trade(e.to_string()))?;
     let mut t = Translator {
         catalogue,
         stats,
         totals,
+        forms,
         clauses: Vec::new(),
         own: Vec::new(),
         pieces: Vec::new(),
@@ -295,7 +333,12 @@ pub fn translate(decoded: &Decoded) -> Result<Translation, LanguageError> {
             &format!("the envelope's `{key}`, which no row reads"),
         )?;
     }
-    t.finish(decoded, catalogue.version(), stats.version())
+    t.finish(
+        decoded,
+        catalogue.version(),
+        stats.version(),
+        forms.version(),
+    )
 }
 
 /// What a clause owns of the tree, for the guard.
@@ -333,9 +376,12 @@ struct StatRead {
     at: String,
     site: Json,
     landed: Landed,
-    /// The stat on the item at all — a line without its bounds, `has:` a
-    /// value — for `if` and a weighted sum.
+    /// The stat on the item at all — its line over every form, `has:` a
+    /// value — for `if`.
     presence: Option<Node>,
+    /// The line a bound sums: the text and its plural forms (`forms.rs`);
+    /// for a weighted sum.
+    summed: Option<Node>,
     /// The slot a bound compares; none for a text with no `#`.
     slot: Option<String>,
     bounded: bool,
@@ -367,6 +413,7 @@ struct Translator<'a> {
     catalogue: &'a Catalogue,
     stats: &'a StatTable,
     totals: &'a TotalsTable,
+    forms: &'a FormsTable,
     clauses: Vec<Clause>,
     own: Vec<Own>,
     pieces: Vec<Piece>,
@@ -555,6 +602,74 @@ fn bounds(min: Option<Number>, max: Option<Number>) -> Option<String> {
         (Some(a), None) => Some(format!(">={}", n(a))),
         (None, Some(b)) => Some(format!("<={}", n(b))),
         (Some(a), Some(b)) => Some(format!("={}..{}", n(a), n(b))),
+    }
+}
+
+/// What a bound compares a value with: `>=min`, `<=max` or `=min..max`,
+/// none where the clause has neither — the one maker of a comparison from
+/// the site's bounds, a stat's sum's and a weighted sum's.
+fn bounds_of(min: Option<Number>, max: Option<Number>) -> Option<(Op, Value)> {
+    match (min, max) {
+        (None, None) => None,
+        (Some(a), None) => Some((Op::Ge, Value::Number(a))),
+        (None, Some(b)) => Some((Op::Le, Value::Number(b))),
+        (from, to) => Some((Op::Eq, Value::Range { from, to })),
+    }
+}
+
+/// One display of a stat, as a line's group names it: its template, the
+/// numbers its text writes as digits, each fixed to its slot (`arg2=4`),
+/// and the slots of the `#`s it leaves open, counting from 1.
+#[derive(Clone)]
+struct Shown {
+    template: String,
+    pinned: Vec<String>,
+    open: Vec<usize>,
+}
+
+impl Shown {
+    fn of(text: &str) -> Shown {
+        let (template, fixed) = template::fixed(text);
+        let mut shown = Shown {
+            template,
+            pinned: Vec::new(),
+            open: Vec::new(),
+        };
+        for (n, slot) in fixed.iter().enumerate() {
+            match slot {
+                Some(v) => shown.pinned.push(format!(
+                    "arg{}={}",
+                    n + 1,
+                    print::number_text(Number::from_f64(*v))
+                )),
+                None => shown.open.push(n + 1),
+            }
+        }
+        shown
+    }
+
+    /// Displays as the conditions of one line's group: the one alone,
+    /// `"T" arg2=4`, or each an alternative, `(("T" arg2=4) or "F")`.
+    fn alternatives(all: &[Shown]) -> String {
+        let one = |s: &Shown| {
+            std::iter::once(print::quoted_text(&s.template))
+                .chain(s.pinned.iter().cloned())
+                .collect::<Vec<_>>()
+                .join(" ")
+        };
+        match all {
+            [only] => one(only),
+            _ => format!(
+                "({})",
+                all.iter()
+                    .map(|s| match s.pinned.is_empty() {
+                        true => one(s),
+                        false => format!("({})", one(s)),
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" or ")
+            ),
+        }
     }
 }
 
@@ -908,10 +1023,22 @@ impl Translator<'_> {
                 .and_then(|(_, v)| *v)
         };
         let made = bounds(n("min"), n("max"));
-        let landed = self.land(key, &|name| match name {
+        let mut landed = self.land(key, &|name| match name {
             "bounds" => made.clone().map(Fill::Made),
             _ => n(name).map(Fill::Number),
         })?;
+        // an item lacking the field meets a maximum alone (u061: no
+        // requirement meets any maximum), and fails a minimum as ever
+        if row.lacked_meets_maximum
+            && n("min").is_none()
+            && n("max").is_some()
+            && let (Some(node), [field]) = (landed.node.take(), row.fields.as_slice())
+        {
+            landed.node = Some(Node::Any(vec![
+                node,
+                Node::Not(Box::new(Node::Has(field.clone()))),
+            ]));
+        }
         self.conjunct(key, value, landed);
         Ok(())
     }
@@ -999,6 +1126,7 @@ impl Translator<'_> {
                 node: None,
             },
             presence: None,
+            summed: None,
             slot: None,
             bounded: false,
             weight: None,
@@ -1147,7 +1275,7 @@ impl Translator<'_> {
         }
         let site_text = &texts[0];
         let mut text = site_text.as_str();
-        if let Some(stripped) = text.strip_suffix(" (Local)") {
+        if let Some(stripped) = text.strip_suffix(forms::LOCAL) {
             text = stripped;
             rule(&mut rows, &mut notes, &mut status, "stat.text.local")?;
         }
@@ -1170,27 +1298,15 @@ impl Translator<'_> {
         // a number the site's text writes as a digit is part of the line's
         // text: the template has `#` there, and the slot is that number;
         // the bounds compare the site's own `#`
-        let (template, fixed) = template::fixed(text);
-        let mut pinned: Vec<String> = Vec::new();
-        let mut open: Vec<usize> = Vec::new();
-        for (n, slot) in fixed.iter().enumerate() {
-            match slot {
-                Some(v) => pinned.push(format!(
-                    "arg{}={}",
-                    n + 1,
-                    print::number_text(Number::from_f64(*v))
-                )),
-                None => open.push(n + 1),
-            }
-        }
-        if !pinned.is_empty() {
+        let own = Shown::of(text);
+        if !own.pinned.is_empty() {
             rule(&mut rows, &mut notes, &mut status, "stat.text.numbers")?;
         }
-        let shape = template::slots(&template);
+        let shape = template::slots(&own.template);
         let ranged = shape
             .ranged
-            .filter(|(low, high)| open.contains(low) && open.contains(high));
-        read.slot = match (open.as_slice(), ranged) {
+            .filter(|(low, high)| own.open.contains(low) && own.open.contains(high));
+        read.slot = match (own.open.as_slice(), ranged) {
             ([], _) => None,
             (_, Some(_)) => Some("avg".to_string()),
             ([one], None) => Some(format!("arg{one}")),
@@ -1203,33 +1319,89 @@ impl Translator<'_> {
             rule(&mut rows, &mut notes, &mut status, "stat.text.bounds")?;
             notes.push("a bound on a text with no `#` is dropped: presence alone".to_string());
         }
-        // a line's presence is the line itself: `{slot}{bounds}` dropped
-        let pinned = (!pinned.is_empty()).then(|| pinned.join(" "));
-        let slot = read.slot.clone();
-        let with = |b: Option<String>| {
-            let (text, pinned, slot) = (template.clone(), pinned.clone(), slot.clone());
-            move |name: &str| match name {
-                "text" => Some(Fill::Text(text.clone())),
-                "pinned" => pinned.clone().map(Fill::Made),
-                "slot" => slot.clone().map(Fill::Name),
-                "bounds" => b.clone().map(Fill::Made),
-                _ => None,
+        // the stat's other displays (`forms.rs`): every one is its
+        // presence, and its plurals alone are summed with the text
+        let mut every = vec![own.clone()];
+        let mut summed = vec![own];
+        let mut unsummed: Vec<String> = Vec::new();
+        let forms = self.forms.of(site_text);
+        if !forms.refused.is_empty() {
+            rule(&mut rows, &mut notes, &mut status, "stat.text.refused")?;
+        }
+        for refused in &forms.refused {
+            notes.push(match &refused.form {
+                Some(form) => format!(
+                    "{} by the `{}` rule displays as {}, a text the site lists too",
+                    print::quoted_text(&refused.text),
+                    refused.rule,
+                    print::quoted_text(form)
+                ),
+                None => format!(
+                    "{} carries both words of a pair, and which is its number's sign is not said",
+                    print::quoted_text(&refused.text)
+                ),
+            });
+        }
+        for form in forms.known {
+            let shown = Shown::of(&form.text);
+            if form.kind == Kind::Plural {
+                summed.push(shown.clone());
+            } else {
+                unsummed.push(format!(
+                    "{} ({})",
+                    print::quoted_text(&form.text),
+                    form.kind.word()
+                ));
             }
+            every.push(shown);
+        }
+        // a bound read on a stat a form of which no sum can hold: the
+        // filter's own, or a weighted sum's over it
+        let bound_read =
+            read.slot.is_some() && (read.bounded || matches!(kind, "weight" | "weight2"));
+        if bound_read && !unsummed.is_empty() {
+            rule(&mut rows, &mut notes, &mut status, "stat.text.forms")?;
+            notes.push(format!(
+                "the bound sums the text and its plurals; not its forms {}",
+                unsummed.join(", ")
+            ));
+        }
+        let line = |alternatives: &[Shown]| {
+            self.land(&key, &|name| match name {
+                "text" => Some(Fill::Made(Shown::alternatives(alternatives))),
+                _ => None,
+            })
         };
-        let bounded = self.land(&key, &with(made))?;
-        if bounded.status == Status::Unsupported {
+        let presence = line(&every)?;
+        if presence.status == Status::Unsupported {
             // the binder refused the text: its words, beside the row
-            read.landed = bounded;
+            read.landed = presence;
             return Ok(read);
         }
-        if presence_too(kind) {
-            read.presence = self.land(&key, &with(None))?.node;
-        }
+        let summed = line(&summed)?.node;
+        read.presence = presence.node.clone();
+        read.summed = summed.clone();
+        let node = match (&read.slot, bounds_of(min, max), summed) {
+            (Some(slot), Some((op, rhs)), Some(lines)) => {
+                let Some(value) = tree::sum_of_lines(std::slice::from_ref(&lines), slot) else {
+                    return Err(trade(format!("`{}` lands no line to sum", read.at)));
+                };
+                let compare = Node::Compare { value, op, rhs };
+                // a sum of nothing is zero (C95): where the bound admits
+                // zero, the line's presence beside it
+                if max.is_some() || min.is_some_and(|m| m.as_f64() <= 0.0) {
+                    Some(Node::All(vec![lines, compare]))
+                } else {
+                    Some(compare)
+                }
+            }
+            _ => presence.node,
+        };
         read.landed = Landed {
             status,
             rows,
             notes,
-            node: bounded.node,
+            node,
         };
         Ok(read)
     }
@@ -1547,6 +1719,7 @@ impl Translator<'_> {
         decoded: &Decoded,
         catalogue: u32,
         stats: &str,
+        forms: u32,
     ) -> Result<Translation, LanguageError> {
         let pieces = std::mem::take(&mut self.pieces);
         let single = pieces.len() == 1;
@@ -1623,6 +1796,7 @@ impl Translator<'_> {
             fidelity,
             catalogue,
             stats: stats.to_string(),
+            forms,
         })
     }
 }
@@ -1753,7 +1927,7 @@ fn weighted(
     let mut slots = std::collections::BTreeSet::new();
     let mut lines = Vec::new();
     for read in filters {
-        let Some(line @ Node::Members { .. }) = &read.presence else {
+        let Some(line @ Node::Members { .. }) = &read.summed else {
             return Err(format!("its filter `{}` is no line", read.at));
         };
         if read.bounded {
@@ -1812,11 +1986,8 @@ fn weighted(
         }
         Ok(Some(Number::from_f64(cut.as_f64())))
     };
-    let (op, rhs) = match (over(min)?, over(max)?) {
-        (Some(a), None) => (Op::Ge, Value::Number(a)),
-        (None, Some(b)) => (Op::Le, Value::Number(b)),
-        (from, to) => (Op::Eq, Value::Range { from, to }),
-    };
+    let (op, rhs) =
+        bounds_of(over(min)?, over(max)?).ok_or_else(|| "it has no bound".to_string())?;
     Ok(Weighted { sum, op, rhs })
 }
 

@@ -367,9 +367,11 @@ struct Stat {
 /// C113, K6: every one of the stat table's category and id pairs
 /// translates, alone and with a bound — each a filter of one `and`
 /// group — and holds what every translation holds; the statuses are the
-/// catalogue header's count — 5,329 exact, 8,510 ambiguous, 229
-/// unsupported, the two-text ids every one — and 1,613 pairs carry a
-/// number written as a digit. Every pair and the counts where
+/// catalogue header's count — alone 11,474 exact, 2,365 ambiguous, 229
+/// unsupported, the two-text ids every one; with a bound 7,546, 6,293 and
+/// 229, 4,464 of them a stat a form of which no sum holds (step 7e) — 49
+/// pairs carry a refused form either way, and 1,613 a number written as a
+/// digit. Every pair and the counts where
 /// `ACQ_CASES=full` (CI); here a sixteenth of them, a fresh one each run,
 /// since a debug build binds the whole table's text in half a minute.
 #[test]
@@ -388,7 +390,10 @@ fn c113_every_stat_id_of_the_table_translates() {
         .subsec_nanos() as usize
         % stride;
     let share: Vec<&String> = ids.iter().skip(offset).step_by(stride).collect();
-    for value in [json!({}), json!({ "min": 1 })] {
+    for (value, statuses, forms) in [
+        (json!({}), [11_474, 2_365, 229], 0),
+        (json!({ "min": 1 }), [7_546, 6_293, 229], 4_464),
+    ] {
         let filters: Vec<Value> = share
             .iter()
             .map(|id| json!({ "id": id, "value": value }))
@@ -419,11 +424,13 @@ fn c113_every_stat_id_of_the_table_translates() {
                 count(Status::Ambiguous),
                 count(Status::Unsupported)
             ],
-            [5_329, 8_510, 229],
+            statuses,
             "{value}"
         );
         assert_eq!(read("stat.text.two"), 229);
         assert_eq!(read("stat.text.numbers"), 1_613);
+        assert_eq!(read("stat.text.forms"), forms, "{value}");
+        assert_eq!(read("stat.text.refused"), 49);
     }
 }
 

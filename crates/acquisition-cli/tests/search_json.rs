@@ -2605,9 +2605,11 @@ fn trade_url() -> String {
 }
 
 /// What TRADE_ID translates to under its URL, worked by hand from the
-/// catalogue: the league a term, the status reported, the life line with
-/// its source and its bound, the count in the remainder whole.
-const TRADE_TEXT: &str = r##"league=Standard line("# to maximum Life" source=explicit arg1>=70)"##;
+/// catalogue: the league a term, the status reported, the life lines of
+/// the explicit id summed against its bound (step 7e), the count in the
+/// remainder whole.
+const TRADE_TEXT: &str =
+    r##"league=Standard sum(line("# to maximum Life" source=explicit).arg1)>=70"##;
 
 /// Each clause's place and status, as the report gives them.
 fn statuses(trade: &Value) -> Vec<(String, String)> {
@@ -2630,9 +2632,9 @@ fn statuses(trade: &Value) -> Vec<(String, String)> {
 /// not run — and the request `--print-request` prints, the site search
 /// beside the text it translates to, reads back as the same answer.
 /// Over the fixture, worked by hand: `league=Standard` holds of all five
-/// items; the life line at 70 or more on an explicit line holds of r1
-/// (95), r2 (75 explicit, the 20 implicit not read by the term), kaom
-/// (500), fails r3 (40) and is lacked by plain — 3 matches.
+/// items; the explicit life lines' sum at 70 or more holds of r1 (95), r2
+/// (75 explicit, the 20 implicit not of the explicit id), kaom (500),
+/// fails r3 (40) and plain (a sum of nothing, zero) — 3 matches.
 #[test]
 fn c113_a_site_search_url_runs_labelled_and_its_printed_request_reads_back() {
     let base = base();
@@ -2648,13 +2650,14 @@ fn c113_a_site_search_url_runs_labelled_and_its_printed_request_reads_back() {
     assert_eq!(trade["remainder"], json!(["stats.1", "stats.1.0"]));
     assert_eq!(trade["catalogue"], 1);
     assert_eq!(trade["stats"], "2026-09-12");
+    assert_eq!(trade["forms"], 1);
     assert_eq!(
         statuses(trade),
         [
             ("url.league", "exact"),
             ("status", "listing_only"),
             ("stats.0", "exact"),
-            ("stats.0.0", "ambiguous"),
+            ("stats.0.0", "exact"),
             ("stats.1", "unsupported"),
             ("stats.1.0", "unsupported"),
         ]
@@ -2684,15 +2687,11 @@ fn c113_a_site_search_url_runs_labelled_and_its_printed_request_reads_back() {
         lines[2].starts_with("        NOT RUN   stats.1.0  its group `stats.1`"),
         "{shown}"
     );
-    assert!(
-        lines[3].starts_with("        ambiguous stats.0.0  whether the site's explicit id"),
-        "{shown}"
-    );
     assert_eq!(
-        lines[4],
+        lines[3],
         "        reported  1 with no stash meaning — listing-only or disabled on the site: status"
     );
-    assert_eq!(lines[5], format!("query   {TRADE_TEXT}"));
+    assert_eq!(lines[4], format!("query   {TRADE_TEXT}"));
 
     // --print-request: the site search beside the text it translates to,
     // the realm the URL's
@@ -2771,7 +2770,7 @@ fn k6_a_realm_beside_a_url_conflicts_and_an_id_takes_one() {
     assert_eq!(by_id["query"]["trade"]["source"], "id");
     assert_eq!(
         by_id["query"]["text"],
-        r##"line("# to maximum Life" source=explicit arg1>=70)"##
+        r##"sum(line("# to maximum Life" source=explicit).arg1)>=70"##
     );
     assert_eq!(by_id["total"]["matched"], 3);
 
@@ -2910,8 +2909,10 @@ fn rule_5_every_command_a_translated_answer_prints_runs() {
 
     // the routes: each a query of its own, unlabelled
     let routes = text(&acq(&base, &["search", "--trade", &url, "--routes"]));
+    // the league's matched, the sum's matched and failed: a sum of nothing
+    // fails and is never lacked (C95), so the line's lacked route is gone
     let commands = printed_commands(&routes);
-    assert!(commands.len() >= 4, "{routes}");
+    assert_eq!(commands.len(), 3, "{routes}");
     for command in &commands {
         let out = run_printed(&base, command);
         assert!(out.status.success(), "{command}");
