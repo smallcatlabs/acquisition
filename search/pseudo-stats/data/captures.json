@@ -2,6 +2,7 @@
  "_generated": "by tools/trade-captures.py from raw/searches (MANIFEST.md) — do not edit",
  "searches": {
   "R1": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -1697,6 +1698,7 @@
    ]
   },
   "b1": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -1734,6 +1736,7 @@
    "fetched": []
   },
   "b2": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -2747,6 +2750,7 @@
    ]
   },
   "c1": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -2855,6 +2859,7 @@
    "fetched": []
   },
   "c2": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -4253,6 +4258,7 @@
    ]
   },
   "c3": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -5471,6 +5477,7 @@
    ]
   },
   "c4": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -7030,6 +7037,7 @@
    ]
   },
   "c5": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -8692,6 +8700,7 @@
    ]
   },
   "c6": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -10567,6 +10576,7 @@
    ]
   },
   "d01": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -10922,6 +10932,7 @@
    ]
   },
   "d02": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -12171,6 +12182,7 @@
    ]
   },
   "d03": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -13786,6 +13798,7 @@
    ]
   },
   "d04": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -13855,6 +13868,7 @@
    "fetched": []
   },
   "d05": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -15881,6 +15895,7 @@
    ]
   },
   "d06": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -18605,6 +18620,7 @@
    ]
   },
   "d07": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -20239,6 +20255,7 @@
    ]
   },
   "d08": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -21867,6 +21884,7 @@
    ]
   },
   "d09": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -23726,6 +23744,7 @@
    ]
   },
   "d10": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -25233,6 +25252,7 @@
    ]
   },
   "d11": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -26809,6 +26829,7 @@
    ]
   },
   "d12": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -28566,6 +28587,7 @@
    ]
   },
   "d13": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -28635,6 +28657,7 @@
    "fetched": []
   },
   "d14": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -30479,6 +30502,7 @@
    ]
   },
   "d15": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -33087,6 +33111,7 @@
    ]
   },
   "d16": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -33156,6 +33181,7 @@
    "fetched": []
   },
   "d17": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -35277,6 +35303,7 @@
    ]
   },
   "d18": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -37485,6 +37512,7 @@
    ]
   },
   "d19": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -37545,6 +37573,7 @@
    "fetched": []
   },
   "d20": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -39421,6 +39450,7 @@
    ]
   },
   "d21": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -41056,6 +41086,7 @@
    ]
   },
   "d22": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -41116,6 +41147,7 @@
    "fetched": []
   },
   "d23": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -43032,6 +43064,7 @@
    ]
   },
   "d24": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -44501,6 +44534,7 @@
    ]
   },
   "e001": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -46384,6 +46418,7 @@
    ]
   },
   "e002": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -48173,6 +48208,7 @@
    ]
   },
   "e003": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -48266,6 +48302,7 @@
    "fetched": []
   },
   "e004": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -49856,6 +49893,7 @@
    ]
   },
   "e005": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -49934,6 +49972,7 @@
    "fetched": []
   },
   "e006": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -51758,6 +51797,7 @@
    ]
   },
   "e007": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -53425,6 +53465,7 @@
    ]
   },
   "e008": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -53515,6 +53556,7 @@
    "fetched": []
   },
   "e009": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -55082,6 +55124,7 @@
    ]
   },
   "e010": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -55157,6 +55200,7 @@
    "fetched": []
   },
   "e011": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -56854,6 +56898,7 @@
    ]
   },
   "e012": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -58667,6 +58712,7 @@
    ]
   },
   "e013": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -58757,6 +58803,7 @@
    "fetched": []
   },
   "e014": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -60300,6 +60347,7 @@
    ]
   },
   "e015": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -60375,6 +60423,7 @@
    "fetched": []
   },
   "e016": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -62264,6 +62313,7 @@
    ]
   },
   "e017": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -64002,6 +64052,7 @@
    ]
   },
   "e018": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -64077,6 +64128,7 @@
    "fetched": []
   },
   "e019": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -65710,6 +65762,7 @@
    ]
   },
   "e020": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -65770,6 +65823,7 @@
    "fetched": []
   },
   "e021": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -67880,6 +67934,7 @@
    ]
   },
   "e022": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -69571,6 +69626,7 @@
    ]
   },
   "e023": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -69646,6 +69702,7 @@
    "fetched": []
   },
   "e024": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -71138,6 +71195,7 @@
    ]
   },
   "e025": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -71195,6 +71253,7 @@
    "fetched": []
   },
   "e026": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -71324,6 +71383,7 @@
    "fetched": []
   },
   "e027": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -73236,6 +73296,7 @@
    ]
   },
   "e028": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -75152,6 +75213,7 @@
    ]
   },
   "e029": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -75341,6 +75403,7 @@
    "fetched": []
   },
   "e030": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -76935,6 +76998,7 @@
    ]
   },
   "e031": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -77079,6 +77143,7 @@
    "fetched": []
   },
   "e032": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -77250,6 +77315,7 @@
    "fetched": []
   },
   "e033": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -79165,6 +79231,7 @@
    ]
   },
   "e034": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -81248,6 +81315,7 @@
    ]
   },
   "e035": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -81503,6 +81571,7 @@
    "fetched": []
   },
   "e036": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -83236,6 +83305,7 @@
    ]
   },
   "e037": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -83413,6 +83483,7 @@
    "fetched": []
   },
   "e038": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -85031,6 +85102,7 @@
    ]
   },
   "e039": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -85145,6 +85217,7 @@
    "fetched": []
   },
   "e040": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -86801,6 +86874,7 @@
    ]
   },
   "e041": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -86969,6 +87043,7 @@
    "fetched": []
   },
   "e042": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -88600,6 +88675,7 @@
    ]
   },
   "e043": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -88972,6 +89048,7 @@
    ]
   },
   "e044": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -90555,6 +90632,7 @@
    ]
   },
   "e045": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -90723,6 +90801,7 @@
    "fetched": []
   },
   "e046": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -92464,6 +92543,7 @@
    ]
   },
   "e048": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -94147,6 +94227,7 @@
    ]
   },
   "e049": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -94267,6 +94348,7 @@
    "fetched": []
   },
   "e050": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -95935,6 +96017,7 @@
    ]
   },
   "e052": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -96028,6 +96111,7 @@
    "fetched": []
   },
   "e053": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -97247,6 +97331,7 @@
    ]
   },
   "e054": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -97337,6 +97422,7 @@
    "fetched": []
   },
   "e055": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -97481,6 +97567,7 @@
    "fetched": []
   },
   "e056": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -97574,6 +97661,7 @@
    "fetched": []
   },
   "e057": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -98793,6 +98881,7 @@
    ]
   },
   "e058": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -100426,6 +100515,7 @@
    ]
   },
   "e059": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -100504,6 +100594,7 @@
    "fetched": []
   },
   "e060": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -102212,6 +102303,7 @@
    ]
   },
   "e061": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -104438,6 +104530,7 @@
    ]
   },
   "e062": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -106171,6 +106264,7 @@
    ]
   },
   "e063": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -106273,6 +106367,7 @@
    "fetched": []
   },
   "e064": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -106324,6 +106419,7 @@
    "fetched": []
   },
   "e065": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -106390,6 +106486,7 @@
    "fetched": []
   },
   "e066": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -106447,6 +106544,7 @@
    "fetched": []
   },
   "e067": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -106525,6 +106623,7 @@
    "fetched": []
   },
   "e068": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -106594,6 +106693,7 @@
    "fetched": []
   },
   "e069": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -106696,6 +106796,7 @@
    "fetched": []
   },
   "e070": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -106765,6 +106866,7 @@
    "fetched": []
   },
   "e071": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -106867,6 +106969,7 @@
    "fetched": []
   },
   "e072": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -106936,6 +107039,7 @@
    "fetched": []
   },
   "e073": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -107038,6 +107142,7 @@
    "fetched": []
   },
   "e074": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -107101,6 +107206,7 @@
    "fetched": []
   },
   "e075": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -107191,6 +107297,7 @@
    "fetched": []
   },
   "e076": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -107245,6 +107352,7 @@
    "fetched": []
   },
   "e077": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -107317,6 +107425,7 @@
    "fetched": []
   },
   "e078": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -107383,6 +107492,7 @@
    "fetched": []
   },
   "e079": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -107479,6 +107589,7 @@
    "fetched": []
   },
   "e080": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -107539,6 +107650,7 @@
    "fetched": []
   },
   "e081": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -107623,6 +107735,7 @@
    "fetched": []
   },
   "e082": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -107692,6 +107805,7 @@
    "fetched": []
   },
   "e083": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -107794,6 +107908,7 @@
    "fetched": []
   },
   "e084": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -107857,6 +107972,7 @@
    "fetched": []
   },
   "e085": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -107947,6 +108063,7 @@
    "fetched": []
   },
   "e086": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -108010,6 +108127,7 @@
    "fetched": []
   },
   "e087": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -108100,6 +108218,7 @@
    "fetched": []
   },
   "e088": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -108163,6 +108282,7 @@
    "fetched": []
   },
   "e089": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -108253,6 +108373,7 @@
    "fetched": []
   },
   "e090": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -108316,6 +108437,7 @@
    "fetched": []
   },
   "e091": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -108406,6 +108528,7 @@
    "fetched": []
   },
   "e092": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -108469,6 +108592,7 @@
    "fetched": []
   },
   "e093": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -108559,6 +108683,7 @@
    "fetched": []
   },
   "e094": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -108616,6 +108741,7 @@
    "fetched": []
   },
   "e095": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -108694,6 +108820,7 @@
    "fetched": []
   },
   "e096": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -108757,6 +108884,7 @@
    "fetched": []
   },
   "e097": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -108847,6 +108975,7 @@
    "fetched": []
   },
   "e098": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -108904,6 +109033,7 @@
    "fetched": []
   },
   "e099": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -108982,6 +109112,7 @@
    "fetched": []
   },
   "e100": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -109048,6 +109179,7 @@
    "fetched": []
   },
   "e101": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -109144,6 +109276,7 @@
    "fetched": []
   },
   "e102": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -109204,6 +109337,7 @@
    "fetched": []
   },
   "e103": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -111234,6 +111368,7 @@
    ]
   },
   "e104": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -111294,6 +111429,7 @@
    "fetched": []
   },
   "e105": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -111378,6 +111514,7 @@
    "fetched": []
   },
   "e106": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -111432,6 +111569,7 @@
    "fetched": []
   },
   "e107": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -111504,6 +111642,7 @@
    "fetched": []
   },
   "f001": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -113202,6 +113341,7 @@
    ]
   },
   "f002": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -113364,6 +113504,7 @@
    "fetched": []
   },
   "f003": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -113448,6 +113589,7 @@
    "fetched": []
   },
   "f004": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -115177,6 +115319,7 @@
    ]
   },
   "f005": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -115543,6 +115686,7 @@
    ]
   },
   "f006": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -115627,6 +115771,7 @@
    "fetched": []
   },
   "f007": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -117306,6 +117451,7 @@
    ]
   },
   "f008": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -117468,6 +117614,7 @@
    "fetched": []
   },
   "f009": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -117552,6 +117699,7 @@
    "fetched": []
   },
   "f010": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -119143,6 +119291,7 @@
    ]
   },
   "f011": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -120572,6 +120721,7 @@
    ]
   },
   "f012": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -122374,6 +122524,7 @@
    ]
   },
   "f013": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -122482,6 +122633,7 @@
    "fetched": []
   },
   "f014": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -124430,6 +124582,7 @@
    ]
   },
   "f015": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -124574,6 +124727,7 @@
    "fetched": []
   },
   "f016": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -126222,6 +126376,7 @@
    ]
   },
   "f017": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -127727,6 +127882,7 @@
    ]
   },
   "f018": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -129529,6 +129685,7 @@
    ]
   },
   "f019": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -130911,6 +131068,7 @@
    ]
   },
   "f020": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -131001,6 +131159,7 @@
    "fetched": []
   },
   "f021": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -131145,6 +131304,7 @@
    "fetched": []
   },
   "f022": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -131235,6 +131395,7 @@
    "fetched": []
   },
   "f023": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -131379,6 +131540,7 @@
    "fetched": []
   },
   "f024": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -132921,6 +133083,7 @@
    ]
   },
   "f025": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -133011,6 +133174,7 @@
    "fetched": []
   },
   "f026": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -134873,6 +135037,7 @@
    ]
   },
   "f027": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -134987,6 +135152,7 @@
    "fetched": []
   },
   "f028": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -136739,6 +136905,7 @@
    ]
   },
   "f029": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -136853,6 +137020,7 @@
    "fetched": []
   },
   "f030": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -136904,6 +137072,7 @@
    "fetched": []
   },
   "f031": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -136970,6 +137139,7 @@
    "fetched": []
   },
   "f032": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -137015,6 +137185,7 @@
    "fetched": []
   },
   "f033": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -137063,6 +137234,7 @@
    "fetched": []
   },
   "f034": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -137114,6 +137286,7 @@
    "fetched": []
   },
   "f035": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -137168,6 +137341,7 @@
    "fetched": []
   },
   "f036": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -137219,6 +137393,7 @@
    "fetched": []
   },
   "f037": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -137273,6 +137448,7 @@
    "fetched": []
   },
   "f038": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -137324,6 +137500,7 @@
    "fetched": []
   },
   "f039": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -137378,6 +137555,7 @@
    "fetched": []
   },
   "f040": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -137423,6 +137601,7 @@
    "fetched": []
   },
   "f041": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -137471,6 +137650,7 @@
    "fetched": []
   },
   "f042": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -137546,6 +137726,7 @@
    "fetched": []
   },
   "f043": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -137624,6 +137805,7 @@
    "fetched": []
   },
   "f044": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -137711,6 +137893,7 @@
    "fetched": []
   },
   "f045": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -137801,6 +137984,7 @@
    "fetched": []
   },
   "f046": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -139435,6 +139619,7 @@
    ]
   },
   "f047": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -139516,6 +139701,7 @@
    "fetched": []
   },
   "f048": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -141120,6 +141306,7 @@
    ]
   },
   "f049": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -141216,6 +141403,7 @@
    "fetched": []
   },
   "f050": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -143036,6 +143224,7 @@
    ]
   },
   "f051": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -143132,6 +143321,7 @@
    "fetched": []
   },
   "f052": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -145109,6 +145299,7 @@
    ]
   },
   "f053": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -145208,6 +145399,7 @@
    "fetched": []
   },
   "f054": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -146876,6 +147068,7 @@
    ]
   },
   "f055": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -146957,6 +147150,7 @@
    "fetched": []
   },
   "f056": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -148683,6 +148877,7 @@
    ]
   },
   "f057": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -148890,6 +149085,7 @@
    "fetched": []
   },
   "f058": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -150723,6 +150919,7 @@
    ]
   },
   "f059": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -151008,6 +151205,7 @@
    "fetched": []
   },
   "f060": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -152810,6 +153008,7 @@
    ]
   },
   "f061": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -152876,6 +153075,7 @@
    "fetched": []
   },
   "f062": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -154479,6 +154679,7 @@
    ]
   },
   "f063": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -154560,6 +154761,7 @@
    "fetched": []
   },
   "f064": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -156309,6 +156511,7 @@
    ]
   },
   "f065": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -156390,6 +156593,7 @@
    "fetched": []
   },
   "f066": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -157985,6 +158189,7 @@
    ]
   },
   "f067": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -158069,6 +158274,7 @@
    "fetched": []
   },
   "f068": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -159858,6 +160064,7 @@
    ]
   },
   "f069": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -159921,6 +160128,7 @@
    "fetched": []
   },
   "f070": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -161412,6 +161620,7 @@
    ]
   },
   "f071": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -161574,6 +161783,7 @@
    "fetched": []
   },
   "f072": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -163268,6 +163478,7 @@
    ]
   },
   "f073": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -163475,6 +163686,7 @@
    "fetched": []
   },
   "g001": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -164887,6 +165099,7 @@
    ]
   },
   "g002": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -166387,6 +166600,7 @@
    ]
   },
   "g003": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -167871,6 +168085,7 @@
    ]
   },
   "g004": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -169509,6 +169724,7 @@
    ]
   },
   "g005": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -170932,6 +171148,7 @@
    ]
   },
   "g006": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -172463,6 +172680,7 @@
    ]
   },
   "g007": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -173757,6 +173975,7 @@
    ]
   },
   "g008": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -175562,6 +175781,7 @@
    ]
   },
   "g009": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -175652,6 +175872,7 @@
    "fetched": []
   },
   "g010": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -177571,6 +177792,7 @@
    ]
   },
   "g011": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -179114,6 +179336,7 @@
    ]
   },
   "g012": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -179165,6 +179388,7 @@
    "fetched": []
   },
   "g013": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -179231,6 +179455,7 @@
    "fetched": []
   },
   "g014": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -181346,6 +181571,7 @@
    ]
   },
   "g015": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -181436,6 +181662,7 @@
    "fetched": []
   },
   "g016": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -183284,6 +183511,7 @@
    ]
   },
   "g017": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -183374,6 +183602,7 @@
    "fetched": []
   },
   "g018": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -185138,6 +185367,7 @@
    ]
   },
   "g019": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -185228,6 +185458,7 @@
    "fetched": []
   },
   "g020": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -186759,6 +186990,7 @@
    ]
   },
   "g021": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -186849,6 +187081,7 @@
    "fetched": []
   },
   "g022": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -188465,6 +188698,7 @@
    ]
   },
   "g023": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -190085,6 +190319,7 @@
    ]
   },
   "g024": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -191832,6 +192067,7 @@
    ]
   },
   "g025": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -193591,6 +193827,7 @@
    ]
   },
   "g026": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -193645,6 +193882,7 @@
    "fetched": []
   },
   "g027": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -195470,6 +195708,7 @@
    ]
   },
   "g028": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -195524,6 +195763,7 @@
    "fetched": []
   },
   "g029": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -197187,6 +197427,7 @@
    ]
   },
   "g030": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -197235,6 +197476,7 @@
    "fetched": []
   },
   "g031": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -199094,6 +199336,7 @@
    ]
   },
   "g032": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -199166,6 +199409,7 @@
    "fetched": []
   },
   "g033": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -199220,6 +199464,7 @@
    "fetched": []
   },
   "g034": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -199454,6 +199699,7 @@
    ]
   },
   "g035": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -201219,6 +201465,7 @@
    ]
   },
   "g036": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -201279,6 +201526,7 @@
    "fetched": []
   },
   "g037": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -202739,6 +202987,7 @@
    ]
   },
   "g038": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -204281,6 +204530,7 @@
    ]
   },
   "g039": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -204350,6 +204600,7 @@
    "fetched": []
   },
   "g040": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -204452,6 +204703,7 @@
    "fetched": []
   },
   "g041": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -204521,6 +204773,7 @@
    "fetched": []
   },
   "g042": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -204623,6 +204876,7 @@
    "fetched": []
   },
   "g043": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -206146,6 +206400,7 @@
    ]
   },
   "g044": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -206230,6 +206485,7 @@
    "fetched": []
   },
   "h001": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -207894,6 +208150,7 @@
    ]
   },
   "h002": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -209327,6 +209584,7 @@
    ]
   },
   "h003": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -209435,6 +209693,7 @@
    "fetched": []
   },
   "h004": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -210684,6 +210943,7 @@
    ]
   },
   "h005": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -210750,6 +211010,7 @@
    "fetched": []
   },
   "h006": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -210846,6 +211107,7 @@
    "fetched": []
   },
   "h007": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -212437,6 +212699,7 @@
    ]
   },
   "h008": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -212515,6 +212778,7 @@
    "fetched": []
   },
   "h009": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -212569,6 +212833,7 @@
    "fetched": []
   },
   "h010": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -212641,6 +212906,7 @@
    "fetched": []
   },
   "h011": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -212698,6 +212964,7 @@
    "fetched": []
   },
   "h012": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -212776,6 +213043,7 @@
    "fetched": []
   },
   "h013": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -214517,6 +214785,7 @@
    ]
   },
   "h014": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -214631,6 +214900,7 @@
    "fetched": []
   },
   "h015": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -216413,6 +216683,7 @@
    ]
   },
   "h016": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -216527,6 +216798,7 @@
    "fetched": []
   },
   "h017": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -218285,6 +218557,7 @@
    ]
   },
   "h018": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -218399,6 +218672,7 @@
    "fetched": []
   },
   "h019": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -219930,6 +220204,7 @@
    ]
   },
   "h020": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -220092,6 +220367,7 @@
    "fetched": []
   },
   "h021": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -221543,6 +221819,7 @@
    ]
   },
   "h022": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -221705,6 +221982,7 @@
    "fetched": []
   },
   "h023": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -223240,6 +223518,7 @@
    ]
   },
   "h024": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -223402,6 +223681,7 @@
    "fetched": []
   },
   "h025": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -225164,6 +225444,7 @@
    ]
   },
   "h026": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -225320,6 +225601,7 @@
    "fetched": []
   },
   "h027": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -227123,6 +227405,7 @@
    ]
   },
   "h028": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -227279,6 +227562,7 @@
    "fetched": []
   },
   "h029": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -229055,6 +229339,7 @@
    ]
   },
   "h030": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -229205,6 +229490,7 @@
    "fetched": []
   },
   "h031": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -229271,6 +229557,7 @@
    "fetched": []
   },
   "h032": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -229367,6 +229654,7 @@
    "fetched": []
   },
   "h033": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -231078,6 +231366,7 @@
    ]
   },
   "h034": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -231210,6 +231499,7 @@
    "fetched": []
   },
   "h035": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -231264,6 +231554,7 @@
    "fetched": []
   },
   "h036": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -231336,6 +231627,7 @@
    "fetched": []
   },
   "h037": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -231390,6 +231682,7 @@
    "fetched": []
   },
   "h038": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -231462,6 +231755,7 @@
    "fetched": []
   },
   "h039": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -233420,6 +233714,7 @@
    ]
   },
   "h040": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -234800,6 +235095,7 @@
    ]
   },
   "h041": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -236570,6 +236866,7 @@
    ]
   },
   "h042": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -238663,6 +238960,7 @@
    ]
   },
   "h043": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -238777,6 +239075,7 @@
    "fetched": []
   },
   "h044": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -240660,6 +240959,7 @@
    ]
   },
   "h045": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -240750,6 +241050,7 @@
    "fetched": []
   },
   "h046": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -242876,6 +243177,7 @@
    ]
   },
   "h047": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -244906,6 +245208,7 @@
    ]
   },
   "h048": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -246984,6 +247287,7 @@
    ]
   },
   "h049": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -247074,6 +247378,7 @@
    "fetched": []
   },
   "h050": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -248914,6 +249219,7 @@
    ]
   },
   "h051": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -248998,6 +249304,7 @@
    "fetched": []
   },
   "h052": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -250454,6 +250761,7 @@
    ]
   },
   "h053": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -250526,6 +250834,7 @@
    "fetched": []
   },
   "i01": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -251909,6 +252218,7 @@
    ]
   },
   "i02": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -253917,6 +254227,7 @@
    ]
   },
   "i03": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -253961,6 +254272,7 @@
    "fetched": []
   },
   "i04": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -255373,6 +255685,7 @@
    ]
   },
   "i05": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -256921,6 +257234,7 @@
    ]
   },
   "i06": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -257030,6 +257344,7 @@
    "fetched": []
   },
   "i07": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -258895,6 +259210,7 @@
    ]
   },
   "i08": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -259004,6 +259320,7 @@
    "fetched": []
   },
   "i09": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -260313,6 +260630,7 @@
    ]
   },
   "j01": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -261080,6 +261398,7 @@
    ]
   },
   "j02": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -261118,6 +261437,7 @@
    "fetched": []
   },
   "j03": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -261906,6 +262226,7 @@
    ]
   },
   "j04": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -262512,6 +262833,7 @@
    ]
   },
   "j05": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -263125,6 +263447,7 @@
    ]
   },
   "j06": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -263163,6 +263486,7 @@
    "fetched": []
   },
   "j07": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -263783,6 +264107,7 @@
    ]
   },
   "j08": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -263821,6 +264146,7 @@
    "fetched": []
   },
   "j09": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -264380,6 +264706,7 @@
    ]
   },
   "j10": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -265327,6 +265654,7 @@
    ]
   },
   "j11": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -266240,6 +266568,7 @@
    ]
   },
   "j12": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -266278,6 +266607,7 @@
    "fetched": []
   },
   "j13": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -266316,6 +266646,7 @@
    "fetched": []
   },
   "j14": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -268105,6 +268436,7 @@
    ]
   },
   "j15": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -269853,6 +270185,7 @@
    ]
   },
   "j16": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -271530,6 +271863,7 @@
    ]
   },
   "j17": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -273178,6 +273512,7 @@
    ]
   },
   "j18": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -274374,6 +274709,7 @@
    ]
   },
   "j19": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -275957,6 +276293,7 @@
    ]
   },
   "j20": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -277742,6 +278079,7 @@
    ]
   },
   "j21": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -279513,6 +279851,7 @@
    ]
   },
   "j22": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -281444,6 +281783,7 @@
    ]
   },
   "j23": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -283179,6 +283519,7 @@
    ]
   },
   "j24": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -283217,6 +283558,7 @@
    "fetched": []
   },
   "j25": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -285079,6 +285421,7 @@
    ]
   },
   "j26": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -286883,6 +287226,7 @@
    ]
   },
   "j27": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -288567,6 +288911,7 @@
    ]
   },
   "j28": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -290587,6 +290932,7 @@
    ]
   },
   "j29": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -290726,6 +291072,7 @@
    ]
   },
   "j30": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -290865,6 +291212,7 @@
    ]
   },
   "j31": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -290903,6 +291251,7 @@
    "fetched": []
   },
   "j32": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -290941,6 +291290,7 @@
    "fetched": []
   },
   "j33": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -290978,6 +291328,7 @@
    "fetched": []
   },
   "j34": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -291009,6 +291360,7 @@
    "fetched": []
   },
   "j35": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -291643,6 +291995,7 @@
    ]
   },
   "j36": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -291681,6 +292034,7 @@
    "fetched": []
   },
   "j37": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -292140,6 +292494,7 @@
    ]
   },
   "j38": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -292178,6 +292533,7 @@
    "fetched": []
   },
   "j39": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -292567,6 +292923,7 @@
    ]
   },
   "j40": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -292956,6 +293313,7 @@
    ]
   },
   "k001": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -294452,6 +294810,7 @@
    ]
   },
   "k002": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -296384,6 +296743,7 @@
    ]
   },
   "k003": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -296997,6 +297357,7 @@
    ]
   },
   "k004": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -297624,6 +297985,7 @@
    ]
   },
   "k005": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -298251,6 +298613,7 @@
    ]
   },
   "k006": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -298864,6 +299227,7 @@
    ]
   },
   "k007": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -299456,6 +299820,7 @@
    ]
   },
   "k008": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -300048,6 +300413,7 @@
    ]
   },
   "k009": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -300675,6 +301041,7 @@
    ]
   },
   "k010": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -301225,6 +301592,7 @@
    ]
   },
   "k011": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -301859,6 +302227,7 @@
    ]
   },
   "k012": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -302465,6 +302834,7 @@
    ]
   },
   "k013": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -302503,6 +302873,7 @@
    "fetched": []
   },
   "k014": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -302541,6 +302912,7 @@
    "fetched": []
   },
   "k015": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -302579,6 +302951,7 @@
    "fetched": []
   },
   "k016": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -302617,6 +302990,7 @@
    "fetched": []
   },
   "k017": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -302655,6 +303029,7 @@
    "fetched": []
   },
   "k018": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -302693,6 +303068,7 @@
    "fetched": []
   },
   "k019": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -303397,6 +303773,7 @@
    ]
   },
   "k020": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -304003,6 +304380,7 @@
    ]
   },
   "k021": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -304658,6 +305036,7 @@
    ]
   },
   "k022": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -305271,6 +305650,7 @@
    ]
   },
   "k023": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -305870,6 +306250,7 @@
    ]
   },
   "k024": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -306504,6 +306885,7 @@
    ]
   },
   "k025": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -306542,6 +306924,7 @@
    "fetched": []
   },
   "k026": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -306580,6 +306963,7 @@
    "fetched": []
   },
   "k027": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -306618,6 +307002,7 @@
    "fetched": []
   },
   "k028": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -306656,6 +307041,7 @@
    "fetched": []
   },
   "k029": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -306694,6 +307080,7 @@
    "fetched": []
   },
   "k030": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -306732,6 +307119,7 @@
    "fetched": []
   },
   "k031": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -306770,6 +307158,7 @@
    "fetched": []
   },
   "k032": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -306808,6 +307197,7 @@
    "fetched": []
   },
   "k033": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -306846,6 +307236,7 @@
    "fetched": []
   },
   "k034": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -307494,6 +307885,7 @@
    ]
   },
   "k035": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -308142,6 +308534,7 @@
    ]
   },
   "k036": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -308699,6 +309092,7 @@
    ]
   },
   "k037": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -309347,6 +309741,7 @@
    ]
   },
   "k038": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -309974,6 +310369,7 @@
    ]
   },
   "k039": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -310636,6 +311032,7 @@
    ]
   },
   "k040": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -311249,6 +311646,7 @@
    ]
   },
   "k041": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -311813,6 +312211,7 @@
    ]
   },
   "k042": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -312433,6 +312832,7 @@
    ]
   },
   "k043": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -313095,6 +313495,7 @@
    ]
   },
   "k044": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -313652,6 +314053,7 @@
    ]
   },
   "k045": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -314258,6 +314660,7 @@
    ]
   },
   "k046": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -314836,6 +315239,7 @@
    ]
   },
   "k047": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -315400,6 +315804,7 @@
    ]
   },
   "k048": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -316013,6 +316418,7 @@
    ]
   },
   "k049": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -316612,6 +317018,7 @@
    ]
   },
   "k050": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -317183,6 +317590,7 @@
    ]
   },
   "k051": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -317754,6 +318162,7 @@
    ]
   },
   "k052": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -318388,6 +318797,7 @@
    ]
   },
   "k053": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -318959,6 +319369,7 @@
    ]
   },
   "k054": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -319670,6 +320081,7 @@
    ]
   },
   "k055": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -320206,6 +320618,7 @@
    ]
   },
   "k056": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -320875,6 +321288,7 @@
    ]
   },
   "k057": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -321432,6 +321846,7 @@
    ]
   },
   "k058": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -322010,6 +322425,7 @@
    ]
   },
   "k059": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -322504,6 +322920,7 @@
    ]
   },
   "k060": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -322542,6 +322959,7 @@
    "fetched": []
   },
   "k061": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -322580,6 +322998,7 @@
    "fetched": []
   },
   "k062": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -322618,6 +323037,7 @@
    "fetched": []
   },
   "k063": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -323161,6 +323581,7 @@
    ]
   },
   "k064": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -323767,6 +324188,7 @@
    ]
   },
   "k065": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -324443,6 +324865,7 @@
    ]
   },
   "k066": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -325049,6 +325472,7 @@
    ]
   },
   "k067": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -325564,6 +325988,7 @@
    ]
   },
   "k068": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -326177,6 +326602,7 @@
    ]
   },
   "k069": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -326748,6 +327174,7 @@
    ]
   },
   "k070": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -327431,6 +327858,7 @@
    ]
   },
   "k071": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -327974,6 +328402,7 @@
    ]
   },
   "k072": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -328531,6 +328960,7 @@
    ]
   },
   "k073": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -328994,6 +329424,7 @@
    ]
   },
   "k074": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -329614,6 +330045,7 @@
    ]
   },
   "k075": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -330234,6 +330666,7 @@
    ]
   },
   "k076": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -330272,6 +330705,7 @@
    "fetched": []
   },
   "k077": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -330310,6 +330744,7 @@
    "fetched": []
   },
   "k078": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -330727,6 +331162,7 @@
    ]
   },
   "k079": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -331375,6 +331811,7 @@
    ]
   },
   "k080": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -331413,6 +331850,7 @@
    "fetched": []
   },
   "k081": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -331451,6 +331889,7 @@
    "fetched": []
   },
   "k082": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -331956,6 +332395,7 @@
    ]
   },
   "k083": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -332527,6 +332967,7 @@
    ]
   },
   "k084": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -332986,6 +333427,7 @@
    ]
   },
   "k085": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -333592,6 +334034,7 @@
    ]
   },
   "k086": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -334219,6 +334662,7 @@
    ]
   },
   "k087": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -334825,6 +335269,7 @@
    ]
   },
   "k088": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -335088,6 +335533,7 @@
    ]
   },
   "k089": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -335624,6 +336070,7 @@
    ]
   },
   "k090": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -336223,6 +336670,7 @@
    ]
   },
   "k091": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -336871,6 +337319,7 @@
    ]
   },
   "k092": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -337022,6 +337471,7 @@
    ]
   },
   "k093": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -337060,6 +337510,7 @@
    "fetched": []
   },
   "k094": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -337098,6 +337549,7 @@
    "fetched": []
   },
   "k095": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -337732,6 +338184,7 @@
    ]
   },
   "k096": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -338198,6 +338651,7 @@
    ]
   },
   "k097": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -338664,6 +339118,7 @@
    ]
   },
   "k098": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -339214,6 +339669,7 @@
    ]
   },
   "k099": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -339252,6 +339708,7 @@
    "fetched": []
   },
   "k100": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -339928,6 +340385,7 @@
    ]
   },
   "k101": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -339966,6 +340424,7 @@
    "fetched": []
   },
   "k102": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -340089,6 +340548,7 @@
    ]
   },
   "k103": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -340184,6 +340644,7 @@
    ]
   },
   "k104": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -340783,6 +341244,7 @@
    ]
   },
   "k105": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -340821,6 +341283,7 @@
    "fetched": []
   },
   "k106": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -341504,6 +341967,7 @@
    ]
   },
   "k107": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -341542,6 +342006,7 @@
    "fetched": []
   },
   "k108": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -341580,6 +342045,7 @@
    "fetched": []
   },
   "k109": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -342102,6 +342568,7 @@
    ]
   },
   "k110": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -342428,6 +342895,7 @@
    ]
   },
   "k111": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -343069,6 +343537,7 @@
    ]
   },
   "k112": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -343598,6 +344067,7 @@
    ]
   },
   "k113": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -343636,6 +344106,7 @@
    "fetched": []
   },
   "k114": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -344207,6 +344678,7 @@
    ]
   },
   "k115": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -344904,6 +345376,7 @@
    ]
   },
   "k116": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -344942,6 +345415,7 @@
    "fetched": []
   },
   "k117": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -345583,6 +346057,7 @@
    ]
   },
   "k118": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -345664,6 +346139,7 @@
    ]
   },
   "k119": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -346277,6 +346753,7 @@
    ]
   },
   "k120": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -346876,6 +347353,7 @@
    ]
   },
   "k121": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -347580,6 +348058,7 @@
    ]
   },
   "k122": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -348207,6 +348686,7 @@
    ]
   },
   "k123": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -348778,6 +349258,7 @@
    ]
   },
   "k124": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -349454,6 +349935,7 @@
    ]
   },
   "k125": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -349813,6 +350295,7 @@
    ]
   },
   "k126": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -349851,6 +350334,7 @@
    "fetched": []
   },
   "k127": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -350471,6 +350955,7 @@
    ]
   },
   "k128": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -351056,6 +351541,7 @@
    ]
   },
   "k129": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -351627,6 +352113,7 @@
    ]
   },
   "k130": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -351665,6 +352152,7 @@
    "fetched": []
   },
   "k131": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -351703,6 +352191,7 @@
    "fetched": []
   },
   "k132": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -351741,6 +352230,7 @@
    "fetched": []
   },
   "k133": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -351779,6 +352269,7 @@
    "fetched": []
   },
   "k134": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -351817,6 +352308,7 @@
    "fetched": []
   },
   "k135": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -351912,6 +352404,7 @@
    ]
   },
   "k136": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -351950,6 +352443,7 @@
    "fetched": []
   },
   "k137": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -352038,6 +352532,7 @@
    ]
   },
   "k138": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -352560,6 +353055,7 @@
    ]
   },
   "k139": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -353061,6 +353557,7 @@
    ]
   },
   "k140": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -353191,6 +353688,7 @@
    ]
   },
   "k141": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -353811,6 +354309,7 @@
    ]
   },
   "k142": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -353931,6 +354430,7 @@
    ]
   },
   "k143": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -354544,6 +355044,7 @@
    ]
   },
   "k144": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -354639,6 +355140,7 @@
    ]
   },
   "k145": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -354677,6 +355179,7 @@
    "fetched": []
   },
   "k146": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -355297,6 +355800,7 @@
    ]
   },
   "k147": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -355578,6 +356082,7 @@
    ]
   },
   "k148": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -356142,6 +356647,7 @@
    ]
   },
   "k149": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -356699,6 +357205,7 @@
    ]
   },
   "k150": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -357214,6 +357721,7 @@
    ]
   },
   "k151": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -357771,6 +358279,7 @@
    ]
   },
   "k152": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -358433,6 +358942,7 @@
    ]
   },
   "k153": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -358962,6 +359472,7 @@
    ]
   },
   "k154": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -359561,6 +360072,7 @@
    ]
   },
   "k155": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -360125,6 +360637,7 @@
    ]
   },
   "k156": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -360163,6 +360676,7 @@
    "fetched": []
   },
   "k157": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -360201,6 +360715,7 @@
    "fetched": []
   },
   "k158": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -360239,6 +360754,7 @@
    "fetched": []
   },
   "k159": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -360277,6 +360793,7 @@
    "fetched": []
   },
   "k160": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -360315,6 +360832,7 @@
    "fetched": []
   },
   "k161": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -360353,6 +360871,7 @@
    "fetched": []
   },
   "k162": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -360391,6 +360910,7 @@
    "fetched": []
   },
   "k163": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -360429,6 +360949,7 @@
    "fetched": []
   },
   "k164": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -360467,6 +360988,7 @@
    "fetched": []
   },
   "k165": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -360505,6 +361027,7 @@
    "fetched": []
   },
   "k166": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -360543,6 +361066,7 @@
    "fetched": []
   },
   "k167": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -360638,6 +361162,7 @@
    ]
   },
   "k168": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -360676,6 +361201,7 @@
    "fetched": []
   },
   "k169": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -360714,6 +361240,7 @@
    "fetched": []
   },
   "k170": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -360752,6 +361279,7 @@
    "fetched": []
   },
   "k171": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -360790,6 +361318,7 @@
    "fetched": []
   },
   "k172": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -360828,6 +361357,7 @@
    "fetched": []
   },
   "k173": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -361511,6 +362041,7 @@
    ]
   },
   "k174": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -362075,6 +362606,7 @@
    ]
   },
   "k175": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -362653,6 +363185,7 @@
    ]
   },
   "k176": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -363217,6 +363750,7 @@
    ]
   },
   "k177": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -363305,6 +363839,7 @@
    ]
   },
   "k178": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -363386,6 +363921,7 @@
    ]
   },
   "k179": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -363424,6 +363960,7 @@
    "fetched": []
   },
   "k180": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -363719,6 +364256,7 @@
    ]
   },
   "k181": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -364311,6 +364849,7 @@
    ]
   },
   "k182": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -364903,6 +365442,7 @@
    ]
   },
   "k183": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -365460,6 +366000,7 @@
    ]
   },
   "k184": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -365723,6 +366264,7 @@
    ]
   },
   "k185": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -366273,6 +366815,7 @@
    ]
   },
   "k186": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -366361,6 +366904,7 @@
    ]
   },
   "k187": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -366988,6 +367532,7 @@
    ]
   },
   "k188": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -367026,6 +367571,7 @@
    "fetched": []
   },
   "k189": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -367590,6 +368136,7 @@
    ]
   },
   "k190": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -368203,6 +368750,7 @@
    ]
   },
   "k191": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -368830,6 +369378,7 @@
    ]
   },
   "k192": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -368868,6 +369417,7 @@
    "fetched": []
   },
   "k193": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -368906,6 +369456,7 @@
    "fetched": []
   },
   "k194": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -368944,6 +369495,7 @@
    "fetched": []
   },
   "k195": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -369039,6 +369591,7 @@
    ]
   },
   "k196": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -369077,6 +369630,7 @@
    "fetched": []
   },
   "k197": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -369732,6 +370286,7 @@
    ]
   },
   "k198": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -370324,6 +370879,7 @@
    ]
   },
   "k199": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -370405,6 +370961,7 @@
    ]
   },
   "k200": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -371025,6 +371582,7 @@
    ]
   },
   "k201": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -371673,6 +372231,7 @@
    ]
   },
   "k202": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -372272,6 +372831,7 @@
    ]
   },
   "k203": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -372871,6 +373431,7 @@
    ]
   },
   "k204": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -372909,6 +373470,7 @@
    "fetched": []
   },
   "k205": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -373557,6 +374119,7 @@
    ]
   },
   "k206": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -374163,6 +374726,7 @@
    ]
   },
   "k207": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -374671,6 +375235,7 @@
    ]
   },
   "k208": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -375228,6 +375793,7 @@
    ]
   },
   "k209": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -375587,6 +376153,7 @@
    ]
   },
   "k210": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -375625,6 +376192,7 @@
    "fetched": []
   },
   "k211": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -375832,6 +376400,7 @@
    ]
   },
   "k212": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -376031,6 +376600,7 @@
    ]
   },
   "k213": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -376390,6 +376960,7 @@
    ]
   },
   "k214": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -376961,6 +377532,7 @@
    ]
   },
   "k215": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -377064,6 +377636,7 @@
    ]
   },
   "k216": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -377102,6 +377675,7 @@
    "fetched": []
   },
   "k217": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -377631,6 +378205,7 @@
    ]
   },
   "k218": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -377669,6 +378244,7 @@
    "fetched": []
   },
   "k219": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -377707,6 +378283,7 @@
    "fetched": []
   },
   "k220": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -378376,6 +378953,7 @@
    ]
   },
   "k221": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -378562,6 +379140,7 @@
    ]
   },
   "k222": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -378741,6 +379320,7 @@
    ]
   },
   "k223": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -378822,6 +379402,7 @@
    ]
   },
   "k224": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -378945,6 +379526,7 @@
    ]
   },
   "k225": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -379530,6 +380112,7 @@
    ]
   },
   "k226": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -379737,6 +380320,7 @@
    ]
   },
   "k227": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -380203,6 +380787,7 @@
    ]
   },
   "k228": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -380802,6 +381387,7 @@
    ]
   },
   "k229": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -381408,6 +381994,7 @@
    ]
   },
   "k230": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -381951,6 +382538,7 @@
    ]
   },
   "k231": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -382064,6 +382652,7 @@
    ]
   },
   "k232": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -382293,6 +382882,7 @@
    ]
   },
   "k233": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -382574,6 +383164,7 @@
    ]
   },
   "k234": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -382719,6 +383310,7 @@
    ]
   },
   "k235": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -382874,6 +383466,7 @@
    ]
   },
   "k236": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -383361,6 +383954,7 @@
    ]
   },
   "k237": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -383612,6 +384206,7 @@
    ]
   },
   "k238": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -383799,6 +384394,7 @@
    ]
   },
   "k239": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -383922,6 +384518,7 @@
    ]
   },
   "k240": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -384215,6 +384812,7 @@
    ]
   },
   "k241": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -384444,6 +385042,7 @@
    ]
   },
   "k242": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -384547,6 +385146,7 @@
    ]
   },
   "k243": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -385055,6 +385655,7 @@
    ]
   },
   "k244": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -385093,6 +385694,7 @@
    "fetched": []
   },
   "k245": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -385748,6 +386350,7 @@
    ]
   },
   "k246": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -386095,6 +386698,7 @@
    ]
   },
   "k247": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -386680,6 +387284,7 @@
    ]
   },
   "k248": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -387314,6 +387919,7 @@
    ]
   },
   "k249": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -387352,6 +387958,7 @@
    "fetched": []
   },
   "k250": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -387390,6 +387997,7 @@
    "fetched": []
   },
   "k251": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -387968,6 +388576,7 @@
    ]
   },
   "k252": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -388327,6 +388936,7 @@
    ]
   },
   "k253": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -388891,6 +389501,7 @@
    ]
   },
   "k254": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -389455,6 +390066,7 @@
    ]
   },
   "k255": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -390040,6 +390652,7 @@
    ]
   },
   "k256": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -390681,6 +391294,7 @@
    ]
   },
   "k257": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -391182,6 +391796,7 @@
    ]
   },
   "k258": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -391809,6 +392424,7 @@
    ]
   },
   "k259": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -392240,6 +392856,7 @@
    ]
   },
   "k260": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -392278,6 +392895,7 @@
    "fetched": []
   },
   "k261": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -392316,6 +392934,7 @@
    "fetched": []
   },
   "k262": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -392354,6 +392973,7 @@
    "fetched": []
   },
   "k263": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -392561,6 +393181,7 @@
    ]
   },
   "k264": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -393042,6 +393663,7 @@
    ]
   },
   "k265": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -393620,6 +394242,7 @@
    ]
   },
   "k266": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -393658,6 +394281,7 @@
    "fetched": []
   },
   "k267": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -393696,6 +394320,7 @@
    "fetched": []
   },
   "k268": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -393734,6 +394359,7 @@
    "fetched": []
   },
   "k269": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -393772,6 +394398,7 @@
    "fetched": []
   },
   "k270": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -394131,6 +394758,7 @@
    ]
   },
   "k271": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -394169,6 +394797,7 @@
    "fetched": []
   },
   "k272": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -394257,6 +394886,7 @@
    ]
   },
   "k273": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -394295,6 +394925,7 @@
    "fetched": []
   },
   "k274": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -394333,6 +394964,7 @@
    "fetched": []
   },
   "k275": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -394371,6 +395003,7 @@
    "fetched": []
   },
   "k276": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -394963,6 +395596,7 @@
    ]
   },
   "k277": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -395527,6 +396161,7 @@
    ]
   },
   "k278": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -395902,6 +396537,7 @@
    ]
   },
   "k279": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -396305,6 +396941,7 @@
    ]
   },
   "k280": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -396343,6 +396980,7 @@
    "fetched": []
   },
   "k281": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -396921,6 +397559,7 @@
    ]
   },
   "k282": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -397450,6 +398089,7 @@
    ]
   },
   "k283": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -398049,6 +398689,7 @@
    ]
   },
   "k284": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -398627,6 +399268,7 @@
    ]
   },
   "k285": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -399240,6 +399882,7 @@
    ]
   },
   "k286": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -399762,6 +400405,7 @@
    ]
   },
   "k287": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -399800,6 +400444,7 @@
    "fetched": []
   },
   "k288": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -399838,6 +400483,7 @@
    "fetched": []
   },
   "k289": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -399876,6 +400522,7 @@
    "fetched": []
   },
   "k290": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -399914,6 +400561,7 @@
    "fetched": []
   },
   "k291": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -399952,6 +400600,7 @@
    "fetched": []
   },
   "k292": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -400516,6 +401165,7 @@
    ]
   },
   "k293": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -401108,6 +401758,7 @@
    ]
   },
   "k294": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -401238,6 +401889,7 @@
    ]
   },
   "k295": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -401276,6 +401928,7 @@
    "fetched": []
   },
   "k296": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -401875,6 +402528,7 @@
    ]
   },
   "k297": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -401970,6 +402624,7 @@
    ]
   },
   "k298": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -402499,6 +403154,7 @@
    ]
   },
   "k299": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -402858,6 +403514,7 @@
    ]
   },
   "k300": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -402981,6 +403638,7 @@
    ]
   },
   "k301": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -403019,6 +403677,7 @@
    "fetched": []
   },
   "k302": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -403373,6 +404032,7 @@
    ]
   },
   "k303": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -403454,6 +404114,7 @@
    ]
   },
   "k304": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -403542,6 +404203,7 @@
    ]
   },
   "k305": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -404071,6 +404733,7 @@
    ]
   },
   "k306": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -404663,6 +405326,7 @@
    ]
   },
   "k307": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -405199,6 +405863,7 @@
    ]
   },
   "k308": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -405672,6 +406337,7 @@
    ]
   },
   "k309": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -405963,6 +406629,7 @@
    ]
   },
   "k310": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -406212,6 +406879,7 @@
    ]
   },
   "k311": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -406770,6 +407438,7 @@
    ]
   },
   "k312": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -406808,6 +407477,7 @@
    "fetched": []
   },
   "k313": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -407007,6 +407677,7 @@
    ]
   },
   "k314": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -407655,6 +408326,7 @@
    ]
   },
   "k315": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -408177,6 +408849,7 @@
    ]
   },
   "k316": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -408804,6 +409477,7 @@
    ]
   },
   "k317": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -409431,6 +410105,7 @@
    ]
   },
   "k318": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -410044,6 +410719,7 @@
    ]
   },
   "k319": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -410608,6 +411284,7 @@
    ]
   },
   "k320": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -410839,6 +411516,7 @@
    ]
   },
   "k321": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -411134,6 +411812,7 @@
    ]
   },
   "k322": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -411705,6 +412384,7 @@
    ]
   },
   "k323": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -412081,6 +412761,7 @@
    ]
   },
   "k324": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -412119,6 +412800,7 @@
    "fetched": []
   },
   "k325": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -412157,6 +412839,7 @@
    "fetched": []
   },
   "k326": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -412195,6 +412878,7 @@
    "fetched": []
   },
   "k327": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -412233,6 +412917,7 @@
    "fetched": []
   },
   "k328": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -412650,6 +413335,7 @@
    ]
   },
   "k329": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -412688,6 +413374,7 @@
    "fetched": []
   },
   "k330": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -412887,6 +413574,7 @@
    ]
   },
   "k331": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -412925,6 +413613,7 @@
    "fetched": []
   },
   "k332": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -412963,6 +413652,7 @@
    "fetched": []
   },
   "k333": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -413001,6 +413691,7 @@
    "fetched": []
   },
   "k334": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -413039,6 +413730,7 @@
    "fetched": []
   },
   "k335": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -413408,6 +414100,7 @@
    ]
   },
   "k336": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -413446,6 +414139,7 @@
    "fetched": []
   },
   "k337": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -414066,6 +414760,7 @@
    ]
   },
   "k338": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -414104,6 +414799,7 @@
    "fetched": []
   },
   "k339": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -414463,6 +415159,7 @@
    ]
   },
   "k340": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -415048,6 +415745,7 @@
    ]
   },
   "k341": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -415633,6 +416331,7 @@
    ]
   },
   "k342": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -415671,6 +416370,7 @@
    "fetched": []
   },
   "k343": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -415899,6 +416599,7 @@
    ]
   },
   "k344": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -416258,6 +416959,7 @@
    ]
   },
   "k345": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -416296,6 +416998,7 @@
    "fetched": []
   },
   "k346": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -416334,6 +417037,7 @@
    "fetched": []
   },
   "k347": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -416849,6 +417553,7 @@
    ]
   },
   "k348": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -416887,6 +417592,7 @@
    "fetched": []
   },
   "k349": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -417371,6 +418077,7 @@
    ]
   },
   "k350": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -417977,6 +418684,7 @@
    ]
   },
   "k351": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -418506,6 +419214,7 @@
    ]
   },
   "k352": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -418544,6 +419253,7 @@
    "fetched": []
   },
   "k353": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -418582,6 +419292,7 @@
    "fetched": []
   },
   "k354": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -418620,6 +419331,7 @@
    "fetched": []
   },
   "k355": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -419184,6 +419896,7 @@
    ]
   },
   "k356": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -419769,6 +420482,7 @@
    ]
   },
   "k357": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -419807,6 +420521,7 @@
    "fetched": []
   },
   "k358": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -419845,6 +420560,7 @@
    "fetched": []
   },
   "k359": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -420108,6 +420824,7 @@
    ]
   },
   "k360": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -420146,6 +420863,7 @@
    "fetched": []
   },
   "k361": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -420721,6 +421439,7 @@
    ]
   },
   "k362": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -421257,6 +421976,7 @@
    ]
   },
   "k363": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -421295,6 +422015,7 @@
    "fetched": []
   },
   "l001": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -421922,6 +422643,7 @@
    ]
   },
   "l002": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -422710,6 +423432,7 @@
    ]
   },
   "l003": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -423477,6 +424200,7 @@
    ]
   },
   "l004": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -424244,6 +424968,7 @@
    ]
   },
   "l005": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -424927,6 +425652,7 @@
    ]
   },
   "l006": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -425687,6 +426413,7 @@
    ]
   },
   "l007": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -426468,6 +427195,7 @@
    ]
   },
   "l008": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -427256,6 +427984,7 @@
    ]
   },
   "l009": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -428107,6 +428836,7 @@
    ]
   },
   "l010": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -428860,6 +429590,7 @@
    ]
   },
   "l011": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -429690,6 +430421,7 @@
    ]
   },
   "l012": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -430422,6 +431154,7 @@
    ]
   },
   "l013": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -431154,6 +431887,7 @@
    ]
   },
   "l014": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -431914,6 +432648,7 @@
    ]
   },
   "l015": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -432737,6 +433472,7 @@
    ]
   },
   "l016": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -433504,6 +434240,7 @@
    ]
   },
   "l017": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -434271,6 +435008,7 @@
    ]
   },
   "l018": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -434968,6 +435706,7 @@
    ]
   },
   "l019": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -435133,6 +435872,7 @@
    ]
   },
   "l020": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -435268,6 +436008,7 @@
    ]
   },
   "l021": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -435727,6 +436468,7 @@
    ]
   },
   "l022": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -436193,6 +436935,7 @@
    ]
   },
   "l023": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -436552,6 +437295,7 @@
    ]
   },
   "l024": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -437207,6 +437951,7 @@
    ]
   },
   "l025": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -437245,6 +437990,7 @@
    "fetched": []
   },
   "l026": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -437283,6 +438029,7 @@
    "fetched": []
   },
   "l027": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -437642,6 +438389,7 @@
    ]
   },
   "l028": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -438001,6 +438749,7 @@
    ]
   },
   "l029": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -438360,6 +439109,7 @@
    ]
   },
   "l030": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -438398,6 +439148,7 @@
    "fetched": []
   },
   "l031": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -438436,6 +439187,7 @@
    "fetched": []
   },
   "l032": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -438474,6 +439226,7 @@
    "fetched": []
   },
   "l033": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -438512,6 +439265,7 @@
    "fetched": []
   },
   "l034": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -438971,6 +439725,7 @@
    ]
   },
   "l035": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -439696,6 +440451,7 @@
    ]
   },
   "l036": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -440519,6 +441275,7 @@
    ]
   },
   "l037": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -441244,6 +442001,7 @@
    ]
   },
   "l038": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -441282,6 +442040,7 @@
    "fetched": []
   },
   "l039": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -441320,6 +442079,7 @@
    "fetched": []
   },
   "l040": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -441679,6 +442439,7 @@
    ]
   },
   "l041": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -442495,6 +443256,7 @@
    ]
   },
   "l042": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -443290,6 +444052,7 @@
    ]
   },
   "l043": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -444050,6 +444813,7 @@
    ]
   },
   "l044": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -444810,6 +445574,7 @@
    ]
   },
   "l045": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -445619,6 +446384,7 @@
    ]
   },
   "l046": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -446421,6 +447187,7 @@
    ]
   },
   "l047": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -447216,6 +447983,7 @@
    ]
   },
   "l048": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -447948,6 +448716,7 @@
    ]
   },
   "l049": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -448673,6 +449442,7 @@
    ]
   },
   "l050": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -449132,6 +449902,7 @@
    ]
   },
   "l051": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -449170,6 +449941,7 @@
    "fetched": []
   },
   "l052": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -449839,6 +450611,7 @@
    ]
   },
   "l053": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -450543,6 +451316,7 @@
    ]
   },
   "l054": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -451289,6 +452063,7 @@
    ]
   },
   "l055": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -451748,6 +452523,7 @@
    ]
   },
   "l056": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -451786,6 +452562,7 @@
    "fetched": []
   },
   "l057": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -452145,6 +452922,7 @@
    ]
   },
   "l058": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -452183,6 +452961,7 @@
    "fetched": []
   },
   "l059": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -452221,6 +453000,7 @@
    "fetched": []
   },
   "l060": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -452259,6 +453039,7 @@
    "fetched": []
   },
   "l061": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -452297,6 +453078,7 @@
    "fetched": []
   },
   "l062": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -452335,6 +453117,7 @@
    "fetched": []
   },
   "l063": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -452373,6 +453156,7 @@
    "fetched": []
   },
   "l064": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -452411,6 +453195,7 @@
    "fetched": []
   },
   "l065": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -452449,6 +453234,7 @@
    "fetched": []
   },
   "l066": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -452487,6 +453273,7 @@
    "fetched": []
   },
   "l067": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -452652,6 +453439,7 @@
    ]
   },
   "l068": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -453111,6 +453899,7 @@
    ]
   },
   "l069": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -453278,6 +454067,7 @@
    ]
   },
   "l070": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -454038,6 +454828,7 @@
    ]
   },
   "l071": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -454714,6 +455505,7 @@
    ]
   },
   "l072": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -455523,6 +456315,7 @@
    ]
   },
   "l073": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -455561,6 +456354,7 @@
    "fetched": []
   },
   "l074": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -455599,6 +456393,7 @@
    "fetched": []
   },
   "l075": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -455637,6 +456432,7 @@
    "fetched": []
   },
   "l076": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -456006,6 +456802,7 @@
    ]
   },
   "l077": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -456044,6 +456841,7 @@
    "fetched": []
   },
   "l078": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -456082,6 +456880,7 @@
    "fetched": []
   },
   "l079": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -456120,6 +456919,7 @@
    "fetched": []
   },
   "l080": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -456415,6 +457215,7 @@
    ]
   },
   "l081": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -456453,6 +457254,7 @@
    "fetched": []
   },
   "l082": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -456912,6 +457714,7 @@
    ]
   },
   "l083": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -457665,6 +458468,7 @@
    ]
   },
   "l084": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -458411,6 +459215,7 @@
    ]
   },
   "l085": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -459171,6 +459976,7 @@
    ]
   },
   "l086": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -459987,6 +460793,7 @@
    ]
   },
   "l087": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -460025,6 +460832,7 @@
    "fetched": []
   },
   "l088": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -460063,6 +460871,7 @@
    "fetched": []
   },
   "l089": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -460422,6 +461231,7 @@
    ]
   },
   "l090": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -460781,6 +461591,7 @@
    ]
   },
   "l091": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -461240,6 +462051,7 @@
    ]
   },
   "l092": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -461278,6 +462090,7 @@
    "fetched": []
   },
   "l093": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -461637,6 +462450,7 @@
    ]
   },
   "l094": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -462013,6 +462827,7 @@
    ]
   },
   "l095": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -462472,6 +463287,7 @@
    ]
   },
   "l096": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -462831,6 +463647,7 @@
    ]
   },
   "l097": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -463190,6 +464007,7 @@
    ]
   },
   "l098": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -463549,6 +464367,7 @@
    ]
   },
   "l099": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -463908,6 +464727,7 @@
    ]
   },
   "l100": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -464367,6 +465187,7 @@
    ]
   },
   "l101": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -464736,6 +465557,7 @@
    ]
   },
   "l102": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -465095,6 +465917,7 @@
    ]
   },
   "l103": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -465133,6 +465956,7 @@
    "fetched": []
   },
   "l104": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -465171,6 +465995,7 @@
    "fetched": []
   },
   "l105": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -465959,6 +466784,7 @@
    ]
   },
   "l106": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -466670,6 +467496,7 @@
    ]
   },
   "l107": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -467423,6 +468250,7 @@
    ]
   },
   "l108": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -468162,6 +468990,7 @@
    ]
   },
   "l109": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -468887,6 +469716,7 @@
    ]
   },
   "l110": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -469654,6 +470484,7 @@
    ]
   },
   "l111": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -469692,6 +470523,7 @@
    "fetched": []
   },
   "m01": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -470081,6 +470913,7 @@
    ]
   },
   "m02": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -470463,6 +471296,7 @@
    ]
   },
   "m03": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -470862,6 +471696,7 @@
    ]
   },
   "m04": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -471254,6 +472089,7 @@
    ]
   },
   "m05": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -471292,6 +472128,7 @@
    "fetched": []
   },
   "m06": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -471612,6 +472449,7 @@
    ]
   },
   "m07": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -471925,6 +472763,7 @@
    ]
   },
   "m08": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -471963,6 +472802,7 @@
    "fetched": []
   },
   "n01": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -473928,6 +474768,7 @@
    ]
   },
   "n02": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -475923,6 +476764,7 @@
    ]
   },
   "n03": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -477437,6 +478279,7 @@
    ]
   },
   "n04": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -479131,6 +479974,7 @@
    ]
   },
   "n05": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -480820,6 +481664,7 @@
    ]
   },
   "n06": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -480861,6 +481706,7 @@
    "fetched": []
   },
   "n07": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -481577,6 +482423,7 @@
    ]
   },
   "n08": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -481618,6 +482465,7 @@
    "fetched": []
   },
   "n09": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -482284,6 +483132,7 @@
    ]
   },
   "n10": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -482336,6 +483185,7 @@
    "fetched": []
   },
   "n11": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -484641,6 +485491,7 @@
    ]
   },
   "n12": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -484705,6 +485556,7 @@
    "fetched": []
   },
   "n13": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -484757,6 +485609,7 @@
    "fetched": []
   },
   "n14": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -486421,6 +487274,7 @@
    ]
   },
   "n15": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -486485,6 +487339,7 @@
    "fetched": []
   },
   "n16": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -486557,6 +487412,7 @@
    "fetched": []
   },
   "n17": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -487989,6 +488845,7 @@
    ]
   },
   "n18": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -488037,6 +488894,7 @@
    "fetched": []
   },
   "n19": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -490421,6 +491279,7 @@
    ]
   },
   "n20": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -490901,6 +491760,7 @@
    ]
   },
   "n21": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -492814,6 +493674,7 @@
    ]
   },
   "n22": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -493615,6 +494476,7 @@
    ]
   },
   "n23": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -495169,6 +496031,7 @@
    ]
   },
   "p1": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -496167,6 +497030,7 @@
    ]
   },
   "p2": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -497256,6 +498120,7 @@
    ]
   },
   "t01": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -499200,6 +500065,7 @@
    ]
   },
   "t02": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -501147,6 +502013,7 @@
    ]
   },
   "t03": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -502708,6 +503575,7 @@
    ]
   },
   "t04": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -504418,6 +505286,7 @@
    ]
   },
   "t05": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -506365,6 +507234,7 @@
    ]
   },
   "t06": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -508039,6 +508909,7 @@
    ]
   },
   "t07": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -509129,6 +510000,7 @@
    ]
   },
   "t08": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -510219,6 +511091,7 @@
    ]
   },
   "t09": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -511355,6 +512228,7 @@
    ]
   },
   "t10": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -513149,6 +514023,7 @@
    ]
   },
   "t11": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -514729,6 +515604,7 @@
    ]
   },
   "t12": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -516695,6 +517571,7 @@
    ]
   },
   "t13": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -516737,6 +517614,7 @@
    "fetched": []
   },
   "t14": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -518117,6 +518995,7 @@
    ]
   },
   "t15": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -518159,6 +519038,7 @@
    "fetched": []
   },
   "t16": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -519318,6 +520198,7 @@
    ]
   },
   "t17": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -520760,6 +521641,7 @@
    ]
   },
   "t18": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -522520,6 +523402,7 @@
    ]
   },
   "t19": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -522696,6 +523579,7 @@
    ]
   },
   "t20": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -522747,6 +523631,7 @@
    "fetched": []
   },
   "t21": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -524761,6 +525646,7 @@
    ]
   },
   "t22": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -526794,6 +527680,7 @@
    ]
   },
   "t23": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -528533,6 +529420,7 @@
    ]
   },
   "t24": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -529808,6 +530696,7 @@
    ]
   },
   "t25": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -530961,6 +531850,7 @@
    ]
   },
   "t26": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -532286,6 +533176,7 @@
    ]
   },
   "t27": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -533646,6 +534537,7 @@
    ]
   },
   "t28": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -533684,6 +534576,7 @@
    "fetched": []
   },
   "t29": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -535052,6 +535945,7 @@
    ]
   },
   "t30": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -536400,6 +537294,7 @@
    ]
   },
   "t31": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -537486,6 +538381,7 @@
    ]
   },
   "t32": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -538838,6 +539734,7 @@
    ]
   },
   "t33": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -538872,6 +539769,7 @@
    "fetched": []
   },
   "t34": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -539790,6 +540688,7 @@
    ]
   },
   "t35": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -540864,6 +541763,7 @@
    ]
   },
   "t36": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -542040,6 +542940,7 @@
    ]
   },
   "t37": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -543219,6 +544120,7 @@
    ]
   },
   "t38": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -544733,6 +545635,7 @@
    ]
   },
   "t39": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -546034,6 +546937,7 @@
    ]
   },
   "t40": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -547221,6 +548125,7 @@
    ]
   },
   "t41": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -548983,6 +549888,7 @@
    ]
   },
   "t42": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -550777,6 +551683,7 @@
    ]
   },
   "t43": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -552629,6 +553536,7 @@
    ]
   },
   "t44": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -552673,6 +553581,7 @@
    "fetched": []
   },
   "t45": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -553497,6 +554406,7 @@
    ]
   },
   "t46": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -554019,6 +554929,7 @@
    ]
   },
   "t47": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -554541,6 +555452,7 @@
    ]
   },
   "t48": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -555462,6 +556374,7 @@
    ]
   },
   "t49": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -557076,6 +557989,7 @@
    ]
   },
   "t50": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -557107,6 +558021,7 @@
    "fetched": []
   },
   "t51": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -557138,6 +558053,7 @@
    "fetched": []
   },
   "t52": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -557938,6 +558854,7 @@
    ]
   },
   "t53": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -559187,6 +560104,7 @@
    ]
   },
   "t54": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -560701,6 +561619,7 @@
    ]
   },
   "t55": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -561330,6 +562249,7 @@
    ]
   },
   "t56": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -561484,6 +562404,7 @@
    ]
   },
   "t57": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -562768,6 +563689,7 @@
    ]
   },
   "u001": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -564315,6 +565237,7 @@
    ]
   },
   "u002": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -565782,6 +566705,7 @@
    ]
   },
   "u003": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -567552,6 +568476,7 @@
    ]
   },
   "u004": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -569208,6 +570133,7 @@
    ]
   },
   "u005": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -571197,6 +572123,7 @@
    ]
   },
   "u006": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -572969,6 +573896,7 @@
    ]
   },
   "u007": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -574687,6 +575615,7 @@
    ]
   },
   "u008": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -576318,6 +577247,7 @@
    ]
   },
   "u009": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -577902,6 +578832,7 @@
    ]
   },
   "u010": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -579833,6 +580764,7 @@
    ]
   },
   "u011": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -581269,6 +582201,7 @@
    ]
   },
   "u012": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -582814,6 +583747,7 @@
    ]
   },
   "u013": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -584022,6 +584956,7 @@
    ]
   },
   "u014": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -584986,6 +585921,7 @@
    ]
   },
   "u015": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -585345,6 +586281,7 @@
    ]
   },
   "u016": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -586181,6 +587118,7 @@
    ]
   },
   "u017": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -586977,6 +587915,7 @@
    ]
   },
   "u018": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -587535,6 +588474,7 @@
    ]
   },
   "u019": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -588149,6 +589089,7 @@
    ]
   },
   "u020": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -588917,6 +589858,7 @@
    ]
   },
   "u021": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -589501,6 +590443,7 @@
    ]
   },
   "u022": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -590292,6 +591235,7 @@
    ]
   },
   "u023": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -591364,6 +592308,7 @@
    ]
   },
   "u024": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -591683,6 +592628,7 @@
    ]
   },
   "u025": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -591720,6 +592666,7 @@
    "fetched": []
   },
   "u026": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -592247,6 +593194,7 @@
    ]
   },
   "u027": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -592566,6 +593514,7 @@
    ]
   },
   "u028": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -593328,6 +594277,7 @@
    ]
   },
   "u029": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -594220,6 +595170,7 @@
    ]
   },
   "u030": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -594974,6 +595925,7 @@
    ]
   },
   "u031": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -595981,6 +596933,7 @@
    ]
   },
   "u032": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -596853,6 +597806,7 @@
    ]
   },
   "u033": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -597853,6 +598807,7 @@
    ]
   },
   "u034": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -599290,6 +600245,7 @@
    ]
   },
   "u035": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -600631,6 +601587,7 @@
    ]
   },
   "u036": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -600976,6 +601933,7 @@
    ]
   },
   "u037": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -601194,6 +602152,7 @@
    ]
   },
   "u038": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -601682,6 +602641,7 @@
    ]
   },
   "u039": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -602422,6 +603382,7 @@
    ]
   },
   "u040": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -602810,6 +603771,7 @@
    ]
   },
   "u041": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -603682,6 +604644,7 @@
    ]
   },
   "u042": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -603719,6 +604682,7 @@
    "fetched": []
   },
   "u043": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -604107,6 +605071,7 @@
    ]
   },
   "u044": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -604325,6 +605290,7 @@
    ]
   },
   "u045": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -604362,6 +605328,7 @@
    "fetched": []
   },
   "u046": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -604500,6 +605467,7 @@
    ]
   },
   "u047": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -604944,6 +605912,7 @@
    ]
   },
   "u048": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -605262,6 +606231,7 @@
    ]
   },
   "u049": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -605581,6 +606551,7 @@
    ]
   },
   "u050": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -605719,6 +606690,7 @@
    ]
   },
   "u051": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -605957,6 +606929,7 @@
    ]
   },
   "u052": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -607030,6 +608003,7 @@
    ]
   },
   "u053": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -609152,6 +610126,7 @@
    ]
   },
   "u054": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -611179,6 +612154,7 @@
    ]
   },
   "u055": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -612497,6 +613473,7 @@
    ]
   },
   "u056": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -613897,6 +614874,7 @@
    ]
   },
   "u057": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -615355,6 +616333,7 @@
    ]
   },
   "u058": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -617151,6 +618130,7 @@
    ]
   },
   "u059": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -618124,6 +619104,7 @@
    ]
   },
   "u060": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -618930,6 +619911,7 @@
    ]
   },
   "u061": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -620756,6 +621738,7 @@
    ]
   },
   "u062": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -621689,6 +622672,7 @@
    ]
   },
   "u063": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -622766,6 +623750,7 @@
    ]
   },
   "u064": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -624033,6 +625018,7 @@
    ]
   },
   "u065": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -624894,6 +625880,7 @@
    ]
   },
   "u066": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -626790,6 +627777,7 @@
    ]
   },
   "u067": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -628449,6 +629437,7 @@
    ]
   },
   "u068": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -629522,6 +630511,7 @@
    ]
   },
   "u069": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -630848,6 +631838,7 @@
    ]
   },
   "u070": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -632150,6 +633141,7 @@
    ]
   },
   "u071": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -633856,6 +634848,7 @@
    ]
   },
   "u072": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -633900,6 +634893,7 @@
    "fetched": []
   },
   "u073": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -635248,6 +636242,7 @@
    ]
   },
   "u074": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -636596,6 +637591,7 @@
    ]
   },
   "u075": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -637598,6 +638594,7 @@
    ]
   },
   "u076": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -639138,6 +640135,7 @@
    ]
   },
   "u077": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -640429,6 +641427,7 @@
    ]
   },
   "u078": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -641625,6 +642624,7 @@
    ]
   },
   "u079": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -642916,6 +643916,7 @@
    ]
   },
   "u080": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -643867,6 +644868,7 @@
    ]
   },
   "u081": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -644968,6 +645970,7 @@
    ]
   },
   "u082": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -645898,6 +646901,7 @@
    ]
   },
   "u083": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -647037,6 +648041,7 @@
    ]
   },
   "u084": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -647735,6 +648740,7 @@
    ]
   },
   "u085": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -648433,6 +649439,7 @@
    ]
   },
   "u086": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -649423,6 +650430,7 @@
    ]
   },
   "u087": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -650121,6 +651129,7 @@
    ]
   },
   "u088": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -651112,6 +652121,7 @@
    ]
   },
   "u089": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -652003,6 +653013,7 @@
    ]
   },
   "u090": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -652736,6 +653747,7 @@
    ]
   },
   "u091": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -653501,6 +654513,7 @@
    ]
   },
   "u092": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -654353,6 +655366,7 @@
    ]
   },
   "u093": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -655566,6 +656580,7 @@
    ]
   },
   "u094": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -656823,6 +657838,7 @@
    ]
   },
   "u095": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -658652,6 +659668,7 @@
    ]
   },
   "u096": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -660486,6 +661503,7 @@
    ]
   },
   "u097": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -660856,6 +661874,7 @@
    ]
   },
   "u098": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -661753,6 +662772,7 @@
    ]
   },
   "u099": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -662356,6 +663376,7 @@
    ]
   },
   "u100": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -664394,6 +665415,7 @@
    ]
   },
   "u101": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -666414,6 +667436,7 @@
    ]
   },
   "u102": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -667747,6 +668770,7 @@
    ]
   },
   "u103": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -669378,6 +670402,7 @@
    ]
   },
   "u104": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -669422,6 +670447,7 @@
    "fetched": []
   },
   "u105": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -669740,6 +670766,7 @@
    ]
   },
   "u106": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -670056,6 +671083,7 @@
    ]
   },
   "u107": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -671427,6 +672455,7 @@
    ]
   },
   "v001": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -673442,6 +674471,7 @@
    ]
   },
   "v002": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -674754,6 +675784,7 @@
    ]
   },
   "v003": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -676091,6 +677122,7 @@
    ]
   },
   "v004": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -677672,6 +678704,7 @@
    ]
   },
   "v005": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -679421,6 +680454,7 @@
    ]
   },
   "v006": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -681284,6 +682318,7 @@
    ]
   },
   "v007": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -683259,6 +684294,7 @@
    ]
   },
   "v008": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -684935,6 +685971,7 @@
    ]
   },
   "v009": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -686783,6 +687820,7 @@
    ]
   },
   "v010": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -688361,6 +689399,7 @@
    ]
   },
   "v011": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -689851,6 +690890,7 @@
    ]
   },
   "v012": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -691770,6 +692810,7 @@
    ]
   },
   "v013": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -693794,6 +694835,7 @@
    ]
   },
   "v014": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -695482,6 +696524,7 @@
    ]
   },
   "v015": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -697395,6 +698438,7 @@
    ]
   },
   "v016": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -699140,6 +700184,7 @@
    ]
   },
   "v017": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -700889,6 +701934,7 @@
    ]
   },
   "v018": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -703070,6 +704116,7 @@
    ]
   },
   "v019": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -704649,6 +705696,7 @@
    ]
   },
   "v020": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -706522,6 +707570,7 @@
    ]
   },
   "v021": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -707967,6 +709016,7 @@
    ]
   },
   "v022": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -709871,6 +710921,7 @@
    ]
   },
   "v023": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -711794,6 +712845,7 @@
    ]
   },
   "v024": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -713768,6 +714820,7 @@
    ]
   },
   "v025": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -715569,6 +716622,7 @@
    ]
   },
   "v026": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -717433,6 +718487,7 @@
    ]
   },
   "v027": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -719219,6 +720274,7 @@
    ]
   },
   "v028": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -720971,6 +722027,7 @@
    ]
   },
   "v029": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -722802,6 +723859,7 @@
    ]
   },
   "v030": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -724867,6 +725925,7 @@
    ]
   },
   "v031": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -726541,6 +727600,7 @@
    ]
   },
   "v032": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -728069,6 +729129,7 @@
    ]
   },
   "v033": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -729232,6 +730293,7 @@
    ]
   },
   "v034": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -730534,6 +731596,7 @@
    ]
   },
   "v035": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -732445,6 +733508,7 @@
    ]
   },
   "v036": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -734354,6 +735418,7 @@
    ]
   },
   "v037": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -736150,6 +737215,7 @@
    ]
   },
   "v038": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -737975,6 +739041,7 @@
    ]
   },
   "v039": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -739863,6 +740930,7 @@
    ]
   },
   "v040": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -741591,6 +742659,7 @@
    ]
   },
   "v041": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -742960,6 +744029,7 @@
    ]
   },
   "v042": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -744338,6 +745408,7 @@
    ]
   },
   "v043": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -746356,6 +747427,7 @@
    ]
   },
   "v044": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -747999,6 +749071,7 @@
    ]
   },
   "v045": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -749344,6 +750417,7 @@
    ]
   },
   "v046": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -750738,6 +751812,7 @@
    ]
   },
   "v047": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -751939,6 +753014,7 @@
    ]
   },
   "v048": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -753840,6 +754916,7 @@
    ]
   },
   "v049": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -755616,6 +756693,7 @@
    ]
   },
   "v050": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -757195,6 +758273,7 @@
    ]
   },
   "v051": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -758704,6 +759783,7 @@
    ]
   },
   "v052": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -760490,6 +761570,7 @@
    ]
   },
   "v053": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -762447,6 +763528,7 @@
    ]
   },
   "v054": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -763591,6 +764673,7 @@
    ]
   },
   "v055": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -765202,6 +766285,7 @@
    ]
   },
   "v056": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -767094,6 +768178,7 @@
    ]
   },
   "v057": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -768669,6 +769754,7 @@
    ]
   },
   "v058": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -770688,6 +771774,7 @@
    ]
   },
   "v059": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -772150,6 +773237,7 @@
    ]
   },
   "v060": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -774396,6 +775484,7 @@
    ]
   },
   "v061": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -775837,6 +776926,7 @@
    ]
   },
   "v062": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -777429,6 +778519,7 @@
    ]
   },
   "v063": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -778943,6 +780034,7 @@
    ]
   },
   "v064": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -780237,6 +781329,7 @@
    ]
   },
   "v065": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -782013,6 +783106,7 @@
    ]
   },
   "v066": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -784127,6 +785221,7 @@
    ]
   },
   "v067": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -785763,6 +786858,7 @@
    ]
   },
   "v068": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -787823,6 +788919,7 @@
    ]
   },
   "v069": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -789196,6 +790293,7 @@
    ]
   },
   "v070": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -790809,6 +791907,7 @@
    ]
   },
   "v071": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -792388,6 +793487,7 @@
    ]
   },
   "v072": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -794610,6 +795710,7 @@
    ]
   },
   "v073": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -796068,6 +797169,7 @@
    ]
   },
   "v074": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -797691,6 +798793,7 @@
    ]
   },
   "v075": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -799115,6 +800218,7 @@
    ]
   },
   "v076": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -800396,6 +801500,7 @@
    ]
   },
   "v077": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -802077,6 +803182,7 @@
    ]
   },
   "v078": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -804073,6 +805179,7 @@
    ]
   },
   "v079": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -805558,6 +806665,7 @@
    ]
   },
   "v080": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -806938,6 +808046,7 @@
    ]
   },
   "v081": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -806982,6 +808091,7 @@
    "fetched": []
   },
   "v082": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -807033,6 +808143,7 @@
    "fetched": []
   },
   "v083": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -808876,6 +809987,7 @@
    ]
   },
   "v084": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -810073,6 +811185,7 @@
    ]
   },
   "v085": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -811691,6 +812804,7 @@
    ]
   },
   "v086": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -813220,6 +814334,7 @@
    ]
   },
   "v087": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -814472,6 +815587,7 @@
    ]
   },
   "v088": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -815093,6 +816209,7 @@
    ]
   },
   "v089": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -815707,6 +816824,7 @@
    ]
   },
   "v090": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -816331,6 +817449,7 @@
    ]
   },
   "v091": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -817062,6 +818181,7 @@
    ]
   },
   "v092": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -817100,6 +818220,7 @@
    "fetched": []
   },
   "v093": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -817131,6 +818252,7 @@
    "fetched": []
   },
   "v094": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -817520,6 +818642,7 @@
    ]
   },
   "v095": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -817902,6 +819025,7 @@
    ]
   },
   "v096": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -818221,6 +819345,7 @@
    ]
   },
   "v097": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -818533,6 +819658,7 @@
    ]
   },
   "v098": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -818772,6 +819898,7 @@
    ]
   },
   "v099": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -819004,6 +820131,7 @@
    ]
   },
   "v100": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -819532,6 +820660,7 @@
    ]
   },
   "v101": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -819671,6 +820800,7 @@
    ]
   },
   "v102": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -819803,6 +820933,7 @@
    ]
   },
   "v103": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -820122,6 +821253,7 @@
    ]
   },
   "v104": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -820434,6 +821566,7 @@
    ]
   },
   "v105": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -820753,6 +821886,7 @@
    ]
   },
   "v106": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -820791,6 +821925,7 @@
    "fetched": []
   },
   "v107": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -820822,6 +821957,7 @@
    "fetched": []
   },
   "v108": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -822484,6 +823620,7 @@
    ]
   },
   "v109": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -824104,6 +825241,7 @@
    ]
   },
   "w01": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -825208,6 +826346,7 @@
    ]
   },
   "w02": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -825247,6 +826386,7 @@
    "fetched": []
   },
   "w03": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -826344,6 +827484,7 @@
    ]
   },
   "w04": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -827035,6 +828176,7 @@
    ]
   },
   "w05": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -827074,6 +828216,7 @@
    "fetched": []
   },
   "w06": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -829006,6 +830149,7 @@
    ]
   },
   "w07": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -829379,6 +830523,7 @@
    ]
   },
   "w08": {
+   "league": "Allflame",
    "returned_query": {
     "status": {
      "option": "any"
@@ -829416,6 +830561,7 @@
    "fetched": []
   },
   "w09": {
+   "league": "Allflame",
    "returned_query": {
     "status": {
      "option": "any"
@@ -830073,6 +831219,7 @@
    ]
   },
   "w10": {
+   "league": "Allflame",
    "returned_query": {
     "status": {
      "option": "any"
@@ -830111,6 +831258,7 @@
    "fetched": []
   },
   "w11": {
+   "league": "Allflame",
    "returned_query": {
     "status": {
      "option": "any"
@@ -830142,6 +831290,7 @@
    "fetched": []
   },
   "w12": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"
@@ -830186,6 +831335,7 @@
    "fetched": []
   },
   "w13": {
+   "league": "Standard",
    "returned_query": {
     "status": {
      "option": "any"

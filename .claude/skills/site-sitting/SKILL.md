@@ -158,8 +158,17 @@ at a time, and the export is every twenty-five links.
   sent null as a key not sent; a translation reads it so too.
 - **A search is its league and its query.** The same query in another
   league is another row (round w asked league content in the challenge
-  league): the sheet writes the row's league, the composer keys on both,
-  and the splitter reads the league from the search's own URL.
+  league). Which row a call or a capture is has one reader,
+  `tools/trade_query.py`'s `asking()`: the splitter's searches read the
+  league from their own URL, a fetch is the search's it follows, the
+  extract writes each search's league and the oracle translates it. The
+  rule was first taught to two tools of four (the outside review of
+  step 7).
+- **A sat search is never composed again otherwise.** The sheet is
+  appended to and never edited, and the gate holds it to its script
+  (`trade-sheet.py --verify`): compose a round from frozen input, never
+  from a column the sitting's own reading updates (round v did, and
+  regenerating dropped 76 of its rows).
 - **Read the splitter's counts before the captures, while the owner is
   at the browser**: a pair that did not part, a form the site answers
   with nothing, a bound no listing meets — each is a repair round of a

@@ -60,7 +60,7 @@ cites = "the site files `No Physical Damage` under the id of `#% increased Physi
 [[finding]]
 key = "stat-summed"
 home = "ruling"
-cites = "an explicit id holds the stat's crafted and fractured lines (t13, t15: none listed outside it) and a bound compares their sum: every item of t17 and t18 meets `min` 150 by two Life lines and by neither alone, and q6's item meets 157 and not 158 (t19, t20; q6, the owner's); the translation compares one line (C92); the owner, 2026-10-16, on the sitting's findings: \"I accept all your recommendations.\" A bound is `sum(line(T source=explicit).arg1)`"
+cites = "an explicit id holds the stat's crafted and fractured lines (t13, t15: none listed outside it) and a bound compares their sum: 11 of t17's and t18's 20 items, this finding's rows, meet `min` 150 by two Life lines and by neither alone (the nearest at 152 and 151), the other nine by an explicit line of 156 to 169 as well, and q6's item meets 157 and not 158 (t19, t20; q6, the owner's); the translation compares one line (C92); the owner, 2026-10-16, on the sitting's findings: \"I accept all your recommendations.\" A bound is `sum(line(T source=explicit).arg1)`"
 
 [[finding]]
 key = "displayed-forms"
@@ -112,565 +112,565 @@ asks = "whether a weighted group counts a scourge line — the item under the sc
 search = "c3"
 items = [0, 1, 4, 5, 7]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "twin-counted"
 
 [[row]]
 search = "c4"
 items = [3, 5]
 outcome = "missed"
-clauses = ["0"]
+clauses = ["1"]
 finding = "reduced-spelling"
 
 [[row]]
 search = "e038"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "e043"
 items = [0]
 outcome = "missed"
-clauses = ["0"]
+clauses = ["1"]
 finding = "scourge-in-sum"
 
 [[row]]
 search = "e053"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "twin-counted"
 
 [[row]]
 search = "e057"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "twin-counted"
 
 [[row]]
 search = "e061"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["0"]
+clauses = ["1"]
 finding = "no-physical-damage"
 
 [[row]]
 search = "e103"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "socketed-gems-counted"
 
 [[row]]
 search = "f001"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "f004"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "f005"
 items = [0]
 outcome = "missed"
-clauses = ["0"]
+clauses = ["1"]
 finding = "scourge-in-sum"
 
 [[row]]
 search = "f007"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "f010"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "f014"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "f016"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "f024"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "f026"
 items = [1, 2, 3, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "f028"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "f046"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "f048"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "f050"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "f052"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "f054"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "f056"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "f058"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "f060"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "f062"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "f064"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "f066"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "f068"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "f070"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "f072"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "g008"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "g020"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "g043"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "h007"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "h013"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "h015"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "h017"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "h019"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "h021"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "h023"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "h025"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "h027"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "h029"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "h033"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "eldritch-not"
 
 [[row]]
 search = "h042"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "reduced-spelling"
 
 [[row]]
 search = "h044"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "reduced-spelling"
 
 [[row]]
 search = "h046"
 items = [2]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "no-physical-damage"
 
 [[row]]
 search = "h046"
 items = [0, 1, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "reduced-spelling"
 
 [[row]]
 search = "h047"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["0"]
+clauses = ["1"]
 finding = "no-physical-damage"
 
 [[row]]
 search = "h048"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "reduced-spelling"
 
 [[row]]
 search = "h050"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "reduced-spelling"
 
 [[row]]
 search = "h052"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "reduced-spelling"
 
 [[row]]
 search = "q6"
 items = [8]
 outcome = "missed"
-clauses = ["3"]
+clauses = ["4"]
 finding = "stat-summed"
 
 [[row]]
 search = "t01"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["2"]
+clauses = ["3"]
 finding = "reduced-spelling"
 
 [[row]]
 search = "t02"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["2"]
+clauses = ["3"]
 finding = "reduced-spelling"
 
 [[row]]
 search = "t03"
 items = [0, 1, 2, 3, 4, 5, 6]
 outcome = "missed"
-clauses = ["2"]
+clauses = ["3"]
 finding = "reduced-spelling"
 
 [[row]]
 search = "t04"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["2"]
+clauses = ["3"]
 finding = "reduced-spelling"
 
 [[row]]
 search = "t07"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["2"]
+clauses = ["3"]
 finding = "no-physical-damage"
 
 [[row]]
 search = "t08"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["2"]
+clauses = ["3"]
 finding = "no-physical-damage"
 
 [[row]]
 search = "t09"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["2"]
+clauses = ["3"]
 finding = "no-physical-damage"
 
 [[row]]
 search = "t10"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["0"]
+clauses = ["1"]
 finding = "displayed-forms"
 
 [[row]]
 search = "t11"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["0"]
+clauses = ["1"]
 finding = "displayed-forms"
 
 [[row]]
 search = "t12"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["0"]
+clauses = ["1"]
 finding = "displayed-forms"
 
 [[row]]
 search = "t17"
 items = [0, 2, 3, 4, 5, 7]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "stat-summed"
 
 [[row]]
 search = "t18"
 items = [0, 2, 3, 6, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "stat-summed"
 
 [[row]]
 search = "t19"
 items = [0]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "stat-summed"
 
 [[row]]
 search = "t27"
 items = [1, 2, 3, 4, 6, 7, 8]
 outcome = "missed"
-clauses = ["0"]
+clauses = ["1"]
 finding = "displayed-forms"
 
 [[row]]
 search = "t29"
 items = [0, 2, 3, 4, 5, 7, 9]
 outcome = "missed"
-clauses = ["0"]
+clauses = ["1"]
 finding = "displayed-forms"
 
 [[row]]
 search = "t41"
 items = [5]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "dps-at-quality"
 
 [[row]]
 search = "t42"
 items = [0, 1, 2, 3, 4, 5, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "dps-at-quality"
 
 [[row]]
 search = "t46"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "area-level-monster-level"
 
 [[row]]
 search = "t48"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "heist-skill-requirement"
 
 [[row]]
 search = "t49"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "catalyst-quality"
 
 [[row]]
 search = "u061"
 items = [1, 7]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "no-requirement"
 
 [[row]]
 search = "u065"
 items = [6]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "map-tier-unnamed"
 
 [[row]]
 search = "u090"
 items = [9]
 outcome = "missed"
-clauses = ["1"]
+clauses = ["2"]
 finding = "gem-at-max-level"
 
 [[row]]
 search = "w01"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["2"]
+clauses = ["3"]
 finding = "no-physical-damage"
 
 [[row]]
 search = "w03"
 items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
-clauses = ["2"]
+clauses = ["3"]
 finding = "no-physical-damage"
 
 [[row]]
 search = "w04"
 items = [0, 1, 2, 3, 4, 5]
 outcome = "missed"
-clauses = ["2"]
+clauses = ["3"]
 finding = "no-physical-damage"

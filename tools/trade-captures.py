@@ -5,9 +5,9 @@ and search/pseudo-stats/data/bodies.json.
 Reads search/pseudo-stats/raw/searches/<search>-search.json and <search>-fetch.json, with any
 further page of the same search as <search>-fetch-2.json, -3 and so on (local
 only: a fetch carries seller accounts and tokens; MANIFEST.md) and writes,
-per search: the query as the site returned it (the id, decoded), whether it
-is the sheet's query, the response's counts, and for each fetched item only
-what the evidence reads — its names, rarity, properties, the site's computed
+per search: its league (its row's), the query as the site returned it (the
+id, decoded), whether it is the sheet's query, the response's counts, and
+for each fetched item only what the evidence reads — its names, rarity, properties, the site's computed
 `extended` figures, and every line with its domain, hash, flags and mods.
 No item id, icon, seller, price, stash position or token leaves raw/.
 
@@ -39,7 +39,6 @@ has read both — the one reader of a query's shape, shared with the splitter.
 """
 
 import base64
-import csv
 import gzip
 import hashlib
 import json
@@ -48,11 +47,10 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from trade_query import bare  # noqa: E402
+from trade_query import asking, bare, sheet  # noqa: E402
 
 TRACK = Path(__file__).resolve().parents[1] / "search" / "pseudo-stats"
 RAW = TRACK / "raw" / "searches"
-SHEET = TRACK / "data" / "search-sheet.csv"
 OUT = TRACK / "data" / "captures.json"
 BODIES = TRACK / "data" / "bodies.json"
 CENSUS_RAW = TRACK.parent / "trade-query" / "raw" / "searches"
@@ -163,8 +161,7 @@ def main():
     if sys.argv[1:] not in ([], ["--check"]):
         print(__doc__)
         return 2
-    with SHEET.open(newline="\n") as f:
-        sheet = {r["search"]: json.loads(r["query"]) for r in csv.DictReader(f)}
+    rows = sheet()
     out = {
         "_generated": "by tools/trade-captures.py from raw/searches (MANIFEST.md) — do not edit",
         "searches": {},
@@ -177,18 +174,17 @@ def main():
             continue
         answer = json.loads(saved)
         returned = decode(answer["id"])
-        if name in sheet and bare(returned) != bare(sheet[name]):
-            others = [n for n, q in sheet.items() if bare(q) == bare(returned)]
+        if name in rows and bare(returned) != bare(rows[name][1]):
+            # the splitter named the capture in its row's league
+            others = asking(rows[name][0], returned, rows)
             print(f"{name}: LEFT OUT — the capture answers "
                   f"{'row ' + others[0] if others else 'no row of the sheet'}, not {name}")
             continue
         entry = {
+            # a search is its league and its query: the league is its row's
+            "league": rows[name][0] if name in rows else None,
             "returned_query": returned,
-            "sheet_query": (
-                "no such row in the sheet" if name not in sheet
-                else "the same" if bare(returned) == bare(sheet[name])
-                else "differs"
-            ),
+            "sheet_query": "no such row in the sheet" if name not in rows else "the same",
             "search": {k: v for k, v in answer.items() if k not in ("id", "result")},
             "ids_returned": len(answer.get("result", [])),
             "fetched": [],

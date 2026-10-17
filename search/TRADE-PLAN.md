@@ -177,6 +177,12 @@ grows at 3 so that 4's text parses on the build that writes it.
   clause *means* comes to the owner or to the sitting; a name — a
   field's spelling, a flag — is the builder's and `--describe` prints
   it.
+- A sat search is never composed again otherwise: the sheet is appended
+  to and never edited, a round is composed from frozen input and never
+  from a column the sitting's reading updates, and the gate holds the
+  sheet to its script (`tools/trade-sheet.py --verify`; round v broke
+  the rule `tools/trade_rows.py` keeps for its versions, the outside
+  review of step 7).
 - An answer never prints a command the same build refuses (rule 5):
   the translated text is parsed before it is shown.
 - The review's checklist: `SEARCH-SLICE.md`, "Findings". Two shapes to
@@ -302,7 +308,9 @@ builds; the owner, verbatim: "I accept all your recommendations."):
   gives a percentile to an item showing no defence, which stays
   lacked (the owner's acceptance). Open: e043's weighted sum of 28; the
   crucible mark (t54 did not part its readings); grafts, listed in no
-  league.
+  league; Maven's Invitations, listed (4,811) and no item sent (u025,
+  v092, v093: a null for every listing fetched), so `map.invitation`
+  met no item the oracle could read.
 - The map tier table: parked (the owner, 2026-10-16: "Let's do a tier
   table for maps, either now or parked for later based on your
   judgement"), no registered source holding a tier its base does not

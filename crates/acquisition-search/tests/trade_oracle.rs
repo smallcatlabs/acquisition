@@ -40,6 +40,9 @@ const CAPTURES: &str = include_str!("../../../search/pseudo-stats/data/captures.
 const BODIES: &str = include_str!("../../../search/pseudo-stats/data/bodies.json");
 const CENSUS: &str = include_str!("../../../search/trade-query/data/fetch-census.json");
 const EXPECTED: &str = include_str!("trade-oracle.toml");
+/// The owner's searches of 2026-09-13 were made in Standard
+/// (`search/trade-query/MANIFEST.md`); their census names no league.
+const CENSUS_LEAGUE: &str = "Standard";
 
 #[derive(Deserialize)]
 struct Expected {
@@ -72,9 +75,13 @@ struct Row {
     finding: String,
 }
 
-/// One search: its name, its query as the site took it, its items as sent.
+/// One search: its name, its league and its query as the site took them,
+/// its items as sent. A search is its league and its query: the league is
+/// translated as the URL would name it, so a translation that writes
+/// another misses every item (the outside review of step 7).
 struct Search {
     name: String,
+    league: String,
     query: Value,
     bodies: Vec<Value>,
 }
@@ -96,6 +103,10 @@ fn searches() -> Vec<Search> {
         );
         out.push(Search {
             name: name.clone(),
+            league: capture["league"]
+                .as_str()
+                .unwrap_or_else(|| panic!("{name}: the extract names no league"))
+                .to_string(),
             query: capture["returned_query"].clone(),
             bodies,
         });
@@ -109,6 +120,7 @@ fn searches() -> Vec<Search> {
         );
         out.push(Search {
             name: name.clone(),
+            league: CENSUS_LEAGUE.to_string(),
             query: q["request"].clone(),
             bodies,
         });
@@ -148,20 +160,22 @@ struct Disagreement {
 
 fn disagreements(search: &Search, t: &Translation) -> Vec<Disagreement> {
     let mut s = store();
-    list_tabs(&mut s, "pc", "Standard", json!([tab("t", "Fetched")]), 10);
-    let bodies = search
-        .bodies
-        .iter()
-        .enumerate()
-        .map(|(i, b)| {
-            let mut body = b.clone();
-            body["id"] = json!(i.to_string());
-            body["x"] = json!(i);
-            body["y"] = json!(0);
-            body
-        })
-        .collect();
-    fetch_tab(&mut s, "pc", "Standard", "t", "Fetched", bodies, 20);
+    // each item in the league it was listed in, as the site sent it
+    let mut by_league: BTreeMap<String, Vec<Value>> = BTreeMap::new();
+    for (i, b) in search.bodies.iter().enumerate() {
+        let mut body = b.clone();
+        body["id"] = json!(i.to_string());
+        body["x"] = json!(i);
+        body["y"] = json!(0);
+        let league = b["league"]
+            .as_str()
+            .unwrap_or_else(|| panic!("{} item {i}: no league", search.name));
+        by_league.entry(league.to_string()).or_default().push(body);
+    }
+    for (league, bodies) in by_league {
+        list_tabs(&mut s, "pc", &league, json!([tab("t", "Fetched")]), 10);
+        fetch_tab(&mut s, "pc", &league, "t", "Fetched", bodies, 20);
+    }
     let corpus = load(&s, Some("pc"));
     let all: BTreeSet<usize> = (0..search.bodies.len()).collect();
     let matched = matching(&corpus, &t.text);
@@ -280,7 +294,9 @@ fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
             none.push(search.name);
             continue;
         }
-        let t = translate(&decode_json(&search.query).unwrap()).unwrap();
+        let mut decoded = decode_json(&search.query).unwrap();
+        decoded.league = Some(search.league.clone());
+        let t = translate(&decoded).unwrap();
         if !t.remainder.is_empty() {
             partial.push(search.name);
             continue;

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # docs-check.sh — the documentation half of the quality gate.
 #
-# Eight checks, all mechanical (P5, CONTEXT.md "Working style": a lint
+# Nine checks, all mechanical (P5, CONTEXT.md "Working style": a lint
 # where mechanical, a recorded property where stakes are real):
 #
 #   1. Byte budgets on the always-loaded documents. Every session reads
@@ -45,6 +45,13 @@
 #      commit-msg hook writes Claude's trailer as `Assisted-by:`. A note,
 #      never a failure: a clone that only builds (CI) needs no hook, and
 #      the setting is the clone's, so `AGENTS.md` says to make it once.
+#   9. The sitting's tools: the sheet is what its script composes — a sat
+#      search is never composed otherwise, and the sheet is appended to
+#      and never edited (`tools/trade-sheet.py --verify`) — and a fetch is
+#      split to the search it follows, in that search's league
+#      (`tools/trade-split.py --self-test`). Both from the outside review
+#      of the trade import's step 7: round v drifted with an input the
+#      sitting itself updated, and a fetch was found a row by its query.
 #
 # Exit 1 on any failure; the report names each offender.
 set -euo pipefail
@@ -530,5 +537,16 @@ if [[ $(git config --get core.hooksPath || true) == .githooks ]]; then
 else
   echo "note    hooks         core.hooksPath is not .githooks, so the commit-msg hook does not run: git config core.hooksPath .githooks (AGENTS.md)"
 fi
+
+# ---- 9. the sitting's tools ------------------------------------------------
+for check in "sheet tools/trade-sheet.py --verify" "split tools/trade-split.py --self-test"; do
+  read -r name tool flag <<<"$check"
+  if said=$(python3 -I "$tool" "$flag" 2>&1); then
+    printf 'ok      %-13s %s\n' "$name" "$(tail -1 <<<"$said")"
+  else
+    printf '%s\n' "$said" | sed "s/^/$(printf '%-8s' "$(tr a-z A-Z <<<"$name")")/"
+    fail=1
+  fi
+done
 
 exit $fail

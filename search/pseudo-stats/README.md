@@ -21,7 +21,7 @@ Headline:
   shows it under the fire, lightning and chaos totals (e042, e044, e048).
 
 Per-row detail: `data/candidates.csv` (`scripts/candidates.py`), `data/percentile-check.csv`
-(`scripts/percentile.py`), `data/search-sheet.csv` (`tools/trade-sheet.py`), `data/captures.json`
+(`scripts/percentile.py`), `data/search-sheet.csv` (`tools/trade-sheet.py`; round v's input frozen in `data/round-v-questions.csv`), `data/captures.json`
 (`tools/trade-captures.py`, the owner's captures scrubbed; beside it `data/bodies.json`, each fetched
 item as the site sent it, for the trade oracle), `data/evidence.csv` (`tools/trade-evidence.py`).
 Each regenerates byte-for-byte; run `percentile.py` before `candidates.py`, which reads its output.

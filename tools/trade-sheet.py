@@ -11,7 +11,12 @@ method `browser`).
     tools/trade-sheet.py --method if    # the pilot and the batch, one search per candidate line
     tools/trade-sheet.py --method and   # the pilot and the batch, one search per pair
     tools/trade-sheet.py --self-test    # compose each captured request and compare ids
-    tools/trade-sheet.py --verify       # decode every link in the sheet, compare its query
+    tools/trade-sheet.py --verify       # decode every link in the sheet, compare its query, compose it again
+
+The sheet is appended to and never edited (`changed`): a run that would write
+a committed line otherwise, or drop one, writes nothing and names it, and
+`--verify` holds the committed sheet to what this script composes, line for
+line (tools/docs-check.sh runs it). The batch below cannot be written over it.
 
 The checks ask the site of every listed item at once whether a pseudo's rows
 are complete and sound (`checks` and `round_two`, below, the second written
@@ -42,6 +47,7 @@ answer and never the method's failure.
 
 import base64
 import csv
+import io
 import json
 import re
 import struct
@@ -1984,9 +1990,16 @@ def round_u(earlier):
 # (search/OBSERVATIONS.md at 453a4429). Each is read by its track's own
 # script over the captures at step 7d; a search here composes the question
 # and names what the fetched items show.
-RANGED_COPY = TRACK / "data" / "ranged-expected-copy.csv"
+#
+# The copy files' questions are read from their frozen copy: the column
+# says what is still open, and the tracks' scripts empty it as the
+# captures answer it, so composing from it would turn a sat search into
+# another, or into none (the outside review of step 7: 76 rows gone, 33
+# renamed). A sat search is never composed again otherwise than it was.
+QUESTIONS = TRACK / "data" / "round-v-questions.csv"
+RANGED_COPY = "ranged-expected-copy.csv"
 COUNT_AT_MOST = 64
-PERCENTILE_COPY = TRACK / "data" / "percentile-expected-copy.csv"
+PERCENTILE_COPY = "percentile-expected-copy.csv"
 # A category the site answers for an item that is no weapon: a line `to
 # Attacks` or `to Spells` is an accessory's, an armour's or a jewel's, and a
 # plain one off a weapon is the accessory's implicit the copy holds.
@@ -2019,10 +2032,10 @@ CATEGORY_SETTLES = [
 ]
 
 
-def copy_questions(path):
-    rows = [r for r in csv.reader(path.open(newline="")) if r and not r[0].startswith("#")]
-    header = rows[0]
-    return [dict(zip(header, r)) for r in rows[1:] if dict(zip(header, r)).get("a_sitting_would_ask")]
+def copy_questions(copy):
+    """One copy file's questions, as round v composed them (QUESTIONS)."""
+    with QUESTIONS.open(newline="") as fh:
+        return [r for r in csv.DictReader(line for line in fh if not line.startswith("#")) if r["copy"] == copy]
 
 
 def site_ids(template, domain):
@@ -2057,9 +2070,9 @@ def round_v(earlier):
     add = composed.add
 
     # 1. The ranged family: does the pseudo show for a line of this array, flag and side.
-    for d in copy_questions(RANGED_COPY):
-        template, side, array, flag = d["total_or_template"], d["status_or_side"], d["cause_or_array"], d["flags"]
-        pseudos = sorted(set(re.findall(r"pseudo\.pseudo_[a-z_]+", d["a_sitting_would_ask"])))
+    for d in copy_questions("ranged"):
+        template, side, array, flag = d["template"], d["side"], d["array"], d["flag"]
+        pseudos = sorted(set(re.findall(r"pseudo\.pseudo_[a-z_]+", d["question"])))
         if array == "crucibleMods":
             ids = crucible_nodes(template)
         else:
@@ -2075,14 +2088,14 @@ def round_v(earlier):
         parts = [ids[i:i + COUNT_AT_MOST] for i in range(0, len(ids), COUNT_AT_MOST)]
         for n, part in enumerate(parts, 1):
             of = f", part {n} of {len(parts)}" if len(parts) > 1 else ""
-            add(f"the ranged family ({RANGED_COPY.name}): {d['a_sitting_would_ask']} The ten fetched carry the line "
+            add(f"the ranged family ({RANGED_COPY}): {d['question']} The ten fetched carry the line "
                 f"({len(part)} ids{of}, a count) and show the pseudos named (`if`) or none",
                 "read by scripts/ranged-expected.py over the captures, cell by cell (`captured_cells`)",
                 batch_query([group("count", part, {"min": 1}), group("if", pseudos)], where))
 
     # 2. The percentile: does the site show the reading's value for this group of defence lines.
-    for d in copy_questions(PERCENTILE_COPY):
-        template, array, flag, mark = (d["class_or_template_or_shape"], d["array"], d["flags"], d["mark"])
+    for d in copy_questions("percentile"):
+        template, array, flag, mark = d["template"], d["array"], d["flag"], d["mark"]
         if not array:
             continue  # the roll cases, composed below
         domain = flag if flag in ("crafted", "fractured") else {"implicitMods": "implicit", "explicitMods": "explicit"}[array]
@@ -2095,7 +2108,7 @@ def round_v(earlier):
         if flag == "mutated":
             marks["mutated"] = {"option": "true"}
         filters["misc_filters"] = {"disabled": False, "filters": marks}
-        add(f"the percentile ({PERCENTILE_COPY.name}): {d['a_sitting_would_ask']} The ten fetched carry the line "
+        add(f"the percentile ({PERCENTILE_COPY}): {d['question']} The ten fetched carry the line "
             f"({len(ids)} ids, a count) and the site's `base_defence_percentile`",
             "read by scripts/percentile-expected.py over the captures, cell by cell",
             batch_query([group("count", ids, {"min": 1})], filters))
@@ -2249,6 +2262,50 @@ def decode(link_text):
     return json.loads(zlib.decompress(raw, 16 + zlib.MAX_WBITS))
 
 
+def compose_sheet(method="site"):
+    """Every search the sheet holds, in order, composed."""
+    searches = PILOT + (checks() + round_two() + report() + round_three() + round_four()
+                        + round_five() + OPEN_QUESTION_SEARCHES + round_six() + round_i() + round_j() + round_k() + round_l() + round_m()
+                        + round_n() + round_t()
+                        if method == "site" else batch(method))
+    if method == "site":
+        searches += round_u(searches)
+        searches += round_v(searches)
+        searches += round_w(searches)
+    return searches
+
+
+def sheet_text(searches):
+    """The sheet's bytes for its searches."""
+    out = io.StringIO()
+    sheet = csv.writer(out, lineterminator="\n")
+    sheet.writerow(["search", "decides", "control", "league", "link", "query"])
+    seen = set()
+    for row in searches:
+        if row["search"] in seen:
+            raise SystemExit(f"two searches named {row['search']}")
+        seen.add(row["search"])
+        league = row.get("league", LEAGUE)
+        sheet.writerow([row["search"], row["decides"], row["control"], league, link(row["query"], league),
+                        json.dumps(row["query"], separators=(",", ":"), ensure_ascii=False)])
+    return out.getvalue()
+
+
+def changed(composed):
+    """The committed rows a composed sheet would change or drop. The sheet is
+    appended to and never edited: a sat search was composed as its line says,
+    and its captures answer that line, so a line written otherwise — another
+    query under its name, the name gone — turns a capture into an answer to
+    no question (tools/trade_rows.py keeps its versions by the same rule)."""
+    lines = composed.splitlines(keepends=True)
+    with OUT.open(newline="") as fh:
+        committed = fh.read().splitlines(keepends=True)
+    by_name = {line.split(",", 1)[0]: line for line in lines}
+    out = [line.split(",", 1)[0] for line in committed if by_name.get(line.split(",", 1)[0]) != line]
+    # a new search is appended after every committed one, never between them
+    return out or ([] if lines[:len(committed)] == committed else ["(the order)"])
+
+
 def verify():
     bad = 0
     with OUT.open(newline="") as fh:
@@ -2263,7 +2320,18 @@ def verify():
         if not row["control"].strip():
             bad += 1
             print(f"NO CONTROL  {row['search']}")
-    print(f"{len(rows)} links decoded, {bad} differ from their query or their league, or lack a control")
+    # the sheet is what this script writes, line for line
+    composed = sheet_text(compose_sheet())
+    with OUT.open(newline="") as fh:
+        committed = fh.read()
+    gone = changed(composed)
+    for name in gone:
+        bad += 1
+        print(f"CHANGED  {name}: the committed line is not what the script composes")
+    if composed != committed and not gone:
+        bad += 1
+        print(f"UNWRITTEN  {len(composed.splitlines()) - len(committed.splitlines())} composed searches the sheet lacks")
+    print(f"{len(rows)} links decoded, {bad} differ from their query, their league or their composition, or lack a control")
     return 1 if bad else 0
 
 
@@ -2303,36 +2371,17 @@ def main():
     else:
         print(__doc__)
         return 2
-    searches = PILOT + (checks() + round_two() + report() + round_three() + round_four()
-                        + round_five() + OPEN_QUESTION_SEARCHES + round_six() + round_i() + round_j() + round_k() + round_l() + round_m()
-                        + round_n() + round_t()
-                        if method == "site" else batch(method))
-    if method == "site":
-        searches += round_u(searches)
-        searches += round_v(searches)
-        searches += round_w(searches)
-    seen = set()
+    searches = compose_sheet(method)
+    text = sheet_text(searches)
+    gone = changed(text)
+    if gone:
+        raise SystemExit(f"{len(gone)} committed searches would change or go ({', '.join(gone[:8])}"
+                         f"{', …' if len(gone) > 8 else ''}): a sat search is never composed otherwise; nothing written")
     with OUT.open("w", newline="") as out:
-        sheet = csv.writer(out, lineterminator="\n")
-        sheet.writerow(["search", "decides", "control", "league", "link", "query"])
+        out.write(text)
+    if method == "site":
         for row in searches:
-            if row["search"] in seen:
-                raise SystemExit(f"two searches named {row['search']}")
-            seen.add(row["search"])
-            body = json.dumps(row["query"], separators=(",", ":"), ensure_ascii=False)
-            league = row.get("league", LEAGUE)
-            sheet.writerow(
-                [
-                    row["search"],
-                    row["decides"],
-                    row["control"],
-                    league,
-                    link(row["query"], league),
-                    body,
-                ]
-            )
-            if method == "site":
-                print(f"{row['search']}  {link(row['query'], league)}")
+            print(f"{row['search']}  {link(row['query'], row.get('league', LEAGUE))}")
     kinds = {"trade": 0, "park": 0, "pilot": 0, "check": 0, "line": 0, "pair": 0, "percentile line": 0,
              "percentile case": 0, "open question": 0}
     for row in searches:

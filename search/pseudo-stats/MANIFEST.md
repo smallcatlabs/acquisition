@@ -202,9 +202,11 @@ round w, 2026-10-16, 12:35 to 13:50 by the machine's clock, US Eastern (16:35 to
 in the hour after, four of its searches in the challenge league `Allflame`;
 saved as round m was, one fragment per call. Every body held, no cookie; all
 286 searches answered. `tools/trade-split.py --write` wrote their captures; it
-refused a second answer to t36, opened twice 33 s apart, the first kept, and
-five fetches that belong to no search (the results page loading more, after
-u025 and v092). u059 matched its row once a key sent null was read as a key
+refused a second answer to t36, opened twice 33 s apart, the first kept. Five
+fetches it then called no search's are their searches', the three Maven's
+Invitation searches (u025, v092, v093; 4,811 listed each): the site sent a
+null for every listing asked, so there is no item to write (the splitter's
+fix after the outside review of step 7). u059 matched its row once a key sent null was read as a key
 not sent (`tools/trade_query.py`).
 
 | File | Bytes | Captured | sha256 |

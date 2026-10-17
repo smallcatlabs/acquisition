@@ -6,9 +6,9 @@ The owner opens the sheet's links with the browser's network panel recording,
 then exports the panel once as a HAR file. This script reads that file and
 writes search/pseudo-stats/raw/searches/<search>-search.json and <search>-fetch.json (further
 pages -fetch-2.json, -3), as saving each response by hand would have. No name
-is typed: a search response carries its query in its id, and the sheet says
-which row that query is; a fetch belongs to the search whose result list holds
-its items. Nothing here touches the network (C79; SURFACES.md: a person opens
+is typed: a search is the row of the sheet its league and its query ask, and a
+fetch is the search's it follows (`walk`, the one reading of a recording).
+Nothing here touches the network (C79; SURFACES.md: a person opens
 each link).
 
     tools/trade-split.py <file.har>            # say what the recording holds, write nothing
@@ -16,6 +16,7 @@ each link).
     tools/trade-split.py <file.har> --write --replace   # and overwrite a capture that differs
     tools/trade-split.py <file.har> --shape    # write search/pseudo-stats/data/recording-shape.csv
     tools/trade-split.py <folder>              # the recorder's files, read as one recording
+    tools/trade-split.py --self-test           # split recordings made here, the fetch's search held
 
 **The recorder's folder is one recording.** `tools/sitting-recorder`, loaded
 in the browser, saves each search and each fetch as it is answered, a file of
@@ -39,8 +40,11 @@ the recording sanitized where the browser offers it, keep it under raw/ (never
 committed), and delete it once the captures are written.
 
 What it refuses: a search response whose query is no row of the sheet (named,
-not written); a row answered twice with different results (the later one kept
-only under --replace); a capture already on disk with other bytes.
+not written); a fetch of no search in the recording, or of searches of two
+rows with no item to tell them apart; a row answered twice with different
+results (the later one kept only under --replace); a capture already on disk
+with other bytes. A fetch of listings the site sent no item for is its
+search's and is not written.
 """
 
 import base64
@@ -52,11 +56,10 @@ import urllib.parse
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from trade_query import bare  # noqa: E402
+from trade_query import asking, bare, sheet  # noqa: E402
 
 TRACK = Path(__file__).resolve().parents[1] / "search" / "pseudo-stats"
 RAW = TRACK / "raw" / "searches"
-SHEET = TRACK / "data" / "search-sheet.csv"
 SHAPE = TRACK / "data" / "recording-shape.csv"
 
 # A search response under this many bytes lists a handful of results at most
@@ -99,55 +102,137 @@ def holds_cookie(har):
     return False
 
 
-def league_of(url):
+def league_of(path):
     """The league a search's own URL names: `/api/trade/search/<league>`."""
-    return urllib.parse.unquote(urllib.parse.urlparse(url).path.rsplit("/", 1)[1])
+    return urllib.parse.unquote(path.rsplit("/", 1)[1])
 
 
-def rows_of(league, query, sheet):
-    """The rows that ask a query in a league: a search is its league and its query."""
-    return [n for n, (lg, q) in sheet.items() if lg == league and bare(q) == bare(query)]
+def walk(har, rows):
+    """Every trade call in the order made: the one reading of a recording,
+    which the captures and the shape are both views of.
 
-
-def row_of(league, query, sheet):
-    names = rows_of(league, query, sheet)
-    return names[0] if names else None
-
-
-def asked(entry, sheet):
-    """The row a call's own request names: a search posts its query, a fetch
-    carries the search's id. None where the request says neither."""
-    url = urllib.parse.urlparse(entry["request"]["url"])
-    try:
-        if "/api/trade/search/" in url.path:
-            posted = (entry["request"].get("postData") or {}).get("text")
-            return row_of(league_of(entry["request"]["url"]), json.loads(posted)["query"], sheet) if posted else None
-        ids = urllib.parse.parse_qs(url.query).get("query")
-        # a fetch names its search's id and no league: the query alone
-        return next((n for n, (_, q) in sheet.items() if bare(q) == bare(decode(ids[0]))), None) if ids else None
-    except (ValueError, KeyError, OSError):
-        return None
-
-
-def shape(har, sheet):
-    """Every trade call, body or none: what was asked and how it was answered."""
+    A search is the row its league and its query ask (`trade_query.asking`).
+    A fetch names its search's id and no league, so it is its search's: the
+    latest search before it that asks the query its id decodes to, among
+    those whose results hold its items where it has any. Asked of the sheet
+    by its query alone, a fetch of round w's Allflame charts was u045's,
+    Standard's (the outside review of step 7). A fetch with no item to tell
+    them apart, after searches of two rows asking its query — one query in
+    two leagues, a recording with no bodies — is ambiguous and nobody's."""
     calls = []
+    taken = set()
     for entry in har["log"]["entries"]:
         url = urllib.parse.urlparse(entry["request"]["url"])
-        if "/api/trade/search/" not in url.path and "/api/trade/fetch/" not in url.path:
-            continue
         search = "/api/trade/search/" in url.path
-        calls.append({
-            "at": entry.get("startedDateTime"),
-            "kind": "search" if search else "fetch",
-            "row": asked(entry, sheet),
-            "status": entry["response"]["status"],
-            "bytes": entry["response"].get("content", {}).get("size"),
-            "items": 0 if search else len(url.path.rsplit("/", 1)[1].split(",")),
-            "body": body(entry) is not None,
-            "limits": limits(entry),
-        })
+        if not search and "/api/trade/fetch/" not in url.path:
+            continue
+        status = entry["response"]["status"]
+        raw = body(entry)
+        answer = json.loads(raw) if status == 200 and raw is not None else None
+        call = {"at": entry.get("startedDateTime"), "kind": "search" if search else "fetch",
+                "url": entry["request"]["url"].split("?")[0], "status": status,
+                "bytes": raw if answer is not None else None,
+                "size": entry["response"].get("content", {}).get("size"), "body": raw is not None,
+                "limits": limits(entry), "row": None, "why": None}
+        try:
+            if search:
+                posted = (entry["request"].get("postData") or {}).get("text")
+                call["query"] = decode(answer["id"]) if answer else json.loads(posted)["query"]
+            else:
+                call["query"] = decode(urllib.parse.parse_qs(url.query)["query"][0])
+        except (ValueError, KeyError, TypeError, OSError):
+            call["query"] = None
+        if search:
+            names = [] if call["query"] is None else asking(league_of(url.path), call["query"], rows)
+            # One query asked by several rows (round k re-asked four of round j's,
+            # 2026-10-04): the search is named for the first row that has none yet,
+            # on disk or in this recording, so every sitting's answer is kept under
+            # the row that asked it that day; a query no row asks is refused.
+            free = [n for n in names if n not in taken and not (RAW / f"{n}-search.json").exists()]
+            call.update(row=(free or names or [None])[0], ids=set(answer.get("result", [])) if answer else set(),
+                        total=answer.get("total") if answer else None, fetches=[])
+            taken.add(call["row"])
+        else:
+            call["asked"] = len(url.path.rsplit("/", 1)[1].split(","))
+            call["items"] = {r["id"] for r in answer.get("result", []) if r} if answer else set()
+            want = None if call["query"] is None else bare(call["query"])
+            mine = [c for c in calls if c["kind"] == "search" and c["query"] is not None and want is not None
+                    and bare(c["query"]) == want and (not call["items"] or call["items"] <= c["ids"])]
+            if not mine:
+                call["why"] = "a fetch belonging to no search in the recording"
+            elif not call["items"] and len({c["row"] for c in mine}) > 1:
+                call["why"] = ("ambiguous: searches of " + ", ".join(sorted({c["row"] or "no row" for c in mine}))
+                               + " ask its query, and it holds no item to tell them apart")
+            else:
+                owner = mine[-1]
+                call["row"] = owner["row"]
+                owner["fetches"].append(call)
+        calls.append(call)
     return calls
+
+
+def self_test():
+    """The fetch's search, held on recordings made here (the outside review
+    of step 7): one query asked in two leagues, a fetch after each, with
+    bodies and without; a fetch of no search; a fetch the site sent no item
+    for. Rows named so that no capture on disk is one of them."""
+    query = {"query": {"status": {"option": "any"}, "type": "Chart"}}
+    token = base64.urlsafe_b64encode(gzip.compress(json.dumps(query["query"]).encode())).decode().rstrip("=")
+    other = base64.urlsafe_b64encode(gzip.compress(b'{"type":"Other"}')).decode().rstrip("=")
+    rows = {"self-a": ("Standard", query["query"]), "self-b": ("Allflame", query["query"])}
+
+    def search(league, ids, bodies=True):
+        text = json.dumps({"id": token, "result": ids, "total": len(ids)}) if bodies else None
+        return {"startedDateTime": "", "request": {"url": f"https://x/api/trade/search/{league}",
+                                                   "postData": {"text": json.dumps(query)}},
+                "response": {"status": 200, "content": {"size": 1, **({"text": text} if text else {})}}}
+
+    def fetch(ids, sent=True, of=token, bodies=True):
+        text = json.dumps({"result": [{"id": i} if sent else None for i in ids]}) if bodies else None
+        return {"startedDateTime": "", "request": {"url": f"https://x/api/trade/fetch/{','.join(ids)}?query={of}"},
+                "response": {"status": 200, "content": {"size": 1, **({"text": text} if text else {})}}}
+
+    def rows_of(entries):
+        return [(c["kind"], c["row"], bool(c["why"])) for c in walk({"log": {"entries": entries}}, rows)]
+
+    cases = [
+        ("a fetch is the search's it follows, in its league",
+         [search("Standard", ["a1"]), search("Allflame", ["b1"]), fetch(["b1"])],
+         [("search", "self-a", False), ("search", "self-b", False), ("fetch", "self-b", False)]),
+        ("its items say which, the other league's search later",
+         [search("Standard", ["a1"]), search("Allflame", ["b1"]), fetch(["a1"])],
+         [("search", "self-a", False), ("search", "self-b", False), ("fetch", "self-a", False)]),
+        ("no bodies, two leagues' searches of its query: ambiguous, nobody's",
+         [search("Standard", [], False), search("Allflame", [], False), fetch(["x"], bodies=False)],
+         [("search", "self-a", False), ("search", "self-b", False), ("fetch", None, True)]),
+        ("no bodies, one search of its query: that search's",
+         [search("Allflame", [], False), fetch(["x"], bodies=False)],
+         [("search", "self-b", False), ("fetch", "self-b", False)]),
+        ("a fetch of no search in the recording",
+         [search("Allflame", ["b1"]), fetch(["b1"], of=other)],
+         [("search", "self-b", False), ("fetch", None, True)]),
+        ("a fetch the site sent no item for: its search's",
+         [search("Allflame", ["b1"]), fetch(["b1"], sent=False)],
+         [("search", "self-b", False), ("fetch", "self-b", False)]),
+    ]
+    failed = 0
+    for name, entries, want in cases:
+        got = rows_of(entries)
+        if got != want:
+            failed += 1
+            print(f"DIFFER  {name}: {got}")
+    print(f"{len(cases)} recordings made here split, {failed} differ")
+    return 1 if failed else 0
+
+
+def recording(path):
+    """A HAR file, or a folder of them as one recording in the order of its calls."""
+    if not path.is_dir():
+        return json.loads(path.read_text())
+    # The browser names a saved file by its type: the recorder's arrive as .json.
+    entries = [e for part in sorted(path.iterdir()) if part.suffix in (".har", ".json")
+               for e in json.loads(part.read_text())["log"]["entries"]]
+    return {"log": {"entries": sorted(entries, key=lambda e: e.get("startedDateTime") or "")}}
 
 
 def peak(calls):
@@ -167,64 +252,23 @@ def peak(calls):
     return most
 
 
-def read(har, sheet):
-    """The recording's searches in order, each with its fetches."""
-    found = []
-    strays = []
-    problems = []
-    for entry in har["log"]["entries"]:
-        url = entry["request"]["url"]
-        if "/api/trade/search/" not in url and "/api/trade/fetch/" not in url:
-            continue
-        status = entry["response"]["status"]
-        raw = body(entry)
-        if status != 200 or raw is None:
-            problems.append(f"{entry.get('startedDateTime')}  status {status}  {url.split('?')[0][:80]}"
-                            + ("" if raw is not None else "  (no body recorded)"))
-            continue
-        answer = json.loads(raw)
-        record = {"at": entry.get("startedDateTime"), "bytes": raw, "limits": limits(entry)}
-        if "/api/trade/search/" in url:
-            query = decode(answer["id"])
-            names = rows_of(league_of(url.split("?")[0]), query, sheet)
-            # One query asked by several rows (round k re-asked four of round j's,
-            # 2026-10-04): the capture is named for the first row that has none yet,
-            # on disk or in this recording, so every sitting's answer is kept under
-            # the row that asked it that day; a query no row asks is refused.
-            taken = {s["name"] for s in found}
-            free = [n for n in names if n not in taken and not (RAW / f"{n}-search.json").exists()]
-            record.update(name=(free or names or [None])[0], ids=set(answer.get("result", [])),
-                          total=answer.get("total"), fetches=[])
-            found.append(record)
-        else:
-            items = {r["id"] for r in answer.get("result", []) if r}
-            owner = next((s for s in reversed(found) if items and items <= s["ids"]), None)
-            (owner["fetches"] if owner else strays).append(record)
-    return found, strays, problems
-
-
-def recording(path):
-    """A HAR file, or a folder of them as one recording in the order of its calls."""
-    if not path.is_dir():
-        return json.loads(path.read_text())
-    # The browser names a saved file by its type: the recorder's arrive as .json.
-    entries = [e for part in sorted(path.iterdir()) if part.suffix in (".har", ".json")
-               for e in json.loads(part.read_text())["log"]["entries"]]
-    return {"log": {"entries": sorted(entries, key=lambda e: e.get("startedDateTime") or "")}}
-
 
 def main():
     args = sys.argv[1:]
+    if args == ["--self-test"]:
+        return self_test()
     flags = {a for a in args if a.startswith("--")}
     files = [a for a in args if not a.startswith("--")]
     if len(files) != 1 or flags - {"--write", "--replace", "--shape"}:
         print(__doc__)
         return 2
     har = recording(Path(files[0]))
-    with SHEET.open(newline="\n") as f:
-        sheet = {r["search"]: (r["league"], json.loads(r["query"])) for r in csv.DictReader(f)}
-    found, strays, problems = read(har, sheet)
-    calls = shape(har, sheet)
+    rows = sheet()
+    calls = walk(har, rows)
+    found = [c for c in calls if c["kind"] == "search" and c["bytes"] is not None]
+    strays = [c for c in calls if c["kind"] == "fetch" and c["why"]]
+    problems = [f"{c['at']}  status {c['status']}  {c['url'][:80]}" + ("" if c["body"] else "  (no body recorded)")
+                for c in calls if c["bytes"] is None]
 
     print("the recording holds a cookie: " + (
         "YES — keep it under raw/ and delete it once the captures are written"
@@ -232,26 +276,31 @@ def main():
     writes = {}
     refused = 0
     for s in found:
-        if s["name"] is None:
+        if s["row"] is None:
             refused += 1
             print(f"REFUSED  {s['at']}  a search whose query is no row of the sheet (total {s['total']})")
             continue
-        files_of = {f"{s['name']}-search.json": s["bytes"]}
-        for page, fetch in enumerate(s["fetches"], start=1):
-            files_of[f"{s['name']}-fetch.json" if page == 1 else f"{s['name']}-fetch-{page}.json"] = fetch["bytes"]
-        if f"{s['name']}-search.json" in writes:
-            same = writes[f"{s['name']}-search.json"] == s["bytes"]
+        # a fetch of listings the site sent no item for (every result null)
+        # is its search's, and no capture: there is nothing in it to read
+        pages = [f for f in s["fetches"] if f["bytes"] is not None and f["items"]]
+        empty = len([f for f in s["fetches"] if f["bytes"] is not None and not f["items"]])
+        files_of = {f"{s['row']}-search.json": s["bytes"]}
+        for page, fetch in enumerate(pages, start=1):
+            files_of[f"{s['row']}-fetch.json" if page == 1 else f"{s['row']}-fetch-{page}.json"] = fetch["bytes"]
+        if f"{s['row']}-search.json" in writes:
+            same = writes[f"{s['row']}-search.json"] == s["bytes"]
             if same or "--replace" not in flags:
                 refused += 0 if same else 1
-                print(f"{'again  ' if same else 'REFUSED'}  {s['name']}  answered twice"
+                print(f"{'again  ' if same else 'REFUSED'}  {s['row']}  answered twice"
                       + ("" if same else ", with other results; the first is kept"))
                 continue
         writes.update(files_of)
-        print(f"{s['name']:<8} total {s['total']}; {len(s['fetches'])} fetch"
-              + ("" if len(s["fetches"]) == 1 else "es")
+        print(f"{s['row']:<8} total {s['total']}; {len(pages)} fetch"
+              + ("" if len(pages) == 1 else "es")
+              + (f", and {empty} of listings the site sent no item for" if empty else "")
               + ("" if s["fetches"] or not s["total"] else "  — results and no fetch recorded"))
     for stray in strays:
-        print(f"REFUSED  {stray['at']}  a fetch belonging to no search in the recording")
+        print(f"REFUSED  {stray['at']}  {stray['why']}")
     bodiless = [c for c in calls if not c["body"]]
     if len(problems) > 6 and len(bodiless) == len(calls):
         print(f"PROBLEM  no body in any of the {len(calls)} trade calls recorded")
@@ -262,15 +311,13 @@ def main():
         print("the recording's shape — what each search's request asked, and what followed:")
         for c in calls:
             if c["kind"] == "search":
-                fetched = [f for f in calls if f["kind"] == "fetch" and f["row"] == c["row"]
-                           and f["at"] > c["at"]]
-                print(f"    {c['row'] or 'no row':<8} status {c['status']}  {c['bytes']:>6} bytes  "
+                print(f"    {c['row'] or 'no row':<8} status {c['status']}  {c['size']:>6} bytes  "
                       + (f"refused" if c["status"] != 200
-                         else f"{sum(f['items'] for f in fetched)} items fetched" if fetched
-                         else "no fetch followed: nothing found" if (c["bytes"] or 0) < SMALL
+                         else f"{sum(f['asked'] for f in c['fetches'])} items fetched" if c["fetches"]
+                         else "no fetch followed: nothing found" if (c["size"] or 0) < SMALL
                          else "results, and no fetch recorded")
                       + ("" if c["body"] else "  (no body)"))
-    missing = [n for n in sheet if f"{n}-search.json" not in writes and not (RAW / f"{n}-search.json").exists()]
+    missing = [n for n in rows if f"{n}-search.json" not in writes and not (RAW / f"{n}-search.json").exists()]
     print(f"{len(found)} searches in the recording; rows of the sheet with no capture anywhere: "
           + (", ".join(missing) if missing else "none"))
 
@@ -290,7 +337,7 @@ def main():
                             "items_asked", "body"])
             for c in calls:
                 table.writerow([Path(files[0]).name, c["at"], c["kind"], c["row"] or "",
-                                c["status"], c["bytes"], c["items"] or "", "yes" if c["body"] else "no"])
+                                c["status"], c["size"], c.get("asked") or "", "yes" if c["body"] else "no"])
         print(f"{len(calls)} calls written to {SHAPE.relative_to(TRACK.parent.parent)}")
 
     if "--write" not in flags:
