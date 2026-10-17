@@ -33,7 +33,7 @@ fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
             count(Disposition::Unsupported),
             count(Disposition::ListingOnly)
         ],
-        [76, 21, 37, 9]
+        [80, 18, 36, 9]
     );
     // the four defence filters ambiguous since step 3 measured the q20
     // rule against the site (`tests/properties.rs`), and the digit rule no
@@ -54,7 +54,6 @@ fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
         "armour_filters.ev",
         "armour_filters.es",
         "armour_filters.ward",
-        "weapon_filters.crit",
         "weapon_filters.dps",
         "weapon_filters.pdps",
         "map_filters.map_tier",
@@ -65,8 +64,15 @@ fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
     // the rows the sitting of 2026-10-16 settled, built at step 7e: an
     // explicit id holds the stat's crafted and fractured lines (t13, t15),
     // a vessel's Monster Level (t46) and a heist item's own requirement
-    // (t48) are the site's, and the elemental damage is its own figure
+    // (t48) are the site's, and the elemental damage is its own figure;
+    // and at 7f the free text a whole name or base (w06, w07), the foil the
+    // relic mark (t52), the weapon's crit no gem's (t44), a blighted map
+    // its prefix (t55, t56)
     for key in [
+        "query.term",
+        "type_filters.rarity=uniquefoil",
+        "weapon_filters.crit",
+        "map_filters.map_blighted",
         "stat.explicit",
         "weapon_filters.edps",
         "map_filters.area_level",

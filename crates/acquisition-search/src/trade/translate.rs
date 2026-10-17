@@ -25,9 +25,8 @@
 //!   line(T v))` per stat, `count` is `holds(…)=min..max`, a weighted group
 //!   as K5. Every clause that runs owns one term path inside its group, a
 //!   tautology its own, and every path is a clause's. What no sitting has
-//!   asked — a `not` with a value, which number a many-numbered template
-//!   compares, and each row whose note leaves it to one — is ambiguous
-//!   until one has.
+//!   asked — which number a many-numbered template compares, and each row
+//!   whose note leaves it to one — is ambiguous until one has.
 //! - **What step 7's sitting settled, built at 7e** (the owner, 2026-10-16:
 //!   "I accept all your recommendations"; 2026-10-17, "The choice before
 //!   7e" in `search/TRADE-PLAN.md`: the translation alone ships, a named
@@ -73,9 +72,11 @@
 //!   group unsupported with the binder's words, never an error of the
 //!   whole. `and` and
 //!   `if` leave each filter a term of the query; `not` is `-(a or b …)`,
-//!   `-a` for one; `count` is `holds(a, b …)` with the group's bounds;
-//!   a weighted sum is `sum(line(… or …).slot)` against the group's bounds
-//!   over its one weight (K5), the sum made by `tree::sum_of_lines`, since
+//!   `-a` for one; `count` is `holds(a, b …)` with the group's bounds, and
+//!   with none `true()` for each filter (t37); a weighted sum is
+//!   `sum(line(… or …).slot)` against the group's bounds over its one
+//!   weight (K5), and with none `(P1 or P2 …)`, one of its stats present
+//!   (t38); the sum made by `tree::sum_of_lines`, since
 //!   a group's tree is named by the tree's own modules alone
 //!   (`tools/docs-check.sh` §7). `if` is, per stat, not the stat's presence or
 //!   the stat with its bounds — `(-line(T) or line(T b))`,
@@ -115,8 +116,9 @@
 //! - **Statuses are read where the clause is read.** A filter's status is
 //!   its category's row, worsened by each line rule that applies to its
 //!   text (a `(Local)` suffix, a text two ids share, several `#`, a form
-//!   no sum holds under a bound, a refused form) and, in a `not`, by a
-//!   value and by an eldritch form's text: the site lets
+//!   no sum holds under a bound, a refused form) and, in a `not`, by an
+//!   eldritch form's text — a `not` with a value excludes the bound's
+//!   meeting, as the site does (t24): the site lets
 //!   some items carrying that form through a `not` on its id, a fact of
 //!   the captures (`search/pseudo-stats/README.md`, round four) the
 //!   oracle met on 377 items (step 6, `tests/trade_oracle.rs`), so the
@@ -147,9 +149,11 @@
 //!   twice, a `not`'s or a `count`'s filter strictly under its group's;
 //!   every path of the tree lies under a clause's; and the clauses that
 //!   own none are exactly those the tree cannot give one — an `and` or
-//!   an `if` group, and a group with no filter the site leaves enabled,
-//!   which write no node of their own, and a weighted sum's
-//!   filters, conditions inside `sum( … )`, which take no path. A query
+//!   an `if` group, a `count` with no bound (each filter its own `true()`),
+//!   a weighted sum with no bound whose one stat is its presence alone,
+//!   and a group with no filter the site leaves enabled, which write no
+//!   node of their own, and a bounded weighted sum's filters, conditions
+//!   inside `sum( … )`, which take no path. A query
 //!   that is one clause owns the root, written `""`.
 //! - **Fidelity** is the worst status among the clauses with a stash
 //!   meaning — `exact`, `ambiguous`, or `partial` when the remainder, the
@@ -678,8 +682,9 @@ impl Shown {
 }
 
 /// A site object where it stands, read: a key it carries that no list
-/// here names is unsupported by name (K6), and so is anything but an
-/// object; a value absent or null is an empty one.
+/// here names is unsupported by name (K6), but one sent null, which is
+/// absent (u059), and so is anything but an object; a value absent or null
+/// is an empty one.
 fn read<'j>(
     value: Option<&'j Json>,
     keys: &[&str],
@@ -687,10 +692,12 @@ fn read<'j>(
     match value {
         None | Some(Json::Null) => Ok(None),
         Some(Json::Object(o)) => {
+            // a key sent null is absent, whatever its name (u059: the site
+            // posts a socket filter's unset `a` and `d` null)
             let strays: Vec<String> = o
-                .keys()
-                .filter(|k| !keys.contains(&k.as_str()))
-                .map(|k| format!("`{k}`"))
+                .iter()
+                .filter(|(k, v)| !v.is_null() && !keys.contains(&k.as_str()))
+                .map(|(k, _)| format!("`{k}`"))
                 .collect();
             if strays.is_empty() {
                 Ok(Some(o))
@@ -1118,8 +1125,15 @@ impl Translator<'_> {
     // ---- stats ---------------------------------------------------------------------------
 
     /// One stat filter of a group of `kind`, read alone, with its presence:
-    /// the stat on the item at all, which it is where it has no bound.
-    fn stat(&self, at: String, filter: &Json, kind: &str) -> Result<StatRead, LanguageError> {
+    /// the stat on the item at all, which it is where it has no bound;
+    /// `in_a_sum` where a weighted sum's bound is read on it.
+    fn stat(
+        &self,
+        at: String,
+        filter: &Json,
+        kind: &str,
+        in_a_sum: bool,
+    ) -> Result<StatRead, LanguageError> {
         let mut read = StatRead {
             at,
             site: filter.clone(),
@@ -1376,8 +1390,7 @@ impl Translator<'_> {
         }
         // a bound read on a stat a form of which no sum can hold: the
         // filter's own, or a weighted sum's over it
-        let bound_read =
-            read.slot.is_some() && (read.bounded || matches!(kind, "weight" | "weight2"));
+        let bound_read = read.slot.is_some() && (read.bounded || in_a_sum);
         if bound_read && !unsummed.is_empty() {
             rule(&mut rows, &mut notes, &mut status, "stat.text.forms")?;
             notes.push(format!(
@@ -1522,10 +1535,15 @@ impl Translator<'_> {
                 None
             }
         };
+        // a weighted sum's bound is read on its stats only where the group
+        // has one: with none it sums nothing (t38)
+        let bound =
+            |key: &str| group_value.is_some_and(|v| v.get(key).is_some_and(|b| !b.is_null()));
+        let summed = matches!(kind, "weight" | "weight2") && (bound("min") || bound("max"));
         let reads: Vec<StatRead> = filters
             .iter()
             .enumerate()
-            .map(|(m, f)| self.stat(format!("{at}.{m}"), f, kind))
+            .map(|(m, f)| self.stat(format!("{at}.{m}"), f, kind, summed))
             .collect::<Result<_, _>>()?;
         let row = match self.catalogue.row(&group_key) {
             Some(row) if Status::of(row.disposition).runs() => row,
@@ -1596,6 +1614,15 @@ impl Translator<'_> {
                 (None, None)
             }
         };
+        // a group with no bound of its own reads as the sitting found it: a
+        // count restricts nothing (t37), each stat the site's no-op as an
+        // `if` writes one; a weighted sum needs one of its stats present
+        // (t38), the stats' presences one or the other
+        let kind = match (kind, gmin.is_none() && gmax.is_none()) {
+            ("count", true) => "count_none",
+            ("weight" | "weight2", true) => "present",
+            (kind, _) => kind,
+        };
         // what the group writes, each node bound alone as a filter's text
         // is: one the binder refuses is the group unsupported, its words
         let composed = match why {
@@ -1613,16 +1640,25 @@ impl Translator<'_> {
             }
         };
         match kind {
-            "not" | "count" => {
+            // one stat present is that stat's presence, a term of its own
+            "present" if active.len() == 1 => {
+                self.push(&at, &site, &group_landed(), Own::Conjuncts);
+                let mut nodes = nodes.into_iter();
+                for read in &reads {
+                    let mut landed = clone_landed(&read.landed);
+                    if read.landed.status != Status::Disabled {
+                        landed.node = nodes.next();
+                        self.conjunct(&read.at, &read.site, landed);
+                    } else {
+                        self.push(&read.at, &read.site, &landed, Own::Nothing);
+                    }
+                }
+            }
+            "not" | "count" | "present" => {
                 let mut filters = Vec::new();
                 for read in &active {
                     let mut landed = clone_landed(&read.landed);
                     landed.node = None;
-                    if kind == "not" && read.bounded {
-                        landed.status = landed.status.worse(Status::Ambiguous);
-                        landed.rows.push(group_key.clone());
-                        landed.notes.extend(group_notes.iter().cloned());
-                    }
                     filters.push(landed);
                 }
                 let g = self.push(&at, &site, &group_landed(), Own::Path { parent: None });
@@ -1638,7 +1674,7 @@ impl Translator<'_> {
                     owners,
                 });
             }
-            "if" => {
+            "if" | "count_none" => {
                 self.push(&at, &site, &group_landed(), Own::Conjuncts);
                 let mut nodes = nodes.into_iter();
                 for read in &reads {
@@ -1854,6 +1890,22 @@ fn compose(
             }]),
             Err(why) => Err(why),
         },
+        "count_none" => Ok(active.iter().map(|_| Node::Const(true)).collect()),
+        "present" => {
+            let mut presences = active
+                .iter()
+                .map(|r| {
+                    r.presence
+                        .clone()
+                        .ok_or_else(|| trade(format!("`{}` runs and writes no presence", r.at)))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(vec![if presences.len() == 1 {
+                presences.remove(0)
+            } else {
+                Node::Any(presences)
+            }])
+        }
         // per stat: not on the item, or on it within its bounds; a stat
         // with none is the site's own no-op
         "if" => Ok(active

@@ -38,6 +38,10 @@
 # t46, t48, t49, u061, u090) — none came in, and seven findings went with
 # their rows: 760 searches, 7,135 items, 6,547 matched, 588 missed in 64
 # rows. What stays ambiguous stays under its finding, labelled by its row.
+# Step 7f (2026-10-17) let five searches run that were partial — t37, t38,
+# t55, t56, u059: 50 items, 40 matched — and t55's ten are a new question
+# for the sitting, `blighted-base`: 765 searches, 7,185 items, 6,587
+# matched, 598 missed in 65 rows.
 
 [[finding]]
 key = "eldritch-not"
@@ -84,6 +88,12 @@ key = "scourge-in-sum"
 home = "sitting"
 cites = "e043 and f005 returned one item, crafted `+28% to Fire Resistance` and scourge `-28% to Fire Resistance`, under a weighted group naming both ids with `min` 0.5; the site showed its sum as 28 and its total as nothing (a sum of nothing, search/pseudo-stats/README.md)"
 asks = "whether a weighted group counts a scourge line — the item under the scourge id alone, and the crafted id alone"
+
+[[finding]]
+key = "blighted-base"
+home = "sitting"
+cites = "t55 asked `map_blighted` `true` under the Base `Map (Tier 13)`, and the site returned ten maps whose base the body names `Blighted Map (Tier 13)` (search/pseudo-stats/data/bodies.json): its Base reads a blighted map's base without the prefix; `base=` is the whole base (step 7f, when t55 first ran)"
+asks = "whether the site's Base names a blighted map by its unblighted base alone — `Blighted Map (Tier 13)` under `type` `Map (Tier 13)`, and under `type` `Blighted Map (Tier 13)` — and whether any other prefix (`Blight-ravaged`) is read so"
 
 [[row]]
 search = "c3"
@@ -532,3 +542,10 @@ items = [0, 1, 2, 3, 4, 5]
 outcome = "missed"
 clauses = ["3"]
 finding = "no-physical-damage"
+
+[[row]]
+search = "t55"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "blighted-base"

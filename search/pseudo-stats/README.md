@@ -153,7 +153,7 @@ arithmetic, each of its 42 steps citing its sentence. `data/percentile-expected.
   7,431 cells, 5 disagreeing — u060, Simple Robes that show no defence, the site 0, 50 and 17 where the
   reading is lacked, kept so (the owner, 2026-10-16: "I accept all your recommendations") — and 2 not
   comparable: t54, a defence line in `crucibleMods` the site reads as the item's own (59, J33's question,
-  answered), and v067, Two-Toned Boots of three range rows, the site 0. The evidence over every capture:
+  answered; built at the trade brief's step 7f, the cell now agreeing), and v067, Two-Toned Boots of three range rows, the site 0. The evidence over every capture:
   2,758 readings of an item under a pseudo, none disagreeing.
 - **Not asked**: of the copy's 74 groups of lines 32, holding 91 of 1822 (each with its question in the copy
   file); no shape. An explicit twin the item's own (J8) under a flag — crafted 8 groups, 28 lines; fractured

@@ -320,7 +320,6 @@ fn kind_of(cause: &str) -> &'static str {
         // the mark is the deriver's to say unread, under its own key
         "an implicit twin on an item whose mark is unread" => "`searing`",
         "a twin text in `scourgeMods`" => "the percentile: a twin text in an array no ruling names",
-        "a defence line in `crucibleMods`" => "the percentile: a defence line of a crucible node",
         "several values" => "the percentile: several rolls of different values",
         "range" => "the percentile: the base's minimum is its maximum",
         "no roll" => "the percentile: no roll gives the display",
@@ -360,9 +359,11 @@ fn table_store(cases: &[Case]) -> Store {
 /// sitting), 45 ruled, 4 worked. The field is asked of each case: lacked,
 /// by `has:` and its not; or its value, by a comparison, by the sort and
 /// by what the row shows; or undecided, by what could not be established.
-/// The plan's closing row is among them: the 1,497 captured cells read to
-/// a value, of the 1,504 where the site showed one — the other 7 the
-/// sitting's (`search/pseudo-stats/README.md`: 5 lacked, 2 undecided). The
+/// The plan's closing row is among them: the 1,498 captured cells read to
+/// a value, of the 1,504 where the site showed one — t54's crucible line
+/// the item's own since step 7f of the trade brief, as the site reads it —
+/// the other 6 the sitting's (`search/pseudo-stats/README.md`: 5 lacked, 1
+/// undecided). The
 /// table's `site` and `agrees` columns are evidence and assert nothing.
 #[test]
 fn c101_every_row_of_the_percentile_expected_answers_is_answered_as_the_row_says() {
@@ -378,7 +379,7 @@ fn c101_every_row_of_the_percentile_expected_answers_is_answered_as_the_row_says
             .iter()
             .filter(|c| c.kind == "captured" && matches!(c.cell, Cell::Value(_)))
             .count(),
-        1497,
+        1498,
         "the captured cells read to a value"
     );
     // the input holds what the test is of: a mod of several rows, a line
@@ -525,7 +526,7 @@ fn c101_every_row_of_the_percentile_expected_answers_is_answered_as_the_row_says
         }
     }
     // every case asked, by the table's own tally of statuses
-    assert_eq!(asked, (5935, 1524, 21));
+    assert_eq!(asked, (5935, 1526, 19));
     assert!(
         faults.is_empty(),
         "{} of {} cases are not answered as the table says:\n{}",
@@ -831,8 +832,8 @@ fn c93_an_undecided_percentile_under_not_and_or() {
 ///
 /// - `no_roll`: an implicit `+20 to maximum Energy Shield` on an item of
 ///   neither mark — a twin text, of a type no roll of the base reads.
-/// - `crucible`: the same text in `crucibleMods`, where a defence line a
-///   roll reads would leave the field open (J33).
+/// - `crucible`: the same text in `crucibleMods`, of a type no roll reads,
+///   as a crucible node's line is the item's own (t54).
 /// - `long`: an explicit `+10000000000 to maximum Energy Shield`, whose
 ///   number the search does not read: a line of a type no roll reads.
 /// - `flag`: `+17 to Armour` under a flag that is no yes or no (J32).
@@ -1206,7 +1207,7 @@ fn a_mark_a_multiplier_and_the_rolls_of_several_defences() {
     );
 }
 
-/// J8, J33, over the table's composed cases (`r-j8-…`, `r-twin-…`,
+/// J8, J33, t54, over the table's composed cases (`r-j8-…`, `r-twin-…`,
 /// `r-crucible-line`): a Plate Vest, Armour ranged 19–27, displaying
 /// Armour 23 beside `19% increased Armour`, a text the local stat and the
 /// global one both display. Worked by hand: left out, the roll is 23 and
@@ -1220,9 +1221,10 @@ fn a_mark_a_multiplier_and_the_rolls_of_several_defences() {
 /// - `neither`: an implicit of an item of neither mark — undecided.
 /// - `both`: an implicit of an item tangled and synthesised — undecided.
 /// - `scourge`: the line in an array J8 does not name — undecided.
-/// - `crucible`: the line in `crucibleMods` — undecided, as is `node`,
-///   a crucible line only the local stat displays, `19% increased Armour
-///   and Evasion`.
+/// - `crucible`: the line in `crucibleMods` — its own: 0, as the site
+///   reads a crucible node's line (t54; J33's question, asked), and so is
+///   `node`, a crucible line only the local stat displays, `19% increased
+///   Armour and Evasion`.
 /// - `local`: that text as an implicit of an item of neither mark, which
 ///   no global stat displays — its own: 0.
 #[test]
@@ -1263,11 +1265,11 @@ fn j8_the_items_mark_tells_whose_an_implicit_twin_is() {
     assert_eq!(found("pseudo.defence_pct=50"), ["eldritch", "searing"]);
     assert_eq!(
         found("pseudo.defence_pct=0"),
-        ["explicit", "local", "synthesised"]
+        ["crucible", "explicit", "local", "node", "synthesised"]
     );
     assert_eq!(
         found("undecided(pseudo.defence_pct)"),
-        ["both", "crucible", "neither", "node", "scourge"]
+        ["both", "neither", "scourge"]
     );
     let kind = |id: &str| -> Value {
         let a = asked(&s, &format!("id:{id} has:pseudo.defence_pct"));
@@ -1287,12 +1289,6 @@ fn j8_the_items_mark_tells_whose_an_implicit_twin_is() {
         kind("scourge"),
         "the percentile: a twin text in an array no ruling names"
     );
-    for id in ["crucible", "node"] {
-        assert_eq!(
-            kind(id),
-            "the percentile: a defence line of a crucible node"
-        );
-    }
 }
 
 // ---- the refusal ------------------------------------------------------------------------------

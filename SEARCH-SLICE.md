@@ -231,7 +231,9 @@ number there was measured, never recalled. The verdicts:
 - The percentile (9d-A): on the copy 2,249 items have it, 20,373
   lack it and 99 are undecided — 98 by the realm, 1 by a crucible
   line — `search/pseudo-stats/data/percentile-expected-copy.csv`'s;
-  none reads over 100 or below 0.
+  none reads over 100 or below 0. Since the trade import's step 7f the
+  crucible line is the item's own, as the site reads it (t54): 2,250 and
+  98.
 
 ## Observations still open
 

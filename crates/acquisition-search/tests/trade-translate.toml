@@ -62,13 +62,19 @@ matches = ['''{"name": "a \"b\" or {bounds} \\ c"}''']
 fails = ['''{"name": "a"}''']
 
 [[case]]
-name = "the free-text term"
-query = '{"term": "Kaom"}'
-text = 'name:Kaom or typeline:Kaom'
-fidelity = "ambiguous"
-statuses = { "term" = "ambiguous" }
-matches = ['''{"name": "Kaom's Heart"}''', '{"typeLine": "Kaom Plate"}']
-fails = ['{"name": "Abyssus"}']
+name = "the free-text term: a whole name or a whole base (w06, w07; t50, t51 found no word of one)"
+query = '{"term": "Amber Amulet"}'
+text = 'name="Amber Amulet" or base="Amber Amulet"'
+fidelity = "exact"
+statuses = { "term" = "exact" }
+matches = [
+  '{"typeLine": "Amber Amulet of the Meteor", "baseType": "Amber Amulet", "rarity": "Magic"}',
+  '{"name": "Amber Amulet", "typeLine": "Onyx Amulet", "baseType": "Onyx Amulet"}',
+]
+fails = [
+  '{"name": "Amber", "typeLine": "Onyx Amulet", "baseType": "Onyx Amulet"}',
+  '{"typeLine": "Amber Amulets", "baseType": "Amber Amulets"}',
+]
 
 [[case]]
 name = "a base with its variant: the base lands, the variant is the remainder"
@@ -129,8 +135,8 @@ fails = ['{"rarity": "Unique"}']
 name = "rarity: a foil unique, two terms, the whole query"
 query = '{"filters": {"type_filters": {"filters": {"rarity": {"option": "uniquefoil"}}}}}'
 text = 'rarity=unique is:isRelic'
-fidelity = "ambiguous"
-statuses = { "type_filters.rarity" = "ambiguous" }
+fidelity = "exact"
+statuses = { "type_filters.rarity" = "exact" }
 matches = ['{"rarity": "Unique", "isRelic": true}']
 fails = ['{"rarity": "Unique"}', '{"isRelic": true}']
 
@@ -161,13 +167,16 @@ matches = ['{"properties": [{"name": "Attacks per Second", "values": [["1.30", 0
 fails = ['{"properties": [{"name": "Attacks per Second", "values": [["1.60", 0]], "displayMode": 0}]}']
 
 [[case]]
-name = "critical chance"
+name = "critical chance: a weapon's, never a gem's (t44)"
 query = '{"filters": {"weapon_filters": {"filters": {"crit": {"min": 6}}}}}'
-text = 'critical_strike_chance>=6'
-fidelity = "ambiguous"
-statuses = { "weapon_filters.crit" = "ambiguous" }
+text = 'critical_strike_chance>=6 -category:gem'
+fidelity = "exact"
+statuses = { "weapon_filters.crit" = "exact" }
 matches = ['{"properties": [{"name": "Critical Strike Chance", "values": [["6.50%", 0]], "displayMode": 0}]}']
-fails = ['{"properties": [{"name": "Critical Strike Chance", "values": [["5.00%", 0]], "displayMode": 0}]}']
+fails = [
+  '{"properties": [{"name": "Critical Strike Chance", "values": [["5.00%", 0]], "displayMode": 0}]}',
+  '{"typeLine": "Fireball", "baseType": "Fireball", "rarity": "Normal", "frameType": 4, "properties": [{"name": "Critical Strike Chance", "values": [["6.50%", 0]], "displayMode": 0}]}',
+]
 
 [[case]]
 name = "damage per second"
@@ -334,10 +343,19 @@ fails = [
 
 [[case]]
 name = "the map filters no field reads"
-query = '{"filters": {"map_filters": {"filters": {"map_gold": {"min": 1}, "chart_sulphur": {"min": 1}, "chart_shape": {"option": "1"}, "map_series": {"option": "current"}, "map_blighted": {"option": "true"}, "map_uberblighted": {"option": "true"}, "map_completion_reward": {"option": "x"}}}}}'
+query = '{"filters": {"map_filters": {"filters": {"map_gold": {"min": 1}, "chart_sulphur": {"min": 1}, "chart_shape": {"option": "1"}, "map_series": {"option": "current"}, "map_uberblighted": {"option": "true"}, "map_completion_reward": {"option": "x"}}}}}'
 text = ''
 fidelity = "partial"
-statuses = { "map_filters.map_gold" = "unsupported", "map_filters.chart_sulphur" = "unsupported", "map_filters.chart_shape" = "unsupported", "map_filters.map_series" = "unsupported", "map_filters.map_blighted" = "unsupported", "map_filters.map_uberblighted" = "unsupported", "map_filters.map_completion_reward" = "unsupported" }
+statuses = { "map_filters.map_gold" = "unsupported", "map_filters.chart_sulphur" = "unsupported", "map_filters.chart_shape" = "unsupported", "map_filters.map_series" = "unsupported", "map_filters.map_uberblighted" = "unsupported", "map_filters.map_completion_reward" = "unsupported" }
+
+[[case]]
+name = "a blighted map: its type line's prefix (t55, t56)"
+query = '{"filters": {"map_filters": {"filters": {"map_blighted": {"option": "true"}}}}}'
+text = 'typeline~"^Blighted "'
+fidelity = "exact"
+statuses = { "map_filters.map_blighted" = "exact" }
+matches = ['{"typeLine": "Blighted Map (Tier 13)", "baseType": "Blighted Map (Tier 13)", "rarity": "Normal"}']
+fails = ['{"typeLine": "Map (Tier 13)", "baseType": "Map (Tier 13)", "rarity": "Normal"}']
 
 # ---- heist_filters ----------------------------------------------------------------------------
 
@@ -561,11 +579,11 @@ matches = ['{"explicitMods": ["+30% to Cold Resistance"]}', '{"implicitMods": ["
 fails = ['{"explicitMods": ["+70 to maximum Life"]}', '{"explicitMods": ["+30% to Fire Resistance"]}']
 
 [[case]]
-name = "not with a value: the bound written, the filter ambiguous"
+name = "not with a value: the bound's meeting excluded, never the stat's presence (t24)"
 query = '{"stats": [{"type": "not", "filters": [{"id": "implicit.stat_3299347043", "value": {"min": 60}}]}]}'
 text = '-sum(line("# to maximum Life" source=implicit).arg1)>=60'
-fidelity = "ambiguous"
-statuses = { "stats.0" = "exact", "stats.0.0" = "ambiguous" }
+fidelity = "exact"
+statuses = { "stats.0" = "exact", "stats.0.0" = "exact" }
 matches = ['{"implicitMods": ["+50 to maximum Life"]}', '{}']
 fails = ['{"implicitMods": ["+70 to maximum Life"]}']
 
@@ -625,11 +643,28 @@ matches = ['{"implicitMods": ["+30% to Fire Resistance", "+70 to maximum Life"]}
 fails = ['{"implicitMods": ["+30% to Cold Resistance", "+30% to Fire Resistance"]}', '{}']
 
 [[case]]
-name = "count with no bound is unsupported"
-query = '{"stats": [{"type": "count", "filters": [{"id": "implicit.stat_3372524247"}]}]}'
-text = ''
-fidelity = "partial"
-statuses = { "stats.0" = "unsupported", "stats.0.0" = "unsupported" }
+name = "a count with no bound restricts nothing, each filter the site's no-op (t37)"
+query = '{"stats": [{"type": "count", "filters": [{"id": "implicit.stat_3372524247"}, {"id": "implicit.stat_4220027924"}]}]}'
+text = 'true() true()'
+fidelity = "exact"
+statuses = { "stats.0" = "exact", "stats.0.0" = "exact", "stats.0.1" = "exact" }
+matches = ['{}', '{"implicitMods": ["+30% to Fire Resistance"]}']
+
+[[case]]
+name = "a weighted sum with no bound: one of its stats present (t38)"
+query = '{"stats": [{"type": "weight2", "filters": [{"id": "implicit.stat_3372524247", "value": {"weight": 1}}, {"id": "implicit.stat_4220027924", "value": {"weight": 1}}]}]}'
+text = 'line("#% to Fire Resistance" source=implicit) or line("#% to Cold Resistance" source=implicit)'
+fidelity = "exact"
+statuses = { "stats.0" = "exact", "stats.0.0" = "exact", "stats.0.1" = "exact" }
+matches = ['{"implicitMods": ["+30% to Fire Resistance"]}', '{"implicitMods": ["+5% to Cold Resistance"]}']
+fails = ['{}', '{"explicitMods": ["+30% to Fire Resistance"]}']
+
+[[case]]
+name = "a key a site object sends null is absent (u059: a socket filter's unset `a` and `d`)"
+query = '{"filters": {"socket_filters": {"filters": {"sockets": {"r": 2, "g": null, "b": null, "w": null, "a": null, "d": null, "min": 6, "max": null}}}}}'
+text = 'sockets>=6 sockets.red>=2'
+fidelity = "exact"
+statuses = { "socket_filters.sockets" = "exact" }
 
 [[case]]
 name = "weighted sum: one weight, one slot, the bound over the weight"

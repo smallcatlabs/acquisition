@@ -305,8 +305,6 @@ pub enum PercentileGap {
     TwinOfBothMarks,
     /// A twin text in an array J8 does not name (J33).
     TwinInAnotherArray,
-    /// A defence line in `crucibleMods` (J33).
-    CrucibleLine,
     /// No integer gives the display.
     NoRoll,
     /// The base's minimum is its maximum (J33).
@@ -335,7 +333,6 @@ impl PercentileGap {
             PercentileGap::TwinInAnotherArray => {
                 "the percentile: a twin text in an array no ruling names"
             }
-            PercentileGap::CrucibleLine => "the percentile: a defence line of a crucible node",
             PercentileGap::NoRoll => "the percentile: no roll gives the display",
             PercentileGap::MinimumIsMaximum => "the percentile: the base's minimum is its maximum",
             PercentileGap::SeveralValues => "the percentile: several rolls of different values",
@@ -353,7 +350,6 @@ impl PercentileGap {
             | PercentileGap::TwinOfNeitherMark
             | PercentileGap::TwinOfBothMarks
             | PercentileGap::TwinInAnotherArray
-            | PercentileGap::CrucibleLine
             | PercentileGap::NoRoll
             | PercentileGap::MinimumIsMaximum
             | PercentileGap::SeveralValues => ITEM_HINT,

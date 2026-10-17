@@ -949,16 +949,17 @@ fn describe_is_as_large_as_its_text_says() {
 }
 
 /// TRADE_ID of the CLI's `tests/search_json.rs`, the same search: the
-/// status listing-only, the life line at 70 or more on an explicit line,
-/// and a count with no bound of its own in the remainder.
-const TRADE_ID: &str = "H4sIAAAAAAAA_5WM0QqDMAxF_yXPZYgVRH9liBTNINClRdOxUfLvRgd73-s995wKuwQpO4wVUhZKDCMkjsQI6i5o7F5BPhkNBV7BwYOi4PYFtNqM7xxpIbmdwuzbYfBd33Tevq8QC575J1m7b1Qndb_ekgrLX0XTJz0AXIqRsbcAAAA";
+/// status listing-only, the explicit life lines' sum at 70 or more, and a
+/// crucible tree path in the remainder (a `count` with no bound until step
+/// 7f made it the site's no-op).
+const TRADE_ID: &str = "H4sIAAAAAAAA_5XM0QrCMAyF4XfJdZFhB2N7FRlSuwiB2JYtFUfJu5speO9t_pyvwSZB6gZTg1yEcoIJcmJKCOo-0dqlgewFLYW0gIM7seD6DbTYGV-FKZKcjsHVn8fR90PXe_t9Bq548A8ye-hUZ3U_L6410o3xL9SEWd8TZHM0ugAAAA";
 
 /// C113, step 5 of the trade brief: the `query` takes `{"trade": …}` —
 /// a URL, an id or the query JSON as a string, or the JSON as an object —
 /// and answers as `acq search --request` does, its report under
-/// `query.trade`. Worked by hand over the fixture: the life line at 70
-/// or more on an explicit line holds of r1 (95), r2 (75 explicit) and
-/// kaom (500) — 3. A `next` keeps the site search and its label; a text
+/// `query.trade`. Worked by hand over the fixture: the explicit life
+/// lines' sum at 70 or more holds of r1 (95), r2 (75 explicit) and kaom
+/// (500) — 3. A `next` keeps the site search and its label; a text
 /// beside it that is not its translation is refused; a scope realm beside
 /// a URL is the URL's or nothing; `describe` names `trade`.
 #[test]

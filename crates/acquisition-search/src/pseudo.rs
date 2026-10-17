@@ -103,13 +103,12 @@
 //!     implicit twin on an item of neither mark, seen nowhere, cannot be
 //!     established and the field is undecided there with that reason
 //!     (C93). A text only a local stat displays is the item's own
-//!     whatever its array, a crucible node's apart (J33, below). The
+//!     whatever its array, a crucible node's too (J33, below). The
 //!     definition prints the counts each part rests on.
 //!   - *A value only where the item fixes one (J33, 2026-10-08).* The
 //!     field is a value only where what the item shows gives one value
 //!     from lines whose side is established; anywhere else it is
-//!     undecided, the reason saying which part failed: a defence line in
-//!     `crucibleMods`, the site not asked; a twin text in another array
+//!     undecided, the reason saying which part failed: a twin text in another array
 //!     J8 does not name; an implicit twin on an item eldritch and
 //!     synthesised; a base ranging a defence the item does not display; a
 //!     base whose minimum is its maximum; a display several rolls give at
@@ -136,9 +135,10 @@
 //!   line of `crucibleMods` or `utilityMods`, and neither array unread
 //!   leaves a total open. A reading follows the totals it reads and has
 //!   no rule of its own; a damage field reads properties, never lines.
-//!   J29 is not the percentile's rule: it reads every array of lines, is
-//!   undecided on a defence line of `crucibleMods` (J33), and an array it
-//!   reads that is no array leaves it open.
+//!   J29 is not the percentile's rule: it reads every array of lines, a
+//!   defence line of `crucibleMods` the item's own since the site was
+//!   asked (t54, step 7f of the trade brief; J33 had it undecided until
+//!   then), and an array it reads that is no array leaves it open.
 //! - **C101 — the readings of other totals** (the build plan, step 9c3;
 //!   owner, 2026-09-26: "They should be present at launch."). Four of the
 //!   trade site's pseudos are no sum of lines and so no total: each reads
@@ -263,8 +263,8 @@
 //!   the item has no base; the base is not in the table, is held more
 //!   than once with nothing telling which, or no row of it has every
 //!   defence it ranges displayed; an implicit twin on an item of neither
-//!   mark, or of both; a twin text in an array no ruling names; a
-//!   defence line of a crucible node; no roll gives the display; the
+//!   mark, or of both; a twin text in an array no ruling names; no roll
+//!   gives the display; the
 //!   base's minimum is its maximum; several rolls give different values.
 //!   A reason of a line whose side is open says what each reading would
 //!   give, where both can be worked.
@@ -419,7 +419,7 @@ impl Derived {
                 self.definition()
             }
             Derived::DefencePct => format!(
-                "the trade site's Base Percentile, by the site's own rule — \"{SITE_TIP}\": each of `Armour`, `Evasion Rating`, `Energy Shield` and `Ward` that the item's base ranges is worked back from the number displayed to the roll behind it, a roll being any whole number whose display is the item's — (the roll + what the item's own lines add) × (1 + the item's own increases) × (1 + the quality displayed), rounded half up — and the value is each roll's place in the base's range as a percentage, averaged over the defences and rounded half up to a whole number. One departure from the site's words: a display at an exact half admits both whole numbers as rolls. Under `Quality does not increase Defences` the quality is dropped. A line whose text a global stat displays too, a twin text, is told by where it sits: an explicit is the item's own; an implicit on an eldritch item, `searing` or `tangled`, is the global stat and left out; an implicit on a synthesised item is the item's own. A roll out of the base's range still reads, over 100 above its maximum and below 0 under its minimum, which no capture has shown: a line misread can show a number out of range. An item displaying none of the four defences lacks it. It is undecided, with the reason, wherever what the item shows does not give one value from lines whose side is established: in a realm with no table, on every item; a base the table lacks, holds more than once with nothing telling which, or no row of which fits what is displayed; a property, an array or a line unread; a twin implicit on an item of neither mark, of both, or whose mark is unread; a twin text in any other array; a line of a crucible node that the field reads, of which the site has not yet been asked; no roll giving the display; a base whose minimum is its maximum; several rolls giving different values. A defence bound on the trade site is inexact."
+                "the trade site's Base Percentile, by the site's own rule — \"{SITE_TIP}\": each of `Armour`, `Evasion Rating`, `Energy Shield` and `Ward` that the item's base ranges is worked back from the number displayed to the roll behind it, a roll being any whole number whose display is the item's — (the roll + what the item's own lines add) × (1 + the item's own increases) × (1 + the quality displayed), rounded half up — and the value is each roll's place in the base's range as a percentage, averaged over the defences and rounded half up to a whole number. One departure from the site's words: a display at an exact half admits both whole numbers as rolls. Under `Quality does not increase Defences` the quality is dropped. A line whose text a global stat displays too, a twin text, is told by where it sits: an explicit is the item's own; an implicit on an eldritch item, `searing` or `tangled`, is the global stat and left out; an implicit on a synthesised item is the item's own; a crucible node's line is the item's own, as the site reads it. A roll out of the base's range still reads, over 100 above its maximum and below 0 under its minimum, which no capture has shown: a line misread can show a number out of range. An item displaying none of the four defences lacks it. It is undecided, with the reason, wherever what the item shows does not give one value from lines whose side is established: in a realm with no table, on every item; a base the table lacks, holds more than once with nothing telling which, or no row of which fits what is displayed; a property, an array or a line unread; a twin implicit on an item of neither mark, of both, or whose mark is unread; a twin text in any other array; no roll giving the display; a base whose minimum is its maximum; several rolls giving different values. A defence bound on the trade site is inexact."
             ),
         }
     }
@@ -1312,7 +1312,9 @@ fn percentile(held: &Held) -> Result<Percentile<'_>, Inputs<'_>> {
             }
             // whose the line is; `None` where it is the global stat's
             let side: Option<Result<(), Option<PercentileGap>>> = match line.source.as_str() {
-                "crucible" => Some(Err(Some(PercentileGap::CrucibleLine))),
+                // a crucible node's line is the item's own, as the site
+                // reads it (t54; J33's "until the site is asked", asked)
+                "crucible" => Some(Ok(())),
                 _ if !row.twin => Some(Ok(())),
                 "explicit" => Some(Ok(())),
                 "implicit" => match &mark {
@@ -1408,12 +1410,6 @@ fn percentile(held: &Held) -> Result<Percentile<'_>, Inputs<'_>> {
         for (why, line, _) in &sides {
             let text = line.text.replace('\n', " / ");
             match why {
-                Some(PercentileGap::CrucibleLine) => reasons.push(gap(
-                    PercentileGap::CrucibleLine,
-                    format!(
-                        "`{text}` is a defence line of a crucible node, and the trade site has not been asked whether it reads one{readings}"
-                    ),
-                )),
                 Some(PercentileGap::TwinInAnotherArray) => reasons.push(gap(
                     PercentileGap::TwinInAnotherArray,
                     format!(

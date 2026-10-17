@@ -139,6 +139,9 @@ CITES = {
     "J33": "LEDGER 9d, J33 (2026-10-08): the percentile is a value only where what the item shows gives one "
            "value from lines whose side is established; anywhere else it is undecided, and the reason says "
            "which part failed",
+    "t54": "the trade brief's step 7 (search/TRADE-PLAN.md, `What step 7 found`; the owner, 2026-10-16: "
+           "`I accept all your recommendations`): the site reads a defence line in `crucibleMods` as the "
+           "item's own (t54: 59) — J33's `until the site is asked`, asked; built at step 7f",
     "J34": "LEDGER 9d, J34 (2026-10-08; the owner: `keep reads over 100`): a roll over the base's maximum "
            "reads over 100, and one under its minimum below 0",
     "J35": "LEDGER 9d, J35 (2026-10-08; the owner: `undecided`): in a realm with no table the field is "
@@ -213,8 +216,8 @@ STEPS = {
                         ["J33", "J8-unmarked"]),
     "twin-other-array": ("a twin text in an array J8 does not name, `crucibleMods` apart: undecided",
                          ["J33", "J8-unmarked"]),
-    "crucible-line": ("a defence line in `crucibleMods` of a type a roll reads: undecided, the site not "
-                      "asked", ["J33"]),
+    "crucible-line": ("a defence line in `crucibleMods` of a type a roll reads: the item's own, as the "
+                      "site reads it", ["t54"]),
     "flat-range": ("a base whose minimum is its maximum: no percentile, undecided", ["J33"]),
     "several-values": ("more than one roll gives a display, and the rolls give different values: undecided",
                        ["J33"]),
@@ -509,7 +512,7 @@ def read(tables, item, broken=None):
                     left.append(line)
                     continue
                 if array == "crucibleMods":
-                    rule, became = "crucible-line", "open"  # J33
+                    rule, became = "crucible-line", "own"  # t54, J33's question answered
                 elif not twin:
                     # the join: a text only a local stat displays is the item's own
                     rule, became = "local-only", "own"
@@ -676,8 +679,7 @@ def read(tables, item, broken=None):
         cause = {"twin-unmarked": "an implicit twin on an item of neither mark",
                  "mark-unread": "an implicit twin on an item whose mark is unread",
                  "twin-both-marks": "an implicit twin on an item both eldritch and synthesised",
-                 "twin-other-array": f"a twin text in `{opened[0]['array']}`",
-                 "crucible-line": "a defence line in `crucibleMods`"}[rule]
+                 "twin-other-array": f"a twin text in `{opened[0]['array']}`"}[rule]
         return answer("undecided", steps, cause=f"{cause}: {opened[0]['row']}", types=without[3],
                       readings=[("were it the item's own", said(with_it)), ("were it left out", said(without))],
                       **common)
@@ -1067,7 +1069,7 @@ RULED = [
     ("r-twin-other-array", "J33: a twin text in an array J8 does not name",
      has("twin-other-array"),
      composed("pc", "Plate Vest", "Rare", [("Armour", "40")], line("+17 to Armour", "scourgeMods"))),
-    ("r-crucible-line", "J33: a defence line in `crucibleMods`",
+    ("r-crucible-line", "t54: a defence line in `crucibleMods` is the item's own",
      has("crucible-line"),
      composed("pc", "Plate Vest", "Rare", [("Armour", "23")], line("19% increased Armour", "crucibleMods"))),
     ("r-array-no-array", "rule 8: an array that is no array is unread",
@@ -1201,6 +1203,8 @@ QUESTION = {
                        "`{m}`, is of a type its base ranges none of?",
     "enchant": "does the site show the reading's value of an item whose `{t}` sits in `{a}` on an item of "
                "the mark `{m}` — the quality term dropped?",
+    "crucible-line": "does the site show the reading's value of an item whose `{t}` sits in `{a}` — the "
+                     "crucible node's line the item's own, as t54's was?",
 }
 SHAPE_QUESTION = {
     "C10": "does the site show over 100 of an item whose display no roll of the base's range gives and one "

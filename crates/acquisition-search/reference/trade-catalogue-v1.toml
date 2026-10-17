@@ -138,10 +138,10 @@ note = "online, available, securable: the seller's state, not the item's"
 key = "query.term"
 text = "Search"
 shape = "input"
-disposition = "ambiguous"
-lands = "(name:{value} or typeline:{value})"
-fields = ["name", "typeline"]
-note = "the site's free-text box matches names and bases by its own index; `:` is a contains test on each"
+disposition = "exact"
+lands = "(name={value} or base={value})"
+fields = ["name", "base"]
+note = "the site's free-text box matches a whole name (w06: `The Anvil`) or a whole base (w07: `Amber Amulet`, a magic `Amber Amulet of the Meteor` among them), never a word of one (t50: `Anvil`, t51: `nvil`, nothing)"
 
 [[row]]
 key = "query.name"
@@ -215,10 +215,10 @@ note = "an item with no rarity — a gem, a currency stack — is not unique and
 [[row]]
 key = "type_filters.rarity=uniquefoil"
 text = "Item Rarity: Unique (Foil)"
-disposition = "ambiguous"
+disposition = "exact"
 lands = "rarity=unique is:isRelic"
 fields = ["rarity", "is"]
-note = "the census met no foil frame; `isRelic` is the body's mark on a relic unique, and whether the site's foil is that mark is for a sitting"
+note = "the body's mark on a relic unique, `isRelic`, which the site's foil reads (t52, beside t53's plain uniques)"
 
 # ---- weapon_filters -----------------------------------------------------
 
@@ -241,10 +241,10 @@ fields = ["attacks_per_second"]
 key = "weapon_filters.crit"
 text = "Critical Chance"
 shape = "minmax"
-disposition = "ambiguous"
-lands = "critical_strike_chance{bounds}"
-fields = ["critical_strike_chance"]
-note = "the field reads `Critical Strike Chance` wherever it is displayed: on the census copy of 2026-09-13, 1,047 weapons (property type 12) and 973 gems (untyped); whether the site's weapon filter matches a gem is for a sitting — the owner, 2026-10-15, verbatim: \"Let's use a sitting to resolve this so that it's aligned with the trade site searches.\""
+disposition = "exact"
+lands = "critical_strike_chance{bounds} -category:gem"
+fields = ["critical_strike_chance", "category"]
+note = "the displayed `Critical Strike Chance` of a weapon: the field reads it wherever it is displayed, a spell gem's too (on the census copy of 2026-09-13, 1,047 weapons and 973 gems), and the site's weapon filter finds no gem (t44, beside t45's gems), so a gem is left out by its category"
 
 [[row]]
 key = "weapon_filters.dps"
@@ -473,15 +473,17 @@ note = "which series a map base belongs to is reference data no table here carri
 key = "map_filters.map_blighted"
 text = "Blighted Map"
 shape = "option"
-disposition = "unsupported"
-note = "the type line's `Blighted` prefix is readable by hand (`typeline~\"^Blighted \"`); whether the site reads the prefix or a mark is for a sitting"
+disposition = "exact"
+lands = 'typeline~"^Blighted "'
+fields = ["typeline"]
+note = "the type line's `Blighted` prefix, which the site's filter reads (t55: ten `Blighted Map (Tier 13)`; t56, `false`, none); `false` is the not of it"
 
 [[row]]
 key = "map_filters.map_uberblighted"
 text = "Blight-ravaged Map"
 shape = "option"
 disposition = "unsupported"
-note = "as `map_filters.map_blighted`"
+note = "a `Blight-ravaged` map: whether the site reads its type line's prefix as `map_blighted`'s, or a mark, no sitting has asked"
 
 [[row]]
 key = "map_filters.map_completion_reward"
@@ -917,7 +919,7 @@ text = "Crucible Item"
 shape = "option"
 disposition = "ambiguous"
 lands = "line(source=crucible)"
-note = "an item with a crucible line; whether the site's mark means the tree or an allocated node is for a sitting"
+note = "an item with a crucible line; whether the site's mark means the tree or an allocated node, t54 asked, and the ten it fetched did not part the two readings"
 
 [[row]]
 key = "misc_filters.mutated"
@@ -979,7 +981,7 @@ note = "each filter a term of the query, as if no group held it; the one group t
 key = "stats.not"
 text = "Not"
 disposition = "exact"
-note = "`-(a or b …)`, `-a` for one filter, each filter as it lands alone; whole or not at all; a filter carrying a value is ambiguous — whether the site excludes the stat's presence or its meeting the bound is for a sitting"
+note = "`-(a or b …)`, `-a` for one filter, each filter as it lands alone; whole or not at all; a filter carrying a value excludes the bound's meeting, never the stat's presence (t24: rings with Life under 100 beside a `not` at `min` 100)"
 
 [[row]]
 key = "stats.if"
@@ -991,13 +993,13 @@ note = "per stat, a term of the query, by the site's tip: match if the stat is p
 key = "stats.count"
 text = "Count"
 disposition = "exact"
-note = "`holds(a, b …)=min..max`, each filter as it lands alone: by the site's tip, each stat that meets its bound counts; the group's bounds whole numbers, one at least, or unsupported — what the site makes of a count with none is unasked; whole or not at all"
+note = "`holds(a, b …)=min..max`, each filter as it lands alone: by the site's tip, each stat that meets its bound counts; the group's bounds whole numbers, one at least, or unsupported; with no bound it restricts nothing (t37), each filter the site's own no-op, `true()`; whole or not at all"
 
 [[row]]
 key = "stats.weight"
 text = "Weighted Sum"
 disposition = "exact"
-note = "`sum(line((T source) or …).slot)=min/w..max/w`: only with one weight w above zero on every stat, no per-stat bound, a bound on the group whose quotient by w is an exact decimal, a line for every stat and one slot (the same `#` of each, or `avg` on ranged lines alone); otherwise unsupported whole (K5: the guard a per-stat bound adds has no representation); S57"
+note = "`sum(line((T source) or …).slot)=min/w..max/w`: only with one weight w above zero on every stat, no per-stat bound, a bound on the group whose quotient by w is an exact decimal, a line for every stat and one slot (the same `#` of each, or `avg` on ranged lines alone); otherwise unsupported whole (K5: the guard a per-stat bound adds has no representation); S57. With no bound on the group, one of its stats present (t38): `(P1 or P2 …)`, each stat's presence"
 
 [[row]]
 key = "stats.weight2"

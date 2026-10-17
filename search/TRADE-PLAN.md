@@ -405,12 +405,20 @@ table's rows with their weights (`totals.rs`, *a weight*), and
   increase Physical Damage`, which every capture carried at 20 % or more:
   read now as the defences read their enchant, and asked below 20 %. The
   third, the findings below, is step 7f's.
-- Not built, from "What step 7 found", none a row of the oracle: the free
-  text a whole name or base (t50, t51, w06, w07); a `count` with no bound
-  restricting nothing (t37), a weighted sum with none needing one stat
-  (t38); a `not` with a value read as the bound's meeting (t24), written
-  so and still labelled; `uniquefoil` the relic mark (t52);
-  `map_blighted` the `Blighted` prefix (t55, t56); a key a site object
-  sends null absent (u059); `crit` reading no gem (t44). Each still
-  stands as the catalogue labels it, for the owner to place before the
-  seat.
+- Step 7f (2026-10-17; the owner: "yes, go ahead, including 7f") built
+  what "What step 7 found" settled outside the oracle's rows: the free
+  text a whole name or base, `(name=T or base=T)` (w06, w07; t50, t51); a
+  `count` with no bound the site's no-op (t37), a weighted sum with none
+  one of its stats present (t38); a `not` with a value exact, the bound's
+  meeting excluded (t24); `uniquefoil` the relic mark (t52);
+  `map_blighted` the `Blighted` prefix (t55, t56), its `uberblighted`
+  unasked; a key a site object sends null absent (u059); `crit` no gem's,
+  `-category:gem` (t44); and J33's crucible line the item's own in the
+  percentile (t54: 59; the copy 2,250 and 98). The catalogue 143 rows, 80
+  exact, 18 ambiguous, 36 unsupported. Five partial searches now run, 50
+  items, 40 matched; t55's ten are a new question, `blighted-base`: the
+  site's Base reads `Blighted Map (Tier 13)` as `Map (Tier 13)`. The oracle
+  765 searches, 7,185 items, 6,587 matched, 598 missed in 65 rows. Left as
+  they were, each its note's: the crucible mark (t54 did not part its
+  readings), which number a many-numbered text compares, the scourge line
+  in a sum (e043), and the step-7 opens above.

@@ -170,9 +170,31 @@ fn guard(t: &Translation) -> Result<(), String> {
                         .iter()
                         .any(|f| f.at.starts_with(&inside) && f.status.runs())
                 };
+                // a count or a weighted sum with no bound of its own writes
+                // no node of its own (t37, t38), the latter where one stat
+                // is its presence alone
+                let unbounded = by_at.get(c.at.as_str()).is_some_and(|g| {
+                    ["min", "max"]
+                        .iter()
+                        .all(|k| g.site["value"].get(k).is_none_or(Json::is_null))
+                });
+                let running = t
+                    .clauses
+                    .iter()
+                    .filter(|f| f.at.starts_with(&inside) && f.status.runs())
+                    .count();
                 let ownless = matches!(group_row(&c.at), Some("stats.and" | "stats.if"))
+                    || (group_row(&c.at) == Some("stats.count") && unbounded)
+                    || (matches!(group_row(&c.at), Some("stats.weight" | "stats.weight2"))
+                        && unbounded
+                        && running == 1)
                     || (group_row(&c.at).is_some() && none_runs())
-                    || matches!(group_row(group_of), Some("stats.weight" | "stats.weight2"));
+                    || (matches!(group_row(group_of), Some("stats.weight" | "stats.weight2"))
+                        && !by_at.get(group_of).is_some_and(|g| {
+                            ["min", "max"]
+                                .iter()
+                                .all(|k| g.site["value"].get(k).is_none_or(Json::is_null))
+                        }));
                 if !ownless {
                     return Err(format!("{} runs and owns no path", c.at));
                 }

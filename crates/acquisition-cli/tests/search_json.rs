@@ -2594,11 +2594,12 @@ fn a_refusal_offers_requests_beside_its_readings() {
 
 /// A site search composed for these tests in the site's own form — its
 /// query object gzipped and base64url-encoded (S56) — over the fixture:
-/// `{"status":{"option":"online"},"stats":[{"type":"and","filters":[{"id":"explicit.stat_3299347043","value":{"min":70}}]},{"type":"count","filters":[{"id":"explicit.stat_3299347043"}]}]}`:
+/// `{"status":{"option":"online"},"stats":[{"type":"and","filters":[{"id":"explicit.stat_3299347043","value":{"min":70}}]},{"type":"crucible","filters":[{"id":"explicit.stat_3299347043"}]}]}`:
 /// the status listing-only, the life line with its bound exact, and a
-/// count with no bound of its own, unsupported — so the translation is
-/// partial.
-const TRADE_ID: &str = "H4sIAAAAAAAA_5WM0QqDMAxF_yXPZYgVRH9liBTNINClRdOxUfLvRgd73-s995wKuwQpO4wVUhZKDCMkjsQI6i5o7F5BPhkNBV7BwYOi4PYFtNqM7xxpIbmdwuzbYfBd33Tevq8QC575J1m7b1Qndb_ekgrLX0XTJz0AXIqRsbcAAAA";
+/// crucible tree path, unsupported — so the translation is partial. (A
+/// `count` with no bound stood there until step 7f made it the site's
+/// no-op.)
+const TRADE_ID: &str = "H4sIAAAAAAAA_5XM0QrCMAyF4XfJdZFhB2N7FRlSuwiB2JYtFUfJu5speO9t_pyvwSZB6gZTg1yEcoIJcmJKCOo-0dqlgewFLYW0gIM7seD6DbTYGV-FKZKcjsHVn8fR90PXe_t9Bq548A8ye-hUZ3U_L6410o3xL9SEWd8TZHM0ugAAAA";
 
 fn trade_url() -> String {
     format!("https://www.pathofexile.com/trade/search/Standard/{TRADE_ID}")
@@ -2680,7 +2681,7 @@ fn c113_a_site_search_url_runs_labelled_and_its_printed_request_reads_back() {
         "trade   from a URL: PARTIAL — 2 clauses not run, so this is not the site's search"
     );
     assert!(
-        lines[1].starts_with("        NOT RUN   stats.1    unsupported whole: it has no bound"),
+        lines[1].starts_with("        NOT RUN   stats.1    a path of nodes to allocate at once"),
         "{shown}"
     );
     assert!(

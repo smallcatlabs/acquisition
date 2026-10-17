@@ -521,7 +521,9 @@ of 478. The field is worked for the items an ask reaches and for no
 other, and the defence table, 476 base rows and 22 texts, is parsed
 once. Over the copy, all realms: 2,249 items have the field, 20,373
 lack it, 99 are undecided — 98 by the realm and 1 by a crucible line
-— which is `search/pseudo-stats/data/percentile-expected-copy.csv`'s;
+— which is `search/pseudo-stats/data/percentile-expected-copy.csv`'s
+(since the trade import's step 7f, 2,250 and 98: a crucible node's line
+the item's own, as the site reads it, t54);
 none reads over 100 or below 0. The M3 run itself ran while the
 session edited beside it, and its first asks read high; six were asked
 again alone, as its row says.
