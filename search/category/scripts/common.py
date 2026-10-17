@@ -26,7 +26,7 @@ ROOT = os.path.dirname(SEARCH)
 DATA = os.path.join(TRACK, "data")
 
 sys.path.insert(0, os.path.join(ROOT, "tools"))
-from sources import APT, COPY, POB, POE1, require  # noqa: E402  the clones, pinned; the copy, local
+from sources import APT, COPY, POE1, require  # noqa: E402  the clones, pinned; the copy, local
 
 TQ = os.path.join(SEARCH, "trade-query", "data")
 TABLE = os.path.join(ROOT, "crates", "acquisition-search", "reference", "classes-v1.toml")
@@ -224,62 +224,3 @@ def apt():
         else:
             unmapped[j["name"]] = cat
     return place_, unmapped, cmap, beasts
-
-
-POB_SLOT = {  # the slot a base of the type is equipped in; getTradeCategory reads the slot first
-    "Body Armour": "Body Armour", "Helmet": "Helmet", "Gloves": "Gloves", "Boots": "Boots",
-    "Amulet": "Amulet", "Ring": "Ring 1", "Belt": "Belt", "Flask": "Flask 1", "Jewel": "Jewel",
-    "Shield": "Weapon 2", "Quiver": "Weapon 2",
-}
-
-
-def pob():
-    """Path of Building: every base in src/Data/Bases/*.lua with its type and subType, placed by
-    M.getTradeCategory (src/Classes/TradeHelpers.lua), whose branches are read from the file, not
-    transcribed. Returns (placements {name: id or ''}, info {name: (type, subType, file)}, the function's line)."""
-    require(POB)
-    info = {}
-    bdir = os.path.join(POB, "src", "Data", "Bases")
-    for fn in sorted(os.listdir(bdir)):
-        if not fn.endswith(".lua"):
-            continue
-        text = open(os.path.join(bdir, fn), encoding="utf-8").read().replace("\r", "")
-        for m in re.finditer(r'^itemBases\["([^"]+)"\] = \{\n(.*?)^\}', text, re.M | re.S):
-            body = m.group(2)
-            t = re.search(r'^\ttype = "([^"]+)"', body, re.M)
-            s = re.search(r'^\tsubType = "([^"]+)"', body, re.M)
-            info[m.group(1)] = (t.group(1) if t else "", s.group(1) if s else "", fn)
-    lua = open(os.path.join(POB, "src", "Classes", "TradeHelpers.lua"), encoding="utf-8").read().replace("\r", "")
-    lines = lua.split("\n")
-    start = next(i for i, l in enumerate(lines) if l.startswith("function M.getTradeCategory("))
-    end = next(i for i in range(start, len(lines)) if lines[i] == "end")
-    fn_text = lines[start:end + 1]
-    by_type = dict(re.findall(r'itemType == "([^"]+)" then return "([^"]+)"', "\n".join(fn_text)))
-    finds = re.findall(r'itemType:find\("([^"]+)"\) then return "([^"]+)"', "\n".join(fn_text))
-    slot_eq = {}
-    for l in fn_text:
-        m = re.search(r'return "([^"]+)"', l)
-        if m and "slotName ==" in l:
-            for s in re.findall(r'slotName == "([^"]+)"', l):
-                slot_eq[s] = m.group(1)
-    slot_find = [(s, m) for s, m in re.findall(r'slotName:find\("([^"]+)"\) then return "([^"]+)"', "\n".join(fn_text))]
-
-    def trade(typ, sub):
-        slot = "Abyssal Socket" if (typ == "Jewel" and sub == "Abyss") else POB_SLOT.get(typ, "Weapon 1" if typ not in ("Graft", "Tincture") else None)
-        if slot is None:
-            return ""
-        if re.match(r"^Weapon \d", slot):
-            if typ in by_type:
-                return by_type[typ]
-            for pat, tid in finds:
-                if pat in typ:
-                    return tid
-            return "weapon"
-        if slot in slot_eq:
-            return slot_eq[slot]
-        for pat, tid in slot_find:
-            if pat in slot:
-                return tid
-        return ""
-
-    return {n: trade(t, s) for n, (t, s, _) in info.items()}, info, start + 1
