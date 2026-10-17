@@ -64,19 +64,14 @@ range — `git log` — and nothing restates it.
 
 ## Procedures (loaded when needed; one home each)
 
+Each skill's own description says when it applies.
+
 - Live run: `.claude/skills/live-run/SKILL.md`
-- Mock session (isolation, scripted login, rehearsals):
-  `.claude/skills/mock-session/SKILL.md`
-- Session close (route what you learned; run before your last commit):
-  `.claude/skills/session-close/SKILL.md`
-- Research track (a subagent under a committed brief, then review and
-  commit): `.claude/skills/research-track/SKILL.md`
-- Seat (a blind subagent at the tool as its user, under a committed
-  brief and through one logging door; the fix round and the rerun):
-  `.claude/skills/seat/SKILL.md`
-- Site sitting (asking the trade site what a computed value counts: the
-  searches, the owner's recorded sitting, the captures read):
-  `.claude/skills/site-sitting/SKILL.md`
+- Mock session: `.claude/skills/mock-session/SKILL.md`
+- Session close: `.claude/skills/session-close/SKILL.md`
+- Research track: `.claude/skills/research-track/SKILL.md`
+- Seat: `.claude/skills/seat/SKILL.md`
+- Site sitting: `.claude/skills/site-sitting/SKILL.md`
 
 ## Quality gate, kept green by every change
 
