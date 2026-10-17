@@ -1213,3 +1213,10 @@ query = '{"stats": null, "name": null, "filters": {"map_filters": {"filters": {"
 text = ''
 fidelity = "exact"
 statuses = {}
+
+[[case]]
+name = "a stat's bounds that run backwards: the filter unsupported with the binder's words, never the whole (the outside review of 6fdcc581)"
+query = '{"stats": [{"type": "and", "filters": [{"id": "explicit.stat_3299347043", "value": {"min": 12, "max": 0}}, {"id": "explicit.stat_3372524247"}]}]}'
+text = 'line("#% to Fire Resistance" source=explicit)'
+fidelity = "partial"
+statuses = { "stats.0" = "exact", "stats.0.0" = "unsupported", "stats.0.1" = "exact" }

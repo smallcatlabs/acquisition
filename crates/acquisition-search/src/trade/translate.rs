@@ -1492,6 +1492,16 @@ impl Translator<'_> {
             }
             _ => presence.node,
         };
+        // the node made here is bound alone, as a row's text and a group's
+        // node are: one the binder refuses — a bound that runs backwards —
+        // is this clause unsupported with its words, never the whole
+        // translation's defect (the outside review of 6fdcc581)
+        if let Some(Err(why)) = node.as_ref().map(alone) {
+            let mut unknown = self.unknown_landed(&why)?;
+            unknown.rows.insert(0, key.clone());
+            read.landed = unknown;
+            return Ok(read);
+        }
         read.landed = Landed {
             status,
             rows,
