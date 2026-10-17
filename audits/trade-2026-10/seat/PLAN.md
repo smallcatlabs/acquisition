@@ -2,7 +2,7 @@
 
 Step 8 of `search/TRADE-PLAN.md`, run by the seat skill
 (`.claude/skills/seat/SKILL.md`), the third seat of the search and the
-first on two surfaces. This file is the brief the writing and
+first on two surfaces and two models. This file is the brief the writing and
 orchestrating session runs under; it is deleted at the audit's close
 and cited at its commit. The record is this directory's `README.md`
 (the runs, their call counts, one row per fault with its fate) and
@@ -15,8 +15,7 @@ whatever order is going to be most effective at getting actionable
 feedback"; "i want to give the agents one open-ended question at the
 end so they can provide answers to questions we haven't thought to ask
 and/or expand on their existing answers, too"; "I'm also ok doing all
-of this in serial so we don't have to worry about concurrency"; the
-store: "Let's use GERWARIC since I have the most equipment there."
+of this in serial so we don't have to worry about concurrency"; the store: "Let's use GERWARIC since I have the most equipment there."; the models: Opus 5.5 for the session and the first round, then "i like the idea of a sonnet round after an opus round. let's do that regardless."
 
 ## Roles, and what each reads
 
@@ -29,8 +28,14 @@ store: "Let's use GERWARIC since I have the most equipment there."
   It knows the open questions so the tasks reach them; no brief it
   writes says what it expects to be found. It never runs a task
   itself. Its last message is the handoff below.
-- **The CLI runner, the MCP runner** — two fresh subagents, one each,
-  the second launched only after the first's debrief is written. Each
+- **The runners** — four fresh `general-purpose` subagents, never a
+  fork (a fork inherits the session's context and is not blind), the
+  model set on the call: the Opus round, CLI then MCP, then the Sonnet
+  round, CLI then MCP, each launched only after the previous debrief is
+  written and its files committed. The Sonnet round asks whether the
+  tool's words carry a smaller model, the release's audience; a fault
+  one model met and the other did not is a finding of its own kind.
+  Each
   reads its brief and, for the CLI, the copy of README's tour in its
   world; the MCP runner's tour is the server's own instructions and
   tool texts, delivered over the protocol as at 11c (`search/LEDGER.md`),
@@ -94,37 +99,44 @@ store: "Let's use GERWARIC since I have the most equipment there."
    the owner's home, one directory per surface holding the brief, the
    tour copy (CLI), the door, the binaries and the store; nothing else.
    *Acceptance:* the door's setup reports the world; no build runs from
-   here until step 6 (C84: a build replaces nothing a runner holds,
+   here until step 7 (C84: a build replaces nothing a runner holds,
    because the runner holds copies — the rule stands anyway).
-3. **The CLI run.** One general-purpose subagent, its prompt the brief's
-   path and the prohibitions, nothing of what is expected. When its
+3. **The Opus CLI run.** One subagent, model Opus 5.5, its prompt the
+   brief's path and the prohibitions, nothing of what is expected. When its
    report is written, a second message carries the debrief, answered
    through the door. `calls.csv`, `REPORT.md`, `DEBRIEF.md` copied into
    this directory and committed as the run's record. *Acceptance:* the
    report cites calls by number; the debrief's last answer is to the
    open question.
-4. **The MCP run.** The same, a fresh subagent, launched after step 3's
-   files are committed; its prompt carries nothing of step 3.
-5. **Reproduction.** Every claimed fault reproduced in a scratch mock
+4. **The Opus MCP run.** The same, a fresh subagent, launched after
+   step 3's files are committed; its prompt carries nothing of step 3.
+5. **The Sonnet round.** The CLI run and then the MCP run again, model
+   Sonnet 5.5, the same briefs unchanged, each in a fresh world made
+   from the same store copy, each committed as its own run (`-opus`,
+   `-sonnet` in the file names); their prompts carry nothing of the
+   Opus round.
+6. **Reproduction.** Every claimed fault reproduced in a scratch mock
    world (the mock-session skill) before it is believed; the record
    says how many calls were read against each report. A fault that is
    a ruling's consequence — the stat-value park's trigger meeting its
    evidence, `blighted-base`, `scourge-in-sum` — goes to the owner
    before the round, not to the reviewer. A difference between the two
    surfaces' answers to one task is a finding of its own.
-6. **The fix round.** One commit per fault, each held by a test in
+7. **The fix round.** One commit per fault, each held by a test in
    `crates/acquisition-cli/tests/seat_faults.rs` or the MCP's tests,
    named for the fault; what waits is a park with its trigger marked
    fired; references regenerated after help changes; the gate run bare.
-7. **The reruns.** For each surface whose words the round changed: the
+8. **The reruns.** For each surface whose words the round changed: the
    first run's files renamed (`-1`), its world moved aside, the release
-   built again and copied, a fresh world, a fresh runner, the debrief
+   built again and copied, a fresh world, a fresh runner with the model
+   whose run met the fault (both models where both met it), the debrief
    again.
-8. **Review 2**, outside: the round against the reports and debriefs,
+9. **Review 2**, outside: the round against the reports and debriefs,
    `calls.csv` beside them; its findings fixed by one rule, never per
    case.
-9. **Close.** This directory's `README.md` — the runs, call counts and
-   trees, one row per fault with its fate (a commit, a park, or why it
+10. **Close.** This directory's `README.md` — the runs with their
+   model, call counts and trees, one row per fault with the runs that
+   met it and its fate (a commit, a park, or why it
    is no fault), the debriefs' answers routed (a finding, a park, a
    README gap, or dropped, each named); `TRADE-SLICE.md`'s step 8 row;
    the briefs and this plan `git rm`'d, cited at their commits;
@@ -147,7 +159,8 @@ numbers where it can and marked "impression" where it cannot:
 
 ## Rules
 
-- Serial throughout: one runner at a time, no build while one runs.
+- Serial throughout: one runner at a time, no build while one runs;
+  the order is Opus CLI, Opus MCP, Sonnet CLI, Sonnet MCP.
 - The runner reads its brief and its tour and nothing else; it is
   never told what to find; it is never continued.
 - A report's counts are the runner's; the record says so.
@@ -161,8 +174,8 @@ numbers where it can and marked "impression" where it cannot:
 ## Handoff
 
 The session's last message to the owner: the sha256 of each binary
-copied; what each URL translated to, with its remainder; per run, the
-calls logged and the calls read, the faults claimed, reproduced and
+copied; what each URL translated to, with its remainder; per run and its
+model, the calls logged and the calls read, the faults claimed, reproduced and
 their fates; the debrief answers that became a finding or a park; and
 what `search/TRADE-PLAN.md` and `TRADE-SLICE.md` failed to tell it —
 the reader test of the brief's cut.
