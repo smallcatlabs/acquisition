@@ -1,6 +1,6 @@
 ---
 name: seat
-description: Sit a blind agent at the tool as its user — a subagent that reads only a committed brief and the tool's own words, drives the release `acq` through one logging door in a mock world, and reports where the tool stopped it — then fix what it found and sit it again. Use before a release, and after any change to the surface an agent meets.
+description: Sit a blind agent at the tool as its user — a subagent that reads only a committed brief and the tool's own words, drives the release `acq` or `acq-mcp` through one logging door in a mock world, and reports where the tool stopped it — then fix what it found and sit it again. Use before a release, and after any change to the surface an agent meets.
 ---
 
 # Seat
@@ -17,9 +17,12 @@ skill (P6).
 ## Before the run
 
 1. Pick the record directory, `<AT>` (`audits/<slice>/seat/`). It
-   holds the brief, `calls.csv`, `REPORT.md` and, at close, the README
-   with the fate table. The world is `runs/seat-<AT's parent>/`,
-   gitignored.
+   holds the brief and, after each run, its `calls.csv`, `REPORT.md`
+   and `DEBRIEF.md` copied out of the world; at close, the README with
+   the fate table. A world is a directory outside the repository (a
+   runner in the repository can read it), short-pathed under the
+   owner's home, holding the brief, the door, `bin/` and what the door
+   makes: `store/`, `world.json`, `calls.csv`, `calls/`, `work/`.
 2. Write `<AT>/BRIEF.md`. The one to start from is the whole-CLI
    brief at `d1a10dd4`
    (`git show d1a10dd4:audits/rehome-2026-10/seat/BRIEF.md`). It says:
@@ -42,15 +45,25 @@ skill (P6).
    (never while the gate runs, C84):
 
    ```sh
-   cargo build --release -p acquisition-cli -p acquisition-daemon
+   cargo build --release -p acquisition-cli -p acquisition-mcp   # -p acquisition-daemon for a world with a login
    cargo build --release -p acquisition-search --example copy-as-store
-   python3 -I .claude/skills/seat/seat.py <AT> setup --facts <ACCOUNT>.db   # or bare: an empty world
+   python3 -I .claude/skills/seat/seat.py <PRISTINE> <BIN> setup --facts <ACCOUNT>.db   # once, never run in
+   python3 -I .claude/skills/seat/seat.py <WORLD> <BIN> setup --store <PRISTINE>/store   # or bare: an empty world
    ```
 
+   Every door command takes the world's root and the directory of the
+   binaries it runs; copy the binaries into the world's `bin/` and the
+   door beside them, so the runner reaches nothing of the repository.
    `--facts` copies one facts file of the owner's store, and the intent
    file paired with it, through sqlite's online backup: the owner's
    files are read once and never written (C35). It refuses while a
-   daemon's WAL holds pages; the owner stops the daemon first.
+   daemon's WAL holds pages; the owner stops the daemon first. Every
+   command carries `ACQ_NO_SPAWN=1` unless setup said `--daemon` (then
+   `bin/` needs `acqd`, and `login` works); `world.json` records the
+   source and each binary's sha256. The CLI door is `seat.py` (`run`,
+   `login`); the MCP door is `seat-mcp.py` (`open`, `call`), one
+   `acq-mcp` process per call over stdio, in a world `seat.py` made.
+   Both write `report` and `debrief` to the world.
 5. Launch one general-purpose subagent. The prompt names the brief's
    path and repeats the prohibitions; it says nothing of what you
    expect to be found.
@@ -76,8 +89,9 @@ skill (P6).
 9. Close: write `<AT>/README.md` — the runs, their call counts and
    trees, and one row per fault with its fate (a commit, a park, or
    why it is no fault); `git rm <AT>/BRIEF.md`, citing its commit;
-   `seat.py <AT> teardown`. The report's "what the tour and the help
-   did not say" is input for the README, not a list of faults.
+   `seat.py <WORLD> <BIN> teardown` (stops its daemon, removes its
+   store). The report's "what the tour and the help did not say" is
+   input for the README, not a list of faults.
 
 ## Traps
 
@@ -94,8 +108,8 @@ skill (P6).
   has left the rehearsal. The brief forbids it and says why it is safe
   to write, price and cancel freely.
 - **A world's path is its socket's.** A store directory deep under a
-  temporary directory makes a socket path too long to bind; keep
-  worlds under `runs/`.
+  temporary directory makes a socket path too long to bind; keep a
+  world with a daemon short-pathed.
 - **A long output is the runner's context.** The door prints the head
   of anything over 60,000 bytes and says so; a verb that needs that is
   a finding (`acq tabs` at 355 KB, `search --describe` at 117 KB).

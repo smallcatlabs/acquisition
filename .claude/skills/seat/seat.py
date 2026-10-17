@@ -1,41 +1,55 @@
 #!/usr/bin/env python3
-"""seat.py — a CLI seat's one door (the seat skill): one `acq` command, logged.
+"""seat.py — a CLI seat's one door (the seat skill): one `acq` command, logged; and any seat's world.
 
-usage, from the repository root (AT is the seat's record directory, where its BRIEF.md is):
-  seat.py AT setup [--facts FILE.db]      build the world; with --facts, over a copy of that file of the owner's store
-  seat.py AT login <user>                 a scripted mock login (the mock-session skill's recipe; a person uses a browser)
-  seat.py AT run --t T3 [--note '...'] [--timeout S] [--stdin FILE|-] [--out NAME] -- <acq arguments>
-  seat.py AT report [--new]               append stdin to AT/REPORT.md (--new starts it): a runner's harness may refuse it file tools
-  seat.py AT teardown                     stop the world's daemon
+usage (WORLD is the world's root, BIN the directory holding the binaries it runs):
+  seat.py WORLD BIN setup [--facts FILE.db | --store DIR] [--daemon]
+                                          make the world; --facts copies that file of the owner's store, --store an
+                                          earlier world's pristine store; --daemon lets this world's commands start one
+  seat.py WORLD BIN login <user>          a scripted mock login (the mock-session skill's recipe; a person uses a browser)
+  seat.py WORLD BIN run --t T3 [--note '...'] [--timeout S] [--stdin FILE|-] [--out NAME] -- <acq arguments>
+  seat.py WORLD BIN report [--new]        append stdin to WORLD/REPORT.md (--new starts it): a runner's harness may refuse it file tools
+  seat.py WORLD BIN debrief [--new]       the same, to WORLD/DEBRIEF.md
+  seat.py WORLD BIN teardown              stop the world's daemon, if it has one, and remove the world's store
 
-The world is set here and nowhere else: the mock provider, no keyring, a store and a log directory
-under runs/seat-<the name of AT's parent>/ (gitignored). Nothing here can reach GGG or the owner's
-store: every command carries ACQ_PROVIDER=mock and ACQ_STORE_DIR, and `setup --facts` reads the owner's
-files once, through sqlite's online backup. Every `run` is a row of AT/calls.csv and a file under the
-world's calls/. Output is printed whole up to SHOWN bytes; past that its head is printed and the row
-says `head`. `--out NAME` also writes stdout to the world's work/NAME, as a shell's `>` would: the one
-way a verb's output becomes a file another verb reads (`refresh --apply=FILE`).
+The world is set here and nowhere else: the mock provider, no keyring, a store and a log directory under
+WORLD, and no daemon unless setup said --daemon (ACQ_NO_SPAWN=1 on every command). Nothing here can reach
+GGG or write the owner's store: `setup --facts` reads the owner's files once, through sqlite's online backup,
+and setup records the world in WORLD/world.json with the sha256 of every file in BIN. Every `run` is a row
+of WORLD/calls.csv and a file under WORLD/calls/. Output is printed whole up to SHOWN bytes; past that its
+head is printed and the row says `head`. `--out NAME` also writes stdout to WORLD/work/NAME, as a shell's
+`>` would: the one way a verb's output becomes a file another verb reads (`refresh --apply=FILE`).
+The MCP door, seat-mcp.py, takes the same WORLD and BIN and runs in a world this script made.
 """
-import argparse, csv, json, os, re, sqlite3, subprocess, sys, time, urllib.parse, urllib.request
+import argparse, csv, datetime, hashlib, json, os, re, shutil, sqlite3, subprocess, sys, time, urllib.parse, urllib.request
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-EXE = os.path.join(ROOT, "target", "release", "acq")
-COPY = os.path.join(ROOT, "target", "release", "examples", "copy-as-store")
 OWNER = os.path.expanduser("~/Library/Application Support/com.smallcatlabs.acq/store/ggg")
-# Set by `place`, from the record directory the command line names.
-HERE = RUN = STORE = CSV = OUT = WORLD = None
+# Set by `place`, from the command line.
+WORLD = BIN = STORE = CSV = OUT = None
 
 
-def place(at):
-    global HERE, RUN, STORE, CSV, OUT, WORLD
-    HERE = os.path.abspath(at)
-    if not os.path.isdir(HERE):
-        sys.exit(f"seat: {at} is not a directory — the first argument is the seat's record directory")
-    WORLD = "runs/seat-" + os.path.basename(os.path.dirname(HERE))
-    RUN = os.path.join(ROOT, WORLD)
-    STORE = os.path.join(RUN, "store")
-    CSV = os.path.join(HERE, "calls.csv")
-    OUT = os.path.join(RUN, "calls")
+def place(world, bin_):
+    global WORLD, BIN, STORE, CSV, OUT
+    WORLD, BIN = os.path.abspath(world), os.path.abspath(bin_)
+    for d, what in ((WORLD, "the world's root"), (BIN, "the directory of the binaries")):
+        if not os.path.isdir(d):
+            sys.exit(f"seat: {d} is not a directory — it is {what}")
+    STORE = os.path.join(WORLD, "store")
+    CSV = os.path.join(WORLD, "calls.csv")
+    OUT = os.path.join(WORLD, "calls")
+
+
+def exe(name):
+    path = os.path.join(BIN, name)
+    if not os.access(path, os.X_OK):
+        sys.exit(f"seat: no {name} in {BIN}")
+    return path
+
+
+def daemon():
+    try:
+        return json.load(open(os.path.join(WORLD, "world.json")))["daemon"]
+    except (OSError, ValueError, KeyError):
+        sys.exit(f"seat: {WORLD} has no world.json — `setup` makes the world")
 
 
 FIELDS = ["n", "task", "args", "exit", "stdout_bytes", "stderr_bytes", "wall_ms", "shown", "note"]
@@ -47,7 +61,9 @@ DROPPED = ("ACQ_GGG", "ACQ_TRIPWIRE", "ACQ_MAX_SENDS", "ACQ_ACCOUNT", "ACQ_JOURN
 def env():
     e = {k: v for k, v in os.environ.items() if k not in DROPPED}
     e.update(ACQ_PROVIDER="mock", ACQ_NO_KEYRING="1", ACQ_IDLE_SHUTDOWN="1800",
-             ACQ_STORE_DIR=STORE, ACQ_LOG_DIR=os.path.join(RUN, "logs"))
+             ACQ_STORE_DIR=STORE, ACQ_LOG_DIR=os.path.join(WORLD, "logs"))
+    if not daemon():
+        e["ACQ_NO_SPAWN"] = "1"
     return e
 
 
@@ -64,28 +80,57 @@ def backup(src, dst):
     a.close()
 
 
-def setup(owner_facts):
+def sha256(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(1 << 20), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def setup(a):
     if os.path.exists(STORE):
         sys.exit(f"seat: {STORE} exists — a world is made once; move {WORLD} aside (a rerun keeps the first run's) to start over")
+    if a.facts and a.store:
+        sys.exit("seat: --facts or --store, not both")
     os.makedirs(STORE)
-    if not owner_facts:
-        print(f"seat: an empty world at {STORE}")
-        return
-    facts = os.path.join(RUN, "copy.db")
-    backup(os.path.join(OWNER, owner_facts), facts)
-    placed = subprocess.run([COPY, facts, STORE], check=True, capture_output=True, text=True).stdout.strip()
-    print(f"seat: facts copy at {placed}")
-    for f in os.listdir(OWNER):
-        if f.endswith(".annotations.db"):
-            uuid = f.split(".")[0]
-            index = open(os.path.join(STORE, "mock", "accounts.json")).read()
-            if uuid in index:
+    placed = []
+    if a.facts:
+        facts = os.path.join(WORLD, "copy.db")
+        backup(os.path.join(OWNER, a.facts), facts)
+        subprocess.run([exe("copy-as-store"), facts, STORE], check=True, capture_output=True, text=True)
+        os.remove(facts)
+        index = open(os.path.join(STORE, "mock", "accounts.json")).read()
+        for f in sorted(os.listdir(OWNER)):
+            if f.endswith(".annotations.db") and f.split(".")[0] in index:
                 backup(os.path.join(OWNER, f), os.path.join(STORE, "mock", f))
-                print(f"seat: intent copy at {os.path.join(STORE, 'mock', f)}")
+    elif a.store:
+        src = os.path.abspath(a.store)
+        for d, _, files in os.walk(src):
+            os.makedirs(os.path.join(STORE, os.path.relpath(d, src)), exist_ok=True)
+            for f in sorted(files):
+                s, t = os.path.join(d, f), os.path.join(STORE, os.path.relpath(d, src), f)
+                if f.endswith(".db"):
+                    backup(s, t)
+                elif f.endswith(".json"):
+                    shutil.copyfile(s, t)
+    for d, _, files in os.walk(STORE):
+        placed += [os.path.relpath(os.path.join(d, f), WORLD) for f in sorted(files)]
+    record = {"made": datetime.datetime.now().astimezone().isoformat(timespec="seconds"),
+              "from": f"owner's {a.facts}" if a.facts else a.store and os.path.abspath(a.store) or "empty",
+              "daemon": a.daemon, "store": placed,
+              "bin": {f: sha256(os.path.join(BIN, f)) for f in sorted(os.listdir(BIN)) if os.path.isfile(os.path.join(BIN, f))}}
+    with open(os.path.join(WORLD, "world.json"), "w") as f:
+        json.dump(record, f, indent=2)
+        f.write("\n")
+    print(f"seat: the world at {WORLD}")
+    print(json.dumps(record, indent=2))
 
 
 def login(user):
-    p = subprocess.Popen([EXE, "auth", "--no-browser", "--json"], env=env(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    if not daemon():
+        sys.exit("seat: this world has no daemon (setup without --daemon), so it has no login")
+    p = subprocess.Popen([exe("acq"), "auth", "--no-browser", "--json"], env=env(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     url = None
     for line in p.stdout:
         m = re.search(r'"authorize_url"\s*:\s*"([^"]+)"', line)
@@ -111,7 +156,7 @@ def log(row, text):
         f.write(text)
     with open(CSV, "a", newline="") as f:
         if new:
-            f.write(f"# written by seat.py during the run of BRIEF.md, one row per `acq` command in the seat's world; row n's output is {WORLD}/calls/NNN.txt (gitignored)\n")
+            f.write("# written by seat.py during the run, one row per `acq` command in this world; row n's output is calls/NNN.txt\n")
             csv.writer(f).writerow(FIELDS)
         csv.writer(f).writerow([n] + row)
     return n
@@ -125,7 +170,7 @@ def run(a):
         stdin = open(a.stdin).read()
     t0 = time.perf_counter()
     try:
-        p = subprocess.run([EXE] + a.args, env=env(), input=stdin, capture_output=True, text=True, timeout=a.timeout,
+        p = subprocess.run([exe("acq")] + a.args, env=env(), input=stdin, capture_output=True, text=True, timeout=a.timeout,
                            stdin=None if stdin is not None else subprocess.DEVNULL)
         code, out, err = p.returncode, p.stdout, p.stderr
     except subprocess.TimeoutExpired as e:
@@ -134,8 +179,8 @@ def run(a):
     if a.out:
         if "/" in a.out or a.out.startswith("."):
             sys.exit(f"seat: --out takes a bare file name; it is written under {WORLD}/work/")
-        os.makedirs(os.path.join(RUN, "work"), exist_ok=True)
-        with open(os.path.join(RUN, "work", a.out), "w") as f:
+        os.makedirs(os.path.join(WORLD, "work"), exist_ok=True)
+        with open(os.path.join(WORLD, "work", a.out), "w") as f:
             f.write(out)
     wall = round((time.perf_counter() - t0) * 1000)
     ob, eb = len(out.encode()), len(err.encode())
@@ -155,14 +200,35 @@ def run(a):
             print("--- stderr\n" + err[:HEAD])
 
 
+def append(name, new):
+    path = os.path.join(WORLD, name)
+    text = sys.stdin.read()
+    with open(path, "w" if new else "a") as f:
+        f.write(text if text.endswith("\n") else text + "\n")
+    print(f"seat: {name} is {os.path.getsize(path)} bytes")
+
+
+def teardown():
+    if daemon():
+        print(subprocess.run([exe("acq"), "daemon", "stop"], env=env(), capture_output=True, text=True).stdout.strip())
+    if os.path.exists(STORE):
+        shutil.rmtree(STORE)
+        print(f"seat: removed {STORE}; the calls, the report and the debrief stay")
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("at", help="the seat's record directory: BRIEF.md, calls.csv, REPORT.md")
+    ap.add_argument("world", help="the world's root: its store, calls.csv, calls/, work/, REPORT.md, DEBRIEF.md")
+    ap.add_argument("bin", help="the directory of the binaries the world runs: acq, and copy-as-store for setup --facts")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("setup").add_argument("--facts", help="a facts file of the owner's store to copy, by name")
+    s = sub.add_parser("setup")
+    s.add_argument("--facts", help="a facts file of the owner's store to copy, by name")
+    s.add_argument("--store", help="an earlier world's store directory, never run in, to copy")
+    s.add_argument("--daemon", action="store_true", help="let this world's commands start a mock daemon (a seat with a login)")
     sub.add_parser("teardown")
     sub.add_parser("login").add_argument("user")
     sub.add_parser("report").add_argument("--new", action="store_true")
+    sub.add_parser("debrief").add_argument("--new", action="store_true")
     r = sub.add_parser("run")
     r.add_argument("--t", required=True)
     r.add_argument("--note")
@@ -171,19 +237,15 @@ def main():
     r.add_argument("--out")
     r.add_argument("args", nargs=argparse.REMAINDER)
     a = ap.parse_args()
-    place(a.at)
+    place(a.world, a.bin)
     if a.cmd == "setup":
-        setup(a.facts)
+        setup(a)
     elif a.cmd == "login":
         login(a.user)
-    elif a.cmd == "report":
-        path = os.path.join(HERE, "REPORT.md")
-        text = sys.stdin.read()
-        with open(path, "w" if a.new else "a") as f:
-            f.write(text if text.endswith("\n") else text + "\n")
-        print(f"seat: REPORT.md is {os.path.getsize(path)} bytes")
+    elif a.cmd in ("report", "debrief"):
+        append(a.cmd.upper() + ".md", a.new)
     elif a.cmd == "teardown":
-        print(subprocess.run([EXE, "daemon", "stop"], env=env(), capture_output=True, text=True).stdout.strip())
+        teardown()
     else:
         if a.args and a.args[0] == "--":
             a.args = a.args[1:]
