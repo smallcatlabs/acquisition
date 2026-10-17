@@ -58,6 +58,7 @@ Scope this area has deferred, with the trigger that reopens it, so deferral neve
 - The twin id the site leaves out of total Strength, Intelligence, mana and life (reported to GGG by the owner, 2026-09-26) → the totals table: four `not mimicked` rows move to agreement. Trigger: a sitting that shows the site counting it.
 - The answer's words the seats left unruled (`show`'s separators and order; one refusal worded two ways by a slot word's case; the terms block's paths; `--against` and `--print-request` at their edges; what `removed` says of a live id) → the adapters' text and `answer.rs`; the list is `search/OBSERVATIONS.md` at `453a4429` (there under `spikes/rust-playground/`), the entries headed "a seat". Trigger: a seat that trips on one.
 - Alternatives for a node (what a query would match with one leaf replaced) → the normal evaluator over the query with the leaf replaced, which any optimisation must reproduce. Trigger: a recorded question `--explain` cannot serve.
+- A named stat value, `stat("…")`: the item's stat however the game displays it — the opposite word below nothing, a numberless form at its number, summed, lacked when none — exact where the translation labels such a bound ambiguous, and typeable → the query language, one value kind beside `sum` and `pseudo.`, over the translation's forms table (`brainstorming-notes/37-the-stat-value.md`, 2026-10-17: the translation alone ships). Trigger: a seat or a recorded question bounding a stat the translation labels so for its forms, or the outbound half's trigger firing.
 - User-authored weighted sums (an unnamed total; operands anything with a value, a definition and a status) → the query language, beside `sum`; range weights, negative weights on ranges and guarded trade groups need their own definition first. Trigger: a recorded question a named total and `sum` cannot serve, or the trade translation meeting a weighted group (C99).
 
 ## Contract detail (binding with its line; no code has taken it)
@@ -71,9 +72,6 @@ field exists. Several ids for one line go out as a `count` of at
 least one (S106). A site bound on a ranged line is `avg` on the line
 (S47), exact once the word exists.
 
-**C113 (K6).** Taken whole by the code, at steps 4 and 5 of
-`search/TRADE-PLAN.md`: what a URL is, its scope and its sort are
-`acquisition-search/src/answer.rs`'s doc; the id is
-`acquisition-search/src/trade.rs`'s; the clauses, their statuses, the
-groups, the line and what no sitting has asked
-`acquisition-search/src/trade/translate.rs`'s.
+**C113 (K6).** Taken whole by the code at steps 4 and 5 of the brief:
+`answer.rs` (URL, scope, sort), `trade.rs` (the id), `translate.rs`
+(clauses, groups, the line).

@@ -156,8 +156,10 @@ grows at 3 so that 4's text parses on the build that writes it.
    the catalogue amended and the "what no sitting has asked" park takes
    its rows off. Only where the intended meaning is still unsettled.
 8. **The seat.** The third of the search's, by the seat skill: a URL
-   from a friend, what in my stash matches, in a person's words; the
-   fix round inside the step (V6), its faults held by
+   from a friend, what in my stash matches, in a person's words — one
+   of them bounding an `increased` stat, so the named stat value's park
+   (`decisions/search.md`) meets its trigger or does not, on evidence;
+   the fix round inside the step (V6), its faults held by
    `tests/seat_faults.rs`, anything new a park with a trigger.
 9. **Close.** `SEARCH-SLICE.md` gains the step's rows (its budget is
    24,000 bytes; 21,355 at opening — a record of its own if it does
@@ -323,27 +325,34 @@ builds; the owner, verbatim: "I accept all your recommendations."):
   judgement"), no registered source holding a tier its base does not
   name; such a map is ambiguous under `map_tier` until it is built.
 
-**The choice before 7e** (open, the owner's: the language is his
-boundary). `sum( … )` adds the numbers of the lines it selects, with no
-sign and no constant, so a bound on a stat with an opposite-sign form
-(`reduced`) or a numberless one (an elided 100 %, `an`) has no exact
-text. Presence over every form, the explicit sum and the same-sign
-forms are exact today. Two ways:
+**The choice before 7e** (decided 2026-10-17; the deliberation is
+`brainstorming-notes/37-the-stat-value.md`). `sum( … )` adds the
+numbers of the lines it selects, with no sign and no constant, so a
+bound on a stat with an opposite-sign form (`reduced`) or a numberless
+one (an elided 100 %, `an`) has no exact text. Presence over every form,
+the explicit sum and the same-sign forms are exact today. The owner
+chose the translation alone for the release, and parked a named stat
+value, `stat("…")`, with its trigger (`decisions/search.md`, "Parked").
+What 7e builds, under that choice:
 
-- **A, the translation alone** (the builder's recommendation): same-sign
-  numbered forms in the sum; a numberless form of a known number an
-  alternative (`or line(E)`) exactly when its number meets the bound,
-  decided as the text is written; a stat of an opposite-sign form, its
-  positive minimum over the positive forms and ambiguous (an item of
-  both reads high), any other bound unsupported; a form no sitting read
-  (`Lucky`, another wording, a dropped `(Shields)`) and `No Physical
-  Damage` presence alone. No new tree node; what it cannot say exactly
-  it says in the report.
-- **B, a named stat value** — `stat("#% increased Attack Speed")>=10`,
-  the item's stat however displayed, from a reference table of forms
-  and their readings as `pseudo.` totals are: exact wherever a reading
-  is known, and a person's to type as well as the import's. A new value
-  kind, against the brief's "no new tree node"; the larger build.
+- A bound on a stat is `sum(line(T source=…).arg1)` over the sources
+  the id admits (the stat-summed finding), with the line's presence
+  beside a maximum, since a sum of nothing is zero (C95).
+- A stat with a numberless or an opposite-sign form is ambiguous with
+  a note that says what would make it exact and names the park; the
+  bound stays on its numbered, same-sign forms; no alternative is
+  computed from the bound, so the text means the same after an edit.
+  `No Physical Damage`, and any form no sitting read, is presence
+  alone.
+- The forms are data, once: a forms table beside the catalogue —
+  which texts have an opposite word, which elide to a numberless
+  display, the exceptions — reference data (C106) read by the
+  translation alone, so the park lifts it rather than finds it again.
+  One test walks the vocabulary: a `#% chance to X` whose `X` is itself
+  a listed stat (7 of 372), a `have #% chance to` form likewise (2 of
+  286), a text carrying both sign words (4), each refused by name.
+- The oracle's rows these leave ambiguous stay in the set under their
+  finding; a row whose clause the build makes exact leaves it.
 
 The material: the forms measured at 7a (72 under 71 ids, through the
 translation and the deriver), the sitting's readings above, the totals
