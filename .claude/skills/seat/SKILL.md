@@ -1,13 +1,13 @@
 ---
 name: seat
-description: Sit a blind agent at the tool as its user — a subagent that reads only a committed brief and the tool's own words, drives the release `acq` or `acq-mcp` through one logging door in a mock world, and reports where the tool stopped it — then fix what it found and sit it again. Use before a release, and after any change to the surface an agent meets.
+description: Sit a blind agent at the tool as its user — a headless session that reads only a committed brief and the tool's own words, drives the release `acq` or `acq-mcp` through one logging door in a mock world, and reports where the tool stopped it — then fix what it found and sit it again. Use before a release, and after any change to the surface an agent meets.
 ---
 
 # Seat
 
 A seat asks what the tool's own words are worth to someone who has
-nothing else. The runner is a subagent told to read its brief and the
-tour and no other file; every command goes through one door that logs
+nothing else. The runner is a headless session started in its world,
+told to read its brief and the tour and no other file; every command goes through one door that logs
 it; the report cites calls by number. The tool is under test, never
 the runner. Ran on the MCP's search tools (`search/LEDGER.md`, 11c) and
 on the whole CLI twice (`audits/rehome-2026-10/seat/`, 2026-10-13: 13
@@ -64,9 +64,13 @@ skill (P6).
    `login`); the MCP door is `seat-mcp.py` (`open`, `call`), one
    `acq-mcp` process per call over stdio, in a world `seat.py` made.
    Both write `report` and `debrief` to the world.
-5. Launch one general-purpose subagent. The prompt names the brief's
-   path and repeats the prohibitions; it says nothing of what you
-   expect to be found.
+5. Launch the runner with `launch.sh WORLD MODEL DOOR PROMPT-FILE`,
+   in the background, never as a subagent: a subagent starts in the
+   repository with its instructions, the memory index and the git log,
+   and is not blind (the trade seat's probe, 2026-10-17). The script's
+   rails are its header. The prompt names the brief's path and repeats
+   the prohibitions; it says nothing of what you expect to be found.
+   The debrief resumes the same session (`… PROMPT-FILE SESSION-ID`).
 
 ## After the run
 
@@ -84,7 +88,7 @@ skill (P6).
 8. The rerun, when the round changed what an agent meets: rename the
    first run's files (`REPORT-1.md`, `calls-1.csv`), move its world
    aside, tell the brief not to open them, build the release again,
-   set up a fresh world, and launch a fresh subagent. Never continue
+   set up a fresh world, and launch a fresh runner. Never continue
    the first: it has learned the tool.
 9. Close: write `<AT>/README.md` — the runs, their call counts and
    trees, and one row per fault with its fate (a commit, a park, or

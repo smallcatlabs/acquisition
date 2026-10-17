@@ -28,9 +28,13 @@ of this in serial so we don't have to worry about concurrency"; the store: "Let'
   It knows the open questions so the tasks reach them; no brief it
   writes says what it expects to be found. It never runs a task
   itself. Its last message is the handoff below.
-- **The runners** — four fresh `general-purpose` subagents, never a
-  fork (a fork inherits the session's context and is not blind), the
-  model set on the call: the Opus round, CLI then MCP, then the Sonnet
+- **The runners** — four fresh headless sessions, each started in its
+  world by `.claude/skills/seat/launch.sh`, never a subagent: a probe
+  (2026-10-17, review 1) found a fresh subagent starts in the repository
+  with `AGENTS.md`, the owner's memory index and the git log in its
+  context, and the probe repeated in a world found the owner's global
+  `CLAUDE.md` alone, no memory, no git status, a read outside the world
+  and any other command denied. The model set on the launch: the Opus round, CLI then MCP, then the Sonnet
   round, CLI then MCP, each launched only after the previous debrief is
   written and its files committed. The Sonnet round asks whether the
   tool's words carry a smaller model, the release's audience; a fault
@@ -114,16 +118,16 @@ of this in serial so we don't have to worry about concurrency"; the store: "Let'
    *Acceptance:* the door's setup reports the world; no build runs from
    here until step 7 (C84: a build replaces nothing a runner holds,
    because the runner holds copies — the rule stands anyway).
-3. **The Opus CLI run.** One subagent, model Opus 5.5, its prompt the
+3. **The Opus CLI run.** One runner, model Opus 5.5, its prompt the
    brief's path and the prohibitions, nothing of what is expected. When its
-   report is written, a second message carries the debrief, answered
-   through the door. `calls.csv`, `REPORT.md`, `DEBRIEF.md` copied into
+   report is written, a second message, the same session resumed,
+   carries `DEBRIEF-QUESTIONS.md`, answered through the door. `calls.csv`, `REPORT.md`, `DEBRIEF.md` copied into
    this directory as `calls-cli-opus.csv`, `REPORT-cli-opus.md` and
    `DEBRIEF-cli-opus.md` (each run by its surface and model) and
    committed as the run's record. *Acceptance:* the
    report cites calls by number; the debrief's last answer is to the
    open question.
-4. **The Opus MCP run.** The same, a fresh subagent, launched after
+4. **The Opus MCP run.** The same, a fresh runner, launched after
    step 3's files are committed; its prompt carries nothing of step 3.
 5. **The Sonnet round.** The CLI run and then the MCP run again, model
    Sonnet 5.5, the same briefs unchanged, each in a fresh world made
