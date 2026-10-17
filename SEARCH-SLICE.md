@@ -7,8 +7,7 @@ the MCP and the reference in its homes — was built between 2026-09-19
 and 2026-10-10 and is closed. This file is its permanent short record in
 the mold of `PRICING-SLICE.md`: what landed, what the audits found and
 what holds each finding now, what the measurements taught, and what is
-still open. It was opened at step 5 rather than at the close (the
-owner's ruling, 2026-09-21). The brief it was built under is
+still open. The brief it was built under is
 `search/BUILD-PLAN.md` at `453a4429`, deleted at the close: its
 acceptance set, the parks it fired and the measurements it owed are
 there, and its rules are below. The full text as it stood in the plan —
@@ -17,8 +16,10 @@ showing of the store's read — is the plan at `2d25cb03`.
 
 The rulings are `decisions/search.md` (C89–C107) and `decisions/store.md`
 (C108); the language is `acq search --describe` and the contract
-detail the crate's module docs; the acceptance set and the limits register are
-`search/DIGEST.md`; the properties are pinned by the tests named below.
+detail the crate's module docs; the acceptance set and the limits
+register are `search/DIGEST.md`; the rows — the step ledger, the holes
+ruled, how the design was reached — are `search/LEDGER.md`, looked up
+by the row; the properties are pinned by the tests named below.
 Nothing here is a second authority.
 
 Reviewing a search change: the rules and the shapes of fault below are
@@ -39,32 +40,17 @@ the store's read.
 - Not built, each refused by name and printed by `--describe`:
   `--fields`, `--view locations`, `--rebind`, `show --basis`. Not in the
   slice: the trade translation (C99), parked.
-- What stays under `search/` is what the build names
-  (`search/README.md`); a pointer that finds no file is read at
-  `40b55e79`.
 
-## What is looked up
 
-Three kinds of row are looked up by the row, never loaded whole:
-`search/LEDGER.md`.
 
-- **Step ledger** — a closed step is a line: the step, its commits,
-  where what landed lives.
-- **Holes ruled, and where the rule went** — a line per hole, by its
-  id: the hole as ruled, where the rule is, the commit that ruled it.
-  A crate doc or a test that names a hole names its row.
-- **How the design was reached** — the synthesis's stages and their
-  notes.
 
 ## The plan's rules
 
-How a partial build stayed honest: the brief's rules, moved here whole
-when the brief was deleted, since the crate's docs and tests cite them
-by number ("rule 8 of the plan"). Each is in the build's tense; "the
-reference" is the page the module docs and `--describe` are now
-(`search/DESIGN.md` at `0d71054f`), and rule 4's two pointers read as
-they do since the close. They bind a change to the crate as they bound
-a step.
+How a partial build stayed honest: the brief's rules, cited by number
+from the crate's docs and tests ("rule 8 of the plan"), each in the
+build's tense — "the reference" is the page the module docs and
+`--describe` are now (`search/DESIGN.md` at `0d71054f`). They bind a
+change to the crate as they bound a step.
 
 1. **The parser knows the whole language from step 1; the evaluator
    knows part of it.** What is not built lives in one closed list in the
@@ -98,18 +84,17 @@ a step.
    prints that route only when it runs; until then it prints the count
    left out and names the unbuilt construct. The route property's test
    covers it: every command an answer prints parses and is not refused.
-6. **Spent at step 11e.** The language reference stayed whole in
-   `search/DESIGN.md` until the first seat had ruled, and is the module
-   docs, the clap help and `--describe` now; the rule as it stood is
-   this file at `0d71054f`.
+6. **Spent at step 11e.** The language reference is the module docs,
+   the clap help and `--describe`; the rule as it stood is this file at
+   `0d71054f`.
 7. **Whose store.** The agent tests on fixtures built through the
    store's own ingest, and measures on a sqlite `.backup` copy under a
    track's `raw/`, always with `ACQ_STORE_DIR` set. The owner's store is
    opened only by the owner, at a terminal. No GGG traffic anywhere in
    this plan; the one daemon is M5's, a mock session.
 
-Rules 8 to 10 are what step 4b's audits taught (`SEARCH-SLICE.md`,
-"Findings"), each a fault that came back until it was named;
+Rules 8 to 10 are what step 4b's audits taught ("Findings", below),
+each a fault that came back until it was named;
 the owner approved their meaning from a plain account of each and left
 the wording to the builder (2026-09-22: "the words that get written down
 are for you"; "If so, go ahead"). Each names what already holds it: the
@@ -181,15 +166,13 @@ number there was measured, never recalled. The verdicts:
 - M2 (step 2, rerun at every change of the deriver): 0 unread and 0
   unexplained against the census; seven departures, each a rule of
   `derive.rs`, two of them candidate ground-truth claims.
-- M3 (step 4, rerun at every build since): the load, the empty query,
-  stays under 500 ms release — 478 at `3eae4b4e`, 492 at step 10
-  (`5a087d37`) — so the projection park does not fire; an ask over 500
-  is an evaluator's cost, the totals batch park's (some 1 ms for each row
-  of every total it reads), and the owner, 2026-10-08, had the slice
-  wrapped up before anything is optimized. After the close, run alone
-  (the row at `53580145`): the projection park does not fire and the
-  totals batch stays parked (`decisions/search.md`). Every run's numbers
-  are `search/M3-LEDGER.md`, what each rerun showed
+- M3 (step 4, rerun at every build since, and alone after the close):
+  the load, the empty query, stays under 500 ms release, so the
+  projection park does not fire and the totals batch stays parked
+  (`decisions/search.md`); an ask over 500 is an evaluator's cost, the
+  totals batch park's (some 1 ms for each row of every total it reads).
+  Every run's numbers are `search/M3-LEDGER.md`; what each rerun showed,
+  and the owner's 2026-10-08 words on the margin, are
   `search/MEASUREMENTS.md`'s M3 block.
 - M4 (step 4): `~` over all text adds 9 ms.
 - M5 (step 10): over a mock session, 126 asks answered across 18
