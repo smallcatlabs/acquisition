@@ -737,7 +737,12 @@ def ruled_cases(ctx, ev, copy_keys):
         return best[0][1] if best else None
 
     def from_export(pred):
-        names = sorted((len(cs), n) for n, cs in ctx.ex.by_name.items() if n not in captured and n not in used and pred(n, cs))
+        # a name an item can show: the deriver reads `[…]` and `<…>{…}` as markup
+        # (derive.rs, `shown`; S4), so `[UNUSED] Heist Test Reward Equipment`
+        # reaches the build as another name, in no class (step 7's captures took
+        # the copy's last cloak and brooch, and the export's turn came)
+        names = sorted((len(cs), n) for n, cs in ctx.ex.by_name.items()
+                       if n not in captured and n not in used and "[" not in n and "<" not in n and pred(n, cs))
         return names[0][1] if names else None
 
     def add(case, key, source, realm="pc"):

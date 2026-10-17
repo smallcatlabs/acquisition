@@ -274,7 +274,7 @@ def main():
             shapes |= class_shapes(base)
             if item.get("rarity") == "Unique":
                 shapes.add("C8")
-            if any(l["hash"].removeprefix("stat.") in twins for k, v in item["lines"].items()
+            if any(P.line_id(l) in twins for k, v in item["lines"].items()
                    if k != "pseudoMods" for l in v):
                 shapes.add("C14")
             row, _ = P.score(f"searches.{name}", dict(text_item, extended=ext), bases, tmap, local)

@@ -71,12 +71,16 @@ capture has three defence types, ward, a shield, a helmet or gloves, quality abo
 ## The percentile's round
 
 `percentile.py` now scores the sittings' captures too (`data/percentile-captures.csv`, apart, as
-`candidates.py` reads `percentile-check.csv`): of 637 distinct items the stated rule reproduces 634;
-a display at an exact half read as either integer (J5), 637, each one value (half down: 629). Of 292
-hybrids, min, max and first type give 173, 179, 181. The 20%-quality figure from the recovered roll:
-812 of 812 rows, the enchant read as no quality. Read from text alone, as the build must, the items no
-longer all read as from their ids: 10 of 637 do not, each carrying a defence twin under the stat its
-text does not show — i05's eldritch implicits, k001's synthesised ones (`percentile-shapes.py`).
+`candidates.py` reads `percentile-check.csv`): of 1,190 distinct items the stated rule reproduces
+1,182 — not the three it never has (e014, h015, n22), nor step 7's five: t54's crucible defence line,
+which no id names (J33), three of u060's Simple Robes, a base the range table lacks, and v067's
+Two-Toned Boots, a base it holds three times; a display at an exact half read as either integer (J5),
+1,185, each one value (half down: 1,169). Of 528 hybrids, min, max and first type give 330, 334, 336.
+The 20%-quality figure from the recovered roll: 1,136 of 1,136 rows, the enchant read as no quality.
+Read from text alone, as the build must, the items no longer all read as from their ids: 13 of 1,190
+do not — 12 carrying a defence twin under the stat its text does not show (i05's eldritch implicits,
+k001's synthesised ones, v066's, v072's), and t54's helm, read from its text and not its ids
+(`percentile-shapes.py`).
 
 Round i (`tools/trade-sheet.py`, `round_i`): the percentile's read by `percentile.py`. The core is i01–i08.
 

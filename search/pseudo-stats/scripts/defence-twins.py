@@ -241,7 +241,7 @@ def main():
                 sys.exit(f"{name}[{i}]: the fetch does not hold the extract's item at its place")
             for r in facts("captures", f"{name}[{i}]", item.get("baseType") or item["typeLine"], item["rarity"],
                            item.get("frameType"), classes, item["lines"], shown, marks_of(raw), twins, by_row):
-                r["site_says"] = side_of.get(r["hash"].removeprefix("stat."), "not a twin id")
+                r["site_says"] = side_of.get(P.line_id(r), "not a twin id")
                 rows.append(r)
 
     db = sqlite3.connect(f"file:{S.STORE}?mode=ro", uri=True)

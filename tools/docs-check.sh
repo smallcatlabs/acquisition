@@ -52,6 +52,10 @@
 #      (`tools/trade-split.py --self-test`). Both from the outside review
 #      of the trade import's step 7: round v drifted with an input the
 #      sitting itself updated, and a fetch was found a row by its query.
+#      And the shipped category table is what its committed sources give
+#      (`tools/category-table.py --check`): the reading that closed step
+#      7d found it six citations behind the grouping members it is
+#      written from, which nothing had checked.
 #
 # Exit 1 on any failure; the report names each offender.
 set -euo pipefail
@@ -539,12 +543,13 @@ else
 fi
 
 # ---- 9. the sitting's tools ------------------------------------------------
-for check in "sheet tools/trade-sheet.py --verify" "split tools/trade-split.py --self-test"; do
+for check in "sheet tools/trade-sheet.py --verify" "split tools/trade-split.py --self-test" \
+             "category tools/category-table.py --check"; do
   read -r name tool flag <<<"$check"
   if said=$(python3 -I "$tool" "$flag" 2>&1); then
-    printf 'ok      %-13s %s\n' "$name" "$(tail -1 <<<"$said")"
+    printf 'ok      %-13s %s\n' "$name" "$(tail -1 <<<"$said" | sed 's/^ok *//')"
   else
-    printf '%s\n' "$said" | sed "s/^/$(printf '%-8s' "$(tr a-z A-Z <<<"$name")")/"
+    printf '%s\n' "$said" | sed "s/^/$(printf '%-7s ' "$(tr a-z A-Z <<<"$name")")/"
     fail=1
   fi
 done

@@ -310,7 +310,14 @@ builds; the owner, verbatim: "I accept all your recommendations."):
   crucible mark (t54 did not part its readings); grafts, listed in no
   league; Maven's Invitations, listed (4,811) and no item sent (u025,
   v092, v093: a null for every listing fetched), so `map.invitation`
-  met no item the oracle could read.
+  met no item the oracle could read. The tracks
+  whose scripts need the clones were read over the same captures once
+  the clones were back (`poe1`, awakened-poe-trade, PathOfBuilding): the
+  category table answers all 1,214 captured rows as the site does (five
+  partial on class, the kind Xoph's Breachstone is), and four grouping
+  cells meta.ts alone held are the site's now (t41, t42, v108); the
+  percentile's stated rule reproduces 1,182 of 1,190 distinct items, the
+  eight each a known reason; the defence twins separate as before.
 - The map tier table: parked (the owner, 2026-10-16: "Let's do a tier
   table for maps, either now or parked for later based on your
   judgement"), no registered source holding a tier its base does not

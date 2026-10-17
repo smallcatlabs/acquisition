@@ -234,7 +234,7 @@ fn gap_of(cause: &str) -> &'static str {
 // ---- the table ------------------------------------------------------------------------------------
 
 /// C106 (category), J1–J4, J9–J22: every row of the expected answers —
-/// 553 items of the facts the row gives, put into a store through its
+/// 1,305 items of the facts the row gives, put into a store through its
 /// ingest — is answered as the row says. Each of the 82 ids asked as a
 /// term matches the rows listing it under `ids_yes`, is undecided on the
 /// rows listing it under `ids_undecided` and fails every other; a count
@@ -244,7 +244,7 @@ fn gap_of(cause: &str) -> &'static str {
 #[test]
 fn c106_every_row_of_the_expected_answers_is_answered_as_the_row_says() {
     let cases = cases();
-    assert_eq!(cases.len(), 553);
+    assert_eq!(cases.len(), 1305);
     let ids = the_ids();
     let mut s = store();
     let mut faults: Vec<String> = Vec::new();
@@ -269,7 +269,7 @@ fn c106_every_row_of_the_expected_answers_is_answered_as_the_row_says() {
     assert_eq!(
         cases.iter().filter(|c| c.realm == "pc").count()
             + cases.iter().filter(|c| c.realm == "poe2").count(),
-        553
+        1305
     );
     for realm in ["pc", "poe2"] {
         let corpus = load(&s, Some(realm));

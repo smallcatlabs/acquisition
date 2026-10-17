@@ -219,7 +219,7 @@ def read_item(item, bases, tmap, local):
         if array == "pseudoMods":
             continue
         for line in lines:
-            for stat in tmap.get(line["hash"].removeprefix("stat."), []):
+            for stat in tmap.get(line_id(line), []):
                 if stat == NO_QUALITY:
                     no_quality = True
                     read.append(line["description"])
@@ -238,6 +238,13 @@ def read_item(item, bases, tmap, local):
     return shown, quality, q, flat, inc, ranges, base_row, read
 
 
+def line_id(line):
+    """A line's stat id, the site's hash without its `stat.`; "" for a line the
+    site gave no hash (t54's crucible lines, step 7), which no id names: read by
+    its ids, such a line reads nothing, and its text is read where text is."""
+    return (line["hash"] or "").removeprefix("stat.")
+
+
 def twin_lines(item, tmap):
     """(flat, inc) of the item's global defence twins, read as if local."""
     flat = {t: 0.0 for t in TYPES}
@@ -246,7 +253,7 @@ def twin_lines(item, tmap):
         if array == "pseudoMods":
             continue
         for line in lines:
-            for stat in tmap.get(line["hash"].removeprefix("stat."), []):
+            for stat in tmap.get(line_id(line), []):
                 if stat in TWINS:
                     role, types = TWINS[stat]
                     for t in types:
@@ -255,7 +262,7 @@ def twin_lines(item, tmap):
 
 
 def has_no_quality(item, tmap):
-    return any(NO_QUALITY in tmap.get(line["hash"].removeprefix("stat."), [])
+    return any(NO_QUALITY in tmap.get(line_id(line), [])
                for array, lines in item["lines"].items() if array != "pseudoMods" for line in lines)
 
 

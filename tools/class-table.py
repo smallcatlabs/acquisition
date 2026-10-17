@@ -40,7 +40,9 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 # the clones sit beside the repository (search/repoe/MANIFEST.md, "The clones")
-POE1 = os.path.normpath(os.path.join(ROOT, "..", "..", "..", "poe1"))
+# the sibling clone, as search/category/scripts/common.py finds it (ACQ_CLONES
+# names another directory); three levels up was the path before the root swap
+POE1 = os.path.join(os.environ.get("ACQ_CLONES") or os.path.normpath(os.path.join(ROOT, "..")), "poe1")
 POE1_COMMIT = "e2bd511a0133bbe6c1ab548ef1285cb99f3cf0e9"  # search/repoe/MANIFEST.md
 OUT = os.path.join(ROOT, "crates", "acquisition-search", "reference", "classes-v1.toml")
 VERSION = 1

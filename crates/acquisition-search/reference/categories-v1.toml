@@ -42,7 +42,7 @@ id = "weapon.one"
 text = "One-Handed Weapon"
 kind = "grouping"
 members = [
-  { leaf = "weapon.claw", said_by = "meta.ts, not asked (J4): WEAPON_ONE_HANDED holds Claw" },
+  { leaf = "weapon.claw", said_by = "captures: v108" },
   { leaf = "weapon.basedagger", said_by = "meta.ts, not asked (J4): WEAPON_ONE_HANDED holds Dagger" },
   { leaf = "weapon.runedagger", said_by = "meta.ts, not asked (J4): WEAPON_ONE_HANDED holds Rune Dagger" },
   { leaf = "weapon.oneaxe", said_by = "meta.ts, not asked (J4): WEAPON_ONE_HANDED holds One-Handed Axe" },
@@ -77,9 +77,9 @@ kind = "grouping"
 members = [
   { leaf = "weapon.basestaff", said_by = "captures: j22" },
   { leaf = "weapon.warstaff", said_by = "captures: j23" },
-  { leaf = "weapon.twoaxe", said_by = "meta.ts, not asked (J4): WEAPONE_TWO_HANDED_MELEE holds Two-Handed Axe" },
-  { leaf = "weapon.twomace", said_by = "meta.ts, not asked (J4): WEAPONE_TWO_HANDED_MELEE holds Two-Handed Mace" },
-  { leaf = "weapon.twosword", said_by = "meta.ts, not asked (J4): WEAPONE_TWO_HANDED_MELEE holds Two-Handed Sword" },
+  { leaf = "weapon.twoaxe", said_by = "captures: t41 t42" },
+  { leaf = "weapon.twomace", said_by = "captures: t41 t42" },
+  { leaf = "weapon.twosword", said_by = "captures: t41 t42" },
 ]
 cites = "J4, J12: its reviewed members alone, search/category/data/grouping-members.csv"
 
@@ -133,8 +133,8 @@ id = "weapon.onesword"
 text = "Any One-Handed Sword"
 kind = "grouping"
 members = [
-  { leaf = "weapon.basesword", said_by = "captures: q3 q3b" },
-  { leaf = "weapon.rapier", said_by = "captures: q3 q3b" },
+  { leaf = "weapon.basesword", said_by = "captures: q3 q3b u061" },
+  { leaf = "weapon.rapier", said_by = "captures: q3 q3b u061" },
 ]
 cites = "J4, J12: its reviewed members alone, search/category/data/grouping-members.csv"
 
