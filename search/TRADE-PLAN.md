@@ -159,6 +159,10 @@ grows at 3 so that 4's text parses on the build that writes it.
    from a friend, what in my stash matches, in a person's words — one
    of them bounding an `increased` stat, so the named stat value's park
    (`decisions/search.md`) meets its trigger or does not, on evidence;
+   and, where a person would, a map searched by its Base and a weighted
+   sum over a scourge stat, so the two questions 7f labelled
+   (`blighted-base`, `scourge-in-sum`: `tests/trade-oracle.toml`) meet a
+   reader;
    the fix round inside the step (V6), its faults held by
    `tests/seat_faults.rs`, anything new a park with a trigger.
 9. **Close.** `SEARCH-SLICE.md` gains the step's rows (its budget is
@@ -433,3 +437,7 @@ table's rows with their weights (`totals.rs`, *a weight*), and
   reader and not others — now taken out once, where the query enters the
   translation, and a generated query with a null beside every key
   translates as itself. The catalogue 145 rows, 80 exact, 20 ambiguous.
+  Its review found a stat's reversed bounds aborting the translation, the
+  sum built after the binder had read the line; the node is bound alone
+  now, as every node a clause lands is (`80608255`). The outside review
+  approved the round, 2026-10-17: step 7 is closed, the seat next.

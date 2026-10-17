@@ -181,31 +181,16 @@ number there was measured, never recalled. The verdicts:
 - M2 (step 2, rerun at every change of the deriver): 0 unread and 0
   unexplained against the census; seven departures, each a rule of
   `derive.rs`, two of them candidate ground-truth claims.
-- M3 (step 4, rerun at every build since; as of `3eae4b4e`): the load,
-  the empty query, is 478 ms release, under 500, so the projection park
-  does not fire; the price join raised it from 276 at step 9, a mod's
-  rows by 3 to 5 at 9c4, category by some 14 at 9d-B, and the table's
-  135 more rows by some 9 at 9d-C, bound at every ask; at `a9733264`
-  it is 481, the percentile's asks 486–489. Thirteen asks
-  are over 500 in the run and nine were at `dc262f71`, each by an
-  evaluator's cost, the totals batch park's (V9, revisited at step 11):
-  an ask pays some 1 ms for each row of every total it reads. The
-  owner, 2026-10-08: the slice is wrapped up before anything is
-  optimized, and the budget was never a hard number. At step 10
-  (`5a087d37`) the load is 492: the live read names the ids it left
-  out by a scan of `items`, some 9 ms; explain is two more
-  evaluations, 522; a continuation and `all` cost nothing more. The whole run at the
-  tip (`e5e32adb`): the load 488–492, and on that floor 36 of its 67
-  asks are over 500 where 18 of 60 were, the dearest Thread of Hope's
-  counts at 623; six asked again alone are 3 to 18 over `a9733264`'s,
-  the load 11 or 12, each within 8 of the load's own move. The category
-  asks cost no more than the empty query. The six asks the seat saw at
-  695–715 ms did not recur on the copy, their cause unmeasured. The
-  debug build is 2.7 to 4.6 s. What each rerun showed is the block's.
-  After the close, run alone (`search/M3-LEDGER.md`, the row at
-  `53580145`): the projection park does not fire and the totals batch
-  stays parked
-  (`decisions/search.md`). Every run is `search/M3-LEDGER.md`.
+- M3 (step 4, rerun at every build since): the load, the empty query,
+  stays under 500 ms release — 478 at `3eae4b4e`, 492 at step 10
+  (`5a087d37`) — so the projection park does not fire; an ask over 500
+  is an evaluator's cost, the totals batch park's (some 1 ms for each row
+  of every total it reads), and the owner, 2026-10-08, had the slice
+  wrapped up before anything is optimized. After the close, run alone
+  (the row at `53580145`): the projection park does not fire and the
+  totals batch stays parked (`decisions/search.md`). Every run's numbers
+  are `search/M3-LEDGER.md`, what each rerun showed
+  `search/MEASUREMENTS.md`'s M3 block.
 - M4 (step 4): `~` over all text adds 9 ms.
 - M5 (step 10): over a mock session, 126 asks answered across 18
   responses committed, none refused and none slower than idle; a
