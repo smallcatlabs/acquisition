@@ -14,12 +14,14 @@
 # web tool. With SESSION-ID it resumes that session (the debrief); without, it
 # starts one. Prints the result JSON on stdout: session_id, result, denials.
 set -euo pipefail
-world=$(cd "$1" && pwd) model=$2 door=$3 prompt=$4 resume=${5:-}
-[[ -x $world/$door || -f $world/$door ]] || { echo "launch: no $door in $world" >&2; exit 2; }
+world=$(cd "$1" && pwd) model=$2 door=$3 resume=${5:-}
+[[ -f $world/$door ]] || { echo "launch: no $door in $world" >&2; exit 2; }
+text=$(cat "$4")  # read before the cd: a relative PROMPT-FILE is the caller's
+[[ -n $text ]] || { echo "launch: $4 is empty" >&2; exit 2; }
 cd "$world"
 args=(-p --model "$model" --permission-mode dontAsk --strict-mcp-config --setting-sources project
       --allowedTools "Read($world/**)" "Bash(python3 -I $world/$door:*)"
       --disallowedTools Agent Workflow Skill Write Edit NotebookEdit WebFetch WebSearch
       --output-format json)
 [[ -n $resume ]] && args+=(--resume "$resume")
-exec claude "${args[@]}" "$(cat "$prompt")" < /dev/null
+exec claude "${args[@]}" "$text" < /dev/null

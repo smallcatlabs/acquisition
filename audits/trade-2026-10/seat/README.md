@@ -27,3 +27,19 @@ first 3,000 characters, saying so, and mark the row `head` in
 `calls.csv`. The cut is the door's, never the tool's: a fault that rests
 on a `head` row is read against the whole output in the world's
 `calls/` before it is the tool's.
+
+## The runs
+
+Each launched by `.claude/skills/seat/launch.sh` in its world, the
+debrief the same session resumed. Counts are the door's (`calls.csv`);
+a report's own counts are the runner's, never recomputed here. Cost is
+the session's at list price.
+
+| Run | Model | Session | Calls | Cut | Turns | Cost | Files |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| cli-opus | `claude-opus-5-5` | `b12c3dbb` | 34 | none | 46 + 2 | $2.27 | `calls-cli-opus.csv`, `REPORT-cli-opus.md`, `DEBRIEF-cli-opus.md` |
+
+cli-opus: one command denied by the rails (a shell line not starting
+with the door), run again through it; one file read outside W — the
+harness's own spill of calls 9 and 10's joined output, named in the
+report's "Left out" and the debrief's answer 7.

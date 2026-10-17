@@ -156,8 +156,8 @@ def log(row, text):
     with open(CSV, "a", newline="") as f:
         if new:
             f.write("# written by seat.py during the run, one row per `acq` command in this world; row n's output is calls/NNN.txt\n")
-            csv.writer(f).writerow(FIELDS)
-        csv.writer(f).writerow([n] + row)
+            csv.writer(f, lineterminator="\n").writerow(FIELDS)
+        csv.writer(f, lineterminator="\n").writerow([n] + row)
     return n
 
 
