@@ -1444,3 +1444,73 @@ fn the_scope_counts_the_never_fetched_by_tab_type_and_names_the_list() {
         "{text}"
     );
 }
+
+/// Three pc maps in one tab of Standard: a Blighted map at tier 14, a
+/// Blight-ravaged one at 15, and a Blighted one at 13.
+fn seed_maps(base: &Path) {
+    let dir = stores(base);
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut index = Index::load(&dir).unwrap();
+    index.record_login(USER, "u-search", false, 1).unwrap();
+    let mut store = Store::open(&account_path(&dir, USER)).unwrap();
+    record(
+        &mut store,
+        Endpoint::Profile,
+        "pc",
+        json!({ "uuid": "u-search", "name": USER }),
+        1,
+    );
+    record(
+        &mut store,
+        Endpoint::Stashes {
+            realm: "pc".into(),
+            league: "Standard".into(),
+        },
+        "pc",
+        json!({ "stashes": [{ "id": "m1", "name": "Maps", "type": "PremiumStash" }] }),
+        10,
+    );
+    let map = |id: &str, base: &str| item(id, "", base, "Normal", json!({ "frameTypeId": 0 }));
+    record(
+        &mut store,
+        stash("pc", "m1"),
+        "pc",
+        json!({ "stash": { "id": "m1", "name": "Maps", "type": "PremiumStash", "items": [
+            map("blighted", "Blighted Map (Tier 14)"),
+            map("ravaged", "Blight-ravaged Map (Tier 15)"),
+            map("low", "Blighted Map (Tier 13)"),
+        ] } }),
+        20,
+    );
+}
+
+/// C119: both second-round Opus runs measured each ambiguity by hand at
+/// three or four calls (the trade seat: mcp-opus-2 calls 34, 38, 40),
+/// one saying the label "does not hint at how much is at stake". A
+/// clause whose other reading the catalogue holds carries it, with the
+/// items in scope it adds and drops against the query as run — each
+/// count's request unasked, a next step hanging on it, and returning
+/// exactly its members — and a clause with none carries nothing.
+#[test]
+fn an_ambiguous_clause_says_how_many_items_its_other_reading_would_change() {
+    let base = scratch();
+    seed_maps(&base);
+    let mut seat = Seat::over(base);
+    let search = json!({ "query": { "filters": { "map_filters": { "filters": {
+        "map_tier": { "min": 14 }, "map_blighted": { "option": "true" } } } } } });
+    let a = seat.answer(&json!({ "scope": { "realm": "pc" }, "query": { "trade": search } }));
+    assert_eq!(ids(&a), ["blighted"], "{a}");
+    let clauses = a["query"]["trade"]["clauses"].as_array().unwrap();
+    let at = |name: &str| clauses.iter().find(|c| c["at"] == name).unwrap();
+    assert!(at("map_filters.map_tier").get("other").is_none(), "{a}");
+    let other = &at("map_filters.map_blighted")["other"];
+    assert_eq!(
+        other["reading"],
+        "(category=map typeline~\"^Blighted \") or (category=map typeline~\"^Blight-ravaged \")",
+        "{other}"
+    );
+    assert_eq!(other["adds"]["count"], 1, "{other}");
+    assert_eq!(other["drops"], json!({ "count": 0 }), "{other}");
+    let added = seat.answer(&other["adds"]["request"]);
+    assert_eq!(ids(&added), ["ravaged"], "{added}");
+}

@@ -87,7 +87,8 @@ pub struct TradeCatalogue {
 /// One clause of a site search: its key as the query object spells it,
 /// the site's label, its status when it runs, the text it becomes — with
 /// the placeholders the catalogue's header defines — and what it says,
-/// as the report says it; the row's note, its evidence, is the
+/// as the report says it, and its other reading, where it has one, whose
+/// stake an answer counts (C119); the row's note, its evidence, is the
 /// catalogue file's.
 #[derive(Debug, Clone, Serialize)]
 pub struct TradeRow {
@@ -99,6 +100,8 @@ pub struct TradeRow {
     pub lands: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub says: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub other: Option<String>,
 }
 
 fn trade_catalogue() -> Result<TradeCatalogue, LanguageError> {
@@ -117,6 +120,7 @@ fn trade_catalogue() -> Result<TradeCatalogue, LanguageError> {
                 status: row.disposition.word(),
                 lands: row.lands.clone(),
                 says: row.says.clone(),
+                other: row.other.clone(),
             })
             .collect(),
     })

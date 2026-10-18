@@ -1572,3 +1572,102 @@ fn a_count_holds_its_request_only_where_the_routes_are_asked() {
     ));
     assert!(next["terms"][0]["failed"]["request"].is_object(), "{next}");
 }
+
+/// C119: both second-round Opus runs measured an ambiguous clause by hand
+/// at three or four calls (the trade seat: cli-opus-2 calls 36–38 for the
+/// scourge line, 42–43 for the Blight-ravaged maps). The clause's line
+/// says what its other reading adds and drops, and the routes block
+/// carries the request for each it changes, unasked.
+#[test]
+fn an_ambiguous_clauses_line_says_what_its_other_reading_adds_and_drops() {
+    let scratch = harness::scratch("seat-trade-stake");
+    let base = scratch.0.clone();
+    let mock = base.join("store").join("mock");
+    std::fs::create_dir_all(&mock).unwrap();
+    let at = acquisition_store::now();
+    Index::load(&mock)
+        .unwrap()
+        .record_login("Alice#1234", "u-seat", false, at)
+        .unwrap();
+    let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
+    let mut record = |ep: Endpoint, params: Value, body: Value| {
+        store.record(&ep, &params, 200, &body, at).unwrap();
+    };
+    record(
+        Endpoint::Profile,
+        json!({}),
+        json!({ "uuid": "u-seat", "name": "Alice#1234" }),
+    );
+    let pc = || ("pc".to_string(), "Standard".to_string());
+    record(
+        Endpoint::Stashes {
+            realm: pc().0,
+            league: pc().1,
+        },
+        json!({ "league": "Standard" }),
+        json!({ "stashes": [ { "id": "m1", "name": "Maps", "type": "PremiumStash", "index": 0 } ] }),
+    );
+    let map = |id: &str, base: &str| json!({ "id": id, "name": "", "typeLine": base, "baseType": base, "frameTypeId": 0, "x": 0, "y": 0 });
+    record(
+        Endpoint::Stash {
+            realm: pc().0,
+            league: pc().1,
+            id: "m1".into(),
+            sub: None,
+        },
+        json!({}),
+        json!({ "stash": { "id": "m1", "name": "Maps", "type": "PremiumStash", "items": [
+            map("blighted", "Blighted Map (Tier 14)"),
+            map("ravaged", "Blight-ravaged Map (Tier 15)") ] } }),
+    );
+    let mut child = harness::command(&base, &["search", "--realm", "pc", "--trade-file", "-"])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    use std::io::Write as _;
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(
+            br#"{"query": {"filters": {"map_filters": {"filters": {"map_tier": {"min": 14}, "map_blighted": {"option": "true"}}}}}}"#,
+        )
+        .unwrap();
+    let out = child.wait_with_output().unwrap();
+    let shown = stdout(&out);
+    assert!(out.status.success(), "{shown}");
+    let line = |starts: &str| {
+        shown
+            .lines()
+            .find(|l| l.trim_start().starts_with(starts))
+            .unwrap_or_else(|| panic!("no line {starts}: {shown}"))
+            .to_string()
+    };
+    assert!(
+        line("ambiguous map_filters.map_blighted")
+            .ends_with("the site may count one. · read the other way: adds 1, drops 0"),
+        "{shown}"
+    );
+    // a clause with no other reading says nothing of one (C93)
+    assert!(
+        !line("ambiguous map_filters.map_tier").contains("other way"),
+        "{shown}"
+    );
+    let routes: Vec<&str> = shown
+        .lines()
+        .skip_while(|l| !l.starts_with("routes"))
+        .collect();
+    let at = routes
+        .iter()
+        .position(|l| {
+            *l == "  clause map_filters.map_blighted read the other way, adds (1), over the scope:"
+        })
+        .unwrap_or_else(|| panic!("{shown}"));
+    assert_eq!(
+        routes[at + 1],
+        "    acq search --account 'Alice#1234' --realm pc 'map_tier>=14 (category=map typeline~\"^Blight-ravaged \") -(category=map typeline~\"^Blighted \")'",
+        "{shown}"
+    );
+    assert!(!shown.contains("read the other way, drops"), "{shown}");
+}

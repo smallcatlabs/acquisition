@@ -432,3 +432,59 @@ fn c113_the_catalogue_loader_refuses_what_a_reviewer_would() {
         );
     }
 }
+
+/// C119: an other reading is an ambiguous row's alone, its placeholders
+/// the ones the translation fills — a `lands` placeholder, the clause's
+/// `{term}`, `{forms}` and `{without}`, never inside quotes — and a
+/// `lands` may not write a reading's own.
+#[test]
+fn c119_an_other_reading_is_an_ambiguous_rows_alone() {
+    let refused = |text: String| Catalogue::parse(&text).unwrap_err();
+    let key = || "a.b".to_string();
+    let one = |body: &str| format!("{HEAD}{}", row("a.b", body));
+    let ambiguous =
+        "disposition = \"ambiguous\"\nnote = \"n\"\nsays = \"s\"\nlands = \"ilvl{bounds}\"";
+    let read = Catalogue::parse(&one(&format!(
+        "{ambiguous}\nother = \"({{term}}) or ilvl{{bounds}} -{{forms}} {{without}}\""
+    )))
+    .unwrap();
+    assert!(read.rows()[0].other.is_some());
+    assert_eq!(
+        refused(one(
+            "disposition = \"exact\"\nlands = \"ilvl{bounds}\"\nother = \"({term}) or true()\""
+        )),
+        CatalogueError::OtherNotAmbiguous(key())
+    );
+    assert_eq!(
+        refused(one(&format!("{ambiguous}\nother = \"{{term}} {{least}}\""))),
+        CatalogueError::UnknownPlaceholder {
+            key: key(),
+            placeholder: "least".to_string()
+        }
+    );
+    assert_eq!(
+        refused(one(&format!(
+            "{ambiguous}\nother = 'typeline~\"{{term}}\"'"
+        ))),
+        CatalogueError::QuotedPlaceholder {
+            key: key(),
+            placeholder: "term".to_string()
+        }
+    );
+    assert_eq!(
+        refused(one(&format!("{ambiguous}\nother = \" \""))),
+        CatalogueError::Empty {
+            key: key(),
+            what: "other reading"
+        }
+    );
+    assert_eq!(
+        refused(one(
+            "disposition = \"ambiguous\"\nnote = \"n\"\nsays = \"s\"\nlands = \"ilvl{bounds} {term}\""
+        )),
+        CatalogueError::UnknownPlaceholder {
+            key: key(),
+            placeholder: "term".to_string()
+        }
+    );
+}

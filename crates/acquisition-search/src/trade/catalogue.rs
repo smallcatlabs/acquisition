@@ -19,7 +19,8 @@
 //!   none empty; nothing landed by a clause that does not run; every
 //!   placeholder one the translation fills ([`PLACEHOLDERS`]), and none
 //!   inside quotes, where the printer's quoting of its value cannot reach
-//!   (step 4); every field
+//!   (step 4), a row's other reading's among them ([`READING_PLACEHOLDERS`]),
+//!   which an ambiguous row alone carries (C119); every field
 //!   named written in the row's text, and **every field named one this
 //!   build knows** — a field of the language, a property field
 //!   (`properties.rs`, C114), a computed value, or the `is:` word — so a
@@ -57,6 +58,12 @@ pub const FILTERS_CAPTURE: &str = "2026-09-12";
 pub const PLACEHOLDERS: [&str; 9] = [
     "value", "text", "option", "r", "g", "b", "w", "bounds", "total",
 ];
+
+/// What a row's `other`, the clause's other reading (C119), may be filled
+/// with beside a `lands` placeholder (the file's header): the clause's own
+/// text, the line of the stat's forms no sum holds, and its weighted sum
+/// with its own line left out.
+pub const READING_PLACEHOLDERS: [&str; 3] = ["term", "forms", "without"];
 
 /// A clause's status when it runs (K6). `disabled`, the fifth, is the
 /// site's own mark on a clause, never a row's.
@@ -116,6 +123,7 @@ struct RowIn {
     lacked: Option<String>,
     note: Option<String>,
     says: Option<String>,
+    other: Option<String>,
 }
 
 /// One clause of the site's query, as the catalogue states it.
@@ -141,6 +149,11 @@ pub struct Row {
     /// `t55`, a file's path, and could not read them). Given wherever a
     /// note is.
     pub says: Option<String>,
+    /// The clause's other reading, on an ambiguous row alone (C119): a
+    /// fragment in the language with its placeholders, which the
+    /// translation fills where the clause has the shape the reading was
+    /// asked for, and the answer counts what it would add and drop.
+    pub other: Option<String>,
 }
 
 /// The parsed, checked catalogue. Read-only; one per build.
@@ -198,6 +211,8 @@ pub enum CatalogueError {
         key: String,
         placeholder: String,
     },
+    /// An other reading on a row that is not ambiguous (C119).
+    OtherNotAmbiguous(String),
     /// Fields named by a row that lands no text.
     FieldsWithoutLands(String),
     /// A field named that the row's text does not write.
@@ -265,11 +280,15 @@ impl std::fmt::Display for CatalogueError {
             ),
             CatalogueError::UnknownPlaceholder { key, placeholder } => write!(
                 f,
-                "the trade catalogue's {key:?} lands {{{placeholder}}}, which the translation does not fill"
+                "the trade catalogue's {key:?} writes {{{placeholder}}}, which the translation does not fill"
             ),
             CatalogueError::QuotedPlaceholder { key, placeholder } => write!(
                 f,
                 "the trade catalogue's {key:?} writes {{{placeholder}}} inside quotes: a placeholder stands bare, and the translation quotes what fills it"
+            ),
+            CatalogueError::OtherNotAmbiguous(key) => write!(
+                f,
+                "the trade catalogue gives {key:?} an other reading, which an ambiguous row alone carries"
             ),
             CatalogueError::FieldsWithoutLands(key) => write!(
                 f,
@@ -444,6 +463,7 @@ impl Catalogue {
                 (&row.note, "note"),
                 (&row.says, "says"),
                 (&row.lands, "landing"),
+                (&row.other, "other reading"),
             ] {
                 if given.as_ref().is_some_and(|t| t.trim().is_empty()) {
                     return Err(CatalogueError::Empty { key, what });
@@ -462,23 +482,25 @@ impl Catalogue {
             if !disposition.runs() && row.lands.is_some() {
                 return Err(CatalogueError::LandsWithoutRunning(key));
             }
-            if let Some(lands) = &row.lands
-                && let Some(placeholder) = placeholders(lands)
-                    .into_iter()
-                    .find(|p| !PLACEHOLDERS.contains(p))
-            {
-                return Err(CatalogueError::UnknownPlaceholder {
-                    placeholder: placeholder.to_string(),
-                    key,
-                });
+            if row.other.is_some() && disposition != Disposition::Ambiguous {
+                return Err(CatalogueError::OtherNotAmbiguous(key));
             }
-            if let Some(lands) = &row.lands
-                && let Some(placeholder) = quoted_placeholder(lands)
-            {
-                return Err(CatalogueError::QuotedPlaceholder {
-                    placeholder: placeholder.to_string(),
-                    key,
-                });
+            for (text, reading) in [(&row.lands, false), (&row.other, true)] {
+                let Some(text) = text else { continue };
+                if let Some(placeholder) = placeholders(text).into_iter().find(|p| {
+                    !PLACEHOLDERS.contains(p) && !(reading && READING_PLACEHOLDERS.contains(p))
+                }) {
+                    return Err(CatalogueError::UnknownPlaceholder {
+                        placeholder: placeholder.to_string(),
+                        key,
+                    });
+                }
+                if let Some(placeholder) = quoted_placeholder(text) {
+                    return Err(CatalogueError::QuotedPlaceholder {
+                        placeholder: placeholder.to_string(),
+                        key,
+                    });
+                }
             }
             match &row.lands {
                 None if !row.fields.is_empty() => {
@@ -517,6 +539,7 @@ impl Catalogue {
                 lacked_meets_maximum,
                 note: row.note,
                 says: row.says,
+                other: row.other,
             });
         }
         Ok(Catalogue {

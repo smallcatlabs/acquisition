@@ -72,6 +72,20 @@
 # words with no citation, given wherever a note is (the trade seat,
 # 2026-10-17). An option value or key no row names is
 # unsupported by its name (K6), by `query.unknown`.
+# `other`, on an ambiguous row alone, is the clause's other reading
+# (C119): the fragment the clause would be read the other way, filled
+# as `lands` is, beside `{term}`, the clause's own text, `{forms}`, the
+# line of the stat's forms no sum holds, and `{without}`, its weighted
+# sum with its own line left out against the group's bound. A reading
+# applies where the clause has every property of the shape it was asked
+# for, and is none elsewhere, as is one holding a placeholder its clause
+# does not fill: the clause, or the weighted sum it is a line of, a
+# conjunct of the query whole; `{forms}` a bound with a minimum alone in
+# an `and` group, every form no sum holds the opposite word (the trade
+# seat's `increased Rarity` at 20); `{without}` a filter of a bounded
+# weighted sum beside another. The answer counts the items in scope the
+# reading adds and drops against the query as run, each with its route
+# (`answer.rs`).
 #
 # Measured at writing (a script over this file, never a count by eye):
 # 147 rows — 4 for the URL, 10 for the query object's keys, the JSON and
@@ -538,6 +552,7 @@ lands = 'category="map" typeline~"^Blighted "'
 fields = ["category", "typeline"]
 note = "a map filter: a map, its type line's `Blighted` prefix — the prefix alone took a Blighted Delirium Orb, an incubator and an idol (the trade seat, mcp-opus-2 call 40); ambiguous as `map_filters.map_blighted`"
 says = "A map whose type line begins Blighted; a Blight-ravaged map is outside it, and the site may count one."
+other = '({term}) or (category="map" typeline~"^Blight-ravaged ")'
 
 [[row]]
 key = "map_filters.map_blighted=false"
@@ -547,6 +562,7 @@ lands = 'category="map" -typeline~"^Blighted "'
 fields = ["category", "typeline"]
 note = "a map filter: a map without the prefix, never an item that is no map (t56: `false`, none blighted); ambiguous as `map_filters.map_blighted`"
 says = "A map whose type line does not begin Blighted; a Blight-ravaged map is inside it, and the site may leave one out."
+other = '({term}) -typeline~"^Blight-ravaged "'
 
 [[row]]
 key = "map_filters.map_uberblighted"
@@ -1269,6 +1285,7 @@ key = "stat.text.forms"
 disposition = "ambiguous"
 note = "a bound on a stat the game also displays another way (reference/trade-forms-v1.toml): the site reads the stat however displayed — `reduced` under an `increased` id below nothing (t01–t04), an elided 100 % as 100 (t10), `an` as one (t12), `No Physical Damage` at a number it hides (t07–t09, w01–w05) — and the language sums displayed lines with no sign; the bound sums the text and its plurals alone, never one moved onto a form, so the text means what it says after an edit; exact once the language can name a stat however displayed: the park \"A named stat value\" (decisions/trade.md)"
 says = "The game also shows this stat another way, such as reduced for increased; the bound counts the wording given alone, where the site counts every form."
+other = "({term}) -{forms}"
 
 [[row]]
 key = "stat.text.refused"
@@ -1281,6 +1298,7 @@ key = "stat.scourge.summed"
 disposition = "ambiguous"
 note = "a scourge stat in a weighted sum: e043 and f005 returned an item of crafted `+28% to Fire Resistance` and scourge `-28%` under a sum of both ids at `min` 0.5, the site's sum 28, as if it left the scourge line out; the line is summed here, and what the site does is for a sitting (`scourge-in-sum`, tests/trade-oracle.toml)"
 says = "A scourge modifier in a weighted sum is counted here; the site may leave it out."
+other = "{without}"
 
 [[row]]
 key = "stat.text.wording"

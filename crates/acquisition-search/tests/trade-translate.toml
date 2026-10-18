@@ -356,6 +356,7 @@ fidelity = "ambiguous"
 statuses = { "map_filters.map_blighted" = "ambiguous" }
 matches = ['{"typeLine": "Blighted Map (Tier 13)", "baseType": "Blighted Map (Tier 13)", "rarity": "Normal"}']
 fails = ['{"typeLine": "Map (Tier 13)", "baseType": "Map (Tier 13)", "rarity": "Normal"}', '{"typeLine": "Blight-ravaged Map (Tier 15)", "baseType": "Blight-ravaged Map (Tier 15)", "rarity": "Normal"}', '{"typeLine": "Blighted Delirium Orb", "baseType": "Blighted Delirium Orb", "frameTypeId": 5}']
+others = { "map_filters.map_blighted" = { reading = '(category=map typeline~"^Blighted ") or (category=map typeline~"^Blight-ravaged ")', adds = ["f1"] } }
 
 [[case]]
 name = "a blighted map's Any: no option, so the clause states nothing (the base row, since the options have their own)"
@@ -370,8 +371,9 @@ query = '{"filters": {"map_filters": {"filters": {"map_blighted": {"option": "fa
 text = 'category=map -typeline~"^Blighted "'
 fidelity = "ambiguous"
 statuses = { "map_filters.map_blighted" = "ambiguous" }
-matches = ['{"typeLine": "Map (Tier 13)", "baseType": "Map (Tier 13)", "rarity": "Normal"}']
+matches = ['{"typeLine": "Map (Tier 13)", "baseType": "Map (Tier 13)", "rarity": "Normal"}', '{"typeLine": "Blight-ravaged Map (Tier 15)", "baseType": "Blight-ravaged Map (Tier 15)", "rarity": "Normal"}']
 fails = ['{"typeLine": "Blighted Map (Tier 13)", "baseType": "Blighted Map (Tier 13)", "rarity": "Normal"}', '{"typeLine": "Chaos Orb", "baseType": "Chaos Orb", "frameTypeId": 5}']
+others = { "map_filters.map_blighted" = { reading = '(category=map -typeline~"^Blighted ") -typeline~"^Blight-ravaged "', drops = ["m1"] } }
 
 # ---- heist_filters ----------------------------------------------------------------------------
 
@@ -1215,6 +1217,7 @@ query = '{"type": "Map (Tier 13)", "filters": {"map_filters": {"filters": {"map_
 text = 'base="Map (Tier 13)" (category=map typeline~"^Blighted ")'
 fidelity = "ambiguous"
 statuses = { "type" = "ambiguous", "map_filters.map_blighted" = "ambiguous" }
+others = { "map_filters.map_blighted" = { reading = '(category=map typeline~"^Blighted ") or (category=map typeline~"^Blight-ravaged ")' } }
 
 [[case]]
 name = "a scourge stat in a weighted sum is ambiguous (e043, f005: scourge-in-sum)"
@@ -1222,6 +1225,9 @@ query = '{"stats": [{"type": "weight2", "value": {"min": 0.5}, "filters": [{"id"
 text = 'sum(line(("#% to Fire Resistance" is:crafted) or ("#% to Fire Resistance" source=scourge)).arg1)>=0.5'
 fidelity = "ambiguous"
 statuses = { "stats.0" = "exact", "stats.0.0" = "exact", "stats.0.1" = "ambiguous" }
+matches = ['{"explicitMods": [{"description": "+10% to Fire Resistance", "flags": {"crafted": true}}]}', '{"scourgeMods": ["+20% to Fire Resistance"]}']
+fails = ['{"explicitMods": [{"description": "+28% to Fire Resistance", "flags": {"crafted": true}}], "scourgeMods": ["-28% to Fire Resistance"]}']
+others = { "stats.0.1" = { reading = 'sum(line("#% to Fire Resistance" is:crafted).arg1)>=0.5', adds = ["f0"], drops = ["m1"] } }
 
 [[case]]
 name = "a key sent null is absent wherever it stands: the query's stats, a filter, a group (the outside review of 8f293ff3)"
@@ -1236,3 +1242,41 @@ query = '{"stats": [{"type": "and", "filters": [{"id": "explicit.stat_3299347043
 text = 'line("#% to Fire Resistance" source=explicit)'
 fidelity = "partial"
 statuses = { "stats.0" = "exact", "stats.0.0" = "unsupported", "stats.0.1" = "exact" }
+
+# ---- the trade seat's tasks, read the other way (C119) -----------------------------------------
+# The URLs of the seat's T4, T5 and T6 (audits/trade-2026-10/seat/, the
+# calls of every run), each ambiguous clause's other reading and what it
+# adds and drops over items worked by hand.
+
+[[case]]
+name = "the trade seat's T4: increased Rarity at 20, read the other way the reduced form may put a match below the bound"
+url = "https://www.pathofexile.com/trade/search/Standard/H4sIAAAAAAAAEyWMUQqDMBAF7_K-Q1ErtO5VipS0WWEhjaG7SiXk7kX9nWGmQM3boqCCOZvMCQSfNlR3GAU9CmzLfPAAh0mi8fcUEkDgX47yFrvswfM6tLf-PrR9B4fVx4X390cSqGuqQxD1r8gBNPmoXMc61j_RF1xohgAAAA"
+realm = "pc"
+text = 'league=Standard sum(line("#% increased Rarity of Items found" source=explicit).arg1)>=20'
+fidelity = "ambiguous"
+statuses = { "url.league" = "exact", "status" = "listing_only", "stats.0" = "exact", "stats.0.0" = "ambiguous" }
+matches = ['{"explicitMods": ["25% increased Rarity of Items found"]}', '{"explicitMods": ["30% increased Rarity of Items found", "10% reduced Rarity of Items found"]}']
+fails = ['{"explicitMods": ["15% increased Rarity of Items found"]}', '{"explicitMods": ["25% reduced Rarity of Items found"]}']
+others = { "stats.0.0" = { reading = 'sum(line("#% increased Rarity of Items found" source=explicit).arg1)>=20 -line("#% reduced Rarity of Items found" source=explicit)', drops = ["m1"] } }
+
+[[case]]
+name = "the trade seat's T5: fire resistance summed at 30, read the other way without the scourge line, which adds and drops"
+url = "https://www.pathofexile.com/trade/search/Standard/H4sIAAAAAAAAE52OUQuCQBCE_8s8H1FqCPtXQuLyVlu4VLy1kuP-e5wU-Nzj7Mx8OxFBrS4BFDFOKuMAgh1WJLM5AXSJ0HXi7e5g0IlXnrPRJBN3MkIcCPyevLSih9y_lmVdnIuqqGoYPK1fOL96sfR3BZ2SgZNgb54dqLM-cGZunNCOy9zzv5jG_GZ_U7veQwZQeUypSR_2XspvAQEAAA"
+realm = "pc"
+text = 'league=Standard sum(line(("#% to Fire Resistance" source=explicit) or ("#% to Fire Resistance" source=scourge)).arg1)>=30'
+fidelity = "ambiguous"
+statuses = { "url.league" = "exact", "status" = "listing_only", "stats.1" = "exact", "stats.1.0" = "exact", "stats.1.1" = "ambiguous" }
+matches = ['{"explicitMods": ["+35% to Fire Resistance"]}', '{"explicitMods": ["+20% to Fire Resistance"], "scourgeMods": ["+15% to Fire Resistance"]}']
+fails = ['{"explicitMods": ["+35% to Fire Resistance"], "scourgeMods": ["-10% to Fire Resistance"]}', '{"explicitMods": ["+20% to Fire Resistance"]}']
+others = { "stats.1.1" = { reading = 'sum(line("#% to Fire Resistance" source=explicit).arg1)>=30', adds = ["f0"], drops = ["m1"] } }
+
+[[case]]
+name = "the trade seat's T6: blighted maps at tier 14 and up, read the other way a Blight-ravaged map at the tier bound is added"
+url = "https://www.pathofexile.com/trade/search/Standard/H4sIAAAAAAAAE12OMQ6AIBAE_7I1jYkVXzHGYDj1EgUCR0EIfzdSqVvtzjRbkcRITtAVPgh7Bw3jCprqJkFPFVICdW6hsPEpFB8xt_k1Ky4Tltf8GWGKvbODHsamOl1P3g8h-zkgMRPakxv0ojqsoAAAAA"
+realm = "pc"
+text = 'league=Standard map_tier>=14 (category=map typeline~"^Blighted ")'
+fidelity = "ambiguous"
+statuses = { "url.league" = "exact", "status" = "listing_only", "map_filters.map_tier" = "ambiguous", "map_filters.map_blighted" = "ambiguous" }
+matches = ['{"typeLine": "Blighted Map (Tier 14)", "baseType": "Blighted Map (Tier 14)", "rarity": "Normal"}']
+fails = ['{"typeLine": "Blight-ravaged Map (Tier 15)", "baseType": "Blight-ravaged Map (Tier 15)", "rarity": "Normal"}', '{"typeLine": "Blighted Map (Tier 13)", "baseType": "Blighted Map (Tier 13)", "rarity": "Normal"}', '{"typeLine": "Blight-ravaged Map (Tier 13)", "baseType": "Blight-ravaged Map (Tier 13)", "rarity": "Normal"}']
+others = { "map_filters.map_blighted" = { reading = '(category=map typeline~"^Blighted ") or (category=map typeline~"^Blight-ravaged ")', adds = ["f0"] } }

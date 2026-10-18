@@ -153,7 +153,9 @@
 //!   what holds only together; what each term matched where nothing
 //!   matched; what a count could not place, a key's `none` and
 //!   `undecided` and a crossed cell holding either; an explained node's
-//!   forced counts — and the requests that are no count's: a value list's
+//!   forced counts; what an ambiguous trade clause's other reading adds
+//!   and drops, the translation's own undecided (C119) — and the requests
+//!   that are no count's: a value list's
 //!   rest, an id that left, a zero answer's offers, the rows' `next`.
 //!   Every other count keeps its number and drops its request; the view's
 //!   `routes` asks for every one, a terminal's `--routes`, and a
@@ -162,6 +164,21 @@
 //!   weighed 31 KB by default with every request in it, over every seat
 //!   runner's harness cut (the trade seat), and the terminal already
 //!   printed these alone.
+//! - **What is at stake in an ambiguous clause** (C119, `TRADE-SLICE.md`
+//!   row 8b): where the clause carries its other reading (`translate.rs`,
+//!   which says where one applies), the query with the conjunct the
+//!   reading stands in for replaced by it is asked of every item by the
+//!   one evaluator, and the clause's `other` counts the items it matches
+//!   that the query as run fails — `adds` — and those the query matches
+//!   that it fails — `drops`. Each count's route is the query with that
+//!   conjunct replaced by what tells the two apart: the reading and not
+//!   the conjunct, or the conjunct and not the reading, the shared part
+//!   said once where the reading writes the conjunct inside it (`{term}
+//!   or …` adds alone, `{term} -…` drops alone); it returns exactly the
+//!   members counted, an item undecided either way in neither. A count
+//!   of none is a number with no route, and a clause with no reading has
+//!   no `other` (C93). Only where the site's search is the query run:
+//!   under the corpus context it is set aside, and nothing is staked.
 //! - **A `:` or `~` selector is printed as authored with what it resolved
 //!   to beside it** (invariant 2): the values its matched items carry,
 //!   or — for a line's group, a `sum`'s too — the templates its selector
@@ -297,7 +314,7 @@ use crate::error::{LanguageError, SearchError};
 use crate::eval::{self, Outcome, Scalar, Truth};
 pub use crate::eval::{Evidence, Reason};
 use crate::group;
-use crate::trade::translate::{Clause, Fidelity, Translation};
+use crate::trade::translate::{Clause, Fidelity, Reading, Status, Translation};
 use crate::trade::{self, Decoded, Source};
 use crate::tree::{Collection, Node, Op, Probe, Value, ValueRef};
 use crate::{json, parse, print};
@@ -1121,7 +1138,7 @@ pub struct TradeOut {
     pub fidelity: Fidelity,
     /// The `at` of every unsupported clause: what the text does not say.
     pub remainder: Vec<String>,
-    pub clauses: Vec<Clause>,
+    pub clauses: Vec<ClauseOut>,
     pub catalogue: u32,
     pub stats: String,
     pub forms: u32,
@@ -1133,12 +1150,64 @@ impl From<Translation> for TradeOut {
             source: t.source,
             fidelity: t.fidelity,
             remainder: t.remainder,
-            clauses: t.clauses,
+            clauses: t.clauses.into_iter().map(ClauseOut::from).collect(),
             catalogue: t.catalogue,
             stats: t.stats,
             forms: t.forms,
         }
     }
+}
+
+/// One clause of a site search as the answer reports it (C113, K6): where
+/// it stands in the site's request, what the site wrote, the catalogue's
+/// rows read for it, its status, its term and path, what its rows say —
+/// and, for an ambiguous clause whose row carries its other reading, what
+/// is at stake (C119).
+#[derive(Debug, Clone, Serialize)]
+pub struct ClauseOut {
+    pub at: String,
+    pub site: Json,
+    pub rows: Vec<String>,
+    pub status: Status,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub term: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub notes: Vec<String>,
+    /// What the clause's other reading would change, counted over the
+    /// scope (C119): absent where its row carries none (C93).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub other: Option<Stake>,
+    /// The reading the stake is counted from; the answer's alone.
+    #[serde(skip)]
+    reading: Option<Reading>,
+}
+
+impl From<Clause> for ClauseOut {
+    fn from(c: Clause) -> ClauseOut {
+        ClauseOut {
+            at: c.at,
+            site: c.site,
+            rows: c.rows,
+            status: c.status,
+            term: c.term,
+            path: c.path,
+            notes: c.notes,
+            other: None,
+            reading: c.other,
+        }
+    }
+}
+
+/// What an ambiguous clause's other reading would change (C119): the
+/// reading, and the items in scope it would add to the answer and drop
+/// from it, against the query as run — each a count with its route.
+#[derive(Debug, Clone, Serialize)]
+pub struct Stake {
+    pub reading: String,
+    pub adds: Count,
+    pub drops: Count,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1571,6 +1640,9 @@ pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError>
     let mut reasons: Vec<UndecidedReason> = Vec::new();
     let mut n_undecided = 0usize;
     let mut outcomes: Vec<Outcome> = Vec::with_capacity(n_terms);
+    // each item's outcome at the root, for what an ambiguous clause's
+    // other reading would change (C119)
+    let mut truths: Vec<Truth> = Vec::with_capacity(corpus.items.len());
     // the query's parts — the children of the root, a root that is no and
     // its one part — and how many items each holds on: what a zero answer
     // orders its offers by, counted while nothing has matched
@@ -1604,7 +1676,9 @@ pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError>
                 }
             }
         }
-        match eval::truth(&query.bound, &outcomes) {
+        let truth = eval::truth(&query.bound, &outcomes);
+        truths.push(truth);
+        match truth {
             Truth::True => matches.push((at, outcomes.clone())),
             Truth::Undecided => {
                 n_undecided += 1;
@@ -1879,8 +1953,17 @@ pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError>
             }))
         }
     };
-    // the site's search is the typed query's: its report stands with it
-    let trade = translation.map(TradeOut::from);
+    // the site's search is the typed query's: its report stands with it,
+    // and what each ambiguous clause's other reading would change, where
+    // that search is the query run (C119)
+    let mut trade = translation.map(TradeOut::from);
+    if let (Some(report), None) = (&mut trade, &set_aside) {
+        for clause in &mut report.clauses {
+            if let Some(reading) = &clause.reading {
+                clause.other = Some(stake(corpus, &router, &query.root, &truths, reading)?);
+            }
+        }
+    }
     let (trade, set_aside_trade) = match set_aside {
         Some(_) => (None, trade),
         None => (trade, None),
@@ -1921,6 +2004,121 @@ pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError>
         answer.shed_routes();
     }
     Ok(answer)
+}
+
+/// What an ambiguous clause's other reading would change (C119): the
+/// query with the conjunct it stands in for replaced by it, asked of
+/// every item by the one evaluator; an item it matches that the query as
+/// run fails is one it adds, one the query matches that it fails one it
+/// drops. Each count's route is the query with that conjunct replaced by
+/// what tells the two apart — the reading and not the conjunct, or the
+/// conjunct and not the reading, the shared part said once where the
+/// reading writes the conjunct inside it — which returns exactly the
+/// members counted (invariant 4).
+fn stake(
+    corpus: &Corpus,
+    router: &Router<'_>,
+    root: &Node,
+    truths: &[Truth],
+    reading: &Reading,
+) -> Result<Stake, SearchError> {
+    let defect = |what: &str| {
+        SearchError::Language(LanguageError::new(
+            crate::error::ErrorKind::Trade,
+            format!("the other reading `{}` stands in for {what}", reading.text),
+        ))
+    };
+    let conjunct = conjunct_at(root, &reading.path)
+        .ok_or_else(|| defect(&format!("`{}`, no conjunct of the query", reading.path)))?;
+    let other = bind::bind(&replaced(root, &reading.path, vec![reading.node.clone()]))?;
+    let (mut adds, mut drops) = (0usize, 0usize);
+    let mut outcomes = Vec::with_capacity(other.terms.len());
+    for (held, truth) in corpus.items.iter().zip(truths) {
+        eval::asked(&other.terms, held, &mut outcomes);
+        match (eval::truth(&other.bound, &outcomes), truth) {
+            (Truth::True, Truth::False) => adds += 1,
+            (Truth::False, Truth::True) => drops += 1,
+            _ => {}
+        }
+    }
+    let (added, dropped) = parted(conjunct, &reading.node);
+    let route = |n: usize, part: Option<Vec<Node>>| match part {
+        Some(part) => router.count(n, Some(&replaced(root, &reading.path, part))),
+        None => router.count(n, None),
+    };
+    Ok(Stake {
+        reading: reading.text.clone(),
+        adds: route(adds, added),
+        drops: route(drops, dropped),
+    })
+}
+
+/// The conjunct of the query at a path: the root's child, or the root
+/// itself, `""` or the one path a root that is no and has.
+fn conjunct_at<'a>(root: &'a Node, path: &str) -> Option<&'a Node> {
+    match root {
+        _ if path.is_empty() => Some(root),
+        Node::All(children) => children.get(path.parse::<usize>().ok()?),
+        other => (path == crate::tree::child_path("", 0)).then_some(other),
+    }
+}
+
+/// The query with the conjunct at a path replaced by the nodes given,
+/// each a conjunct in its place (invariant 7: the grouping alone moves).
+fn replaced(root: &Node, path: &str, with: Vec<Node>) -> Node {
+    let one = |mut with: Vec<Node>| match with.len() {
+        1 => with.remove(0),
+        _ => Node::All(with),
+    };
+    match root {
+        Node::All(children) if !path.is_empty() => {
+            let at = path.parse::<usize>().unwrap_or(usize::MAX);
+            Node::All(
+                children
+                    .iter()
+                    .enumerate()
+                    .flat_map(|(n, child)| match n == at {
+                        true => with.clone(),
+                        false => vec![child.clone()],
+                    })
+                    .collect(),
+            )
+        }
+        _ => one(with),
+    }
+}
+
+/// What tells a conjunct and its other reading apart, as the conjuncts
+/// that stand in for it: the items the reading adds, then those it drops;
+/// none where the reading cannot change it that way — a reading that is
+/// the conjunct or more adds alone, one that is the conjunct and more
+/// drops alone, and the shared conjunct is said once.
+fn parted(conjunct: &Node, reading: &Node) -> (Option<Vec<Node>>, Option<Vec<Node>>) {
+    let not = |n: &Node| match n {
+        Node::Not(inner) => (**inner).clone(),
+        other => Node::Not(Box::new(other.clone())),
+    };
+    let rest = |members: &[Node], or: bool| {
+        let mut rest: Vec<Node> = members.iter().filter(|m| *m != conjunct).cloned().collect();
+        match (rest.len(), or) {
+            (1, _) => rest.remove(0),
+            (_, true) => Node::Any(rest),
+            (_, false) => Node::All(rest),
+        }
+    };
+    match reading {
+        Node::Any(members) if members.contains(conjunct) => {
+            (Some(vec![rest(members, true), not(conjunct)]), None)
+        }
+        Node::All(members) if members.contains(conjunct) => (
+            None,
+            Some(vec![conjunct.clone(), not(&rest(members, false))]),
+        ),
+        _ => (
+            Some(vec![reading.clone(), not(conjunct)]),
+            Some(vec![conjunct.clone(), not(reading)]),
+        ),
+    }
 }
 
 /// The root's counts of a transformed query: the query bound and answered

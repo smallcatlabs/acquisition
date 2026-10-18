@@ -58,6 +58,21 @@ struct Case {
     matches: Vec<String>,
     #[serde(default)]
     fails: Vec<String>,
+    #[serde(default)]
+    others: BTreeMap<String, Other>,
+}
+
+/// An ambiguous clause's other reading as a case works it by hand
+/// (C119): the fragment, and the case's items it adds and drops — by
+/// their ids, `m<n>` and `f<n>` — against the text as run.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Other {
+    reading: String,
+    #[serde(default)]
+    adds: Vec<String>,
+    #[serde(default)]
+    drops: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -338,6 +353,107 @@ fn c113_every_fixture_translates_as_worked_by_hand() {
             case.name
         );
     }
+}
+
+/// C119: an ambiguous clause whose row carries its other reading says what
+/// is at stake — every fixture's readings are the ones it works by hand,
+/// and a clause with none carries none (C93: absent, never zero) — and,
+/// asked over the fixture's items as the site's search, the answer counts
+/// the items the reading adds and drops against the text as run, each
+/// count's route returning exactly those items. The trade seat's T4, T5
+/// and T6 are rows of their own: the `reduced` form under a minimum, the
+/// sum with and without its scourge line, the Blight-ravaged maps beside
+/// the blighted at the tier bound.
+#[test]
+fn c119_an_ambiguous_clause_says_what_its_other_reading_adds_and_drops() {
+    let mut read = 0;
+    for case in &cases() {
+        let t = translate(&decode(&input(case)).unwrap()).unwrap();
+        let readings: BTreeMap<String, String> = t
+            .clauses
+            .iter()
+            .filter_map(|c| c.other.as_ref().map(|o| (c.at.clone(), o.text.clone())))
+            .collect();
+        let expected: BTreeMap<String, String> = case
+            .others
+            .iter()
+            .map(|(at, o)| (at.clone(), o.reading.clone()))
+            .collect();
+        assert_eq!(readings, expected, "{}", case.name);
+        for c in t.clauses.iter().filter(|c| c.other.is_some()) {
+            assert_eq!(c.status, Status::Ambiguous, "{}: {}", case.name, c.at);
+        }
+        if case.others.is_empty() || (case.matches.is_empty() && case.fails.is_empty()) {
+            continue;
+        }
+        let s = store_of(case);
+        let corpus = load(&s, Some("pc"));
+        let request: acquisition_search::Request = serde_json::from_value(json!({
+            "scope": { "realm": "pc" },
+            "query": { "trade": input(case) },
+            "view": { "rows": { "limit": 0 } },
+        }))
+        .unwrap();
+        // unasked: a stake's route is one a next step hangs on (C115)
+        let a = as_json(&acquisition_search::answer(&corpus, &request).unwrap());
+        for (at, other) in &case.others {
+            let clause = a["query"]["trade"]["clauses"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|c| c["at"] == json!(at))
+                .unwrap_or_else(|| panic!("{}: no clause {at}", case.name));
+            let stake = &clause["other"];
+            assert_eq!(stake["reading"], json!(other.reading), "{}", case.name);
+            for (side, expected) in [("adds", &other.adds), ("drops", &other.drops)] {
+                let count = &stake[side];
+                assert_eq!(
+                    count["count"],
+                    json!(expected.len()),
+                    "{}: {at} {side}: {stake}",
+                    case.name
+                );
+                if expected.is_empty() {
+                    assert!(count.get("request").is_none(), "{}: {count}", case.name);
+                    continue;
+                }
+                let route: acquisition_search::Request =
+                    serde_json::from_value(count["request"].clone()).unwrap();
+                let mut sorted = expected.clone();
+                sorted.sort();
+                assert_eq!(
+                    ids(&as_json(&answer(&corpus, &route).unwrap())),
+                    sorted,
+                    "{}: {at} {side}: {}",
+                    case.name,
+                    count["request"]
+                );
+                read += 1;
+            }
+        }
+    }
+    assert!(read >= 5, "{read} stakes read");
+    // every row that carries a reading is read as one by some fixture
+    let catalogue = acquisition_search::trade::catalogue::catalogue().unwrap();
+    let carried: BTreeSet<&str> = catalogue
+        .rows()
+        .iter()
+        .filter(|r| r.other.is_some())
+        .map(|r| r.key.as_str())
+        .collect();
+    assert!(!carried.is_empty());
+    let mut met: BTreeSet<&str> = BTreeSet::new();
+    for case in &cases() {
+        let t = translate(&decode(&input(case)).unwrap()).unwrap();
+        for c in t.clauses.iter().filter(|c| c.other.is_some()) {
+            met.extend(
+                c.rows
+                    .iter()
+                    .filter_map(|r| carried.get(r.as_str()).copied()),
+            );
+        }
+    }
+    assert_eq!(met, carried, "rows whose reading no fixture reads");
 }
 
 /// C113: one test walks the catalogue — every row is read by some

@@ -54,15 +54,15 @@
 use std::io::Read as _;
 
 use acquisition_search::answer::{
-    Answer, Asked, Context, Count, DEFAULT_LIMIT, Membership, Request, Rows, Scope, Shape,
-    TradeOut, View, ViewOut,
+    Answer, Asked, ClauseOut, Context, Count, DEFAULT_LIMIT, Membership, Request, Rows, Scope,
+    Shape, TradeOut, View, ViewOut,
 };
 use acquisition_search::corpus::Realm;
 use acquisition_search::counts::{Bucket, CrossOut, Label, SumOf, Summed, Table};
 use acquisition_search::describe::Describe;
 use acquisition_search::show::Shown;
 use acquisition_search::trade::Source;
-use acquisition_search::trade::translate::{Clause, Fidelity, Status};
+use acquisition_search::trade::translate::{Fidelity, Status};
 use acquisition_search::{Priced, SearchError, answer, describe, not_built, show};
 use acquisition_store::{Store, account_path};
 use anyhow::{Context as _, Result};
@@ -815,18 +815,21 @@ fn evidence_text(evidence: &acquisition_search::answer::Evidence) -> String {
 /// 11; cli-sonnet's debrief, answer 4); then each clause that did not
 /// run, each that runs as the site may not read it and each with no
 /// stash meaning, with its note — ten of each listed and the rest
-/// counted (C53). The whole is the JSON's `query.trade`.
+/// counted (C53) — and, beside an ambiguous clause whose other reading
+/// the catalogue holds, what that reading adds and drops (C119), its
+/// routes where the answer's routes are. The whole is the JSON's
+/// `query.trade`.
 fn trade_text(t: &TradeOut) -> Vec<String> {
     let from = match t.source {
         Source::Url => "a URL",
         Source::Id => "a search id",
         Source::Json => "the query JSON",
     };
-    let of = |status: Status| -> Vec<&Clause> {
+    let of = |status: Status| -> Vec<&ClauseOut> {
         t.clauses.iter().filter(|c| c.status == status).collect()
     };
     let (unsupported, ambiguous) = (of(Status::Unsupported), of(Status::Ambiguous));
-    let reported: Vec<&Clause> = t
+    let reported: Vec<&ClauseOut> = t
         .clauses
         .iter()
         .filter(|c| matches!(c.status, Status::ListingOnly | Status::Disabled))
@@ -863,8 +866,14 @@ fn trade_text(t: &TradeOut) -> Vec<String> {
         ("reported ", &reported),
     ] {
         for c in clauses.iter().take(10) {
+            let stake = c.other.as_ref().map_or(String::new(), |o| {
+                format!(
+                    " · read the other way: adds {}, drops {}",
+                    o.adds.count, o.drops.count
+                )
+            });
             out.push(format!(
-                "        {word} {:<width$}{}",
+                "        {word} {:<width$}{}{stake}",
                 c.at,
                 c.notes.last().map_or("", String::as_str)
             ));
@@ -1339,6 +1348,13 @@ fn answer_text(a: &Answer) -> String {
     // none is counted as left to `--routes`
     let mut first: Vec<(String, &Count)> = Vec::new();
     let mut rest: Vec<(String, &Count)> = Vec::new();
+    // what an ambiguous clause's other reading would change (C119)
+    let clauses = typed.trade.iter().flat_map(|t| &t.clauses);
+    for (c, o) in clauses.filter_map(|c| c.other.as_ref().map(|o| (c, o))) {
+        for (what, count) in [("adds", &o.adds), ("drops", &o.drops)] {
+            first.push((format!("clause {} read the other way, {what}", c.at), count));
+        }
+    }
     first.push(("undecided at the root".to_string(), &a.total.undecided));
     for term in &a.terms {
         first.push((format!("term {} undecided", term.path), &term.undecided));
@@ -1758,6 +1774,12 @@ fn describe_text(d: &Describe, index: bool) -> String {
                 ));
                 for said in r.text.iter().chain(&r.says) {
                     out.push_str(&format!("  {:<key$}{:<14}{said}\n", "", ""));
+                }
+                if let Some(other) = &r.other {
+                    out.push_str(&format!(
+                        "  {:<key$}{:<14}read the other way: {other}\n",
+                        "", ""
+                    ));
                 }
             }
         }

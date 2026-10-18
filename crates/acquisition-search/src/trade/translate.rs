@@ -156,6 +156,21 @@
 //!   node of their own, and a bounded weighted sum's filters, conditions
 //!   inside `sum( … )`, which take no path. A query
 //!   that is one clause owns the root, written `""`.
+//! - **An ambiguous clause's other reading** (C119, `TRADE-SLICE.md` row
+//!   8b): its row's `other`, filled as `lands` is, `{term}` the text of
+//!   the node it stands in for, once the clause stands in the query
+//!   (`readings`). It applies where the clause has every property of the
+//!   shape it was asked for, the review checklist's rule: that node a
+//!   conjunct of the query whole — the clause's own, or the bounded
+//!   weighted sum's it is a line of — never one inside a `not`, a count
+//!   or an `if`; `{forms}` a minimum alone on a filter of an `and`
+//!   group, every form no sum holds the opposite word, their line under
+//!   the category's source (the trade seat's `reduced` Rarity); and
+//!   `{without}` a scourge line beside another of its sum, the sum
+//!   recomposed without it by the one maker of a weighted sum. A reading
+//!   with a placeholder its clause leaves unfilled, or on a clause that
+//!   states nothing, is none, never a reading equal to the clause. What
+//!   it changes is the answer's to count (`answer.rs`).
 //! - **Fidelity** is the worst status among the clauses with a stash
 //!   meaning — `exact`, `ambiguous`, or `partial` when the remainder, the
 //!   unsupported clauses, is not empty; listing-only and disabled clauses
@@ -249,6 +264,24 @@ pub struct Clause {
     pub path: Option<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub notes: Vec<String>,
+    /// The clause's other reading (C119), where its row carries one and
+    /// the clause has the shape it was asked for.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub other: Option<Reading>,
+}
+
+/// An ambiguous clause's other reading (C119): the fragment the clause
+/// would be read as the other way, and the path of the conjunct of the
+/// query it stands in for — the clause's own, or the weighted sum's it is
+/// a line of.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Reading {
+    /// The fragment, as the canonical text prints it.
+    pub text: String,
+    /// The path of the conjunct it replaces; `""` the root.
+    pub path: String,
+    #[serde(skip)]
+    pub node: Node,
 }
 
 /// A site search translated: the query text and its tree, the report, and
@@ -317,6 +350,7 @@ pub fn translate(decoded: &Decoded) -> Result<Translation, LanguageError> {
         clauses: Vec::new(),
         own: Vec::new(),
         pieces: Vec::new(),
+        pending: Vec::new(),
     };
     if let Some(league) = &decoded.league {
         t.input("url.league", "url.league", &Json::String(league.clone()))?;
@@ -412,6 +446,31 @@ struct Landed {
     rows: Vec<String>,
     notes: Vec<String>,
     node: Option<Node>,
+    /// Its row's other reading, as far as the clause fills it (C119).
+    reading: Option<Pending>,
+}
+
+/// An other reading as a row writes it (C119), with what the clause has
+/// filled of it so far; `{term}` is filled once the clause's node stands
+/// in the query (`finish`).
+#[derive(Debug, Clone)]
+struct Pending {
+    template: String,
+    fills: HashMap<String, String>,
+    /// Whether it stands in for the clause's group's node — a weighted
+    /// sum's, the clause a line inside it — and not the clause's own.
+    group: Option<usize>,
+}
+
+impl Pending {
+    /// A row's reading, what fills its placeholders so far beside it.
+    fn of(row: &Row, fills: impl IntoIterator<Item = (&'static str, String)>) -> Option<Pending> {
+        Some(Pending {
+            template: row.other.clone()?,
+            fills: fills.into_iter().map(|(k, v)| (k.to_string(), v)).collect(),
+            group: None,
+        })
+    }
 }
 
 /// A stat filter, read: what each group takes of it.
@@ -460,6 +519,8 @@ struct Translator<'a> {
     clauses: Vec<Clause>,
     own: Vec<Own>,
     pieces: Vec<Piece>,
+    /// Each clause's other reading, as its row reads it (C119).
+    pending: Vec<Option<Pending>>,
 }
 
 /// What fills a placeholder (the catalogue's header).
@@ -803,8 +864,15 @@ impl Translator<'_> {
             term: None,
             path: None,
             notes: landed.notes.clone(),
+            other: None,
         });
         self.own.push(own);
+        // a reading stands in for a node the clause, or its weighted sum,
+        // writes; a clause that does not run, or writes none, has none
+        self.pending.push(landed.reading.clone().filter(|p| {
+            landed.status.runs()
+                && (p.group.is_some() || landed.node.as_ref().is_some_and(|n| !is_const(n)))
+        }));
         self.clauses.len() - 1
     }
 
@@ -833,6 +901,7 @@ impl Translator<'_> {
             rows: vec!["query.unknown".to_string()],
             notes,
             node: None,
+            reading: None,
         })
     }
 
@@ -856,6 +925,7 @@ impl Translator<'_> {
             rows: vec![key.to_string()],
             notes: row.says.iter().cloned().collect(),
             node: None,
+            reading: None,
         };
         self.conjunct(at, site, landed);
         Ok(())
@@ -870,6 +940,7 @@ impl Translator<'_> {
             rows: vec![key.to_string()],
             notes: row.says.iter().cloned().collect(),
             node: None,
+            reading: None,
         };
         if !landed.status.runs() {
             return Ok(landed);
@@ -878,6 +949,17 @@ impl Translator<'_> {
             return Ok(landed);
         };
         let text = fill(lands, get).unwrap_or_else(|| "true()".to_string());
+        // the row's other reading, its placeholders the clause fills as
+        // it fills `lands`'s; `{term}` waits for the clause's node (C119)
+        landed.reading = row.other.as_ref().and_then(|template| {
+            Pending::of(
+                row,
+                catalogue::PLACEHOLDERS
+                    .iter()
+                    .filter(|name| template.contains(&format!("{{{name}}}")))
+                    .filter_map(|name| get(name).map(|f| (*name, f.written()))),
+            )
+        });
         match bind::parse_query(&text) {
             Ok(q) => landed.node = Some(q.tree().clone()),
             Err(e) => {
@@ -1051,6 +1133,7 @@ impl Translator<'_> {
                 rows,
                 notes: self.note_of("stats.filter.disabled")?,
                 node: None,
+                reading: None,
             };
             landed
                 .notes
@@ -1201,6 +1284,7 @@ impl Translator<'_> {
                 rows: Vec::new(),
                 notes: Vec::new(),
                 node: None,
+                reading: None,
             },
             presence: None,
             summed: None,
@@ -1216,6 +1300,7 @@ impl Translator<'_> {
                     rows: vec!["stats.filter.disabled".to_string()],
                     notes: self.note_of("stats.filter.disabled")?,
                     node: None,
+                    reading: None,
                 };
                 return Ok(read);
             }
@@ -1245,6 +1330,7 @@ impl Translator<'_> {
                 rows: vec!["stats.filter.option".to_string()],
                 notes: self.note_of("stats.filter.option")?,
                 node: None,
+                reading: None,
             };
             return Ok(read);
         }
@@ -1277,6 +1363,7 @@ impl Translator<'_> {
                     rows: vec!["stat.pseudo".to_string()],
                     notes,
                     node: None,
+                    reading: None,
                 };
                 return Ok(read);
             };
@@ -1311,6 +1398,7 @@ impl Translator<'_> {
                 rows: vec![key],
                 notes: row.says.iter().cloned().collect(),
                 node: None,
+                reading: None,
             };
             return Ok(read);
         }
@@ -1347,6 +1435,7 @@ impl Translator<'_> {
                 rows,
                 notes,
                 node: None,
+                reading: None,
             };
             return Ok(read);
         }
@@ -1406,6 +1495,9 @@ impl Translator<'_> {
         let mut every = vec![own.clone()];
         let mut summed = vec![own];
         let mut unsummed: Vec<String> = Vec::new();
+        // the forms no sum holds, where every one is the opposite word: the
+        // other reading's line (C119)
+        let mut opposite: Option<Vec<Shown>> = Some(Vec::new());
         let forms = self.forms.of(site_text);
         if !forms.refused.is_empty() {
             rule(&mut rows, &mut notes, &mut status, "stat.text.refused")?;
@@ -1444,6 +1536,12 @@ impl Translator<'_> {
             if form.kind == Kind::Plural {
                 summed.push(shown.clone());
             } else {
+                opposite = opposite
+                    .filter(|_| form.kind == Kind::Opposite)
+                    .map(|mut o| {
+                        o.push(shown.clone());
+                        o
+                    });
                 unsummed.push(format!(
                     "{} ({})",
                     print::quoted_text(&form.text),
@@ -1503,11 +1601,34 @@ impl Translator<'_> {
             read.landed = unknown;
             return Ok(read);
         }
+        // the other reading of a bound the opposite word may move (C119):
+        // the shape the trade seat asked, a minimum alone on a filter of
+        // an `and` group, every form no sum holds the opposite word — an
+        // item carrying one the site may put below the bound
+        let reading = match opposite {
+            Some(forms)
+                if kind == "and"
+                    && bound_read
+                    && !forms.is_empty()
+                    && min.is_some()
+                    && max.is_none() =>
+            {
+                match line(&forms)?.node {
+                    Some(forms) => Pending::of(
+                        self.row("stat.text.forms")?,
+                        [("forms", print::print(&forms))],
+                    ),
+                    None => None,
+                }
+            }
+            _ => None,
+        };
         read.landed = Landed {
             status,
             rows,
             notes,
             node,
+            reading,
         };
         Ok(read)
     }
@@ -1520,6 +1641,7 @@ impl Translator<'_> {
             rows: vec!["stat.unknown".to_string()],
             notes,
             node: None,
+            reading: None,
         })
     }
 
@@ -1564,6 +1686,7 @@ impl Translator<'_> {
                 rows,
                 notes: notes.clone(),
                 node: None,
+                reading: None,
             };
             let disabled = "stats.filter.disabled".to_string();
             self.push(
@@ -1628,6 +1751,7 @@ impl Translator<'_> {
                         rows: vec![group_key.clone()],
                         notes: row.says.iter().cloned().collect(),
                         node: None,
+                        reading: None,
                     },
                     None => {
                         self.unknown_landed(&format!("no row names the group type `{kind}`"))?
@@ -1644,6 +1768,7 @@ impl Translator<'_> {
             rows: group_rows.clone(),
             notes: group_notes.clone(),
             node: None,
+            reading: None,
         };
         let active: Vec<&StatRead> = reads
             .iter()
@@ -1772,7 +1897,8 @@ impl Translator<'_> {
                     } else {
                         Own::InsideSum
                     };
-                    let landed = clone_landed(&read.landed);
+                    let mut landed = clone_landed(&read.landed);
+                    landed.reading = self.without(read, &active, gmin, gmax, g)?;
                     self.push(&read.at, &read.site, &landed, own);
                 }
                 self.pieces.push(Piece {
@@ -1817,6 +1943,47 @@ impl Translator<'_> {
             owners.push((i, path(m)));
             m += 1;
         }
+    }
+
+    /// The other reading of a scourge line in a bounded weighted sum
+    /// (C119): the sum with that line left out, against the group's
+    /// bounds, standing in for the group's node; none for any other line,
+    /// or where no other line is left to sum.
+    fn without(
+        &self,
+        read: &StatRead,
+        active: &[&StatRead],
+        min: Option<Number>,
+        max: Option<Number>,
+        group: usize,
+    ) -> Result<Option<Pending>, LanguageError> {
+        if !read.landed.rows.iter().any(|r| r == "stat.scourge.summed") {
+            return Ok(None);
+        }
+        let others: Vec<&StatRead> = active
+            .iter()
+            .copied()
+            .filter(|other| other.at != read.at)
+            .collect();
+        if others.is_empty() {
+            return Ok(None);
+        }
+        let Ok(Weighted { sum, op, rhs }) = weighted(&others, min, max) else {
+            return Ok(None);
+        };
+        let node = Node::Compare {
+            value: sum,
+            op,
+            rhs,
+        };
+        Ok(Pending::of(
+            self.row("stat.scourge.summed")?,
+            [("without", print::print(&node))],
+        )
+        .map(|p| Pending {
+            group: Some(group),
+            ..p
+        }))
     }
 
     /// A group in the remainder, every filter of it beside it: a filter
@@ -1900,6 +2067,7 @@ impl Translator<'_> {
                 None => None,
             };
         }
+        self.readings(&printed, &text)?;
         guard(&root, &self.clauses, &self.own).map_err(|why| {
             trade(format!(
                 "the translation of `{text}` breaks its guard (K6): {why}"
@@ -1931,6 +2099,70 @@ impl Translator<'_> {
             forms,
         })
     }
+}
+
+impl Translator<'_> {
+    /// Each running clause's other reading (C119), its `{term}` the text
+    /// of the node it stands in for: where that node is a conjunct of the
+    /// query whole — the root's child, or the root — and every placeholder
+    /// fills; any other clause has none. A reading this build's binder
+    /// refuses is a table defect, said.
+    fn readings(
+        &mut self,
+        printed: &HashMap<String, String>,
+        text: &str,
+    ) -> Result<(), LanguageError> {
+        for i in 0..self.clauses.len() {
+            let Some(pending) = self.pending[i].take() else {
+                continue;
+            };
+            let path = match pending.group {
+                Some(g) => self.clauses[g].path.clone(),
+                None => self.clauses[i].path.clone(),
+            };
+            let Some(path) = path.filter(|p| !p.contains('.')) else {
+                continue;
+            };
+            let term = if path.is_empty() {
+                text.to_string()
+            } else {
+                match printed.get(&path) {
+                    Some(t) => t.clone(),
+                    None => continue,
+                }
+            };
+            let mut fills = pending.fills;
+            fills.insert("term".to_string(), term);
+            if placeholders(&pending.template)
+                .iter()
+                .any(|name| !fills.contains_key(*name))
+            {
+                continue;
+            }
+            let written = substituted(&pending.template, &|name| {
+                fills.get(name).cloned().unwrap_or_default()
+            });
+            let node = bind::parse_query(&written)
+                .map(|q| q.tree().clone())
+                .map_err(|e| {
+                    trade(format!(
+                        "the other reading of `{}` wrote `{written}`, which this build refuses: {}",
+                        self.clauses[i].at, e.message
+                    ))
+                })?;
+            self.clauses[i].other = Some(Reading {
+                text: print::print(&node),
+                path,
+                node,
+            });
+        }
+        Ok(())
+    }
+}
+
+/// Whether a node is a constant: a clause that states nothing.
+fn is_const(node: &Node) -> bool {
+    matches!(node, Node::Const(_))
 }
 
 /// What a group other than `and` writes (K6; the group rows' notes): `not`
@@ -2030,6 +2262,7 @@ fn clone_landed(l: &Landed) -> Landed {
         rows: l.rows.clone(),
         notes: l.notes.clone(),
         node: l.node.clone(),
+        reading: l.reading.clone(),
     }
 }
 
