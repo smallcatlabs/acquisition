@@ -346,8 +346,10 @@ fn c113_every_fixture_translates_as_worked_by_hand() {
         let a = as_json(&ask(&load(&s, Some("pc")), &t.text).unwrap());
         let expected: Vec<String> = (0..case.matches.len()).map(|n| format!("m{n}")).collect();
         assert_eq!(ids(&a), expected, "{}: `{}`", case.name, t.text);
+        // the answer's undecided is `total.undecided` (C100); a missing key
+        // fails here rather than passing as 0
         assert_eq!(
-            a["undecided"]["count"].as_u64().unwrap_or(0),
+            a["total"]["undecided"]["count"].as_u64().unwrap(),
             0,
             "{}",
             case.name
