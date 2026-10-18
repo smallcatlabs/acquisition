@@ -1515,31 +1515,42 @@ fn an_ambiguous_clause_says_how_many_items_its_other_reading_would_change() {
     assert_eq!(ids(&added), ["ravaged"], "{added}");
 }
 
+/// A report clause is one of two shapes (C100): an exact clause with a
+/// term of its own is `at`, `status`, `term` and `path` exactly; any other
+/// keeps the site's filter and its catalogue rows. A row with neither its
+/// term nor its filter connects nothing to its translation.
+fn slim_or_whole(c: &Value) {
+    let mut keys: Vec<&str> = c.as_object().unwrap().keys().map(String::as_str).collect();
+    keys.sort();
+    if c["status"] == "exact" && c.get("term").is_some() {
+        assert_eq!(keys, ["at", "path", "status", "term"], "{c}");
+    } else {
+        assert!(c.get("site").is_some() && c.get("rows").is_some(), "{c}");
+    }
+}
+
 /// The trade report weighed 2,732 bytes of the ring URL's three-row
 /// answer of 7,888 (measured after the answer's weight was cut, C115):
 /// each of nine clauses echoed the site's filter, its catalogue row and
 /// the row's sentence — one sentence four times for four pseudo stats —
-/// beside the text that states the whole translation. An exact clause is
-/// its term: `at`, `status`, `term` and `path` alone. Every other clause
-/// keeps the site's filter, its rows and what they say, and `describe`
-/// keeps every row's sentence.
+/// beside the text that states the whole translation. An exact clause with
+/// a term of its own is that term: `at`, `status`, `term` and `path`
+/// alone. Every other clause — a weighted sum's filter, with no term of
+/// its own, among them (the outside review of step 3) — keeps the site's
+/// filter, its rows and what they say, and `describe` keeps every row's
+/// sentence.
 #[test]
 fn a_trade_reports_exact_clause_is_where_it_stands_and_its_term_alone() {
     let mut seat = Seat::new();
     let url = format!("https://www.pathofexile.com/trade/search/Standard/{TRADE_ID}");
     let a = seat.answer(&json!({ "query": { "trade": url }, "view": { "rows": { "limit": 0 } } }));
     let clauses = a["query"]["trade"]["clauses"].as_array().unwrap();
-    let keys = |c: &Value| -> Vec<String> { c.as_object().unwrap().keys().cloned().collect() };
-    let (exact, other): (Vec<&Value>, Vec<&Value>) =
-        clauses.iter().partition(|c| c["status"] == "exact");
+    let (exact, other): (Vec<&Value>, Vec<&Value>) = clauses
+        .iter()
+        .partition(|c| c["status"] == "exact" && c.get("term").is_some());
     assert!(!exact.is_empty() && !other.is_empty(), "{a}");
     for c in &exact {
-        for key in keys(c) {
-            assert!(
-                ["at", "status", "term", "path"].contains(&key.as_str()),
-                "{key}: {c}"
-            );
-        }
+        slim_or_whole(c);
     }
     let league = exact.iter().find(|c| c["at"] == "url.league").unwrap();
     assert_eq!(
@@ -1547,9 +1558,31 @@ fn a_trade_reports_exact_clause_is_where_it_stands_and_its_term_alone() {
         json!({ "at": "url.league", "status": "exact", "term": "league=Standard", "path": "0" })
     );
     for c in &other {
-        assert!(c.get("site").is_some() && c.get("rows").is_some(), "{c}");
+        slim_or_whole(c);
         assert!(!c["notes"].as_array().unwrap().is_empty(), "{c}");
     }
+    // a weighted sum's filters have no term of their own — the sum is the
+    // group's — so the text does not state them: each keeps its whole row
+    let sum = json!({ "query": { "stats": [{ "type": "weight", "value": { "min": 60 }, "filters": [
+        { "id": "implicit.stat_3372524247", "value": { "weight": 1 } },
+        { "id": "implicit.stat_4220027924", "value": { "weight": 1 } } ] }] } });
+    let summed = seat.answer(&json!({ "scope": { "realm": "pc" }, "query": { "trade": sum } }));
+    for at in ["stats.0.0", "stats.0.1"] {
+        let c = summed["query"]["trade"]["clauses"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["at"] == at)
+            .unwrap();
+        assert_eq!(c["status"], "exact", "{c}");
+        assert!(c.get("term").is_none(), "{c}");
+        slim_or_whole(c);
+        assert_eq!(c["rows"], json!(["stat.implicit"]), "{c}");
+        assert!(c["site"]["id"].is_string(), "{c}");
+    }
+    // the check refuses a row that says neither its term nor its filter
+    let bare = json!({ "at": "stats.0.0", "status": "exact" });
+    assert!(std::panic::catch_unwind(|| slim_or_whole(&bare)).is_err());
     // the sentence an exact clause no longer carries is the catalogue's
     let (described, _) = seat.call("describe", &json!({ "names": ["trade"] }));
     let row = described["trade"]["rows"]

@@ -179,6 +179,11 @@
 //!   of none is a number with no route, and a clause with no reading has
 //!   no `other` (C93). Only where the site's search is the query run:
 //!   under the corpus context it is set aside, and nothing is staked.
+//! - **The report's clauses** (C100): an exact clause with a term of its
+//!   own carries `at`, `status`, `term` and `path` alone, the text
+//!   stating the rest; every other — not exact, or with no term of its
+//!   own, a weighted sum's filter or a group — keeps the site's filter,
+//!   its catalogue rows and what they say ([`ClauseOut`]).
 //! - **A `:` or `~` selector is printed as authored with what it resolved
 //!   to beside it** (invariant 2): the values its matched items carry,
 //!   or — for a line's group, a `sum`'s too — the templates its selector
@@ -1164,13 +1169,16 @@ impl From<Translation> for TradeOut {
 /// read for it and what they say; for an ambiguous clause whose row
 /// carries its other reading, what is at stake (C119).
 ///
-/// An exact clause is its term: the text states it, the terms block
-/// counts it by its path, and its `site`, `rows` and `notes` would say
-/// again what the term says, a pseudo stat's sentence once a filter
-/// (the trade seat's ring URL: its report 2.7 KB of a 7.9 KB answer of
-/// three rows). What the report says that the text does not is which of the
-/// site's filters each term is, and every clause that is not exactly its
-/// term; the catalogue's sentences stay in `describe trade`.
+/// An exact clause with a term of its own is that term (C100: one
+/// shape, its evidence once): the text states it, the terms block counts
+/// it by its path, and its `site`, `rows` and `notes` would say again
+/// what the term says, a pseudo stat's sentence once a filter (the trade
+/// seat's ring URL: its report 2.7 KB of a 7.9 KB answer of three rows).
+/// A clause with no term of its own — a filter inside a weighted sum,
+/// whose sum is its group's term, or a group that writes none — is not
+/// stated by the text, and keeps its whole row, as every clause that
+/// differs from the text does; the catalogue's sentences stay in
+/// `describe trade`.
 #[derive(Debug, Clone, Serialize)]
 pub struct ClauseOut {
     pub at: String,
@@ -1196,7 +1204,9 @@ pub struct ClauseOut {
 
 impl From<Clause> for ClauseOut {
     fn from(c: Clause) -> ClauseOut {
-        let exact = c.status == Status::Exact;
+        // slimmed only where the text states it: exact, with a term of
+        // its own — a filter inside a weighted sum, or a group, has none
+        let exact = c.status == Status::Exact && c.term.is_some();
         ClauseOut {
             at: c.at,
             site: (!exact).then_some(c.site),
