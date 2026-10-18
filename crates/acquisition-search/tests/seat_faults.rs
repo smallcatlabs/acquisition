@@ -1591,3 +1591,67 @@ fn ggg_s_facts_about_a_tab_and_a_prices_side_are_fields() {
         );
     }
 }
+
+/// A row sorted by a total named one line (`total_ele_res: 32` beside the
+/// crafted fire line alone), so mcp-opus could not see whether anything
+/// else counted (the trade seat: mcp-opus-1 call 20; mcp-opus-2 call 22,
+/// its fault 7). Since step 1 a sort's `shows` keeps every line that
+/// contributed: here three, a hybrid line among them, whose value is the
+/// total's weight times its number — the total 105 is 43 + 36 + 2 × 13.
+/// An item with one contributing line shows that one.
+#[test]
+fn a_row_sorted_by_a_total_shows_every_line_that_contributed() {
+    let mut s = store();
+    list_tabs(&mut s, "pc", "Standard", json!([tab("d1", "Dump")]), 10);
+    let res = |lines: &[&str]| json!({ "explicitMods": lines });
+    fetch_tab(
+        &mut s,
+        "pc",
+        "Standard",
+        "d1",
+        "Dump",
+        vec![
+            ring(
+                "three",
+                "Rare",
+                res(&[
+                    "+43% to Fire Resistance",
+                    "+36% to Lightning Resistance",
+                    "+13% to Fire and Cold Resistances",
+                    "+50 to maximum Life",
+                ]),
+            ),
+            ring("one", "Rare", res(&["+32% to Fire Resistance"])),
+        ],
+        20,
+    );
+    let a = view(
+        &s,
+        "pc",
+        "",
+        json!({ "rows": { "sort": "pseudo.total_ele_res", "desc": true } }),
+    );
+    let rows = a["rows"].as_array().unwrap();
+    let shown = |row: &Value| -> Vec<String> {
+        row["sort"]["shows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|e| e["line"]["text"].as_str().map(str::to_string))
+            .collect()
+    };
+    assert_eq!(rows[0]["id"], "three");
+    assert_eq!(rows[0]["sort"]["value"], 105, "{}", rows[0]);
+    assert_eq!(
+        shown(&rows[0]),
+        [
+            "+43% to Fire Resistance",
+            "+36% to Lightning Resistance",
+            "+13% to Fire and Cold Resistances",
+        ],
+        "{}",
+        rows[0]
+    );
+    assert_eq!(rows[1]["sort"]["value"], 32, "{}", rows[1]);
+    assert_eq!(shown(&rows[1]), ["+32% to Fire Resistance"]);
+}
