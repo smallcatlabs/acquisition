@@ -1016,8 +1016,9 @@ fn a_trade_answer_says_its_items_are_the_stores_whatever_its_fidelity() {
     );
     assert_eq!(
         lines[1],
-        "        over      the items you hold, in every place, priced or not: the site shows \
-         public listings, so the search is the site's and the items are yours",
+        "        over      the items the store has fetched, priced or not — what it never fetched is \
+         the scope's: the site shows public listings, so the search is the site's and the items are \
+         yours",
         "{shown}"
     );
     assert!(
@@ -1776,4 +1777,54 @@ fn show_prints_the_price_show_command_for_its_item() {
     let out = acq(&base, &args);
     assert!(out.status.success(), "{}", stderr(&out));
     assert!(stdout(&out).starts_with("item/i-std"), "{}", stdout(&out));
+}
+
+/// The trade header said the search ran "over the items you hold, in
+/// every place", and cli-sonnet-2 read it as complete while 546 of 3,486
+/// locations were fetched (its debrief, answer 4). The words say the
+/// items the store has fetched and send the reader to the scope, which
+/// counts the never fetched by type beside them.
+#[test]
+fn the_trade_headers_over_line_never_reads_as_full_coverage() {
+    let scratch = harness::scratch("seat-trade-coverage");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    let mock = base.join("store").join("mock");
+    let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
+    store
+        .record(
+            &Endpoint::Stashes {
+                realm: "pc".into(),
+                league: "Standard".into(),
+            },
+            &json!({ "league": "Standard" }),
+            200,
+            &json!({ "stashes": [
+                { "id": "a1", "name": "Gear", "type": "PremiumStash", "index": 0 },
+                { "id": "m1", "name": "Maps", "type": "MapStash", "index": 1 } ] }),
+            acquisition_store::now(),
+        )
+        .unwrap();
+    drop(store);
+    let shown = stdout(&acq(
+        &base,
+        &[
+            "search",
+            "--realm",
+            "pc",
+            "--trade",
+            r#"{"query": {"type": "Chaos Orb"}}"#,
+        ],
+    ));
+    let over = shown
+        .lines()
+        .find(|l| l.trim_start().starts_with("over "))
+        .unwrap_or_else(|| panic!("{shown}"));
+    assert!(!over.contains("every place"), "{over}");
+    assert!(over.contains("the items the store has fetched"), "{over}");
+    assert!(
+        over.contains("what it never fetched is the scope's"),
+        "{over}"
+    );
+    assert!(shown.contains("never fetched: MapStash 1 of 1"), "{shown}");
 }

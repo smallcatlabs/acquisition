@@ -1051,7 +1051,7 @@ fn a_trade_fidelity_is_never_said_to_be_the_sites_items() {
         .unwrap();
     for said in [
         "`fidelity`, how far the text is the site's search",
-        "Never how far the items are the site's: the answer is over the items the store holds, in every place, priced or not, and the site shows public listings.",
+        "Never how far the items are the site's: the answer is over the items the store has fetched, priced or not — what it never fetched is `scope.never_fetched` — and the site shows public listings.",
     ] {
         assert!(query.contains(said), "{said}: {query}");
     }

@@ -2628,7 +2628,7 @@ const TRADE_TEXT: &str =
 
 /// The line under every translation's first: the items are the store's,
 /// whatever the fidelity (the trade seat; `seat_faults.rs`).
-const TRADE_OVER: &str = "        over      the items you hold, in every place, priced or not: the site shows public listings, so the search is the site's and the items are yours";
+const TRADE_OVER: &str = "        over      the items the store has fetched, priced or not — what it never fetched is the scope's: the site shows public listings, so the search is the site's and the items are yours";
 
 /// Each clause's place and status, as the report gives them.
 fn statuses(trade: &Value) -> Vec<(String, String)> {
