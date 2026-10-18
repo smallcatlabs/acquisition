@@ -1118,13 +1118,98 @@ fn the_scope_line_names_the_never_fetched_by_tab_type_and_points_at_tabs() {
         "{shown}"
     );
     assert!(
-        line.ends_with(" · each tab: acq tabs --account 'Alice#1234' --realm pc"),
+        line.ends_with(" · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard"),
         "{shown}"
     );
     // the pointer runs as printed
     let out = acq(&base, &["tabs", "--account", "Alice#1234", "--realm", "pc"]);
     assert!(out.status.success(), "{}", stdout(&out));
     assert!(!shown.contains("--view locations"), "{shown}");
+}
+
+/// The scope line's `tabs` pointer named no league, so it listed
+/// Standard while the never fetched the scope counted sat in another
+/// league, and a reader who followed it found none of them (the external
+/// review of step 2). C118: the pointer names the league the query fixes,
+/// or, where it fixes none, the league holding the most never-fetched
+/// tabs, with the others counted; run as printed, it lists them.
+#[test]
+fn the_tabs_pointer_names_the_league_its_never_fetched_tabs_are_in() {
+    let scratch = harness::scratch("seat-pointer-league");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    let mock = base.join("store").join("mock");
+    let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
+    for (league, tabs) in [
+        (
+            "Standard",
+            json!([ { "id": "a1", "name": "Gear", "type": "PremiumStash", "index": 0 },
+                             { "id": "a2", "name": "Never here", "type": "PremiumStash", "index": 1 } ]),
+        ),
+        (
+            "Allflame",
+            json!([ { "id": "b1", "name": "Gear", "type": "PremiumStash", "index": 0 },
+                             { "id": "b2", "name": "Maps", "type": "MapStash", "index": 1 },
+                             { "id": "b3", "name": "Uniques", "type": "UniqueStash", "index": 2 } ]),
+        ),
+    ] {
+        store
+            .record(
+                &Endpoint::Stashes {
+                    realm: "pc".into(),
+                    league: league.into(),
+                },
+                &json!({ "league": league }),
+                200,
+                &json!({ "stashes": tabs }),
+                acquisition_store::now(),
+            )
+            .unwrap();
+    }
+    drop(store);
+    let pointer = |query: &str| {
+        let shown = stdout(&acq(&base, &["search", "--realm", "pc", query]));
+        let line = shown
+            .lines()
+            .find(|l| l.contains("never fetched:"))
+            .unwrap_or_else(|| panic!("{shown}"))
+            .to_string();
+        line[line
+            .find(" · each tab: ")
+            .unwrap_or_else(|| panic!("{line}"))..]
+            .to_string()
+    };
+    const ALLFLAME: &str =
+        " · each tab: acq tabs --account 'Alice#1234' --realm pc --league Allflame";
+    assert_eq!(pointer("league=Allflame"), ALLFLAME);
+    assert_eq!(
+        pointer("league=Standard"),
+        " · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard"
+    );
+    // no league fixed: the league holding the most, the others counted
+    assert_eq!(
+        pointer("rarity=normal"),
+        format!("{ALLFLAME} · 1 other league holds never-fetched tabs")
+    );
+    // run as printed, the command lists the never-fetched tabs it points at
+    let args: Vec<String> = ALLFLAME
+        .trim_start_matches(" · each tab: acq ")
+        .split(' ')
+        .map(|w| w.trim_matches('\'').to_string())
+        .collect();
+    let args: Vec<&str> = ["--json"]
+        .into_iter()
+        .chain(args.iter().map(String::as_str))
+        .collect();
+    let listed = sole_json(&acq(&base, &args));
+    let never: Vec<&str> = listed["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|t| t["fetched_at"].is_null())
+        .map(|t| t["id"].as_str().unwrap())
+        .collect();
+    assert_eq!(never, ["b2", "b3"], "{listed}");
 }
 
 /// A term's counts were read as the answer's: "26 matched" for the

@@ -1433,4 +1433,6 @@ fn the_scope_says_the_never_fetched_by_tab_type() {
             { "type": "character", "tabs": 1, "fetched": 0, "items": 0 },
         ])
     );
+    // the leagues a tab never fetched sits in, a character's apart
+    assert_eq!(a["scope"]["never_fetched_leagues"], json!(["Standard"]));
 }

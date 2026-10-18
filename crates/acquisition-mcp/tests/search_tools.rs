@@ -1435,11 +1435,12 @@ fn the_scope_counts_the_never_fetched_by_tab_type_and_names_the_list() {
         a["scope"]["never_fetched_by_type"],
         json!([{ "type": "MapStash", "tabs": 1, "fetched": 0, "items": 0 }])
     );
+    assert_eq!(a["scope"]["never_fetched_leagues"], json!(["Standard"]));
     let tools = seat.mcp.list_tools();
     let search = tools.iter().find(|t| t["name"] == "search").unwrap();
     let text = search["description"].as_str().unwrap();
     assert!(
-        text.contains("`never_fetched_by_type` is the same by tab type, a character's `character`, each counted as the `tabs` tool counts a type, and `tabs` lists a league's tabs"),
+        text.contains("`never_fetched_by_type` is the same by tab type, a character's `character`, each counted as the `tabs` tool counts a type, and `tabs` lists a league's tabs, `never_fetched_leagues` naming the leagues that hold a never-fetched tab, the most first"),
         "{text}"
     );
 }

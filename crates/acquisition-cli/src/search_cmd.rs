@@ -948,19 +948,20 @@ fn answer_text(a: &Answer) -> String {
         never_fetched_text(&scope.coverage.never_fetched_by_type),
         ago(now, scope.coverage.list_seen),
     );
-    // the list that exists, where a tab is among the never fetched: `tabs`
-    // lists one realm's (a store's characters are `store characters`)
-    if let Realm::One(realm) = &scope.realm
-        && scope
-            .coverage
-            .never_fetched_by_type
-            .iter()
-            .any(|t| t.kind != "character")
-    {
-        never.push_str(&format!(
-            " · each tab: {}",
-            acquisition_search::answer::tabs_command(Some(account), realm)
-        ));
+    // the list that exists: `tabs` over the league the query fixes, or the
+    // one holding the most never fetched, the others counted (C118)
+    if let Some(pointer) = a.tabs_pointer() {
+        never.push_str(&format!(" · each tab: {}", pointer.command));
+        if pointer.other_leagues > 0 {
+            never.push_str(&format!(
+                " · {} never-fetched tabs",
+                plural(
+                    pointer.other_leagues,
+                    "other league holds",
+                    "other leagues hold"
+                )
+            ));
+        }
     }
     line(never);
     if scope.realm_not_held {

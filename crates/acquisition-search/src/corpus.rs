@@ -348,6 +348,10 @@ pub struct Coverage {
     /// there (C118). A tab's type is GGG's, verbatim, as `tabs` gives
     /// it; a character's is `character`.
     pub never_fetched_by_type: Vec<crate::tabs::TabType>,
+    /// The leagues holding a tab never fetched, the most first: names
+    /// alone, so the league a `tabs` pointer names and how many others
+    /// there are follow from the answer (C118).
+    pub never_fetched_leagues: Vec<String>,
     pub folders: usize,
     pub oldest_fetch: Option<i64>,
     pub newest_fetch: Option<i64>,
@@ -875,6 +879,18 @@ fn coverage(
         )
     }));
     never_fetched_by_type.retain(|t| t.tabs > t.fetched);
+    let mut by_league: Vec<(&str, usize)> = Vec::new();
+    for league in holds_items
+        .iter()
+        .filter(|l| l.kind == "stash" && l.fetched_at.is_none())
+        .filter_map(|l| l.league.as_deref())
+    {
+        match by_league.iter_mut().find(|(at, _)| *at == league) {
+            Some((_, n)) => *n += 1,
+            None => by_league.push((league, 1)),
+        }
+    }
+    by_league.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(b.0)));
     never_fetched_by_type.sort_by(|a, b| {
         (b.tabs - b.fetched)
             .cmp(&(a.tabs - a.fetched))
@@ -891,6 +907,7 @@ fn coverage(
         fetched: fetches().count(),
         never_fetched: holds_items.len() - fetches().count(),
         never_fetched_by_type,
+        never_fetched_leagues: by_league.into_iter().map(|(l, _)| l.to_string()).collect(),
         folders: locations.len() - holds_items.len(),
         oldest_fetch: fetches().min(),
         newest_fetch: fetches().max(),

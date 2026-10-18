@@ -39,7 +39,7 @@
 //! ```text
 //! query   league=Standard class=Rings rarity=rare line("# to maximum Life" arg1>=90) pseudo.total_res>=60
 //! scope   account A · pc · live · 7 items · 2 locations fetched (oldest 3d, newest 2h)
-//!         1 location never fetched: PremiumStash 1 of 3 · location list seen 2h ago · each tab: acq tabs --account A --realm pc
+//!         1 location never fetched: PremiumStash 1 of 3 · location list seen 2h ago · each tab: acq tabs --account A --realm pc --league Standard
 //! total   1 match · 2 undecided
 //! rows    r1  Two-Stone Ring · rare · Standard / Rings · fetched 2h ago
 //!             +95 to maximum Life (explicit) · pseudo.total_res 65
@@ -2559,15 +2559,80 @@ fn command_with(
     out
 }
 
-/// How every command the search prints opens: the verb, the account it
-/// was answered for, the realm.
-/// `tabs` as a command a terminal takes, over the account and the realm
-/// an answer was for: the list of the tabs its scope counts by type
-/// (C118), printed by the one opening every command has.
-pub fn tabs_command(account: Option<&str>, realm: &str) -> String {
-    opening("tabs", account, Some(realm))
+/// Where an answer's scope points for the tabs it never fetched (C118):
+/// `tabs` over one league, as a command a terminal takes, and how many
+/// other leagues hold a never-fetched tab.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TabsPointer {
+    pub command: String,
+    pub other_leagues: usize,
 }
 
+impl Answer {
+    /// The `tabs` command for the tabs this answer's scope never fetched,
+    /// a function of the answer's JSON: under one realm, the league the
+    /// query fixes where it holds a never-fetched tab, or, where the query
+    /// fixes none, the league holding the most; none where no league
+    /// holds one. Made by the one opening every command has.
+    pub fn tabs_pointer(&self) -> Option<TabsPointer> {
+        let Realm::One(realm) = &self.scope.realm else {
+            return None;
+        };
+        let leagues = &self.scope.coverage.never_fetched_leagues;
+        let (league, other_leagues) = match fixed_league(&self.query.tree) {
+            // `=` is any-case: the command carries the store's spelling
+            Some(asked) => (
+                leagues
+                    .iter()
+                    .find(|l| bind::folded(l) == bind::folded(asked))?,
+                0,
+            ),
+            None => (leagues.first()?, leagues.len() - 1),
+        };
+        let mut command = opening(
+            "tabs",
+            Some(
+                self.scope
+                    .account
+                    .name
+                    .as_deref()
+                    .unwrap_or(&self.scope.account.uuid),
+            ),
+            Some(realm),
+        );
+        command.push_str(&format!(" --league {}", shell_quoted(league)));
+        Some(TabsPointer {
+            command,
+            other_leagues,
+        })
+    }
+}
+
+/// The one league a query's tree fixes: a root `league=` term, or the one
+/// such term among the root's and-ed children.
+fn fixed_league(tree: &Json) -> Option<&str> {
+    fn league(t: &Json) -> Option<&str> {
+        (t["field"] == "league" && t["op"] == "=")
+            .then(|| t["value"].as_str())
+            .flatten()
+    }
+    if let Some(one) = league(tree) {
+        return Some(one);
+    }
+    match tree["all"]
+        .as_array()?
+        .iter()
+        .filter_map(league)
+        .collect::<Vec<_>>()
+        .as_slice()
+    {
+        [one] => Some(one),
+        _ => None,
+    }
+}
+
+/// How every command the search prints opens: the verb, the account it
+/// was answered for, the realm.
 fn opening(verb: &str, account: Option<&str>, realm: Option<&str>) -> String {
     let mut out = format!("acq {verb}");
     if let Some(account) = account {
