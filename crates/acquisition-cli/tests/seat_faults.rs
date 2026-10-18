@@ -1757,26 +1757,77 @@ fn a_limit_beside_a_count_says_a_count_shows_no_rows() {
 /// `show` printed an item's price, or `price none (none)`, and nothing of
 /// the target form `price show` takes: cli-sonnet-2 (call 24, its fault
 /// 6) learned `item/<id>` from the refusal of a bare id. The price line
-/// ends with the command that says why, which runs as printed.
+/// ends with the command that says why, which runs as printed — opening
+/// as every printed command does, with the account the item was shown
+/// for and its realm, since a bare `price show` would select another
+/// account where two are logged in and read `pc` for an Xbox item (the
+/// external review of note 38's step 4).
 #[test]
 fn show_prints_the_price_show_command_for_its_item() {
     let scratch = harness::scratch("seat-show-target");
     let base = scratch.0.clone();
     seed_two_leagues(&base);
-    let shown = stdout(&acq(&base, &["show", "i-std"]));
-    let line = shown
-        .lines()
-        .find(|l| l.starts_with("price   "))
-        .unwrap_or_else(|| panic!("{shown}"));
-    let command = line
-        .split(" · why: ")
-        .nth(1)
-        .unwrap_or_else(|| panic!("{line}"));
-    assert_eq!(command, "acq price show item/i-std", "{line}");
-    let args: Vec<&str> = command.split(' ').skip(1).collect();
-    let out = acq(&base, &args);
-    assert!(out.status.success(), "{}", stderr(&out));
-    assert!(stdout(&out).starts_with("item/i-std"), "{}", stdout(&out));
+    let mock = base.join("store").join("mock");
+    // a second account, so no account is the default
+    Index::load(&mock)
+        .unwrap()
+        .record_login("Bob#5678", "u-bob", false, acquisition_store::now())
+        .unwrap();
+    // and an Xbox item of Alice's, whose realm is not the default
+    let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
+    let at = acquisition_store::now();
+    store
+        .record(
+            &Endpoint::Stashes {
+                realm: "xbox".into(),
+                league: "Standard".into(),
+            },
+            &json!({ "league": "Standard" }),
+            200,
+            &json!({ "stashes": [ { "id": "x1", "name": "Gear", "type": "PremiumStash", "index": 0 } ] }),
+            at,
+        )
+        .unwrap();
+    store
+        .record(
+            &Endpoint::Stash {
+                realm: "xbox".into(),
+                league: "Standard".into(),
+                id: "x1".into(),
+                sub: None,
+            },
+            &json!({}),
+            200,
+            &json!({ "stash": { "id": "x1", "name": "Gear", "type": "PremiumStash", "items": [
+                { "id": "i-xb", "name": "", "typeLine": "Chaos Orb", "baseType": "Chaos Orb", "x": 0, "y": 0 } ] } }),
+            at,
+        )
+        .unwrap();
+    drop(store);
+    for (id, realm) in [("i-std", "pc"), ("i-xb", "xbox")] {
+        let shown = stdout(&acq(&base, &["show", "--account", "Alice", id]));
+        let line = shown
+            .lines()
+            .find(|l| l.starts_with("price   "))
+            .unwrap_or_else(|| panic!("{shown}"));
+        let command = line
+            .split(" · why: ")
+            .nth(1)
+            .unwrap_or_else(|| panic!("{line}"));
+        assert_eq!(
+            command,
+            format!("acq price show --account u-seat --realm {realm} item/{id}"),
+            "{line}"
+        );
+        let args: Vec<&str> = command.split(' ').skip(1).collect();
+        let out = acq(&base, &args);
+        assert!(out.status.success(), "{}", stderr(&out));
+        assert!(
+            stdout(&out).starts_with(&format!("item/{id}")),
+            "{}",
+            stdout(&out)
+        );
+    }
 }
 
 /// The trade header said the search ran "over the items you hold, in

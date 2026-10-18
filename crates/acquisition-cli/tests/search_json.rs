@@ -1240,7 +1240,9 @@ fn oq6_a_price_set_by_hand_is_found_shown_and_named_in_the_basis() {
     assert_eq!(one["price"]["text"], "12.5 chaos");
     let shown = text(&acq(&base, &["show", "r1"]));
     assert!(
-        shown.contains("price   12.5 chaos · manual · why: acq price show item/r1\n"),
+        shown.contains(
+            "price   12.5 chaos · manual · why: acq price show --account u-search --realm pc item/r1\n"
+        ),
         "{shown}"
     );
     let none = text(&acq(&base, &["show", "r2"]));

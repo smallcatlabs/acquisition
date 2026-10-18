@@ -2850,9 +2850,9 @@ fn fixed_league(tree: &Json) -> Option<&str> {
     }
 }
 
-/// How every command the search prints opens: the verb, the account it
-/// was answered for, the realm.
-fn opening(verb: &str, account: Option<&str>, realm: Option<&str>) -> String {
+/// How every command the search prints opens — `show`'s `price show`
+/// pointer too: the verb, the account it was answered for, the realm.
+pub fn opening(verb: &str, account: Option<&str>, realm: Option<&str>) -> String {
     let mut out = format!("acq {verb}");
     if let Some(account) = account {
         out.push_str(&format!(" --account {}", shell_quoted(account)));

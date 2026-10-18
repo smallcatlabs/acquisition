@@ -1893,10 +1893,20 @@ fn shown_text(s: &Shown) -> String {
     // takes, ready to paste (the trade seat: cli-sonnet-2 call 24, its
     // fault 6, found `item/<id>` only in a refusal)
     let target = format!("item/{}", item.facts.id);
-    // a removed item has no listing state for `price show` to read
+    // a removed item has no listing state for `price show` to read; the
+    // command opens as every printed command does, with the account the
+    // item was shown for and its realm, since the defaults are another
+    // account's or another realm's where the store holds several
     let why = match &s.price {
         Priced::None { kind, .. } if kind == "removed" => String::new(),
-        _ => format!(" · why: acq price show {target}"),
+        _ => format!(
+            " · why: {} {target}",
+            acquisition_search::answer::opening(
+                "price show",
+                Some(&s.basis.account),
+                Some(&s.place.realm)
+            )
+        ),
     };
     match &s.price {
         Priced::Is(p) => out.push_str(&format!(
