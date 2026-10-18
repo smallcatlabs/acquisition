@@ -222,3 +222,16 @@ not sent (`tools/trade_query.py`).
 | `raw/searches/u-fragments/` (210 files; as above) | 4418033 | 2026-10-16 16:54 – 17:16 UTC | `fb995bd84cb4deb611f4435941388aeb781144e0a016230e83038246715e79fc` |
 | `raw/searches/v-fragments/` (216 files; as above) | 5140491 | 2026-10-16 17:16 – 17:39 UTC | `41240f6a38be7430545cab109f2c17faf8d9b6cdf41466daffc8599e48237a0e` |
 | `raw/searches/w-fragments/` (19 files; as above) | 216823 | 2026-10-16 17:47 – 17:50 UTC | `5940ad308653cbe61c9c3a6fc5116d844f4661edb9fe6755b7883fd60d44fa50` |
+
+Round x (note 38, step 5: the questions the trade seat queued), 2026-10-18,
+14:45 to 15:02 US Central (19:45 to 20:02 UTC), by the owner, from the links of
+`data/search-sheet.csv` at `48751e67` (x01–x12) and as the commit that adds this
+row holds it (x13–x18, the same day's repair), one in the challenge league
+`Allflame`; saved as round w was, one fragment per call. Every body held, no
+cookie; all 18 searches answered. `tools/trade-split.py --write` wrote their
+captures in three passes; it refused a second answer to x16, opened twice 17 s
+apart, the first kept.
+
+| File | Bytes | Captured | sha256 |
+| --- | --- | --- | --- |
+| `raw/searches/x-fragments/` (31 files; as above) | 570784 | 2026-10-18 19:45 – 20:02 UTC | `6b21639158b76f06c4104db31b35a6d6498b6c2815c7616cf0e827d752c58d9a` |

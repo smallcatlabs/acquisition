@@ -2308,10 +2308,39 @@ def round_x(earlier):
     # oracle could read).
     add(f"coverage in {CHALLENGE}: `type_filters.category=map.invitation` (Standard listed them and sent no item)",
         "the oracle (tests/trade_oracle.rs)", batch_query([], category("map.invitation")), CHALLENGE)
+
+    # 6. The repair, the same day. t27 (`min` 1000) found 100 and t28 (3 to 5) none; x04–x07 — 4, 1, 2 to 3, and
+    # 2400 to 2600 — found none, while t29 with no bound found 100. No number the line displays is the one
+    # compared. What is 1000 or more and neither 2500 nor 4: the two read as a range `# to #`, its average, 1252
+    # for 2500 and 4 and 1250.5 for 2500 and 1 — or every `#` against the one bound. Each bracket below parts them.
+    add("a bound every displayed number meets: `min` 1 `max` 3000. Found: the site compares some number of the line; "
+        "none: no bound on this id finds an item", "t29, the id with no bound, found 100", burning({"min": 1, "max": 3000}))
+    add("the two as a range, its average: `min` 1250 `max` 1253 (1252 for 4 seconds, 1250.5 for 1). Found, x07 none at "
+        "2400 to 2600: the site reads the two numbers as a range and compares their average, as it does a "
+        "`# to #` line; none, x13 found: some other number", "x13", burning({"min": 1250, "max": 1253}))
+    add("between the average and the damage: `min` 1254 `max` 2400. None, x14 found: the average alone; found: a "
+        "number between", "x13", burning({"min": 1254, "max": 2400}))
+    add("every `#` against one bound, the mutant: `min` 1 `max` 2000, which 1 and 4 meet and 2500 fails. Found, with "
+        "x14: the average (1252 meets it); none, x13 found: every number must meet the bound", "x13",
+        burning({"min": 1, "max": 2000}))
+    add("the other side: `min` 5 `max` 3000, which 2500 meets and 1 and 4 fail. Found, with x14: the average; none, "
+        "x13 found: every number must meet the bound", "x13", burning({"min": 5, "max": 3000}))
+
+    # 7. The repair of x08, whose ten owed their requirements to their bases — a unique Titan Greaves of item level
+    # 34 requires 68 — and carried no gem: a normal item has no mod to raise its requirement, and one of item level
+    # 20 or under is of a base requiring no more, so a requirement of 40 on it is a socketed gem's alone.
+    add("a level requirement a socketed gem sets, the repair of x08: normal armour of item level 20 or under at `lvl` "
+        "`min` 40. Found: the ten carry `\"suffix\":\"(gem)\"`, and the site reads a gem's requirement as the item's; "
+        "none: not shown, no filter of the site selecting an item by its socketed gem",
+        "x09, the band without a requirement bound, found 10,000",
+        batch_query([], {"type_filters": {"disabled": False, "filters": {"category": {"option": "armour"},
+                                                                          "rarity": {"option": "normal"}}},
+                         "misc_filters": {"disabled": False, "filters": {"ilvl": {"max": 20}}},
+                         "req_filters": {"disabled": False, "filters": {"lvl": {"min": 40}}}}))
     rows = composed.done()
     # every name above is written out: the round is its length
-    if len(rows) != 12:
-        raise SystemExit(f"round x has {len(rows)} searches, its names written for 12")
+    if len(rows) != 18:
+        raise SystemExit(f"round x has {len(rows)} searches, its names written for 18")
     return rows
 
 

@@ -38,7 +38,7 @@ lines,Adds # to # Cold Damage,weapon,implicitMods,,1,1,,,,10,10,10,asked,"J7: on
 lines,Adds # to # Cold Damage to Attacks,not a weapon,explicitMods,,152,152,,,,3,3,3,asked,totals.rs: a row admits any source and any flag; the row is the table's,
 lines,Adds # to # Cold Damage to Attacks,not a weapon,explicitMods,crafted,2,2,,,,10,10,10,asked,totals.rs: a row admits any source and any flag; the row is the table's,
 lines,Adds # to # Cold Damage to Attacks,not a weapon,implicitMods,,1,1,,,,10,10,10,asked,totals.rs: a row admits any source and any flag; the row is the table's,
-lines,Adds # to # Cold Damage to Spells,not a weapon,explicitMods,,8,8,,,,0,0,0,not asked,totals.rs: a row admits any source and any flag; the row is the table's,does `Adds # to # Cold Damage to Spells` (pseudo.pseudo_adds_cold_damage_to_spells) show on an item that is no weapon carrying `Adds # to # Cold Damage to Spells` in explicitMods? The reading: the line's average
+lines,Adds # to # Cold Damage to Spells,not a weapon,explicitMods,,8,8,,,,10,10,10,asked,totals.rs: a row admits any source and any flag; the row is the table's,
 lines,Adds # to # Cold Damage to Spells,weapon,crucibleMods,,2,2,,,,30,10,30,asked,"ruling 1: a total leaves out the array's lines, whatever the line",
 lines,Adds # to # Cold Damage to Spells,weapon,explicitMods,,47,47,,,,25,19,25,asked,totals.rs: a row admits any source and any flag; the row is the table's,
 lines,Adds # to # Cold Damage to Spells,weapon,explicitMods,fractured,1,1,,,,10,10,10,asked,totals.rs: a row admits any source and any flag; the row is the table's,
@@ -54,7 +54,7 @@ lines,Adds # to # Fire Damage,weapon,explicitMods,fractured,1,1,,,,10,10,10,aske
 lines,Adds # to # Fire Damage,weapon,implicitMods,,4,4,,,,10,10,10,asked,"J7: on a weapon the line is the weapon's own, whatever its array or flag",
 lines,Adds # to # Fire Damage to Attacks,not a weapon,explicitMods,,132,132,,,,4,4,4,asked,totals.rs: a row admits any source and any flag; the row is the table's,
 lines,Adds # to # Fire Damage to Attacks,not a weapon,implicitMods,,9,9,,,,10,10,10,asked,totals.rs: a row admits any source and any flag; the row is the table's,
-lines,Adds # to # Fire Damage to Spells,not a weapon,explicitMods,,10,10,,,,0,0,0,not asked,totals.rs: a row admits any source and any flag; the row is the table's,does `Adds # to # Fire Damage to Spells` (pseudo.pseudo_adds_fire_damage_to_spells) show on an item that is no weapon carrying `Adds # to # Fire Damage to Spells` in explicitMods? The reading: the line's average
+lines,Adds # to # Fire Damage to Spells,not a weapon,explicitMods,,10,10,,,,10,10,10,asked,totals.rs: a row admits any source and any flag; the row is the table's,
 lines,Adds # to # Fire Damage to Spells,weapon,crucibleMods,,1,1,,,,30,10,30,asked,"ruling 1: a total leaves out the array's lines, whatever the line",
 lines,Adds # to # Fire Damage to Spells,weapon,explicitMods,,46,46,,,,29,27,29,asked,totals.rs: a row admits any source and any flag; the row is the table's,
 lines,Adds # to # Fire Damage to Spells,weapon,explicitMods,crafted,2,2,,,,10,10,10,asked,totals.rs: a row admits any source and any flag; the row is the table's,
