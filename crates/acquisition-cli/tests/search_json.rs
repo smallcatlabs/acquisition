@@ -1246,7 +1246,7 @@ fn oq6_a_price_set_by_hand_is_found_shown_and_named_in_the_basis() {
         "{shown}"
     );
     let none = text(&acq(&base, &["show", "r2"]));
-    assert!(none.contains("price   none (none)"), "{none}");
+    assert!(none.contains("price   none (nothing applies)"), "{none}");
 }
 
 #[test]

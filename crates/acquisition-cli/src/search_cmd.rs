@@ -1919,7 +1919,11 @@ fn shown_text(s: &Shown) -> String {
                 .map(|from| format!(" · from {from}"))
                 .unwrap_or_default()
         )),
-        Priced::None { kind, .. } => out.push_str(&format!("price   none ({kind}){why}\n")),
+        // why none, in the words the JSON carries: `none (none)` read as
+        // two empty fields (the re-sit, cli-opus call 41, its fault 7)
+        Priced::None { why: reason, .. } => {
+            out.push_str(&format!("price   none ({reason}){why}\n"))
+        }
         Priced::Open(reason) => {
             out.push_str(&format!("price   undecided: {}{why}\n", reason.problem))
         }

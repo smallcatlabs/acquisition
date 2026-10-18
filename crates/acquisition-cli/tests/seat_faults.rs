@@ -907,6 +907,29 @@ fn the_scope_lines_list_age_is_the_querys_leagues() {
     );
 }
 
+/// `show` printed `price   none (none)` for an unpriced item — the
+/// listing state's kind beside its status — which read as two empty
+/// fields until `price show` explained it (the re-sit, cli-opus call 41,
+/// its fault 7). The line says why none, in the words its JSON carries.
+#[test]
+fn shows_price_line_says_why_none() {
+    let scratch = harness::scratch("seat-price-why");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    let shown = stdout(&acq(&base, &["show", "i-std"]));
+    let line = shown
+        .lines()
+        .find(|l| l.starts_with("price   "))
+        .unwrap_or_else(|| panic!("{shown}"));
+    assert!(
+        line.starts_with("price   none (nothing applies) · why: acq price show "),
+        "{line}"
+    );
+    assert!(!line.contains("(none)"), "{line}");
+    let doc = sole_json(&acq(&base, &["show", "--json", "i-std"]));
+    assert_eq!(doc["price"]["why"], "nothing applies", "{}", doc["price"]);
+}
+
 /// A daemon with `alice` logged in, a Standard policy over every tab and
 /// the stash listing on record; the plan compiled from it is written to
 /// `plan.json` under `base` and returned beside its path.
