@@ -812,13 +812,41 @@ matches = ['{"implicitMods": ["Bleeding Enemies you Kill Explode, dealing 5% of\
 fails = ['{"implicitMods": ["Bleeding Enemies you Kill Explode, dealing 3% of\ntheir Maximum Life as Physical Damage"]}']
 
 [[case]]
-name = "a number the site writes as a digit: the slot is that number"
+name = "a number the site writes as a digit is a number of the line: its slot open, the bound the site's own `#` (t30, t31; x01, x03)"
 query = '{"stats": [{"type": "and", "filters": [{"id": "explicit.stat_2918708827", "value": {"min": 10}}]}]}'
-text = 'sum(line("#% chance to gain Phasing for # seconds on Kill" arg2=4 source=explicit).arg1)>=10'
+text = 'sum(line("#% chance to gain Phasing for # seconds on Kill" source=explicit).arg1)>=10'
 fidelity = "ambiguous"
 statuses = { "stats.0" = "exact", "stats.0.0" = "ambiguous" }
-matches = ['{"explicitMods": ["15% chance to gain Phasing for 4 seconds on Kill"]}']
-fails = ['{"explicitMods": ["15% chance to gain Phasing for 6 seconds on Kill"]}', '{"explicitMods": ["5% chance to gain Phasing for 4 seconds on Kill"]}']
+matches = ['{"explicitMods": ["15% chance to gain Phasing for 4 seconds on Kill"]}', '{"explicitMods": ["15% chance to gain Phasing for 6 seconds on Kill"]}']
+fails = ['{"explicitMods": ["5% chance to gain Phasing for 4 seconds on Kill"]}', '{"explicitMods": ["5% chance to gain Phasing for 40 seconds on Kill"]}']
+
+[[case]]
+name = "a written digit is never the number a bound compares: t30's minimum of 15 found 16 per 10 Strength, the 10 never"
+query = '{"stats": [{"type": "and", "filters": [{"id": "explicit.stat_2594215131", "value": {"min": 15}}]}]}'
+text = 'sum(line("#% increased Physical Weapon Damage per # Strength" source=explicit).arg1)>=15'
+fidelity = "ambiguous"
+statuses = { "stats.0" = "exact", "stats.0.0" = "ambiguous" }
+matches = ['{"explicitMods": ["16% increased Physical Weapon Damage per 10 Strength"]}']
+fails = ['{"explicitMods": ["12% increased Physical Weapon Damage per 10 Strength"]}', '{"explicitMods": ["10% increased Physical Weapon Damage per 16 Strength"]}']
+others = { "stats.0.0" = { reading = 'sum(line("#% increased Physical Weapon Damage per # Strength" source=explicit).arg1)>=15 -line("#% reduced Physical Weapon Damage per # Strength" source=explicit)' } }
+
+[[case]]
+name = "a written digit is a number of the line: x01 and x03's Blight-ravaged maps show 50% and 9 where the site's text writes 25% and 3"
+query = '{"stats": [{"type": "and", "filters": [{"id": "implicit.stat_299373046"}]}]}'
+text = '''line("Area is infested with Fungal Growths\nMap's Item Quantity Modifiers also affect Blight Chest count at #% value\nCan be Anointed up to # times" source=implicit)'''
+fidelity = "exact"
+statuses = { "stats.0" = "exact", "stats.0.0" = "exact" }
+matches = ['''{"implicitMods": ["Area is infested with Fungal Growths\nMap's Item Quantity Modifiers also affect Blight Chest count at 50% value\nCan be Anointed up to 9 times"]}''', '''{"implicitMods": ["Area is infested with Fungal Growths\nMap's Item Quantity Modifiers also affect Blight Chest count at 25% value\nCan be Anointed up to 3 times"]}''']
+fails = ['''{"explicitMods": ["Area is infested with Fungal Growths\nMap's Item Quantity Modifiers also affect Blight Chest count at 50% value\nCan be Anointed up to 9 times"]}''']
+
+[[case]]
+name = "two ids whose texts differ in a written digit alone share the line, the text's other id named: per 10 and per 25 Dexterity"
+query = '{"stats": [{"type": "and", "filters": [{"id": "explicit.stat_889691035"}]}]}'
+text = 'line(("#% increased Attack Speed per # Dexterity" or "#% reduced Attack Speed per # Dexterity") source=explicit)'
+fidelity = "ambiguous"
+statuses = { "stats.0" = "exact", "stats.0.0" = "ambiguous" }
+matches = ['{"explicitMods": ["2% increased Attack Speed per 10 Dexterity"]}', '{"explicitMods": ["4% increased Attack Speed per 25 Dexterity"]}']
+fails = ['{"implicitMods": ["2% increased Attack Speed per 10 Dexterity"]}']
 
 [[case]]
 name = "a text with no number: its bound dropped, presence alone"

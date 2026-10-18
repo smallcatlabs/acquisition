@@ -30,8 +30,8 @@
 # quotes, the loader refuses one that does: `{value}` and `{option}` are
 # written through the printer's quoting, `{text}` as a stat's displays
 # (its text and its forms, reference/trade-forms-v1.toml, each quoted, as
-# one line's alternatives, a number its text writes as a digit fixed to its
-# slot: the line rules below), `{r}`, `{g}`, `{b}` and `{w}` as the
+# one line's alternatives, a number its text writes as a digit a `#` of the
+# template like any other: the line rules below), `{r}`, `{g}`, `{b}` and `{w}` as the
 # printer writes a number, `{total}` as a computed value's name,
 # `{bounds}` as the clause's `min` and `max` the way a person types them —
 # `>=60`, `<=80`, `=60..80`. A term of `lands` holding a placeholder the
@@ -91,10 +91,10 @@
 # 147 rows — 4 for the URL, 10 for the query object's keys, the JSON and
 # what no row names, 92 filters and 4 option rows, 10 for the stat groups
 # (8 types, the disabled and the option-valued filter), 27 for the stats
-# (14 categories and 13 line rules); 79 exact, 23 ambiguous, 36
+# (14 categories and 13 line rules); 80 exact, 22 ambiguous, 36
 # unsupported, 9 listing-only — the four defence filters ambiguous since
-# step 3 measured them, and since step 4 `stat.text.numbers`, which no
-# capture shows, by the owner's verdict; `stat.text.two`,
+# step 3 measured them, and from step 4 to round x `stat.text.numbers`,
+# by the owner's verdict until a sitting asked it; `stat.text.two`,
 # `stat.text.numbers` and `query.unknown` are step 4's,
 # `stat.text.eldritch` step 6's. Step 7e built what the sitting of
 # 2026-10-16 settled: `stat.explicit`, `map_filters.area_level`, the nine
@@ -110,9 +110,10 @@
 # Every one of the capture's 93 filters, 14 categories and 8 group types
 # has a row (tests/trade_catalogue.rs). 58 fields named. Every one of the
 # stat table's 14,068 category and id pairs translates, alone and with a
-# bound (tests/trade_translate.rs): alone 11,232 exact, 2,607 ambiguous,
-# 229 unsupported — the two-text ids, every one; with a bound 7,357, 6,482
-# and 229, 4,461 of them by `stat.text.forms`; 300 by `stat.text.wording`.
+# bound (tests/trade_translate.rs): alone 12,692 exact, 1,147 ambiguous,
+# 229 unsupported — the two-text ids, every one; with a bound 8,554, 5,285
+# and 229, 4,461 of them by `stat.text.forms`; 300 by `stat.text.wording`;
+# 674 by `stat.text.collision`, its texts read as templates since round x.
 
 version = 1
 filters = "2026-09-12"
@@ -1258,9 +1259,9 @@ says = "A bound compares the sum of the stat's lines, as the site sums them."
 
 [[row]]
 key = "stat.text.numbers"
-disposition = "ambiguous"
-note = "a number the site's text writes as a digit and not a `#` — `per 200 Accuracy Rating`, `1 Added Passive Skill is …` — is part of the line's text, as it is of the line the game displays: the template has `#` there and the slot is that number, `arg2=200`; the bounds compare the site's own `#` (1,613 of the capture's 14,068 category and id pairs): the builder's reading, which no capture shows, so ambiguous until a sitting has asked one (owner, 2026-10-16: \"i agree with your recommendation with the sitting row\")"
-says = "A number written into the stat's wording is part of the wording here; which number the site compares has not been tried."
+disposition = "exact"
+note = "a number the site's text writes as a digit and not a `#` — `per 10 Strength`, `at 25% value`, `1 Added Passive Skill is …` — is a number of the line, not the id's wording: the template has `#` there and its slot is open, so the line is met whatever the item displays there — x01 and x03's twenty Blight-ravaged maps display `at 50% value … Anointed up to 9 times` under `implicit.stat_299373046`, whose text writes 25 and 3 — and a bound compares the site's own `#`, never the digit: t30 (`min` 15) found 16 and t31 (`max` 12) found 10 on `#% increased Physical Weapon Damage per 10 Strength`, the 10 never (1,613 of the capture's 14,068 category and id pairs); two ids whose texts differ only in such a digit share the template, `stat.text.collision` (the owner, 2026-10-18, on round x: \"accepted\")"
+says = "A number written into the stat's wording is a number of the line: the line matches whatever number an item shows there, and a bound compares the stat's own number."
 
 [[row]]
 key = "stat.text.many"
@@ -1277,7 +1278,7 @@ says = "A local stat also matches the global one that reads the same."
 [[row]]
 key = "stat.text.collision"
 disposition = "ambiguous"
-note = "a text the site gives two ids or more under one category (227 explicit, 34 enchant, 20 implicit, 15 fractured, one crafted, one scourge, measured at step 4): the line matches both, and the report names the other id (S66)"
+note = "a text the site gives two ids or more under one category (227 explicit, 34 enchant, 20 implicit, 15 fractured, one crafted, one scourge, measured at step 4), its texts read as templates since round x, a written digit a `#` (`stat.text.numbers`: 250, 38, 25, 17, one, one — `#% increased Attack Speed per 10 Dexterity` and `per 25 Dexterity` one text): the line matches both, and the report names the other id (S66)"
 says = "The site gives this wording more than one stat; the search matches all of them."
 
 [[row]]

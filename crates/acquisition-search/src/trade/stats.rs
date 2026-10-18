@@ -94,8 +94,9 @@ pub struct StatTable {
     version: String,
     source: String,
     by_id: HashMap<String, Stat>,
-    /// The ids each text names, by category: (category bit, text) to ids,
-    /// in the file's order.
+    /// The ids each text names, by category: (category bit, the text's
+    /// template, its written digits `#` as well) to ids, in the file's
+    /// order.
     by_text: HashMap<(u8, String), Vec<String>>,
 }
 
@@ -265,10 +266,13 @@ impl StatTable {
             for at in 0..HASH_CATEGORIES.len() {
                 if categories & (1 << at) != 0 {
                     for text in &row.texts {
-                        by_text
-                            .entry((at as u8, text.clone()))
-                            .or_default()
-                            .push(row.id.clone());
+                        // two texts of one id may share a template: the id once
+                        let ids = by_text
+                            .entry((at as u8, crate::template::fixed(text).0))
+                            .or_default();
+                        if ids.last() != Some(&row.id) {
+                            ids.push(row.id.clone());
+                        }
                     }
                 }
             }
@@ -317,15 +321,21 @@ impl StatTable {
         (found.categories & (1 << at) != 0).then_some(found.texts.as_slice())
     }
 
-    /// The ids the site displays a text as under one hash category, read
-    /// exactly, in the file's order: two or more is the text S66 names
-    /// (the catalogue's `stat.text.collision`); none where the category is
-    /// no hash category.
+    /// The ids the site displays a text as under one hash category, in
+    /// the file's order: two or more is the text S66 names (the
+    /// catalogue's `stat.text.collision`); none where the category is no
+    /// hash category. Texts are compared as templates, a digit the site
+    /// writes a `#` as the site's own are — a written digit is a number of
+    /// the line (round x) — so `… per 10 Dexterity` and `… per 25
+    /// Dexterity` are one text.
     pub fn ids_of(&self, category: &str, text: &str) -> &[String] {
         HASH_CATEGORIES
             .iter()
             .position(|c| *c == category)
-            .and_then(|at| self.by_text.get(&(at as u8, text.to_string())))
+            .and_then(|at| {
+                self.by_text
+                    .get(&(at as u8, crate::template::fixed(text).0))
+            })
             .map_or(&[], Vec::as_slice)
     }
 

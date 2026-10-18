@@ -320,12 +320,15 @@ fn the_game_s_forms_stand_where_the_export_joins_and_the_rules_where_it_does_not
 
 /// The captures hold the table: over every listing the site sent (the
 /// sittings' and the owner's census, each search's items a corpus of
-/// their own), every one of the 21,616 lines under an id of the six hash
-/// categories is met by the id's presence term, translated alone — 21,555
-/// — but 56 under an id the translation leaves unsupported (an id of two
+/// their own), every one of the 22,245 lines under an id of the six hash
+/// categories is met by the id's presence term, translated alone — 22,182
+/// — but 58 under an id the translation leaves unsupported (an id of two
 /// texts) and 5 under an id whose clause is ambiguous by a refusal, its form
 /// left to the site (the Staves, Legacy and Global Critical Strike Chance
-/// suffixes, and two Shocks within `1.5 metres`).
+/// suffixes, and two Shocks within `1.5 metres`). Round x's captures
+/// brought 629 lines (21,616 before, 21,555 met, 56 unsupported), x01 and
+/// x03's twenty Blight-ravaged maps among them, met since a written digit
+/// is a number of the line.
 #[test]
 fn the_choice_before_7e_every_captured_line_is_met_by_its_ids_presence() {
     let bodies: Value = serde_json::from_str(BODIES).unwrap();
@@ -402,7 +405,7 @@ fn the_choice_before_7e_every_captured_line_is_met_by_its_ids_presence() {
         }
     }
     assert!(faults.is_empty(), "{}", faults.join("\n"));
-    assert_eq!((lines, met, unsupported, refused), (21_616, 21_555, 56, 5));
+    assert_eq!((lines, met, unsupported, refused), (22_245, 22_182, 58, 5));
 }
 
 fn items_of<'a>(bodies: &'a Value, group: &str, name: &str) -> &'a [Value] {

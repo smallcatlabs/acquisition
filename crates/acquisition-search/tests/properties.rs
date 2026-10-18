@@ -1196,14 +1196,15 @@ fn against_the_site(fetched: Vec<&Value>) -> (usize, usize, usize, usize) {
 }
 
 /// S26 against the trade site (the table's header): every row of the
-/// site's `extended.ar|ev|es|ward` over the listings the sittings' 1,150
+/// site's `extended.ar|ev|es|ward` over the listings the sittings' 1,168
 /// captures fetched, each listing entered whole, is within one of the
-/// field — 1,904 of 2,187 equal and 283 one off — and equal on all 410
+/// field — 1,987 of 2,284 equal and 297 one off — and equal on all 423
 /// rows at 20 % quality or more or under the enchant, where the display
 /// stands. Over the owner's eight searches, 32 of 37 equal and 5 one off.
 /// The brief's "812 rows" was stated before it was measured: the 864
 /// captures of the pseudo track held 1,313 (1,148 equal, 165 one off, 164
-/// standing); step 7's sitting added the rest (2026-10-16).
+/// standing); step 7's sitting added 874 (2026-10-16), and round x's
+/// armour and boots 97 more (2026-10-18), each listing entered within one.
 #[test]
 fn s26_the_q20_fields_are_within_one_of_every_captured_figure() {
     let captures: Value = serde_json::from_str(CAPTURES).unwrap();
@@ -1213,8 +1214,8 @@ fn s26_the_q20_fields_are_within_one_of_every_captured_figure() {
         .values()
         .flat_map(|s| s["fetched"].as_array().unwrap())
         .collect();
-    assert_eq!(fetched.len(), 7401);
-    assert_eq!(against_the_site(fetched), (1904, 283, 410, 2187));
+    assert_eq!(fetched.len(), 7511);
+    assert_eq!(against_the_site(fetched), (1987, 297, 423, 2284));
 
     let census: Value = serde_json::from_str(CENSUS).unwrap();
     let fetched: Vec<&Value> = census["queries"]

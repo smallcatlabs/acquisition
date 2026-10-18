@@ -89,9 +89,13 @@
 //!   its `(Local)` suffix dropped, and each of its forms (`forms.rs`), one
 //!   group's alternatives, each read by the deriver's own scan of a
 //!   displayed string (`template::fixed`): a number a display writes as a
-//!   digit is the line's own, the template has `#` there and the slot is
-//!   fixed to it beside it (`("T" arg2=4)`). The row's `lands` is that
-//!   line under the category's source or flag.
+//!   digit is a number of the line, the template has `#` there and its
+//!   slot is open — the site's twenty Blight-ravaged maps of x01 and x03
+//!   show `at 50% value` where its text writes 25 — and a bound compares
+//!   the site's own `#`, never the digit (t30, t31). A text two ids share
+//!   once its digits are `#` is the text two ids share
+//!   (`stat.text.collision`). The row's `lands` is that line under the
+//!   category's source or flag.
 //! - **A stat filter with no bound is the stat's presence**: a line's is
 //!   the line over every form, a pseudo's `has:pseudo.X` — the site shows
 //!   no pseudo for a total of nothing, which the search reads as lacked
@@ -721,58 +725,37 @@ fn bounds_of(min: Option<Number>, max: Option<Number>) -> Option<(Op, Value)> {
     }
 }
 
-/// One display of a stat, as a line's group names it: its template, the
-/// numbers its text writes as digits, each fixed to its slot (`arg2=4`),
-/// and the slots of the `#`s it leaves open, counting from 1.
+/// One display of a stat, as a line's group names it: its template, a
+/// number its text writes as a digit a `#` of it like any other (round x:
+/// a written digit is a number of the line), and the slots of the `#`s the
+/// site's text has, counting from 1 — the numbers a bound compares.
 #[derive(Clone)]
 struct Shown {
     template: String,
-    pinned: Vec<String>,
     open: Vec<usize>,
 }
 
 impl Shown {
     fn of(text: &str) -> Shown {
         let (template, fixed) = template::fixed(text);
-        let mut shown = Shown {
-            template,
-            pinned: Vec::new(),
-            open: Vec::new(),
-        };
-        for (n, slot) in fixed.iter().enumerate() {
-            match slot {
-                Some(v) => shown.pinned.push(format!(
-                    "arg{}={}",
-                    n + 1,
-                    print::number_text(Number::from_f64(*v))
-                )),
-                None => shown.open.push(n + 1),
-            }
-        }
-        shown
+        let open = (1..=fixed.len())
+            .filter(|n| fixed[n - 1].is_none())
+            .collect();
+        Shown { template, open }
+    }
+
+    /// Whether the text writes a number as a digit (`stat.text.numbers`).
+    fn writes_a_digit(&self) -> bool {
+        self.open.len() < template::slots(&self.template).count
     }
 
     /// Displays as the conditions of one line's group: the one alone,
-    /// `"T" arg2=4`, or each an alternative, `(("T" arg2=4) or "F")`.
+    /// `"T"`, or each an alternative, `("T" or "F")`.
     fn alternatives(all: &[Shown]) -> String {
-        let one = |s: &Shown| {
-            std::iter::once(print::quoted_text(&s.template))
-                .chain(s.pinned.iter().cloned())
-                .collect::<Vec<_>>()
-                .join(" ")
-        };
+        let one = |s: &Shown| print::quoted_text(&s.template);
         match all {
             [only] => one(only),
-            _ => format!(
-                "({})",
-                all.iter()
-                    .map(|s| match s.pinned.is_empty() {
-                        true => one(s),
-                        false => format!("({})", one(s)),
-                    })
-                    .collect::<Vec<_>>()
-                    .join(" or ")
-            ),
+            _ => format!("({})", all.iter().map(one).collect::<Vec<_>>().join(" or ")),
         }
     }
 }
@@ -1466,11 +1449,11 @@ impl Translator<'_> {
         if kind == "not" && ELDRITCH.iter().any(|form| text.starts_with(form)) {
             rule(&mut rows, &mut notes, &mut status, "stat.text.eldritch")?;
         }
-        // a number the site's text writes as a digit is part of the line's
-        // text: the template has `#` there, and the slot is that number;
-        // the bounds compare the site's own `#`
+        // a number the site's text writes as a digit is a number of the
+        // line: the template has `#` there, its slot open, and the bounds
+        // compare the site's own `#` (t30, t31; x01, x03)
         let own = Shown::of(text);
-        if !own.pinned.is_empty() {
+        if own.writes_a_digit() {
             rule(&mut rows, &mut notes, &mut status, "stat.text.numbers")?;
         }
         let shape = template::slots(&own.template);

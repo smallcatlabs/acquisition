@@ -300,61 +300,108 @@ fn c113_every_fixture_translates_as_worked_by_hand() {
     let cases = cases();
     assert!(cases.len() >= 80, "{} cases", cases.len());
     for case in &cases {
-        let decoded = decode(&input(case)).unwrap_or_else(|e| panic!("{}: {e}", case.name));
-        let t = translate(&decoded).unwrap_or_else(|e| panic!("{}: {e}", case.name));
-        assert_eq!(t.text, case.text, "{}", case.name);
-        assert_eq!(t.realm, case.realm, "{}", case.name);
-        let statuses: BTreeMap<String, String> = t
-            .clauses
-            .iter()
-            .map(|c| (c.at.clone(), word(c.status)))
-            .collect();
-        assert_eq!(
-            statuses.len(),
-            t.clauses.len(),
-            "{}: an `at` twice",
-            case.name
-        );
-        assert_eq!(statuses, case.statuses, "{}", case.name);
-        assert_eq!(
-            serde_json::to_value(t.fidelity).unwrap(),
-            case.fidelity,
-            "{}",
-            case.name
-        );
-        holds(&t).unwrap_or_else(|e| panic!("{}: {e}", case.name));
-        // a clause that does not run is in the report and nowhere in the
-        // text; every clause that runs writes its term into it
-        for c in &t.clauses {
-            match &c.term {
-                Some(term) => assert!(t.text.contains(term.as_str()), "{}: {}", case.name, c.at),
-                None => assert!(
-                    !c.status.runs() || c.path.is_none(),
-                    "{}: {}",
-                    case.name,
-                    c.at
-                ),
-            }
-            if matches!(c.status, Status::Ambiguous | Status::Unsupported) {
-                assert!(!c.notes.is_empty(), "{}: {} has no note", case.name, c.at);
-            }
-        }
-        if case.matches.is_empty() && case.fails.is_empty() {
-            continue;
-        }
-        let s = store_of(case);
-        let a = as_json(&ask(&load(&s, Some("pc")), &t.text).unwrap());
-        let expected: Vec<String> = (0..case.matches.len()).map(|n| format!("m{n}")).collect();
-        assert_eq!(ids(&a), expected, "{}: `{}`", case.name, t.text);
-        // the answer's undecided is `total.undecided` (C100); a missing key
-        // fails here rather than passing as 0
-        assert_eq!(
-            a["total"]["undecided"]["count"].as_u64().unwrap(),
-            0,
-            "{}",
-            case.name
-        );
+        worked_by_hand(case);
     }
+}
+
+/// The fixture named, translated and asked as every fixture is.
+fn sat(name: &str) {
+    let cases = cases();
+    let case = cases
+        .iter()
+        .find(|c| c.name.starts_with(name))
+        .unwrap_or_else(|| panic!("no fixture {name}"));
+    worked_by_hand(case);
+}
+
+/// Round x (2026-10-18; the owner: "accepted"): a digit the site writes in
+/// a stat's text is a number of the line, never the id's wording. x01 and
+/// x03 fetched twenty Blight-ravaged maps displaying `at 50% value …
+/// Anointed up to 9 times` under the id whose text writes 25% and 3; a
+/// bound compares the site's own `#` and never the digit — t30's minimum
+/// of 15 found 16 `per 10 Strength`, t31's maximum of 12 found 10; and two
+/// ids whose texts differ in such a digit alone are one line, the clause
+/// ambiguous with the other id named.
+#[test]
+fn a_written_digit_is_a_number_of_the_line() {
+    sat("a written digit is a number of the line");
+    sat("a written digit is never the number a bound compares");
+    sat("two ids whose texts differ in a written digit alone");
+    let q =
+        json!({ "stats": [{ "type": "and", "filters": [{ "id": "explicit.stat_889691035" }] }] });
+    let t = translate(&decode(&q.to_string()).unwrap()).unwrap();
+    let c = t.clauses.iter().find(|c| c.at == "stats.0.0").unwrap();
+    assert!(
+        c.rows.iter().any(|r| r == "stat.text.collision"),
+        "{:?}",
+        c.rows
+    );
+    assert!(
+        c.notes
+            .iter()
+            .any(|n| n == "the text's other id: explicit.stat_2241560081"),
+        "{:?}",
+        c.notes
+    );
+}
+
+/// One fixture: its text, scope, statuses and fidelity, the guard, and
+/// its items asked the text.
+fn worked_by_hand(case: &Case) {
+    let decoded = decode(&input(case)).unwrap_or_else(|e| panic!("{}: {e}", case.name));
+    let t = translate(&decoded).unwrap_or_else(|e| panic!("{}: {e}", case.name));
+    assert_eq!(t.text, case.text, "{}", case.name);
+    assert_eq!(t.realm, case.realm, "{}", case.name);
+    let statuses: BTreeMap<String, String> = t
+        .clauses
+        .iter()
+        .map(|c| (c.at.clone(), word(c.status)))
+        .collect();
+    assert_eq!(
+        statuses.len(),
+        t.clauses.len(),
+        "{}: an `at` twice",
+        case.name
+    );
+    assert_eq!(statuses, case.statuses, "{}", case.name);
+    assert_eq!(
+        serde_json::to_value(t.fidelity).unwrap(),
+        case.fidelity,
+        "{}",
+        case.name
+    );
+    holds(&t).unwrap_or_else(|e| panic!("{}: {e}", case.name));
+    // a clause that does not run is in the report and nowhere in the
+    // text; every clause that runs writes its term into it
+    for c in &t.clauses {
+        match &c.term {
+            Some(term) => assert!(t.text.contains(term.as_str()), "{}: {}", case.name, c.at),
+            None => assert!(
+                !c.status.runs() || c.path.is_none(),
+                "{}: {}",
+                case.name,
+                c.at
+            ),
+        }
+        if matches!(c.status, Status::Ambiguous | Status::Unsupported) {
+            assert!(!c.notes.is_empty(), "{}: {} has no note", case.name, c.at);
+        }
+    }
+    if case.matches.is_empty() && case.fails.is_empty() {
+        return;
+    }
+    let s = store_of(case);
+    let a = as_json(&ask(&load(&s, Some("pc")), &t.text).unwrap());
+    let expected: Vec<String> = (0..case.matches.len()).map(|n| format!("m{n}")).collect();
+    assert_eq!(ids(&a), expected, "{}: `{}`", case.name, t.text);
+    // the answer's undecided is `total.undecided` (C100); a missing key
+    // fails here rather than passing as 0
+    assert_eq!(
+        a["total"]["undecided"]["count"].as_u64().unwrap(),
+        0,
+        "{}",
+        case.name
+    );
 }
 
 /// C119: an ambiguous clause whose row carries its other reading says what
@@ -507,11 +554,12 @@ struct Stat {
 /// C113, K6: every one of the stat table's category and id pairs
 /// translates, alone and with a bound — each a filter of one `and`
 /// group — and holds what every translation holds; the statuses are the
-/// catalogue header's count — alone 11,232 exact, 2,607 ambiguous, 229
-/// unsupported, the two-text ids every one; with a bound 7,357, 6,482 and
+/// catalogue header's count — alone 12,692 exact, 1,147 ambiguous, 229
+/// unsupported, the two-text ids every one; with a bound 8,554, 5,285 and
 /// 229, 4,461 of them a stat a form of which no sum holds (step 7e) — 49
 /// pairs carry a refused form either way, 300 a wording the game data
-/// gives, and 1,613 a number written as a digit. Every pair and the counts where
+/// gives, and 1,613 a number written as a digit, exact since round x
+/// (11,232 and 2,607 alone before it, 7,357 and 6,482 with a bound). Every pair and the counts where
 /// `ACQ_CASES=full` (CI); here a sixteenth of them, a fresh one each run,
 /// since a debug build binds the whole table's text in half a minute.
 #[test]
@@ -531,8 +579,8 @@ fn c113_every_stat_id_of_the_table_translates() {
         % stride;
     let share: Vec<&String> = ids.iter().skip(offset).step_by(stride).collect();
     for (value, statuses, forms) in [
-        (json!({}), [11_232, 2_607, 229], 0),
-        (json!({ "min": 1 }), [7_357, 6_482, 229], 4_461),
+        (json!({}), [12_692, 1_147, 229], 0),
+        (json!({ "min": 1 }), [8_554, 5_285, 229], 4_461),
     ] {
         let filters: Vec<Value> = share
             .iter()

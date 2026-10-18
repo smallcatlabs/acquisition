@@ -33,11 +33,10 @@ fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
             count(Disposition::Unsupported),
             count(Disposition::ListingOnly)
         ],
-        [79, 23, 36, 9]
+        [80, 22, 36, 9]
     );
     // the four defence filters ambiguous since step 3 measured the q20
-    // rule against the site (`tests/properties.rs`), and the digit rule no
-    // capture shows (owner, 2026-10-16), and since step 6 an eldritch form
+    // rule against the site (`tests/properties.rs`), and since step 6 an eldritch form
     // in a `not`, which the site's captures let through
     // (`tests/trade_oracle.rs`); since step 7e the damage at 20 % quality,
     // within one of the site's (`tests/trade_dps.rs`), a stat a form of
@@ -45,7 +44,6 @@ fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
     // value"), and a map whose base names no tier (u065); since 7e's
     // outside review, another wording the game data gives, never vouched for
     for key in [
-        "stat.text.numbers",
         "stat.text.eldritch",
         "stat.text.forms",
         "stat.text.refused",
@@ -70,8 +68,11 @@ fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
     // and at 7f the free text a whole name or base (w06, w07), the foil the
     // relic mark (t52), the weapon's crit no gem's (t44), a blighted map
     // its prefix (t55, t56) — ambiguous since the trade seat met a
-    // Blight-ravaged map outside it (2026-10-17)
+    // Blight-ravaged map outside it (2026-10-17); and at round x
+    // (2026-10-18) a written digit a number of the line, never the one a
+    // bound compares (t30, t31; x01, x03)
     for key in [
+        "stat.text.numbers",
         "query.term",
         "type_filters.rarity=uniquefoil",
         "weapon_filters.crit",

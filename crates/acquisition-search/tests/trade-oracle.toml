@@ -45,6 +45,11 @@
 # t55, t56, u059: 50 items, 40 matched — and t55's ten are a new question
 # for the sitting, `blighted-base`: 765 searches, 7,185 items, 6,587
 # matched, 598 missed in 65 rows.
+# Round x (2026-10-18) ran nine searches more and 90 items: 774 searches,
+# 7,275 items, 6,657 matched, 618 missed in 67 rows — x14 and x16, the
+# Burning Ground line's two numbers compared by their average, which the
+# owner accepted that day as `two-numbers`; x01 and x03 partial while
+# `map_uberblighted` is unsupported.
 
 [[finding]]
 key = "eldritch-not"
@@ -101,6 +106,12 @@ row = "query.type.map"
 home = "sitting"
 cites = "t55 asked `map_blighted` `true` under the Base `Map (Tier 13)`, and the site returned ten maps whose base the body names `Blighted Map (Tier 13)` (search/pseudo-stats/data/bodies.json): its Base reads a blighted map's base without the prefix; `base=` is the whole base (step 7f, when t55 first ran)"
 asks = "whether the site's Base names a blighted map by its unblighted base alone — `Blighted Map (Tier 13)` under `type` `Map (Tier 13)`, and under `type` `Blighted Map (Tier 13)` — and whether any other prefix (`Blight-ravaged`) is read so"
+
+[[finding]]
+key = "two-numbers"
+home = "ruling"
+row = "stat.text.many"
+cites = "the site compares a text of two `#`, no `# to #` among them, by their average, as it does a ranged line: on `Drops Burning Ground while moving, dealing # Fire Damage per second for # second`, 2500 for 4 seconds or for 1, every bracket a displayed number meets found nothing (t28; x04–x07), 1250 to 1253 found every item carrying the line (x14), 1254 to 2400 none (x15), and x13, x16 and x17 agree; the owner, 2026-10-18, on round x: \"accepted\""
 
 [[row]]
 search = "c3"
@@ -556,3 +567,17 @@ items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 outcome = "missed"
 clauses = ["1"]
 finding = "blighted-base"
+
+[[row]]
+search = "x14"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "two-numbers"
+
+[[row]]
+search = "x16"
+items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+outcome = "missed"
+clauses = ["1"]
+finding = "two-numbers"

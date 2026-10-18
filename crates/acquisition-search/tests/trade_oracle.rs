@@ -329,7 +329,7 @@ fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
         }
         translations.insert(search.name, t);
     }
-    assert_eq!((none.len(), ran, items, matched), (362, 765, 7185, 6587));
+    assert_eq!((none.len(), ran, items, matched), (369, 774, 7275, 6657));
     assert!(none.contains(&"q2b".to_string()));
     partial.sort();
     assert_eq!(
@@ -337,7 +337,7 @@ fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
         [
             "d01", "d02", "f011", "f012", "f017", "f018", "f019", "h004", "n01", "n02", "n03",
             "n04", "n05", "n17", "n20", "n21", "n22", "n23", "t35", "t36", "t43", "v001", "v006",
-            "v013", "v023", "v029", "v036", "v040", "v041", "v049", "v050"
+            "v013", "v023", "v029", "v036", "v040", "v041", "v049", "v050", "x01", "x03"
         ]
     );
 
