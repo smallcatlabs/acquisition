@@ -367,7 +367,11 @@ pub struct Coverage {
     pub folders: usize,
     pub oldest_fetch: Option<i64>,
     pub newest_fetch: Option<i64>,
-    /// When the oldest of the scope's location lists was last seen.
+    /// When the oldest of the location lists the scope reads was last
+    /// seen: under a query that fixes one league, that league's tab list
+    /// and the realm's character list; otherwise every list of the realm
+    /// (the re-sit: a `league=Standard` query said 41 days where
+    /// Standard's own list was 3 days old, mcp-opus its fault 2).
     pub list_seen: Option<i64>,
 }
 
@@ -388,6 +392,25 @@ pub struct Corpus {
     /// one. What an `id:` that matches nothing is looked up in.
     pub(crate) gone: HashMap<String, Left>,
     pub(crate) items: Vec<Held>,
+    /// The realm's location lists, each by its league (`None`: the
+    /// character list) and when it was last seen.
+    pub(crate) listings: Vec<(Option<String>, i64)>,
+}
+
+impl Corpus {
+    /// When the oldest of the lists a query over `league` reads was last
+    /// seen: that league's tab list, any case, and the character list;
+    /// `None` where no list names the league.
+    pub fn list_seen_in(&self, league: &str) -> Option<i64> {
+        self.listings
+            .iter()
+            .filter(|(of, _)| {
+                of.as_deref()
+                    .is_none_or(|of| crate::bind::folded(of) == crate::bind::folded(league))
+            })
+            .map(|(_, at)| *at)
+            .min()
+    }
 }
 
 /// What an id that left was, and when it left.
@@ -755,6 +778,12 @@ impl Corpus {
                                     &items_at,
                                 )
                             },
+                            listings: header
+                                .listings
+                                .iter()
+                                .filter(|l| in_realm(&l.realm))
+                                .map(|l| (l.league.clone(), l.fetched_at))
+                                .collect(),
                             realm,
                             membership,
                             gone,

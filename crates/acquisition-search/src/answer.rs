@@ -1989,11 +1989,18 @@ pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError>
         Some(_) => (None, trade),
         None => (trade, None),
     };
+    // the lists the query reads: the league it fixes and the characters',
+    // else the realm's — the age the scope line says (C118)
+    let tree = json::to_json(&query.root);
+    let mut coverage = corpus.coverage.clone();
+    if let Some(seen) = fixed_league(&tree).and_then(|league| corpus.list_seen_in(league)) {
+        coverage.list_seen = Some(seen);
+    }
     let mut answer = Answer {
         before: None,
         query: QueryOut {
             text: query.text(),
-            tree: json::to_json(&query.root),
+            tree,
             trade,
         },
         set_aside: set_aside.map(|typed| QueryOut {
@@ -2012,7 +2019,7 @@ pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError>
                 Realm::One(realm) => !corpus.coverage.realms_held.contains(realm),
                 Realm::All => false,
             },
-            coverage: corpus.coverage.clone(),
+            coverage,
         },
         basis: corpus.basis.clone(),
         terms,

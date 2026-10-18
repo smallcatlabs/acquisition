@@ -1336,6 +1336,35 @@ fn tabs_counts_first_and_lists_the_ten_with_the_most_items() {
     assert_eq!(printed, all);
 }
 
+/// `scope.list_seen` under a query fixing one league is that league's
+/// list and the characters', not the realm's oldest (the re-sit,
+/// mcp-opus fault 2); held equal to the CLI's.
+#[test]
+fn the_scopes_list_age_is_the_querys_leagues() {
+    let mut seat = Seat::new();
+    {
+        let mut store = Store::open(&account_path(&stores(&seat.base), USER)).unwrap();
+        store
+            .record(
+                &Endpoint::Stashes {
+                    realm: "pc".into(),
+                    league: "Allflame".into(),
+                },
+                &json!({ "realm": "pc", "league": "Allflame" }),
+                200,
+                &json!({ "stashes": [] }),
+                5,
+            )
+            .unwrap();
+    }
+    let (fixed, refused) =
+        seat.search(&json!({ "scope": { "realm": "pc" }, "query": { "text": "league=Standard" } }));
+    assert!(!refused, "{fixed}");
+    assert_eq!(fixed["scope"]["list_seen"], 10, "{}", fixed["scope"]);
+    let (whole, _) = seat.search(&json!({ "scope": { "realm": "pc" } }));
+    assert_eq!(whole["scope"]["list_seen"], 5, "{}", whole["scope"]);
+}
+
 /// The never fetched by name (the re-sit, every run's first or second
 /// ask: mcp-opus calls 34–37, mcp-sonnet 18–23): `type` and
 /// `never_fetched` select the rows under the league's counts, held

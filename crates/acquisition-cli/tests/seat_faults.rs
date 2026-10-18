@@ -859,6 +859,54 @@ fn tabs_lists_the_never_fetched_of_one_type() {
     assert!(all.contains("u40") && !all.contains("shown:"), "{all}");
 }
 
+/// The scope line said "location list seen 41d ago" under a
+/// `league=Standard` query whose own list was 3 days old: the age was
+/// the realm's oldest list, another league's (the re-sit, mcp-opus
+/// fault 2, read against `tabs` and `refresh --plan` and never
+/// resolved). Under a query that fixes one league the age is that
+/// league's list and the characters'; with none fixed, the realm's
+/// oldest, as before.
+#[test]
+fn the_scope_lines_list_age_is_the_querys_leagues() {
+    let scratch = harness::scratch("seat-list-age");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    let mock = base.join("store").join("mock");
+    let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
+    let later = acquisition_store::now() + 600;
+    store
+        .record(
+            &Endpoint::Stashes {
+                realm: "pc".into(),
+                league: "Standard".into(),
+            },
+            &json!({ "league": "Standard" }),
+            200,
+            &json!({ "stashes": [ { "id": "a1", "name": "Gear", "type": "PremiumStash", "index": 0 } ] }),
+            later,
+        )
+        .unwrap();
+    drop(store);
+    let fixed = sole_json(&acq(
+        &base,
+        &["search", "--realm", "pc", "--json", "league=Standard"],
+    ));
+    assert_eq!(fixed["scope"]["list_seen"], later, "{}", fixed["scope"]);
+    let whole = sole_json(&acq(&base, &["search", "--realm", "pc", "--json"]));
+    let oldest = whole["scope"]["list_seen"].as_i64().unwrap();
+    assert!(oldest < later, "{}", whole["scope"]);
+    // a league no list names keeps the realm's age, never none
+    let unknown = sole_json(&acq(
+        &base,
+        &["search", "--realm", "pc", "--json", "league=Nowhere"],
+    ));
+    assert_eq!(
+        unknown["scope"]["list_seen"], oldest,
+        "{}",
+        unknown["scope"]
+    );
+}
+
 /// A daemon with `alice` logged in, a Standard policy over every tab and
 /// the stash listing on record; the plan compiled from it is written to
 /// `plan.json` under `base` and returned beside its path.
