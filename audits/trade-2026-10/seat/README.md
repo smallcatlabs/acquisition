@@ -41,6 +41,7 @@ the session's at list price.
 | mcp-opus | `claude-opus-5-5` | `493d51e7` | 39 | call 9 (`tabs`, 745,672 bytes) | 57 + 2 | $3.60 | `calls-mcp-opus.csv`, `REPORT-mcp-opus.md`, `DEBRIEF-mcp-opus.md` |
 | cli-sonnet | `claude-sonnet-5-5` | `82f13d76` | 23 | none | 25 + 2 | $0.68 | `calls-cli-sonnet.csv`, `REPORT-cli-sonnet.md`, `DEBRIEF-cli-sonnet.md` |
 | mcp-sonnet-0 | `claude-sonnet-5-5` | `c7a92eaa` | 12 | none | 20 | $0.43 | `calls-mcp-sonnet-0.csv`, `REPORT-mcp-sonnet-0.md` (stopped at T2) |
+| mcp-sonnet | `claude-sonnet-5-5` | `a2b95231` | 23 | none | 37 + 2 | $0.92 | `calls-mcp-sonnet.csv`, `REPORT-mcp-sonnet.md`, `DEBRIEF-mcp-sonnet.md` |
 
 cli-opus: one command denied by the rails (a shell line not starting
 with the door), run again through it; one file read outside W — the
@@ -67,3 +68,7 @@ doors' `report` and `debrief` gained `--from NAME`, read from
 briefs a sentence naming it; the three finished runs stand, the change
 a way round a refusal they did not need. The run's world is
 `mcp-sonnet-0/`; the run again is `mcp-sonnet`, fresh.
+
+mcp-sonnet: no draft needed; the rails refused one chained command,
+run again as its two parts; the harness clipped call 6, asked again as
+call 7 with fewer rows.
