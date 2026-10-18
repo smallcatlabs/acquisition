@@ -293,11 +293,13 @@ enum Cmd {
     },
     /// Search the items the store holds (no daemon): a query over every
     /// live item of one realm, answered with the canonical query, the
-    /// scope searched, the basis, each term's counts over the scope —
-    /// matched, failed, lacked, undecided (C93) — the total, and the rows
-    /// with the lines the query touched. Every count has a route: the
-    /// command that returns exactly its members. `--json` is the answer
-    /// whole, the query as text and as tree; a failure is `{"error",
+    /// scope searched, the total, and the rows with the lines the query
+    /// touched — then each term's counts over the scope, matched, failed,
+    /// lacked, undecided (C93), and the basis. Every count has a route:
+    /// the command that returns exactly its members, printed where a next
+    /// step hangs on it and every one under `--routes`. `--json` is the
+    /// answer whole, in the same order, the query as text and as tree, a
+    /// count's request where its route is printed; a failure is `{"error",
     /// "kind", "readings"}`, with `offers` where a way on is a request
     /// `--request` reads. `--describe` prints the language, and what
     /// this build refuses by name.
