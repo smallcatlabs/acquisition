@@ -109,3 +109,77 @@ read a file); the run again is a fresh world.
 
 mcp-sonnet-2: five report parts went in as drafts (`report --from`) when
 the harness refused their heredocs; one door call denied, sent again.
+
+## The faults, the first round
+
+One row per fault, merged across runs; "met by" cites each run's own
+fault number or debrief answer. Every one was reproduced against the
+calls it cites and, where it is the tool's, in a scratch copy of the
+pristine store on the release build.
+
+| Fault | Met by | Fate |
+| --- | --- | --- |
+| `fidelity: exact` read as "the site would show the same items" | mcp-opus-1 1 (its worst); cli-sonnet-1 debrief 4 | `35b43898`: the `over` line, the MCP's `query` words |
+| A clause with no stash meaning named by its key alone | cli-sonnet-1 3 | `35b43898`: each reported clause with its words |
+| The clause notes cite the builder's records | all four: cli-opus-1 5, mcp-opus-1 5, cli-sonnet-1 debrief 5, mcp-sonnet-1 5 | `efa8be17`: `says` on every noted row, the rule a test |
+| A count of N says nothing of the never fetched; the MCP never says what `never_fetched` counts | cli-sonnet-1 4; mcp-opus-1 4; mcp-sonnet-1 3, 5, debrief 5 | `fcb7e577` |
+| A term's counts, `resolved` and `scope.items` read as the answer's | cli-opus-1 8; cli-sonnet-1 5; mcp-sonnet-1 1, 2 | `65779f1b` (by design, C93; the words) |
+| `sorts by 78` read as the filter's 70 | cli-opus-1 2; cli-sonnet-1 1 | `f737a2bb` |
+| An item's cell only in the body | cli-opus-1 3; cli-sonnet-1 2; mcp-sonnet-1 9 | `c60f607f` (the frontends park's position; derivation 12) |
+| A unique tab's page printed blank | cli-opus-1 4; mcp-opus-1 3 | `a3ad3273` |
+| `map_blighted` exact; Blight-ravaged maps outside it | cli-opus-1 1 (its worst); mcp-opus-1 T6 | `88a9cc61`: ambiguous (the owner's ruling); the next sitting |
+| A long term path runs into its term | cli-opus-1 9 | `896a864b` |
+| `price show` refuses a bare id | cli-opus-1 6 | `8cd57809`: both readings offered |
+| `store status`: `leagues 0`, tabs of every realm | cli-opus-1 7; mcp-opus-1 4 (its sums) | `64bcafd4` |
+| `match` beside `matched` in `against` | mcp-opus-1 8 | `580d1a72` |
+| `tabs` 745,672 bytes, no limit; a count's requests; `--limit` in JSON | mcp-opus-1 2, 6; mcp-sonnet-1 4, 8 | the frontends park, fired, queued for the release (`80c1de6d`) |
+| `--describe trade` 39,716 bytes | cli-opus-1 5; cli-sonnet-1 6 | `efa8be17`: 32,157 |
+| The tour is a developer's README | cli-opus-1 11 | no fault of the tool: the release's user-facing README (note 36, step 4) |
+| `--count tab` names no tab type | cli-opus-1 10 | no fault: `tab.type` is a count key (V10), `--cross tab,tab.type` |
+| A gem-set `Level (gem)` read as the item's `reqlevel` | mcp-opus-1 7 | not shown (the runner: "possible, not shown"); a question, TRADE-SLICE's open observations |
+| A zero offers explain, not "what is closest" | mcp-sonnet-1 6 | no fault: the offers ran as printed and found the term |
+| Tab names are the owner's price notes | mcp-sonnet-1 7 | no fault: GGG's names, the owner's |
+| The stat-value park's trigger | the seat's rarity URL, all four read its label | fired, queued (`7b231644`), the owner |
+| `scourge-in-sum` | all four met the label at T5 | read as a caveat, as written; the sitting's |
+| `blighted-base` | no seat (the site's form has no tiered Base) | the sitting's (`41d3ce82`) |
+
+Not the tool's, the seat's own: the rails refused heredocs the harness
+could not parse (mcp-opus-1 one call; mcp-sonnet-0 stopped at T2),
+fixed in the doors (`e459bed7`); the launch script lost a relative
+prompt (`5eea0ac6`); `setup --facts` (`875a6729`).
+
+## The faults, the second round
+
+The four reran on the round's release (`bin-2/`). What the round had
+fixed: both Opus runs and the Sonnet MCP told the store's items from
+the site's, named the Blight-ravaged maps and gave cells; the Sonnet
+CLI still took the term counts for the total's ("had to infer why",
+cli-sonnet-2 fault 2), the Sonnet MCP read the words as said ("stated
+… easy to misread", mcp-sonnet-2 fault 5).
+
+| Fault | Met by | Fate |
+| --- | --- | --- |
+| `typeline~"^Blighted "` matches non-maps | mcp-opus-2 6 | `a7bb473b`: `map_blighted=true`/`=false` rows, maps alone |
+| A nameless page shown by a bare id, its tab apart | cli-opus-2 4; mcp-opus-2 4 | `1eecf3e0`: `page <id>`, the MCP's words |
+| Whether the site can list an item | cli-opus-2 1; mcp-opus-2 1 (each its worst) | parked, `decisions/search.md` (`9d7ba727`) |
+| The never-fetched cannot be listed (`--view locations`) | cli-sonnet-2 1; mcp-sonnet-2; mcp-opus-2 2 | parked, fired, queued for the release |
+| An item's age on a row | cli-opus-2 2; mcp-sonnet-2 4 | parked |
+| Sort by the filter's own value | cli-opus-2 5; cli-sonnet-2 3 | parked |
+| Sizes: answers, `tabs`, tokens, `--describe` over a harness's limit | mcp-opus-2 2, 3; mcp-sonnet-2 1, 2, 3; cli-opus-2 8, 9; cli-sonnet-2 4 | the frontends park, fired, queued |
+| A price reason citing `(C81)`; the help's ids | mcp-opus-2 1; cli-opus-2 7 | parked for the owner's ruling (`decisions/frontends.md`) |
+| A map search not warned the map tab is mostly unfetched | cli-opus-2 3 | the coverage list's park |
+| The direction an ambiguous clause may differ | mcp-sonnet-2 6 | no fault as stated: each `says` names where it may part from the site; the direction is the sitting's |
+| `kind` as a count key refused with no near name | mcp-sonnet-2 7 | no fault: the refusal lists every key |
+| A search refusal under text exits 1 | cli-opus-2 6 | no fault: the search's own refusal, not the parser's (C11) |
+| `--sum stack` counts a single item as lacking | mcp-opus-2 5 | no fault: C93, documented in `--sum`'s help |
+
+## Calls read
+
+The runners' counts are theirs and never recomputed here. Read against
+each report: cli-opus-1, calls 13, 21, 27, 28, 30, 31; mcp-opus-1,
+calls 9, 10 (its row), 33, 37, 39; mcp-sonnet-1, call 19. Every other
+fault that became a commit was reproduced in a scratch copy of the
+pristine store on the release build, or found in the code; a parked
+ask rests on the runner's calls as cited and was not reproduced one by
+one. No further call file was opened. Every `calls.csv` was read whole
+for its counts.
