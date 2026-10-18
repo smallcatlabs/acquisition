@@ -48,10 +48,11 @@ and a task you could not finish is as good a result as one you could.
   plain. `report` appends what it reads to your report (`--new` starts
   it); `debrief` is the same for the debrief you will be asked for
   after the report.
-  Where your harness refuses a `report` or `debrief` heredoc, write
-  that part with your file tool as `W/drafts/NAME` — the one place you
-  may write a file — and run `report --from NAME` (or `debrief --from
-  NAME`) instead.
+  Where your harness refuses a door command's heredoc, write that
+  part with your file tool as `W/drafts/NAME` — the one place you
+  may write a file — and run
+  `report --from NAME`, `debrief --from NAME`
+  or `call --t <task> <tool> --from NAME` instead.
   Run nothing else against the tool or its store: no
   `acq-mcp` by its path, no `acq`, no `acqd`, no `sqlite3`, no
   `cargo`, no `curl`.

@@ -53,6 +53,7 @@ the session's at list price.
 | cli-opus-2 | `claude-opus-5-5` | `05176cfc` | 49 | none | 61 + 2 | $3.13 | `calls-cli-opus-2.csv`, `REPORT-cli-opus-2.md`, `DEBRIEF-cli-opus-2.md` |
 | mcp-opus-2 | `claude-opus-5-5` | `762398e2` | 43 | call 10 (`tabs`, 745,672 bytes) | 58 + 4 | $4.18 | `calls-mcp-opus-2.csv`, `REPORT-mcp-opus-2.md`, `DEBRIEF-mcp-opus-2.md` |
 | cli-sonnet-2 | `claude-sonnet-5-5` | `d604b4cd` | 26 | none | 32 + 2 | $0.67 | `calls-cli-sonnet-2.csv`, `REPORT-cli-sonnet-2.md`, `DEBRIEF-cli-sonnet-2.md` |
+| mcp-sonnet-2-0 | `claude-sonnet-5-5` | `62f33cf5` | 6 | none | 12 | $0.18 | `calls-mcp-sonnet-2-0.csv`, `REPORT-mcp-sonnet-2-0.md` (stopped at T1) |
 
 cli-opus-1: one command denied by the rails (a shell line not starting
 with the door), run again through it; one file read outside W — the
@@ -96,3 +97,11 @@ not allowed, and the harness counts `date` as safe.
 cli-sonnet-2: no denial; before call 18 it ran the door once with a
 wrong argument and a `2>/dev/null` redirect, which the brief forbids,
 reached no tool and logged nothing — disclosed in its "Left out".
+
+mcp-sonnet-2-0: stopped at T1 on the rails again: the harness refused
+a `call` heredoc carrying the ring's URL, and the runner stopped and
+asked, as its brief binds it; the Opus runners had sent such a call
+inline. The draft path covered `report` and `debrief` alone. The MCP
+door's `call` takes `--from NAME` too, and both briefs name every door
+command's way round a refused heredoc (the CLI's `run --stdin` already
+read a file); the run again is a fresh world.

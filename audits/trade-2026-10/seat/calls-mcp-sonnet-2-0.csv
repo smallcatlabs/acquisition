@@ -1,0 +1,8 @@
+# written by seat-mcp.py during the run, one row per call to acq-mcp in this world; row n's text is calls/NNN.json
+n,task,tool,args,is_error,text_bytes,result_bytes,wall_ms,shown,note
+1,T0,initialize + tools/list,,0,24664,21900,1,whole,
+2,T0,search,{},1,403,976,77,whole,
+3,T0,store_status,{},0,308,757,88,whole,
+4,T0,search,"{""scope"":{""account"":""GERWARIC#7694"",""realm"":""pc""},""view"":{""counts"":{""keys"":[""league"",""tab"",""rarity""],""limit"":15}}}",0,7623,16705,485,whole,
+5,T0,search,"{""scope"":{""account"":""GERWARIC#7694"",""realm"":""poe2""},""view"":{""counts"":{""keys"":[""league""]}}}",0,1083,2451,55,whole,
+6,T0,characters,"{""league"":""Standard"",""realm"":""pc""}",0,9943,21227,2,whole,

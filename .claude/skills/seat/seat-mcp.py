@@ -5,6 +5,7 @@ usage (WORLD and BIN as seat.py takes them; the world is made by `seat.py WORLD 
   seat-mcp.py WORLD BIN open --t T0                         what a host shows before any call: the server's instructions and its tools
   seat-mcp.py WORLD BIN call --t T1 <tool> '<json arguments>' [--note '...']
   seat-mcp.py WORLD BIN call --t T1 <tool> - [--note '...'] the arguments read from stdin
+  seat-mcp.py WORLD BIN call --t T1 <tool> --from NAME      the arguments read from WORLD/drafts/NAME
   seat-mcp.py WORLD BIN report [--new]                      append stdin to WORLD/REPORT.md (--new starts it)
   seat-mcp.py WORLD BIN debrief [--new]                     the same, to WORLD/DEBRIEF.md
 
@@ -108,7 +109,15 @@ def open_cmd(a):
 
 
 def call_cmd(a):
-    raw = sys.stdin.read() if a.args == "-" else a.args
+    if a.draft:
+        # a harness that parses a heredoc's body as shell refuses some JSON: the arguments as a file
+        if "/" in a.draft or a.draft.startswith(".") or a.args is not None:
+            sys.exit("seat-mcp: --from takes a bare file name under WORLD/drafts/, in place of the arguments")
+        raw = open(os.path.join(WORLD, "drafts", a.draft)).read()
+    elif a.args is None:
+        sys.exit("seat-mcp: no arguments: '<json>', - for stdin, or --from NAME")
+    else:
+        raw = sys.stdin.read() if a.args == "-" else a.args
     try:
         args = json.loads(raw)
     except ValueError as e:
@@ -159,7 +168,8 @@ def main():
     c.add_argument("--t", required=True)
     c.add_argument("--note", default="")
     c.add_argument("tool")
-    c.add_argument("args")
+    c.add_argument("args", nargs="?")
+    c.add_argument("--from", dest="draft", help="the arguments from a file under WORLD/drafts/, by bare name")
     r = sub.add_parser("report")
     r.add_argument("--new", action="store_true")
     r.add_argument("--from", dest="draft", help="a file under WORLD/drafts/, by bare name, in place of stdin")
