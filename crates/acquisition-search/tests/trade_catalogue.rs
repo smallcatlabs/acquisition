@@ -33,7 +33,7 @@ fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
             count(Disposition::Unsupported),
             count(Disposition::ListingOnly)
         ],
-        [80, 22, 36, 9]
+        [83, 19, 36, 9]
     );
     // the four defence filters ambiguous since step 3 measured the q20
     // rule against the site (`tests/properties.rs`), and since step 6 an eldritch form
@@ -68,10 +68,14 @@ fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
     // and at 7f the free text a whole name or base (w06, w07), the foil the
     // relic mark (t52), the weapon's crit no gem's (t44), a blighted map
     // its prefix (t55, t56) — ambiguous since the trade seat met a
-    // Blight-ravaged map outside it (2026-10-17); and at round x
-    // (2026-10-18) a written digit a number of the line, never the one a
-    // bound compares (t30, t31; x01, x03)
+    // Blight-ravaged map outside it (2026-10-17) and exact again at round x
+    // (2026-10-18), the site counting none (x01–x03); and at round x a
+    // written digit a number of the line, never the one a bound compares
+    // (t30, t31; x01, x03)
     for key in [
+        "map_filters.map_blighted",
+        "map_filters.map_blighted=true",
+        "map_filters.map_blighted=false",
         "stat.text.numbers",
         "query.term",
         "type_filters.rarity=uniquefoil",

@@ -1445,9 +1445,9 @@ fn the_scope_counts_the_never_fetched_by_tab_type_and_names_the_list() {
     );
 }
 
-/// Three pc maps in one tab of Standard: a Blighted map at tier 14, a
-/// Blight-ravaged one at 15, and a Blighted one at 13.
-fn seed_maps(base: &Path) {
+/// Three pc rings in one tab of Standard, each recovering mana on kill:
+/// 25% increased Rarity, 30% increased beside 10% reduced, and 15%.
+fn seed_rings(base: &Path) {
     let dir = stores(base);
     std::fs::create_dir_all(&dir).unwrap();
     let mut index = Index::load(&dir).unwrap();
@@ -1467,18 +1467,28 @@ fn seed_maps(base: &Path) {
             league: "Standard".into(),
         },
         "pc",
-        json!({ "stashes": [{ "id": "m1", "name": "Maps", "type": "PremiumStash" }] }),
+        json!({ "stashes": [{ "id": "m1", "name": "Rings", "type": "PremiumStash" }] }),
         10,
     );
-    let map = |id: &str, base: &str| item(id, "", base, "Normal", json!({ "frameTypeId": 0 }));
+    let ring = |id: &str, rarity: &[&str]| {
+        let mut lines: Vec<&str> = rarity.to_vec();
+        lines.push("Recover 2% of Mana on Kill");
+        item(
+            id,
+            "",
+            "Iron Ring",
+            "Rare",
+            json!({ "explicitMods": lines }),
+        )
+    };
     record(
         &mut store,
         stash("pc", "m1"),
         "pc",
-        json!({ "stash": { "id": "m1", "name": "Maps", "type": "PremiumStash", "items": [
-            map("blighted", "Blighted Map (Tier 14)"),
-            map("ravaged", "Blight-ravaged Map (Tier 15)"),
-            map("low", "Blighted Map (Tier 13)"),
+        json!({ "stash": { "id": "m1", "name": "Rings", "type": "PremiumStash", "items": [
+            ring("plain", &["25% increased Rarity of Items found"]),
+            ring("both", &["30% increased Rarity of Items found", "10% reduced Rarity of Items found"]),
+            ring("low", &["15% increased Rarity of Items found"]),
         ] } }),
         20,
     );
@@ -1490,29 +1500,35 @@ fn seed_maps(base: &Path) {
 /// clause whose other reading the catalogue holds carries it, with the
 /// items in scope it adds and drops against the query as run — each
 /// count's request unasked, a next step hanging on it, and returning
-/// exactly its members — and a clause with none carries nothing.
+/// exactly its members — and a clause with none carries nothing. Here the
+/// seat's `increased Rarity` at 20 read without its `reduced` form, beside
+/// a text two stats share; the maps the seat asked by carry no other
+/// reading since round x read a Blight-ravaged map as no blighted one.
 #[test]
 fn an_ambiguous_clause_says_how_many_items_its_other_reading_would_change() {
     let base = scratch();
-    seed_maps(&base);
+    seed_rings(&base);
     let mut seat = Seat::over(base);
-    let search = json!({ "query": { "filters": { "map_filters": { "filters": {
-        "map_tier": { "min": 14 }, "map_blighted": { "option": "true" } } } } } });
+    let search = json!({ "query": { "stats": [{ "type": "and", "filters": [
+        { "id": "explicit.stat_3917489142", "value": { "min": 20 } },
+        { "id": "explicit.stat_1030153674" } ] }] } });
     let a = seat.answer(&json!({ "scope": { "realm": "pc" }, "query": { "trade": search } }));
-    assert_eq!(ids(&a), ["blighted"], "{a}");
+    let mut found = ids(&a);
+    found.sort();
+    assert_eq!(found, ["both", "plain"], "{a}");
     let clauses = a["query"]["trade"]["clauses"].as_array().unwrap();
     let at = |name: &str| clauses.iter().find(|c| c["at"] == name).unwrap();
-    assert!(at("map_filters.map_tier").get("other").is_none(), "{a}");
-    let other = &at("map_filters.map_blighted")["other"];
+    assert!(at("stats.0.1").get("other").is_none(), "{a}");
+    let other = &at("stats.0.0")["other"];
     assert_eq!(
         other["reading"],
-        "(category=map typeline~\"^Blighted \") or (category=map typeline~\"^Blight-ravaged \")",
+        "sum(line(\"#% increased Rarity of Items found\" source=explicit).arg1)>=20 -line(\"#% reduced Rarity of Items found\" source=explicit)",
         "{other}"
     );
-    assert_eq!(other["adds"]["count"], 1, "{other}");
-    assert_eq!(other["drops"], json!({ "count": 0 }), "{other}");
-    let added = seat.answer(&other["adds"]["request"]);
-    assert_eq!(ids(&added), ["ravaged"], "{added}");
+    assert_eq!(other["adds"], json!({ "count": 0 }), "{other}");
+    assert_eq!(other["drops"]["count"], 1, "{other}");
+    let dropped = seat.answer(&other["drops"]["request"]);
+    assert_eq!(ids(&dropped), ["both"], "{dropped}");
 }
 
 /// A report clause is one of two shapes (C100): an exact clause with a

@@ -372,6 +372,19 @@ fn a_two_numbered_stat_is_compared_by_its_average() {
     assert!(e.to_string().contains("takes: arg1, arg2, arg3"), "{e}");
 }
 
+/// Round x (2026-10-18; the owner: "accepted"): the site's `map_blighted`
+/// is the `Blighted` prefix alone. Its own Blight-ravaged mark found 7,983
+/// maps (x01), every one fetched `Blight-ravaged Map (Tier …)`; beside
+/// `map_blighted` true it found none (x02), beside false the same 7,983
+/// (x03). The clause is exact, a Blight-ravaged map outside `true` and
+/// inside `false`, and carries no other reading.
+#[test]
+fn a_blight_ravaged_map_is_not_a_blighted_one() {
+    sat("a blighted map: a map, its type line's prefix");
+    sat("not a blighted map");
+    sat("the trade seat's T6");
+}
+
 /// One fixture: its text, scope, statuses and fidelity, the guard, and
 /// its items asked the text.
 fn worked_by_hand(case: &Case) {
@@ -436,10 +449,10 @@ fn worked_by_hand(case: &Case) {
 /// and a clause with none carries none (C93: absent, never zero) — and,
 /// asked over the fixture's items as the site's search, the answer counts
 /// the items the reading adds and drops against the text as run, each
-/// count's route returning exactly those items. The trade seat's T4, T5
-/// and T6 are rows of their own: the `reduced` form under a minimum, the
-/// sum with and without its scourge line, the Blight-ravaged maps beside
-/// the blighted at the tier bound.
+/// count's route returning exactly those items. The trade seat's T4 and
+/// T5 are rows of their own: the `reduced` form under a minimum, the sum
+/// with and without its scourge line; T6's blighted maps carry none since
+/// round x read a Blight-ravaged map as no blighted one.
 #[test]
 fn c119_an_ambiguous_clause_says_what_its_other_reading_adds_and_drops() {
     let mut read = 0;

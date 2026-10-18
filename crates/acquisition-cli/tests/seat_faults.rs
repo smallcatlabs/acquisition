@@ -1578,7 +1578,11 @@ fn a_count_holds_its_request_only_where_the_routes_are_asked() {
 /// at three or four calls (the trade seat: cli-opus-2 calls 36–38 for the
 /// scourge line, 42–43 for the Blight-ravaged maps). The clause's line
 /// says what its other reading adds and drops, and the routes block
-/// carries the request for each it changes, unasked.
+/// carries the request for each it changes, unasked: here the seat's
+/// `increased Rarity` at 20, read the other way without its `reduced`
+/// form, beside a text two stats share, which has no other reading. (The
+/// maps the seat asked by carry none since round x read a Blight-ravaged
+/// map as no blighted one.)
 #[test]
 fn an_ambiguous_clauses_line_says_what_its_other_reading_adds_and_drops() {
     let scratch = harness::scratch("seat-trade-stake");
@@ -1606,9 +1610,13 @@ fn an_ambiguous_clauses_line_says_what_its_other_reading_adds_and_drops() {
             league: pc().1,
         },
         json!({ "league": "Standard" }),
-        json!({ "stashes": [ { "id": "m1", "name": "Maps", "type": "PremiumStash", "index": 0 } ] }),
+        json!({ "stashes": [ { "id": "m1", "name": "Rings", "type": "PremiumStash", "index": 0 } ] }),
     );
-    let map = |id: &str, base: &str| json!({ "id": id, "name": "", "typeLine": base, "baseType": base, "frameTypeId": 0, "x": 0, "y": 0 });
+    let ring = |id: &str, rarity: &[&str]| {
+        let mut lines: Vec<&str> = rarity.to_vec();
+        lines.push("Recover 2% of Mana on Kill");
+        json!({ "id": id, "name": "", "typeLine": "Iron Ring", "baseType": "Iron Ring", "frameTypeId": 2, "x": 0, "y": 0, "explicitMods": lines })
+    };
     record(
         Endpoint::Stash {
             realm: pc().0,
@@ -1617,9 +1625,9 @@ fn an_ambiguous_clauses_line_says_what_its_other_reading_adds_and_drops() {
             sub: None,
         },
         json!({}),
-        json!({ "stash": { "id": "m1", "name": "Maps", "type": "PremiumStash", "items": [
-            map("blighted", "Blighted Map (Tier 14)"),
-            map("ravaged", "Blight-ravaged Map (Tier 15)") ] } }),
+        json!({ "stash": { "id": "m1", "name": "Rings", "type": "PremiumStash", "items": [
+            ring("plain", &["25% increased Rarity of Items found"]),
+            ring("both", &["30% increased Rarity of Items found", "10% reduced Rarity of Items found"]) ] } }),
     );
     let mut child = harness::command(&base, &["search", "--realm", "pc", "--trade-file", "-"])
         .stdin(std::process::Stdio::piped())
@@ -1632,7 +1640,7 @@ fn an_ambiguous_clauses_line_says_what_its_other_reading_adds_and_drops() {
         .take()
         .unwrap()
         .write_all(
-            br#"{"query": {"filters": {"map_filters": {"filters": {"map_tier": {"min": 14}, "map_blighted": {"option": "true"}}}}}}"#,
+            br#"{"query": {"stats": [{"type": "and", "filters": [{"id": "explicit.stat_3917489142", "value": {"min": 20}}, {"id": "explicit.stat_1030153674"}]}]}}"#,
         )
         .unwrap();
     let out = child.wait_with_output().unwrap();
@@ -1646,13 +1654,12 @@ fn an_ambiguous_clauses_line_says_what_its_other_reading_adds_and_drops() {
             .to_string()
     };
     assert!(
-        line("ambiguous map_filters.map_blighted")
-            .ends_with("the site may count one. · read the other way: adds 1, drops 0"),
+        line("ambiguous stats.0.0").ends_with(" · read the other way: adds 0, drops 1"),
         "{shown}"
     );
     // a clause with no other reading says nothing of one (C93)
     assert!(
-        !line("ambiguous map_filters.map_tier").contains("other way"),
+        !line("ambiguous stats.0.1").contains("other way"),
         "{shown}"
     );
     let routes: Vec<&str> = shown
@@ -1661,16 +1668,14 @@ fn an_ambiguous_clauses_line_says_what_its_other_reading_adds_and_drops() {
         .collect();
     let at = routes
         .iter()
-        .position(|l| {
-            *l == "  clause map_filters.map_blighted read the other way, adds (1), over the scope:"
-        })
+        .position(|l| *l == "  clause stats.0.0 read the other way, drops (1), over the scope:")
         .unwrap_or_else(|| panic!("{shown}"));
     assert_eq!(
         routes[at + 1],
-        "    acq search --account 'Alice#1234' --realm pc 'map_tier>=14 (category=map typeline~\"^Blight-ravaged \") -(category=map typeline~\"^Blighted \")'",
+        "    acq search --account 'Alice#1234' --realm pc 'sum(line(\"#% increased Rarity of Items found\" source=explicit).arg1)>=20 line(\"#% reduced Rarity of Items found\" source=explicit) line((\"Recover #% of Mana on Kill\" or \"Lose #% of Mana on Kill\") source=explicit)'",
         "{shown}"
     );
-    assert!(!shown.contains("read the other way, drops"), "{shown}");
+    assert!(!shown.contains("read the other way, adds"), "{shown}");
 }
 
 /// `(Remove-only)` stood on tab names with nothing to say what it is

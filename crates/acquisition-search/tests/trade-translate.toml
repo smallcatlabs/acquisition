@@ -349,31 +349,29 @@ fidelity = "partial"
 statuses = { "map_filters.map_gold" = "unsupported", "map_filters.chart_sulphur" = "unsupported", "map_filters.chart_shape" = "unsupported", "map_filters.map_series" = "unsupported", "map_filters.map_uberblighted" = "unsupported", "map_filters.map_completion_reward" = "unsupported" }
 
 [[case]]
-name = "a blighted map: a map, its type line's prefix (t55, t56), ambiguous for a Blight-ravaged one, never an item that is no map (the trade seat)"
+name = "a blighted map: a map, its type line's prefix (t55, t56), a Blight-ravaged one outside it (x01, x02), never an item that is no map (the trade seat)"
 query = '{"filters": {"map_filters": {"filters": {"map_blighted": {"option": "true"}}}}}'
 text = 'category=map typeline~"^Blighted "'
-fidelity = "ambiguous"
-statuses = { "map_filters.map_blighted" = "ambiguous" }
+fidelity = "exact"
+statuses = { "map_filters.map_blighted" = "exact" }
 matches = ['{"typeLine": "Blighted Map (Tier 13)", "baseType": "Blighted Map (Tier 13)", "rarity": "Normal"}']
 fails = ['{"typeLine": "Map (Tier 13)", "baseType": "Map (Tier 13)", "rarity": "Normal"}', '{"typeLine": "Blight-ravaged Map (Tier 15)", "baseType": "Blight-ravaged Map (Tier 15)", "rarity": "Normal"}', '{"typeLine": "Blighted Delirium Orb", "baseType": "Blighted Delirium Orb", "frameTypeId": 5}']
-others = { "map_filters.map_blighted" = { reading = '(category=map typeline~"^Blighted ") or (category=map typeline~"^Blight-ravaged ")', adds = ["f1"] } }
 
 [[case]]
 name = "a blighted map's Any: no option, so the clause states nothing (the base row, since the options have their own)"
 query = '{"filters": {"map_filters": {"filters": {"map_blighted": {}}}}}'
 text = 'true()'
-fidelity = "ambiguous"
-statuses = { "map_filters.map_blighted" = "ambiguous" }
+fidelity = "exact"
+statuses = { "map_filters.map_blighted" = "exact" }
 
 [[case]]
-name = "not a blighted map: a map without the prefix, never an item that is no map (t56; the trade seat)"
+name = "not a blighted map: a map without the prefix, a Blight-ravaged one among them (x03), never an item that is no map (t56; the trade seat)"
 query = '{"filters": {"map_filters": {"filters": {"map_blighted": {"option": "false"}}}}}'
 text = 'category=map -typeline~"^Blighted "'
-fidelity = "ambiguous"
-statuses = { "map_filters.map_blighted" = "ambiguous" }
+fidelity = "exact"
+statuses = { "map_filters.map_blighted" = "exact" }
 matches = ['{"typeLine": "Map (Tier 13)", "baseType": "Map (Tier 13)", "rarity": "Normal"}', '{"typeLine": "Blight-ravaged Map (Tier 15)", "baseType": "Blight-ravaged Map (Tier 15)", "rarity": "Normal"}']
 fails = ['{"typeLine": "Blighted Map (Tier 13)", "baseType": "Blighted Map (Tier 13)", "rarity": "Normal"}', '{"typeLine": "Chaos Orb", "baseType": "Chaos Orb", "frameTypeId": 5}']
-others = { "map_filters.map_blighted" = { reading = '(category=map -typeline~"^Blighted ") -typeline~"^Blight-ravaged "', drops = ["m1"] } }
 
 # ---- heist_filters ----------------------------------------------------------------------------
 
@@ -1253,8 +1251,7 @@ name = "a Base naming a map's tier is ambiguous: the site returns its blighted f
 query = '{"type": "Map (Tier 13)", "filters": {"map_filters": {"filters": {"map_blighted": {"option": "true"}}}}}'
 text = 'base="Map (Tier 13)" (category=map typeline~"^Blighted ")'
 fidelity = "ambiguous"
-statuses = { "type" = "ambiguous", "map_filters.map_blighted" = "ambiguous" }
-others = { "map_filters.map_blighted" = { reading = '(category=map typeline~"^Blighted ") or (category=map typeline~"^Blight-ravaged ")' } }
+statuses = { "type" = "ambiguous", "map_filters.map_blighted" = "exact" }
 
 [[case]]
 name = "a scourge stat in a weighted sum is ambiguous (e043, f005: scourge-in-sum)"
@@ -1308,15 +1305,14 @@ fails = ['{"explicitMods": ["+35% to Fire Resistance"], "scourgeMods": ["-10% to
 others = { "stats.1.1" = { reading = 'sum(line("#% to Fire Resistance" source=explicit).arg1)>=30', adds = ["f0"], drops = ["m1"] } }
 
 [[case]]
-name = "the trade seat's T6: blighted maps at tier 14 and up, read the other way a Blight-ravaged map at the tier bound is added"
+name = "the trade seat's T6: blighted maps at tier 14 and up, a Blight-ravaged map at the tier bound no blighted one (x01, x02)"
 url = "https://www.pathofexile.com/trade/search/Standard/H4sIAAAAAAAAE12OMQ6AIBAE_7I1jYkVXzHGYDj1EgUCR0EIfzdSqVvtzjRbkcRITtAVPgh7Bw3jCprqJkFPFVICdW6hsPEpFB8xt_k1Ky4Tltf8GWGKvbODHsamOl1P3g8h-zkgMRPakxv0ojqsoAAAAA"
 realm = "pc"
 text = 'league=Standard map_tier>=14 (category=map typeline~"^Blighted ")'
 fidelity = "ambiguous"
-statuses = { "url.league" = "exact", "status" = "listing_only", "map_filters.map_tier" = "ambiguous", "map_filters.map_blighted" = "ambiguous" }
+statuses = { "url.league" = "exact", "status" = "listing_only", "map_filters.map_tier" = "ambiguous", "map_filters.map_blighted" = "exact" }
 matches = ['{"typeLine": "Blighted Map (Tier 14)", "baseType": "Blighted Map (Tier 14)", "rarity": "Normal"}']
 fails = ['{"typeLine": "Blight-ravaged Map (Tier 15)", "baseType": "Blight-ravaged Map (Tier 15)", "rarity": "Normal"}', '{"typeLine": "Blighted Map (Tier 13)", "baseType": "Blighted Map (Tier 13)", "rarity": "Normal"}', '{"typeLine": "Blight-ravaged Map (Tier 13)", "baseType": "Blight-ravaged Map (Tier 13)", "rarity": "Normal"}']
-others = { "map_filters.map_blighted" = { reading = '(category=map typeline~"^Blighted ") or (category=map typeline~"^Blight-ravaged ")', adds = ["f0"] } }
 
 # ---- round x: a text of two numbers (2026-10-18) -----------------------------------------------
 
