@@ -1336,6 +1336,42 @@ fn tabs_counts_first_and_lists_the_ten_with_the_most_items() {
     assert_eq!(printed, all);
 }
 
+/// A zero answer offered "Fenumus' Weave" for `name:loreweave` under the
+/// words "never fuzzy-matched" (the re-sit, mcp-opus call 34, its fault
+/// 4: "a wrong lead"). Where a term's near values are offered, `said`
+/// says they are suggestions with their own counts, never matches; with
+/// none offered the words are as before.
+#[test]
+fn a_zero_answers_suggestion_is_said_to_be_one() {
+    let mut seat = Seat::new();
+    let (zero, refused) = seat
+        .search(&json!({ "scope": { "realm": "pc" }, "query": { "text": "name=\"Doom Ring\"" } }));
+    assert!(!refused, "{zero}");
+    assert_eq!(zero["total"]["matched"], 0, "{zero}");
+    let nothing = &zero["zero"]["resolved_to_nothing"][0];
+    assert_eq!(nothing["suggestions"][0]["value"], "Doom Loop", "{zero}");
+    let said = zero["zero"]["said"].as_str().unwrap();
+    assert!(said.contains("never fuzzy-matched"), "{said}");
+    assert!(
+        said.contains("offered beside it as a suggestion with its own count, never as a match"),
+        "{said}"
+    );
+    let (bare, _) =
+        seat.search(&json!({ "scope": { "realm": "pc" }, "query": { "text": "name=\"Zzz\"" } }));
+    assert_eq!(
+        bare["zero"]["resolved_to_nothing"][0]["suggestions"],
+        json!([]),
+        "{bare}"
+    );
+    assert!(
+        !bare["zero"]["said"]
+            .as_str()
+            .unwrap()
+            .contains("suggestion"),
+        "{bare}"
+    );
+}
+
 /// `scope.list_seen` under a query fixing one league is that league's
 /// list and the characters', not the realm's oldest (the re-sit,
 /// mcp-opus fault 2); held equal to the CLI's.

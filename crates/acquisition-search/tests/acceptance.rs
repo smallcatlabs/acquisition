@@ -558,7 +558,7 @@ fn aq3_a_row_names_what_matched_and_a_zero_answer_names_the_scope() {
     );
     assert_eq!(
         zero["zero"]["said"],
-        "a line the search cannot name is shown as unknown, with what it knows of it, and never fuzzy-matched"
+        "a line the search cannot name is shown as unknown, with what it knows of it, and never fuzzy-matched; a value that shares a word with the term is offered beside it as a suggestion with its own count, never as a match"
     );
     // rule 5: what a zero answer offers runs since step 10, and is
     // offered as the requests it is — explain of the query's one part,

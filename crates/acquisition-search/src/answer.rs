@@ -326,6 +326,11 @@ use crate::{json, parse, print};
 
 /// The register's wording for a line the search cannot name (C102, S107).
 pub const S107: &str = "a line the search cannot name is shown as unknown, with what it knows of it, and never fuzzy-matched";
+/// The zero answer's wording where a term's near values are offered: a
+/// suggestion stands beside "never fuzzy-matched" and is said to be one
+/// (the re-sit, mcp-opus fault 4: "Fenumus' Weave" under a promise of
+/// no guessing, "a wrong lead").
+pub const SUGGESTED_SAID: &str = "a line the search cannot name is shown as unknown, with what it knows of it, and never fuzzy-matched; a value that shares a word with the term is offered beside it as a suggestion with its own count, never as a match";
 
 /// What a zero answer says of an `id:` term that matched nothing (F7, the
 /// first seat): the help's rule, where the reader is.
@@ -1894,8 +1899,8 @@ pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError>
 
     // explain shows counts in place of rows, a zero among them: the zero
     // block is the other views'
-    let zero = (total.matched == 0 && explained.is_none()).then(|| Zero {
-        resolved_to_nothing: query
+    let zero = (total.matched == 0 && explained.is_none()).then(|| {
+        let resolved_to_nothing: Vec<Nothing> = query
             .terms
             .iter()
             .enumerate()
@@ -1907,10 +1912,16 @@ pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError>
                     tallies[i][Outcome::Matched as usize],
                 )
             })
-            .collect(),
-        said: S107,
-        undecided: count(n_undecided, root_undecided.as_ref()),
-        offers: offers(&router, &query, &part_matched, request),
+            .collect();
+        let suggested = resolved_to_nothing
+            .iter()
+            .any(|n| !n.suggestions.is_empty());
+        Zero {
+            resolved_to_nothing,
+            said: if suggested { SUGGESTED_SAID } else { S107 },
+            undecided: count(n_undecided, root_undecided.as_ref()),
+            offers: offers(&router, &query, &part_matched, request),
+        }
     });
     let left_out = total.matched.saturating_sub(after + rows.len());
     let view = match &view {
