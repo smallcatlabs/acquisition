@@ -67,9 +67,9 @@ expected; what it proposes beyond its brief is a park, not a commit.
 
 | Step | Builds | Acceptance |
 | --- | --- | --- |
-| 1 | the answer's weight (C115); `tabs` limited and summarised in JSON as the CLI's text is; `left_out_needs` names a JSON field | on a copy of the owner's store: an MCP three-row answer under 4 KB, the default twenty rows under 20 KB, a counts-only answer under 4 KB, `tabs` under 10 KB by default |
+| 1 | the answer's weight (C115); `tabs` limited and summarised in JSON as the CLI's text is; `left_out_needs` names a JSON field | on a copy of the owner's store: an MCP three-row answer under 4 KB, the default twenty rows under 20 KB, a counts-only answer under 4 KB, `tabs` under 10 KB by default. Built 2026-10-18, `e57db22b..2afc262c`: `tabs` met (3,360 bytes); the three others not — 7,888, 23,105 and 7,965 bytes on the ring URL — the weight left being the trade report (2.7 KB a call) and the rows' evidence; the report's share is step 3's |
 | 2 | coverage (C118): the row's age; the never fetched by tab type on the scope line; the scope line points at the list that exists (`tabs`) instead of a flag not built | the tests; the re-sit |
-| 3 | the stake of an ambiguous clause (C119), over the catalogue's ambiguous rows that admit another reading | T6 says how many Blight-ravaged maps the site may add, with the route; T4 its `reduced` forms; T5 the items the scourge line decides; each a labelled oracle or translate row |
+| 3 | the stake of an ambiguous clause (C119), over the catalogue's ambiguous rows that admit another reading; the trade report's weight | T6 says how many Blight-ravaged maps the site may add, with the route; T4 its `reduced` forms; T5 the items the scourge line decides; each a labelled oracle or translate row; the ring URL's three-row answer measured again on the store copy |
 | 4 | the tab facts as fields (C117); ids out of help, reasons, notes and refusals (C116), the Remove-only suffix said once where tabs are listed; the seat's small unrouted faults as `seat_faults` tests | the tests; the references regenerated |
 | 5 | the sitting the fate tables queue (Blight-ravaged under `map_blighted`, the `(gem)` level, the rarity forms), beside the build | the site-sitting skill |
 | 6 | the re-sit (the seat skill): the person's question split in two — is this search the site's, and which of these could a buyer see — one task whose honest answer turns on a never-fetched tab, Opus and Sonnet on both surfaces | the fate table; the three re-reads of step 1 counted |
@@ -121,6 +121,18 @@ other reading (C93: absent, never zero). The reading applies where the
 clause has every property of the shape asked (`TRADE-SLICE.md`, shapes
 of fault). A ruling in `decisions/trade.md` names `TRADE-SLICE.md`'s
 ledger row 8b.
+The report's weight, measured after step 1 (ring URL, three rows, 7,888
+bytes): `query` is 2,732 of them — nine clauses each echoing the site's
+filter (`site`), its catalogue row and the row's sentence (`notes`, the
+same sentence four times for four pseudo stats), beside the `text` that
+already states the whole translation and a `tree` that restates the
+`text`. Two questions for the worker, answered by the shape, not a flag:
+what the report says of an exact clause that the `text` does not (the
+clauses that differ from the text — ambiguous, unsupported,
+listing_only — are the report's reason), and whether an answer needs
+the `tree` beside the `text` (`describe` and `explain` exist). Whatever
+is cut, `describe trade` keeps the catalogue's sentences (C53: text a
+function of JSON; C100: one shape).
 
 **Step 4 — facts, words, and the small faults.** Build: `tab.public`
 (GGG's `metadata.public`; a substash's is its tab's; a character's item
