@@ -744,6 +744,121 @@ fn tabs_says_its_counts_first_and_counts_a_large_league() {
     assert!(counted.status.success(), "{}", text(&counted));
 }
 
+/// Every run of the re-sit, told "0 matches" for a unique the person
+/// owns, could say that 437 of 521 unique-stash tabs were never fetched
+/// and not which — `tabs` listed a league whole or its ten largest, with
+/// no selection (cli-opus calls 36–39, mcp-opus 34–37, cli-sonnet 20–22,
+/// mcp-sonnet 18–23; the search area's park, fired). `--type` and
+/// `--never-fetched` select the rows under the league's counts, the
+/// same cut and `--expand` listing the rest; the scope line's pointer
+/// lists the never fetched.
+#[test]
+fn tabs_lists_the_never_fetched_of_one_type() {
+    let scratch = harness::scratch("seat-tabs-never");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    let mock = base.join("store").join("mock");
+    let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
+    let mut stashes: Vec<Value> =
+        vec![json!({ "id": "a1", "name": "Gear", "type": "PremiumStash", "index": 0 })];
+    stashes.extend((1..=40).map(
+        |i| json!({ "id": format!("u{i}"), "name": format!("Uniques {i}"), "type": "UniqueStash", "index": i }),
+    ));
+    stashes.push(json!({ "id": "f1", "name": "Folder", "type": "Folder", "index": 41 }));
+    store
+        .record(
+            &Endpoint::Stashes {
+                realm: "pc".into(),
+                league: "Standard".into(),
+            },
+            &json!({ "league": "Standard" }),
+            200,
+            &json!({ "stashes": stashes }),
+            acquisition_store::now(),
+        )
+        .unwrap();
+    drop(store);
+    let cut = sole_json(&acq(
+        &base,
+        &["tabs", "--json", "--type", "uniquestash", "--never-fetched"],
+    ));
+    // the league's counts stay the league's
+    assert_eq!(cut["tabs"], 42, "{cut}");
+    assert_eq!(cut["never_fetched"], 40, "{cut}");
+    assert_eq!(
+        cut["selection"],
+        json!({ "type": "uniquestash", "never_fetched": true }),
+        "{cut}"
+    );
+    assert_eq!(cut["selected"], 40, "{cut}");
+    assert_eq!(cut["rows"].as_array().unwrap().len(), 10, "{cut}");
+    assert_eq!(cut["left_out"], 30, "{cut}");
+    assert_eq!(cut["left_out_needs"], "expand", "{cut}");
+    let all = sole_json(&acq(
+        &base,
+        &[
+            "tabs",
+            "--json",
+            "--type",
+            "UniqueStash",
+            "--never-fetched",
+            "--expand",
+        ],
+    ));
+    let rows = all["rows"].as_array().unwrap();
+    assert_eq!(rows.len(), 40, "{all}");
+    assert!(
+        rows.iter()
+            .all(|r| r["type"] == "UniqueStash" && r["fetched_at"].is_null()),
+        "{all}"
+    );
+    assert_eq!(all["left_out"], 0, "{all}");
+    // a folder is never fetched and holds nothing: not a tab to refresh
+    let never = sole_json(&acq(&base, &["tabs", "--json", "--never-fetched"]));
+    assert_eq!(never["selected"], 40, "{never}");
+    let none = sole_json(&acq(
+        &base,
+        &[
+            "tabs",
+            "--json",
+            "--type",
+            "PremiumStash",
+            "--never-fetched",
+        ],
+    ));
+    assert_eq!(none["selected"], 0, "{none}");
+    assert_eq!(none["rows"], json!([]), "{none}");
+    // the text: the league's counts, the selection in words, the rows,
+    // and what lists the rest
+    let said = stdout(&acq(
+        &base,
+        &["tabs", "--type", "UniqueStash", "--never-fetched"],
+    ));
+    let lines: Vec<&str> = said.lines().collect();
+    assert_eq!(
+        lines[0],
+        "42 tabs in Standard: 1 fetched, 40 never fetched, 1 folder (never fetched); 1 items",
+        "{said}"
+    );
+    assert_eq!(lines[1], "40 never-fetched UniqueStash tabs", "{said}");
+    assert!(
+        lines.last().unwrap()
+            == &"10 of 40 shown: `acq tabs --expand --type UniqueStash --never-fetched` lists all",
+        "{said}"
+    );
+    let all = stdout(&acq(
+        &base,
+        &[
+            "tabs",
+            "--type",
+            "UniqueStash",
+            "--never-fetched",
+            "--expand",
+        ],
+    ));
+    assert!(all.contains("u40") && !all.contains("shown:"), "{all}");
+}
+
 /// A daemon with `alice` logged in, a Standard policy over every tab and
 /// the stash listing on record; the plan compiled from it is written to
 /// `plan.json` under `base` and returned beside its path.
@@ -1119,11 +1234,21 @@ fn the_scope_line_names_the_never_fetched_by_tab_type_and_points_at_tabs() {
         "{shown}"
     );
     assert!(
-        line.ends_with(" · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard"),
+        line.ends_with(" · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched"),
         "{shown}"
     );
-    // the pointer runs as printed
-    let out = acq(&base, &["tabs", "--account", "Alice#1234", "--realm", "pc"]);
+    // the pointer runs as printed, and lists the never fetched
+    let out = acq(
+        &base,
+        &[
+            "tabs",
+            "--account",
+            "Alice#1234",
+            "--realm",
+            "pc",
+            "--never-fetched",
+        ],
+    );
     assert!(out.status.success(), "{}", stdout(&out));
     assert!(!shown.contains("--view locations"), "{shown}");
 }
@@ -1181,11 +1306,11 @@ fn the_tabs_pointer_names_the_league_its_never_fetched_tabs_are_in() {
             .to_string()
     };
     const ALLFLAME: &str =
-        " · each tab: acq tabs --account 'Alice#1234' --realm pc --league Allflame";
+        " · each tab: acq tabs --account 'Alice#1234' --realm pc --league Allflame --never-fetched";
     assert_eq!(pointer("league=Allflame"), ALLFLAME);
     assert_eq!(
         pointer("league=Standard"),
-        " · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard"
+        " · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched"
     );
     // no league fixed: the league holding the most, the others counted
     assert_eq!(

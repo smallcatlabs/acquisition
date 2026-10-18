@@ -135,10 +135,12 @@ The per-account sync policy (declared coverage + freshness, an annotation) with 
 
 ### `tabs`
 
-The stash tabs of a league, counted first, from the shared store (no daemon, no network): how many tabs, fetched, never fetched and folders, how many items, and the same by tab type (`by_type`, the most items first); then `rows`, the tabs listed — every one where the league holds thirty or fewer, else the ten with the most items (`listed`: `all` or `most_items`) — each with its type, item count and fetch time, a substash naming its `parent`. `left_out` counts the tabs not listed; `expand: true` lists them all (some 220 bytes a tab). A name ending ` (Remove-only)` is GGG's mark on a tab whose items can only be taken out; a search asks it as `tab.remove_only`.
+The stash tabs of a league, counted first, from the shared store (no daemon, no network): how many tabs, fetched, never fetched and folders, how many items, and the same by tab type (`by_type`, the most items first); then `rows`, the tabs listed — every one where the league holds thirty or fewer, else the ten with the most items (`listed`: `all` or `most_items`) — each with its type, item count and fetch time, a substash naming its `parent`. `left_out` counts the tabs not listed; `expand: true` lists them all (some 220 bytes a tab). `type` and `never_fetched: true` select the tabs listed — the never fetched of one type by name, which a refresh takes — under the league's counts, `selected` counting them. A name ending ` (Remove-only)` is GGG's mark on a tab whose items can only be taken out; a search asks it as `tab.remove_only`.
 
 - `account` (string | null) — Account selector (username with or without `#discriminator`, or uuid); required only when several accounts are known.
-- `expand` (boolean | null) — List every tab of a league of more than thirty, in place of the ten with the most items.
+- `expand` (boolean | null) — List every tab of a league of more than thirty, or of the selection, in place of the ten with the most items.
 - `league` (string | null) — League name; defaults to "Standard".
+- `never_fetched` (boolean | null) — Only tabs never fetched.
 - `realm` (string | null) — Realm: pc (default), xbox, or sony.
+- `type` (string | null) — Only tabs of this type, as GGG names it (UniqueStash, MapStash, PremiumStash …; `by_type` lists them).
 

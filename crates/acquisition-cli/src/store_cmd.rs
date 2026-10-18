@@ -250,12 +250,19 @@ fn render_tabs_table(tabs: &[acquisition_store::TabRow], now: i64) -> String {
 /// for a small league or under `--expand`, else the ten with the most
 /// items (C53). The document is the search crate's, one maker for this
 /// text, `--json` and the MCP's `tabs` (C115).
-pub fn tabs(realm: Realm, league: &str, expand: bool, json: bool) -> Result<()> {
+pub fn tabs(
+    realm: Realm,
+    league: &str,
+    select: &acquisition_search::tabs::Selection,
+    expand: bool,
+    json: bool,
+) -> Result<()> {
     let store = open()?;
     let listed = acquisition_search::tabs::Tabs::of(
         realm.as_str(),
         league,
         store.tabs(realm.as_str(), league)?,
+        select,
         expand,
     );
     if json {
@@ -290,6 +297,29 @@ pub fn tabs(realm: Realm, league: &str, expand: bool, json: bool) -> Result<()> 
         parts.join(", "),
         listed.items
     );
+    // a selection is the answer under the league's counts: its rows,
+    // whole or the ten, and the command that lists the rest (the re-sit:
+    // every run asked which never-fetched tabs of a type to refresh)
+    if let (Some(selected), Some(selection)) = (listed.selected, &listed.selection) {
+        println!("{selected} {}", selection.words());
+        print!("{}", render_tabs_table(&listed.rows, now));
+        print!("{}", remove_only_said(&listed.rows));
+        if listed.left_out > 0 {
+            let (expand, _) = tabs_next(realm, league);
+            let mut expand = expand;
+            if let Some(kind) = &selection.kind {
+                expand.push_str(&format!(" --type {kind}"));
+            }
+            if selection.never_fetched {
+                expand.push_str(" --never-fetched");
+            }
+            println!(
+                "{} of {selected} shown: `{expand}` lists all",
+                listed.rows.len()
+            );
+        }
+        return Ok(());
+    }
     if listed.left_out == 0 {
         print!("{}", render_tabs_table(&listed.rows, now));
         print!("{}", remove_only_said(&listed.rows));

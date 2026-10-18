@@ -280,13 +280,22 @@ enum Cmd {
     /// Tabs of a league, from the shared store (no daemon round-trip):
     /// the counts first, then every tab with its type, items, age and id.
     /// A league of more than thirty tabs is counted by type with its ten
-    /// largest tabs instead; --expand lists every one. `--json` is the
-    /// same document: the counts, `by_type`, and `rows`, the tabs listed,
-    /// with `left_out` counting the rest.
+    /// largest tabs instead; --expand lists every one. --type and
+    /// --never-fetched select the tabs listed — the never fetched of one
+    /// type by name, which a refresh takes — under the league's counts.
+    /// `--json` is the same document: the counts, `by_type`, and `rows`,
+    /// the tabs listed, with `left_out` counting the rest.
     Tabs {
-        /// List every tab of a large league.
+        /// List every tab of a large league, or of the selection.
         #[arg(long)]
         expand: bool,
+        /// Only tabs of this type, as GGG names it (UniqueStash,
+        /// MapStash, PremiumStash …; the counts by type list them).
+        #[arg(long, value_name = "TYPE")]
+        r#type: Option<String>,
+        /// Only tabs never fetched.
+        #[arg(long)]
+        never_fetched: bool,
         #[arg(long, default_value = "Standard")]
         league: String,
         /// pc (default), xbox, or sony — stashes are PoE1 only.
@@ -983,7 +992,18 @@ async fn run(cli: Cli) -> Result<()> {
             league,
             realm,
             expand,
-        } => store_cmd::tabs(realm, &league, expand, cli.json),
+            r#type,
+            never_fetched,
+        } => store_cmd::tabs(
+            realm,
+            &league,
+            &acquisition_search::tabs::Selection {
+                kind: r#type,
+                never_fetched,
+            },
+            expand,
+            cli.json,
+        ),
         Cmd::Search(args) => search_cmd::search(*args, cli.json),
         Cmd::Show(args) => search_cmd::show_item(args, cli.json),
         Cmd::Store { cmd } => match cmd {

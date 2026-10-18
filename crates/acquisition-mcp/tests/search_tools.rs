@@ -1336,6 +1336,74 @@ fn tabs_counts_first_and_lists_the_ten_with_the_most_items() {
     assert_eq!(printed, all);
 }
 
+/// The never fetched by name (the re-sit, every run's first or second
+/// ask: mcp-opus calls 34–37, mcp-sonnet 18–23): `type` and
+/// `never_fetched` select the rows under the league's counts, held
+/// equal to `acq tabs --type … --never-fetched --json`.
+#[test]
+fn tabs_lists_the_never_fetched_of_one_type() {
+    let mut seat = Seat::new();
+    {
+        let mut store = Store::open(&account_path(&stores(&seat.base), USER)).unwrap();
+        let mut stashes = vec![
+            json!({ "id": "t1", "name": "Rings", "type": "PremiumStash" }),
+            json!({ "id": "t2", "name": "Dump", "type": "PremiumStash" }),
+        ];
+        stashes.extend((0..39).map(
+            |i| json!({ "id": format!("u{i}"), "name": format!("U {i}"), "type": "UniqueStash" }),
+        ));
+        record(
+            &mut store,
+            Endpoint::Stashes {
+                realm: "pc".into(),
+                league: "Standard".into(),
+            },
+            "pc",
+            json!({ "stashes": stashes }),
+            40,
+        );
+    }
+    let (tabs, refused) = seat.call(
+        "tabs",
+        &json!({ "type": "UniqueStash", "never_fetched": true }),
+    );
+    assert!(!refused, "{tabs}");
+    assert_eq!(tabs["tabs"], 41, "{tabs}");
+    assert_eq!(tabs["selected"], 39, "{tabs}");
+    assert_eq!(
+        tabs["selection"],
+        json!({ "type": "UniqueStash", "never_fetched": true })
+    );
+    assert_eq!(tabs["rows"].as_array().unwrap().len(), 10, "{tabs}");
+    assert_eq!(tabs["left_out"], 29, "{tabs}");
+    assert_eq!(tabs["left_out_needs"], "expand", "{tabs}");
+    let (printed, ok) = cli(
+        &seat.base,
+        &["tabs", "--type", "UniqueStash", "--never-fetched"],
+    );
+    assert!(ok);
+    assert_eq!(printed, tabs);
+    let (all, _) = seat.call(
+        "tabs",
+        &json!({ "type": "UniqueStash", "never_fetched": true, "expand": true }),
+    );
+    assert_eq!(all["rows"].as_array().unwrap().len(), 39, "{all}");
+    assert!(
+        all["rows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|r| r["fetched_at"].is_null()),
+        "{all}"
+    );
+    // without a selection the document is as before
+    let (plain, _) = seat.call("tabs", &json!({}));
+    assert!(
+        plain.get("selection").is_none() && plain.get("selected").is_none(),
+        "{plain}"
+    );
+}
+
 /// C115, a row as slim as the decision view allows (C53, C100): the
 /// trade seat's twenty rings were 30,696 bytes and over every runner's
 /// harness cut (mcp-opus-2 call 11, mcp-sonnet-2 call 8: "I lost the

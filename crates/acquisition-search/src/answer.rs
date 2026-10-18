@@ -39,7 +39,7 @@
 //! ```text
 //! query   league=Standard class=Rings rarity=rare line("# to maximum Life" arg1>=90) pseudo.total_res>=60
 //! scope   account A · pc · live · 7 items · 2 locations fetched (oldest 3d, newest 2h)
-//!         1 location never fetched: PremiumStash 1 of 3 · location list seen 2h ago · each tab: acq tabs --account A --realm pc --league Standard
+//!         1 location never fetched: PremiumStash 1 of 3 · location list seen 2h ago · each tab: acq tabs --account A --realm pc --league Standard --never-fetched
 //! total   1 match · 2 undecided
 //! rows    r1  Two-Stone Ring · rare · Standard / Rings · fetched 2h ago
 //!             +95 to maximum Life (explicit) · pseudo.total_res 65
@@ -2819,7 +2819,10 @@ impl Answer {
             ),
             Some(realm),
         );
-        command.push_str(&format!(" --league {}", shell_quoted(league)));
+        command.push_str(&format!(
+            " --league {} --never-fetched",
+            shell_quoted(league)
+        ));
         Some(TabsPointer {
             command,
             other_leagues,

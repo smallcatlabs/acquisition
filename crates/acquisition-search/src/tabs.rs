@@ -17,6 +17,15 @@
 //!
 //! The counter by type ([`by_type`]) is also a search's: its scope names
 //! the never fetched by the same types, so the two say one thing (C118).
+//!
+//! A [`Selection`] narrows `rows` to one type, to the never fetched, or
+//! both: the never fetched by name, which every run of the re-sit asked
+//! for first or second (`audits/trade-2026-10/re-sit/`, T7: "0 matches"
+//! on a unique, and no way to say which unique-stash pages a refresh
+//! should read). The counts stay the league's, so a reader sees the
+//! selection against the whole; `selected` counts the rows it holds, and
+//! the same listing rule cuts them (a never-fetched tab has no items, so
+//! the ten are by id).
 
 use acquisition_store::TabRow;
 use serde::Serialize;
@@ -44,8 +53,14 @@ pub struct Tabs {
     pub items: i64,
     /// The same counts by GGG's tab type, the most items first.
     pub by_type: Vec<TabType>,
-    /// Which tabs `rows` holds: `all`, in the listing's order, or
-    /// `most_items`, the ten with the most.
+    /// The selection `rows` is cut from, where one was asked, and how
+    /// many tabs it holds.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub selection: Option<Selection>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub selected: Option<usize>,
+    /// Which of the selected tabs `rows` holds: `all`, in the listing's
+    /// order, or `most_items`, the ten with the most.
     pub listed: &'static str,
     pub rows: Vec<TabRow>,
     /// Tabs not in `rows`.
@@ -53,6 +68,44 @@ pub struct Tabs {
     /// What lists them: the request's `expand`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub left_out_needs: Option<&'static str>,
+}
+
+/// Which of a league's tabs `rows` may hold: of one type (GGG's,
+/// any case), the never fetched, or both; empty, every tab.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+pub struct Selection {
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub never_fetched: bool,
+}
+
+impl Selection {
+    pub fn is_empty(&self) -> bool {
+        self.kind.is_none() && !self.never_fetched
+    }
+
+    fn holds(&self, tab: &TabRow) -> bool {
+        self.kind
+            .as_deref()
+            .is_none_or(|kind| kind.eq_ignore_ascii_case(&tab.r#type))
+            && (!self.never_fetched || (tab.fetched_at.is_none() && tab.r#type != "Folder"))
+    }
+
+    /// The selection in words, for a line of text: `never-fetched
+    /// UniqueStash tabs`.
+    pub fn words(&self) -> String {
+        format!(
+            "{}{} tabs",
+            if self.never_fetched {
+                "never-fetched "
+            } else {
+                ""
+            },
+            self.kind.as_deref().unwrap_or("")
+        )
+        .replace("  ", " ")
+    }
 }
 
 /// One tab type's counts.
@@ -67,9 +120,15 @@ pub struct TabType {
 
 impl Tabs {
     /// The league's tabs, as the store lists them, counted and listed:
-    /// whole where `expand` or where there are few, else the ten with
-    /// the most items.
-    pub fn of(realm: &str, league: &str, rows: Vec<TabRow>, expand: bool) -> Tabs {
+    /// the selection's rows whole where `expand` or where there are few,
+    /// else the ten with the most items.
+    pub fn of(
+        realm: &str,
+        league: &str,
+        rows: Vec<TabRow>,
+        select: &Selection,
+        expand: bool,
+    ) -> Tabs {
         let folders = rows.iter().filter(|t| t.r#type == "Folder").count();
         let fetched = rows.iter().filter(|t| t.fetched_at.is_some()).count();
         let by_type = by_type(
@@ -78,7 +137,9 @@ impl Tabs {
         );
         let tabs = rows.len();
         let items = rows.iter().map(|t| t.item_count).sum();
-        let whole = expand || tabs <= LISTED_WHOLE;
+        let rows: Vec<TabRow> = rows.into_iter().filter(|t| select.holds(t)).collect();
+        let selected = rows.len();
+        let whole = expand || selected <= LISTED_WHOLE;
         let rows = if whole {
             rows
         } else {
@@ -91,7 +152,7 @@ impl Tabs {
             most.truncate(MOST_ITEMS);
             most
         };
-        let left_out = tabs - rows.len();
+        let left_out = selected - rows.len();
         Tabs {
             realm: realm.to_string(),
             league: league.to_string(),
@@ -101,6 +162,8 @@ impl Tabs {
             folders,
             items,
             by_type,
+            selection: (!select.is_empty()).then(|| select.clone()),
+            selected: (!select.is_empty()).then_some(selected),
             listed: if whole { "all" } else { "most_items" },
             rows,
             left_out,
