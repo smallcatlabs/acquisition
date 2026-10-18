@@ -762,7 +762,9 @@ fn first_seat_the_text_says_what_sorted_what_an_id_is_and_of_every_realm() {
         ],
     ));
     assert!(
-        shown.contains("sorts by 95 · +95 to maximum Life (explicit)"),
+        shown.contains(
+            "sorts by line(\"# to maximum Life\").arg1 95 · +95 to maximum Life (explicit)"
+        ),
         "{shown}"
     );
     // a line the sort and a term both show is printed once, with another
@@ -800,7 +802,10 @@ fn first_seat_the_text_says_what_sorted_what_an_id_is_and_of_every_realm() {
             "sum(\"# to maximum Life\")",
         ],
     ));
-    assert!(shown.contains("sorts by 40"), "{shown}");
+    assert!(
+        shown.contains("sorts by sum(line(\"# to maximum Life\").arg1) 40"),
+        "{shown}"
+    );
     assert_eq!(
         shown.matches("+10 to maximum Life (explicit)").count(),
         2,
@@ -1870,7 +1875,7 @@ fn step_9d_c_the_ranged_family_and_a_flask_at_a_terminal() {
         ],
     ));
     assert!(
-        sorted.contains("sorts by 15.5 · Adds 10 to 21 Fire Damage (explicit)"),
+        sorted.contains("sorts by pseudo.adds_fire 15.5 · Adds 10 to 21 Fire Damage (explicit)"),
         "{sorted}"
     );
     assert!(

@@ -1060,7 +1060,11 @@ fn answer_text(a: &Answer, all_routes: bool) -> String {
         let mut parts: Vec<Vec<String>> = Vec::new();
         if let Some(sorted) = &row.sort {
             // what sorted the row (F6): a field's name before its number,
-            // a line or a sum's contributors after
+            // a line or a sum's contributors after — and the sort's own
+            // value before its number where no field names it, since
+            // `sorts by 78` beside a term's sum of 70 was read as the
+            // filter's number (the trade seat: cli-opus call 21, cli-sonnet
+            // call 15)
             // a row that sorts last says by what (the review of 9b: `sorts
             // last: incomplete` named no field)
             let key = match &a.view {
@@ -1080,6 +1084,7 @@ fn answer_text(a: &Answer, all_routes: bool) -> String {
                     rest.next();
                     by.replacen("by ", &format!("by {name} "), 1)
                 }
+                _ if !key.is_empty() => by.replacen("by ", &format!("by {key} "), 1),
                 _ => by,
             };
             let mut by_sort = vec![format!("sorts {named}")];

@@ -1066,3 +1066,56 @@ fn the_terms_block_says_it_is_never_over_the_matches() {
         "{shown}"
     );
 }
+
+/// A row sorted by a sum said `sorts by 78` beside the term's explicit
+/// sum of 70, and both CLI runners took the order for the filter's (the
+/// trade seat: cli-opus call 21, its fault 2; cli-sonnet call 15, its
+/// fault 1). The row names the sort's own value before its number, so
+/// the sum over every source and the term's over the explicit stand
+/// apart.
+#[test]
+fn a_row_sorted_by_a_value_no_field_names_says_which_value() {
+    let scratch = harness::scratch("seat-sort");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    let mock = base.join("store").join("mock");
+    let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
+    store
+        .record(
+            &Endpoint::Stash {
+                realm: "pc".into(),
+                league: "Standard".into(),
+                id: "a1".into(),
+                sub: None,
+            },
+            &json!({}),
+            200,
+            &json!({ "stash": { "id": "a1", "name": "Gear", "type": "PremiumStash", "items": [
+                { "id": "ring", "name": "Doom Loop", "typeLine": "Two-Stone Ring", "baseType": "Two-Stone Ring",
+                  "rarity": "Rare", "frameTypeId": 2, "identified": true, "ilvl": 84, "x": 0, "y": 0,
+                  "implicitMods": ["+8 to maximum Life"], "explicitMods": ["+70 to maximum Life"] } ] } }),
+            acquisition_store::now(),
+        )
+        .unwrap();
+    drop(store);
+    let shown = stdout(&acq(
+        &base,
+        &[
+            "search",
+            "--realm",
+            "pc",
+            r##"sum(line("# to maximum Life" source=explicit).arg1)>=30"##,
+            "--sort",
+            r##"sum("# to maximum Life")"##,
+            "--desc",
+        ],
+    ));
+    assert!(
+        shown.contains(r##"sorts by sum(line("# to maximum Life").arg1) 78"##),
+        "{shown}"
+    );
+    assert!(
+        shown.contains(r##"sum(line("# to maximum Life" source=explicit).arg1) 70"##),
+        "{shown}"
+    );
+}
