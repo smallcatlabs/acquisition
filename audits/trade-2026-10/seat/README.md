@@ -39,6 +39,7 @@ the session's at list price.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | cli-opus | `claude-opus-5-5` | `b12c3dbb` | 34 | none | 46 + 2 | $2.27 | `calls-cli-opus.csv`, `REPORT-cli-opus.md`, `DEBRIEF-cli-opus.md` |
 | mcp-opus | `claude-opus-5-5` | `493d51e7` | 39 | call 9 (`tabs`, 745,672 bytes) | 57 + 2 | $3.60 | `calls-mcp-opus.csv`, `REPORT-mcp-opus.md`, `DEBRIEF-mcp-opus.md` |
+| cli-sonnet | `claude-sonnet-5-5` | `82f13d76` | 23 | none | 25 + 2 | $0.68 | `calls-cli-sonnet.csv`, `REPORT-cli-sonnet.md`, `DEBRIEF-cli-sonnet.md` |
 
 cli-opus: one command denied by the rails (a shell line not starting
 with the door), run again through it; one file read outside W — the
@@ -50,3 +51,7 @@ body held escaped quotes and a `#`, refused by the harness's permission
 check before the door ran — sent again inline (call 26). The harness
 moved call 10's 31 KB result to a file the runner did not open, so call
 10 went unread; the door's cut of call 9 is the one `head` row.
+
+cli-sonnet: no denial; one file of its harness's (call 7's 39,716 bytes)
+saved and not opened. Its world's door wrote `calls.csv` with LF line
+ends; nothing else in the world differs from cli-opus's.
