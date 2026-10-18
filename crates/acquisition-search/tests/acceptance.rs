@@ -526,14 +526,21 @@ fn aq3_a_row_names_what_matched_and_a_zero_answer_names_the_scope() {
         row["matched"].clone()
     };
     // the header is on the row already; a phrase shows the string it hit
-    assert_eq!(matched("ash")[0]["term"], "\"reservation\"");
+    // the term by its path, its text the terms block's (C115)
+    let path = &matched("ash")[0]["path"];
+    let term = a["terms"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|t| &t["path"] == path);
+    assert_eq!(term.unwrap()["term"], "\"reservation\"", "{path}");
     assert_eq!(
         matched("ash")[0]["shows"][0]["shown"]["text"],
         "20% increased Reservation Efficiency of Skills"
     );
     assert_eq!(
         matched("ring_res"),
-        json!([{ "path": "1", "term": "ilvl>=80", "shows": [{ "value": { "name": "ilvl", "value": 84 } }] }])
+        json!([{ "path": "1", "shows": [{ "value": { "name": "ilvl", "value": 84 } }] }])
     );
 
     // S107 (C102): a template nothing carries is never fuzzy-matched; the
@@ -1087,7 +1094,12 @@ fn oq6_the_item_found_with_the_owners_own_price_and_no_valuation() {
     assert_eq!(ids(&a), ["ash"]);
     // the name is on the row's header and shows nothing; the price does
     let priced = &a["rows"][0]["matched"][0];
-    assert_eq!(priced["term"], "has:priced");
+    let term = a["terms"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|t| t["path"] == priced["path"]);
+    assert_eq!(term.unwrap()["term"], "has:priced");
     assert_eq!(
         priced["shows"],
         json!([

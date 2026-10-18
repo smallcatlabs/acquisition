@@ -868,7 +868,7 @@ fn f6_a_row_says_what_it_sorts_by() {
     assert_eq!(row["sort"]["value"], 9);
     assert_eq!(
         row["sort"]["shows"],
-        json!([{ "line": { "source": "explicit", "flags": [], "text": "Adds 3 to 9 Cold Damage" } }])
+        json!([{ "line": { "source": "explicit", "text": "Adds 3 to 9 Cold Damage" } }])
     );
     // a sum: what it added
     let row = sorted("sum(\"# to maximum Life\")");

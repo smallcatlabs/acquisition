@@ -246,7 +246,7 @@ fn a_mod_named_by_a_row_is_one_occurrence() {
         json!([
             { "line": { "source": "explicit", "flags": ["crafted"],
                 "text": "Adds 3 to 9 Cold Damage\n+40 to maximum Life" } },
-            { "line": { "source": "explicit", "flags": [], "text": "+25 to maximum Life" } },
+            { "line": { "source": "explicit", "text": "+25 to maximum Life" } },
         ])
     );
     let twice = a["rows"]

@@ -2123,12 +2123,11 @@ fn step_10_next_request_and_print_request_at_a_terminal() {
         command,
         format!(
             "acq search --account '{USER}' --next {}",
-            sole_json(&acq(
+            next_token(&sole_json(&acq(
                 &base,
                 &["--json", "search", "--realm", "pc", "--limit", "2"]
-            ))["view"]["rows"]["next"]["token"]
-                .as_str()
-                .unwrap()
+            )))
+            .unwrap()
         )
     );
     let first = sole_json(&acq(
@@ -2141,14 +2140,15 @@ fn step_10_next_request_and_print_request_at_a_terminal() {
         assert!(out.status.success(), "{command}");
         let page = sole_json(&out);
         paged.extend(rows(&page));
-        match page["view"]["rows"]["next"]["token"].as_str() {
+        match next_token(&page).as_deref() {
             Some(token) => command = format!("acq search --account '{USER}' --next {token}"),
             None => break,
         }
     }
     assert_eq!(paged, rows(&whole));
     // `--limit` alone stands beside a token, and the place is kept
-    let token = first["view"]["rows"]["next"]["token"].as_str().unwrap();
+    let token = next_token(&first).unwrap();
+    let token = token.as_str();
     let wide = sole_json(&acq(
         &base,
         &["--json", "search", "--next", token, "--limit", "100"],
@@ -2951,10 +2951,7 @@ fn rule_5_every_command_a_translated_answer_prints_runs() {
     // agent sends as an object, as its text, shell-quoted round its
     // apostrophe, with the realm the answer resolved
     let token = |args: &[&str]| {
-        sole_json(&acq(&base, args))["view"]["rows"]["next"]["token"]
-            .as_str()
-            .unwrap_or_else(|| panic!("no next: {args:?}"))
-            .to_string()
+        next_token(&sole_json(&acq(&base, args))).unwrap_or_else(|| panic!("no next: {args:?}"))
     };
     let by_url = token(&["--json", "search", "--trade", &url, "--limit", "1"]);
     let file = base.join("request.json");
@@ -3069,4 +3066,13 @@ fn describe_trade_is_the_catalogue() {
     let help = text(&acq(&base, &["search", "--help"]));
     assert!(help.contains("(about 47 KB)"), "{help}");
     assert!(help.contains("over 150 KB"), "{help}");
+}
+
+/// The token a terminal carries for an answer's `next`: its request,
+/// encoded — the JSON holds the request alone (C115).
+fn next_token(answer: &Value) -> Option<String> {
+    let request = answer["view"]["rows"]["next"].get("request")?;
+    let request: acquisition_search::answer::Request =
+        serde_json::from_value(request.clone()).unwrap();
+    Some(request.token())
 }

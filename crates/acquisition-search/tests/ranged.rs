@@ -508,7 +508,7 @@ fn c94_adds_fire_damage_on_a_weapon_counts_toward_the_attacks_total_alone() {
         a["rows"][0]["matched"][0]["shows"],
         json!([
             { "value": { "name": "pseudo.adds_fire", "value": 15.5 } },
-            { "line": { "source": "explicit", "flags": [], "text": "Adds 10 to 21 Fire Damage" } },
+            { "line": { "source": "explicit", "text": "Adds 10 to 21 Fire Damage" } },
         ])
     );
 
@@ -1420,7 +1420,7 @@ fn c94_a_total_shows_only_the_lines_of_the_rows_that_count_on_the_item() {
         ],
         20,
     );
-    let line = |text: &str| json!({ "line": { "source": "explicit", "flags": [], "text": text } });
+    let line = |text: &str| json!({ "line": { "source": "explicit", "text": text } });
     let value = |n: Value| json!({ "value": { "name": "pseudo.adds_fire_to_spells", "value": n } });
     let a = asked(&s, "pseudo.adds_fire_to_spells=2");
     assert_eq!(ids(&a), ["wand"]);

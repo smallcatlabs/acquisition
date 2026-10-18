@@ -45,12 +45,13 @@ fn pages(corpus: &Corpus, first: &Value) -> (Vec<Value>, usize) {
         match view.get("next") {
             Some(next) => {
                 assert!(view["left_out"].as_u64().unwrap() > 0, "{view}");
-                // the token and the request are one value
-                let token = next["token"].as_str().unwrap();
+                // the token a terminal carries is the request, encoded
+                let held: Request = serde_json::from_value(next["request"].clone()).unwrap();
                 assert_eq!(
-                    serde_json::to_value(Request::from_token(token).unwrap()).unwrap(),
+                    serde_json::to_value(Request::from_token(&held.token()).unwrap()).unwrap(),
                     next["request"]
                 );
+                assert!(next.get("token").is_none(), "{next}");
                 request = next["request"].clone();
             }
             None => {

@@ -280,7 +280,7 @@ fn invariant_2_a_selector_resolves_apart_from_its_comparisons() {
     let a = as_json(&ask(&corpus, "line(template:resistance arg1>=60)").unwrap());
     assert_eq!(
         a["rows"][0]["matched"][0]["shows"],
-        json!([{ "line": { "source": "explicit", "flags": [], "text": "+80% to Cold Resistance" } }])
+        json!([{ "line": { "source": "explicit", "text": "+80% to Cold Resistance" } }])
     );
 }
 

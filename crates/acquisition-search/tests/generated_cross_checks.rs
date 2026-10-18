@@ -505,7 +505,8 @@ fn evidence_is_the_items(store: &Store, answer: &Value) -> Result<(), String> {
             serde_json::to_value(common::show(store, id, false).map_err(|e| e.to_string())?)
                 .map_err(|e| e.to_string())?;
         let lines = shown["lines"].as_array().ok_or("show has no lines")?;
-        let flags = |line: &Value| line["flags"].clone();
+        // a line with no flags carries none in a row (C115), `[]` in `show`
+        let flags = |line: &Value| line["flags"].as_array().cloned().unwrap_or_default();
         for touched in row["matched"].as_array().ok_or("a row with no matched")? {
             // six lines or strings, and a sum's value beside them; of
             // reasons, six unread parts — every term's pair with each, so
@@ -534,8 +535,8 @@ fn evidence_is_the_items(store: &Store, answer: &Value) -> Result<(), String> {
                 });
                 if !found {
                     return Err(format!(
-                        "row {id} shows {line} under {} and `show` derives no such line: {lines:?}",
-                        touched["term"]
+                        "row {id} shows {line} under term {} and `show` derives no such line: {lines:?}",
+                        touched["path"]
                     ));
                 }
             }

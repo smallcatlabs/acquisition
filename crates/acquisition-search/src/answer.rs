@@ -1311,10 +1311,11 @@ pub struct Forced {
 
 /// A continuation (C100): the request that returns the rows after
 /// these, naming the basis, the query, the view and the order it
-/// continues, and refused across a change (C98).
+/// continues, and refused across a change (C98). The token a terminal
+/// carries is that request encoded ([`Request::token`]), made where a
+/// command is printed and never a second copy in the JSON (C115).
 #[derive(Debug, Clone, Serialize)]
 pub struct Next {
-    pub token: String,
     pub request: Request,
 }
 
@@ -1333,7 +1334,7 @@ pub struct RowsOut {
     /// Matching items past these rows.
     pub left_out: usize,
     /// How to go on, where rows are left out: the continuation as a
-    /// request, and as the token a terminal carries.
+    /// request.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub next: Option<Next>,
 }
@@ -1355,10 +1356,13 @@ pub struct Row {
     pub sort: Option<Sorted>,
 }
 
+/// What a row shows of one term it matched: the term by its path in the
+/// terms block, and what it touched. The term's text is the terms
+/// block's, said once there (C53, C115: a row of the trade seat's ring
+/// search carried each of its four terms whole, every row).
 #[derive(Debug, Clone, Serialize)]
 pub struct Touched {
     pub path: String,
-    pub term: String,
     pub shows: Vec<Evidence>,
     /// What the term touched past what is shown — lines or strings, or,
     /// of reasons, unread parts of the item: `show <id>` has the item whole
@@ -1767,7 +1771,6 @@ pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError>
                         let (shows, left_out) = eval::evidence(&query.terms, term, held, outcomes);
                         Touched {
                             path: term.path.clone(),
-                            term: print::print(&term.node),
                             shows,
                             left_out,
                         }
@@ -1845,10 +1848,7 @@ pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError>
                     context: request.context,
                     basis: Some(corpus.basis.clone()),
                 };
-                Next {
-                    token: request.token(),
-                    request,
-                }
+                Next { request }
             }),
             sort: sort.map(|(text, _)| text.clone()),
             desc,
@@ -2578,7 +2578,7 @@ impl Next {
     pub fn command(&self) -> String {
         // the realm is the token's to carry
         let mut out = opening("search", self.request.scope.account.as_deref(), None);
-        out.push_str(&format!(" --next {}", shell_quoted(&self.token)));
+        out.push_str(&format!(" --next {}", shell_quoted(&self.request.token())));
         out
     }
 }

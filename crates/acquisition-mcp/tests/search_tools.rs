@@ -488,14 +488,18 @@ fn a_next_is_sent_back_whole_and_refused_across_a_changed_basis() {
     let first = seat.answer(&json!({ "view": { "rows": { "limit": 2 } } }));
     assert_eq!(ids(&first), ["r1", "r2"]);
     let next = first["view"]["rows"]["next"].clone();
-    assert!(
-        next["token"].is_string() && next["request"].is_object(),
+    // the request and nothing beside it: a token is a terminal's (C115)
+    assert_eq!(
+        next.as_object().unwrap().keys().collect::<Vec<_>>(),
+        ["request"],
         "{next}"
     );
     let second = seat.answer(&next);
     assert_eq!(ids(&second), ["kaom", "plain"]);
     // a token alone is no request: the tool takes none
-    let (refused, is_error) = seat.call("search", &json!({ "token": next["token"] }));
+    let token: acquisition_search::answer::Request =
+        serde_json::from_value(next["request"].clone()).unwrap();
+    let (refused, is_error) = seat.call("search", &json!({ "token": token.token() }));
     assert!(is_error, "{refused}");
     assert_eq!(refused["kind"], "tree");
 
@@ -1330,4 +1334,46 @@ fn tabs_counts_first_and_lists_the_ten_with_the_most_items() {
     assert!(all.get("left_out_needs").is_none(), "{all}");
     let (printed, _) = cli(&seat.base, &["tabs", "--expand"]);
     assert_eq!(printed, all);
+}
+
+/// C115, a row as slim as the decision view allows (C53, C100): the
+/// trade seat's twenty rings were 30,696 bytes and over every runner's
+/// harness cut (mcp-opus-2 call 11, mcp-sonnet-2 call 8: "I lost the
+/// answer and paid a second call"), each row carrying every term it
+/// touched whole beside its path, each line an empty `flags`, and the
+/// `next` its request twice — once as a terminal's token. A row now says
+/// each term by its path, which the terms block names, and the lines it
+/// touched with their values; a line has `flags` where it has any; `next`
+/// is the request alone.
+#[test]
+fn a_row_says_its_lines_and_values_and_no_copy_of_its_terms() {
+    let mut seat = Seat::new();
+    let a = seat.answer(&json!({
+        "query": { "text": "\"+# to maximum Life\">=90" },
+        "view": { "rows": { "limit": 1 } },
+    }));
+    assert_eq!(ids(&a), ["r1"]);
+    let touched = a["rows"][0]["matched"].as_array().unwrap();
+    for t in touched {
+        let keys: Vec<&String> = t.as_object().unwrap().keys().collect();
+        assert!(
+            keys.iter()
+                .all(|k| ["path", "shows", "left_out"].contains(&k.as_str())),
+            "{t}"
+        );
+    }
+    let life = touched.iter().find(|t| t["path"] == "0").unwrap();
+    assert_eq!(
+        life["shows"],
+        json!([{ "line": { "source": "explicit", "text": "+95 to maximum Life" } }])
+    );
+    assert_eq!(
+        a["terms"][0]["term"],
+        "line(\"# to maximum Life\" arg1>=90)"
+    );
+    let next = &a["view"]["rows"]["next"];
+    assert!(
+        next.get("token").is_none() && next["request"].is_object(),
+        "{next}"
+    );
 }

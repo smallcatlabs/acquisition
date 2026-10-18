@@ -1356,7 +1356,9 @@ fn a_count_holds_its_request_only_where_the_routes_are_asked() {
     );
 
     // beside a continuation, `--routes` asks them of the answer it runs
-    let token = plain["view"]["rows"]["next"]["token"].as_str().unwrap();
+    let next: acquisition_search::answer::Request =
+        serde_json::from_value(plain["view"]["rows"]["next"]["request"].clone()).unwrap();
+    let token = &next.token();
     let next = sole_json(&acq(&base, &["--json", "search", "--next", token]));
     assert!(
         next["terms"][0]["failed"].get("request").is_none(),

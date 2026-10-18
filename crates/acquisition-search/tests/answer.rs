@@ -136,9 +136,10 @@ fn c100_the_worked_example_whole_counts_as_printed_there() {
         .iter()
         .flat_map(|m| m["shows"].as_array().unwrap())
         .collect();
-    assert!(shows.contains(
-        &&json!({ "line": { "source": "explicit", "flags": [], "text": "+95 to maximum Life" } })
-    ));
+    assert!(
+        shows
+            .contains(&&json!({ "line": { "source": "explicit", "text": "+95 to maximum Life" } }))
+    );
     assert!(shows.contains(&&json!({ "value": { "name": "pseudo.total_res", "value": 65 } })));
     assert!(a.get("zero").is_none());
 

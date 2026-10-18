@@ -185,6 +185,8 @@ pub(crate) const UNREAD_HINT: &str =
 pub enum Evidence {
     Line {
         source: String,
+        /// The line's flags, absent where it carries none.
+        #[serde(skip_serializing_if = "Vec::is_empty")]
         flags: Vec<String>,
         text: String,
     },
