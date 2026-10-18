@@ -1204,3 +1204,50 @@ fn store_status_says_what_its_league_and_tab_counts_count() {
         "{shown}"
     );
 }
+
+/// A unique tab's page with no name printed as its bare id after its tab,
+/// and the second round's runners could not tell the id was the tab's
+/// page (the trade seat: cli-opus-2 calls 29, 30, its fault 4; mcp-opus-2
+/// call 29, its fault 4). The text says `page`.
+#[test]
+fn a_tabs_page_with_no_name_is_said_to_be_its_page() {
+    let scratch = harness::scratch("seat-page");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    let mock = base.join("store").join("mock");
+    let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
+    let at = acquisition_store::now();
+    let sub = |sub: Option<&str>| Endpoint::Stash {
+        realm: "pc".into(),
+        league: "Standard".into(),
+        id: "a1".into(),
+        sub: sub.map(str::to_string),
+    };
+    store
+        .record(
+            &sub(None),
+            &json!({}),
+            200,
+            &json!({ "stash": { "id": "a1", "name": "Gear", "type": "UniqueStash", "items": [],
+                                "children": [{ "id": "p1", "name": "", "type": "UniqueStash" }] } }),
+            at,
+        )
+        .unwrap();
+    store
+        .record(
+            &sub(Some("p1")),
+            &json!({}),
+            200,
+            &json!({ "stash": { "id": "p1", "name": "", "type": "UniqueStash", "items": [
+                { "id": "kaom", "name": "Kaom's Heart", "typeLine": "Glorious Plate", "baseType": "Glorious Plate",
+                  "rarity": "Unique", "frameTypeId": 3, "identified": true, "x": 1, "y": 2 } ] } }),
+            at,
+        )
+        .unwrap();
+    drop(store);
+    let shown = stdout(&acq(&base, &["search", "--realm", "pc", "rarity=unique"]));
+    assert!(
+        shown.contains("Standard / Gear / page p1 · x 1, y 2"),
+        "{shown}"
+    );
+}

@@ -720,10 +720,13 @@ fn place_text(place: &acquisition_search::corpus::Place) -> String {
             parent.name.as_deref().unwrap_or(&parent.id)
         ));
     }
-    out.push_str(&format!(
-        " / {}",
-        place.name.as_deref().unwrap_or(&place.id)
-    ));
+    // a tab's page with no name of its own is the tab's page, by its id
+    // (the trade seat: cli-opus-2 calls 29, 30, mcp-opus-2 call 29)
+    out.push_str(&match (&place.name, &place.parent) {
+        (Some(name), _) => format!(" / {name}"),
+        (None, Some(_)) => format!(" / page {}", place.id),
+        (None, None) => format!(" / {}", place.id),
+    });
     if place.kind == "character" {
         out.push_str(&format!(
             " ({})",
