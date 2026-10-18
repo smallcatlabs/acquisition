@@ -1004,3 +1004,47 @@ fn a_trade_answer_says_its_items_are_the_stores_whatever_its_fidelity() {
         "{shown}"
     );
 }
+
+/// The never-fetched were named under a zero total alone, so an answer
+/// of N said nothing of what it could not see (the trade seat: cli-sonnet
+/// call 6, its fault 4). Every total over a scope with a never-fetched
+/// location says so.
+#[test]
+fn every_total_says_what_was_never_fetched_not_a_zeros_alone() {
+    let scratch = harness::scratch("seat-never");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    // a third tab, listed and never fetched
+    let mock = base.join("store").join("mock");
+    let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
+    store
+        .record(
+            &Endpoint::Stashes {
+                realm: "pc".into(),
+                league: "Standard".into(),
+            },
+            &json!({ "league": "Standard" }),
+            200,
+            &json!({ "stashes": [ { "id": "a1", "name": "Gear", "type": "PremiumStash", "index": 0 },
+                                  { "id": "a2", "name": "Never", "type": "PremiumStash", "index": 1 } ] }),
+            acquisition_store::now(),
+        )
+        .unwrap();
+    drop(store);
+    for (query, total) in [
+        ("league=Standard", "total   1 match"),
+        ("league=Nowhere", "total   0 matches"),
+    ] {
+        let shown = stdout(&acq(&base, &["search", "--realm", "pc", query]));
+        let lines: Vec<&str> = shown.lines().collect();
+        let at = lines
+            .iter()
+            .position(|l| *l == total)
+            .unwrap_or_else(|| panic!("{shown}"));
+        assert_eq!(
+            lines[at + 1],
+            "            1 location was never fetched: nothing here says what they hold",
+            "{shown}"
+        );
+    }
+}

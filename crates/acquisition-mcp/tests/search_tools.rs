@@ -1044,3 +1044,19 @@ fn a_trade_fidelity_is_never_said_to_be_the_sites_items() {
         assert!(query.contains(said), "{said}: {query}");
     }
 }
+
+/// `scope.never_fetched` was printed beside every answer and explained
+/// nowhere: a reader could not say what it counts or that an answer is
+/// blind to it (the trade seat: mcp-opus call 3, its fault 4; mcp-sonnet
+/// call 4, its faults 3 and 5 and its debrief's answer 5).
+#[test]
+fn the_never_fetched_count_says_what_it_counts_and_what_no_answer_sees() {
+    let mut seat = Seat::new();
+    let tools = seat.mcp.list_tools();
+    let search = tools.iter().find(|t| t["name"] == "search").unwrap();
+    let text = search["description"].as_str().unwrap();
+    assert!(
+        text.contains("`never_fetched` counts the tabs, their pages and the characters a listing names and no fetch has filled, and no answer says what they hold"),
+        "{text}"
+    );
+}

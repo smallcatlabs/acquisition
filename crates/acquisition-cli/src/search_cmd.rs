@@ -1019,6 +1019,19 @@ fn answer_text(a: &Answer, all_routes: bool) -> String {
         total.push_str(&format!(" · {} undecided", a.total.undecided.count));
     }
     line(total);
+    // under every total, not a zero's alone: a count of N is as blind to
+    // the never-fetched as a count of none (the trade seat: cli-sonnet
+    // call 6, its fault 4; mcp-sonnet's debrief, answer 5)
+    if a.scope.coverage.never_fetched > 0 {
+        line(format!(
+            "            {} never fetched: nothing here says what they hold",
+            plural(
+                a.scope.coverage.never_fetched,
+                "location was",
+                "locations were"
+            )
+        ));
+    }
 
     for (i, row) in a.rows.iter().enumerate() {
         let mut head = title(row.name.as_deref(), row.typeline.as_deref());
@@ -1199,16 +1212,6 @@ fn answer_text(a: &Answer, all_routes: bool) -> String {
                     plural(s.items, "item", "items")
                 ));
             }
-        }
-        if scope.coverage.never_fetched > 0 {
-            line(format!(
-                "            {} never fetched: nothing here says what they hold",
-                plural(
-                    scope.coverage.never_fetched,
-                    "location was",
-                    "locations were"
-                )
-            ));
         }
         // what the zero answer offers, each a command and never its
         // output: explain of each part, then the corpus
