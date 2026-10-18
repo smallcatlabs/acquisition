@@ -911,7 +911,8 @@ impl<'a> Parser<'a> {
     /// comparison names one of its numbers — after the group,
     /// `line("T").low>=15`, or inside it, `line("T" low>=15)`. One pair of
     /// readings for each slot word the group's one quoted template takes
-    /// — `low`, `high`, `avg` on a ranged line, `arg<N>` otherwise — and
+    /// — `low`, `high`, `avg` on a ranged line, `avg` and `arg<N>` on one of
+    /// two numbers, `arg<N>` otherwise — and
     /// for `arg1` where it names no template; each a query that binds.
     fn comparison_after_group(&mut self, where_: Member, start: usize) -> LanguageError {
         let at = self.pos;
@@ -952,6 +953,9 @@ impl<'a> Parser<'a> {
                             .map(|n| format!("arg{n}")),
                     );
                 } else {
+                    if slots.mean.is_some() {
+                        words.push("avg".to_string());
+                    }
                     words.extend((1..=slots.count).map(|n| format!("arg{n}")));
                 }
                 words
@@ -1431,7 +1435,7 @@ fn slot_of(quoted: Option<&str>) -> Result<String, LanguageError> {
         Some(template) => slotless(template).map(str::to_string),
         None => Err(LanguageError::new(
             ErrorKind::SlotMissing,
-            "name the number: line( … ).arg1, or .low .high .avg on a ranged line",
+            "name the number: line( … ).arg1, or .low .high .avg on a ranged line, .avg on one of two numbers",
         )),
     }
 }

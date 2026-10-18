@@ -1098,7 +1098,7 @@ fn member(m: &Member) -> Result<BMember, LanguageError> {
                 return Err(LanguageError::new(
                     ErrorKind::UnknownName,
                     format!(
-                        "`{other}` is nothing a line has: template, source, is:<flag>, and its numbers — low, high, avg on a ranged line, arg1, arg2 … by position"
+                        "`{other}` is nothing a line has: template, source, is:<flag>, and its numbers — low, high, avg on a ranged line, avg on one of two numbers, arg1, arg2 … by position"
                     ),
                 ));
             }

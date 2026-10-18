@@ -76,7 +76,8 @@
 //!   numbers are read, and only what asks that slot is left open
 //!   ([`Slot`], [`Part::Numbers`]).
 //! - **Slots** ([`Line::slot`]): `arg<N>` by position, and `low`, `high`,
-//!   `avg` on a template with exactly one `# to #` (C92). A line whose
+//!   `avg` on a template with exactly one `# to #` (C92), and `avg` on one
+//!   of exactly two numbers, their mean (round x). A line whose
 //!   numbers are not its template's `#`s — a veiled line, a displayed
 //!   literal `#` — names no slot.
 //! - **Properties** are displayed strings with their name and values kept
@@ -1111,16 +1112,16 @@ impl<'a> Numbers<'a> {
             Some(None) => Slot::Unread,
             Some(Some(n)) => Slot::Is(*n),
         };
-        match (word, slots.ranged) {
-            ("low", Some((low, _))) => at(low),
-            ("high", Some((_, high))) => at(high),
-            ("avg", Some((low, high))) => match (at(low), at(high)) {
+        match (word, slots.ranged, slots.mean) {
+            ("low", Some((low, _)), _) => at(low),
+            ("high", Some((_, high)), _) => at(high),
+            ("avg", _, Some((low, high))) => match (at(low), at(high)) {
                 (Slot::Is(low), Slot::Is(high)) => Slot::Is(crate::exact::mean(low, high)),
                 (Slot::Absent, _) | (_, Slot::Absent) => Slot::Absent,
                 _ => Slot::Unread,
             },
-            ("low" | "high" | "avg", None) => Slot::Absent,
-            (other, _) => crate::tree::arg_index(other).map_or(Slot::Absent, at),
+            ("low" | "high", None, _) | ("avg", _, None) => Slot::Absent,
+            (other, _, _) => crate::tree::arg_index(other).map_or(Slot::Absent, at),
         }
     }
 
@@ -1137,17 +1138,18 @@ impl<'a> Numbers<'a> {
             let at = n.checked_sub(1).filter(|i| *i < self.numbers.len())?;
             Some(first + at)
         };
-        match (word, slots.ranged) {
-            ("low", Some((low, _))) => Some(Place(at(low)?, None)),
-            ("high", Some((_, high))) => Some(Place(at(high)?, None)),
-            ("avg", Some((low, high))) => Some(Place(at(low)?, Some(at(high)?))),
-            ("low" | "high" | "avg", None) => None,
-            (other, _) => Some(Place(at(crate::tree::arg_index(other)?)?, None)),
+        match (word, slots.ranged, slots.mean) {
+            ("low", Some((low, _)), _) => Some(Place(at(low)?, None)),
+            ("high", Some((_, high)), _) => Some(Place(at(high)?, None)),
+            ("avg", _, Some((low, high))) => Some(Place(at(low)?, Some(at(high)?))),
+            ("low" | "high", None, _) | ("avg", _, None) => None,
+            (other, _, _) => Some(Place(at(crate::tree::arg_index(other)?)?, None)),
         }
     }
 
     /// Every slot named, with its number — `None` where it could not be
-    /// read: `low`, `high` and `avg` first on a ranged line, then `arg1`,
+    /// read: `low`, `high` and `avg` first on a ranged line, `avg` on one
+    /// of two numbers, then `arg1`,
     /// `arg2`, …
     pub fn slots(&self) -> Vec<(String, Option<f64>)> {
         template::slot_words(self.template)

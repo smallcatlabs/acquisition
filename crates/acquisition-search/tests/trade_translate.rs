@@ -345,6 +345,33 @@ fn a_written_digit_is_a_number_of_the_line() {
     );
 }
 
+/// Round x (2026-10-18; the owner: "accepted"): the site compares a text
+/// of exactly two `#`, no `# to #` among them, by the mean of the two, as
+/// it compares a ranged line. On the Burning Ground line, 2500 Fire Damage
+/// for 4 seconds or for 1, every bracket a displayed number meets found
+/// nothing (t28 at 3 to 5; x04 at 4, x05 at 1, x06 at 2 to 3, x07 at 2400
+/// to 2600), x14 at 1250 to 1253 found every item carrying the line, x15
+/// at 1254 to 2400 none, and x13, x16 and x17 agree. The language's `avg`
+/// is that mean on any template of two numbers, and on one of three it is
+/// still the error that lists the slots.
+#[test]
+fn a_two_numbered_stat_is_compared_by_its_average() {
+    sat("a text of two numbers is compared by their mean");
+    sat("a text of two numbers is never compared by either");
+    sat("two numbers: their mean compared");
+    let s = store();
+    let corpus = load(&s, Some("pc"));
+    assert!(
+        ask(
+            &corpus,
+            r##"line("# Fire Damage per second for # seconds").avg>=1250"##
+        )
+        .is_ok()
+    );
+    let e = ask(&corpus, r##"line("# of # for # seconds").avg>=1"##).unwrap_err();
+    assert!(e.to_string().contains("takes: arg1, arg2, arg3"), "{e}");
+}
+
 /// One fixture: its text, scope, statuses and fidelity, the guard, and
 /// its items asked the text.
 fn worked_by_hand(case: &Case) {
@@ -554,12 +581,14 @@ struct Stat {
 /// C113, K6: every one of the stat table's category and id pairs
 /// translates, alone and with a bound — each a filter of one `and`
 /// group — and holds what every translation holds; the statuses are the
-/// catalogue header's count — alone 12,692 exact, 1,147 ambiguous, 229
-/// unsupported, the two-text ids every one; with a bound 8,554, 5,285 and
+/// catalogue header's count — alone 12,719 exact, 1,120 ambiguous, 229
+/// unsupported, the two-text ids every one; with a bound 8,571, 5,268 and
 /// 229, 4,461 of them a stat a form of which no sum holds (step 7e) — 49
 /// pairs carry a refused form either way, 300 a wording the game data
-/// gives, and 1,613 a number written as a digit, exact since round x
-/// (11,232 and 2,607 alone before it, 7,357 and 6,482 with a bound). Every pair and the counts where
+/// gives, 1,613 a number written as a digit, exact since round x, and 14
+/// a text of three numbers or more with no one `# to #`, 44 before round x
+/// read a text of two by their mean (11,232 and 2,607 alone before it,
+/// 7,357 and 6,482 with a bound). Every pair and the counts where
 /// `ACQ_CASES=full` (CI); here a sixteenth of them, a fresh one each run,
 /// since a debug build binds the whole table's text in half a minute.
 #[test]
@@ -579,8 +608,8 @@ fn c113_every_stat_id_of_the_table_translates() {
         % stride;
     let share: Vec<&String> = ids.iter().skip(offset).step_by(stride).collect();
     for (value, statuses, forms) in [
-        (json!({}), [12_692, 1_147, 229], 0),
-        (json!({ "min": 1 }), [8_554, 5_285, 229], 4_461),
+        (json!({}), [12_719, 1_120, 229], 0),
+        (json!({ "min": 1 }), [8_571, 5_268, 229], 4_461),
     ] {
         let filters: Vec<Value> = share
             .iter()
@@ -617,6 +646,7 @@ fn c113_every_stat_id_of_the_table_translates() {
         );
         assert_eq!(read("stat.text.two"), 229);
         assert_eq!(read("stat.text.numbers"), 1_613);
+        assert_eq!(read("stat.text.many"), 14);
         assert_eq!(read("stat.text.forms"), forms, "{value}");
         assert_eq!(read("stat.text.refused"), 49);
         assert_eq!(read("stat.text.wording"), 300);

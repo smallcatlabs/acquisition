@@ -460,7 +460,7 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
         named(
             "low high avg",
             "slot",
-            "on a ranged line — a template with exactly one `# to #`: that pair, and their mean",
+            "on a ranged line — a template with exactly one `# to #`: that pair, and their mean; avg also on a template of exactly two numbers, their mean",
         ),
     ];
     let keys: Vec<&'static str> = bind::fields()

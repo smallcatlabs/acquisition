@@ -10,6 +10,8 @@
 //!                       second # of the template), a ranged pair's two numbers included
 //!   low  high  avg      on a ranged line: a template with exactly one `# to #`. low and high are
 //!                       that pair, avg their mean.
+//!   avg                 also on a template of exactly two numbers: their mean, as the trade site
+//!                       compares such a line (round x, 2026-10-18; the owner: "accepted").
 //!                         "Adds # to # Cold Damage"                  low=arg1  high=arg2
 //!                         "# to # Added Physical Damage per # Armour or Evasion Rating on Shield"
 //!                                                                    low=arg1  high=arg2  arg3 the per-N
@@ -75,12 +77,16 @@ pub(crate) fn selected(where_: &Member) -> Option<&str> {
     }
 }
 
-/// How many numbers the template has, and which two are its ranged pair:
-/// a template with exactly one `# to #` is ranged (owner, 2026-09-19).
+/// How many numbers the template has, which two are its ranged pair — a
+/// template with exactly one `# to #` is ranged (owner, 2026-09-19) — and
+/// which two `avg` is the mean of: the ranged pair, or the template's two
+/// numbers where it has exactly two (round x).
 pub(crate) struct Slots {
     pub count: usize,
     /// 1-based positions of `low` and `high`.
     pub ranged: Option<(usize, usize)>,
+    /// 1-based positions of the two numbers `avg` is the mean of.
+    pub mean: Option<(usize, usize)>,
 }
 
 pub(crate) fn slots(template: &str) -> Slots {
@@ -97,7 +103,12 @@ pub(crate) fn slots(template: &str) -> Slots {
         [low] => Some((*low, *low + 1)),
         _ => None,
     };
-    Slots { count, ranged }
+    let mean = ranged.or((count == 2).then_some((1, 2)));
+    Slots {
+        count,
+        ranged,
+        mean,
+    }
 }
 
 /// The slot words this template takes, as an error lists them.
@@ -105,7 +116,10 @@ pub(crate) fn slot_words(template: &str) -> Vec<String> {
     let s = slots(template);
     let mut words: Vec<String> = Vec::new();
     if s.ranged.is_some() {
-        words.extend(["low", "high", "avg"].map(String::from));
+        words.extend(["low", "high"].map(String::from));
+    }
+    if s.mean.is_some() {
+        words.push("avg".to_string());
     }
     words.extend((1..=s.count).map(|n| format!("arg{n}")));
     words
@@ -135,7 +149,8 @@ pub(crate) fn default_slot(template: &str) -> Result<&'static str, LanguageError
 pub(crate) fn check_slot(template: &str, slot: &str) -> Result<(), LanguageError> {
     let s = slots(template);
     let known = match slot {
-        "low" | "high" | "avg" => s.ranged.is_some(),
+        "low" | "high" => s.ranged.is_some(),
+        "avg" => s.mean.is_some(),
         other => arg_index(other).is_some_and(|n| n <= s.count),
     };
     if known {
@@ -144,9 +159,14 @@ pub(crate) fn check_slot(template: &str, slot: &str) -> Result<(), LanguageError
     let words = slot_words(template);
     let message = if words.is_empty() {
         format!("\"{template}\" has no number, so `{slot}` names nothing")
-    } else if matches!(slot, "low" | "high" | "avg") {
+    } else if matches!(slot, "low" | "high") {
         format!(
             "`{slot}` is for a ranged line, a template with exactly one `# to #`; \"{template}\" takes: {}",
+            words.join(", ")
+        )
+    } else if slot == "avg" {
+        format!(
+            "`avg` is for a ranged line, a template with exactly one `# to #`, or a template of exactly two numbers; \"{template}\" takes: {}",
             words.join(", ")
         )
     } else {

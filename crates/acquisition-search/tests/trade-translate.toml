@@ -794,13 +794,22 @@ matches = ['{"implicitMods": ["+12% chance to Suppress Spell Damage"]}']
 fails = ['{"explicitMods": ["+12% chance to Suppress Spell Damage"]}']
 
 [[case]]
-name = "several numbers: the first compared"
-query = '{"stats": [{"type": "and", "filters": [{"id": "explicit.stat_3102860761", "value": {"min": 10}}]}]}'
-text = 'sum(line("#% increased Movement Speed for # seconds on Throwing a Trap" source=explicit).arg1)>=10'
+name = "several numbers, three with a written digit: the first compared"
+query = '{"stats": [{"type": "and", "filters": [{"id": "explicit.stat_723388324", "value": {"min": 10}}]}]}'
+text = 'sum(line("#% chance to Trigger Socketed Spells when you Spend at least # Mana on an\nUpfront Cost to Use or Trigger a Skill, with a # second Cooldown" source=explicit).arg1)>=10'
 fidelity = "ambiguous"
 statuses = { "stats.0" = "exact", "stats.0.0" = "ambiguous" }
-matches = ['{"explicitMods": ["15% increased Movement Speed for 4 seconds on Throwing a Trap"]}']
-fails = ['{"explicitMods": ["5% increased Movement Speed for 14 seconds on Throwing a Trap"]}']
+matches = ['{"explicitMods": ["15% chance to Trigger Socketed Spells when you Spend at least 100 Mana on an\nUpfront Cost to Use or Trigger a Skill, with a 0.1 second Cooldown"]}']
+fails = ['{"explicitMods": ["5% chance to Trigger Socketed Spells when you Spend at least 100 Mana on an\nUpfront Cost to Use or Trigger a Skill, with a 0.1 second Cooldown"]}']
+
+[[case]]
+name = "two numbers: their mean compared, as the site compares one (round x)"
+query = '{"stats": [{"type": "and", "filters": [{"id": "explicit.stat_3102860761", "value": {"min": 10}}]}]}'
+text = 'sum(line("#% increased Movement Speed for # seconds on Throwing a Trap" source=explicit).avg)>=10'
+fidelity = "exact"
+statuses = { "stats.0" = "exact", "stats.0.0" = "exact" }
+matches = ['{"explicitMods": ["15% increased Movement Speed for 6 seconds on Throwing a Trap"]}']
+fails = ['{"explicitMods": ["15% increased Movement Speed for 4 seconds on Throwing a Trap"]}', '{"explicitMods": ["5% increased Movement Speed for 14 seconds on Throwing a Trap"]}']
 
 [[case]]
 name = "a text of two rows"
@@ -1146,16 +1155,16 @@ fails = [
 ]
 
 [[case]]
-name = "a plural is the same number, summed with the text (t27, t29)"
+name = "a plural is the same number, summed with the text (t27, t29), the two numbers compared by their mean (x14)"
 query = '{"stats": [{"type": "and", "filters": [{"id": "explicit.stat_3595254837", "value": {"min": 1000}}]}]}'
-text = 'sum(line(("Drops Burning Ground while moving, dealing # Fire Damage per second for # second" or "Drops Burning Ground while moving, dealing # Fire Damage per second for # seconds") source=explicit).arg1)>=1000'
-fidelity = "ambiguous"
-statuses = { "stats.0" = "exact", "stats.0.0" = "ambiguous" }
+text = 'sum(line(("Drops Burning Ground while moving, dealing # Fire Damage per second for # second" or "Drops Burning Ground while moving, dealing # Fire Damage per second for # seconds") source=explicit).avg)>=1000'
+fidelity = "exact"
+statuses = { "stats.0" = "exact", "stats.0.0" = "exact" }
 matches = [
   '{"explicitMods": ["Drops Burning Ground while moving, dealing 2500 Fire Damage per second for 4 seconds"]}',
-  '{"explicitMods": ["Drops Burning Ground while moving, dealing 1500 Fire Damage per second for 1 second"]}',
+  '{"explicitMods": ["Drops Burning Ground while moving, dealing 2500 Fire Damage per second for 1 second"]}',
 ]
-fails = ['{"explicitMods": ["Drops Burning Ground while moving, dealing 500 Fire Damage per second for 4 seconds"]}']
+fails = ['{"explicitMods": ["Drops Burning Ground while moving, dealing 500 Fire Damage per second for 4 seconds"]}', '{"explicitMods": ["Drops Burning Ground while moving, dealing 1500 Fire Damage per second for 1 second"]}']
 
 [[case]]
 name = "a form that is a listed text is refused by name: the form left out, the text and the listed text ambiguous"
@@ -1308,3 +1317,22 @@ statuses = { "url.league" = "exact", "status" = "listing_only", "map_filters.map
 matches = ['{"typeLine": "Blighted Map (Tier 14)", "baseType": "Blighted Map (Tier 14)", "rarity": "Normal"}']
 fails = ['{"typeLine": "Blight-ravaged Map (Tier 15)", "baseType": "Blight-ravaged Map (Tier 15)", "rarity": "Normal"}', '{"typeLine": "Blighted Map (Tier 13)", "baseType": "Blighted Map (Tier 13)", "rarity": "Normal"}', '{"typeLine": "Blight-ravaged Map (Tier 13)", "baseType": "Blight-ravaged Map (Tier 13)", "rarity": "Normal"}']
 others = { "map_filters.map_blighted" = { reading = '(category=map typeline~"^Blighted ") or (category=map typeline~"^Blight-ravaged ")', adds = ["f0"] } }
+
+# ---- round x: a text of two numbers (2026-10-18) -----------------------------------------------
+
+[[case]]
+name = "a text of two numbers is compared by their mean: x14 at 1250 to 1253 found the Burning Ground line at 2500 for 4 seconds and for 1"
+query = '{"stats": [{"type": "and", "filters": [{"id": "explicit.stat_3595254837", "value": {"min": 1250, "max": 1253}}]}]}'
+text = 'line(("Drops Burning Ground while moving, dealing # Fire Damage per second for # second" or "Drops Burning Ground while moving, dealing # Fire Damage per second for # seconds") source=explicit) sum(line(("Drops Burning Ground while moving, dealing # Fire Damage per second for # second" or "Drops Burning Ground while moving, dealing # Fire Damage per second for # seconds") source=explicit).avg)=1250..1253'
+fidelity = "exact"
+statuses = { "stats.0" = "exact", "stats.0.0" = "exact" }
+matches = ['{"explicitMods": ["Drops Burning Ground while moving, dealing 2500 Fire Damage per second for 4 seconds"]}', '{"explicitMods": ["Drops Burning Ground while moving, dealing 2500 Fire Damage per second for 1 second"]}']
+fails = ['{"explicitMods": ["Drops Burning Ground while moving, dealing 2500 Fire Damage per second for 20 seconds"]}', '{"implicitMods": ["Drops Burning Ground while moving, dealing 2500 Fire Damage per second for 4 seconds"]}']
+
+[[case]]
+name = "a text of two numbers is never compared by either: x04 at 4 and x07 at 2400 to 2600 found none"
+query = '{"stats": [{"type": "and", "filters": [{"id": "explicit.stat_3595254837", "value": {"min": 2400, "max": 2600}}]}]}'
+text = 'line(("Drops Burning Ground while moving, dealing # Fire Damage per second for # second" or "Drops Burning Ground while moving, dealing # Fire Damage per second for # seconds") source=explicit) sum(line(("Drops Burning Ground while moving, dealing # Fire Damage per second for # second" or "Drops Burning Ground while moving, dealing # Fire Damage per second for # seconds") source=explicit).avg)=2400..2600'
+fidelity = "exact"
+statuses = { "stats.0" = "exact", "stats.0.0" = "exact" }
+fails = ['{"explicitMods": ["Drops Burning Ground while moving, dealing 2500 Fire Damage per second for 4 seconds"]}', '{"explicitMods": ["Drops Burning Ground while moving, dealing 2500 Fire Damage per second for 1 second"]}']

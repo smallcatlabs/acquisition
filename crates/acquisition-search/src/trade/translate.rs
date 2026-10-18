@@ -103,8 +103,8 @@
 //! - **A bound is a sum** (`stat.text.bounds`): over the line of the text
 //!   and its plural forms alone, `sum(L.slot)` compared as the site's
 //!   `min` and `max` say, made by `tree::sum_of_lines` as a weighted sum's
-//!   is, the slot the text's own `#` — `avg` on a ranged pair of them, the
-//!   first of several — and none where the text has no `#`, which is
+//!   is, the slot the text's own `#` — `avg` on a ranged pair of them or
+//!   on a text of exactly two (round x), the first of several — and none where the text has no `#`, which is
 //!   presence alone and drops the bound. Beside a maximum the line `L`
 //!   itself, conjoined, since a sum of nothing is zero and meets it where
 //!   the site's stat of nothing meets none — by the bound's side, so an
@@ -1456,11 +1456,14 @@ impl Translator<'_> {
         if own.writes_a_digit() {
             rule(&mut rows, &mut notes, &mut status, "stat.text.numbers")?;
         }
+        // the mean of a ranged pair of the site's `#` (S47), or of its two
+        // `#`, a template of two numbers: the site compares that line by
+        // their average (x14 at 1250 to 1253, x15 none at 1254 to 2400)
         let shape = template::slots(&own.template);
-        let ranged = shape
-            .ranged
+        let mean = shape
+            .mean
             .filter(|(low, high)| own.open.contains(low) && own.open.contains(high));
-        read.slot = match (own.open.as_slice(), ranged) {
+        read.slot = match (own.open.as_slice(), mean) {
             ([], _) => None,
             (_, Some(_)) => Some("avg".to_string()),
             ([one], None) => Some(format!("arg{one}")),

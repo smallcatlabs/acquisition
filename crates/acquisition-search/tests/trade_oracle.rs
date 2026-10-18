@@ -329,7 +329,7 @@ fn c113_every_item_the_site_returned_is_matched_or_a_named_row() {
         }
         translations.insert(search.name, t);
     }
-    assert_eq!((none.len(), ran, items, matched), (369, 774, 7275, 6657));
+    assert_eq!((none.len(), ran, items, matched), (369, 774, 7275, 6677));
     assert!(none.contains(&"q2b".to_string()));
     partial.sort();
     assert_eq!(

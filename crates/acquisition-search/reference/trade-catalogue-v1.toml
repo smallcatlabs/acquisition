@@ -110,10 +110,12 @@
 # Every one of the capture's 93 filters, 14 categories and 8 group types
 # has a row (tests/trade_catalogue.rs). 58 fields named. Every one of the
 # stat table's 14,068 category and id pairs translates, alone and with a
-# bound (tests/trade_translate.rs): alone 12,692 exact, 1,147 ambiguous,
-# 229 unsupported — the two-text ids, every one; with a bound 8,554, 5,285
+# bound (tests/trade_translate.rs): alone 12,719 exact, 1,120 ambiguous,
+# 229 unsupported — the two-text ids, every one; with a bound 8,571, 5,268
 # and 229, 4,461 of them by `stat.text.forms`; 300 by `stat.text.wording`;
-# 674 by `stat.text.collision`, its texts read as templates since round x.
+# 674 by `stat.text.collision`, its texts read as templates since round x;
+# 14 by `stat.text.many`, a text of two `#` compared by their mean since
+# round x.
 
 version = 1
 filters = "2026-09-12"
@@ -1254,7 +1256,7 @@ says = "A crucible node is not read; not run."
 [[row]]
 key = "stat.text.bounds"
 disposition = "exact"
-note = "a bound compares the stat's sum over the lines its id admits, `sum(line(T …).arg1)`, as the site sums them (t17–t20); the text's `#` — `arg1` where it is the first number, `avg` on a ranged template, one `# to #` (S47); where the bound admits zero — a maximum, or a minimum at or below it — the line's presence beside it, since a sum of nothing is zero (C95) and the site's stat of nothing meets no bound; a text with no `#` is presence alone, and a bound on it is dropped; `+#` is spelling and lowers"
+note = "a bound compares the stat's sum over the lines its id admits, `sum(line(T …).arg1)`, as the site sums them (t17–t20); the text's `#` — `arg1` where it is the first number, `avg` on a ranged template, one `# to #` (S47), and on a text of exactly two `#`, their mean, as the site compares one (round x: on the Burning Ground line, 2500 for 4 seconds or 1, x14 at 1250 to 1253 found every item carrying it, x15 at 1254 to 2400 and every bracket a displayed number meets none, t28, x04–x07; the owner, 2026-10-18: \"accepted\"); where the bound admits zero — a maximum, or a minimum at or below it — the line's presence beside it, since a sum of nothing is zero (C95) and the site's stat of nothing meets no bound; a text with no `#` is presence alone, and a bound on it is dropped; `+#` is spelling and lowers"
 says = "A bound compares the sum of the stat's lines, as the site sums them."
 
 [[row]]
@@ -1266,8 +1268,8 @@ says = "A number written into the stat's wording is a number of the line: the li
 [[row]]
 key = "stat.text.many"
 disposition = "ambiguous"
-note = "a text with several `#` and no single `# to #` among them: the first is compared, and which number the site compares is for a sitting"
-says = "A stat with several numbers: the first is compared, and the site may compare another."
+note = "a text with three `#` or more and no single `# to #` among them, or two beside a number its text writes as a digit (a template of three numbers): the first is compared, and which number the site compares no sitting has asked; a text of exactly two is compared by their mean, `stat.text.bounds` (round x)"
+says = "A stat with three numbers or more: the first is compared, and the site may compare another."
 
 [[row]]
 key = "stat.text.local"
