@@ -16,7 +16,11 @@ Run the quality gate in `AGENTS.md`, "Quality gate".
 
 Run each command bare and read its exit status. A check piped through
 `grep` or `tail` reports the filter's exit, not the check's: on
-2026-09-03 an over-length registry entry was committed that way.
+2026-09-03 an over-length registry entry was committed that way. Gate
+the commit on each stage's own status variable, never on a `grep` of
+the summary: on 2026-10-18 `if ! grep -qv "rc=0" summary` read "all
+green" over a line `test rc=101` (BSD grep's `-q` with `-v`), and the
+data commit went in red.
 
 ### Why build order matters
 
