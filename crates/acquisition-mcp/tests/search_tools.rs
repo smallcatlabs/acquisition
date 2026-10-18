@@ -1228,3 +1228,32 @@ fn a_count_holds_its_request_only_where_routes_are_asked() {
     let e = seat.refusal(&json!({ "view": { "routes": "yes" } }));
     assert_eq!(e["kind"], "tree", "{e}");
 }
+
+/// C115: a cut table said `left_out_needs: "--limit"`, a terminal's flag
+/// in the MCP's answer (the trade seat: mcp-opus-2 call 33, mcp-sonnet-2
+/// call 17, which guessed `view.counts.limit` from the schema). It names
+/// the request's field, and the field, sent, lists the rest.
+#[test]
+fn a_cut_table_names_the_request_field_that_lists_the_rest() {
+    let mut seat = Seat::new();
+    let cut = seat.answer(&json!({ "view": { "counts": { "keys": ["base"], "limit": 1 } } }));
+    let table = &cut["view"]["counts"]["tables"][0];
+    assert_eq!(
+        (&table["values"], &table["left_out"]),
+        (&json!(3), &json!(2))
+    );
+    assert_eq!(table["left_out_needs"], "view.counts.limit");
+    let whole = seat.answer(&json!({ "view": { "counts": { "keys": ["base"], "limit": 3 } } }));
+    let table = &whole["view"]["counts"]["tables"][0];
+    assert_eq!(table["left_out"], 0);
+    assert!(table.get("left_out_needs").is_none(), "{table}");
+
+    let cut =
+        seat.answer(&json!({ "view": { "cross": { "keys": ["tab", "rarity"], "limit": 1 } } }));
+    let cross = &cut["view"]["cross"];
+    assert_eq!(
+        (&cross["cells_in_all"], &cross["left_out"]),
+        (&json!(3), &json!(2))
+    );
+    assert_eq!(cross["left_out_needs"], "view.cross.limit");
+}

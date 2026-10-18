@@ -441,7 +441,7 @@ fn audit_the_vocabulary_lists_the_computed_values_a_narrowing_matches() {
             &table["computed_left_out"],
             &table["left_out_needs"]
         ),
-        (&json!(null), &json!(null), &json!("--limit"))
+        (&json!(null), &json!(null), &json!("view.counts.limit"))
     );
     assert_eq!(table["values"], 5);
     // a requested sum is summed over a computed row's members too

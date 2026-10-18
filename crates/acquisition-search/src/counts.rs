@@ -228,6 +228,14 @@ pub(crate) fn bind(
 
 // ---- what an answer carries ---------------------------------------------------------------
 
+/// What lists the values a table left out: the request's own field, never
+/// a terminal's flag, since the JSON is every surface's (C115; the trade
+/// seat: `left_out_needs: "--limit"` in the MCP's answer, mcp-opus call
+/// 33, mcp-sonnet call 17). A terminal's text says `--limit` in its own
+/// words.
+const TABLE_LIMIT: &str = "view.counts.limit";
+const CROSS_LIMIT: &str = "view.cross.limit";
+
 #[derive(Debug, Clone, Serialize)]
 pub struct CountsOut {
     pub limit: usize,
@@ -877,7 +885,7 @@ fn field_table(
         values: in_all,
         buckets,
         left_out,
-        left_out_needs: (left_out > 0).then_some("--limit"),
+        left_out_needs: (left_out > 0).then_some(TABLE_LIMIT),
         computed: 0,
         computed_left_out: 0,
     }
@@ -988,7 +996,7 @@ pub(crate) fn crossed(bound: &BoundCounts, matches: &Matches<'_>) -> CrossOut {
         cells_in_all: in_all,
         cells,
         left_out,
-        left_out_needs: (left_out > 0).then_some("--limit"),
+        left_out_needs: (left_out > 0).then_some(CROSS_LIMIT),
         margins: defs
             .iter()
             .zip(&margins)
@@ -1297,7 +1305,7 @@ fn vocabulary(
         values: in_all,
         buckets,
         left_out,
-        left_out_needs: (left_out > 0 || computed_left_out > 0).then_some("--limit"),
+        left_out_needs: (left_out > 0 || computed_left_out > 0).then_some(TABLE_LIMIT),
         computed: computed_in_all,
         computed_left_out,
     }

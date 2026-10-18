@@ -758,7 +758,7 @@ fn a_table_is_bounded_and_counts_what_it_left_out() {
         (&table["values"], &table["left_out"]),
         (&json!(11), &json!(9))
     );
-    assert_eq!(table["left_out_needs"], "--limit");
+    assert_eq!(table["left_out_needs"], "view.counts.limit");
     // `none` and `undecided` are never cut
     let cut = view(
         &s,
