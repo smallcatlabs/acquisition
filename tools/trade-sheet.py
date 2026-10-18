@@ -2235,6 +2235,86 @@ def round_w(earlier):
     return rows
 
 
+def round_x(earlier):
+    """x01–x03 a Blight-ravaged map under `map_blighted`; x04–x07 which `#`
+    of a text with two the site compares; x08–x09 a level requirement a
+    socketed gem sets, under `req_filters.lvl`; x10–x11 the two ranged
+    cells round v did not ask; x12 Maven's Invitations in the challenge
+    league. Composed 2026-10-18 (note 38, step 5) for the questions
+    `TRADE-SLICE.md`'s open observations queued for the next sitting."""
+    composed = Composed("x", 2, earlier)
+    add = composed.add
+
+    def maps(**options):
+        return {"map_filters": {"disabled": False, "filters": {k: {"option": v} for k, v in options.items()}}}
+
+    # 1. A Blight-ravaged map under `map_blighted` (the trade seat: 13 at tiers 14–16; the owner, 2026-10-17:
+    # "Ambiguous, sitting asks").
+    add("a Blight-ravaged map, the site's own mark: `map_uberblighted` `true`. The ten fetched: every type line begins "
+        "`Blight-ravaged`, the mark being the prefix's; the control of x02 and x03",
+        "the control: the mark must find maps", batch_query([], maps(map_uberblighted="true")))
+    add("a Blight-ravaged map under `map_blighted`: `map_uberblighted` `true` and `map_blighted` `true`. Found: the "
+        "site counts a Blight-ravaged map as blighted, and the catalogue's other reading is the site's; none, x01 "
+        "found: it does not, and `map_blighted` is the `Blighted` prefix alone",
+        "x01", batch_query([], maps(map_uberblighted="true", map_blighted="true")))
+    add("the mutant: `map_uberblighted` `true` and `map_blighted` `false`. Found, x02 none: a Blight-ravaged map is "
+        "`map_blighted=false`'s; none, x02 found: it is `true`'s. Both found or neither: the two filters do not "
+        "compose, and x01's ten say what each map is",
+        "x01", batch_query([], maps(map_uberblighted="true", map_blighted="false")))
+
+    # 2. Which `#` of a text with two the site compares (t28–t30: `min` 1000 found none, `min` 3 `max` 5 found 100;
+    # the captures' line reads 2500 Fire Damage per second for 4 seconds on 15 items, for 1 second on 6).
+    ground = "explicit.stat_3595254837"  # `Drops Burning Ground while moving, dealing # Fire Damage per second for # second`
+
+    def burning(value):
+        return batch_query([{"type": "and", "filters": [{"id": ground, "disabled": False, "value": value}]}])
+
+    add("which `#` of two is compared: the Burning Ground line at `min` 4 `max` 4, the seconds of 15 captured items. "
+        "Found, with x05 found and x06 none: the second `#`, the seconds; none: not the seconds",
+        "t30, the id with no bound, found 100", burning({"min": 4, "max": 4}))
+    add("the seconds' other value: `min` 1 `max` 1 (6 captured items). Found: the seconds, with x04",
+        "t30", burning({"min": 1, "max": 1}))
+    add("between the seconds' two values: `min` 2 `max` 3. None, x04 and x05 found: the seconds and nothing else; "
+        "found: a number no line displays is compared", "t30", burning({"min": 2, "max": 3}))
+    add("the first `#`, the damage: `min` 2400 `max` 2600 (2500 on every captured item). Found: the first `#` is "
+        "compared too, or alone where x04–x05 found none; none, t28 none at `min` 1000: the damage is never the "
+        "number", "t30", burning({"min": 2400, "max": 2600}))
+
+    # 3. A level requirement a socketed gem sets, `"suffix":"(gem)"` on the body (the trade seat: mcp-opus-1 call 39,
+    # not shown): whether the site's `req_filters.lvl` reads it as the item's.
+    band = {"misc_filters": {"disabled": False, "filters": {"ilvl": {"max": 50}}}}
+    add("a level requirement a socketed gem sets: armour of item level 50 or under — whose own requirement, its "
+        "base's or its mods', is under 51 — at `lvl` `min` 60. Found: the ten carry `\"suffix\":\"(gem)\"` on the "
+        "requirement, and the site reads a gem's requirement as the item's; none: not shown, x09 saying whether "
+        "the band is listed at all",
+        "x09, the band with no requirement bound, must find items",
+        batch_query([], {**category("armour"), **band,
+                         "req_filters": {"disabled": False, "filters": {"lvl": {"min": 60}}}}))
+    add("the control: armour of item level 50 or under, no requirement bound; the ten fetched show the requirement "
+        "an item of the band carries without a gem's",
+        "the control", batch_query([], {**category("armour"), **band}))
+
+    # 4. The two ranged cells round v did not ask (ranged-expected-copy.csv, `asked` "not asked").
+    for text, pseudo in [("Adds # to # Cold Damage to Spells", "pseudo.pseudo_adds_cold_damage_to_spells"),
+                         ("Adds # to # Fire Damage to Spells", "pseudo.pseudo_adds_fire_damage_to_spells")]:
+        ids = site_ids(text, "explicit")
+        add(f"the ranged family ({RANGED_COPY}): does `{text}` ({pseudo}) show on an item that is no weapon carrying "
+            f"`{text}` in explicitMods? The reading: the line's average. The ten fetched carry the line ({len(ids)} "
+            "ids, a count) and show the pseudo (`if`) or none",
+            "read by scripts/ranged-expected.py over the captures, cell by cell (`captured_cells`)",
+            batch_query([group("count", ids, {"min": 1}), group("if", [pseudo])], category(NOT_A_WEAPON)))
+
+    # 5. Coverage: Maven's Invitations, which Standard listed and sent no item of (`map.invitation` met no item the
+    # oracle could read).
+    add(f"coverage in {CHALLENGE}: `type_filters.category=map.invitation` (Standard listed them and sent no item)",
+        "the oracle (tests/trade_oracle.rs)", batch_query([], category("map.invitation")), CHALLENGE)
+    rows = composed.done()
+    # every name above is written out: the round is its length
+    if len(rows) != 12:
+        raise SystemExit(f"round x has {len(rows)} searches, its names written for 12")
+    return rows
+
+
 def report():
     """b1, b2: the two searches a report of c3's twin id rests on."""
     twin = "explicit.stat_2543977012"
@@ -2273,6 +2353,7 @@ def compose_sheet(method="site"):
         searches += round_u(searches)
         searches += round_v(searches)
         searches += round_w(searches)
+        searches += round_x(searches)
     return searches
 
 
@@ -2387,7 +2468,7 @@ def main():
              "percentile case": 0, "open question": 0}
     for row in searches:
         s = row["search"]
-        kind = ("trade" if s.startswith(("t", "u", "w"))
+        kind = ("trade" if s.startswith(("t", "u", "w", "x"))
                 else "park" if s.startswith("v")
                 else "pilot" if s.startswith("p")
                 else "check" if s.startswith(("c", "d", "b", "e", "f", "g", "h"))
