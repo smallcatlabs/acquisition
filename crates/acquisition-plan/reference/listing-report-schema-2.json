@@ -120,7 +120,7 @@
           "currency": "chaos"
         },
         "side": "game",
-        "why": "3 chaos in game: the tab name is more specific than the row on the tab (C81)"
+        "why": "3 chaos in game: the tab name is more specific than the row on the tab"
       },
       "game": {
         "public": true,
@@ -232,7 +232,7 @@
           "currency": "divine"
         },
         "side": "game",
-        "why": "1 divine in game: the game wins a tie with the row on the tab (C81)"
+        "why": "1 divine in game: the game wins a tie with the row on the tab"
       },
       "game": {
         "public": true,
@@ -311,7 +311,7 @@
           "currency": "divine"
         },
         "side": "game",
-        "why": "1 divine in game: the game wins a tie with the row on the tab (C81)"
+        "why": "1 divine in game: the game wins a tie with the row on the tab"
       },
       "game": {
         "public": true,
@@ -562,7 +562,7 @@
           "currency": "jewellers"
         },
         "side": "manual",
-        "why": "2222 jewellers by hand (row on character/ch1); the price text in game is not where the index can see it (C81)"
+        "why": "2222 jewellers by hand (row on character/ch1); the price text in game is not where the index can see it"
       },
       "game": {
         "note": {
@@ -645,7 +645,7 @@
           "currency": "chaos"
         },
         "side": "game",
-        "why": "5 chaos in game: the game wins a tie with the row on the item (C81)"
+        "why": "5 chaos in game: the game wins a tie with the row on the item"
       },
       "game": {
         "note": {
@@ -739,7 +739,7 @@
           "currency": "chaos"
         },
         "side": "manual",
-        "why": "3 chaos by hand: the row on the item is more specific than the game's tab name (C81)"
+        "why": "3 chaos by hand: the row on the item is more specific than the game's tab name"
       },
       "game": {
         "public": true,
@@ -828,13 +828,13 @@
           "currency": "chaos"
         },
         "side": "game",
-        "why": "3 chaos in game: the tab name is more specific than the row on the tab (C81)"
+        "why": "3 chaos in game: the tab name is more specific than the row on the tab"
       },
       "game": {
         "note": {
           "reading": {
             "kind": "invalid",
-            "why": "the amount is empty — what the dialog leaves after an invalid entry (T10)"
+            "why": "the amount is empty — what the dialog leaves after an invalid entry"
           },
           "text": "~price  chaos"
         },
@@ -923,7 +923,7 @@
           "currency": "chaos"
         },
         "side": "game",
-        "why": "3 chaos in game: the tab name is more specific than the row on the tab (C81)"
+        "why": "3 chaos in game: the tab name is more specific than the row on the tab"
       },
       "game": {
         "note": {
@@ -1012,7 +1012,7 @@
         },
         "kind": "skip",
         "side": "game",
-        "why": "skip in game: the note is more specific than the row on the tab (C81)"
+        "why": "skip in game: the note is more specific than the row on the tab"
       },
       "game": {
         "note": {
@@ -1093,7 +1093,7 @@
           "scope": "item"
         },
         "kind": "unresolved",
-        "why": "unresolved: the row on item/i-dump cannot be read (buyout declares version 2, newer than this build's v1 — a newer build wrote it) and would decide (C81)"
+        "why": "unresolved: the row on item/i-dump cannot be read (buyout declares version 2, newer than this build's v1 — a newer build wrote it) and would decide"
       },
       "game": {
         "public": false,
@@ -1163,7 +1163,7 @@
           "currency": "divine"
         },
         "side": "game",
-        "why": "1 divine in game: the game wins a tie with the row on the tab (C81)"
+        "why": "1 divine in game: the game wins a tie with the row on the tab"
       },
       "game": {
         "public": true,

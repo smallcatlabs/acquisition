@@ -426,7 +426,7 @@ fn render_status(r: &ListingReport, now: i64, expand: bool) -> String {
     ));
     if c.residue > 0 {
         out.push_str(&format!(
-            "{} items carry price text the index cannot see (a note on a character, a name on a non-public tab): shown, not a side (C81)\n",
+            "{} items carry price text the index cannot see (a note on a character, a name on a non-public tab): shown, not a side\n",
             c.residue
         ));
     }
@@ -434,7 +434,7 @@ fn render_status(r: &ListingReport, now: i64, expand: bool) -> String {
     let invalid = c.invalid_notes;
     if skipped + invalid > 0 {
         out.push_str(&format!(
-            "in game also: {skipped} skipped (~skip), {invalid} invalid notes (no effect; the tab applies, T18)\n"
+            "in game also: {skipped} skipped (~skip), {invalid} invalid notes (no effect; the tab applies)\n"
         ));
     }
     if c.league_unknown > 0 {
@@ -786,7 +786,7 @@ fn render_show(view: &ShowView, now: i64, expand: bool) -> String {
         None => "",
     };
     let residue = if g.residue {
-        " (price text the index cannot see: shown, not a side, C81)"
+        " (price text the index cannot see: shown, not a side)"
     } else {
         ""
     };
@@ -804,7 +804,7 @@ fn render_show(view: &ShowView, now: i64, expand: bool) -> String {
         )),
         None => {
             let why = if s.tab_type.as_deref() == Some("Folder") {
-                "a folder's name is never a price (C80)"
+                "a folder's name is never a price"
             } else if matches!(
                 s.target,
                 PriceTarget::Character { .. } | PriceTarget::Item { .. }
@@ -822,7 +822,7 @@ fn render_show(view: &ShowView, now: i64, expand: bool) -> String {
     }
     if let Some(n) = &g.substash_name {
         out.push_str(&format!(
-            "  substash {n:?} (its parent's name and public are read, C80)\n"
+            "  substash {n:?} (its parent's name and public are read)\n"
         ));
     }
 
@@ -865,7 +865,7 @@ fn render_show(view: &ShowView, now: i64, expand: bool) -> String {
         }
         if !below.is_empty() {
             out.push_str(&format!(
-                "items covered through children (C70): {} — {}\n",
+                "items covered through children: {} — {}\n",
                 plural(below.len(), "item", "items"),
                 breakdown(&below)
             ));
@@ -1279,7 +1279,7 @@ mod tests {
         );
         assert_eq!(
             lines[2],
-            "3 items carry price text the index cannot see (a note on a character, a name on a non-public tab): shown, not a side (C81)"
+            "3 items carry price text the index cannot see (a note on a character, a name on a non-public tab): shown, not a side"
         );
         assert_eq!(
             lines[3],
@@ -1372,7 +1372,9 @@ mod tests {
         );
         assert!(text.contains("      row item/i-01 revision 4\n"), "{text}");
         assert!(
-            text.contains("      effective: 5 chaos in game: the game wins a tie with the row on the item (C81)\n"),
+            text.contains(
+                "      effective: 5 chaos in game: the game wins a tie with the row on the item\n"
+            ),
             "{text}"
         );
         assert_eq!(text.matches("      tab c1 ").count(), 12, "{text}");
@@ -1437,7 +1439,7 @@ mod tests {
             text,
             "item/i-01: Chaos Orb x10  in \"~price 3 chaos (A)\" tab/pc/c1\n\
              relation conflict: by hand: skip; in game: 5 chaos\n\
-             effective: 5 chaos — 5 chaos in game: the game wins a tie with the row on the item (C81)\n\
+             effective: 5 chaos — 5 chaos in game: the game wins a tie with the row on the item\n\
              by hand: skip (own row, revision 4, set 1h ago)\n\
              in game: 5 chaos from the note\n\
              \x20 note \"~price 5 chaos\" reads 5 chaos\n\
@@ -1458,11 +1460,11 @@ mod tests {
         let l = show(PriceTarget::Item { id: "i-sub".into() });
         let text = render_show(&l, 8_000, false);
         assert!(
-            text.contains("in game: none (price text the index cannot see: shown, not a side, C81)\n  tab m1 \"~price 1 divine (Remove-only)\" reads 1 divine, not public\n  substash \"1 (Remove-only)\" (its parent's name and public are read, C80)\n"),
+            text.contains("in game: none (price text the index cannot see: shown, not a side)\n  tab m1 \"~price 1 divine (Remove-only)\" reads 1 divine, not public\n  substash \"1 (Remove-only)\" (its parent's name and public are read)\n"),
             "{text}"
         );
         assert!(
-            text.contains("effective: none — nothing applies: the price text in game is not where the index can see it (C81)\n"),
+            text.contains("effective: none — nothing applies: the price text in game is not where the index can see it\n"),
             "{text}"
         );
         assert!(
@@ -1509,7 +1511,7 @@ mod tests {
         });
         let text = render_show(&l, 8_000, false);
         assert!(
-            text.contains("items here: 1 item — 1 unlisted\nitems covered through children (C70): 1 item — 1 unlisted\n"),
+            text.contains("items here: 1 item — 1 unlisted\nitems covered through children: 1 item — 1 unlisted\n"),
             "{text}"
         );
         let direct = text.find("i-mapdirect\n").unwrap();

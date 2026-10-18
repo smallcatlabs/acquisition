@@ -448,7 +448,7 @@ fn policy_detail(p: &PolicyStatus, sends: &[SendRecord]) -> Vec<Line<'static>> {
     ];
     if let Some(ra) = p.retry_after_secs {
         lines.push(Line::from(Span::styled(
-            format!("retry-after        {ra}s on the last response — the server said WAIT (limiter adds the bucket, N19)"),
+            format!("retry-after        {ra}s on the last response — the server said WAIT (limiter adds the bucket)"),
             Style::new().red().bold(),
         )));
     }

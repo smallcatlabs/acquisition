@@ -339,7 +339,7 @@ impl Bearer for SessionBearer<'_> {
         let current = session.access_token.clone()?;
         if current != self.expected {
             self.daemon.log(&format!(
-                "send for {} carries the token a refresh installed while it waited (C87)",
+                "send for {} carries the token a refresh installed while it waited",
                 self.username
             ));
         }
@@ -937,7 +937,7 @@ impl Listener {
         let first = Self::instance(path, true).map_err(|e| {
             if e.kind() == std::io::ErrorKind::PermissionDenied {
                 anyhow::anyhow!(
-                    "the pipe {} is already held by another process; this daemon will not serve beside it (C112)",
+                    "the pipe {} is already held by another process; this daemon will not serve beside it",
                     path.display()
                 )
             } else {
@@ -2087,7 +2087,7 @@ resubmit if still wanted",
                     }
                     None => Outcome::Failure {
                         error: format!(
-                            "rate limited (429) {MAX_429_RETRIES} times; giving up (N10): {evidence}"
+                            "rate limited (429) {MAX_429_RETRIES} times; giving up: {evidence}"
                         ),
                     },
                 }
@@ -2844,7 +2844,7 @@ resubmit if still wanted",
                         let mut message = format!("HEAD {}: {error}", url_path(&url));
                         if let Some(username) = cleared_for {
                             message.push_str(&format!(
-                                " — the access token for {username} was rejected and is forgotten; the next send refreshes it first (C87)"
+                                " — the access token for {username} was rejected and is forgotten; the next send refreshes it first"
                             ));
                             // The limiter closed the route with the bare
                             // HEAD status as its reason; the job waiting
@@ -2948,7 +2948,7 @@ resubmit if still wanted",
             if let Some(username) = cleared_for {
                 return classified.map_err(|error| match error {
                     ApiError::Other(evidence) => ApiError::Other(format!(
-                        "{evidence} — the access token for {username} was rejected and is forgotten; the next send refreshes it first (C87)"
+                        "{evidence} — the access token for {username} was rejected and is forgotten; the next send refreshes it first"
                     )),
                     other => other,
                 });
@@ -3343,7 +3343,7 @@ resubmit if still wanted",
             .auth
             .reject_access_token(token)?;
         self.log(&format!(
-            "access token for {username} rejected (401); forgotten — the next send refreshes first (C87)"
+            "access token for {username} rejected (401); forgotten — the next send refreshes first"
         ));
         Some(username)
     }
@@ -3755,7 +3755,7 @@ resubmit if still wanted",
                                 .unwrap_or_else(|| acquisition_protocol::protocol::UNKNOWN.to_string());
                             if world != own_world {
                                 self.log(&format!(
-                                    "world mismatch: client on {world}, daemon on {own_world} — the client refuses this daemon (C83)"
+                                    "world mismatch: client on {world}, daemon on {own_world} — the client refuses this daemon"
                                 ));
                             }
                             let hello = BootstrapReply::Hello {
@@ -3959,14 +3959,14 @@ resubmit if still wanted",
         let mut not_covered = Vec::new();
         if !unprobed.is_empty() {
             not_covered.push(format!(
-                "a HEAD probe before the first request on {} (N16) — its own send, outside \
+                "a HEAD probe before the first request on {} — its own send, outside \
                  every estimate",
                 unprobed.into_iter().collect::<Vec<_>>().join(", ")
             ));
         }
         if needs_token {
             not_covered.push(
-                "an OAuth token refresh if the access token expires first (N33) — paced by \
+                "an OAuth token refresh if the access token expires first — paced by \
                  the token policy, not quoted"
                     .into(),
             );
@@ -4628,7 +4628,7 @@ pub async fn run() -> Result<()> {
 fn take_locks(world: &World) -> Result<(Lock, Option<Lock>)> {
     let world_lock = Lock::acquire(&world.lock_path()).map_err(|e| {
         anyhow::anyhow!(
-            "another daemon holds this world: {e} — one daemon per world (C6, C83); `acq daemon status` or `acq daemon stop` against its socket"
+            "another daemon holds this world: {e} — one daemon per world; `acq daemon status` or `acq daemon stop` against its socket"
         )
     })?;
     // Per OS user, whatever the root: two live-test roots cannot make
@@ -4638,7 +4638,7 @@ fn take_locks(world: &World) -> Result<(Lock, Option<Lock>)> {
             .map_err(|e| anyhow::anyhow!("resolving the real-mode lock: {e}"))?;
         Some(Lock::acquire(&path).map_err(|e| {
             anyhow::anyhow!(
-                "another real-mode daemon is running for this OS user: {e} — one real-mode daemon per OS user, whatever its world (C31, C83); `acq daemon stop` it first"
+                "another real-mode daemon is running for this OS user: {e} — one real-mode daemon per OS user, whatever its world; `acq daemon stop` it first"
             )
         })?)
     } else {
@@ -6597,7 +6597,7 @@ mod dispatcher_tests {
             panic!("the job that met the 401 has a failure outcome")
         };
         assert!(
-            error.contains("401") && error.contains("rejected") && error.contains("C87"),
+            error.contains("401") && error.contains("rejected") && error.contains("refreshes"),
             "the failure names the rejection: {error}"
         );
         assert_eq!(second.0.state, JobState::Done, "{:?}\n{sends:?}", second.1);
@@ -6915,7 +6915,7 @@ mod dispatcher_tests {
             errors[2]
         );
         assert!(
-            errors.iter().any(|e| e.contains("C87")),
+            errors.iter().any(|e| e.contains("the next send refreshes")),
             "the job whose 401 cleared the token says so: {errors:?}"
         );
     }
@@ -9398,7 +9398,7 @@ mod dispatcher_tests {
         assert!(daemon.rails().halted().is_some(), "the tripwire tripped");
         assert!(
             daemon.is_idle(knob),
-            "a halted daemon idles out over its waiting queue (C25)"
+            "a halted daemon idles out over its waiting queue"
         );
         assert_eq!(
             daemon.shared.lock().unwrap().jobs[&waiting].info.state,

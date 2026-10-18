@@ -277,7 +277,7 @@ fn price_json_documents_are_the_views_the_text_reads() {
     let out = acq(&base, &["price", "show", "tab/pc/f1"]);
     let text = String::from_utf8_lossy(&out.stdout);
     assert!(
-        text.contains("items here: none on record\nitems covered through children (C70): 2 items"),
+        text.contains("items here: none on record\nitems covered through children: 2 items"),
         "{text}"
     );
 

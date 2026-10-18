@@ -144,12 +144,12 @@ fn cell_word(cell: Cell) -> &'static str {
         Cell::Unresolved => "unresolved",
         Cell::LeagueUnknown => "league unknown",
         Cell::HandNoPrice => "listed with no price",
-        Cell::Ratio => "a ratio (Q6)",
+        Cell::Ratio => "a ratio",
         Cell::RetiredCurrency => "a retired currency",
         Cell::RealmUnlisted => "a realm the site does not list",
         Cell::Socketed => "socketed",
         Cell::NoPosition => "no position",
-        Cell::Substash => "in a substash (Q3)",
+        Cell::Substash => "in a substash",
         Cell::TabUnlisted => "tab not listed",
         Cell::InvalidIndex => "a corrupt tab index",
         Cell::NoSlot => "no slot",
@@ -516,7 +516,7 @@ mod tests {
         let lines: Vec<&str> = text.lines().collect();
         assert_eq!(
             lines[0],
-            "13 items in Standard: 3 items to post on 2 pages; 5 omitted (4 the game lists, 1 skipped by hand); 2 blocked (1 unresolved, 1 in a substash (Q3)); 3 nothing applies"
+            "13 items in Standard: 3 items to post on 2 pages; 5 omitted (4 the game lists, 1 skipped by hand); 2 blocked (1 unresolved, 1 in a substash); 3 nothing applies"
         );
         assert_eq!(
             lines[1],

@@ -158,7 +158,7 @@ pub const BEAST_CLASS: &str = "Stackable Currency";
 /// export states: the base, its class, the ruling. J20: Growing Wombgift's
 /// class is Wombgifts — the export files it under a class it prints no
 /// name for — so that the item is as any wombgift is.
-pub const RULED: [(&str, &str, &str); 1] = [("Growing Wombgift", "Wombgifts", "J20")];
+pub const RULED: [(&str, &str); 1] = [("Growing Wombgift", "Wombgifts")];
 
 /// Whether an item is a captured beast, by its bestiary line.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -436,7 +436,7 @@ impl ClassTable {
     /// is from, with its version.
     pub fn definition(&self) -> String {
         format!(
-            "the item's class as the game names it, read from its base in the class table — classes v{}, {} classes over {}: {}. A captured beast, known by its bestiary line, is {BEAST_CLASS}, the game's own word for it. A base the table lists under several classes is read by the item's frame — a gem frame the gem classes, a quest frame Quest Items, any other the rest — and the item is each class that remains; an item whose base the table lacks or whose realm the table does not cover is undecided with that reason (C93)",
+            "the item's class as the game names it, read from its base in the class table — classes v{}, {} classes over {}: {}. A captured beast, known by its bestiary line, is {BEAST_CLASS}, the game's own word for it. A base the table lists under several classes is read by the item's frame — a gem frame the gem classes, a quest frame Quest Items, any other the rest — and the item is each class that remains; an item whose base the table lacks or whose realm the table does not cover is undecided with that reason",
             self.version,
             self.names.len(),
             self.realms.join(", "),
@@ -517,7 +517,7 @@ impl ClassTable {
             };
         };
         // a class a ruling gives the base, the table saying otherwise
-        if let Some((_, class, _)) = RULED.iter().find(|(ruled, _, _)| *ruled == base.as_str()) {
+        if let Some((_, class)) = RULED.iter().find(|(ruled, _)| *ruled == base.as_str()) {
             return Classed::Is((*class).to_string());
         }
         match self.of(base).as_slice() {

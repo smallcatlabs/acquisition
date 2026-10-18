@@ -827,7 +827,7 @@ fn realm_needed(held: &[String], account: &str) -> SearchError {
     SearchError::scope(
         "realm_needed",
         format!(
-            "this store holds {} realms and a search names one (C96): --realm {}, or --realm all",
+            "this store holds {} realms and a search names one: --realm {}, or --realm all",
             held.len(),
             held.join(" | ")
         ),

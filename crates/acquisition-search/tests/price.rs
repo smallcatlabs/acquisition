@@ -305,7 +305,7 @@ fn c81_has_priced_is_the_effective_price_three_valued_with_the_price_on_the_row(
             reason["problem"]
                 .as_str()
                 .unwrap()
-                .ends_with("would decide (C81)"),
+                .ends_with("would decide"),
             "{reason}"
         );
         assert!(
@@ -321,7 +321,7 @@ fn c81_has_priced_is_the_effective_price_three_valued_with_the_price_on_the_row(
         .unwrap();
     assert_eq!(
         stuck["matched"][0]["shows"][0]["undecided"]["problem"],
-        "the row on the item cannot be read (buyout declares version 2, newer than this build's v1 — a newer build wrote it) and would decide (C81)"
+        "the row on the item cannot be read (buyout declares version 2, newer than this build's v1 — a newer build wrote it) and would decide"
     );
     let odd = open["rows"]
         .as_array()
@@ -331,7 +331,7 @@ fn c81_has_priced_is_the_effective_price_three_valued_with_the_price_on_the_row(
         .unwrap();
     assert_eq!(
         odd["matched"][0]["shows"][0]["undecided"]["problem"],
-        "the note cannot be read: it is no string, and a note would decide (C81)"
+        "the note cannot be read: it is no string, and a note would decide"
     );
 }
 

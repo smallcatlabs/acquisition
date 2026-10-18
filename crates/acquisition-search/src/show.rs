@@ -52,7 +52,6 @@ use crate::corpus::{
     placed, still_at, tab_type_unread,
 };
 use crate::derive::{Facts, Item, Line, derive};
-use crate::describe::limit;
 use crate::error::SearchError;
 use crate::eval::number_json;
 use crate::eval::{self, Evidence, Outcome, Truth};
@@ -335,7 +334,7 @@ fn read_one(
                 .into_iter()
                 .map(|(w, n)| (w, n.map_or(serde_json::Value::Null, number_json)))
                 .collect(),
-            limit: (line.source == "veiled").then(|| limit("S12")),
+            limit: (line.source == "veiled").then_some(crate::describe::VEILED),
             line,
         })
         .collect();

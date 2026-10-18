@@ -45,7 +45,7 @@ fn c88_the_real_provider_is_the_default_and_the_retired_knob_is_refused() {
         assert!(!out.status.success(), "{}", text(&out));
         let stderr = String::from_utf8_lossy(&out.stderr);
         assert!(
-            stderr.contains(said) && stderr.contains("C88"),
+            stderr.contains(said) && !stderr.contains("C88"),
             "{env:?}: {stderr}"
         );
         let out = command(base, &["version", "--json"])
@@ -90,7 +90,7 @@ fn c88_a_real_mode_daemon_is_started_from_a_terminal_and_the_mock_from_anywhere(
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(
         stderr.contains("started from a terminal")
-            && stderr.contains("C88")
+            && !stderr.contains("C88")
             && stderr.contains("ACQ_PROVIDER=mock"),
         "{stderr}"
     );

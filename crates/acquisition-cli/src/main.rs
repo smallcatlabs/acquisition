@@ -197,7 +197,7 @@ pub(crate) fn mismatch_remedy(found: &acquisition_client::client::DaemonId) -> &
     if found.world_matches() {
         "`acq daemon stop` stops it, a job command (`acq profile`, `acq refresh --apply`) replaces it"
     } else {
-        "a job command from this shell refuses it too (C83: another world is never replaced) — `acq daemon stop` stops it, or point ACQ_STORE_DIR at its world"
+        "a job command from this shell refuses it too (another world is never replaced) — `acq daemon stop` stops it, or point ACQ_STORE_DIR at its world"
     }
 }
 
@@ -221,7 +221,7 @@ pub(crate) async fn daemon_log_path(client: &mut Client) -> Option<String> {
     // handshake identity (C10, C84); `acq version --json` is the
     // structured form, with the sibling `acqd` beside it.
     version = acquisition_protocol::VERSION_WITH_CONTRACT,
-    about = "Acquisition CLI: the real GGG API by default; ACQ_PROVIDER=mock talks to the in-process mock (C88)"
+    about = "Acquisition CLI: the real GGG API by default; ACQ_PROVIDER=mock talks to the in-process mock"
 )]
 struct Cli {
     /// Emit structured JSON instead of human-readable output: one
@@ -246,7 +246,7 @@ struct Cli {
 enum Cmd {
     /// Log in via OAuth (real GGG, or the mock under ACQ_PROVIDER=mock). The
     /// login completes only once its own profile job lands the account
-    /// uuid (C50); the mock's page accepts any username, so a second
+    /// uuid; the mock's page accepts any username, so a second
     /// account is one login apart.
     Auth {
         #[command(subcommand)]
@@ -259,17 +259,17 @@ enum Cmd {
     Profile,
     /// List characters on the logged-in account. A route's first use
     /// queues a visible `probe` job — one HEAD that learns the policy and
-    /// the account's current counters before anything real is sent (C20).
+    /// the account's current counters before anything real is sent.
     Characters {
-        /// pc (default), xbox, sony, or poe2. pc is omitted on the wire
-        /// (C58); another realm is its own route segment, with its own probe.
+        /// pc (default), xbox, sony, or poe2. pc is omitted on the wire;
+        /// another realm is its own route segment, with its own probe.
         #[arg(long, default_value = "pc", value_parser = parse_realm)]
         realm: Realm,
     },
     /// Fetch one character with its equipment and inventory.
     Character {
         name: String,
-        /// pc (default), xbox, sony, or poe2; pc is omitted on the wire (C58).
+        /// pc (default), xbox, sony, or poe2; pc is omitted on the wire.
         #[arg(long, default_value = "pc", value_parser = parse_realm)]
         realm: Realm,
     },
@@ -289,7 +289,7 @@ enum Cmd {
         expand: bool,
         #[arg(long, default_value = "Standard")]
         league: String,
-        /// pc (default), xbox, or sony — stashes are PoE1 only (C59).
+        /// pc (default), xbox, or sony — stashes are PoE1 only.
         #[arg(long, default_value = "pc", value_parser = parse_realm)]
         realm: Realm,
     },
@@ -297,7 +297,7 @@ enum Cmd {
     /// live item of one realm, answered with the canonical query, the
     /// scope searched, the total, and the rows with the lines the query
     /// touched — then each term's counts over the scope, matched, failed,
-    /// lacked, undecided (C93), and the basis. Every count has a route:
+    /// lacked, undecided, and the basis. Every count has a route:
     /// the command that returns exactly its members, printed where a next
     /// step hangs on it and every one under `--routes`. `--json` is the
     /// answer whole, in the same order, the query as text and as tree, a
@@ -323,7 +323,7 @@ enum Cmd {
         #[arg(long, default_value = "Standard")]
         league: String,
         /// pc (default), xbox, or sony — the stash endpoints are PoE1 only;
-        /// poe2 is refused at admission (C59).
+        /// poe2 is refused at admission.
         #[arg(long, default_value = "pc", value_parser = parse_realm)]
         realm: Realm,
     },
@@ -339,20 +339,20 @@ enum Cmd {
         #[arg(long, default_value = "Standard")]
         league: String,
         /// pc (default), xbox, or sony — the stash endpoints are PoE1 only;
-        /// poe2 is refused at admission (C59).
+        /// poe2 is refused at admission.
         #[arg(long, default_value = "pc", value_parser = parse_realm)]
         realm: Realm,
     },
     /// Refresh tabs: one stash-list request, then one `stash` child job per
     /// selected tab. Selection is explicit — there is no default. (The
     /// ad-hoc `--tabs`/`--all` kind and the plan path are two doors to one
-    /// task; C76 rules the direction.) Keeping a league up to date is the
+    /// task; the ad-hoc kind retires once nothing submits it.) Keeping a league up to date is the
     /// plan path: `acq policy set` once, then `--plan` and `--apply` until
     /// the plan says nothing to do — a map or unique tab's substashes are
     /// known only once the tab is fetched, so a first sync takes two
     /// rounds, and each apply ends by saying what is left.
     #[command(after_long_help = "\
-Reading a plan as an agent: the text is a function of the envelope (C53), so count \
+Reading a plan as an agent: the text is a function of the envelope, so count \
 with `jq` over `acq refresh --plan --json` rather than parsing prose —
   jq '.logical_requests'
   jq '[.actions[] | .action] | group_by(.) | map({(.[0]): length}) | add'          # requests by kind
@@ -447,7 +447,7 @@ is the per-location summary.")]
     /// sends), job queue, HTTP sends, recent errors, a rails halt in red.
     /// With --json, prints one snapshot and exits.
     Dash,
-    /// What this build is (C84): the package version, the shared-contract
+    /// What this build is: the package version, the shared-contract
     /// revision the daemon handshake compares — a digest over the
     /// protocol and store crates' manifests and `src` trees, the root
     /// manifest and the lock, never a git commit — and the sibling
@@ -459,14 +459,14 @@ is the per-location summary.")]
     /// "acqd_absent" (why) when acqd is null; `--version` is the human
     /// form of the first two.
     Version,
-    /// The live jobs: id, parent, kind, target (from params, C7), state
-    /// (`↻n` counts 429 re-queues, C26), priority, account, submitter, ETA.
+    /// The live jobs: id, parent, kind, target (from params), state
+    /// (`↻n` counts 429 re-queues), priority, account, submitter, ETA.
     /// Every waiting and running job is listed, and the ten most recent
     /// finished ones; the last line counts them all, and says when the
     /// next waiting job starts and when the last one does. `--json` is
     /// every job the daemon holds.
-    /// Observes only (C10): with no daemon running it never spawns one, and
-    /// answers from the ledger on disk instead (C45) — the non-terminal
+    /// Observes only: with no daemon running it never spawns one, and
+    /// answers from the ledger on disk instead — the non-terminal
     /// rows as the last daemon left them, without ETAs, and how long ago
     /// they were written; `--json`: `running: false`, `persisted` (`jobs`,
     /// `written_at`; `null` when this shell's world has no queue yet). A
@@ -474,8 +474,8 @@ is the per-location summary.")]
     /// acts on them.
     Jobs {
         /// Subscribe, print the queue, then every job-state change as it
-        /// happens; the queue is printed again after a missed-events signal
-        /// (C85), and the watch ends when the daemon stops.
+        /// happens; the queue is printed again after a missed-events signal,
+        /// and the watch ends when the daemon stops.
         #[arg(long)]
         watch: bool,
         /// List every finished job the daemon still holds, not the ten
@@ -501,10 +501,10 @@ is the per-location summary.")]
         wait: bool,
     },
     /// Cancel a waiting or running job; cascades to every descendant
-    /// still waiting (C23).
+    /// still waiting.
     Cancel { id: u64 },
     /// Change a waiting job's priority; higher runs sooner and the queue
-    /// reorders live (C5).
+    /// reorders live.
     SetPriority { id: u64, priority: u8 },
     /// The listing state (no daemon): what every item, tab and character
     /// is priced as — by hand, in game, and how the two stand.
@@ -577,14 +577,14 @@ enum PriceCmd {
         /// none, manual_only, game_only, agree or conflict.
         #[arg(long)]
         relation: Option<String>,
-        /// Who decides (C81): game, manual, none or unresolved.
+        /// Who decides: game, manual, none or unresolved.
         #[arg(long)]
         effective: Option<String>,
         /// Only items physically in this container (a tab, substash or
         /// character address).
         #[arg(long = "in")]
         location: Option<String>,
-        /// Only items a row on this target would cover (C70): a folder's
+        /// Only items a row on this target would cover: a folder's
         /// tabs' items, a map or unique tab's substashes' items too.
         #[arg(long)]
         covered_by: Option<String>,
@@ -592,7 +592,7 @@ enum PriceCmd {
         expand: bool,
     },
     /// Set one target's price by hand — a row on an item, tab, substash
-    /// or character; what it covers inherits it (C70). Prints what it
+    /// or character; what it covers inherits it. Prints what it
     /// replaced, how to put that back, and a note when the facts hold no
     /// such target (a tab not fetched yet, or a typo — never a refusal).
     Set {
@@ -617,7 +617,7 @@ enum PriceCmd {
         if_revision: Option<i64>,
     },
     /// Remove one target's own price row; what it covered falls back to
-    /// the next row up (C70). Prints what it removed and the command that
+    /// the next row up. Prints what it removed and the command that
     /// puts it back.
     Clear {
         /// The address, as for `set`.
@@ -630,20 +630,20 @@ enum PriceCmd {
 
 #[derive(Subcommand)]
 enum ShopCmd {
-    /// Render the shop pages to stdout for pasting by hand (C74): one
+    /// Render the shop pages to stdout for pasting by hand: one
     /// link code per hand-priced item under its price's spoiler, one
     /// page spoiler labelled n of N, in pages of at most --size
     /// characters; what the
     /// game already lists is omitted and counted, an unobserved case is
     /// blocked and counted; the sync policy's coverage and freshness are
-    /// reported, never enforced (C72).
+    /// reported, never enforced.
     Render {
         #[arg(long, default_value = "Standard")]
         league: String,
         #[arg(long, value_parser = parse_realm)]
         realm: Option<Realm>,
         /// Characters per page, the template included (the forum's hard
-        /// limit, T23).
+        /// limit).
         #[arg(long, default_value_t = acquisition_plan::shop::DEFAULT_PAGE_SIZE)]
         size: usize,
         /// A file whose `[items]` token each page replaces; without it
@@ -766,21 +766,21 @@ enum AuthCmd {
 #[derive(Subcommand)]
 enum DaemonCmd {
     /// The daemon running: pid, version, contract revision, the executable
-    /// it runs from and its hash (C84), provider, the world it serves
-    /// (C83: its canonical store root), uptime, connections, queue
+    /// it runs from and its hash, provider, the world it serves
+    /// (its canonical store root), uptime, connections, queue
     /// counts, policies learned, the socket, log and journal paths, the
-    /// rails state, keyring health. Observes only (C10): never spawns or
+    /// rails state, keyring health. Observes only: never spawns or
     /// replaces; with no daemon running, what the ledger on disk holds
-    /// (C45) — `persisted`: `waiting`, `recorded_running`, `written_at`;
+    /// — `persisted`: `waiting`, `recorded_running`, `written_at`;
     /// `null` when this shell's world has no queue yet; a daemon of
     /// another contract, artifact, provider or
     /// world is reported by its identity alone — no vitals — and left
     /// running; something that accepts the connection and does not answer
-    /// hello within 5s is reported unresponsive (C86) — `--json`: running,
+    /// hello within 5s is reported unresponsive — `--json`: running,
     /// `responsive: false`, `socket`, `lock_holder` (the pid the world's
     /// lock records) — for a human to stop by hand.
     /// `--json`, in the two identified cases: running, compatible, `socket` (the
-    /// one this shell reached it through: derived from the world, C83), which of
+    /// one this shell reached it through: derived from the world), which of
     /// the four dimensions match (`contract_matches`, `artifact_matches`,
     /// `provider_matches`, `world_matches`), how the daemon's file relates to this
     /// client's sibling — `artifact_relation`: `same_file`; `same_bytes`,
@@ -791,16 +791,16 @@ enum DaemonCmd {
     /// store root does not exist) with the sibling `acqd` a job command
     /// would start, all from the one look that judged the daemon.
     Status,
-    /// Stop the daemon listening on this shell's world's socket (C83),
+    /// Stop the daemon listening on this shell's world's socket,
     /// this build's — its contract and artifact — or another's.
-    /// Queued jobs stay on disk and resume under the next one (C6); a
-    /// client's jobs are never cancelled by its leaving (C27). `--json`:
+    /// Queued jobs stay on disk and resume under the next one; a
+    /// client's jobs are never cancelled by its leaving. `--json`:
     /// `stopped`, `pid`, `version`, `provider`, `compatible`, `socket`.
     Stop,
     /// Clear the live-test rails' tripwire/ceiling halt (see LIVE-TESTING.md).
     /// Observe the post-violation rule before using this. With no daemon
     /// running, clears the persisted state in this shell's world
-    /// (`<store root>/<provider>/rails.json`, C83) so the next daemon
+    /// (`<store root>/<provider>/rails.json`) so the next daemon
     /// starts clear.
     ResetTripwire,
 }

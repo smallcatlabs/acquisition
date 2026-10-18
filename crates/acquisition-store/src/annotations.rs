@@ -131,7 +131,7 @@ CREATE TABLE IF NOT EXISTS annotations (
     created_at  INTEGER NOT NULL,   -- unix seconds
     updated_at  INTEGER NOT NULL,
     deleted_at  INTEGER,            -- tombstone; the revision keeps counting
-    written_via TEXT    NOT NULL,   -- the channel of the last write (C65)
+    written_via TEXT    NOT NULL,   -- the channel of the last write
     actor       TEXT,               -- the writer's claim, untrusted
     PRIMARY KEY (scope, key, kind)
 );

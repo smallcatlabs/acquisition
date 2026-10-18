@@ -1011,8 +1011,8 @@ fn wire_estimate(logical_requests: u64) -> WireEstimate {
             Vec::new()
         } else {
             vec![
-                "a HEAD probe on first contact with each route this daemon lifetime (N16)".into(),
-                "an OAuth token refresh if the access token has expired (N33)".into(),
+                "a HEAD probe on first contact with each route this daemon lifetime".into(),
+                "an OAuth token refresh if the access token has expired".into(),
             ]
         },
     }

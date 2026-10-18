@@ -337,7 +337,6 @@ struct Id {
     classes: Vec<String>,
     rule: Option<(String, Test)>,
     members: Vec<usize>,
-    cites: String,
 }
 
 /// The two tables, parsed and checked. Read-only; one per build.
@@ -593,7 +592,6 @@ impl Tables {
                 classes: row.classes.clone(),
                 rule,
                 members,
-                cites: row.cites.clone(),
             });
         }
         for (class, _, leaf) in &rules {
@@ -1012,7 +1010,7 @@ impl Tables {
     /// tables' sources and versions (C106's clause (c)).
     pub fn definition(&self) -> String {
         format!(
-            "the trade site's category of the item, by the site's own id — a convention (C106), computed from the item's class and reviewed rules: categories v{}, {} ids over {}: {}. A captured beast is known by its bestiary line and its colour is the beast colours v{} table's, {} names: {}. An id with a dot is quoted, category=\"armour.boots\"; a parent holds everything under it by the dot. An item whose class gives no id lacks a category; one whose class or colour could not be established is undecided on the ids that needed it, with that reason (C93). A count lists an item under the most specific id that holds",
+            "the trade site's category of the item, by the site's own id — a convention, computed from the item's class and reviewed rules: categories v{}, {} ids over {}: {}. A captured beast is known by its bestiary line and its colour is the beast colours v{} table's, {} names: {}. An id with a dot is quoted, category=\"armour.boots\"; a parent holds everything under it by the dot. An item whose class gives no id lacks a category; one whose class or colour could not be established is undecided on the ids that needed it, with that reason. A count lists an item under the most specific id that holds",
             self.version,
             self.names.len(),
             self.realms.join(", "),
@@ -1055,7 +1053,7 @@ impl Tables {
                     // J10: a beast's class gives it no id
                     if id.classes.iter().any(|c| c == class::BEAST_CLASS) {
                         said.push_str(&format!(
-                            " — but never a captured beast, whose class is {} too: it is `{}` (J10)",
+                            " — but never a captured beast, whose class is {} too: it is `{}`",
                             class::BEAST_CLASS,
                             self.ids[self.beast].id
                         ));
@@ -1084,7 +1082,7 @@ impl Tables {
                             let (given, but) = classes();
                             format!("{given}{but}")
                         }
-                        (None, true) => format!("no item this build can class — {}", id.cites),
+                        (None, true) => "no item this build can class: the class table lacks its bases, and each is undecided".to_string(),
                     },
                     Kind::Beast => format!(
                         "a captured beast, known by its bestiary line (`{}`), whatever its colour; never by its class",

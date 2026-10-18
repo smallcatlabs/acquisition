@@ -1337,8 +1337,7 @@ impl std::fmt::Display for ProbeError {
     }
 }
 
-const STALE_BEARER: &str =
-    "the bearer this send was to carry was rejected before it left the gate (C87)";
+const STALE_BEARER: &str = "the bearer this send was to carry was rejected before it left the gate";
 
 #[derive(Debug)]
 pub enum SendError {

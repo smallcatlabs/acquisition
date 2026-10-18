@@ -279,49 +279,49 @@ impl Cell {
     pub fn why(self) -> &'static str {
         match self {
             Cell::StashItem => {
-                "a hand-priced stash item at a listed tab: `[linkItem realm= location=\"Stash<n>\" league= x= y=]` under the price's spoiler, `n` the tab's rank among the tabs the website lists — folders and substashes left out (T7, T13, T24; a forum price over the tab's is T12)"
+                "a hand-priced stash item at a listed tab: `[linkItem realm= location=\"Stash<n>\" league= x= y=]` under the price's spoiler, `n` the tab's rank among the tabs the website lists — folders and substashes left out; a forum price takes precedence over the tab's in-game price"
             }
             Cell::CharacterItem => {
-                "a hand-priced character item in a slot: `[linkItem realm= location=\"<inventoryId>\" character= x= y=]` under the price's spoiler (T7, T8)"
+                "a hand-priced character item in a slot: `[linkItem realm= location=\"<inventoryId>\" character= x= y=]` under the price's spoiler"
             }
             Cell::GameLists => {
-                "the game already lists it at its own price (T11, C81); a page must not contradict what the site shows (C74)"
+                "the game already lists it at its own price; a page must not contradict what the site shows"
             }
             Cell::GameSkips => {
-                "the game marks it do-not-index (~skip, T10) and the game decides (C81); a forum price against a game skip is Q7"
+                "the game marks it do-not-index (~skip) and the game decides; what the site makes of a forum price against a game skip is not observed"
             }
-            Cell::HandSkip => "a hand skip means leave it out (C67)",
+            Cell::HandSkip => "a hand skip means leave it out",
             Cell::NothingApplies => "no row applies and the game states nothing",
             Cell::Unresolved => {
-                "a row that cannot be read could decide (C81): never treated as unpriced; read it with `acq price show`"
+                "a row that cannot be read could decide: never treated as unpriced; read it with `acq price show`"
             }
             Cell::LeagueUnknown => {
                 "the listing gave its character no league, so the report is not evidence it belongs to this one"
             }
             Cell::HandNoPrice => {
-                "a hand `no_price` item at an address a posting row takes: its link alone under an empty spoiler title, which the site lists as \"No Price Set\" (T21)"
+                "a hand `no_price` item at an address a posting row takes: its link alone under an empty spoiler title, which the site lists as \"No Price Set\""
             }
             Cell::Ratio => {
-                "a ratio on the forum is unobserved (Q6); in game a typed ratio unlists the item (T19)"
+                "a ratio on the forum is unobserved; in game a typed ratio unlists the item"
             }
             Cell::RetiredCurrency => {
-                "the row cites a retired currency tag (C68): the word the site reads for it is unknown"
+                "the row cites a retired currency tag: the word the site reads for it is unknown"
             }
-            Cell::RealmUnlisted => "the trade site's realms are pc, xbox and sony (T4)",
-            Cell::Socketed => "a socketed item has no position and cannot be linked (T13)",
+            Cell::RealmUnlisted => "the trade site's realms are pc, xbox and sony",
+            Cell::Socketed => "a socketed item has no position and cannot be linked",
             Cell::NoPosition => "the fetch gave the item no position, so no link can name it",
             Cell::Substash => {
-                "the website's stash view offers no link for an item in a map or unique substash (T20), and no other code for one has been observed: blocked until one is"
+                "the website's stash view offers no link for an item in a map or unique substash, and no other code for one has been observed: blocked until one is"
             }
             Cell::TabUnlisted => {
-                "the tab is not on the current stash listing, so it has no index for `Stash<n>` (T13)"
+                "the tab is not on the current stash listing, so it has no index for `Stash<n>`"
             }
             Cell::InvalidIndex => {
-                "the tab's recorded index is below zero: a corrupt fact, blocked rather than ranked (C47)"
+                "the tab's recorded index is below zero: a corrupt fact, blocked rather than ranked"
             }
-            Cell::NoSlot => "a character item without an `inventoryId` cannot be addressed (T13)",
+            Cell::NoSlot => "a character item without an `inventoryId` cannot be addressed",
             Cell::UnruledKind => {
-                "a hand price of a kind no row of this table writes (`exact` and `negotiable` are ruled; C74 blocks the rest)"
+                "a hand price of a kind no row of this table writes (`exact` and `negotiable` are ruled; the rest are blocked)"
             }
             Cell::PageSize => "the entry alone, with the template around it, exceeds the page size",
         }

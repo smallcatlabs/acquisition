@@ -1929,7 +1929,7 @@ fn step_9d_c_the_ranged_family_and_a_flask_at_a_terminal() {
         "category=weapon",
         "`crucibleMods`",
         "`utilityMods`",
-        "i06–i08",
+        "no weapon the trade site listed was found to carry one",
     ] {
         assert!(
             what.contains(needle),

@@ -463,7 +463,7 @@ name = "adds_physical"
 site = "pseudo_adds_physical_damage"
 text = "Adds # to # Physical Damage"
 ranged = true
-limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one (round i, i06–i08)"
+limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one"
 rows = [
   { template = "Adds # to # Physical Damage", weight = 1, not_on = "weapon" },
 ]
@@ -473,7 +473,7 @@ name = "adds_lightning"
 site = "pseudo_adds_lightning_damage"
 text = "Adds # to # Lightning Damage"
 ranged = true
-limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one (round i, i06–i08)"
+limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one"
 rows = [
   { template = "Adds # to # Lightning Damage", weight = 1, not_on = "weapon" },
 ]
@@ -483,7 +483,7 @@ name = "adds_cold"
 site = "pseudo_adds_cold_damage"
 text = "Adds # to # Cold Damage"
 ranged = true
-limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one (round i, i06–i08)"
+limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one"
 rows = [
   { template = "Adds # to # Cold Damage", weight = 1, not_on = "weapon" },
 ]
@@ -493,7 +493,7 @@ name = "adds_fire"
 site = "pseudo_adds_fire_damage"
 text = "Adds # to # Fire Damage"
 ranged = true
-limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one (round i, i06–i08)"
+limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one"
 rows = [
   { template = "Adds # to # Fire Damage", weight = 1, not_on = "weapon" },
 ]
@@ -503,7 +503,7 @@ name = "adds_chaos"
 site = "pseudo_adds_chaos_damage"
 text = "Adds # to # Chaos Damage"
 ranged = true
-limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one (round i, i06–i08)"
+limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one"
 rows = [
   { template = "Adds # to # Chaos Damage", weight = 1, not_on = "weapon" },
 ]
@@ -513,7 +513,7 @@ name = "adds_elemental"
 site = "pseudo_adds_elemental_damage"
 text = "Adds # to # Elemental Damage"
 ranged = true
-limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one (round i, i06–i08)"
+limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one"
 rows = [
   { template = "Adds # to # Fire Damage", weight = 1, not_on = "weapon" },
   { template = "Adds # to # Cold Damage", weight = 1, not_on = "weapon" },
@@ -525,7 +525,7 @@ name = "adds_damage"
 site = "pseudo_adds_damage"
 text = "Adds # to # Damage"
 ranged = true
-limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one (round i, i06–i08)"
+limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one"
 rows = [
   { template = "Adds # to # Physical Damage", weight = 1, not_on = "weapon" },
   { template = "Adds # to # Lightning Damage", weight = 1, not_on = "weapon" },
@@ -539,7 +539,7 @@ name = "adds_physical_to_attacks"
 site = "pseudo_adds_physical_damage_to_attacks"
 text = "Adds # to # Physical Damage to Attacks"
 ranged = true
-limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one (round i, i06–i08)"
+limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one"
 rows = [
   { template = "Adds # to # Physical Damage to Attacks", weight = 1 },
   { template = "While a Unique Enemy is in your Presence, Adds # to # Physical Damage to Attacks", weight = 1 },
@@ -552,7 +552,7 @@ name = "adds_lightning_to_attacks"
 site = "pseudo_adds_lightning_damage_to_attacks"
 text = "Adds # to # Lightning Damage to Attacks"
 ranged = true
-limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one (round i, i06–i08)"
+limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one"
 rows = [
   { template = "Adds # to # Lightning Damage to Attacks", weight = 1 },
   { template = "Adds # to # Lightning Damage to Spells and Attacks", weight = 1 },
@@ -566,7 +566,7 @@ name = "adds_cold_to_attacks"
 site = "pseudo_adds_cold_damage_to_attacks"
 text = "Adds # to # Cold Damage to Attacks"
 ranged = true
-limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one (round i, i06–i08)"
+limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one"
 rows = [
   { template = "Adds # to # Cold Damage to Attacks", weight = 1 },
   { template = "Adds # to # Cold Damage to Spells and Attacks", weight = 1 },
@@ -580,7 +580,7 @@ name = "adds_fire_to_attacks"
 site = "pseudo_adds_fire_damage_to_attacks"
 text = "Adds # to # Fire Damage to Attacks"
 ranged = true
-limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one (round i, i06–i08)"
+limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one"
 rows = [
   { template = "Adds # to # Fire Damage to Attacks", weight = 1 },
   { template = "Adds # to # Fire Damage to Spells and Attacks", weight = 1 },
@@ -594,7 +594,7 @@ name = "adds_chaos_to_attacks"
 site = "pseudo_adds_chaos_damage_to_attacks"
 text = "Adds # to # Chaos Damage to Attacks"
 ranged = true
-limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one (round i, i06–i08)"
+limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one"
 rows = [
   { template = "Adds # to # Chaos Damage to Attacks", weight = 1 },
   { template = "While a Unique Enemy is in your Presence, Adds # to # Chaos Damage to Attacks", weight = 1 },
@@ -607,7 +607,7 @@ name = "adds_elemental_to_attacks"
 site = "pseudo_adds_elemental_damage_to_attacks"
 text = "Adds # to # Elemental Damage to Attacks"
 ranged = true
-limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one (round i, i06–i08)"
+limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one"
 rows = [
   { template = "Adds # to # Fire Damage to Attacks", weight = 1 },
   { template = "Adds # to # Fire Damage to Spells and Attacks", weight = 1 },
@@ -631,7 +631,7 @@ name = "adds_damage_to_attacks"
 site = "pseudo_adds_damage_to_attacks"
 text = "Adds # to # Damage to Attacks"
 ranged = true
-limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one (round i, i06–i08)"
+limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one"
 rows = [
   { template = "Adds # to # Physical Damage to Attacks", weight = 1 },
   { template = "Adds # to # Lightning Damage to Attacks", weight = 1 },
@@ -663,7 +663,7 @@ name = "adds_physical_to_spells"
 site = "pseudo_adds_physical_damage_to_spells"
 text = "Adds # to # Physical Damage to Spells"
 ranged = true
-limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one (round i, i06–i08)"
+limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one"
 rows = [
   { template = "Adds # to # Physical Damage to Spells", weight = 1 },
   { template = "Adds # to # Physical Damage", weight = 1, not_on = "weapon" },
@@ -676,7 +676,7 @@ name = "adds_lightning_to_spells"
 site = "pseudo_adds_lightning_damage_to_spells"
 text = "Adds # to # Lightning Damage to Spells"
 ranged = true
-limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one (round i, i06–i08)"
+limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one"
 rows = [
   { template = "Adds # to # Lightning Damage to Spells", weight = 1 },
   { template = "Adds # to # Lightning Damage", weight = 1, not_on = "weapon" },
@@ -690,7 +690,7 @@ name = "adds_cold_to_spells"
 site = "pseudo_adds_cold_damage_to_spells"
 text = "Adds # to # Cold Damage to Spells"
 ranged = true
-limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one (round i, i06–i08)"
+limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one"
 rows = [
   { template = "Adds # to # Cold Damage to Spells", weight = 1 },
   { template = "Adds # to # Cold Damage", weight = 1, not_on = "weapon" },
@@ -704,7 +704,7 @@ name = "adds_fire_to_spells"
 site = "pseudo_adds_fire_damage_to_spells"
 text = "Adds # to # Fire Damage to Spells"
 ranged = true
-limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one (round i, i06–i08)"
+limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one"
 rows = [
   { template = "Adds # to # Fire Damage to Spells", weight = 1 },
   { template = "Adds # to # Fire Damage", weight = 1, not_on = "weapon" },
@@ -718,7 +718,7 @@ name = "adds_chaos_to_spells"
 site = "pseudo_adds_chaos_damage_to_spells"
 text = "Adds # to # Chaos Damage to Spells"
 ranged = true
-limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one (round i, i06–i08)"
+limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one"
 rows = [
   { template = "Adds # to # Chaos Damage to Spells", weight = 1 },
   { template = "Adds # to # Chaos Damage", weight = 1, not_on = "weapon" },
@@ -731,7 +731,7 @@ name = "adds_elemental_to_spells"
 site = "pseudo_adds_elemental_damage_to_spells"
 text = "Adds # to # Elemental Damage to Spells"
 ranged = true
-limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one (round i, i06–i08)"
+limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one"
 rows = [
   { template = "Adds # to # Fire Damage to Spells", weight = 1 },
   { template = "Adds # to # Fire Damage", weight = 1, not_on = "weapon" },
@@ -755,7 +755,7 @@ name = "adds_damage_to_spells"
 site = "pseudo_adds_damage_to_spells"
 text = "Adds # to # Damage to Spells"
 ranged = true
-limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one (round i, i06–i08)"
+limit = "a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one"
 rows = [
   { template = "Adds # to # Physical Damage to Spells", weight = 1 },
   { template = "Adds # to # Physical Damage", weight = 1, not_on = "weapon" },

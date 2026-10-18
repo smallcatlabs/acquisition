@@ -52,7 +52,7 @@ pub async fn connect(path: &Path) -> std::io::Result<Stream> {
         return Err(std::io::Error::new(
             std::io::ErrorKind::PermissionDenied,
             format!(
-                "the pipe {} is served by another user's process; refusing to speak to it (C112)",
+                "the pipe {} is served by another user's process; refusing to speak to it",
                 path.display()
             ),
         ));

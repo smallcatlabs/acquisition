@@ -183,7 +183,7 @@ fn c83_a_second_daemon_on_the_same_world_refuses_naming_the_holder() {
         stderr.contains("another daemon holds this world")
             && stderr.contains(&format!("pid {pid}"))
             && stderr.contains("daemon.lock")
-            && stderr.contains("C83"),
+            && stderr.contains("one daemon per world"),
         "{stderr}"
     );
     // The refusal is at the end of a file that is mostly a hole: read
@@ -290,7 +290,7 @@ fn c83_c31_a_second_real_mode_daemon_for_this_user_refuses_naming_the_holder() {
         stderr.contains("another real-mode daemon is running for this OS user")
             && stderr.contains(&format!("pid {pid}"))
             && stderr.contains("ggg.lock")
-            && stderr.contains("C31"),
+            && stderr.contains("one real-mode daemon per OS user"),
         "{stderr}"
     );
     // The refused contender held no lock, so it made nothing in its

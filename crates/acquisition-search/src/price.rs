@@ -215,7 +215,7 @@ impl Priced {
             if listing.game.note_unread && listing.game.public == Some(true) {
                 return Priced::open(
                     PriceGap::NoteUnread,
-                    "the note cannot be read: it is no string, and a note would decide (C81)",
+                    "the note cannot be read: it is no string, and a note would decide",
                 );
             }
             let own = &listing.subject.target;
@@ -233,7 +233,7 @@ impl Priced {
                 .unwrap_or_default();
             return Priced::open(
                 PriceGap::Unresolved,
-                format!("the row on {place} cannot be read{detail} and would decide (C81)"),
+                format!("the row on {place} cannot be read{detail} and would decide"),
             );
         }
         let Some(price) = &effective.price else {

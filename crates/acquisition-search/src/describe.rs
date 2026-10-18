@@ -126,46 +126,40 @@ fn trade_catalogue() -> Result<TradeCatalogue, LanguageError> {
     })
 }
 
-/// One limit of the digest's register, in its wording (C102).
+/// One limit of the digest's register, in its wording (C102). The
+/// register numbers each (`S12` the veiled line's, `S52` a line's, `S53`
+/// the class's, `S107` an unknown line's, `S177` league of origin's,
+/// `S178` legacy's); the number is the builders' and never printed (C116).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct Limit {
-    pub id: &'static str,
     pub said: &'static str,
 }
+
+/// A veiled line's limit (S12), which a veiled line in `show` carries.
+pub const VEILED: &str =
+    "a veiled line is shown as the placeholder it is; a value query never matches it";
+
+/// A line's limit (S52), which the `template` entry carries.
+pub const AS_DISPLAYED: &str = "a line is matched as displayed text and value; which mods made it is not known and never guessed";
 
 /// The limits this build can meet (`search/DIGEST.md`, "Limits
 /// register"), in the register's words.
 pub const LIMITS: &[Limit] = &[
+    Limit { said: VEILED },
+    Limit { said: AS_DISPLAYED },
     Limit {
-        id: "S12",
-        said: "a veiled line is shown as the placeholder it is; a value query never matches it",
+        said: "an item's class is a derivation the search owns — read from its base by the class table, never a fact GGG gives — and an item the table cannot class is undecided with its reason",
     },
     Limit {
-        id: "S52",
-        said: "a line is matched as displayed text and value; which mods made it is not known and never guessed",
-    },
-    Limit {
-        id: "S53",
-        said: "an item's class is a derivation the search owns — read from its base by the class table (C106), never a fact GGG gives — and an item the table cannot class is undecided with its reason (C93)",
-    },
-    Limit {
-        id: "S107",
         said: crate::answer::S107,
     },
     Limit {
-        id: "S177",
         said: "league of origin is not a fact the search holds; a derivation from league-specific mods or first-seen is offered as a derivation, never as the answer",
     },
     Limit {
-        id: "S178",
         said: "legacy is the user's knowledge; the search finds what the user names and never says whether the game can still produce it",
     },
 ];
-
-/// A limit's wording, by id.
-pub fn limit(id: &str) -> &'static str {
-    LIMITS.iter().find(|l| l.id == id).map_or("", |l| l.said)
-}
 
 fn named(name: &str, kind: &'static str, what: &str) -> Named {
     Named {
@@ -327,7 +321,7 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
                 "text",
                 &format!(
                     "the displayed line with each number a #, the sign in the number — a + typed before a #, as the game and the trade site write a line, is spelling and is dropped; a bare \"T\" means template=\"T\". A mod displayed over several rows is one line: `=` names it by its whole text, a row break written \\n, or by any one of its rows, and named by a row its numbers are that row's; `:` and `~` test the whole text, and there a pattern's ^ and $ are the ends of that text. {}",
-                    limit("S52")
+                    AS_DISPLAYED
                 ),
             )
         },
@@ -353,7 +347,7 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
             ..named(
                 "red green blue white",
                 "number",
-                "how many sockets of the colour one link group holds; every count named holds together on one group (S59)",
+                "how many sockets of the colour one link group holds; every count named holds together on one group",
             )
         },
         Named {

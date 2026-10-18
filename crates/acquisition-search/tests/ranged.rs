@@ -1080,8 +1080,13 @@ fn c97_describe_of_a_ranged_total_says_its_rows_the_limit_and_what_no_total_read
         let name = total["name"].as_str().unwrap();
         let what = total["what"].as_str().unwrap();
         assert!(name.starts_with("pseudo.adds_"), "{name}");
-        // the limit, with what the site showed
-        assert!(what.contains("i06–i08"), "{name}: {what}");
+        // the limit, with what the site showed, in words that cite no
+        // sitting (C116)
+        assert!(
+            what.contains("no weapon the trade site listed was found to carry one"),
+            "{name}: {what}"
+        );
+        assert!(!what.contains("i06"), "{name}: {what}");
     }
     // J29's rule and the two arrays, in every total's definition
     for total in computed
@@ -1390,7 +1395,7 @@ fn c97_a_narrowing_matches_a_totals_own_definition_and_never_the_tables_rule() {
         "{fire:?}"
     );
     assert!(!fire.contains(&"pseudo.adds_fire".to_string()), "{fire:?}");
-    assert_eq!(computed("i06").len(), 21);
+    assert_eq!(computed("found to carry one").len(), 21);
 }
 
 /// C94, J7: what a row shows of a total is the lines of the rows that

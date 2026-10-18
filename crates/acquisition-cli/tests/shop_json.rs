@@ -246,7 +246,7 @@ fn shop_render_json_is_the_document_the_text_and_the_page_read() {
     let text = String::from_utf8_lossy(&out.stdout);
     assert!(
         text.starts_with(
-            "6 items in Standard: 2 items to post on 1 page; 2 omitted (2 the game lists); 2 blocked (1 a ratio (Q6), 1 in a substash (Q3)); 0 nothing applies\n\
+            "6 items in Standard: 2 items to post on 1 page; 2 omitted (2 the game lists); 2 blocked (1 a ratio, 1 in a substash); 0 nothing applies\n\
              coverage: 1 container on the page outside the sync policy (revision 1): character/ch1; add them with `acq policy set`\n"
         ),
         "{text}"

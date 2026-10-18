@@ -712,7 +712,7 @@ fn check_field(field: &str) -> Result<(), LanguageError> {
 pub(crate) fn realm_is_scope() -> LanguageError {
     invalid(
         ErrorKind::RealmIsScope,
-        "the realm is the search's scope, never a term (C96): name it outside the query — pc, xbox, sony, poe2, or all",
+        "the realm is the search's scope, never a term: name it outside the query — pc, xbox, sony, poe2, or all",
     )
 }
 

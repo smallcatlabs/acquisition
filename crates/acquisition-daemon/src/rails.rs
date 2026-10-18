@@ -241,8 +241,8 @@ impl BlockShape {
     /// The phrase that goes in error text, the trip cause, and the journal.
     pub fn describe(self) -> &'static str {
         match self {
-            BlockShape::Cloudflare => "Cloudflare-shaped block (N3/N28)",
-            BlockShape::Origin => "origin error page, not Cloudflare-shaped (N35)",
+            BlockShape::Cloudflare => "Cloudflare-shaped block",
+            BlockShape::Origin => "origin error page, not Cloudflare-shaped",
             BlockShape::Unclassified => "unclassified body, possibly a Cloudflare block",
         }
     }
@@ -680,7 +680,7 @@ mod tests {
             .expect("trips");
         assert_eq!(
             cause,
-            "503 on GET /character — origin error page, not Cloudflare-shaped (N35)"
+            "503 on GET /character — origin error page, not Cloudflare-shaped"
         );
         rails.reset_tripwire();
         let cause = rails.record(&report(Some(403))).expect("trips");

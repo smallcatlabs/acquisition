@@ -400,7 +400,7 @@ def colours(table):
         "",
         f"version = {COLOURS_VERSION}",
         f"realms = [{', '.join(toml_str(r) for r in table['realms'])}]",
-        f"source = {toml_str('the trade site’s answers to the owner’s sittings of 2026-10-04, rounds k and l: each of the site’s 361 monster names asked under Yellow Beast and, where not found, under Red Beast (search/category/data/beast-colours.csv; SURFACES.md)')}",
+        f"source = {toml_str('the trade site’s answers to the owner’s searches of 2026-10-04: each of the site’s 361 monster names asked under Yellow Beast and, where not found, under Red Beast (search/category/data/beast-colours.csv; SURFACES.md)')}",
         'generated_by = "tools/category-table.py"',
         "",
     ]

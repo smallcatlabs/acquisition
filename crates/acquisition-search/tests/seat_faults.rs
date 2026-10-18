@@ -646,7 +646,7 @@ fn f1_the_helps_limit_on_class_says_what_the_class_table_made_true() {
         .as_array()
         .unwrap()
         .iter()
-        .find(|l| l["id"] == "S53")
+        .find(|l| l["said"].as_str().unwrap().contains("class"))
         .unwrap()["said"]
         .as_str()
         .unwrap()

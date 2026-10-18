@@ -191,7 +191,7 @@ pub fn read(source: Source, text: &str, table: &CurrencyTable) -> GamePrice {
         NEGOTIABLE => true,
         other => {
             return invalid(format!(
-                "{other:?} is not a prefix the game writes ({EXACT}, {NEGOTIABLE}, {SKIP}; T10)"
+                "{other:?} is not a prefix the game writes ({EXACT}, {NEGOTIABLE}, {SKIP})"
             ));
         }
     };
@@ -209,7 +209,7 @@ pub fn read(source: Source, text: &str, table: &CurrencyTable) -> GamePrice {
     };
     if amount_text.is_empty() {
         return invalid(
-            "the amount is empty — what the dialog leaves after an invalid entry (T10)".into(),
+            "the amount is empty — what the dialog leaves after an invalid entry".into(),
         );
     }
     let amount = match amount_text.parse::<Amount>() {
@@ -218,7 +218,7 @@ pub fn read(source: Source, text: &str, table: &CurrencyTable) -> GamePrice {
     };
     if source == Source::TabName && matches!(amount, Amount::Ratio { .. }) {
         return invalid(format!(
-            "a ratio ({amount_text}) in a tab name is invalid and lists nothing (T11)"
+            "a ratio ({amount_text}) in a tab name is invalid and lists nothing"
         ));
     }
     // The suffix after the word is tolerated, not read, under both
@@ -389,7 +389,7 @@ mod tests {
                 text
             );
             assert!(
-                matches!(&tab(text), GamePrice::Invalid { why } if why.contains("T11")),
+                matches!(&tab(text), GamePrice::Invalid { why } if why.contains("in a tab name is invalid")),
                 "{text:?} as a tab name"
             );
         }
@@ -642,7 +642,7 @@ mod tests {
                 prop_assert_eq!(read(Source::Note, &bare, t), want.clone(), "{:?}", bare);
                 let as_tab = read(Source::TabName, &bare, t);
                 if matches!(amount, Amount::Ratio { .. }) {
-                    prop_assert!(matches!(&as_tab, GamePrice::Invalid { why } if why.contains("T11")), "{:?} → {}", bare, as_tab);
+                    prop_assert!(matches!(&as_tab, GamePrice::Invalid { why } if why.contains("in a tab name is invalid")), "{:?} → {}", bare, as_tab);
                 } else {
                     prop_assert_eq!(as_tab.clone(), want.clone(), "{:?}", bare);
                 }

@@ -72,7 +72,7 @@ impl fmt::Display for LocateError {
             None => write!(
                 f,
                 "no {ACQD} beside {} (looked for {}): Acquisition's installation places the \
-                 daemon beside every frontend (C82); in a source tree, `cargo build --workspace` \
+                 daemon beside every frontend; in a source tree, `cargo build --workspace` \
                  builds it",
                 self.exe.display(),
                 self.looked_for.display()

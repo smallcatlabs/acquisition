@@ -413,7 +413,7 @@ pub(crate) const FIELDS: &[FieldDef] = &[
         name: "priced",
         thing: Thing::Price,
         kind: Kind::Presence,
-        what: "whether the item carries an effective price (C81): the game's note or public tab name, or the owner's row, whichever is the more specific, the game's on a tie; a listing resolved to none, no price or skip lacks it; one a row that cannot be read could decide is undecided",
+        what: "whether the item carries an effective price: the game's note or public tab name, or the owner's row, whichever is the more specific, the game's on a tie; a listing resolved to none, no price or skip lacks it; one a row that cannot be read could decide is undecided",
     },
     FieldDef {
         name: "price.amount",
@@ -425,7 +425,7 @@ pub(crate) const FIELDS: &[FieldDef] = &[
         name: "price.currency",
         thing: Thing::PriceCurrency,
         kind: Kind::Closed(crate::price::currency_tags),
-        what: "the effective price's currency, by the tag of the currency table (C68)",
+        what: "the effective price's currency, by the tag of the currency table",
     },
     FieldDef {
         name: "price.lot",
@@ -443,7 +443,7 @@ pub(crate) const FIELDS: &[FieldDef] = &[
         name: "league",
         thing: Thing::League,
         kind: Kind::Text,
-        what: "the league the item is in now — its place, never where it came from: league of origin is not a fact the search holds (S177)",
+        what: "the league the item is in now — its place, never where it came from: league of origin is not a fact the search holds",
     },
     FieldDef {
         name: "tab",

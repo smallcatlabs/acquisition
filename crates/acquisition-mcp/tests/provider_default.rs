@@ -20,7 +20,7 @@ fn c88_the_server_refuses_the_retired_knob_and_an_unknown_provider_at_start() {
         assert_eq!(out.status.code(), Some(2), "{env:?}: {out:?}");
         let stderr = String::from_utf8_lossy(&out.stderr);
         assert!(
-            stderr.starts_with("acq-mcp: ") && stderr.contains(said) && stderr.contains("C88"),
+            stderr.starts_with("acq-mcp: ") && stderr.contains(said) && !stderr.contains("C88"),
             "{env:?}: {stderr}"
         );
     }

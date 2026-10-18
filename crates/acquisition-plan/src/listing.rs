@@ -1137,7 +1137,7 @@ fn effective(
                 side: None,
                 from: Some(u.target.clone()),
                 why: format!(
-                    "unresolved: the row on {} cannot be read ({}) and would decide{} (C81)",
+                    "unresolved: the row on {} cannot be read ({}) and would decide{}",
                     u.target,
                     u.why,
                     match game_level {
@@ -1155,8 +1155,7 @@ fn effective(
             side: None,
             from: None,
             why: if game.residue {
-                "nothing applies: the price text in game is not where the index can see it (C81)"
-                    .into()
+                "nothing applies: the price text in game is not where the index can see it".into()
             } else {
                 "nothing applies".into()
             },
@@ -1165,7 +1164,7 @@ fn effective(
             m,
             if game.residue {
                 format!(
-                    "{} by hand (row on {}); the price text in game is not where the index can see it (C81)",
+                    "{} by hand (row on {}); the price text in game is not where the index can see it",
                     m.value, m.from
                 )
             } else {
@@ -1177,7 +1176,7 @@ fn effective(
         ),
         (None, Some(_)) => from_game(match unreadable {
             Some(u) => format!(
-                "{} in game: the game wins against the row on {}, readable or not, at its level (C81)",
+                "{} in game: the game wins against the row on {}, readable or not, at its level",
                 game.reading, u.target
             ),
             None => format!("{} in game; no row applies", game.reading),
@@ -1189,7 +1188,7 @@ fn effective(
                 from_manual(
                     m,
                     format!(
-                        "{} by hand: the row on the {} is more specific than the game's {} name (C81)",
+                        "{} by hand: the row on the {} is more specific than the game's {} name",
                         m.value,
                         level_word(&m.from),
                         level_word(&gf)
@@ -1197,7 +1196,7 @@ fn effective(
                 )
             } else if gl < ml {
                 from_game(format!(
-                    "{} in game: the {} is more specific than the row on the {} (C81)",
+                    "{} in game: the {} is more specific than the row on the {}",
                     game.reading,
                     match game.source {
                         Some(Source::Note) => "note".to_string(),
@@ -1207,7 +1206,7 @@ fn effective(
                 ))
             } else {
                 from_game(format!(
-                    "{} in game: the game wins a tie with the row on the {} (C81)",
+                    "{} in game: the game wins a tie with the row on the {}",
                     game.reading,
                     level_word(&m.from)
                 ))
@@ -1239,7 +1238,7 @@ fn listing(
             side: None,
             from: Some(subject.target.clone()),
             why: format!(
-                "unresolved: the note on {} cannot be read (it is no string) and would decide (C81)",
+                "unresolved: the note on {} cannot be read (it is no string) and would decide",
                 subject.target
             ),
         }
@@ -1958,7 +1957,7 @@ mod tests {
         assert_eq!(e.from, Some(item_target("i-exact")));
         assert!(
             e.why
-                .ends_with("the game wins a tie with the row on the item (C81)"),
+                .ends_with("the game wins a tie with the row on the item"),
             "{}",
             e.why
         );
@@ -2016,7 +2015,7 @@ mod tests {
             (Some(Side::Manual), "2222 jewellers".into())
         );
         assert!(
-            e.why.contains("not where the index can see it (C81)"),
+            e.why.contains("not where the index can see it"),
             "{}",
             e.why
         );

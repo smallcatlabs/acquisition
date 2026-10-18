@@ -124,8 +124,9 @@ READING = re.compile(r"^the (count|least) of ([a-z0-9_]+(?:, [a-z0-9_]+)+)$")
 
 # rule 7: the twin a row can mean, as the category id its line is not counted on
 TWINS = {"global": "weapon"}
+# round i, i06–i08, said without the round: no reader can look one up (C116)
 RANGED_LIMIT = ("a line under the other stat on a weapon is read as the weapon's own: no weapon the "
-                "trade site listed was found to carry one (round i, i06–i08)")
+                "trade site listed was found to carry one")
 
 # rule 9: the rule that names the arrays no total reads
 LEAVES_OUT = re.compile(r"^a total leaves out .*: the arrays ((?:`\w+Mods`(?:, | and )?)+), and no other array$")

@@ -116,7 +116,7 @@ name = "armour.q20"
 array = "properties"
 property = ["Armour"]
 reads = "q20"
-definition = "the displayed `Armour` at 20 % quality, as the trade site's Armour filter states it (S26): the display with the item's quality taken out and 20 % put in, rounded half up; at 20 % or more, or under `Quality does not increase Defences`, the display. Within one of the site's own figure, which works from the roll the display has rounded"
+definition = "the displayed `Armour` at 20 % quality, as the trade site's Armour filter states it: the display with the item's quality taken out and 20 % put in, rounded half up; at 20 % or more, or under `Quality does not increase Defences`, the display. Within one of the site's own figure, which works from the roll the display has rounded"
 
 [[field]]
 name = "evasion_rating.q20"
@@ -178,7 +178,7 @@ array = "properties"
 property = ["Area Level", "Monster Level"]
 reads = "number"
 whole = true
-definition = "the displayed `Area Level`: a map's, a contract's or a logbook's own level; a Blood-filled Vessel's `Monster Level`, the same property, which the trade site's Area Level reads (t46)"
+definition = "the displayed `Area Level`: a map's, a contract's or a logbook's own level; a Blood-filled Vessel's `Monster Level`, the same property, which the trade site's Area Level reads"
 
 [[field]]
 name = "monster_pack_size"
@@ -271,7 +271,7 @@ select = { value = 1, is = "Lockpicking" }
 also = { array = "requirements", property = ["Level {0} in {1}"] }
 reads = "number"
 whole = true
-definition = "the level of Lockpicking a contract or blueprint requires, `Requires Lockpicking (Level n)`, or a heist item requires of its wearer, `Requires Level n in Lockpicking`, which the trade site's skill filter reads too (t48)"
+definition = "the level of Lockpicking a contract or blueprint requires, `Requires Lockpicking (Level n)`, or a heist item requires of its wearer, `Requires Level n in Lockpicking`, which the trade site's skill filter reads too"
 
 [[field]]
 name = "brute_force"
@@ -421,7 +421,7 @@ reads = "number"
 plus = true
 unit = "%"
 whole = true
-definition = "the displayed `Quality`, in percent, and a catalysed ring's or amulet's, `Quality (Resistance Modifiers)` and its eleven kin, which the trade site's Quality reads too (t49); a map's `Quality (Quantity)` and its kin are names of their own and not read"
+definition = "the displayed `Quality`, in percent, and a catalysed ring's or amulet's, `Quality (Resistance Modifiers)` and its eleven kin, which the trade site's Quality reads too; a map's `Quality (Quantity)` and its kin are names of their own and not read"
 
 [[field]]
 name = "level"
@@ -438,7 +438,7 @@ array = "additionalProperties"
 property = ["Experience"]
 reads = "percent"
 at_max = 100
-definition = "a gem's experience as the percent of its level's: `Experience: a/b` as 100 × a ÷ b, cut to five decimals toward nothing, so one point short is never 100; a gem at its maximum level, `Level 20 (Max)`, displays none and is at 100, as the trade site reads it (u090)"
+definition = "a gem's experience as the percent of its level's: `Experience: a/b` as 100 × a ÷ b, cut to five decimals toward nothing, so one point short is never 100; a gem at its maximum level, `Level 20 (Max)`, displays none and is at 100, as the trade site reads it"
 
 [[field]]
 name = "stored_experience"

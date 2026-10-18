@@ -454,13 +454,13 @@ impl fmt::Display for ConnectError {
             ConnectError::Absent {
                 because: NotSpawned::NoTerminal,
             } => f.write_str(
-                "daemon is not running, and a real-mode daemon is started from a terminal (none is on stderr here, C88) — start one there with a job command (`acq profile`), or ACQ_PROVIDER=mock for the mock",
+                "daemon is not running, and a real-mode daemon is started from a terminal (none is on stderr here) — start one there with a job command (`acq profile`), or ACQ_PROVIDER=mock for the mock",
             ),
             ConnectError::Incompatible { found, because } => match because {
                 NotReplaced::NoSpawn => write!(f, "{found}, and ACQ_NO_SPAWN forbids replacing it"),
                 NotReplaced::NoTerminal => write!(
                     f,
-                    "{found}, and replacing it with a real-mode daemon is done from a terminal (none is on stderr here, C88)"
+                    "{found}, and replacing it with a real-mode daemon is done from a terminal (none is on stderr here)"
                 ),
                 NotReplaced::NeverReplaces => write!(
                     f,

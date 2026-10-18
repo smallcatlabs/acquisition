@@ -1436,18 +1436,7 @@ fn c97_a_narrowing_matches_what_the_percentile_reads_and_never_its_bookkeeping()
     // every one of these is in the definition `--describe` prints
     let one = serde_json::to_value(describe(&["defence_pct".to_string()]).unwrap()).unwrap();
     let what = one["computed"][0]["what"].as_str().unwrap().to_string();
-    for word in [
-        "442",
-        "17 of 17",
-        "defence-twins",
-        "scripts",
-        "defences v1",
-        "RePoE",
-        "476",
-        "J33",
-        "J5",
-        "C102",
-    ] {
+    for word in ["442", "17 of 17", "defences v1", "RePoE", "476"] {
         assert!(what.contains(word), "{word}: {what}");
         assert_eq!(computed(word), [] as [&str; 0], "line:{word}");
     }

@@ -81,7 +81,7 @@ pub struct SearchArgs {
     pub query: Option<String>,
     /// The realm searched: pc, xbox, sony, poe2, or all. Over a store
     /// holding one realm it may be omitted and the answer prints it; over
-    /// several it is required, one of them or `all` (C96).
+    /// several it is required, one of them or `all`.
     #[arg(long)]
     pub realm: Option<String>,
     /// Which items are searched: `live`, the default; `all`, which adds
@@ -114,8 +114,7 @@ pub struct SearchArgs {
     pub trade_file: Option<String>,
     /// Order the rows by a value: `ilvl`, `stack`, `'line("T").arg1'`,
     /// `'sum("T")'`, `pseudo.total_res`. A line's scalar is its largest
-    /// satisfying occurrence; an item with none sorts last either way
-    /// (C92).
+    /// satisfying occurrence; an item with none sorts last either way.
     #[arg(long, value_name = "VALUE")]
     pub sort: Option<String>,
     /// Largest first.
@@ -152,7 +151,7 @@ pub struct SearchArgs {
     /// texts to narrow by, a table each, and `~` before one makes it a
     /// pattern: `--count tab,line:resist,life`. An item with no value is
     /// counted under `none`, one whose value could not be read under
-    /// `undecided` (C105); every count has its route (`--routes`). Given
+    /// `undecided`; every count has its route (`--routes`). Given
     /// again, the flag starts a list of its own, so a field can follow a
     /// narrowed vocabulary: `--count line:resist,life --count rarity`.
     #[arg(long, value_name = "KEY,…")]
@@ -164,7 +163,7 @@ pub struct SearchArgs {
     /// Beside each count, the sum of one number over its items: `stack`,
     /// `ilvl`, `'sum("T")'`, `pseudo.total_res`. An item lacking the thing
     /// adds nothing and is counted as lacking; one unread leaves a
-    /// subtotal marked incomplete (C95).
+    /// subtotal marked incomplete.
     #[arg(long, value_name = "VALUE")]
     pub sum: Option<String>,
     /// Not built, waiting for a consumer that asks: the caller names a
@@ -1798,7 +1797,7 @@ fn describe_text(d: &Describe, index: bool) -> String {
     if !d.limits.is_empty() {
         out.push_str("limits, as the search states them\n");
         for l in &d.limits {
-            out.push_str(&format!("  {:<6}{}\n", l.id, l.said));
+            out.push_str(&format!("  {}\n", l.said));
         }
     }
     if index {

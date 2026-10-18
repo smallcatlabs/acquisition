@@ -2070,7 +2070,7 @@ impl Translator<'_> {
         self.readings(&printed, &text)?;
         guard(&root, &self.clauses, &self.own).map_err(|why| {
             trade(format!(
-                "the translation of `{text}` breaks its guard (K6): {why}"
+                "the translation of `{text}` breaks its guard: {why}"
             ))
         })?;
         let remainder: Vec<String> = self

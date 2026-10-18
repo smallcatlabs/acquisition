@@ -872,7 +872,7 @@ impl Total {
             })
             .collect();
         let reads = if self.reads_category() {
-            "; a row with `where` counts its line only on an item that term holds on, and its contribution is unread — the total undecided — where the item has such a line and its category is not established (C93)"
+            "; a row with `where` counts its line only on an item that term holds on, and its contribution is unread — the total undecided — where the item has such a line and its category is not established"
         } else {
             ""
         };
@@ -1002,7 +1002,7 @@ mod tests {
         assert!(t.totals().iter().all(|t| t.ranged || !t.reads_category()));
         assert_eq!(
             t.get("adds_fire").unwrap().definition(),
-            "the trade site's pseudo_adds_fire_damage (`Adds # to # Fire Damage`): the sum over the item's lines, low with low and high with high — a range taking low, high and avg, the bare name its avg of 1 × low and high of line(\"Adds # to # Fire Damage\") where -category=weapon; a row with `where` counts its line only on an item that term holds on, and its contribution is unread — the total undecided — where the item has such a line and its category is not established (C93); a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one (round i, i06–i08); a total leaves out a crucible node's lines and a flask's own lines: the arrays `crucibleMods` and `utilityMods`, and no other array"
+            "the trade site's pseudo_adds_fire_damage (`Adds # to # Fire Damage`): the sum over the item's lines, low with low and high with high — a range taking low, high and avg, the bare name its avg of 1 × low and high of line(\"Adds # to # Fire Damage\") where -category=weapon; a row with `where` counts its line only on an item that term holds on, and its contribution is unread — the total undecided — where the item has such a line and its category is not established; a line under the other stat on a weapon is read as the weapon's own: no weapon the trade site listed was found to carry one; a total leaves out a crucible node's lines and a flask's own lines: the arrays `crucibleMods` and `utilityMods`, and no other array"
         );
         assert!(t.get("TOTAL_RES").is_some());
         assert!(t.get("total_nothing").is_none());

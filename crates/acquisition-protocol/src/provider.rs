@@ -54,14 +54,14 @@ pub fn check_environment() -> Result<(), String> {
     if std::env::var_os(RETIRED_KNOB).is_some() {
         return Err(format!(
             "{RETIRED_KNOB} is no longer read: the real provider is the default and \
-             {KNOB}=mock selects the mock (C88); unset {RETIRED_KNOB}"
+             {KNOB}=mock selects the mock; unset {RETIRED_KNOB}"
         ));
     }
     match std::env::var(KNOB) {
         Err(std::env::VarError::NotPresent) => Ok(()),
         Ok(v) if v == MOCK || v == GGG => Ok(()),
         Ok(v) => Err(format!(
-            "{KNOB}={v:?} names no provider: {MOCK} or {GGG} (unset is {GGG}, C88)"
+            "{KNOB}={v:?} names no provider: {MOCK} or {GGG} (unset is {GGG})"
         )),
         Err(e) => Err(format!("{KNOB} is unreadable: {e}")),
     }
@@ -98,7 +98,7 @@ mod tests {
         unsafe { std::env::set_var(KNOB, "Mock") };
         let err = check_environment().unwrap_err();
         assert!(
-            err.contains("names no provider") && err.contains("C88"),
+            err.contains("names no provider") && err.contains("unset is"),
             "{err}"
         );
         unsafe {

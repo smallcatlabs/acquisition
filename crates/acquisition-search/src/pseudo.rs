@@ -390,13 +390,13 @@ impl Derived {
                 "elemental damage per second: the attacks per second times the mean of `Elemental Damage`, each of its ranges' means summed; an item lacking either property lacks it".to_string()
             }
             Derived::DpsQ20 => {
-                "damage per second at 20 % quality, as the trade site's Damage per Second states it (t42): `pseudo.dps` with the physical range as `pseudo.pdps_q20` reads it — elemental and chaos damage, which quality does not raise, as displayed".to_string()
+                "damage per second at 20 % quality, as the trade site's Damage per Second states it: `pseudo.dps` with the physical range as `pseudo.pdps_q20` reads it — elemental and chaos damage, which quality does not raise, as displayed".to_string()
             }
             Derived::PdpsQ20 => {
-                "physical damage per second at 20 % quality, as the trade site's Physical DPS states it (t41): each end of `Physical Damage` with the item's quality taken out and 20 % put in — the display × 120 ÷ (100 + the quality), rounded half up, and the display at 20 % or more — its mean times the attacks per second; under the enchant `Quality does not increase Physical Damage`, the display. Within one of the site's own figure at the mean, which works from the roll the display has rounded: equal on 902 of the captures' 1,095 weapons, a half off on 181 and one off on 12".to_string()
+                "physical damage per second at 20 % quality, as the trade site's Physical DPS states it: each end of `Physical Damage` with the item's quality taken out and 20 % put in — the display × 120 ÷ (100 + the quality), rounded half up, and the display at 20 % or more — its mean times the attacks per second; under the enchant `Quality does not increase Physical Damage`, the display. Within one of the site's own figure at the mean, which works from the roll the display has rounded: equal on 902 of the captures' 1,095 weapons, a half off on 181 and one off on 12".to_string()
             }
             Derived::DefencePct => format!(
-                "{} Of the captured lines whose side the site's id names, each part holds on all: 442 of 442 explicit, 17 of 17 implicit on an eldritch item, 10 of 10 implicit on a synthesised item — counted by search/pseudo-stats/scripts/defence-twins.py. Ruled: the exact half J5, the twin J8, undecided J33, out of range J34, a realm with no table J35; the site's bound C102. {}",
+                "{} Of the captured lines whose side the site's id names, each part holds on all: 442 of 442 explicit, 17 of 17 implicit on an eldritch item, 10 of 10 implicit on a synthesised item. {}",
                 self.own_definition(),
                 match defences::table() {
                     Ok(table) => table.provenance(),

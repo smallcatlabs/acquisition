@@ -313,37 +313,37 @@
       "cell": "stash_item",
       "count": 4,
       "verdict": "post",
-      "why": "a hand-priced stash item at a listed tab: `[linkItem realm= location=\"Stash<n>\" league= x= y=]` under the price's spoiler, `n` the tab's rank among the tabs the website lists — folders and substashes left out (T7, T13, T24; a forum price over the tab's is T12)"
+      "why": "a hand-priced stash item at a listed tab: `[linkItem realm= location=\"Stash<n>\" league= x= y=]` under the price's spoiler, `n` the tab's rank among the tabs the website lists — folders and substashes left out; a forum price takes precedence over the tab's in-game price"
     },
     {
       "cell": "character_item",
       "count": 1,
       "verdict": "post",
-      "why": "a hand-priced character item in a slot: `[linkItem realm= location=\"<inventoryId>\" character= x= y=]` under the price's spoiler (T7, T8)"
+      "why": "a hand-priced character item in a slot: `[linkItem realm= location=\"<inventoryId>\" character= x= y=]` under the price's spoiler"
     },
     {
       "cell": "hand_no_price",
       "count": 1,
       "verdict": "post",
-      "why": "a hand `no_price` item at an address a posting row takes: its link alone under an empty spoiler title, which the site lists as \"No Price Set\" (T21)"
+      "why": "a hand `no_price` item at an address a posting row takes: its link alone under an empty spoiler title, which the site lists as \"No Price Set\""
     },
     {
       "cell": "game_lists",
       "count": 2,
       "verdict": "omit",
-      "why": "the game already lists it at its own price (T11, C81); a page must not contradict what the site shows (C74)"
+      "why": "the game already lists it at its own price; a page must not contradict what the site shows"
     },
     {
       "cell": "game_skips",
       "count": 1,
       "verdict": "omit",
-      "why": "the game marks it do-not-index (~skip, T10) and the game decides (C81); a forum price against a game skip is Q7"
+      "why": "the game marks it do-not-index (~skip) and the game decides; what the site makes of a forum price against a game skip is not observed"
     },
     {
       "cell": "hand_skip",
       "count": 2,
       "verdict": "omit",
-      "why": "a hand skip means leave it out (C67)"
+      "why": "a hand skip means leave it out"
     },
     {
       "cell": "nothing_applies",
@@ -355,7 +355,7 @@
       "cell": "unresolved",
       "count": 1,
       "verdict": "block",
-      "why": "a row that cannot be read could decide (C81): never treated as unpriced; read it with `acq price show`"
+      "why": "a row that cannot be read could decide: never treated as unpriced; read it with `acq price show`"
     },
     {
       "cell": "league_unknown",
@@ -367,31 +367,31 @@
       "cell": "unruled_kind",
       "count": 0,
       "verdict": "block",
-      "why": "a hand price of a kind no row of this table writes (`exact` and `negotiable` are ruled; C74 blocks the rest)"
+      "why": "a hand price of a kind no row of this table writes (`exact` and `negotiable` are ruled; the rest are blocked)"
     },
     {
       "cell": "ratio",
       "count": 1,
       "verdict": "block",
-      "why": "a ratio on the forum is unobserved (Q6); in game a typed ratio unlists the item (T19)"
+      "why": "a ratio on the forum is unobserved; in game a typed ratio unlists the item"
     },
     {
       "cell": "retired_currency",
       "count": 1,
       "verdict": "block",
-      "why": "the row cites a retired currency tag (C68): the word the site reads for it is unknown"
+      "why": "the row cites a retired currency tag: the word the site reads for it is unknown"
     },
     {
       "cell": "realm_unlisted",
       "count": 0,
       "verdict": "block",
-      "why": "the trade site's realms are pc, xbox and sony (T4)"
+      "why": "the trade site's realms are pc, xbox and sony"
     },
     {
       "cell": "socketed",
       "count": 2,
       "verdict": "block",
-      "why": "a socketed item has no position and cannot be linked (T13)"
+      "why": "a socketed item has no position and cannot be linked"
     },
     {
       "cell": "no_position",
@@ -403,25 +403,25 @@
       "cell": "substash",
       "count": 1,
       "verdict": "block",
-      "why": "the website's stash view offers no link for an item in a map or unique substash (T20), and no other code for one has been observed: blocked until one is"
+      "why": "the website's stash view offers no link for an item in a map or unique substash, and no other code for one has been observed: blocked until one is"
     },
     {
       "cell": "tab_unlisted",
       "count": 1,
       "verdict": "block",
-      "why": "the tab is not on the current stash listing, so it has no index for `Stash<n>` (T13)"
+      "why": "the tab is not on the current stash listing, so it has no index for `Stash<n>`"
     },
     {
       "cell": "invalid_index",
       "count": 0,
       "verdict": "block",
-      "why": "the tab's recorded index is below zero: a corrupt fact, blocked rather than ranked (C47)"
+      "why": "the tab's recorded index is below zero: a corrupt fact, blocked rather than ranked"
     },
     {
       "cell": "no_slot",
       "count": 0,
       "verdict": "block",
-      "why": "a character item without an `inventoryId` cannot be addressed (T13)"
+      "why": "a character item without an `inventoryId` cannot be addressed"
     },
     {
       "cell": "page_size",
