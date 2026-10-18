@@ -7,6 +7,11 @@
 //! group (F4), a closed set's refusal (F5), a computed value's case
 //! (F10), a partial id (F7), what a row sorts by (F6). The text these
 //! render to is `acquisition-cli/tests/search_json.rs`.
+//!
+//! The trade import's seat (`audits/trade-2026-10/seat/`, 2026-10-17)
+//! adds the faults its four runs met in the answer itself, each named
+//! for the fault; its CLI and MCP faults are those crates' `seat_faults`
+//! and `search_tools`.
 
 mod common;
 
@@ -1143,4 +1148,73 @@ fn review_f4_offers_only_readings_that_bind_and_every_slot_the_template_has() {
         serde_json::to_value(parse_query("line(\"Cannot be Frozen\")>=1").unwrap_err()).unwrap();
     assert_eq!(e["kind"], "slot_missing");
     assert!(e.get("readings").is_none(), "{e}");
+}
+
+/// A unique tab's pages come from GGG with an empty name, or with the
+/// ` (Remove-only)` mark alone: a row placed there printed `~price 4554
+/// chaos / ` (the trade seat: cli-opus calls 20, 21; mcp-opus 25, 26,
+/// 28). Such a page has no name, and the reader is shown its id (C53).
+#[test]
+fn a_unique_tabs_page_with_no_name_is_named_by_its_id() {
+    let mut s = store();
+    list_tabs(
+        &mut s,
+        "pc",
+        "Standard",
+        json!([{ "id": "u1", "name": "~price 1 chaos", "type": "UniqueStash" }]),
+        10,
+    );
+    let sub = |sub: Option<&str>| acquisition_store::Endpoint::Stash {
+        realm: "pc".into(),
+        league: "Standard".into(),
+        id: "u1".into(),
+        sub: sub.map(str::to_string),
+    };
+    s.record(
+        &sub(None),
+        &json!({ "id": "u1" }),
+        200,
+        &json!({ "stash": { "id": "u1", "name": "~price 1 chaos", "type": "UniqueStash", "items": [],
+                            "children": [{ "id": "p1", "name": "", "type": "UniqueStash" },
+                                         { "id": "p2", "name": " (Remove-only)", "type": "UniqueStash" },
+                                         { "id": "p3", "name": "Rings", "type": "UniqueStash" }] } }),
+        20,
+    )
+    .unwrap();
+    for (page, name, at) in [
+        ("p1", "", 21),
+        ("p2", " (Remove-only)", 22),
+        ("p3", "Rings", 23),
+    ] {
+        s.record(
+            &sub(Some(page)),
+            &json!({ "id": "u1", "sub": page }),
+            200,
+            &json!({ "stash": { "id": page, "name": name, "type": "UniqueStash",
+                                "items": [item(&format!("i-{page}"), "Kaom's Heart", "Glorious Plate", "Unique", json!({}))] } }),
+            at,
+        )
+        .unwrap();
+    }
+    let a = asked(&s, "pc", "rarity=unique");
+    let places: Vec<(String, Value, Value)> = a["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| {
+            (
+                r["id"].as_str().unwrap().to_string(),
+                r["place"]["name"].clone(),
+                r["place"]["parent"]["name"].clone(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        places,
+        [
+            ("i-p1".to_string(), Value::Null, json!("~price 1 chaos")),
+            ("i-p2".to_string(), Value::Null, json!("~price 1 chaos")),
+            ("i-p3".to_string(), json!("Rings"), json!("~price 1 chaos")),
+        ]
+    );
 }

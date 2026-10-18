@@ -278,6 +278,10 @@ pub struct Place {
     /// `stash` or `character`.
     pub kind: String,
     pub id: String,
+    /// The location's name as GGG gives it, or none where it gives no
+    /// text: a unique tab's page comes with an empty name, or with the
+    /// ` (Remove-only)` mark alone, and is shown by its id (C53: every
+    /// nothing says which nothing; the trade seat, 2026-10-17).
     pub name: Option<String>,
     /// GGG's `type` of the tab, verbatim, as the store's read hands it
     /// over (C108); a substash's own, or its tab's where it has none; a
@@ -379,6 +383,14 @@ pub(crate) fn locations(header: &CorpusHeader) -> Locations<'_> {
         .collect()
 }
 
+/// A location's name, or none where GGG's holds no text but the mark it
+/// adds to a remove-only tab's.
+fn named(name: &str) -> Option<String> {
+    let text = name.trim();
+    let text = text.strip_suffix("(Remove-only)").unwrap_or(text).trim();
+    (!text.is_empty()).then(|| name.to_string())
+}
+
 /// One row of the store's read as the deriver's facts and the item's
 /// place, by name and id. What an item is socketed in is named by
 /// [`Corpus::load`], which holds every item.
@@ -401,7 +413,7 @@ pub(crate) fn placed(index: &Locations<'_>, row: CorpusItem) -> (Facts, Place) {
         league: row.league.clone(),
         kind: row.location_kind.clone(),
         id: row.location_id.clone(),
-        name: location.map(|l| l.name.clone()),
+        name: location.and_then(|l| named(&l.name)),
         tab_type: location
             .filter(|l| l.kind == "stash")
             .and_then(|l| l.tab_type.clone())
