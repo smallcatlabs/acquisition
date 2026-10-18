@@ -39,7 +39,7 @@ the store's read.
   `tools/trade-sheet.py` for a sitting.
 - Not built, each refused by name and printed by `--describe`:
   `--fields`, `--rebind`, `show --basis` (`--view locations` left at
-  note 38's step 4: `tabs` is the list). Not in the
+  `259cad75`: `tabs` is the list, C118). Not in the
   slice: the trade translation (C99), parked.
 
 
