@@ -730,6 +730,9 @@ fn place_text(place: &acquisition_search::corpus::Place) -> String {
             place.container.as_deref().unwrap_or("character")
         ));
     }
+    if let Some(cell) = &place.cell {
+        out.push_str(&format!(" · x {}, y {}", cell.x, cell.y));
+    }
     if let Some(parent) = &place.socketed_in {
         out.push_str(&format!(
             " · socketed in {}",

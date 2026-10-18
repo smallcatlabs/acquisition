@@ -1153,3 +1153,17 @@ fn a_long_term_path_never_runs_into_its_term() {
         assert!(path.chars().all(|c| c.is_ascii_digit() || c == '.'), "{l}");
     }
 }
+
+/// A row named the tab and never the cell, which the person needs to
+/// pick the item up (the trade seat: cli-opus call 30, its fault 3;
+/// cli-sonnet call 23, its fault 2). The place's text ends with it.
+#[test]
+fn a_rows_place_says_which_cell_the_item_sits_in() {
+    let scratch = harness::scratch("seat-cell");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    let shown = stdout(&acq(&base, &["search", "--realm", "pc", "league=Standard"]));
+    assert!(shown.contains("Standard / Gear · x 0, y 0"), "{shown}");
+    let shown = stdout(&acq(&base, &["show", "i-std"]));
+    assert!(shown.contains("Standard / Gear · x 0, y 0"), "{shown}");
+}

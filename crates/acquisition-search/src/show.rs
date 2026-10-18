@@ -48,8 +48,8 @@ use crate::bind::{Bound, Query};
 use crate::class::Classed;
 use crate::corpus::Held;
 use crate::corpus::{
-    Basis, Place, REREADS, category_tables, class_table, currency_table, locations, moved, placed,
-    still_at, tab_type_unread,
+    Basis, Place, REREADS, category_tables, celled, class_table, currency_table, locations, moved,
+    placed, still_at, tab_type_unread,
 };
 use crate::derive::{Facts, Item, Line, derive};
 use crate::describe::limit;
@@ -272,6 +272,7 @@ fn read_one(
                             .collect::<Vec<LocationRow>>(),
                     );
                     let mut item = derive(facts, &stored);
+                    let place = celled(place, &item);
                     item.unread.extend(tab_type_unread(&place));
                     return Ok(Ok((basis, place, item, stored, leagues)));
                 }

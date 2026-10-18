@@ -91,7 +91,7 @@ use crate::totals::{self, TOTALS_TABLE_VERSION, TotalsTable};
 
 /// The version of [`derive()`]'s reading of a body: it moves when the same
 /// body would derive to another item.
-pub const DERIVATION: u32 = 11;
+pub const DERIVATION: u32 = 12;
 
 /// The realms GGG has (owner, 2026-09-20: "the full list").
 pub const REALMS: [&str; 4] = ["pc", "xbox", "sony", "poe2"];
@@ -295,6 +295,12 @@ pub struct Place {
     /// The item this one is socketed in.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub socketed_in: Option<Named>,
+    /// Where in a tab or a character's inventory the item sits: GGG's
+    /// cell, so a reader can say where to pick it up (the trade seat,
+    /// 2026-10-17: three runs found it in the body alone). None on a worn
+    /// item or a socketed one, whose place is its slot or its holder.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cell: Option<crate::derive::Cell>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -383,6 +389,17 @@ pub(crate) fn locations(header: &CorpusHeader) -> Locations<'_> {
         .collect()
 }
 
+/// The place with its item's cell, where the cell says where in it the
+/// item sits: a tab's, or a character's inventory's; a worn or socketed
+/// item's place is its slot or its holder, and has none.
+pub(crate) fn celled(mut place: Place, item: &crate::derive::Item) -> Place {
+    place.cell = item.cell.filter(|_| {
+        place.socketed_in.is_none()
+            && (place.kind == "stash" || place.container.as_deref() == Some("inventory"))
+    });
+    place
+}
+
 /// A location's name, or none where GGG's holds no text but the mark it
 /// adds to a remove-only tab's.
 fn named(name: &str) -> Option<String> {
@@ -424,6 +441,7 @@ pub(crate) fn placed(index: &Locations<'_>, row: CorpusItem) -> (Facts, Place) {
         }),
         container: row.container.clone(),
         socketed_in: row.socketed_in.clone().map(|id| Named { id, name: None }),
+        cell: None,
     };
     let facts = Facts {
         id: row.id,
@@ -598,6 +616,7 @@ impl Corpus {
                         let body = std::mem::take(&mut row.body);
                         let (facts, place) = placed(&index, row);
                         let mut item = derive(facts, &body);
+                        let place = celled(place, &item);
                         item.unread.extend(tab_type_unread(&place));
                         let class = table.classify(&item);
                         items.push(Held {

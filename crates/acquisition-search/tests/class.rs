@@ -568,6 +568,7 @@ fn review_two_reqlevel_has_one_status_and_markup_hides_no_level_row() {
     // when an unread property gained its name (the step-7 audit, 2026-09-24),
     // to 9 when the sockets were read (step 8), to 10 when a mod of
     // several rows kept each row (step 9c4), to 11 when the bestiary line
-    // was read, which a beast's class is read by (step 9d-B, J9)
-    assert_eq!(shown["basis"]["derivation"], 11);
+    // was read, which a beast's class is read by (step 9d-B, J9), to 12
+    // when an item's cell was read (the trade seat, 2026-10-17)
+    assert_eq!(shown["basis"]["derivation"], 12);
 }

@@ -1791,6 +1791,7 @@ mod tests {
                 parent: None,
                 container: None,
                 socketed_in: None,
+                cell: None,
             },
             class: Classed::BaseUnread,
             category: crate::category::Category::none(),

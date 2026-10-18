@@ -250,7 +250,19 @@ pub struct Item {
     /// where it carries `[]`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sockets: Option<Vec<Socket>>,
+    /// GGG's `x` and `y`, where it gives both: the cell the item's top
+    /// left corner sits in. Where it is in its place is the place's
+    /// (`corpus.rs`, [`crate::corpus::Place`]).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cell: Option<Cell>,
     pub unread: Vec<Unread>,
+}
+
+/// A cell of a tab or an inventory, as GGG numbers it from 0.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct Cell {
+    pub x: i64,
+    pub y: i64,
 }
 
 /// One socket of an item (the module doc, "Sockets").
@@ -511,6 +523,7 @@ pub fn derive(facts: Facts, body: &str) -> Item {
         requires: None,
         lines: Vec::new(),
         sockets: None,
+        cell: None,
         unread: Vec::new(),
     };
     let body = match serde_json::from_str::<Value>(body) {
@@ -535,6 +548,10 @@ pub fn derive(facts: Facts, body: &str) -> Item {
     item.ilvl = item.int(&body, "ilvl").filter(|ilvl| *ilvl != 0);
     item.item_level = item.ilvl.map(|ilvl| format!("Item Level: {ilvl}"));
     item.stack = item.int(&body, "stackSize");
+    item.cell = match (item.int(&body, "x"), item.int(&body, "y")) {
+        (Some(x), Some(y)) => Some(Cell { x, y }),
+        _ => None,
+    };
     item.read_flags(&body);
     item.read_sockets(&body);
     for array in PROPERTY_ARRAYS {

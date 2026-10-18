@@ -1218,3 +1218,56 @@ fn a_unique_tabs_page_with_no_name_is_named_by_its_id() {
         ]
     );
 }
+
+/// "Where do I pick it up" needed the item's cell, which three runs found
+/// only in the stored body (the trade seat: cli-opus calls 30, 33, 34;
+/// cli-sonnet call 23; mcp-sonnet call 22). The place carries GGG's cell
+/// for an item in a tab or a character's inventory; a worn item's place
+/// is its slot, and has none.
+#[test]
+fn an_items_place_says_which_cell_it_sits_in() {
+    let mut s = store();
+    list_tabs(&mut s, "pc", "Standard", json!([tab("d1", "Dump")]), 10);
+    let mut ring = item("r1", "Doom Loop", "Iron Ring", "Rare", json!({}));
+    ring["x"] = json!(6);
+    ring["y"] = json!(7);
+    fetch_tab(&mut s, "pc", "Standard", "d1", "Dump", vec![ring], 20);
+    list_characters(
+        &mut s,
+        "pc",
+        json!([{ "id": "c1", "name": "Mover", "league": "Standard" }]),
+        30,
+    );
+    let mut bag = item("bag", "Grim Clasp", "Leather Belt", "Rare", json!({}));
+    bag["x"] = json!(2);
+    bag["y"] = json!(3);
+    fetch_character(
+        &mut s,
+        "pc",
+        json!({ "id": "c1", "name": "Mover", "league": "Standard",
+                "equipment": [item("worn", "Storm Band", "Iron Ring", "Rare", json!({}))],
+                "inventory": [bag] }),
+        31,
+    );
+    let a = asked(&s, "pc", "rarity=rare");
+    let mut cells: Vec<(String, Value)> = a["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| {
+            (
+                r["id"].as_str().unwrap().to_string(),
+                r["place"]["cell"].clone(),
+            )
+        })
+        .collect();
+    cells.sort_by(|a, b| a.0.cmp(&b.0));
+    assert_eq!(
+        cells,
+        [
+            ("bag".to_string(), json!({ "x": 2, "y": 3 })),
+            ("r1".to_string(), json!({ "x": 6, "y": 7 })),
+            ("worn".to_string(), Value::Null),
+        ]
+    );
+}
