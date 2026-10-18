@@ -22,7 +22,7 @@
 # a group type, `stat.<category>` a stat id's category; `=<option>` after a
 # key is one option of an option filter whose options land apart.
 # `disposition` is K6's status for the clause when it runs: `exact`,
-# `ambiguous` (runs, with `note` in the report), `unsupported` (the
+# `ambiguous` (runs, with `says` in the report), `unsupported` (the
 # remainder), `listing_only` (no stash meaning; reported). A clause the
 # site sends `disabled` is `disabled` whatever its row says.
 # `lands` is the text the clause becomes (step 4, src/trade/translate.rs).
@@ -66,8 +66,11 @@
 # on a row landing one field's `{bounds}` alone: an item lacking the field
 # meets a maximum, and a clause with a maximum and no minimum is
 # `(F<=max or -has:F)` — the site's requirement filters (u061).
-# `note` is what the report prints beside the clause, and every ambiguous
-# or unsupported clause has one. An option value or key no row names is
+# `note` is the row's evidence, its citations among it, kept in this file
+# alone, and every ambiguous or unsupported clause has one. `says` is what
+# the report and `--describe trade` print for the clause, in a reader's
+# words with no citation, given wherever a note is (the trade seat,
+# 2026-10-17). An option value or key no row names is
 # unsupported by its name (K6), by `query.unknown`.
 #
 # Measured at writing (a script over this file, never a count by eye):
@@ -107,6 +110,7 @@ stats = "2026-09-12"
 key = "url.realm"
 disposition = "exact"
 note = "`/trade/search/<league>/<id>` is pc, `/trade/search/(xbox|sony)/<league>/<id>` that console: the realm is the scope (C96), never a term; `--realm` beside a URL is a conflict"
+says = "The URL's realm is the search's scope: pc, or a console; a realm named beside a URL is refused."
 
 [[row]]
 key = "url.league"
@@ -114,21 +118,25 @@ disposition = "exact"
 lands = "league={value}"
 fields = ["league"]
 note = "the league the URL names, a term like any other (C96); a bare id or a JSON query names none"
+says = "The league the URL names becomes a term of the search, like any other."
 
 [[row]]
 key = "url.poe2"
 disposition = "unsupported"
 note = "a `/trade2/` URL or the poe2 realm: inbound is PoE1 only (note 36, ruling 5); refused by name before anything is decoded"
+says = "A Path of Exile 2 search is not read: only Path of Exile 1 searches are."
 
 [[row]]
 key = "url.id"
 disposition = "exact"
 note = "the last path segment, or a bare id: the query object gzipped and base64url-encoded without padding (S56); a malformed id is a structured error"
+says = "The search id, from the URL or given alone; an id that does not decode is refused."
 
 [[row]]
 key = "json"
 disposition = "exact"
 note = "the query JSON as the site posts it: the `{query, sort}` envelope, or the query object alone; fills no scope"
+says = "The query JSON as the site posts it, with its sort or without; it names no realm."
 
 [[row]]
 key = "query.status"
@@ -136,6 +144,7 @@ text = "Status"
 shape = "option"
 disposition = "listing_only"
 note = "online, available, securable: the seller's state, not the item's"
+says = "Online, available or securable is the seller's state, not the item's, so it means nothing in your stash."
 
 [[row]]
 key = "query.term"
@@ -145,6 +154,7 @@ disposition = "exact"
 lands = "(name={value} or base={value})"
 fields = ["name", "base"]
 note = "the site's free-text box matches a whole name (w06: `The Anvil`) or a whole base (w07: `Amber Amulet`, a magic `Amber Amulet of the Meteor` among them), never a word of one (t50: `Anvil`, t51: `nvil`, nothing)"
+says = "The free-text box matches a whole name or a whole base, as the site's does, never a word of one."
 
 [[row]]
 key = "query.name"
@@ -166,6 +176,7 @@ fields = ["base"]
 key = "query.type.map"
 disposition = "ambiguous"
 note = "a Base naming a map's tier, ` (Tier N)`: the site returns the map's blighted form under it too, a base the body names `Blighted Map (Tier 13)` under `Map (Tier 13)` (t55), which `base=` does not match; how the site names a blighted map's base is for a sitting (`blighted-base`, tests/trade-oracle.toml)"
+says = "A map base with its tier: the site also returns that tier's blighted maps under it, and this search does not."
 
 [[row]]
 key = "query.name.discriminator"
@@ -173,11 +184,13 @@ text = "Name variant"
 shape = "option"
 disposition = "unsupported"
 note = "a `{option, discriminator}` name or type names a variant (`legacy`, a league); the name or base lands, the variant does not: a unique's variant is a parked field (decisions/search.md)"
+says = "A unique's variant, such as a legacy one, is not read; its name or base is."
 
 [[row]]
 key = "query.unknown"
 disposition = "unsupported"
 note = "a key, a filter, a group type, an option or a value no row names or reads: unsupported by its name, never an error (K6)"
+says = "A part of the search this build does not know is reported by name and not run."
 
 [[row]]
 key = "query.sort"
@@ -185,12 +198,14 @@ text = "Sort"
 shape = "option"
 disposition = "listing_only"
 note = "carried by the JSON envelope alone, never by a URL; reported and never applied — the view is the terminal's (K6)"
+says = "The site's sort is reported and not applied: order the rows yourself."
 
 [[row]]
 key = "query.stats"
 text = "Stat groups"
 disposition = "exact"
 note = "each group by its type's row below; a group's filters are those the site leaves enabled: with none, `and`, `not` and `if` restrict nothing and write nothing — no clause where none was posted (the page posts one) — and a count or a weighted sum of none is unsupported, what the site makes of one unasked"
+says = "Each stat group is read by its type; a group with no filter turned on restricts nothing."
 
 # ---- type_filters -------------------------------------------------------
 
@@ -202,6 +217,7 @@ disposition = "exact"
 lands = "category={option}"
 fields = ["category"]
 note = "the site's own ids, as the category table spells them (C106)"
+says = "The item category, by the site's own names."
 
 [[row]]
 key = "type_filters.rarity"
@@ -211,6 +227,7 @@ disposition = "exact"
 lands = "rarity={option}"
 fields = ["rarity"]
 note = "normal, magic, rare, unique"
+says = "Normal, magic, rare or unique."
 
 [[row]]
 key = "type_filters.rarity=nonunique"
@@ -219,6 +236,7 @@ disposition = "exact"
 lands = "-rarity=unique"
 fields = ["rarity"]
 note = "an item with no rarity — a gem, a currency stack — is not unique and passes"
+says = "Anything not unique, an item with no rarity, such as a gem, included."
 
 [[row]]
 key = "type_filters.rarity=uniquefoil"
@@ -227,6 +245,7 @@ disposition = "exact"
 lands = "rarity=unique is:isRelic"
 fields = ["rarity", "is"]
 note = "the body's mark on a relic unique, `isRelic`, which the site's foil reads (t52, beside t53's plain uniques)"
+says = "A foil unique: a relic, by its mark."
 
 # ---- weapon_filters -----------------------------------------------------
 
@@ -236,6 +255,7 @@ text = "Damage"
 shape = "minmax"
 disposition = "unsupported"
 note = "which damages the site sums here is unmeasured; `pseudo.dps` and the damage properties are askable by hand"
+says = "A weapon's damage as the site totals it is not read; ask for its damage values directly."
 
 [[row]]
 key = "weapon_filters.aps"
@@ -253,6 +273,7 @@ disposition = "exact"
 lands = "critical_strike_chance{bounds} -category:gem"
 fields = ["critical_strike_chance", "category"]
 note = "the displayed `Critical Strike Chance` of a weapon: the field reads it wherever it is displayed, a spell gem's too (on the census copy of 2026-09-13, 1,047 weapons and 973 gems), and the site's weapon filter finds no gem (t44, beside t45's gems), so a gem is left out by its category"
+says = "A weapon's critical strike chance as displayed; gems are left out, as the site leaves them out."
 
 [[row]]
 key = "weapon_filters.dps"
@@ -262,6 +283,7 @@ disposition = "ambiguous"
 lands = "pseudo.dps_q20{bounds}"
 fields = ["pseudo.dps_q20"]
 note = "the site's figure puts 20 % quality in (t42, 8 of 10 met only so); `pseudo.dps_q20` puts it in the physical range by the q20 defences' rule, within one of the site's own figure at the range's mean, which works from the roll the display has rounded (tests/trade_dps.rs)"
+says = "Damage per second at 20% quality, as the site figures it: within one of the site's own figure, which the display's rounding can move."
 
 [[row]]
 key = "weapon_filters.pdps"
@@ -271,6 +293,7 @@ disposition = "ambiguous"
 lands = "pseudo.pdps_q20{bounds}"
 fields = ["pseudo.pdps_q20"]
 note = "as `weapon_filters.dps` (t41: 347 displayed, 416 at 20 %, meets `min` 400)"
+says = "Physical damage per second at 20% quality, as the site figures it: within one of the site's own figure."
 
 [[row]]
 key = "weapon_filters.edps"
@@ -280,6 +303,7 @@ disposition = "exact"
 lands = "pseudo.edps{bounds}"
 fields = ["pseudo.edps"]
 note = "quality raises no elemental damage, and `pseudo.edps` is the site's own figure on every weapon the captures fetched (tests/trade_dps.rs)"
+says = "Elemental damage per second, which quality does not change: the site's own figure."
 
 # ---- armour_filters -----------------------------------------------------
 
@@ -291,6 +315,7 @@ disposition = "ambiguous"
 lands = "armour.q20{bounds}"
 fields = ["armour.q20"]
 note = "the site's tip: base value, local modifiers and maximum quality; the field is the displayed Armour with the item's quality taken out and 20 % put in (S26) — within one of the site's own figure, which works from the roll the display has rounded: equal on 1,148 of the captures' 1,313 defence rows and one off on 165, equal on all 164 at 20 % quality or more or under the enchant (step 3, tests/properties.rs); the owner on ambiguous, 2026-10-15, verbatim: \"confirmed\""
+says = "Armour at 20% quality, as the site figures it: within one of the site's own figure, which the display's rounding can move."
 
 [[row]]
 key = "armour_filters.ev"
@@ -300,6 +325,7 @@ disposition = "ambiguous"
 lands = "evasion_rating.q20{bounds}"
 fields = ["evasion_rating.q20"]
 note = "as `armour_filters.ar`"
+says = "Evasion at 20% quality, as the site figures it: within one of the site's own figure, which the display's rounding can move."
 
 [[row]]
 key = "armour_filters.es"
@@ -309,6 +335,7 @@ disposition = "ambiguous"
 lands = "energy_shield.q20{bounds}"
 fields = ["energy_shield.q20"]
 note = "as `armour_filters.ar`"
+says = "Energy shield at 20% quality, as the site figures it: within one of the site's own figure, which the display's rounding can move."
 
 [[row]]
 key = "armour_filters.ward"
@@ -318,6 +345,7 @@ disposition = "ambiguous"
 lands = "ward.q20{bounds}"
 fields = ["ward.q20"]
 note = "as `armour_filters.ar`; 15 items of the census carry Ward"
+says = "Ward at 20% quality, as the site figures it: within one of the site's own figure, which the display's rounding can move."
 
 [[row]]
 key = "armour_filters.block"
@@ -327,6 +355,7 @@ disposition = "exact"
 lands = "chance_to_block{bounds}"
 fields = ["chance_to_block"]
 note = "the site's tip: base value and local modifiers, no quality — the displayed value"
+says = "Chance to block as displayed."
 
 [[row]]
 key = "armour_filters.base_defence_percentile"
@@ -336,6 +365,7 @@ disposition = "exact"
 lands = "pseudo.defence_pct{bounds}"
 fields = ["pseudo.defence_pct"]
 note = "the site's own stated rule, reproduced on 634 of 637 captured items (search/pseudo-stats/README.md)"
+says = "The base's defence percentile, by the site's own rule."
 
 # ---- socket_filters -----------------------------------------------------
 
@@ -347,6 +377,7 @@ disposition = "exact"
 lands = "sockets{bounds} sockets.red>={r} sockets.green>={g} sockets.blue>={b} sockets.white>={w}"
 fields = ["sockets", "sockets.red", "sockets.green", "sockets.blue", "sockets.white"]
 note = "a colour the clause lacks drops its comparison"
+says = "Sockets by colour; a colour not asked for is not compared."
 
 [[row]]
 key = "socket_filters.links"
@@ -355,6 +386,7 @@ shape = "sockets"
 disposition = "exact"
 lands = "linked(size{bounds} red>={r} green>={g} blue>={b} white>={w})"
 note = "one link group holds every count named (S59)"
+says = "One link group holds every count asked for."
 
 # ---- req_filters --------------------------------------------------------
 
@@ -367,6 +399,7 @@ lands = "reqlevel{bounds}"
 fields = ["reqlevel"]
 lacked = "meets_maximum"
 note = "an item with no requirement meets any maximum, as the site reads it (u061: Redbeak under `max` 20), and fails a minimum: with a maximum alone, `(reqlevel<=n or -has:reqlevel)`"
+says = "The level requirement; an item with none meets any maximum and fails any minimum, as on the site."
 
 [[row]]
 key = "req_filters.str"
@@ -377,6 +410,7 @@ lands = "str{bounds}"
 fields = ["str"]
 lacked = "meets_maximum"
 note = "the requirement row displays `Str`, and `Strength` on 32 items of the census: one field over both spellings; an item with none meets a maximum, as `req_filters.lvl` (the owner's ruling on u061: \"No requirement meets any maximum\")"
+says = "The strength requirement; an item with none meets any maximum, as on the site."
 
 [[row]]
 key = "req_filters.dex"
@@ -387,6 +421,7 @@ lands = "dex{bounds}"
 fields = ["dex"]
 lacked = "meets_maximum"
 note = "as `req_filters.str`: `Dex` and `Dexterity`, an item with none meeting a maximum"
+says = "The dexterity requirement; an item with none meets any maximum, as on the site."
 
 [[row]]
 key = "req_filters.int"
@@ -397,6 +432,7 @@ lands = "int{bounds}"
 fields = ["int"]
 lacked = "meets_maximum"
 note = "as `req_filters.str`: `Int` and `Intelligence`, an item with none meeting a maximum"
+says = "The intelligence requirement; an item with none meets any maximum, as on the site."
 
 [[row]]
 key = "req_filters.class"
@@ -404,6 +440,7 @@ text = "Character Class"
 shape = "option"
 disposition = "unsupported"
 note = "no item of the private API carries a class requirement"
+says = "No item of your account carries a class requirement, so this is not run."
 
 # ---- map_filters --------------------------------------------------------
 
@@ -415,6 +452,7 @@ disposition = "ambiguous"
 lands = "map_tier{bounds}"
 fields = ["map_tier"]
 note = "no map of the store copy displays a Map Tier property; the tier is the number in the base type, `Map (Tier 16)`, `Blighted Map (Tier 13)`, read by a field over the base (C101): on the census's copy of 2026-09-13, 1,105 maps over 35 bases, 48 of them unique maps whose base carries it too; a base with none lacks it, where the site gives such a map a tier (u065: Shaper Guardian Map at 16) — ambiguous until a tier table is built, the park \"A map tier table\" (decisions/trade.md; the owner, 2026-10-16: \"Let's do a tier table for maps, either now or parked for later based on your judgement\")"
+says = "The tier read from the map's base name; a map whose base names no tier has none here, where the site gives it one."
 
 [[row]]
 key = "map_filters.map_packsize"
@@ -446,6 +484,7 @@ text = "Chart Gold"
 shape = "minmax"
 disposition = "unsupported"
 note = "a chart's property; none in the census"
+says = "A chart's gold is not read; not run."
 
 [[row]]
 key = "map_filters.chart_sulphur"
@@ -453,6 +492,7 @@ text = "Chart Sulphur"
 shape = "minmax"
 disposition = "unsupported"
 note = "as `map_filters.map_gold`"
+says = "A chart's sulphur is not read; not run."
 
 [[row]]
 key = "map_filters.chart_shape"
@@ -460,6 +500,7 @@ text = "Chart Shape"
 shape = "option"
 disposition = "unsupported"
 note = "as `map_filters.map_gold`"
+says = "A chart's shape is not read; not run."
 
 [[row]]
 key = "map_filters.area_level"
@@ -469,6 +510,7 @@ disposition = "exact"
 lands = "area_level{bounds}"
 fields = ["area_level"]
 note = "the displayed Area Level: a map's own level, which the site's filter reads (S90), and a Blood-filled Vessel's `Monster Level`, the same property type, 34, which it reads too (t46, 10 of 10)"
+says = "The area level as displayed, a vessel's monster level among them, as on the site."
 
 [[row]]
 key = "map_filters.map_series"
@@ -476,6 +518,7 @@ text = "Map Series"
 shape = "option"
 disposition = "unsupported"
 note = "which series a map base belongs to is reference data no table here carries"
+says = "Which series a map belongs to is not known here; not run."
 
 [[row]]
 key = "map_filters.map_blighted"
@@ -485,6 +528,7 @@ disposition = "ambiguous"
 lands = 'typeline~"^Blighted "'
 fields = ["typeline"]
 note = "the type line's `Blighted` prefix, which the site's filter reads (t55: ten `Blighted Map (Tier 13)`; t56, `false`, none); `false` is the not of it; a `Blight-ravaged` map carries another prefix and is outside it, and whether the site's filter counts one no sitting has asked (the trade seat, 2026-10-17; the owner: \"Ambiguous, sitting asks\")"
+says = "A map whose type line begins Blighted; a Blight-ravaged map is outside it, and the site may count one."
 
 [[row]]
 key = "map_filters.map_uberblighted"
@@ -492,6 +536,7 @@ text = "Blight-ravaged Map"
 shape = "option"
 disposition = "unsupported"
 note = "a `Blight-ravaged` map: whether the site reads its type line's prefix as `map_blighted`'s, or a mark, no sitting has asked"
+says = "A Blight-ravaged map: how the site reads one has not been tried, so it is not run."
 
 [[row]]
 key = "map_filters.map_completion_reward"
@@ -499,6 +544,7 @@ text = "Map Completion Reward"
 shape = "option"
 disposition = "unsupported"
 note = "no displayed property names it"
+says = "No item shows it; not run."
 
 # ---- heist_filters ------------------------------------------------------
 
@@ -510,6 +556,7 @@ disposition = "exact"
 lands = "wings_revealed{bounds}"
 fields = ["wings_revealed"]
 note = "the first number of `Wings Revealed: a/b`"
+says = "The first number of Wings Revealed."
 
 [[row]]
 key = "heist_filters.heist_max_wings"
@@ -519,6 +566,7 @@ disposition = "exact"
 lands = "wings_revealed.of{bounds}"
 fields = ["wings_revealed.of"]
 note = "the second number of `Wings Revealed: a/b`"
+says = "The second number of Wings Revealed."
 
 [[row]]
 key = "heist_filters.heist_escape_routes"
@@ -558,6 +606,7 @@ text = "Contract Objective Value"
 shape = "option"
 disposition = "unsupported"
 note = "`Heist Target: <name> (<value>)` is a word, not a number; a closed-set field over it waits for a consumer that asks"
+says = "A contract's target value is a word, not a number; not run."
 
 [[row]]
 key = "heist_filters.heist_lockpicking"
@@ -567,6 +616,7 @@ disposition = "exact"
 lands = "lockpicking{bounds}"
 fields = ["lockpicking"]
 note = "the level of `Requires Lockpicking (Level n)`, a contract's or blueprint's (3,587 properties on the census copy of 2026-09-13), and of a heist item's own `Level {0} in {1}`, which the site's filter reads too (t48, 10 of 10): one field per skill over both"
+says = "The Lockpicking level a contract, blueprint or heist item requires."
 
 [[row]]
 key = "heist_filters.heist_brute_force"
@@ -576,6 +626,7 @@ disposition = "exact"
 lands = "brute_force{bounds}"
 fields = ["brute_force"]
 note = "as `heist_filters.heist_lockpicking`"
+says = "The Brute Force level a contract, blueprint or heist item requires."
 
 [[row]]
 key = "heist_filters.heist_perception"
@@ -585,6 +636,7 @@ disposition = "exact"
 lands = "perception{bounds}"
 fields = ["perception"]
 note = "as `heist_filters.heist_lockpicking`"
+says = "The Perception level a contract, blueprint or heist item requires."
 
 [[row]]
 key = "heist_filters.heist_demolition"
@@ -594,6 +646,7 @@ disposition = "exact"
 lands = "demolition{bounds}"
 fields = ["demolition"]
 note = "as `heist_filters.heist_lockpicking`"
+says = "The Demolition level a contract, blueprint or heist item requires."
 
 [[row]]
 key = "heist_filters.heist_counter_thaumaturgy"
@@ -603,6 +656,7 @@ disposition = "exact"
 lands = "counter_thaumaturgy{bounds}"
 fields = ["counter_thaumaturgy"]
 note = "as `heist_filters.heist_lockpicking`"
+says = "The Counter-Thaumaturgy level a contract, blueprint or heist item requires."
 
 [[row]]
 key = "heist_filters.heist_trap_disarmament"
@@ -612,6 +666,7 @@ disposition = "exact"
 lands = "trap_disarmament{bounds}"
 fields = ["trap_disarmament"]
 note = "as `heist_filters.heist_lockpicking`"
+says = "The Trap Disarmament level a contract, blueprint or heist item requires."
 
 [[row]]
 key = "heist_filters.heist_agility"
@@ -621,6 +676,7 @@ disposition = "exact"
 lands = "agility{bounds}"
 fields = ["agility"]
 note = "as `heist_filters.heist_lockpicking`"
+says = "The Agility level a contract, blueprint or heist item requires."
 
 [[row]]
 key = "heist_filters.heist_deception"
@@ -630,6 +686,7 @@ disposition = "exact"
 lands = "deception{bounds}"
 fields = ["deception"]
 note = "as `heist_filters.heist_lockpicking`"
+says = "The Deception level a contract, blueprint or heist item requires."
 
 [[row]]
 key = "heist_filters.heist_engineering"
@@ -639,6 +696,7 @@ disposition = "exact"
 lands = "engineering{bounds}"
 fields = ["engineering"]
 note = "as `heist_filters.heist_lockpicking`"
+says = "The Engineering level a contract, blueprint or heist item requires."
 
 # ---- sanctum_filters ----------------------------------------------------
 
@@ -650,6 +708,7 @@ disposition = "exact"
 lands = "resolve{bounds}"
 fields = ["resolve"]
 note = "the first number of `Resolve: a/b`"
+says = "The first number of Resolve."
 
 [[row]]
 key = "sanctum_filters.sanctum_max_resolve"
@@ -683,6 +742,7 @@ text = "Challenge Type"
 shape = "option"
 disposition = "unsupported"
 note = "an ultimatum's lines name it; no field reads them"
+says = "An ultimatum's challenge type is not read; not run."
 
 [[row]]
 key = "ultimatum_filters.ultimatum_reward"
@@ -690,6 +750,7 @@ text = "Reward Type"
 shape = "option"
 disposition = "unsupported"
 note = "as `ultimatum_filters.ultimatum_challenge`"
+says = "An ultimatum's reward type is not read; not run."
 
 [[row]]
 key = "ultimatum_filters.ultimatum_input"
@@ -697,6 +758,7 @@ text = "Required Item"
 shape = "option"
 disposition = "unsupported"
 note = "as `ultimatum_filters.ultimatum_challenge`"
+says = "An ultimatum's required item is not read; not run."
 
 [[row]]
 key = "ultimatum_filters.ultimatum_output"
@@ -704,6 +766,7 @@ text = "Reward Unique"
 shape = "option"
 disposition = "unsupported"
 note = "as `ultimatum_filters.ultimatum_challenge`"
+says = "An ultimatum's reward unique is not read; not run."
 
 # ---- misc_filters -------------------------------------------------------
 
@@ -715,6 +778,7 @@ disposition = "ambiguous"
 lands = "quality{bounds}"
 fields = ["quality"]
 note = "the displayed `Quality`, and a catalysed ring's `Quality (Resistance Modifiers)` and its kin, which the site folds in (t49, 10 of 10); a map's `Quality (Quantity)` is its own displayed name, which the field does not read and no sitting has asked"
+says = "Quality as displayed, a catalysed ring's included as on the site; a map's quantity quality is not read."
 
 [[row]]
 key = "misc_filters.ilvl"
@@ -732,6 +796,7 @@ disposition = "exact"
 lands = "level{bounds}"
 fields = ["level"]
 note = "the displayed `Level` property, a gem's, one value; ` (Max)` written after the number, as `20 (Max)`, is read and dropped"
+says = "A gem's level as displayed."
 
 [[row]]
 key = "misc_filters.gem_level_progress"
@@ -741,6 +806,7 @@ disposition = "exact"
 lands = "experience{bounds}"
 fields = ["experience"]
 note = "`Experience: a/b` as the percent a is of b, which is what the site's filter reads, and a gem at its maximum level, which displays none, at 100 (u090)"
+says = "A gem's experience as a percent of its level; a gem at its last level counts as 100."
 
 [[row]]
 key = "misc_filters.gem_transfigured"
@@ -748,6 +814,7 @@ text = "Transfigured Gem"
 shape = "option"
 disposition = "unsupported"
 note = "a transfigured gem is its own base (S8); which bases are transfigured is reference data no table here carries"
+says = "Which gems are transfigured is not known here; not run."
 
 [[row]]
 key = "misc_filters.gem_vaal"
@@ -756,6 +823,7 @@ shape = "option"
 disposition = "ambiguous"
 lands = 'typeline~"^Vaal "'
 note = "the type line's prefix; a `false` option is the not of it"
+says = "A gem whose type line begins Vaal; the site may read the mark another way."
 
 [[row]]
 key = "misc_filters.fractured_item"
@@ -765,6 +833,7 @@ disposition = "exact"
 lands = "is:fractured"
 fields = ["is"]
 note = "the body's `fractured` mark; `false` is `-is:fractured`"
+says = "An item marked fractured."
 
 [[row]]
 key = "misc_filters.gem_imbued"
@@ -772,6 +841,7 @@ text = "Imbued Gem"
 shape = "option"
 disposition = "unsupported"
 note = "no displayed property or mark names it"
+says = "No item shows it; not run."
 
 [[row]]
 key = "misc_filters.synthesised_item"
@@ -821,6 +891,7 @@ disposition = "exact"
 lands = "is:duplicated"
 fields = ["is"]
 note = "GGG's word for a mirrored item is `duplicated`"
+says = "A mirrored item."
 
 [[row]]
 key = "misc_filters.split"
@@ -837,6 +908,7 @@ shape = "option"
 disposition = "exact"
 lands = "line(is:crafted)"
 note = "an item with a crafted line; `false` is `-line(is:crafted)`"
+says = "An item with a crafted modifier."
 
 [[row]]
 key = "misc_filters.veiled"
@@ -852,6 +924,7 @@ text = "Foreseeing"
 shape = "option"
 disposition = "unsupported"
 note = "no displayed property or mark names it"
+says = "No item shows it; not run."
 
 [[row]]
 key = "misc_filters.vestigial"
@@ -875,6 +948,7 @@ text = "Intangibility"
 shape = "minmax"
 disposition = "unsupported"
 note = "no displayed property names it"
+says = "No item shows it; not run."
 
 [[row]]
 key = "misc_filters.stored_experience"
@@ -892,6 +966,7 @@ disposition = "exact"
 lands = "stack{bounds}"
 fields = ["stack"]
 note = "the first number of `Stack Size: a/b`, the field the search has"
+says = "The size of a stack."
 
 [[row]]
 key = "misc_filters.alternate_art"
@@ -899,6 +974,7 @@ text = "Alternate Art"
 shape = "option"
 disposition = "unsupported"
 note = "no displayed property or mark names it"
+says = "No item shows it; not run."
 
 [[row]]
 key = "misc_filters.foil_variation"
@@ -906,6 +982,7 @@ text = "Foil Variation"
 shape = "option"
 disposition = "unsupported"
 note = "the body carries `foilVariation`; a field over it waits for a consumer that asks"
+says = "A foil's variation is not read; not run."
 
 [[row]]
 key = "misc_filters.corpse_type"
@@ -913,6 +990,7 @@ text = "Corpse Type"
 shape = "option"
 disposition = "unsupported"
 note = "no displayed property names it"
+says = "No item shows it; not run."
 
 [[row]]
 key = "misc_filters.scourge_tier"
@@ -920,6 +998,7 @@ text = "Scourge Tier"
 shape = "minmax"
 disposition = "unsupported"
 note = "no displayed property names it"
+says = "No item shows it; not run."
 
 [[row]]
 key = "misc_filters.crucible_item"
@@ -928,6 +1007,7 @@ shape = "option"
 disposition = "ambiguous"
 lands = "line(source=crucible)"
 note = "an item with a crucible line; whether the site's mark means the tree or an allocated node, t54 asked, and the ten it fetched did not part the two readings"
+says = "An item with a crucible modifier; whether the site means its tree or a chosen node has not been settled."
 
 [[row]]
 key = "misc_filters.mutated"
@@ -963,6 +1043,7 @@ text = "Sale Type"
 shape = "option"
 disposition = "listing_only"
 note = "the stash's analogue is the listing state (C69), asked by `priced`, never a translation"
+says = "How an item is listed is the seller's; ask for your own priced items directly."
 
 [[row]]
 key = "trade_filters.fee"
@@ -976,6 +1057,7 @@ text = "Buyout Price"
 shape = "minmax_option"
 disposition = "listing_only"
 note = "the market's price; the owner's own price is `price.amount`, asked by hand"
+says = "The market's price; ask for your own prices directly."
 
 # ---- stat groups (K6) ---------------------------------------------------
 
@@ -984,60 +1066,70 @@ key = "stats.and"
 text = "And"
 disposition = "exact"
 note = "each filter a term of the query, as if no group held it; the one group that translates in part — a filter of it that is unsupported goes to the remainder alone"
+says = "Each filter of the group is a term of the search."
 
 [[row]]
 key = "stats.not"
 text = "Not"
 disposition = "exact"
 note = "`-(a or b …)`, `-a` for one filter, each filter as it lands alone; whole or not at all; a filter carrying a value excludes the bound's meeting, never the stat's presence (t24: rings with Life under 100 beside a `not` at `min` 100)"
+says = "None of the group's filters may hold; a filter with a bound leaves out only the items that meet it."
 
 [[row]]
 key = "stats.if"
 text = "If"
 disposition = "exact"
 note = "per stat, a term of the query, by the site's tip: match if the stat is present and meets the bound — `(-P or B)`, P the stat's presence and B the stat as it lands with its bounds: `(-line(T) or line(T bounds))`, `(-has:pseudo.X or pseudo.X>=v)`; a stat with no bound is `true()` written as the site's own no-op; whole or not at all"
+says = "Each stat, where the item has it, must meet its bound."
 
 [[row]]
 key = "stats.count"
 text = "Count"
 disposition = "exact"
 note = "`holds(a, b …)=min..max`, each filter as it lands alone: by the site's tip, each stat that meets its bound counts; the group's bounds whole numbers, one at least, or unsupported; with no bound it restricts nothing (t37), each filter the site's own no-op, `true()`; whole or not at all"
+says = "At least so many of the group's stats meet their bounds."
 
 [[row]]
 key = "stats.weight"
 text = "Weighted Sum"
 disposition = "exact"
 note = "`sum(line((T source) or …).slot)=min/w..max/w`: only with one weight w above zero on every stat, no per-stat bound, a bound on the group whose quotient by w is an exact decimal, a line for every stat and one slot (the same `#` of each, or `avg` on ranged lines alone); otherwise unsupported whole (K5: the guard a per-stat bound adds has no representation); S57. With no bound on the group, one of its stats present (t38): `(P1 or P2 …)`, each stat's presence"
+says = "A weighted sum, run only where every stat has the same weight and only the group has a bound; any other shape is not run."
 
 [[row]]
 key = "stats.weight2"
 text = "Weighted Sum v2"
 disposition = "exact"
 note = "as `stats.weight`: with no per-stat bound the two tips state one sum"
+says = "A weighted sum, run only where every stat has the same weight and only the group has a bound; any other shape is not run."
 
 [[row]]
 key = "stats.crucible"
 text = "Crucible Passive Tree Path"
 disposition = "unsupported"
 note = "a path of nodes to allocate at once; a private item's crucible lines carry no tree"
+says = "A crucible tree path is not read; not run."
 
 [[row]]
 key = "stats.mercenary"
 text = "Mercenary Skill Group"
 disposition = "unsupported"
 note = "a warrant's skill and supports; no line of the private API is read as one"
+says = "A mercenary skill group is not read; not run."
 
 [[row]]
 key = "stats.filter.disabled"
 text = "a disabled stat"
 disposition = "listing_only"
 note = "a filter the site sends `disabled: true` is dropped and reported as disabled, whatever its category or anything else it carries; a disabled group the same, and every filter of it"
+says = "A filter turned off on the site is left out, as the site leaves it out."
 
 [[row]]
 key = "stats.filter.option"
 text = "a stat with an option value"
 disposition = "unsupported"
 note = "an option-valued stat (88 pseudos: temple rooms, implicit tiers) names a choice, not a number"
+says = "A stat that names a choice, not a number, is not read; not run."
 
 # ---- stat categories (K6): `<category>.stat_N`, `<category>.<name>` -----
 
@@ -1046,6 +1138,7 @@ key = "stat.explicit"
 disposition = "exact"
 lands = "line({text} source=explicit)"
 note = "an explicit id holds the stat's crafted and fractured lines, which the body sends among its explicit ones (t13, t15: none listed outside it), and a bound compares their sum (t17–t20; q6's item at 157 and not 158): `source=explicit` reads all three"
+says = "Explicit modifiers, crafted and fractured ones among them, as the site counts them."
 
 [[row]]
 key = "stat.implicit"
@@ -1077,41 +1170,49 @@ key = "stat.pseudo"
 disposition = "exact"
 lands = "pseudo.{total}{bounds}"
 note = "a pseudo the totals table names by its site name is that total or reading (C94, C101), and with no bound its presence, `has:pseudo.X`, as the site shows no pseudo for a total of nothing (C94); any other pseudo is unsupported by its name"
+says = "A pseudo stat this build knows, by its total; any other is not run."
 
 [[row]]
 key = "stat.imbued"
 disposition = "unsupported"
 note = "an imbued gem's support, named by a skill id; no line of the private API is read as one"
+says = "An imbued gem's support is not read; not run."
 
 [[row]]
 key = "stat.mercenary"
 disposition = "unsupported"
 note = "a warrant's skill by id"
+says = "A mercenary's skill is not read; not run."
 
 [[row]]
 key = "stat.veiled"
 disposition = "unsupported"
 note = "a veiled affix by its name; a veiled line shows a placeholder (S12)"
+says = "A veiled modifier is not read; not run."
 
 [[row]]
 key = "stat.delve"
 disposition = "unsupported"
 note = "a fossil's or resonator's property by name, not a stat hash"
+says = "A fossil's or resonator's property is not read; not run."
 
 [[row]]
 key = "stat.ultimatum"
 disposition = "unsupported"
 note = "an ultimatum modifier by id"
+says = "An ultimatum modifier is not read; not run."
 
 [[row]]
 key = "stat.sanctum"
 disposition = "unsupported"
 note = "a relic's line by hash; whether it displays as a line the deriver reads is unmeasured"
+says = "A sanctum relic's modifier is not read; not run."
 
 [[row]]
 key = "stat.crucible"
 disposition = "unsupported"
 note = "a node by id, its text two lines with the tier baked in"
+says = "A crucible node is not read; not run."
 
 # ---- the line rule (K6), for the hash categories above ------------------
 
@@ -1119,63 +1220,76 @@ note = "a node by id, its text two lines with the tier baked in"
 key = "stat.text.bounds"
 disposition = "exact"
 note = "a bound compares the stat's sum over the lines its id admits, `sum(line(T …).arg1)`, as the site sums them (t17–t20); the text's `#` — `arg1` where it is the first number, `avg` on a ranged template, one `# to #` (S47); where the bound admits zero — a maximum, or a minimum at or below it — the line's presence beside it, since a sum of nothing is zero (C95) and the site's stat of nothing meets no bound; a text with no `#` is presence alone, and a bound on it is dropped; `+#` is spelling and lowers"
+says = "A bound compares the sum of the stat's lines, as the site sums them."
 
 [[row]]
 key = "stat.text.numbers"
 disposition = "ambiguous"
 note = "a number the site's text writes as a digit and not a `#` — `per 200 Accuracy Rating`, `1 Added Passive Skill is …` — is part of the line's text, as it is of the line the game displays: the template has `#` there and the slot is that number, `arg2=200`; the bounds compare the site's own `#` (1,613 of the capture's 14,068 category and id pairs): the builder's reading, which no capture shows, so ambiguous until a sitting has asked one (owner, 2026-10-16: \"i agree with your recommendation with the sitting row\")"
+says = "A number written into the stat's wording is part of the wording here; which number the site compares has not been tried."
 
 [[row]]
 key = "stat.text.many"
 disposition = "ambiguous"
 note = "a text with several `#` and no single `# to #` among them: the first is compared, and which number the site compares is for a sitting"
+says = "A stat with several numbers: the first is compared, and the site may compare another."
 
 [[row]]
 key = "stat.text.local"
 disposition = "ambiguous"
 note = "a `(Local)` suffix is dropped — no private item displays it — and the line also matches the global twin that shows the same text (S72)"
+says = "A local stat also matches the global one that reads the same."
 
 [[row]]
 key = "stat.text.collision"
 disposition = "ambiguous"
 note = "a text the site gives two ids or more under one category (227 explicit, 34 enchant, 20 implicit, 15 fractured, one crafted, one scourge, measured at step 4): the line matches both, and the report names the other id (S66)"
+says = "The site gives this wording more than one stat; the search matches all of them."
 
 [[row]]
 key = "stat.text.forms"
 disposition = "ambiguous"
 note = "a bound on a stat the game also displays another way (reference/trade-forms-v1.toml): the site reads the stat however displayed — `reduced` under an `increased` id below nothing (t01–t04), an elided 100 % as 100 (t10), `an` as one (t12), `No Physical Damage` at a number it hides (t07–t09, w01–w05) — and the language sums displayed lines with no sign; the bound sums the text and its plurals alone, never one moved onto a form, so the text means what it says after an edit; exact once the language can name a stat however displayed: the park \"A named stat value\" (decisions/trade.md)"
+says = "The game also shows this stat another way, such as reduced for increased; the bound counts the wording given alone, where the site counts every form."
 
 [[row]]
 key = "stat.text.refused"
 disposition = "ambiguous"
 note = "a text whose forms the forms table refuses by name: its numberless display is a text the site lists under another id (`#% chance to Curse Enemies with Enfeeble on Hit` and `Curse Enemies with Enfeeble on Hit`), or it carries both words of a pair; an item's line may be either stat's, so the line matches both — the text, and the listed text the form would be"
+says = "This wording may be either of two stats; the search matches both."
 
 [[row]]
 key = "stat.scourge.summed"
 disposition = "ambiguous"
 note = "a scourge stat in a weighted sum: e043 and f005 returned an item of crafted `+28% to Fire Resistance` and scourge `-28%` under a sum of both ids at `min` 0.5, the site's sum 28, as if it left the scourge line out; the line is summed here, and what the site does is for a sitting (`scourge-in-sum`, tests/trade-oracle.toml)"
+says = "A scourge modifier in a weighted sum is counted here; the site may leave it out."
 
 [[row]]
 key = "stat.text.wording"
 disposition = "ambiguous"
 note = "a stat the game data also displays in another wording (reference/trade-game-forms-v1.toml, kind `other`): the line matches it, but that the site files it under the id is read from the game's stat descriptions, which no capture or sitting shows; a wording the captures show is the hand table's, exact"
+says = "The game also shows this stat in another wording; the search matches it, and the site may not."
 
 [[row]]
 key = "stat.text.eldritch"
 disposition = "ambiguous"
 note = "in a `not`, an eldritch form's text — `While a Unique Enemy is in your Presence, …`, `While a Pinnacle Atlas Boss is in your Presence, …`: the site lets some items carrying the form through a `not` on its id (search/pseudo-stats/README.md, round four: 227 items; the trade oracle, step 6: 377), so the line excludes more than the site does"
+says = "Under a not, the search leaves out every item with this eldritch modifier; the site lets some of them through."
 
 [[row]]
 key = "stat.text.rows"
 disposition = "exact"
 note = "a text of several rows is one line named by its whole text, a row break written `\\n` (C90)"
+says = "A modifier of several lines is matched by its whole text."
 
 [[row]]
 key = "stat.text.two"
 disposition = "unsupported"
 note = "an id the site lists with two texts or more under one category (172 ids in the capture, 229 category and id pairs; 162 of the ids a map's own wording beside the atlas's `your Maps`): the URL names the id and not the text, and which wordings the site's id matches is for a sitting — the owner, 2026-10-15, verbatim: \"Unsupported until the sitting\""
+says = "The site lists this stat with several wordings and which it matches has not been tried, so it is not run."
 
 [[row]]
 key = "stat.unknown"
 disposition = "unsupported"
 note = "an id the stat table does not carry, or a category no row names: unsupported by its name, never an error"
+says = "A stat this build does not know is reported by name and not run."

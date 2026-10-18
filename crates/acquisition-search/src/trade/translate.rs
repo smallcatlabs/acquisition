@@ -790,7 +790,7 @@ impl Translator<'_> {
     }
 
     fn note_of(&self, key: &str) -> Result<Vec<String>, LanguageError> {
-        Ok(self.row(key)?.note.iter().cloned().collect())
+        Ok(self.row(key)?.says.iter().cloned().collect())
     }
 
     /// A clause, recorded: its index.
@@ -854,7 +854,7 @@ impl Translator<'_> {
         let landed = Landed {
             status: status.unwrap_or(Status::of(row.disposition)),
             rows: vec![key.to_string()],
-            notes: row.note.iter().cloned().collect(),
+            notes: row.says.iter().cloned().collect(),
             node: None,
         };
         self.conjunct(at, site, landed);
@@ -868,7 +868,7 @@ impl Translator<'_> {
         let mut landed = Landed {
             status: Status::of(row.disposition),
             rows: vec![key.to_string()],
-            notes: row.note.iter().cloned().collect(),
+            notes: row.says.iter().cloned().collect(),
             node: None,
         };
         if !landed.status.runs() {
@@ -920,7 +920,7 @@ impl Translator<'_> {
             && crate::properties::tier_of(base).is_some()
         {
             let r = self.row("query.type.map")?;
-            let (disposition, note) = (r.disposition, r.note.clone());
+            let (disposition, note) = (r.disposition, r.says.clone());
             if let Some(c) = self.clauses.get_mut(at).filter(|c| c.status.runs()) {
                 c.status = c.status.worse(Status::of(disposition));
                 c.rows.push("query.type.map".to_string());
@@ -1309,7 +1309,7 @@ impl Translator<'_> {
             read.landed = Landed {
                 status: Status::of(row.disposition),
                 rows: vec![key],
-                notes: row.note.iter().cloned().collect(),
+                notes: row.says.iter().cloned().collect(),
                 node: None,
             };
             return Ok(read);
@@ -1320,7 +1320,7 @@ impl Translator<'_> {
         };
         let mut status = Status::of(row.disposition);
         let mut rows = vec![key.clone()];
-        let mut notes: Vec<String> = row.note.iter().cloned().collect();
+        let mut notes: Vec<String> = row.says.iter().cloned().collect();
         let rule = |rows: &mut Vec<String>,
                     notes: &mut Vec<String>,
                     status: &mut Status,
@@ -1328,7 +1328,7 @@ impl Translator<'_> {
          -> Result<(), LanguageError> {
             let r = self.row(rule)?;
             rows.push(rule.to_string());
-            notes.extend(r.note.iter().cloned());
+            notes.extend(r.says.iter().cloned());
             *status = status.worse(Status::of(r.disposition));
             Ok(())
         };
@@ -1626,7 +1626,7 @@ impl Translator<'_> {
                     Some(row) => Landed {
                         status: Status::of(row.disposition),
                         rows: vec![group_key.clone()],
-                        notes: row.note.iter().cloned().collect(),
+                        notes: row.says.iter().cloned().collect(),
                         node: None,
                     },
                     None => {
@@ -1638,7 +1638,7 @@ impl Translator<'_> {
         };
         let group_status = Status::of(row.disposition);
         let group_rows = vec![group_key.clone()];
-        let group_notes: Vec<String> = row.note.iter().cloned().collect();
+        let group_notes: Vec<String> = row.says.iter().cloned().collect();
         let group_landed = || Landed {
             status: group_status,
             rows: group_rows.clone(),

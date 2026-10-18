@@ -473,6 +473,79 @@ fn with_nulls(value: &Json) -> Json {
     }
 }
 
+/// What a record's citation looks like in a reader's words: a decision,
+/// claim or contract id (`C96`, `S26`, `K6`), a sitting's search (`t55`,
+/// `u065`, `e043`), a file's path, or the builder's own words for its
+/// process. The trade seat met each in the report and could not read it
+/// (2026-10-17: every run).
+fn cites(text: &str) -> Vec<String> {
+    let mut found: Vec<String> = text
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter(|w| {
+            let mut chars = w.chars();
+            let Some(first) = chars.next() else {
+                return false;
+            };
+            let rest: String = chars.collect();
+            !rest.is_empty()
+                && rest.chars().all(|c| c.is_ascii_digit())
+                && (("CSKNJV".contains(first) && rest.len() <= 3)
+                    || ("tuvwef".contains(first) && (2..=3).contains(&rest.len())))
+        })
+        .map(str::to_string)
+        .collect();
+    for word in [
+        "tests/",
+        "decisions/",
+        "reference/",
+        "search/",
+        ".toml",
+        ".rs",
+        ".md",
+        "sitting",
+        "census",
+        "the owner",
+        "verbatim",
+        "the park",
+        "capture",
+    ] {
+        if text.contains(word) {
+            found.push(word.to_string());
+        }
+    }
+    found
+}
+
+/// The report's words are a reader's: every row's `says`, and every note a
+/// clause carries over every fixture, cite no record (the trade seat,
+/// 2026-10-17: all four runs met `S26`, `t55`, `decisions/trade.md` in the
+/// clause notes; cli-opus call 14, mcp-opus calls 11, 13, mcp-sonnet calls
+/// 10–19). The row's `note` keeps its evidence for `--describe trade`.
+#[test]
+fn the_reports_words_cite_no_record() {
+    let c = acquisition_search::trade::catalogue::catalogue().unwrap();
+    for row in c.rows() {
+        if let Some(says) = &row.says {
+            assert_eq!(cites(says), Vec::<String>::new(), "{}: {says}", row.key);
+        }
+        assert_eq!(row.note.is_some(), row.says.is_some(), "{}", row.key);
+    }
+    for case in cases() {
+        let t = translate(&decode(&input(&case)).unwrap()).unwrap();
+        for clause in &t.clauses {
+            for note in &clause.notes {
+                assert_eq!(
+                    cites(note),
+                    Vec::<String>::new(),
+                    "{}: {}: {note}",
+                    case.name,
+                    clause.at
+                );
+            }
+        }
+    }
+}
+
 proptest! {
     #![proptest_config(config(64, 512))]
 
@@ -483,6 +556,12 @@ proptest! {
         let decoded = decode(&query.to_string()).map_err(|e| TestCaseError::fail(format!("{query}: {e}")))?;
         let t = translate(&decoded).map_err(|e| TestCaseError::fail(format!("{query}: {e}")))?;
         holds(&t).map_err(|e| TestCaseError::fail(format!("{query}: {e}")))?;
+        // the report's words cite no record, whatever the query
+        for clause in &t.clauses {
+            for note in &clause.notes {
+                prop_assert!(cites(note).is_empty(), "{}: {}: {:?}", clause.at, note, cites(note));
+            }
+        }
         // the tree the report carries is the tree the text parses to
         let report = serde_json::to_value(&t).unwrap();
         let carried: Node = from_json(&report["tree"]).unwrap();

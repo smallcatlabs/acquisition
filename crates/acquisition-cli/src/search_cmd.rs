@@ -1697,7 +1697,7 @@ fn describe_text(d: &Describe, index: bool) -> String {
                     r.status,
                     r.lands.as_deref().unwrap_or("—")
                 ));
-                for said in r.text.iter().chain(&r.note) {
+                for said in r.text.iter().chain(&r.says) {
                     out.push_str(&format!("  {:<key$}{:<14}{said}\n", "", ""));
                 }
             }

@@ -897,9 +897,10 @@ fn describe_is_as_large_as_its_text_says() {
     let (whole, _) = seat.call("describe", &json!({}));
     assert!(whole.to_string().len() > 100_000);
     assert!(size(&mut seat, json!(["computed"])) > 50_000);
-    // some 25 KB, the trade catalogue's rows (C113)
-    assert!(size(&mut seat, json!(["trade"])) < 30_000);
-    assert!(size(&mut seat, json!(["trade"])) > 22_000);
+    // some 20 KB, the trade catalogue's rows (C113), each what the report
+    // says of it since the trade seat (21,633 bytes then)
+    assert!(size(&mut seat, json!(["trade"])) < 25_000);
+    assert!(size(&mut seat, json!(["trade"])) > 18_000);
     // some 20 KB since the property fields joined it (C114)
     assert!(size(&mut seat, json!(["fields"])) < 24_000);
     assert!(size(&mut seat, json!(["fields"])) > 16_000);
@@ -927,7 +928,7 @@ fn describe_is_as_large_as_its_text_says() {
         "The whole is over 100 KB",
         "fields (some 20 KB)",
         "(each under 4 KB)",
-        "trade (some 25 KB)",
+        "trade (some 20 KB)",
     ] {
         assert!(text.contains(stated), "{stated}: {text}");
     }

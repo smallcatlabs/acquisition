@@ -321,6 +321,10 @@ fn c113_the_catalogue_loader_refuses_what_a_reviewer_would() {
         ("disposition = \"exact\"\ntext = \" \"", "text"),
         ("disposition = \"exact\"\nnote = \"\"", "note"),
         ("disposition = \"exact\"\nlands = \" \"", "landing"),
+        (
+            "disposition = \"exact\"\nnote = \"n\"\nsays = \" \"",
+            "says",
+        ),
     ] {
         assert_eq!(
             refused(one(body)),
@@ -328,10 +332,16 @@ fn c113_the_catalogue_loader_refuses_what_a_reviewer_would() {
             "{body}"
         );
     }
+    // a note, the row's evidence, never stands without the sentence the
+    // report prints in its place (the trade seat)
+    assert_eq!(
+        refused(one("disposition = \"exact\"\nnote = \"n\"")),
+        CatalogueError::NoSays(key())
+    );
     for what in ["unsupported", "listing_only"] {
         assert_eq!(
             refused(one(&format!(
-                "disposition = \"{what}\"\nnote = \"n\"\nlands = \"ilvl{{bounds}}\""
+                "disposition = \"{what}\"\nnote = \"n\"\nsays = \"s\"\nlands = \"ilvl{{bounds}}\""
             ))),
             CatalogueError::LandsWithoutRunning(key()),
             "{what}"

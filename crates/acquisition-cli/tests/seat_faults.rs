@@ -1000,7 +1000,9 @@ fn a_trade_answer_says_its_items_are_the_stores_whatever_its_fidelity() {
         "{shown}"
     );
     assert!(
-        lines[2].starts_with("        reported  status  online, available, securable"),
+        lines[2].starts_with(
+            "        reported  status  Online, available or securable is the seller's state"
+        ),
         "{shown}"
     );
 }

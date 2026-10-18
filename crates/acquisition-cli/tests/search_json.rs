@@ -2691,7 +2691,8 @@ fn c113_a_site_search_url_runs_labelled_and_its_printed_request_reads_back() {
     );
     assert_eq!(lines[1], TRADE_OVER);
     assert!(
-        lines[2].starts_with("        NOT RUN   stats.1    a path of nodes to allocate at once"),
+        lines[2]
+            .starts_with("        NOT RUN   stats.1    A crucible tree path is not read; not run."),
         "{shown}"
     );
     assert!(
@@ -2699,7 +2700,9 @@ fn c113_a_site_search_url_runs_labelled_and_its_printed_request_reads_back() {
         "{shown}"
     );
     assert!(
-        lines[4].starts_with("        reported  status     online, available, securable"),
+        lines[4].starts_with(
+            "        reported  status     Online, available or securable is the seller's state"
+        ),
         "{shown}"
     );
     assert_eq!(lines[5], format!("query   {TRADE_TEXT}"));

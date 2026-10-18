@@ -115,6 +115,7 @@ struct RowIn {
     fields: Vec<String>,
     lacked: Option<String>,
     note: Option<String>,
+    says: Option<String>,
 }
 
 /// One clause of the site's query, as the catalogue states it.
@@ -131,7 +132,15 @@ pub struct Row {
     /// An item lacking the row's one field meets a maximum alone (the
     /// file's header: `lacked = "meets_maximum"`).
     pub lacked_meets_maximum: bool,
+    /// The row's evidence, its citations among it: the catalogue file's
+    /// record, which neither the report nor `--describe trade` prints.
     pub note: Option<String>,
+    /// What the report says beside the clause, in a reader's words: what
+    /// it becomes and where it may part from the site, no citation (the
+    /// trade seat, 2026-10-17: every run met the notes' records, `S26`,
+    /// `t55`, a file's path, and could not read them). Given wherever a
+    /// note is.
+    pub says: Option<String>,
 }
 
 /// The parsed, checked catalogue. Read-only; one per build.
@@ -170,6 +179,8 @@ pub enum CatalogueError {
     /// An ambiguous or unsupported clause with nothing for the report to
     /// say beside it.
     NoNote(String),
+    /// A note with no reader's sentence beside it.
+    NoSays(String),
     /// A text, a note or a landing given and empty.
     Empty {
         key: String,
@@ -240,6 +251,10 @@ impl std::fmt::Display for CatalogueError {
             CatalogueError::NoNote(key) => write!(
                 f,
                 "the trade catalogue gives {key:?} no note, which the report prints beside an ambiguous or unsupported clause"
+            ),
+            CatalogueError::NoSays(key) => write!(
+                f,
+                "the trade catalogue gives {key:?} a note and no `says`, the sentence the report prints in its place"
             ),
             CatalogueError::Empty { key, what } => {
                 write!(f, "the trade catalogue gives {key:?} an empty {what}")
@@ -427,6 +442,7 @@ impl Catalogue {
             for (given, what) in [
                 (&row.text, "text"),
                 (&row.note, "note"),
+                (&row.says, "says"),
                 (&row.lands, "landing"),
             ] {
                 if given.as_ref().is_some_and(|t| t.trim().is_empty()) {
@@ -439,6 +455,9 @@ impl Catalogue {
             ) && row.note.is_none()
             {
                 return Err(CatalogueError::NoNote(key));
+            }
+            if row.note.is_some() && row.says.is_none() {
+                return Err(CatalogueError::NoSays(key));
             }
             if !disposition.runs() && row.lands.is_some() {
                 return Err(CatalogueError::LandsWithoutRunning(key));
@@ -497,6 +516,7 @@ impl Catalogue {
                 fields: row.fields,
                 lacked_meets_maximum,
                 note: row.note,
+                says: row.says,
             });
         }
         Ok(Catalogue {
