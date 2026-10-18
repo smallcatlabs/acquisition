@@ -54,6 +54,7 @@ the session's at list price.
 | mcp-opus-2 | `claude-opus-5-5` | `762398e2` | 43 | call 10 (`tabs`, 745,672 bytes) | 58 + 4 | $4.18 | `calls-mcp-opus-2.csv`, `REPORT-mcp-opus-2.md`, `DEBRIEF-mcp-opus-2.md` |
 | cli-sonnet-2 | `claude-sonnet-5-5` | `d604b4cd` | 26 | none | 32 + 2 | $0.67 | `calls-cli-sonnet-2.csv`, `REPORT-cli-sonnet-2.md`, `DEBRIEF-cli-sonnet-2.md` |
 | mcp-sonnet-2-0 | `claude-sonnet-5-5` | `62f33cf5` | 6 | none | 12 | $0.18 | `calls-mcp-sonnet-2-0.csv`, `REPORT-mcp-sonnet-2-0.md` (stopped at T1) |
+| mcp-sonnet-2 | `claude-sonnet-5-5` | `447777cf` | 24 | call 6 (`tabs`, 745,672 bytes) | 42 + 3 | $0.97 | `calls-mcp-sonnet-2.csv`, `REPORT-mcp-sonnet-2.md`, `DEBRIEF-mcp-sonnet-2.md` |
 
 cli-opus-1: one command denied by the rails (a shell line not starting
 with the door), run again through it; one file read outside W — the
@@ -105,3 +106,6 @@ inline. The draft path covered `report` and `debrief` alone. The MCP
 door's `call` takes `--from NAME` too, and both briefs name every door
 command's way round a refused heredoc (the CLI's `run --stdin` already
 read a file); the run again is a fresh world.
+
+mcp-sonnet-2: five report parts went in as drafts (`report --from`) when
+the harness refused their heredocs; one door call denied, sent again.
