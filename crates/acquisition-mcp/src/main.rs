@@ -462,6 +462,9 @@ fn realm_param(realm: Option<&str>) -> Result<Realm, ErrorData> {
 struct TabsParams {
     /// League name; defaults to "Standard".
     league: Option<String>,
+    /// List every tab of a league of more than thirty, in place of the
+    /// ten with the most items.
+    expand: Option<bool>,
     /// Realm: pc (default), xbox, or sony.
     realm: Option<String>,
     /// Account selector (username with or without `#discriminator`, or
@@ -661,19 +664,19 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Every stash tab of a league, a flat list in which a substash names its `parent`, with item counts and fetch times, from the shared store (no daemon, no network)."
+        description = "The stash tabs of a league, counted first, from the shared store (no daemon, no network): how many tabs, fetched, never fetched and folders, how many items, and the same by tab type (`by_type`, the most items first); then `rows`, the tabs listed — every one where the league holds thirty or fewer, else the ten with the most items (`listed`: `all` or `most_items`) — each with its type, item count and fetch time, a substash naming its `parent`. `left_out` counts the tabs not listed; `expand: true` lists them all (some 220 bytes a tab)."
     )]
-    fn tabs(&self, Parameters(p): Parameters<TabsParams>) -> Result<Json<Value>, ErrorData> {
+    fn tabs(&self, Parameters(p): Parameters<TabsParams>) -> Told {
         let store = open_store(p.account.as_deref()).map_err(err)?;
-        let tabs = store
-            .tabs(
-                realm_param(p.realm.as_deref())?.as_str(),
-                p.league.as_deref().unwrap_or("Standard"),
-            )
-            .map_err(err)?;
-        serde_json::to_value(tabs)
-            .map(Json)
-            .map_err(|e| err(e.into()))
+        let realm = realm_param(p.realm.as_deref())?;
+        let league = p.league.as_deref().unwrap_or("Standard");
+        let rows = store.tabs(realm.as_str(), league).map_err(err)?;
+        told(&acquisition_search::tabs::Tabs::of(
+            realm.as_str(),
+            league,
+            rows,
+            p.expand.unwrap_or(false),
+        ))
     }
 
     #[tool(

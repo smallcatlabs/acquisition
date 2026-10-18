@@ -1257,3 +1257,77 @@ fn a_cut_table_names_the_request_field_that_lists_the_rest() {
     );
     assert_eq!(cross["left_out_needs"], "view.cross.limit");
 }
+
+/// C115: `tabs` answered the owner's Standard in 745,672 bytes with no
+/// limit, cut to its head by the door in three of the trade seat's runs
+/// (mcp-opus-1 call 9, mcp-opus-2 call 10, mcp-sonnet-2 call 6: "it has
+/// no limit or filter argument, so a whole league's tab list cannot be
+/// read"); the CLI's counts-first shape was its text alone. Over 41 tabs,
+/// two fetched: the counts and the counts by type first, the ten with the
+/// most items listed and the rest counted, `expand` for all — the same
+/// document `acq tabs --json` prints.
+#[test]
+fn tabs_counts_first_and_lists_the_ten_with_the_most_items() {
+    let mut seat = Seat::new();
+    {
+        let mut store = Store::open(&account_path(&stores(&seat.base), USER)).unwrap();
+        let mut stashes = vec![
+            json!({ "id": "t1", "name": "Rings", "type": "PremiumStash" }),
+            json!({ "id": "t2", "name": "Dump", "type": "PremiumStash" }),
+        ];
+        stashes.extend((0..39).map(
+            |i| json!({ "id": format!("q{i}"), "name": format!("Q {i}"), "type": "QuadStash" }),
+        ));
+        record(
+            &mut store,
+            Endpoint::Stashes {
+                realm: "pc".into(),
+                league: "Standard".into(),
+            },
+            "pc",
+            json!({ "stashes": stashes }),
+            40,
+        );
+    }
+    let result = seat.mcp.result("tabs", json!({}));
+    let text = result["content"][0]["text"].as_str().unwrap().to_string();
+    assert!(text.len() < 10_000, "{} bytes", text.len());
+    assert!(
+        text.starts_with(
+            r#"{"realm":"pc","league":"Standard","tabs":41,"fetched":2,"never_fetched":39,"#
+        ),
+        "{text}"
+    );
+    let (tabs, refused) = seat.call("tabs", &json!({}));
+    assert!(!refused, "{tabs}");
+    assert_eq!(tabs["items"], 5);
+    assert_eq!(
+        tabs["by_type"],
+        json!([
+            { "type": "PremiumStash", "tabs": 2, "fetched": 2, "items": 5 },
+            { "type": "QuadStash", "tabs": 39, "fetched": 0, "items": 0 },
+        ])
+    );
+    assert_eq!(tabs["listed"], "most_items");
+    let listed: Vec<&str> = tabs["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| t["id"].as_str().unwrap())
+        .collect();
+    assert_eq!(listed.len(), 10);
+    assert_eq!(listed[..2], ["t2", "t1"]);
+    assert_eq!(tabs["left_out"], 31);
+    assert_eq!(tabs["left_out_needs"], "expand");
+    let (printed, ok) = cli(&seat.base, &["tabs"]);
+    assert!(ok);
+    assert_eq!(printed, tabs);
+
+    let (all, _) = seat.call("tabs", &json!({ "expand": true }));
+    assert_eq!(all["listed"], "all");
+    assert_eq!(all["rows"].as_array().unwrap().len(), 41);
+    assert_eq!(all["left_out"], 0);
+    assert!(all.get("left_out_needs").is_none(), "{all}");
+    let (printed, _) = cli(&seat.base, &["tabs", "--expand"]);
+    assert_eq!(printed, all);
+}

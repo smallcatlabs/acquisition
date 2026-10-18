@@ -280,7 +280,9 @@ enum Cmd {
     /// Tabs of a league, from the shared store (no daemon round-trip):
     /// the counts first, then every tab with its type, items, age and id.
     /// A league of more than thirty tabs is counted by type with its ten
-    /// largest tabs instead; --expand lists every one.
+    /// largest tabs instead; --expand lists every one. `--json` is the
+    /// same document: the counts, `by_type`, and `rows`, the tabs listed,
+    /// with `left_out` counting the rest.
     Tabs {
         /// List every tab of a large league.
         #[arg(long)]

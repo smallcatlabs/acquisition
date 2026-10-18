@@ -246,19 +246,23 @@ fn render_tabs_table(tabs: &[acquisition_store::TabRow], now: i64) -> String {
     out
 }
 
-/// A league of this many tabs or fewer is listed whole by `acq tabs`;
-/// a larger one is counted by type with its largest tabs, and `--expand`
-/// lists every one (C53). The owner's Standard is 3,347.
-const TABS_LISTED: usize = 30;
-
+/// `acq tabs`: the league's tabs counted first and then listed — whole
+/// for a small league or under `--expand`, else the ten with the most
+/// items (C53). The document is the search crate's, one maker for this
+/// text, `--json` and the MCP's `tabs` (C115).
 pub fn tabs(realm: Realm, league: &str, expand: bool, json: bool) -> Result<()> {
     let store = open()?;
-    let tabs = store.tabs(realm.as_str(), league)?;
+    let listed = acquisition_search::tabs::Tabs::of(
+        realm.as_str(),
+        league,
+        store.tabs(realm.as_str(), league)?,
+        expand,
+    );
     if json {
-        println!("{}", serde_json::to_string_pretty(&tabs)?);
+        println!("{}", serde_json::to_string_pretty(&listed)?);
         return Ok(());
     }
-    if tabs.is_empty() {
+    if listed.tabs == 0 {
         println!(
             "no tabs known for {}{league} in {} (run `acq stashes` or `acq refresh --all`)",
             realm_prefix(realm),
@@ -267,57 +271,52 @@ pub fn tabs(realm: Realm, league: &str, expand: bool, json: bool) -> Result<()> 
         return Ok(());
     }
     let now = acquisition_store::now();
-    let fetched = tabs.iter().filter(|t| t.fetched_at.is_some()).count();
-    let folders = tabs.iter().filter(|t| t.r#type == "Folder").count();
-    let never = tabs.len() - fetched - folders;
-    let mut parts = vec![format!("{fetched} fetched")];
-    if never > 0 {
-        parts.push(format!("{never} never fetched"));
+    let mut parts = vec![format!("{} fetched", listed.fetched)];
+    if listed.never_fetched > 0 {
+        parts.push(format!("{} never fetched", listed.never_fetched));
     }
-    if folders > 0 {
+    if listed.folders > 0 {
         parts.push(format!(
-            "{folders} folder{} (never fetched)",
-            if folders == 1 { "" } else { "s" }
+            "{} folder{} (never fetched)",
+            listed.folders,
+            if listed.folders == 1 { "" } else { "s" }
         ));
     }
     // The answer first (C53), so it is never under a screen of rows.
     println!(
         "{} tabs in {}{league}: {}; {} items",
-        tabs.len(),
+        listed.tabs,
         realm_prefix(realm),
         parts.join(", "),
-        tabs.iter().map(|t| t.item_count).sum::<i64>()
+        listed.items
     );
-    if expand || tabs.len() <= TABS_LISTED {
-        print!("{}", render_tabs_table(&tabs, now));
+    if listed.left_out == 0 {
+        print!("{}", render_tabs_table(&listed.rows, now));
         return Ok(());
     }
-    let mut by_type: std::collections::BTreeMap<&str, (usize, usize, i64)> = Default::default();
-    for t in &tabs {
-        let row = by_type.entry(t.r#type.as_str()).or_default();
-        row.0 += 1;
-        row.1 += usize::from(t.fetched_at.is_some());
-        row.2 += t.item_count;
-    }
-    let mut types: Vec<_> = by_type.into_iter().collect();
-    types.sort_by(|a, b| b.1.2.cmp(&a.1.2).then(a.0.cmp(b.0)));
-    let width = types.iter().map(|(t, _)| t.len()).max().unwrap_or(4).max(4);
+    let width = listed
+        .by_type
+        .iter()
+        .map(|t| t.kind.len())
+        .max()
+        .unwrap_or(4)
+        .max(4);
     println!(
         "{:<width$}  {:>5}  {:>7}  {:>6}",
         "type", "tabs", "fetched", "items"
     );
-    for (kind, (count, fetched, items)) in &types {
-        println!("{kind:<width$}  {count:>5}  {fetched:>7}  {items:>6}");
+    for t in &listed.by_type {
+        println!(
+            "{:<width$}  {:>5}  {:>7}  {:>6}",
+            t.kind, t.tabs, t.fetched, t.items
+        );
     }
-    let mut largest: Vec<acquisition_store::TabRow> = tabs.clone();
-    largest.sort_by(|a, b| b.item_count.cmp(&a.item_count).then(a.id.cmp(&b.id)));
-    largest.truncate(10);
     println!("the ten with the most items:");
-    print!("{}", render_tabs_table(&largest, now));
+    print!("{}", render_tabs_table(&listed.rows, now));
     let (expand, count) = tabs_next(realm, league);
     println!(
         "next: `{expand}` lists all {}; `{count}` counts what a query matches by tab",
-        tabs.len()
+        listed.tabs
     );
     Ok(())
 }

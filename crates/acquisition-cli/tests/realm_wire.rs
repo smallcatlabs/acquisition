@@ -185,9 +185,12 @@ fn realm_is_on_the_wire_exactly_as_ruled() {
 
     // The store keeps realms apart: pc's tabs are on record under pc only.
     let pc_tabs = sole_json(&acq(&base, &["tabs", "--json"]));
-    assert!(!pc_tabs.as_array().unwrap().is_empty(), "{pc_tabs}");
+    assert!(!pc_tabs["rows"].as_array().unwrap().is_empty(), "{pc_tabs}");
     let xbox_tabs = sole_json(&acq(&base, &["tabs", "--realm", "xbox", "--json"]));
-    assert_eq!(xbox_tabs, json!([]));
+    assert_eq!(
+        (&xbox_tabs["tabs"], &xbox_tabs["rows"]),
+        (&json!(0), &json!([]))
+    );
 
     // The journal: pc sends on the bare routes (two GETs on one route —
     // explicit and omitted are indistinguishable), xbox sends on the

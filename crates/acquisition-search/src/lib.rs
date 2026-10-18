@@ -308,6 +308,7 @@ pub mod properties;
 mod pseudo;
 pub mod show;
 pub mod sockets;
+pub mod tabs;
 mod template;
 pub mod totals;
 pub mod trade;

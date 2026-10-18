@@ -16,7 +16,7 @@ Commands:
   character     Fetch one character with its equipment and inventory
   leagues       List the account's leagues
   accounts      Accounts this machine has logged into (the store's index; no daemon)
-  tabs          Tabs of a league, from the shared store (no daemon round-trip): the counts first, then every tab with its type, items, age and id. A league of more than thirty tabs is counted by type with its ten largest tabs instead; --expand lists every one
+  tabs          Tabs of a league, from the shared store (no daemon round-trip): the counts first, then every tab with its type, items, age and id. A league of more than thirty tabs is counted by type with its ten largest tabs instead; --expand lists every one. `--json` is the same document: the counts, `by_type`, and `rows`, the tabs listed, with `left_out` counting the rest
   search        Search the items the store holds (no daemon): a query over every live item of one realm, answered with the canonical query, the scope searched, the total, and the rows with the lines the query touched — then each term's counts over the scope, matched, failed, lacked, undecided (C93), and the basis. Every count has a route: the command that returns exactly its members, printed where a next step hangs on it and every one under `--routes`. `--json` is the answer whole, in the same order, the query as text and as tree, a count's request where its route is printed; a failure is `{"error", "kind", "readings"}`, with `offers` where a way on is a request `--request` reads. `--describe` prints the language, and what this build refuses by name
   show          One item as the search derives it, live or removed (no daemon): its fields, its place, every line with its kind, template and numbers, and what could not be read; `--json` the same, structured. `--body` adds the body as the store holds it, which is still there when deriving could not read it
   store         The shared store itself (what the daemon writes; every frontend reads)
@@ -160,7 +160,7 @@ Options:
 ## `acq tabs`
 
 ```text
-Tabs of a league, from the shared store (no daemon round-trip): the counts first, then every tab with its type, items, age and id. A league of more than thirty tabs is counted by type with its ten largest tabs instead; --expand lists every one
+Tabs of a league, from the shared store (no daemon round-trip): the counts first, then every tab with its type, items, age and id. A league of more than thirty tabs is counted by type with its ten largest tabs instead; --expand lists every one. `--json` is the same document: the counts, `by_type`, and `rows`, the tabs listed, with `left_out` counting the rest
 
 Usage: acq tabs [OPTIONS]
 
