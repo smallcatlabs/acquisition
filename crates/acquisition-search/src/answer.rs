@@ -40,7 +40,7 @@
 //! scope   account A · pc · live · 7 items · 2 locations fetched (oldest 3d, newest 2h)
 //!         1 never fetched · location list seen 2h ago                       more: --view locations
 //! basis   store 3f9a1c0be27d · snapshot 41 · intent 12 · totals v1 · classes v3
-//! terms   each term evaluated independently over live pc items in all leagues
+//! terms   each term counted alone over all live pc items in all leagues, never over the matches
 //!   0    league=Standard                        7 matched
 //!   1    class=Rings                            6 matched · 1 undecided
 //!   2    rarity=rare                            6 matched · 1 failed

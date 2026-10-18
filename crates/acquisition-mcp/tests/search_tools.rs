@@ -1060,3 +1060,23 @@ fn the_never_fetched_count_says_what_it_counts_and_what_no_answer_sees() {
         "{text}"
     );
 }
+
+/// A pattern term's `resolved` values were read as the answer's tier
+/// breakdown, tier 13 and other leagues among them, and `scope.items` as
+/// the matches' base (the trade seat: mcp-sonnet calls 4, 19, 20, its
+/// faults 1 and 2). The text says each term is alone over the scope,
+/// never over the matches, what `resolved` is, and what `items` counts.
+#[test]
+fn a_terms_counts_and_resolved_values_are_said_to_be_over_the_scope() {
+    let mut seat = Seat::new();
+    let tools = seat.mcp.list_tools();
+    let search = tools.iter().find(|t| t["name"] == "search").unwrap();
+    let text = search["description"].as_str().unwrap();
+    for said in [
+        "each term alone over every item in scope, never over the matches, which are `total`",
+        "a pattern term's `resolved` is what it matched there, its `rest.denominator` `scope`",
+        "`items` every live item in scope before any term",
+    ] {
+        assert!(text.contains(said), "{said}: {text}");
+    }
+}

@@ -1048,3 +1048,21 @@ fn every_total_says_what_was_never_fetched_not_a_zeros_alone() {
         );
     }
 }
+
+/// A term's counts were read as the answer's: "26 matched" for the
+/// totem line where the answer held one shield, a term's 168 beside a
+/// total of 160 (the trade seat: cli-opus calls 18, 19, its fault 8;
+/// cli-sonnet call 14, its fault 5). The terms block says each term is
+/// counted alone over the scope and never over the matches.
+#[test]
+fn the_terms_block_says_it_is_never_over_the_matches() {
+    let scratch = harness::scratch("seat-terms");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    let shown = stdout(&acq(&base, &["search", "--realm", "pc", "league=Standard"]));
+    assert!(
+        shown.lines().any(|l| l
+            == "terms   each term counted alone over all live pc items in all leagues, never over the matches"),
+        "{shown}"
+    );
+}

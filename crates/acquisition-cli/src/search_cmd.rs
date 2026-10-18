@@ -924,7 +924,7 @@ fn answer_text(a: &Answer, all_routes: bool) -> String {
 
     if !a.terms.is_empty() {
         line(format!(
-            "terms   each term evaluated independently over {} {} in all leagues",
+            "terms   each term counted alone over all {} {} in all leagues, never over the matches",
             match scope.membership {
                 Membership::Live => "live",
                 Membership::All => "live and removed",

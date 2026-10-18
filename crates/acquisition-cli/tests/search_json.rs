@@ -737,7 +737,7 @@ fn first_seat_the_text_says_what_sorted_what_an_id_is_and_of_every_realm() {
     seed_more(&base);
     let shown = text(&acq(&base, &["search", "--realm", "all", "is:corrupted"]));
     assert!(
-        shown.contains("over live items of every realm in all leagues"),
+        shown.contains("over all live items of every realm in all leagues"),
         "{shown}"
     );
     let shown = text(&acq(
@@ -2302,7 +2302,7 @@ fn step_10_membership_all_at_a_terminal() {
     );
     // the terms are counted over both, and the block says so
     assert!(
-        shown.contains("each term evaluated independently over live and removed pc items"),
+        shown.contains("each term counted alone over all live and removed pc items"),
         "{shown}"
     );
     assert!(
@@ -2435,7 +2435,7 @@ fn membership_removed_at_a_terminal() {
         "{shown}"
     );
     assert!(
-        shown.contains("each term evaluated independently over removed pc items"),
+        shown.contains("each term counted alone over all removed pc items"),
         "{shown}"
     );
     assert!(
