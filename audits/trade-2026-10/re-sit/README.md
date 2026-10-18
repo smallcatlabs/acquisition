@@ -53,8 +53,16 @@ the session's at list price.
 | Run | Model | Session | Calls | Cut | Turns | Cost | Files |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | cli-opus | `claude-opus-5-5` | `393fea5a` | 44 | none | 50 + 4 | $2.65 | `calls-cli-opus.csv`, `REPORT-cli-opus.md`, `DEBRIEF-cli-opus.md` |
+| mcp-opus | `claude-opus-5-5` | `20886c82` | 38 | none | 58 + 4 | $3.27 | `calls-mcp-opus.csv`, `REPORT-mcp-opus.md`, `DEBRIEF-mcp-opus.md` |
 
 cli-opus: no denial; its harness spilled calls 9 and 10's joined output
 to a file outside W, which the runner did not open — call 9 was run
 again as call 11, and call 10 (`--describe trade`, 33,543 bytes) went
 unread, named in its "Left out" and answer 1. No draft, no work file.
+
+mcp-opus: two door commands denied by the rails — a `call … -` heredoc
+and a shell loop over four explain paths — sent again as five drafts
+(`call --from`) and single calls; the harness cut call 14's printout
+(35,134 bytes, printed whole by the door) to about 2 KB, so the 69
+rings the dexterity edit adds were counted, not listed, named in its
+"Left out". No file opened outside W.
