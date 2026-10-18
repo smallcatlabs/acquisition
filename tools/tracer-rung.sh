@@ -684,7 +684,7 @@ echo ""
 echo "phase 4: the facts, read back from the store (no daemon):"
 if [ "$SELECTION" != none ]; then
 "$ACQ" tabs --realm "$REALM" --league "$LEAGUE" >"$RUN_DIR/tabs.txt"
-"$ACQ" tabs --realm "$REALM" --league "$LEAGUE" --json >"$RUN_DIR/tabs.json"
+"$ACQ" tabs --realm "$REALM" --league "$LEAGUE" --json --expand >"$RUN_DIR/tabs.json"
 fi
 if [ "$SELECTION" = none ]; then
     echo "(no tab coverage in this run)"
@@ -699,8 +699,10 @@ else
         # under this check (`28db97c6`'s columns; `76ef839b` counts a league
         # of more than thirty tabs by type, its ids unlisted), and each move
         # aborted a live id-list run that had passed (2026-09-09, 2026-09-11,
-        # 2026-10-15).
-        row=$(jq -r --arg id "$id" '.[] | select(.id == $id) | "\(.name)  \(.type)  \(.item_count) items  \(.id)"' "$RUN_DIR/tabs.json")
+        # 2026-10-15). The JSON counts first since `603223af`: the tabs are
+        # `rows`, every one only under --expand (the review of note 38's
+        # step 1 reproduced the abort, 2026-10-18).
+        row=$(jq -r --arg id "$id" '.rows[] | select(.id == $id) | "\(.name)  \(.type)  \(.item_count) items  \(.id)"' "$RUN_DIR/tabs.json")
         if [ -n "$row" ]; then echo "$row"; continue; fi
         case " $unknown " in
         *" $id "*) echo "$id: not in the store — the first plan reported it as unknown (a typo, or a tab that is gone); never fetched" ;;
@@ -712,7 +714,7 @@ else
     # Children of a selected parent are covered through it: every one on
     # record must have been fetched by the time the loop closed, except a
     # substash stub the final plan skips as empty (nothing to fetch).
-    children=$(jq -c --argjson sel "$tabs_json" '[.[] | .parent as $p | select($p != null and ($sel | index($p)) != null)]' "$RUN_DIR/tabs.json")
+    children=$(jq -c --argjson sel "$tabs_json" '[.rows[] | .parent as $p | select($p != null and ($sel | index($p)) != null)]' "$RUN_DIR/tabs.json")
     n_children=$(echo "$children" | jq 'length')
     n_unfetched=$(echo "$children" | jq '[.[] | select(.fetched_at == null)] | length')
     echo "children of selected tabs on record: $n_children (substashes and folder children), $n_unfetched never fetched"

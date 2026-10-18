@@ -613,7 +613,10 @@ fn stopping_a_daemon_says_which_logins_ended_with_it() {
 /// the last line: 355 KB for the owner's Standard, which two seats met —
 /// the first turned away, the second filled its context. The counts are
 /// the first line, and a league of more than thirty tabs is counted by
-/// type with its ten largest; `--expand` is every tab, as JSON always is.
+/// type with its ten largest; `--expand` is every tab. `--json` is the
+/// same document (C115): its tabs are `rows`, cut the same way, every one
+/// under `--expand` — the refresh-run script reads them there (the review
+/// of note 38's step 1 reproduced its abort on the old flat list).
 #[test]
 fn tabs_says_its_counts_first_and_counts_a_large_league() {
     let scratch = harness::scratch("seat-tabs");
@@ -680,6 +683,24 @@ fn tabs_says_its_counts_first_and_counts_a_large_league() {
     );
     let all = stdout(&acq(&base, &["tabs", "--expand"]));
     assert!(all.contains("q40") && all.lines().count() > 41, "{all}");
+    let cut = sole_json(&acq(&base, &["tabs", "--json"]));
+    assert_eq!(cut["tabs"], 41, "{cut}");
+    assert_eq!(cut["rows"].as_array().unwrap().len(), 10, "{cut}");
+    assert_eq!(cut["left_out"], 31, "{cut}");
+    assert_eq!(cut["left_out_needs"], "expand", "{cut}");
+    let whole = sole_json(&acq(&base, &["tabs", "--json", "--expand"]));
+    let rows = whole["rows"].as_array().unwrap();
+    assert_eq!(rows.len(), 41, "{whole}");
+    assert_eq!(whole["left_out"], 0, "{whole}");
+    let q40 = rows.iter().find(|r| r["id"] == "q40").unwrap();
+    for field in ["id", "name", "type", "item_count", "parent", "fetched_at"] {
+        assert!(q40.get(field).is_some(), "{field} missing: {q40}");
+    }
+    assert_eq!(q40["type"], "QuadStash", "{q40}");
+    assert!(
+        q40["fetched_at"].is_null() && q40["parent"].is_null(),
+        "{q40}"
+    );
 
     // The next commands keep the league shown: they named Standard's
     // defaults whatever league the summary was of.
