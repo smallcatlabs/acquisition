@@ -1159,14 +1159,24 @@ impl From<Translation> for TradeOut {
 }
 
 /// One clause of a site search as the answer reports it (C113, K6): where
-/// it stands in the site's request, what the site wrote, the catalogue's
-/// rows read for it, its status, its term and path, what its rows say —
-/// and, for an ambiguous clause whose row carries its other reading, what
-/// is at stake (C119).
+/// it stands in the site's request, its status, and its term and path —
+/// and, where it is not exact, what the site wrote, the catalogue's rows
+/// read for it and what they say; for an ambiguous clause whose row
+/// carries its other reading, what is at stake (C119).
+///
+/// An exact clause is its term: the text states it, the terms block
+/// counts it by its path, and its `site`, `rows` and `notes` would say
+/// again what the term says, a pseudo stat's sentence once a filter
+/// (the trade seat's ring URL: its report 2.7 KB of a 7.9 KB answer of
+/// three rows). What the report says that the text does not is which of the
+/// site's filters each term is, and every clause that is not exactly its
+/// term; the catalogue's sentences stay in `describe trade`.
 #[derive(Debug, Clone, Serialize)]
 pub struct ClauseOut {
     pub at: String,
-    pub site: Json,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub site: Option<Json>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub rows: Vec<String>,
     pub status: Status,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1186,14 +1196,15 @@ pub struct ClauseOut {
 
 impl From<Clause> for ClauseOut {
     fn from(c: Clause) -> ClauseOut {
+        let exact = c.status == Status::Exact;
         ClauseOut {
             at: c.at,
-            site: c.site,
-            rows: c.rows,
+            site: (!exact).then_some(c.site),
+            rows: if exact { Vec::new() } else { c.rows },
             status: c.status,
             term: c.term,
             path: c.path,
-            notes: c.notes,
+            notes: if exact { Vec::new() } else { c.notes },
             other: None,
             reading: c.other,
         }

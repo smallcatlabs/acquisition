@@ -1514,3 +1514,53 @@ fn an_ambiguous_clause_says_how_many_items_its_other_reading_would_change() {
     let added = seat.answer(&other["adds"]["request"]);
     assert_eq!(ids(&added), ["ravaged"], "{added}");
 }
+
+/// The trade report weighed 2,732 bytes of the ring URL's three-row
+/// answer of 7,888 (measured after the answer's weight was cut, C115):
+/// each of nine clauses echoed the site's filter, its catalogue row and
+/// the row's sentence — one sentence four times for four pseudo stats —
+/// beside the text that states the whole translation. An exact clause is
+/// its term: `at`, `status`, `term` and `path` alone. Every other clause
+/// keeps the site's filter, its rows and what they say, and `describe`
+/// keeps every row's sentence.
+#[test]
+fn a_trade_reports_exact_clause_is_where_it_stands_and_its_term_alone() {
+    let mut seat = Seat::new();
+    let url = format!("https://www.pathofexile.com/trade/search/Standard/{TRADE_ID}");
+    let a = seat.answer(&json!({ "query": { "trade": url }, "view": { "rows": { "limit": 0 } } }));
+    let clauses = a["query"]["trade"]["clauses"].as_array().unwrap();
+    let keys = |c: &Value| -> Vec<String> { c.as_object().unwrap().keys().cloned().collect() };
+    let (exact, other): (Vec<&Value>, Vec<&Value>) =
+        clauses.iter().partition(|c| c["status"] == "exact");
+    assert!(!exact.is_empty() && !other.is_empty(), "{a}");
+    for c in &exact {
+        for key in keys(c) {
+            assert!(
+                ["at", "status", "term", "path"].contains(&key.as_str()),
+                "{key}: {c}"
+            );
+        }
+    }
+    let league = exact.iter().find(|c| c["at"] == "url.league").unwrap();
+    assert_eq!(
+        **league,
+        json!({ "at": "url.league", "status": "exact", "term": "league=Standard", "path": "0" })
+    );
+    for c in &other {
+        assert!(c.get("site").is_some() && c.get("rows").is_some(), "{c}");
+        assert!(!c["notes"].as_array().unwrap().is_empty(), "{c}");
+    }
+    // the sentence an exact clause no longer carries is the catalogue's
+    let (described, _) = seat.call("describe", &json!({ "names": ["trade"] }));
+    let row = described["trade"]["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["key"] == "url.league")
+        .unwrap()
+        .clone();
+    assert_eq!(
+        row["says"], "The league the URL names becomes a term of the search, like any other.",
+        "{row}"
+    );
+}
