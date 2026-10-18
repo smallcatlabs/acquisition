@@ -68,7 +68,7 @@ expected; what it proposes beyond its brief is a park, not a commit.
 | Step | Builds | Acceptance |
 | --- | --- | --- |
 | 1 | the answer's weight (C115); `tabs` limited and summarised in JSON as the CLI's text is; `left_out_needs` names a JSON field | on a copy of the owner's store: an MCP three-row answer under 4 KB, the default twenty rows under 20 KB, a counts-only answer under 4 KB, `tabs` under 10 KB by default. Built 2026-10-18, `e57db22b..2afc262c`: `tabs` met (3,360 bytes); the three others not — 7,888, 23,105 and 7,965 bytes on the ring URL — the weight left being the trade report (2.7 KB a call) and the rows' evidence; the report's share is step 3's |
-| 2 | coverage (C118): the row's age; the never fetched by tab type on the scope line; the scope line points at the list that exists (`tabs`) instead of a flag not built | the tests; the re-sit |
+| 2 | coverage (C118): the row's age; the never fetched by tab type on the scope line; the scope line points at the list that exists (`tabs`) instead of a flag not built | the tests; the re-sit. Built 2026-10-18, `d483a199..bb82f568`: `place.fetched_at` and the by-type scope line, counted by `tabs`'s own maker; the ring URL's three rows 7,888 to 8,159 bytes, twenty rows 23,105 to 23,784 |
 | 3 | the stake of an ambiguous clause (C119), over the catalogue's ambiguous rows that admit another reading; the trade report's weight | T6 says how many Blight-ravaged maps the site may add, with the route; T4 its `reduced` forms; T5 the items the scourge line decides; each a labelled oracle or translate row; the ring URL's three-row answer measured again on the store copy |
 | 4 | the tab facts as fields (C117); ids out of help, reasons, notes and refusals (C116), the Remove-only suffix said once where tabs are listed; the seat's small unrouted faults as `seat_faults` tests | the tests; the references regenerated |
 | 5 | the sitting the fate tables queue (Blight-ravaged under `map_blighted`, the `(gem)` level, the rarity forms), beside the build | the site-sitting skill |
@@ -134,13 +134,23 @@ the `tree` beside the `text` (`describe` and `explain` exist). Whatever
 is cut, `describe trade` keeps the catalogue's sentences (C53: text a
 function of JSON; C100: one shape).
 
+**For step 6 to count, left as step 2 built them.** The CLI's total
+carries its own caveat ("2940 locations were never fetched: nothing
+here says what they hold", a first-round fix for cli-sonnet call 6) two
+lines under the scope line that now says the same number by type; and
+the scope's second line runs to about 190 characters over the owner's
+store. Neither is patched before the re-sit says whether a reader
+skips, misreads or is served by them.
+
 **Step 4 — facts, words, and the small faults.** Build: `tab.public`
 (GGG's `metadata.public`; a substash's is its tab's; a character's item
 lacks it), `tab.remove_only` (the suffix GGG puts on the name, N47),
 `price.side` as fields in the index; no claim about the site. No `C`,
 `S`, `N`, `T` or `Q` id in any help text, reason, note, `says` or
 refusal — the trade report's rule (`the_reports_words_cite_no_record`)
-widened to every surface as one test; the two frontends parks on ids
+widened to every surface as one test; the refusal of `--view locations`
+(still refused by name, nothing pointing at it since step 2) names
+`tabs` or goes; the two frontends parks on ids
 deleted in the commit. One sentence on the Remove-only suffix where
 tabs are listed. The seat's unrouted faults, each a test: `--count`
 with `--limit` says no rows are shown under a count (cli-sonnet both
