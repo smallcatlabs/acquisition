@@ -20,6 +20,14 @@ from it (`seat.py setup --store`). A world holds its brief (as
 | `acq-mcp` (release) | `02cbf760dff336bcebf1db7381a8434860f38c89675760c51a70f170d1ae7b79` |
 | `copy-as-store` (release; made `pristine/`) | `6878430c6d35a5fc290f0f16b34a747099b5017a820a8a97ad57d2ebe3ed8012` |
 
+The second round's, built at `80c1de6d` after the fix round, in
+`bin-2/`; the copier the same:
+
+| Binary | sha256 |
+| --- | --- |
+| `acq` (release) | `a37ae7d78a60c5e2cb0cbd413621f4bfda517968ecd3efd8af17903a572a2031` |
+| `acq-mcp` (release) | `1e313e6c63436373df061ecf8a4aeaacda940960b2cc85bf6c578f64309fe47b` |
+
 ## The door's cut
 
 Both doors print a result whole up to 60,000 bytes and past that its
@@ -37,24 +45,24 @@ the session's at list price.
 
 | Run | Model | Session | Calls | Cut | Turns | Cost | Files |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| cli-opus | `claude-opus-5-5` | `b12c3dbb` | 34 | none | 46 + 2 | $2.27 | `calls-cli-opus.csv`, `REPORT-cli-opus.md`, `DEBRIEF-cli-opus.md` |
-| mcp-opus | `claude-opus-5-5` | `493d51e7` | 39 | call 9 (`tabs`, 745,672 bytes) | 57 + 2 | $3.60 | `calls-mcp-opus.csv`, `REPORT-mcp-opus.md`, `DEBRIEF-mcp-opus.md` |
-| cli-sonnet | `claude-sonnet-5-5` | `82f13d76` | 23 | none | 25 + 2 | $0.68 | `calls-cli-sonnet.csv`, `REPORT-cli-sonnet.md`, `DEBRIEF-cli-sonnet.md` |
+| cli-opus-1 | `claude-opus-5-5` | `b12c3dbb` | 34 | none | 46 + 2 | $2.27 | `calls-cli-opus-1.csv`, `REPORT-cli-opus-1.md`, `DEBRIEF-cli-opus-1.md` |
+| mcp-opus-1 | `claude-opus-5-5` | `493d51e7` | 39 | call 9 (`tabs`, 745,672 bytes) | 57 + 2 | $3.60 | `calls-mcp-opus-1.csv`, `REPORT-mcp-opus-1.md`, `DEBRIEF-mcp-opus-1.md` |
+| cli-sonnet-1 | `claude-sonnet-5-5` | `82f13d76` | 23 | none | 25 + 2 | $0.68 | `calls-cli-sonnet-1.csv`, `REPORT-cli-sonnet-1.md`, `DEBRIEF-cli-sonnet-1.md` |
 | mcp-sonnet-0 | `claude-sonnet-5-5` | `c7a92eaa` | 12 | none | 20 | $0.43 | `calls-mcp-sonnet-0.csv`, `REPORT-mcp-sonnet-0.md` (stopped at T2) |
-| mcp-sonnet | `claude-sonnet-5-5` | `a2b95231` | 23 | none | 37 + 2 | $0.92 | `calls-mcp-sonnet.csv`, `REPORT-mcp-sonnet.md`, `DEBRIEF-mcp-sonnet.md` |
+| mcp-sonnet-1 | `claude-sonnet-5-5` | `a2b95231` | 23 | none | 37 + 2 | $0.92 | `calls-mcp-sonnet-1.csv`, `REPORT-mcp-sonnet-1.md`, `DEBRIEF-mcp-sonnet-1.md` |
 
-cli-opus: one command denied by the rails (a shell line not starting
+cli-opus-1: one command denied by the rails (a shell line not starting
 with the door), run again through it; one file read outside W — the
 harness's own spill of calls 9 and 10's joined output, named in the
 report's "Left out" and the debrief's answer 7.
 
-mcp-opus: one door call denied by the rails — a heredoc whose JSON
+mcp-opus-1: one door call denied by the rails — a heredoc whose JSON
 body held escaped quotes and a `#`, refused by the harness's permission
 check before the door ran — sent again inline (call 26). The harness
 moved call 10's 31 KB result to a file the runner did not open, so call
 10 went unread; the door's cut of call 9 is the one `head` row.
 
-cli-sonnet: no denial; one file of its harness's (call 7's 39,716 bytes)
+cli-sonnet-1: no denial; one file of its harness's (call 7's 39,716 bytes)
 saved and not opened. Its world's door wrote `calls.csv` with LF line
 ends; nothing else in the world differs from cli-opus's.
 
@@ -69,6 +77,6 @@ briefs a sentence naming it; the three finished runs stand, the change
 a way round a refusal they did not need. The run's world is
 `mcp-sonnet-0/`; the run again is `mcp-sonnet`, fresh.
 
-mcp-sonnet: no draft needed; the rails refused one chained command,
+mcp-sonnet-1: no draft needed; the rails refused one chained command,
 run again as its two parts; the harness clipped call 6, asked again as
 call 7 with fewer rows.
