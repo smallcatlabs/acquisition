@@ -70,7 +70,10 @@ skill (P6).
    and is not blind (the trade seat's probe, 2026-10-17). The script's
    rails are its header. The prompt names the brief's path and repeats
    the prohibitions; it says nothing of what you expect to be found.
-   The debrief resumes the same session (`… PROMPT-FILE SESSION-ID`).
+   The debrief resumes the same session (`… PROMPT-FILE SESSION-ID`):
+   the questions of the plan, the last an open one, and among them
+   "which answer would you retract, or not bet on?", which three of the
+   trade seat's eight runs proposed and two more answered unasked.
 
 ## After the run
 
@@ -117,9 +120,17 @@ skill (P6).
 - **The harness reads a heredoc as shell.** Under the launch's rails it
   refused a door command whose heredoc held prose it could not parse
   (`?` before an unclosed apostrophe) and one holding JSON with escaped
-  quotes; the trade seat's Sonnet MCP run stopped at T2 on it. A part
-  the harness refuses goes in as a file: `W/drafts/NAME`, written by the
-  runner's file tool, read by `report --from NAME`.
+  quotes. An Opus runner rewrote a refused call inline; a Sonnet runner
+  stopped and asked, as its brief bound it, twice (the trade seat's
+  Sonnet MCP runs, at T2 and at T1). Any door command's heredoc may be
+  refused, so every one has a file form: `W/drafts/NAME`, written by
+  the runner's file tool, read by `report`, `debrief` or `call --from
+  NAME`, or by the CLI door's `run --stdin`.
+- **The rails deny what is not allowed, not what the harness calls
+  safe.** A runner ran `date` outside the door three times (the trade
+  seat, mcp-opus-2); it reads nothing of the repository, but the record
+  names it, as it names a harness's spill of a long output read
+  outside W.
 - **A long output is the runner's context.** The door prints the head
   of anything over 60,000 bytes and says so; a verb that needs that is
   a finding (`acq tabs` at 355 KB, `search --describe` at 117 KB).
