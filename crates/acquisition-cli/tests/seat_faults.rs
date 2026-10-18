@@ -1187,3 +1187,20 @@ fn a_bare_id_as_a_price_target_is_offered_as_an_item_and_as_a_character() {
         "{said}"
     );
 }
+
+/// `store status` printed `leagues 0` beside tabs in seven leagues, and
+/// its tabs across every realm and league beside `tabs`'s count of one
+/// (the trade seat: cli-opus calls 3, 5, its fault 7). The line says what
+/// each counts: the account's league list, which this store never
+/// fetched, and the tabs of every realm and league.
+#[test]
+fn store_status_says_what_its_league_and_tab_counts_count() {
+    let scratch = harness::scratch("seat-status");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    let shown = stdout(&acq(&base, &["store", "status"]));
+    assert!(
+        shown.contains("league list never fetched (`acq leagues`)  characters 0  tabs 2 (every realm and league)"),
+        "{shown}"
+    );
+}

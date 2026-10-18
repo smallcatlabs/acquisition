@@ -440,9 +440,22 @@ pub fn status(json: bool) -> Result<()> {
         println!("{}", serde_json::to_string_pretty(&st)?);
     } else {
         println!("{}  ({:.1} MB)", st.path, st.bytes as f64 / 1e6);
+        // the counts say what they count: `leagues 0` beside tabs in seven
+        // leagues, and 3,444 tabs beside `tabs`'s 3,347 in one, read as a
+        // contradiction (the trade seat: cli-opus calls 3, 5, its fault 7;
+        // mcp-opus call 5)
         println!(
-            "responses {}  leagues {}  characters {}  tabs {}  items {} (+{} removed)  events {}",
-            st.responses, st.leagues, st.characters, st.tabs, st.items, st.items_removed, st.events
+            "responses {}  league list {}  characters {}  tabs {} (every realm and league)  items {} (+{} removed)  events {}",
+            st.responses,
+            match st.leagues {
+                0 => "never fetched (`acq leagues`)".to_string(),
+                n => format!("{n} leagues"),
+            },
+            st.characters,
+            st.tabs,
+            st.items,
+            st.items_removed,
+            st.events
         );
         if st.withheld_responses > 0 {
             println!(
