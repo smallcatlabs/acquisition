@@ -1169,3 +1169,21 @@ fn a_rows_place_says_which_cell_the_item_sits_in() {
     let shown = stdout(&acq(&base, &["show", "i-std"]));
     assert!(shown.contains("Standard / Gear · x 0, y 0"), "{shown}");
 }
+
+/// `price show` refused the bare id every other verb prints, and the
+/// refusal named the grammar alone (the trade seat: cli-opus call 31,
+/// its fault 6). An item's id and a character's are alike, so neither is
+/// guessed: the refusal offers both, the id filled in.
+#[test]
+fn a_bare_id_as_a_price_target_is_offered_as_an_item_and_as_a_character() {
+    let scratch = harness::scratch("seat-price-id");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    let out = acq(&base, &["price", "show", "i-std"]);
+    assert!(!out.status.success());
+    let said = stderr(&out);
+    assert!(
+        said.contains("; as an item, item/i-std; as a character, character/i-std"),
+        "{said}"
+    );
+}

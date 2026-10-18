@@ -110,11 +110,19 @@ pub fn status(realm: Realm, league: &str, expand: bool, json: bool) -> Result<()
     Ok(())
 }
 
-/// A target address as one word, or the grammar to type.
+/// A target address as one word, or the grammar to type — and, for a
+/// bare id as `search` and `show` print one, the two readings it may be,
+/// filled in: an item's and a character's ids are alike, so neither is
+/// guessed (the trade seat: cli-opus call 31, its fault 6).
 fn parse_target(word: &str) -> Result<PriceTarget> {
     PriceTarget::from_str(word).map_err(|e| {
+        let readings = if word.contains('/') || word.is_empty() {
+            String::new()
+        } else {
+            format!("; as an item, item/{word}; as a character, character/{word}")
+        };
         anyhow::anyhow!(
-            "{e}; a target is one word: item/<id>, character/<id>, tab/<realm>/<id> or substash/<realm>/<parent>/<id>"
+            "{e}; a target is one word: item/<id>, character/<id>, tab/<realm>/<id> or substash/<realm>/<parent>/<id>{readings}"
         )
     })
 }
