@@ -29,9 +29,9 @@ Only the **cross-cutting** decisions are here, because an agent must know them b
 | `decisions/store.md` | Store: ingest, facts, realm, characters | C28, C29, C30, C54, C55, C56, C57, C58, C59, C60, C61, C62, C63, C108 |
 | `decisions/plans.md` | Intent: sync policy, planner, quote, apply | C36, C37, C39, C40, C41, C42, C43, C44, C76, C77, C111 |
 | `decisions/pricing.md` | Pricing: buyout intent, listing state, currency table, price plans, import, render | C64, C65, C66, C67, C68, C69, C70, C71, C72, C73, C74, C75, C78, C80, C81 |
-| `decisions/frontends.md` | Frontends and output: CLI, MCP, rendering | C11, C13, C16, C52, C53 |
-| `decisions/search.md` | Item search: the crate, the line, the query, the answer, the basis | C89, C90, C91, C92, C93, C94, C95, C96, C97, C98, C100, C101, C102, C103, C104, C105, C106, C107, C109 |
-| `decisions/trade.md` | The trade boundary: the translation, the site's fields, the stat id | C99, C113, C114 |
+| `decisions/frontends.md` | Frontends and output: CLI, MCP, rendering | C11, C13, C16, C52, C53, C115, C116 |
+| `decisions/search.md` | Item search: the crate, the line, the query, the answer, the basis | C89, C90, C91, C92, C93, C94, C95, C96, C97, C98, C100, C101, C102, C103, C104, C105, C106, C107, C109, C117, C118 |
+| `decisions/trade.md` | The trade boundary: the translation, the site's fields, the stat id | C99, C113, C114, C119 |
 
 ### Cross-cutting
 
