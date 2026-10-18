@@ -1714,3 +1714,41 @@ fn the_tabs_list_says_once_what_the_remove_only_mark_is() {
     ));
     assert_eq!(found["total"]["matched"], 2, "{found}");
 }
+
+/// `--limit` beside `--count` showed a table and no rows without a word
+/// why: the one flag is a table's length there (the trade seat: cli-sonnet
+/// in both rounds; cli-sonnet-2 call 7, its fault 5, "--count should say
+/// that rows are suppressed"). Where the two meet, the answer says so; a
+/// count with no `--limit` typed says nothing of it.
+#[test]
+fn a_limit_beside_a_count_says_a_count_shows_no_rows() {
+    let scratch = harness::scratch("seat-count-limit");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    let said = "limit   5, the values a table lists: a count shows no rows";
+    let counted = stdout(&acq(
+        &base,
+        &[
+            "search", "--realm", "pc", "--count", "league", "--limit", "5",
+        ],
+    ));
+    assert_eq!(counted.matches(said).count(), 1, "{counted}");
+    let crossed = stdout(&acq(
+        &base,
+        &[
+            "search",
+            "--realm",
+            "pc",
+            "--cross",
+            "league,tab",
+            "--limit",
+            "5",
+        ],
+    ));
+    assert!(crossed.contains(said), "{crossed}");
+    let bare = stdout(&acq(
+        &base,
+        &["search", "--realm", "pc", "--count", "league"],
+    ));
+    assert!(!bare.contains("a count shows no rows"), "{bare}");
+}

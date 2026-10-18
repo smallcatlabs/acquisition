@@ -528,7 +528,9 @@ pub fn search(args: SearchArgs, json: bool) -> Result<()> {
         return Ok(());
     }
     let answered = answer(&corpus, &request).map_err(|e| fail(e, json))?;
-    emit(&answered, json, answer_text)
+    let counted = !args.count.is_empty() || args.cross.is_some();
+    let limit_beside_count = args.limit.filter(|_| counted);
+    emit(&answered, json, |a| answer_text_of(a, limit_beside_count))
 }
 
 /// `--print-request` prints the request the words typed make, and
@@ -898,6 +900,15 @@ fn path_column<'a>(paths: impl Iterator<Item = &'a str>) -> usize {
 }
 
 fn answer_text(a: &Answer) -> String {
+    answer_text_of(a, None)
+}
+
+/// The answer's text, saying — where `--limit` was typed beside a count —
+/// that it is each table's length and that a count shows no rows: the
+/// one flag means both, and a reader who asked for thirty rows beside a
+/// count got a table and no word why (the trade seat: cli-sonnet, both
+/// rounds; cli-sonnet-2 call 7, its fault 5).
+fn answer_text_of(a: &Answer, limit_beside_count: Option<usize>) -> String {
     let now = acquisition_store::now();
     let mut out = String::new();
     let mut line = |s: String| {
@@ -1134,6 +1145,9 @@ fn answer_text(a: &Answer) -> String {
         )),
         ViewOut::Rows(_) => {}
         ViewOut::Counts(counts) => {
+            if let Some(limit) = limit_beside_count {
+                line(limit_text(limit));
+            }
             if let Some(sum) = &counts.sum {
                 line(format!("sum     {}", sum_of_text(sum)));
             }
@@ -1144,6 +1158,9 @@ fn answer_text(a: &Answer) -> String {
             }
         }
         ViewOut::Cross(cross) => {
+            if let Some(limit) = limit_beside_count {
+                line(limit_text(limit));
+            }
             if let Some(sum) = &cross.sum {
                 line(format!("sum     {}", sum_of_text(sum)));
             }
@@ -1560,6 +1577,11 @@ fn bucket_text(bucket: &Bucket, all_realms: bool) -> Vec<String> {
         out.push(format!("           {needs}"));
     }
     out
+}
+
+/// What `--limit` is beside a count, where the two meet.
+fn limit_text(limit: usize) -> String {
+    format!("limit   {limit}, the values a table lists: a count shows no rows")
 }
 
 fn table_text(table: &Table, all_realms: bool) -> Vec<String> {
