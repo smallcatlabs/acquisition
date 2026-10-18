@@ -52,3 +52,9 @@ the session's at list price.
 
 | Run | Model | Session | Calls | Cut | Turns | Cost | Files |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| cli-opus | `claude-opus-5-5` | `393fea5a` | 44 | none | 50 + 4 | $2.65 | `calls-cli-opus.csv`, `REPORT-cli-opus.md`, `DEBRIEF-cli-opus.md` |
+
+cli-opus: no denial; its harness spilled calls 9 and 10's joined output
+to a file outside W, which the runner did not open — call 9 was run
+again as call 11, and call 10 (`--describe trade`, 33,543 bytes) went
+unread, named in its "Left out" and answer 1. No draft, no work file.
