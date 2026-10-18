@@ -39,9 +39,9 @@
 //! ```text
 //! query   league=Standard class=Rings rarity=rare line("# to maximum Life" arg1>=90) pseudo.total_res>=60
 //! scope   account A · pc · live · 7 items · 2 locations fetched (oldest 3d, newest 2h)
-//!         1 never fetched · location list seen 2h ago                       more: --view locations
+//!         1 location never fetched: PremiumStash 1 of 3 · location list seen 2h ago · each tab: acq tabs --account A --realm pc
 //! total   1 match · 2 undecided
-//! rows    r1  Two-Stone Ring · rare · Standard / Rings
+//! rows    r1  Two-Stone Ring · rare · Standard / Rings · fetched 2h ago
 //!             +95 to maximum Life (explicit) · pseudo.total_res 65
 //! next    1 of 1
 //! terms   each term counted alone over all live pc items in all leagues, never over the matches
@@ -2561,6 +2561,13 @@ fn command_with(
 
 /// How every command the search prints opens: the verb, the account it
 /// was answered for, the realm.
+/// `tabs` as a command a terminal takes, over the account and the realm
+/// an answer was for: the list of the tabs its scope counts by type
+/// (C118), printed by the one opening every command has.
+pub fn tabs_command(account: Option<&str>, realm: &str) -> String {
+    opening("tabs", account, Some(realm))
+}
+
 fn opening(verb: &str, account: Option<&str>, realm: Option<&str>) -> String {
     let mut out = format!("acq {verb}");
     if let Some(account) = account {

@@ -1404,3 +1404,42 @@ fn a_rows_place_carries_when_its_location_was_fetched() {
         "{text}"
     );
 }
+
+/// `scope.never_fetched: 2940` was in every answer, and which tabs it
+/// counted could not be learned: `tabs` answered 745,672 bytes, cut to its
+/// head, and a map count stood unsized (the trade seat: mcp-opus-2 calls
+/// 3, 10, its fault 2; mcp-sonnet-2 reading 2,940 as items). C118: the
+/// scope counts the never fetched by tab type as `tabs` counts a type,
+/// and the tool's text says so and names `tabs` as the list.
+#[test]
+fn the_scope_counts_the_never_fetched_by_tab_type_and_names_the_list() {
+    let mut seat = Seat::new();
+    let mut store = Store::open(&account_path(&stores(&seat.base), USER)).unwrap();
+    record(
+        &mut store,
+        Endpoint::Stashes {
+            realm: "pc".into(),
+            league: "Standard".into(),
+        },
+        "pc",
+        json!({ "stashes": [
+            { "id": "t1", "name": "Rings", "type": "PremiumStash" },
+            { "id": "t2", "name": "Dump", "type": "PremiumStash" },
+            { "id": "m1", "name": "Maps", "type": "MapStash" } ] }),
+        40,
+    );
+    drop(store);
+    let a = seat.answer(&json!({ "query": { "text": "rarity=unique" } }));
+    assert_eq!(a["scope"]["never_fetched"], 1, "{}", a["scope"]);
+    assert_eq!(
+        a["scope"]["never_fetched_by_type"],
+        json!([{ "type": "MapStash", "tabs": 1, "fetched": 0, "items": 0 }])
+    );
+    let tools = seat.mcp.list_tools();
+    let search = tools.iter().find(|t| t["name"] == "search").unwrap();
+    let text = search["description"].as_str().unwrap();
+    assert!(
+        text.contains("`never_fetched_by_type` is the same by tab type, a character's `character`, each counted as the `tabs` tool counts a type, and `tabs` lists a league's tabs"),
+        "{text}"
+    );
+}

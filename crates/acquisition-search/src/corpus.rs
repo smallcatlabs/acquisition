@@ -342,6 +342,12 @@ pub struct Coverage {
     pub fetched: usize,
     /// Locations a listing names and no fetch has filled, folders apart.
     pub never_fetched: usize,
+    /// The types that have a location never fetched, the most never
+    /// fetched first, each counted as `tabs` counts a type: its
+    /// locations, how many were fetched, and the live items in scope
+    /// there (C118). A tab's type is GGG's, verbatim, as `tabs` gives
+    /// it; a character's is `character`.
+    pub never_fetched_by_type: Vec<crate::tabs::TabType>,
     pub folders: usize,
     pub oldest_fetch: Option<i64>,
     pub newest_fetch: Option<i64>,
@@ -606,6 +612,9 @@ impl Corpus {
                     // under `removed`, the live items the read hands over:
                     // counted for the scope block and never derived
                     let mut passed_over = 0usize;
+                    // the live items at each location, for the scope's
+                    // never fetched by type (C118), whatever the membership
+                    let mut items_at: HashMap<Coordinate, i64> = HashMap::new();
                     for row in rows {
                         let mut row = row?;
                         // no realm named over a store holding one reads every
@@ -614,6 +623,16 @@ impl Corpus {
                             && row.realm != *only
                         {
                             continue;
+                        }
+                        if row.removed_at.is_none() {
+                            *items_at
+                                .entry(coordinate(
+                                    &row.realm,
+                                    &row.location_kind,
+                                    &row.location_id,
+                                    row.league.as_deref(),
+                                ))
+                                .or_default() += 1;
                         }
                         if membership == Membership::Removed && row.removed_at.is_none() {
                             passed_over += 1;
@@ -708,6 +727,7 @@ impl Corpus {
                                     &realm,
                                     &locations,
                                     items.len() - removed + passed_over,
+                                    &items_at,
                                 )
                             },
                             realm,
@@ -838,9 +858,28 @@ fn coverage(
     realm: &Realm,
     locations: &[LocationRow],
     items: usize,
+    items_at: &HashMap<Coordinate, i64>,
 ) -> Coverage {
     let holds_items: Vec<&LocationRow> = locations.iter().filter(|l| !is_folder(l)).collect();
     let fetches = || holds_items.iter().filter_map(|l| l.fetched_at);
+    let mut never_fetched_by_type = crate::tabs::by_type(holds_items.iter().map(|l| {
+        let kind = match l.kind.as_str() {
+            "character" => "character",
+            _ => l.tab_type.as_deref().unwrap_or_default(),
+        };
+        let at = coordinate(&l.realm, &l.kind, &l.id, l.league.as_deref());
+        (
+            kind,
+            l.fetched_at.is_some(),
+            items_at.get(&at).copied().unwrap_or(0),
+        )
+    }));
+    never_fetched_by_type.retain(|t| t.tabs > t.fetched);
+    never_fetched_by_type.sort_by(|a, b| {
+        (b.tabs - b.fetched)
+            .cmp(&(a.tabs - a.fetched))
+            .then_with(|| a.kind.cmp(&b.kind))
+    });
     let mut leagues: Vec<String> = locations.iter().filter_map(|l| l.league.clone()).collect();
     leagues.sort();
     leagues.dedup();
@@ -851,6 +890,7 @@ fn coverage(
         leagues,
         fetched: fetches().count(),
         never_fetched: holds_items.len() - fetches().count(),
+        never_fetched_by_type,
         folders: locations.len() - holds_items.len(),
         oldest_fetch: fetches().min(),
         newest_fetch: fetches().max(),

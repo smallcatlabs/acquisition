@@ -717,6 +717,32 @@ fn title(name: Option<&str>, typeline: Option<&str>) -> String {
     }
 }
 
+/// How many types the scope line names among the never fetched; the
+/// rest are counted (C118: a map search sees `MapStash` at once).
+const NEVER_FETCHED_NAMED: usize = 3;
+
+/// The never fetched, said by type: ` never fetched: MapStash 2489 of
+/// 2582, …`, the largest named and the rest counted.
+fn never_fetched_text(by_type: &[acquisition_search::tabs::TabType]) -> String {
+    if by_type.is_empty() {
+        return " never fetched".to_string();
+    }
+    let mut named: Vec<String> = by_type
+        .iter()
+        .take(NEVER_FETCHED_NAMED)
+        .map(|t| format!("{} {} of {}", t.kind, t.tabs - t.fetched, t.tabs))
+        .collect();
+    let rest = &by_type[by_type.len().min(NEVER_FETCHED_NAMED)..];
+    if !rest.is_empty() {
+        named.push(format!(
+            "{} more in {}",
+            rest.iter().map(|t| t.tabs - t.fetched).sum::<usize>(),
+            plural(rest.len(), "other type", "other types")
+        ));
+    }
+    format!(" never fetched: {}", named.join(", "))
+}
+
 fn place_text(place: &acquisition_search::corpus::Place, now: i64) -> String {
     let mut out = place
         .league
@@ -916,16 +942,27 @@ fn answer_text(a: &Answer) -> String {
         ));
     }
     line(first);
-    line(format!(
-        "        {} location{} never fetched · location list seen {} · the full list: --view locations, not built",
-        scope.coverage.never_fetched,
-        if scope.coverage.never_fetched == 1 {
-            ""
-        } else {
-            "s"
-        },
+    let mut never = format!(
+        "        {}{} · location list seen {}",
+        plural(scope.coverage.never_fetched, "location", "locations"),
+        never_fetched_text(&scope.coverage.never_fetched_by_type),
         ago(now, scope.coverage.list_seen),
-    ));
+    );
+    // the list that exists, where a tab is among the never fetched: `tabs`
+    // lists one realm's (a store's characters are `store characters`)
+    if let Realm::One(realm) = &scope.realm
+        && scope
+            .coverage
+            .never_fetched_by_type
+            .iter()
+            .any(|t| t.kind != "character")
+    {
+        never.push_str(&format!(
+            " · each tab: {}",
+            acquisition_search::answer::tabs_command(Some(account), realm)
+        ));
+    }
+    line(never);
     if scope.realm_not_held {
         line(format!(
             "        this store holds nothing under {}: it holds {}",

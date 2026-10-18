@@ -1362,3 +1362,75 @@ fn an_items_place_says_when_its_location_was_fetched() {
     let shown = serde_json::to_value(show(&s, "u-p1", false).unwrap()).unwrap();
     assert_eq!(shown["place"]["fetched_at"], 40, "{shown}");
 }
+
+/// A map search was given the same flat "2940 locations were never
+/// fetched" as a ring search, over a map tab 61 of 2,550 fetched, and no
+/// run could size what a "you have none" left out (the trade seat:
+/// cli-opus-2 calls 4, 40, its fault 3; cli-sonnet-2, its fault 1;
+/// mcp-opus-2 call 10, its fault 2). C118: the scope counts the never
+/// fetched by type, as `tabs` counts a type, the most never fetched
+/// first, a character's type `character`, folders apart.
+#[test]
+fn the_scope_says_the_never_fetched_by_tab_type() {
+    let mut s = store();
+    list_tabs(
+        &mut s,
+        "pc",
+        "Standard",
+        json!([{ "id": "f1", "name": "Folder", "type": "Folder" },
+               { "id": "m1", "name": "Maps", "type": "MapStash", "parent": "f1" },
+               tab("d1", "Dump"), tab("d2", "Never")]),
+        10,
+    );
+    fetch_tab(
+        &mut s,
+        "pc",
+        "Standard",
+        "d1",
+        "Dump",
+        vec![item("r1", "Doom Loop", "Iron Ring", "Rare", json!({}))],
+        20,
+    );
+    let sub = |sub: Option<&str>| acquisition_store::Endpoint::Stash {
+        realm: "pc".into(),
+        league: "Standard".into(),
+        id: "m1".into(),
+        sub: sub.map(str::to_string),
+    };
+    s.record(
+        &sub(None),
+        &json!({ "id": "m1" }),
+        200,
+        &json!({ "stash": { "id": "m1", "name": "Maps", "type": "MapStash", "items": [],
+                            "children": [{ "id": "p1", "name": "1", "type": "MapStash" },
+                                         { "id": "p2", "name": "2", "type": "MapStash" },
+                                         { "id": "p3", "name": "3", "type": "MapStash" }] } }),
+        21,
+    )
+    .unwrap();
+    s.record(
+        &sub(Some("p1")),
+        &json!({ "id": "m1", "sub": "p1" }),
+        200,
+        &json!({ "stash": { "id": "p1", "name": "1", "type": "MapStash",
+                            "items": [item("map", "", "Strand Map", "Normal", json!({}))] } }),
+        22,
+    )
+    .unwrap();
+    list_characters(
+        &mut s,
+        "pc",
+        json!([{ "id": "c1", "name": "Mover", "league": "Standard" }]),
+        30,
+    );
+    let a = asked(&s, "pc", "");
+    assert_eq!(a["scope"]["never_fetched"], 4, "{}", a["scope"]);
+    assert_eq!(
+        a["scope"]["never_fetched_by_type"],
+        json!([
+            { "type": "MapStash", "tabs": 4, "fetched": 2, "items": 1 },
+            { "type": "PremiumStash", "tabs": 2, "fetched": 1, "items": 1 },
+            { "type": "character", "tabs": 1, "fetched": 0, "items": 0 },
+        ])
+    );
+}

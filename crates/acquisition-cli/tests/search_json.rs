@@ -665,7 +665,7 @@ fn c53_search_json_is_the_answer_whole_and_the_text_is_a_function_of_it() {
         "query   line(\"# to maximum Life\" arg1>=90)",
         "scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched",
         "1 location never fetched",
-        "--view locations, not built",
+        "· each tab: acq tabs",
         &format!(
             "basis   store {} · build {} · snapshot {} · facts v",
             a["basis"]["store"].as_str().unwrap(),
@@ -2928,7 +2928,12 @@ fn rule_5_every_command_a_translated_answer_prints_runs() {
     let routes = text(&acq(&base, &["search", "--trade", &url, "--routes"]));
     // the league's matched, the sum's matched and failed: a sum of nothing
     // fails and is never lacked (C95), so the line's lacked route is gone
-    let commands = printed_commands(&routes);
+    // the scope line's pointer at `tabs` is no route: it runs in
+    // `seat_faults.rs` (C118)
+    let commands: Vec<String> = printed_commands(&routes)
+        .into_iter()
+        .filter(|c| !c.starts_with("acq tabs"))
+        .collect();
     assert_eq!(commands.len(), 3, "{routes}");
     for command in &commands {
         let out = run_printed(&base, command);

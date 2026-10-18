@@ -1072,6 +1072,61 @@ fn every_total_says_what_was_never_fetched_not_a_zeros_alone() {
     }
 }
 
+/// A map search printed the flat "2940 locations never fetched" a ring
+/// search printed, beside a map tab 61 of 2,550 fetched, and pointed at
+/// `--view locations`, which is not built (the trade seat: cli-opus-2
+/// calls 4, 40, its fault 3; cli-sonnet-2 calls 3, 6, its fault 1). C118:
+/// the scope line names the types with the most never fetched, counts
+/// the rest, and points at the list that exists.
+#[test]
+fn the_scope_line_names_the_never_fetched_by_tab_type_and_points_at_tabs() {
+    let scratch = harness::scratch("seat-by-type");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    let mock = base.join("store").join("mock");
+    let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
+    store
+        .record(
+            &Endpoint::Stashes {
+                realm: "pc".into(),
+                league: "Standard".into(),
+            },
+            &json!({ "league": "Standard" }),
+            200,
+            &json!({ "stashes": [ { "id": "a1", "name": "Gear", "type": "PremiumStash", "index": 0 },
+                                  { "id": "m1", "name": "Maps", "type": "MapStash", "index": 1 },
+                                  { "id": "m2", "name": "More maps", "type": "MapStash", "index": 2 },
+                                  { "id": "m3", "name": "Old maps", "type": "MapStash", "index": 3 },
+                                  { "id": "u1", "name": "Uniques", "type": "UniqueStash", "index": 4 },
+                                  { "id": "u2", "name": "More uniques", "type": "UniqueStash", "index": 5 },
+                                  { "id": "g1", "name": "Gems", "type": "GemStash", "index": 6 },
+                                  { "id": "c1", "name": "Coin", "type": "CurrencyStash", "index": 7 },
+                                  { "id": "e1", "name": "Essence", "type": "EssenceStash", "index": 8 } ] }),
+            acquisition_store::now(),
+        )
+        .unwrap();
+    drop(store);
+    let shown = stdout(&acq(&base, &["search", "--realm", "pc", "league=Standard"]));
+    let line = shown
+        .lines()
+        .find(|l| l.contains("never fetched:"))
+        .unwrap_or_else(|| panic!("{shown}"));
+    assert!(
+        line.starts_with(
+            "        8 locations never fetched: MapStash 3 of 3, UniqueStash 2 of 2, CurrencyStash 1 of 1, 2 more in 2 other types · location list seen "
+        ),
+        "{shown}"
+    );
+    assert!(
+        line.ends_with(" · each tab: acq tabs --account 'Alice#1234' --realm pc"),
+        "{shown}"
+    );
+    // the pointer runs as printed
+    let out = acq(&base, &["tabs", "--account", "Alice#1234", "--realm", "pc"]);
+    assert!(out.status.success(), "{}", stdout(&out));
+    assert!(!shown.contains("--view locations"), "{shown}");
+}
+
 /// A term's counts were read as the answer's: "26 matched" for the
 /// totem line where the answer held one shield, a term's 168 beside a
 /// total of 160 (the trade seat: cli-opus calls 18, 19, its fault 8;

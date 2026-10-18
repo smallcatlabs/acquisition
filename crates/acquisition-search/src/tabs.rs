@@ -14,6 +14,9 @@
 //! call 9, both rounds; mcp-sonnet-2 call 6). The rows are the store's
 //! own (`TabRow`), whole; what is left out is the request's `expand`, as
 //! a table's rest is its limit.
+//!
+//! The counter by type ([`by_type`]) is also a search's: its scope names
+//! the never fetched by the same types, so the two say one thing (C118).
 
 use acquisition_store::TabRow;
 use serde::Serialize;
@@ -69,26 +72,10 @@ impl Tabs {
     pub fn of(realm: &str, league: &str, rows: Vec<TabRow>, expand: bool) -> Tabs {
         let folders = rows.iter().filter(|t| t.r#type == "Folder").count();
         let fetched = rows.iter().filter(|t| t.fetched_at.is_some()).count();
-        let mut by_type: Vec<TabType> = Vec::new();
-        for t in &rows {
-            let at = match by_type.iter().position(|k| k.kind == t.r#type) {
-                Some(at) => at,
-                None => {
-                    by_type.push(TabType {
-                        kind: t.r#type.clone(),
-                        tabs: 0,
-                        fetched: 0,
-                        items: 0,
-                    });
-                    by_type.len() - 1
-                }
-            };
-            let kind = &mut by_type[at];
-            kind.tabs += 1;
-            kind.fetched += usize::from(t.fetched_at.is_some());
-            kind.items += t.item_count;
-        }
-        by_type.sort_by(|a, b| b.items.cmp(&a.items).then_with(|| a.kind.cmp(&b.kind)));
+        let by_type = by_type(
+            rows.iter()
+                .map(|t| (t.r#type.as_str(), t.fetched_at.is_some(), t.item_count)),
+        );
         let tabs = rows.len();
         let items = rows.iter().map(|t| t.item_count).sum();
         let whole = expand || tabs <= LISTED_WHOLE;
@@ -120,4 +107,32 @@ impl Tabs {
             left_out_needs: (left_out > 0).then_some("expand"),
         }
     }
+}
+
+/// The counts by type, the most items first, of locations each given as
+/// its type, whether it was fetched, and its items: the one counter of
+/// `tabs` and of a search's scope, which names the never fetched by the
+/// same types (C118).
+pub fn by_type<'a>(locations: impl IntoIterator<Item = (&'a str, bool, i64)>) -> Vec<TabType> {
+    let mut by_type: Vec<TabType> = Vec::new();
+    for (kind, fetched, items) in locations {
+        let at = match by_type.iter().position(|k| k.kind == kind) {
+            Some(at) => at,
+            None => {
+                by_type.push(TabType {
+                    kind: kind.to_string(),
+                    tabs: 0,
+                    fetched: 0,
+                    items: 0,
+                });
+                by_type.len() - 1
+            }
+        };
+        let counted = &mut by_type[at];
+        counted.tabs += 1;
+        counted.fetched += usize::from(fetched);
+        counted.items += items;
+    }
+    by_type.sort_by(|a, b| b.items.cmp(&a.items).then_with(|| a.kind.cmp(&b.kind)));
+    by_type
 }
