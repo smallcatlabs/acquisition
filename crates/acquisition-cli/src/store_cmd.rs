@@ -292,6 +292,7 @@ pub fn tabs(realm: Realm, league: &str, expand: bool, json: bool) -> Result<()> 
     );
     if listed.left_out == 0 {
         print!("{}", render_tabs_table(&listed.rows, now));
+        print!("{}", remove_only_said(&listed.rows));
         return Ok(());
     }
     let width = listed
@@ -313,12 +314,27 @@ pub fn tabs(realm: Realm, league: &str, expand: bool, json: bool) -> Result<()> 
     }
     println!("the ten with the most items:");
     print!("{}", render_tabs_table(&listed.rows, now));
+    print!("{}", remove_only_said(&listed.rows));
     let (expand, count) = tabs_next(realm, league);
     println!(
         "next: `{expand}` lists all {}; `{count}` counts what a query matches by tab",
         listed.tabs
     );
     Ok(())
+}
+
+/// What GGG's ` (Remove-only)` mark on a name is, said once under the
+/// rows where a listed tab carries it (C117; the trade seat: cli-sonnet-2
+/// never found out what it means, debrief 6).
+fn remove_only_said(rows: &[acquisition_store::TabRow]) -> &'static str {
+    if rows
+        .iter()
+        .any(|t| t.name.trim_end().ends_with("(Remove-only)"))
+    {
+        "a name ending (Remove-only) is GGG's mark on a tab whose items can only be taken out; a search asks it as tab.remove_only\n"
+    } else {
+        ""
+    }
 }
 
 /// The large league's next commands, over the league and realm just

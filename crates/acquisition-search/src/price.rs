@@ -309,15 +309,21 @@ pub(crate) fn leagues(locations: &[LocationRow]) -> Leagues {
     leagues
 }
 
+/// What the listing state says of one item: its price, and whether its
+/// tab is public — GGG's `metadata.public` as the listing state reads it,
+/// a substash's its tab's (C80), none on a character's item (C117).
+pub(crate) type Joined = (Priced, Option<bool>);
+
 /// The prices of every item the listing state of these leagues covers, by
-/// item id: one snapshot and one `resolve` per pair, read as the pricing
-/// CLI reads them. An item two snapshots list — a league-less character's
-/// — keeps the first answer, which is the same answer.
+/// item id, each with its tab's `public`: one snapshot and one `resolve`
+/// per pair, read as the pricing CLI reads them. An item two snapshots
+/// list — a league-less character's — keeps the first answer, which is
+/// the same answer.
 pub(crate) fn join(
     store: &Store,
     intent: &Annotations,
     leagues: &Leagues,
-) -> Result<HashMap<String, Priced>, SearchError> {
+) -> Result<HashMap<String, Joined>, SearchError> {
     let mut prices = HashMap::new();
     for (realm, league) in leagues {
         let snapshot = store
@@ -330,15 +336,18 @@ pub(crate) fn join(
             };
             prices
                 .entry(id.clone())
-                .or_insert_with(|| Priced::of(listing));
+                .or_insert_with(|| (Priced::of(listing), listing.game.public));
         }
     }
     Ok(prices)
 }
 
-/// An item's price from the join, or the reason it has none.
-pub(crate) fn of_item(prices: &mut HashMap<String, Priced>, id: &str) -> Priced {
-    prices.remove(id).unwrap_or_else(Priced::uncovered)
+/// An item's price from the join, or the reason it has none, with its
+/// tab's `public` where the listing state lists it.
+pub(crate) fn of_item(prices: &mut HashMap<String, Joined>, id: &str) -> Joined {
+    prices
+        .remove(id)
+        .unwrap_or_else(|| (Priced::uncovered(), None))
 }
 
 /// The intent file's revision, as the basis names it (C98).
@@ -371,6 +380,12 @@ pub(crate) fn currency_tags() -> &'static [&'static str] {
             .unwrap_or_default()
     });
     &TAGS
+}
+
+/// The legal values of `price.side` (C117): who set the effective price,
+/// as the listing state words it (`Effective::side_word`).
+pub(crate) fn sides() -> &'static [&'static str] {
+    &["game", "manual"]
 }
 
 /// Whether the currency table loads, said as `bind.rs` says it of a closed

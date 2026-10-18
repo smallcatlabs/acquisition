@@ -528,7 +528,8 @@ fn v10_a_tabs_type_is_a_field() {
         .iter()
         .map(|f| f["name"].as_str().unwrap())
         .collect();
-    assert_eq!(names, ["tab", "tab.type"]);
+    // every field of the tab is named under it, GGG's flags too (C117)
+    assert_eq!(names, ["tab", "tab.type", "tab.public", "tab.remove_only"]);
     let shown = serde_json::to_value(common::show(&s, "map", false).unwrap()).unwrap();
     assert_eq!(shown["place"]["tab_type"], "MapStash");
     let shown = serde_json::to_value(common::show(&s, "worn", false).unwrap()).unwrap();
@@ -1435,4 +1436,158 @@ fn the_scope_says_the_never_fetched_by_tab_type() {
     );
     // the leagues a tab never fetched sits in, a character's apart
     assert_eq!(a["scope"]["never_fetched_leagues"], json!(["Standard"]));
+}
+
+/// Both second-round Opus runs of the trade seat made "would a buyer see
+/// it" their worst fault, inferring whether a tab is public from
+/// `has:priced` and `price show` at four calls a task (cli-opus-2 calls
+/// 13–17, mcp-opus-2 calls 30–32) while the store held GGG's flag. C117:
+/// GGG's facts about a tab are fields — `tab.public` (the listing's
+/// `metadata.public`; a substash's is its tab's; an item on a character
+/// lacks it), `tab.remove_only` (the mark GGG ends the name with, N47) —
+/// and so is `price.side`, the side that set the effective price; each is
+/// listed in `describe fields` in plain words, and none says what the
+/// site would list.
+#[test]
+fn ggg_s_facts_about_a_tab_and_a_prices_side_are_fields() {
+    use acquisition_plan::price::{Buyout, Price, PriceTarget, set_buyout};
+    let mut s = store();
+    list_tabs(
+        &mut s,
+        "pc",
+        "Standard",
+        json!([
+            { "id": "s1", "name": "Sale", "type": "PremiumStash", "metadata": { "public": true } },
+            { "id": "d1", "name": "Dump (Remove-only)", "type": "PremiumStash" },
+            { "id": "u1", "name": "Uniques (Remove-only)", "type": "UniqueStash",
+              "metadata": { "public": true } },
+        ]),
+        10,
+    );
+    let ring = |id: &str, more: Value| item(id, "Loop", "Iron Ring", "Rare", more);
+    fetch_tab(
+        &mut s,
+        "pc",
+        "Standard",
+        "s1",
+        "Sale",
+        vec![
+            ring("noted", json!({ "note": "~price 5 chaos" })),
+            ring("plain", json!({})),
+        ],
+        20,
+    );
+    fetch_tab(
+        &mut s,
+        "pc",
+        "Standard",
+        "d1",
+        "Dump (Remove-only)",
+        vec![ring("rowed", json!({}))],
+        21,
+    );
+    let sub = |sub: Option<&str>| acquisition_store::Endpoint::Stash {
+        realm: "pc".into(),
+        league: "Standard".into(),
+        id: "u1".into(),
+        sub: sub.map(str::to_string),
+    };
+    s.record(
+        &sub(None),
+        &json!({ "id": "u1" }),
+        200,
+        &json!({ "stash": { "id": "u1", "name": "Uniques (Remove-only)", "type": "UniqueStash",
+                            "items": [],
+                            "children": [{ "id": "p1", "name": " (Remove-only)", "type": "UniqueStash" }] } }),
+        25,
+    )
+    .unwrap();
+    s.record(
+        &sub(Some("p1")),
+        &json!({ "id": "u1", "sub": "p1" }),
+        200,
+        &json!({ "stash": { "id": "p1", "name": " (Remove-only)", "type": "UniqueStash",
+                            "items": [item("paged", "Kaom's Heart", "Glorious Plate", "Unique", json!({}))] } }),
+        26,
+    )
+    .unwrap();
+    list_characters(
+        &mut s,
+        "pc",
+        json!([{ "id": "c1", "name": "Mover", "league": "Standard" }]),
+        30,
+    );
+    fetch_character(
+        &mut s,
+        "pc",
+        json!({ "id": "c1", "name": "Mover", "league": "Standard",
+                "equipment": [ring("worn", json!({}))], "inventory": [] }),
+        31,
+    );
+    let mut intent = common::intent(&s);
+    let target: PriceTarget = "item/rowed".parse().unwrap();
+    let twelve = Buyout::Exact(Price {
+        amount: "12".parse().unwrap(),
+        currency: "chaos".into(),
+    });
+    set_buyout(
+        &mut intent,
+        &target,
+        &twelve,
+        None,
+        &acquisition_store::Provenance::via("test"),
+    )
+    .unwrap();
+    let corpus = load_with(&s, &intent, Some("pc"));
+    let found = |text: &str| -> BTreeSet<String> {
+        ids(&as_json(&ask(&corpus, text).unwrap()))
+            .into_iter()
+            .collect()
+    };
+    let set = |ids: &[&str]| -> BTreeSet<String> { ids.iter().map(|s| s.to_string()).collect() };
+    // public is the listing's flag, a substash's its tab's; a character's
+    // item lacks it, never false (C93)
+    assert_eq!(found("tab.public=true"), set(&["noted", "paged", "plain"]));
+    assert_eq!(found("tab.public=false"), set(&["rowed"]));
+    assert_eq!(found("-has:tab.public"), set(&["worn"]));
+    // the mark on the name, a substash's its tab's
+    assert_eq!(found("tab.remove_only=true"), set(&["paged", "rowed"]));
+    assert_eq!(found("tab.remove_only=false"), set(&["noted", "plain"]));
+    assert_eq!(found("-has:tab.remove_only"), set(&["worn"]));
+    // the side that set the price; no price, no side
+    assert_eq!(found("price.side=game"), set(&["noted"]));
+    assert_eq!(found("price.side=manual"), set(&["rowed"]));
+    assert_eq!(found("-has:price.side"), set(&["paged", "plain", "worn"]));
+    // a count by one: every item in a bucket, the character's under none
+    let request: Request =
+        serde_json::from_value(json!({ "view": { "counts": { "keys": ["tab.public"] } } }))
+            .unwrap();
+    let counted = as_json(&answer(&corpus, &request).unwrap());
+    let table = &counted["view"]["counts"]["tables"][0];
+    assert_eq!(bucket(table, "true")[0]["count"], 3, "{table}");
+    assert_eq!(bucket(table, "false")[0]["count"], 1, "{table}");
+    // a row shows the fact a term asked, as any closed field's value
+    let a = as_json(&ask(&corpus, "tab.public=false").unwrap());
+    assert_eq!(
+        a["rows"][0]["matched"][0]["shows"],
+        json!([{ "value": { "name": "tab.public", "value": "false" } }]),
+        "{a}"
+    );
+    // each is listed in `describe fields`, in words that cite no record
+    // and say nothing of the site
+    let d = serde_json::to_value(describe(&["fields".to_string()]).unwrap()).unwrap();
+    for name in ["tab.public", "tab.remove_only", "price.side"] {
+        let entry = d["fields"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|f| f["name"] == name)
+            .unwrap_or_else(|| panic!("{name} is not in describe fields"));
+        let what = entry["what"].as_str().unwrap();
+        assert!(!what.contains("site"), "{name}: {what}");
+        assert!(
+            !what.contains("C1") && !what.contains("N4"),
+            "{name}: {what}"
+        );
+    }
 }

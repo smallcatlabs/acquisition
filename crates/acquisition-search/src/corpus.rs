@@ -306,6 +306,18 @@ pub struct Place {
     /// page's, a character's — so a reader can say how old the place is
     /// (C118); none where the store holds no fetch of it.
     pub fetched_at: Option<i64>,
+    /// Whether the tab is public — GGG's `metadata.public` as the listing
+    /// state reads it, a substash's its tab's (C117, C80): none on a
+    /// character's item, and on an item no listing state lists (a removed
+    /// one, or one whose league none covers). The field `tab.public`; no
+    /// row prints it unless a term asks.
+    #[serde(skip)]
+    pub public: Option<bool>,
+    /// Whether the tab's name ends with GGG's ` (Remove-only)` mark (C117,
+    /// N47), a substash's its tab's: none on a character's item. The field
+    /// `tab.remove_only`.
+    #[serde(skip)]
+    pub remove_only: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -415,11 +427,15 @@ pub(crate) fn celled(mut place: Place, item: &crate::derive::Item) -> Place {
     place
 }
 
+/// The mark GGG ends a remove-only tab's name with, a substash's too
+/// (N47).
+pub(crate) const REMOVE_ONLY: &str = "(Remove-only)";
+
 /// A location's name, or none where GGG's holds no text but the mark it
 /// adds to a remove-only tab's.
 fn named(name: &str) -> Option<String> {
     let text = name.trim();
-    let text = text.strip_suffix("(Remove-only)").unwrap_or(text).trim();
+    let text = text.strip_suffix(REMOVE_ONLY).unwrap_or(text).trim();
     (!text.is_empty()).then(|| name.to_string())
 }
 
@@ -458,6 +474,11 @@ pub(crate) fn placed(index: &Locations<'_>, row: CorpusItem) -> (Facts, Place) {
         socketed_in: row.socketed_in.clone().map(|id| Named { id, name: None }),
         cell: None,
         fetched_at: location.and_then(|l| l.fetched_at),
+        // joined with the price, from the listing state (`Corpus::read`)
+        public: None,
+        remove_only: location
+            .filter(|l| l.kind == "stash")
+            .map(|l| tab.unwrap_or(l).name.trim_end().ends_with(REMOVE_ONLY)),
     };
     let facts = Facts {
         id: row.id,
@@ -748,9 +769,9 @@ impl Corpus {
             return Ok(None);
         }
         for held in &mut corpus.items {
-            held.price = match held.item.facts.removed_at {
+            (held.price, held.place.public) = match held.item.facts.removed_at {
                 // an item not in the stash has no listing state
-                Some(_) => Priced::removed(),
+                Some(_) => (Priced::removed(), None),
                 None => price::of_item(&mut prices, &held.item.facts.id),
             };
         }

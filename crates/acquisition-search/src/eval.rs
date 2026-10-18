@@ -239,9 +239,12 @@ fn body_key(thing: Thing) -> Option<&'static str> {
         | Thing::PriceAmount
         | Thing::PriceCurrency
         | Thing::PriceLot
+        | Thing::PriceSide
         | Thing::League
         | Thing::Tab
         | Thing::TabType
+        | Thing::TabPublic
+        | Thing::TabRemoveOnly
         | Thing::Character
         | Thing::Container
         | Thing::Id
@@ -255,7 +258,11 @@ fn body_key(thing: Thing) -> Option<&'static str> {
 fn is_price_thing(thing: Thing) -> bool {
     matches!(
         thing,
-        Thing::Price | Thing::PriceAmount | Thing::PriceCurrency | Thing::PriceLot
+        Thing::Price
+            | Thing::PriceAmount
+            | Thing::PriceCurrency
+            | Thing::PriceLot
+            | Thing::PriceSide
     )
 }
 
@@ -356,7 +363,16 @@ fn unread_for(held: &Held, thing: Thing) -> Vec<Cow<'_, Unread>> {
         // the price is the listing state's, never the body's: what left it
         // open is its own reason, made once there (`price.rs`); a number of
         // it past the search's rule leaves that part open alone
-        (Thing::Price | Thing::PriceCurrency, _) => held.price.unread().into_iter().collect(),
+        (Thing::Price | Thing::PriceCurrency | Thing::PriceSide, _) => {
+            held.price.unread().into_iter().collect()
+        }
+        // a stash item's tab is public or not as the listing state reads
+        // it, joined with the price: where no listing state lists the
+        // item its price says why, and that is this field's reason too
+        // (C117); a character's item lacks it
+        (Thing::TabPublic, _) if held.place.kind == "stash" && held.place.public.is_none() => {
+            held.price.unread().into_iter().collect()
+        }
         (Thing::PriceAmount, _) => held
             .price
             .unread()
@@ -423,6 +439,10 @@ pub(crate) fn texts(held: &Held, thing: Thing) -> Vec<&str> {
             .chain(place.parent.as_ref().and_then(|p| p.name.as_deref()))
             .collect(),
         Thing::TabType if place.kind == "stash" => one(&place.tab_type),
+        // GGG's yes or no, as the closed set spells it (C117)
+        Thing::TabPublic => place.public.map(yes_no).into_iter().collect(),
+        Thing::TabRemoveOnly => place.remove_only.map(yes_no).into_iter().collect(),
+        Thing::PriceSide => held.price.price().map(|p| p.side).into_iter().collect(),
         Thing::Character if place.kind == "character" => one(&place.name),
         Thing::PriceCurrency => held
             .price
@@ -446,6 +466,11 @@ pub(crate) fn texts(held: &Held, thing: Thing) -> Vec<&str> {
         | Thing::Id
         | Thing::Property(_) => Vec::new(),
     }
+}
+
+/// A yes-or-no fact as `bind::BOOLEANS` spells it.
+fn yes_no(fact: bool) -> &'static str {
+    if fact { "true" } else { "false" }
 }
 
 /// A thing's number, where it is established: a socket count's is its
@@ -1295,6 +1320,17 @@ fn everything(term: &Term, held: &Held) -> Vec<Evidence> {
             .map(|id| Evidence::Value {
                 name: crate::category::FIELD.to_string(),
                 value: serde_json::Value::from(id),
+            })
+            .collect(),
+        // nor are GGG's flags on the tab (C117): a term on one shows it
+        Atom::Closed {
+            thing: thing @ (Thing::TabPublic | Thing::TabRemoveOnly),
+            ..
+        } => texts(held, *thing)
+            .into_iter()
+            .map(|fact| Evidence::Value {
+                name: crate::bind::field_name(*thing).to_string(),
+                value: serde_json::Value::from(fact),
             })
             .collect(),
         Atom::Lines(group) => satisfying(held, &group.whole).map(line_evidence).collect(),

@@ -244,11 +244,20 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
                     vec!["price.currency=chaos", "price.currency:div"],
                 ),
                 Thing::PriceLot => (f.what.to_string(), vec!["price.lot>=2", "-has:price.lot"]),
+                Thing::PriceSide => (
+                    f.what.to_string(),
+                    vec!["price.side=game", "price.side=manual"],
+                ),
                 Thing::Tab => (f.what.to_string(), vec!["tab:dump", "tab=\"Tier 1\""]),
                 Thing::TabType => (
                     f.what.to_string(),
                     vec!["tab.type=MapStash", "tab.type:map", "-has:tab.type"],
                 ),
+                Thing::TabPublic => (
+                    f.what.to_string(),
+                    vec!["tab.public=true", "tab.public=false", "-has:tab.public"],
+                ),
+                Thing::TabRemoveOnly => (f.what.to_string(), vec!["tab.remove_only=false"]),
                 Thing::Text => (
                     f.what.to_string(),
                     vec!["text:life", "text~\"^Item Level\""],

@@ -79,6 +79,15 @@
 //!   a map tab whatever it is called; no list is embedded, since GGG adds
 //!   a type with a league, and `--count tab.type` reads what the store
 //!   holds.
+//! - **GGG's facts about a tab are fields, and the side of a price**
+//!   (C117): `tab.public` — the listing's `metadata.public` as the
+//!   listing state reads it, joined with the price (`price.rs`), a
+//!   substash's its tab's — and `tab.remove_only` — the ` (Remove-only)`
+//!   mark GGG ends the name with (N47) — are closed sets of `true` and
+//!   `false`, which an item on a character lacks (C93: lacked, never
+//!   false); `price.side` is `game` or `manual`, the listing state's word
+//!   (`Effective::side_word`), lacked where no price applies. None says
+//!   what the site would list: that inference is the reader's.
 //! - **The price is four names** (`price.rs`, C81, C100; the build plan,
 //!   step 9): `priced` is presence alone — `has:priced`, `-has:priced`,
 //!   `undecided(priced)` — and a comparison on it or a count by it is an
@@ -189,6 +198,13 @@ fn frames() -> &'static [&'static str] {
     FRAMES
 }
 
+/// A yes-or-no fact GGG gives, as a closed set: `tab.public=true` (C117).
+pub(crate) const BOOLEANS: &[&str] = &["true", "false"];
+
+fn booleans() -> &'static [&'static str] {
+    BOOLEANS
+}
+
 /// GGG's `frameTypeId`, the nine the census met.
 pub(crate) const FRAMES: &[&str] = &[
     "normal",
@@ -247,10 +263,16 @@ pub(crate) enum Thing {
     PriceCurrency,
     /// A bulk ratio's lot.
     PriceLot,
+    /// Which side set the effective price: `game` or `manual` (C117).
+    PriceSide,
     League,
     Tab,
     /// GGG's `type` of the tab, verbatim (V10).
     TabType,
+    /// GGG's `metadata.public` of the tab (C117).
+    TabPublic,
+    /// GGG's ` (Remove-only)` mark on the tab's name (C117, N47).
+    TabRemoveOnly,
     Character,
     Container,
     Id,
@@ -412,6 +434,12 @@ pub(crate) const FIELDS: &[FieldDef] = &[
         what: "a bulk ratio's lot — `wanted/lot` — which a decimal price lacks",
     },
     FieldDef {
+        name: "price.side",
+        thing: Thing::PriceSide,
+        kind: Kind::Closed(crate::price::sides),
+        what: "who set the effective price: `game`, the note or the tab's name in the game, or `manual`, the owner's row; an item with no price lacks it",
+    },
+    FieldDef {
         name: "league",
         thing: Thing::League,
         kind: Kind::Text,
@@ -428,6 +456,18 @@ pub(crate) const FIELDS: &[FieldDef] = &[
         thing: Thing::TabType,
         kind: Kind::Text,
         what: "GGG's `type` of the stash tab the item is in, verbatim — MapStash, QuadStash, CurrencyStash, …: what the tab is, where `tab` is what it is called; a substash's is its tab's; an item on a character lacks it",
+    },
+    FieldDef {
+        name: "tab.public",
+        thing: Thing::TabPublic,
+        kind: Kind::Closed(booleans),
+        what: "whether the stash tab the item is in is public, as GGG's stash list says of it: `true` or `false`; a substash's is its tab's; an item on a character lacks it",
+    },
+    FieldDef {
+        name: "tab.remove_only",
+        thing: Thing::TabRemoveOnly,
+        kind: Kind::Closed(booleans),
+        what: "whether the stash tab the item is in is remove-only, which GGG marks by ending its name with ` (Remove-only)`: `true` or `false`; a substash's is its tab's; an item on a character lacks it",
     },
     FieldDef {
         name: "character",

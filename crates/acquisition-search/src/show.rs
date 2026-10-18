@@ -300,10 +300,11 @@ fn read_one(
     if !still_at(store, intent, &basis)? {
         return Ok(None);
     }
-    let priced = match item.facts.removed_at {
-        Some(_) => Priced::removed(),
+    let (priced, public) = match item.facts.removed_at {
+        Some(_) => (Priced::removed(), None),
         None => price::of_item(&mut prices, id),
     };
+    let place = Place { public, ..place };
     let class = table.classify(&item);
     // the query read in the item's realm, its scope: a site search whose
     // URL names another is refused as a search in that realm would never

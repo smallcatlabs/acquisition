@@ -1671,3 +1671,46 @@ fn an_ambiguous_clauses_line_says_what_its_other_reading_adds_and_drops() {
     );
     assert!(!shown.contains("read the other way, drops"), "{shown}");
 }
+
+/// `(Remove-only)` stood on tab names with nothing to say what it is
+/// (the trade seat: cli-sonnet-2 never found out, debrief 6; mcp-opus-1
+/// counted it among the jargon). C117: where tabs are listed, the mark is
+/// said once — GGG's, on a tab whose items can only be taken out — and
+/// the field a search asks it by is named; a list with no such tab says
+/// nothing of it.
+#[test]
+fn the_tabs_list_says_once_what_the_remove_only_mark_is() {
+    let scratch = harness::scratch("seat-remove-only");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    let said = "a name ending (Remove-only) is GGG's mark on a tab whose items can only be taken out; a search asks it as tab.remove_only";
+    let plain = stdout(&acq(&base, &["tabs"]));
+    assert!(!plain.contains("Remove-only"), "{plain}");
+    let mock = base.join("store").join("mock");
+    let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
+    store
+        .record(
+            &Endpoint::Stashes {
+                realm: "pc".into(),
+                league: "Standard".into(),
+            },
+            &json!({ "league": "Standard" }),
+            200,
+            &json!({ "stashes": [
+                { "id": "a1", "name": "Gear", "type": "PremiumStash", "index": 0 },
+                { "id": "a2", "name": "Dump (Remove-only)", "type": "PremiumStash", "index": 1 },
+                { "id": "a3", "name": "Gems (Remove-only)", "type": "GemStash", "index": 2 } ] }),
+            acquisition_store::now(),
+        )
+        .unwrap();
+    drop(store);
+    let listed = stdout(&acq(&base, &["tabs"]));
+    assert_eq!(listed.matches(said).count(), 1, "{listed}");
+    // and a search asks it by that field: both fetched tabs, `Gear` in
+    // each league, carry no mark
+    let found = sole_json(&acq(
+        &base,
+        &["--json", "search", "--realm", "pc", "tab.remove_only=false"],
+    ));
+    assert_eq!(found["total"]["matched"], 2, "{found}");
+}

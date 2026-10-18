@@ -1793,6 +1793,8 @@ mod tests {
                 socketed_in: None,
                 cell: None,
                 fetched_at: None,
+                public: None,
+                remove_only: None,
             },
             class: Classed::BaseUnread,
             category: crate::category::Category::none(),
