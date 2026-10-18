@@ -1752,3 +1752,28 @@ fn a_limit_beside_a_count_says_a_count_shows_no_rows() {
     ));
     assert!(!bare.contains("a count shows no rows"), "{bare}");
 }
+
+/// `show` printed an item's price, or `price none (none)`, and nothing of
+/// the target form `price show` takes: cli-sonnet-2 (call 24, its fault
+/// 6) learned `item/<id>` from the refusal of a bare id. The price line
+/// ends with the command that says why, which runs as printed.
+#[test]
+fn show_prints_the_price_show_command_for_its_item() {
+    let scratch = harness::scratch("seat-show-target");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    let shown = stdout(&acq(&base, &["show", "i-std"]));
+    let line = shown
+        .lines()
+        .find(|l| l.starts_with("price   "))
+        .unwrap_or_else(|| panic!("{shown}"));
+    let command = line
+        .split(" · why: ")
+        .nth(1)
+        .unwrap_or_else(|| panic!("{line}"));
+    assert_eq!(command, "acq price show item/i-std", "{line}");
+    let args: Vec<&str> = command.split(' ').skip(1).collect();
+    let out = acq(&base, &args);
+    assert!(out.status.success(), "{}", stderr(&out));
+    assert!(stdout(&out).starts_with("item/i-std"), "{}", stdout(&out));
+}

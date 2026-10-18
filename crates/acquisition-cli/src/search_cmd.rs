@@ -1892,20 +1892,31 @@ fn shown_text(s: &Shown) -> String {
         };
         out.push_str(&format!("         open {ids}: {}\n", open.why.problem));
     }
-    // what the listing state prices it at (C81): the price, or why none
+    // what the listing state prices it at (C81): the price, or why none —
+    // and the command that says why, with the target form `price show`
+    // takes, ready to paste (the trade seat: cli-sonnet-2 call 24, its
+    // fault 6, found `item/<id>` only in a refusal)
+    let target = format!("item/{}", item.facts.id);
+    // a removed item has no listing state for `price show` to read
+    let why = match &s.price {
+        Priced::None { kind, .. } if kind == "removed" => String::new(),
+        _ => format!(" · why: acq price show {target}"),
+    };
     match &s.price {
         Priced::Is(p) => out.push_str(&format!(
-            "price   {} · {}{}\n",
+            "price   {} · {}{}{why}\n",
             p.text,
             p.side,
             p.from
                 .as_deref()
-                .filter(|from| *from != format!("item/{}", item.facts.id))
+                .filter(|from| *from != target)
                 .map(|from| format!(" · from {from}"))
                 .unwrap_or_default()
         )),
-        Priced::None { kind, .. } => out.push_str(&format!("price   none ({kind})\n")),
-        Priced::Open(why) => out.push_str(&format!("price   undecided: {}\n", why.problem)),
+        Priced::None { kind, .. } => out.push_str(&format!("price   none ({kind}){why}\n")),
+        Priced::Open(reason) => {
+            out.push_str(&format!("price   undecided: {}{why}\n", reason.problem))
+        }
     }
     if let Some(stack) = item.stack {
         out.push_str(&format!("stack   {stack}\n"));
