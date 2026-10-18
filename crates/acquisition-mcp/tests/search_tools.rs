@@ -1097,3 +1097,85 @@ fn show_names_a_terms_outcomes_and_a_groups() {
         "{text}"
     );
 }
+
+/// The keys of the JSON object a text opens with, in the order the text
+/// writes them: what an agent reading the result as text meets first.
+fn keys_in_order(text: &str) -> Vec<String> {
+    let mut keys = Vec::new();
+    let (mut depth, mut in_string, mut escaped) = (0usize, false, false);
+    let mut word = String::new();
+    let mut after_word = false;
+    for c in text.chars() {
+        if in_string {
+            if escaped {
+                escaped = false;
+            } else if c == '\\' {
+                escaped = true;
+            } else if c == '"' {
+                in_string = false;
+                after_word = depth == 1;
+                continue;
+            }
+            if depth == 1 {
+                word.push(c);
+            }
+            continue;
+        }
+        match c {
+            '"' => {
+                in_string = true;
+                word.clear();
+            }
+            ':' if depth == 1 && after_word => keys.push(word.clone()),
+            '{' | '[' => depth += 1,
+            '}' | ']' => {
+                depth -= 1;
+                if depth == 0 {
+                    break;
+                }
+            }
+            _ => {}
+        }
+        if c != '"' && !c.is_whitespace() {
+            after_word = false;
+        }
+    }
+    keys
+}
+
+/// C115: "I learned to scroll for `total`" (the trade seat, mcp-opus-2):
+/// the result's text held the answer's keys in alphabetical order —
+/// basis, query, rows, scope, terms, total, view — so the terms block and
+/// the basis stood before the total. The text now holds them in the
+/// order a reader needs: the query, the scope, the total, the rows and
+/// the view with its way on, then the terms and the basis; a site
+/// search's report opens the query, as it opens the terminal's answer.
+#[test]
+fn the_answers_text_leads_with_its_total_never_with_its_terms() {
+    let mut seat = Seat::new();
+    let text_of = |seat: &mut Seat, args: Value| -> String {
+        let result = seat.mcp.result("search", args);
+        result["content"][0]["text"].as_str().unwrap().to_string()
+    };
+    let text = text_of(&mut seat, json!({ "query": { "text": "class:ring" } }));
+    assert_eq!(
+        keys_in_order(&text),
+        ["query", "scope", "total", "rows", "view", "terms", "basis"],
+        "{text}"
+    );
+    let url = format!("https://www.pathofexile.com/trade/search/Standard/{TRADE_ID}");
+    let text = text_of(&mut seat, json!({ "query": { "trade": url } }));
+    let query = text
+        .strip_prefix("{\"query\":")
+        .unwrap_or_else(|| panic!("{text}"));
+    assert_eq!(keys_in_order(query), ["trade", "text", "tree"], "{text}");
+    let counted = text_of(
+        &mut seat,
+        json!({ "view": { "counts": { "keys": ["tab"] } } }),
+    );
+    assert_eq!(
+        keys_in_order(&counted),
+        ["query", "scope", "total", "rows", "view", "terms", "basis"],
+        "{counted}"
+    );
+}

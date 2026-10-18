@@ -1,6 +1,7 @@
 //! The request and the answer (C100, C96, C98): a query bound to a scope
 //! and a view in, one answer shape out — the canonical query, the scope,
-//! the basis, the terms block, the total, the rows, and how to go on.
+//! the total, the rows and how to go on, then the terms block and the
+//! basis, in that order on both surfaces (C115).
 //!
 //! The shapes are shown once, in *The worked example* below; the
 //! invariants cited by number are the crate's doc's. This is the crate's
@@ -39,20 +40,20 @@
 //! query   league=Standard class=Rings rarity=rare line("# to maximum Life" arg1>=90) pseudo.total_res>=60
 //! scope   account A · pc · live · 7 items · 2 locations fetched (oldest 3d, newest 2h)
 //!         1 never fetched · location list seen 2h ago                       more: --view locations
-//! basis   store 3f9a1c0be27d · snapshot 41 · intent 12 · totals v1 · classes v3
+//! total   1 match · 2 undecided
+//! rows    r1  Two-Stone Ring · rare · Standard / Rings
+//!             +95 to maximum Life (explicit) · pseudo.total_res 65
+//! next    1 of 1
 //! terms   each term counted alone over all live pc items in all leagues, never over the matches
 //!   0    league=Standard                        7 matched
 //!   1    class=Rings                            6 matched · 1 undecided
 //!   2    rarity=rare                            6 matched · 1 failed
 //!   3    line("# to maximum Life" arg1>=90)     5 matched · 1 failed · 1 lacked · 1 reaches 90 only together
 //!   4    pseudo.total_res>=60                   5 matched · 1 failed · 1 undecided
-//! total   1 match · 2 undecided
-//! rows    r1  Two-Stone Ring · rare · Standard / Rings
-//!             +95 to maximum Life (explicit) · pseudo.total_res 65
-//! next    1 of 1
 //! routes  (--routes prints all; one shown)
 //!   term 3 failed, over the scope:
 //!     acq search --account A --realm pc 'line("# to maximum Life") -line("# to maximum Life" arg1>=90)'
+//! basis   store 3f9a1c0be27d · snapshot 41 · intent 12 · totals v1 · classes v3
 //! ```
 //!
 //! The two undecided items say why and what might help: r5 — *class: base
@@ -994,6 +995,12 @@ impl View {
 
 // ---- the answer ---------------------------------------------------------------------------------
 
+/// The answer, its fields in the order a reader needs them (C115): what
+/// was asked and over what, the total, the view and how to go on, and
+/// only then the terms block, each term counted alone over the scope, and
+/// the basis. An agent reads the JSON as text, so the order is the
+/// serialized order too (the trade seat: "I learned to scroll for
+/// `total`").
 #[derive(Debug, Clone, Serialize)]
 pub struct Answer {
     pub query: QueryOut,
@@ -1002,27 +1009,28 @@ pub struct Answer {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub set_aside: Option<QueryOut>,
     pub scope: ScopeOut,
-    pub basis: Basis,
+    pub total: Total,
     /// What a route said when it was printed, where it is run on a later
     /// basis (`Asked::answer`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub before: Option<Before>,
-    pub terms: Vec<TermOut>,
-    pub total: Total,
-    pub view: ViewOut,
     pub rows: Vec<Row>,
+    pub view: ViewOut,
     /// In place of rows, when the total is zero.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub zero: Option<Zero>,
+    pub terms: Vec<TermOut>,
+    pub basis: Basis,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct QueryOut {
-    pub text: String,
-    pub tree: Json,
-    /// Where the query is a site search translated (C113): the report.
+    /// Where the query is a site search translated (C113): the report,
+    /// first, as a terminal opens with it.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub trade: Option<TradeOut>,
+    pub text: String,
+    pub tree: Json,
 }
 
 /// A site search's translation as the answer reports it (C113, K6): what
@@ -1235,6 +1243,10 @@ pub struct Next {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct RowsOut {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sort: Option<String>,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub desc: bool,
     pub limit: usize,
     pub returned: usize,
     /// Where this answer's rows begin in the order: a continuation's
@@ -1247,10 +1259,6 @@ pub struct RowsOut {
     /// request, and as the token a terminal carries.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub next: Option<Next>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub sort: Option<String>,
-    #[serde(skip_serializing_if = "std::ops::Not::not")]
-    pub desc: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]

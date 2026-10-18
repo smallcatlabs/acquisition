@@ -1251,3 +1251,56 @@ fn a_tabs_page_with_no_name_is_said_to_be_its_page() {
         "{shown}"
     );
 }
+
+/// C115: the answer led with its basis and its terms block, and the
+/// total stood below every term (the trade seat: mcp-opus-2, "I learned
+/// to scroll for `total`"; three of four second-round runs re-read the
+/// terms block). The text says the query, the scope and the total first,
+/// then the rows and how to go on, and only then the terms, the routes and
+/// the basis; the JSON's keys come in the same order.
+#[test]
+fn the_answer_leads_with_its_total_and_ends_with_its_basis() {
+    let scratch = harness::scratch("seat-order");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    let shown = stdout(&acq(
+        &base,
+        &["search", "--realm", "pc", "league=Standard", "--limit", "0"],
+    ));
+    let at = |head: &str| {
+        shown
+            .lines()
+            .position(|l| l.starts_with(head))
+            .unwrap_or_else(|| panic!("no `{head}` line:\n{shown}"))
+    };
+    let order = [
+        at("query "),
+        at("scope "),
+        at("total "),
+        at("more "),
+        at("terms "),
+        at("basis "),
+    ];
+    assert!(order.windows(2).all(|w| w[0] < w[1]), "{order:?}\n{shown}");
+    assert_eq!(at("basis "), shown.lines().count() - 1, "{shown}");
+
+    let printed = stdout(&acq(
+        &base,
+        &["search", "--realm", "pc", "league=Standard", "--json"],
+    ));
+    let key = |k: &str| {
+        printed
+            .find(&format!("\n  \"{k}\":"))
+            .unwrap_or_else(|| panic!("no top-level `{k}`:\n{printed}"))
+    };
+    let keys = [
+        key("query"),
+        key("scope"),
+        key("total"),
+        key("rows"),
+        key("view"),
+        key("terms"),
+        key("basis"),
+    ];
+    assert!(keys.windows(2).all(|w| w[0] < w[1]), "{keys:?}\n{printed}");
+}

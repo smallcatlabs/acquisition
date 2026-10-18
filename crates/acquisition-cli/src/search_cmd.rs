@@ -923,116 +923,6 @@ fn answer_text(a: &Answer, all_routes: bool) -> String {
             }
         ));
     }
-    line(basis_text(&a.basis));
-    if let Some(before) = &a.before {
-        line(match &before.counted_at {
-            Some(basis) => format!(
-                "then    {} where this route was printed — {}",
-                plural(before.count, "match", "matches"),
-                basis.against(&a.basis)
-            ),
-            None => format!(
-                "then    {} where this route was printed",
-                plural(before.count, "match", "matches")
-            ),
-        });
-    }
-
-    if !a.terms.is_empty() {
-        line(format!(
-            "terms   each term counted alone over all {} {} in all leagues, never over the matches",
-            match scope.membership {
-                Membership::Live => "live",
-                Membership::All => "live and removed",
-                Membership::Removed => "removed",
-            },
-            match &scope.realm {
-                Realm::All => "items of every realm".to_string(),
-                Realm::One(realm) => format!("{realm} items"),
-            }
-        ));
-        let width = a
-            .terms
-            .iter()
-            .map(|t| t.term.chars().count())
-            .max()
-            .unwrap_or(0)
-            .min(60);
-        // a path as long as its column ran into its term, `0.3.0pseudo.…`
-        // (the trade seat: cli-opus call 13)
-        let path_width = path_column(a.terms.iter().map(|t| t.path.as_str()));
-        for term in &a.terms {
-            let mut counts: Vec<String> = [
-                (&term.matched, "matched"),
-                (&term.failed, "failed"),
-                (&term.lacked, "lacked"),
-                (&term.undecided, "undecided"),
-            ]
-            .iter()
-            .filter(|(count, word)| count.count > 0 || *word == "matched")
-            .map(|(count, word)| format!("{} {word}", count.count))
-            .collect();
-            if let Some(together) = term.together.as_ref().filter(|t| t.count.count > 0) {
-                counts.push(format!(
-                    "{} {} {} only together",
-                    together.count.count,
-                    if together.count.count == 1 {
-                        "reaches"
-                    } else {
-                        "reach"
-                    },
-                    number(&together.bound)
-                ));
-            }
-            line(format!(
-                "  {:<path_width$}{:<width$}  {}",
-                term.path,
-                term.term,
-                counts.join(" · ")
-            ));
-            if let Some(removed) = &term.removed {
-                line(format!(
-                    "       this id is {} {} that left the scope {}{}",
-                    if removed.what == "item" { "an" } else { "a" },
-                    removed.what,
-                    ago(now, Some(removed.removed_at)),
-                    match &removed.route {
-                        Some(route) => format!(": {}", route.command()),
-                        None => " and held no item".to_string(),
-                    }
-                ));
-            }
-            if let Some(resolved) = &term.resolved {
-                // the five most carried, where the JSON lists ten and a
-                // count lists the rest; every pick of a category term,
-                // which no count lists (`category.rs`): a cut there would
-                // have no route to what it left out
-                let shown = if resolved.of == "category" {
-                    resolved.values.len()
-                } else {
-                    5
-                };
-                let mut values: Vec<String> = resolved
-                    .values
-                    .iter()
-                    .take(shown)
-                    .map(|v| format!("{} ({})", v.value.replace('\n', "\\n"), v.items))
-                    .collect();
-                let more = resolved.more + resolved.values.len().saturating_sub(shown);
-                if more > 0 {
-                    // the count that lists every value, where one does
-                    values.push(match &resolved.rest {
-                        Some(rest) => format!("{more} more: {}", rest.command()),
-                        None => format!("{more} more"),
-                    });
-                }
-                if !values.is_empty() {
-                    line(format!("       → {}", values.join(" · ")));
-                }
-            }
-        }
-    }
-
     let mut total = format!("total   {}", plural(a.total.matched, "match", "matches"));
     if a.total.undecided.count > 0 {
         total.push_str(&format!(" · {} undecided", a.total.undecided.count));
@@ -1050,6 +940,20 @@ fn answer_text(a: &Answer, all_routes: bool) -> String {
                 "locations were"
             )
         ));
+    }
+
+    if let Some(before) = &a.before {
+        line(match &before.counted_at {
+            Some(basis) => format!(
+                "then    {} where this route was printed — {}",
+                plural(before.count, "match", "matches"),
+                basis.against(&a.basis)
+            ),
+            None => format!(
+                "then    {} where this route was printed",
+                plural(before.count, "match", "matches")
+            ),
+        });
     }
 
     for (i, row) in a.rows.iter().enumerate() {
@@ -1282,6 +1186,101 @@ fn answer_text(a: &Answer, all_routes: bool) -> String {
         ));
     }
 
+    if !a.terms.is_empty() {
+        line(format!(
+            "terms   each term counted alone over all {} {} in all leagues, never over the matches",
+            match scope.membership {
+                Membership::Live => "live",
+                Membership::All => "live and removed",
+                Membership::Removed => "removed",
+            },
+            match &scope.realm {
+                Realm::All => "items of every realm".to_string(),
+                Realm::One(realm) => format!("{realm} items"),
+            }
+        ));
+        let width = a
+            .terms
+            .iter()
+            .map(|t| t.term.chars().count())
+            .max()
+            .unwrap_or(0)
+            .min(60);
+        // a path as long as its column ran into its term, `0.3.0pseudo.…`
+        // (the trade seat: cli-opus call 13)
+        let path_width = path_column(a.terms.iter().map(|t| t.path.as_str()));
+        for term in &a.terms {
+            let mut counts: Vec<String> = [
+                (&term.matched, "matched"),
+                (&term.failed, "failed"),
+                (&term.lacked, "lacked"),
+                (&term.undecided, "undecided"),
+            ]
+            .iter()
+            .filter(|(count, word)| count.count > 0 || *word == "matched")
+            .map(|(count, word)| format!("{} {word}", count.count))
+            .collect();
+            if let Some(together) = term.together.as_ref().filter(|t| t.count.count > 0) {
+                counts.push(format!(
+                    "{} {} {} only together",
+                    together.count.count,
+                    if together.count.count == 1 {
+                        "reaches"
+                    } else {
+                        "reach"
+                    },
+                    number(&together.bound)
+                ));
+            }
+            line(format!(
+                "  {:<path_width$}{:<width$}  {}",
+                term.path,
+                term.term,
+                counts.join(" · ")
+            ));
+            if let Some(removed) = &term.removed {
+                line(format!(
+                    "       this id is {} {} that left the scope {}{}",
+                    if removed.what == "item" { "an" } else { "a" },
+                    removed.what,
+                    ago(now, Some(removed.removed_at)),
+                    match &removed.route {
+                        Some(route) => format!(": {}", route.command()),
+                        None => " and held no item".to_string(),
+                    }
+                ));
+            }
+            if let Some(resolved) = &term.resolved {
+                // the five most carried, where the JSON lists ten and a
+                // count lists the rest; every pick of a category term,
+                // which no count lists (`category.rs`): a cut there would
+                // have no route to what it left out
+                let shown = if resolved.of == "category" {
+                    resolved.values.len()
+                } else {
+                    5
+                };
+                let mut values: Vec<String> = resolved
+                    .values
+                    .iter()
+                    .take(shown)
+                    .map(|v| format!("{} ({})", v.value.replace('\n', "\\n"), v.items))
+                    .collect();
+                let more = resolved.more + resolved.values.len().saturating_sub(shown);
+                if more > 0 {
+                    // the count that lists every value, where one does
+                    values.push(match &resolved.rest {
+                        Some(rest) => format!("{more} more: {}", rest.command()),
+                        None => format!("{more} more"),
+                    });
+                }
+                if !values.is_empty() {
+                    line(format!("       → {}", values.join(" · ")));
+                }
+            }
+        }
+    }
+
     // routes: by default the ones a next step hangs on — what is undecided,
     // what holds only together, and, when nothing matched, what each term
     // matched on its own; `--routes` prints every count's
@@ -1382,6 +1381,9 @@ fn answer_text(a: &Answer, all_routes: bool) -> String {
             line(format!("    {command}"));
         }
     }
+    // the basis last: what the answer was computed from, read when it is
+    // asked about, never before the answer (C115)
+    line(basis_text(&a.basis));
     out
 }
 

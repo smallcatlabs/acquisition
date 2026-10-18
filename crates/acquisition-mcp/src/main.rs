@@ -208,10 +208,17 @@ fn resolve(account: Option<&str>) -> Result<(PathBuf, AccountEntry)> {
 /// prints — an answer, or a failure in a result marked an error.
 type Told = Result<CallToolResult, ErrorData>;
 
+/// The document as a tool's result. The text block is serialized from the
+/// document itself, so its keys come in the order the document declares
+/// them (C115); the structured content, a JSON value, holds them in its
+/// own order, and an agent reads the text.
 fn told<T: serde::Serialize>(document: &T) -> Told {
-    serde_json::to_value(document)
+    let text = serde_json::to_string(document).map_err(|e| err(e.into()))?;
+    let mut result = serde_json::to_value(document)
         .map(CallToolResult::structured)
-        .map_err(|e| err(e.into()))
+        .map_err(|e| err(e.into()))?;
+    result.content = vec![rmcp::model::ContentBlock::text(text)];
+    Ok(result)
 }
 
 /// A refusal, as the search crate words it (C11): `error`, `kind`,
@@ -691,7 +698,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Item search over the shared store (no daemon, no network): a query in the language `describe` prints, asked of every item in scope. The arguments are the request: {} is every item; {\"query\": {\"text\": \"class:ring rarity=rare\"}} is a query, and {\"query\": {\"trade\": a trade site URL}} a site search translated to one. The answer is one JSON document: `query` (the text as understood, and its tree), `scope` (account, realm, `items` every live item in scope before any term, what was and was not fetched: `never_fetched` counts the tabs, their pages and the characters a listing names and no fetch has filled, and no answer says what they hold, a count of none or of many), `basis` (what the answer was computed from), `terms` (for each term how many items matched, failed, lacked the thing or were undecided — each term alone over every item in scope, never over the matches, which are `total`; a pattern term's `resolved` is what it matched there, its `rest.denominator` `scope`), `total`, `view`, and `rows` — id, name, base, rarity, place by name and id — a tab's page with no name of its own has `name` null and its tab in `parent` — with the cell the item sits in (`place.cell`, GGG's x and y, in a tab or an inventory), and the lines each term touched, never the item's body, which is `show`. Rows past the limit are counted in `view.rows.left_out`, and `view.rows.next` is the request for the rows after: send it back whole. Every count that is not zero holds the request that returns exactly its members, and a zero total offers requests under `zero.offers`: any of them is sent back as printed. A count-first look is {\"view\": {\"counts\": {\"keys\": [\"tab\", \"rarity\"]}}}; the vocabulary of lines is the key `line`, or `line:<text>` narrowed. A key is one entry of `keys`: a terminal's list `line:resist,life` is [\"line:resist\", \"line:life\"], and a comma inside an entry is part of its text. A time is seconds since 1970, UTC. `describe` and the messages name a terminal's flags: --count, --cross, --sum, --sort, --desc, --limit and --explain are `view`'s fields, --context is `context`, --realm and --membership are `scope`'s, and --next is `view.rows.next` sent back. A refusal is a result marked isError: `error`, `kind`, `readings` (what may have been meant, as a terminal would type it: a query text, a name, a flag or a whole `acq` command) and, where a way on is a search, `offers` (the same as requests to send instead)."
+        description = "Item search over the shared store (no daemon, no network): a query in the language `describe` prints, asked of every item in scope. The arguments are the request: {} is every item; {\"query\": {\"text\": \"class:ring rarity=rare\"}} is a query, and {\"query\": {\"trade\": a trade site URL}} a site search translated to one. The answer is one JSON document, its keys in this order: `query` (the text as understood, and its tree), `scope` (account, realm, `items` every live item in scope before any term, what was and was not fetched: `never_fetched` counts the tabs, their pages and the characters a listing names and no fetch has filled, and no answer says what they hold, a count of none or of many), `total`, `rows` — id, name, base, rarity, place by name and id — a tab's page with no name of its own has `name` null and its tab in `parent` — with the cell the item sits in (`place.cell`, GGG's x and y, in a tab or an inventory), and the lines each term touched, never the item's body, which is `show` — then `view`, and last `terms` (for each term how many items matched, failed, lacked the thing or were undecided — each term alone over every item in scope, never over the matches, which are `total`; a pattern term's `resolved` is what it matched there, its `rest.denominator` `scope`) and `basis` (what the answer was computed from). Rows past the limit are counted in `view.rows.left_out`, and `view.rows.next` is the request for the rows after: send it back whole. Every count that is not zero holds the request that returns exactly its members, and a zero total offers requests under `zero.offers`: any of them is sent back as printed. A count-first look is {\"view\": {\"counts\": {\"keys\": [\"tab\", \"rarity\"]}}}; the vocabulary of lines is the key `line`, or `line:<text>` narrowed. A key is one entry of `keys`: a terminal's list `line:resist,life` is [\"line:resist\", \"line:life\"], and a comma inside an entry is part of its text. A time is seconds since 1970, UTC. `describe` and the messages name a terminal's flags: --count, --cross, --sum, --sort, --desc, --limit and --explain are `view`'s fields, --context is `context`, --realm and --membership are `scope`'s, and --next is `view.rows.next` sent back. A refusal is a result marked isError: `error`, `kind`, `readings` (what may have been meant, as a terminal would type it: a query text, a name, a flag or a whole `acq` command) and, where a way on is a search, `offers` (the same as requests to send instead)."
     )]
     fn search(&self, Parameters(RequestParams(args)): Parameters<RequestParams>) -> Told {
         let asked = match Asked::read(&Value::Object(args)) {
@@ -1112,8 +1119,8 @@ impl ServerHandler for AcqMcp {
         info.capabilities = ServerCapabilities::builder().enable_tools().build();
         info.instructions = Some(format!(
             "Acquisition (provider: {}). Items: search answers a query over \
-             every item the store holds — counts for each term, the total, then rows or \
-             tables — describe prints its query language, and show is one item whole. \
+             every item the store holds — the total, then rows or tables, then counts \
+             for each term — describe prints its query language, and show is one item whole. \
              Their arguments and answers are JSON; a term's or a table's count that is \
              not zero holds the request that returns its members, sent back as printed, \
              and a refusal is a result marked isError with readings and offers to go on \
