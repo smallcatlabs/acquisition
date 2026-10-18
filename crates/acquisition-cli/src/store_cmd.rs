@@ -327,7 +327,7 @@ pub fn tabs(realm: Realm, league: &str, expand: bool, json: bool) -> Result<()> 
 /// search, whose scope is a realm, takes the league as a term — printed
 /// as every route is, so it runs as printed.
 fn tabs_next(realm: Realm, league: &str) -> (String, String) {
-    use acquisition_search::answer::{Counts, QueryInput, Request, Scope, View, shell_quoted};
+    use acquisition_search::answer::{Counts, QueryInput, Request, Scope, Shape, shell_quoted};
     use acquisition_search::tree::{Node, Op, Value as Term};
     let mut expand = String::from("acq tabs --expand");
     if league != "Standard" {
@@ -353,11 +353,12 @@ fn tabs_next(realm: Realm, league: &str) -> (String, String) {
             tree: None,
             trade: None,
         },
-        view: View::Counts(Counts {
+        view: Shape::Counts(Counts {
             keys: vec!["tab".into()],
             sum: None,
             limit: None,
-        }),
+        })
+        .into(),
         ..Request::default()
     }
     .command();

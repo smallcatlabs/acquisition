@@ -9,8 +9,9 @@ mod common;
 use std::collections::BTreeSet;
 
 use acquisition_plan::price::{Buyout, Price, PriceTarget, set_buyout};
-use acquisition_search::{Request, answer, describe};
+use acquisition_search::{Request, describe};
 use acquisition_store::{Annotations, IntentValue, Provenance, Store};
+use common::answer;
 use common::*;
 use serde_json::{Value, json};
 

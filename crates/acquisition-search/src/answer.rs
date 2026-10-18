@@ -148,6 +148,20 @@
 //!   `has:links -term` (`sockets.rs`); a term
 //!   that cannot lack fails by `-term`. The together count's is the failed
 //!   route and the selector's sum against the bound.
+//! - **The routes an answer carries** (C115): unasked, the ones a next
+//!   step hangs on — what is undecided, at the root and of each term;
+//!   what holds only together; what each term matched where nothing
+//!   matched; what a count could not place, a key's `none` and
+//!   `undecided` and a crossed cell holding either; an explained node's
+//!   forced counts — and the requests that are no count's: a value list's
+//!   rest, an id that left, a zero answer's offers, the rows' `next`.
+//!   Every other count keeps its number and drops its request; the view's
+//!   `routes` asks for every one, a terminal's `--routes`, and a
+//!   continuation and the corpus offer keep it. A count with no request
+//!   is still a count of the members its route would return: the answer
+//!   weighed 31 KB by default with every request in it, over every seat
+//!   runner's harness cut (the trade seat), and the terminal already
+//!   printed these alone.
 //! - **A `:` or `~` selector is printed as authored with what it resolved
 //!   to beside it** (invariant 2): the values its matched items carry,
 //!   or — for a line's group, a `sum`'s too — the templates its selector
@@ -424,17 +438,80 @@ pub struct QueryInput {
     pub trade: Option<Json>,
 }
 
-/// What an answer shows of its matches: rows, or counts of them — one
-/// table for each key, or one crossed table of two (C95) — or, of one
-/// node of the query, the root's counts with it forced true and forced
-/// false, and no rows (the module doc). One of the four views.
+/// What an answer shows of its matches, and whether every count it holds
+/// carries its route (C115). On the wire it is the shape's one key —
+/// `{"rows": …}`, `{"counts": …}` — with `"routes": true` beside it where
+/// every route is asked: a terminal's `--routes`.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct View {
+    pub shape: Shape,
+    /// Every count's route. Unasked, an answer carries the routes a next
+    /// step hangs on and no other (the module doc, "The routes an answer
+    /// carries").
+    pub routes: bool,
+}
+
+/// The shape of a view: rows, or counts of them — one table for each key,
+/// or one crossed table of two (C95) — or, of one node of the query, the
+/// root's counts with it forced true and forced false, and no rows (the
+/// module doc). One of the four.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum View {
+pub enum Shape {
     Rows(Rows),
     Counts(Counts),
     Cross(Counts),
     Explain(Explain),
+}
+
+impl From<Shape> for View {
+    fn from(shape: Shape) -> View {
+        View {
+            shape,
+            routes: false,
+        }
+    }
+}
+
+impl Serialize for View {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        #[derive(Serialize)]
+        struct Wire<'a> {
+            #[serde(flatten)]
+            shape: &'a Shape,
+            #[serde(skip_serializing_if = "std::ops::Not::not")]
+            routes: bool,
+        }
+        Wire {
+            shape: &self.shape,
+            routes: self.routes,
+        }
+        .serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for View {
+    /// Strict, as the request's every part is: `routes` a boolean, and
+    /// beside it one shape or none — none being the default, rows.
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<View, D::Error> {
+        use serde::de::Error as _;
+        let mut map = serde_json::Map::<String, Json>::deserialize(deserializer)?;
+        let routes = match map.remove("routes") {
+            None => false,
+            Some(Json::Bool(routes)) => routes,
+            Some(other) => {
+                return Err(D::Error::custom(format!(
+                    "`routes` is true or false, not {other}"
+                )));
+            }
+        };
+        let shape = if map.is_empty() {
+            Shape::default()
+        } else {
+            Shape::deserialize(Json::Object(map)).map_err(D::Error::custom)?
+        };
+        Ok(View { shape, routes })
+    }
 }
 
 /// The node explained, by its path in the query as an answer returns it
@@ -445,9 +522,9 @@ pub struct Explain {
     pub path: String,
 }
 
-impl Default for View {
-    fn default() -> View {
-        View::Rows(Rows::default())
+impl Default for Shape {
+    fn default() -> Shape {
+        Shape::Rows(Rows::default())
     }
 }
 
@@ -618,7 +695,7 @@ impl Request {
     /// The site search's translation, where the query is one, is the
     /// typed query's, and stands with it.
     fn asked(&self) -> Result<Asking, LanguageError> {
-        if self.context == Context::Corpus && matches!(self.view, View::Explain(_)) {
+        if self.context == Context::Corpus && matches!(self.view.shape, Shape::Explain(_)) {
             return Err(LanguageError::new(
                 crate::error::ErrorKind::View,
                 "`--explain` is of the query typed, and `--context corpus` sets it aside: ask one or the other",
@@ -646,14 +723,14 @@ impl Request {
     /// A continuation's place, where the request is one: a place names
     /// the basis it is a place in.
     fn place(&self) -> Result<Option<(usize, &Basis)>, LanguageError> {
-        match (&self.view, &self.basis) {
+        match (&self.view.shape, &self.basis) {
             (
-                View::Rows(Rows {
+                Shape::Rows(Rows {
                     after: Some(after), ..
                 }),
                 Some(basis),
             ) => Ok(Some((*after, basis))),
-            (View::Rows(Rows { after: Some(_), .. }), None) => Err(LanguageError::new(
+            (Shape::Rows(Rows { after: Some(_), .. }), None) => Err(LanguageError::new(
                 crate::error::ErrorKind::View,
                 "a place in the rows is a place at a basis: a continuation names the basis its answer was counted at, as an answer's `next` does",
             )),
@@ -716,7 +793,7 @@ impl Request {
         self.place()?;
         self.realm()?;
         let asking = self.asked()?;
-        self.view.bound()?.of(&asking.query).map(|_| ())
+        self.view.shape.bound()?.of(&asking.query).map(|_| ())
     }
 }
 
@@ -904,7 +981,7 @@ impl BoundView {
     }
 }
 
-impl View {
+impl Shape {
     /// The view an adapter's flat arguments name: rows unless a count, a
     /// crossed table or an explained path is asked for, and never two of
     /// them. A sort orders rows and a sum stands beside a count, so either
@@ -919,7 +996,7 @@ impl View {
         sum: Option<String>,
         explain: Option<String>,
         rows: Rows,
-    ) -> Result<View, LanguageError> {
+    ) -> Result<Shape, LanguageError> {
         let view_error =
             |message: &str| Err(LanguageError::new(crate::error::ErrorKind::View, message));
         if let Some(path) = explain {
@@ -934,7 +1011,7 @@ impl View {
                     "`--explain` shows the root's counts with one node forced true and forced false, and no rows: `{flag}` has nothing to stand beside — an answer has one view"
                 ));
             }
-            return Ok(View::Explain(Explain { path }));
+            return Ok(Shape::Explain(Explain { path }));
         }
         let limit = rows.limit;
         let keys = match (count, cross) {
@@ -948,7 +1025,7 @@ impl View {
                     "`--sum` stands beside a count: name what to count by, `--count <key>` or `--cross <key>,<key>`",
                 );
             }
-            (None, None) => return Ok(View::Rows(rows)),
+            (None, None) => return Ok(Shape::Rows(rows)),
             (Some(keys), None) => (keys, false),
             (None, Some(keys)) => (keys, true),
         };
@@ -963,15 +1040,15 @@ impl View {
             limit,
         };
         Ok(if keys.1 {
-            View::Cross(counts)
+            Shape::Cross(counts)
         } else {
-            View::Counts(counts)
+            Shape::Counts(counts)
         })
     }
 
     fn bound(&self) -> Result<BoundView, LanguageError> {
         Ok(match self {
-            View::Rows(rows) => BoundView::Rows {
+            Shape::Rows(rows) => BoundView::Rows {
                 sort: match &rows.sort {
                     Some(text) => {
                         let value = parse::parse_value(text)?;
@@ -982,13 +1059,13 @@ impl View {
                 desc: rows.desc,
                 limit: rows.limit.unwrap_or(DEFAULT_LIMIT),
             },
-            View::Counts(c) => {
+            Shape::Counts(c) => {
                 BoundView::Counts(counts::bind(&c.keys, false, c.sum.as_deref(), c.limit)?)
             }
-            View::Cross(c) => {
+            Shape::Cross(c) => {
                 BoundView::Cross(counts::bind(&c.keys, true, c.sum.as_deref(), c.limit)?)
             }
-            View::Explain(explain) => BoundView::Explain(explain.path.clone()),
+            Shape::Explain(explain) => BoundView::Explain(explain.path.clone()),
         })
     }
 }
@@ -1418,7 +1495,7 @@ pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError>
         set_aside,
         translation,
     } = request.asked()?;
-    let view = request.view.bound()?;
+    let view = request.view.shape.bound()?;
     let explained = view.of(&query)?;
     let typed = set_aside.as_ref().unwrap_or(&query).text();
     let resolved = Scope {
@@ -1443,7 +1520,7 @@ pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError>
                 trade: request.query.trade.clone(),
             };
             start.basis = None;
-            if let View::Rows(rows) = &mut start.view {
+            if let Shape::Rows(rows) = &mut start.view.shape {
                 rows.after = None;
             }
             return Err(SearchError::scope(
@@ -1754,12 +1831,17 @@ pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError>
                         tree: None,
                         trade: request.query.trade.clone(),
                     },
-                    view: View::Rows(Rows {
-                        limit: Some(limit),
-                        sort: sort.map(|(text, _)| text.clone()),
-                        desc,
-                        after: Some(after + rows.len()),
-                    }),
+                    // a continuation goes on as the answer it continues:
+                    // the routes asked of it too
+                    view: View {
+                        shape: Shape::Rows(Rows {
+                            limit: Some(limit),
+                            sort: sort.map(|(text, _)| text.clone()),
+                            desc,
+                            after: Some(after + rows.len()),
+                        }),
+                        routes: request.view.routes,
+                    },
                     context: request.context,
                     basis: Some(corpus.basis.clone()),
                 };
@@ -1803,7 +1885,7 @@ pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError>
         Some(_) => (None, trade),
         None => (trade, None),
     };
-    Ok(Answer {
+    let mut answer = Answer {
         before: None,
         query: QueryOut {
             text: query.text(),
@@ -1834,7 +1916,11 @@ pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError>
         view,
         rows,
         zero,
-    })
+    };
+    if !request.view.routes {
+        answer.shed_routes();
+    }
+    Ok(answer)
 }
 
 /// The root's counts of a transformed query: the query bound and answered
@@ -1856,10 +1942,11 @@ fn forced(
                 tree: Some(tree.clone()),
                 trade: None,
             },
-            view: View::Rows(Rows {
+            view: Shape::Rows(Rows {
                 limit: Some(0),
                 ..Rows::default()
-            }),
+            })
+            .into(),
             context: Context::Matches,
             basis: None,
         },
@@ -1903,7 +1990,7 @@ fn offers(router: &Router<'_>, query: &Query, part_matched: &[usize], request: &
                     request: router.request(
                         router.root,
                         None,
-                        View::Explain(Explain { path: path.clone() }),
+                        Shape::Explain(Explain { path: path.clone() }).into(),
                         Context::Matches,
                     ),
                     path,
@@ -1915,15 +2002,18 @@ fn offers(router: &Router<'_>, query: &Query, part_matched: &[usize], request: &
             request: router.request(
                 router.root,
                 None,
-                match &request.view {
-                    View::Explain(_) => View::default(),
-                    // a place is a place in the answer continued, never
-                    // in the corpus's
-                    View::Rows(rows) => View::Rows(Rows {
-                        after: None,
-                        ..rows.clone()
-                    }),
-                    view => view.clone(),
+                View {
+                    shape: match &request.view.shape {
+                        Shape::Explain(_) => Shape::default(),
+                        // a place is a place in the answer continued, never
+                        // in the corpus's
+                        Shape::Rows(rows) => Shape::Rows(Rows {
+                            after: None,
+                            ..rows.clone()
+                        }),
+                        shape => shape.clone(),
+                    },
+                    routes: request.view.routes,
                 },
                 Context::Corpus,
             ),
@@ -1989,11 +2079,11 @@ impl Router<'_> {
     /// The count of `node`'s matches by `key`, over the scope.
     fn continuation(&self, node: &Node, key: String) -> Route {
         let mut route = self.route(node, None);
-        route.request.view = View::Counts(Counts {
+        route.request.view = View::from(Shape::Counts(Counts {
             keys: vec![key],
             sum: None,
             limit: None,
-        });
+        }));
         route
     }
 
@@ -2544,8 +2634,15 @@ impl Request {
     }
 
     fn view_flags(&self, out: &mut String) {
-        let (flag, counts) = match &self.view {
-            View::Rows(rows) => {
+        self.shape_flags(out);
+        if self.view.routes {
+            out.push_str(" --routes");
+        }
+    }
+
+    fn shape_flags(&self, out: &mut String) {
+        let (flag, counts) = match &self.view.shape {
+            Shape::Rows(rows) => {
                 if let Some(sort) = &rows.sort {
                     out.push_str(&format!(" --sort {}", shell_quoted(sort)));
                     if rows.desc {
@@ -2557,12 +2654,12 @@ impl Request {
                 }
                 return;
             }
-            View::Explain(explain) => {
+            Shape::Explain(explain) => {
                 out.push_str(&format!(" --explain {}", shell_quoted(&explain.path)));
                 return;
             }
-            View::Counts(c) => ("--count", c),
-            View::Cross(c) => ("--cross", c),
+            Shape::Counts(c) => ("--count", c),
+            Shape::Cross(c) => ("--cross", c),
         };
         for list in counts.lists() {
             out.push_str(&format!(" {flag} {}", shell_quoted(&list)));
@@ -2577,6 +2674,43 @@ impl Request {
 }
 
 impl Answer {
+    /// The routes an answer carries unasked (C115): the module doc, "The
+    /// routes an answer carries". Every other count keeps its number and
+    /// drops its request.
+    fn shed_routes(&mut self) {
+        let matched_something = self.total.matched > 0;
+        for term in &mut self.terms {
+            if matched_something {
+                term.matched.route = None;
+            }
+            term.failed.route = None;
+            term.lacked.route = None;
+        }
+        // a value is placed; `none` and `undecided` are what a key could
+        // not place
+        let placed = |label: &counts::Label| label.bucket == "value";
+        match &mut self.view {
+            ViewOut::Counts(counts) => {
+                for bucket in counts.tables.iter_mut().flat_map(|t| &mut t.buckets) {
+                    if placed(&bucket.label) {
+                        bucket.count.route = None;
+                    }
+                    for kind in bucket.sources.iter_mut().chain(&mut bucket.flags) {
+                        kind.count.route = None;
+                    }
+                }
+            }
+            ViewOut::Cross(cross) => {
+                for cell in &mut cross.cells {
+                    if cell.of.iter().all(placed) {
+                        cell.count.route = None;
+                    }
+                }
+            }
+            ViewOut::Rows(_) | ViewOut::Explain(_) => {}
+        }
+    }
+
     /// The command that shows one of this answer's items whole: where a
     /// bounded block of a row sends its reader (invariant 5).
     pub fn show_command(&self, id: &str) -> String {

@@ -7,8 +7,9 @@
 
 mod common;
 
-use acquisition_search::{Request, TOTALS_TABLE_VERSION, answer, describe};
+use acquisition_search::{Request, TOTALS_TABLE_VERSION, describe};
 use acquisition_store::Store;
+use common::answer;
 use common::*;
 use serde_json::{Value, json};
 

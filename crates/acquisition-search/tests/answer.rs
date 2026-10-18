@@ -6,8 +6,9 @@
 
 mod common;
 
-use acquisition_search::{Corpus, Realm, answer};
+use acquisition_search::{Corpus, Realm};
 use acquisition_store::Store;
+use common::answer;
 use common::*;
 use serde_json::{Value, json};
 
@@ -547,4 +548,81 @@ fn c104_a_tree_is_accepted_and_the_answer_returns_both() {
         "tree"
     );
     assert!(serde_json::from_value::<acquisition_search::Request>(json!({ "views": {} })).is_err());
+}
+
+/// C115: an answer weighed 31 KB by default on the owner's store, over
+/// every seat runner's harness cut, a count's request a third of it — 13,693
+/// bytes for 17 numbers (the trade seat, mcp-sonnet-1 call 8). Unasked, it
+/// carries the routes a next step hangs on — what is undecided, what holds
+/// only together, what each term matched where nothing matched, what a key
+/// could not place — and every other count is its number alone; asked,
+/// every count that is not zero holds its route, and the numbers are the
+/// same either way.
+#[test]
+fn c115_an_answer_unasked_carries_only_the_routes_a_next_step_hangs_on() {
+    let s = worked();
+    let corpus = load(&s, Some("pc"));
+    // the crate's own answer, not this suite's, which asks every route
+    let asked = |text: &str, view: Value| -> Value {
+        let request =
+            serde_json::from_value(json!({ "query": { "text": text }, "view": view })).unwrap();
+        as_json(&acquisition_search::answer(&corpus, &request).unwrap())
+    };
+    let routed = |count: &Value| count.get("request").is_some();
+    let a = asked(WORKED, json!({ "rows": {} }));
+    for term in a["terms"].as_array().unwrap() {
+        for k in ["matched", "failed", "lacked"] {
+            assert!(
+                !routed(&term[k]),
+                "{k} of term {}: {}",
+                term["path"],
+                term[k]
+            );
+        }
+    }
+    assert!(routed(&a["terms"][1]["undecided"]), "{}", a["terms"][1]);
+    assert!(routed(&a["terms"][4]["undecided"]), "{}", a["terms"][4]);
+    assert!(routed(&a["terms"][3]["together"]), "{}", a["terms"][3]);
+    assert!(routed(&a["total"]["undecided"]), "{}", a["total"]);
+
+    let every = asked(WORKED, json!({ "rows": {}, "routes": true }));
+    for (term, all) in a["terms"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .zip(every["terms"].as_array().unwrap())
+    {
+        assert_eq!(counts(term), counts(all), "{}", term["path"]);
+        for k in ["matched", "failed", "lacked", "undecided"] {
+            assert_eq!(routed(&all[k]), all[k]["count"] != 0, "{k}: {}", all[k]);
+        }
+    }
+    assert_eq!(follow(&corpus, &every["terms"][2]["failed"]), ["r4"]);
+
+    // where nothing matched, what each term matched alone is the way on
+    let none = asked("rarity=rare rarity=magic", json!({ "rows": {} }));
+    assert_eq!(none["total"]["matched"], 0);
+    for term in none["terms"].as_array().unwrap() {
+        assert!(routed(&term["matched"]), "{term}");
+        assert!(!routed(&term["failed"]), "{term}");
+    }
+
+    // a count: a value's bucket is its number, what the key could not
+    // place keeps its route — and both have theirs when asked
+    let by_class = asked("", json!({ "counts": { "keys": ["class"] } }));
+    let buckets = by_class["view"]["counts"]["tables"][0]["buckets"]
+        .as_array()
+        .unwrap();
+    assert_eq!(buckets.len(), 2, "{buckets:?}");
+    assert_eq!(buckets[0]["bucket"], "value");
+    assert!(!routed(&buckets[0]), "{}", buckets[0]);
+    assert_eq!(buckets[1]["bucket"], "undecided");
+    assert!(routed(&buckets[1]), "{}", buckets[1]);
+    let by_class = asked(
+        "",
+        json!({ "counts": { "keys": ["class"] }, "routes": true }),
+    );
+    assert!(routed(
+        &by_class["view"]["counts"]["tables"][0]["buckets"][0]
+    ));
 }

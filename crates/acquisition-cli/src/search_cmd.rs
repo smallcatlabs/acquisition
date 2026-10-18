@@ -31,7 +31,7 @@
 //! - **`--explain`, `--context` and `show --against` are encodings** of
 //!   what the request and `show` carry (`answer.rs`, `show.rs`): the
 //!   view's conflicts are the crate's to say
-//!   (`View::of`), the context's word is the crate's to read, and what a
+//!   (`Shape::of`), the context's word is the crate's to read, and what a
 //!   zero answer offers is printed as the commands the crate makes of its
 //!   requests (`Request::command`), each run by the test that runs every
 //!   command printed.
@@ -54,8 +54,8 @@
 use std::io::Read as _;
 
 use acquisition_search::answer::{
-    Answer, Asked, Context, Count, DEFAULT_LIMIT, Membership, Request, Rows, Scope, TradeOut, View,
-    ViewOut,
+    Answer, Asked, Context, Count, DEFAULT_LIMIT, Membership, Request, Rows, Scope, Shape,
+    TradeOut, View, ViewOut,
 };
 use acquisition_search::corpus::Realm;
 use acquisition_search::counts::{Bucket, CrossOut, Label, SumOf, Summed, Table};
@@ -127,7 +127,9 @@ pub struct SearchArgs {
     #[arg(long)]
     pub limit: Option<usize>,
     /// Print every count's route — the command that returns exactly its
-    /// members — instead of the first few.
+    /// members — instead of the few a next step hangs on; under `--json`,
+    /// every count's request. Beside `--next` or `--request`, the answer
+    /// it runs carries them all.
     #[arg(long)]
     pub routes: bool,
     /// The language as this build knows it. Bare, the index: fields,
@@ -333,7 +335,8 @@ pub fn search(args: SearchArgs, json: bool) -> Result<()> {
                 json,
             )
         })?;
-        let asked = Asked::read(&value).map_err(|e| fail(e.into(), json))?;
+        let mut asked = Asked::read(&value).map_err(|e| fail(e.into(), json))?;
+        asked.request.view.routes |= args.routes;
         asked.request.check().map_err(|e| fail(e.into(), json))?;
         let (store, intent) = open_store_and_intent()?;
         let corpus = asked
@@ -341,7 +344,7 @@ pub fn search(args: SearchArgs, json: bool) -> Result<()> {
             .corpus(&store, &intent)
             .map_err(|e| fail(e, json))?;
         let answered = asked.answer(&corpus).map_err(|e| fail(e, json))?;
-        return emit(&answered, json, |a| answer_text(a, args.routes));
+        return emit(&answered, json, answer_text);
     }
     if let Some(token) = &args.next {
         whole(
@@ -349,14 +352,15 @@ pub fn search(args: SearchArgs, json: bool) -> Result<()> {
             "continues an answer whole, the token naming its query, its view and its order",
         )?;
         let mut request = Request::from_token(token).map_err(|e| fail(e.into(), json))?;
-        if let (Some(limit), View::Rows(rows)) = (args.limit, &mut request.view) {
+        if let (Some(limit), Shape::Rows(rows)) = (args.limit, &mut request.view.shape) {
             rows.limit = Some(limit);
         }
+        request.view.routes |= args.routes;
         request.check().map_err(|e| fail(e.into(), json))?;
         let (store, intent) = open_store_and_intent()?;
         let corpus = request.corpus(&store, &intent).map_err(|e| fail(e, json))?;
         let answered = answer(&corpus, &request).map_err(|e| fail(e, json))?;
-        return emit(&answered, json, |a| answer_text(a, args.routes));
+        return emit(&answered, json, answer_text);
     }
     if let Some(names) = &args.describe {
         if args.print_request {
@@ -435,7 +439,7 @@ pub fn search(args: SearchArgs, json: bool) -> Result<()> {
         })
         .transpose()
     };
-    let view = View::of(
+    let shape = Shape::of(
         // each `--count` is a list of its own, read apart and joined
         match args.count.as_slice() {
             [] => None,
@@ -458,6 +462,10 @@ pub fn search(args: SearchArgs, json: bool) -> Result<()> {
         },
     )
     .map_err(|e| fail(e.into(), json))?;
+    let view = View {
+        shape,
+        routes: args.routes,
+    };
     let context = match &args.context {
         Some(word) => Context::parse(word).map_err(|e| fail(e.into(), json))?,
         None => Context::default(),
@@ -521,7 +529,7 @@ pub fn search(args: SearchArgs, json: bool) -> Result<()> {
         return Ok(());
     }
     let answered = answer(&corpus, &request).map_err(|e| fail(e, json))?;
-    emit(&answered, json, |a| answer_text(a, args.routes))
+    emit(&answered, json, answer_text)
 }
 
 /// `--print-request` prints the request the words typed make, and
@@ -849,7 +857,7 @@ fn path_column<'a>(paths: impl Iterator<Item = &'a str>) -> usize {
         .max(5)
 }
 
-fn answer_text(a: &Answer, all_routes: bool) -> String {
+fn answer_text(a: &Answer) -> String {
     let now = acquisition_store::now();
     let mut out = String::new();
     let mut line = |s: String| {
@@ -1281,9 +1289,10 @@ fn answer_text(a: &Answer, all_routes: bool) -> String {
         }
     }
 
-    // routes: by default the ones a next step hangs on — what is undecided,
-    // what holds only together, and, when nothing matched, what each term
-    // matched on its own; `--routes` prints every count's
+    // routes: the ones the answer carries — by default those a next step
+    // hangs on (`answer.rs`, C115), under `--routes` every count's — the
+    // undecided, the together and the unplaced first; a count that carries
+    // none is counted as left to `--routes`
     let mut first: Vec<(String, &Count)> = Vec::new();
     let mut rest: Vec<(String, &Count)> = Vec::new();
     first.push(("undecided at the root".to_string(), &a.total.undecided));
@@ -1364,12 +1373,13 @@ fn answer_text(a: &Answer, all_routes: bool) -> String {
             })
             .collect()
     };
-    let (first, rest) = (routed(first), routed(rest));
-    let hidden = if all_routes { 0 } else { rest.len() };
-    let shown: Vec<&(String, usize, String)> = first
+    let hidden = first
         .iter()
-        .chain(rest.iter().filter(|_| all_routes))
-        .collect();
+        .chain(&rest)
+        .filter(|(_, count)| count.count > 0 && count.route.is_none())
+        .count();
+    let (first, rest) = (routed(first), routed(rest));
+    let shown: Vec<&(String, usize, String)> = first.iter().chain(&rest).collect();
     if !shown.is_empty() || hidden > 0 {
         line(if hidden > 0 {
             format!("routes  each returns exactly the members counted ({hidden} more: --routes)")

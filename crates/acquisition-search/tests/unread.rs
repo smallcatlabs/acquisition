@@ -5,8 +5,9 @@
 
 mod common;
 
-use acquisition_search::{Corpus, answer};
+use acquisition_search::Corpus;
 use acquisition_store::Store;
+use common::answer;
 use common::*;
 use serde_json::{Value, json};
 

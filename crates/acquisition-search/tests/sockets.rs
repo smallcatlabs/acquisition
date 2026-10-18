@@ -7,8 +7,9 @@
 
 mod common;
 
-use acquisition_search::{Request, answer, sockets};
+use acquisition_search::{Request, sockets};
 use acquisition_store::Store;
+use common::answer;
 use common::*;
 use serde_json::{Value, json};
 

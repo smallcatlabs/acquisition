@@ -11,8 +11,9 @@ mod common;
 
 use std::collections::{BTreeSet, HashMap};
 
-use acquisition_search::{Corpus, Request, answer};
+use acquisition_search::{Corpus, Request};
 use acquisition_store::{Endpoint, Store};
+use common::answer;
 use proptest::prelude::*;
 use serde_json::{Value, json};
 

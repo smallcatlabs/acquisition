@@ -9,7 +9,7 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use acquisition_search::show::Shown;
-use acquisition_search::{Answer, Corpus, Realm, Request, SearchError, answer};
+use acquisition_search::{Answer, Corpus, Realm, Request, SearchError};
 use acquisition_store::corpus::RealmScope;
 use acquisition_store::{Annotations, Endpoint, Store};
 use serde_json::{Value, json};
@@ -171,6 +171,17 @@ pub fn ask(corpus: &Corpus, text: &str) -> Result<Answer, SearchError> {
 
 pub fn request(text: &str) -> Request {
     serde_json::from_value(json!({ "query": { "text": text } })).unwrap()
+}
+
+/// The crate's answer with every route asked (C115). These tests pin what
+/// a count's route returns, and an answer carried every route before it
+/// carried only those a next step hangs on: asked so, each assertion
+/// means what it meant. The unasked answer is pinned where it is said
+/// (`tests/answer.rs`, `c115_…`).
+pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError> {
+    let mut request = request.clone();
+    request.view.routes = true;
+    acquisition_search::answer(corpus, &request)
 }
 
 /// An intent file of this test's own, in memory, bound to the store's

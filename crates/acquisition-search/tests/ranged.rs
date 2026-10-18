@@ -16,8 +16,9 @@ mod common;
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use acquisition_search::{Corpus, Request, answer, describe};
+use acquisition_search::{Corpus, Request, describe};
 use acquisition_store::Store;
+use common::answer;
 use common::*;
 use serde_json::{Value, json};
 

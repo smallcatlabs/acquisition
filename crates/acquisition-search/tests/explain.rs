@@ -295,7 +295,7 @@ fn explain_a_node_under_holds_and_a_condition_inside_its_group() {
 /// conflicts are said.
 #[test]
 fn explain_beside_a_count_a_cross_or_a_sort_is_an_authoring_error() {
-    use acquisition_search::answer::{Rows, View};
+    use acquisition_search::answer::{Rows, Shape};
     let keys = |text: &str| Some(text.split(',').map(str::to_string).collect::<Vec<_>>());
     let path = || Some("0".to_string());
     for (count, cross, sort) in [
@@ -303,7 +303,7 @@ fn explain_beside_a_count_a_cross_or_a_sort_is_an_authoring_error() {
         (None, keys("rarity,league"), None),
         (None, None, Some("ilvl".to_string())),
     ] {
-        let e = View::of(
+        let e = Shape::of(
             count.clone(),
             cross.clone(),
             None,
@@ -324,7 +324,7 @@ fn explain_beside_a_count_a_cross_or_a_sort_is_an_authoring_error() {
         assert!(e.message.contains("--explain"), "{e}");
     }
     // alone it is the view, whatever limit an adapter always sends
-    let view = View::of(None, None, None, path(), Rows::default()).unwrap();
+    let view = Shape::of(None, None, None, path(), Rows::default()).unwrap();
     assert_eq!(
         serde_json::to_value(&view).unwrap(),
         json!({ "explain": { "path": "0" } })
@@ -487,7 +487,8 @@ fn context_corpus_answers_the_empty_query_and_sets_the_typed_one_aside() {
     let counted = with_context(
         &corpus,
         WORKED,
-        json!({ "counts": { "keys": ["rarity", "class"] } }),
+        // the route of a value's bucket is followed below: every route asked
+        json!({ "counts": { "keys": ["rarity", "class"] }, "routes": true }),
     );
     assert_eq!(counted["query"]["text"], "");
     assert_eq!(counted["set_aside"]["text"], CANONICAL);
@@ -523,7 +524,7 @@ fn context_corpus_answers_the_empty_query_and_sets_the_typed_one_aside() {
             .unwrap();
     assert_eq!(
         as_json(&answer(&corpus, &matches).unwrap()),
-        as_json(&ask(&corpus, WORKED).unwrap())
+        as_json(&answer(&corpus, &request(WORKED)).unwrap())
     );
     // nothing typed, nothing set aside
     let nothing = with_context(&corpus, "", json!({ "rows": {} }));
@@ -744,8 +745,8 @@ fn describe_says_what_explain_context_and_against_do() {
 /// view's error as a count, a cross and a sort beside explain are.
 #[test]
 fn explain_beside_a_sum_is_an_authoring_error() {
-    use acquisition_search::answer::{Rows, View};
-    let e = View::of(
+    use acquisition_search::answer::{Rows, Shape};
+    let e = Shape::of(
         None,
         None,
         Some("ilvl".to_string()),

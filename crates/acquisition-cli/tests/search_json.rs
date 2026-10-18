@@ -2210,9 +2210,12 @@ fn step_10_next_request_and_print_request_at_a_terminal() {
         );
     }
 
-    // a count's route, as an answer's `--json` holds it, is a request
-    // file: on the basis it was counted at it says nothing more
-    let a = sole_json(&acq(&base, &["--json", "search", "rarity=rare"]));
+    // a count's route, as an answer's `--json --routes` holds it, is a
+    // request file: on the basis it was counted at it says nothing more
+    let a = sole_json(&acq(
+        &base,
+        &["--json", "search", "rarity=rare", "--routes"],
+    ));
     let route = &a["terms"][0]["matched"];
     let file = dir.join("route.json");
     std::fs::write(&file, route.to_string()).unwrap();

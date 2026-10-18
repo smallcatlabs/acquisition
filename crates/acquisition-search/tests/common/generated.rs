@@ -65,7 +65,9 @@
 use std::collections::{BTreeSet, HashMap};
 
 use acquisition_plan::price::{Buyout, Price, PriceTarget, set_buyout};
-use acquisition_search::{Corpus, Request, answer};
+use acquisition_search::{Corpus, Request};
+
+use super::answer;
 use acquisition_store::{Annotations, Endpoint, Provenance, Store};
 use proptest::prelude::*;
 use serde_json::{Map, Value, json};

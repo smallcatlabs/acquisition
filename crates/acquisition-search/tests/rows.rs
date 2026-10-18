@@ -12,9 +12,10 @@ mod common;
 use std::collections::BTreeSet;
 
 use acquisition_search::{
-    Collection, ErrorKind, Member, Node, Number, Op, Request, Value as TreeValue, answer, check,
+    Collection, ErrorKind, Member, Node, Number, Op, Request, Value as TreeValue, check,
 };
 use acquisition_store::Store;
+use common::answer;
 use common::*;
 use serde_json::{Value, json};
 

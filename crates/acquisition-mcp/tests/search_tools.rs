@@ -310,7 +310,10 @@ fn aq1_counts_by_tab_league_and_rarity_and_no_rows() {
     assert_eq!(every["scope"]["realm"], "pc");
     assert_eq!(every["scope"]["account"]["name"], USER);
 
-    let a = seat.answer(&json!({ "view": { "counts": { "keys": ["tab", "league", "rarity"] } } }));
+    // every route asked (C115): a bucket's is sent back below
+    let a = seat.answer(
+        &json!({ "view": { "counts": { "keys": ["tab", "league", "rarity"] }, "routes": true } }),
+    );
     assert!(a["rows"].as_array().unwrap().is_empty(), "{}", a["rows"]);
     let tables = a["view"]["counts"]["tables"].as_array().unwrap();
     let keys: Vec<&str> = tables.iter().map(|t| t["key"].as_str().unwrap()).collect();
@@ -325,7 +328,10 @@ fn aq1_counts_by_tab_league_and_rarity_and_no_rows() {
         [("rare".to_string(), 4), ("unique".to_string(), 1)]
     );
     // the flags a terminal types give the same tables
-    let (typed, _) = cli(&seat.base, &["search", "--count", "tab,league,rarity"]);
+    let (typed, _) = cli(
+        &seat.base,
+        &["search", "--count", "tab,league,rarity", "--routes"],
+    );
     assert_eq!(
         typed["view"]["counts"]["tables"],
         a["view"]["counts"]["tables"]
@@ -435,7 +441,7 @@ fn aq5_life_at_ninety_or_more_counted_and_sorted() {
     let mut seat = Seat::new();
     let request = json!({
         "query": { "text": "\"+# to maximum Life\">=90" },
-        "view": { "rows": { "sort": "line(\"+# to maximum Life\").arg1", "desc": true } },
+        "view": { "rows": { "sort": "line(\"+# to maximum Life\").arg1", "desc": true }, "routes": true },
     });
     let a = seat.answer(&request);
     assert_eq!(a["total"]["matched"], 2);
@@ -464,6 +470,7 @@ fn aq5_life_at_ninety_or_more_counted_and_sorted() {
             "--sort",
             "line(\"+# to maximum Life\").arg1",
             "--desc",
+            "--routes",
         ],
     );
     assert_eq!(typed["rows"], a["rows"]);
@@ -803,7 +810,7 @@ fn no_tool_of_the_search_starts_a_daemon() {
 #[test]
 fn a_count_read_back_says_what_it_was_where_it_has_moved() {
     let mut seat = Seat::new();
-    let a = seat.answer(&json!({ "query": { "text": "rarity=rare" } }));
+    let a = seat.answer(&json!({ "query": { "text": "rarity=rare" }, "view": { "routes": true } }));
     let route = a["terms"][0]["matched"].clone();
     assert_eq!(route["count"], 4);
     let mut labelled = route.clone();
@@ -842,7 +849,7 @@ fn a_count_read_back_says_what_it_was_where_it_has_moved() {
 #[test]
 fn a_view_beside_a_request_is_refused_and_never_dropped() {
     let mut seat = Seat::new();
-    let a = seat.answer(&json!({ "query": { "text": "rarity=rare" } }));
+    let a = seat.answer(&json!({ "query": { "text": "rarity=rare" }, "view": { "routes": true } }));
     let mut sent = a["terms"][0]["matched"].clone();
     sent["view"] = json!({ "counts": { "keys": ["tab"] } });
     let e = seat.refusal(&sent);
@@ -1178,4 +1185,46 @@ fn the_answers_text_leads_with_its_total_never_with_its_terms() {
         ["query", "scope", "total", "rows", "view", "terms", "basis"],
         "{counted}"
     );
+}
+
+/// C115: a count's bucket requests were 13,693 bytes for 17 numbers
+/// (the trade seat, mcp-sonnet-1 call 8), and a counts-only answer 16,742
+/// (mcp-opus-2 call 12): every count held its request, where the terminal
+/// printed a route only where a next step hangs on one. Unasked, a value's
+/// bucket and a term's matched, failed and lacked are their numbers alone,
+/// and `view.routes` asks every count's — as `--routes` does, the same
+/// document on both surfaces.
+#[test]
+fn a_count_holds_its_request_only_where_routes_are_asked() {
+    let mut seat = Seat::new();
+    let plain = seat.answer(&json!({ "view": { "counts": { "keys": ["tab"] } } }));
+    let table = &plain["view"]["counts"]["tables"][0];
+    assert_eq!(
+        buckets(table),
+        [("Dump".to_string(), 3), ("Rings".to_string(), 2)]
+    );
+    for bucket in table["buckets"].as_array().unwrap() {
+        assert!(bucket.get("request").is_none(), "{bucket}");
+    }
+    let asked = seat.answer(&json!({ "view": { "counts": { "keys": ["tab"] }, "routes": true } }));
+    let table = &asked["view"]["counts"]["tables"][0];
+    for bucket in table["buckets"].as_array().unwrap() {
+        assert!(bucket.get("request").is_some(), "{bucket}");
+    }
+    assert_eq!(ids(&seat.answer(&table["buckets"][1])), ["r1", "r2"]);
+    let (typed, _) = cli(&seat.base, &["search", "--count", "tab", "--routes"]);
+    assert_eq!(typed["view"], asked["view"]);
+
+    let plain = seat.answer(&json!({ "query": { "text": "rarity=rare" } }));
+    for k in ["matched", "failed", "lacked"] {
+        assert!(plain["terms"][0][k].get("request").is_none(), "{k}");
+    }
+    assert_eq!(plain["terms"][0]["failed"]["count"], 1);
+    // alone, `routes` is the default view, every route asked
+    let asked =
+        seat.answer(&json!({ "query": { "text": "rarity=rare" }, "view": { "routes": true } }));
+    assert_eq!(asked["view"]["rows"]["limit"], 20);
+    assert_eq!(ids(&seat.answer(&asked["terms"][0]["failed"])), ["kaom"]);
+    let e = seat.refusal(&json!({ "view": { "routes": "yes" } }));
+    assert_eq!(e["kind"], "tree", "{e}");
 }

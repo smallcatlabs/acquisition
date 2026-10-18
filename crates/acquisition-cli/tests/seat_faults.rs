@@ -1304,3 +1304,67 @@ fn the_answer_leads_with_its_total_and_ends_with_its_basis() {
     ];
     assert!(keys.windows(2).all(|w| w[0] < w[1]), "{keys:?}\n{printed}");
 }
+
+/// C115: `--routes` was the text's alone — the JSON held every count's
+/// request whatever was asked, a third of an answer's bytes (the trade
+/// seat: mcp-sonnet-1 call 8, 13,693 bytes for 17 numbers). The JSON
+/// now carries what the text prints: the routes a next step hangs on,
+/// unasked; every count's under `--routes`, which a continuation keeps
+/// and which asks the same beside `--next`.
+#[test]
+fn a_count_holds_its_request_only_where_the_routes_are_asked() {
+    let scratch = harness::scratch("seat-routes");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    let query = "league=Standard or league=Allflame";
+    let shown = stdout(&acq(&base, &["search", "--realm", "pc", query]));
+    assert!(
+        shown
+            .lines()
+            .any(|l| l == "routes  each returns exactly the members counted (4 more: --routes)"),
+        "{shown}"
+    );
+    let plain = sole_json(&acq(
+        &base,
+        &["--json", "search", "--realm", "pc", query, "--limit", "1"],
+    ));
+    assert_eq!(plain["terms"][0]["failed"]["count"], 1);
+    assert!(
+        plain["terms"][0]["failed"].get("request").is_none(),
+        "{plain}"
+    );
+    let asked = sole_json(&acq(
+        &base,
+        &[
+            "--json", "search", "--realm", "pc", query, "--limit", "1", "--routes",
+        ],
+    ));
+    assert!(
+        asked["terms"][0]["failed"]["request"].is_object(),
+        "{asked}"
+    );
+    assert_eq!(
+        asked["view"]["rows"]["next"]["request"]["view"]["routes"],
+        true
+    );
+    let shown = stdout(&acq(&base, &["search", "--realm", "pc", query, "--routes"]));
+    assert!(
+        shown
+            .lines()
+            .any(|l| l == "routes  each returns exactly the members counted"),
+        "{shown}"
+    );
+
+    // beside a continuation, `--routes` asks them of the answer it runs
+    let token = plain["view"]["rows"]["next"]["token"].as_str().unwrap();
+    let next = sole_json(&acq(&base, &["--json", "search", "--next", token]));
+    assert!(
+        next["terms"][0]["failed"].get("request").is_none(),
+        "{next}"
+    );
+    let next = sole_json(&acq(
+        &base,
+        &["--json", "search", "--next", token, "--routes"],
+    ));
+    assert!(next["terms"][0]["failed"]["request"].is_object(), "{next}");
+}
