@@ -313,7 +313,8 @@ pub struct Table {
 /// since a tab may be named `none`.
 #[derive(Debug, Clone, Serialize)]
 pub struct Label {
-    /// `value`, `none` or `undecided`.
+    /// `value`, `computed` (a value the vocabulary works out, C94),
+    /// `none` or `undecided`.
     pub bucket: &'static str,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub value: Option<Json>,

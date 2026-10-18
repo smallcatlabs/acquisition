@@ -559,6 +559,39 @@ fn c104_a_tree_is_accepted_and_the_answer_returns_both() {
 /// could not place — and every other count is its number alone; asked,
 /// every count that is not zero holds its route, and the numbers are the
 /// same either way.
+/// A vocabulary's computed values are placed as its templates are: a
+/// default `line:resist` count kept five of their requests when only
+/// `value` buckets shed theirs (the review of note 38's step 1), the CLI
+/// printing those routes without `--routes`.
+#[test]
+fn c115_a_computed_bucket_sheds_its_route_as_a_value_does() {
+    let s = worked();
+    let corpus = load(&s, Some("pc"));
+    let request = serde_json::from_value(json!({
+        "query": { "text": "rarity=rare" },
+        "view": { "counts": { "keys": ["line:resist"] } }
+    }))
+    .unwrap();
+    let a = as_json(&acquisition_search::answer(&corpus, &request).unwrap());
+    let buckets = a["view"]["counts"]["tables"][0]["buckets"]
+        .as_array()
+        .unwrap();
+    assert!(
+        buckets.iter().any(|b| b["bucket"] == "computed"),
+        "the fixture must carry a computed value:\n{a}"
+    );
+    for b in buckets {
+        let placed = b["bucket"] != "none" && b["bucket"] != "undecided";
+        assert_eq!(
+            b.get("request").is_none(),
+            placed,
+            "{} bucket {}: {b}",
+            b["bucket"],
+            b["value"]
+        );
+    }
+}
+
 #[test]
 fn c115_an_answer_unasked_carries_only_the_routes_a_next_step_hangs_on() {
     let s = worked();

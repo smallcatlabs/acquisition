@@ -2686,9 +2686,9 @@ impl Answer {
             term.failed.route = None;
             term.lacked.route = None;
         }
-        // a value is placed; `none` and `undecided` are what a key could
-        // not place
-        let placed = |label: &counts::Label| label.bucket == "value";
+        // `none` and `undecided` are what a key could not place; every
+        // other bucket — a value, a computed value — is placed
+        let placed = |label: &counts::Label| !matches!(label.bucket, "none" | "undecided");
         match &mut self.view {
             ViewOut::Counts(counts) => {
                 for bucket in counts.tables.iter_mut().flat_map(|t| &mut t.buckets) {
