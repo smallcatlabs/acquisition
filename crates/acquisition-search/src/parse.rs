@@ -651,6 +651,14 @@ impl<'a> Parser<'a> {
         };
         let mut readings = Vec::new();
         if !inside {
+            // a name first: a Sonnet run of the re-sit took the first
+            // reading of `Loreweave` and searched line text for a unique's
+            // name (mcp-sonnet calls 18–21, its fault 3)
+            readings.push(print::print(&Node::Test {
+                field: "name".to_string(),
+                op: Op::Contains,
+                value: Value::Text(word.to_string()),
+            }));
             readings.push(print::print(&phrase(word)));
             readings.push(print::print(&Node::Members {
                 of: Collection::Lines,

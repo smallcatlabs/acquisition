@@ -223,13 +223,13 @@ canonical = '''text:"#1 of 3" "no hash"'''
 construct = "item.bare_word"
 text = '''rare'''
 error = "bare_word"
-readings = ['''"rare"''', '''line(template:rare)''']
+readings = ['''name:rare''', '''"rare"''', '''line(template:rare)''']
 
 [[case]]
 construct = "item.bare_word"
 text = '''class:ring life'''
 error = "bare_word"
-readings = ['''"life"''', '''line(template:life)''']
+readings = ['''name:life''', '''"life"''', '''line(template:life)''']
 
 [[case]]
 construct = "item.contains"

@@ -1503,8 +1503,9 @@ fn closed_set_readings(mut e: LanguageError, text: &str) -> LanguageError {
     let Some(word) = e.span.and_then(|(start, end)| text.get(start..end)) else {
         return e;
     };
-    // the parser's readings say which level the word stood at
-    let inside = !e.readings.first().is_some_and(|r| r.starts_with('"'));
+    // the parser's readings say which level the word stood at: outside a
+    // line it offered the word as a phrase
+    let inside = !e.readings.iter().any(|r| r.starts_with('"'));
     let mut first = Vec::new();
     if inside {
         first.extend(legal(SOURCES, word).map(|v| format!("source={v}")));

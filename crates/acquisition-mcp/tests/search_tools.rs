@@ -1372,6 +1372,29 @@ fn a_zero_answers_suggestion_is_said_to_be_one() {
     );
 }
 
+/// A bare word's readings offered a phrase and a template, not a name:
+/// a Sonnet run of the re-sit took the first and searched line text for
+/// a unique, five calls to `name:` (mcp-sonnet calls 18–21, its fault
+/// 3). The name reading comes first, and runs as offered.
+#[test]
+fn a_bare_words_readings_offer_it_as_a_name_first() {
+    let mut seat = Seat::new();
+    let (e, refused) =
+        seat.search(&json!({ "scope": { "realm": "pc" }, "query": { "text": "Loreweave" } }));
+    assert!(refused, "{e}");
+    assert_eq!(e["kind"], "bare_word", "{e}");
+    assert_eq!(e["readings"][0], "name:Loreweave", "{e}");
+    let (ran, refused) = seat.search(
+        &json!({ "scope": { "realm": "pc" }, "query": { "text": e["readings"][0].as_str().unwrap() } }),
+    );
+    assert!(!refused, "{ran}");
+    assert_eq!(ran["total"]["matched"], 0, "{ran}");
+    // a closed value still reads first
+    let (e, _) = seat.search(&json!({ "scope": { "realm": "pc" }, "query": { "text": "rare" } }));
+    assert_eq!(e["readings"][0], "rarity=rare", "{e}");
+    assert_eq!(e["readings"][1], "name:rare", "{e}");
+}
+
 /// `scope.list_seen` under a query fixing one league is that league's
 /// list and the characters', not the realm's oldest (the re-sit,
 /// mcp-opus fault 2); held equal to the CLI's.

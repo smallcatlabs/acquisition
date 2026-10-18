@@ -946,7 +946,12 @@ fn c11_a_failure_is_structured_and_a_later_steps_flag_is_refused_by_name() {
     let bare = sole_json(&acq(&base, &["--json", "search", "rare"]));
     assert_eq!(
         bare["readings"],
-        json!(["rarity=rare", "\"rare\"", "line(template:rare)"])
+        json!([
+            "rarity=rare",
+            "name:rare",
+            "\"rare\"",
+            "line(template:rare)"
+        ])
     );
     let refused = sole_json(&acq(&base, &["--json", "search", "--fields", "name"]));
     assert!(
