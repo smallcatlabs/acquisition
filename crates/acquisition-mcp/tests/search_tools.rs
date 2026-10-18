@@ -1597,3 +1597,25 @@ fn a_trade_reports_exact_clause_is_where_it_stands_and_its_term_alone() {
         "{row}"
     );
 }
+
+/// A count by `kind` was refused with `int`, `line` and `links` as its
+/// readings, none of which fit, and nothing said where the keys are
+/// (the trade seat: mcp-sonnet-2 call 5, its fault 7, "`kind` got no
+/// suggestion that fit"). An unknown name's refusal that offers near ones
+/// from a long list names the entry of `describe` that lists them all,
+/// and that entry answers with every key a count takes.
+#[test]
+fn a_refused_count_key_says_where_every_key_is_listed() {
+    let mut seat = Seat::new();
+    let e = seat.refusal(&json!({ "view": { "counts": { "keys": ["league", "kind"] } } }));
+    assert_eq!(e["kind"], "unknown_name", "{e}");
+    let message = e["error"].as_str().unwrap();
+    assert!(message.contains("--describe counts lists all"), "{e}");
+    assert!(!e["readings"].as_array().unwrap().is_empty(), "{e}");
+    let (listed, refused) = seat.call("describe", &json!({ "names": ["counts"] }));
+    assert!(!refused, "{listed}");
+    let keys = listed["counts"][0]["values"].as_array().unwrap();
+    for key in ["class", "category", "frame", "tab.type"] {
+        assert!(keys.iter().any(|k| k == key), "{key}: {listed}");
+    }
+}

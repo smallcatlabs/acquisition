@@ -845,7 +845,14 @@ pub(crate) fn bind_key(text: &str) -> Result<Key, LanguageError> {
                 known().join(", ")
             ),
         )),
-        None => Err(unknown("key", text, &known(), |near| near.to_string())),
+        None => Err(unknown_among(
+            "key",
+            text,
+            &known(),
+            &known(),
+            Some("counts"),
+            |near| near.to_string(),
+        )),
     }
 }
 
@@ -967,12 +974,19 @@ fn bind_pseudo(
     };
     let known = crate::pseudo::names();
     let Some(named) = crate::pseudo::lookup(name)? else {
-        return Err(unknown("computed value", name, known, |near| {
-            print::print_value(&ValueRef::Pseudo {
-                name: near.to_string(),
-                slot: None,
-            })
-        }));
+        return Err(unknown_among(
+            "computed value",
+            name,
+            known,
+            known,
+            Some("computed"),
+            |near| {
+                print::print_value(&ValueRef::Pseudo {
+                    name: near.to_string(),
+                    slot: None,
+                })
+            },
+        ));
     };
     match (named.ranged(), slot) {
         (true, Some(slot)) if RANGE_SLOTS.contains(&slot) => Ok((named, Some(slot.to_string()))),
@@ -1113,9 +1127,14 @@ impl Binder {
                     ErrorKind::UnknownName,
                     "`is:removed` is no flag: what has left the stash is a membership of the scope, never a term — --membership removed searches the removed alone, --membership all the removed beside the live",
                 )),
-                None => Err(unknown("is:", name, ITEM_FLAGS, |near| {
-                    format!("is:{near}")
-                })),
+                None => Err(unknown_among(
+                    "is:",
+                    name,
+                    ITEM_FLAGS,
+                    ITEM_FLAGS,
+                    Some("is"),
+                    |near| format!("is:{near}"),
+                )),
             },
             Node::Members {
                 of: Collection::Links,
@@ -1201,7 +1220,14 @@ fn known_field(
         .copied()
         .chain(computed.iter().map(String::as_str))
         .collect();
-    Err(unknown_among("field", name, &names, &among, reading))
+    Err(unknown_among(
+        "field",
+        name,
+        &names,
+        &among,
+        Some("fields"),
+        reading,
+    ))
 }
 
 pub(crate) fn unknown(
@@ -1210,26 +1236,35 @@ pub(crate) fn unknown(
     known: &[&'static str],
     reading: impl Fn(&str) -> String,
 ) -> LanguageError {
-    unknown_among(what, name, known, known, reading)
+    unknown_among(what, name, known, known, None, reading)
 }
 
 /// An unknown name: `known` is what the message lists when nothing is
-/// near; `among` is what a near name is looked for in.
-fn unknown_among(
+/// near; `among` is what a near name is looked for in. Where near names
+/// are offered from a list longer than a refusal prints inline, the
+/// message names the entry of `--describe` that lists them all (`listed`),
+/// so a reading that does not fit leaves a way on (F5's rule for a closed
+/// set; the trade seat: mcp-sonnet-2 call 5, its fault 7, offered `int`,
+/// `line` and `links` for the key `kind`).
+pub(crate) fn unknown_among(
     what: &str,
     name: &str,
     known: &[&str],
     among: &[&str],
+    listed: Option<&str>,
     reading: impl Fn(&str) -> String,
 ) -> LanguageError {
     let near = near(name, among);
-    let message = if near.is_empty() {
-        format!(
+    let message = match listed.filter(|_| known.len() > LISTED_INLINE) {
+        _ if near.is_empty() => format!(
             "`{name}` is no {what} the language knows: {}",
             known.join(", ")
-        )
-    } else {
-        format!("`{name}` is no {what} the language knows; near it:")
+        ),
+        Some(entry) => format!(
+            "`{name}` is no {what} the language knows — --describe {entry} lists all {}; near it:",
+            known.len()
+        ),
+        None => format!("`{name}` is no {what} the language knows; near it:"),
     };
     LanguageError::new(ErrorKind::UnknownName, message)
         .with_readings(near.into_iter().map(reading).collect())
