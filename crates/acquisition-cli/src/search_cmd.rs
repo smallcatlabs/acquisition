@@ -833,6 +833,16 @@ fn trade_text(t: &TradeOut) -> Vec<String> {
     out
 }
 
+/// The path column of a terms or nodes block: five wide, as the paths of
+/// a flat query fit, and wider by the longest path, with a space after it.
+fn path_column<'a>(paths: impl Iterator<Item = &'a str>) -> usize {
+    paths
+        .map(|p| p.chars().count() + 1)
+        .max()
+        .unwrap_or(0)
+        .max(5)
+}
+
 fn answer_text(a: &Answer, all_routes: bool) -> String {
     let now = acquisition_store::now();
     let mut out = String::new();
@@ -942,6 +952,9 @@ fn answer_text(a: &Answer, all_routes: bool) -> String {
             .max()
             .unwrap_or(0)
             .min(60);
+        // a path as long as its column ran into its term, `0.3.0pseudo.…`
+        // (the trade seat: cli-opus call 13)
+        let path_width = path_column(a.terms.iter().map(|t| t.path.as_str()));
         for term in &a.terms {
             let mut counts: Vec<String> = [
                 (&term.matched, "matched"),
@@ -966,7 +979,7 @@ fn answer_text(a: &Answer, all_routes: bool) -> String {
                 ));
             }
             line(format!(
-                "  {:<5}{:<width$}  {}",
+                "  {:<path_width$}{:<width$}  {}",
                 term.path,
                 term.term,
                 counts.join(" · ")
@@ -1904,9 +1917,10 @@ fn shown_text(s: &Shown) -> String {
             .max()
             .unwrap_or(0)
             .min(60);
+        let path_width = path_column(against.nodes.iter().map(|n| n.path.as_str()));
         for node in &against.nodes {
             out.push_str(&format!(
-                "  {:<5}{:<width$}  {}\n",
+                "  {:<path_width$}{:<width$}  {}\n",
                 node.path,
                 node.node,
                 node.outcome.replace('_', " ")

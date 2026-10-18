@@ -1119,3 +1119,37 @@ fn a_row_sorted_by_a_value_no_field_names_says_which_value() {
         "{shown}"
     );
 }
+
+/// A term's path as long as its column ran into the term:
+/// `0.3.0pseudo.total_dex>=20` (the trade seat: cli-opus call 13, its
+/// fault 9). The column is as wide as the longest path and a space.
+#[test]
+fn a_long_term_path_never_runs_into_its_term() {
+    let scratch = harness::scratch("seat-path");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    let shown = stdout(&acq(
+        &base,
+        &[
+            "search",
+            "--realm",
+            "pc",
+            "--",
+            "(league=Standard -(stack>=1 ilvl>=1)) -has:tab",
+        ],
+    ));
+    let paths: Vec<&str> = shown
+        .lines()
+        .skip_while(|l| !l.starts_with("terms   "))
+        .skip(1)
+        .take_while(|l| l.starts_with("  "))
+        .collect();
+    assert!(
+        paths.iter().any(|l| l.starts_with("  0.1.0.0 stack>=1")),
+        "{shown}"
+    );
+    for l in &paths {
+        let path = l.trim_start().split(' ').next().unwrap();
+        assert!(path.chars().all(|c| c.is_ascii_digit() || c == '.'), "{l}");
+    }
+}
