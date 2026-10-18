@@ -88,10 +88,10 @@
 # (`answer.rs`).
 #
 # Measured at writing (a script over this file, never a count by eye):
-# 147 rows — 4 for the URL, 10 for the query object's keys, the JSON and
-# what no row names, 92 filters and 4 option rows, 10 for the stat groups
+# 149 rows — 4 for the URL, 10 for the query object's keys, the JSON and
+# what no row names, 92 filters and 6 option rows, 10 for the stat groups
 # (8 types, the disabled and the option-valued filter), 27 for the stats
-# (14 categories and 13 line rules); 83 exact, 19 ambiguous, 36
+# (14 categories and 13 line rules); 86 exact, 19 ambiguous, 35
 # unsupported, 9 listing-only — the four defence filters ambiguous since
 # step 3 measured them, and from step 4 to round x `stat.text.numbers`,
 # by the owner's verdict until a sitting asked it; `stat.text.two`,
@@ -107,8 +107,8 @@
 # rest: `query.term`, `uniquefoil`, `crit` and `map_blighted` exact, and
 # since its outside review the two open questions labelled where they
 # stand, `query.type.map` and `stat.scourge.summed`. Round x (2026-10-18)
-# `map_blighted` exact again, a Blight-ravaged map no blighted one, and
-# `stat.text.numbers` exact.
+# `map_blighted` exact again, a Blight-ravaged map no blighted one,
+# `map_uberblighted` exact in its shape, and `stat.text.numbers` exact.
 # Every one of the capture's 93 filters, 14 categories and 8 group types
 # has a row (tests/trade_catalogue.rs). 58 fields named. Every one of the
 # stat table's 14,068 category and id pairs translates, alone and with a
@@ -571,9 +571,29 @@ says = "A map whose type line does not begin Blighted, a Blight-ravaged map amon
 key = "map_filters.map_uberblighted"
 text = "Blight-ravaged Map"
 shape = "option"
-disposition = "unsupported"
-note = "a `Blight-ravaged` map: whether the site reads its type line's prefix as `map_blighted`'s, or a mark, no sitting has asked"
-says = "A Blight-ravaged map: how the site reads one has not been tried, so it is not run."
+disposition = "exact"
+lands = 'typeline~"^Blight-ravaged "'
+fields = ["typeline"]
+note = "the type line's `Blight-ravaged` prefix, the same shape as `map_filters.map_blighted`: x01 (`map_uberblighted` `true` alone) found 7,983 maps, every one fetched `Blight-ravaged Map (Tier …)`; x02, beside `map_blighted` `true`, none; x03, beside `false`, the same 7,983 (the owner, 2026-10-18, on round x: \"accepted\"); `false` is the not of it"
+says = "A map whose type line begins Blight-ravaged."
+
+[[row]]
+key = "map_filters.map_uberblighted=true"
+text = "Blight-ravaged Map: Yes"
+disposition = "exact"
+lands = 'category="map" typeline~"^Blight-ravaged "'
+fields = ["category", "typeline"]
+note = "a map filter: a map, its type line's `Blight-ravaged` prefix, as `map_filters.map_blighted=true` is its `Blighted` one (x01)"
+says = "A map whose type line begins Blight-ravaged."
+
+[[row]]
+key = "map_filters.map_uberblighted=false"
+text = "Blight-ravaged Map: No"
+disposition = "exact"
+lands = 'category="map" -typeline~"^Blight-ravaged "'
+fields = ["category", "typeline"]
+note = "a map filter: a map without the prefix, never an item that is no map, as `map_filters.map_blighted=false`; not asked as such, the shape of its `true` (x01) and of `map_blighted`'s `false` (t56)"
+says = "A map whose type line does not begin Blight-ravaged."
 
 [[row]]
 key = "map_filters.map_completion_reward"

@@ -343,10 +343,35 @@ fails = [
 
 [[case]]
 name = "the map filters no field reads"
-query = '{"filters": {"map_filters": {"filters": {"map_gold": {"min": 1}, "chart_sulphur": {"min": 1}, "chart_shape": {"option": "1"}, "map_series": {"option": "current"}, "map_uberblighted": {"option": "true"}, "map_completion_reward": {"option": "x"}}}}}'
+query = '{"filters": {"map_filters": {"filters": {"map_gold": {"min": 1}, "chart_sulphur": {"min": 1}, "chart_shape": {"option": "1"}, "map_series": {"option": "current"}, "map_completion_reward": {"option": "x"}}}}}'
 text = ''
 fidelity = "partial"
-statuses = { "map_filters.map_gold" = "unsupported", "map_filters.chart_sulphur" = "unsupported", "map_filters.chart_shape" = "unsupported", "map_filters.map_series" = "unsupported", "map_filters.map_uberblighted" = "unsupported", "map_filters.map_completion_reward" = "unsupported" }
+statuses = { "map_filters.map_gold" = "unsupported", "map_filters.chart_sulphur" = "unsupported", "map_filters.chart_shape" = "unsupported", "map_filters.map_series" = "unsupported", "map_filters.map_completion_reward" = "unsupported" }
+
+[[case]]
+name = "a Blight-ravaged map: a map, its type line's own prefix (x01), never a blighted one or an item that is no map"
+query = '{"filters": {"map_filters": {"filters": {"map_uberblighted": {"option": "true"}}}}}'
+text = 'category=map typeline~"^Blight-ravaged "'
+fidelity = "exact"
+statuses = { "map_filters.map_uberblighted" = "exact" }
+matches = ['{"typeLine": "Blight-ravaged Map (Tier 15)", "baseType": "Blight-ravaged Map (Tier 15)", "rarity": "Normal"}']
+fails = ['{"typeLine": "Blighted Map (Tier 13)", "baseType": "Blighted Map (Tier 13)", "rarity": "Normal"}', '{"typeLine": "Map (Tier 13)", "baseType": "Map (Tier 13)", "rarity": "Normal"}', '{"typeLine": "Chaos Orb", "baseType": "Chaos Orb", "frameTypeId": 5}']
+
+[[case]]
+name = "not a Blight-ravaged map: a map without the prefix, a blighted one among them, never an item that is no map"
+query = '{"filters": {"map_filters": {"filters": {"map_uberblighted": {"option": "false"}}}}}'
+text = 'category=map -typeline~"^Blight-ravaged "'
+fidelity = "exact"
+statuses = { "map_filters.map_uberblighted" = "exact" }
+matches = ['{"typeLine": "Map (Tier 13)", "baseType": "Map (Tier 13)", "rarity": "Normal"}', '{"typeLine": "Blighted Map (Tier 13)", "baseType": "Blighted Map (Tier 13)", "rarity": "Normal"}']
+fails = ['{"typeLine": "Blight-ravaged Map (Tier 15)", "baseType": "Blight-ravaged Map (Tier 15)", "rarity": "Normal"}', '{"typeLine": "Chaos Orb", "baseType": "Chaos Orb", "frameTypeId": 5}']
+
+[[case]]
+name = "a Blight-ravaged map's Any: no option, so the clause states nothing"
+query = '{"filters": {"map_filters": {"filters": {"map_uberblighted": {}}}}}'
+text = 'true()'
+fidelity = "exact"
+statuses = { "map_filters.map_uberblighted" = "exact" }
 
 [[case]]
 name = "a blighted map: a map, its type line's prefix (t55, t56), a Blight-ravaged one outside it (x01, x02), never an item that is no map (the trade seat)"

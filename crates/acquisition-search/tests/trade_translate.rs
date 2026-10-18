@@ -377,12 +377,15 @@ fn a_two_numbered_stat_is_compared_by_its_average() {
 /// maps (x01), every one fetched `Blight-ravaged Map (Tier …)`; beside
 /// `map_blighted` true it found none (x02), beside false the same 7,983
 /// (x03). The clause is exact, a Blight-ravaged map outside `true` and
-/// inside `false`, and carries no other reading.
+/// inside `false`, and carries no other reading; the mark is the same
+/// shape over the `Blight-ravaged` prefix.
 #[test]
 fn a_blight_ravaged_map_is_not_a_blighted_one() {
     sat("a blighted map: a map, its type line's prefix");
     sat("not a blighted map");
     sat("the trade seat's T6");
+    sat("a Blight-ravaged map: a map, its type line's own prefix");
+    sat("not a Blight-ravaged map");
 }
 
 /// One fixture: its text, scope, statuses and fidelity, the guard, and

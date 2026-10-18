@@ -24,7 +24,7 @@ const GRAMMAR: &str = include_str!("../../../search/trade-query/data/grammar.jso
 fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
     let c = catalogue::catalogue().unwrap();
     assert_eq!(c.version(), CATALOGUE_VERSION);
-    assert_eq!(c.rows().len(), 147);
+    assert_eq!(c.rows().len(), 149);
     let count = |d: Disposition| c.rows().iter().filter(|r| r.disposition == d).count();
     assert_eq!(
         [
@@ -33,7 +33,7 @@ fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
             count(Disposition::Unsupported),
             count(Disposition::ListingOnly)
         ],
-        [83, 19, 36, 9]
+        [86, 19, 35, 9]
     );
     // the four defence filters ambiguous since step 3 measured the q20
     // rule against the site (`tests/properties.rs`), and since step 6 an eldritch form
@@ -76,6 +76,9 @@ fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
         "map_filters.map_blighted",
         "map_filters.map_blighted=true",
         "map_filters.map_blighted=false",
+        "map_filters.map_uberblighted",
+        "map_filters.map_uberblighted=true",
+        "map_filters.map_uberblighted=false",
         "stat.text.numbers",
         "query.term",
         "type_filters.rarity=uniquefoil",
@@ -115,7 +118,7 @@ fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
             .unwrap()
             .rows()
             .len(),
-        147
+        149
     );
 }
 
