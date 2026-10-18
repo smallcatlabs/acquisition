@@ -4,7 +4,8 @@ Your report is written. Answer these through the door's `debrief`
 (`--new` for the first part), each under its number, citing call
 numbers where you can and marking an answer "impression" where you
 cannot. The same rules bind as for the run: no file but the ones your
-brief allows, no command but the door's.
+brief allows, no command but the door's. `None` is an answer to any
+of these, when it is true.
 
 1. Where did the tool stop you, and what did you do instead?
 2. Which outputs did you have to read twice, and what made them hard?

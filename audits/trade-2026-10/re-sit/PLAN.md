@@ -31,12 +31,16 @@ each (`git log c0be5c5a..`; note 38's sequence table has each step's
 range). This seat does not say any of that to a runner. It asks the same
 person's questions again, and its record answers, per run:
 
-1. **The terms block.** How many runs re-read an answer for its terms
-   (a second call for the same answer, or the debrief's "read twice"
-   naming it). The trade seat counted three; step 1 moved the total and
-   the rows above the terms.
+1. **The terms block.** How many runs re-read an answer for its terms:
+   a second call for the same answer and a debrief's "read twice" are
+   counted apart, and either is laid to the terms block only where the
+   runner gives that reason, the reason otherwise unknown. The trade
+   seat counted three; step 1 moved the total and the rows above the
+   terms.
 2. **Four lines left as built**, each judged by what readers did —
-   skipped, misread, or served — never by the orchestrator's taste:
+   skipped, misread, or served, each on the run's own evidence, and
+   otherwise not encountered, or encountered with its effect unknown —
+   never by the orchestrator's taste:
    the CLI total's caveat that repeats the scope line's never-fetched
    count; the scope line's length (about 190 characters on this store);
    the words "the site shows public listings" (the trade header, the
@@ -46,13 +50,15 @@ person's questions again, and its record answers, per run:
    site would have shown me the same things" as one question and every
    runner answered a mix. Here it is two: is this search the site's
    (fidelity, the report's business), and which of these could a buyer
-   see (a tab's `public`, a field since step 4). The record says, per
-   run, how each half was answered and at what cost in calls.
+   see (a tab's `public`, a field since step 4, as of the fetch the
+   store holds: an answer that says the store cannot speak for right
+   now is right, not short). The record says, per run, how each half
+   was answered and at what cost in calls.
 4. **A task whose honest answer turns on a never-fetched tab.** On this
    store 437 of the 502 unique-stash tabs and 2,489 of the 2,550 map
    tabs were never fetched (`tabs --json`, 2026-10-18). One task asks
-   for a unique the person is sure they own and the store copy does not
-   hold (the orchestrator picks one, confirms it absent with a search in
+   for a unique the person says is in their unique stash and the store
+   copy does not hold (the orchestrator picks one, confirms it absent with a search in
    a scratch world, and records which in the handoff and nowhere a
    runner reads). The right answer is that the tool cannot say and why;
    the record says which runs said so, from what, at what cost.
@@ -111,10 +117,11 @@ other:
   mine it finds and where it is. Then two things apart: whether the
   tool ran the same search the site would have, and which of the things
   it found a buyer on the site could actually see right now."
-- After T6 (maps), a new task, in the person's words: "I'm certain I
-  have a <unique> in my unique stash somewhere. Find it for me, or tell
-  me straight why you can't." The unique is one the store copy does not
-  hold; the orchestrator's handoff names it.
+- After T6 (maps), a new task, in the person's words: "Find my
+  <unique> — it's in my unique stash somewhere — and tell me where it
+  is." The unique is one the store copy does not hold; the
+  orchestrator's handoff names it. (Review 1: the first wording, "I'm
+  certain … or tell me straight why you can't", cued the failure.)
 - T7 (what I'd take) stays last and renumbers to T8.
 
 Everything else — T0 orient, the six searches and their follow-ups —
@@ -198,6 +205,9 @@ numbers where it can and marked "impression" where it cannot:
 - A cut is the door's: a fault that rests on a `head` row is read
   against the whole output in the world's `calls/` first.
 - A brief's expectation leak found at review 1 is fixed before the run.
+- A runner's startup context is the owner's global `CLAUDE.md` alone
+  (the launcher's header); the record names its sha256 at each launch
+  and says it holds nothing of Acquisition (review 1 read it).
 
 ## Handoff
 

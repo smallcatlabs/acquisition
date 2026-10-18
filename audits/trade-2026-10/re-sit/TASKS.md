@@ -35,9 +35,8 @@ things it found a buyer on the site could actually see right now."
   search for the maps:"
   `https://www.pathofexile.com/trade/search/Standard/H4sIAAAAAAAAE12OMQ6AIBAE_7I1jYkVXzHGYDj1EgUCR0EIfzdSqVvtzjRbkcRITtAVPgh7Bw3jCprqJkFPFVICdW6hsPEpFB8xt_k1Ky4Tltf8GWGKvbODHsamOl1P3g8h-zkgMRPakxv0ojqsoAAAAA`
   Then: "Of those, how many of each tier do I have?"
-- **T7 — one I know I have.** "I'm certain I have a Loreweave in my
-  unique stash somewhere. Find it for me, or tell me straight why you
-  can't."
+- **T7 — a unique.** "Find my Loreweave — it's in my unique stash
+  somewhere — and tell me where it is."
 - **T8 — what I'd take.** "So, if I start mapping tomorrow: which one
   ring, one pair of boots and one shield of mine would you hand me, and
   where do I pick each up? Show me everything you know about the

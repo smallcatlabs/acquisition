@@ -67,7 +67,8 @@ result as one you could.
   command at a mock of the game's API and at the store under `W`, and
   starts no daemon; nothing you run can reach the real API, the trade
   site or the person's real store, and you may write and price freely.
-- Besides the report, the debrief and work files you write nothing.
+- Besides the report, the debrief, a draft under `W/drafts/` and a
+  work file under `W/work/` you write nothing.
   Never commit, push, fetch, build or spawn an agent.
 - No number of commands is a target. A right result in many commands
   and a wrong one in few are both worth knowing; say which you have.
@@ -94,9 +95,14 @@ the run; call numbers are rows of calls.csv -->`. Then these headings
 and no others. Every claim cites a command by the number the door
 printed (`call 17`) — T0's first account, given before any command,
 cites what it read in `TOUR.md`; a count, a size or a time is the one the door or
-the tool printed, never one you remember.
+the tool printed, never one you remember. A fact this file gave you — what the tool is, whose
+items are here, that no login and no daemon exist — is this file's:
+cite it as `(the brief)`, never as the tool's, and count it as nothing
+the tool told you. Under any heading, `none` is an answer when it is
+true.
 
-1. **Before touching anything** — T0.
+1. **Before touching anything** — T0, what this file told you and what
+   the tour told you kept apart.
 2. **The tasks** — for each of T1 to T8: what you would tell the
    person, in the words you would use; the commands it took, by
    number; whether you hold the result to be right, and what would tell
@@ -104,19 +110,20 @@ the tool printed, never one you remember.
 3. **Faults** — what the tool said or did, what it should have, the
    calls that show it. A thing you could learn only by being refused
    is one; say what the refusal told you and whether it was enough to
-   go on. Order them worst first, and say for each whether a person at a
-   keyboard would hit it too or only an agent.
+   go on. Order them worst first, and say for each whether a person
+   using the tool would hit it too or only an agent.
 4. **What the tour and the help did not say** — each thing you needed
    and had to find by trying: the fact, where you expected to read it,
    the call where you learned it. Be exact.
 5. **The tool's own words** — the tour and the help texts as you read
-   them: what was right, what was wrong, missing or misleading, what
+   them, and the words of every answer, refusal and note the tool
+   printed: what was right, what was wrong, missing or misleading, what
    you read and never used, and any word you did not understand.
 6. **What you would ask of the tool** — one line each, with the call
    that made you want it.
 7. **Left out** — what you did not try, every file you opened that is
-   not one of the three, every work file you wrote, and the one thing
-   you cut that you would most want put back.
+   not one of the three, every file you wrote, and the one thing you
+   cut that you would most want put back.
 
 ## Acceptance
 
