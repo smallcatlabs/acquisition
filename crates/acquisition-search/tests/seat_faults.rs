@@ -1272,3 +1272,93 @@ fn an_items_place_says_which_cell_it_sits_in() {
         ]
     );
 }
+
+/// "Where do I pick it up" needed how old the place is, and a row said
+/// the place alone: the age was in `show`'s `last_seen` or `tabs`'s
+/// column, never beside the place (the trade seat: cli-opus-2 call 46,
+/// its fault 2; mcp-sonnet-2 calls 14, 24, its fault 4). C118: the place
+/// carries when its location was last fetched — a tab's, a page's own
+/// and never its tab's, a character's for every item it holds.
+#[test]
+fn an_items_place_says_when_its_location_was_fetched() {
+    let mut s = store();
+    list_tabs(
+        &mut s,
+        "pc",
+        "Standard",
+        json!([tab("d1", "Dump"), { "id": "u1", "name": "Uniques", "type": "UniqueStash" }]),
+        10,
+    );
+    fetch_tab(
+        &mut s,
+        "pc",
+        "Standard",
+        "d1",
+        "Dump",
+        vec![item("r1", "Doom Loop", "Iron Ring", "Rare", json!({}))],
+        20,
+    );
+    let sub = |sub: Option<&str>| acquisition_store::Endpoint::Stash {
+        realm: "pc".into(),
+        league: "Standard".into(),
+        id: "u1".into(),
+        sub: sub.map(str::to_string),
+    };
+    s.record(
+        &sub(None),
+        &json!({ "id": "u1" }),
+        200,
+        &json!({ "stash": { "id": "u1", "name": "Uniques", "type": "UniqueStash", "items": [],
+                            "children": [{ "id": "p1", "name": "Rings", "type": "UniqueStash" }] } }),
+        25,
+    )
+    .unwrap();
+    s.record(
+        &sub(Some("p1")),
+        &json!({ "id": "u1", "sub": "p1" }),
+        200,
+        &json!({ "stash": { "id": "p1", "name": "Rings", "type": "UniqueStash",
+                            "items": [item("u-p1", "Kaom's Heart", "Glorious Plate", "Unique", json!({}))] } }),
+        40,
+    )
+    .unwrap();
+    list_characters(
+        &mut s,
+        "pc",
+        json!([{ "id": "c1", "name": "Mover", "league": "Standard" }]),
+        30,
+    );
+    fetch_character(
+        &mut s,
+        "pc",
+        json!({ "id": "c1", "name": "Mover", "league": "Standard",
+                "equipment": [item("worn", "Storm Band", "Iron Ring", "Rare", json!({}))],
+                "inventory": [item("bag", "Grim Clasp", "Leather Belt", "Rare", json!({}))] }),
+        31,
+    );
+    let a = asked(&s, "pc", "");
+    let mut ages: Vec<(String, Value)> = a["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| {
+            (
+                r["id"].as_str().unwrap().to_string(),
+                r["place"]["fetched_at"].clone(),
+            )
+        })
+        .collect();
+    ages.sort_by(|a, b| a.0.cmp(&b.0));
+    assert_eq!(
+        ages,
+        [
+            ("bag".to_string(), json!(31)),
+            ("r1".to_string(), json!(20)),
+            ("u-p1".to_string(), json!(40)),
+            ("worn".to_string(), json!(31)),
+        ]
+    );
+    // `show` places an item as a row does
+    let shown = serde_json::to_value(show(&s, "u-p1", false).unwrap()).unwrap();
+    assert_eq!(shown["place"]["fetched_at"], 40, "{shown}");
+}

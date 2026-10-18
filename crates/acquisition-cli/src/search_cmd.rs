@@ -717,7 +717,7 @@ fn title(name: Option<&str>, typeline: Option<&str>) -> String {
     }
 }
 
-fn place_text(place: &acquisition_search::corpus::Place) -> String {
+fn place_text(place: &acquisition_search::corpus::Place, now: i64) -> String {
     let mut out = place
         .league
         .clone()
@@ -750,6 +750,12 @@ fn place_text(place: &acquisition_search::corpus::Place) -> String {
             parent.name.as_deref().unwrap_or(&parent.id)
         ));
     }
+    // how old the place is, as `tabs` says a tab's age (C118: "where do I
+    // pick it up" asked it of the trade seat, cli-opus-2 call 46)
+    out.push_str(&match place.fetched_at {
+        Some(at) => format!(" · fetched {}", ago(now, Some(at))),
+        None => " · never fetched".to_string(),
+    });
     out
 }
 
@@ -974,7 +980,7 @@ fn answer_text(a: &Answer) -> String {
         if a.scope.realm == Realm::All {
             head.push_str(&format!(" · {}", row.place.realm));
         }
-        head.push_str(&format!(" · {}", place_text(&row.place)));
+        head.push_str(&format!(" · {}", place_text(&row.place, now)));
         if let Some(removed_at) = row.removed_at {
             head.push_str(&format!(" · removed {}", ago(now, Some(removed_at))));
         }
@@ -1765,7 +1771,7 @@ fn shown_text(s: &Shown) -> String {
     out.push_str(&format!(
         "place   {} · {}\n",
         s.place.realm,
-        place_text(&s.place)
+        place_text(&s.place, acquisition_store::now())
     ));
     if let Some(base) = &item.base {
         out.push_str(&format!("base    {base}\n"));

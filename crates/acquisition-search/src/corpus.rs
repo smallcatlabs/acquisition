@@ -52,7 +52,8 @@
 //! - **Place is the store's** (C103): the league as the read joined it, the
 //!   location by its full coordinate (C54), its name, its parent's and
 //!   its tab's `type` (V10: `tab.type`, verbatim, a substash's own or its
-//!   tab's) from the header. An item whose location the header does not
+//!   tab's) and when the location was last fetched (C118: a character's
+//!   item has its character's) from the header. An item whose location the header does not
 //!   list cannot occur — the read hands over live items at live
 //!   locations, and under `all` the retired locations with the removed
 //!   items — and would carry its ids and no names. A folder's name is no
@@ -301,6 +302,10 @@ pub struct Place {
     /// item or a socketed one, whose place is its slot or its holder.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cell: Option<crate::derive::Cell>,
+    /// When the location the item sits in was last fetched — a tab's, a
+    /// page's, a character's — so a reader can say how old the place is
+    /// (C118); none where the store holds no fetch of it.
+    pub fetched_at: Option<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -442,6 +447,7 @@ pub(crate) fn placed(index: &Locations<'_>, row: CorpusItem) -> (Facts, Place) {
         container: row.container.clone(),
         socketed_in: row.socketed_in.clone().map(|id| Named { id, name: None }),
         cell: None,
+        fetched_at: location.and_then(|l| l.fetched_at),
     };
     let facts = Facts {
         id: row.id,

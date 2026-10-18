@@ -1377,3 +1377,30 @@ fn a_row_says_its_lines_and_values_and_no_copy_of_its_terms() {
         "{next}"
     );
 }
+
+/// A row's place carried no age, and "where do I pick it up" was
+/// answered from `show`'s `last_seen` beside a scope whose fetches spanned
+/// 3.2 million seconds (the trade seat: mcp-sonnet-2 calls 3, 14, 24, its
+/// fault 4). C118: the place carries its location's `fetched_at`, an
+/// epoch, and the tool's text names it.
+#[test]
+fn a_rows_place_carries_when_its_location_was_fetched() {
+    let mut seat = Seat::new();
+    let a =
+        seat.answer(&json!({ "query": { "text": "rarity=unique or \"+# to maximum Life\">=90" } }));
+    let mut ages: Vec<(&str, &Value)> = a["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| (r["id"].as_str().unwrap(), &r["place"]["fetched_at"]))
+        .collect();
+    ages.sort_by_key(|(id, _)| *id);
+    assert_eq!(ages, [("kaom", &json!(30)), ("r1", &json!(20))]);
+    let tools = seat.mcp.list_tools();
+    let search = tools.iter().find(|t| t["name"] == "search").unwrap();
+    let text = search["description"].as_str().unwrap();
+    assert!(
+        text.contains("when that place was last fetched (`place.fetched_at`)"),
+        "{text}"
+    );
+}

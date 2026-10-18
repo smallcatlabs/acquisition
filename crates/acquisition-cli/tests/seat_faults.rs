@@ -1191,6 +1191,47 @@ fn a_rows_place_says_which_cell_the_item_sits_in() {
     assert!(shown.contains("Standard / Gear · x 0, y 0"), "{shown}");
 }
 
+/// A row and `show` said where an item sits and never how old that is,
+/// while `tabs` printed every tab's age (the trade seat: cli-opus-2 call
+/// 46, its fault 2, for "where do I pick it up"). C118: the place ends
+/// with its location's fetch age, in the words `tabs` prints an age in.
+#[test]
+fn a_rows_place_says_how_long_ago_its_location_was_fetched() {
+    let scratch = harness::scratch("seat-age");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    // a tab fetched three days ago
+    let mock = base.join("store").join("mock");
+    let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
+    let then = acquisition_store::now() - 3 * 86_400 - 60;
+    store
+        .record(
+            &Endpoint::Stash {
+                realm: "pc".into(),
+                league: "Standard".into(),
+                id: "a1".into(),
+                sub: None,
+            },
+            &json!({}),
+            200,
+            &json!({ "stash": { "id": "a1", "name": "Gear", "type": "PremiumStash", "items": [
+                { "id": "i-std", "name": "", "typeLine": "Chaos Orb", "baseType": "Chaos Orb", "x": 0, "y": 0 } ] } }),
+            then,
+        )
+        .unwrap();
+    drop(store);
+    let shown = stdout(&acq(&base, &["search", "--realm", "pc", "league=Standard"]));
+    assert!(
+        shown.contains("Standard / Gear · x 0, y 0 · fetched 3d ago"),
+        "{shown}"
+    );
+    let shown = stdout(&acq(&base, &["show", "i-std"]));
+    assert!(
+        shown.contains("Standard / Gear · x 0, y 0 · fetched 3d ago"),
+        "{shown}"
+    );
+}
+
 /// `price show` refused the bare id every other verb prints, and the
 /// refusal named the grammar alone (the trade seat: cli-opus call 31,
 /// its fault 6). An item's id and a character's are alike, so neither is
