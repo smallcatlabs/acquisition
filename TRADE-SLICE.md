@@ -157,5 +157,6 @@ number here was measured, never recalled.
 | The crucible mark (t54 did not part its readings) | its note; the next sitting |
 | Which number a many-numbered text compares | its note; the next sitting |
 | Grafts, listed in no league; Maven's Invitations, listed and no item sent | its note; `map.invitation` met no item the oracle could read |
+| A Blight-ravaged map under `map_blighted`, outside its `Blighted` prefix (the trade seat: 13 at tiers 14–16) | `map_blighted` ambiguous (the owner, 2026-10-17: "Ambiguous, sitting asks"); the next sitting |
 | A map whose base names no tier | the map tier table park, `map_tier` ambiguous until it is built |
 | Two ranged cells and two percentile groups round v did not reach | "what no sitting has asked" (`decisions/search.md`), what is left |

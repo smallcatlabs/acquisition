@@ -33,7 +33,7 @@ fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
             count(Disposition::Unsupported),
             count(Disposition::ListingOnly)
         ],
-        [80, 20, 36, 9]
+        [79, 21, 36, 9]
     );
     // the four defence filters ambiguous since step 3 measured the q20
     // rule against the site (`tests/properties.rs`), and the digit rule no
@@ -69,12 +69,12 @@ fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
     // (t48) are the site's, and the elemental damage is its own figure;
     // and at 7f the free text a whole name or base (w06, w07), the foil the
     // relic mark (t52), the weapon's crit no gem's (t44), a blighted map
-    // its prefix (t55, t56)
+    // its prefix (t55, t56) — ambiguous since the trade seat met a
+    // Blight-ravaged map outside it (2026-10-17)
     for key in [
         "query.term",
         "type_filters.rarity=uniquefoil",
         "weapon_filters.crit",
-        "map_filters.map_blighted",
         "stat.explicit",
         "weapon_filters.edps",
         "map_filters.area_level",

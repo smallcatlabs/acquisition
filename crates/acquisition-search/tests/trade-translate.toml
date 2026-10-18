@@ -349,13 +349,13 @@ fidelity = "partial"
 statuses = { "map_filters.map_gold" = "unsupported", "map_filters.chart_sulphur" = "unsupported", "map_filters.chart_shape" = "unsupported", "map_filters.map_series" = "unsupported", "map_filters.map_uberblighted" = "unsupported", "map_filters.map_completion_reward" = "unsupported" }
 
 [[case]]
-name = "a blighted map: its type line's prefix (t55, t56)"
+name = "a blighted map: its type line's prefix (t55, t56), ambiguous for a Blight-ravaged one (the trade seat)"
 query = '{"filters": {"map_filters": {"filters": {"map_blighted": {"option": "true"}}}}}'
 text = 'typeline~"^Blighted "'
-fidelity = "exact"
-statuses = { "map_filters.map_blighted" = "exact" }
+fidelity = "ambiguous"
+statuses = { "map_filters.map_blighted" = "ambiguous" }
 matches = ['{"typeLine": "Blighted Map (Tier 13)", "baseType": "Blighted Map (Tier 13)", "rarity": "Normal"}']
-fails = ['{"typeLine": "Map (Tier 13)", "baseType": "Map (Tier 13)", "rarity": "Normal"}']
+fails = ['{"typeLine": "Map (Tier 13)", "baseType": "Map (Tier 13)", "rarity": "Normal"}', '{"typeLine": "Blight-ravaged Map (Tier 15)", "baseType": "Blight-ravaged Map (Tier 15)", "rarity": "Normal"}']
 
 # ---- heist_filters ----------------------------------------------------------------------------
 
@@ -1198,7 +1198,7 @@ name = "a Base naming a map's tier is ambiguous: the site returns its blighted f
 query = '{"type": "Map (Tier 13)", "filters": {"map_filters": {"filters": {"map_blighted": {"option": "true"}}}}}'
 text = 'base="Map (Tier 13)" typeline~"^Blighted "'
 fidelity = "ambiguous"
-statuses = { "type" = "ambiguous", "map_filters.map_blighted" = "exact" }
+statuses = { "type" = "ambiguous", "map_filters.map_blighted" = "ambiguous" }
 
 [[case]]
 name = "a scourge stat in a weighted sum is ambiguous (e043, f005: scourge-in-sum)"
