@@ -148,6 +148,8 @@ number here was measured, never recalled.
   (Recommended)"; the map search by tier and blighted, the site's form
   offering no tiered Base: "yes, agreed, and record what we found
   before proceeding".
+- Round x's six findings (2026-10-18; note 38, step 5): "accepted", then
+  "accepted" for the sixth, the written digit.
 
 ## Where the open observations went
 
@@ -156,10 +158,10 @@ number here was measured, never recalled.
 | A bound on a stat with an opposite-sign or numberless form | the named stat value park (`decisions/trade.md`); the clause ambiguous by `stat.text.forms`; the seat's `increased` ask |
 | e043's weighted sum of 28, a scourge stat in a weighted sum | `stat.scourge.summed`; the user-authored weighted sums park; the seat's `scourge-in-sum` |
 | `blighted-base`: the site's Base reads `Blighted Map (Tier 13)` as `Map (Tier 13)` | `query.type.map`; the sitting alone — the site's form offers no tiered map Base (its item list, `search/trade-query/data/items-2026-09-12.json`: 6,005 types, none naming a tier, a map's base the one type `Map`): a person cannot make the shape t55's composed URL asked, so no seat reaches it (2026-10-17) |
-| The crucible mark (t54 did not part its readings) | its note; the next sitting |
-| Which number a many-numbered text compares | its note; the next sitting |
+| The crucible mark (t54 did not part its readings) | its note, unchanged at round x: only a `not` over the site's 2,492 crucible ids could part the two readings, past what the site takes (220 ids refused) |
+| Which number a many-numbered text compares | round x, x04–x07 and x13–x17: a text of exactly two numbers by their average, as a `# to #` line (x14 at 1250–1253 found 252 of 252, x15 at 1254–2400 none); `avg` on any two-number template, `a_two_numbered_stat_is_compared_by_its_average`; three or more stay `stat.text.many`, unasked |
 | Grafts, listed in no league; Maven's Invitations, listed and no item sent | its note; `map.invitation` met no item the oracle could read |
 | A Blight-ravaged map under `map_blighted`, outside its `Blighted` prefix (the trade seat: 13 at tiers 14–16) | round x, x01–x03: the site counts none; `map_blighted` exact, its other readings gone, `a_blight_ravaged_map_is_not_a_blighted_one` (the owner, 2026-10-18: "accepted") |
-| A `Level` requirement GGG marks `(gem)`, read as the item's `reqlevel` (the trade seat: mcp-opus-1 call 39, not shown) | the next sitting: which level the site's filter reads |
+| A `Level` requirement GGG marks `(gem)`, read as the item's `reqlevel` (the trade seat: mcp-opus-1 call 39, not shown) | round x, x08 and x18: not shown — every item fetched owed its requirement to its base, whatever its item level (a normal Vaal Regalia of item level 7 requires 68), and no site filter selects an item by its socketed gem; parked in `decisions/trade.md`, `reqlevel` exact as displayed |
 | A map whose base names no tier | the map tier table park, `map_tier` ambiguous until it is built |
-| Two ranged cells and two percentile groups round v did not reach | "what no sitting has asked" (`decisions/search.md`), what is left |
+| Two ranged cells and two percentile groups round v did not reach | the two ranged cells asked at round x (x10, x11: ten agreeing items each, `ranged-expected-copy.csv` "asked"); the percentile lines and S4 are the pseudo track's own round, "what no sitting has asked" (`decisions/search.md`) |
