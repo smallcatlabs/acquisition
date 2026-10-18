@@ -52,6 +52,7 @@ the session's at list price.
 | mcp-sonnet-1 | `claude-sonnet-5-5` | `a2b95231` | 23 | none | 37 + 2 | $0.92 | `calls-mcp-sonnet-1.csv`, `REPORT-mcp-sonnet-1.md`, `DEBRIEF-mcp-sonnet-1.md` |
 | cli-opus-2 | `claude-opus-5-5` | `05176cfc` | 49 | none | 61 + 2 | $3.13 | `calls-cli-opus-2.csv`, `REPORT-cli-opus-2.md`, `DEBRIEF-cli-opus-2.md` |
 | mcp-opus-2 | `claude-opus-5-5` | `762398e2` | 43 | call 10 (`tabs`, 745,672 bytes) | 58 + 4 | $4.18 | `calls-mcp-opus-2.csv`, `REPORT-mcp-opus-2.md`, `DEBRIEF-mcp-opus-2.md` |
+| cli-sonnet-2 | `claude-sonnet-5-5` | `d604b4cd` | 26 | none | 32 + 2 | $0.67 | `calls-cli-sonnet-2.csv`, `REPORT-cli-sonnet-2.md`, `DEBRIEF-cli-sonnet-2.md` |
 
 cli-opus-1: one command denied by the rails (a shell line not starting
 with the door), run again through it; one file read outside W — the
@@ -91,3 +92,7 @@ mcp-opus-2: one `call` heredoc refused by the harness, sent inline; the
 harness let `date -u -r` through three times (a timestamp to a date),
 which touched neither the tool nor its store — the rails deny what is
 not allowed, and the harness counts `date` as safe.
+
+cli-sonnet-2: no denial; before call 18 it ran the door once with a
+wrong argument and a `2>/dev/null` redirect, which the brief forbids,
+reached no tool and logged nothing — disclosed in its "Left out".
