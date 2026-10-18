@@ -50,6 +50,7 @@ the session's at list price.
 | cli-sonnet-1 | `claude-sonnet-5-5` | `82f13d76` | 23 | none | 25 + 2 | $0.68 | `calls-cli-sonnet-1.csv`, `REPORT-cli-sonnet-1.md`, `DEBRIEF-cli-sonnet-1.md` |
 | mcp-sonnet-0 | `claude-sonnet-5-5` | `c7a92eaa` | 12 | none | 20 | $0.43 | `calls-mcp-sonnet-0.csv`, `REPORT-mcp-sonnet-0.md` (stopped at T2) |
 | mcp-sonnet-1 | `claude-sonnet-5-5` | `a2b95231` | 23 | none | 37 + 2 | $0.92 | `calls-mcp-sonnet-1.csv`, `REPORT-mcp-sonnet-1.md`, `DEBRIEF-mcp-sonnet-1.md` |
+| cli-opus-2 | `claude-opus-5-5` | `05176cfc` | 49 | none | 61 + 2 | $3.13 | `calls-cli-opus-2.csv`, `REPORT-cli-opus-2.md`, `DEBRIEF-cli-opus-2.md` |
 
 cli-opus-1: one command denied by the rails (a shell line not starting
 with the door), run again through it; one file read outside W — the
@@ -80,3 +81,7 @@ a way round a refusal they did not need. The run's world is
 mcp-sonnet-1: no draft needed; the rails refused one chained command,
 run again as its two parts; the harness clipped call 6, asked again as
 call 7 with fewer rows.
+
+cli-opus-2: one shell line denied by the rails, run again through the
+door; two files of its harness's (calls 9 and 10, the two `--describe`
+outputs) read outside W, named in its "Left out".
