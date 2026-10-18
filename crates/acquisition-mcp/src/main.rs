@@ -732,7 +732,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "One item as the search derives it, live or removed (no daemon, no network): its place, its fields, class, category and price, and every line with its kind, template and numbers. `against` adds why the item does or does not match a query: the root's outcome and each term's. `body` adds the stored body, verbatim. An id that is a tab's or a character's is refused and offers the search that lists it. A refusal is a result marked isError, as `search`'s is."
+        description = "One item as the search derives it, live or removed (no daemon, no network): its place, its fields, class, category and price, and every line with its kind, template and numbers. `against` adds why the item does or does not match a query: the root's outcome and each node's — a term's `matched`, `failed`, `lacked` or `undecided`, a group's `match`, `no_match` or `undecided`. `body` adds the stored body, verbatim. An id that is a tab's or a character's is refused and offers the search that lists it. A refusal is a result marked isError, as `search`'s is."
     )]
     fn show(&self, Parameters(p): Parameters<Args<ShowParams>>) -> Told {
         let p = match p.read() {

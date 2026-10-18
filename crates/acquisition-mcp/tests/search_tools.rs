@@ -1081,3 +1081,19 @@ fn a_terms_counts_and_resolved_values_are_said_to_be_over_the_scope() {
         assert!(text.contains(said), "{said}: {text}");
     }
 }
+
+/// `against` gave `match` for a group and `matched` for each term, two
+/// words a reader took for one outcome (the trade seat: mcp-opus call 37,
+/// its fault 8). By design a term counts and a group is true or false;
+/// the `show` text names both vocabularies.
+#[test]
+fn show_names_a_terms_outcomes_and_a_groups() {
+    let mut seat = Seat::new();
+    let tools = seat.mcp.list_tools();
+    let show = tools.iter().find(|t| t["name"] == "show").unwrap();
+    let text = show["description"].as_str().unwrap();
+    assert!(
+        text.contains("a term's `matched`, `failed`, `lacked` or `undecided`, a group's `match`, `no_match` or `undecided`"),
+        "{text}"
+    );
+}

@@ -105,7 +105,7 @@ Write the per-account sync policy (validated strictly, compare-and-swap on if_re
 
 ### `show`
 
-One item as the search derives it, live or removed (no daemon, no network): its place, its fields, class, category and price, and every line with its kind, template and numbers. `against` adds why the item does or does not match a query: the root's outcome and each term's. `body` adds the stored body, verbatim. An id that is a tab's or a character's is refused and offers the search that lists it. A refusal is a result marked isError, as `search`'s is.
+One item as the search derives it, live or removed (no daemon, no network): its place, its fields, class, category and price, and every line with its kind, template and numbers. `against` adds why the item does or does not match a query: the root's outcome and each node's — a term's `matched`, `failed`, `lacked` or `undecided`, a group's `match`, `no_match` or `undecided`. `body` adds the stored body, verbatim. An id that is a tab's or a character's is refused and offers the search that lists it. A refusal is a result marked isError, as `search`'s is.
 
 - `account` (string | null) — Account selector (username with or without `#discriminator`, or uuid); required only when several accounts are known.
 - `against` (object) — Why the item does or does not match a query: `{"text": …}`, `{"tree": …}` or `{"trade": …}`, as a request's `query`.
