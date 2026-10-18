@@ -1,6 +1,7 @@
 //! The faults the whole-CLI seat found (2026-10-13,
-//! `audits/rehome-2026-10/seat/REPORT.md` at `7653f8b0`), each held by the
-//! test named for it. A test here drives the real binary in a scratch
+//! `audits/rehome-2026-10/seat/REPORT.md` at `7653f8b0`) and the trade
+//! import's seat (2026-10-17, `audits/trade-2026-10/seat/`), each held by
+//! the test named for it. A test here drives the real binary in a scratch
 //! world against the mock; nothing reaches GGG.
 
 use std::path::Path;
@@ -958,4 +959,48 @@ fn an_apply_retried_while_its_requests_wait_queues_nothing_more() {
     );
     let applies = open_jobs().iter().filter(|j| j["kind"] == "apply").count();
     assert_eq!(applies, 1, "the retry queued a second apply");
+}
+
+/// A reader took `exact` for "the site would show me the same": the
+/// translation's fidelity is how far the text is the site's search, and
+/// the items are the store's, worn and stashed, priced or not, where the
+/// site shows public listings (the trade seat: mcp-opus calls 1, 11, its
+/// worst fault; cli-sonnet's debrief, answer 4). Every translation says
+/// so under its first line, an exact one too, and each clause with no
+/// stash meaning is named with its note, not by its key alone (cli-sonnet
+/// calls 6, 8).
+#[test]
+fn a_trade_answer_says_its_items_are_the_stores_whatever_its_fidelity() {
+    let scratch = harness::scratch("seat-trade-over");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    let mut child = harness::command(&base, &["search", "--realm", "pc", "--trade-file", "-"])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    use std::io::Write as _;
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(br#"{"query": {"status": {"option": "online"}, "type": "Chaos Orb"}}"#)
+        .unwrap();
+    let out = child.wait_with_output().unwrap();
+    let shown = stdout(&out);
+    let lines: Vec<&str> = shown.lines().collect();
+    assert!(
+        lines[0].starts_with("trade   from the query JSON: exact"),
+        "{shown}"
+    );
+    assert_eq!(
+        lines[1],
+        "        over      the items you hold, in every place, priced or not: the site shows \
+         public listings, so the search is the site's and the items are yours",
+        "{shown}"
+    );
+    assert!(
+        lines[2].starts_with("        reported  status  online, available, securable"),
+        "{shown}"
+    );
 }

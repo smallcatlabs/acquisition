@@ -1023,3 +1023,24 @@ fn a_site_search_is_a_query_and_its_report_stands_in_the_answer() {
     );
     assert!(described["trade"]["rows"].as_array().unwrap().len() > 100);
 }
+
+/// A reader took a trade answer's `fidelity: exact` for "the site would
+/// show me the same", reading "partial … the answer then not the site's"
+/// as its converse (the trade seat: mcp-opus calls 1, 11, its worst
+/// fault). The `query` field's text says what fidelity measures and that
+/// the items are the store's, never the site's listings.
+#[test]
+fn a_trade_fidelity_is_never_said_to_be_the_sites_items() {
+    let mut seat = Seat::new();
+    let tools = seat.mcp.list_tools();
+    let search = tools.iter().find(|t| t["name"] == "search").unwrap();
+    let query = search["inputSchema"]["properties"]["query"]["description"]
+        .as_str()
+        .unwrap();
+    for said in [
+        "`fidelity`, how far the text is the site's search",
+        "Never how far the items are the site's: the answer is over the items the store holds, in every place, priced or not, and the site shows public listings.",
+    ] {
+        assert!(query.contains(said), "{said}: {query}");
+    }
+}

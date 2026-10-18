@@ -763,11 +763,13 @@ fn evidence_text(evidence: &acquisition_search::answer::Evidence) -> String {
 }
 
 /// A site search's translation as an answer opens with it: one line,
-/// how far the text is the site's search, then each clause that did not
-/// run and each that runs as the site may not read it, with its note —
-/// ten of each listed and the rest counted (C53) — and the clauses with
-/// no stash meaning counted on one line. The whole is the JSON's
-/// `query.trade`.
+/// how far the text is the site's search; one line saying the items are
+/// the store's, never the site's listings, since a reader took `exact`
+/// for "the site would show the same" (the trade seat: mcp-opus calls 1,
+/// 11; cli-sonnet's debrief, answer 4); then each clause that did not
+/// run, each that runs as the site may not read it and each with no
+/// stash meaning, with its note — ten of each listed and the rest
+/// counted (C53). The whole is the JSON's `query.trade`.
 fn trade_text(t: &TradeOut) -> Vec<String> {
     let from = match t.source {
         Source::Url => "a URL",
@@ -797,13 +799,23 @@ fn trade_text(t: &TradeOut) -> Vec<String> {
             "trade   from {from}: exact — every clause with a stash meaning ran as the site reads it"
         ),
     }];
+    out.push(
+        "        over      the items you hold, in every place, priced or not: the site shows \
+         public listings, so the search is the site's and the items are yours"
+            .to_string(),
+    );
     let width = unsupported
         .iter()
         .chain(&ambiguous)
+        .chain(&reported)
         .map(|c| c.at.chars().count() + 2)
         .max()
         .unwrap_or(0);
-    for (word, clauses) in [("NOT RUN  ", &unsupported), ("ambiguous", &ambiguous)] {
+    for (word, clauses) in [
+        ("NOT RUN  ", &unsupported),
+        ("ambiguous", &ambiguous),
+        ("reported ", &reported),
+    ] {
         for c in clauses.iter().take(10) {
             out.push(format!(
                 "        {word} {:<width$}{}",
@@ -817,17 +829,6 @@ fn trade_text(t: &TradeOut) -> Vec<String> {
                 clauses.len() - 10
             ));
         }
-    }
-    if !reported.is_empty() {
-        let mut ats: Vec<&str> = reported.iter().take(10).map(|c| c.at.as_str()).collect();
-        if reported.len() > 10 {
-            ats.push("…");
-        }
-        out.push(format!(
-            "        reported  {} with no stash meaning — listing-only or disabled on the site: {}",
-            reported.len(),
-            ats.join(", ")
-        ));
     }
     out
 }

@@ -2612,6 +2612,10 @@ fn trade_url() -> String {
 const TRADE_TEXT: &str =
     r##"league=Standard sum(line("# to maximum Life" source=explicit).arg1)>=70"##;
 
+/// The line under every translation's first: the items are the store's,
+/// whatever the fidelity (the trade seat; `seat_faults.rs`).
+const TRADE_OVER: &str = "        over      the items you hold, in every place, priced or not: the site shows public listings, so the search is the site's and the items are yours";
+
 /// Each clause's place and status, as the report gives them.
 fn statuses(trade: &Value) -> Vec<(String, String)> {
     trade["clauses"]
@@ -2680,19 +2684,20 @@ fn c113_a_site_search_url_runs_labelled_and_its_printed_request_reads_back() {
         lines[0],
         "trade   from a URL: PARTIAL — 2 clauses not run, so this is not the site's search"
     );
+    assert_eq!(lines[1], TRADE_OVER);
     assert!(
-        lines[1].starts_with("        NOT RUN   stats.1    a path of nodes to allocate at once"),
+        lines[2].starts_with("        NOT RUN   stats.1    a path of nodes to allocate at once"),
         "{shown}"
     );
     assert!(
-        lines[2].starts_with("        NOT RUN   stats.1.0  its group `stats.1`"),
+        lines[3].starts_with("        NOT RUN   stats.1.0  its group `stats.1`"),
         "{shown}"
     );
-    assert_eq!(
-        lines[3],
-        "        reported  1 with no stash meaning — listing-only or disabled on the site: status"
+    assert!(
+        lines[4].starts_with("        reported  status     online, available, securable"),
+        "{shown}"
     );
-    assert_eq!(lines[4], format!("query   {TRADE_TEXT}"));
+    assert_eq!(lines[5], format!("query   {TRADE_TEXT}"));
 
     // --print-request: the site search beside the text it translates to,
     // the realm the URL's
