@@ -16,10 +16,11 @@ witnesses are what that review asked for.
 
 Steps 0 to 7 are closed (`77666ea4`, the last commit that holds the
 brief whole: their text and acceptance, what each step opened, what
-step 7 found, the choice before 7e and what 7e and 7f built); the
-record holds their commits, what they taught and the owner's verdicts;
-the seat and the close stay below, with what the closed steps left
-open.
+step 7 found, the choice before 7e and what 7e and 7f built); step 8,
+the seat, closed 2026-10-17, its text at `6e31d630` and its record
+`audits/trade-2026-10/seat/README.md`; the record holds their commits,
+what they taught and the owner's verdicts; the close stays below, with
+what the closed steps left open.
 
 ## What is built
 
@@ -62,22 +63,8 @@ clone on 2026-10-15, hashes checked against the manifests;
 Each step lands green on the gate and is reviewed from outside before
 the next. Steps 0 to 7: the brief at `77666ea4`.
 
-8. **The seat.** The third of the search's, by the seat skill, under
-   `audits/trade-2026-10/seat/PLAN.md` (both surfaces, serial, a
-   debrief after each report): a URL
-   from a friend, what in my stash matches, in a person's words — one
-   of them bounding an `increased` stat, so the named stat value's park
-   (`decisions/trade.md`) meets its trigger or does not, on evidence;
-   and a weighted sum over a scourge stat, so `scourge-in-sum`
-   (`tests/trade-oracle.toml`) meets a reader; each a site search the
-   owner built in a browser. `blighted-base` meets none: the site's
-   form offers no tiered map Base (its item list,
-   `search/trade-query/data/items-2026-09-12.json`: 6,005 types, none
-   naming a tier, a map's base the one type `Map`), so a person cannot
-   make the shape t55's composed URL asked, and it stays the sitting's
-   (2026-10-17);
-   the fix round inside the step (V6), its faults held by
-   `tests/seat_faults.rs`, anything new a park with a trigger.
+8. **The seat.** Closed 2026-10-17, its text at `6e31d630`; the
+   record is `audits/trade-2026-10/seat/README.md`.
 9. **Close.** `TRADE-SLICE.md` gains the seat's rows and is cut to
    its closed form; the park entries rewritten (`decisions/trade.md`,
    `decisions/search.md`); `search/README.md`'s tracks table; this
@@ -111,16 +98,19 @@ the next. Steps 0 to 7: the brief at `77666ea4`.
   a count stated before it was measured — this brief's first draft
   said 447 captures where the file holds 864).
 
-## Open for the seat (what steps 0 to 7 left, each where it stands)
+## Open for the close (what steps 0 to 8 left, each where it stands)
 
 - A bound on a stat with an opposite-sign or numberless form is
   ambiguous by `stat.text.forms`, naming the named stat value's park
-  (`decisions/trade.md`); the seat's `increased` ask meets its trigger
-  or does not, on evidence.
+  (`decisions/trade.md`): the seat met its trigger, no answer differing
+  on the store, and it is marked fired and queued (the owner).
 - `scourge-in-sum` (`stat.scourge.summed`, e043):
-  `tests/trade-oracle.toml`, labelled; the seat's weighted sum over a
-  scourge stat meets a reader. `blighted-base` (`query.type.map`) is the
-  sitting's alone: no seat reaches it (step 8).
+  `tests/trade-oracle.toml`, labelled; every seat run read the label as
+  a caveat, the sitting's still. `blighted-base` (`query.type.map`) is
+  the sitting's alone: no seat reaches it. The seat made `map_blighted`
+  ambiguous (a Blight-ravaged map outside its prefix) and a map filter's,
+  maps alone; the next sitting asks both, with a `(gem)` level, in
+  `TRADE-SLICE.md`'s rows.
 - Each its note's, for the next sitting: the crucible mark (t54 did not
   part its readings); which number a many-numbered text compares;
   grafts, listed in no league; Maven's Invitations, listed and no item

@@ -1,8 +1,12 @@
 # The trade import's seat — the record
 
-Step 8 of `search/TRADE-PLAN.md`, under `PLAN.md` beside this file. The
-close (the plan's step 10) adds the runs, their call counts and trees,
-the fate of every fault and the debriefs' answers routed.
+Step 8 of `search/TRADE-PLAN.md`, closed 2026-10-17. It ran under its
+plan, `PLAN.md` at `18a3d7b4`; the briefs `BRIEF-cli.md` and
+`BRIEF-mcp.md` at `3e84db17`, `TASKS.md` at `157f7078` and
+`DEBRIEF-QUESTIONS.md` at `538022d6`, each removed at the close. Two
+rounds of four runs — Opus and Sonnet, CLI and MCP — each runner a
+headless session in a world outside the repository, through one door
+(the seat skill); review 2, from outside, reads this record next.
 
 ## The worlds
 
@@ -183,3 +187,21 @@ pristine store on the release build, or found in the code; a parked
 ask rests on the runner's calls as cited and was not reproduced one by
 one. No further call file was opened. Every `calls.csv` was read whole
 for its counts.
+
+## The debriefs, routed
+
+Each run's answer 5 (what to change first) and 7 (what we did not ask):
+
+| Answer | Went to |
+| --- | --- |
+| Name what the trade answer leaves out, in plain words (cli-opus-1 5) | `efa8be17`, `35b43898` |
+| The stale, partial store as the header's caveat; the sort and the filter one number (cli-sonnet-1 5) | `fcb7e577`, `f737a2bb` |
+| Say what the site could show; reword fidelity (mcp-opus-1 5) | `35b43898`; the listing-state park |
+| Every answer says what it could not see (mcp-sonnet-1 5) | `fcb7e577` |
+| A site-visible field and row mark (cli-opus-2 5, mcp-opus-2 5) | the listing-state park, `decisions/search.md`; the price reason's words, the frontends citation park |
+| The never-fetched listable (cli-sonnet-2 5) | the coverage-list park |
+| A short answer (mcp-sonnet-2 5) | the frontends size park |
+| "Which answer would you retract, or not bet on?" (mcp-opus-1 7, cli-opus-2 7, mcp-opus-2 7; cli-sonnet-1 7 and cli-sonnet-2 7 alike) | the seat skill's debrief |
+| How fresh each item is (mcp-opus-1 7, mcp-sonnet-1 7) | the item-age park |
+| The routes made counts cheap to check (cli-opus-1 7, cli-sonnet-1 7) | dropped: a strength, kept as it is |
+| A size limit on `tabs` (mcp-sonnet-2 7) | the frontends size park |

@@ -54,7 +54,7 @@ rounds t to w. Nothing here is a second authority.
 | 5 · the surface | `04b43ea6`; reviewed `56b3c5e9` | `answer.rs`, the CLI's `search_cmd.rs`, the MCP's `main.rs`; `tests/search_json.rs`, the MCP's tests; the references |
 | 6 · the oracle | `34a99e38`; reviewed `e2900667` | `tests/trade_oracle.rs`, `tests/trade-oracle.toml`; `tools/trade-captures.py`, `search/pseudo-stats/data/bodies.json` |
 | 7 · the sitting | rounds t to v `7032f767`, `e062401e`; round w `6af5b846`; the reading `2acda56a`; reviewed `bef2ba58`; the clones' tracks read `606b4a17`, reviewed `555c4f58`, `373c541a`, `0ff8e09c`; the shape `c14c95ee`; the choice before 7e `33a96108`; 7e `0e91048d`, reviewed `39725d10`; 7f `8f293ff3`, reviewed `6fdcc581`, `80608255`; closed `77666ea4` | `tools/trade-sheet.py` rounds t–w, `search/pseudo-stats/MANIFEST.md`; `trade/forms.rs`, `tools/trade-forms-table.py`, the two forms tables; `tests/trade_forms.rs`; the oracle's rows and labels; `brainstorming-notes/37-the-stat-value.md` |
-| 8 · the seat | open | the seat skill: `audits/<slice>/seat/`; `tests/seat_faults.rs` |
+| 8 · the seat | the plan `388406ef`–`18a3d7b4`; the doors `45c0d377`, `875a6729`, `e459bed7`, `3e84db17`; the briefs `538022d6`, review 1 `157f7078`; the runs `5eea0ac6`–`df03ec95`; the round `a3ad3273`–`1eecf3e0`; closed with the record | `audits/trade-2026-10/seat/README.md`; the seat faults of the CLI and the search crate (`seat_faults.rs`) and the MCP (`search_tools.rs`); the catalogue's `says` |
 | 9 · the close | open | this record cut to its closed form; the brief deleted, cited at its last commit; `search/README.md`'s tracks table |
 
 ## The parks it fired or filed
