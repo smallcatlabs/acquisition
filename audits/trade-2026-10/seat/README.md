@@ -40,6 +40,7 @@ the session's at list price.
 | cli-opus | `claude-opus-5-5` | `b12c3dbb` | 34 | none | 46 + 2 | $2.27 | `calls-cli-opus.csv`, `REPORT-cli-opus.md`, `DEBRIEF-cli-opus.md` |
 | mcp-opus | `claude-opus-5-5` | `493d51e7` | 39 | call 9 (`tabs`, 745,672 bytes) | 57 + 2 | $3.60 | `calls-mcp-opus.csv`, `REPORT-mcp-opus.md`, `DEBRIEF-mcp-opus.md` |
 | cli-sonnet | `claude-sonnet-5-5` | `82f13d76` | 23 | none | 25 + 2 | $0.68 | `calls-cli-sonnet.csv`, `REPORT-cli-sonnet.md`, `DEBRIEF-cli-sonnet.md` |
+| mcp-sonnet-0 | `claude-sonnet-5-5` | `c7a92eaa` | 12 | none | 20 | $0.43 | `calls-mcp-sonnet-0.csv`, `REPORT-mcp-sonnet-0.md` (stopped at T2) |
 
 cli-opus: one command denied by the rails (a shell line not starting
 with the door), run again through it; one file read outside W — the
@@ -55,3 +56,14 @@ moved call 10's 31 KB result to a file the runner did not open, so call
 cli-sonnet: no denial; one file of its harness's (call 7's 39,716 bytes)
 saved and not opened. Its world's door wrote `calls.csv` with LF line
 ends; nothing else in the world differs from cli-opus's.
+
+mcp-sonnet-0: stopped at T2 on the rails, not the tool. The harness
+refused three `report` heredocs: it reads a heredoc's body as shell,
+and a line with `?` before an unclosed apostrophe ("Right? … each
+clause's matched count") fails its parse, bisected to that sentence in
+a probe world. The runner stopped and asked, as the brief binds it. The
+doors' `report` and `debrief` gained `--from NAME`, read from
+`W/drafts/`, which the rails let the runner's file tool write, and both
+briefs a sentence naming it; the three finished runs stand, the change
+a way round a refusal they did not need. The run's world is
+`mcp-sonnet-0/`; the run again is `mcp-sonnet`, fresh.

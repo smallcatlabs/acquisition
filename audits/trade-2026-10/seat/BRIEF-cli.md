@@ -46,7 +46,12 @@ result as one you could.
   NAME` also saves the command's stdout as `W/work/NAME`, as a shell's
   `>` would. `report` appends what it reads to your report (`--new`
   starts it); `debrief` is the same for the debrief you will be asked
-  for after the report. Run nothing else against the tool or its store:
+  for after the report.
+  Where your harness refuses a `report` or `debrief` heredoc, write
+  that part with your file tool as `W/drafts/NAME` — with `W/work/`, the
+  only places you may write a file — and run `report --from NAME` (or `debrief --from
+  NAME`) instead.
+  Run nothing else against the tool or its store:
   no `acq` by its path, no `acqd`, no `sqlite3`, no `cargo`, no `curl`,
   and none of the door's `setup`, `login` or `teardown`, which are the
   world's maker's.

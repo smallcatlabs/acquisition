@@ -7,12 +7,18 @@
 # made the world: a subagent starts in the repository with its instructions, the
 # owner's memory index and the git log in its context, and is not blind. Started
 # in WORLD, outside the repository, it loads no project instructions, no memory
-# and no git status (the owner's global CLAUDE.md alone). The rails: anything not
-# allowed below is denied without a prompt (dontAsk); it reads inside WORLD and
-# runs WORLD's door (DOOR: seat.py or seat-mcp.py) and nothing else; no MCP
-# server, no user settings, hook or allow-rule; no agent, skill, edit, write or
-# web tool. With SESSION-ID it resumes that session (the debrief); without, it
-# starts one. Prints the result JSON on stdout: session_id, result, denials.
+# and no git status (the owner's global CLAUDE.md alone).
+#
+# The rails: anything not allowed below is denied without a prompt (dontAsk). It
+# reads inside WORLD, runs WORLD's door (DOOR: seat.py or seat-mcp.py) and
+# nothing else, and writes only under WORLD/drafts/ (a report part the harness
+# will not pass as a heredoc, read by the door's `--from`) and WORLD/work/ (a
+# file the tool reads). No MCP server, no user settings, hook or allow-rule; no
+# agent, skill or web tool. A rule's absolute path is `//abs/…`, and a write is
+# an `Edit(…)` rule.
+#
+# With SESSION-ID it resumes that session (the debrief); without, it starts one.
+# Prints the result JSON on stdout: session_id, result, denials.
 set -euo pipefail
 world=$(cd "$1" && pwd) model=$2 door=$3 resume=${5:-}
 [[ -f $world/$door ]] || { echo "launch: no $door in $world" >&2; exit 2; }
@@ -20,8 +26,8 @@ text=$(cat "$4")  # read before the cd: a relative PROMPT-FILE is the caller's
 [[ -n $text ]] || { echo "launch: $4 is empty" >&2; exit 2; }
 cd "$world"
 args=(-p --model "$model" --permission-mode dontAsk --strict-mcp-config --setting-sources project
-      --allowedTools "Read($world/**)" "Bash(python3 -I $world/$door:*)"
-      --disallowedTools Agent Workflow Skill Write Edit NotebookEdit WebFetch WebSearch
+      --allowedTools "Read(/$world/**)" "Edit(/$world/drafts/**)" "Edit(/$world/work/**)" "Bash(python3 -I $world/$door:*)"
+      --disallowedTools Agent Workflow Skill NotebookEdit WebFetch WebSearch
       --output-format json)
 [[ -n $resume ]] && args+=(--resume "$resume")
 exec claude "${args[@]}" "$text" < /dev/null

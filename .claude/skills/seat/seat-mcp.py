@@ -132,9 +132,16 @@ def call_cmd(a):
     show(n, a.tool, is_error, text, len((line or "").encode()), wall, shown)
 
 
-def append(name, new):
+def append(name, new, draft):
+    # A part arrives on stdin, or from WORLD/drafts/DRAFT, which the runner's file tool may write:
+    # a harness that parses a heredoc's body as shell refuses some prose (`?` before an open quote).
     path = os.path.join(WORLD, name)
-    text = sys.stdin.read()
+    if draft:
+        if "/" in draft or draft.startswith("."):
+            sys.exit(f"seat-mcp: --from takes a bare file name, read from {WORLD}/drafts/")
+        text = open(os.path.join(WORLD, "drafts", draft)).read()
+    else:
+        text = sys.stdin.read()
     with open(path, "w" if new else "a") as f:
         f.write(text if text.endswith("\n") else text + "\n")
     print(f"seat-mcp: {name} is {os.path.getsize(path)} bytes")
@@ -153,8 +160,12 @@ def main():
     c.add_argument("--note", default="")
     c.add_argument("tool")
     c.add_argument("args")
-    sub.add_parser("report").add_argument("--new", action="store_true")
-    sub.add_parser("debrief").add_argument("--new", action="store_true")
+    r = sub.add_parser("report")
+    r.add_argument("--new", action="store_true")
+    r.add_argument("--from", dest="draft", help="a file under WORLD/drafts/, by bare name, in place of stdin")
+    d = sub.add_parser("debrief")
+    d.add_argument("--new", action="store_true")
+    d.add_argument("--from", dest="draft", help="a file under WORLD/drafts/, by bare name, in place of stdin")
     a = ap.parse_args()
     place(a.world, a.bin)
     if a.cmd == "open":
@@ -162,7 +173,7 @@ def main():
     elif a.cmd == "call":
         call_cmd(a)
     else:
-        append(a.cmd.upper() + ".md", a.new)
+        append(a.cmd.upper() + ".md", a.new, a.draft)
 
 
 if __name__ == "__main__":

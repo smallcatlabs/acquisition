@@ -114,6 +114,12 @@ skill (P6).
 - **A world's path is its socket's.** A store directory deep under a
   temporary directory makes a socket path too long to bind; keep a
   world with a daemon short-pathed.
+- **The harness reads a heredoc as shell.** Under the launch's rails it
+  refused a door command whose heredoc held prose it could not parse
+  (`?` before an unclosed apostrophe) and one holding JSON with escaped
+  quotes; the trade seat's Sonnet MCP run stopped at T2 on it. A part
+  the harness refuses goes in as a file: `W/drafts/NAME`, written by the
+  runner's file tool, read by `report --from NAME`.
 - **A long output is the runner's context.** The door prints the head
   of anything over 60,000 bytes and says so; a verb that needs that is
   a finding (`acq tabs` at 355 KB, `search --describe` at 117 KB).
