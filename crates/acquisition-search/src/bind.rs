@@ -123,7 +123,9 @@ use crate::tree::{self, Collection, Node, Number, Op, Probe, Value, ValueRef};
 
 /// A construct of the language this build refuses, and the step of the
 /// plan that builds it — none, where it waits for a consumer that asks:
-/// the plan's step 10 left four so, and the slice closed with them.
+/// the plan's step 10 left four so, and the slice closed with them;
+/// `--view locations` left since, the list it stood for being `tabs`
+/// (C118).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub struct NotBuilt {
     pub construct: &'static str,
@@ -138,11 +140,6 @@ pub const NOT_BUILT: &[NotBuilt] = &[
         construct: "--fields",
         step: None,
         what: "the caller names a row's fields",
-    },
-    NotBuilt {
-        construct: "--view locations",
-        step: None,
-        what: "the full coverage list the scope block summarises",
     },
     NotBuilt {
         construct: "--rebind",

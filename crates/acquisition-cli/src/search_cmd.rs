@@ -194,10 +194,6 @@ pub struct SearchArgs {
     /// nowhere; beside `--explain`, which is of the query typed, an error.
     #[arg(long, value_name = "WHICH")]
     pub context: Option<String>,
-    /// Not built, waiting for a consumer that asks: `locations`, the full
-    /// coverage list.
-    #[arg(long, value_name = "WHAT")]
-    pub view: Option<String>,
     /// Print the request as JSON, its account and realm resolved, and do
     /// not run it: what `--request` reads.
     #[arg(long)]
@@ -272,7 +268,6 @@ fn emit<T: Serialize>(value: &T, json: bool, text: impl FnOnce(&T) -> String) ->
 pub fn search(args: SearchArgs, json: bool) -> Result<()> {
     let unbuilt = [
         ("--fields", args.fields.is_some()),
-        ("--view locations", args.view.is_some()),
         ("--rebind", args.rebind),
     ];
     if let Some((construct, _)) = unbuilt.iter().find(|(_, typed)| *typed) {

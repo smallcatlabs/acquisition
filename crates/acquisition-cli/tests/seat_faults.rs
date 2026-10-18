@@ -1828,3 +1828,37 @@ fn the_trade_headers_over_line_never_reads_as_full_coverage() {
     );
     assert!(shown.contains("never fetched: MapStash 1 of 1"), "{shown}");
 }
+
+/// `--view locations` was refused by name as not built, and since the
+/// scope line points at `tabs` nothing pointed at it; two runs of the
+/// trade seat had followed it to "not built" (cli-sonnet-2 calls 3 and
+/// 6, its fault 1). The list it stood for is `tabs` (C118), and the
+/// never fetched by name is a park on `tabs`, not a search view: the
+/// flag is gone, `describe` lists it nowhere, and the help names no view.
+#[test]
+fn the_locations_view_is_gone_since_tabs_is_the_list() {
+    let scratch = harness::scratch("seat-no-view");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    let refused = acq(&base, &["search", "--view", "locations"]);
+    assert!(!refused.status.success());
+    assert!(stderr(&refused).contains("--view"), "{}", stderr(&refused));
+    assert!(
+        !stderr(&refused).contains("not built"),
+        "{}",
+        stderr(&refused)
+    );
+    let help = stdout(&acq(&base, &["search", "--help"]));
+    assert!(!help.contains("--view"), "{help}");
+    let described = sole_json(&acq(&base, &["--json", "search", "--describe"]));
+    let unbuilt: Vec<&str> = described["not_built"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|n| n["construct"].as_str().unwrap())
+        .collect();
+    assert!(
+        !unbuilt.iter().any(|c| c.contains("locations")),
+        "{unbuilt:?}"
+    );
+}

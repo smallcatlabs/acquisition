@@ -38,7 +38,8 @@ the store's read.
   `totals-table.py`, `category-table.py`, `defence-table.py`, and
   `tools/trade-sheet.py` for a sitting.
 - Not built, each refused by name and printed by `--describe`:
-  `--fields`, `--view locations`, `--rebind`, `show --basis`. Not in the
+  `--fields`, `--rebind`, `show --basis` (`--view locations` left at
+  note 38's step 4: `tabs` is the list). Not in the
   slice: the trade translation (C99), parked.
 
 
