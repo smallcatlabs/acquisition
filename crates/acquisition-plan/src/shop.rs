@@ -135,12 +135,16 @@ use crate::{Selection, SyncPolicy};
 
 /// The render's JSON shape; changes are additive (C53) until they are
 /// not, and then this moves. The shape is pinned by
-/// `reference/shop-render-schema-3.json`
-/// (`the_render_json_matches_the_committed_fixture`). **3** since
-/// 2026-09-07: the owner's page shape (spoilers) renamed `Posted.price`
-/// to `title`; 2 measured staleness over the stale set only; neither 1
-/// nor 2 reached a consumer.
-pub const SHOP_SCHEMA: u32 = 3;
+/// `reference/shop-render-schema-4.json`
+/// (`the_render_json_matches_the_committed_fixture`). **4** since
+/// 2026-10-19: `left_out` lists the items left off for a reason and
+/// leaves out the ones nothing applies to unless asked
+/// ([`RenderOptions::expand`]), saying which in `off_page_listed` — the
+/// release seat met 5 MB of them. **3** since 2026-09-07: the owner's
+/// page shape (spoilers) renamed `Posted.price` to `title`; 2 measured
+/// staleness over the stale set only; neither 1 nor 2 reached a
+/// consumer.
+pub const SHOP_SCHEMA: u32 = 4;
 
 /// The forum's hard post limit in characters (T23); the C++ app's
 /// constant (T15) had it right.
@@ -456,7 +460,10 @@ pub struct ShopCounts {
 /// The render: the contract `--json` prints and everything the text is a
 /// function of (C53) — the listing header it was resolved from, the
 /// inputs (size, template), the policy table with counts, every item's
-/// disposition, the pages, and the C72 report.
+/// disposition, the pages, and the C72 report. Every item is counted by
+/// its cell; `left_out` lists each item left off for a reason — omitted
+/// or blocked — and the items nothing applies to only when asked, since
+/// they are most of a league and no decision hangs on one of them.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ShopRender {
     pub schema: u32,
@@ -467,7 +474,12 @@ pub struct ShopRender {
     pub policy: Vec<PolicyRow>,
     pub counts: ShopCounts,
     pub posted: Vec<Posted>,
+    /// Every item omitted or blocked; the items nothing applies to too
+    /// when `off_page_listed`, else counted alone (`counts.off_page`).
     pub left_out: Vec<LeftOut>,
+    /// Whether `left_out` lists the items nothing applies to
+    /// ([`RenderOptions::expand`]).
+    pub off_page_listed: bool,
     pub pages: Vec<Page>,
     pub freshness: Freshness,
 }
@@ -481,6 +493,9 @@ pub struct RenderOptions<'a> {
     pub template: &'a str,
     pub now: i64,
     pub policy: PolicySource<'a>,
+    /// List the items nothing applies to in `left_out` as well; they are
+    /// counted either way.
+    pub expand: bool,
 }
 
 /// Why a page could not be rendered at all.
@@ -750,7 +765,12 @@ pub fn render(report: &ListingReport, opts: &RenderOptions<'_>) -> Result<ShopRe
             Verdict::Block => counts.blocked += 1,
             Verdict::OffPage => counts.off_page += 1,
         }
-        if cell.verdict() != Verdict::Post {
+        let listed = match cell.verdict() {
+            Verdict::Post => false,
+            Verdict::OffPage => opts.expand,
+            Verdict::Omit | Verdict::Block => true,
+        };
+        if listed {
             left_out.push(LeftOut {
                 target: target.clone(),
                 label,
@@ -818,6 +838,7 @@ pub fn render(report: &ListingReport, opts: &RenderOptions<'_>) -> Result<ShopRe
         counts,
         posted: cut.posted,
         left_out,
+        off_page_listed: opts.expand,
         pages: cut.pages,
         freshness,
     })
@@ -1315,6 +1336,7 @@ mod tests {
             template: ITEMS_TOKEN,
             now: 5_000,
             policy,
+            expand: false,
         }
     }
 
@@ -1340,7 +1362,14 @@ mod tests {
     /// count: nothing is skipped silently.
     #[test]
     fn c74_every_item_is_posted_omitted_blocked_or_off_the_page_and_counted() {
-        let r = render(&report(), &opts(PolicySource::NotSet)).unwrap();
+        let r = render(
+            &report(),
+            &RenderOptions {
+                expand: true,
+                ..opts(PolicySource::NotSet)
+            },
+        )
+        .unwrap();
         let c = &r.counts;
         assert_eq!(c.items, 21);
         assert_eq!(c.posted + c.omitted + c.blocked + c.off_page, c.items);
@@ -1573,6 +1602,7 @@ mod tests {
                 template,
                 now: 5_000,
                 policy: PolicySource::NotSet,
+                expand: false,
             },
         )
         .unwrap();
@@ -1625,6 +1655,7 @@ mod tests {
                 template,
                 now: 5_000,
                 policy: PolicySource::NotSet,
+                expand: false,
             },
         )
         .unwrap();
@@ -1642,6 +1673,7 @@ mod tests {
                 template,
                 now: 5_000,
                 policy: PolicySource::NotSet,
+                expand: false,
             },
         )
         .unwrap();
@@ -1661,6 +1693,7 @@ mod tests {
                     template,
                     now: 5_000,
                     policy: PolicySource::NotSet,
+                    expand: false,
                 },
             )
             .unwrap_err();
@@ -1673,6 +1706,7 @@ mod tests {
                 template,
                 now: 5_000,
                 policy: PolicySource::NotSet,
+                expand: false,
             },
         )
         .unwrap_err();
@@ -1887,7 +1921,7 @@ mod tests {
     fn the_render_json_matches_the_committed_fixture() {
         let path = concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/reference/shop-render-schema-3.json"
+            "/reference/shop-render-schema-4.json"
         );
         let policy = SyncPolicy::from_value(&json!({
             "version": 3,
@@ -2078,6 +2112,7 @@ mod tests {
                 template: ITEMS_TOKEN,
                 now,
                 policy,
+                expand: false,
             }
         }
 
@@ -2113,7 +2148,7 @@ mod tests {
                 (31, 52, 5, 1889, 1)
             );
             assert_eq!(c.posted + c.omitted + c.blocked + c.off_page, c.items);
-            assert_eq!(r.posted.len() + r.left_out.len(), c.items);
+            assert_eq!(r.posted.len() + r.left_out.len() + c.off_page, c.items);
             assert_eq!(c.by_cell.values().sum::<usize>(), c.items);
             let expected: BTreeMap<Cell, usize> = Cell::ALL
                 .iter()
@@ -2198,6 +2233,58 @@ mod tests {
             let text = serde_json::to_string(&r).unwrap();
             let back: ShopRender = serde_json::from_str(&text).unwrap();
             assert_eq!(back, r);
+        }
+
+        /// C74, C53 — the release seat's shop document: 5 MB on the MCP
+        /// and 7.5 MB as `--json`, because `left_out` listed every item
+        /// nothing applies to (20,749 of the owner's 21,311). Over the
+        /// owner's league here: the items left off for a reason — the game
+        /// lists it, skipped by hand, blocked — are listed, every one; the
+        /// 1,889 nothing applies to are counted and listed only when
+        /// asked, and the document says which it did.
+        #[test]
+        fn the_shop_document_lists_what_is_left_off_for_a_reason_and_counts_what_nothing_applies_to()
+         {
+            let (s, report) = fixture();
+            let r = render(&report, &opts_at(s.taken_at, PolicySource::NotSet)).unwrap();
+            let c = &r.counts;
+            assert_eq!(c.off_page, 1889);
+            assert!(
+                r.left_out.iter().all(|l| l.verdict != Verdict::OffPage),
+                "the default document lists what nothing applies to"
+            );
+            assert_eq!(r.left_out.len(), c.omitted + c.blocked);
+            assert!(!r.off_page_listed);
+            let bytes = serde_json::to_string_pretty(&r).unwrap().len();
+            eprintln!("the default shop document over the owner's league: {bytes} bytes");
+            assert!(bytes < 64_000, "{bytes} bytes");
+
+            // Asked, the same document lists them too, and nothing else moves.
+            let all = render(
+                &report,
+                &RenderOptions {
+                    expand: true,
+                    ..opts_at(s.taken_at, PolicySource::NotSet)
+                },
+            )
+            .unwrap();
+            assert!(all.off_page_listed);
+            assert_eq!(all.left_out.len(), c.items - c.posted);
+            assert_eq!(
+                all.left_out
+                    .iter()
+                    .filter(|l| l.verdict != Verdict::OffPage)
+                    .collect::<Vec<_>>(),
+                r.left_out.iter().collect::<Vec<_>>()
+            );
+            assert_eq!(
+                (&all.counts, &all.posted, &all.pages, &all.policy),
+                (&r.counts, &r.posted, &r.pages, &r.policy)
+            );
+            eprintln!(
+                "expanded: {} bytes",
+                serde_json::to_string_pretty(&all).unwrap().len()
+            );
         }
 
         /// T24 — the site as the oracle for the numbering, over the real

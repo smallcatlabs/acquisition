@@ -172,20 +172,6 @@
       "verdict": "omit"
     },
     {
-      "cell": "nothing_applies",
-      "label": "Chaos Orb",
-      "location": {
-        "id": "t3",
-        "realm": "pc",
-        "scope": "tab"
-      },
-      "target": {
-        "id": "i-plain",
-        "scope": "item"
-      },
-      "verdict": "off_page"
-    },
-    {
       "cell": "unresolved",
       "label": "Chaos Orb",
       "location": {
@@ -255,19 +241,6 @@
       "verdict": "block"
     },
     {
-      "cell": "nothing_applies",
-      "label": "Chaos Orb",
-      "location": {
-        "id": "ch2",
-        "scope": "character"
-      },
-      "target": {
-        "id": "i-nowhere-plain",
-        "scope": "item"
-      },
-      "verdict": "off_page"
-    },
-    {
       "cell": "hand_skip",
       "label": "Chaos Orb",
       "location": {
@@ -299,6 +272,7 @@
     },
     "taken_at": 2000
   },
+  "off_page_listed": false,
   "pages": [
     {
       "chars": 645,
@@ -528,7 +502,7 @@
     }
   ],
   "rendered_at": 5000,
-  "schema": 3,
+  "schema": 4,
   "size": 50000,
   "template": "[items]"
 }

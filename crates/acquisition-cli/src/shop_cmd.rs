@@ -69,6 +69,7 @@ pub fn render_cmd(realm: Realm, league: &str, args: &RenderArgs<'_>) -> Result<(
             size: args.size,
             template: template.as_deref(),
             now,
+            expand: args.expand,
         },
     )?;
 
@@ -403,6 +404,7 @@ mod tests {
                 pages: 2,
                 by_cell,
             },
+            off_page_listed: false,
             posted: vec![
                 posted("a", 1, tab("c1")),
                 posted("b", 1, tab("c1")),
@@ -606,6 +608,7 @@ mod tests {
                 template: ITEMS_TOKEN,
                 now: s.taken_at,
                 policy: PolicySource::NotSet,
+                expand: true,
             },
         )
         .unwrap();

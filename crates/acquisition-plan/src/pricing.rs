@@ -445,12 +445,14 @@ pub fn clear(
 }
 
 /// `shop render`'s request beside the facts: the page size, the template
-/// (`[items]` alone when none is given) and the clock.
+/// (`[items]` alone when none is given), the clock, and whether the
+/// items nothing applies to are listed as well as counted.
 #[derive(Debug, Clone, Copy)]
 pub struct ShopArgs<'a> {
     pub size: usize,
     pub template: Option<&'a str>,
     pub now: i64,
+    pub expand: bool,
 }
 
 /// `shop render`: the listing state rendered through [`render`], the sync
@@ -502,6 +504,7 @@ pub fn shop_render(
             template: args.template.unwrap_or(ITEMS_TOKEN),
             now: args.now,
             policy,
+            expand: args.expand,
         },
     )
     .map_err(|e| anyhow::anyhow!("{e}"))

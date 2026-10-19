@@ -682,7 +682,9 @@ enum ShopCmd {
         #[arg(long)]
         page: Option<usize>,
         /// The whole policy table with each row's rule and count, and
-        /// every item left off the page with its cell.
+        /// every item left off the page with its cell, those nothing
+        /// applies to included. Without it they are counted, not listed
+        /// — in the text and in the --json document alike.
         #[arg(long)]
         expand: bool,
     },

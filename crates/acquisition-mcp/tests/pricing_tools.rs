@@ -282,6 +282,12 @@ fn each_pricing_read_is_the_document_the_cli_prints() {
         ("shop_render", json!({}), &["shop", "render"], true),
         (
             "shop_render",
+            json!({ "expand": true }),
+            &["shop", "render", "--expand"],
+            true,
+        ),
+        (
+            "shop_render",
             json!({ "size": 2000, "page": 1 }),
             &["shop", "render", "--size", "2000", "--page", "1"],
             true,
