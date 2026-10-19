@@ -303,6 +303,24 @@ the surfaces or the models on any task, a finding of its own kind.
 The orchestrator reads the calls before believing a fault and says
 how many it read.
 
+The runs, as they land. Each launched at `e2dbeb8f` on the archive
+`1dd7906b…` (its binaries hashed in the world's record), the runner's
+startup context the owner's global file at `e9c1329f…`, as the
+re-sit's. Cost is the session's at list price; a report's own counts
+are the runner's.
+
+| Run | Model | Session | Calls | Cut | Turns | Cost | Read by the orchestrator |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| cli-opus | `claude-opus-5-5` | 4592effd-56eb | 107 | 2 (`shop render --expand` 3.5 MB, `--json` 7.4 MB) | 76 + 3 | $3.55 | 22 calls: the seven leading faults hold as stated; the recipe ran as the README prints it (call 24, the new daemon at 3600 s in call 25) and the README's gap is "stop the running one first" (call 22 logged the runner out) |
+
+cli-opus: one door command denied by the rails (a `report` heredoc),
+sent again as a draft; the harness saved call 41's output to a file
+of its own, which the runner did not open; all nine tasks finished;
+the daemon left stopped. Its debrief retracts the cause it gave for
+the 7.4 MB shop JSON (inferred from the size, the head alone read),
+"every time" on the undo fault (more than one account known), and
+three inferences of its own.
+
 The fix round after the four runs: faults of the shapes in the
 records' findings tables fixed, one commit per fault held by a test
 in `seat_faults.rs` or its surface's file; anything new a park with
