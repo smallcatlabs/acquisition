@@ -627,8 +627,10 @@ impl IntentValue for Buyout {
 /// written — `None` after a clear — and the row it replaced — `None` on a
 /// create — so what a command printed is enough to undo it by hand. Both
 /// are the store's rows, raw, with their provenance; on success `prior`
-/// is exactly the row the write replaced: a live row that moved between
-/// the read and the write conflicts (C35), and a create replaces nothing.
+/// is exactly the row the write replaced — the row at the revision the
+/// write named, a live row that moved between the read and the write
+/// conflicting (C35) — and a create, naming none, replaces nothing: its
+/// `prior` is `None` even when a row stood until a racing clear.
 /// `prior.value` may be one this build cannot read (a newer build's,
 /// written past by an explicit revision): a frontend reads it through
 /// [`Buyout::parse`], shows the JSON when that fails, and does not
@@ -674,6 +676,31 @@ impl From<AnnotationError> for PriceWriteError {
     }
 }
 
+/// The row a write naming `expected` replaces: none for a create, which
+/// names no revision and replaces nothing — a row read before its put
+/// may be one a racing clear removes before the put lands; for a named
+/// revision, the row read now, which must stand at exactly that revision.
+/// A row at any other is refused here as the store's compare-and-swap
+/// would refuse it, so a write that lands replaced the very row returned:
+/// revisions only grow, and the swap holds the row at it until the put.
+fn replaced(
+    annotations: &Annotations,
+    scope: &str,
+    key: &str,
+    expected: Option<i64>,
+) -> Result<Option<AnnotationRow>, PriceWriteError> {
+    let Some(expected) = expected else {
+        return Ok(None);
+    };
+    match annotations.get(scope, key, BUYOUT_KIND)? {
+        Some(row) if row.revision == expected => Ok(Some(row)),
+        current => Err(AnnotationError::Conflict {
+            current: current.map(Box::new),
+        }
+        .into()),
+    }
+}
+
 /// Write one price under compare-and-swap (C35) — the one write path
 /// every frontend's `set` uses: the value goes through the store's typed
 /// door as its canonical text (C66), where the writer's rule runs too
@@ -684,7 +711,9 @@ impl From<AnnotationError> for PriceWriteError {
 ///
 /// `expected_revision` is the store's compare-and-swap, verbatim:
 /// `Some(r)` replaces exactly the revision the caller reviewed, and a row
-/// that moved conflicts; `None` creates, refused if a live row exists — a
+/// that moved conflicts; the receipt's prior is the row at `r`, read and
+/// checked before the put. `None` creates, its prior none, refused if a
+/// live row exists — a
 /// tombstone of any generation does not count, so a `clear` then `set`
 /// works without the caller knowing it is there, and so a create cannot
 /// tell which clear it follows. A frontend that wants "replace whatever
@@ -701,7 +730,7 @@ pub fn set_buyout(
     provenance: &Provenance,
 ) -> Result<PriceWrite, PriceWriteError> {
     let (scope, key) = target.address()?;
-    let prior = annotations.get(scope, &key, BUYOUT_KIND)?;
+    let prior = replaced(annotations, scope, &key, expected_revision)?;
     let written = annotations.put::<Buyout>(
         scope,
         &key,
@@ -717,7 +746,8 @@ pub fn set_buyout(
 }
 
 /// Remove one price row under the same compare-and-swap, returning the
-/// row it removed (C78). `expected_revision` is exact: what the caller
+/// row it removed (C78), the row at `expected_revision`, read and checked
+/// before the delete. `expected_revision` is exact: what the caller
 /// reviewed; the store tombstones the row, so the revision sequence
 /// carries on and a stale writer still conflicts. Whether a target with
 /// no row is a refusal is the frontend's call — the store reports it as a
@@ -729,7 +759,7 @@ pub fn clear_buyout(
     provenance: &Provenance,
 ) -> Result<PriceWrite, PriceWriteError> {
     let (scope, key) = target.address()?;
-    let prior = annotations.get(scope, &key, BUYOUT_KIND)?;
+    let prior = replaced(annotations, scope, &key, Some(expected_revision))?;
     annotations.delete(scope, &key, BUYOUT_KIND, expected_revision, provenance)?;
     Ok(PriceWrite {
         target: target.clone(),
@@ -1190,6 +1220,53 @@ mod tests {
         assert_eq!(restored.prior, None);
         let (row, typed) = a.get_as::<Buyout>(ITEM_SCOPE, "i1").unwrap().unwrap();
         assert_eq!((row.revision, typed), (4, Buyout::Skip));
+    }
+
+    /// C35, C78 — what a write replaced is the row at the revision the
+    /// write named, and a create names none and replaces none: a create
+    /// that read the row, then waited on the lock while a clear landed,
+    /// reports no prior — never the row the clear removed. Staged as the
+    /// store's lock tests stage a race: a second connection holds
+    /// `BEGIN IMMEDIATE`, tombstones the row inside it, and commits once
+    /// the create has read and is waiting on the lock.
+    #[test]
+    fn a_create_after_a_racing_clear_reports_no_prior() {
+        let dir = std::env::temp_dir().join(format!(
+            "acq-price-race-{}-{}",
+            std::process::id(),
+            acquisition_store::now()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        let mut a = Annotations::open_for(&dir, "u-race").unwrap();
+        let via = Provenance::via("test");
+        let target = PriceTarget::Item { id: "i1".into() };
+        set_buyout(&mut a, &target, &exact("30", "chaos"), None, &via).unwrap();
+        let racer = rusqlite::Connection::open(acquisition_store::annotations_path(&dir, "u-race"))
+            .unwrap();
+        racer
+            .execute_batch(
+                "BEGIN IMMEDIATE;
+                 UPDATE annotations SET deleted_at = 1, updated_at = 1, revision = revision + 1,
+                        written_via = 'racer'
+                  WHERE scope = 'item' AND key = 'i1' AND kind = 'buyout';",
+            )
+            .unwrap();
+        let receipt = std::thread::scope(|s| {
+            let create = s.spawn(|| set_buyout(&mut a, &target, &Buyout::Skip, None, &via));
+            // The create reads the committed row at revision 1, then waits
+            // on the lock the racer holds (the busy timeout is 5 s).
+            std::thread::sleep(std::time::Duration::from_millis(500));
+            racer.execute_batch("COMMIT").unwrap();
+            create.join().unwrap()
+        })
+        .unwrap();
+        assert_eq!(
+            receipt.written.as_ref().map(|r| r.revision),
+            Some(3),
+            "the create landed over the clear's tombstone"
+        );
+        assert_eq!(receipt.prior, None, "a create replaced nothing");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// C67 — whether a new price may name a retired tag is the writer's
