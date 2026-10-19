@@ -1,7 +1,7 @@
 //! The trade boundary (C99, C113; the contract detail K6 in
 //! `decisions/trade.md`, its id's form taken here): a site search URL, its
 //! id or its query JSON, decoded with no network. The brief is
-//! `search/TRADE-PLAN.md`.
+//! `search/TRADE-PLAN.md` at `77666ea4`.
 //!
 //! # Decisions as recorded
 //!

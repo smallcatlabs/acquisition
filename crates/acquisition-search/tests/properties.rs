@@ -1,5 +1,5 @@
 //! The property fields (C114, C101, C93; step 3 of
-//! `search/TRADE-PLAN.md`), through the crate's boundary: the shipped
+//! `search/TRADE-PLAN.md` at `77666ea4`), through the crate's boundary: the shipped
 //! table and what its loader refuses; every field asked every way a
 //! number is — a comparison, `has:` and its not, `undecided( … )`, the
 //! sort, a count's sum and a count's key — on an item that displays its

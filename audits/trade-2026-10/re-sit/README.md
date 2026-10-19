@@ -1,6 +1,6 @@
 # The re-sit — the record
 
-Step 6 of `brainstorming-notes/38-the-answer-an-agent-reads.md`, run
+Step 6 of note 38 at `16bba23e`, run
 under its plan, `PLAN.md` at `35e7390f` after review 1, with the briefs
 `BRIEF-cli.md`, `BRIEF-mcp.md`, `TASKS.md` and `DEBRIEF-QUESTIONS.md`
 at the same commit, each removed at the close. Closed 2026-10-18; review

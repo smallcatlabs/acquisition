@@ -1,4 +1,4 @@
-//! The forms table (C113, C106, `decisions/trade.md`; step 7e of `search/TRADE-PLAN.md`): the
+//! The forms table (C113, C106, `decisions/trade.md`; step 7e of `search/TRADE-PLAN.md` at `77666ea4`): the
 //! other ways the game displays a stat the trade site files under one id —
 //! the opposite word below nothing, a number the display leaves out, a
 //! plural, another wording — read by the translation alone

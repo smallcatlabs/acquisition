@@ -3,7 +3,7 @@
 every text of the stat table, the other ways the game displays the stat the
 site files under that id — the opposite word below nothing, a number left
 out, a plural, another wording — as the game's own stat descriptions state
-them. Step 7e of search/TRADE-PLAN.md; the owner, 2026-10-17, choosing "Game
+them. Step 7e of search/TRADE-PLAN.md at 77666ea4; the owner, 2026-10-17, choosing "Game
 data, rules beside" over the brief's blanket rules, which named forms the
 game never displays (160 of the 372 `#% chance to` texts it joins).
 
@@ -217,7 +217,7 @@ def main():
         with_forms += bool(forms)
         rows.append((text, forms))
     head = f"""# The game's forms of each trade stat — v{VERSION} (C113, C106;
-# src/trade/forms.rs), step 7e of search/TRADE-PLAN.md.
+# src/trade/forms.rs), step 7e of search/TRADE-PLAN.md at 77666ea4.
 #
 # Reference data: generated, committed, shipped inside the binary
 # (`include_str!` in src/trade/forms.rs), read-only, read by the translation

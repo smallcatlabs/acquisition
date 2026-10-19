@@ -48,7 +48,7 @@
 //!   data, listed with its definition
 //!   under `pseudo.` by `--describe` (C97), never a total row. Built here:
 //!   `pseudo.dps`, `pseudo.pdps` and `pseudo.edps` (step 3 of
-//!   `search/TRADE-PLAN.md`), each attacks per second times the
+//!   `search/TRADE-PLAN.md` at `77666ea4`), each attacks per second times the
 //!   mean of a damage range (S22), read from the properties as the game
 //!   displays them — `Physical Damage: 59-88`, `Attacks per Second: 1.25`
 //!   — quality applied as GGG has already applied it to what it displays.
@@ -347,7 +347,7 @@ pub(crate) enum Named {
 pub(crate) enum Derived {
     Dps,
     Pdps,
-    /// Elemental damage per second (step 3 of `search/TRADE-PLAN.md`).
+    /// Elemental damage per second (step 3 of `search/TRADE-PLAN.md` at `77666ea4`).
     Edps,
     /// `dps` and `pdps` at 20 % quality, as the trade site's filters state
     /// them (t41, t42; step 7e).

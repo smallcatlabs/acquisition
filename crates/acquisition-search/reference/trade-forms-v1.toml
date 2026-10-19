@@ -1,5 +1,5 @@
 # The forms table — v1 (C113, C106; src/trade/forms.rs), step 7e of
-# search/TRADE-PLAN.md.
+# search/TRADE-PLAN.md at 77666ea4.
 #
 # Reference data: reviewed by hand, committed, shipped inside the binary
 # (`include_str!` in `src/trade/forms.rs`), read-only, read by the

@@ -1,5 +1,5 @@
 # The stat table — the capture of 2026-09-12 (C113, C106; K6 in
-# src/trade/translate.rs), step 2 of search/TRADE-PLAN.md.
+# src/trade/translate.rs), step 2 of search/TRADE-PLAN.md at 77666ea4.
 #
 # Reference data: generated, committed, shipped inside the binary
 # (`include_str!` in `src/trade/stats.rs`), read-only, read by the

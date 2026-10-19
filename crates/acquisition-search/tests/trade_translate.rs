@@ -1,5 +1,5 @@
 //! The translation (C113, K6; `trade/translate.rs`), step 4 of
-//! `search/TRADE-PLAN.md`, through the crate's boundary: a decoded site
+//! `search/TRADE-PLAN.md` at `77666ea4`, through the crate's boundary: a decoded site
 //! search in, the text and the report out, the text asked of items.
 //!
 //! - **Every fixture** (`trade-translate.toml`, its expected texts worked by

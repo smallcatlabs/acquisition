@@ -1,5 +1,5 @@
 //! The translation (C113, C99, `decisions/trade.md`; the contract detail K6, taken here; step 4
-//! of `search/TRADE-PLAN.md`): a decoded site search to the query text a
+//! of `search/TRADE-PLAN.md` at `77666ea4`): a decoded site search to the query text a
 //! person would have typed, and a report, clause by clause, of what each
 //! became.
 //!

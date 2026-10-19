@@ -1,5 +1,5 @@
 # The trade catalogue — v1 (C113, K6; src/trade/translate.rs), the trade-URL
-# import, step 0 of search/TRADE-PLAN.md.
+# import, step 0 of search/TRADE-PLAN.md at 77666ea4.
 #
 # Reference data: reviewed by hand, committed, shipped inside the binary
 # (`include_str!` in `src/trade/catalogue.rs`, whose loader holds a row to

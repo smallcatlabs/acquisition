@@ -1,5 +1,5 @@
 # The game's forms of each trade stat — v1 (C113, C106;
-# src/trade/forms.rs), step 7e of search/TRADE-PLAN.md.
+# src/trade/forms.rs), step 7e of search/TRADE-PLAN.md at 77666ea4.
 #
 # Reference data: generated, committed, shipped inside the binary
 # (`include_str!` in src/trade/forms.rs), read-only, read by the translation

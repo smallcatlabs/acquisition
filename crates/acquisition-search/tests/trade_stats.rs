@@ -1,4 +1,4 @@
-//! The stat table (C113, C106; step 2 of `search/TRADE-PLAN.md`): the
+//! The stat table (C113, C106; step 2 of `search/TRADE-PLAN.md` at `77666ea4`): the
 //! shipped file loads at the capture's date, answers every entry of the
 //! capture it was generated from and nothing the capture lacks, and the
 //! loader refuses each defect a reviewer would, by the row it names. The

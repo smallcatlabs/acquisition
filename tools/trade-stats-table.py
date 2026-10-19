@@ -3,7 +3,7 @@
 trade site's six hash categories, the categories that carry it and the text
 the site displays for it — regenerated from the dated capture of the site's
 stat vocabulary into the reviewed file the search crate ships. Step 2 of
-search/TRADE-PLAN.md.
+search/TRADE-PLAN.md at 77666ea4.
 
     python3 -I tools/trade-stats-table.py            # writes crates/acquisition-search/reference/trade-stats-v1.toml
     python3 -I tools/trade-stats-table.py --check    # exits 1 when the file on disk differs from what the capture gives
@@ -128,7 +128,7 @@ def main():
     pairs = sum(len(texts[r]) for r in first)
     out = [
         "# The stat table — the capture of 2026-09-12 (C113, C106; K6 in",
-        "# src/trade/translate.rs), step 2 of search/TRADE-PLAN.md.",
+        "# src/trade/translate.rs), step 2 of search/TRADE-PLAN.md at 77666ea4.",
         "#",
         "# Reference data: generated, committed, shipped inside the binary",
         "# (`include_str!` in `src/trade/stats.rs`), read-only, read by the",

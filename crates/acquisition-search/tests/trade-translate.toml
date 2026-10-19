@@ -1,4 +1,4 @@
-# The translation's fixtures (C113, K6; step 4 of search/TRADE-PLAN.md),
+# The translation's fixtures (C113, K6; step 4 of search/TRADE-PLAN.md at 77666ea4),
 # read by tests/trade_translate.rs. One case per catalogue row and per
 # group type at least; every expected text worked by hand from the row's
 # `lands` and the catalogue's header before the case ran.

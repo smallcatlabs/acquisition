@@ -1,6 +1,6 @@
 # The trade import's seat — the record
 
-Step 8 of `search/TRADE-PLAN.md`, closed 2026-10-17. It ran under its
+Step 8 of `search/TRADE-PLAN.md` at `6e31d630`, closed 2026-10-17. It ran under its
 plan, `PLAN.md` at `18a3d7b4`; the briefs `BRIEF-cli.md` and
 `BRIEF-mcp.md` at `3e84db17`, `TASKS.md` at `157f7078` and
 `DEBRIEF-QUESTIONS.md` at `538022d6`, each removed at the close. Two

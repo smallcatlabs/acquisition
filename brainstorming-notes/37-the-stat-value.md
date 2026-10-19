@@ -1,7 +1,7 @@
 # 37 — The stat value: a bound on a stat the game spells two ways
 
 Provenance: Fable (`claude-fable-5-1`), 2026-10-17, with the owner, the
-session before step 7e of `search/TRADE-PLAN.md`. Read: `README.md`,
+session before step 7e of `search/TRADE-PLAN.md` at `77666ea4`. Read: `README.md`,
 `CONTEXT.md`, `SEARCH-SLICE.md`, `decisions/search.md`, the brief, the
 crate's `tree.rs`, `totals.rs`, `pseudo.rs`, `group.rs`, `template.rs`,
 `trade/translate.rs` and its catalogue, `tests/trade-oracle.toml`, the

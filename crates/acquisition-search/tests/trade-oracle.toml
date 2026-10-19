@@ -1,5 +1,5 @@
 # The oracle's expected disagreements (C113, K6; step 6 of
-# search/TRADE-PLAN.md), read by tests/trade_oracle.rs: every item the site
+# search/TRADE-PLAN.md at 77666ea4), read by tests/trade_oracle.rs: every item the site
 # returned for a search whose translation has no remainder, that the
 # translated text does not match. The set is exact — a new disagreement and
 # a vanished one each fail the test.

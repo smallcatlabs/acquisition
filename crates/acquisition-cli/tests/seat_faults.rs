@@ -616,7 +616,7 @@ fn stopping_a_daemon_says_which_logins_ended_with_it() {
 /// type with its ten largest; `--expand` is every tab. `--json` is the
 /// same document (C115): its tabs are `rows`, cut the same way, every one
 /// under `--expand` — the refresh-run script reads them there (the review
-/// of note 38's step 1 reproduced its abort on the old flat list).
+/// of note 38 at `16bba23e`, step 1, reproduced its abort on the old flat list).
 #[test]
 fn tabs_says_its_counts_first_and_counts_a_large_league() {
     let scratch = harness::scratch("seat-tabs");
@@ -1987,7 +1987,7 @@ fn a_limit_beside_a_count_says_a_count_shows_no_rows() {
 /// as every printed command does, with the account the item was shown
 /// for and its realm, since a bare `price show` would select another
 /// account where two are logged in and read `pc` for an Xbox item (the
-/// external review of note 38's step 4).
+/// external review of note 38 at `16bba23e`, step 4).
 #[test]
 fn show_prints_the_price_show_command_for_its_item() {
     let scratch = harness::scratch("seat-show-target");

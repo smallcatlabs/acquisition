@@ -2591,7 +2591,7 @@ pub fn members(
     Ok(ids)
 }
 
-// ---- a site query (the trade translation, step 4 of search/TRADE-PLAN.md) --------------------
+// ---- a site query (the trade translation, step 4 of search/TRADE-PLAN.md at 77666ea4) --------------------
 
 /// The words a site query's texts and options are drawn from: plain ones,
 /// and ones that carry the language's own marks — a quote, a backslash, a

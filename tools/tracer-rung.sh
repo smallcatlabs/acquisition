@@ -700,8 +700,8 @@ else
         # of more than thirty tabs by type, its ids unlisted), and each move
         # aborted a live id-list run that had passed (2026-09-09, 2026-09-11,
         # 2026-10-15). The JSON counts first since `603223af`: the tabs are
-        # `rows`, every one only under --expand (the review of note 38's
-        # step 1 reproduced the abort, 2026-10-18).
+        # `rows`, every one only under --expand (the review of note 38 at `16bba23e`,
+        # step 1, reproduced the abort, 2026-10-18).
         row=$(jq -r --arg id "$id" '.rows[] | select(.id == $id) | "\(.name)  \(.type)  \(.item_count) items  \(.id)"' "$RUN_DIR/tabs.json")
         if [ -n "$row" ]; then echo "$row"; continue; fi
         case " $unknown " in

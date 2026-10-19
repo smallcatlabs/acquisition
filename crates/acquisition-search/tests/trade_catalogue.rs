@@ -1,4 +1,4 @@
-//! The trade catalogue (C113, K6; step 0 of `search/TRADE-PLAN.md`, its
+//! The trade catalogue (C113, K6; step 0 of `search/TRADE-PLAN.md` at `77666ea4`, its
 //! loader step 3's): the shipped file loads, holds a row for every filter,
 //! stat category and group type the site's captures list, and names only
 //! fields this build knows — the property fields among them, on the build

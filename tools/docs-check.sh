@@ -95,7 +95,7 @@ budget README.md       15000
 budget LIVE-TESTING.md 15000
 budget SEARCH-SLICE.md 24000  # the closed record, read whole before a search change: the plan's rules, the shapes of fault and a verdict per measurement. Its rows are search/LEDGER.md and its tables search/MEASUREMENTS.md, neither budgeted: a line per step and per hole, a block per measurement, each looked up and never loaded whole
 budget decisions/search.md 28000
-budget TRADE-SLICE.md   16000  # the trade import's record, open until step 9: its step ledger, shapes of fault, verdicts and where each observation went
+budget TRADE-SLICE.md   16000  # the trade import's closed record (2026-10-18): its step ledger, shapes of fault, verdicts and where each observation went
 budget decisions/trade.md  16000  # the trade boundary, split from search 2026-10-17: C99, C113, C114, the contract detail and the parks the outbound half and PoE2 will grow
 # search/M3-LEDGER.md has no budget: one row per M3 run, append-only.
 # RUN-LEDGER.md has no budget: one row per live run, append-only by

@@ -1,5 +1,5 @@
 //! The trade boundary's decoder (C113, K6; `trade.rs`), step 1 of
-//! `search/TRADE-PLAN.md`: a site search URL, its id or its query JSON to
+//! `search/TRADE-PLAN.md` at `77666ea4`: a site search URL, its id or its query JSON to
 //! one decoded query, with no network. The eight searches the owner ran
 //! on 2026-09-13 are the fixture (`trade-decode.toml`): each id the site
 //! returned decodes to exactly the query object the owner posted (S56),

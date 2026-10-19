@@ -1517,7 +1517,7 @@ def round_n():
     return rows
 
 
-# Round t (the trade import, step 7 of search/TRADE-PLAN.md): what the
+# Round t (the trade import, step 7 of search/TRADE-PLAN.md at 77666ea4): what the
 # translation leaves to the site — the questions of the trade oracle's
 # sitting findings (crates/acquisition-search/tests/trade-oracle.toml, `asks`)
 # and the catalogue rows a sitting is to settle
@@ -2240,7 +2240,7 @@ def round_x(earlier):
     of a text with two the site compares; x08–x09 a level requirement a
     socketed gem sets, under `req_filters.lvl`; x10–x11 the two ranged
     cells round v did not ask; x12 Maven's Invitations in the challenge
-    league. Composed 2026-10-18 (note 38, step 5) for the questions
+    league. Composed 2026-10-18 (note 38 at `16bba23e`, step 5) for the questions
     `TRADE-SLICE.md`'s open observations queued for the next sitting."""
     composed = Composed("x", 2, earlier)
     add = composed.add

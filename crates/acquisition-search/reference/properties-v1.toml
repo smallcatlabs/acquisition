@@ -1,5 +1,5 @@
 # The property table — v1 (C114, C101, C106; decisions/trade.md), step 3
-# of search/TRADE-PLAN.md.
+# of search/TRADE-PLAN.md at 77666ea4.
 #
 # Reference data: reviewed by hand, committed, shipped inside the binary
 # (`include_str!` in `src/properties.rs`), read-only, never in a store file,

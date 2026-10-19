@@ -12,7 +12,7 @@ for each fetched item only what the evidence reads — its names, rarity, proper
 No item id, icon, seller, price, stash position or token leaves raw/.
 
 Beside it, bodies.json holds each fetched item as the site sent it, for the
-trade oracle (search/TRADE-PLAN.md, step 6), which enters it through the
+trade oracle (search/TRADE-PLAN.md at 77666ea4, step 6), which enters it through the
 store's ingest: a stash item's own keys, every one the site sent, less the
 item id, every icon and the price note, which may not leave raw/, and less
 `extended` and `pseudoMods`, the site's own computations, which no stash body

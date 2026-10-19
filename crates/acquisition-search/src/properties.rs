@@ -1,5 +1,5 @@
 //! The property fields (C114, C101, C106, `decisions/trade.md`; step 3 of
-//! `search/TRADE-PLAN.md`): every numeric property the trade site's
+//! `search/TRADE-PLAN.md` at `77666ea4`): every numeric property the trade site's
 //! filters read, a field named by its displayed name — `quality`,
 //! `attacks_per_second`, `wings_revealed.of` — defined once, in one table,
 //! and read by one reader. The quality-normalised defences, `armour.q20`

@@ -1,5 +1,5 @@
 //! The trade catalogue (C113, `decisions/trade.md`; K6, taken by `translate.rs`; step 0 of
-//! `search/TRADE-PLAN.md`, its loader step 3's): one row per clause the
+//! `search/TRADE-PLAN.md` at `77666ea4`, its loader step 3's): one row per clause the
 //! site's query can carry, with its status, the text it lands as and the
 //! note the report prints — what the translation reads
 //! ([`super::translate`], step 4) and `--describe trade` prints (step 5).

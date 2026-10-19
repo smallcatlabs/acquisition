@@ -1,5 +1,5 @@
 //! The damage at 20 % quality against the trade site (C101; step 7e of
-//! `search/TRADE-PLAN.md`, the oracle's finding `dps-at-quality`): the
+//! `search/TRADE-PLAN.md` at `77666ea4`, the oracle's finding `dps-at-quality`): the
 //! site's Physical DPS and Damage per Second put 20 % quality in (t41,
 //! t42), and its own figures for every weapon it sent are in the captures
 //! (`extended.pdps`, `dps`, `edps`). Each listing is entered as the site

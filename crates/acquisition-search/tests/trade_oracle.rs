@@ -1,4 +1,4 @@
-//! The oracle of missed matches (C113, K6; step 6 of `search/TRADE-PLAN.md`):
+//! The oracle of missed matches (C113, K6; step 6 of `search/TRADE-PLAN.md` at `77666ea4`):
 //! every search the site answered with fetched items, translated, and the
 //! items it returned entered through the store's ingest and asked the
 //! translated text. The captures hold what the site returned and never what

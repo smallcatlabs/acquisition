@@ -86,7 +86,7 @@
 //! # Decisions as recorded
 //!
 //! - **C113 (K6), taken from the contract detail at step 5** of
-//!   `search/TRADE-PLAN.md` (verbatim): A URL is a request: its realm the
+//!   `search/TRADE-PLAN.md` at `77666ea4` (verbatim): A URL is a request: its realm the
 //!   scope, its league a term, the rest the query; a bare id or the query
 //!   JSON fills no scope; `--realm` beside a URL is a conflict; a sort,
 //!   which only the JSON envelope carries, is reported, never applied.

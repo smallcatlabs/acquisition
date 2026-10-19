@@ -54,7 +54,7 @@
 //! categories (step 9d-B), the base defence percentile (step 9d-A) and
 //! the why-not and the continuation (step 10: `--explain`, `--context
 //! corpus`, `show --against`; a `next`, a route read back): a request
-//! in, an answer out. The trade brief (`search/TRADE-PLAN.md`) adds the
+//! in, an answer out. The trade brief (`search/TRADE-PLAN.md` at `77666ea4`) adds the
 //! decoder, the stat table and the catalogue (steps 1 to 3), the
 //! property fields (step 3), the translation (step 4) and the surface
 //! (step 5: a request's `query.trade`, `answer.rs`).
