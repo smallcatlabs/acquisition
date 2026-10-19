@@ -4,7 +4,7 @@
 //! the test named for it. A test here drives the real binary in a scratch
 //! world against the mock; nothing reaches GGG.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use acquisition_store::{Endpoint, Index, Store, account_path};
 use serde_json::{Value, json};
@@ -99,7 +99,7 @@ fn a_price_target_outside_standard_reads_back_as_its_set_printed() {
     let said = text(&out);
     assert!(out.status.success(), "{said}");
     assert!(
-        said.contains("next: `acq price show tab/pc/b1` reads it"),
+        said.contains("next: `acq price show --account 'Alice#1234' tab/pc/b1` reads it"),
         "{said}"
     );
 
@@ -2341,4 +2341,73 @@ fn price_lists_columns_are_named_by_a_header_line() {
         .unwrap_or_else(|| panic!("no header line: {said}"));
     assert!(header < item, "{said}");
     assert_eq!(said.matches("relation").count(), 1, "{said}");
+}
+
+/// One account logged in on the mock, with its index entry and an empty
+/// facts file: enough for a price write on a target the facts do not
+/// hold, which lands as the ruling has it.
+fn seed_one_account(base: &Path, user: &str, uuid: &str) -> PathBuf {
+    let mock = base.join("store").join("mock");
+    std::fs::create_dir_all(&mock).unwrap();
+    let mut index = Index::load(&mock).unwrap();
+    index
+        .record_login(user, uuid, false, acquisition_store::now())
+        .unwrap();
+    Store::open(&account_path(&mock, user)).unwrap();
+    mock
+}
+
+/// Review 8 of the release (2026-10-19): an undo printed while one
+/// account was known named no account, so once a second was known the
+/// pasted undo was refused as ambiguous. The undo names the account the
+/// write ran as, whether given or implied.
+#[test]
+fn an_undo_names_the_account_the_write_ran_as_even_when_implied() {
+    let dir = harness::scratch("undo-implied-account");
+    let base = &dir.0;
+    let mock = seed_one_account(base, "Alice#1234", "u-alice");
+    let out = acq(
+        base,
+        &["price", "set", "item/i-undo", "exact", "1", "chaos"],
+    );
+    assert!(out.status.success(), "{}", text(&out));
+    let said = text(&out);
+    let undo = printed_in_next(&said)
+        .into_iter()
+        .find(|c| c.contains("price clear"))
+        .unwrap_or_else(|| panic!("no clear in the next line: {said}"));
+    // A second account arrives after the write, before the undo is pasted.
+    Index::load(&mock)
+        .unwrap()
+        .record_login("Bob#1", "u-bob", false, acquisition_store::now())
+        .unwrap();
+    let run = run_as_printed(base, &undo);
+    assert!(
+        run.status.success(),
+        "the undo `{undo}` was refused: {}",
+        String::from_utf8_lossy(&run.stderr)
+    );
+}
+
+/// Review 8: a target with a space wrote fine and its printed undo split
+/// at the space. Every word of a printed command is shell-quoted where
+/// a shell would split or read it.
+#[test]
+fn an_undo_quotes_a_target_a_shell_would_split() {
+    let dir = harness::scratch("undo-quoted-target");
+    let base = &dir.0;
+    seed_one_account(base, "Alice#1234", "u-alice");
+    let out = acq(base, &["price", "set", "item/review test", "skip"]);
+    assert!(out.status.success(), "{}", text(&out));
+    let said = text(&out);
+    let undo = printed_in_next(&said)
+        .into_iter()
+        .find(|c| c.contains("price clear"))
+        .unwrap_or_else(|| panic!("no clear in the next line: {said}"));
+    let run = run_as_printed(base, &undo);
+    assert!(
+        run.status.success(),
+        "the undo `{undo}` was refused: {}",
+        String::from_utf8_lossy(&run.stderr)
+    );
 }

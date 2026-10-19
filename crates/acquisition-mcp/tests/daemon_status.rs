@@ -174,11 +174,17 @@ fn a_job_tool_with_no_daemon_names_the_command_that_starts_one() {
         ("job_status", json!({ "id": 1 })),
         ("cancel_job", json!({ "id": 1 })),
     ] {
-        let err = mcp.expect_rpc_error(tool, args);
-        let message = err["message"].as_str().unwrap_or_default();
+        // The approved form: a result marked isError, `kind: "no_daemon"`,
+        // with what a person does — never a protocol error (review 8).
+        let result = mcp.result(tool, args);
+        let doc = &result["structuredContent"];
         assert!(
-            message.contains("acq auth check"),
-            "{tool} with no daemon does not say how to start one: {err}"
+            result["isError"] == json!(true)
+                && doc["kind"] == json!("no_daemon")
+                && doc["next"]
+                    .as_str()
+                    .is_some_and(|n| n.contains("acq auth check")),
+            "{tool} with no daemon is not a no_daemon refusal naming the remedy: {result}"
         );
     }
 }

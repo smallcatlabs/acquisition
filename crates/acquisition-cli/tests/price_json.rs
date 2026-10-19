@@ -398,8 +398,8 @@ fn price_set_and_clear_print_the_receipt_and_show_reads_it_back() {
             "), was unset\n\
              note: the facts hold no item/i-typo (not fetched yet, or a typo); the row stands, \
              and `acq price status` counts it under \"name nothing in the facts\"\n\
-             next: `acq price show item/i-typo` reads it beside the game side; \
-             `acq price clear item/i-typo --if-revision 3` undoes it\n"
+             next: `acq price show --account 'Alice#1234' item/i-typo` reads it beside the game side; \
+             `acq price clear --account 'Alice#1234' item/i-typo --if-revision 3` undoes it\n"
         ),
         "{text}"
     );
@@ -466,7 +466,7 @@ fn price_set_and_clear_print_the_receipt_and_show_reads_it_back() {
     assert_eq!(
         String::from_utf8_lossy(&out.stdout),
         "item/i-map: cleared, was 1/5 divine b/o (revision 2)\n\
-         next: `acq price set item/i-map negotiable 1/5 divine` puts it back \
+         next: `acq price set --account 'Alice#1234' item/i-map negotiable 1/5 divine` puts it back \
          (a create: a cleared price names no revision)\n"
     );
     assert!(manual(&acq(&base, &["price", "show", "item/i-map", "--json"])).is_none());
@@ -744,8 +744,8 @@ fn price_set_and_clear_refuse_a_row_this_build_cannot_read_unless_the_revision_i
         String::from_utf8_lossy(&out.stdout),
         format!(
             "item/i-map: skip (revision 2), was an unreadable value {newer} (revision 1)\n\
-             next: `acq price show item/i-map` reads it beside the game side; \
-             the prior cannot be put back by this build (its JSON is in --json)\n"
+             next: `acq price show --account 'Alice#1234' item/i-map` reads it beside the game side; \
+             the prior cannot be put back: this build cannot read it (its JSON is in --json)\n"
         )
     );
     let out = acq(
@@ -857,5 +857,82 @@ fn a_row_on_a_target_the_facts_do_not_hold_is_listed_whole_and_show_says_where()
         .to_string();
     assert!(!said.contains("price row of its own"), "{said}");
 
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// Review 8 of the release (2026-10-19): `price list --limit 0` said
+/// "none listed by hand or in game" where the JSON said `total: 3,
+/// listed: 0`. The text says none of how many, and why.
+#[test]
+fn price_list_with_a_limit_of_zero_says_none_of_the_total() {
+    let base = std::env::temp_dir().join(format!(
+        "acq-price-limit-zero-{}-{}",
+        std::process::id(),
+        acquisition_store::now()
+    ));
+    seed(&base);
+    let doc = sole_json(&acq(&base, &["price", "list", "--limit", "0", "--json"]));
+    let total = doc["total"].as_u64().unwrap_or(0);
+    assert!(total > 0 && doc["listed"] == json!(0), "{doc}");
+    let out = acq(&base, &["price", "list", "--limit", "0"]);
+    let text = String::from_utf8_lossy(&out.stdout).to_string();
+    assert!(
+        text.contains(&format!("0 of {total} items")) && !text.contains("none listed by hand"),
+        "{text}"
+    );
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// A `buyout` as an older build wrote it, the writer's rule not run: how
+/// a row citing a since-retired tag got there (C67 exempts a stored row).
+#[derive(serde::Serialize)]
+#[serde(transparent)]
+struct LegacyBuyout(Value);
+
+impl IntentValue for LegacyBuyout {
+    const KIND: &'static str = "buyout";
+    const VERSION: i64 = 1;
+    fn parse(value: &Value) -> std::result::Result<Self, String> {
+        Buyout::parse(value)?;
+        Ok(LegacyBuyout(value.clone()))
+    }
+}
+
+/// Review 8: a replaced prior naming a retired currency was promised
+/// back by the receipt's undo line, which the write refuses (C67). The
+/// line promises no undo and says why, as it does for a value this
+/// build cannot read.
+#[test]
+fn a_prior_naming_a_retired_currency_promises_no_undo() {
+    let base = std::env::temp_dir().join(format!(
+        "acq-price-retired-{}-{}",
+        std::process::id(),
+        acquisition_store::now()
+    ));
+    let mock = seed(&base);
+    Annotations::open_for(&mock, UUID)
+        .unwrap()
+        .put::<LegacyBuyout>(
+            "item",
+            "i-map",
+            &json!({ "version": 1, "type": "exact", "amount": "3", "currency": "chisel" }),
+            None,
+            &Provenance::via("old-build"),
+        )
+        .unwrap();
+    let out = acq(
+        &base,
+        &["price", "set", "item/i-map", "exact", "2", "chaos"],
+    );
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let text = String::from_utf8_lossy(&out.stdout).to_string();
+    assert!(
+        !text.contains("3 chisel --if-revision") && text.contains("retired"),
+        "{text}"
+    );
     let _ = std::fs::remove_dir_all(&base);
 }

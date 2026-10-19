@@ -30,7 +30,7 @@ Cancel a waiting or running job; cascades to its descendants.
 
 ### `characters`
 
-Characters known to the store, with class, level, league, and two counts — `item_count`, what the character listing said the character carries, and `fetched_items`, the items the store holds from the last full fetch (equipment + inventory), null until one — (no daemon, no network). Fresh data is a `characters` or `character` job.
+Characters known to the store, with class, level, league, and two counts — `item_count`, the live items the store holds at the character now, and `fetched_items`, what the last full fetch's body carried (equipment + inventory, socketed gems not counted), null until one — (no daemon, no network). Fresh data is a `characters` or `character` job.
 
 - `account` (string | null)
 - `league` (string | null) — Restrict to one league; omitted lists every league.

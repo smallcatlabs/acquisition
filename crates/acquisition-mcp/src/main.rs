@@ -437,6 +437,45 @@ async fn try_quote(plan: RefreshPlan) -> (RefreshPlan, Option<String>) {
 const START_ONE: &str = "a person starts one from a terminal: \
     `ACQ_IDLE_SHUTDOWN=3600 acq auth check` (the README, \"Your agent\")";
 
+/// No daemon to ask: the one failure a daemon tool answers as a refusal
+/// the agent can read — a result marked isError, `kind: "no_daemon"`,
+/// `next` the person's command — rather than a protocol error, since the
+/// remedy is a step in the agent's conversation, not a broken call (the
+/// release seat; the owner's triage, 2026-10-19).
+#[derive(Debug)]
+struct NoDaemon {
+    real: bool,
+}
+
+impl std::fmt::Display for NoDaemon {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.real {
+            write!(
+                f,
+                "no daemon running in real-GGG mode, and this server never starts one there — {START_ONE}"
+            )
+        } else {
+            write!(f, "no daemon running — {START_ONE}")
+        }
+    }
+}
+
+impl std::error::Error for NoDaemon {}
+
+/// A daemon tool's failure: no daemon is the refusal document; anything
+/// else the JSON-RPC error C85 gives it.
+fn needing_a_daemon(e: anyhow::Error) -> Told {
+    // the context is the outermost, so the error itself downcasts to it
+    if e.downcast_ref::<NoDaemon>().is_some() {
+        return Ok(CallToolResult::structured_error(json!({
+            "error": format!("{e:#}"),
+            "kind": "no_daemon",
+            "next": START_ONE,
+        })));
+    }
+    Err(err(e))
+}
+
 async fn connect(spawn: bool) -> Result<Client> {
     let real = acquisition_protocol::provider::ggg_mode();
     let spawn = spawn && !real;
@@ -448,11 +487,9 @@ async fn connect(spawn: bool) -> Result<Client> {
             e @ ConnectError::Absent {
                 because: NotSpawned::Policy,
             },
-        ) if real => Err(anyhow::Error::from(e).context(format!(
-            "no daemon running in real-GGG mode, and this server never starts one there — {START_ONE}"
-        ))),
+        ) if real => Err(anyhow::Error::from(e).context(NoDaemon { real: true })),
         Err(e @ ConnectError::Absent { .. }) => {
-            Err(anyhow::Error::from(e).context(format!("no daemon running — {START_ONE}")))
+            Err(anyhow::Error::from(e).context(NoDaemon { real: false }))
         }
         Err(e) => Err(e.into()),
     }
@@ -475,7 +512,7 @@ fn persisted_queue() -> Result<Option<acquisition_store::jobs::Persisted>> {
 fn client_of(observed: Observed) -> Result<Client> {
     match observed {
         Observed::Compatible(client) => Ok(client),
-        Observed::Absent => anyhow::bail!("no daemon running — {START_ONE}"),
+        Observed::Absent => Err(NoDaemon { real: false }.into()),
         Observed::Unresponsive(found) => anyhow::bail!("{found}"),
         Observed::Incompatible(found) => anyhow::bail!(
             "{found}; this server never replaces a daemon — resolve it with the CLI (`acq daemon stop`{})",
@@ -905,7 +942,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Characters known to the store, with class, level, league, and two counts — `item_count`, what the character listing said the character carries, and `fetched_items`, the items the store holds from the last full fetch (equipment + inventory), null until one — (no daemon, no network). Fresh data is a `characters` or `character` job."
+        description = "Characters known to the store, with class, level, league, and two counts — `item_count`, the live items the store holds at the character now, and `fetched_items`, what the last full fetch's body carried (equipment + inventory, socketed gems not counted), null until one — (no daemon, no network). Fresh data is a `characters` or `character` job."
     )]
     fn characters(
         &self,
@@ -1110,10 +1147,7 @@ impl AcqMcp {
     #[tool(
         description = "Execute a reviewed plan: its actions and nothing else, as one `apply` parent job the daemon admits or refuses whole at submit (single-request vocabulary + the max_requests budget). Refused offline — before any daemon contact — if the stored sync-policy revision moved since the plan (replan with refresh_plan). In real-GGG mode the daemon must already be running (a human starts it; this server never spawns one there). An empty plan is a no-op with no daemon contact. A plan spends each request once: an action whose target was fetched after the plan was compiled, or whose request the daemon already holds, is listed in `spent` (with `fetched_at`, or the `job_id` holding it) and not sent again, so replaying a plan answers `applied: false` and sends nothing. Returns the parent job id and the `requests` sent; poll job_status, then job_result."
     )]
-    async fn apply_plan(
-        &self,
-        Parameters(p): Parameters<ApplyParams>,
-    ) -> Result<Json<Value>, ErrorData> {
+    async fn apply_plan(&self, Parameters(p): Parameters<ApplyParams>) -> Told {
         let (dir, entry, annotations) = open_intent(p.account.as_deref()).map_err(err)?;
         let plan = RefreshPlan::from_value(&p.plan).map_err(|e| err(e.into()))?;
         plan.check_spendable(provider(), entry.uuid.as_deref(), &annotations)
@@ -1122,11 +1156,11 @@ impl AcqMcp {
             // A strict subset of zero actions is satisfied by doing
             // nothing; the plan's own skipped/unknown reporting says why
             // it is empty.
-            return Ok(Json(json!({
+            return told(&json!({
                 "applied": false,
                 "requests": 0,
                 "note": "nothing to do: the plan authorizes no requests",
-            })));
+            }));
         }
         // C111: a plan spends each request once — the store says what was
         // fetched after the plan's snapshot, the daemon what it already
@@ -1140,7 +1174,10 @@ impl AcqMcp {
         let (mut unspent, mut spent) = plan.unspent(&facts, &[], &entry.username);
         let mut connected = None;
         if !unspent.is_empty() {
-            let mut client = connect(true).await.map_err(err)?;
+            let mut client = match connect(true).await {
+                Ok(client) => client,
+                Err(e) => return needing_a_daemon(e),
+            };
             if let Response::Jobs { jobs } = client.request(&Request::List).await.map_err(err)? {
                 let facts = store
                     .refresh_snapshot(plan.realm.as_str(), &plan.league, &annotations)
@@ -1150,12 +1187,12 @@ impl AcqMcp {
             connected = Some(client);
         }
         let Some(mut client) = connected.filter(|_| !unspent.is_empty()) else {
-            return Ok(Json(json!({
+            return told(&json!({
                 "applied": false,
                 "requests": 0,
                 "note": "nothing to do: every request of this plan is spent — fetched after it was compiled, or already waiting or running (each entry of `spent` says which)",
                 "spent": spent,
-            })));
+            }));
         };
         let resp = client
             .request(&Request::Submit {
@@ -1168,11 +1205,11 @@ impl AcqMcp {
             .await
             .map_err(err)?;
         match resp {
-            Response::Submitted { id } => Ok(Json(json!({
+            Response::Submitted { id } => told(&json!({
                 "job_id": id,
                 "requests": unspent.len(),
                 "spent": spent,
-            }))),
+            })),
             Response::Error { kind, message } => Err(daemon_error(kind, message)),
             other => Err(ErrorData::internal_error(
                 format!("unexpected response: {other:?}"),
@@ -1371,11 +1408,11 @@ impl AcqMcp {
     #[tool(
         description = "Submit a job to the daemon and return its id immediately; poll job_status then fetch job_result. In real-GGG mode the daemon must already be running (a human starts it; this server never spawns one there)."
     )]
-    async fn submit_job(
-        &self,
-        Parameters(p): Parameters<SubmitParams>,
-    ) -> Result<Json<Value>, ErrorData> {
-        let mut client = connect(true).await.map_err(err)?;
+    async fn submit_job(&self, Parameters(p): Parameters<SubmitParams>) -> Told {
+        let mut client = match connect(true).await {
+            Ok(client) => client,
+            Err(e) => return needing_a_daemon(e),
+        };
         let resp = client
             .request(&Request::Submit {
                 kind: p.kind,
@@ -1387,7 +1424,7 @@ impl AcqMcp {
             .await
             .map_err(err)?;
         match resp {
-            Response::Submitted { id } => Ok(Json(json!({ "job_id": id }))),
+            Response::Submitted { id } => told(&json!({ "job_id": id })),
             Response::Error { kind, message } => Err(daemon_error(kind, message)),
             other => Err(ErrorData::internal_error(
                 format!("unexpected response: {other:?}"),
@@ -1421,33 +1458,29 @@ impl AcqMcp {
     #[tool(
         description = "One job's state, ETA, and retries. A waiting job with a large ETA is the rate limiter holding, not a hang (holds can reach ~5 minutes)."
     )]
-    async fn job_status(
-        &self,
-        Parameters(p): Parameters<JobParams>,
-    ) -> Result<Json<Value>, ErrorData> {
-        let mut client = attach().await.map_err(err)?;
+    async fn job_status(&self, Parameters(p): Parameters<JobParams>) -> Told {
+        let mut client = match attach().await {
+            Ok(client) => client,
+            Err(e) => return needing_a_daemon(e),
+        };
         let job = client.status(p.id).await.map_err(err)?;
-        serde_json::to_value(job)
-            .map(Json)
-            .map_err(|e| err(e.into()))
+        told(&job)
     }
 
     #[tool(
         description = "A finished job's payload or error; answered across daemon restarts (the queue persists). Payloads can be large — prefer the store tools for reading data."
     )]
-    async fn job_result(
-        &self,
-        Parameters(p): Parameters<JobParams>,
-    ) -> Result<Json<Value>, ErrorData> {
-        let mut client = attach().await.map_err(err)?;
+    async fn job_result(&self, Parameters(p): Parameters<JobParams>) -> Told {
+        let mut client = match attach().await {
+            Ok(client) => client,
+            Err(e) => return needing_a_daemon(e),
+        };
         match client
             .request(&Request::Result { id: p.id })
             .await
             .map_err(err)?
         {
-            Response::Result { outcome, .. } => serde_json::to_value(outcome)
-                .map(Json)
-                .map_err(|e| err(e.into())),
+            Response::Result { outcome, .. } => told(&outcome),
             Response::Error { kind, message } => Err(daemon_error(kind, message)),
             other => Err(ErrorData::internal_error(
                 format!("unexpected response: {other:?}"),
@@ -1457,16 +1490,16 @@ impl AcqMcp {
     }
 
     #[tool(description = "Cancel a waiting or running job; cascades to its descendants.")]
-    async fn cancel_job(
-        &self,
-        Parameters(p): Parameters<JobParams>,
-    ) -> Result<Json<Value>, ErrorData> {
-        let mut client = attach().await.map_err(err)?;
+    async fn cancel_job(&self, Parameters(p): Parameters<JobParams>) -> Told {
+        let mut client = match attach().await {
+            Ok(client) => client,
+            Err(e) => return needing_a_daemon(e),
+        };
         client
             .expect_ack(&Request::Cancel { id: p.id })
             .await
             .map_err(err)?;
-        Ok(Json(json!({ "job_id": p.id, "cancel_requested": true })))
+        told(&json!({ "job_id": p.id, "cancel_requested": true }))
     }
 
     #[tool(

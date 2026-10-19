@@ -172,7 +172,8 @@ jobs:
               || { echo "$b: unexpected identifier: $req" >&2; exit 1; }
           done
           rm "$archive"
-          tar -czf "$archive" -C "$work" "$name"
+          # As the packager does: no AppleDouble entries, which the smoke refuses.
+          COPYFILE_DISABLE=1 tar -czf "$archive" -C "$work" "$name"
           echo "archive=$archive" >> "$GITHUB_OUTPUT"
       - name: Smoke the signed archive
         run: tools/release-smoke.sh "${{ steps.sign.outputs.archive }}"
