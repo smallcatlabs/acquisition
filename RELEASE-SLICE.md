@@ -513,6 +513,52 @@ and sent nothing. In the order the brief gives:
    browser download of the published archive.
 5. **The reddit post**: the owner's.
 
+### Step 6 — the close, for a fresh session
+
+The owner, 2026-10-19, on which session closes: a fresh one, so the
+close is written from this record alone, which is the record's last
+test. The session reads `AGENTS.md`, then `RELEASE-PLAN.md`, then this
+file whole, then the session-close skill ("When a slice closes") and
+the seat skill (step 10), and `TRADE-SLICE.md` for the closed record's
+mold. The close's work, each its own commit, the gate bare before
+each:
+
+1. The seat's record: `audits/release-2026-10/seat/README.md` in the
+   mold of `audits/trade-2026-10/re-sit/README.md` — the six runs from
+   the table above (cli-opus, mcp-opus, cli-sonnet, mcp-sonnet, then
+   the reruns cli-opus-2 and mcp-opus-2) with their calls, cuts, turns,
+   cost and files; one row per fault across the triage and the rerun
+   round with its fate (a commit, a park named by file, or why it was
+   no fault); the binaries' hashes from each world's `world.json`; the
+   re-read count the read economy park asks for, from each debrief's
+   second answer and each `calls.csv` (a second call for the same
+   answer and a reported "read twice" counted apart, the MCP's
+   mandated second `open` excluded), which this record promised and
+   has not yet tabulated. Then `git rm` the briefs and prompts, citing
+   their commits (`26603d0f`, revised at `81e6e9bb` and `10902dbb`).
+2. The worlds torn down: `python3 -I .claude/skills/seat/seat.py
+   <world> <world>/bin teardown` for each of the six under
+   `~/seat-worlds/release-2026-10/` and for `pristine/` (with
+   `bin-setup/` as its BIN), the `*.launch.json` and `*.debrief.json`
+   files beside them left for the owner to delete.
+3. This record cut to the permanent short form: the step ledger whole,
+   the shapes of fault the nine reviews taught (a claim wider than its
+   evidence; a fix staging the nearest failure, not the named one; a
+   sibling sentence left standing; a refusal that says what is wrong
+   and not what to do; a document unbounded by default; a printed
+   command that does not run as printed), what the runs taught, and
+   "Where the open observations went" — each observation above routed
+   to an area park with a trigger or dropped with its reason, the
+   closed records' stale fixture citations (`PRICING-SLICE.md`)
+   rewritten as "schema N, at `<commit>`". Cite the last commit that
+   holds this record's full text.
+4. `RELEASE-PLAN.md` deleted and cited at its last commit; the
+   `AGENTS.md` row for the release points at this record alone;
+   `CONTEXT.md`'s "Working style" sentence that names note 36 as the
+   slice order stays.
+5. The gate, then the close's commit. The owner's acts follow in the
+   step 5 order above; the tag goes on the close's commit.
+
 ## Observations still open
 
 - Step 1's refusal words: the kind vocabulary is ruled (the brief's
