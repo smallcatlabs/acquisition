@@ -73,7 +73,10 @@ skill (P6).
    The debrief resumes the same session (`… PROMPT-FILE SESSION-ID`):
    the questions of the plan, the last an open one, and among them
    "which answer would you retract, or not bet on?", which three of the
-   trade seat's eight runs proposed and two more answered unasked.
+   trade seat's eight runs proposed and two more answered unasked, and
+   "which claims in your report rest on your own knowledge of the game
+   rather than on the tool?", which both Opus runs of the re-sit
+   proposed and answered unasked (`audits/trade-2026-10/re-sit/`).
 
 ## After the run
 
@@ -136,5 +139,10 @@ skill (P6).
   a finding (`acq tabs` at 355 KB, `search --describe` at 117 KB).
 - **A report's counts are the runner's.** Numbers in the task sections
   were not recomputed by the session in either run; say so.
+- **A seat's close tears down every world's store, the pristine's too.**
+  The re-sit found the plan's pristine copy gone (`teardown` had
+  removed it at the trade seat's close) and made it again from the
+  owner's unchanged files; make the copy before the briefs, and check
+  it is there before a plan names it.
 - **The seat's fix round ends with the gate run bare.** A commit went
   through with `git diff --check` failing behind a `;`.

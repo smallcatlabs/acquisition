@@ -153,7 +153,9 @@ def append(name, new, draft):
         text = sys.stdin.read()
     with open(path, "w" if new else "a") as f:
         f.write(text if text.endswith("\n") else text + "\n")
-    print(f"seat-mcp: {name} is {os.path.getsize(path)} bytes")
+    # what the door did, not a size alone: a runner could not tell an append
+    # from nothing (the re-sit, cli-sonnet fault 6)
+    print(f"seat-mcp: {'started' if new else 'appended to'} {name}, now {os.path.getsize(path)} bytes")
 
 
 def main():
