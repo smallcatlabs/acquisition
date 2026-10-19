@@ -2181,6 +2181,8 @@ fn a_job_verb_refused_for_want_of_a_login_says_a_daemon_started() {
     assert_eq!(status["running"], json!(true), "{status}");
     let stopped = sole_json(&acq(base, &["daemon", "stop", "--json"]));
     assert_eq!(stopped["stopped"], json!(true), "{stopped}");
+}
+
 /// The commands a receipt's `next:` line prints between backticks.
 fn printed_in_next(said: &str) -> Vec<String> {
     let line = said
