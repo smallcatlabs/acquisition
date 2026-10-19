@@ -292,7 +292,7 @@
     "league": "Standard",
     "note_parser_version": 2,
     "realm": "pc",
-    "schema": 2,
+    "schema": 3,
     "stash_listing": {
       "fetched_at": 1000,
       "response_id": 2

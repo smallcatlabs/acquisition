@@ -22,6 +22,10 @@
 //!   printed; Standard otherwise ([`league_of`]).
 //! - A tab or substash address carries its realm, and a realm given
 //!   beside it must agree ([`realm_of`]).
+//! - A row on a target the facts do not hold is listed whole by
+//!   [`report`] (`rows.unmatched`, the manual side's shape), since no
+//!   listing carries it (C35); [`show`] stays a subject of the facts and
+//!   refuses such a target saying it has a row and where it is listed.
 //! - A blind write never lands over a row this build cannot read
 //!   ([`Expect::Current`]): the prior would be intent it cannot restore.
 
@@ -127,8 +131,15 @@ pub fn realm_of(targets: &[&PriceTarget], given: Option<Realm>) -> Result<Realm>
 
 /// The refusal for a target these facts do not hold: where the facts do
 /// hold it, when they do, so it names the league that reads it, never
-/// only the one that does not.
-fn not_on_record(store: &Store, r: &ListingReport, target: &PriceTarget) -> anyhow::Error {
+/// only the one that does not. `own_row` is the revision of a row the
+/// target has of its own, which no listing carries: the refusal says so
+/// and names `status` as where it is listed whole.
+fn not_on_record(
+    store: &Store,
+    r: &ListingReport,
+    target: &PriceTarget,
+    own_row: Option<i64>,
+) -> anyhow::Error {
     let elsewhere = store
         .leagues_of(&FactAddress::from(target))
         .unwrap_or_default();
@@ -143,8 +154,14 @@ fn not_on_record(store: &Store, r: &ListingReport, target: &PriceTarget) -> anyh
         Some(seg) => format!("{seg}/"),
         None => String::new(),
     };
+    let row = match own_row {
+        Some(revision) => format!(
+            "; it has a price row of its own at revision {revision}: `acq price status` lists it"
+        ),
+        None => String::new(),
+    };
     anyhow::anyhow!(
-        "{target} is not in the facts for {realm}{} ({} items, {} tabs and characters on record); {hint}",
+        "{target} is not in the facts for {realm}{} ({} items, {} tabs and characters on record); {hint}{row}",
         r.header.league,
         r.counts.items,
         r.counts.containers
@@ -164,8 +181,19 @@ pub fn show(
     let realm = realm_of(&[&target], realm)?;
     let league = league_of(store, &[&target], league)?;
     let r = report(store, annotations, realm, &league)?;
-    r.show_view(&target)
-        .ok_or_else(|| not_on_record(store, &r, &target))
+    match r.show_view(&target) {
+        Some(view) => Ok(view),
+        None => {
+            let (scope, key) = target.address()?;
+            let own = annotations.get(scope, &key, BUYOUT_KIND)?;
+            Err(not_on_record(
+                store,
+                &r,
+                &target,
+                own.map(|row| row.revision),
+            ))
+        }
+    }
 }
 
 /// `list`'s selection as typed: relation and effective-side words,
@@ -233,7 +261,7 @@ pub fn list(
             .find(|t| r.find(t).is_none())
             .cloned()
             .unwrap_or(PriceTarget::Item { id: "?".into() });
-        not_on_record(store, &r, &missing)
+        not_on_record(store, &r, &missing, None)
     })
 }
 

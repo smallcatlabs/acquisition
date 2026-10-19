@@ -417,21 +417,31 @@ fn each_pricing_write_is_the_receipt_the_cli_prints() {
             "{name} {args} is not what acq {verb:?} --json prints"
         );
     }
-    // The tool's rows are stamped as the server's.
+    // The tool's rows are stamped as the server's, and a row on a target
+    // the facts do not hold is read through the surface: `price_status`
+    // lists it whole, and `price_show` refuses it saying so (C35).
     let (_, shown) = tool(&mut mcp, "price_show", json!({ "target": "tab/pc/nope" }));
-    assert!(shown["error"].is_string(), "{shown}");
+    assert!(
+        shown["error"]
+            .as_str()
+            .is_some_and(|e| e.contains("it has a price row of its own at revision 1")),
+        "{shown}"
+    );
     let (_, status) = tool(&mut mcp, "price_status", json!({}));
     let unmatched = status["rows"]["unmatched"].as_array().unwrap();
-    assert!(
-        unmatched.contains(&json!({ "scope": "tab", "realm": "pc", "id": "nope" })),
+    let row = unmatched
+        .iter()
+        .find(|m| m["from"] == json!({ "scope": "tab", "realm": "pc", "id": "nope" }))
+        .unwrap_or_else(|| panic!("the row is not listed whole: {status}"));
+    assert_eq!(
+        (&row["value"], &row["revision"], &row["written_via"]),
+        (
+            &json!({ "version": 1, "type": "skip" }),
+            &json!(1),
+            &json!("mcp")
+        ),
         "{status}"
     );
-    let row = Annotations::open_for(&by_mcp.0.join("store").join("mock"), UUID)
-        .unwrap()
-        .get("tab", "pc/nope", "buyout")
-        .unwrap()
-        .unwrap();
-    assert_eq!(row.written_via, "mcp");
     assert!(
         no_daemon_appeared(&by_mcp.0),
         "a pricing write reached a daemon"

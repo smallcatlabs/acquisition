@@ -1322,8 +1322,20 @@
     "total": 10,
     "unmatched": [
       {
-        "id": "i-elsewhere",
-        "scope": "item"
+        "from": {
+          "id": "i-elsewhere",
+          "scope": "item"
+        },
+        "inherited": false,
+        "revision": 8,
+        "updated_at": 60,
+        "value": {
+          "amount": "1",
+          "currency": "chaos",
+          "type": "exact",
+          "version": 1
+        },
+        "written_via": "test"
       }
     ],
     "unreadable": [
@@ -1341,7 +1353,7 @@
       }
     ]
   },
-  "schema": 2,
+  "schema": 3,
   "stash_listing": {
     "fetched_at": 100,
     "response_id": 2

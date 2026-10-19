@@ -587,3 +587,66 @@ fn price_set_and_clear_refuse_a_row_this_build_cannot_read_unless_the_revision_i
 
     let _ = std::fs::remove_dir_all(&base);
 }
+
+/// C35, C53 — a row on a target the facts do not hold is intent to look
+/// at, so `status` lists it whole, in the manual side's shape (the value,
+/// the row's own target, its revision, when and through what it was
+/// written) where it once listed the bare address; the text prints the
+/// value and revision on the row's line; and `show`, a subject of the
+/// facts, refuses the target saying it has a row of its own and that
+/// `acq price status` lists it.
+#[test]
+fn a_row_on_a_target_the_facts_do_not_hold_is_listed_whole_and_show_says_where() {
+    let base = std::env::temp_dir().join(format!(
+        "acq-price-orphan-{}-{}",
+        std::process::id(),
+        acquisition_store::now()
+    ));
+    seed(&base);
+
+    let report = sole_json(&acq(&base, &["price", "status", "--json"]));
+    let unmatched = &report["rows"]["unmatched"];
+    let updated_at = unmatched[0]["updated_at"].as_i64();
+    assert!(updated_at.is_some(), "{unmatched}");
+    assert_eq!(
+        unmatched,
+        &json!([{
+            "value": { "version": 1, "type": "skip" },
+            "from": { "scope": "item", "id": "i-elsewhere" },
+            "inherited": false,
+            "revision": 1,
+            "updated_at": updated_at,
+            "written_via": "test",
+        }]),
+        "{report}"
+    );
+
+    let out = acq(&base, &["price", "status", "--expand"]);
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        text.contains("rows naming nothing in the facts:\n  item/i-elsewhere: skip, revision 1\n"),
+        "{text}"
+    );
+
+    let out = acq(&base, &["price", "show", "item/i-elsewhere", "--json"]);
+    assert!(!out.status.success());
+    let said = sole_json(&out)["error"]
+        .as_str()
+        .unwrap_or_default()
+        .to_string();
+    assert!(
+        said.contains("item/i-elsewhere is not in the facts for Standard")
+            && said.contains("it has a price row of its own at revision 1")
+            && said.contains("`acq price status` lists it"),
+        "{said}"
+    );
+    // A target with no row of its own is refused as before.
+    let out = acq(&base, &["price", "show", "item/i-nowhere", "--json"]);
+    let said = sole_json(&out)["error"]
+        .as_str()
+        .unwrap_or_default()
+        .to_string();
+    assert!(!said.contains("price row of its own"), "{said}");
+
+    let _ = std::fs::remove_dir_all(&base);
+}

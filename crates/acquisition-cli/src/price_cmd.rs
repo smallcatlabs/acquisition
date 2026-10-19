@@ -180,8 +180,11 @@ fn rows_detail(r: &ListingReport) -> String {
     let rows = &r.rows;
     if !rows.unmatched.is_empty() {
         out.push_str("rows naming nothing in the facts:\n");
-        for t in &rows.unmatched {
-            out.push_str(&format!("  {t}\n"));
+        for m in &rows.unmatched {
+            out.push_str(&format!(
+                "  {}: {}, revision {}\n",
+                m.from, m.value, m.revision
+            ));
         }
     }
     if !rows.unreadable.is_empty() {
@@ -1048,7 +1051,7 @@ mod tests {
             "{text}"
         );
         assert!(
-            text.contains("rows naming nothing in the facts:\n  item/i-gone\n"),
+            text.contains("rows naming nothing in the facts:\n  item/i-gone: skip, revision 5\n"),
             "{text}"
         );
 
@@ -1293,7 +1296,7 @@ mod tests {
             "{text}"
         );
         assert!(
-            text.contains("rows naming nothing in the facts:\n  item/i-01\n  item/i-gone\n"),
+            text.contains("rows naming nothing in the facts:\n  item/i-01: skip, revision 4\n  item/i-gone: skip, revision 5\n"),
             "{text}"
         );
     }

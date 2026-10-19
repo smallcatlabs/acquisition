@@ -86,9 +86,11 @@
 //! says why — the report's `rows.unreadable` lists every such row once.
 //! Rows whose realm is not the snapshot's are counted `other_realm`; valid
 //! rows naming nothing in these facts (another league's item, a removed
-//! tab) are listed `unmatched` — every nothing says which nothing (C53);
-//! a caller holding the facts moves the first kind to `other_league`
-//! ([`ListingReport::place_other_leagues`]).
+//! tab) are listed `unmatched` — every nothing says which nothing (C53) —
+//! each whole, in the manual side's shape with `from` the row's own
+//! target, since an orphan is intent to look at (C35) and no listing
+//! carries it; a caller holding the facts moves the first kind to
+//! `other_league`, by address ([`ListingReport::place_other_leagues`]).
 //!
 //! **The game side is a statement only where the trade index can see it
 //! (C81, T1).** For a subject in a public tab, [`game_side::read`] reads
@@ -188,11 +190,13 @@ use crate::price::{Buyout, Price, PriceTarget};
 /// second step-4 review's count fields (`by_game_statement`,
 /// `game_priced`) replaced rather than joined `by_game_reading`,
 /// `game_priced_public` and `game_priced_not_public` — a rename, so a
-/// bump, not a compatibility shim nobody would read. The shape is
-/// pinned by `reference/listing-report-schema-2.json`
+/// bump, not a compatibility shim nobody would read. **3** since
+/// 2026-10-19: `rows.unmatched` lists each row whole (the manual side's
+/// shape) where it listed the bare address — a replaced shape, so a
+/// bump. The shape is pinned by `reference/listing-report-schema-3.json`
 /// (`the_report_json_matches_the_committed_fixture`); a change that
 /// fails it is either additive (regenerate the fixture) or a bump.
-pub const LISTING_SCHEMA: u32 = 2;
+pub const LISTING_SCHEMA: u32 = 3;
 
 /// The GGG tab type that groups tabs and holds no items.
 const FOLDER: &str = "Folder";
@@ -481,11 +485,12 @@ pub struct RowAccounting {
     pub applied: usize,
     /// Tab and substash rows of another realm.
     pub other_realm: usize,
-    /// Readable rows naming nothing in these facts.
-    pub unmatched: Vec<PriceTarget>,
+    /// Readable rows naming nothing in these facts, each whole: no
+    /// listing carries them, so this is where they are read.
+    pub unmatched: Vec<ManualSide>,
     pub unreadable: Vec<RowProblem>,
     /// Rows the facts hold in another league of this realm: taken out of
-    /// `unmatched` by [`ListingReport::place_other_leagues`], which a
+    /// `unmatched`, by address, by [`ListingReport::place_other_leagues`], which a
     /// caller holding the facts runs (the snapshot is one league's and
     /// cannot say); empty until then.
     #[serde(default)]
@@ -620,11 +625,11 @@ impl ListingReport {
         &mut self,
         mut elsewhere: impl FnMut(&PriceTarget) -> Result<bool, E>,
     ) -> Result<(), E> {
-        for target in std::mem::take(&mut self.rows.unmatched) {
-            if elsewhere(&target)? {
-                self.rows.other_league.push(target);
+        for row in std::mem::take(&mut self.rows.unmatched) {
+            if elsewhere(&row.from)? {
+                self.rows.other_league.push(row.from);
             } else {
-                self.rows.unmatched.push(target);
+                self.rows.unmatched.push(row);
             }
         }
         Ok(())
@@ -777,6 +782,21 @@ struct ManualRow {
     updated_at: i64,
     written_via: String,
     actor: Option<String>,
+}
+
+impl ManualRow {
+    /// The row as a manual side: on `from`, inherited or its own.
+    fn side(&self, from: &PriceTarget, inherited: bool) -> ManualSide {
+        ManualSide {
+            value: self.value.clone(),
+            from: from.clone(),
+            inherited,
+            revision: self.revision,
+            updated_at: self.updated_at,
+            written_via: self.written_via.clone(),
+            actor: self.actor.clone(),
+        }
+    }
 }
 
 /// The rows, by target, with what could not be indexed.
@@ -1018,18 +1038,7 @@ struct Unreadable {
 fn manual_side(chain: &[PriceTarget], rows: &Rows) -> (Option<ManualSide>, Option<Unreadable>) {
     for (i, target) in chain.iter().enumerate() {
         if let Some(row) = rows.by_target.get(target) {
-            return (
-                Some(ManualSide {
-                    value: row.value.clone(),
-                    from: target.clone(),
-                    inherited: i > 0,
-                    revision: row.revision,
-                    updated_at: row.updated_at,
-                    written_via: row.written_via.clone(),
-                    actor: row.actor.clone(),
-                }),
-                None,
-            );
+            return (Some(row.side(target, i > 0)), None);
         }
         if let Some(why) = rows.unreadable.get(target) {
             return (
@@ -1512,11 +1521,11 @@ pub fn resolve(snapshot: &PricingSnapshot) -> Result<ListingReport, ListingError
     let mut accounting = rows.accounting;
     let subjects: std::collections::BTreeSet<&PriceTarget> =
         listings.iter().map(|l| &l.subject.target).collect();
-    for target in rows.by_target.keys() {
+    for (target, row) in &rows.by_target {
         if subjects.contains(target) {
             accounting.applied += 1;
         } else {
-            accounting.unmatched.push(target.clone());
+            accounting.unmatched.push(row.side(target, false));
         }
     }
 
@@ -2155,7 +2164,7 @@ mod tests {
     fn the_report_json_matches_the_committed_fixture() {
         let path = concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/reference/listing-report-schema-2.json"
+            "/reference/listing-report-schema-3.json"
         );
         let report = resolve(&snapshot()).unwrap();
         let actual = serde_json::to_value(&report).unwrap();
@@ -2312,7 +2321,9 @@ mod tests {
         assert_eq!(report.rows.total, 10);
         assert_eq!(report.rows.applied, 6);
         assert_eq!(report.rows.other_realm, 1);
-        assert_eq!(report.rows.unmatched, [item_target("i-elsewhere")]);
+        let unmatched: Vec<&PriceTarget> = report.rows.unmatched.iter().map(|m| &m.from).collect();
+        assert_eq!(unmatched, [&item_target("i-elsewhere")]);
+        assert!(report.rows.unmatched.iter().all(|m| !m.inherited));
         let unreadable: Vec<(&str, &str)> = report
             .rows
             .unreadable
@@ -2696,11 +2707,11 @@ mod tests {
             assert_eq!(
                 rows.unmatched
                     .iter()
-                    .filter(|t| matches!(t, PriceTarget::Item { .. }))
+                    .filter(|m| matches!(m.from, PriceTarget::Item { .. }))
                     .count(),
                 10
             );
-            assert!(rows.unmatched.iter().all(|t| r.find(t).is_none()));
+            assert!(rows.unmatched.iter().all(|m| r.find(&m.from).is_none()));
         }
 
         /// C70, C80, C81 — the owner's five applied rows land where the
