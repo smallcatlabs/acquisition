@@ -4,5 +4,6 @@ pricing-info/
 search/*/raw/
 tools/sitting-recorder/rows.json
 .claude/settings.local.json
+.claude/worktrees/
 .DS_Store
 __pycache__/
