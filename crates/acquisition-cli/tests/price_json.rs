@@ -398,7 +398,8 @@ fn price_set_and_clear_print_the_receipt_and_show_reads_it_back() {
             "), was unset\n\
              note: the facts hold no item/i-typo (not fetched yet, or a typo); the row stands, \
              and `acq price status` counts it under \"name nothing in the facts\"\n\
-             next: `acq price show item/i-typo` reads it beside the game side\n"
+             next: `acq price show item/i-typo` reads it beside the game side; \
+             `acq price clear item/i-typo --if-revision 3` undoes it\n"
         ),
         "{text}"
     );
@@ -465,7 +466,8 @@ fn price_set_and_clear_print_the_receipt_and_show_reads_it_back() {
     assert_eq!(
         String::from_utf8_lossy(&out.stdout),
         "item/i-map: cleared, was 1/5 divine b/o (revision 2)\n\
-         next: `acq price set item/i-map negotiable 1/5 divine` puts it back\n"
+         next: `acq price set item/i-map negotiable 1/5 divine` puts it back \
+         (a create: a cleared price names no revision)\n"
     );
     assert!(manual(&acq(&base, &["price", "show", "item/i-map", "--json"])).is_none());
     let out = acq(&base, &["price", "clear", "item/i-map"]);

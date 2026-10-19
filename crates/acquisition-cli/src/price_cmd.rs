@@ -755,12 +755,14 @@ fn render_show(view: &ShowView, now: i64, expand: bool) -> String {
 /// lands only over exactly that revision; omitted, it replaces whatever
 /// is stored ([`Expect::Current`]) — read just before the put, so a write
 /// racing in between is still a structured conflict, never a clobber.
+#[allow(clippy::too_many_arguments)]
 pub fn set(
     target: &str,
     kind: &str,
     amount: Option<&str>,
     currency: Option<&str>,
     if_revision: Option<i64>,
+    account: Option<&str>,
     json: bool,
 ) -> Result<()> {
     let (dir, entry, mut annotations) = open_intent()?;
@@ -779,14 +781,22 @@ pub fn set(
         println!("{}", serde_json::to_string_pretty(&receipt)?);
         return Ok(());
     }
-    print!("{}", render_write(&receipt.write, Some(receipt.in_facts)));
+    print!(
+        "{}",
+        render_write(&receipt.write, Some(receipt.in_facts), account)
+    );
     Ok(())
 }
 
 /// `acq price clear <target>`: remove the row, under the same CAS. A
 /// target with no row is a refusal that says so — every nothing says
 /// which nothing (C53).
-pub fn clear(target: &str, if_revision: Option<i64>, json: bool) -> Result<()> {
+pub fn clear(
+    target: &str,
+    if_revision: Option<i64>,
+    account: Option<&str>,
+    json: bool,
+) -> Result<()> {
     let (_, _, mut annotations) = open_intent()?;
     let write = pricing::clear(
         &mut annotations,
@@ -794,15 +804,11 @@ pub fn clear(target: &str, if_revision: Option<i64>, json: bool) -> Result<()> {
         Expect::or(if_revision, Expect::Current),
         &Provenance::via(WRITTEN_VIA),
     )?;
-    report_write(&write, json)
-}
-
-fn report_write(write: &PriceWrite, json: bool) -> Result<()> {
     if json {
-        println!("{}", serde_json::to_string_pretty(write)?);
+        println!("{}", serde_json::to_string_pretty(&write)?);
         return Ok(());
     }
-    print!("{}", render_write(write, None));
+    print!("{}", render_write(&write, None, account));
     Ok(())
 }
 
@@ -822,16 +828,37 @@ fn set_words(value: &Buyout) -> String {
     }
 }
 
+/// `acq price <verb>` as a printed command types it: with the account
+/// the command ran with, so it runs as printed once a second account is
+/// known.
+fn price_verb(verb: &str, account: Option<&str>) -> String {
+    match account {
+        Some(a) => format!(
+            "acq price {verb} --account {}",
+            acquisition_search::answer::shell_quoted(a)
+        ),
+        None => format!("acq price {verb}"),
+    }
+}
+
 /// The write receipt as text (C53): what the target is now and what it
 /// was (C78), then the next action — reading it beside the game side,
-/// and the command that puts the prior back. After a replacement that
-/// command carries `--if-revision` naming the revision just written, so
-/// it undoes this write and not a later one; after a clear it is a
+/// and the command that undoes the write, every one carrying the
+/// account the command ran with. After a create that command is the
+/// clear naming the revision just written; after a replacement the
+/// prior's value with `--if-revision` naming the revision just written,
+/// so it undoes this write and not a later one; after a clear it is a
 /// create, which the store lands over the tombstone whatever came
-/// between (the create cannot say which clear it follows). A prior this
-/// build cannot read is shown as its JSON and promised no undo.
-fn render_write(write: &PriceWrite, in_facts: Option<bool>) -> String {
+/// between (a cleared price names no revision), and the line says so. A
+/// prior this build cannot read is shown as its JSON and promised no
+/// undo.
+fn render_write(write: &PriceWrite, in_facts: Option<bool>, account: Option<&str>) -> String {
     let target = &write.target;
+    let (show, set, clear) = (
+        price_verb("show", account),
+        price_verb("set", account),
+        price_verb("clear", account),
+    );
     let was = match &write.prior {
         None => "was unset".to_string(),
         Some(prior) => format!("was {} (revision {})", value_text(prior), prior.revision),
@@ -855,23 +882,28 @@ fn render_write(write: &PriceWrite, in_facts: Option<bool>) -> String {
                      and `acq price status` counts it under \"name nothing in the facts\"\n"
                 ));
             }
-            let mut next = format!("`acq price show {target}` reads it beside the game side");
+            let mut next = format!("`{show} {target}` reads it beside the game side");
             match (&write.prior, prior_words) {
                 (Some(_), Some(words)) => next.push_str(&format!(
-                    "; `acq price set {target} {words} --if-revision {}` puts the prior back",
+                    "; `{set} {target} {words} --if-revision {}` puts the prior back",
                     row.revision
                 )),
                 (Some(_), None) => next.push_str(
                     "; the prior cannot be put back by this build (its JSON is in --json)",
                 ),
-                (None, _) => {}
+                (None, _) => next.push_str(&format!(
+                    "; `{clear} {target} --if-revision {}` undoes it",
+                    row.revision
+                )),
             }
             out.push_str(&format!("next: {next}\n"));
         }
         None => {
             out.push_str(&format!("{target}: cleared, {was}\n"));
             let next = match prior_words {
-                Some(words) => format!("`acq price set {target} {words}` puts it back"),
+                Some(words) => format!(
+                    "`{set} {target} {words}` puts it back (a create: a cleared price names no revision)"
+                ),
                 None => {
                     "the cleared value cannot be put back by this build (its JSON is in --json)"
                         .to_string()
@@ -1339,22 +1371,32 @@ mod tests {
             prior: None,
         };
         assert_eq!(
-            render_write(&created, None),
+            render_write(&created, None, None),
             "item/i1: 12.5 chaos (revision 1), was unset\n\
-             next: `acq price show item/i1` reads it beside the game side\n"
+             next: `acq price show item/i1` reads it beside the game side; \
+             `acq price clear item/i1 --if-revision 1` undoes it\n"
         );
         // A target the facts do not hold is noted between the row and the
         // next step, never refused (C64); one they do says nothing.
         assert_eq!(
-            render_write(&created, Some(true)),
-            render_write(&created, None)
+            render_write(&created, Some(true), None),
+            render_write(&created, None, None)
         );
         assert_eq!(
-            render_write(&created, Some(false)),
+            render_write(&created, Some(false), None),
             "item/i1: 12.5 chaos (revision 1), was unset\n\
              note: the facts hold no item/i1 (not fetched yet, or a typo); the row stands, \
              and `acq price status` counts it under \"name nothing in the facts\"\n\
-             next: `acq price show item/i1` reads it beside the game side\n"
+             next: `acq price show item/i1` reads it beside the game side; \
+             `acq price clear item/i1 --if-revision 1` undoes it\n"
+        );
+        // Every command carries the account the command ran with, quoted
+        // for the shell that runs it as printed.
+        assert_eq!(
+            render_write(&created, None, Some("Alice#1234")),
+            "item/i1: 12.5 chaos (revision 1), was unset\n\
+             next: `acq price show --account 'Alice#1234' item/i1` reads it beside the game side; \
+             `acq price clear --account 'Alice#1234' item/i1 --if-revision 1` undoes it\n"
         );
         let replaced = PriceWrite {
             target: target.clone(),
@@ -1362,7 +1404,7 @@ mod tests {
             prior: Some(row(exact.clone(), 1)),
         };
         assert_eq!(
-            render_write(&replaced, None),
+            render_write(&replaced, None, None),
             "item/i1: 1/5 divine b/o (revision 2), was 12.5 chaos (revision 1)\n\
              next: `acq price show item/i1` reads it beside the game side; \
              `acq price set item/i1 exact 12.5 chaos --if-revision 2` puts the prior back\n"
@@ -1373,9 +1415,10 @@ mod tests {
             prior: Some(row(bo, 2)),
         };
         assert_eq!(
-            render_write(&cleared, None),
+            render_write(&cleared, None, None),
             "item/i1: cleared, was 1/5 divine b/o (revision 2)\n\
-             next: `acq price set item/i1 negotiable 1/5 divine` puts it back\n"
+             next: `acq price set item/i1 negotiable 1/5 divine` puts it back \
+             (a create: a cleared price names no revision)\n"
         );
         let newer = json!({ "version": 9, "type": "auction" });
         let unreadable = PriceWrite {
@@ -1383,7 +1426,7 @@ mod tests {
             written: None,
             prior: Some(row(newer, 3)),
         };
-        let text = render_write(&unreadable, None);
+        let text = render_write(&unreadable, None, None);
         assert!(
             text.starts_with(
                 "item/i1: cleared, was an unreadable value {\"type\":\"auction\",\"version\":9} (revision 3)\n"
@@ -1401,7 +1444,7 @@ mod tests {
             written: Some(row(exact, 4)),
             prior: Some(row(json!({ "version": 9, "type": "auction" }), 3)),
         };
-        let text = render_write(&overwritten, None);
+        let text = render_write(&overwritten, None, None);
         assert!(
             text.ends_with(
                 "next: `acq price show item/i1` reads it beside the game side; \

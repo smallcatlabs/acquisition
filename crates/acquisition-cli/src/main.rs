@@ -1204,12 +1204,13 @@ async fn run(cli: Cli) -> Result<()> {
                 amount.as_deref(),
                 currency.as_deref(),
                 if_revision,
+                cli.account.as_deref(),
                 cli.json,
             ),
             PriceCmd::Clear {
                 target,
                 if_revision,
-            } => price_cmd::clear(&target, if_revision, cli.json),
+            } => price_cmd::clear(&target, if_revision, cli.account.as_deref(), cli.json),
         },
         Cmd::Reference { cmd } => match cmd {
             ReferenceCmd::Currency { word, expand } => {

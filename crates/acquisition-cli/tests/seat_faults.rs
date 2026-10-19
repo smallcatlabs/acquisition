@@ -2181,4 +2181,110 @@ fn a_job_verb_refused_for_want_of_a_login_says_a_daemon_started() {
     assert_eq!(status["running"], json!(true), "{status}");
     let stopped = sole_json(&acq(base, &["daemon", "stop", "--json"]));
     assert_eq!(stopped["stopped"], json!(true), "{stopped}");
+/// The commands a receipt's `next:` line prints between backticks.
+fn printed_in_next(said: &str) -> Vec<String> {
+    let line = said
+        .lines()
+        .find(|l| l.starts_with("next: "))
+        .unwrap_or_else(|| panic!("no next line: {said}"));
+    line.split('`')
+        .skip(1)
+        .step_by(2)
+        .map(str::to_string)
+        .collect()
+}
+
+/// A printed command, run as a person pastes it: through `sh`, in the
+/// world, no account from the environment.
+fn run_as_printed(base: &Path, command: &str) -> std::process::Output {
+    assert!(command.starts_with("acq "), "{command}");
+    let mut cmd = std::process::Command::new("sh");
+    cmd.arg("-c")
+        .arg(command.replacen("acq ", "\"$ACQ\" ", 1))
+        .env("ACQ", env!("CARGO_BIN_EXE_acq"));
+    harness::isolate(&mut cmd, base);
+    cmd.output().unwrap()
+}
+
+/// The release seat (cli-opus calls 61 to 73, cli-sonnet 55 to 64): the
+/// undo a price receipt printed was refused once a second account was
+/// known, since it carried no `--account`; a first write printed no undo
+/// though the help promised one; and a clear's undo said nothing of why
+/// it names no revision. With two accounts on disk, every undo line runs
+/// as printed and puts the row back: a create's is the clear naming the
+/// revision it wrote, a replace's the prior value over the revision it
+/// wrote, a clear's a create, which says so.
+#[test]
+fn every_undo_a_price_receipt_prints_runs_as_printed_with_a_second_account_known() {
+    let scratch = harness::scratch("seat-undo");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    Index::load(&base.join("store").join("mock"))
+        .unwrap()
+        .record_login("Bob#9", "u-bob", false, acquisition_store::now())
+        .unwrap();
+    let account = ["--account", "Alice#1234"];
+    let price = |base: &Path| -> Value {
+        let mut args = vec!["price", "show", "item/i-std", "--json"];
+        args.extend(account);
+        sole_json(&acq(base, &args))["listing"]["manual"].clone()
+    };
+    let undo = |said: &str| -> String {
+        let undo: Vec<String> = printed_in_next(said)
+            .into_iter()
+            .filter(|c| !c.starts_with("acq price show"))
+            .collect();
+        let [undo] = &undo[..] else {
+            panic!("one undo in the next line: {said}");
+        };
+        assert!(undo.contains("--account "), "{undo}");
+        let out = run_as_printed(&base, undo);
+        assert!(out.status.success(), "{undo}: {}", text(&out));
+        undo.clone()
+    };
+
+    // A create: its undo clears what it wrote, by the revision it wrote.
+    let mut args = vec!["price", "set", "item/i-std", "exact", "2", "divine"];
+    args.extend(account);
+    let out = acq(&base, &args);
+    assert!(out.status.success(), "{}", text(&out));
+    let printed = undo(&text(&out));
+    assert!(
+        printed.contains("price clear") && printed.contains("--if-revision 1"),
+        "{printed}"
+    );
+    assert_eq!(price(&base), Value::Null);
+
+    // A replace: its undo puts the prior back over the revision it wrote.
+    let mut args = vec!["price", "set", "item/i-std", "exact", "2", "divine"];
+    args.extend(account);
+    assert!(acq(&base, &args).status.success());
+    let mut args = vec![
+        "price",
+        "set",
+        "item/i-std",
+        "exact",
+        "3",
+        "divine",
+        "--if-revision",
+        "3",
+    ];
+    args.extend(account);
+    let out = acq(&base, &args);
+    assert!(out.status.success(), "{}", text(&out));
+    undo(&text(&out));
+    let now = price(&base);
+    assert_eq!(now["value"]["amount"], json!("2"), "{now}");
+
+    // A clear: its undo is a create, and the line says why it names no
+    // revision.
+    let rev = now["revision"].as_i64().unwrap().to_string();
+    let mut args = vec!["price", "clear", "item/i-std", "--if-revision", &rev];
+    args.extend(account);
+    let out = acq(&base, &args);
+    let said = text(&out);
+    assert!(out.status.success(), "{said}");
+    assert!(said.contains("a cleared price names no revision"), "{said}");
+    undo(&said);
+    assert_eq!(price(&base)["value"]["amount"], json!("2"));
 }
