@@ -46,6 +46,15 @@ the options were put with a recommendation and answered 2026-10-18.
 | Step | Commits | What landed |
 | --- | --- | --- |
 | 0 the record, the ruling | this file's first commit | the record opened, the README ruling, the crate index and the charter moved |
+| 1 pricing on the MCP | `db30d28a`, `40002b72` | the pricing verbs moved from the CLI binary into `acquisition_plan::pricing`, the CLI calling them; the seven tools as adapters, each the CLI's `--json` document; `tests/pricing_tools.rs`; the park deleted |
+| 2 the policies | the commit that adds this row | `SECURITY.md` and `CONTRIBUTING.md`, V7's positions and no others, in the owner's voice; read by the owner before the commit |
+
+## Owner verdicts, verbatim
+
+- Step 2, on the two drafts: "I have enabled private security
+  reporting. I will probably edit the drafts somewhat, but that will
+  take time and thought. What you have written is a good start. Let's
+  use them."
 
 ## Step briefs
 
@@ -92,6 +101,19 @@ text whole and anything V7 left you to decide, as a question.
 
 ## Observations still open
 
+- Step 1's refusal words: the pricing tools' account and argument
+  kinds are the MCP's existing ones (`no_accounts`, `account_needed`,
+  `account_unknown`, `arguments`), as the search tools' are, not the
+  CLI's (`not_logged_in`, `ambiguous_account`, `unknown_account`,
+  `usage`); a stale or blind revision conflict has no `kind` on either
+  surface, so an agent tells it apart by its text; the refusals name
+  the CLI's flags (`--league`, `--if-revision`) and `acq price show`,
+  the descriptions saying how a flag maps to an argument. The release
+  seat drives both surfaces and says whether any of it costs a call.
+- Targets have two forms: an answer holds a target as an object and a
+  tool takes the word form; the `target` parameter says how one becomes
+  the other. Whether the seat re-reads that is the read economy park's
+  evidence.
 - `acq-mcp` connects per call (`main.rs`, `connect`), and a real-mode
   daemon exits after `ACQ_IDLE_SHUTDOWN` with no connection and no live
   limiter history (C3): an agent session that pauses longer than a
