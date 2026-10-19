@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "acquisition-cli"
-version = "1.0.0-beta.1"
+version = "1.0.0-alpha.1"
 dependencies = [
  "acquisition-client",
  "acquisition-plan",
@@ -21,7 +21,7 @@ dependencies = [
 
 [[package]]
 name = "acquisition-client"
-version = "1.0.0-beta.1"
+version = "1.0.0-alpha.1"
 dependencies = [
  "acquisition-protocol",
  "acquisition-store",
@@ -35,7 +35,7 @@ dependencies = [
 
 [[package]]
 name = "acquisition-daemon"
-version = "1.0.0-beta.1"
+version = "1.0.0-alpha.1"
 dependencies = [
  "acquisition-protocol",
  "acquisition-store",
@@ -54,7 +54,7 @@ dependencies = [
 
 [[package]]
 name = "acquisition-mcp"
-version = "1.0.0-beta.1"
+version = "1.0.0-alpha.1"
 dependencies = [
  "acquisition-client",
  "acquisition-plan",
@@ -70,7 +70,7 @@ dependencies = [
 
 [[package]]
 name = "acquisition-plan"
-version = "1.0.0-beta.1"
+version = "1.0.0-alpha.1"
 dependencies = [
  "acquisition-protocol",
  "acquisition-store",
@@ -85,7 +85,7 @@ dependencies = [
 
 [[package]]
 name = "acquisition-protocol"
-version = "1.0.0-beta.1"
+version = "1.0.0-alpha.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -94,7 +94,7 @@ dependencies = [
 
 [[package]]
 name = "acquisition-search"
-version = "1.0.0-beta.1"
+version = "1.0.0-alpha.1"
 dependencies = [
  "acquisition-plan",
  "acquisition-store",
@@ -113,7 +113,7 @@ dependencies = [
 
 [[package]]
 name = "acquisition-store"
-version = "1.0.0-beta.1"
+version = "1.0.0-alpha.1"
 dependencies = [
  "anyhow",
  "directories",

@@ -27,19 +27,19 @@ this page names is in the repository, not the archive.
 
 | Platform | Archive |
 | --- | --- |
-| macOS, Apple silicon | `acquisition-1.0.0-beta.1-aarch64-apple-darwin.tar.gz` |
-| macOS, Intel | `acquisition-1.0.0-beta.1-x86_64-apple-darwin.tar.gz` |
-| Linux x86_64 | `acquisition-1.0.0-beta.1-x86_64-unknown-linux-gnu.tar.gz` |
-| Linux ARM64 | `acquisition-1.0.0-beta.1-aarch64-unknown-linux-gnu.tar.gz` |
-| Windows x86_64 (and Windows on ARM, emulated) | `acquisition-1.0.0-beta.1-x86_64-pc-windows-msvc.zip` |
+| macOS, Apple silicon | `acquisition-1.0.0-alpha.1-aarch64-apple-darwin.tar.gz` |
+| macOS, Intel | `acquisition-1.0.0-alpha.1-x86_64-apple-darwin.tar.gz` |
+| Linux x86_64 | `acquisition-1.0.0-alpha.1-x86_64-unknown-linux-gnu.tar.gz` |
+| Linux ARM64 | `acquisition-1.0.0-alpha.1-aarch64-unknown-linux-gnu.tar.gz` |
+| Windows x86_64 (and Windows on ARM, emulated) | `acquisition-1.0.0-alpha.1-x86_64-pc-windows-msvc.zip` |
 
 On macOS and Linux, fetch it with your platform's name, check it and
 unpack it:
 
 ```sh
-curl -LO https://github.com/smallcatlabs/acquisition/releases/download/v1.0.0-beta.1/acquisition-1.0.0-beta.1-aarch64-apple-darwin.tar.gz
-shasum -a 256 acquisition-1.0.0-beta.1-aarch64-apple-darwin.tar.gz   # the digest SHA256SUMS lists for it
-tar -xzf acquisition-1.0.0-beta.1-aarch64-apple-darwin.tar.gz
+curl -LO https://github.com/smallcatlabs/acquisition/releases/download/v1.0.0-alpha.1/acquisition-1.0.0-alpha.1-aarch64-apple-darwin.tar.gz
+shasum -a 256 acquisition-1.0.0-alpha.1-aarch64-apple-darwin.tar.gz   # the digest SHA256SUMS lists for it
+tar -xzf acquisition-1.0.0-alpha.1-aarch64-apple-darwin.tar.gz
 ```
 
 Keep the three binaries together: `acq` starts the `acqd` beside it.

@@ -2,8 +2,8 @@
 
 Step 4 of `brainstorming-notes/36-the-road-to-the-agent-release.md`:
 the agent surface — the CLI, the MCP server and the daemon on Windows,
-macOS and Linux — released from GitHub as `v1.0.0-beta.1`, a
-pre-release, with pricing on the MCP, the user-facing README and the
+macOS and Linux — released from GitHub as `v1.0.0-alpha.1`, a
+pre-release (named beta until the close; the verdict below), with pricing on the MCP, the user-facing README and the
 two policies built on the way. Opened 2026-10-18 at `05e6c70c`, closed
 2026-10-19. This file is the permanent short record; the open record
 is whole at `d0ab421e` (its step briefs, the fix round's triage and
@@ -55,7 +55,7 @@ the records' shapes of fault bound every step.
 - **The owner's acts, drafted and not sent**: the note to GGG under
   the registration's framing (the owner's own words); the C++ issues
   with a closing note each (`audits/release-2026-10/cpp-issues.md`);
-  the tag `v1.0.0-beta.1` on the close's last commit, the release's
+  the tag `v1.0.0-alpha.1` on the close's last commit, the release's
   body `audits/release-2026-10/release-notes.md`, published as a
   pre-release; the reddit post.
 - **Not built**, each parked with its trigger: the parks in "Where
@@ -148,6 +148,9 @@ A number here was measured, never recalled; each is its source's.
   session, or do the work yourself if it's related."
 - The rerun's round (2026-10-19): no further rerun, by the owner's
   triage of time against gains; the close to a fresh session.
+- The release's name, at the close (2026-10-19), asked what would
+  have to change to make it an alpha, with no GUI yet and the feature
+  sets untested in the wild: "Yes, make this an alpha release."
 
 ## Where the open observations went
 

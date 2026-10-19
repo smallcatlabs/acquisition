@@ -1,4 +1,4 @@
-# Release notes draft — v1.0.0-beta.1
+# Release notes draft — v1.0.0-alpha.1
 
 For the GitHub release the tag drafts (`release.yml`), to paste as its
 body and edit; a pre-release. Links point at the README's sections on
@@ -17,12 +17,12 @@ it.
 
 **Install:** one archive per platform below, each holding the three
 binaries, the licences and the third-party notices, with `SHA256SUMS`
-beside them. The README's [Install](https://github.com/smallcatlabs/acquisition/blob/v1.0.0-beta.1/README.md#install)
+beside them. The README's [Install](https://github.com/smallcatlabs/acquisition/blob/v1.0.0-alpha.1/README.md#install)
 section says what to do on macOS (signed, not notarized), Linux
 (glibc 2.35 or newer) and Windows (unsigned), then
-[Log in](https://github.com/smallcatlabs/acquisition/blob/v1.0.0-beta.1/README.md#log-in)
+[Log in](https://github.com/smallcatlabs/acquisition/blob/v1.0.0-alpha.1/README.md#log-in)
 and, for an agent,
-[Your agent](https://github.com/smallcatlabs/acquisition/blob/v1.0.0-beta.1/README.md#your-agent).
+[Your agent](https://github.com/smallcatlabs/acquisition/blob/v1.0.0-alpha.1/README.md#your-agent).
 
 **What it does:** fetch under GGG's rate limits with a plan you read
 first; search your items offline with a query language the tool
