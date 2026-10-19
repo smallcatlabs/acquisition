@@ -114,7 +114,10 @@ pub struct SearchArgs {
     pub trade_file: Option<String>,
     /// Order the rows by a value: `ilvl`, `stack`, `'line("T").arg1'`,
     /// `'sum("T")'`, `pseudo.total_res`. A line's scalar is its largest
-    /// satisfying occurrence; an item with none sorts last either way.
+    /// satisfying occurrence; an item with none sorts last either way. A
+    /// sum spans every source the line has — implicit and crafted with
+    /// explicit — as the row's `sorts by` shows; one source's is its
+    /// form, `'sum(line("T" source=explicit).arg1)'`, the filter's own.
     #[arg(long, value_name = "VALUE")]
     pub sort: Option<String>,
     /// Largest first.

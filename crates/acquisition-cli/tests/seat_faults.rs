@@ -1435,6 +1435,18 @@ fn the_terms_block_says_it_is_never_over_the_matches() {
 /// apart.
 #[test]
 fn a_row_sorted_by_a_value_no_field_names_says_which_value() {
+    // the help says what a sum spans (the re-sit: cli-opus fault 4,
+    // cli-sonnet fault 2, each sorting by `sum("T")` for the filter's
+    // explicit figure)
+    let help = stdout(&acq(
+        &harness::scratch("seat-sort-help").0,
+        &["search", "--help"],
+    ));
+    assert!(
+        help.contains("A sum spans every source the line has"),
+        "{help}"
+    );
+    assert!(help.contains("source=explicit).arg1)'"), "{help}");
     let scratch = harness::scratch("seat-sort");
     let base = scratch.0.clone();
     seed_two_leagues(&base);
