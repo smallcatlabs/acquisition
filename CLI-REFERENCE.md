@@ -36,7 +36,7 @@ Commands:
   price         The listing state (no daemon): what every item, tab and character is priced as — by hand, in game, and how the two stand
   reference     Reference data the binary ships (no store, no daemon): the currency table, by version
   shop          The forum shop (no daemon, sends nothing): render the page set a hand price would post, every omission counted with its reason
-  daemon        Debugging only — normal use never needs manual lifecycle
+  daemon        Inspect, stop or reset the daemon. A job command or `acq auth` starts one on demand; `stop` is for a login not in the keyring, which ends with the daemon, and for the README's longer-lived daemon recipe, which starts a new one while none runs
   help          Print this message or the help of the given subcommand(s)
 
 Options:
@@ -194,7 +194,7 @@ Options:
       --limit <LIMIT>                  How many rows to return — or, of a count, how many values a table lists; the rest are counted. Twenty where none is given
       --routes                         Print every count's route — the command that returns exactly its members — instead of the few a next step hangs on; under `--json`, every count's request. Beside `--next` or `--request`, the answer it runs carries them all
       --describe [<NAME,…>]            The language as this build knows it. Bare, the index: fields, what a line has, operators, closed value sets, slots, how terms compose, what a count takes, what is not built and the limits stated, with each computed value and category by name and one line (about 47 KB). Named, those entries whole with their definitions (`--describe league,line,pseudo.total_res`; a block's name is one: `--describe computed`, and `--describe trade` what `--trade` makes of each clause of a site search). `--describe all` is every entry whole, over 150 KB. `--json` is whole unless entries are named
-      --count <KEY,…>                  Count the matches by a key, one table for each key named, and show no rows: a field (`tab`, `league`, `rarity`, `base`, …; `--describe counts` lists them), or `line`, the vocabulary — the templates the matching items carry, ranked, each with the term that selects it and the range of its numbers. `line:` takes the rest of the list as texts to narrow by, a table each, and `~` before one makes it a pattern: `--count tab,line:resist,life`. An item with no value is counted under `none`, one whose value could not be read under `undecided`; every count has its route (`--routes`). Given again, the flag starts a list of its own, so a field can follow a narrowed vocabulary: `--count line:resist,life --count rarity`
+      --count <KEY,…>                  Count the matches by a key, one table for each key named, and show no rows: a field (`tab`, `league`, `rarity`, `base`, …; `--describe counts` lists them), or `line`, the vocabulary — the templates the matching items carry, ranked, each with the term that selects it and the range of its numbers. `line:` takes the rest of the list as texts to narrow by, a table each, and `~` before one makes it a pattern: `--count tab,line:resist,life`. An item with no value is counted under `none`, one whose value could not be read under `undecided`; every count has its route (`--routes`). Given again, the flag starts a list of its own, so a field can follow a narrowed vocabulary: `--count line:resist,life --count rarity`. `realm` is not a key: `--realm` scopes the search, and a count's league names its realm
       --cross <KEY,KEY>                Count the matches by two fields at once, one table of the cells that hold an item: `--cross league,tab`
       --sum <VALUE>                    Beside each count, the sum of one number over its items: `stack`, `ilvl`, `'sum("T")'`, `pseudo.total_res`. An item lacking the thing adds nothing and is counted as lacking; one unread leaves a subtotal marked incomplete
       --fields <NAME,…>                Not built, waiting for a consumer that asks: the caller names a row's fields
@@ -654,7 +654,7 @@ Set one target's price by hand — a row on an item, tab, substash or character;
 Usage: acq price set [OPTIONS] <TARGET> <TYPE> [AMOUNT] [CURRENCY]
 
 Arguments:
-  <TARGET>    `item/<id>`, `character/<id>`, `tab/<realm>/<id>` or `substash/<realm>/<parent>/<id>`
+  <TARGET>    `item/<id>`, `character/<id>`, `tab/<realm>/<id>` or `substash/<realm>/<parent>/<id>`; `acq price show item/<id>` names the tab an item sits in
   <TYPE>      exact, negotiable, no_price or skip (the game's `price`, `b/o` and `~skip` work too)
   [AMOUNT]    For exact and negotiable: a decimal of up to four places (`12.5`), or a `wanted/lot` ratio (`1/5`)
   [CURRENCY]  For exact and negotiable: a tag of `acq reference currency`
@@ -717,7 +717,7 @@ The forum shop (no daemon, sends nothing): render the page set a hand price woul
 Usage: acq shop [OPTIONS] <COMMAND>
 
 Commands:
-  render  Render the shop pages to stdout for pasting by hand: one link code per hand-priced item under its price's spoiler, one page spoiler labelled n of N, in pages of at most --size characters; what the game already lists is omitted and counted, an unobserved case is blocked and counted; the sync policy's coverage and freshness are reported, never enforced
+  render  Render the shop pages to stdout for pasting by hand: one link code per hand-priced item under its price's spoiler, one page spoiler labelled n of N, in pages of at most --size characters; what the game already lists is omitted and counted, an unobserved case is blocked and counted (an item in a substash, or socketed in another: the forum has no link form for it); the sync policy's coverage and freshness are reported, never enforced. A link's `Stash<n>` is the tab's rank among the tabs the website lists, folders and substashes left out, not the API's index
   help    Print this message or the help of the given subcommand(s)
 
 Options:
@@ -727,7 +727,7 @@ Options:
 ## `acq shop render`
 
 ```text
-Render the shop pages to stdout for pasting by hand: one link code per hand-priced item under its price's spoiler, one page spoiler labelled n of N, in pages of at most --size characters; what the game already lists is omitted and counted, an unobserved case is blocked and counted; the sync policy's coverage and freshness are reported, never enforced
+Render the shop pages to stdout for pasting by hand: one link code per hand-priced item under its price's spoiler, one page spoiler labelled n of N, in pages of at most --size characters; what the game already lists is omitted and counted, an unobserved case is blocked and counted (an item in a substash, or socketed in another: the forum has no link form for it); the sync policy's coverage and freshness are reported, never enforced. A link's `Stash<n>` is the tab's rank among the tabs the website lists, folders and substashes left out, not the API's index
 
 Usage: acq shop render [OPTIONS]
 
@@ -744,7 +744,7 @@ Options:
 ## `acq daemon`
 
 ```text
-Debugging only — normal use never needs manual lifecycle
+Inspect, stop or reset the daemon. A job command or `acq auth` starts one on demand; `stop` is for a login not in the keyring, which ends with the daemon, and for the README's longer-lived daemon recipe, which starts a new one while none runs
 
 Usage: acq daemon [OPTIONS] <COMMAND>
 

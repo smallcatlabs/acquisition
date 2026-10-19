@@ -60,7 +60,7 @@ pub(crate) async fn attach() -> Result<Client> {
 fn client_of(observed: Observed) -> Result<Client> {
     match observed {
         Observed::Compatible(client) => Ok(client),
-        Observed::Absent => bail!("daemon is not running (it spawns on demand for job commands)"),
+        Observed::Absent => bail!("daemon is not running (a job command or `acq auth` starts one)"),
         Observed::Incompatible(found) => bail!("{found}; {}", mismatch_remedy(&found)),
         Observed::Unresponsive(found) => bail!("{found}"),
     }
@@ -84,7 +84,7 @@ fn print_persisted_queue(json: bool) -> Result<()> {
         );
         return Ok(());
     }
-    let spawns = "it spawns on demand for job commands";
+    let spawns = "a job command or `acq auth` starts one";
     match persisted {
         None => println!("daemon is not running; no queue on disk ({spawns})"),
         Some(p) if p.jobs.is_empty() => {
@@ -146,7 +146,7 @@ fn persisted_job(id: u64) -> Result<PersistedRecord> {
     match Persisted::observe_job(provider::wanted(), id)? {
         Some(record) => Ok(record),
         None => bail!(
-            "no job {id} on disk, and the daemon is not running (it spawns on demand for job commands)"
+            "no job {id} on disk, and the daemon is not running (a job command or `acq auth` starts one)"
         ),
     }
 }
@@ -551,7 +551,10 @@ is the per-location summary.")]
         #[command(subcommand)]
         cmd: ShopCmd,
     },
-    /// Debugging only — normal use never needs manual lifecycle.
+    /// Inspect, stop or reset the daemon. A job command or `acq auth`
+    /// starts one on demand; `stop` is for a login not in the keyring,
+    /// which ends with the daemon, and for the README's longer-lived
+    /// daemon recipe, which starts a new one while none runs.
     Daemon {
         #[command(subcommand)]
         cmd: DaemonCmd,
@@ -630,7 +633,8 @@ enum PriceCmd {
     /// continues from it.
     Set {
         /// `item/<id>`, `character/<id>`, `tab/<realm>/<id>` or
-        /// `substash/<realm>/<parent>/<id>`.
+        /// `substash/<realm>/<parent>/<id>`; `acq price show item/<id>`
+        /// names the tab an item sits in.
         target: String,
         /// exact, negotiable, no_price or skip (the game's `price`, `b/o`
         /// and `~skip` work too).
@@ -669,8 +673,11 @@ enum ShopCmd {
     /// page spoiler labelled n of N, in pages of at most --size
     /// characters; what the
     /// game already lists is omitted and counted, an unobserved case is
-    /// blocked and counted; the sync policy's coverage and freshness are
-    /// reported, never enforced.
+    /// blocked and counted (an item in a substash, or socketed in
+    /// another: the forum has no link form for it); the sync policy's
+    /// coverage and freshness are reported, never enforced. A link's
+    /// `Stash<n>` is the tab's rank among the tabs the website lists,
+    /// folders and substashes left out, not the API's index.
     Render {
         #[arg(long, default_value = "Standard")]
         league: String,

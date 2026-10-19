@@ -467,7 +467,7 @@ fn price_set_and_clear_print_the_receipt_and_show_reads_it_back() {
         String::from_utf8_lossy(&out.stdout),
         "item/i-map: cleared, was 1/5 divine b/o (revision 2)\n\
          next: `acq price set --account 'Alice#1234' item/i-map negotiable 1/5 divine` puts it back \
-         (a create: a cleared price names no revision)\n"
+         (a create, which names no revision; the row's count continues past the clear)\n"
     );
     assert!(manual(&acq(&base, &["price", "show", "item/i-map", "--json"])).is_none());
     let out = acq(&base, &["price", "clear", "item/i-map"]);
@@ -934,5 +934,63 @@ fn a_prior_naming_a_retired_currency_promises_no_undo() {
         !text.contains("3 chisel --if-revision") && text.contains("retired"),
         "{text}"
     );
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// The rerun of the release seat (cli-opus-2 calls 51 to 54): a named
+/// `--limit` kept twelve items and printed the group's header alone,
+/// since a group over ten is counted. A limit is the person's own bound:
+/// the items it keeps are listed.
+#[test]
+fn a_named_limit_lists_the_items_it_bounds() {
+    let base = std::env::temp_dir().join(format!(
+        "acq-price-limit-lists-{}-{}",
+        std::process::id(),
+        acquisition_store::now()
+    ));
+    let mock = seed(&base);
+    let mut store = Store::open(&account_path(&mock, USER)).unwrap();
+    let at = acquisition_store::now();
+    let item = |n: usize| {
+        json!({ "id": format!("i-big-{n:02}"), "name": "", "typeLine": "Chaos Orb", "baseType": "Chaos Orb",
+                "x": n, "y": 0, "stackSize": 1, "note": "~price 1 chaos" })
+    };
+    store
+        .record(
+            &Endpoint::Stashes { realm: "pc".into(), league: "Standard".into() },
+            &json!({ "league": "Standard" }),
+            200,
+            &json!({ "stashes": [
+                { "id": "f1", "name": "Sale", "type": "Folder", "index": 0,
+                  "children": [ { "id": "c1", "name": "~price 3 chaos", "type": "PremiumStash", "index": 1, "metadata": { "public": true } } ] },
+                { "id": "m1", "name": "Maps", "type": "MapStash", "index": 2 },
+                { "id": "big", "name": "Big", "type": "PremiumStash", "index": 3, "metadata": { "public": true } } ] }),
+            at,
+        )
+        .unwrap();
+    store
+        .record(
+            &Endpoint::Stash {
+                realm: "pc".into(),
+                league: "Standard".into(),
+                id: "big".into(),
+                sub: None,
+            },
+            &json!({}),
+            200,
+            &json!({ "stash": { "id": "big", "name": "Big", "type": "PremiumStash",
+                                "items": (0..12).map(item).collect::<Vec<_>>() } }),
+            at,
+        )
+        .unwrap();
+    drop(store);
+    let out = acq(
+        &base,
+        &["price", "list", "--in", "tab/pc/big", "--limit", "12"],
+    );
+    assert!(out.status.success(), "{}", stderr(&out));
+    let text = String::from_utf8_lossy(&out.stdout).to_string();
+    let lines = text.lines().filter(|l| l.contains("i-big-")).count();
+    assert_eq!(lines, 12, "{text}");
     let _ = std::fs::remove_dir_all(&base);
 }

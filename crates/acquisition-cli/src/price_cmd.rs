@@ -46,7 +46,9 @@ use crate::plan_cmd::{WRITTEN_VIA, open_intent};
 use crate::store_cmd::{ago, clip, realm_prefix};
 
 /// Groups of this many items or fewer are listed one per line; larger
-/// groups are counted (C53; `--expand` lists every one).
+/// groups are counted (C53; `--expand` lists every one, and so does a
+/// `--limit`, which is the person's own bound: the release seat asked
+/// for twelve and was shown a header alone).
 const LIST_UP_TO: usize = 10;
 
 /// The selected account's facts file, opened beside its intent.
@@ -60,13 +62,17 @@ fn opened() -> Result<(Store, Annotations)> {
 
 /// `acq price status`.
 pub fn status(realm: Realm, league: &str, expand: bool, json: bool) -> Result<()> {
-    let (store, annotations) = opened()?;
+    let (dir, entry, annotations) = open_intent()?;
+    let store = Store::open(&account_path(&dir, &entry.username))?;
     let r = pricing::report(&store, &annotations, realm, league)?;
     if json {
         println!("{}", serde_json::to_string_pretty(&r.summary())?);
         return Ok(());
     }
-    print!("{}", render_status(&r, acquisition_store::now(), expand));
+    print!(
+        "{}",
+        render_status(&r, acquisition_store::now(), expand, &entry.username)
+    );
     Ok(())
 }
 
@@ -201,7 +207,26 @@ fn rows_detail(r: &ListingReport) -> String {
     out
 }
 
-fn render_status(r: &ListingReport, now: i64, expand: bool) -> String {
+fn render_status(r: &ListingReport, now: i64, expand: bool, account: &str) -> String {
+    // Every command the next step prints, as it runs: the account it ran as, and the
+    // league and realm where they are not the defaults (the release
+    // seat's rerun: Allflame's next step read Standard, call 48).
+    let scope = format!(
+        "--account {}{}{}",
+        acquisition_search::answer::shell_quoted(account),
+        match r.header.realm.segment() {
+            Some(seg) => format!(" --realm {seg}"),
+            None => String::new(),
+        },
+        if r.header.league == pricing::DEFAULT_LEAGUE {
+            String::new()
+        } else {
+            format!(
+                " --league {}",
+                acquisition_search::answer::shell_quoted(&r.header.league)
+            )
+        }
+    );
     let mut out = String::new();
     let h = &r.header;
     let place = format!("{}{}", realm_prefix(h.realm), h.league);
@@ -229,9 +254,9 @@ fn render_status(r: &ListingReport, now: i64, expand: bool) -> String {
             out.push_str(&rows_detail(r));
         }
         let next = if !r.rows.unreadable.is_empty() {
-            "`acq price status --expand` lists the rows that cannot be read"
+            format!("`acq price status {scope} --expand` lists the rows that cannot be read")
         } else {
-            "`acq refresh --plan` shows what a refresh would fetch"
+            "`acq refresh --plan` shows what a refresh would fetch".to_string()
         };
         out.push_str(&format!("next: {next}\n"));
         return out;
@@ -312,13 +337,17 @@ fn render_status(r: &ListingReport, now: i64, expand: bool) -> String {
         out.push_str(&rows_detail(r));
     }
     let next = if unresolved > 0 {
-        "`acq price list --effective unresolved` names each item a row that cannot be read could decide"
+        format!(
+            "`acq price list {scope} --effective unresolved` names each item a row that cannot be read could decide"
+        )
     } else if count_of(r, Relation::Conflict) > 0 {
-        "`acq price list --relation conflict` names each conflict"
+        format!("`acq price list {scope} --relation conflict` names each conflict")
     } else if !rows.unreadable.is_empty() {
-        "`acq price status --expand` lists the rows that cannot be read"
+        format!("`acq price status {scope} --expand` lists the rows that cannot be read")
     } else {
-        "`acq price list` groups the listed items by tab; `acq price show <target>` is one listing"
+        format!(
+            "`acq price list {scope}` groups the listed items by tab; `acq price show {scope} <target>` is one listing"
+        )
     };
     out.push_str(&format!("next: {next}\n"));
     out
@@ -537,7 +566,10 @@ fn render_list(view: &ListView, expand: bool) -> String {
         breakdown(&items),
         plural(groups.len(), "container", "containers")
     ));
-    if expand || groups.iter().any(|(_, g)| g.len() <= LIST_UP_TO) {
+    // A limit the person named is their bound: the items it keeps are
+    // listed whatever the group's size.
+    let bounded = view.filter.limit.is_some();
+    if expand || bounded || groups.iter().any(|(_, g)| g.len() <= LIST_UP_TO) {
         out.push_str(&item_header());
     }
     for (loc, group) in &groups {
@@ -552,7 +584,7 @@ fn render_list(view: &ListView, expand: bool) -> String {
             plural(group.len(), "item", "items"),
             breakdown(group)
         ));
-        if group.len() <= LIST_UP_TO || expand {
+        if group.len() <= LIST_UP_TO || expand || bounded {
             for l in group {
                 out.push_str(&item_line(l));
                 if expand {
@@ -925,7 +957,7 @@ fn render_write(write: &PriceWrite, in_facts: Option<bool>, account: &str) -> St
             out.push_str(&format!("{target}: cleared, {was}\n"));
             let next = match prior_words {
                 Some(Ok(words)) => format!(
-                    "`{set} {word} {words}` puts it back (a create: a cleared price names no revision)"
+                    "`{set} {word} {words}` puts it back (a create, which names no revision; the row's count continues past the clear)"
                 ),
                 Some(Err(why)) => format!("the cleared value cannot be put back: {why}"),
                 None => "nothing was cleared".to_string(),
@@ -1074,7 +1106,7 @@ mod tests {
     #[test]
     fn c53_price_status_opens_with_one_line_and_ends_with_the_next_action() {
         let r = report();
-        let text = render_status(&r, 8_000, false);
+        let text = render_status(&r, 8_000, false, "a");
         let lines: Vec<&str> = text.lines().collect();
         assert_eq!(
             lines[0],
@@ -1094,12 +1126,12 @@ mod tests {
         );
         assert_eq!(
             lines[4],
-            "next: `acq price list --relation conflict` names each conflict"
+            "next: `acq price list --account a --relation conflict` names each conflict"
         );
         assert_eq!(lines.len(), 5, "{text}");
         assert!(!text.contains("parser"), "{text}");
 
-        let text = render_status(&r, 8_000, true);
+        let text = render_status(&r, 8_000, true, "a");
         assert!(
             text.contains("game side: 2 priced tab names (1 public); 12 priced items in public tabs; note parser v2, currency table v1"),
             "{text}"
@@ -1119,7 +1151,7 @@ mod tests {
 
         let mut empty = snapshot();
         empty.items.clear();
-        let text = render_status(&resolve(&empty).unwrap(), 8_000, false);
+        let text = render_status(&resolve(&empty).unwrap(), 8_000, false, "a");
         assert!(text.starts_with("no items on record for Standard: 4 tabs and characters listed, none fetched with items\n"), "{text}");
         assert!(
             text.ends_with("next: `acq refresh --plan` shows what a refresh would fetch\n"),
@@ -1127,7 +1159,7 @@ mod tests {
         );
         empty.stash_listing = None;
         empty.character_listing = None;
-        let text = render_status(&resolve(&empty).unwrap(), 8_000, false);
+        let text = render_status(&resolve(&empty).unwrap(), 8_000, false, "a");
         assert!(
             text.starts_with(
                 "nothing on record for Standard: no stash listing, no character listing\n"
@@ -1349,14 +1381,14 @@ mod tests {
             actor: None,
         });
         let r = resolve(&empty).unwrap();
-        let text = render_status(&r, 8_000, false);
+        let text = render_status(&r, 8_000, false, "a");
         assert_eq!(
             text,
             "no items on record for Standard: 4 tabs and characters listed, none fetched with items\n\
              rows: 0 of 3 apply here; 2 name nothing in the facts, 1 unreadable, 0 for other leagues, 0 for other realms\n\
-             next: `acq price status --expand` lists the rows that cannot be read\n"
+             next: `acq price status --account a --expand` lists the rows that cannot be read\n"
         );
-        let text = render_status(&r, 8_000, true);
+        let text = render_status(&r, 8_000, true, "a");
         assert!(
             text.contains("rows that cannot be read:\n  item/i-new revision 7:"),
             "{text}"
@@ -1443,7 +1475,7 @@ mod tests {
             render_write(&cleared, None, "a"),
             "item/i1: cleared, was 1/5 divine b/o (revision 2)\n\
              next: `acq price set --account a item/i1 negotiable 1/5 divine` puts it back \
-             (a create: a cleared price names no revision)\n"
+             (a create, which names no revision; the row's count continues past the clear)\n"
         );
         let newer = json!({ "version": 9, "type": "auction" });
         let unreadable = PriceWrite {
@@ -1503,7 +1535,7 @@ mod tests {
         let list = render_list(&view, true);
         let show = r.show_view(&tab).unwrap();
         let shown = render_show(&show, now, true);
-        let status = render_status(&r, now, true);
+        let status = render_status(&r, now, true, "a");
         let took = t.elapsed();
         assert!(
             took < Duration::from_secs(5),

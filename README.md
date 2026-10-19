@@ -55,14 +55,12 @@ is; the link is followed.
   in your desktop session.
 - **Windows**: download the `.zip` from the release page, check
   `Get-FileHash` on it against `SHA256SUMS`, and extract it. The
-  binaries are not signed; on the machine it was tried on, Windows ran
-  them with no SmartScreen prompt, but yours may show one. Add the
-  directory to your `PATH`; do not symlink `acq`.
+  binaries are not signed, so Windows may show a SmartScreen prompt.
+  Add the directory to your `PATH`; do not symlink `acq`.
 
 On every platform, run `acq` at your desktop, not over ssh: over ssh
 the keyring is out of reach, and on Windows the daemon ends with the
-session. To build from source instead, `cargo build --release` puts
-the three binaries in `target/release`.
+session. From source: `cargo build --release`.
 
 ## Log in
 
@@ -76,7 +74,8 @@ daemon against GGG without one. GGG is the provider unless
 `ACQ_PROVIDER=mock` is set; with it, a built-in stand-in serves
 made-up stashes and a login page that takes any name, for trying the
 tool or an agent with no account. Without a keyring, a login lasts as
-long as the daemon that holds it.
+long as the daemon that holds it. A second login makes every verb
+need `--account`.
 
 ## Your agent
 
@@ -118,6 +117,7 @@ time:
 acq daemon stop   # without a keyring, this logs you out
 ACQ_IDLE_SHUTDOWN=3600 acq auth check   # a daemon that idles out after an hour, your login back from the keyring
 ACQ_IDLE_SHUTDOWN=3600 acq auth   # the same without a keyring
+acq daemon status   # the new daemon and its idle exit
 ```
 
 In PowerShell, set `$env:ACQ_IDLE_SHUTDOWN = 3600` first.

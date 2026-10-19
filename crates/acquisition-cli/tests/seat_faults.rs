@@ -2286,7 +2286,7 @@ fn every_undo_a_price_receipt_prints_runs_as_printed_with_a_second_account_known
     let out = acq(&base, &args);
     let said = text(&out);
     assert!(out.status.success(), "{said}");
-    assert!(said.contains("a cleared price names no revision"), "{said}");
+    assert!(said.contains("which names no revision"), "{said}");
     undo(&said);
     assert_eq!(price(&base)["value"]["amount"], json!("2"));
 }
@@ -2409,5 +2409,36 @@ fn an_undo_quotes_a_target_a_shell_would_split() {
         run.status.success(),
         "the undo `{undo}` was refused: {}",
         String::from_utf8_lossy(&run.stderr)
+    );
+}
+
+/// The rerun of the release seat (cli-opus-2 call 48): `price status
+/// --league Allflame` ended with a next step that named no league, so
+/// the printed command read Standard. The next step carries the account
+/// it ran as and the league and realm where they are not the defaults,
+/// and runs as printed.
+#[test]
+fn the_status_next_step_runs_as_printed_in_its_league() {
+    let scratch = harness::scratch("status-next-league");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    let out = acq(&base, &["price", "status", "--league", "Allflame"]);
+    let said = text(&out);
+    assert!(out.status.success(), "{said}");
+    let next = printed_in_next(&said)
+        .into_iter()
+        .find(|c| c.contains("price list"))
+        .unwrap_or_else(|| panic!("no list command in the next line: {said}"));
+    assert!(next.contains("--league Allflame"), "{next}");
+    let run = run_as_printed(&base, &next);
+    assert!(
+        run.status.success(),
+        "`{next}`: {}",
+        String::from_utf8_lossy(&run.stderr)
+    );
+    assert!(
+        String::from_utf8_lossy(&run.stdout).contains("Allflame"),
+        "{}",
+        String::from_utf8_lossy(&run.stdout)
     );
 }

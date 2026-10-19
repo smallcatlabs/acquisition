@@ -159,6 +159,8 @@ pub struct SearchArgs {
     /// `undecided`; every count has its route (`--routes`). Given
     /// again, the flag starts a list of its own, so a field can follow a
     /// narrowed vocabulary: `--count line:resist,life --count rarity`.
+    /// `realm` is not a key: `--realm` scopes the search, and a count's
+    /// league names its realm.
     #[arg(long, value_name = "KEY,…")]
     pub count: Vec<String>,
     /// Count the matches by two fields at once, one table of the cells
