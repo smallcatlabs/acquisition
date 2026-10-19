@@ -365,13 +365,6 @@ Options:
       --all
           Every tab in the league (folder children included, folders not)
 
-      --json
-          Emit structured JSON instead of human-readable output: one document on stdout, a failure included (`{"error", "kind"}`). A job verb's is `{"outcome", "payload", "job_id", "account"}`, and a failed job's carries `error` in place of `payload`; without the flag it prints the payload alone
-
-          Which account to act as: a username (with or without `#…`) or uuid. Defaults to `ACQ_ACCOUNT`. With neither, a verb that reads the store takes the sole account known on disk (`acq accounts`) and a job verb the sole account logged in (`acq auth status`); with more than one, the verb refuses and lists them. A job's progress line and its JSON name the account it ran as
-
-          [env: ACQ_ACCOUNT=]
-
       --tabs <TABS>
           Comma-separated tab ids
 
@@ -448,13 +441,6 @@ Arguments:
 Options:
       --if-revision <IF_REVISION>
           Only write if the stored policy is at exactly this revision (what `acq policy show` printed when you reviewed it); refused with the current revision otherwise. Without it the write replaces whatever revision is currently stored — though a write racing in between still conflicts rather than being clobbered
-
-      --json
-          Emit structured JSON instead of human-readable output: one document on stdout, a failure included (`{"error", "kind"}`). A job verb's is `{"outcome", "payload", "job_id", "account"}`, and a failed job's carries `error` in place of `payload`; without the flag it prints the payload alone
-
-          Which account to act as: a username (with or without `#…`) or uuid. Defaults to `ACQ_ACCOUNT`. With neither, a verb that reads the store takes the sole account known on disk (`acq accounts`) and a job verb the sole account logged in (`acq auth status`); with more than one, the verb refuses and lists them. A job's progress line and its JSON name the account it ran as
-
-          [env: ACQ_ACCOUNT=]
 
   -h, --help
           Print help (see a summary with '-h')

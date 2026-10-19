@@ -58,17 +58,37 @@ fn walk(path: Vec<String>, out: &mut String) {
     };
     // The two global options render on every subcommand; shown once, under
     // the root, so a reader's 50 sections are not 13 KB of the same lines.
+    // An option is its heading and the indented lines under it, to the
+    // next heading or section: the block goes together. In the long
+    // format (a doc of several paragraphs) the heading stands alone on
+    // its line, `--json` with nothing after it.
+    let mut skipping = false;
     let body: String = text
         .lines()
         .filter(|l| {
-            path.is_empty()
-                || !(l.trim_start().starts_with("--json ")
-                    || l.trim_start().starts_with("--account "))
+            if path.is_empty() {
+                return true;
+            }
+            let head = l.trim_start();
+            let is_global = |name: &str| head == name || head.starts_with(&format!("{name} "));
+            if is_global("--json") || is_global("--account") {
+                skipping = true;
+            } else if head.starts_with('-') || !l.starts_with(' ') {
+                skipping = false;
+            }
+            !skipping
         })
         // Clap pads an empty help cell; the reference carries no line
-        // that ends in a space.
-        .map(|l| format!("{}\n", l.trim_end()))
-        .collect();
+        // that ends in a space. A dropped block leaves its blank lines on
+        // both sides: one blank line between options, as clap prints.
+        .map(|l| l.trim_end())
+        .fold(String::new(), |mut body, l| {
+            if !(l.is_empty() && body.ends_with("\n\n")) {
+                body.push_str(l);
+                body.push('\n');
+            }
+            body
+        });
     out.push_str(&format!(
         "## `{title}`\n\n```text\n{}\n```\n\n",
         body.trim_end_matches('\n')
@@ -112,4 +132,18 @@ fn the_reference_matches_the_binary() {
         actual.contains("## `acq shop render`"),
         "the walk stopped early"
     );
+    // A global option's description and its `[env: …]` line go with its
+    // heading: once, under the root, never stranded under a subcommand's
+    // previous option.
+    for said in [
+        "Which account to act as",
+        "[env: ACQ_ACCOUNT=]",
+        "one document on stdout",
+    ] {
+        assert_eq!(
+            actual.matches(said).count(),
+            1,
+            "{said:?} is in the reference more than once: a global option's lines strayed"
+        );
+    }
 }
