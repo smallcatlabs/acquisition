@@ -85,17 +85,15 @@ Claude Desktop's configuration, with the path where you unpacked it:
 ```json
 {
   "mcpServers": {
-    "acquisition": {
-      "command": "/path/to/acquisition/acq-mcp",
-      "env": { "ACQ_PROVIDER": "mock" }
-    }
+    "acquisition": { "command": "/path/to/acquisition/acq-mcp" }
   }
 }
 ```
 
-The server takes its knobs through `env`. This one gives the agent the
-stand-in's made-up stashes, after `ACQ_PROVIDER=mock acq auth`; leave
-it out for your own account.
+That is your own account. The server takes its knobs through `env`:
+`"env": { "ACQ_PROVIDER": "mock" }` gives the agent the stand-in's
+made-up stashes instead, after `ACQ_PROVIDER=mock acq auth`, and
+`ACQ_STORE_DIR` there must match your `acq`'s.
 
 It shares the store and the daemon with `acq`, and its 25 tools do
 what the CLI does: read the store (`search`, `describe`, `show`,
