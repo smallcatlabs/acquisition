@@ -626,6 +626,8 @@ enum PriceCmd {
     /// or character; what it covers inherits it. Prints what it
     /// replaced, how to put that back, and a note when the facts hold no
     /// such target (a tab not fetched yet, or a typo — never a refusal).
+    /// A clear takes a revision too, so the next write's revision
+    /// continues from it.
     Set {
         /// `item/<id>`, `character/<id>`, `tab/<realm>/<id>` or
         /// `substash/<realm>/<parent>/<id>`.
@@ -649,7 +651,8 @@ enum PriceCmd {
     },
     /// Remove one target's own price row; what it covered falls back to
     /// the next row up. Prints what it removed and the command that
-    /// puts it back.
+    /// puts it back. A clear takes a revision too, so the next write's
+    /// revision continues from it.
     Clear {
         /// The address, as for `set`.
         target: String,

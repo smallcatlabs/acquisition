@@ -2288,3 +2288,22 @@ fn every_undo_a_price_receipt_prints_runs_as_printed_with_a_second_account_known
     undo(&said);
     assert_eq!(price(&base)["value"]["amount"], json!("2"));
 }
+
+/// The release seat (mcp-opus, mcp-sonnet, cli-sonnet call 79): a
+/// cleared row took a revision, and the next write's continued from it
+/// (a create at 4 after a clear at 3), said nowhere, so a run read the
+/// numbers as a fault. The two writes' help says it.
+#[test]
+fn the_price_writes_help_says_a_clear_takes_a_revision() {
+    let scratch = harness::scratch("seat-clear-revision");
+    for verb in ["set", "clear"] {
+        let out = acq(&scratch.0, &["price", verb, "--help"]);
+        let said = text(&out).split_whitespace().collect::<Vec<_>>().join(" ");
+        assert!(
+            said.contains(
+                "A clear takes a revision too, so the next write's revision continues from it"
+            ),
+            "price {verb} --help: {said}"
+        );
+    }
+}

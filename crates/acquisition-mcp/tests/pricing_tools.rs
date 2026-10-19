@@ -589,3 +589,26 @@ fn a_clear_lands_alike_on_both_surfaces_without_the_facts() {
     );
     assert!(no_daemon_appeared(&by_mcp.0));
 }
+
+/// The release seat (mcp-opus, mcp-sonnet): a cleared row took a
+/// revision, and the next write's continued from it, said nowhere. The
+/// two write tools' texts say it.
+#[test]
+fn the_price_write_tools_say_a_clear_takes_a_revision() {
+    let dir = scratch("clear-revision");
+    let mut mcp = Mcp::start(&dir.0, &[]);
+    let tools = mcp.list_tools();
+    for name in ["price_set", "price_clear"] {
+        let tool = tools
+            .iter()
+            .find(|t| t["name"] == json!(name))
+            .unwrap_or_else(|| panic!("no {name}"));
+        let said = tool["description"].as_str().unwrap_or_default();
+        assert!(
+            said.contains(
+                "A clear takes a revision too, so the next write's revision continues from it"
+            ),
+            "{name}: {said}"
+        );
+    }
+}
