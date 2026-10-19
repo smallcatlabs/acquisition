@@ -57,7 +57,12 @@
 //! - **A refusal is a result marked `isError`** holding the CLI's
 //!   failure document — `error`, `kind`, `readings`, `offers` — never a
 //!   JSON-RPC error, whose `data` a host need not show the model (the
-//!   owner, 2026-10-10). The server's other tools fail as they did.
+//!   owner, 2026-10-10). Every other tool's refusal is the same form,
+//!   sorted by one function (`failed`): the account's kinds, `arguments`,
+//!   `store`, `no_daemon`, and `refused` for the rest, in the words the
+//!   failure has (the release seat's rerun); a JSON-RPC error is kept
+//!   for a call the server could not serve — a daemon's own refusal with
+//!   its closed kind (C85), a door that did not open, the transport.
 //!
 //! Three refusals are this adapter's own and no document of the CLI's,
 //! a terminal's words for them being no agent's: no account's store
@@ -123,7 +128,7 @@ use acquisition_store::{
     SYNC_POLICY_SCOPE, Store, account_path, store_dir,
 };
 use anyhow::Result;
-use rmcp::handler::server::wrapper::{Json, Parameters};
+use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::{CallToolResult, ServerCapabilities, ServerInfo};
 use rmcp::{ErrorData, ServerHandler, ServiceExt, schemars, tool, tool_handler, tool_router};
 use serde::Deserialize;
@@ -135,18 +140,162 @@ fn provider() -> &'static str {
     acquisition_protocol::provider::wanted()
 }
 
-/// anyhow errors become MCP tool errors with the full context chain.
-/// An error for the MCP client. A daemon refusal anywhere in the chain
-/// becomes [`daemon_error`], so the closed kind reaches the agent; a
-/// door that did not open ([`ConnectError`]) becomes [`connect_error`].
+/// A call the server could not serve, as a JSON-RPC error with the full
+/// context chain.
 fn err(e: anyhow::Error) -> ErrorData {
-    if let Some(refusal) = DaemonError::find(&e) {
-        return daemon_error(refusal.kind, format!("{e:#}"));
-    }
-    if let Some(door) = e.chain().find_map(|c| c.downcast_ref::<ConnectError>()) {
-        return connect_error(door, format!("{e:#}"));
-    }
     ErrorData::internal_error(format!("{e:#}"), None)
+}
+
+/// A tool's failure, sorted by the one rule every tool shares, so no
+/// tool decides it alone. A call the server could not serve is a
+/// JSON-RPC error: a daemon's own refusal with its closed kind
+/// ([`daemon_error`], C85), a door that did not open
+/// ([`connect_error`]), the conversation with the daemon failing
+/// ([`Unserved`]). Everything else is a refusal — the request was wrong,
+/// or the store or policy cannot serve it, or no daemon runs — a result
+/// marked isError holding the document [`refusal`] words. The release
+/// seat's rerun met an unknown account and an uncovered league as
+/// JSON-RPC errors where the instructions promise results (mcp-opus-2
+/// calls 50, 46).
+fn failed(e: anyhow::Error) -> Told {
+    if let Some(refused) = DaemonError::find(&e) {
+        return Err(daemon_error(refused.kind, format!("{e:#}")));
+    }
+    // no daemon is a door that did not open, and a step for the person
+    if e.downcast_ref::<NoDaemon>().is_none() {
+        if let Some(door) = e.chain().find_map(|c| c.downcast_ref::<ConnectError>()) {
+            return Err(connect_error(door, format!("{e:#}")));
+        }
+        if e.downcast_ref::<Unserved>().is_some() {
+            return Err(err(e));
+        }
+    }
+    Ok(CallToolResult::structured_error(refusal(&e, "account")))
+}
+
+/// A refusal's document, in the words the failure already has: `error`
+/// and a `kind` — `no_daemon` with `next`, the person's command; the
+/// account's (`no_accounts`; `account_unknown` and `account_needed`,
+/// the known names as `readings`, `named` the argument that selects
+/// one); `arguments` for a parameter the tool cannot read; `store` for
+/// a store that will not open; `refused` for the rest.
+fn refusal(e: &anyhow::Error, named: &str) -> Value {
+    let error = format!("{e:#}");
+    if e.downcast_ref::<NoDaemon>().is_some() {
+        return json!({ "error": error, "kind": "no_daemon", "next": start_one() });
+    }
+    if e.downcast_ref::<NoAccounts>().is_some() {
+        return json!({ "error": error, "kind": "no_accounts" });
+    }
+    let known = || {
+        Index::load(&store_dir(provider()))
+            .map(|index| {
+                index
+                    .entries()
+                    .iter()
+                    .map(|e| e.username.clone())
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default()
+    };
+    match e.downcast_ref::<Resolve>() {
+        Some(Resolve::NotFound(selector)) => {
+            return json!({
+                "error": format!(
+                    "no account matches `{selector}`: `{named}` takes a username, with or \
+                     without its #discriminator, or a uuid"
+                ),
+                "kind": "account_unknown",
+                "readings": known(),
+            });
+        }
+        Some(Resolve::Ambiguous(names)) => {
+            return json!({
+                "error": format!("{} accounts are known and `{named}` selects one", names.len()),
+                "kind": "account_needed",
+                "readings": names,
+            });
+        }
+        _ => {}
+    }
+    let kind = if e.downcast_ref::<BadArguments>().is_some() {
+        "arguments"
+    } else if e.downcast_ref::<Unopened>().is_some() {
+        "store"
+    } else {
+        "refused"
+    };
+    json!({ "error": error, "kind": kind })
+}
+
+/// Arguments a tool cannot read: refused as `arguments`.
+#[derive(Debug)]
+struct BadArguments(String);
+
+/// A store, intent or index file that will not open: refused as `store`,
+/// in its own words.
+#[derive(Debug)]
+struct Unopened(String);
+
+/// The conversation with the daemon failed — a door that did not open
+/// in words of its own, the transport, an answer of the wrong shape: the
+/// call was not served, a JSON-RPC error.
+#[derive(Debug)]
+struct Unserved(String);
+
+impl std::fmt::Display for BadArguments {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl std::fmt::Display for Unopened {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl std::fmt::Display for Unserved {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for BadArguments {}
+impl std::error::Error for Unopened {}
+impl std::error::Error for Unserved {}
+
+/// A file's failure to open, marked so [`refusal`] calls it `store`.
+fn unopened(e: anyhow::Error) -> anyhow::Error {
+    Unopened(format!("{e:#}")).into()
+}
+
+/// A failure of the daemon conversation, marked so [`failed`] keeps it
+/// a JSON-RPC error; a daemon refusal, a door or no daemon is already
+/// typed and passes as it is.
+fn unserved(e: anyhow::Error) -> anyhow::Error {
+    let typed = DaemonError::find(&e).is_some()
+        || e.downcast_ref::<NoDaemon>().is_some()
+        || e.chain()
+            .any(|c| c.downcast_ref::<ConnectError>().is_some());
+    if typed {
+        e
+    } else {
+        Unserved(format!("{e:#}")).into()
+    }
+}
+
+/// A tool's answer: the document, or its failure as [`failed`] sorts it.
+fn settled<T: serde::Serialize>(answer: Result<T>) -> Told {
+    match answer {
+        Ok(document) => told(&document),
+        Err(e) => failed(e),
+    }
+}
+
+/// [`settled`] over a tool's body, for a tool that never awaits.
+fn answer<T: serde::Serialize>(body: impl FnOnce() -> Result<T>) -> Told {
+    settled(body())
 }
 
 /// A door that did not open, as a JSON-RPC error: the server could not
@@ -190,7 +339,7 @@ fn daemon_error(kind: ErrorKind, message: String) -> ErrorData {
 /// no daemon involved (the store is the second frontend surface).
 fn open_store(account: Option<&str>) -> Result<Store> {
     let (dir, entry) = resolve(account)?;
-    Store::open(&account_path(&dir, &entry.username))
+    Store::open(&account_path(&dir, &entry.username)).map_err(unopened)
 }
 
 /// No account is known: the error names the directory looked in, and
@@ -216,7 +365,7 @@ impl std::error::Error for NoAccounts {}
 
 fn resolve(account: Option<&str>) -> Result<(PathBuf, AccountEntry)> {
     let dir = store_dir(provider());
-    let index = Index::load(&dir)?;
+    let index = Index::load(&dir).map_err(unopened)?;
     match index.resolve(account) {
         Ok(entry) => Ok((dir, entry.clone())),
         Err(Resolve::Empty) => Err(NoAccounts(dir).into()),
@@ -259,59 +408,21 @@ fn open_search(
     named: &str,
 ) -> std::result::Result<(Store, Annotations), CallToolResult> {
     let (dir, entry, intent) = open_account_intent(account, named)?;
-    let store = Store::open(&account_path(&dir, &entry.username)).map_err(|e| {
-        CallToolResult::structured_error(json!({ "error": format!("{e:#}"), "kind": "store" }))
-    })?;
+    let store = Store::open(&account_path(&dir, &entry.username))
+        .map_err(|e| CallToolResult::structured_error(refusal(&unopened(e), named)))?;
     Ok((store, intent))
 }
 
 /// The selected account's intent file alone, for a verb that reads and
 /// writes nothing else — the MCP opens for a verb what the CLI opens for
 /// it, so a facts file the CLI's verb never opens cannot refuse the
-/// tool's. A failure is a refusal document: no account's store
-/// (`no_accounts`), an account not known or not named (`account_unknown`,
-/// `account_needed`, the known names as readings), or the file (`store`).
+/// tool's. A failure is a refusal document ([`refusal`]): no account's
+/// store, an account not known or not named, the file (`store`).
 fn open_account_intent(
     account: Option<&str>,
     named: &str,
 ) -> std::result::Result<(PathBuf, AccountEntry, Annotations), CallToolResult> {
-    let known = || {
-        Index::load(&store_dir(provider()))
-            .map(|index| {
-                index
-                    .entries()
-                    .iter()
-                    .map(|e| e.username.clone())
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default()
-    };
-    open_intent(account).map_err(|e| {
-        if e.downcast_ref::<NoAccounts>().is_some() {
-            return CallToolResult::structured_error(
-                json!({ "error": format!("{e:#}"), "kind": "no_accounts" }),
-            );
-        }
-        CallToolResult::structured_error(match e.downcast_ref::<Resolve>() {
-            Some(Resolve::NotFound(selector)) => json!({
-                "error": format!(
-                    "no account matches `{selector}`: `{named}` takes a username, with or \
-                     without its #discriminator, or a uuid"
-                ),
-                "kind": "account_unknown",
-                "readings": known(),
-            }),
-            Some(Resolve::Ambiguous(names)) => json!({
-                "error": format!(
-                    "{} accounts are known and `{named}` selects one",
-                    names.len()
-                ),
-                "kind": "account_needed",
-                "readings": names,
-            }),
-            _ => json!({ "error": format!("{e:#}"), "kind": "store" }),
-        })
-    })
+    open_intent(account).map_err(|e| CallToolResult::structured_error(refusal(&e, named)))
 }
 
 /// A tool's arguments, read here and not by the SDK, whose refusal of
@@ -337,13 +448,17 @@ impl<T: schemars::JsonSchema> schemars::JsonSchema for Args<T> {
 }
 
 impl<T: serde::de::DeserializeOwned> Args<T> {
-    fn read(self) -> std::result::Result<T, CallToolResult> {
+    /// The arguments, or [`BadArguments`].
+    fn parse(self) -> Result<T> {
         serde_json::from_value(Value::Object(self.0)).map_err(|e| {
-            CallToolResult::structured_error(json!({
-                "error": format!("these are not arguments the tool takes: {e}"),
-                "kind": "arguments",
-            }))
+            BadArguments(format!("these are not arguments the tool takes: {e}")).into()
         })
+    }
+
+    /// The arguments, or their refusal document.
+    fn read(self) -> std::result::Result<T, CallToolResult> {
+        self.parse()
+            .map_err(|e| CallToolResult::structured_error(refusal(&e, "account")))
     }
 }
 
@@ -360,7 +475,7 @@ fn open_intent(account: Option<&str>) -> Result<(PathBuf, AccountEntry, Annotati
             entry.username
         );
     };
-    let annotations = Annotations::open_for(&dir, uuid)?;
+    let annotations = Annotations::open_for(&dir, uuid).map_err(|e| unopened(e.into()))?;
     Ok((dir, entry, annotations))
 }
 
@@ -490,20 +605,6 @@ impl std::fmt::Display for NoDaemon {
 
 impl std::error::Error for NoDaemon {}
 
-/// A daemon tool's failure: no daemon is the refusal document; anything
-/// else the JSON-RPC error C85 gives it.
-fn needing_a_daemon(e: anyhow::Error) -> Told {
-    // the context is the outermost, so the error itself downcasts to it
-    if e.downcast_ref::<NoDaemon>().is_some() {
-        return Ok(CallToolResult::structured_error(json!({
-            "error": format!("{e:#}"),
-            "kind": "no_daemon",
-            "next": start_one(),
-        })));
-    }
-    Err(err(e))
-}
-
 async fn connect(spawn: bool) -> Result<Client> {
     let real = acquisition_protocol::provider::ggg_mode();
     let spawn = spawn && !real;
@@ -527,22 +628,42 @@ async fn connect(spawn: bool) -> Result<Client> {
 /// never spawns or replaces; absence and a mismatch are errors that say
 /// which.
 async fn attach() -> Result<Client> {
-    client_of(Client::observe().await?)
+    client_of(observe().await?)
+}
+
+/// One look at the daemon, never spawning; its failure is the door's.
+async fn observe() -> Result<Observed> {
+    Client::observe().await.map_err(unserved)
+}
+
+/// One request to the daemon: its answer, a daemon refusal as its closed
+/// kind (C85), or the transport's failure, not served.
+async fn ask(client: &mut Client, request: &Request) -> Result<Response> {
+    match client.request(request).await.map_err(unserved)? {
+        Response::Error { kind, message } => Err(DaemonError { kind, message }.into()),
+        other => Ok(other),
+    }
+}
+
+/// An answer of a shape the request does not take: not served.
+fn unexpected(response: Response) -> anyhow::Error {
+    Unserved(format!("unexpected response: {response:?}")).into()
 }
 
 /// The queue on disk, for a tool with no daemon to ask (C45): this
 /// server's world and provider, `None` when neither has been created.
 fn persisted_queue() -> Result<Option<acquisition_store::jobs::Persisted>> {
     acquisition_store::jobs::Persisted::observe(acquisition_protocol::provider::wanted())
+        .map_err(unopened)
 }
 
 /// The client an observation yields, or the error that says why not.
 fn client_of(observed: Observed) -> Result<Client> {
-    match observed {
-        Observed::Compatible(client) => Ok(client),
-        Observed::Absent => Err(NoDaemon { real: false }.into()),
-        Observed::Unresponsive(found) => anyhow::bail!("{found}"),
-        Observed::Incompatible(found) => anyhow::bail!(
+    let door = match observed {
+        Observed::Compatible(client) => return Ok(client),
+        Observed::Absent => return Err(NoDaemon { real: false }.into()),
+        Observed::Unresponsive(found) => format!("{found}"),
+        Observed::Incompatible(found) => format!(
             "{found}; this server never replaces a daemon — resolve it with the CLI (`acq daemon stop`{})",
             if found.world_matches() {
                 ""
@@ -550,22 +671,21 @@ fn client_of(observed: Observed) -> Result<Client> {
                 ", or point ACQ_STORE_DIR at its world"
             }
         ),
-    }
+    };
+    Err(Unserved(door).into())
 }
 
 /// A `realm` tool parameter: pc when omitted (as on the wire), else one
-/// of the documented realms; anything else is a structured error.
-fn realm_param(realm: Option<&str>) -> Result<Realm, ErrorData> {
+/// of the documented realms; anything else is refused as an argument.
+fn realm_param(realm: Option<&str>) -> Result<Realm> {
     match realm {
         None => Ok(Realm::DEFAULT),
         Some(s) => Realm::parse(s).ok_or_else(|| {
-            ErrorData::invalid_params(
-                format!(
-                    "unknown realm {s:?} (one of {})",
-                    Realm::ALL.map(Realm::as_str).join(", ")
-                ),
-                None,
-            )
+            BadArguments(format!(
+                "unknown realm {s:?} (one of {})",
+                Realm::ALL.map(Realm::as_str).join(", ")
+            ))
+            .into()
         }),
     }
 }
@@ -931,63 +1051,62 @@ impl AcqMcp {
     #[tool(
         description = "Accounts this machine has logged into (from the store's non-secret index; no daemon)."
     )]
-    fn accounts(&self) -> Result<Json<Value>, ErrorData> {
-        let dir = store_dir(provider());
-        let index = Index::load(&dir).map_err(err)?;
-        let rows: Vec<Value> = index
-            .entries()
-            .iter()
-            .map(|e| {
-                json!({
-                    "username": e.username,
-                    "last_login": e.last_login,
-                    "persisted": e.persisted,
-                    "uuid": e.uuid,
+    fn accounts(&self) -> Told {
+        answer(|| {
+            let index = Index::load(&store_dir(provider())).map_err(unopened)?;
+            let rows: Vec<Value> = index
+                .entries()
+                .iter()
+                .map(|e| {
+                    json!({
+                        "username": e.username,
+                        "last_login": e.last_login,
+                        "persisted": e.persisted,
+                        "uuid": e.uuid,
+                    })
                 })
-            })
-            .collect();
-        Ok(Json(json!({ "provider": provider(), "accounts": rows })))
+                .collect();
+            Ok(json!({ "provider": provider(), "accounts": rows }))
+        })
     }
 
     #[tool(
         description = "The stash tabs of a league, counted first, from the shared store (no daemon, no network): how many tabs, fetched, never fetched and folders, how many items, and the same by tab type (`by_type`, the most items first); then `rows`, the tabs listed — every one where the league holds thirty or fewer, else the ten with the most items (`listed`: `all` or `most_items`) — each with its type, item count and fetch time, a substash naming its `parent`. `left_out` counts the tabs not listed; `expand: true` lists them all (some 220 bytes a tab). `type` and `never_fetched: true` select the tabs listed — the never fetched of one type by name, which a refresh takes — under the league's counts, `selected` counting them. A name ending ` (Remove-only)` is GGG's mark on a tab whose items can only be taken out; a search asks it as `tab.remove_only`."
     )]
-    fn tabs(&self, Parameters(p): Parameters<TabsParams>) -> Told {
-        let store = open_store(p.account.as_deref()).map_err(err)?;
-        let realm = realm_param(p.realm.as_deref())?;
-        let league = p.league.as_deref().unwrap_or("Standard");
-        let rows = store.tabs(realm.as_str(), league).map_err(err)?;
-        told(&acquisition_search::tabs::Tabs::of(
-            realm.as_str(),
-            league,
-            rows,
-            &acquisition_search::tabs::Selection {
-                kind: p.r#type,
-                never_fetched: p.never_fetched.unwrap_or(false),
-            },
-            p.expand.unwrap_or(false),
-        ))
+    fn tabs(&self, Parameters(p): Parameters<Args<TabsParams>>) -> Told {
+        answer(|| {
+            let p = p.parse()?;
+            let realm = realm_param(p.realm.as_deref())?;
+            let store = open_store(p.account.as_deref())?;
+            let league = p.league.as_deref().unwrap_or("Standard");
+            let rows = store.tabs(realm.as_str(), league)?;
+            Ok(acquisition_search::tabs::Tabs::of(
+                realm.as_str(),
+                league,
+                rows,
+                &acquisition_search::tabs::Selection {
+                    kind: p.r#type,
+                    never_fetched: p.never_fetched.unwrap_or(false),
+                },
+                p.expand.unwrap_or(false),
+            ))
+        })
     }
 
     #[tool(
         description = "Characters known to the store, with class, level, league, and two counts — `item_count`, the live items the store holds at the character now, and `fetched_items`, what the last full fetch's body carried (equipment + inventory, socketed gems not counted), null until one — (no daemon, no network). Fresh data is a `characters` or `character` job."
     )]
-    fn characters(
-        &self,
-        Parameters(p): Parameters<CharactersParams>,
-    ) -> Result<Json<Value>, ErrorData> {
-        let store = open_store(p.account.as_deref()).map_err(err)?;
-        let realm = p
-            .realm
-            .as_deref()
-            .map(|r| realm_param(Some(r)))
-            .transpose()?;
-        let rows = store
-            .characters(realm.map(Realm::as_str), p.league.as_deref())
-            .map_err(err)?;
-        serde_json::to_value(rows)
-            .map(Json)
-            .map_err(|e| err(e.into()))
+    fn characters(&self, Parameters(p): Parameters<Args<CharactersParams>>) -> Told {
+        answer(|| {
+            let p = p.parse()?;
+            let realm = p
+                .realm
+                .as_deref()
+                .map(|r| realm_param(Some(r)))
+                .transpose()?;
+            let store = open_store(p.account.as_deref())?;
+            store.characters(realm.map(Realm::as_str), p.league.as_deref())
+        })
     }
 
     #[tool(
@@ -1072,32 +1191,20 @@ impl AcqMcp {
     #[tool(
         description = "Store file path, size, and row counts (no daemon, no network). `leagues` counts the league listing's rows and `league_list` says whether that listing was ever fetched (`acq leagues` or a `leagues` job fetches it); characters and tabs carry their league names whether or not it was. `refused_bodies` counts bodies the store would not take, which `acq store refused` lists."
     )]
-    fn store_status(
-        &self,
-        Parameters(p): Parameters<StoreParams>,
-    ) -> Result<Json<Value>, ErrorData> {
-        let store = open_store(p.account.as_deref()).map_err(err)?;
-        let st = store.status().map_err(err)?;
-        serde_json::to_value(st)
-            .map(Json)
-            .map_err(|e| err(e.into()))
+    fn store_status(&self, Parameters(p): Parameters<Args<StoreParams>>) -> Told {
+        answer(|| open_store(p.parse()?.account.as_deref())?.status())
     }
 
     #[tool(
         description = "Item events (added/moved/changed/removed) from recent ingests, newest first (no daemon, no network); `hours` how far back, `limit` how many of the newest."
     )]
-    fn item_events(
-        &self,
-        Parameters(p): Parameters<EventsParams>,
-    ) -> Result<Json<Value>, ErrorData> {
-        let store = open_store(p.account.as_deref()).map_err(err)?;
-        let since = acquisition_store::now() - (p.hours.unwrap_or(24.0) * 3600.0) as i64;
-        let ev = store
-            .events_since(since, p.limit.unwrap_or(200))
-            .map_err(err)?;
-        serde_json::to_value(ev)
-            .map(Json)
-            .map_err(|e| err(e.into()))
+    fn item_events(&self, Parameters(p): Parameters<Args<EventsParams>>) -> Told {
+        answer(|| {
+            let p = p.parse()?;
+            let store = open_store(p.account.as_deref())?;
+            let since = acquisition_store::now() - (p.hours.unwrap_or(24.0) * 3600.0) as i64;
+            store.events_since(since, p.limit.unwrap_or(200))
+        })
     }
 
     // ---- the intent/plan slice (tracer step 8): policy → plan → apply ----
@@ -1105,145 +1212,132 @@ impl AcqMcp {
     #[tool(
         description = "The per-account sync policy (declared coverage + freshness, an annotation) with its revision — the intent refresh_plan compiles. Reads the store; no daemon, no network. `policy` is null when none is set."
     )]
-    fn sync_policy(
-        &self,
-        Parameters(p): Parameters<StoreParams>,
-    ) -> Result<Json<Value>, ErrorData> {
-        let (_, _, annotations) = open_intent(p.account.as_deref()).map_err(err)?;
-        let row = annotations
-            .get(SYNC_POLICY_SCOPE, SYNC_POLICY_KEY, SYNC_POLICY_KIND)
-            .map_err(|e| err(e.into()))?;
-        Ok(Json(json!({ "policy": row })))
+    fn sync_policy(&self, Parameters(p): Parameters<Args<StoreParams>>) -> Told {
+        answer(|| {
+            let (_, _, annotations) = open_intent(p.parse()?.account.as_deref())?;
+            let row = annotations.get(SYNC_POLICY_SCOPE, SYNC_POLICY_KEY, SYNC_POLICY_KIND)?;
+            Ok(json!({ "policy": row }))
+        })
     }
 
     #[tool(
         description = "Write the per-account sync policy (validated strictly, compare-and-swap on if_revision). Sends nothing — intent is local; the network cost appears only when a plan is applied. Replacing an existing policy requires if_revision (from sync_policy); a stale or missing revision is a conflict, never a clobber."
     )]
-    fn set_sync_policy(
-        &self,
-        Parameters(p): Parameters<SetPolicyParams>,
-    ) -> Result<Json<Value>, ErrorData> {
-        let (_, _, mut annotations) = open_intent(p.account.as_deref()).map_err(err)?;
-        let row = put_sync_policy(
-            &mut annotations,
-            &p.value,
-            p.if_revision,
-            &Provenance::via(WRITTEN_VIA),
-        )
-        .map_err(|e| err(e.into()))?;
-        serde_json::to_value(row)
-            .map(Json)
-            .map_err(|e| err(e.into()))
+    fn set_sync_policy(&self, Parameters(p): Parameters<Args<SetPolicyParams>>) -> Told {
+        answer(|| {
+            let p = p.parse()?;
+            let (_, _, mut annotations) = open_intent(p.account.as_deref())?;
+            Ok(put_sync_policy(
+                &mut annotations,
+                &p.value,
+                p.if_revision,
+                &Provenance::via(WRITTEN_VIA),
+            )?)
+        })
     }
 
     #[tool(
         description = "Compile the stored sync policy + facts on record into a RefreshPlan for one (realm, league): the explicit, bounded action set applying would execute — stash listing and tab fetches, the realm's character listing and character fetches, each facet as the policy covers it — with per-action reasons, skipped tabs and characters, unknown ids, and a coarse wire estimate. Offline — sends nothing, spends nothing. A running daemon adds its read-only quote (ETA + rate-limit headroom; never spawned for this); `quote_note` says why one is absent. Review the plan, then hand `plan` to apply_plan."
     )]
-    async fn refresh_plan(
-        &self,
-        Parameters(p): Parameters<PlanParams>,
-    ) -> Result<Json<Value>, ErrorData> {
-        let (dir, entry, annotations) = open_intent(p.account.as_deref()).map_err(err)?;
-        let store = Store::open(&account_path(&dir, &entry.username)).map_err(err)?;
-        let snapshot = store
-            .refresh_snapshot(
-                realm_param(p.realm.as_deref())?.as_str(),
-                p.league.as_deref().unwrap_or("Standard"),
-                &annotations,
-            )
-            .map_err(err)?;
-        let plan = match plan_refresh(provider(), &snapshot, acquisition_store::now()) {
-            Err(PlanError::NoSyncPolicy) => {
-                return Err(ErrorData::internal_error(
-                    format!(
+    async fn refresh_plan(&self, Parameters(p): Parameters<Args<PlanParams>>) -> Told {
+        settled(
+            async {
+                let p = p.parse()?;
+                let realm = realm_param(p.realm.as_deref())?;
+                let (dir, entry, annotations) = open_intent(p.account.as_deref())?;
+                let store = Store::open(&account_path(&dir, &entry.username)).map_err(unopened)?;
+                let snapshot = store.refresh_snapshot(
+                    realm.as_str(),
+                    p.league.as_deref().unwrap_or("Standard"),
+                    &annotations,
+                )?;
+                let plan = match plan_refresh(provider(), &snapshot, acquisition_store::now()) {
+                    Err(PlanError::NoSyncPolicy) => anyhow::bail!(
                         "no sync policy is set for {} — declare one with set_sync_policy first",
                         entry.username
                     ),
-                    None,
-                ));
+                    other => other?,
+                };
+                let (plan, quote_note) = try_quote(plan).await;
+                let mut out = json!({ "plan": plan });
+                if let Some(note) = quote_note {
+                    out["quote_note"] = json!(note);
+                }
+                Ok(out)
             }
-            other => other.map_err(|e| err(e.into()))?,
-        };
-        let (plan, quote_note) = try_quote(plan).await;
-        let mut out = json!({ "plan": plan });
-        if let Some(note) = quote_note {
-            out["quote_note"] = json!(note);
-        }
-        Ok(Json(out))
+            .await,
+        )
     }
 
     #[tool(
         description = "Execute a reviewed plan: its actions and nothing else, as one `apply` parent job the daemon admits or refuses whole at submit (single-request vocabulary + the max_requests budget). Refused offline — before any daemon contact — if the stored sync-policy revision moved since the plan (replan with refresh_plan). In real-GGG mode the daemon must already be running (a human starts it; this server never spawns one there). An empty plan is a no-op with no daemon contact. A plan spends each request once: an action whose target was fetched after the plan was compiled, or whose request the daemon already holds, is listed in `spent` (with `fetched_at`, or the `job_id` holding it) and not sent again, so replaying a plan answers `applied: false` and sends nothing. Returns the parent job id and the `requests` sent; poll job_status, then job_result."
     )]
-    async fn apply_plan(&self, Parameters(p): Parameters<ApplyParams>) -> Told {
-        let (dir, entry, annotations) = open_intent(p.account.as_deref()).map_err(err)?;
-        let plan = RefreshPlan::from_value(&p.plan).map_err(|e| err(e.into()))?;
-        plan.check_spendable(provider(), entry.uuid.as_deref(), &annotations)
-            .map_err(|e| err(e.into()))?;
-        if plan.actions.is_empty() {
-            // A strict subset of zero actions is satisfied by doing
-            // nothing; the plan's own skipped/unknown reporting says why
-            // it is empty.
-            return told(&json!({
-                "applied": false,
-                "requests": 0,
-                "note": "nothing to do: the plan authorizes no requests",
-            }));
-        }
-        // C111: a plan spends each request once — the store says what was
-        // fetched after the plan's snapshot, the daemon what it already
-        // holds; only the rest is submitted. The facts are read again
-        // after the list, so a fetch that finishes between the two reads
-        // is in one of them.
-        let store = Store::open(&account_path(&dir, &entry.username)).map_err(err)?;
-        let facts = store
-            .refresh_snapshot(plan.realm.as_str(), &plan.league, &annotations)
-            .map_err(err)?;
-        let (mut unspent, mut spent) = plan.unspent(&facts, &[], &entry.username);
-        let mut connected = None;
-        if !unspent.is_empty() {
-            let mut client = match connect(true).await {
-                Ok(client) => client,
-                Err(e) => return needing_a_daemon(e),
-            };
-            if let Response::Jobs { jobs } = client.request(&Request::List).await.map_err(err)? {
-                let facts = store
-                    .refresh_snapshot(plan.realm.as_str(), &plan.league, &annotations)
-                    .map_err(err)?;
-                (unspent, spent) = plan.unspent(&facts, &jobs, &entry.username);
+    async fn apply_plan(&self, Parameters(p): Parameters<Args<ApplyParams>>) -> Told {
+        settled(
+            async {
+                let p = p.parse()?;
+                let (dir, entry, annotations) = open_intent(p.account.as_deref())?;
+                let plan = RefreshPlan::from_value(&p.plan)?;
+                plan.check_spendable(provider(), entry.uuid.as_deref(), &annotations)?;
+                if plan.actions.is_empty() {
+                    // A strict subset of zero actions is satisfied by doing
+                    // nothing; the plan's own skipped/unknown reporting says why
+                    // it is empty.
+                    return Ok(json!({
+                        "applied": false,
+                        "requests": 0,
+                        "note": "nothing to do: the plan authorizes no requests",
+                    }));
+                }
+                // C111: a plan spends each request once — the store says what was
+                // fetched after the plan's snapshot, the daemon what it already
+                // holds; only the rest is submitted. The facts are read again
+                // after the list, so a fetch that finishes between the two reads
+                // is in one of them.
+                let store =
+                    Store::open(&account_path(&dir, &entry.username)).map_err(unopened)?;
+                let facts =
+                    store.refresh_snapshot(plan.realm.as_str(), &plan.league, &annotations)?;
+                let (mut unspent, mut spent) = plan.unspent(&facts, &[], &entry.username);
+                let mut connected = None;
+                if !unspent.is_empty() {
+                    let mut client = connect(true).await?;
+                    if let Response::Jobs { jobs } = ask(&mut client, &Request::List).await? {
+                        let facts = store.refresh_snapshot(
+                            plan.realm.as_str(),
+                            &plan.league,
+                            &annotations,
+                        )?;
+                        (unspent, spent) = plan.unspent(&facts, &jobs, &entry.username);
+                    }
+                    connected = Some(client);
+                }
+                let Some(mut client) = connected.filter(|_| !unspent.is_empty()) else {
+                    return Ok(json!({
+                        "applied": false,
+                        "requests": 0,
+                        "note": "nothing to do: every request of this plan is spent — fetched after it was compiled, or already waiting or running (each entry of `spent` says which)",
+                        "spent": spent,
+                    }));
+                };
+                let submit = Request::Submit {
+                    kind: "apply".into(),
+                    params: apply_params_of(&unspent, p.max_requests),
+                    priority: 0,
+                    submitted_by: format!("mcp:{}", std::process::id()),
+                    account: Some(entry.username),
+                };
+                match ask(&mut client, &submit).await? {
+                    Response::Submitted { id } => Ok(json!({
+                        "job_id": id,
+                        "requests": unspent.len(),
+                        "spent": spent,
+                    })),
+                    other => Err(unexpected(other)),
+                }
             }
-            connected = Some(client);
-        }
-        let Some(mut client) = connected.filter(|_| !unspent.is_empty()) else {
-            return told(&json!({
-                "applied": false,
-                "requests": 0,
-                "note": "nothing to do: every request of this plan is spent — fetched after it was compiled, or already waiting or running (each entry of `spent` says which)",
-                "spent": spent,
-            }));
-        };
-        let resp = client
-            .request(&Request::Submit {
-                kind: "apply".into(),
-                params: apply_params_of(&unspent, p.max_requests),
-                priority: 0,
-                submitted_by: format!("mcp:{}", std::process::id()),
-                account: Some(entry.username),
-            })
-            .await
-            .map_err(err)?;
-        match resp {
-            Response::Submitted { id } => told(&json!({
-                "job_id": id,
-                "requests": unspent.len(),
-                "spent": spent,
-            })),
-            Response::Error { kind, message } => Err(daemon_error(kind, message)),
-            other => Err(ErrorData::internal_error(
-                format!("unexpected response: {other:?}"),
-                None,
-            )),
-        }
+            .await,
+        )
     }
 
     // ---- pricing: adapters of acquisition-plan's pricing verbs ----
@@ -1437,154 +1531,153 @@ impl AcqMcp {
         description = "Submit a job to the daemon and return its id immediately; poll job_status then fetch job_result. In real-GGG mode the daemon must already be running (a human starts it; this server never spawns one there)."
     )]
     async fn submit_job(&self, Parameters(p): Parameters<SubmitParams>) -> Told {
-        let mut client = match connect(true).await {
-            Ok(client) => client,
-            Err(e) => return needing_a_daemon(e),
-        };
-        let resp = client
-            .request(&Request::Submit {
-                kind: p.kind,
-                params: p.params.unwrap_or_else(|| json!({})),
-                priority: p.priority.unwrap_or(0),
-                submitted_by: format!("mcp:{}", std::process::id()),
-                account: p.account,
-            })
-            .await
-            .map_err(err)?;
-        match resp {
-            Response::Submitted { id } => told(&json!({ "job_id": id })),
-            Response::Error { kind, message } => Err(daemon_error(kind, message)),
-            other => Err(ErrorData::internal_error(
-                format!("unexpected response: {other:?}"),
-                None,
-            )),
-        }
+        settled(
+            async {
+                let mut client = connect(true).await?;
+                let submit = Request::Submit {
+                    kind: p.kind,
+                    params: p.params.unwrap_or_else(|| json!({})),
+                    priority: p.priority.unwrap_or(0),
+                    submitted_by: format!("mcp:{}", std::process::id()),
+                    account: p.account,
+                };
+                match ask(&mut client, &submit).await? {
+                    Response::Submitted { id } => Ok(json!({ "job_id": id })),
+                    other => Err(unexpected(other)),
+                }
+            }
+            .await,
+        )
     }
 
     #[tool(
         description = "Jobs the daemon knows about this lifetime, with states and ETAs. Observes only: with no daemon running it never spawns one and answers from the ledger on disk instead — running: false, persisted: the non-terminal rows as the last daemon left them (jobs, without ETAs) and written_at, how old that picture is; persisted is null when this shell's world has no queue yet. A job command from the CLI spawns a successor that restores them."
     )]
-    async fn list_jobs(&self) -> Result<Json<Value>, ErrorData> {
-        let mut client = match Client::observe().await.map_err(err)? {
-            Observed::Absent => {
-                let persisted = persisted_queue().map_err(err)?;
-                return Ok(Json(json!({ "running": false, "persisted": persisted })));
+    async fn list_jobs(&self) -> Told {
+        settled(
+            async {
+                let mut client = match observe().await? {
+                    Observed::Absent => {
+                        let persisted = persisted_queue()?;
+                        return Ok(json!({ "running": false, "persisted": persisted }));
+                    }
+                    other => client_of(other)?,
+                };
+                match ask(&mut client, &Request::List).await? {
+                    Response::Jobs { jobs } => Ok(serde_json::to_value(jobs)?),
+                    other => Err(unexpected(other)),
+                }
             }
-            other => client_of(other).map_err(err)?,
-        };
-        match client.request(&Request::List).await.map_err(err)? {
-            Response::Jobs { jobs } => serde_json::to_value(jobs)
-                .map(Json)
-                .map_err(|e| err(e.into())),
-            other => Err(ErrorData::internal_error(
-                format!("unexpected response: {other:?}"),
-                None,
-            )),
-        }
+            .await,
+        )
     }
 
     #[tool(
         description = "One job's state, ETA, and retries. A waiting job with a large ETA is the rate limiter holding, not a hang (holds can reach ~5 minutes)."
     )]
     async fn job_status(&self, Parameters(p): Parameters<JobParams>) -> Told {
-        let mut client = match attach().await {
-            Ok(client) => client,
-            Err(e) => return needing_a_daemon(e),
-        };
-        let job = client.status(p.id).await.map_err(err)?;
-        told(&job)
+        settled(
+            async {
+                let mut client = attach().await?;
+                match ask(&mut client, &Request::Status { id: p.id }).await? {
+                    Response::Status { job } => Ok(job),
+                    other => Err(unexpected(other)),
+                }
+            }
+            .await,
+        )
     }
 
     #[tool(
         description = "A finished job's payload or error; answered across daemon restarts (the queue persists). Payloads can be large — prefer the store tools for reading data."
     )]
     async fn job_result(&self, Parameters(p): Parameters<JobParams>) -> Told {
-        let mut client = match attach().await {
-            Ok(client) => client,
-            Err(e) => return needing_a_daemon(e),
-        };
-        match client
-            .request(&Request::Result { id: p.id })
-            .await
-            .map_err(err)?
-        {
-            Response::Result { outcome, .. } => told(&outcome),
-            Response::Error { kind, message } => Err(daemon_error(kind, message)),
-            other => Err(ErrorData::internal_error(
-                format!("unexpected response: {other:?}"),
-                None,
-            )),
-        }
+        settled(
+            async {
+                let mut client = attach().await?;
+                match ask(&mut client, &Request::Result { id: p.id }).await? {
+                    Response::Result { outcome, .. } => Ok(outcome),
+                    other => Err(unexpected(other)),
+                }
+            }
+            .await,
+        )
     }
 
     #[tool(description = "Cancel a waiting or running job; cascades to its descendants.")]
     async fn cancel_job(&self, Parameters(p): Parameters<JobParams>) -> Told {
-        let mut client = match attach().await {
-            Ok(client) => client,
-            Err(e) => return needing_a_daemon(e),
-        };
-        client
-            .expect_ack(&Request::Cancel { id: p.id })
-            .await
-            .map_err(err)?;
-        told(&json!({ "job_id": p.id, "cancel_requested": true }))
+        settled(
+            async {
+                let mut client = attach().await?;
+                match ask(&mut client, &Request::Cancel { id: p.id }).await? {
+                    Response::Ack => Ok(json!({ "job_id": p.id, "cancel_requested": true })),
+                    other => Err(unexpected(other)),
+                }
+            }
+            .await,
+        )
     }
 
     #[tool(
         description = "The daemon running: its identity — contract revision, the executable it runs from and its hash (artifact), the world it serves (its canonical store root), the socket it was reached on (derived from the world), how that file relates to the acqd beside this server (artifact_relation: same_file, same_bytes for another copy, different, unhashable, no_sibling, unreported), which of the four dimensions match (contract_matches, artifact_matches, provider_matches, world_matches), and under wanted this server's own version, contract, provider and world with that sibling — all from the one look that judged the daemon; and, when compatible, its vitals: provider, uptime, idle_shutdown_seconds (the idle exit it was started with), connections, queue counts, rate-limit policies learned, rails state (with the journal path), keyring health, and log — the log file the daemon opened, as it reports it. Observes only: running=false when no daemon is up, with persisted — what the ledger on disk holds: waiting, recorded_running, written_at; null when this shell's world has no queue yet; running=true, compatible=false for a daemon of another contract, artifact, provider or world, reported by its identity alone and never replaced by this server; running=true, responsive=false (with socket and lock_holder, the pid the world's lock records) for something that accepted the connection and did not answer hello within 5s — a wedged daemon, for a human to stop by hand."
     )]
-    async fn daemon_status(&self) -> Result<Json<Value>, ErrorData> {
-        let mut client = match Client::observe().await.map_err(err)? {
-            Observed::Compatible(c) => c,
-            Observed::Absent => {
-                let persisted = persisted_queue().map_err(err)?.map(|p| {
-                    json!({
-                        "waiting": p.waiting(),
-                        "recorded_running": p.recorded_running(),
-                        "written_at": p.written_at,
-                    })
-                });
-                return Ok(Json(json!({ "running": false, "persisted": persisted })));
-            }
-            Observed::Incompatible(found) => {
-                let mut report = found.report();
+    async fn daemon_status(&self) -> Told {
+        settled(
+            async {
+                let mut client = match observe().await? {
+                    Observed::Compatible(c) => c,
+                    Observed::Absent => {
+                        let persisted = persisted_queue()?.map(|p| {
+                            json!({
+                                "waiting": p.waiting(),
+                                "recorded_running": p.recorded_running(),
+                                "written_at": p.written_at,
+                            })
+                        });
+                        return Ok(json!({ "running": false, "persisted": persisted }));
+                    }
+                    Observed::Incompatible(found) => {
+                        let mut report = found.report();
+                        report["running"] = json!(true);
+                        report["compatible"] = json!(false);
+                        return Ok(report);
+                    }
+                    Observed::Unresponsive(found) => {
+                        return Ok(json!({
+                            "running": true,
+                            "responsive": false,
+                            "socket": found.at.socket,
+                            "lock_holder": found.holder,
+                        }));
+                    }
+                };
+                let found = client.daemon().clone();
+                let resp = ask(&mut client, &Request::DaemonStatus).await?;
+                let mut report = serde_json::to_value(resp)?;
                 report["running"] = json!(true);
-                report["compatible"] = json!(false);
-                return Ok(Json(report));
+                report["compatible"] = json!(true);
+                // The identity keys the incompatible report has (C84): the
+                // daemon's contract and artifact, the artifact's relation to this
+                // server's sibling, and the sibling under `wanted`.
+                let identity = found.report();
+                for key in [
+                    "contract",
+                    "artifact",
+                    "world",
+                    "socket",
+                    "contract_matches",
+                    "artifact_matches",
+                    "artifact_relation",
+                    "provider_matches",
+                    "world_matches",
+                    "wanted",
+                ] {
+                    report[key] = identity[key].clone();
+                }
+                Ok(report)
             }
-            Observed::Unresponsive(found) => {
-                return Ok(Json(json!({
-                    "running": true,
-                    "responsive": false,
-                    "socket": found.at.socket,
-                    "lock_holder": found.holder,
-                })));
-            }
-        };
-        let found = client.daemon().clone();
-        let resp = client.request(&Request::DaemonStatus).await.map_err(err)?;
-        let mut report = serde_json::to_value(resp).map_err(|e| err(e.into()))?;
-        report["running"] = json!(true);
-        report["compatible"] = json!(true);
-        // The identity keys the incompatible report has (C84): the
-        // daemon's contract and artifact, the artifact's relation to this
-        // server's sibling, and the sibling under `wanted`.
-        let identity = found.report();
-        for key in [
-            "contract",
-            "artifact",
-            "world",
-            "socket",
-            "contract_matches",
-            "artifact_matches",
-            "artifact_relation",
-            "provider_matches",
-            "world_matches",
-            "wanted",
-        ] {
-            report[key] = identity[key].clone();
-        }
-        Ok(Json(report))
+            .await,
+        )
     }
 }
 
