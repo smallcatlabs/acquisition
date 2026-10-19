@@ -1,9 +1,10 @@
 # The re-sit — the record
 
 Step 6 of `brainstorming-notes/38-the-answer-an-agent-reads.md`, run
-under `PLAN.md` in this directory (deleted at the close, cited at its
-last commit); the briefs `BRIEF-cli.md`, `BRIEF-mcp.md`, `TASKS.md` and
-`DEBRIEF-QUESTIONS.md` beside it, at `35e7390f` after review 1. The
+under its plan, `PLAN.md` at `35e7390f` after review 1, with the briefs
+`BRIEF-cli.md`, `BRIEF-mcp.md`, `TASKS.md` and `DEBRIEF-QUESTIONS.md`
+at the same commit, each removed at the close. Closed 2026-10-18; review
+2's two findings are the table's last row. The
 trade seat's record is `../seat/README.md`; this seat asks the same
 person's questions again after note 38's steps 1 to 5, with the
 person's question split in two and one task that turns on a
@@ -163,7 +164,8 @@ never-fetched tabs list, since that helps with refreshes").
 | A plan says nothing of the tabs the policy leaves unnamed | mcp-opus 5, debrief 4 | after the alpha: a park (`decisions/plans.md`) |
 | The page's empty default stat group writes no clause | cli-opus 5, debrief 2 | by design (`translate.rs`); a park with its trigger (`decisions/trade.md`) |
 | The terms block's numbers beside the total | every run's debrief 2 | the owner's ruling (C115's measurement, above) |
-| The door's `report` says only a size | cli-sonnet 6 | the door says what it did (the close) |
+| The door's `report` says only a size | cli-sonnet 6 | `15546d0b`: the door says what it did |
+| Review 2: a parenthesized refinement lost its league's list age (`fixed_league` read one level); a `leagues` fetch of none said `never fetched` (a row count, not a fetch) | the outside review of the round | `e9f5330b` |
 | A describe with one unknown name refuses whole | cli-opus 3 | no fault: the refusal lists every name, "enough to go on" |
 | `priced` is not a count key | mcp-opus 10 | no fault: the refusal names `has:priced` and `price.currency` |
 | A tab count names a page's parent | mcp-sonnet 8 | no fault: `tab` is the tab; `container` keys the page (cli-opus call 39) |
