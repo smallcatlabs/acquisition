@@ -1203,8 +1203,8 @@ fn a_trade_answer_says_its_items_are_the_stores_whatever_its_fidelity() {
     assert_eq!(
         lines[1],
         "        over      the items the store has fetched, priced or not — what it never fetched is \
-         the scope's: the site shows public listings, so the search is the site's and the items are \
-         yours",
+         the scope's: the site shows public listings, a tab's being tab.public, so the search is the \
+         site's and the items are yours",
         "{shown}"
     );
     assert!(
@@ -2090,6 +2090,10 @@ fn the_trade_headers_over_line_never_reads_as_full_coverage() {
         over.contains("what it never fetched is the scope's"),
         "{over}"
     );
+    // the words "public listings" name the field a buyer's view asks: no
+    // run of the re-sit found `tab.public` from them (the Sonnet runs
+    // never, the Opus runs through a refusal or a 20 KB describe)
+    assert!(over.contains("a tab's being tab.public"), "{over}");
     assert!(shown.contains("never fetched: MapStash 1 of 1"), "{shown}");
 }
 

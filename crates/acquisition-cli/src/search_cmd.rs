@@ -849,8 +849,8 @@ fn trade_text(t: &TradeOut) -> Vec<String> {
     }];
     out.push(
         "        over      the items the store has fetched, priced or not — what it never fetched is \
-         the scope's: the site shows public listings, so the search is the site's and the items are \
-         yours"
+         the scope's: the site shows public listings, a tab's being tab.public, so the search is the \
+         site's and the items are yours"
             .to_string(),
     );
     let width = unsupported

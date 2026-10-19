@@ -1051,7 +1051,7 @@ fn a_trade_fidelity_is_never_said_to_be_the_sites_items() {
         .unwrap();
     for said in [
         "`fidelity`, how far the text is the site's search",
-        "Never how far the items are the site's: the answer is over the items the store has fetched, priced or not — what it never fetched is `scope.never_fetched` — and the site shows public listings.",
+        "Never how far the items are the site's: the answer is over the items the store has fetched, priced or not — what it never fetched is `scope.never_fetched` — and the site shows public listings, a tab's being `tab.public`.",
     ] {
         assert!(query.contains(said), "{said}: {query}");
     }
@@ -1409,6 +1409,34 @@ fn store_status_says_what_its_league_count_counts() {
     let (printed, ok) = cli(&seat.base, &["store", "status"]);
     assert!(ok);
     assert_eq!(printed["league_list"], "never fetched", "{printed}");
+}
+
+/// The search tool's words on a site search name the field a buyer's
+/// view asks (`tab.public`), the three values `fidelity` takes, and a
+/// sum as a sort value spanning every source: the re-sit's four runs
+/// found `tab.public` from "public listings" never, met `ambiguous` as a
+/// fidelity the text did not name (mcp-opus), and sorted by a sum the
+/// text did not say spans sources (cli-opus, cli-sonnet).
+#[test]
+fn the_search_tools_words_name_tab_public_every_fidelity_and_a_sums_sources() {
+    let mut seat = Seat::over(scratch());
+    let tools = seat.mcp.list_tools();
+    let search = tools.iter().find(|t| t["name"] == "search").unwrap();
+    let query = search["inputSchema"]["properties"]["query"]["description"]
+        .as_str()
+        .unwrap();
+    assert!(
+        query.contains("the site shows public listings, a tab's being `tab.public`"),
+        "{query}"
+    );
+    assert!(
+        query.contains("exact, ambiguous where a clause ran as the site may not read it, or partial where the remainder is not empty"),
+        "{query}"
+    );
+    let view = search["inputSchema"]["properties"]["view"]["description"]
+        .as_str()
+        .unwrap();
+    assert!(view.contains("a sum of one (`sum(\"# to maximum Life\")`), spanning every source unless `source=` names one"), "{view}");
 }
 
 /// `scope.list_seen` under a query fixing one league is that league's
