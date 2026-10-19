@@ -47,6 +47,9 @@ if [ -n "$exe" ]; then
     fi
 else
     archive=$out/$name.tar.gz
-    tar -czf "$archive" -C "$stage" "$name"
+    # COPYFILE_DISABLE: macOS's tar otherwise writes an AppleDouble `._`
+    # entry beside each file, which macOS hides and every other unpacker
+    # extracts as a file; the smoke refuses them. Ignored elsewhere.
+    COPYFILE_DISABLE=1 tar -czf "$archive" -C "$stage" "$name"
 fi
 echo "$archive"

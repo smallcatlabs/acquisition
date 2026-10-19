@@ -4,7 +4,8 @@
 # on every archive it makes and runnable by hand on any of them:
 #
 #   1. Extracted into an empty directory, the archive holds `acq`, `acqd`
-#      and `acq-mcp` (`.exe` on Windows), both licences and the notices.
+#      and `acq-mcp` (`.exe` on Windows), both licences and the notices,
+#      and a `.tar.gz` lists no AppleDouble `._` entry.
 #   2. `acq version --json` names the `acqd` beside it — the extracted
 #      one, by file, not by spelling.
 #   3. On macOS and Linux, `acq` symlinked from another directory names
@@ -21,7 +22,8 @@
 #
 # Mock only (C88): ACQ_PROVIDER=mock, ACQ_NO_KEYRING=1, and a scratch
 # store and log directory — never the real provider, never a keychain.
-# Needs bash, curl and jq (all on GitHub's runners; Git Bash on Windows).
+# Needs bash, curl and jq, and python3 for a `.tar.gz` (all on GitHub's
+# runners; Git Bash on Windows).
 #
 #   tools/release-smoke.sh <archive.tar.gz | archive.zip>
 set -euo pipefail
@@ -59,7 +61,19 @@ case "$archive" in
             unzip -q "$archive" -d "$work/x"
         fi
         ;;
-    *.tar.gz) tar -xzf "$archive" -C "$work/x" ;;
+    *.tar.gz)
+        tar -xzf "$archive" -C "$work/x"
+        # No AppleDouble `._` entry: macOS's `tar` merges them into the
+        # file they describe and never shows them, but a `tar` elsewhere
+        # and Python's `tarfile` unpack them as files of their own. A
+        # macOS `tar` writes them unless COPYFILE_DISABLE=1 is set.
+        appledouble=$(python3 -I -c '
+import sys, tarfile
+with tarfile.open(sys.argv[1]) as t:
+    print(" ".join(m.name for m in t if m.name.rsplit("/", 1)[-1].startswith("._")))
+' "$archive") || fail "python3 could not list $archive"
+        [ -z "$appledouble" ] || fail "the archive holds AppleDouble entries (a macOS tar without COPYFILE_DISABLE=1): $appledouble"
+        ;;
     *) fail "not a .zip or .tar.gz: $archive" ;;
 esac
 tops=("$work/x"/*)
