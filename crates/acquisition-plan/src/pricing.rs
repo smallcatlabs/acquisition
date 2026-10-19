@@ -138,7 +138,9 @@ pub fn realm_of(targets: &[&PriceTarget], given: Option<Realm>) -> Result<Realm>
 /// hold it, when they do, so it names the league that reads it, never
 /// only the one that does not. `own_row` is the revision of a row the
 /// target has of its own, which no listing carries: the refusal says so
-/// and names `status` as where it is listed whole.
+/// and names the command that prints the row, as typed — `status`
+/// expanded, in the target's realm, since the bare verb counts rows and
+/// reads pc.
 fn not_on_record(
     store: &Store,
     r: &ListingReport,
@@ -160,9 +162,16 @@ fn not_on_record(
         None => String::new(),
     };
     let row = match own_row {
-        Some(revision) => format!(
-            "; it has a price row of its own at revision {revision}: `acq price status` lists it"
-        ),
+        Some(revision) => {
+            let realm = match r.header.realm.segment() {
+                Some(seg) => format!(" --realm {seg}"),
+                None => String::new(),
+            };
+            format!(
+                "; it has a price row of its own at revision {revision}: \
+                 `acq price status --expand{realm}` lists it"
+            )
+        }
         None => String::new(),
     };
     anyhow::anyhow!(

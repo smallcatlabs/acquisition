@@ -593,8 +593,10 @@ fn price_set_and_clear_refuse_a_row_this_build_cannot_read_unless_the_revision_i
 /// the row's own target, its revision, when and through what it was
 /// written) where it once listed the bare address; the text prints the
 /// value and revision on the row's line; and `show`, a subject of the
-/// facts, refuses the target saying it has a row of its own and that
-/// `acq price status` lists it.
+/// facts, refuses the target saying it has a row of its own and naming
+/// the command that prints the row — run here as the refusal types it,
+/// with the realm the target carries, since `status` reads pc without
+/// one and counts an xbox row under `other_realm`.
 #[test]
 fn a_row_on_a_target_the_facts_do_not_hold_is_listed_whole_and_show_says_where() {
     let base = std::env::temp_dir().join(format!(
@@ -602,7 +604,17 @@ fn a_row_on_a_target_the_facts_do_not_hold_is_listed_whole_and_show_says_where()
         std::process::id(),
         acquisition_store::now()
     ));
-    seed(&base);
+    let mock = seed(&base);
+    Annotations::open_for(&mock, UUID)
+        .unwrap()
+        .put::<Buyout>(
+            "tab",
+            "xbox/orphan",
+            &json!({ "version": 1, "type": "skip" }),
+            None,
+            &Provenance::via("test"),
+        )
+        .unwrap();
 
     let report = sole_json(&acq(&base, &["price", "status", "--json"]));
     let unmatched = &report["rows"]["unmatched"];
@@ -621,25 +633,44 @@ fn a_row_on_a_target_the_facts_do_not_hold_is_listed_whole_and_show_says_where()
         "{report}"
     );
 
-    let out = acq(&base, &["price", "status", "--expand"]);
-    let text = String::from_utf8_lossy(&out.stdout);
-    assert!(
-        text.contains("rows naming nothing in the facts:\n  item/i-elsewhere: skip, revision 1\n"),
-        "{text}"
-    );
-
-    let out = acq(&base, &["price", "show", "item/i-elsewhere", "--json"]);
-    assert!(!out.status.success());
-    let said = sole_json(&out)["error"]
-        .as_str()
-        .unwrap_or_default()
-        .to_string();
-    assert!(
-        said.contains("item/i-elsewhere is not in the facts for Standard")
-            && said.contains("it has a price row of its own at revision 1")
-            && said.contains("`acq price status` lists it"),
-        "{said}"
-    );
+    // The refusal's command, run as typed, prints the row's line.
+    for (target, said_where, line) in [
+        (
+            "item/i-elsewhere",
+            "item/i-elsewhere is not in the facts for Standard",
+            "  item/i-elsewhere: skip, revision 1\n",
+        ),
+        (
+            "tab/xbox/orphan",
+            "tab/xbox/orphan is not in the facts for xbox/Standard",
+            "  tab/xbox/orphan: skip, revision 1\n",
+        ),
+    ] {
+        let out = acq(&base, &["price", "show", target, "--json"]);
+        assert!(!out.status.success());
+        let said = sole_json(&out)["error"]
+            .as_str()
+            .unwrap_or_default()
+            .to_string();
+        assert!(
+            said.contains(said_where)
+                && said.contains("it has a price row of its own at revision 1"),
+            "{said}"
+        );
+        let command = said
+            .split('`')
+            .find(|w| w.starts_with("acq price status"))
+            .unwrap_or_else(|| panic!("no `acq price status …` command in {said}"));
+        let words: Vec<&str> = command.split_whitespace().skip(1).collect();
+        let out = acq(&base, &words);
+        let text = String::from_utf8_lossy(&out.stdout);
+        assert!(
+            out.status.success()
+                && text.contains("rows naming nothing in the facts:\n")
+                && text.contains(line),
+            "`{command}` printed:\n{text}"
+        );
+    }
     // A target with no row of its own is refused as before.
     let out = acq(&base, &["price", "show", "item/i-nowhere", "--json"]);
     let said = sole_json(&out)["error"]
