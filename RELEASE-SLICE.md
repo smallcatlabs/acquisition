@@ -61,6 +61,7 @@ now. The outside review is Astra's Codex pass over each step's commits.
 | review 2, the fixes (2026-10-19) | `7571a570`, `d7a262fc` | two: `show`'s refusal named `acq price status`, which counts the orphan row and reads pc, so the command it pointed at printed nothing (1); `price_set`'s replace undo promised the prior's value back without exception, where a named revision replaces a value this build cannot read (2) | (1) the refusal names `acq price status --expand`, `--realm` from the target's address, and the test runs the command as the refusal types it (`price_json.rs`, the orphan test); (2) the description's clause, reference regenerated |
 | review 3, step 3 (2026-10-19) | `21460844`, `c170c84d`, `d34e5606` | four: the agent's daemon recipe gave `auth check` for every case, which answers not_logged_in when no keyring kept the login (1); "Standard unless you name it" was said of every verb taking --league, where `price show`, a saved plan and `store characters` read otherwise (2); "every command talks to the real GGG" and "jobs write, the rest read" overstated the provider and what writes (3); the CLI reference stranded a global option's description under the previous option in the long help format, an older defect (4) | (1) `the_agent_recipe_logs_in_again_after_the_daemon_stopped` (`readme_tour.rs`), the printed line run in the keyringless mock world after a stop; (2), (3) the bullets name their verbs, no test holds prose; (4) the generator drops the heading with its block and the test asserts each global's text once (`cli_reference.rs`) |
 | review 4, review 3's fixes (2026-10-19) | `036d0cb4`, `92f5f312` | two: the daemon bullet still called every other verb offline and `store import` an intent write, where `auth`, `jobs`, `status`, `cancel` and `daemon` use the daemon and import replays facts (1); the recipe test's `auth check` had started a daemon the recipe's login reused, so the idle knob went unread (2) | (1) the bullet, one sentence each for the daemon verbs, the offline reads, the intent writes and the import; (2) the test stops that daemon and reads running=false before the recipe's line |
+| review 5, step 4's briefs (2026-10-19) | the commits that follow `26603d0f` | five, before any run: the CLI's T2 could pass by reusing the login's daemon, the door's 30-minute idle hiding whether the recipe took (1); a stalled MCP server or login would hang the door and leave no call row (2); both pricing tasks cleaned up before the shop, so the shop never showed the new prices, and the CLI's replace could land blind (3); the login was never a numbered call, and a host configuration's contents were not on record (4); the record said install and host configuration ran "as printed" where the door unpacks and reads them (5); and two smaller: mandated repeats counted as re-reads, a refusal preclassified as a fault; the brief's "alpha" against `v1.0.0-beta.1` | (1) `daemon status` reports `idle_shutdown_seconds`, the recipe test asserts it on the daemon the recipe started, T2 asks for a new daemon and its idle exit, the door's default disclosed in the brief; (2) a deadline on every MCP call and on the login, the kill logged as a call; (3) both briefs set, replace naming the revision, read back, render, then clean up and read back; (4) the login is a numbered call with its knob, the configuration's text in the call's file; (5) the record's coverage paragraph says what the door does and assigns the rest; the counting rule excludes mandated repeats, the refusal sentence asks whether it let the runner recover; the brief's "Left out" names the release |
 
 ## Owner verdicts, verbatim
 
@@ -263,9 +264,23 @@ unpacks a release archive into the world's `bin/`; `run --env` and
 `ACQ_IDLE_SHUTDOWN`, and refuse any other; the MCP door's `open` and
 `call` take `--host-config NAME`, starting the server as a host would
 from `W/work/NAME` in the shape the README shows, refusing a command
-that is not the world's own `acq-mcp`. So the README's install, the
-agent's daemon recipe and the host configuration are each run by a
-runner as printed, through the door.
+that is not the world's own `acq-mcp`; the login is a numbered call
+with its knob, and a stalled server or login is killed at a deadline
+and logged as a call. What this covers, exactly: the archive's
+binaries run as unpacked (the unpacking is the door's, in Python, not
+a person's `tar`); the agent's recipe as the README prints it, its
+effect read off `daemon status`, which since this step reports the
+idle exit the daemon was started with; and the configuration's shape
+as the door reads it, not as Claude Code or Claude Desktop would
+load it. Not covered here, and assigned: the Windows and Linux
+install lines and the platform data paths (the door sets the store
+directory) to the platforms slice's VM rows and the smoke on every
+target in CI; the macOS quarantine line to the owner at the tag;
+loading the configuration in a real host to the owner's own first
+session with the release. The seat does not drive policy, plan and
+apply (the whole-CLI seat did, on code unchanged since), and the
+MCP's runs have no daemon, so the fetch tools' refusals are what it
+sees of them.
 
 The runs, serial, each launched by `launch.sh` after the previous
 debrief is in the record, never continued into another: `cli-opus`,
@@ -274,12 +289,16 @@ owner's rounds). A runner reads its brief and the README and nothing
 else. What the record counts, per run: the re-reads the read economy
 park asks for (a second call for the same answer and a debrief's
 "read twice", counted apart, laid to a cause only where the runner
-gives one); the README's four lines of unrecorded guidance (above),
-which a run confirmed, contradicted or never reached; pricing end to
-end on each surface, the replace naming its revision, at what cost in
-calls; and a difference between the surfaces or the models on any
-task, a finding of its own kind. The orchestrator reads the calls
-before believing a fault and says how many it read.
+gives one, and a repeat the brief itself asks for — the MCP's second
+`open` through the host configuration — never counted); the README's
+lines of unrecorded guidance a run could reach (the agent recipe, the
+macOS install's archive), confirmed, contradicted or never reached;
+pricing end to end on each surface — the two prices set, the replace
+naming its revision, both read back on the shop's pages, then the
+cleanup read back — at what cost in calls; and a difference between
+the surfaces or the models on any task, a finding of its own kind.
+The orchestrator reads the calls before believing a fault and says
+how many it read.
 
 The fix round after the four runs: faults of the shapes in the
 records' findings tables fixed, one commit per fault held by a test

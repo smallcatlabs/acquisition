@@ -14,12 +14,15 @@ usage (WORLD and BIN as seat.py takes them; the world is made by `seat.py WORLD 
 Every call is a row of WORLD/calls.csv and a file under WORLD/calls/. The world is set here and nowhere
 else: the mock provider, no keyring, no daemon (ACQ_NO_SPAWN=1: a tool that wants one says so), the store
 and log directory under WORLD. One server process per call; a request is whole, so nothing is held between.
+A server that does not answer within --timeout seconds (300) is killed and the call is logged as an error
+saying so; one that answers and does not exit when its stdin closes is killed after 30 s and the row's note
+says so. With --host-config the call's file holds the configuration as it was read.
 
 bytes: `text_bytes` is the result's text block; `result_bytes` is the whole JSON-RPC line, which carries
 the document a second time as structured content. A result is printed whole up to SHOWN bytes of text;
 past that its head is printed and the row says `head`. `open` is printed whole: it is what a host shows.
 """
-import argparse, csv, json, os, subprocess, sys, time
+import argparse, csv, json, os, select, subprocess, sys, time
 
 # Set by `place`, from the command line.
 WORLD = EXE = CSV = OUT = None
@@ -64,7 +67,11 @@ def host_config(name):
     return [EXE] + [str(x) for x in args], {str(k): str(v) for k, v in env.items()}
 
 
-def server(config=None):
+class Unanswered(Exception):
+    pass
+
+
+def server(config=None, timeout=300.0):
     argv, from_config = host_config(config)
     env = {k: v for k, v in os.environ.items() if k not in DROPPED}
     env.update(from_config)
@@ -78,6 +85,12 @@ def server(config=None):
         if "id" not in o:
             return None, 0.0
         t0 = time.perf_counter()
+        # a stalled server is a finding, never a hang: wait at most `timeout` for its line
+        ready, _, _ = select.select([p.stdout], [], [], timeout)
+        if not ready:
+            p.kill()
+            p.wait()
+            raise Unanswered(f"the server did not answer within {timeout:g} s; killed")
         line = p.stdout.readline()
         return line, (time.perf_counter() - t0) * 1000
 
@@ -88,8 +101,15 @@ def server(config=None):
 
 
 def close(p):
+    """The server exits when its stdin closes; one that does not is killed, and the row says so."""
     p.stdin.close()
-    p.wait(timeout=30)
+    try:
+        p.wait(timeout=30)
+        return ""
+    except subprocess.TimeoutExpired:
+        p.kill()
+        p.wait()
+        return "the server did not exit within 30 s of its stdin closing; killed"
 
 
 def log(task, tool, args, is_error, text, result_bytes, wall, shown, note):
@@ -123,16 +143,35 @@ def show(n, tool, is_error, text, result_bytes, wall, shown):
         print(text[:HEAD])
 
 
+def noted(a, *more):
+    parts = [f"--host-config {a.host_config}"] if a.host_config else []
+    parts += [m for m in more if m]
+    if a.note:
+        parts.append(a.note)
+    return "; ".join(parts)
+
+
+def config_text(a):
+    """The host configuration as the call read it, for the call's file: a rewritten file is still on record."""
+    if not a.host_config:
+        return ""
+    return f"\n--- host configuration {a.host_config}\n" + open(os.path.join(WORLD, "work", a.host_config)).read()
+
+
 def open_cmd(a):
-    p, rpc, first = server(a.host_config)
-    line, wall = rpc({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
-    close(p)
+    try:
+        p, rpc, first = server(a.host_config, a.timeout)
+        line, wall = rpc({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
+    except Unanswered as e:
+        n = log(a.t, "initialize + tools/list", "", True, str(e) + config_text(a), 0, a.timeout * 1000, "whole", noted(a))
+        show(n, "initialize + tools/list", True, str(e), 0, a.timeout * 1000, "whole")
+        return
+    left = close(p)
     init = json.loads(first)["result"]
     tools = json.loads(line)["result"]["tools"]
     text = json.dumps({"instructions": init.get("instructions", ""), "tools": tools}, ensure_ascii=False, indent=1)
     size = len(first.encode()) + len(line.encode())
-    note = a.note if not a.host_config else f"--host-config {a.host_config}" + (f"; {a.note}" if a.note else "")
-    n = log(a.t, "initialize + tools/list", "", False, text, size, wall, "whole", note)
+    n = log(a.t, "initialize + tools/list", "", False, text + config_text(a), size, wall, "whole", noted(a, left))
     show(n, "initialize + tools/list", False, text, size, wall, "whole")
 
 
@@ -151,9 +190,14 @@ def call_cmd(a):
     except ValueError as e:
         sys.exit(f"seat-mcp: the arguments are not JSON ({e}); nothing was sent and nothing logged")
     sent = json.dumps(args, separators=(",", ":"))
-    p, rpc, _ = server(a.host_config)
-    line, wall = rpc({"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": a.tool, "arguments": args}})
-    close(p)
+    try:
+        p, rpc, _ = server(a.host_config, a.timeout)
+        line, wall = rpc({"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": a.tool, "arguments": args}})
+    except Unanswered as e:
+        n = log(a.t, a.tool, sent, True, str(e) + config_text(a), 0, a.timeout * 1000, "whole", noted(a))
+        show(n, a.tool, True, str(e), 0, a.timeout * 1000, "whole")
+        return
+    left = close(p)
     if not line:
         text, is_error = "the server answered nothing and exited: " + p.stderr.read()[-2000:], True
     else:
@@ -165,8 +209,7 @@ def call_cmd(a):
             text = "".join(c.get("text", "") for c in r.get("content", []))
             is_error = bool(r.get("isError"))
     shown = "whole" if len(text.encode()) <= SHOWN else "head"
-    note = a.note if not a.host_config else f"--host-config {a.host_config}" + (f"; {a.note}" if a.note else "")
-    n = log(a.t, a.tool, sent, is_error, text, len((line or "").encode()), wall, shown, note)
+    n = log(a.t, a.tool, sent, is_error, text + config_text(a), len((line or "").encode()), wall, shown, noted(a, left))
     show(n, a.tool, is_error, text, len((line or "").encode()), wall, shown)
 
 
@@ -196,10 +239,12 @@ def main():
     o.add_argument("--t", required=True)
     o.add_argument("--note", default="")
     o.add_argument("--host-config", help="start the server from this host configuration under WORLD/work/")
+    o.add_argument("--timeout", type=float, default=300)
     c = sub.add_parser("call")
     c.add_argument("--t", required=True)
     c.add_argument("--note", default="")
     c.add_argument("--host-config", help="start the server from this host configuration under WORLD/work/")
+    c.add_argument("--timeout", type=float, default=300)
     c.add_argument("tool")
     c.add_argument("args", nargs="?")
     c.add_argument("--from", dest="draft", help="the arguments from a file under WORLD/drafts/, by bare name")

@@ -7,8 +7,9 @@ usage (WORLD is the world's root, BIN the directory holding the binaries it runs
                                           earlier world's pristine store; --daemon lets this world's commands start one;
                                           --archive unpacks a release archive's binaries into WORLD/bin (BIN is then
                                           WORLD/bin), as a person installing from it would, and records its sha256
-  seat.py WORLD BIN login [--env ACQ_IDLE_SHUTDOWN=S] <user>
-                                          a scripted mock login (the mock-session skill's recipe; a person uses a browser)
+  seat.py WORLD BIN login [--t T2] [--env ACQ_IDLE_SHUTDOWN=S] <user>
+                                          a scripted mock login (the mock-session skill's recipe; a person uses a browser),
+                                          logged as a call of its own with its knob, exit and output
   seat.py WORLD BIN run --t T3 [--note '...'] [--timeout S] [--stdin FILE|-] [--out NAME] [--env ACQ_IDLE_SHUTDOWN=S] -- <acq arguments>
   seat.py WORLD BIN report [--new]        append stdin to WORLD/REPORT.md (--new starts it): a runner's harness may refuse it file tools
   seat.py WORLD BIN debrief [--new]       the same, to WORLD/DEBRIEF.md
@@ -167,22 +168,51 @@ def setup(a):
     print(json.dumps(record, indent=2))
 
 
-def login(user, extra=()):
+def login(user, extra=(), task="login"):
+    """The scripted login, logged as a call of its own: the command as a person would type it, the knob
+    it carried, its exit and output, so a report can cite it. A login that prints no authorize URL within
+    60 s, or does not finish within 60 s of the approval, is killed and logged as such."""
     if not daemon():
         sys.exit("seat: this world has no daemon (setup without --daemon), so it has no login")
+    import select
+    words = list(extra) + ["acq", "auth", "--no-browser", "--json"]
+    t0 = time.perf_counter()
     p = subprocess.Popen([exe("acq"), "auth", "--no-browser", "--json"], env=env(extra), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    url = None
-    for line in p.stdout:
+    url, out, err, code = None, "", "", "timeout"
+    deadline = time.monotonic() + 60
+    while url is None and time.monotonic() < deadline:
+        ready, _, _ = select.select([p.stdout], [], [], max(0.0, deadline - time.monotonic()))
+        if not ready:
+            break
+        line = p.stdout.readline()
+        if not line:
+            break
+        out += line
         m = re.search(r'"authorize_url"\s*:\s*"([^"]+)"', line)
         if m:
             url = m.group(1)
-            break
-    if not url:
-        sys.exit(f"seat: no authorize_url from `acq auth --no-browser --json`: {p.stderr.read()}")
-    urllib.request.urlopen(url.replace("/authorize?", "/approve?") + f"&user={user}").read()
-    rest = p.stdout.read()
-    code = p.wait(timeout=60)
-    print(f"seat: `{' '.join(list(extra) + ['acq', 'auth', '--no-browser', '--json'])}` for {user} exited {code}\n{rest.strip()}")
+    if url:
+        try:
+            urllib.request.urlopen(url.replace("/authorize?", "/approve?") + f"&user={user}", timeout=30).read()
+            rest, more = p.communicate(timeout=60)
+            out, err, code = out + rest, more, p.returncode
+        except (OSError, subprocess.TimeoutExpired) as e:
+            p.kill()
+            rest, more = p.communicate()
+            out, err = out + rest, more + f"\nseat: the login did not finish ({e}); killed"
+    else:
+        p.kill()
+        rest, more = p.communicate()
+        out, err = out + rest, more + "\nseat: no authorize_url within 60 s; killed"
+    wall = round((time.perf_counter() - t0) * 1000)
+    ob, eb = len(out.encode()), len(err.encode())
+    n = log([task, json.dumps(list(extra) + ["auth", "--no-browser", "--json"]), code, ob, eb, wall, "whole", f"login {user}: the door approved the mock's page"],
+            f"$ {' '.join(words)}   # login {user}: the door approves at the mock\n--- stdout\n{out}\n--- stderr\n{err}")
+    print(f"[call {n}] {' '.join(words)}   # login {user}\n[exit {code} · stdout {ob} bytes · stderr {eb} bytes · {wall} ms]")
+    if out.strip():
+        print("--- stdout\n" + out.rstrip("\n"))
+    if err.strip():
+        print("--- stderr\n" + err.rstrip("\n"))
 
 
 def log(row, text):
@@ -288,6 +318,7 @@ def main():
     l = sub.add_parser("login")
     l.add_argument("user")
     l.add_argument("--env", action="append", default=[], help="as run's: the daemon this login starts reads ACQ_IDLE_SHUTDOWN")
+    l.add_argument("--t", default="login", help="the task the login is for; the login is a numbered call")
     r = sub.add_parser("report")
     r.add_argument("--new", action="store_true")
     r.add_argument("--from", dest="draft", help="a file under WORLD/drafts/, by bare name, in place of stdin")
@@ -307,7 +338,7 @@ def main():
     if a.cmd == "setup":
         setup(a)
     elif a.cmd == "login":
-        login(a.user, a.env)
+        login(a.user, a.env, a.t)
     elif a.cmd in ("report", "debrief"):
         append(a.cmd.upper() + ".md", a.new, a.draft)
     elif a.cmd == "teardown":

@@ -181,6 +181,7 @@ machine otherwise.
 
 The GUI; Windows signing, notarization, installers and every channel
 beside the archives (tabled, step 2); PoE2 (step 6, the launch);
-the parks deferred past the alpha by the owner's triage of
-2026-10-18, which wait for the first users' evidence; shop publishing
+the parks deferred past this release (`v1.0.0-beta.1`; "the alpha"
+in the triage's words) by the owner's triage of 2026-10-18, which
+wait for the first users' evidence; shop publishing
 (`CONTEXT.md`, parked: "no shop publishing").

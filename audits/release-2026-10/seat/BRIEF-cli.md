@@ -109,8 +109,11 @@ store holds two accounts:
   this run that is not the tool as a person meets it; do not report
   its mechanics as a fault. The tasks that talk to the API use this
   account. This world has no keyring: what the README says of a login
-  without one holds here. If the tool later tells you the session is
-  gone, log in again and note that it happened and what the tool said.
+  without one holds here. The door starts the world's daemon with a
+  30-minute idle exit, so it outlasts your thinking between commands;
+  the tool ships with one minute, and the README's recipe for a longer
+  one is T2's. If the tool later tells you the session is gone, log in
+  again and note that it happened and what the tool said.
 
 ## The tasks
 
@@ -135,8 +138,9 @@ them in order; later ones build on earlier ones.
   have, and what stash tabs?" Fetch one character and one stash tab
   and say what is in them. Then the README says how a person keeps a
   daemon up for an agent's session: do that, as the README says, for
-  this world (no keyring), and show the daemon is up and what it says
-  of itself.
+  this world (no keyring). The result to show: that a new daemon is
+  up — not the one your login started — and what it says its idle
+  exit is.
 - **T3 — what I have.** On `GERWARIC`'s store, with no daemon
   involved: "How many items do I have, where are they, and how old is
   what you know?" Tabs, characters, counts, the age of the data, and
@@ -150,14 +154,17 @@ them in order; later ones build on earlier ones.
 - **T5 — prices.** Still on `GERWARIC`: "What have I priced, and is
   anything wrong with my prices?" Then: price one stash tab at 5 chaos
   per item; price one single item at 2 divines; change your mind and
-  make it 3 divines; change it again and remove the item's price; and
-  put the tab back as you found it. Say what the tool told you about
+  make it 3 divines, the careful way — a replacement that names the
+  revision you read, and lands. Show both new prices where the tool
+  reads them back. Keep them for T6. Say what the tool told you about
   each write, what each receipt would let you undo, and how you would
   know another program had changed a price between your read and your
   write.
 - **T6 — the shop.** "Give me my shop as forum pages I can paste."
-  Produce them, say how many pages, what was left out and why, and
-  what a person does with the output next.
+  Produce them, say how many pages, where on them the two prices of
+  T5 appear, what was left out and why, and what a person does with
+  the output next. Then clean up: remove the item's price and put the
+  tab back as you found it, and read both back to show it.
 - **T7 — for a program.** Take five commands you have already run,
   one from each of T2, T3, T4, T5 and T6, and run them again asking
   for JSON. Is each answer one JSON document a program could read,
@@ -192,10 +199,11 @@ README's, and count it as nothing they told you. Under any heading,
    tell you it is not; where the tool or the README stopped or misled
    you.
 3. **Faults** — what the tool said or did, what it should have, the
-   calls that show it. A thing you could learn only by being refused
-   is one; say what the refusal told you and whether it was enough to
-   go on. Order them worst first, and say for each whether a person at
-   a keyboard would hit it too or only an agent.
+   calls that show it. A refusal is a finding when it did not let you
+   recover: say what it told you and whether that was enough to go on,
+   and count one that was as no fault. Order them worst first, and say
+   for each whether a person at a keyboard would hit it too or only an
+   agent.
 4. **What the README and the help did not say** — each thing you
    needed and had to find by trying: the fact, where you expected to
    read it (the README's section, or the verb's help), the call where

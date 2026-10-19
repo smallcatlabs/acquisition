@@ -100,13 +100,14 @@ them in order; later ones build on earlier ones.
   agent can use it, and what you would not call without asking the
   person first. Then `open`, and say what the server's instructions and
   tools told you that the README had not, and the other way round.
-  Then look at the world as you find it — whose items, how many, from
-  where, how old — without changing it.
+  Then say whose items are here and from where, without changing
+  anything; the counts and ages are T2's.
 - **T1 — the host.** "Set yourself up the way the README says." Write
   the host configuration the README shows, for this machine, as
   `W/work/acq.json`, naming the server at `W/bin/acq-mcp`; then `open`
-  through it (`--host-config acq.json`), and make every later call
-  through it too. Say what the README told you and what it did not.
+  through it (`--host-config acq.json`) — a second `open`, asked for,
+  not a re-read — and make every later call through it too. Say what
+  the README told you and what it did not.
 - **T2 — what I have.** "How many items do I have, where are they,
   and how old is what you know?" Tabs, characters, counts, the age of
   the data, and anything the store says it refused or could not read.
@@ -117,14 +118,17 @@ them in order; later ones build on earlier ones.
   tool knows about it. Learn the query language from the tool.
 - **T4 — prices.** "What have I priced, and is anything wrong with my
   prices?" Then: price one stash tab at 5 chaos per item; price one
-  single item at 2 divines; change your mind and make it 3 divines;
-  change it again and remove the item's price; and put the tab back as
-  you found it. Say what the tool told you about each write, what each
-  receipt would let you undo, and how you would know another program
-  had changed a price between your read and your write.
+  single item at 2 divines; change your mind and make it 3 divines —
+  a replacement that names the revision you read, and lands. Show
+  both new prices where the tool reads them back. Keep them for T5.
+  Say what the tool told you about each write, what each receipt
+  would let you undo, and how you would know another program had
+  changed a price between your read and your write.
 - **T5 — the shop.** "Give me my shop as forum pages I can paste."
-  Produce them, say how many pages, what was left out and why, and
-  what a person does with the output next.
+  Produce them, say how many pages, where on them the two prices of
+  T4 appear, what was left out and why, and what a person does with
+  the output next. Then clean up: remove the item's price and put the
+  tab back as you found it, and read both back to show it.
 - **T6 — the daemon.** "I have not started anything for you." Which
   tools say they need a daemon, what did they tell you to do, and what
   does the README tell the person to do for you? Say what you would
@@ -156,10 +160,11 @@ Under any heading, `none` is an answer when it is true.
    whether you hold the result to be right, and what would tell you it
    is not; where the tool or the README stopped or misled you.
 3. **Faults** — what the tool said or did, what it should have, the
-   calls that show it. A thing you could learn only by being refused
-   is one; say what the refusal told you and whether it was enough to
-   go on. Order them worst first, and say for each whether a person
-   using the tool would hit it too or only an agent.
+   calls that show it. A refusal is a finding when it did not let you
+   recover: say what it told you and whether that was enough to go on,
+   and count one that was as no fault. Order them worst first, and say
+   for each whether a person using the tool would hit it too or only an
+   agent.
 4. **What the README and the tool texts did not say** — each thing
    you needed and had to find by trying: the fact, where you expected
    to read it (the README's section, the server's instructions, a
