@@ -12,24 +12,28 @@
 //! included. A word that does not resolve is a failure that names the
 //! word and the version and says what to type next.
 
-use acquisition_plan::currency::{Currency, CurrencyTable, table};
-use anyhow::{Context, Result, bail};
-use serde_json::json;
+use acquisition_plan::currency::{Currency, CurrencyTable};
+use acquisition_plan::pricing::{currency_document, currency_row, currency_table};
+use anyhow::Result;
 
-/// `acq reference currency [WORD] [--expand]`.
+/// `acq reference currency [WORD] [--expand]`. `--json` is the document
+/// the plan crate's pricing verbs make, the one the MCP's
+/// `reference_currency` returns (C46).
 pub fn currency(word: Option<&str>, expand: bool, json: bool) -> Result<()> {
-    let t = table().context("the currency table this build ships is not usable")?;
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&currency_document(word)?)?
+        );
+        return Ok(());
+    }
     match word {
-        Some(word) => resolve(t, word, json),
-        None => enumerate(t, expand, json),
+        Some(word) => resolve(word),
+        None => enumerate(currency_table()?, expand),
     }
 }
 
-fn enumerate(t: &CurrencyTable, expand: bool, json: bool) -> Result<()> {
-    if json {
-        println!("{}", serde_json::to_string_pretty(t)?);
-        return Ok(());
-    }
+fn enumerate(t: &CurrencyTable, expand: bool) -> Result<()> {
     let active = t.active().count();
     let retired = t.rows().len() - active;
     let aliased = t.rows().iter().filter(|r| !r.aliases.is_empty()).count();
@@ -51,24 +55,8 @@ fn enumerate(t: &CurrencyTable, expand: bool, json: bool) -> Result<()> {
     Ok(())
 }
 
-fn resolve(t: &CurrencyTable, word: &str, json: bool) -> Result<()> {
-    let Some(row) = t.resolve(word) else {
-        bail!(
-            "{word:?} is not a currency word in currency table v{} (words are exact and case-sensitive; `acq reference currency` lists them)",
-            t.version()
-        );
-    };
-    if json {
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&json!({
-                "word": word,
-                "version": t.version(),
-                "currency": row,
-            }))?
-        );
-        return Ok(());
-    }
+fn resolve(word: &str) -> Result<()> {
+    let (t, row) = currency_row(word)?;
     let via = if word == row.tag {
         "the tag".to_string()
     } else if word == row.emit {

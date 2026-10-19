@@ -253,6 +253,7 @@ pub mod listing;
 pub mod price;
 #[cfg(test)]
 pub(crate) mod price_notes_fixture;
+pub mod pricing;
 #[cfg(test)]
 pub(crate) mod real_scale_fixture;
 pub mod shop;

@@ -1,8 +1,9 @@
 //! The forum shop page's CLI surface: `acq shop render` reads the shared
-//! store and the intent file (no daemon, no network), resolves the
-//! listing state ([`resolve`], C69/C81), renders the page set through
-//! `acquisition-plan` ([`render`], C74) and writes it to stdout for the
-//! owner to paste by hand — nothing here sends anything. The sync policy
+//! store and the intent file (no daemon, no network), asks the plan
+//! crate's pricing verbs for the render ([`pricing::shop_render`], over the
+//! listing state, C69/C81, and the page set, C74) — the function the MCP's
+//! `shop_render` calls (C46) — and writes it to stdout for the owner to
+//! paste by hand — nothing here sends anything. The sync policy
 //! is read for the C72 report only: coverage, staleness and positions
 //! are named with their remedies, never enforced, and the `RefreshPlan`
 //! the staleness line cites is compiled offline the way `acq refresh
@@ -23,16 +24,11 @@
 
 use std::path::Path;
 
-use acquisition_plan::listing::resolve;
-use acquisition_plan::shop::{
-    Cell, ITEMS_TOKEN, LeftOut, PolicySource, RenderOptions, ShopRender, Verdict, render,
-};
-use acquisition_plan::{SyncPolicy, plan_refresh};
+use acquisition_plan::pricing;
+use acquisition_plan::shop::{Cell, LeftOut, ShopRender, Verdict};
 use acquisition_protocol::realm::Realm;
-use acquisition_store::{
-    SYNC_POLICY_KEY, SYNC_POLICY_KIND, SYNC_POLICY_SCOPE, Store, account_path,
-};
-use anyhow::{Context, Result, bail};
+use acquisition_store::{Store, account_path};
+use anyhow::{Context, Result};
 
 use crate::plan_cmd::open_intent;
 use crate::store_cmd::{ago, clip, provider, realm_prefix};
@@ -54,65 +50,30 @@ pub struct RenderArgs<'a> {
 /// `acq shop render`.
 pub fn render_cmd(realm: Realm, league: &str, args: &RenderArgs<'_>) -> Result<()> {
     let template = match args.template {
-        Some(path) => std::fs::read_to_string(path)
-            .with_context(|| format!("reading the template {}", path.display()))?,
-        None => ITEMS_TOKEN.to_string(),
+        Some(path) => Some(
+            std::fs::read_to_string(path)
+                .with_context(|| format!("reading the template {}", path.display()))?,
+        ),
+        None => None,
     };
     let now = acquisition_store::now();
     let (dir, entry, annotations) = open_intent()?;
     let store = Store::open(&account_path(&dir, &entry.username))?;
-    let snapshot = store.pricing_snapshot(realm.as_str(), league, &annotations)?;
-    let report = resolve(&snapshot).context("resolving the listing state")?;
-
-    // The policy, for the C72 report: absent, unreadable, or parsed —
-    // and then the refresh it would take now, compiled as `acq refresh
-    // --plan` compiles it (no daemon, no quote).
-    let row = annotations.get(SYNC_POLICY_SCOPE, SYNC_POLICY_KEY, SYNC_POLICY_KIND)?;
-    let parsed = row
-        .as_ref()
-        .map(|row| (row.revision, SyncPolicy::from_value(&row.value)));
-    let policy = match &parsed {
-        None => PolicySource::NotSet,
-        Some((revision, Err(e))) => PolicySource::Unreadable {
-            revision: *revision,
-            why: e.to_string(),
-        },
-        Some((revision, Ok(policy))) => {
-            // The plan the staleness line cites, or why there is none:
-            // a snapshot or compile failure is reported, never swallowed.
-            let refresh = store
-                .refresh_snapshot(realm.as_str(), league, &annotations)
-                .map_err(|e| e.to_string())
-                .and_then(|s| {
-                    plan_refresh(provider(), &s, now)
-                        .map(|plan| plan.logical_requests)
-                        .map_err(|e| e.to_string())
-                });
-            PolicySource::Set {
-                policy,
-                revision: *revision,
-                refresh,
-            }
-        }
-    };
-    let rendered = render(
-        &report,
-        &RenderOptions {
+    let rendered = pricing::shop_render(
+        &store,
+        &annotations,
+        provider(),
+        realm,
+        league,
+        &pricing::ShopArgs {
             size: args.size,
-            template: &template,
+            template: template.as_deref(),
             now,
-            policy,
         },
-    )
-    .map_err(|e| anyhow::anyhow!("{e}"))?;
+    )?;
 
     if let Some(n) = args.page {
-        let Some(page) = rendered.pages.iter().find(|p| p.number == n) else {
-            bail!(
-                "no page {n}: the render has {} (`acq shop render` lists them)",
-                plural(rendered.pages.len(), "page", "pages")
-            );
-        };
+        let page = pricing::shop_page(&rendered, n)?;
         if args.json {
             println!("{}", serde_json::to_string_pretty(page)?);
         } else {
@@ -369,10 +330,11 @@ fn render_text(r: &ShopRender, now: i64, expand: bool) -> String {
 mod tests {
     use super::*;
     use crate::real_scale_fixture;
-    use acquisition_plan::listing::ReportHeader;
+    use acquisition_plan::listing::{ReportHeader, resolve};
     use acquisition_plan::price::PriceTarget;
     use acquisition_plan::shop::{
-        DEFAULT_PAGE_SIZE, Freshness, LeftOut, Page, PolicyRow, Posted, ShopCounts,
+        DEFAULT_PAGE_SIZE, Freshness, ITEMS_TOKEN, LeftOut, Page, PolicyRow, PolicySource, Posted,
+        RenderOptions, ShopCounts, render,
     };
     use serde_json::json;
     use std::collections::BTreeMap;

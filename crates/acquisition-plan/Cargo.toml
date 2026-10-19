@@ -12,10 +12,11 @@ acquisition-store = { path = "../acquisition-store" }
 serde.workspace = true
 serde_json.workspace = true
 toml.workspace = true
+# the pricing verbs' refusals, in the words the store's own errors carry
+anyhow.workspace = true
 
 [dev-dependencies]
 # the examples' and tests' only: proptest for plan step 7's properties,
-# sha2 and anyhow for the fixture writer (`examples/redact-pricing.rs`)
-anyhow.workspace = true
+# sha2 for the fixture writer (`examples/redact-pricing.rs`)
 proptest = "1.11.0"
 sha2 = "0.10"

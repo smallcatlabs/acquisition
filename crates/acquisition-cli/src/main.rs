@@ -1102,7 +1102,7 @@ async fn run(cli: Cli) -> Result<()> {
             block_on_job(&mut client, id, cli.json).await
         }
         Cmd::Price { cmd } => match cmd.unwrap_or(PriceCmd::Status {
-            league: price_cmd::DEFAULT_LEAGUE.into(),
+            league: acquisition_plan::pricing::DEFAULT_LEAGUE.into(),
             realm: None,
             expand: false,
         }) {
@@ -1128,7 +1128,7 @@ async fn run(cli: Cli) -> Result<()> {
             } => price_cmd::list(
                 realm,
                 league.as_deref(),
-                &price_cmd::ListArgs {
+                &acquisition_plan::pricing::ListArgs {
                     relation,
                     effective,
                     location,

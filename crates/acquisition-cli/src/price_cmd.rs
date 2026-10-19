@@ -1,13 +1,14 @@
 //! The listing state's CLI surface: `acq price status | show | list` read
-//! the shared store and the intent file (no daemon, no network), resolve
-//! the state through `acquisition-plan` ([`resolve`], C69/C70/C80), and
+//! the shared store and the intent file (no daemon, no network), ask the
+//! plan crate's pricing verbs for the state ([`pricing`], over `resolve`,
+//! C69/C70/C80) — the same functions the MCP's tools call (C46) — and
 //! render it under C53 — the default text is the decision view, `--expand`
 //! the audit view, `--json` the [`ListingReport`] itself, of which every
 //! line here is a function. `set` and `clear` (plan step 5) are the two
-//! writes: one row each through the plan crate's shared write ([`set_buyout`],
-//! [`clear_buyout`]) under compare-and-swap, printing the receipt —
-//! what the target is now, what it was (C78), and the command that puts
-//! the prior back.
+//! writes: one row each through the same verbs' shared write
+//! ([`pricing::set`], [`pricing::clear`]) under compare-and-swap, printing
+//! the receipt — what the target is now, what it was (C78), and the
+//! command that puts the prior back.
 //!
 //! Under C53: `status` opens with the one line that answers "what is
 //! listed" (items, priced in game, by hand, agree, conflict, unlisted),
@@ -29,23 +30,15 @@
 //! by construction; `tests/price_json.rs` pins the documents from a
 //! spawned binary. Escapes are not used; ages are text, epochs JSON.
 
-use std::str::FromStr;
-
 use acquisition_plan::game_side::{GamePrice, Source};
 use acquisition_plan::listing::{
-    ListFilter, ListView, Listing, ListingReport, Relation, ReportHeader, ShowView, Side, resolve,
+    ListView, Listing, ListingReport, Relation, ReportHeader, ShowView, Side,
 };
-use acquisition_plan::price::{
-    BUYOUT_KIND, BUYOUT_VERSION, Buyout, PriceTarget, PriceWrite, clear_buyout, set_buyout,
-};
+use acquisition_plan::price::{Buyout, PriceTarget, PriceWrite};
+use acquisition_plan::pricing::{self, Expect, ListArgs};
 use acquisition_protocol::realm::Realm;
-use acquisition_store::{
-    AnnotationRow, Annotations, FactAddress, IntentValue, Provenance, Store, account_path,
-    check_value,
-};
-use anyhow::{Context, Result, bail};
-use serde::Serialize;
-use serde_json::json;
+use acquisition_store::{AnnotationRow, Annotations, Provenance, Store, account_path, check_value};
+use anyhow::Result;
 
 use crate::plan_cmd::{WRITTEN_VIA, open_intent};
 use crate::store_cmd::{ago, clip, realm_prefix};
@@ -54,120 +47,25 @@ use crate::store_cmd::{ago, clip, realm_prefix};
 /// groups are counted (C53; `--expand` lists every one).
 const LIST_UP_TO: usize = 10;
 
-/// The state of one (realm, league), from the selected account's facts
-/// and intent.
-fn report(realm: Realm, league: &str) -> Result<ListingReport> {
+/// The selected account's facts file, opened beside its intent.
+fn opened() -> Result<(Store, Annotations)> {
     let (dir, entry, annotations) = open_intent()?;
-    let store = Store::open(&account_path(&dir, &entry.username))?;
-    let snapshot = store.pricing_snapshot(realm.as_str(), league, &annotations)?;
-    let mut report = resolve(&snapshot).context("resolving the listing state")?;
-    report.place_other_leagues(|target| {
-        store
-            .leagues_of(&FactAddress::from(target))
-            .map(|leagues| leagues.iter().any(|l| l != league))
-    })?;
-    Ok(report)
+    Ok((
+        Store::open(&account_path(&dir, &entry.username))?,
+        annotations,
+    ))
 }
-
-/// The league a verb reads when `--league` was not given: the one the
-/// facts hold the named target in, so an address an answer printed reads
-/// back as printed; Standard when no target is named, the facts do not
-/// hold it, or (a character the listing gave no league) hold it in none.
-/// A target live in several leagues is refused with their names.
-fn league_of(named: &[&PriceTarget], league: Option<&str>) -> Result<String> {
-    if let Some(league) = league {
-        return Ok(league.into());
-    }
-    let Some(target) = named.first() else {
-        return Ok(DEFAULT_LEAGUE.into());
-    };
-    let (dir, entry, _) = open_intent()?;
-    let leagues = Store::open(&account_path(&dir, &entry.username))?
-        .leagues_of(&FactAddress::from(*target))
-        .context("reading the facts for the target's league")?;
-    match leagues.as_slice() {
-        [] => Ok(DEFAULT_LEAGUE.into()),
-        [one] => Ok(one.clone()),
-        many => bail!(
-            "{target} is in several leagues ({}); name one with --league",
-            many.join(", ")
-        ),
-    }
-}
-
-/// The league `status`, and a `show` or `list` naming no known target,
-/// read without `--league`.
-pub const DEFAULT_LEAGUE: &str = "Standard";
 
 /// `acq price status`.
 pub fn status(realm: Realm, league: &str, expand: bool, json: bool) -> Result<()> {
-    let r = report(realm, league)?;
+    let (store, annotations) = opened()?;
+    let r = pricing::report(&store, &annotations, realm, league)?;
     if json {
         println!("{}", serde_json::to_string_pretty(&r.summary())?);
         return Ok(());
     }
     print!("{}", render_status(&r, acquisition_store::now(), expand));
     Ok(())
-}
-
-/// A target address as one word, or the grammar to type — and, for a
-/// bare id as `search` and `show` print one, the two readings it may be,
-/// filled in: an item's and a character's ids are alike, so neither is
-/// guessed (the trade seat: cli-opus call 31, its fault 6).
-fn parse_target(word: &str) -> Result<PriceTarget> {
-    PriceTarget::from_str(word).map_err(|e| {
-        let readings = if word.contains('/') || word.is_empty() {
-            String::new()
-        } else {
-            format!("; as an item, item/{word}; as a character, character/{word}")
-        };
-        anyhow::anyhow!(
-            "{e}; a target is one word: item/<id>, character/<id>, tab/<realm>/<id> or substash/<realm>/<parent>/<id>{readings}"
-        )
-    })
-}
-
-/// The realm a command reads: a tab or substash address carries its own
-/// and an explicit `--realm` must agree; an item or character address
-/// takes `--realm`, default pc.
-fn realm_of(targets: &[&PriceTarget], given: Option<Realm>) -> Result<Realm> {
-    let mut realm = given;
-    for t in targets {
-        if let PriceTarget::Tab { realm: r, .. } | PriceTarget::Substash { realm: r, .. } = t {
-            match realm {
-                Some(have) if have != *r => {
-                    bail!("{t} is a {r} address; {have} was given (--realm or another address)")
-                }
-                _ => realm = Some(*r),
-            }
-        }
-    }
-    Ok(realm.unwrap_or(Realm::DEFAULT))
-}
-
-/// The refusal for a target these facts do not hold.
-fn not_on_record(r: &ListingReport, target: &PriceTarget) -> anyhow::Error {
-    // Where the facts do hold it, when they do: the refusal names the
-    // league that reads it, never only the one that does not.
-    let elsewhere = open_intent()
-        .ok()
-        .and_then(|(dir, entry, _)| Store::open(&account_path(&dir, &entry.username)).ok())
-        .and_then(|store| store.leagues_of(&FactAddress::from(target)).ok())
-        .unwrap_or_default();
-    let hint = match elsewhere.as_slice() {
-        [] => "`acq search` finds an item's id, `acq tabs` a tab's".to_string(),
-        leagues => format!(
-            "the facts hold it in {}: `--league` reads it there",
-            leagues.join(", ")
-        ),
-    };
-    anyhow::anyhow!(
-        "{target} is not in the facts for {}{} ({} items, {} tabs and characters on record); {hint}",
-        realm_prefix(r.header.realm),
-        r.header.league,
-        r.counts.items,
-        r.counts.containers
-    )
 }
 
 /// `acq price show <target>`.
@@ -178,29 +76,14 @@ pub fn show(
     expand: bool,
     json: bool,
 ) -> Result<()> {
-    let target = parse_target(target)?;
-    let realm = realm_of(&[&target], realm)?;
-    let league = league_of(&[&target], league)?;
-    let r = report(realm, &league)?;
-    let view = r
-        .show_view(&target)
-        .ok_or_else(|| not_on_record(&r, &target))?;
+    let (store, annotations) = opened()?;
+    let view = pricing::show(&store, &annotations, target, realm, league)?;
     if json {
         println!("{}", serde_json::to_string_pretty(&view)?);
         return Ok(());
     }
     print!("{}", render_show(&view, acquisition_store::now(), expand));
     Ok(())
-}
-
-/// `list`'s selection flags as typed: relation and effective-side words,
-/// container addresses — parsed here into a [`ListFilter`].
-#[derive(Debug, Default)]
-pub struct ListArgs {
-    pub relation: Option<String>,
-    pub effective: Option<String>,
-    pub location: Option<String>,
-    pub covered_by: Option<String>,
 }
 
 /// `acq price list`.
@@ -211,61 +94,8 @@ pub fn list(
     expand: bool,
     json: bool,
 ) -> Result<()> {
-    let (relation, effective, location, covered_by) = (
-        args.relation.as_deref(),
-        args.effective.as_deref(),
-        args.location.as_deref(),
-        args.covered_by.as_deref(),
-    );
-    const SIDES: [&str; 4] = ["game", "manual", "none", "unresolved"];
-    let effective = match effective {
-        None => None,
-        Some(word) if SIDES.contains(&word) => Some(word.to_string()),
-        Some(word) => bail!(
-            "{word:?} is not an effective side (one of {})",
-            SIDES.join(", ")
-        ),
-    };
-    let relation = match relation {
-        None => None,
-        Some(word) => Some(Relation::parse(word).ok_or_else(|| {
-            anyhow::anyhow!(
-                "{word:?} is not a relation (one of {})",
-                Relation::ALL.map(Relation::as_str).join(", ")
-            )
-        })?),
-    };
-    let container = |flag: &str, word: Option<&str>| -> Result<Option<PriceTarget>> {
-        let Some(word) = word else {
-            return Ok(None);
-        };
-        let t = parse_target(word)?;
-        if matches!(t, PriceTarget::Item { .. }) {
-            bail!("{flag} takes a container (tab, substash or character), not an item");
-        }
-        Ok(Some(t))
-    };
-    let location = container("--in", location)?;
-    let covered_by = container("--covered-by", covered_by)?;
-    let named: Vec<&PriceTarget> = [&location, &covered_by].into_iter().flatten().collect();
-    let realm = realm_of(&named, realm)?;
-    let league = league_of(&named, league)?;
-    let r = report(realm, &league)?;
-    let filter = ListFilter {
-        relation,
-        effective,
-        r#in: location.clone(),
-        covered_by: covered_by.clone(),
-    };
-    let Some(view) = r.list_view(filter) else {
-        let missing = [&location, &covered_by]
-            .into_iter()
-            .flatten()
-            .find(|t| r.find(t).is_none())
-            .cloned()
-            .unwrap_or(PriceTarget::Item { id: "?".into() });
-        return Err(not_on_record(&r, &missing));
-    };
+    let (store, annotations) = opened()?;
+    let view = pricing::list(&store, &annotations, realm, league, args)?;
     if json {
         println!("{}", serde_json::to_string_pretty(&view)?);
         return Ok(());
@@ -907,67 +737,12 @@ fn render_show(view: &ShowView, now: i64, expand: bool) -> String {
     out
 }
 
-/// The value words `set` takes: the C67 type word — or the game's own
-/// (`price`, `b/o`, `~price`, `~b/o`, `~skip`) — then, for a priced
-/// type, the amount and the currency tag. Built into the v1 wire shape
-/// and read through the value's own strict parse, so the CLI has no
-/// second grammar: a fifth digit, an alias that is not a tag, an amount
-/// on `skip`, each refuses in the value's words.
-fn parse_buyout(kind: &str, amount: Option<&str>, currency: Option<&str>) -> Result<Buyout> {
-    let kind = match kind {
-        "exact" | "price" | "~price" => "exact",
-        "negotiable" | "b/o" | "~b/o" => "negotiable",
-        "no_price" | "no-price" => "no_price",
-        "skip" | "~skip" => "skip",
-        other => bail!(
-            "{other:?} is not a price type: exact (the game's ~price), negotiable (~b/o), no_price or skip"
-        ),
-    };
-    if matches!(kind, "exact" | "negotiable") && (amount.is_none() || currency.is_none()) {
-        bail!(
-            "{kind} takes an amount and a currency tag: `{kind} 12.5 chaos`, `{kind} 1/5 divine`; \
-             `acq reference currency` lists the tags"
-        );
-    }
-    let mut value = json!({ "version": BUYOUT_VERSION, "type": kind });
-    if let Some(amount) = amount {
-        value["amount"] = json!(amount);
-    }
-    if let Some(currency) = currency {
-        value["currency"] = json!(currency);
-    }
-    Buyout::parse(&value).map_err(|e| anyhow::anyhow!("{e}"))
-}
-
-/// The blind default's read: the row's current revision, or none. A row
-/// this build cannot read (a newer build's value, which the listing state
-/// reports as unreadable) is refused here rather than replaced — a blind
-/// write over it would destroy intent this build cannot restore, and the
-/// receipt's undo would be a value it cannot write. An explicit
-/// `--if-revision` is the reviewed path past it.
-fn current_revision(annotations: &Annotations, target: &PriceTarget) -> Result<Option<i64>> {
-    let (scope, key) = target.address()?;
-    let Some(row) = annotations.get(scope, &key, BUYOUT_KIND)? else {
-        return Ok(None);
-    };
-    if let Err(e) = check_value::<Buyout>(&row.value) {
-        bail!(
-            "{target} holds a value this build cannot read (revision {}: {e}); \
-             not replaced blind — `--if-revision {}` replaces it deliberately, \
-             `acq price show {target}` names it",
-            row.revision,
-            row.revision
-        );
-    }
-    Ok(Some(row.revision))
-}
-
 /// `acq price set <target> <type> [<amount> <currency>]`: one row through
-/// the shared write ([`set_buyout`]). `--if-revision` is the CAS at the
+/// the shared write ([`pricing::set`]). `--if-revision` is the CAS at the
 /// human boundary, the same rule as `acq policy set`: given, the write
 /// lands only over exactly that revision; omitted, it replaces whatever
-/// is stored — read just before the put, so a write racing in between is
-/// still a structured conflict, never a clobber.
+/// is stored ([`Expect::Current`]) — read just before the put, so a write
+/// racing in between is still a structured conflict, never a clobber.
 pub fn set(
     target: &str,
     kind: &str,
@@ -976,69 +751,35 @@ pub fn set(
     if_revision: Option<i64>,
     json: bool,
 ) -> Result<()> {
-    let target = parse_target(target)?;
-    let value = parse_buyout(kind, amount, currency)?;
     let (dir, entry, mut annotations) = open_intent()?;
-    let expected = match if_revision {
-        Some(revision) => Some(revision),
-        None => current_revision(&annotations, &target)?,
-    };
-    let write = set_buyout(
+    let store = Store::open(&account_path(&dir, &entry.username))?;
+    let receipt = pricing::set(
+        &store,
         &mut annotations,
-        &target,
-        &value,
-        expected,
+        target,
+        kind,
+        amount,
+        currency,
+        Expect::or(if_revision, Expect::Current),
         &Provenance::via(WRITTEN_VIA),
     )?;
-    // Read after the write, so the note never gates it (C64): whether the
-    // facts hold the target at all, in any league.
-    let in_facts = Store::open(&account_path(&dir, &entry.username))?
-        .holds(&FactAddress::from(&target))
-        .context("reading the facts for the target")?;
     if json {
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&SetReceipt {
-                write: &write,
-                in_facts
-            })?
-        );
+        println!("{}", serde_json::to_string_pretty(&receipt)?);
         return Ok(());
     }
-    print!("{}", render_write(&write, Some(in_facts)));
+    print!("{}", render_write(&receipt.write, Some(receipt.in_facts)));
     Ok(())
-}
-
-/// `set --json`: the [`PriceWrite`] plus whether the facts hold the
-/// target — the text's note, as JSON (C53). Absent from `clear`, which
-/// only ever removes a row that exists.
-#[derive(Serialize)]
-struct SetReceipt<'a> {
-    #[serde(flatten)]
-    write: &'a PriceWrite,
-    in_facts: bool,
 }
 
 /// `acq price clear <target>`: remove the row, under the same CAS. A
 /// target with no row is a refusal that says so — every nothing says
 /// which nothing (C53).
 pub fn clear(target: &str, if_revision: Option<i64>, json: bool) -> Result<()> {
-    let target = parse_target(target)?;
     let (_, _, mut annotations) = open_intent()?;
-    let expected = match if_revision {
-        Some(revision) => revision,
-        None => match current_revision(&annotations, &target)? {
-            Some(revision) => revision,
-            None => bail!(
-                "nothing to clear: {target} has no price row of its own \
-                 (`acq price show {target}` reads what covers it)"
-            ),
-        },
-    };
-    let write = clear_buyout(
+    let write = pricing::clear(
         &mut annotations,
-        &target,
-        expected,
+        target,
+        Expect::or(if_revision, Expect::Current),
         &Provenance::via(WRITTEN_VIA),
     )?;
     report_write(&write, json)
@@ -1134,6 +875,7 @@ fn render_write(write: &PriceWrite, in_facts: Option<bool>) -> String {
 mod tests {
     use super::*;
     use crate::real_scale_fixture;
+    use acquisition_plan::listing::{ListFilter, resolve};
     use acquisition_store::{
         AnnotationRow, CharacterSnapshot, ItemSnapshot, ListingBasis, PricingSnapshot, TabSnapshot,
     };
@@ -1520,32 +1262,6 @@ mod tests {
         assert!(direct < covered_head && covered_head < sub, "{text}");
     }
 
-    /// A tab or substash address carries its realm; `--realm` must agree;
-    /// an item or character takes `--realm`, default pc.
-    #[test]
-    fn the_realm_comes_from_the_address_and_a_disagreement_refuses() {
-        let xbox = PriceTarget::Tab {
-            realm: Realm::Xbox,
-            id: "t".into(),
-        };
-        let item = PriceTarget::Item { id: "i".into() };
-        assert_eq!(realm_of(&[&xbox], None).unwrap(), Realm::Xbox);
-        assert_eq!(realm_of(&[&xbox], Some(Realm::Xbox)).unwrap(), Realm::Xbox);
-        assert_eq!(realm_of(&[&item], None).unwrap(), Realm::Pc);
-        assert_eq!(realm_of(&[&item], Some(Realm::Sony)).unwrap(), Realm::Sony);
-        assert_eq!(realm_of(&[&item, &xbox], None).unwrap(), Realm::Xbox);
-        let err = realm_of(&[&xbox], Some(Realm::Pc)).unwrap_err().to_string();
-        assert!(
-            err.contains("tab/xbox/t is a xbox address; pc was given"),
-            "{err}"
-        );
-        let pc = PriceTarget::Tab {
-            realm: Realm::Pc,
-            id: "u".into(),
-        };
-        assert!(realm_of(&[&xbox, &pc], None).is_err());
-    }
-
     /// C35 — intent stays visible with no facts: the empty-league status
     /// still reports the rows and picks its next action from them.
     #[test]
@@ -1580,69 +1296,6 @@ mod tests {
             text.contains("rows naming nothing in the facts:\n  item/i-01\n  item/i-gone\n"),
             "{text}"
         );
-    }
-
-    /// `set`'s value words are one grammar with the value's own: the
-    /// C67 type words and the game's, an amount tolerated as a human
-    /// types it and stored canonical, and every refusal in the value's
-    /// words — a priced type without its two words, an amount on `skip`,
-    /// an alias that is not a tag.
-    #[test]
-    fn set_reads_the_value_words_through_the_value_s_own_parse() {
-        let exact = |amount: &str, currency: &str| {
-            Buyout::Exact(acquisition_plan::price::Price {
-                amount: amount.parse().unwrap(),
-                currency: currency.into(),
-            })
-        };
-        assert_eq!(
-            parse_buyout("exact", Some("12.50"), Some("chaos")).unwrap(),
-            exact("12.5", "chaos")
-        );
-        assert_eq!(
-            parse_buyout("~price", Some("1"), Some("divine")).unwrap(),
-            exact("1", "divine")
-        );
-        assert_eq!(
-            parse_buyout("b/o", Some("1/5"), Some("divine"))
-                .unwrap()
-                .to_string(),
-            "1/5 divine b/o"
-        );
-        assert_eq!(parse_buyout("skip", None, None).unwrap(), Buyout::Skip);
-        assert_eq!(parse_buyout("~skip", None, None).unwrap(), Buyout::Skip);
-        assert_eq!(
-            parse_buyout("no-price", None, None).unwrap(),
-            Buyout::NoPrice
-        );
-        for (words, said) in [
-            (("bogus", None, None), "is not a price type"),
-            (
-                ("exact", Some("1"), None),
-                "takes an amount and a currency tag",
-            ),
-            (
-                ("negotiable", None, None),
-                "takes an amount and a currency tag",
-            ),
-            (("skip", Some("1"), Some("chaos")), "carries no amount"),
-            (
-                ("exact", Some("1"), Some("exa")),
-                "resolves to tag \"exalted\"",
-            ),
-            (
-                ("exact", Some("1"), Some("c")),
-                "is not in currency table v1",
-            ),
-            (
-                ("exact", Some("1.23456"), Some("chaos")),
-                "four fractional digits",
-            ),
-            (("exact", Some("0"), Some("chaos")), "positive"),
-        ] {
-            let err = parse_buyout(words.0, words.1, words.2).unwrap_err();
-            assert!(err.to_string().contains(said), "{words:?}: {err}");
-        }
     }
 
     /// C53, C78 — the receipt's text says what the target is now and
