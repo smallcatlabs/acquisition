@@ -453,6 +453,31 @@ sets `COPYFILE_DISABLE=1` for its `tar`, with a check in
 archive, every seat fact in the README checked on the build first.
 Not C's: the help texts, which are A's and B's.
 
+### Step 5 — the outward acts, drafted
+
+Each is the owner's; the orchestrator drafted what the brief allows
+and sent nothing. In the order the brief gives:
+
+1. **The note to GGG**, before anything public: the owner's own words
+   under the registration's framing ("Acquisition 1.0, same
+   registration, new capabilities"); no draft unless asked.
+2. **Private vulnerability reporting**: enabled (the owner,
+   2026-10-19, at step 2).
+3. **The C++ issues**: `audits/release-2026-10/cpp-issues.md` — eight
+   open issues of `acquisition-qt`, seven answered with a closing note
+   in the owner's voice, one (poe.ninja prices) left open with its
+   park named; the owner closes them, after the tag so the notes'
+   `v1.0.0-beta.1` resolves.
+4. **The tag**: `git tag v1.0.0-beta.1 <commit> && git push origin
+   v1.0.0-beta.1` on the close's commit; `release.yml` builds the five
+   archives, signs the macOS binaries on the release environment's
+   reviewer, writes `SHA256SUMS` and drafts the release. The owner
+   pastes `audits/release-2026-10/release-notes.md` as the body, marks
+   it a pre-release, and publishes; `/releases/latest` stays empty.
+   The macOS quarantine line is the owner's to confirm here, on a
+   browser download of the published archive.
+5. **The reddit post**: the owner's.
+
 ## Observations still open
 
 - Step 1's refusal words: the kind vocabulary is ruled (the brief's
