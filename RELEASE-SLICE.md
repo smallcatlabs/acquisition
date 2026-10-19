@@ -47,7 +47,7 @@ the options were put with a recommendation and answered 2026-10-18.
 | --- | --- | --- |
 | 0 the record, the ruling | this file's first commit | the record opened, the README ruling, the crate index and the charter moved |
 | 1 pricing on the MCP | `db30d28a`, `40002b72` | the pricing verbs moved from the CLI binary into `acquisition_plan::pricing`, the CLI calling them; the seven tools as adapters, each the CLI's `--json` document; `tests/pricing_tools.rs`; the park deleted |
-| 2 the policies | the commit that adds this row | `SECURITY.md` and `CONTRIBUTING.md`, V7's positions and no others, in the owner's voice; read by the owner before the commit |
+| 2 the policies | the commit that adds the two files | `SECURITY.md` and `CONTRIBUTING.md`, V7's positions and no others, in the owner's voice; read by the owner before the commit |
 
 ## Owner verdicts, verbatim
 
