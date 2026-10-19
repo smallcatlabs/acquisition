@@ -226,8 +226,9 @@ pub(crate) async fn daemon_log_path(client: &mut Client) -> Option<String> {
 struct Cli {
     /// Emit structured JSON instead of human-readable output: one
     /// document on stdout, a failure included (`{"error", "kind"}`). A
-    /// job verb's is `{"outcome", "payload", "job_id", "account"}`; without
-    /// the flag it prints the payload alone.
+    /// job verb's is `{"outcome", "payload", "job_id", "account"}`, and a
+    /// failed job's carries `error` in place of `payload`; without the
+    /// flag it prints the payload alone.
     #[arg(long, global = true)]
     json: bool,
     /// Which account to act as: a username (with or without `#…`) or uuid.
@@ -268,6 +269,9 @@ enum Cmd {
     },
     /// Fetch one character with its equipment and inventory.
     Character {
+        /// The character's name, as `acq characters` lists it. The sync
+        /// policy and `acq price` name a character by its id instead
+        /// (`acq store characters`).
         name: String,
         /// pc (default), xbox, sony, or poe2; pc is omitted on the wire.
         #[arg(long, default_value = "pc", value_parser = parse_realm)]
@@ -434,7 +438,12 @@ is the per-location summary.")]
         /// stashes, stash, refresh, apply — or sleep, which never sends,
         /// or a mock-only one: fetch, whoami (refused in real mode).
         kind: String,
-        /// JSON params, e.g. '{"seconds": 5}'.
+        /// JSON params, as the verb of the same name sends them:
+        /// characters `{"realm"}`, character `{"name", "realm"}`, stashes
+        /// `{"league", "realm"}`, stash `{"id", "sub", "deep", "league",
+        /// "realm"}`, refresh `{"tabs": […] or "all": true, "deep",
+        /// "league", "realm"}`, sleep `{"seconds"}`; realm defaults to pc and league
+        /// to Standard. `acq status <id> --json` shows a job's params.
         #[arg(long, default_value = "{}")]
         params: String,
         /// Higher runs sooner. Default 0.
@@ -488,7 +497,9 @@ is the per-location summary.")]
         #[arg(long)]
         watch: bool,
         /// List every finished job the daemon still holds, not the ten
-        /// most recent.
+        /// most recent. A daemon holds the jobs it ran: an earlier
+        /// daemon's finished jobs are not listed, and `acq result <id>`
+        /// still answers them from disk.
         #[arg(long, conflicts_with = "watch")]
         all: bool,
     },
@@ -510,10 +521,10 @@ is the per-location summary.")]
         wait: bool,
     },
     /// Cancel a waiting or running job; cascades to every descendant
-    /// still waiting.
+    /// still waiting. Needs the running daemon and never starts one.
     Cancel { id: u64 },
     /// Change a waiting job's priority; higher runs sooner and the queue
-    /// reorders live.
+    /// reorders live. Needs the running daemon and never starts one.
     SetPriority { id: u64, priority: u8 },
     /// The listing state (no daemon): what every item, tab and character
     /// is priced as — by hand, in game, and how the two stand.

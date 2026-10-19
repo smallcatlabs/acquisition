@@ -74,8 +74,10 @@ use crate::store_cmd::ago;
 /// What `acq search` was typed with.
 #[derive(clap::Args)]
 pub struct SearchArgs {
-    /// The query (`acq search --describe` prints the language). None:
-    /// every item in scope. One that starts with `-`, the language's not,
+    /// The query: `class:helmets rarity=rare`, `line("# to maximum
+    /// Life").arg1>=70`, `pseudo.total_res>=80`; `acq search --describe
+    /// fields` is the place to start, and bare `--describe` the whole
+    /// index. None: every item in scope. One that starts with `-`, the language's not,
     /// goes after `--`, as every route prints it: `acq search --realm pc
     /// -- '-is:corrupted'`.
     pub query: Option<String>,

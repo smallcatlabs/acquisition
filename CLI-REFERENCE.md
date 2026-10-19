@@ -31,8 +31,8 @@ Commands:
   jobs          The live jobs: id, parent, kind, target (from params), state (`↻n` counts 429 re-queues), priority, account, submitter, ETA. Every waiting and running job is listed, and the ten most recent finished ones; the last line counts them all, and says when the next waiting job starts and when the last one does. `--json` is every job the daemon holds. Observes only: with no daemon running it never spawns one, and answers from the ledger on disk instead — the non-terminal rows as the last daemon left them, without ETAs, and how long ago they were written; `--json`: `running: false`, `persisted` (`jobs`, `written_at`; `null` when this shell's world has no queue yet). A job command spawns a successor that restores them; `cancel` then acts on them
   status        One job's state and ETA. A large ETA is the limiter holding, not a hang: holds can reach 300 s plus the timing bucket. With no daemon running, the job as the ledger on disk records it (never spawns)
   result        A finished job's payload or error. Kept on disk (7 days done, 30 failed, by default) and answered whether or not a daemon runs; a job still waiting or running is an error unless --wait. A failed or cancelled job exits 1. A failed fetch's refused body is in `acq store refused <id>`, not here
-  cancel        Cancel a waiting or running job; cascades to every descendant still waiting
-  set-priority  Change a waiting job's priority; higher runs sooner and the queue reorders live
+  cancel        Cancel a waiting or running job; cascades to every descendant still waiting. Needs the running daemon and never starts one
+  set-priority  Change a waiting job's priority; higher runs sooner and the queue reorders live. Needs the running daemon and never starts one
   price         The listing state (no daemon): what every item, tab and character is priced as — by hand, in game, and how the two stand
   reference     Reference data the binary ships (no store, no daemon): the currency table, by version
   shop          The forum shop (no daemon, sends nothing): render the page set a hand price would post, every omission counted with its reason
@@ -40,7 +40,7 @@ Commands:
   help          Print this message or the help of the given subcommand(s)
 
 Options:
-      --json               Emit structured JSON instead of human-readable output: one document on stdout, a failure included (`{"error", "kind"}`). A job verb's is `{"outcome", "payload", "job_id", "account"}`; without the flag it prints the payload alone
+      --json               Emit structured JSON instead of human-readable output: one document on stdout, a failure included (`{"error", "kind"}`). A job verb's is `{"outcome", "payload", "job_id", "account"}`, and a failed job's carries `error` in place of `payload`; without the flag it prints the payload alone
       --account <ACCOUNT>  Which account to act as: a username (with or without `#…`) or uuid. Defaults to `ACQ_ACCOUNT`. With neither, a verb that reads the store takes the sole account known on disk (`acq accounts`) and a job verb the sole account logged in (`acq auth status`); with more than one, the verb refuses and lists them. A job's progress line and its JSON name the account it ran as [env: ACQ_ACCOUNT=]
   -h, --help               Print help
   -V, --version            Print version
@@ -128,7 +128,7 @@ Fetch one character with its equipment and inventory
 Usage: acq character [OPTIONS] <NAME>
 
 Arguments:
-  <NAME>
+  <NAME>  The character's name, as `acq characters` lists it. The sync policy and `acq price` name a character by its id instead (`acq store characters`)
 
 Options:
       --realm <REALM>      pc (default), xbox, sony, or poe2; pc is omitted on the wire [default: pc]
@@ -181,7 +181,7 @@ Search the items the store holds (no daemon): a query over every live item of on
 Usage: acq search [OPTIONS] [QUERY]
 
 Arguments:
-  [QUERY]  The query (`acq search --describe` prints the language). None: every item in scope. One that starts with `-`, the language's not, goes after `--`, as every route prints it: `acq search --realm pc -- '-is:corrupted'`
+  [QUERY]  The query: `class:helmets rarity=rare`, `line("# to maximum Life").arg1>=70`, `pseudo.total_res>=80`; `acq search --describe fields` is the place to start, and bare `--describe` the whole index. None: every item in scope. One that starts with `-`, the language's not, goes after `--`, as every route prints it: `acq search --realm pc -- '-is:corrupted'`
 
 Options:
       --realm <REALM>                  The realm searched: pc, xbox, sony, poe2, or all. Over a store holding one realm it may be omitted and the answer prints it; over several it is required, one of them or `all`
@@ -366,7 +366,7 @@ Options:
           Every tab in the league (folder children included, folders not)
 
       --json
-          Emit structured JSON instead of human-readable output: one document on stdout, a failure included (`{"error", "kind"}`). A job verb's is `{"outcome", "payload", "job_id", "account"}`; without the flag it prints the payload alone
+          Emit structured JSON instead of human-readable output: one document on stdout, a failure included (`{"error", "kind"}`). A job verb's is `{"outcome", "payload", "job_id", "account"}`, and a failed job's carries `error` in place of `payload`; without the flag it prints the payload alone
 
           Which account to act as: a username (with or without `#…`) or uuid. Defaults to `ACQ_ACCOUNT`. With neither, a verb that reads the store takes the sole account known on disk (`acq accounts`) and a job verb the sole account logged in (`acq auth status`); with more than one, the verb refuses and lists them. A job's progress line and its JSON name the account it ran as
 
@@ -450,7 +450,7 @@ Options:
           Only write if the stored policy is at exactly this revision (what `acq policy show` printed when you reviewed it); refused with the current revision otherwise. Without it the write replaces whatever revision is currently stored — though a write racing in between still conflicts rather than being clobbered
 
       --json
-          Emit structured JSON instead of human-readable output: one document on stdout, a failure included (`{"error", "kind"}`). A job verb's is `{"outcome", "payload", "job_id", "account"}`; without the flag it prints the payload alone
+          Emit structured JSON instead of human-readable output: one document on stdout, a failure included (`{"error", "kind"}`). A job verb's is `{"outcome", "payload", "job_id", "account"}`, and a failed job's carries `error` in place of `payload`; without the flag it prints the payload alone
 
           Which account to act as: a username (with or without `#…`) or uuid. Defaults to `ACQ_ACCOUNT`. With neither, a verb that reads the store takes the sole account known on disk (`acq accounts`) and a job verb the sole account logged in (`acq auth status`); with more than one, the verb refuses and lists them. A job's progress line and its JSON name the account it ran as
 
@@ -480,7 +480,7 @@ Arguments:
   <KIND>  A network kind — profile, characters, character, leagues, stashes, stash, refresh, apply — or sleep, which never sends, or a mock-only one: fetch, whoami (refused in real mode)
 
 Options:
-      --params <PARAMS>      JSON params, e.g. '{"seconds": 5}' [default: {}]
+      --params <PARAMS>      JSON params, as the verb of the same name sends them: characters `{"realm"}`, character `{"name", "realm"}`, stashes `{"league", "realm"}`, stash `{"id", "sub", "deep", "league", "realm"}`, refresh `{"tabs": […] or "all": true, "deep", "league", "realm"}`, sleep `{"seconds"}`; realm defaults to pc and league to Standard. `acq status <id> --json` shows a job's params [default: {}]
       --priority <PRIORITY>  Higher runs sooner. Default 0 [default: 0]
       --detach               Return the job id immediately instead of blocking with progress
   -h, --help                 Print help
@@ -529,7 +529,7 @@ Usage: acq jobs [OPTIONS]
 
 Options:
       --watch              Subscribe, print the queue, then every job-state change as it happens; the queue is printed again after a missed-events signal, and the watch ends when the daemon stops
-      --all                List every finished job the daemon still holds, not the ten most recent
+      --all                List every finished job the daemon still holds, not the ten most recent. A daemon holds the jobs it ran: an earlier daemon's finished jobs are not listed, and `acq result <id>` still answers them from disk
   -h, --help               Print help
 ```
 
@@ -565,7 +565,7 @@ Options:
 ## `acq cancel`
 
 ```text
-Cancel a waiting or running job; cascades to every descendant still waiting
+Cancel a waiting or running job; cascades to every descendant still waiting. Needs the running daemon and never starts one
 
 Usage: acq cancel [OPTIONS] <ID>
 
@@ -579,7 +579,7 @@ Options:
 ## `acq set-priority`
 
 ```text
-Change a waiting job's priority; higher runs sooner and the queue reorders live
+Change a waiting job's priority; higher runs sooner and the queue reorders live. Needs the running daemon and never starts one
 
 Usage: acq set-priority [OPTIONS] <ID> <PRIORITY>
 
