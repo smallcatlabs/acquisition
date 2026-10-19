@@ -433,9 +433,36 @@ async fn try_quote(plan: RefreshPlan) -> (RefreshPlan, Option<String>) {
 /// What a refusal for want of a daemon tells the agent to have the person
 /// do: the README's own line ("Your agent"), so the remedy is one command
 /// in every mode. The release seat's MCP runs (mcp-opus calls 40 to 42,
-/// mcp-sonnet 42 to 45) were told what was wrong and not this.
-const START_ONE: &str = "a person starts one from a terminal: \
-    `ACQ_IDLE_SHUTDOWN=3600 acq auth check` (the README, \"Your agent\")";
+/// mcp-sonnet 42 to 45) were told what was wrong and not this. The line
+/// runs as printed in this server's world: it carries the provider when
+/// it is not the default and the store root when one is set, quoted for
+/// a shell — typed bare beside a mock server with its store elsewhere,
+/// it started a daemon for another provider and store (the rerun,
+/// mcp-opus-2 calls 45, 47).
+fn start_one() -> String {
+    let mut world = String::new();
+    if !acquisition_protocol::provider::ggg_mode() {
+        world.push_str(&format!(
+            "{}={} ",
+            acquisition_protocol::provider::KNOB,
+            provider()
+        ));
+    }
+    if std::env::var_os("ACQ_STORE_DIR").is_some() {
+        world.push_str(&format!(
+            "ACQ_STORE_DIR={} ",
+            acquisition_search::answer::shell_quoted(
+                &acquisition_store::world::intended_root()
+                    .display()
+                    .to_string()
+            )
+        ));
+    }
+    format!(
+        "a person starts one from a terminal: `{world}ACQ_IDLE_SHUTDOWN=3600 acq auth check` \
+         (the README, \"Your agent\")"
+    )
+}
 
 /// No daemon to ask: the one failure a daemon tool answers as a refusal
 /// the agent can read — a result marked isError, `kind: "no_daemon"`,
@@ -452,10 +479,11 @@ impl std::fmt::Display for NoDaemon {
         if self.real {
             write!(
                 f,
-                "no daemon running in real-GGG mode, and this server never starts one there — {START_ONE}"
+                "no daemon running in real-GGG mode, and this server never starts one there — {}",
+                start_one()
             )
         } else {
-            write!(f, "no daemon running — {START_ONE}")
+            write!(f, "no daemon running — {}", start_one())
         }
     }
 }
@@ -470,7 +498,7 @@ fn needing_a_daemon(e: anyhow::Error) -> Told {
         return Ok(CallToolResult::structured_error(json!({
             "error": format!("{e:#}"),
             "kind": "no_daemon",
-            "next": START_ONE,
+            "next": start_one(),
         })));
     }
     Err(err(e))

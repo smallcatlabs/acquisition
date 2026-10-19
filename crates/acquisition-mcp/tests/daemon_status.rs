@@ -188,3 +188,39 @@ fn a_job_tool_with_no_daemon_names_the_command_that_starts_one() {
         );
     }
 }
+
+/// The release seat's rerun (mcp-opus-2 calls 45, 47): the remedy named
+/// `ACQ_IDLE_SHUTDOWN=3600 acq auth check` and nothing of the world the
+/// server runs in, so typed as printed beside a mock server with its
+/// store elsewhere it started a daemon for another provider and store.
+/// The printed command carries the provider when it is not the default
+/// and the store directory when the server has one set, quoted for a
+/// shell — here the harness's mock world, and a real-mode server over
+/// the same directory, which names no provider.
+#[test]
+fn the_no_daemon_remedy_names_the_provider_and_store_the_server_runs_with() {
+    let base = std::env::temp_dir().join(format!("acq-mcp-remedy-world-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    std::fs::create_dir_all(&base).unwrap();
+    let _scratch = Scratch(base.clone());
+    let store = acquisition_search::answer::shell_quoted(&base.join("store").display().to_string());
+    for (provider, prefix) in [
+        ("mock", format!("ACQ_PROVIDER=mock ACQ_STORE_DIR={store} ")),
+        ("ggg", format!("ACQ_STORE_DIR={store} ")),
+    ] {
+        let mut mcp = Mcp::start(&base, &[("ACQ_PROVIDER", provider), ("ACQ_NO_SPAWN", "1")]);
+        let result = mcp.result("job_status", json!({ "id": 1 }));
+        let next = result["structuredContent"]["next"]
+            .as_str()
+            .unwrap_or_default();
+        let command = format!("`{prefix}ACQ_IDLE_SHUTDOWN=3600 acq auth check`");
+        assert!(
+            next.contains(&command),
+            "{provider}: the remedy is not {command} as the server's world needs it: {result}"
+        );
+    }
+    assert!(
+        harness::no_daemon_appeared(&base),
+        "a remedy's refusal started a daemon"
+    );
+}
