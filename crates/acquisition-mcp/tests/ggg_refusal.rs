@@ -65,8 +65,8 @@ fn ggg_mode_never_spawns_a_daemon_for_the_spending_tools() {
         "the lifted deferral is still being cited: {msg}"
     );
     assert!(
-        msg.contains("never starts one") && msg.contains("acq profile"),
-        "the absence must name the policy and the CLI remedy: {msg}"
+        msg.contains("never starts one") && msg.contains("acq auth check"),
+        "the absence must name the policy and the README's remedy: {msg}"
     );
     assert!(!msg.contains("on demand"), "{msg}");
     assert!(!msg.contains("ACQ_NO_SPAWN"), "{msg}");
@@ -100,8 +100,8 @@ fn ggg_mode_never_spawns_a_daemon_for_the_spending_tools() {
     // this server's own policy, with the human's remedy — and none starts.
     let msg = mcp.expect_err("apply_plan", json!({ "plan": planned["plan"] }));
     assert!(
-        msg.contains("never starts one") && msg.contains("acq profile"),
-        "the absence must name the policy and the CLI remedy: {msg}"
+        msg.contains("never starts one") && msg.contains("acq auth check"),
+        "the absence must name the policy and the README's remedy: {msg}"
     );
     assert!(!msg.contains("on demand"), "{msg}");
     assert!(!msg.contains("ACQ_NO_SPAWN"), "{msg}");

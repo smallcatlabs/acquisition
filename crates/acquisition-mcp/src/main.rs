@@ -430,6 +430,13 @@ async fn try_quote(plan: RefreshPlan) -> (RefreshPlan, Option<String>) {
 /// A spending tool's connect, under the autonomous policy: never kill or
 /// replace; lazy-spawn only in mock mode (spawning a real-GGG daemon is
 /// the human's act, via the CLI).
+/// What a refusal for want of a daemon tells the agent to have the person
+/// do: the README's own line ("Your agent"), so the remedy is one command
+/// in every mode. The release seat's MCP runs (mcp-opus calls 40 to 42,
+/// mcp-sonnet 42 to 45) were told what was wrong and not this.
+const START_ONE: &str = "a person starts one from a terminal: \
+    `ACQ_IDLE_SHUTDOWN=3600 acq auth check` (the README, \"Your agent\")";
+
 async fn connect(spawn: bool) -> Result<Client> {
     let real = acquisition_protocol::provider::ggg_mode();
     let spawn = spawn && !real;
@@ -441,10 +448,12 @@ async fn connect(spawn: bool) -> Result<Client> {
             e @ ConnectError::Absent {
                 because: NotSpawned::Policy,
             },
-        ) if real => Err(anyhow::Error::from(e).context(
-            "no daemon running in real-GGG mode, and this server never starts one there — \
-             start it from the CLI with a job command (`acq profile`)",
-        )),
+        ) if real => Err(anyhow::Error::from(e).context(format!(
+            "no daemon running in real-GGG mode, and this server never starts one there — {START_ONE}"
+        ))),
+        Err(e @ ConnectError::Absent { .. }) => {
+            Err(anyhow::Error::from(e).context(format!("no daemon running — {START_ONE}")))
+        }
         Err(e) => Err(e.into()),
     }
 }
@@ -466,7 +475,7 @@ fn persisted_queue() -> Result<Option<acquisition_store::jobs::Persisted>> {
 fn client_of(observed: Observed) -> Result<Client> {
     match observed {
         Observed::Compatible(client) => Ok(client),
-        Observed::Absent => anyhow::bail!("no daemon running"),
+        Observed::Absent => anyhow::bail!("no daemon running — {START_ONE}"),
         Observed::Unresponsive(found) => anyhow::bail!("{found}"),
         Observed::Incompatible(found) => anyhow::bail!(
             "{found}; this server never replaces a daemon — resolve it with the CLI (`acq daemon stop`{})",
@@ -885,7 +894,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Characters known to the store, with class, level, league, item counts, and whether the full character (equipment + inventory) has been fetched (no daemon, no network). Fresh data is a `characters` or `character` job."
+        description = "Characters known to the store, with class, level, league, and two counts — `item_count`, what the character listing said the character carries, and `fetched_items`, the items the store holds from the last full fetch (equipment + inventory), null until one — (no daemon, no network). Fresh data is a `characters` or `character` job."
     )]
     fn characters(
         &self,
@@ -984,7 +993,9 @@ impl AcqMcp {
         }
     }
 
-    #[tool(description = "Store file path, size, and row counts (no daemon, no network).")]
+    #[tool(
+        description = "Store file path, size, and row counts (no daemon, no network). `leagues` counts the league listing's rows and `league_list` says whether that listing was ever fetched (`acq leagues` or a `leagues` job fetches it); characters and tabs carry their league names whether or not it was. `refused_bodies` counts bodies the store would not take, which `acq store refused` lists."
+    )]
     fn store_status(
         &self,
         Parameters(p): Parameters<StoreParams>,
@@ -997,7 +1008,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Item events (added/moved/changed/removed) from recent ingests (no daemon, no network)."
+        description = "Item events (added/moved/changed/removed) from recent ingests, newest first (no daemon, no network); `hours` how far back, `limit` how many of the newest."
     )]
     fn item_events(
         &self,
@@ -1515,9 +1526,10 @@ impl ServerHandler for AcqMcp {
              Their arguments and answers are JSON; a count a next step hangs on — what is \
              undecided, what a key could not place — holds the request that returns its \
              members, sent back as printed, view.routes asks every count's, and a refusal is a result marked isError with readings and offers to go on \
-             from. Begin with search with no arguments, for what the store holds — over a \
-             store of several realms that is refused, and the refusal's offers are the \
-             request in each realm: send one back — and describe with names \
+             from. Begin with search with no arguments, for what the store holds, or with \
+             scope.realm named where the store holds several realms (a PoE2 character beside \
+             the PoE1 stashes), since a search over several realms is refused and its offers \
+             are the request in each realm: send one back. Then describe with names \
              [\"fields\"], for what a query may ask: describe whole is over 100 KB. A \
              trade site search — its URL, id or query JSON — is the query \
              {{\"trade\": …}}, translated to the text a person would type. No \

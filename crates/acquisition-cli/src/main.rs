@@ -41,7 +41,11 @@ fn parse_realm(s: &str) -> Result<Realm, String> {
 /// of another contract, artifact or provider (C84) — the caller is the
 /// human expressing intent.
 pub(crate) async fn connect(spawn: bool) -> Result<Client> {
-    Ok(Client::connect(ConnectOptions::interactive(spawn)).await?)
+    let client = Client::connect(ConnectOptions::interactive(spawn)).await?;
+    if client.spawned() {
+        SPAWNED.store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+    Ok(client)
 }
 
 /// The running daemon, for a verb that observes it or acts on it (C10):
@@ -252,7 +256,10 @@ enum Cmd {
     Auth {
         #[command(subcommand)]
         cmd: Option<AuthCmd>,
-        /// Print the login URL instead of opening a browser.
+        /// Print the login URL instead of opening a browser. With --json
+        /// the URL is its own line first and the result follows when the
+        /// login completes: two documents, since the URL must print
+        /// before the login can finish.
         #[arg(long)]
         no_browser: bool,
     },
@@ -892,13 +899,40 @@ fn error_report(e: &anyhow::Error) -> serde_json::Value {
     report
 }
 
+/// Set when this command started the daemon it then talked to, so a
+/// refusal for want of a login can say a daemon was started (C3 kept
+/// after the release seat: cli-opus calls 100 to 101).
+static SPAWNED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// The refusal of a job verb that started a daemon and was then refused
+/// for want of a login, saying so: the daemon stays until idle, and the
+/// line names what shows and what ends it. The kind is kept for the JSON
+/// document.
+fn noting_the_spawn(e: anyhow::Error) -> anyhow::Error {
+    if !SPAWNED.load(std::sync::atomic::Ordering::Relaxed) {
+        return e;
+    }
+    match DaemonError::find(&e) {
+        Some(refusal) if refusal.kind == ErrorKind::NotLoggedIn => {
+            anyhow::Error::from(DaemonError {
+                kind: refusal.kind,
+                message: format!(
+                    "{e:#}; a daemon was started for this command and runs until idle — \
+                     `acq daemon status` shows it, `acq daemon stop` ends it"
+                ),
+            })
+        }
+        _ => e,
+    }
+}
+
 #[tokio::main]
 async fn main() {
     let cli = Cli::try_parse().unwrap_or_else(|e| refuse_usage(e));
     let json = cli.json;
     store_cmd::set_selector(cli.account.clone());
     let _ = ACCOUNT.set(cli.account.clone());
-    if let Err(e) = run(cli).await {
+    if let Err(e) = run(cli).await.map_err(noting_the_spawn) {
         if e.downcast_ref::<AlreadyReported>().is_none() {
             if json {
                 println!("{}", error_report(&e));
@@ -1258,7 +1292,11 @@ async fn run(cli: Cli) -> Result<()> {
                 }
                 println!("{report}");
             } else {
-                println!("acq {}", acquisition_protocol::VERSION_WITH_CONTRACT);
+                println!(
+                    "acq {}, provider {}",
+                    acquisition_protocol::VERSION_WITH_CONTRACT,
+                    acquisition_protocol::provider::wanted()
+                );
                 match sibling {
                     Ok(s) => println!(
                         "acqd: {} ({} bytes) — what a job command would start; `acq daemon status` reports the daemon running",

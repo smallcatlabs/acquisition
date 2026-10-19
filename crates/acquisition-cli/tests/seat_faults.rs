@@ -2143,3 +2143,42 @@ fn the_locations_view_is_gone_since_tabs_is_the_list() {
         "{unbuilt:?}"
     );
 }
+
+/// The release seat (cli-opus call 8): `acq version`'s text line named
+/// the build and its contract and not the provider, so a person could
+/// not tell from it whether the real API was in play; the JSON said it.
+/// The line names the provider.
+#[test]
+fn the_version_line_names_the_provider() {
+    let base = std::env::temp_dir().join(format!("acq-version-provider-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    std::fs::create_dir_all(&base).unwrap();
+    let out = acq(&base, &["version"]);
+    let _ = std::fs::remove_dir_all(&base);
+    let first = text(&out).lines().next().unwrap_or_default().to_string();
+    assert!(
+        first.starts_with("acq ") && first.contains("provider mock"),
+        "{first:?}"
+    );
+}
+
+/// The release seat (cli-opus calls 100 to 101, cli-sonnet 92 to 93): a
+/// job verb with no login started a daemon, was refused "not logged in"
+/// and said nothing of the daemon it left running. The spawn is the
+/// ruling's; the refusal says a daemon started and how to see or end it.
+#[test]
+fn a_job_verb_refused_for_want_of_a_login_says_a_daemon_started() {
+    let dir = harness::scratch("spawned-unsaid");
+    let base = &dir.0;
+    let out = acq(base, &["profile"]);
+    assert!(!out.status.success());
+    let said = String::from_utf8_lossy(&out.stderr).to_string();
+    assert!(
+        said.contains("not logged in") && said.contains("a daemon was started"),
+        "{said}"
+    );
+    let status = sole_json(&acq(base, &["daemon", "status", "--json"]));
+    assert_eq!(status["running"], json!(true), "{status}");
+    let stopped = sole_json(&acq(base, &["daemon", "stop", "--json"]));
+    assert_eq!(stopped["stopped"], json!(true), "{stopped}");
+}

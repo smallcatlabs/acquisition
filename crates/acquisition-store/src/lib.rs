@@ -1846,12 +1846,14 @@ impl Store {
         Ok(leagues)
     }
 
-    /// Item events since `since` (unix seconds), oldest first.
+    /// Item events since `since` (unix seconds), newest first, so a
+    /// bounded read is the recent ones (the release seat, mcp-opus call
+    /// 10, asked for recent events and got the oldest).
     pub fn events_since(&self, since: i64, limit: usize) -> Result<Vec<EventRow>> {
         let mut stmt = self.conn.prepare(
             "SELECT e.at, e.item_id, e.kind, e.from_location, e.to_location, i.name, i.type_line
                FROM item_events e LEFT JOIN items i ON i.id = e.item_id
-              WHERE e.at >= ?1 ORDER BY e.at, e.id LIMIT ?2",
+              WHERE e.at >= ?1 ORDER BY e.at DESC, e.id DESC LIMIT ?2",
         )?;
         let rows = stmt.query_map(params![since, limit as i64], |r| {
             Ok(EventRow {
@@ -2506,11 +2508,13 @@ mod tests {
             .iter()
             .map(|e| (e.item_id.as_str(), e.kind.as_str()))
             .collect();
+        // newest first: the change at 201, then the two events of the
+        // ingest at 200 in their reverse order
         assert_eq!(
             kinds,
-            vec![("i2", "moved"), ("i2", "changed"), ("i1", "changed")]
+            vec![("i1", "changed"), ("i2", "changed"), ("i2", "moved")]
         );
-        assert_eq!(ev[0].from_location.as_deref(), Some("stash/pc/Standard/a"));
+        assert_eq!(ev[2].from_location.as_deref(), Some("stash/pc/Standard/a"));
         // Now i1 disappears from a entirely.
         let ing = s
             .record(&stash_ep("a"), &p, 200, &stash("a", vec![]), 300)
@@ -4154,5 +4158,30 @@ mod fact_address_tests {
         ] {
             assert_eq!(s.holds(&address).unwrap(), held, "{address:?}");
         }
+    }
+}
+
+#[cfg(test)]
+mod events_order {
+    /// The release seat (mcp-opus call 10): `item_events` asked for the
+    /// recent events and got the oldest first. The newest come first,
+    /// so a bounded read is the recent ones.
+    #[test]
+    fn events_since_lists_the_newest_first() {
+        let s = crate::Store::open_memory().unwrap();
+        for (at, id) in [(100, "a"), (300, "c"), (200, "b")] {
+            s.conn
+                .execute(
+                    "INSERT INTO item_events (at, item_id, kind, from_location, to_location, response_id) VALUES (?1, ?2, 'added', NULL, 'stash/x', 1)",
+                    rusqlite::params![at, id],
+                )
+                .unwrap();
+        }
+        let ev = s.events_since(0, 2).unwrap();
+        assert_eq!(
+            ev.iter().map(|e| e.at).collect::<Vec<_>>(),
+            [300, 200],
+            "the two newest, newest first"
+        );
     }
 }

@@ -60,7 +60,7 @@ Commands:
   help    Print this message or the help of the given subcommand(s)
 
 Options:
-      --no-browser         Print the login URL instead of opening a browser
+      --no-browser         Print the login URL instead of opening a browser. With --json the URL is its own line first and the result follows when the login completes: two documents, since the URL must print before the login can finish
   -h, --help               Print help
 ```
 

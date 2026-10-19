@@ -155,3 +155,30 @@ fn c84_daemon_status_reports_the_identity_and_the_sibling_it_is_judged_against()
     assert_eq!(again["pid"], pid, "the daemon was replaced: {again}");
     // The guards kill the daemon and remove the scratch directory.
 }
+
+/// The release seat (mcp-opus calls 40 to 42, mcp-sonnet 42 to 45): a
+/// job tool with no daemon said what was wrong and not what to do. Every
+/// such refusal names the command a person runs to start one, the
+/// README's line, in every mode.
+#[test]
+fn a_job_tool_with_no_daemon_names_the_command_that_starts_one() {
+    let base = std::env::temp_dir().join(format!("acq-mcp-remedy-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    std::fs::create_dir_all(&base).unwrap();
+    let _scratch = Scratch(base.clone());
+    // A host that forbids a spawn, as real mode does by this server's own
+    // policy: the refusal for want of a daemon, in words.
+    let mut mcp = Mcp::start(&base, &[("ACQ_NO_SPAWN", "1")]);
+    for (tool, args) in [
+        ("submit_job", json!({ "kind": "leagues" })),
+        ("job_status", json!({ "id": 1 })),
+        ("cancel_job", json!({ "id": 1 })),
+    ] {
+        let err = mcp.expect_rpc_error(tool, args);
+        let message = err["message"].as_str().unwrap_or_default();
+        assert!(
+            message.contains("acq auth check"),
+            "{tool} with no daemon does not say how to start one: {err}"
+        );
+    }
+}

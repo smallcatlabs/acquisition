@@ -903,6 +903,10 @@ pub struct Client {
     write: OwnedWriteHalf,
     /// The daemon at the other end, as its handshake identified it.
     daemon: DaemonId,
+    /// Whether this connection's `connect` started that daemon, so a
+    /// frontend can say so when the command then fails (C3: the spawn is
+    /// the ruling's; the release seat asked that it be said).
+    spawned: bool,
 }
 
 /// What a [`Subscription`] is told next (C85).
@@ -1098,6 +1102,8 @@ impl Client {
                         Err(Handshake::Failed(e)) => return Err(ConnectError::Transport(e)),
                     };
                     if client.daemon.is_ours() {
+                        let mut client = client;
+                        client.spawned = child.is_some();
                         return Ok(client);
                     }
                     // Another world is judged before anything else and
@@ -1362,6 +1368,7 @@ impl Client {
             reader,
             write,
             daemon: DaemonId::judged(reported, at, own_world),
+            spawned: false,
         })
     }
 
@@ -1389,6 +1396,11 @@ impl Client {
     /// The daemon this client reached, as its handshake identified it.
     pub fn daemon(&self) -> &DaemonId {
         &self.daemon
+    }
+
+    /// Whether this connection's `connect` started the daemon it talks to.
+    pub fn spawned(&self) -> bool {
+        self.spawned
     }
 
     /// "mock" or "ggg", from the handshake of the daemon this client reached.
