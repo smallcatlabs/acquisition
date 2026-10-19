@@ -201,7 +201,8 @@ fn sources(dir: &Path, out: &mut Vec<PathBuf>) {
 /// Every surface a user reads, swept for a record's id (C116): the help
 /// of every verb (`CLI-REFERENCE.md`, which `cli_reference.rs` keeps
 /// equal to the binary), the MCP server's instructions and tool listing
-/// (`MCP-REFERENCE.md`, kept so by `mcp_reference.rs`), `describe` whole
+/// (`MCP-REFERENCE.md`, kept so by `mcp_reference.rs`), the README,
+/// the first page a person reads, `describe` whole
 /// with the trade catalogue and the category rows — the reference
 /// tables' own words, a field's definition among them — and every string
 /// literal of every crate's `src`, which is where every refusal, reason,
@@ -213,7 +214,7 @@ fn sources(dir: &Path, out: &mut Vec<PathBuf>) {
 fn c116_no_user_facing_text_cites_a_record_id() {
     let root = Path::new(ROOT);
     let mut met: Vec<String> = Vec::new();
-    for reference in ["CLI-REFERENCE.md", "MCP-REFERENCE.md"] {
+    for reference in ["CLI-REFERENCE.md", "MCP-REFERENCE.md", "README.md"] {
         let text = std::fs::read_to_string(root.join(reference)).unwrap();
         for (n, line) in text.lines().enumerate() {
             let mut found = ids(line);

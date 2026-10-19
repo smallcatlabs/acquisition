@@ -1,20 +1,27 @@
 //! The README's tour is a hand-written copy of the CLI's shape, and a
 //! copy is honest only while something checks it (P5: structure over
-//! discipline). Every `acq …` line in the README's fenced block must
-//! resolve under clap: the verb path, and every `--flag` the line names
-//! on that subcommand (or a global). A verb's semantics is its `--help`;
-//! the tour shows the shape, and this test keeps the shape true — a
-//! renamed verb or a dropped flag fails here, which the identifier scan
-//! in `tools/docs-check.sh` cannot see.
+//! discipline). Every `acq …` line in the README's ```sh blocks — the
+//! tour, the login, the agent's daemon — must resolve under clap: the
+//! verb path, and every `--flag` the line names on that subcommand (or a
+//! global). A verb's semantics is its `--help`; the tour shows the
+//! shape, and this test keeps the shape true — a renamed verb or a
+//! dropped flag fails here, which the identifier scan in
+//! `tools/docs-check.sh` cannot see.
 //!
 //! Driven through the binary (`acq <path> --help` must exit 0 and its
 //! text must name each flag) so the crate needs no library target.
 //!
-//! The tour's grammar, as this test reads it: a line starting `acq` is a
-//! verb line, `#` opens a comment, ` | ` separates alternatives — an
-//! alternative that starts with a flag adds flags to the same path, one
-//! that starts with a word replaces the previous path's last verb — and
-//! a token starting with `<`, `[`, `'`, `@` or `-` ends the verb path.
+//! The tour's grammar, as this test reads it: a line starting `acq`,
+//! after any `NAME=value` the shell sets for it, is a verb line, `#`
+//! opens a comment, ` | ` separates alternatives — an alternative that
+//! starts with a flag adds flags to the same path, one that starts with
+//! a word replaces the previous path's last verb — and a token starting
+//! with `<`, `[`, `'`, `@` or `-` ends the verb path.
+//!
+//! The install lines download, so no test runs them; what a test can
+//! hold of them is held here: every archive the README names is one the
+//! release workflow makes, for this version, and every target it makes is
+//! named.
 
 use std::process::Command;
 
@@ -32,25 +39,45 @@ fn help(path: &[&str]) -> Result<String, String> {
     }
 }
 
+const README: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../README.md");
+
+fn readme() -> String {
+    std::fs::read_to_string(README).unwrap_or_else(|e| panic!("{README}: {e}"))
+}
+
+/// Every line of every ```sh block, with the `NAME=value` words the
+/// shell sets for a command taken off its front.
 fn tour_lines() -> Vec<String> {
-    let readme = concat!(env!("CARGO_MANIFEST_DIR"), "/../../README.md");
-    let text = std::fs::read_to_string(readme).unwrap_or_else(|e| panic!("{readme}: {e}"));
     let mut inside = false;
     let mut lines = Vec::new();
-    for line in text.lines() {
-        if line.starts_with("```sh") {
+    for line in readme().lines() {
+        if !inside && line.starts_with("```sh") {
             inside = true;
-            continue;
-        }
-        if inside && line.starts_with("```") {
-            break;
-        }
-        if inside {
-            lines.push(line.to_string());
+        } else if inside && line.starts_with("```") {
+            inside = false;
+        } else if inside {
+            lines.push(without_env(line).to_string());
         }
     }
-    assert!(!lines.is_empty(), "no ```sh block in {readme}");
+    assert!(!lines.is_empty(), "no ```sh block in {README}");
     lines
+}
+
+fn without_env(line: &str) -> &str {
+    let mut rest = line;
+    while let Some((word, tail)) = rest.split_once(' ') {
+        let assigns = word.split_once('=').is_some_and(|(name, _)| {
+            !name.is_empty()
+                && name
+                    .bytes()
+                    .all(|b| b.is_ascii_uppercase() || b.is_ascii_digit() || b == b'_')
+        });
+        if !assigns {
+            break;
+        }
+        rest = tail.trim_start();
+    }
+    rest
 }
 
 fn is_verb(tok: &str) -> bool {
@@ -150,6 +177,81 @@ fn every_tour_line_resolves_under_clap() {
     );
 }
 
+/// The targets `release.yml` builds, from its build matrix's
+/// `{ os: …, target: … }` rows.
+fn release_targets() -> Vec<String> {
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/release.yml"
+    );
+    let text = std::fs::read_to_string(path).unwrap_or_else(|e| panic!("{path}: {e}"));
+    let targets: Vec<String> = text
+        .lines()
+        .filter(|l| l.contains("os:"))
+        .filter_map(|l| l.split_once("target:"))
+        .map(|(_, t)| t.trim().trim_end_matches('}').trim().to_string())
+        .collect();
+    assert_eq!(targets.len(), 5, "release.yml's matrix: {targets:?}");
+    targets
+}
+
+/// The archive `tools/release-package.sh` names for a target: the
+/// version and the target, `.zip` for Windows.
+fn archive(version: &str, target: &str) -> String {
+    let ext = if target.contains("windows") {
+        "zip"
+    } else {
+        "tar.gz"
+    };
+    format!("acquisition-{version}-{target}.{ext}")
+}
+
+#[test]
+fn the_install_lines_name_the_archives_the_release_makes() {
+    let version = env!("CARGO_PKG_VERSION");
+    let text = readme();
+    let made: Vec<String> = release_targets()
+        .iter()
+        .map(|t| archive(version, t))
+        .collect();
+    let named: Vec<&str> = text
+        .match_indices("acquisition-")
+        .map(|(i, _)| {
+            let len = text[i..]
+                .find(|c: char| !(c.is_ascii_alphanumeric() || "._-".contains(c)))
+                .unwrap_or(text.len() - i);
+            &text[i..i + len]
+        })
+        .filter(|w| w.ends_with(".tar.gz") || w.ends_with(".zip"))
+        .collect();
+    for name in &named {
+        assert!(
+            made.iter().any(|m| m == name),
+            "the README names `{name}`, which the release does not make: {made:?}"
+        );
+    }
+    for archive in &made {
+        assert!(
+            named.contains(&archive.as_str()),
+            "the release makes `{archive}`, which the README does not name"
+        );
+    }
+    let tag = format!("v{version}");
+    let mut urls = 0;
+    for (i, _) in text.match_indices("/releases/download/") {
+        let rest = &text[i + "/releases/download/".len()..];
+        let url = &rest[..rest.find(char::is_whitespace).unwrap_or(rest.len())];
+        let (at, file) = url.split_once('/').unwrap_or((url, ""));
+        assert_eq!(at, tag, "a download URL names another tag: {url}");
+        assert!(
+            made.iter().any(|m| m == file),
+            "a download URL names no archive the release makes: {url}"
+        );
+        urls += 1;
+    }
+    assert!(urls > 0, "the README downloads nothing");
+}
+
 #[test]
 fn the_grammar_reads_alternatives() {
     let parsed = parse("acq jobs [--watch] | status <id> | result <id>   # x");
@@ -178,4 +280,9 @@ fn the_grammar_reads_alternatives() {
     );
     let parsed = parse("acq <verb> --help");
     assert_eq!(parsed[0], (vec![], vec!["help".into()]));
+    assert_eq!(
+        without_env("ACQ_IDLE_SHUTDOWN=3600 acq auth check   # x"),
+        "acq auth check   # x"
+    );
+    assert_eq!(without_env("acq x=1"), "acq x=1");
 }

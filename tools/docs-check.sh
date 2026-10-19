@@ -218,7 +218,7 @@ fi
 # and the knob table is complete: every ACQ_* the crates read outside
 # tests has a row. The tour's verbs and flags are pinned by
 # acquisition-cli/tests/readme_tour.rs against the binary.
-tour_bad=$(awk '/^```sh/{f=!f; next} f{ if ($0 ~ /^[[:space:]]*#/ && prev !~ /^[[:space:]]*$/) print "        line "NR": "$0; prev=$0 }' README.md)
+tour_bad=$(awk '/^```sh/{f=1; prev=""; next} /^```/{f=0; next} f{ if ($0 ~ /^[[:space:]]*#/ && prev !~ /^[[:space:]]*$/) print "        line "NR": "$0; prev=$0 }' README.md)
 if [[ -n $tour_bad ]]; then
   printf 'TOUR    %-18s a comment line continues a verb line — one line per verb, the rest is its --help:\n%s\n' README.md "$tour_bad"
   fail=1

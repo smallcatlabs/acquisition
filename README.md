@@ -17,22 +17,108 @@ terminal and you paste them.
 
 Development starts at `AGENTS.md`.
 
-## The tour
+## Install
 
-One line per verb. A verb's semantics — flags, defaults, the rulings it
-implements — is its `--help` (`CLI-REFERENCE.md` holds every one); the
-line here shows the shape.
+Each [release](https://github.com/smallcatlabs/acquisition/releases)
+carries an archive per platform, holding `acq`, `acqd`, `acq-mcp`,
+the licences and the third-party notices, and `SHA256SUMS`. This one
+is a pre-release, so GitHub does not mark it latest.
+
+| Platform | Archive |
+| --- | --- |
+| macOS, Apple silicon | `acquisition-1.0.0-beta.1-aarch64-apple-darwin.tar.gz` |
+| macOS, Intel | `acquisition-1.0.0-beta.1-x86_64-apple-darwin.tar.gz` |
+| Linux x86_64 | `acquisition-1.0.0-beta.1-x86_64-unknown-linux-gnu.tar.gz` |
+| Linux ARM64 | `acquisition-1.0.0-beta.1-aarch64-unknown-linux-gnu.tar.gz` |
+| Windows x86_64 (and Windows on ARM, emulated) | `acquisition-1.0.0-beta.1-x86_64-pc-windows-msvc.zip` |
+
+On macOS and Linux, fetch and unpack it with your platform's name:
 
 ```sh
-cargo build --workspace && alias acq=./target/debug/acq   # build acq and its sibling acqd; rebuild before a run (AGENTS.md, "Quality gate")
+curl -L https://github.com/smallcatlabs/acquisition/releases/download/v1.0.0-beta.1/acquisition-1.0.0-beta.1-aarch64-apple-darwin.tar.gz | tar -xz
+```
+
+Keep the three binaries together: `acq` starts the `acqd` beside it.
+Put the directory on your `PATH`, or symlink `acq` into a directory that
+is; the link is followed.
+
+- **macOS**: the binaries are signed with a Developer ID and not
+  notarized. Fetched with `curl` they run. A browser download is
+  quarantined, and macOS refuses an unnotarized binary that is;
+  `xattr -dr com.apple.quarantine <directory>` clears it.
+- **Linux**: built on Ubuntu 22.04, so glibc 2.35 or newer. The login
+  is kept in the Secret Service (GNOME Keyring, or KWallet), unlocked
+  in your desktop session.
+- **Windows**: download the `.zip` from the release page and extract
+  it. The binaries are not signed; on the machine it was tried on,
+  Windows ran them with no SmartScreen prompt, but yours may show one.
+  Add the directory to your `PATH`; do not symlink `acq`.
+
+On every platform, run `acq` at your desktop, not over ssh: over ssh
+the keyring is out of reach, and on Windows the daemon ends with the
+session. To build from source instead, `cargo build --release` puts the three
+binaries in `target/release`.
+
+## Log in
+
+```sh
+acq auth   # opens GGG's login page in your browser; --no-browser prints the link
+acq auth status   # who is logged in, and whether the keyring holds the login
+```
+
+Logging in is a person's act at a terminal: `acq` refuses to start a
+daemon against GGG without one. Every command talks to the real GGG
+unless `ACQ_PROVIDER=mock` is set; with it, a built-in stand-in serves
+made-up stashes and a login page that takes any name, for trying the
+tool or an agent with no account. Its data is kept apart from the real.
+Without a keyring, a login lasts as long as the daemon that holds it.
+
+## Your agent
+
+`acq-mcp` is an MCP server over stdio. In Claude Code's `.mcp.json` or
+Claude Desktop's configuration, with the path where you unpacked it:
+
+```json
+{
+  "mcpServers": {
+    "acquisition": { "command": "/path/to/acquisition/acq-mcp" }
+  }
+}
+```
+
+It shares the store and the daemon with `acq`, and its tools do what
+the CLI does: search the store (`search`, `describe`, `show`,
+`tabs`), price items and render the shop (`price_status`,
+`price_set`, `shop_render` and four more), keep a league fresh
+through a plan the agent reads first (`refresh_plan`, `apply_plan`),
+and run jobs (`submit_job`). Each describes itself to the agent;
+`MCP-REFERENCE.md` lists all of them.
+
+The store and pricing tools need no daemon. The tools that fetch do,
+and against GGG `acq-mcp` never starts one: it uses the daemon you
+started, which exits after a minute with nothing to do. For a longer
+session, start it with a longer idle time while none is running:
+
+```sh
+ACQ_IDLE_SHUTDOWN=3600 acq auth check   # restores your login in a daemon that idles out after an hour
+```
+
+In PowerShell, set `$env:ACQ_IDLE_SHUTDOWN = 3600` first.
+
+## The tour
+
+One line per verb. A verb's flags, defaults and meaning are its
+`--help`; `CLI-REFERENCE.md` holds every one.
+
+```sh
 acq <verb> --help   # every verb's reference
 
-# a session — scripted mock login: the mock-session skill
-acq auth [--no-browser]   # OAuth login
+# the session
+acq auth [--no-browser]   # log in on GGG's page
 acq auth status | check | logout   # live sessions, or with no daemon what one would restore; token check; logout
-acq accounts   # logged-in accounts (no daemon)
+acq accounts   # accounts this machine has logged into (no daemon)
 
-# jobs against the API — daemon lazy-spawns; first route use probes (C20)
+# jobs: fetched through the daemon, which starts on demand; a route's first use probes its limits
 acq profile | leagues   # profile; account leagues
 acq characters [--realm R]   # character list
 acq character <name> [--realm R]   # equipment and inventory
@@ -40,78 +126,87 @@ acq stashes [--league L] [--realm R]   # tab list (PoE1 only)
 acq stash <id> [--sub <id>] [--deep]   # one tab, optionally with substashes
 acq refresh --tabs a,b,c | --all [--deep]   # ad-hoc refresh of selected tabs
 acq submit <kind> [--params JSON] [--detach]   # submit a job by kind
-acq demo   # mock burst with limiter ETAs
+acq demo   # mock only: a burst of jobs with the limiter's ETAs
 acq jobs [--watch | --all] | status <id> | result <id> [--wait]   # open jobs and the latest finished; one job; its payload, from disk if no daemon runs
 acq cancel <id> | set-priority <id> <n>   # cancel a subtree; change priority
-acq dash [--json]   # live TUI dashboard, on a terminal; --json is one snapshot
 
-# intent, plans, apply — binding plans (C38); compilation and reads are offline
+# keeping a league fresh: a policy, then a plan you read before it runs
 acq policy [show]   # sync policy and revision
-acq policy set '<json>'|-|@FILE [--if-revision N]   # validated v3: {"version":3,"realms":{"pc":{"leagues":{…}}}}
+acq policy set '<json>'|-|@FILE [--if-revision N]   # {"version":3,"realms":{"pc":{"leagues":{…}}}}
 acq refresh --plan [--realm R] [--league L] [--expand] [--json]   # compile offline; a running daemon adds its quote
-acq refresh --apply[=plan.json] [--max-requests N]   # execute the plan's actions; ends on what a new plan would still fetch
+acq refresh --apply[=plan.json] [--max-requests N]   # fetch exactly the plan; ends on what a new plan would still fetch
 
-# pricing and the shop — offline, no daemon (C64)
-acq reference currency [WORD] [--expand]   # versioned currency table
-acq price status | list | show <target>   # listing state per league (Standard unless --league); show reads its target's own
+# pricing and the shop: offline, no daemon
+acq reference currency [WORD] [--expand]   # the currency table
+acq price status | list | show <target>   # listing state of a league; one target
 acq price set <target> <type> [<amount> <currency>] [--if-revision N]   # set a price, with undo
 acq price clear <target> [--if-revision N]   # remove a price, with undo
 acq shop render [--size N] [--template FILE] [--page N] [--expand]   # forum pages to paste, omissions counted
 
-# the store — no daemon, no network
-acq tabs [--league L] [--realm R] [--type T] [--never-fetched] [--expand]   # counts first, then the tab tree; a large league is counted by type unless --expand; --type and --never-fetched select the tabs listed
+# the store: no daemon, no network
+acq tabs [--league L] [--realm R] [--type T] [--never-fetched] [--expand]   # counts, then the tabs; a large league by type unless --expand
 acq store characters [--realm R] [--league L]   # character locations, ages and live items
-acq search [--realm R] ['<query>'] [--sort V [--desc]] [--limit N] [--routes]   # item search: scope, basis, counts per term, rows; a store of two realms needs --realm (pc, poe2, all)
-acq search ['<query>'] --count KEY,… | --cross KEY,KEY [--sum V]   # the matches counted by key, one table each or one crossed; line[:text,…] is the vocabulary
-acq search --describe [name,…|all]   # the query language: bare an index, a name or `all` its entries whole
-acq search --trade <URL|ID> | --trade-file <FILE|->   # a trade site search (PoE1) as the query a person would type, run and labelled clause by clause
+acq search [--realm R] ['<query>'] [--sort V [--desc]] [--limit N] [--routes]   # item search; a store of two realms needs --realm (pc, poe2, all)
+acq search ['<query>'] --count KEY,… | --cross KEY,KEY [--sum V]   # the matches counted by key; line[:text,…] is the vocabulary
+acq search --describe [name,…|all]   # the query language: an index, or entries whole
+acq search --trade <URL|ID> | --trade-file <FILE|->   # a trade site search (PoE1) translated to a query, no network
 acq show <id> [--body]   # one item as the search derives it; the stored body on request
-acq store status | events [--hours N] | refused [id]   # counts; ingest events; malformed bodies
-acq store import <snapshot.json> | rebuild   # replay a retired-pull snapshot; re-extract columns
+acq store status | events [--hours N] | refused [id]   # path and counts; ingest events; malformed bodies
+acq store import <snapshot.json> | rebuild   # replay a snapshot from the retired `acq pull`; re-extract columns
 
 acq daemon status | stop | reset-tripwire   # debugging: inspect, stop, reset rails
 acq version [--json]   # build identity and sibling acqd
 ```
 
-Every command takes `--json`, and it is total: a failure is `{"error":…}`
-on stdout with exit 1, a refused command line the same with
-`"kind":"usage"` and exit 2 (C11). A job verb prints its payload on
-stdout and its progress on stderr, and exits 0 only for a success. `--account <username|name|uuid>` picks the
-account when several are logged in (C51).
+Every command takes `--json`, and it is total: a failure is
+`{"error":…}` on stdout with exit 1, a refused command line the same
+with `"kind":"usage"` and exit 2. Every command takes
+`--account <username|name|uuid>` (or `ACQ_ACCOUNT`) too. Without it, a
+verb that reads the store takes the one account known on disk and a job
+verb the one logged in; where there are several, it refuses and names
+them.
 
-The real provider, under the existing registration (invariant 4), is
-the default; `ACQ_PROVIDER=mock` on the command that spawns the daemon
-selects the mock (C88); a job command
-replaces a daemon in the other mode, of another contract revision or
-running another `acqd` than the one beside it (C84), an
-observing verb (`jobs`, `status`, `daemon status`) reports it and never does (C10),
-and mock and real refresh tokens are separate keyring entries. The rule is
-`LIVE-TESTING.md`; the procedure is the live-run skill; the record is
-`RUN-LEDGER.md`; the refresh loop under the rails is `tools/tracer-rung.sh`.
+## Before the first command
 
-An MCP host pointed at `target/debug/acq-mcp` (stdio) shares the daemon
-and the store with the CLI; it spends through a *running* daemon in
-either mode and never spawns or replaces one in real mode (C13, C14).
+- **The rate limit is the clock.** Every request waits its turn under
+  GGG's limits, and on tabs the limit seen so far is thirty every five
+  minutes, so a first sync of a few hundred tabs takes most of an hour.
+  A hold can last five minutes; `acq jobs` shows each job's ETA.
+- **Jobs write the store; the rest read it.** A job verb sends through
+  the daemon, prints GGG's JSON (progress on stderr) and writes what it
+  fetched to the store. The store verbs (`tabs`, `search`, `show`,
+  `store`, `price`, `shop`) read it offline and see only what was
+  fetched.
+- **The league is Standard unless you name it.** Verbs that take
+  `--league` read or fetch Standard without it; `acq leagues` lists
+  yours.
+- **Your data stays on your machine**, under
+  `~/Library/Application Support/com.smallcatlabs.acq` on macOS,
+  `~/.local/share/acq` on Linux and `%APPDATA%\smallcatlabs\acq\data`
+  on Windows; `acq store status` prints the path.
+- **After an update**, the next job command replaces the older build's
+  daemon. `jobs`, `status` and `daemon status` only observe: they
+  report a daemon and never start or replace one.
 
 ## Knobs
 
 | Knob | Default | Effect | Read in |
 | --- | --- | --- | --- |
-| `ACQ_PROVIDER=mock` | `ggg` | select the mock (C88); real spawning requires a terminal; retired `ACQ_GGG` is refused | [provider.rs][provider] |
-| `ACQ_ACCOUNT=<sel>` | the sole account | env form of `--account`, exact match (C51) | [main.rs][cli] |
-| `ACQ_STORE_DIR=<dir>` | the platform data dir | store root and daemon world (C83, C31) | [world.rs][world] |
-| `ACQ_LOG_DIR=<dir>` | the platform log dir | bounded daemon log and default journal, by world and provider | [world.rs][world] |
-| `ACQ_NO_KEYRING=1` | off | sessions in memory only, never plaintext on disk | [auth.rs][auth] |
+| `ACQ_PROVIDER=mock` | `ggg` | the built-in stand-in for GGG; a real daemon starts only from a terminal; the retired `ACQ_GGG` is refused | [provider.rs][provider] |
+| `ACQ_ACCOUNT=<sel>` | the sole account | the environment's `--account`, matched exactly | [main.rs][cli] |
+| `ACQ_STORE_DIR=<dir>` | the platform data dir | the store, and the daemon that serves it: one daemon per directory | [world.rs][world] |
+| `ACQ_LOG_DIR=<dir>` | the platform log dir | bounded daemon log and default journal, by store and provider | [world.rs][world] |
+| `ACQ_NO_KEYRING=1` | off | logins in memory only, never plaintext on disk | [auth.rs][auth] |
 | `ACQ_KEYRING_ROUNDTRIP=1` | off | opt into the test against the OS keyring (CI uses gnome-keyring) | [auth.rs][auth] (tests) |
-| `ACQ_CASES=full` | off | the generated search properties at their full counts, which CI sets; unset, a quarter or so, fresh cases each run; a failure prints the seed that draws its cases again (`PROPTEST_RNG_SEED`) | [generated.rs](crates/acquisition-search/tests/common/generated.rs) (tests) |
+| `ACQ_CASES=full` | off | the generated search properties at full counts, as CI runs them; unset, about a quarter, fresh each run; a failure prints its seed (`PROPTEST_RNG_SEED`) | [generated.rs](crates/acquisition-search/tests/common/generated.rs) (tests) |
 | `ACQ_CODESIGN_IDENTITY=<sha1\|name>` | unset | macOS shell-profile identity for signing the debug daemon after building | [sign-acqd.sh](tools/sign-acqd.sh) |
 | `ACQ_NO_SPAWN=1` | off | never start or replace a daemon; for cron, ssh and headless shells | [client.rs][client]; keyring context: [auth.rs][auth] |
-| `ACQ_IDLE_SHUTDOWN=<s>` | 60 | idle exit, held while limiter history is live (C3) | [daemon.rs][daemon] |
-| `ACQ_JOB_RETENTION_DAYS`, `ACQ_FAILED_JOB_RETENTION_DAYS` | 7, 30 | finished-job retention for `acq result`; invalid values keep defaults (`JOBS CONFIG`) | [daemon.rs][daemon] |
+| `ACQ_IDLE_SHUTDOWN=<s>` | 60 | idle exit, held while the limiter's history is live | [daemon.rs][daemon] |
+| `ACQ_JOB_RETENTION_DAYS`, `ACQ_FAILED_JOB_RETENTION_DAYS` | 7, 30 | finished-job retention for `acq result`; invalid values keep defaults | [daemon.rs][daemon] |
 | `ACQ_TRIPWIRE=1` | off | rail 1: halt on 429/401/403/503 until reset, persisted | [rails.rs][rails] |
 | `ACQ_MAX_SENDS=<n>` | off | rail 5: halt after `n` real sends this lifetime, not persisted | [rails.rs][rails] |
 | `ACQ_JOURNAL=<path>` | `<log dir>/sends.jsonl`, bounded; `0` disables | rail 4: one JSON line per send, never a token or body | [rails.rs][rails] |
-| `ACQ_MOCK_DEGRADED_HEAD=1` | off | reproduce the Dec-2023 HEAD regression (N20) | [mockggg.rs][mock] |
+| `ACQ_MOCK_DEGRADED_HEAD=1` | off | the mock answers HEAD as GGG did in a December 2023 regression | [mockggg.rs][mock] |
 
 [provider]: crates/acquisition-protocol/src/provider.rs
 [cli]: crates/acquisition-cli/src/main.rs
@@ -122,39 +217,47 @@ either mode and never spawns or replaces one in real mode (C13, C14).
 [rails]: crates/acquisition-daemon/src/rails.rs
 [mock]: crates/acquisition-daemon/src/mockggg.rs
 
-Rail semantics: `LIVE-TESTING.md`, "Rails"; journal contract:
-`TESTING-NOTES.md`. Rails are read at daemon start: set them on the
-spawning command, or stop the daemon first. `acq daemon status` prints
-the world, paths and rails state; read-site docs explain invalid values.
+A knob the daemon reads takes effect when it starts: set it on the
+command that starts the daemon, or stop the daemon first. The rails are
+for test runs against GGG (`LIVE-TESTING.md`, "Rails");
+`acq daemon status` prints the paths and the rails' state.
 
 ## Known gaps
 
-- **Two endpoints carry declared route knowledge** (`/profile`
-  policyless, N38; `/account/leagues` no-probe, N39). GGG answered Q12
-  (2026-08-30): `/profile` is not rate limited at present, and the
-  counted HEAD on `/account/leagues` is a defect GGG will correct —
-  each declaration stays until the headers, or the free HEAD, appear.
-- **The mock does not simulate timing-bucket quantization** (N11–N12); the
-  limiter pads for it regardless.
-- **The mock reports an active restriction on every window of the rule,**
-  so the limiter picks the larger bucket after a 429. Whether real GGG
-  flags only the violated window is unobserved.
-- **`acq policy set` replaces the whole policy.** A poe2 run's policy
-  erases the pc one (seen 2026-09-02: revision 4 carried poe2 alone),
-  so the pc tabs-and-characters policy must be set again before pc
-  work. A per-realm merge is unbuilt; trigger: a second realm in daily
-  use (`decisions/plans.md`, "Parked").
-- **A fetched character with an empty body prints `0` items in its row.**
-  GGG sends empty arrays for a stripped character and for one that
-  carries nothing, and `acq store characters` says which rows only in
-  its footer's count ("with empty bodies"); C53's "every nothing says
-  which nothing" is unmet at the row.
-- Everything parked: `CONTEXT.md` for what crosses every area, each
-  `decisions/<area>.md` ("Parked") for the rest.
+- **`acq policy set` replaces the whole policy**, every realm of it: a
+  policy written for poe2 alone erases the pc one. Read it with
+  `acq policy show` and write it back whole (`decisions/plans.md`,
+  "Parked").
+- **Path of Exile 2 is partial.** GGG offers no PoE2 stash tabs, so
+  only characters are fetched, and the search's tables cover PoE1, so a
+  PoE2 item's class and totals are undecided.
+- **A character fetched with an empty body shows `0` items.** GGG
+  sends the same empty arrays for a stripped character and for one that
+  carries nothing; `acq store characters` counts them in its footer
+  alone ("with empty bodies").
+- **The mock is simpler than GGG**: it does not quantize its timing
+  buckets, and after a 429 it marks every window of the rule as
+  restricted; whether GGG marks only the violated one is not yet
+  observed.
+- Everything else not built yet is parked, with what would reopen it:
+  `CONTEXT.md` and each `decisions/<area>.md`, "Parked".
+
+## What it does not do
+
+It does not say what an item is worth: a price is the one you set, or
+your note or tab name in the game. `acq search --trade` translates a
+trade search you paste, without fetching it. It does not touch the game
+client, and there are no installers, packages or automatic updates.
+
+## Reporting and contributing
+
+A security problem: `SECURITY.md`, which asks for GitHub's private
+reporting. A bug or a request: an issue on this repository. A change:
+`CONTRIBUTING.md`.
 
 ## Licence
 
 Licensed under MIT OR Apache-2.0 (`LICENSE-MIT`, `LICENSE-APACHE`);
 contributors keep their copyright and license their work under the same
 terms. The Rust tree was audited against the GPL C++ app before the
-declaration (C110): `audits/relicense-2026-10/`.
+declaration: `audits/relicense-2026-10/`.
