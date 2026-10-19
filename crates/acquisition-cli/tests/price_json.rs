@@ -501,6 +501,71 @@ fn price_set_and_clear_print_the_receipt_and_show_reads_it_back() {
     let _ = std::fs::remove_dir_all(&base);
 }
 
+/// The release seat: `price list` had no bound, so a run asking for a
+/// league's conflicts got 49 to 67 KB, cut by its harness after the
+/// first item. `--limit N` holds the first N in listing order, the
+/// document saying how many the selection holds (`total`) and how many
+/// it lists (`listed`), the text "N of M", and the containers are the
+/// listed items' alone.
+#[test]
+fn price_list_is_bounded_by_a_limit_and_says_how_many_of_how_many() {
+    let base = std::env::temp_dir().join(format!(
+        "acq-price-limit-{}-{}",
+        std::process::id(),
+        acquisition_store::now()
+    ));
+    let _ = std::fs::remove_dir_all(&base);
+    seed(&base);
+    let whole = sole_json(&acq(
+        &base,
+        &["price", "list", "--effective", "none", "--json"],
+    ));
+    let all = whole["items"].as_array().unwrap().len();
+    assert!(all >= 2, "{whole}");
+    let out = acq(
+        &base,
+        &[
+            "price",
+            "list",
+            "--effective",
+            "none",
+            "--limit",
+            "1",
+            "--json",
+        ],
+    );
+    assert!(out.status.success(), "{}", stderr(&out));
+    let limited = sole_json(&out);
+    assert_eq!(limited["items"].as_array().unwrap().len(), 1, "{limited}");
+    assert_eq!(limited["items"][0], whole["items"][0]);
+    assert_eq!(
+        (&limited["total"], &limited["listed"]),
+        (&json!(all), &json!(1))
+    );
+    assert_eq!(limited["filter"]["limit"], json!(1));
+    let first_chain = limited["items"][0]["chain"].as_array().unwrap().clone();
+    for c in limited["containers"].as_array().unwrap() {
+        assert!(first_chain.contains(&c["subject"]["target"]), "{c}");
+    }
+    let view: ListView = serde_json::from_value(limited).unwrap();
+    assert_eq!(view.items.len(), 1);
+
+    let out = acq(
+        &base,
+        &["price", "list", "--effective", "none", "--limit", "1"],
+    );
+    let said = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        said.starts_with(&format!("1 of {all} items listed in Standard")),
+        "{said}"
+    );
+    assert!(
+        said.contains(&format!("`--limit {all}` lists every one")),
+        "{said}"
+    );
+    let _ = std::fs::remove_dir_all(&base);
+}
+
 /// A `buyout` row as a newer build would write it: this build's parse
 /// refuses the stamp, the listing state reports it unreadable, and the
 /// blind `set` and `clear` must refuse to touch it.

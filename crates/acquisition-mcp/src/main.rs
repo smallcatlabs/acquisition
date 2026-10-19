@@ -742,6 +742,9 @@ struct PriceListParams {
     /// Only items a row on this target would cover: a folder's tabs'
     /// items, a map or unique tab's substashes' items too.
     covered_by: Option<String>,
+    /// List at most this many items, the first in listing order (some
+    /// 1.3 KB an item); `total` says how many the selection holds.
+    limit: Option<usize>,
     /// Account selector (username with or without `#discriminator`, or
     /// uuid); required only when several accounts are known.
     account: Option<String>,
@@ -1202,7 +1205,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "The items of one league that are priced, each with both sides of its listing (no daemon, no network): `items`, each with its `subject` (an item address in `subject.target`), the hand row that applies (`manual`: the value, the row's own target in `from`, `inherited`, its `revision`), the game's reading (`game`: the note and the tab name verbatim beside what each reads as, the tab and whether it is public), the `relation` and the `effective` price; `containers`, the tabs, substashes and characters those items sit under, each with its own listing; `items_on_record`, how many items the league holds, so an empty answer says which nothing. With neither `relation` nor `effective`, items nothing prices are left out, except unresolved ones, which are always listed. A container the facts do not hold is refused, never an empty selection. The document `acq price list --json` prints; a refusal is a result marked isError holding `error`, whose words name the CLI's flags (--league is `league`, --in is `in`)."
+        description = "The items of one league that are priced, each with both sides of its listing (no daemon, no network): `items`, each with its `subject` (an item address in `subject.target`), the hand row that applies (`manual`: the value, the row's own target in `from`, `inherited`, its `revision`), the game's reading (`game`: the note and the tab name verbatim beside what each reads as, the tab and whether it is public), the `relation` and the `effective` price; `containers`, the tabs, substashes and characters those items sit under, each with its own listing; `items_on_record`, how many items the league holds, so an empty answer says which nothing; `total`, how many the selection holds, and `listed`, how many `items` lists — fewer only under `limit`, the first in listing order, `containers` then being theirs alone. With neither `relation` nor `effective`, items nothing prices are left out, except unresolved ones, which are always listed. A container the facts do not hold is refused, never an empty selection. The document `acq price list --json` prints; a refusal is a result marked isError holding `error`, whose words name the CLI's flags (--league is `league`, --in is `in`)."
     )]
     fn price_list(&self, Parameters(p): Parameters<Args<PriceListParams>>) -> Told {
         let p = match p.read() {
@@ -1227,6 +1230,7 @@ impl AcqMcp {
                 effective: p.effective,
                 location: p.location,
                 covered_by: p.covered_by,
+                limit: p.limit,
             },
         ))
     }

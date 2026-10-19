@@ -566,7 +566,8 @@ pub struct ListingReport {
 /// side (when neither is given: every relation but `none`, plus every
 /// unresolved item whatever its relation), physically in one container,
 /// or covered by a row on one target (C70) — the two are different sets
-/// for a folder or a parent tab.
+/// for a folder or a parent tab — and at most `limit` of them, the first
+/// in listing order.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct ListFilter {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -579,12 +580,15 @@ pub struct ListFilter {
     pub r#in: Option<PriceTarget>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub covered_by: Option<PriceTarget>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub limit: Option<usize>,
 }
 
 /// `list`'s contract: everything its text is a function of (C53) — the
-/// header, the filter, the containers on the selected items' chains (the
+/// header, the filter, the containers on the listed items' chains (the
 /// one each sits in and those above it, in the report's order, each with
-/// its own listing), and the items.
+/// its own listing), and the items: `total` selected, `listed` of them
+/// here, fewer only under the filter's `limit`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ListView {
     #[serde(flatten)]
@@ -593,6 +597,10 @@ pub struct ListView {
     /// How many items the report holds, so an empty selection can say
     /// which nothing it is.
     pub items_on_record: usize,
+    /// How many items the selection holds, before any limit.
+    pub total: usize,
+    /// How many of them `items` lists.
+    pub listed: usize,
     pub containers: Vec<Listing>,
     pub items: Vec<Listing>,
 }
@@ -673,7 +681,7 @@ impl ListingReport {
         for named in [&filter.r#in, &filter.covered_by].into_iter().flatten() {
             self.find(named)?;
         }
-        let items: Vec<Listing> = self
+        let mut items: Vec<Listing> = self
             .listings
             .iter()
             .filter(|l| l.subject.is_item())
@@ -705,7 +713,11 @@ impl ListingReport {
             })
             .cloned()
             .collect();
-        // Every container on a selected item's chain — the one it sits
+        let total = items.len();
+        if let Some(limit) = filter.limit {
+            items.truncate(limit);
+        }
+        // Every container on a listed item's chain — the one it sits
         // in and the ones above it — so a substash's parent, whose name
         // is the one read (C80), is in the document the text renders.
         let containers: Vec<Listing> = self
@@ -719,6 +731,8 @@ impl ListingReport {
             header: self.header.clone(),
             filter,
             items_on_record: self.counts.items,
+            total,
+            listed: items.len(),
             containers,
             items,
         })

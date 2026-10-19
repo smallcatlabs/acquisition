@@ -641,6 +641,7 @@ Options:
       --effective <EFFECTIVE>    Who decides: game, manual, none or unresolved
       --in <LOCATION>            Only items physically in this container (a tab, substash or character address)
       --covered-by <COVERED_BY>  Only items a row on this target would cover: a folder's tabs' items, a map or unique tab's substashes' items too
+      --limit <N>                List at most N items, the first in listing order; the first line says N of how many
       --expand
   -h, --help                     Print help
 ```

@@ -507,9 +507,13 @@ fn render_list(view: &ListView, expand: bool) -> String {
         }
     }
     groups.retain(|(_, v)| !v.is_empty());
+    let listed = if view.listed < view.total {
+        format!("{} of {} items", view.listed, view.total)
+    } else {
+        plural(items.len(), "item", "items")
+    };
     out.push_str(&format!(
-        "{} listed in {place}{scope}: {}; in {}\n",
-        plural(items.len(), "item", "items"),
+        "{listed} listed in {place}{scope}: {}; in {}\n",
         breakdown(&items),
         plural(groups.len(), "container", "containers")
     ));
@@ -534,7 +538,12 @@ fn render_list(view: &ListView, expand: bool) -> String {
             }
         }
     }
-    if !expand && groups.iter().any(|(_, g)| g.len() > LIST_UP_TO) {
+    if view.listed < view.total {
+        out.push_str(&format!(
+            "next: `--limit {}` lists every one; `acq price show item/<id>` is one\n",
+            view.total
+        ));
+    } else if !expand && groups.iter().any(|(_, g)| g.len() > LIST_UP_TO) {
         out.push_str("next: `--expand` lists every item; `acq price show item/<id>` is one\n");
     } else {
         out.push_str("next: `acq price show item/<id>` is one listing with its texts\n");

@@ -233,6 +233,12 @@ fn each_pricing_read_is_the_document_the_cli_prints() {
         ),
         (
             "price_list",
+            json!({ "effective": "none", "limit": 1 }),
+            &["price", "list", "--effective", "none", "--limit", "1"],
+            true,
+        ),
+        (
+            "price_list",
             json!({ "covered_by": "tab/pc/f1" }),
             &["price", "list", "--covered-by", "tab/pc/f1"],
             true,

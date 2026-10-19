@@ -615,6 +615,10 @@ enum PriceCmd {
         /// tabs' items, a map or unique tab's substashes' items too.
         #[arg(long)]
         covered_by: Option<String>,
+        /// List at most N items, the first in listing order; the first
+        /// line says N of how many.
+        #[arg(long, value_name = "N")]
+        limit: Option<usize>,
         #[arg(long)]
         expand: bool,
     },
@@ -1171,6 +1175,7 @@ async fn run(cli: Cli) -> Result<()> {
                 effective,
                 location,
                 covered_by,
+                limit,
                 expand,
             } => price_cmd::list(
                 realm,
@@ -1180,6 +1185,7 @@ async fn run(cli: Cli) -> Result<()> {
                     effective,
                     location,
                     covered_by,
+                    limit,
                 },
                 expand,
                 cli.json,

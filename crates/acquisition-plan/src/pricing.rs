@@ -211,13 +211,15 @@ pub fn show(
 }
 
 /// `list`'s selection as typed: relation and effective-side words,
-/// container addresses — read here into a [`ListFilter`].
+/// container addresses, and how many to list at most — read here into a
+/// [`ListFilter`].
 #[derive(Debug, Default)]
 pub struct ListArgs {
     pub relation: Option<String>,
     pub effective: Option<String>,
     pub location: Option<String>,
     pub covered_by: Option<String>,
+    pub limit: Option<usize>,
 }
 
 /// `price list`.
@@ -267,6 +269,7 @@ pub fn list(
         effective,
         r#in: location.clone(),
         covered_by: covered_by.clone(),
+        limit: args.limit,
     };
     r.list_view(filter).ok_or_else(|| {
         let missing = [&location, &covered_by]
