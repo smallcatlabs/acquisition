@@ -349,6 +349,15 @@ fn wins_cell(l: &Listing) -> &'static str {
     }
 }
 
+/// The item lines' column names, once above the first (the release
+/// seat read `conflict game 5 chaos 999 chaos` unlabelled).
+fn item_header() -> String {
+    format!(
+        "  {:<12} {:<5} {:<18} {:<18} {:<40} {}\n",
+        "relation", "wins", "by hand", "in game", "item", "id"
+    )
+}
+
 fn item_line(l: &Listing) -> String {
     let s = &l.subject;
     let mut label = s.label();
@@ -517,6 +526,9 @@ fn render_list(view: &ListView, expand: bool) -> String {
         breakdown(&items),
         plural(groups.len(), "container", "containers")
     ));
+    if expand || groups.iter().any(|(_, g)| g.len() <= LIST_UP_TO) {
+        out.push_str(&item_header());
+    }
     for (loc, group) in &groups {
         let label = view
             .containers
@@ -1181,23 +1193,27 @@ mod tests {
         );
         assert_eq!(
             lines[1],
+            "  relation     wins  by hand            in game            item                                     id"
+        );
+        assert_eq!(
+            lines[2],
             "~price 1 divine (Remove-only) (not public)  1 item: 1 unlisted  tab/pc/m1"
         );
-        assert!(lines[2].ends_with("i-mapdirect"), "{}", lines[2]);
+        assert!(lines[3].ends_with("i-mapdirect"), "{}", lines[3]);
         assert_eq!(
-            lines[3],
+            lines[4],
             "~price 1 divine (Remove-only) / 1 (Remove-only) (not public)  1 item: 1 unlisted  substash/pc/m1/s1"
         );
         assert!(
-            lines[4].starts_with(
+            lines[5].starts_with(
                 "  none         -     -                  -                  Chaos Orb x10"
             ),
             "{}",
-            lines[4]
+            lines[5]
         );
-        assert!(lines[4].ends_with("i-sub"), "{}", lines[4]);
-        assert_eq!(lines[5], "Exile  1 item: 1 unlisted  character/ch1");
-        assert!(lines[6].ends_with("i-worn"), "{}", lines[6]);
+        assert!(lines[5].ends_with("i-sub"), "{}", lines[5]);
+        assert_eq!(lines[6], "Exile  1 item: 1 unlisted  character/ch1");
+        assert!(lines[7].ends_with("i-worn"), "{}", lines[7]);
 
         let view = r
             .list_view(ListFilter {

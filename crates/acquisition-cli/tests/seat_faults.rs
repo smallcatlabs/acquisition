@@ -2307,3 +2307,36 @@ fn the_price_writes_help_says_a_clear_takes_a_revision() {
         );
     }
 }
+
+/// The release seat (cli-opus calls 54, 56): `price list`'s item lines
+/// had no header, so `conflict game 5 chaos 999 chaos` left the reader
+/// to infer which column was the hand price and which the game's. A
+/// header line names the columns, once, above the first item line.
+#[test]
+fn price_lists_columns_are_named_by_a_header_line() {
+    let scratch = harness::scratch("seat-list-header");
+    let base = scratch.0.clone();
+    seed_two_leagues(&base);
+    let out = acq(
+        &base,
+        &["price", "set", "item/i-std", "exact", "5", "chaos"],
+    );
+    assert!(out.status.success(), "{}", text(&out));
+    let out = acq(&base, &["price", "list"]);
+    let said = text(&out);
+    assert!(out.status.success(), "{said}");
+    let lines: Vec<&str> = said.lines().collect();
+    let item = lines
+        .iter()
+        .position(|l| l.ends_with("i-std"))
+        .unwrap_or_else(|| panic!("no item line: {said}"));
+    let header = lines
+        .iter()
+        .position(|l| {
+            let words: Vec<&str> = l.split_whitespace().collect();
+            words.starts_with(&["relation", "wins", "by", "hand", "in", "game", "item", "id"])
+        })
+        .unwrap_or_else(|| panic!("no header line: {said}"));
+    assert!(header < item, "{said}");
+    assert_eq!(said.matches("relation").count(), 1, "{said}");
+}
