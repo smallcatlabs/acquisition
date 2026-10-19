@@ -787,7 +787,7 @@ enum AuthCmd {
 enum DaemonCmd {
     /// The daemon running: pid, version, contract revision, the executable
     /// it runs from and its hash, provider, the world it serves
-    /// (its canonical store root), uptime, connections, queue
+    /// (its canonical store root), uptime, the idle exit it was started with, connections, queue
     /// counts, policies learned, the socket, log and journal paths, the
     /// rails state, keyring health. Observes only: never spawns or
     /// replaces; with no daemon running, what the ledger on disk holds
@@ -1464,6 +1464,7 @@ async fn run(cli: Cli) -> Result<()> {
                     contract,
                     provider,
                     uptime_seconds,
+                    idle_shutdown_seconds,
                     connections,
                     jobs_waiting,
                     jobs_running,
@@ -1476,7 +1477,7 @@ async fn run(cli: Cli) -> Result<()> {
                 } = status
                 {
                     println!(
-                        "daemon {version} (contract {contract}) pid {pid}, up {uptime_seconds}s, provider {provider}"
+                        "daemon {version} (contract {contract}) pid {pid}, up {uptime_seconds}s, provider {provider}, idle exit after {idle_shutdown_seconds}s"
                     );
                     println!("world:  {}", found.world());
                     match (found.artifact(), &found.verdict().artifact) {

@@ -1,6 +1,7 @@
 {
   "connections": 2,
   "contract": "0123456789ab",
+  "idle_shutdown_seconds": 60,
   "in_flight": 1,
   "jobs_running": 1,
   "jobs_waiting": 1,

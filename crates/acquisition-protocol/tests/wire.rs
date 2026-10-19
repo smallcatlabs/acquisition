@@ -341,6 +341,7 @@ fn responses() -> Vec<Response> {
             contract: "0123456789ab".into(),
             provider: "mock".into(),
             uptime_seconds: 61,
+            idle_shutdown_seconds: 60,
             connections: 2,
             jobs_waiting: 1,
             jobs_running: 1,

@@ -294,9 +294,9 @@ fn the_grammar_reads_alternatives() {
 /// this harness can stage: no keyring, so a stopped daemon took the
 /// login with it, and `auth check` would answer not_logged_in. The line
 /// the README gives for that case logs in again under the idle knob and
-/// leaves a daemon running; the keyring line is the same verb's `check`,
-/// which the harness cannot run. The knob's effect on the idle exit is
-/// the daemon's own test.
+/// leaves a daemon running that reports the knob's value as its idle
+/// exit; the keyring line is the same verb's `check`, which the harness
+/// cannot run.
 #[test]
 fn the_agent_recipe_logs_in_again_after_the_daemon_stopped() {
     let line = "ACQ_IDLE_SHUTDOWN=3600 acq auth   #";
@@ -321,10 +321,20 @@ fn the_agent_recipe_logs_in_again_after_the_daemon_stopped() {
     let status = sole_json(&acq(base, &["daemon", "status", "--json"]));
     assert_eq!(status["running"], serde_json::json!(false), "{status}");
     login_with(base, "Alice#1", &[("ACQ_IDLE_SHUTDOWN", "3600")]);
+    // The daemon the recipe's login started reports the idle exit it
+    // was started with: the knob took, on a new daemon.
     let status = sole_json(&acq(base, &["daemon", "status", "--json"]));
     assert_eq!(
-        (&status["running"], &status["provider"]),
-        (&serde_json::json!(true), &serde_json::json!("mock")),
+        (
+            &status["running"],
+            &status["provider"],
+            &status["idle_shutdown_seconds"]
+        ),
+        (
+            &serde_json::json!(true),
+            &serde_json::json!("mock"),
+            &serde_json::json!(3600)
+        ),
         "{status}"
     );
     let auth = sole_json(&acq(base, &["auth", "status", "--json"]));
