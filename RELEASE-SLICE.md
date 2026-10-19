@@ -73,6 +73,9 @@ now. The outside review is Astra's Codex pass over each step's commits.
   use them."
 - Review 1's fixes, on the five rules and the brief's amended line,
   all built now: "approved. go ahead."
+- The fix round's triage, every proposed fate taken: "yes, go ahead.
+  use subagents to save context or tell me when you'd advise a fresh
+  session, or do the work yourself if it's related."
 
 ## Step briefs
 
@@ -344,7 +347,7 @@ heredoc), sent again as a draft; the harness saved call 1's output
 "Left out"; all eight tasks finished, every price it set cleared and
 read back (calls 35 to 39, 53, 55).
 
-#### The fix round's triage, for the owner
+#### The fix round's triage — ruled 2026-10-19, every fate as proposed
 
 The four reports' faults, consolidated: what every run met, what each
 is, and the fate proposed. "Now" is a commit in the fix round, each
@@ -382,6 +385,72 @@ its trigger; the division between what is built now and what waits
 for the first users brought to the owner before building (the triage
 of 2026-10-18). A rerun only where the round changed what an agent
 meets.
+
+### Step 4's fix round — the workers
+
+Three briefs, disjoint files: A in the plan crate, the CLI's pricing
+and shop commands and the MCP's pricing tools; C in the README, the
+docs check, the packager and the README's tests; B, the orchestrator's
+own after A lands, in the MCP's daemon tools and instructions and the
+CLI's main. Each worker: `AGENTS.md` first, then `RELEASE-PLAN.md`
+("What binds", "Rules the orchestrator keeps"), then this file whole,
+the triage table above and the four reports in
+`audits/release-2026-10/seat/` for the calls each item cites. One
+commit per item, held by a test named for the fault, run and watched
+failing on the code before the fix; the gate bare before each commit;
+every `acq` in a mock world; what a worker meets beyond its brief is a
+park in its report, never built.
+
+**Worker A — pricing and the shop (items 1, 2, 3, 6, 7, 13's list
+headers).** The rules: (1) the shop document lists the items left off
+the page for a reason — the game lists it, skipped by hand, blocked —
+and counts the items nothing applies to, which it lists only when
+asked (`--expand` on the CLI, `expand` on the tool), on both surfaces
+the same document (C74 counts every omission with a reason; C53's
+levels); `shop_render --page` keeps dropping nothing more than it does
+today. (2) `price list` takes `--limit N` (the tool `limit`), the
+document carrying the total and how many it holds, the text saying
+"N of M". (3) a write refused for its revision is `kind: "conflict"`
+with `revision` the current one as a field, on both surfaces (C11
+amended), and the refusal speaks the verb's words: `item/<id> has a
+price at revision 4 (re-read and retry)`; a cleared row: `item/<id>'s
+price was cleared (revision 4); a new price names no revision` (C116
+amended: no `annotation`, no `buyout`, no scope/key in a refusal); a
+target the facts do not hold keeps its refusal, with `kind:
+"not_found"` where the CLI already has `item_not_found`, aligned. (6)
+every undo line the CLI prints runs as printed: it carries
+`--account <name>` when the command ran with one, a first write's
+line is the `price clear … --if-revision 1` that undoes it, and a
+clear's undo, a create by the store's rule (a tombstone takes no
+revision), says so in its line. (7) one sentence in `price set` and
+`price clear`'s help and in `price_set` and `price_clear`'s text:
+a clear takes a revision, so the next write's revision continues.
+(13) `price list`'s text columns get a header line. Tests: the
+document sizes on the plan crate's fixtures; `pricing_tools.rs` for
+parity on every changed document; `price_json.rs` and
+`seat_faults.rs` for the kinds and the undo lines run as printed (a
+second account on disk). References regenerated.
+
+**Worker C — the README and the archive (items 9, 10, the AppleDouble
+observation).** The README, within its budget: the agent's recipe
+says to stop the running daemon first (`acq daemon stop`) and that
+without a keyring that logs you out, and `daemon stop` leaves
+"debugging" in the tour's comment; the 25 tools named by family; the
+host configuration shows an `env` block with one knob and says the
+knobs reach the server that way; one sentence on what a person does
+with the shop page (which forum, that items stay where they are and
+tabs public) and one that a note in a private tab is no price; the
+checksum step after the download; the logs' and the store's paths in
+"Before the first command"; pointers to files the archive lacks
+marked as the repository's. Room: the three development-only knob
+rows leave, with `tools/docs-check.sh`'s knob scan exempting knobs
+read only under `tests/` or in `tools/`. `tools/release-package.sh`
+sets `COPYFILE_DISABLE=1` for its `tar`, with a check in
+`release-smoke.sh` that the archive lists no `._` entry (Python's
+`tarfile` sees them; `tar` on macOS hides them). Tests:
+`readme_tour.rs` and `no_ids.rs` as they stand, the smoke on a local
+archive, every seat fact in the README checked on the build first.
+Not C's: the help texts, which are A's and B's.
 
 ## Observations still open
 
