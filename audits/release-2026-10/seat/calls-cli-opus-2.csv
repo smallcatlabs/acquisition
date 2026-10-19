@@ -1,0 +1,109 @@
+# written by seat.py during the run, one row per `acq` command in this world; row n's output is calls/NNN.txt
+n,task,args,exit,stdout_bytes,stderr_bytes,wall_ms,shown,note
+1,T0,"[""--help""]",0,7429,0,297,whole,
+2,T0,"[""accounts""]",0,119,0,5,whole,
+3,T0,"[""store"", ""status""]",0,454,0,15,whole,
+4,T0,"[""daemon"", ""status""]",0,40,0,5,whole,"observe only, should not start a daemon"
+5,T0,"[""auth"", ""status""]",0,142,0,4,whole,"auth status: with no daemon, what one would restore"
+6,T1,"[""version""]",0,220,0,5,whole,
+7,T1,"[""version"", ""--json""]",0,193,0,5,whole,
+8,T1,"[""--version""]",0,41,0,5,whole,
+9,T1,"[""version"", ""--help""]",0,1433,0,5,whole,
+10,login,"[""auth"", ""--no-browser"", ""--json""]",0,743,0,769,whole,login seat: the door approved the mock's page
+11,T2,"[""auth"", ""status""]",0,231,0,5,whole,
+12,T2,"[""profile""]",0,290,41,510,whole,
+13,T2,"[""leagues""]",0,690,41,511,whole,
+14,T2,"[""characters""]",0,667,41,509,whole,
+15,T2,"[""stashes""]",0,1957,41,508,whole,
+16,T2,"[""stashes"", ""--league"", ""Hardcore""]",0,1957,41,510,whole,
+17,T2,"[""character"", ""StashHoarder""]",0,3557,41,509,whole,
+18,T2,"[""stash"", ""dump""]",0,2021,43,510,whole,
+19,T2,"[""daemon"", ""status""]",0,791,0,5,whole,"the daemon my login started, before replacing it"
+20,T2,"[""daemon"", ""stop""]",0,144,0,9,whole,README Your agent step 1
+21,T2,"[""auth"", ""status""]",0,191,0,5,whole,
+22,login,"[""ACQ_IDLE_SHUTDOWN=3600"", ""auth"", ""--no-browser"", ""--json""]",0,743,0,561,whole,login seat: the door approved the mock's page
+23,T2,"[""daemon"", ""status""]",0,789,0,5,whole,"is this a new daemon, and its idle exit"
+24,T2,"[""auth"", ""status""]",0,231,0,5,whole,
+25,T3,"[""store"", ""status""]",1,0,95,5,whole,no --account: two accounts on disk now
+26,T3,"[""tabs"", ""--help""]",0,1728,0,5,whole,
+27,T3,"[""store"", ""status"", ""--account"", ""GERWARIC""]",0,454,0,14,whole,
+28,T3,"[""tabs"", ""--account"", ""GERWARIC""]",0,2106,0,20,whole,
+29,T3,"[""store"", ""characters"", ""--account"", ""GERWARIC""]",0,10715,0,7,whole,
+30,T3,"[""store"", ""refused"", ""--account"", ""GERWARIC""]",0,719,0,6,whole,
+31,T3,"[""store"", ""events"", ""--account"", ""GERWARIC""]",0,26,0,5,whole,
+32,T4,"[""search"", ""--help""]",0,8290,0,6,whole,
+33,T3,"[""search"", ""--account"", ""GERWARIC"", ""--realm"", ""all"", ""--count"", ""league,realm""]",1,0,901,5,whole,where items are: by league and realm
+34,T3,"[""search"", ""--account"", ""GERWARIC"", ""--realm"", ""all"", ""--count"", ""league,container""]",0,985,0,499,whole,"where items are, all realms"
+35,T3,"[""tabs"", ""--account"", ""GERWARIC"", ""--league"", ""Allflame""]",0,1875,0,8,whole,
+36,T4,"[""search"", ""--account"", ""GERWARIC"", ""--describe"", ""fields""]",0,21489,0,51,whole,
+37,T4,"[""search"", ""--account"", ""GERWARIC"", ""--realm"", ""all"", ""links=6""]",0,6265,0,489,whole,(a) six-linked
+38,T4,"[""search"", ""--account"", ""GERWARIC"", ""--realm"", ""all"", ""links=6"", ""--count"", ""container,league,class""]",0,1184,0,495,whole,(a) where the six-links are
+39,T4,"[""search"", ""--account"", ""GERWARIC"", ""--realm"", ""pc"", ""class:ring rarity=rare"", ""--count"", ""line:resist,life""]",0,6544,0,528,whole,(b) learn line vocabulary on rare rings
+40,T4,"[""search"", ""--account"", ""GERWARIC"", ""--describe"", ""pseudo.count_res,pseudo.total_life""]",0,1436,0,49,whole,
+41,T4,"[""search"", ""--account"", ""GERWARIC"", ""--realm"", ""pc"", ""class:ring rarity=rare line(\""# to maximum Life\"") pseudo.count_res>=2"", ""--sort"", ""pseudo.total_res"", ""--desc"", ""--limit"", ""10""]",0,7587,0,551,whole,(b)
+42,T4,"[""search"", ""--account"", ""GERWARIC"", ""--realm"", ""all"", ""--cross"", ""league,rarity""]",0,1796,0,497,whole,(c)
+43,T4,"[""show"", ""--account"", ""GERWARIC"", ""c3607523d2be7811c2703f76b97e726763bec4515e867722e9026040d2ca1b53""]",0,1459,0,147,whole,(d) the top ring of call 41
+44,T4,"[""show"", ""--account"", ""GERWARIC"", ""c3607523d2be7811c2703f76b97e726763bec4515e867722e9026040d2ca1b53"", ""--body""]",0,2316,0,145,whole,(d) the stored body
+45,T5,"[""price"", ""--help""]",0,2290,0,5,whole,
+46,T5,"[""price"", ""set"", ""--help""]",0,1904,0,5,whole,
+47,T5,"[""price"", ""status"", ""--account"", ""GERWARIC""]",0,520,0,107,whole,
+48,T5,"[""price"", ""status"", ""--account"", ""GERWARIC"", ""--league"", ""Allflame""]",0,395,0,19,whole,
+49,T5,"[""price"", ""list"", ""--help""]",0,1946,0,5,whole,
+50,T5,"[""price"", ""list"", ""--account"", ""GERWARIC"", ""--effective"", ""manual""]",0,1878,0,123,whole,what is priced by hand
+51,T5,"[""price"", ""list"", ""--account"", ""GERWARIC"", ""--relation"", ""conflict""]",0,223,0,109,whole,is anything wrong: the 50 conflicts
+52,T5,"[""price"", ""show"", ""--account"", ""GERWARIC"", ""tab/pc/03cb479c65""]",0,515,0,110,whole,
+53,T5,"[""price"", ""list"", ""--account"", ""GERWARIC"", ""--in"", ""tab/pc/03cb479c65"", ""--relation"", ""conflict"", ""--limit"", ""12""]",0,251,0,128,whole,
+54,T5,"[""price"", ""list"", ""--account"", ""GERWARIC"", ""--in"", ""tab/pc/03cb479c65"", ""--relation"", ""conflict"", ""--limit"", ""12"", ""--expand""]",0,5366,0,108,whole,calls 51 and 53 said items listed but printed none
+55,T5,"[""price"", ""status"", ""--account"", ""GERWARIC"", ""--expand""]",0,799,0,116,whole,rows and the invalid note
+56,T5,"[""tabs"", ""--account"", ""GERWARIC"", ""--type"", ""NormalStash""]",0,1164,0,21,whole,pick a tab to price
+57,T5,"[""price"", ""show"", ""--account"", ""GERWARIC"", ""item/c3607523d2be7811c2703f76b97e726763bec4515e867722e9026040d2ca1b53""]",0,425,0,107,whole,read before write; find its tab address
+58,T5,"[""price"", ""show"", ""--account"", ""GERWARIC"", ""item/349fe14a2b6e7b429a073c3556ee76768c315efbaca047fbb337d7c0a2bb3341""]",0,406,0,109,whole,"the item to price at 2 divine, read before write"
+59,T5,"[""price"", ""show"", ""--account"", ""GERWARIC"", ""tab/pc/c9bb97c84d""]",0,433,0,110,whole,"the tab to price at 5 chaos, read before write"
+60,T5,"[""price"", ""set"", ""--account"", ""GERWARIC"", ""tab/pc/c9bb97c84d"", ""exact"", ""5"", ""chaos""]",0,237,0,8,whole,
+61,T5,"[""price"", ""set"", ""--account"", ""GERWARIC"", ""item/349fe14a2b6e7b429a073c3556ee76768c315efbaca047fbb337d7c0a2bb3341"", ""exact"", ""2"", ""divine""]",0,394,0,7,whole,
+62,T5,"[""price"", ""show"", ""--account"", ""GERWARIC"", ""item/349fe14a2b6e7b429a073c3556ee76768c315efbaca047fbb337d7c0a2bb3341""]",0,530,0,129,whole,read the revision before replacing
+63,T5,"[""price"", ""set"", ""--account"", ""GERWARIC"", ""item/349fe14a2b6e7b429a073c3556ee76768c315efbaca047fbb337d7c0a2bb3341"", ""exact"", ""3"", ""divine"", ""--if-revision"", ""1""]",0,433,0,7,whole,
+64,T5,"[""price"", ""show"", ""--account"", ""GERWARIC"", ""item/349fe14a2b6e7b429a073c3556ee76768c315efbaca047fbb337d7c0a2bb3341""]",0,530,0,108,whole,read back
+65,T5,"[""price"", ""show"", ""--account"", ""GERWARIC"", ""tab/pc/c9bb97c84d""]",0,506,0,110,whole,read back
+66,T5,"[""price"", ""show"", ""--account"", ""GERWARIC"", ""item/c3607523d2be7811c2703f76b97e726763bec4515e867722e9026040d2ca1b53""]",0,519,0,110,whole,covered item inherits the tab row?
+67,T6,"[""shop"", ""render"", ""--help""]",0,1844,0,5,whole,
+68,T6,"[""shop"", ""render"", ""--account"", ""GERWARIC""]",0,6092,0,125,whole,
+69,T6,"[""price"", ""clear"", ""--account"", ""GERWARIC"", ""item/349fe14a2b6e7b429a073c3556ee76768c315efbaca047fbb337d7c0a2bb3341"", ""--if-revision"", ""2""]",0,298,0,6,whole,
+70,T6,"[""price"", ""clear"", ""--account"", ""GERWARIC"", ""tab/pc/c9bb97c84d"", ""--if-revision"", ""1""]",0,192,0,6,whole,
+71,T6,"[""price"", ""show"", ""--account"", ""GERWARIC"", ""item/349fe14a2b6e7b429a073c3556ee76768c315efbaca047fbb337d7c0a2bb3341""]",0,406,0,107,whole,read back after clear
+72,T6,"[""price"", ""show"", ""--account"", ""GERWARIC"", ""tab/pc/c9bb97c84d""]",0,433,0,108,whole,read back after clear
+73,T6,"[""price"", ""status"", ""--account"", ""GERWARIC""]",0,520,0,108,whole,status as found in call 47?
+74,T7,"[""characters"", ""--json""]",0,803,0,509,whole,T2 call 14 as JSON
+75,T7,"[""store"", ""status"", ""--account"", ""GERWARIC"", ""--json""]",0,400,0,14,whole,T3 call 27 as JSON
+76,T7,"[""search"", ""--account"", ""GERWARIC"", ""--realm"", ""pc"", ""class:ring rarity=rare line(\""# to maximum Life\"") pseudo.count_res>=2"", ""--sort"", ""pseudo.total_res"", ""--desc"", ""--limit"", ""2"", ""--json""]",0,9559,0,561,whole,"T4 call 41 as JSON, limit 2"
+77,T7,"[""price"", ""show"", ""--account"", ""GERWARIC"", ""tab/pc/c9bb97c84d"", ""--json""]",0,36223,0,108,whole,T5 call 72-style read as JSON
+78,T7,"[""shop"", ""render"", ""--account"", ""GERWARIC"", ""--json""]",0,207777,0,126,head,T6 call 68 as JSON
+79,T7,"[""shop"", ""render"", ""--account"", ""GERWARIC"", ""--json""]",0,207777,0,124,head,"rerun of call 78: my harness cut the combined output of 77+78, not the door"
+80,T7,"[""store"", ""status"", ""--account"", ""GERWARICK""]",1,0,59,4,whole,"fail 1: wrong account, text"
+81,T7,"[""store"", ""status"", ""--account"", ""GERWARICK"", ""--json""]",1,91,0,4,whole,"fail 1: wrong account, JSON"
+82,T7,"[""show"", ""--account"", ""GERWARIC"", ""0000000000000000000000000000000000000000000000000000000000000000""]",1,0,175,46,whole,"fail 2: no such id, text"
+83,T7,"[""show"", ""--account"", ""GERWARIC"", ""0000000000000000000000000000000000000000000000000000000000000000"", ""--json""]",1,204,0,46,whole,"fail 2: no such id, JSON"
+84,T7,"[""price"", ""set"", ""--account"", ""GERWARIC"", ""item/349fe14a2b6e7b429a073c3556ee76768c315efbaca047fbb337d7c0a2bb3341"", ""exact"", ""2"", ""divine""]",0,394,0,7,whole,fail 3 setup: a row of my own to conflict on
+85,T7,"[""price"", ""set"", ""--account"", ""GERWARIC"", ""item/349fe14a2b6e7b429a073c3556ee76768c315efbaca047fbb337d7c0a2bb3341"", ""exact"", ""3"", ""divine"", ""--if-revision"", ""7""]",1,0,123,7,whole,"fail 3: wrong revision, text"
+86,T7,"[""price"", ""set"", ""--account"", ""GERWARIC"", ""item/349fe14a2b6e7b429a073c3556ee76768c315efbaca047fbb337d7c0a2bb3341"", ""exact"", ""3"", ""divine"", ""--if-revision"", ""7"", ""--json""]",1,159,0,6,whole,"fail 3: wrong revision, JSON"
+87,T7,"[""price"", ""clear"", ""--account"", ""GERWARIC"", ""item/349fe14a2b6e7b429a073c3556ee76768c315efbaca047fbb337d7c0a2bb3341"", ""--if-revision"", ""4""]",0,298,0,7,whole,undo the setup row
+88,T7,"[""price"", ""show"", ""--account"", ""GERWARIC"", ""item/349fe14a2b6e7b429a073c3556ee76768c315efbaca047fbb337d7c0a2bb3341"", ""--json""]",0,2390,0,110,whole,read back
+89,T7,"[""character"", ""NoSuchCharacter""]",0,2785,43,510,whole,"fail 2b: no such character at the API, text"
+90,T7,"[""character"", ""NoSuchCharacter"", ""--json""]",0,3085,0,511,whole,"fail 2b: same, JSON"
+91,T7,"[""price"", ""set"", ""--account"", ""GERWARIC"", ""--json""]",2,227,0,5,whole,"usage error as JSON (README: kind usage, exit 2)"
+92,T8,"[""daemon"", ""--help""]",0,3199,0,5,whole,
+93,T8,"[""daemon"", ""status"", ""--json""]",0,1703,0,5,whole,before stopping
+94,T8,"[""daemon"", ""stop""]",0,144,0,7,whole,
+95,T8,"[""store"", ""status"", ""--account"", ""GERWARIC""]",0,454,0,14,whole,store-only read with no daemon
+96,T8,"[""search"", ""--account"", ""GERWARIC"", ""--realm"", ""pc"", ""links=6"", ""--count"", ""league""]",0,961,0,474,whole,store-only search with no daemon
+97,T8,"[""daemon"", ""status""]",0,173,0,5,whole,"observer, no daemon"
+98,T8,"[""jobs""]",0,84,0,5,whole,"observer, no daemon"
+99,T8,"[""auth"", ""status""]",0,191,0,5,whole,"observer, no daemon"
+100,T8,"[""result"", ""18""]",0,2785,0,5,whole,from disk with no daemon
+101,T8,"[""profile""]",1,0,159,59,whole,"needs the API, no daemon, no session"
+102,T8,"[""daemon"", ""status""]",0,789,0,5,whole,did that start a daemon?
+103,T8,"[""daemon"", ""stop""]",0,27,0,6,whole,the failed profile left a daemon; stop it
+104,T8,"[""version""]",0,220,0,4,whole,"own version again, no daemon"
+105,T8,"[""daemon"", ""status"", ""--json""]",0,181,0,5,whole,left stopped?
+106,T8,"[""dash""]",1,0,68,5,whole,"the TUI, once, no terminal"
+107,T8,"[""daemon"", ""status""]",0,173,0,5,whole,still stopped after dash?

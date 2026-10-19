@@ -321,6 +321,7 @@ are the runner's.
 | mcp-opus | `claude-opus-5-5` | 11891c2e-7e05 | 51 | 2 (`price_list` 67 KB, `shop_render` 5.1 MB) | 66 + 3 | $3.46 | 9 calls: the leading faults hold as stated — the render whole at 5,057,320 bytes (call 32); a write to an id the facts do not hold landing with `in_facts` false (call 47, the ruling's behaviour, as the whole-CLI seat recorded it); the job tools' refusals as JSON-RPC errors (calls 40 to 42), the one naming `ACQ_NO_SPAWN` being the door's world speaking, since the door sets it, so the fix round reads the real-mode text; the instructions' first step refused on this two-realm store (call 5, `realm_needed`) |
 | cli-sonnet | `claude-sonnet-5-5` | becbb2ab-c5a8 | 97 | 2 (`price show --json` 174 KB, `shop render --json` 7.5 MB) | 112 + 2 | $1.50 | 6 calls: the leading faults hold and converge with cli-opus's — the shop's JSON at 7,478,732 bytes (call 72), a revision conflict and a failed job without a kind (calls 81, 83), the daemon stop logging the runner out (call 16); new in call 78, a stale revision named on a cleared row answers "annotation no longer exists", hiding the clear and the revision it still counts |
 | mcp-sonnet | `claude-sonnet-5-5` | b8abe4b8-48a1 | 55 | 2 (`price_list` 67 KB, `shop_render` 5.1 MB) | 71 + 2 | $1.48 | 8 calls: the leading faults hold and converge with mcp-opus's — the render whole at 5,055,511 bytes and `page` dropping the omissions and freshness (calls 34, 33), `price_list` and a tab's `price_show` unbounded (calls 22, 23, 25), the job tools' refusals as protocol errors (calls 42 to 45); its `agree: 0` beside 489 game-priced items is the data, every hand-priced item with a game price disagreeing (checked on a scratch copy of the pristine store) |
+| cli-opus-2, the rerun | `claude-opus-5-5` | cbf8834a-a17f | 107 | 2 (`shop render --json` 208 KB, twice) | 77 + 2 | $3.24 | 9 calls, on the archive `3a95fa98…` at `b8820b35` (every binary hashed in the world's record). The round's fixes met: the recipe ran as the README prints it with the stop first (calls 19 to 23), the undo lines ran as printed with the account (calls 69, 84), the refused job verb said it started a daemon (call 101), the shop's JSON fell from 7.5 MB to 208 KB (call 79), the receipts' words are the verb's. New: a named `--limit` still printed a group over ten as a header alone (calls 51, 53, 54); `price status --league Allflame`'s next step dropped the league (call 48); `acq daemon --help` calls its verbs debugging only against the README's recipe (call 92); the clear's receipt and the help use "revision" in two senses (calls 45, 69, 84). No fault: the staleness line's oldest is among the covered stale items, the 41-day items being in the two containers the coverage line names (call 68) |
 
 cli-opus: one door command denied by the rails (a `report` heredoc),
 sent again as a draft; the harness saved call 41's output to a file
@@ -380,6 +381,11 @@ The README's lines the runs never needed (the platform notes, the
 knobs, the policy cycle, the gaps) are a reader's cost, not a fault:
 the notes serve the readers who are not these four runs, the knobs'
 dev-only rows leave under item 10.
+
+cli-opus-2: no denial, no file outside the two, all nine tasks
+finished, every price cleared and read back, the daemon left stopped.
+Its debrief marks the shop JSON's contents as unseen (the cut) and
+the mock's invented character (calls 89 to 90) as the mock's.
 
 The fix round after the four runs: faults of the shapes in the
 records' findings tables fixed, one commit per fault held by a test
