@@ -1395,6 +1395,22 @@ fn a_bare_words_readings_offer_it_as_a_name_first() {
     assert_eq!(e["readings"][1], "name:rare", "{e}");
 }
 
+/// `store_status` said `leagues: 0` beside tabs in seven leagues, a bare
+/// number the CLI's text had worded at the trade seat and the MCP's
+/// JSON had not (the re-sit, mcp-sonnet call 3, its fault 7): the
+/// document says what the count counts.
+#[test]
+fn store_status_says_what_its_league_count_counts() {
+    let mut seat = Seat::new();
+    let (status, refused) = seat.call("store_status", &json!({}));
+    assert!(!refused, "{status}");
+    assert_eq!(status["leagues"], 0, "{status}");
+    assert_eq!(status["league_list"], "never fetched", "{status}");
+    let (printed, ok) = cli(&seat.base, &["store", "status"]);
+    assert!(ok);
+    assert_eq!(printed["league_list"], "never fetched", "{printed}");
+}
+
 /// `scope.list_seen` under a query fixing one league is that league's
 /// list and the characters', not the realm's oldest (the re-sit,
 /// mcp-opus fault 2); held equal to the CLI's.

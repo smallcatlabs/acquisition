@@ -644,6 +644,13 @@ pub struct Status {
     pub bytes: u64,
     pub responses: i64,
     pub leagues: i64,
+    /// What `leagues` counts: `never fetched` at 0 — no `leagues` job has
+    /// listed them — else `fetched`; the number alone read as a
+    /// contradiction beside tabs in seven leagues (the trade seat's CLI
+    /// runs, worded there; the re-sit's mcp-sonnet fault 7, the MCP's
+    /// bare count).
+    #[serde(default)]
+    pub league_list: String,
     pub characters: i64,
     pub tabs: i64,
     pub items: i64,
@@ -1645,6 +1652,11 @@ impl Store {
             bytes: std::fs::metadata(&self.path).map(|m| m.len()).unwrap_or(0),
             responses: count("SELECT count(*) FROM responses")?,
             leagues: count("SELECT count(*) FROM leagues")?,
+            league_list: if count("SELECT count(*) FROM leagues")? == 0 {
+                "never fetched".to_string()
+            } else {
+                "fetched".to_string()
+            },
             characters: count("SELECT count(*) FROM characters WHERE removed_at IS NULL")?,
             tabs: count("SELECT count(*) FROM tabs WHERE removed_at IS NULL")?,
             items: count("SELECT count(*) FROM items WHERE removed_at IS NULL")?,
