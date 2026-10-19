@@ -70,6 +70,26 @@
 //! fixture, each answer and each of the search crate's refusals held
 //! equal to the CLI's document.
 //!
+//! # As built: pricing (the release, step 1)
+//!
+//! `price_status`, `price_list`, `price_show`, `shop_render`,
+//! `reference_currency`, `price_set` and `price_clear` are adapters of
+//! `acquisition_plan::pricing`, the functions `acq price`, `acq shop
+//! render` and `acq reference currency` call (C46): a tool returns the
+//! document the CLI's `--json` prints for the same request, and a
+//! refusal is a result marked `isError` holding the CLI's failure
+//! document, `{"error": …}` in the CLI's words (C11). Pricing reads
+//! intent and facts through the store: no daemon, no network (C64). The
+//! account is selected as the search's tools select it, with their three
+//! refusals; arguments a tool does not take are refused as theirs are.
+//!
+//! One rule is this adapter's and stricter than the CLI's: a write that
+//! names no revision is a create (C52; `pricing::Expect::Create`), so a
+//! set or a clear over a row of the target's own must name the revision
+//! it replaces and is otherwise refused naming the current one; the
+//! CLI's default replaces whatever is stored. The shop template is the
+//! page's text here, a file there. Pinned by `tests/pricing_tools.rs`.
+//!
 //! # Decisions as recorded
 //!
 //! The rulings are the decision registry — `decisions/frontends.md` for this
@@ -641,6 +661,164 @@ struct ApplyParams {
     account: Option<String>,
 }
 
+#[derive(Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct PriceStatusParams {
+    /// The league; Standard when omitted.
+    league: Option<String>,
+    /// pc (the default), xbox, sony or poe2.
+    realm: Option<String>,
+    /// Account selector (username with or without `#discriminator`, or
+    /// uuid); required only when several accounts are known.
+    account: Option<String>,
+}
+
+#[derive(Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct PriceShowParams {
+    /// One address: `item/<id>`, `character/<id>`, `tab/<realm>/<id>` or
+    /// `substash/<realm>/<parent>/<id>`. An answer holds a target as an
+    /// object, `{scope, realm, parent, id}`: the address is its parts in
+    /// that order joined by `/`, the absent ones left out.
+    target: String,
+    /// The league to read the target in; omitted, the league the facts
+    /// hold it in, so an address an answer printed reads back as printed.
+    league: Option<String>,
+    /// The realm of an item or character target (pc when omitted); a tab
+    /// or substash address carries its own, and a realm given beside it
+    /// must agree.
+    realm: Option<String>,
+    /// Account selector (username with or without `#discriminator`, or
+    /// uuid); required only when several accounts are known.
+    account: Option<String>,
+}
+
+#[derive(Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct PriceListParams {
+    /// The league; omitted, the league of the container `in` or
+    /// `covered_by` names, else Standard.
+    league: Option<String>,
+    /// pc (the default), xbox, sony or poe2; a tab or substash address
+    /// given to `in` or `covered_by` carries its own.
+    realm: Option<String>,
+    /// Only items in this relation: none, manual_only, game_only, agree or
+    /// conflict.
+    relation: Option<String>,
+    /// Only items whose price this side decides: game, manual, none or
+    /// unresolved.
+    effective: Option<String>,
+    /// Only items physically in this container: a tab, substash or
+    /// character address.
+    #[serde(rename = "in")]
+    location: Option<String>,
+    /// Only items a row on this target would cover: a folder's tabs'
+    /// items, a map or unique tab's substashes' items too.
+    covered_by: Option<String>,
+    /// Account selector (username with or without `#discriminator`, or
+    /// uuid); required only when several accounts are known.
+    account: Option<String>,
+}
+
+#[derive(Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct ShopRenderParams {
+    /// The league; Standard when omitted.
+    league: Option<String>,
+    /// pc (the default), xbox, sony or poe2.
+    realm: Option<String>,
+    /// Characters per page, the template included: the forum's hard limit
+    /// when omitted.
+    size: Option<usize>,
+    /// The page's text, holding `[items]` exactly once, which each page
+    /// replaces with its items; omitted, a page is the items alone.
+    template: Option<String>,
+    /// One page alone, by its number from 1: that page's record in place
+    /// of the whole render.
+    page: Option<usize>,
+    /// Account selector (username with or without `#discriminator`, or
+    /// uuid); required only when several accounts are known.
+    account: Option<String>,
+}
+
+#[derive(Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct ReferenceCurrencyParams {
+    /// A tag, the game's word, or a legacy alias to resolve, exact and
+    /// case-sensitive; omitted, the whole table.
+    word: Option<String>,
+}
+
+#[derive(Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct PriceSetParams {
+    /// One address: `item/<id>`, `character/<id>`, `tab/<realm>/<id>` or
+    /// `substash/<realm>/<parent>/<id>`. An answer holds a target as an
+    /// object, `{scope, realm, parent, id}`: the address is its parts in
+    /// that order joined by `/`, the absent ones left out.
+    target: String,
+    /// exact, negotiable, no_price or skip (the game's `price`, `b/o` and
+    /// `~skip` work too).
+    r#type: String,
+    /// For exact and negotiable: a decimal of up to four places (`12.5`),
+    /// or a `wanted/lot` ratio (`1/5`), as a string.
+    amount: Option<String>,
+    /// For exact and negotiable: a tag of reference_currency.
+    currency: Option<String>,
+    /// The revision of the target's own row this write replaces: price_show's
+    /// `listing.manual.revision`, when `listing.manual.from` is the target
+    /// itself, or the revision a refusal names. Required when the target
+    /// has a row of its own; omit it only to create one.
+    if_revision: Option<i64>,
+    /// Account selector (username with or without `#discriminator`, or
+    /// uuid); required only when several accounts are known.
+    account: Option<String>,
+}
+
+#[derive(Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct PriceClearParams {
+    /// The address, as for price_set.
+    target: String,
+    /// The revision of the target's own row this clear removes, as for
+    /// price_set. Required: a clear without it is refused naming the
+    /// current revision.
+    if_revision: Option<i64>,
+    /// Account selector (username with or without `#discriminator`, or
+    /// uuid); required only when several accounts are known.
+    account: Option<String>,
+}
+
+/// A pricing verb's answer as a tool's result: the document the CLI's
+/// `--json` prints, or its failure document, `{"error": …}`, in a result
+/// marked an error.
+fn priced<T: serde::Serialize>(answer: Result<T>) -> Told {
+    match answer {
+        Ok(document) => told(&document),
+        Err(e) => Ok(CallToolResult::structured_error(
+            json!({ "error": format!("{e:#}") }),
+        )),
+    }
+}
+
+/// A pricing tool's `realm`, read as the CLI's `--realm` is; a word that
+/// is no realm is refused as any argument the tool does not take.
+fn price_realm(realm: Option<&str>) -> std::result::Result<Option<Realm>, CallToolResult> {
+    realm
+        .map(|s| {
+            Realm::parse(s).ok_or_else(|| {
+                CallToolResult::structured_error(json!({
+                    "error": format!(
+                        "unknown realm {s:?} (one of {})",
+                        Realm::ALL.map(Realm::as_str).join(", ")
+                    ),
+                    "kind": "arguments",
+                }))
+            })
+        })
+        .transpose()
+}
+
 struct AcqMcp;
 
 #[tool_router]
@@ -963,6 +1141,189 @@ impl AcqMcp {
         }
     }
 
+    // ---- pricing: adapters of acquisition-plan's pricing verbs ----
+
+    #[tool(
+        description = "The listing state of one league, counted (no daemon, no network): what every item, tab and character is priced as — by hand (a row this server or the CLI wrote), in game (an item's note, then its tab's name, read only where the tab is public), how the two stand — as the counts and the row accounting, without the listings themselves. `counts.by_effective` says who decides each item's price (game, manual, none, unresolved — a row that cannot be read could decide), `counts.by_relation` how the two sides stand (none, manual_only, game_only, agree, conflict); `rows` accounts for every hand-written row: how many apply here, which name nothing in the facts (`unmatched`), which cannot be read, which belong to other leagues or realms. The document `acq price status --json` prints. price_list names the items; price_show is one target."
+    )]
+    fn price_status(&self, Parameters(p): Parameters<Args<PriceStatusParams>>) -> Told {
+        let p = match p.read() {
+            Ok(p) => p,
+            Err(refusal) => return Ok(refusal),
+        };
+        let realm = match price_realm(p.realm.as_deref()) {
+            Ok(realm) => realm.unwrap_or(Realm::DEFAULT),
+            Err(refusal) => return Ok(refusal),
+        };
+        let (store, intent) = match open_search(p.account.as_deref(), "account") {
+            Ok(opened) => opened,
+            Err(refusal) => return Ok(refusal),
+        };
+        let league = p
+            .league
+            .as_deref()
+            .unwrap_or(acquisition_plan::pricing::DEFAULT_LEAGUE);
+        priced(
+            acquisition_plan::pricing::report(&store, &intent, realm, league).map(|r| r.summary()),
+        )
+    }
+
+    #[tool(
+        description = "The items of one league that are priced, each with both sides of its listing (no daemon, no network): `items`, each with its `subject` (an item address in `subject.target`), the hand row that applies (`manual`: the value, the row's own target in `from`, `inherited`, its `revision`), the game's reading (`game`: the note and the tab name verbatim beside what each reads as, the tab and whether it is public), the `relation` and the `effective` price; `containers`, the tabs, substashes and characters those items sit under, each with its own listing; `items_on_record`, how many items the league holds, so an empty answer says which nothing. With neither `relation` nor `effective`, items nothing prices are left out, except unresolved ones, which are always listed. A container the facts do not hold is refused, never an empty selection. The document `acq price list --json` prints; a refusal is a result marked isError holding `error`, whose words name the CLI's flags (--league is `league`, --in is `in`)."
+    )]
+    fn price_list(&self, Parameters(p): Parameters<Args<PriceListParams>>) -> Told {
+        let p = match p.read() {
+            Ok(p) => p,
+            Err(refusal) => return Ok(refusal),
+        };
+        let realm = match price_realm(p.realm.as_deref()) {
+            Ok(realm) => realm,
+            Err(refusal) => return Ok(refusal),
+        };
+        let (store, intent) = match open_search(p.account.as_deref(), "account") {
+            Ok(opened) => opened,
+            Err(refusal) => return Ok(refusal),
+        };
+        priced(acquisition_plan::pricing::list(
+            &store,
+            &intent,
+            realm,
+            p.league.as_deref(),
+            &acquisition_plan::pricing::ListArgs {
+                relation: p.relation,
+                effective: p.effective,
+                location: p.location,
+                covered_by: p.covered_by,
+            },
+        ))
+    }
+
+    #[tool(
+        description = "One target's listing (no daemon, no network): `listing`, both sides with their causes — the hand row that applies with its `revision` and the target it is on (`manual.from`; the target's own row when that is the target itself, a container's when `inherited`), the note and the tab name verbatim beside what each reads as — the relation, the effective price and why; `container`, the one an item sits in; for a tab, substash or character, `items_here` (physically in it) and `items_covered_below` (covered through its children). A bare id is refused with its two readings, `item/<id>` and `character/<id>`; a target the facts do not hold is refused naming the league that holds it, if any. The document `acq price show --json` prints. Read it before price_set or price_clear on a target that has a row of its own: they name the revision they replace."
+    )]
+    fn price_show(&self, Parameters(p): Parameters<Args<PriceShowParams>>) -> Told {
+        let p = match p.read() {
+            Ok(p) => p,
+            Err(refusal) => return Ok(refusal),
+        };
+        let realm = match price_realm(p.realm.as_deref()) {
+            Ok(realm) => realm,
+            Err(refusal) => return Ok(refusal),
+        };
+        let (store, intent) = match open_search(p.account.as_deref(), "account") {
+            Ok(opened) => opened,
+            Err(refusal) => return Ok(refusal),
+        };
+        priced(acquisition_plan::pricing::show(
+            &store,
+            &intent,
+            &p.target,
+            realm,
+            p.league.as_deref(),
+        ))
+    }
+
+    #[tool(
+        description = "The forum shop pages for one league, rendered for a person to paste by hand; this server posts nothing and reads no forum (no daemon, no network). One link code per hand-priced item under its price's spoiler, in pages of at most `size` characters, each page labelled n of N: `pages` (each `text` is what to paste), `posted` (the items on them), `left_out` (every item not posted with its `cell`, the reason — what the game already lists is omitted, a case the forum has not been observed for is blocked), `counts`, `policy` (each cell's rule and count) and `freshness`: whether the sync policy covers the posted items and which of them are older than its window, with the refresh that would renew them — reported, never enforced. `page` returns one page's record alone. The document `acq shop render --json` prints."
+    )]
+    fn shop_render(&self, Parameters(p): Parameters<Args<ShopRenderParams>>) -> Told {
+        let p = match p.read() {
+            Ok(p) => p,
+            Err(refusal) => return Ok(refusal),
+        };
+        let realm = match price_realm(p.realm.as_deref()) {
+            Ok(realm) => realm.unwrap_or(Realm::DEFAULT),
+            Err(refusal) => return Ok(refusal),
+        };
+        let (store, intent) = match open_search(p.account.as_deref(), "account") {
+            Ok(opened) => opened,
+            Err(refusal) => return Ok(refusal),
+        };
+        let rendered = acquisition_plan::pricing::shop_render(
+            &store,
+            &intent,
+            provider(),
+            realm,
+            p.league
+                .as_deref()
+                .unwrap_or(acquisition_plan::pricing::DEFAULT_LEAGUE),
+            &acquisition_plan::pricing::ShopArgs {
+                size: p.size.unwrap_or(acquisition_plan::shop::DEFAULT_PAGE_SIZE),
+                template: p.template.as_deref(),
+                now: acquisition_store::now(),
+            },
+        );
+        match (rendered, p.page) {
+            (Ok(rendered), Some(n)) => {
+                priced(acquisition_plan::pricing::shop_page(&rendered, n).cloned())
+            }
+            (rendered, _) => priced(rendered),
+        }
+    }
+
+    #[tool(
+        description = "The currency table this build ships (no store, no daemon, no network): every row — `tag`, the word a price cites; `emit`, the word the game writes in a note; `aliases`, legacy words that resolve to it; `display`; `retired` where the game no longer writes it; `evidence` — with the table's version and sources. `word` resolves one word instead, exact and case-sensitive: `{word, version, currency}`, or a refusal naming the word and the version. The document `acq reference currency --json` prints."
+    )]
+    fn reference_currency(&self, Parameters(p): Parameters<Args<ReferenceCurrencyParams>>) -> Told {
+        let p = match p.read() {
+            Ok(p) => p,
+            Err(refusal) => return Ok(refusal),
+        };
+        priced(acquisition_plan::pricing::currency_document(
+            p.word.as_deref(),
+        ))
+    }
+
+    #[tool(
+        description = "Set one target's price by hand: one row on an item, tab, substash or character, which what it covers inherits (a tab's items, a folder's tabs, a parent tab's substashes, a character's items) unless a row nearer the item says otherwise. Intent only: it sends nothing and changes nothing in game. Stricter than `acq price set`: a target that already has a row of its own is replaced only when `if_revision` names that row's revision, and without it the write is refused naming the current revision — read the target with price_show first; with no row, omit `if_revision` to create one. Returns the receipt: `target`, `written` (the row now, with its revision), `prior` (the row replaced, or null) — the undo is price_set with the prior's value and `if_revision` the written revision — and `in_facts`, false for a target the facts do not hold (not fetched yet, or a typo: the row stands). The document `acq price set --json` prints."
+    )]
+    fn price_set(&self, Parameters(p): Parameters<Args<PriceSetParams>>) -> Told {
+        let p = match p.read() {
+            Ok(p) => p,
+            Err(refusal) => return Ok(refusal),
+        };
+        let (store, mut intent) = match open_search(p.account.as_deref(), "account") {
+            Ok(opened) => opened,
+            Err(refusal) => return Ok(refusal),
+        };
+        priced(acquisition_plan::pricing::set(
+            &store,
+            &mut intent,
+            &p.target,
+            &p.r#type,
+            p.amount.as_deref(),
+            p.currency.as_deref(),
+            acquisition_plan::pricing::Expect::or(
+                p.if_revision,
+                acquisition_plan::pricing::Expect::Create,
+            ),
+            &Provenance::via(WRITTEN_VIA),
+        ))
+    }
+
+    #[tool(
+        description = "Remove one target's own price row; what it covered falls back to the next row up, or to the game's price. Intent only: it sends nothing. Stricter than `acq price clear`: `if_revision` must name the revision of the row it removes, and without it the clear is refused naming the current revision (or saying the target has no row of its own) — read the target with price_show first. Returns the receipt: `target`, `written` null, `prior` (the row removed); price_set with the prior's value puts it back. The document `acq price clear --json` prints."
+    )]
+    fn price_clear(&self, Parameters(p): Parameters<Args<PriceClearParams>>) -> Told {
+        let p = match p.read() {
+            Ok(p) => p,
+            Err(refusal) => return Ok(refusal),
+        };
+        let (_, mut intent) = match open_search(p.account.as_deref(), "account") {
+            Ok(opened) => opened,
+            Err(refusal) => return Ok(refusal),
+        };
+        priced(acquisition_plan::pricing::clear(
+            &mut intent,
+            &p.target,
+            acquisition_plan::pricing::Expect::or(
+                p.if_revision,
+                acquisition_plan::pricing::Expect::Create,
+            ),
+            &Provenance::via(WRITTEN_VIA),
+        ))
+    }
+
     // ---- daemon jobs ----
 
     #[tool(
@@ -1142,9 +1503,15 @@ impl ServerHandler for AcqMcp {
              [\"fields\"], for what a query may ask: describe whole is over 100 KB. A \
              trade site search — its URL, id or query JSON — is the query \
              {{\"trade\": …}}, translated to the text a person would type. No \
-             tool says what an item is worth: a price is the owner's own listing. The \
-             store tools (search, show, accounts, tabs, characters, \
-             store_status, item_events) read the shared SQLite \
+             tool says what an item is worth: a price is the owner's own listing. \
+             Pricing: price_status counts a league's listing state, price_list names \
+             the priced items and price_show is one target, each with its price by hand \
+             and in game; price_set and price_clear write one hand row (intent only, \
+             sending nothing), and over a row the target already has they name the \
+             revision they replace; shop_render renders the forum pages for a person \
+             to paste, posting nothing; reference_currency is the currency table a \
+             price cites. The store tools (search, show, accounts, tabs, characters, \
+             store_status, item_events) and the pricing tools read the shared SQLite \
              store directly — no daemon, no network. \
              The refresh slice: sync_policy / \
              set_sync_policy declare intent (local, sends nothing; replacing a policy \
