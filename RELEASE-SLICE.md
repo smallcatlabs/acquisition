@@ -344,6 +344,37 @@ heredoc), sent again as a draft; the harness saved call 1's output
 "Left out"; all eight tasks finished, every price it set cleared and
 read back (calls 35 to 39, 53, 55).
 
+#### The fix round's triage, for the owner
+
+The four reports' faults, consolidated: what every run met, what each
+is, and the fate proposed. "Now" is a commit in the fix round, each
+held by a test named for the fault; "kept" is a ruling's consequence
+made visible in words; "park" waits for the first users with its
+trigger. Rulings first: items 3, 8 and 12 touch rulings.
+
+| # | Fault | Runs | Proposed |
+| --- | --- | --- | --- |
+| 1 | the shop render whole is 5 MB on the MCP and 7.5 MB as `--json`, 3.5 MB as `--expand`: `left_out` lists every item nothing applies to (20,749); `page` drops the omissions and freshness; no counts-only form | all four, worst in three | now: the items left off for a reason (the game lists it, skipped by hand, blocked) are listed, the items nothing applies to are counted, with the list behind a request; one rule, the same document on both surfaces |
+| 2 | `price list` has no limit and no count form (49 to 67 KB cut by the door); `price show` on a tab carries every item (22 to 174 KB) | mcp-opus, mcp-sonnet, cli-sonnet | now: `--limit` and `limit` on list with the total; `price show` of a container: park, trigger the read economy's count (two runs read a tab's show whole without complaint of its cost) |
+| 3 | a revision conflict, a cleared row and a missing target refuse without a `kind` and with the current revision in prose; the words are the store's (`annotation …/buyout`, "annotation no longer exists") | all four | now: `kind: "conflict"` with `revision` as a field on both surfaces (C11's taxonomy, the owner's: the brief's amended line left the conflict's kind to the seat's evidence, which is four runs parsing prose); the refusal in the verb's words — the target has a price at revision N, or was cleared and a new price names no revision — under C116's rule that user text carries no internal name |
+| 4 | the job tools' no-daemon refusals are JSON-RPC errors, not the `isError` results the instructions promise, and say what is wrong, not what to do; in real mode the text names `acq profile` where the README says `acq auth check` | mcp-opus, mcp-sonnet | now: a structured refusal, `kind: "no_daemon"`, naming the README's line; the door's knob-naming text stays the door's world |
+| 5 | the server's instructions open with "begin with search with no arguments", refused on any store with PoE2 characters | mcp-opus | now: the instruction names the realm where the store holds several |
+| 6 | the CLI's undo lines: printed without `--account` so refused once a second account is known; a first write prints no undo though the help promises one; a clear's undo names no revision | cli-opus, cli-sonnet | now: the undo carries the account the command ran with and a first write's undo is the clear with its revision; the clear's undo is a create by the store's rule (a tombstone takes no revision) and the line says so |
+| 7 | a cleared row takes a revision, said nowhere | mcp-opus, mcp-sonnet, cli-sonnet | now: one sentence in `price set`'s and `price clear`'s help and the tools' text |
+| 8 | a job verb with no login starts a daemon, leaves it running thirty minutes under the door (a minute shipped) and says "not logged in" alone | cli-opus, cli-sonnet | the owner's: C3's lazy spawn is the ruling; proposed kept, the refusal saying a daemon started and when it exits; the alternative, spawning only when a login would be restored into it, is a park with the trigger "a user reports the surprise" |
+| 9 | the README's recipe says "while none is running" and never says how to stop one, nor that stopping it logs you out without a keyring; `daemon stop` sits under "debugging" | cli-opus, cli-sonnet, mcp-sonnet | now: the README |
+| 10 | the README names eleven tools and "four more" and points at a reference the archive lacks; the host configuration shows no `env`; nothing says what a person does with the shop page or that a note in a private tab is no price; `SHA256SUMS` named with no step; the logs' and the store's paths unnamed; pointers to files the archive does not carry | all four | now: the README, within budget — the dev-only knob rows leave (the docs check's knob scan exempts test-only knobs), the tool list is the 25 names by family, the pointers say "in the repository" |
+| 11 | `auth --no-browser --json` prints two JSON documents | cli-opus | kept: the URL line must print before the login completes; said in the help |
+| 12 | a 404 on a stash id is handed on raw, no pointer to `acq stashes` | cli-opus | park: a GGG error's words are the daemon's by invariant 2 (headers are truth); trigger a user's report |
+| 13 | job verbs print raw JSON for a person; `version`'s text line hides the provider; `price list`'s columns have no headers; `item_events` oldest first; `characters` has two item counts unexplained; `store_status` says "leagues: 0, never fetched" beside eight named | one run each | job verbs: kept (C53); the rest now, one commit each, words and order |
+| 14 | the MCP's ages are epoch seconds only; no tool lists refused bodies; the refusals name CLI flags in an MCP session | the MCP runs | park, each with the trigger of a user's report; the flags are the brief's rule (the CLI's words) and every run recovered through the offers |
+| 15 | `price_status` reports `agree: 0` beside 489 game-priced items | mcp-sonnet | no fault: the data, every hand-priced item with a game price disagreeing (checked on a scratch copy) |
+
+The README's lines the runs never needed (the platform notes, the
+knobs, the policy cycle, the gaps) are a reader's cost, not a fault:
+the notes serve the readers who are not these four runs, the knobs'
+dev-only rows leave under item 10.
+
 The fix round after the four runs: faults of the shapes in the
 records' findings tables fixed, one commit per fault held by a test
 in `seat_faults.rs` or its surface's file; anything new a park with
