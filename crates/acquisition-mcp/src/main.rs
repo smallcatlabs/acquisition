@@ -81,7 +81,9 @@
 //! document, `{"error": …}` in the CLI's words (C11). Pricing reads
 //! intent and facts through the store: no daemon, no network (C64). The
 //! account is selected as the search's tools select it, with their three
-//! refusals; arguments a tool does not take are refused as theirs are.
+//! refusals; arguments a tool does not take are refused as theirs are. A
+//! tool opens what the CLI's verb opens: `price_clear` the intent file
+//! alone (`open_account_intent`), the rest the facts beside it.
 //!
 //! One rule is this adapter's and stricter than the CLI's: a write that
 //! names no revision is a create (C52; `pricing::Expect::Create`), so a
@@ -248,12 +250,31 @@ fn refused(e: impl Into<SearchError>) -> CallToolResult {
 }
 
 /// The selected account's facts and its intent file, as `acq search`
-/// opens them: the search reads both and writes neither. `named` is the
-/// argument that selects an account, for the refusal that needs one.
+/// opens them: the search reads both and writes neither. Built on
+/// [`open_account_intent`], whose refusals it shares; a facts file that
+/// will not open is refused as `store`. `named` is the argument that
+/// selects an account, for the refusal that needs one.
 fn open_search(
     account: Option<&str>,
     named: &str,
 ) -> std::result::Result<(Store, Annotations), CallToolResult> {
+    let (dir, entry, intent) = open_account_intent(account, named)?;
+    let store = Store::open(&account_path(&dir, &entry.username)).map_err(|e| {
+        CallToolResult::structured_error(json!({ "error": format!("{e:#}"), "kind": "store" }))
+    })?;
+    Ok((store, intent))
+}
+
+/// The selected account's intent file alone, for a verb that reads and
+/// writes nothing else — the MCP opens for a verb what the CLI opens for
+/// it, so a facts file the CLI's verb never opens cannot refuse the
+/// tool's. A failure is a refusal document: no account's store
+/// (`no_accounts`), an account not known or not named (`account_unknown`,
+/// `account_needed`, the known names as readings), or the file (`store`).
+fn open_account_intent(
+    account: Option<&str>,
+    named: &str,
+) -> std::result::Result<(PathBuf, AccountEntry, Annotations), CallToolResult> {
     let known = || {
         Index::load(&store_dir(provider()))
             .map(|index| {
@@ -265,10 +286,7 @@ fn open_search(
             })
             .unwrap_or_default()
     };
-    let opened = open_intent(account).and_then(|(dir, entry, intent)| {
-        Ok((Store::open(&account_path(&dir, &entry.username))?, intent))
-    });
-    opened.map_err(|e| {
+    open_intent(account).map_err(|e| {
         if e.downcast_ref::<NoAccounts>().is_some() {
             return CallToolResult::structured_error(
                 json!({ "error": format!("{e:#}"), "kind": "no_accounts" }),
@@ -1309,7 +1327,7 @@ impl AcqMcp {
             Ok(p) => p,
             Err(refusal) => return Ok(refusal),
         };
-        let (_, mut intent) = match open_search(p.account.as_deref(), "account") {
+        let (_, _, mut intent) = match open_account_intent(p.account.as_deref(), "account") {
             Ok(opened) => opened,
             Err(refusal) => return Ok(refusal),
         };

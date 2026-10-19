@@ -520,3 +520,54 @@ fn a_blind_replace_and_a_blind_clear_are_refused_naming_the_current_revision() {
     assert_eq!(receipt["prior"]["revision"], json!(1), "{receipt}");
     assert!(no_daemon_appeared(base));
 }
+
+/// C46 — the MCP opens for a verb what the CLI opens for it: a clear
+/// reads and writes intent alone, so a facts database the CLI's clear
+/// never opens cannot refuse the tool's. With the facts removed after
+/// seeding, a revisioned clear lands on both surfaces alike and leaves no
+/// facts file behind; with a file in their place that is no database, it
+/// lands alike again and the file is left as it was.
+#[test]
+fn a_clear_lands_alike_on_both_surfaces_without_the_facts() {
+    let (by_mcp, by_acq) = (scratch("clear-mcp"), scratch("clear-cli"));
+    seed(&by_mcp.0);
+    seed(&by_acq.0);
+    let facts = |base: &Path| account_path(&base.join("store").join("mock"), USER);
+    let remove = |base: &Path| {
+        let path = facts(base);
+        for suffix in ["", "-wal", "-shm"] {
+            let mut p = path.clone().into_os_string();
+            p.push(suffix);
+            let _ = std::fs::remove_file(PathBuf::from(p));
+        }
+        path
+    };
+    let mut mcp = Mcp::start(&by_mcp.0, &[]);
+    let clear = |mcp: &mut Mcp, target: &str| {
+        let (tool_ok, by_tool) = tool(
+            mcp,
+            "price_clear",
+            json!({ "target": target, "if_revision": 1 }),
+        );
+        let (cli_ok, by_cli) = cli(&by_acq.0, &["price", "clear", target, "--if-revision", "1"]);
+        assert!(tool_ok && cli_ok, "{by_tool}\n{by_cli}");
+        assert_eq!(steady(by_tool, WRITE), steady(by_cli, WRITE));
+    };
+
+    let (gone_mcp, gone_acq) = (remove(&by_mcp.0), remove(&by_acq.0));
+    clear(&mut mcp, "item/i-plain");
+    assert!(
+        !gone_mcp.exists() && !gone_acq.exists(),
+        "a clear made a facts file"
+    );
+
+    for base in [&by_mcp.0, &by_acq.0] {
+        std::fs::write(facts(base), "not a database").unwrap();
+    }
+    clear(&mut mcp, "tab/pc/f1");
+    assert_eq!(
+        std::fs::read_to_string(facts(&by_mcp.0)).unwrap(),
+        "not a database"
+    );
+    assert!(no_daemon_appeared(&by_mcp.0));
+}
