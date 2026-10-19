@@ -312,6 +312,7 @@ are the runner's.
 | Run | Model | Session | Calls | Cut | Turns | Cost | Read by the orchestrator |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | cli-opus | `claude-opus-5-5` | 4592effd-56eb | 107 | 2 (`shop render --expand` 3.5 MB, `--json` 7.4 MB) | 76 + 3 | $3.55 | 22 calls: the seven leading faults hold as stated; the recipe ran as the README prints it (call 24, the new daemon at 3600 s in call 25) and the README's gap is "stop the running one first" (call 22 logged the runner out) |
+| mcp-opus | `claude-opus-5-5` | 11891c2e-7e05 | 51 | 2 (`price_list` 67 KB, `shop_render` 5.1 MB) | 66 + 3 | $3.46 | 9 calls: the leading faults hold as stated — the render whole at 5,057,320 bytes (call 32); a write to an id the facts do not hold landing with `in_facts` false (call 47, the ruling's behaviour, as the whole-CLI seat recorded it); the job tools' refusals as JSON-RPC errors (calls 40 to 42), the one naming `ACQ_NO_SPAWN` being the door's world speaking, since the door sets it, so the fix round reads the real-mode text; the instructions' first step refused on this two-realm store (call 5, `realm_needed`) |
 
 cli-opus: one door command denied by the rails (a `report` heredoc),
 sent again as a draft; the harness saved call 41's output to a file
@@ -320,6 +321,15 @@ the daemon left stopped. Its debrief retracts the cause it gave for
 the 7.4 MB shop JSON (inferred from the size, the head alone read),
 "every time" on the undo fault (more than one account known), and
 three inferences of its own.
+
+mcp-opus: two door commands denied by the rails — a one-line date
+script outside the door, and a `call` heredoc, sent again as a draft;
+the harness saved call 1's output (`open`, 42 KB) to a file of its
+own, which the runner read, named in its "Left out" as the one file
+outside the two; all eight tasks finished, every price it wrote
+removed again (call 51 against call 19). Its debrief marks its T2
+dates as hand arithmetic, its left-out counts as resting on the cut
+part of call 32, and two remarks on the CLI as untested.
 
 The fix round after the four runs: faults of the shapes in the
 records' findings tables fixed, one commit per fault held by a test
