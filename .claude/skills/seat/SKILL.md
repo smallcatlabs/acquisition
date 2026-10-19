@@ -81,7 +81,10 @@ skill (P6).
    trade seat's eight runs proposed and two more answered unasked, and
    "which claims in your report rest on your own knowledge of the game
    rather than on the tool?", which both Opus runs of the re-sit
-   proposed and answered unasked (`audits/trade-2026-10/re-sit/`).
+   proposed and answered unasked (`audits/trade-2026-10/re-sit/`), and
+   "did you change the store in any way you did not undo?", which both
+   reruns of the release seat proposed and answered unasked
+   (`audits/release-2026-10/seat/`).
 
 ## After the run
 
