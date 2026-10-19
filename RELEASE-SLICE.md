@@ -48,6 +48,7 @@ the options were put with a recommendation and answered 2026-10-18.
 | 0 the record, the ruling | this file's first commit | the record opened, the README ruling, the crate index and the charter moved |
 | 1 pricing on the MCP | `db30d28a`, `40002b72` | the pricing verbs moved from the CLI binary into `acquisition_plan::pricing`, the CLI calling them; the seven tools as adapters, each the CLI's `--json` document; `tests/pricing_tools.rs`; the park deleted |
 | 2 the policies | the commit that adds the two files | `SECURITY.md` and `CONTRIBUTING.md`, V7's positions and no others, in the owner's voice; read by the owner before the commit |
+| 3 the README | `7490c275`, `9105ee3d` | six verbs' help say what the whole-CLI seat had to find (`CLI-REFERENCE.md` regenerated); the README whole in the ruling's order, 14243 bytes: install by archive name, log in, the agent's host configuration and daemon, the tour, before the first command, knobs, gaps, what it does not do, reporting, licence. The seat's twenty facts: six to help, five to the README, nine nowhere because the build says them. `readme_tour.rs` reads every ```sh block and pins the archive names to `release.yml`'s matrix; `no_ids.rs` sweeps the README |
 
 ## Findings
 
@@ -267,6 +268,26 @@ what you find is a park in your report.
   puts it back, which is right (a create over the tombstone) but names
   no `if_revision` where `price_set`'s undo clause now does in both
   cases. Trigger: the release seat stumbles on undoing a clear.
-- The whole-CLI seat's first fact (`audits/rehome-2026-10/seat/REPORT.md`,
-  section 4, item 1) still stands in the tour's closing paragraph: the
-  account rule is stated for job verbs only. Step 3 fixes it.
+- Step 3's README states guidance no run record holds: a browser
+  download on macOS is quarantined and the un-notarized binary refused
+  until `xattr -dr com.apple.quarantine` clears it; Windows wants the
+  directory on `PATH` and no symlink of `acq`; Linux needs glibc 2.35
+  (the Ubuntu 22.04 runner); the data path per platform as the
+  `directories` identity derives it. The release seat (step 4)
+  confirms each on the real archives; the macOS line the owner can
+  confirm at the tag.
+- No verb names the leagues a store holds: `search --count league`
+  does, and `price status` counts rows "for other leagues" without
+  naming them. Trigger: the release seat stumbles on a league it did
+  not name.
+- `cancel` and `set-priority`'s refusal with no daemon says it spawns
+  on demand for job commands, which reads as if they would start one.
+  Trigger: the seat retries a cancel expecting a spawn.
+- The README is at 95% of its budget, three of its knob rows
+  development-only (`ACQ_KEYRING_ROUNDTRIP`, `ACQ_CASES`,
+  `ACQ_CODESIGN_IDENTITY`), which the docs check's knob scan requires
+  rows for. Trigger: step 4's fix round needs README room; the scan
+  then exempts test-only knobs, or the rows route to their read-site
+  docs.
+- `AGENTS.md`, `CONTEXT.md`, `README.md` and `decisions/search.md`
+  are each past 90% of budget. Trigger: this slice's close.
