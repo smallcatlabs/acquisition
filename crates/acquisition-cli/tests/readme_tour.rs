@@ -314,6 +314,12 @@ fn the_agent_recipe_logs_in_again_after_the_daemon_stopped() {
         !check.status.success(),
         "auth check restored a login this world has no keyring for"
     );
+    // The check started a daemon of its own to answer; the recipe's
+    // knob is read by the daemon the login starts, so none may be up.
+    let stopped = sole_json(&acq(base, &["daemon", "stop", "--json"]));
+    assert_eq!(stopped["stopped"], serde_json::json!(true), "{stopped}");
+    let status = sole_json(&acq(base, &["daemon", "status", "--json"]));
+    assert_eq!(status["running"], serde_json::json!(false), "{status}");
     login_with(base, "Alice#1", &[("ACQ_IDLE_SHUTDOWN", "3600")]);
     let status = sole_json(&acq(base, &["daemon", "status", "--json"]));
     assert_eq!(
