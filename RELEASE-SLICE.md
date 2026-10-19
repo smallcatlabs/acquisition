@@ -230,6 +230,65 @@ install and MCP lines are pinned by a test or named as not runnable
 help changes with the reference, one for the README. Nothing beyond:
 what you find is a park in your report.
 
+### Step 4 — the release seat
+
+The step's text is `RELEASE-PLAN.md`, "Step 4"; the procedure is the
+seat skill (`.claude/skills/seat/SKILL.md`); the owner's shape of
+seat is the brief's quotation. The record directory is
+`audits/release-2026-10/seat/`: `BRIEF-cli.md`, `BRIEF-mcp.md`, the
+launch prompts `PROMPT-cli.md`, `PROMPT-mcp.md` and the debrief's
+`PROMPT-debrief.md`, committed before any run and reviewed from
+outside first; after each run its `calls-<run>.csv`,
+`REPORT-<run>.md` and `DEBRIEF-<run>.md`; at the close its README with
+the fate table, the briefs removed and cited at their commit.
+
+The worlds, under `~/seat-worlds/release-2026-10/`, short-pathed for
+the socket: `pristine/`, made 2026-10-19 by `setup --facts
+GERWARIC_7694.db` with no daemon running (the owner's files read once
+through sqlite's online backup, unchanged since 2026-10-15; the lock
+file's pid was dead); then one world per run, `setup --store
+pristine/store --archive <the macOS archive>`, the CLI's with
+`--daemon`. Each holds its brief as `BRIEF.md`, `README.md` as the
+release's commit carries it, its door, `bin/` unpacked from the
+archive as a person would unpack it (the door records the archive's
+sha256 and each binary's), and the store. The archive is
+`tools/release-package.sh` over `cargo build --release --target
+aarch64-apple-darwin` at the briefs' commit, with placeholder
+third-party notices (`cargo about` is not installed here; CI makes
+the real file); `tools/release-smoke.sh` passed on it.
+
+The door changes made for this seat, in the skill: `setup --archive`
+unpacks a release archive into the world's `bin/`; `run --env` and
+`login --env` pass the one knob a README line puts before a command,
+`ACQ_IDLE_SHUTDOWN`, and refuse any other; the MCP door's `open` and
+`call` take `--host-config NAME`, starting the server as a host would
+from `W/work/NAME` in the shape the README shows, refusing a command
+that is not the world's own `acq-mcp`. So the README's install, the
+agent's daemon recipe and the host configuration are each run by a
+runner as printed, through the door.
+
+The runs, serial, each launched by `launch.sh` after the previous
+debrief is in the record, never continued into another: `cli-opus`,
+`mcp-opus`, `cli-sonnet`, `mcp-sonnet` (Opus 5.5 then Sonnet 5.5, the
+owner's rounds). A runner reads its brief and the README and nothing
+else. What the record counts, per run: the re-reads the read economy
+park asks for (a second call for the same answer and a debrief's
+"read twice", counted apart, laid to a cause only where the runner
+gives one); the README's four lines of unrecorded guidance (above),
+which a run confirmed, contradicted or never reached; pricing end to
+end on each surface, the replace naming its revision, at what cost in
+calls; and a difference between the surfaces or the models on any
+task, a finding of its own kind. The orchestrator reads the calls
+before believing a fault and says how many it read.
+
+The fix round after the four runs: faults of the shapes in the
+records' findings tables fixed, one commit per fault held by a test
+in `seat_faults.rs` or its surface's file; anything new a park with
+its trigger; the division between what is built now and what waits
+for the first users brought to the owner before building (the triage
+of 2026-10-18). A rerun only where the round changed what an agent
+meets.
+
 ## Observations still open
 
 - Step 1's refusal words: the kind vocabulary is ruled (the brief's
@@ -291,5 +350,12 @@ what you find is a park in your report.
   rows for. Trigger: step 4's fix round needs README room; the scan
   then exempts test-only knobs, or the rows route to their read-site
   docs.
+- A `.tar.gz` made on macOS carries AppleDouble `._` entries beside
+  each file: `tar` merges them on macOS and never lists them, Python's
+  `tarfile` extracts them as files (found making the seat's world,
+  2026-10-19). The release's two macOS archives carry them; harmless
+  to a macOS user, untidy, and `COPYFILE_DISABLE=1` on the packager's
+  `tar` removes them. For the fix round, one commit; the smoke cannot
+  see them.
 - `AGENTS.md`, `CONTEXT.md`, `README.md` and `decisions/search.md`
   are each past 90% of budget. Trigger: this slice's close.

@@ -2,11 +2,14 @@
 """seat.py — a CLI seat's one door (the seat skill): one `acq` command, logged; and any seat's world.
 
 usage (WORLD is the world's root, BIN the directory holding the binaries it runs):
-  seat.py WORLD BIN setup [--facts FILE.db | --store DIR] [--daemon]
+  seat.py WORLD BIN setup [--facts FILE.db | --store DIR] [--daemon] [--archive FILE]
                                           make the world; --facts copies that file of the owner's store, --store an
-                                          earlier world's pristine store; --daemon lets this world's commands start one
-  seat.py WORLD BIN login <user>          a scripted mock login (the mock-session skill's recipe; a person uses a browser)
-  seat.py WORLD BIN run --t T3 [--note '...'] [--timeout S] [--stdin FILE|-] [--out NAME] -- <acq arguments>
+                                          earlier world's pristine store; --daemon lets this world's commands start one;
+                                          --archive unpacks a release archive's binaries into WORLD/bin (BIN is then
+                                          WORLD/bin), as a person installing from it would, and records its sha256
+  seat.py WORLD BIN login [--env ACQ_IDLE_SHUTDOWN=S] <user>
+                                          a scripted mock login (the mock-session skill's recipe; a person uses a browser)
+  seat.py WORLD BIN run --t T3 [--note '...'] [--timeout S] [--stdin FILE|-] [--out NAME] [--env ACQ_IDLE_SHUTDOWN=S] -- <acq arguments>
   seat.py WORLD BIN report [--new]        append stdin to WORLD/REPORT.md (--new starts it): a runner's harness may refuse it file tools
   seat.py WORLD BIN debrief [--new]       the same, to WORLD/DEBRIEF.md
   seat.py WORLD BIN teardown              stop the world's daemon, if it has one, and remove the world's store
@@ -17,7 +20,8 @@ GGG or write the owner's store: `setup --facts` reads the owner's files once, th
 and setup records the world in WORLD/world.json with the sha256 of every file in BIN. Every `run` is a row
 of WORLD/calls.csv and a file under WORLD/calls/. Output is printed whole up to SHOWN bytes; past that its
 head is printed and the row says `head`. `--out NAME` also writes stdout to WORLD/work/NAME, as a shell's
-`>` would: the one way a verb's output becomes a file another verb reads (`refresh --apply=FILE`).
+`>` would: the one way a verb's output becomes a file another verb reads (`refresh --apply=FILE`). `--env` sets
+the one knob a README line puts before a command, the daemon's idle time, on that command alone.
 The MCP door, seat-mcp.py, takes the same WORLD and BIN and runs in a world this script made.
 """
 import argparse, csv, datetime, hashlib, json, os, re, shutil, sqlite3, subprocess, sys, time, urllib.parse, urllib.request
@@ -27,9 +31,13 @@ OWNER = os.path.expanduser("~/Library/Application Support/com.smallcatlabs.acq/s
 WORLD = BIN = STORE = CSV = OUT = None
 
 
-def place(world, bin_):
+def place(world, bin_, making_bin=False):
     global WORLD, BIN, STORE, CSV, OUT
     WORLD, BIN = os.path.abspath(world), os.path.abspath(bin_)
+    if making_bin:
+        if BIN != os.path.join(WORLD, "bin"):
+            sys.exit(f"seat: setup --archive unpacks into {WORLD}/bin, so BIN is that directory")
+        os.makedirs(BIN, exist_ok=True)
     for d, what in ((WORLD, "the world's root"), (BIN, "the directory of the binaries")):
         if not os.path.isdir(d):
             sys.exit(f"seat: {d} is not a directory — it is {what}")
@@ -58,13 +66,42 @@ HEAD = 3_000
 DROPPED = ("ACQ_GGG", "ACQ_TRIPWIRE", "ACQ_MAX_SENDS", "ACQ_ACCOUNT", "ACQ_JOURNAL", "ACQ_NO_SPAWN")
 
 
-def env():
+ALLOWED_ENV = ("ACQ_IDLE_SHUTDOWN",)
+
+
+def env(extra=()):
     e = {k: v for k, v in os.environ.items() if k not in DROPPED}
     e.update(ACQ_PROVIDER="mock", ACQ_NO_KEYRING="1", ACQ_IDLE_SHUTDOWN="1800",
              ACQ_STORE_DIR=STORE, ACQ_LOG_DIR=os.path.join(WORLD, "logs"))
+    for item in extra:
+        name, _, value = item.partition("=")
+        if name not in ALLOWED_ENV or not value:
+            sys.exit(f"seat: --env takes {', '.join(f'{n}=value' for n in ALLOWED_ENV)} and nothing else")
+        e[name] = value
     if not daemon():
         e["ACQ_NO_SPAWN"] = "1"
     return e
+
+
+def unpack(archive):
+    """A release archive's one top-level directory, unpacked into BIN as a person would unpack it."""
+    import tarfile, tempfile, zipfile
+    with tempfile.TemporaryDirectory() as tmp:
+        if archive.endswith(".zip"):
+            with zipfile.ZipFile(archive) as z:
+                z.extractall(tmp)
+        else:
+            with tarfile.open(archive) as t:
+                t.extractall(tmp, filter="data")
+        # a tar made on macOS carries AppleDouble `._` entries beside each file, which tar itself
+        # merges on macOS and never lists; they are not the archive's contents
+        tops = [t for t in os.listdir(tmp) if not t.startswith("._")]
+        if len(tops) != 1 or not os.path.isdir(os.path.join(tmp, tops[0])):
+            sys.exit(f"seat: {archive} does not hold one top-level directory")
+        for f in sorted(os.listdir(os.path.join(tmp, tops[0]))):
+            if not f.startswith("._"):
+                shutil.copy2(os.path.join(tmp, tops[0], f), os.path.join(BIN, f))
+        return tops[0]
 
 
 def backup(src, dst):
@@ -95,6 +132,9 @@ def setup(a):
         sys.exit("seat: --facts or --store, not both")
     os.makedirs(STORE)
     placed = []
+    unpacked = None
+    if a.archive:
+        unpacked = unpack(os.path.abspath(a.archive))
     if a.facts:
         facts = os.path.join(WORLD, "copy.db")
         backup(os.path.join(OWNER, a.facts), facts)
@@ -118,6 +158,7 @@ def setup(a):
     record = {"made": datetime.datetime.now().astimezone().isoformat(timespec="seconds"),
               "from": f"owner's {a.facts}" if a.facts else a.store and os.path.abspath(a.store) or "empty",
               "daemon": a.daemon, "store": placed,
+              "archive": a.archive and {"path": os.path.abspath(a.archive), "sha256": sha256(os.path.abspath(a.archive)), "top": unpacked},
               "bin": {f: sha256(os.path.join(BIN, f)) for f in sorted(os.listdir(BIN)) if os.path.isfile(os.path.join(BIN, f))}}
     with open(os.path.join(WORLD, "world.json"), "w") as f:
         json.dump(record, f, indent=2)
@@ -126,10 +167,10 @@ def setup(a):
     print(json.dumps(record, indent=2))
 
 
-def login(user):
+def login(user, extra=()):
     if not daemon():
         sys.exit("seat: this world has no daemon (setup without --daemon), so it has no login")
-    p = subprocess.Popen([exe("acq"), "auth", "--no-browser", "--json"], env=env(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    p = subprocess.Popen([exe("acq"), "auth", "--no-browser", "--json"], env=env(extra), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     url = None
     for line in p.stdout:
         m = re.search(r'"authorize_url"\s*:\s*"([^"]+)"', line)
@@ -141,7 +182,7 @@ def login(user):
     urllib.request.urlopen(url.replace("/authorize?", "/approve?") + f"&user={user}").read()
     rest = p.stdout.read()
     code = p.wait(timeout=60)
-    print(f"seat: `acq auth --no-browser --json` for {user} exited {code}\n{rest.strip()}")
+    print(f"seat: `{' '.join(list(extra) + ['acq', 'auth', '--no-browser', '--json'])}` for {user} exited {code}\n{rest.strip()}")
 
 
 def log(row, text):
@@ -177,7 +218,7 @@ def run(a):
             inputs += f"--- {path}\n(unread: {e.strerror})\n"
     t0 = time.perf_counter()
     try:
-        p = subprocess.run([exe("acq")] + a.args, env=env(), input=stdin, capture_output=True, text=True, timeout=a.timeout,
+        p = subprocess.run([exe("acq")] + a.args, env=env(a.env), input=stdin, capture_output=True, text=True, timeout=a.timeout,
                            stdin=None if stdin is not None else subprocess.DEVNULL)
         code, out, err = p.returncode, p.stdout, p.stderr
     except subprocess.TimeoutExpired as e:
@@ -192,9 +233,10 @@ def run(a):
     wall = round((time.perf_counter() - t0) * 1000)
     ob, eb = len(out.encode()), len(err.encode())
     whole = ob + eb <= SHOWN
-    n = log([a.t, json.dumps(a.args), code, ob, eb, wall, "whole" if whole else "head", a.note or ""],
-            f"$ acq {' '.join(a.args)}\n{inputs}--- stdout\n{out}\n--- stderr\n{err}")
-    print(f"[call {n}] acq {' '.join(a.args)}\n[exit {code} · stdout {ob} bytes · stderr {eb} bytes · {wall} ms]")
+    said = " ".join(a.env + ["acq"] + a.args)
+    n = log([a.t, json.dumps(a.env + a.args), code, ob, eb, wall, "whole" if whole else "head", a.note or ""],
+            f"$ {said}\n{inputs}--- stdout\n{out}\n--- stderr\n{err}")
+    print(f"[call {n}] {said}\n[exit {code} · stdout {ob} bytes · stderr {eb} bytes · {wall} ms]")
     if whole:
         if out:
             print("--- stdout\n" + out.rstrip("\n"))
@@ -241,8 +283,11 @@ def main():
     s.add_argument("--facts", help="a facts file of the owner's store to copy, by name")
     s.add_argument("--store", help="an earlier world's store directory, never run in, to copy")
     s.add_argument("--daemon", action="store_true", help="let this world's commands start a mock daemon (a seat with a login)")
+    s.add_argument("--archive", help="a release archive (.tar.gz or .zip) whose binaries are unpacked into WORLD/bin")
     sub.add_parser("teardown")
-    sub.add_parser("login").add_argument("user")
+    l = sub.add_parser("login")
+    l.add_argument("user")
+    l.add_argument("--env", action="append", default=[], help="as run's: the daemon this login starts reads ACQ_IDLE_SHUTDOWN")
     r = sub.add_parser("report")
     r.add_argument("--new", action="store_true")
     r.add_argument("--from", dest="draft", help="a file under WORLD/drafts/, by bare name, in place of stdin")
@@ -255,13 +300,14 @@ def main():
     r.add_argument("--timeout", type=float, default=300)
     r.add_argument("--stdin")
     r.add_argument("--out")
+    r.add_argument("--env", action="append", default=[], help="NAME=value for the one knob a README line sets, ACQ_IDLE_SHUTDOWN")
     r.add_argument("args", nargs=argparse.REMAINDER)
     a = ap.parse_args()
-    place(a.world, a.bin)
+    place(a.world, a.bin, making_bin=a.cmd == "setup" and bool(a.archive))
     if a.cmd == "setup":
         setup(a)
     elif a.cmd == "login":
-        login(a.user)
+        login(a.user, a.env)
     elif a.cmd in ("report", "debrief"):
         append(a.cmd.upper() + ".md", a.new, a.draft)
     elif a.cmd == "teardown":

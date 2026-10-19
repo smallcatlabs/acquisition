@@ -2,10 +2,12 @@
 """seat-mcp.py — an MCP seat's one door (the seat skill): one call to `acq-mcp` over stdio, logged.
 
 usage (WORLD and BIN as seat.py takes them; the world is made by `seat.py WORLD BIN setup`):
-  seat-mcp.py WORLD BIN open --t T0                         what a host shows before any call: the server's instructions and its tools
+  seat-mcp.py WORLD BIN open --t T0 [--host-config NAME]    what a host shows before any call: the server's instructions and its tools
   seat-mcp.py WORLD BIN call --t T1 <tool> '<json arguments>' [--note '...']
   seat-mcp.py WORLD BIN call --t T1 <tool> - [--note '...'] the arguments read from stdin
   seat-mcp.py WORLD BIN call --t T1 <tool> --from NAME      the arguments read from WORLD/drafts/NAME
+  --host-config NAME, on open or call: the door starts the server as a host would from WORLD/work/NAME, the
+                                                            configuration the README shows (its one server's command, args and env)
   seat-mcp.py WORLD BIN report [--new]                      append stdin to WORLD/REPORT.md (--new starts it)
   seat-mcp.py WORLD BIN debrief [--new]                     the same, to WORLD/DEBRIEF.md
 
@@ -39,11 +41,36 @@ def place(world, bin_):
     OUT = os.path.join(WORLD, "calls")
 
 
-def server():
+def host_config(name):
+    """The command line and environment a host would start the server with, from WORLD/work/NAME as the
+    README shows the configuration: one server under `mcpServers`, its `command` the acq-mcp in BIN."""
+    if not name:
+        return [EXE], {}
+    if "/" in name or name.startswith("."):
+        sys.exit("seat-mcp: --host-config takes a bare file name under WORLD/work/")
+    try:
+        doc = json.load(open(os.path.join(WORLD, "work", name)))
+        servers = doc["mcpServers"]
+        (label, spec), = servers.items()
+        command = spec["command"]
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        sys.exit(f"seat-mcp: {name} is not a host configuration with one server under mcpServers: {e}")
+    if os.path.realpath(command) != os.path.realpath(EXE):
+        sys.exit(f"seat-mcp: {name} starts {command}; the door runs only {EXE}")
+    args = spec.get("args") or []
+    env = spec.get("env") or {}
+    if not isinstance(args, list) or not isinstance(env, dict):
+        sys.exit(f"seat-mcp: {name}: args is a list and env an object")
+    return [EXE] + [str(x) for x in args], {str(k): str(v) for k, v in env.items()}
+
+
+def server(config=None):
+    argv, from_config = host_config(config)
     env = {k: v for k, v in os.environ.items() if k not in DROPPED}
+    env.update(from_config)
     env.update(ACQ_PROVIDER="mock", ACQ_NO_KEYRING="1", ACQ_NO_SPAWN="1",
                ACQ_STORE_DIR=os.path.join(WORLD, "store"), ACQ_LOG_DIR=os.path.join(WORLD, "logs"))
-    p = subprocess.Popen([EXE], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
+    p = subprocess.Popen(argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
 
     def rpc(o):
         p.stdin.write(json.dumps(o) + "\n")
@@ -97,14 +124,15 @@ def show(n, tool, is_error, text, result_bytes, wall, shown):
 
 
 def open_cmd(a):
-    p, rpc, first = server()
+    p, rpc, first = server(a.host_config)
     line, wall = rpc({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
     close(p)
     init = json.loads(first)["result"]
     tools = json.loads(line)["result"]["tools"]
     text = json.dumps({"instructions": init.get("instructions", ""), "tools": tools}, ensure_ascii=False, indent=1)
     size = len(first.encode()) + len(line.encode())
-    n = log(a.t, "initialize + tools/list", "", False, text, size, wall, "whole", a.note)
+    note = a.note if not a.host_config else f"--host-config {a.host_config}" + (f"; {a.note}" if a.note else "")
+    n = log(a.t, "initialize + tools/list", "", False, text, size, wall, "whole", note)
     show(n, "initialize + tools/list", False, text, size, wall, "whole")
 
 
@@ -123,7 +151,7 @@ def call_cmd(a):
     except ValueError as e:
         sys.exit(f"seat-mcp: the arguments are not JSON ({e}); nothing was sent and nothing logged")
     sent = json.dumps(args, separators=(",", ":"))
-    p, rpc, _ = server()
+    p, rpc, _ = server(a.host_config)
     line, wall = rpc({"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": a.tool, "arguments": args}})
     close(p)
     if not line:
@@ -137,7 +165,8 @@ def call_cmd(a):
             text = "".join(c.get("text", "") for c in r.get("content", []))
             is_error = bool(r.get("isError"))
     shown = "whole" if len(text.encode()) <= SHOWN else "head"
-    n = log(a.t, a.tool, sent, is_error, text, len((line or "").encode()), wall, shown, a.note)
+    note = a.note if not a.host_config else f"--host-config {a.host_config}" + (f"; {a.note}" if a.note else "")
+    n = log(a.t, a.tool, sent, is_error, text, len((line or "").encode()), wall, shown, note)
     show(n, a.tool, is_error, text, len((line or "").encode()), wall, shown)
 
 
@@ -166,9 +195,11 @@ def main():
     o = sub.add_parser("open")
     o.add_argument("--t", required=True)
     o.add_argument("--note", default="")
+    o.add_argument("--host-config", help="start the server from this host configuration under WORLD/work/")
     c = sub.add_parser("call")
     c.add_argument("--t", required=True)
     c.add_argument("--note", default="")
+    c.add_argument("--host-config", help="start the server from this host configuration under WORLD/work/")
     c.add_argument("tool")
     c.add_argument("args", nargs="?")
     c.add_argument("--from", dest="draft", help="the arguments from a file under WORLD/drafts/, by bare name")
