@@ -25,6 +25,9 @@
 
 use std::process::Command;
 
+mod harness;
+use harness::{acq, login, login_with, scratch, sole_json};
+
 fn help(path: &[&str]) -> Result<String, String> {
     let out = Command::new(env!("CARGO_BIN_EXE_acq"))
         .args(path)
@@ -285,4 +288,44 @@ fn the_grammar_reads_alternatives() {
         "acq auth check   # x"
     );
     assert_eq!(without_env("acq x=1"), "acq x=1");
+}
+
+/// The agent's daemon recipe runs as the README prints it, in the case
+/// this harness can stage: no keyring, so a stopped daemon took the
+/// login with it, and `auth check` would answer not_logged_in. The line
+/// the README gives for that case logs in again under the idle knob and
+/// leaves a daemon running; the keyring line is the same verb's `check`,
+/// which the harness cannot run. The knob's effect on the idle exit is
+/// the daemon's own test.
+#[test]
+fn the_agent_recipe_logs_in_again_after_the_daemon_stopped() {
+    let line = "ACQ_IDLE_SHUTDOWN=3600 acq auth   #";
+    assert!(
+        readme().lines().any(|l| l.starts_with(line)),
+        "the README's agent section has no line `{line}`"
+    );
+    let dir = scratch("recipe");
+    let base = &dir.0;
+    login(base, "Alice#1");
+    let stopped = sole_json(&acq(base, &["daemon", "stop", "--json"]));
+    assert_eq!(stopped["stopped"], serde_json::json!(true), "{stopped}");
+    let check = acq(base, &["auth", "check", "--json"]);
+    assert!(
+        !check.status.success(),
+        "auth check restored a login this world has no keyring for"
+    );
+    login_with(base, "Alice#1", &[("ACQ_IDLE_SHUTDOWN", "3600")]);
+    let status = sole_json(&acq(base, &["daemon", "status", "--json"]));
+    assert_eq!(
+        (&status["running"], &status["provider"]),
+        (&serde_json::json!(true), &serde_json::json!("mock")),
+        "{status}"
+    );
+    let auth = sole_json(&acq(base, &["auth", "status", "--json"]));
+    assert!(
+        auth["accounts"].as_array().is_some_and(|a| !a.is_empty()),
+        "{auth}"
+    );
+    let stopped = sole_json(&acq(base, &["daemon", "stop", "--json"]));
+    assert_eq!(stopped["stopped"], serde_json::json!(true), "{stopped}");
 }

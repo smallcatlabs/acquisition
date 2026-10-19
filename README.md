@@ -100,7 +100,8 @@ started, which exits after a minute with nothing to do. For a longer
 session, start it with a longer idle time while none is running:
 
 ```sh
-ACQ_IDLE_SHUTDOWN=3600 acq auth check   # restores your login in a daemon that idles out after an hour
+ACQ_IDLE_SHUTDOWN=3600 acq auth check   # a daemon that idles out after an hour, your login back from the keyring
+ACQ_IDLE_SHUTDOWN=3600 acq auth   # the same without a keyring, where the login went with the last daemon
 ```
 
 In PowerShell, set `$env:ACQ_IDLE_SHUTDOWN = 3600` first.

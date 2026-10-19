@@ -310,8 +310,15 @@ fn http_get(url: &str) -> (u16, std::collections::HashMap<String, String>, Strin
 /// `acq auth --no-browser --json`, the printed authorize URL approved at
 /// the mock, the 302 followed to the daemon's callback.
 pub fn login(base: &Path, user: &str) {
+    login_with(base, user, &[]);
+}
+
+/// [`login`] with `env` set on the `acq auth` that starts the daemon: a
+/// knob the daemon reads at its start (`ACQ_IDLE_SHUTDOWN`) goes here.
+pub fn login_with(base: &Path, user: &str, env: &[(&str, &str)]) {
     use std::io::BufRead as _;
     let mut child = command(base, &["auth", "--no-browser", "--json"])
+        .envs(env.iter().copied())
         .stdout(Stdio::piped())
         .spawn()
         .expect("spawning acq auth");
