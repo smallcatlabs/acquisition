@@ -173,11 +173,13 @@ them.
   GGG's limits, and on tabs the limit seen so far is thirty every five
   minutes, so a first sync of a few hundred tabs takes most of an hour.
   A hold can last five minutes; `acq jobs` shows each job's ETA.
-- **Jobs fetch; everything else is offline.** A job verb sends through
-  the daemon, prints GGG's JSON (progress on stderr) and writes what it
-  fetched to the store. The other verbs read the store without a
-  daemon and see only what was fetched; `price set`, `policy set` and
-  `store import` write your own intent beside it.
+- **What needs the daemon.** A job verb sends through it, prints
+  GGG's JSON (progress on stderr) and writes what it fetched to the
+  store; `auth`, `jobs`, `status`, `cancel` and `daemon` talk to it
+  too. The store, search, pricing and shop verbs read the store without
+  one and see only what was fetched. Your own writes are offline as
+  well: `price set` and `policy set` write intent beside the facts,
+  and `store import` replays a snapshot of facts.
 - **Standard unless you name a league.** `stashes`, `stash`,
   `refresh --plan`, `tabs`, `price status` and `shop render` read or
   fetch Standard without `--league` (a saved plan carries its own); `price show` reads the league the facts
