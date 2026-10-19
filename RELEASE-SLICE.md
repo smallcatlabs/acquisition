@@ -168,6 +168,65 @@ Not yours: the brief's acceptance line (amended by the orchestrator);
 a `kind` for a revision conflict (the seat's evidence); anything the
 fixes make you notice, which is a park in your report.
 
+### Step 3 — the user-facing README
+
+The step's text is `RELEASE-PLAN.md`, "Step 3"; the ruling and the
+README's shape are this file's "Before building", 1; the voice is the
+README's present opening, which the owner judged. The owner's words
+on this file, verbatim (2026-10-18): "It is the first things humans
+will read, and it will be used by agents as well. It will frame how
+this project is percieved by uses as well as future development
+sessions. Carefully consider what should be included, or referenced,
+or left out. Carefully think about how to write concisely and without
+mannered speach."
+
+Read first: `README.md` as it stands (keep its opening; rewrite the
+rest in that register), `tools/docs-check.sh` (the README form it
+holds: the tour one line per verb, every `ACQ_*` a crate reads in the
+knob table, the 15000-byte budget) and
+`crates/acquisition-cli/tests/readme_tour.rs` (every `acq …` line of
+the first ```sh block against clap's help, twenty lines at least),
+`crates/acquisition-cli/tests/no_ids.rs` (no decision id in the
+README); `.github/workflows/release.yml` and `tools/release-package.sh`
+(the archive names and contents, five targets, macOS signed and not
+notarized, Windows unsigned); `PLATFORMS-SLICE.md` (what Windows
+needs of a person: its findings and the Windows rows); the seat's
+twenty facts, `audits/rehome-2026-10/seat/REPORT.md` section 4;
+`CLI-REFERENCE.md` and `MCP-REFERENCE.md` for every verb and tool you
+name; `decisions/daemon.md` C3 and `decisions/frontends.md` C13 for
+what a person must do for an agent in real mode.
+
+Build: the README whole, in the ruling's order — what it is; install
+from the release's archives (`curl … | tar -x` on macOS and Linux,
+the archive by name for each target, the macOS note on a signed,
+un-notarized binary's first start; Windows as the platforms slice
+found it); log in (`acq auth`, at a terminal, the real provider the
+default); your agent (one MCP host's configuration for `acq-mcp` over
+stdio, with the tool families, pricing among them, and that in real
+mode the agent uses a daemon the person started, which exits after a
+minute idle unless the knob says otherwise); the tour; before the first
+command; knobs; known gaps; what it does not do; reporting and
+contributing (`SECURITY.md`, `CONTRIBUTING.md`); licence. "Development
+starts at `AGENTS.md`." stays, one line. The tour's closing paragraph
+states the account rule for every verb, not job verbs alone (the open
+observation below).
+
+The seat's twenty facts: check each on the current build first (a
+mock world: `ACQ_PROVIDER=mock`, `ACQ_STORE_DIR` in scratch — the
+mock-session skill), and place each where it belongs: in the clap help
+of the verb it is about when it is a verb's fact (regenerate
+`CLI-REFERENCE.md` with `ACQ_UPDATE_FIXTURES=1`), in the README only
+where a person needs it before the first command, nowhere when the
+build already says it. Report the twenty as a table: fact, where it
+went, or why nowhere.
+
+Acceptance: every command the README prints runs as printed in a
+mock world — `readme_tour.rs` or its successor pins the tour, and the
+install and MCP lines are pinned by a test or named as not runnable
+(a download); the gate green; the budget kept. One commit for the
+help changes with the reference, one for the README. Nothing beyond:
+what you find is a park in your report.
+
 ## Observations still open
 
 - Step 1's refusal words: the kind vocabulary is ruled (the brief's
