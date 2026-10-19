@@ -94,7 +94,9 @@ fetch the store holds.
    debrief 2 (call 26); cli-sonnet fault 5 and debrief 2 (calls 14–15);
    mcp-sonnet debrief 2 (call 14). The trade seat counted three
    re-reads; step 1's demotion removed the cost in calls, not the
-   re-read. Left to the owner as a ruling, after the alpha.
+   re-read. Ruled at the trade import's close (owner, 2026-10-18:
+   "Measured; park (Recommended)"): C115 records the measurement, and
+   the terms block's park in `decisions/frontends.md` keeps the question.
 2. **Four lines left as built.** The CLI total's caveat ("nothing here
    says what they hold"): served — both CLI runs list it among the
    tool's right words (cli-opus "The tool's own words"; cli-sonnet
@@ -163,7 +165,7 @@ never-fetched tabs list, since that helps with refreshes").
 | One explain table over every term on a zero | mcp-opus 11, mcp-sonnet 4 | after the alpha: a park on the zero's offers (`decisions/search.md`) |
 | A plan says nothing of the tabs the policy leaves unnamed | mcp-opus 5, debrief 4 | after the alpha: a park (`decisions/plans.md`) |
 | The page's empty default stat group writes no clause | cli-opus 5, debrief 2 | by design (`translate.rs`); a park with its trigger (`decisions/trade.md`) |
-| The terms block's numbers beside the total | every run's debrief 2 | the owner's ruling (C115's measurement, above) |
+| The terms block's numbers beside the total | every run's debrief 2 | measured, parked: C115 and the terms block's park (`decisions/frontends.md`) |
 | The door's `report` says only a size | cli-sonnet 6 | `15546d0b`: the door says what it did |
 | Review 2: a parenthesized refinement lost its league's list age (`fixed_league` read one level); a `leagues` fetch of none said `never fetched` (a row count, not a fetch) | the outside review of the round | `e9f5330b` |
 | A describe with one unknown name refuses whole | cli-opus 3 | no fault: the refusal lists every name, "enough to go on" |

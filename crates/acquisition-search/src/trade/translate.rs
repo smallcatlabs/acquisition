@@ -161,7 +161,7 @@
 //!   inside `sum( … )`, which take no path. A query
 //!   that is one clause owns the root, written `""`.
 //! - **An ambiguous clause's other reading** (C119, `TRADE-SLICE.md` row
-//!   8b): its row's `other`, filled as `lands` is, `{term}` the text of
+//!   8c): its row's `other`, filled as `lands` is, `{term}` the text of
 //!   the node it stands in for, once the clause stands in the query
 //!   (`readings`). It applies where the clause has every property of the
 //!   shape it was asked for, the review checklist's rule: that node a

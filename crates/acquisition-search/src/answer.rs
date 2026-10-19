@@ -165,7 +165,7 @@
 //!   runner's harness cut (the trade seat), and the terminal already
 //!   printed these alone.
 //! - **What is at stake in an ambiguous clause** (C119, `TRADE-SLICE.md`
-//!   row 8b): where the clause carries its other reading (`translate.rs`,
+//!   row 8c): where the clause carries its other reading (`translate.rs`,
 //!   which says where one applies), the query with the conjunct the
 //!   reading stands in for replaced by it is asked of every item by the
 //!   one evaluator, and the clause's `other` counts the items it matches

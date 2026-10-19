@@ -157,8 +157,8 @@ A number here was measured, never recalled; each is its source's.
 | Observation | Went to |
 | --- | --- |
 | A bound on a stat with an opposite-sign or numberless form | the named stat value park, fired and queued (`decisions/trade.md`) |
-| A scourge stat in a weighted sum (e043) | the oracle's label `stat.scourge.summed`; C119's other reading (T5 adds 0, drops 0); the user-authored weighted sums park |
-| `blighted-base`: the site's Base reads `Blighted Map (Tier 13)` as `Map (Tier 13)` | dropped: the oracle's label `query.type.map` holds it, and the site's form offers no tiered map Base, so no person or seat can make the search |
+| Whether a weighted group counts a scourge line (e043) | the sitting park, its remainder (`decisions/search.md`), with the oracle's experiment (`scourge-in-sum`); the store's "adds 0, drops 0" (T5) settles the seat's answer, not the site's |
+| `blighted-base`: the site's Base reads `Blighted Map (Tier 13)` as `Map (Tier 13)` | the sitting park, its remainder (`decisions/search.md`), with the oracle's experiment; no seat reaches it (the site's form offers no tiered map Base), a composed search does, as t55 did |
 | A Blight-ravaged map under `map_blighted` | ruled at round x (x01–x03): the site counts none, `map_blighted` exact |
 | A `Level` requirement a socketed gem sets | the gem-set level park (`decisions/trade.md`), `reqlevel` exact as displayed |
 | Which number a text of two numbers compares | ruled at round x (x14, x15): by their mean |
