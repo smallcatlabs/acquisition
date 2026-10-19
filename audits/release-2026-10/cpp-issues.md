@@ -1,6 +1,6 @@
 # The C++ issues the Rust release answers
 
-A draft for release step 5 (`RELEASE-PLAN.md`): the eight open issues of `smallcatlabs/acquisition-qt` on 2026-10-19, each beside what in the Rust release `v1.0.0-beta.1` answers it, the test or ruling that holds it, and a closing note in the owner's voice to post or edit. Read on the tree at `081cf561`; every behaviour named was run on that build in a mock world over a scratch copy of the release seat's pristine store (`ACQ_PROVIDER=mock`, no daemon, nothing sent). The owner closes the issues; nothing here was posted, commented or labelled.
+A draft for release step 5 (the brief `RELEASE-PLAN.md` at `d0ab421e`): the eight open issues of `smallcatlabs/acquisition-qt` on 2026-10-19, each beside what in the Rust release `v1.0.0-beta.1` answers it, the test or ruling that holds it, and a closing note in the owner's voice to post or edit. Read on the tree at `081cf561`; every behaviour named was run on that build in a mock world over a scratch copy of the release seat's pristine store (`ACQ_PROVIDER=mock`, no daemon, nothing sent). The owner closes the issues; nothing here was posted, commented or labelled.
 
 | Issue | Asks | Rust behaviour | Test or ruling | Closing note |
 | --- | --- | --- | --- | --- |

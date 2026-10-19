@@ -1,4 +1,4 @@
-//! Pricing over MCP (`RELEASE-PLAN.md`, step 1): `price_status`,
+//! Pricing over MCP (the release brief, step 1, at `d0ab421e`): `price_status`,
 //! `price_list`, `price_show`, `shop_render`, `reference_currency`,
 //! `price_set` and `price_clear` are adapters of `acquisition-plan`'s
 //! pricing verbs, as `acq price`, `acq shop render` and `acq reference
