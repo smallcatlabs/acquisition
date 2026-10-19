@@ -41,7 +41,12 @@ skill (P6).
      tool's own words; what it would ask of the tool; left out;
    - an acceptance sentence, and a last message of at most 300 words.
 3. Commit the brief before the run.
-4. Build the release binaries and the store copier, then the world
+4. Run `python3 -I .claude/skills/seat/doors_test.py`: both doors
+   against a tool that stalls, answers half a line or not JSON, exits
+   or lingers, and a login that prints no URL — each must end within
+   its deadline, leave no process and leave a row (review 6 of the
+   release seat found a reader that could block past its deadline).
+5. Build the release binaries and the store copier, then the world
    (never while the gate runs, C84):
 
    ```sh
@@ -64,7 +69,7 @@ skill (P6).
    `login`); the MCP door is `seat-mcp.py` (`open`, `call`), one
    `acq-mcp` process per call over stdio, in a world `seat.py` made.
    Both write `report` and `debrief` to the world.
-5. Launch the runner with `launch.sh WORLD MODEL DOOR PROMPT-FILE`,
+6. Launch the runner with `launch.sh WORLD MODEL DOOR PROMPT-FILE`,
    in the background, never as a subagent: a subagent starts in the
    repository with its instructions, the memory index and the git log,
    and is not blind (the trade seat's probe, 2026-10-17). The script's
@@ -80,23 +85,23 @@ skill (P6).
 
 ## After the run
 
-6. Check the report against `calls.csv` and the outputs under the
+7. Check the report against `calls.csv` and the outputs under the
    world's `calls/` before believing a fault: reproduce it in a scratch
    mock world (the mock-session skill). Of the rerun's faults, one
    was false as stated and one was not shown by the calls it cited.
    Say in the record how many calls you read.
-7. The fix round. One commit per fault; each fix is held by a test in
+8. The fix round. One commit per fault; each fix is held by a test in
    `crates/acquisition-cli/tests/seat_faults.rs` named for the fault. A
    fault that is a ruling's consequence is kept and made visible, or
    the ruling is brought to the owner; one that waits is a park with
    its trigger marked fired. Regenerate the references after help
    changes (`ACQ_UPDATE_FIXTURES=1`).
-8. The rerun, when the round changed what an agent meets: rename the
+9. The rerun, when the round changed what an agent meets: rename the
    first run's files (`REPORT-1.md`, `calls-1.csv`), move its world
    aside, tell the brief not to open them, build the release again,
    set up a fresh world, and launch a fresh runner. Never continue
    the first: it has learned the tool.
-9. Close: write `<AT>/README.md` — the runs, their call counts and
+10. Close: write `<AT>/README.md` — the runs, their call counts and
    trees, and one row per fault with its fate (a commit, a park, or
    why it is no fault); `git rm <AT>/BRIEF.md`, citing its commit;
    `seat.py <WORLD> <BIN> teardown` (stops its daemon, removes its

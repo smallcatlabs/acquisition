@@ -14,15 +14,17 @@ usage (WORLD and BIN as seat.py takes them; the world is made by `seat.py WORLD 
 Every call is a row of WORLD/calls.csv and a file under WORLD/calls/. The world is set here and nowhere
 else: the mock provider, no keyring, no daemon (ACQ_NO_SPAWN=1: a tool that wants one says so), the store
 and log directory under WORLD. One server process per call; a request is whole, so nothing is held between.
-A server that does not answer within --timeout seconds (300) is killed and the call is logged as an error
-saying so; one that answers and does not exit when its stdin closes is killed after 30 s and the row's note
-says so. With --host-config the call's file holds the configuration as it was read.
+One deadline (--timeout, 300 s) covers a call whole; a server that does not answer within it, closes its
+stdout, answers something that is not JSON or loses its stdin is killed and the call is logged as an error
+saying which; one that answers and does not exit when its stdin closes is killed after 30 s and the row's
+note says so. With --host-config the configuration as the call read it is kept beside the call's file, as
+calls/NNN.host-config.json; the call's text and sizes are the server's alone.
 
 bytes: `text_bytes` is the result's text block; `result_bytes` is the whole JSON-RPC line, which carries
 the document a second time as structured content. A result is printed whole up to SHOWN bytes of text;
 past that its head is printed and the row says `head`. `open` is printed whole: it is what a host shows.
 """
-import argparse, csv, json, os, select, subprocess, sys, time
+import argparse, csv, json, os, queue, shutil, subprocess, sys, threading, time
 
 # Set by `place`, from the command line.
 WORLD = EXE = CSV = OUT = None
@@ -67,49 +69,83 @@ def host_config(name):
     return [EXE] + [str(x) for x in args], {str(k): str(v) for k, v in env.items()}
 
 
-class Unanswered(Exception):
-    pass
+class Transport(Exception):
+    """The server did not hold up its end: no answer within the deadline, its stdout closed, a line that is
+    not JSON, or its stdin gone. Carries the process and its stderr so the caller can end it and say why."""
+
+    def __init__(self, why, p, errs):
+        super().__init__(why)
+        self.p, self.errs = p, errs
+
+
+EXIT_GRACE = 30.0
 
 
 def server(config=None, timeout=300.0):
+    """Start the server as a host would and bring it to the initialized state. One deadline covers the whole
+    exchange, a reader thread feeds its lines, and every way it can fail is one `Transport`."""
     argv, from_config = host_config(config)
     env = {k: v for k, v in os.environ.items() if k not in DROPPED}
     env.update(from_config)
     env.update(ACQ_PROVIDER="mock", ACQ_NO_KEYRING="1", ACQ_NO_SPAWN="1",
                ACQ_STORE_DIR=os.path.join(WORLD, "store"), ACQ_LOG_DIR=os.path.join(WORLD, "logs"))
     p = subprocess.Popen(argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
+    lines, errs = queue.Queue(), []
+
+    def pump(stream, sink):
+        for line in stream:
+            sink(line)
+        sink(None)
+
+    threading.Thread(target=pump, args=(p.stdout, lines.put), daemon=True).start()
+    threading.Thread(target=pump, args=(p.stderr, lambda l: errs.append(l) if l is not None else None), daemon=True).start()
+    deadline = time.monotonic() + timeout
 
     def rpc(o):
-        p.stdin.write(json.dumps(o) + "\n")
-        p.stdin.flush()
+        try:
+            p.stdin.write(json.dumps(o) + "\n")
+            p.stdin.flush()
+        except (BrokenPipeError, OSError) as e:
+            raise Transport(f"the server's stdin is gone ({e})", p, errs)
         if "id" not in o:
             return None, 0.0
         t0 = time.perf_counter()
-        # a stalled server is a finding, never a hang: wait at most `timeout` for its line
-        ready, _, _ = select.select([p.stdout], [], [], timeout)
-        if not ready:
-            p.kill()
-            p.wait()
-            raise Unanswered(f"the server did not answer within {timeout:g} s; killed")
-        line = p.stdout.readline()
+        try:
+            line = lines.get(timeout=max(0.0, deadline - time.monotonic()))
+        except queue.Empty:
+            raise Transport(f"the server did not answer within {timeout:g} s", p, errs)
+        if line is None:
+            raise Transport("the server closed its stdout before answering", p, errs)
+        try:
+            json.loads(line)
+        except ValueError as e:
+            raise Transport(f"the server's answer is not JSON ({e}): {line[:300]!r}", p, errs)
         return line, (time.perf_counter() - t0) * 1000
 
     first, _ = rpc({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
         "protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "seat-mcp.py", "version": "0"}}})
     rpc({"jsonrpc": "2.0", "method": "notifications/initialized"})
-    return p, rpc, first
+    return p, rpc, first, errs
 
 
-def close(p):
-    """The server exits when its stdin closes; one that does not is killed, and the row says so."""
-    p.stdin.close()
+def finish(p):
+    """The server exits when its stdin closes; one that has not within EXIT_GRACE is killed, and the row says so."""
     try:
-        p.wait(timeout=30)
+        p.stdin.close()
+    except OSError:
+        pass
+    try:
+        p.wait(timeout=EXIT_GRACE)
         return ""
     except subprocess.TimeoutExpired:
         p.kill()
         p.wait()
-        return "the server did not exit within 30 s of its stdin closing; killed"
+        return f"the server did not exit within {EXIT_GRACE:g} s of its stdin closing; killed"
+
+
+def stderr_tail(errs):
+    text = "".join(errs)
+    return f"\n--- stderr\n{text[-2000:]}" if text.strip() else ""
 
 
 def log(task, tool, args, is_error, text, result_bytes, wall, shown, note):
@@ -144,34 +180,50 @@ def show(n, tool, is_error, text, result_bytes, wall, shown):
 
 
 def noted(a, *more):
-    parts = [f"--host-config {a.host_config}"] if a.host_config else []
+    parts = [f"--host-config {a.host_config}, kept beside this row"] if a.host_config else []
     parts += [m for m in more if m]
     if a.note:
         parts.append(a.note)
     return "; ".join(parts)
 
 
-def config_text(a):
-    """The host configuration as the call read it, for the call's file: a rewritten file is still on record."""
-    if not a.host_config:
-        return ""
-    return f"\n--- host configuration {a.host_config}\n" + open(os.path.join(WORLD, "work", a.host_config)).read()
+def keep_config(a, n):
+    """The host configuration as this call read it, beside the call's file: a rewritten file is still on
+    record, and the call's text and size are the server's alone."""
+    if a.host_config:
+        shutil.copyfile(os.path.join(WORLD, "work", a.host_config), os.path.join(OUT, f"{n:03d}.host-config.json"))
+
+
+def exchange(a, tool, sent, request):
+    """One server, one request, logged whatever happens. Returns (first, line, wall, left), or None after
+    logging a transport failure as an error row — the server killed, its stderr's tail in the text."""
+    t0 = time.perf_counter()
+    try:
+        p, rpc, first, errs = server(a.host_config, a.timeout)
+        line, wall = rpc(request)
+    except Transport as e:
+        e.p.kill()
+        e.p.wait()
+        text = f"{e}; killed" + stderr_tail(e.errs)
+        n = log(a.t, tool, sent, True, text, 0, (time.perf_counter() - t0) * 1000, "whole", noted(a))
+        keep_config(a, n)
+        show(n, tool, True, text, 0, (time.perf_counter() - t0) * 1000, "whole")
+        return None
+    left = finish(p)
+    return first, line, wall, left
 
 
 def open_cmd(a):
-    try:
-        p, rpc, first = server(a.host_config, a.timeout)
-        line, wall = rpc({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
-    except Unanswered as e:
-        n = log(a.t, "initialize + tools/list", "", True, str(e) + config_text(a), 0, a.timeout * 1000, "whole", noted(a))
-        show(n, "initialize + tools/list", True, str(e), 0, a.timeout * 1000, "whole")
+    done = exchange(a, "initialize + tools/list", "", {"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
+    if done is None:
         return
-    left = close(p)
+    first, line, wall, left = done
     init = json.loads(first)["result"]
     tools = json.loads(line)["result"]["tools"]
     text = json.dumps({"instructions": init.get("instructions", ""), "tools": tools}, ensure_ascii=False, indent=1)
     size = len(first.encode()) + len(line.encode())
-    n = log(a.t, "initialize + tools/list", "", False, text + config_text(a), size, wall, "whole", noted(a, left))
+    n = log(a.t, "initialize + tools/list", "", False, text, size, wall, "whole", noted(a, left))
+    keep_config(a, n)
     show(n, "initialize + tools/list", False, text, size, wall, "whole")
 
 
@@ -190,27 +242,21 @@ def call_cmd(a):
     except ValueError as e:
         sys.exit(f"seat-mcp: the arguments are not JSON ({e}); nothing was sent and nothing logged")
     sent = json.dumps(args, separators=(",", ":"))
-    try:
-        p, rpc, _ = server(a.host_config, a.timeout)
-        line, wall = rpc({"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": a.tool, "arguments": args}})
-    except Unanswered as e:
-        n = log(a.t, a.tool, sent, True, str(e) + config_text(a), 0, a.timeout * 1000, "whole", noted(a))
-        show(n, a.tool, True, str(e), 0, a.timeout * 1000, "whole")
+    done = exchange(a, a.tool, sent, {"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": a.tool, "arguments": args}})
+    if done is None:
         return
-    left = close(p)
-    if not line:
-        text, is_error = "the server answered nothing and exited: " + p.stderr.read()[-2000:], True
+    _, line, wall, left = done
+    resp = json.loads(line)
+    if "error" in resp:
+        text, is_error = json.dumps(resp["error"]), True
     else:
-        resp = json.loads(line)
-        if "error" in resp:
-            text, is_error = json.dumps(resp["error"]), True
-        else:
-            r = resp["result"]
-            text = "".join(c.get("text", "") for c in r.get("content", []))
-            is_error = bool(r.get("isError"))
+        r = resp["result"]
+        text = "".join(c.get("text", "") for c in r.get("content", []))
+        is_error = bool(r.get("isError"))
     shown = "whole" if len(text.encode()) <= SHOWN else "head"
-    n = log(a.t, a.tool, sent, is_error, text + config_text(a), len((line or "").encode()), wall, shown, noted(a, left))
-    show(n, a.tool, is_error, text, len((line or "").encode()), wall, shown)
+    n = log(a.t, a.tool, sent, is_error, text, len(line.encode()), wall, shown, noted(a, left))
+    keep_config(a, n)
+    show(n, a.tool, is_error, text, len(line.encode()), wall, shown)
 
 
 def append(name, new, draft):

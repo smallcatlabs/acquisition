@@ -168,24 +168,38 @@ def setup(a):
     print(json.dumps(record, indent=2))
 
 
+LOGIN_DEADLINE = 60.0
+
+
 def login(user, extra=(), task="login"):
     """The scripted login, logged as a call of its own: the command as a person would type it, the knob
-    it carried, its exit and output, so a report can cite it. A login that prints no authorize URL within
-    60 s, or does not finish within 60 s of the approval, is killed and logged as such."""
+    it carried, its exit and output, so a report can cite it. One deadline covers the wait for the
+    authorize URL and, after the approval, the login's finish; a reader thread feeds the lines, so half a
+    line or no line ends the same way — the login killed, and the row saying why."""
     if not daemon():
         sys.exit("seat: this world has no daemon (setup without --daemon), so it has no login")
-    import select
+    import queue, threading
     words = list(extra) + ["acq", "auth", "--no-browser", "--json"]
     t0 = time.perf_counter()
     p = subprocess.Popen([exe("acq"), "auth", "--no-browser", "--json"], env=env(extra), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    url, out, err, code = None, "", "", "timeout"
-    deadline = time.monotonic() + 60
-    while url is None and time.monotonic() < deadline:
-        ready, _, _ = select.select([p.stdout], [], [], max(0.0, deadline - time.monotonic()))
-        if not ready:
+    lines = queue.Queue()
+
+    def pump():
+        for line in p.stdout:
+            lines.put(line)
+        lines.put(None)
+
+    threading.Thread(target=pump, daemon=True).start()
+    deadline = time.monotonic() + LOGIN_DEADLINE
+    url, out, why, ended = None, "", "", False
+    while url is None and not ended:
+        try:
+            line = lines.get(timeout=max(0.0, deadline - time.monotonic()))
+        except queue.Empty:
+            why = f"no authorize_url within {LOGIN_DEADLINE:g} s; killed"
             break
-        line = p.stdout.readline()
-        if not line:
+        if line is None:
+            ended, why = True, "acq auth ended without printing an authorize_url"
             break
         out += line
         m = re.search(r'"authorize_url"\s*:\s*"([^"]+)"', line)
@@ -194,16 +208,22 @@ def login(user, extra=(), task="login"):
     if url:
         try:
             urllib.request.urlopen(url.replace("/authorize?", "/approve?") + f"&user={user}", timeout=30).read()
-            rest, more = p.communicate(timeout=60)
-            out, err, code = out + rest, more, p.returncode
+            p.wait(timeout=LOGIN_DEADLINE)
         except (OSError, subprocess.TimeoutExpired) as e:
-            p.kill()
-            rest, more = p.communicate()
-            out, err = out + rest, more + f"\nseat: the login did not finish ({e}); killed"
-    else:
+            why = f"the login did not finish ({e}); killed"
+    if p.poll() is None:
         p.kill()
-        rest, more = p.communicate()
-        out, err = out + rest, more + "\nseat: no authorize_url within 60 s; killed"
+        p.wait()
+    while True:  # the rest of stdout, which the pump ends with None once the process has exited
+        try:
+            line = lines.get(timeout=5)
+        except queue.Empty:
+            break
+        if line is None:
+            break
+        out += line
+    err = p.stderr.read() + (f"\nseat: {why}" if why else "")
+    code = "timeout" if why else p.returncode
     wall = round((time.perf_counter() - t0) * 1000)
     ob, eb = len(out.encode()), len(err.encode())
     n = log([task, json.dumps(list(extra) + ["auth", "--no-browser", "--json"]), code, ob, eb, wall, "whole", f"login {user}: the door approved the mock's page"],

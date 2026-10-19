@@ -160,11 +160,11 @@ Under any heading, `none` is an answer when it is true.
    whether you hold the result to be right, and what would tell you it
    is not; where the tool or the README stopped or misled you.
 3. **Faults** — what the tool said or did, what it should have, the
-   calls that show it. A refusal is a finding when it did not let you
-   recover: say what it told you and whether that was enough to go on,
-   and count one that was as no fault. Order them worst first, and say
-   for each whether a person using the tool would hit it too or only an
-   agent.
+   calls that show it. For a refusal, answer two things apart: was it
+   warranted (your request was wrong, or the tool was), and did it say
+   enough to recover from? Either answer alone can be the fault, and
+   neither decides the other. Order them worst first, and say for each
+   whether a person using the tool would hit it too or only an agent.
 4. **What the README and the tool texts did not say** — each thing
    you needed and had to find by trying: the fact, where you expected
    to read it (the README's section, the server's instructions, a

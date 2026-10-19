@@ -62,6 +62,7 @@ now. The outside review is Astra's Codex pass over each step's commits.
 | review 3, step 3 (2026-10-19) | `21460844`, `c170c84d`, `d34e5606` | four: the agent's daemon recipe gave `auth check` for every case, which answers not_logged_in when no keyring kept the login (1); "Standard unless you name it" was said of every verb taking --league, where `price show`, a saved plan and `store characters` read otherwise (2); "every command talks to the real GGG" and "jobs write, the rest read" overstated the provider and what writes (3); the CLI reference stranded a global option's description under the previous option in the long help format, an older defect (4) | (1) `the_agent_recipe_logs_in_again_after_the_daemon_stopped` (`readme_tour.rs`), the printed line run in the keyringless mock world after a stop; (2), (3) the bullets name their verbs, no test holds prose; (4) the generator drops the heading with its block and the test asserts each global's text once (`cli_reference.rs`) |
 | review 4, review 3's fixes (2026-10-19) | `036d0cb4`, `92f5f312` | two: the daemon bullet still called every other verb offline and `store import` an intent write, where `auth`, `jobs`, `status`, `cancel` and `daemon` use the daemon and import replays facts (1); the recipe test's `auth check` had started a daemon the recipe's login reused, so the idle knob went unread (2) | (1) the bullet, one sentence each for the daemon verbs, the offline reads, the intent writes and the import; (2) the test stops that daemon and reads running=false before the recipe's line |
 | review 5, step 4's briefs (2026-10-19) | the commits that follow `26603d0f` | five, before any run: the CLI's T2 could pass by reusing the login's daemon, the door's 30-minute idle hiding whether the recipe took (1); a stalled MCP server or login would hang the door and leave no call row (2); both pricing tasks cleaned up before the shop, so the shop never showed the new prices, and the CLI's replace could land blind (3); the login was never a numbered call, and a host configuration's contents were not on record (4); the record said install and host configuration ran "as printed" where the door unpacks and reads them (5); and two smaller: mandated repeats counted as re-reads, a refusal preclassified as a fault; the brief's "alpha" against `v1.0.0-beta.1` | (1) `daemon status` reports `idle_shutdown_seconds`, the recipe test asserts it on the daemon the recipe started, T2 asks for a new daemon and its idle exit, the door's default disclosed in the brief; (2) a deadline on every MCP call and on the login, the kill logged as a call; (3) both briefs set, replace naming the revision, read back, render, then clean up and read back; (4) the login is a numbered call with its knob, the configuration's text in the call's file; (5) the record's coverage paragraph says what the door does and assigns the rest; the counting rule excludes mandated repeats, the refusal sentence asks whether it let the runner recover; the brief's "Left out" names the release |
+| review 6, the briefs' fixes (2026-10-19) | the commit that follows `81e6e9bb` | four: the doors' deadline waited for a byte and then for a line, so half a line hung them, and a non-JSON answer or an EOF left no row (1); the host configuration appended to the answer's text inflated `text_bytes` and broke the call's JSON file (2); the refusal sentence swung to "recovered means no fault" (3); the old platform observation still said the seat confirms every line, and the coverage paragraph called the plan path unchanged since the whole-CLI seat where C111 landed after (4) | (1), (2) the MCP door's transport rebuilt: a reader thread, one deadline for the whole exchange, every failure one logged row, the configuration kept beside the row as its own file; the login the same; `doors_test.py` drives both against fakes that stall, half-answer, answer non-JSON, exit or linger, and hung the old doors past its watchdog; the skill runs it before a seat (step 4) | (3) two questions apart, warranted and recoverable; (4) both statements corrected, C111 cited at `188b0ae3` |
 
 ## Owner verdicts, verbatim
 
@@ -278,9 +279,10 @@ directory) to the platforms slice's VM rows and the smoke on every
 target in CI; the macOS quarantine line to the owner at the tag;
 loading the configuration in a real host to the owner's own first
 session with the release. The seat does not drive policy, plan and
-apply (the whole-CLI seat did, on code unchanged since), and the
-MCP's runs have no daemon, so the fetch tools' refusals are what it
-sees of them.
+apply: the whole-CLI seat drove it, and what changed after — C111's
+replay rule and admission, `188b0ae3` — is held by its own tests, not
+by a seat; the MCP's runs have no daemon, so the fetch tools' refusals
+are what it sees of them.
 
 The runs, serial, each launched by `launch.sh` after the previous
 debrief is in the record, never continued into another: `cli-opus`,
@@ -353,9 +355,11 @@ meets.
   until `xattr -dr com.apple.quarantine` clears it; Windows wants the
   directory on `PATH` and no symlink of `acq`; Linux needs glibc 2.35
   (the Ubuntu 22.04 runner); the data path per platform as the
-  `directories` identity derives it. The release seat (step 4)
-  confirms each on the real archives; the macOS line the owner can
-  confirm at the tag.
+  `directories` identity derives it. The release seat reaches the
+  macOS archive's binaries and the recipe alone (the step 4 section's
+  coverage paragraph); the Windows and Linux lines and the data paths
+  are the platforms slice's VM rows and CI's smoke, the quarantine
+  line the owner's at the tag.
 - No verb names the leagues a store holds: `search --count league`
   does, and `price status` counts rows "for other leagues" without
   naming them. Trigger: the release seat stumbles on a league it did
