@@ -14,6 +14,10 @@
 #   4. A mock login, the daemon's status, and a stop, through the
 #      extracted binaries: the login completes, the daemon that answers
 #      is the extracted `acqd` and is compatible, and the stop stops it.
+#   5. Before the stop, the extracted `acq-mcp` run over stdio: it
+#      answers `initialize` and a `daemon_status` call, reports that same
+#      daemon running, compatible and mock, and exits when its stdin
+#      closes.
 #
 # Mock only (C88): ACQ_PROVIDER=mock, ACQ_NO_KEYRING=1, and a scratch
 # store and log directory — never the real provider, never a keychain.
@@ -105,6 +109,37 @@ jq -e '.running == true and .compatible == true and .provider == "mock"' >/dev/n
     || fail "after the login the daemon is not a running, compatible mock: $status"
 ran=$(jq -r '.artifact.path // empty' <<<"$status")
 [ -n "$ran" ] && [ "$(native "$ran")" -ef "$dir/acqd$exe" ] || fail "the daemon runs ${ran:-nothing}, not the extracted acqd"
+# 5. The extracted acq-mcp, with the daemon up: `initialize`, the
+# `notifications/initialized` notification and a `tools/call` of
+# `daemon_status`, one JSON-RPC message per line on its stdin. Its stdin
+# stays open until the call's answer is out (bounded), so the server is
+# never asked to answer after its input closed; then it must exit on the
+# close, and a server still running when the bound runs out is killed
+# and fails the smoke. The daemon it reports must be the running,
+# compatible mock daemon the login started — the extracted acqd.
+mcp_out=$work/mcp.out
+answered() { grep -q '"id":2' "$mcp_out" 2>/dev/null; }
+{
+    printf '%s\n' \
+        '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"release-smoke","version":"0"}}}' \
+        '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+        '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"daemon_status","arguments":{}}}'
+    for _ in $(seq 200); do answered && break; sleep 0.1; done
+} | "$dir/acq-mcp$exe" >"$mcp_out" 2>"$work/mcp.err" &
+mcp=$!
+for _ in $(seq 300); do kill -0 "$mcp" 2>/dev/null || break; sleep 0.1; done
+if kill -0 "$mcp" 2>/dev/null; then
+    kill "$mcp" 2>/dev/null || true
+    fail "acq-mcp did not exit when its stdin closed: $(cat "$mcp_out" "$work/mcp.err")"
+fi
+wait "$mcp" || fail "acq-mcp exited non-zero: $(cat "$mcp_out" "$work/mcp.err")"
+answered || fail "acq-mcp never answered the daemon_status call: $(cat "$mcp_out" "$work/mcp.err")"
+reported=$(grep '"id":2' "$mcp_out" | jq -c '.result.structuredContent')
+jq -e '.running == true and .compatible == true and .provider == "mock"' >/dev/null <<<"$reported" \
+    || fail "acq-mcp does not report a running, compatible mock daemon: $(cat "$mcp_out")"
+ran=$(jq -r '.artifact.path // empty' <<<"$reported")
+[ -n "$ran" ] && [ "$(native "$ran")" -ef "$dir/acqd$exe" ] || fail "acq-mcp reports a daemon running ${ran:-nothing}, not the extracted acqd"
+echo "release-smoke: acq-mcp ok (daemon_status over stdio)"
 stopped=$("$dir/acq$exe" daemon stop --json)
 jq -e '.stopped == true' >/dev/null <<<"$stopped" || fail "the stop did not stop it: $stopped"
 echo "release-smoke: mock login, status and stop ok"
