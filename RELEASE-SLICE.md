@@ -539,8 +539,9 @@ each:
 2. The worlds torn down: `python3 -I .claude/skills/seat/seat.py
    <world> <world>/bin teardown` for each of the six under
    `~/seat-worlds/release-2026-10/` and for `pristine/` (with
-   `bin-setup/` as its BIN), the `*.launch.json` and `*.debrief.json`
-   files beside them left for the owner to delete.
+   `bin-setup/` as its BIN); the launch and debrief files beside them
+   were deleted on the owner's word, 2026-10-19, their session ids
+   being in the runs table above.
 3. This record cut to the permanent short form: the step ledger whole,
    the shapes of fault the nine reviews taught (a claim wider than its
    evidence; a fix staging the nearest failure, not the named one; a
