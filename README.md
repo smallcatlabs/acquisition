@@ -1,65 +1,21 @@
 # Acquisition
 
-This repository is the Rust implementation of Acquisition (`CONTEXT.md`,
-"Orientation"), built slice by slice, tested against a mock provider,
-and used against the real one — the default since C88; a real-mode
-daemon is started only from a terminal. Its purpose is to
-find out what the system needs to be and to pin that as tests at its
-boundaries and as recorded rulings, so the code stays replaceable given
-a reason. The work is judged by evidence — the offline suite, live runs
-under the standing rule, and the owner's use of each slice and the
-verdict it returns — and never by ceremony: a rung, a rule, a
-generalization or a procedure is added when evidence asks for it and
-retired when the evidence is in. The rate limiter and the single gate
-are the proven foundation; their payoff is that every later caller,
-human or agent, is regulated by construction and is never a fresh risk.
-This code ships. Owner, 2026-10-11: "The Rust build ships as
-Acquisition's agent surface by PoE2 1.0: the CLI, the MCP server and the
-daemon on Windows, macOS and Linux; GUI and other features follow." The
-order of the slices to that release is
-`brainstorming-notes/36-the-road-to-the-agent-release.md`; ADR 0003 in
-`acquisition-qt` is the owner's record of the decision.
+Acquisition downloads your Path of Exile stash tabs and characters to
+your own machine, where you can search them offline, price what you
+want to sell, and render the forum shop pages that list it. This
+release is the command line `acq`, the MCP server `acq-mcp` that lets
+an AI agent do the same, and the daemon `acqd` that sends every request
+to Grinding Gear Games under their rate limits. It runs on macOS, Linux
+and Windows, for Path of Exile 1; Path of Exile 2 follows at its
+launch. The desktop app, [acquisition-qt](https://github.com/smallcatlabs/acquisition-qt),
+keeps working beside it, and a GUI for this build comes later.
 
-## What exists
+You log in on GGG's own page. The tool keeps one refresh token in your
+operating system's keyring and sends it nowhere but GGG. It never reads
+the trade site and never posts to the forum: shop pages print to your
+terminal and you paste them.
 
-One entry per crate: purpose and implementation entry point. Module
-inventories and mechanisms live in the linked source documentation.
-
-- `crates/acquisition-protocol` — the daemon contract shared by frontends.
-  [Implementation](crates/acquisition-protocol/src/lib.rs);
-  rulings: `decisions/daemon.md`.
-- `crates/acquisition-daemon` — `acqd`, the only GGG sender: daemon,
-  limiter, gate and providers.
-  [Implementation](crates/acquisition-daemon/src/lib.rs);
-  rulings: `decisions/daemon.md`, `decisions/network.md`.
-- `crates/acquisition-client` — shared IPC client, daemon discovery and
-  connection policies. [Implementation](crates/acquisition-client/src/lib.rs);
-  rulings: `decisions/daemon.md`.
-- `crates/acquisition-store` — shared facts, intent and world storage,
-  with neutral read snapshots and the search read.
-  [Implementation](crates/acquisition-store/src/lib.rs),
-  [search read](crates/acquisition-store/src/corpus.rs)
-  and [world](crates/acquisition-store/src/world.rs);
-  rulings: `decisions/store.md`, `decisions/daemon.md`.
-- `crates/acquisition-plan` — offline refresh planning and pricing.
-  [Implementation](crates/acquisition-plan/src/lib.rs);
-  rulings: `decisions/plans.md`, `decisions/pricing.md`.
-- `crates/acquisition-search` — item search over the store's read API:
-  the query language, the derivation of an item from its stored body,
-  and the answer to a request.
-  [Implementation](crates/acquisition-search/src/lib.rs);
-  rulings: `decisions/search.md`.
-- `crates/acquisition-cli` — `acq`, clap and rendering.
-  [Entry point](crates/acquisition-cli/src/main.rs); generated help:
-  `CLI-REFERENCE.md`; rulings: `decisions/frontends.md`.
-- `crates/acquisition-mcp` — `acq-mcp`, the stdio MCP frontend sharing
-  semantics with the CLI through `acquisition-plan` and
-  `acquisition-search`.
-  [Implementation](crates/acquisition-mcp/src/main.rs); generated tools:
-  `MCP-REFERENCE.md`; rulings: `decisions/frontends.md`.
-
-The documents are indexed in `AGENTS.md` ("Read before changing
-anything"); the rulings are `CONTEXT.md` and `decisions/`.
+Development starts at `AGENTS.md`.
 
 ## The tour
 

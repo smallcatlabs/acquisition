@@ -1,8 +1,8 @@
 # Acquisition — agent entry point
 
 You are at the root of `smallcatlabs/acquisition`, branch `main`: a
-Cargo workspace implementing Acquisition (`README.md`, the charter and
-crate index). The C++ app is its own repository, `acquisition-qt`
+Cargo workspace implementing Acquisition (`README.md` is its users'; the
+crates are below). The C++ app is its own repository, `acquisition-qt`
 (GPL-3.0); its build and Qt guidance does not apply here. History
 before the root swap is under `spikes/rust-playground/` (tag
 `playground-end`).
@@ -56,11 +56,29 @@ refresh and daemon split, also read the crates' module docs (refresh:
 | item search | `SEARCH-SLICE.md` |
 | the trade import | `TRADE-SLICE.md` |
 | platform arms, packaging or release | `PLATFORMS-SLICE.md` |
+| the release (note 36, step 4) | `RELEASE-PLAN.md`, then `RELEASE-SLICE.md` |
 
 Facts about GGG live in `docs/design/network-ground-truth.md` (and the
 trade appendix beside it), cited by claim number; new claims are authored
 here, and `acquisition-qt` takes copies, never the reverse. A slice's history is its commit
 range — `git log` — and nothing restates it.
+
+## The workspace
+
+One row per crate: what it holds and whose rulings it answers to. A
+crate's `src/lib.rs` doc (a frontend's `src/main.rs`) is its entry and
+names its decision file at the top.
+
+| Crate | Holds | Rulings |
+| --- | --- | --- |
+| `acquisition-protocol` | the daemon contract shared by frontends | `decisions/daemon.md` |
+| `acquisition-daemon` (`acqd`) | the only GGG sender: daemon, limiter, gate and providers | `decisions/daemon.md`, `decisions/network.md` |
+| `acquisition-client` | the IPC client, daemon discovery and connection policies | `decisions/daemon.md` |
+| `acquisition-store` | facts, intent and world storage, neutral read snapshots, the search read (`corpus.rs`) and the world (`world.rs`) | `decisions/store.md`, `decisions/daemon.md` |
+| `acquisition-plan` | offline refresh planning and pricing | `decisions/plans.md`, `decisions/pricing.md` |
+| `acquisition-search` | item search over the store's read API: the query language, the item derived from its stored body, the answer | `decisions/search.md`, `decisions/trade.md` |
+| `acquisition-cli` (`acq`) | clap and rendering; generated help `CLI-REFERENCE.md` | `decisions/frontends.md` |
+| `acquisition-mcp` (`acq-mcp`) | the stdio MCP frontend, sharing semantics through plan and search; generated tools `MCP-REFERENCE.md` | `decisions/frontends.md` |
 
 ## Procedures (loaded when needed; one home each)
 
