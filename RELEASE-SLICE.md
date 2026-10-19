@@ -313,6 +313,7 @@ are the runner's.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | cli-opus | `claude-opus-5-5` | 4592effd-56eb | 107 | 2 (`shop render --expand` 3.5 MB, `--json` 7.4 MB) | 76 + 3 | $3.55 | 22 calls: the seven leading faults hold as stated; the recipe ran as the README prints it (call 24, the new daemon at 3600 s in call 25) and the README's gap is "stop the running one first" (call 22 logged the runner out) |
 | mcp-opus | `claude-opus-5-5` | 11891c2e-7e05 | 51 | 2 (`price_list` 67 KB, `shop_render` 5.1 MB) | 66 + 3 | $3.46 | 9 calls: the leading faults hold as stated — the render whole at 5,057,320 bytes (call 32); a write to an id the facts do not hold landing with `in_facts` false (call 47, the ruling's behaviour, as the whole-CLI seat recorded it); the job tools' refusals as JSON-RPC errors (calls 40 to 42), the one naming `ACQ_NO_SPAWN` being the door's world speaking, since the door sets it, so the fix round reads the real-mode text; the instructions' first step refused on this two-realm store (call 5, `realm_needed`) |
+| cli-sonnet | `claude-sonnet-5-5` | becbb2ab-c5a8 | 97 | 2 (`price show --json` 174 KB, `shop render --json` 7.5 MB) | 112 + 2 | $1.50 | 6 calls: the leading faults hold and converge with cli-opus's — the shop's JSON at 7,478,732 bytes (call 72), a revision conflict and a failed job without a kind (calls 81, 83), the daemon stop logging the runner out (call 16); new in call 78, a stale revision named on a cleared row answers "annotation no longer exists", hiding the clear and the revision it still counts |
 
 cli-opus: one door command denied by the rails (a `report` heredoc),
 sent again as a draft; the harness saved call 41's output to a file
@@ -330,6 +331,11 @@ outside the two; all eight tasks finished, every price it wrote
 removed again (call 51 against call 19). Its debrief marks its T2
 dates as hand arithmetic, its left-out counts as resting on the cut
 part of call 32, and two remarks on the CLI as untested.
+
+cli-sonnet: one door command denied by the rails (a `report`
+heredoc), sent again as a draft; no file opened outside the two; all
+nine tasks finished, no daemon left running (call 97); the prices it
+wrote read back as before (calls 65 to 67).
 
 The fix round after the four runs: faults of the shapes in the
 records' findings tables fixed, one commit per fault held by a test
