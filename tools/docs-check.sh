@@ -218,6 +218,13 @@ fi
 # and the knob table is complete: every ACQ_* the crates read outside
 # tests has a row. The tour's verbs and flags are pinned by
 # acquisition-cli/tests/readme_tour.rs against the binary.
+#
+# Outside tests means the code a build ships: not a crate's `tests/`,
+# not an item a column-0 `#[cfg(test)]` guards in `src/` (a `mod …;`
+# line, or a block to its closing column-0 `}`), and not `tools/`. A
+# knob read only there is development's, and its read site's doc is its
+# home; the README is the users' (2026-10-19, the release seat's fix
+# round, when three such rows left it).
 tour_bad=$(awk '/^```sh/{f=1; prev=""; next} /^```/{f=0; next} f{ if ($0 ~ /^[[:space:]]*#/ && prev !~ /^[[:space:]]*$/) print "        line "NR": "$0; prev=$0 }' README.md)
 if [[ -n $tour_bad ]]; then
   printf 'TOUR    %-18s a comment line continues a verb line — one line per verb, the rest is its --help:\n%s\n' README.md "$tour_bad"
@@ -225,8 +232,14 @@ if [[ -n $tour_bad ]]; then
 else
   echo "ok      tour          one line per verb"
 fi
-code_knobs=$(grep -rhoE '"ACQ_[A-Z_]+"' crates --include='*.rs' --exclude-dir=tests | tr -d '"' | sort -u \
-  | grep -vE '^ACQ_(CONTRACT_REVISION|SEARCH_BUILD|UPDATE_FIXTURES)$')
+code_knobs=$(find crates -name '*.rs' -not -path '*/tests/*' -not -path '*/target/*' -exec awk '
+    FNR == 1 { skip = 0; attr = 0 }
+    attr { attr = 0; if ($0 ~ /;[[:space:]]*$/) next; skip = 1; next }
+    /^#\[cfg\(test\)\]/ { attr = 1; next }
+    skip { if ($0 ~ /^}/) skip = 0; next }
+    { print }' {} + \
+  | grep -oE '"ACQ_[A-Z_]+"' | tr -d '"' | sort -u \
+  | grep -vE '^ACQ_(CONTRACT_REVISION|SEARCH_BUILD)$')
 readme_knobs=$(grep -oE 'ACQ_[A-Z_]+' README.md | sort -u)
 missing_knobs=$(comm -23 <(printf '%s\n' "$code_knobs") <(printf '%s\n' "$readme_knobs") | tr '\n' ' ')
 if [[ -n $missing_knobs ]]; then

@@ -22,7 +22,8 @@ Development starts at `AGENTS.md`.
 Each [release](https://github.com/smallcatlabs/acquisition/releases)
 carries an archive per platform, holding `acq`, `acqd`, `acq-mcp`,
 the licences and the third-party notices, and `SHA256SUMS`. This one
-is a pre-release, so GitHub does not mark it latest.
+is a pre-release, so GitHub does not mark it latest. Every other file
+this page names is in the repository, not the archive.
 
 | Platform | Archive |
 | --- | --- |
@@ -32,10 +33,13 @@ is a pre-release, so GitHub does not mark it latest.
 | Linux ARM64 | `acquisition-1.0.0-beta.1-aarch64-unknown-linux-gnu.tar.gz` |
 | Windows x86_64 (and Windows on ARM, emulated) | `acquisition-1.0.0-beta.1-x86_64-pc-windows-msvc.zip` |
 
-On macOS and Linux, fetch and unpack it with your platform's name:
+On macOS and Linux, fetch it with your platform's name, check it and
+unpack it:
 
 ```sh
-curl -L https://github.com/smallcatlabs/acquisition/releases/download/v1.0.0-beta.1/acquisition-1.0.0-beta.1-aarch64-apple-darwin.tar.gz | tar -xz
+curl -LO https://github.com/smallcatlabs/acquisition/releases/download/v1.0.0-beta.1/acquisition-1.0.0-beta.1-aarch64-apple-darwin.tar.gz
+shasum -a 256 acquisition-1.0.0-beta.1-aarch64-apple-darwin.tar.gz   # the digest SHA256SUMS lists for it
+tar -xzf acquisition-1.0.0-beta.1-aarch64-apple-darwin.tar.gz
 ```
 
 Keep the three binaries together: `acq` starts the `acqd` beside it.
@@ -49,15 +53,16 @@ is; the link is followed.
 - **Linux**: built on Ubuntu 22.04, so glibc 2.35 or newer. The login
   is kept in the Secret Service (GNOME Keyring, or KWallet), unlocked
   in your desktop session.
-- **Windows**: download the `.zip` from the release page and extract
-  it. The binaries are not signed; on the machine it was tried on,
-  Windows ran them with no SmartScreen prompt, but yours may show one.
-  Add the directory to your `PATH`; do not symlink `acq`.
+- **Windows**: download the `.zip` from the release page, check
+  `Get-FileHash` on it against `SHA256SUMS`, and extract it. The
+  binaries are not signed; on the machine it was tried on, Windows ran
+  them with no SmartScreen prompt, but yours may show one. Add the
+  directory to your `PATH`; do not symlink `acq`.
 
 On every platform, run `acq` at your desktop, not over ssh: over ssh
 the keyring is out of reach, and on Windows the daemon ends with the
-session. To build from source instead, `cargo build --release` puts the three
-binaries in `target/release`.
+session. To build from source instead, `cargo build --release` puts
+the three binaries in `target/release`.
 
 ## Log in
 
@@ -70,8 +75,8 @@ Logging in is a person's act at a terminal: `acq` refuses to start a
 daemon against GGG without one. GGG is the provider unless
 `ACQ_PROVIDER=mock` is set; with it, a built-in stand-in serves
 made-up stashes and a login page that takes any name, for trying the
-tool or an agent with no account. Its data is kept apart from the real.
-Without a keyring, a login lasts as long as the daemon that holds it.
+tool or an agent with no account. Without a keyring, a login lasts as
+long as the daemon that holds it.
 
 ## Your agent
 
@@ -81,27 +86,38 @@ Claude Desktop's configuration, with the path where you unpacked it:
 ```json
 {
   "mcpServers": {
-    "acquisition": { "command": "/path/to/acquisition/acq-mcp" }
+    "acquisition": {
+      "command": "/path/to/acquisition/acq-mcp",
+      "env": { "ACQ_PROVIDER": "mock" }
+    }
   }
 }
 ```
 
-It shares the store and the daemon with `acq`, and its tools do what
-the CLI does: search the store (`search`, `describe`, `show`,
-`tabs`), price items and render the shop (`price_status`,
-`price_set`, `shop_render` and four more), keep a league fresh
-through a plan the agent reads first (`refresh_plan`, `apply_plan`),
-and run jobs (`submit_job`). Each describes itself to the agent;
-`MCP-REFERENCE.md` lists all of them.
+The server takes its knobs through `env`. This one gives the agent the
+stand-in's made-up stashes, after `ACQ_PROVIDER=mock acq auth`; leave
+it out for your own account.
+
+It shares the store and the daemon with `acq`, and its 25 tools do
+what the CLI does: read the store (`search`, `describe`, `show`,
+`tabs`, `characters`, `item_events`, `store_status`, `accounts`),
+price items and render the shop (`price_status`, `price_list`,
+`price_show`, `price_set`, `price_clear`, `shop_render`,
+`reference_currency`), keep a league fresh (`sync_policy`,
+`set_sync_policy`, `refresh_plan`, `apply_plan`), and run jobs
+(`submit_job`, `list_jobs`, `job_status`, `job_result`, `cancel_job`,
+`daemon_status`).
 
 The store and pricing tools need no daemon. The tools that fetch do,
 and against GGG `acq-mcp` never starts one: it uses the daemon you
 started, which exits after a minute with nothing to do. For a longer
-session, start it with a longer idle time while none is running:
+session, stop the running daemon and start one with a longer idle
+time:
 
 ```sh
+acq daemon stop   # without a keyring, this logs you out
 ACQ_IDLE_SHUTDOWN=3600 acq auth check   # a daemon that idles out after an hour, your login back from the keyring
-ACQ_IDLE_SHUTDOWN=3600 acq auth   # the same without a keyring, where the login went with the last daemon
+ACQ_IDLE_SHUTDOWN=3600 acq auth   # the same without a keyring
 ```
 
 In PowerShell, set `$env:ACQ_IDLE_SHUTDOWN = 3600` first.
@@ -155,7 +171,7 @@ acq show <id> [--body]   # one item as the search derives it; the stored body on
 acq store status | events [--hours N] | refused [id]   # path and counts; ingest events; malformed bodies
 acq store import <snapshot.json> | rebuild   # replay a snapshot from the retired `acq pull`; re-extract columns
 
-acq daemon status | stop | reset-tripwire   # debugging: inspect, stop, reset rails
+acq daemon status | stop | reset-tripwire   # inspect; stop (a login not in the keyring goes too); reset rails
 acq version [--json]   # build identity and sibling acqd
 ```
 
@@ -182,13 +198,17 @@ them.
   and `store import` replays a snapshot of facts.
 - **Standard unless you name a league.** `stashes`, `stash`,
   `refresh --plan`, `tabs`, `price status` and `shop render` read or
-  fetch Standard without `--league` (a saved plan carries its own); `price show` reads the league the facts
-  hold the target in, `store characters` every league. `acq leagues`
-  lists yours.
+  fetch Standard without `--league` (a saved plan carries its own);
+  `price show` reads the league the facts hold the target in,
+  `store characters` every league. `acq leagues` lists yours.
 - **Your data stays on your machine**, under
   `~/Library/Application Support/com.smallcatlabs.acq` on macOS,
   `~/.local/share/acq` on Linux and `%APPDATA%\smallcatlabs\acq\data`
-  on Windows; `acq store status` prints the path.
+  on Windows, one database per account in `store/ggg` (`store/mock`
+  for the stand-in); `acq store status` prints its path. The daemon's
+  log is under `~/Library/Logs/acq`, `~/.local/state/acq/log` and
+  `%LOCALAPPDATA%\smallcatlabs\acq\data\logs`; `acq daemon status`
+  prints it.
 - **After an update**, the next job command replaces the older build's
   daemon. `jobs`, `status` and `daemon status` only observe: they
   report a daemon and never start or replace one.
@@ -202,9 +222,6 @@ them.
 | `ACQ_STORE_DIR=<dir>` | the platform data dir | the store, and the daemon that serves it: one daemon per directory | [world.rs][world] |
 | `ACQ_LOG_DIR=<dir>` | the platform log dir | bounded daemon log and default journal, by store and provider | [world.rs][world] |
 | `ACQ_NO_KEYRING=1` | off | logins in memory only, never plaintext on disk | [auth.rs][auth] |
-| `ACQ_KEYRING_ROUNDTRIP=1` | off | opt into the test against the OS keyring (CI uses gnome-keyring) | [auth.rs][auth] (tests) |
-| `ACQ_CASES=full` | off | the generated search properties at full counts, as CI runs them; unset, about a quarter, fresh each run; a failure prints its seed (`PROPTEST_RNG_SEED`) | [generated.rs](crates/acquisition-search/tests/common/generated.rs) (tests) |
-| `ACQ_CODESIGN_IDENTITY=<sha1\|name>` | unset | macOS shell-profile identity for signing the debug daemon after building | [sign-acqd.sh](tools/sign-acqd.sh) |
 | `ACQ_NO_SPAWN=1` | off | never start or replace a daemon; for cron, ssh and headless shells | [client.rs][client]; keyring context: [auth.rs][auth] |
 | `ACQ_IDLE_SHUTDOWN=<s>` | 60 | idle exit, held while the limiter's history is live | [daemon.rs][daemon] |
 | `ACQ_JOB_RETENTION_DAYS`, `ACQ_FAILED_JOB_RETENTION_DAYS` | 7, 30 | finished-job retention for `acq result`; invalid values keep defaults | [daemon.rs][daemon] |
@@ -224,15 +241,13 @@ them.
 
 A knob the daemon reads takes effect when it starts: set it on the
 command that starts the daemon, or stop the daemon first. The rails are
-for test runs against GGG (`LIVE-TESTING.md`, "Rails");
-`acq daemon status` prints the paths and the rails' state.
+for test runs against GGG; `acq daemon status` prints their state.
 
 ## Known gaps
 
 - **`acq policy set` replaces the whole policy**, every realm of it: a
   policy written for poe2 alone erases the pc one. Read it with
-  `acq policy show` and write it back whole (`decisions/plans.md`,
-  "Parked").
+  `acq policy show` and write it back whole.
 - **Path of Exile 2 is partial.** GGG offers no PoE2 stash tabs, so
   only characters are fetched, and the search's tables cover PoE1, so a
   PoE2 item's class and totals are undecided.
@@ -240,19 +255,19 @@ for test runs against GGG (`LIVE-TESTING.md`, "Rails");
   sends the same empty arrays for a stripped character and for one that
   carries nothing; `acq store characters` counts them in its footer
   alone ("with empty bodies").
-- **The mock is simpler than GGG**: it does not quantize its timing
-  buckets, and after a 429 it marks every window of the rule as
-  restricted; whether GGG marks only the violated one is not yet
-  observed.
 - Everything else not built yet is parked, with what would reopen it:
   `CONTEXT.md` and each `decisions/<area>.md`, "Parked".
 
 ## What it does not do
 
 It does not say what an item is worth: a price is the one you set, or
-your note or tab name in the game. `acq search --trade` translates a
-trade search you paste, without fetching it. It does not touch the game
-client, and there are no installers, packages or automatic updates.
+your note or tab name in a public tab in the game; a note in a private
+tab is no price. You post the shop pages in your league's shop
+subforum on pathofexile.com; the trade site then lists the linked
+items, a private tab's and a character's too, at their prices. Leave
+them in place: a moved item may lose its link. It does not touch the
+game client, and there are no installers, packages or automatic
+updates.
 
 ## Reporting and contributing
 
