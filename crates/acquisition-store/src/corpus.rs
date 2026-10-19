@@ -520,6 +520,11 @@ mod tests {
             std::process::id(),
             N.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         ));
+        // a process id comes round again, and nothing removes these
+        // directories: a facts file an earlier run left here seeded two
+        // tests with records they never wrote (gates of 2026-10-18 and
+        // 2026-10-19), so never open what an earlier run left
+        let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         dir.join("facts.db")
     }
