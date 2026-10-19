@@ -26,7 +26,13 @@ FAKE_MCP = textwrap.dedent('''\
         return {"jsonrpc": "2.0", "id": req["id"], "result": {"content": [{"type": "text", "text": "ok"}]}}
     for line in sys.stdin:
         req = json.loads(line)
+        if mode == "deaf" and req.get("method") == "notifications/initialized":
+            time.sleep(30)  # initialized, then reads nothing more: a large request blocks its writer
         if "id" not in req:
+            continue
+        if mode == "shapeless" and req["id"] == 2:
+            print(json.dumps({"jsonrpc": "2.0", "id": 2, "result": {}}))  # JSON, not an MCP answer
+            sys.stdout.flush()
             continue
         if mode == "stall":
             time.sleep(30)
@@ -121,10 +127,14 @@ def mcp_cases():
         ("partial", "did not answer within"),
         ("malformed", "is not JSON"),
         ("eof", "closed its stdout"),
+        ("deaf", "did not read"),
+        ("shapeless", "not an MCP"),
     ]
     for i, (mode, said) in enumerate(cases, 1):
         os.environ["FAKE_MODE"] = mode
-        a = argparse.Namespace(t="T0", note="", host_config=None, timeout=0.5, tool="x", args="{}", draft=None)
+        # the deaf case sends a request larger than a pipe's buffer, so the write itself blocks
+        args = json.dumps({"pad": "x" * 300_000}) if mode == "deaf" else "{}"
+        a = argparse.Namespace(t="T0", note="", host_config=None, timeout=0.5, tool="x", args=args, draft=None)
         t0 = time.monotonic()
         with contextlib.redirect_stdout(io.StringIO()):
             door.call_cmd(a)
@@ -133,6 +143,10 @@ def mcp_cases():
         text = open(os.path.join(w, "calls", f"{i:03d}.json")).read()
         check(took < 3.0 and row[0] == str(i) and row[4] == "1" and said in text and "killed" in text and gone(pid_file),
               f"a server that {mode}s: one error row within the deadline saying so, the server gone ({took:.2f} s)")
+        if mode == "deaf":
+            whole = open(os.path.join(w, "calls", f"{i:03d}.args.json")).read()
+            check(len(row[3]) < 2_200 and "whole in calls/" in row[3] and json.loads(whole) == json.loads(args),
+                  "a large request: the row holds its head and names the file that holds it whole")
     # answers, through a host configuration: the text and size are the server's, the configuration beside the row
     os.environ["FAKE_MODE"] = "ok"
     a = argparse.Namespace(t="T1", note="", host_config="acq.json", timeout=5, tool="x", args="{}", draft=None)
@@ -145,6 +159,14 @@ def mcp_cases():
           and os.path.exists(kept) and json.load(open(kept))["mcpServers"]["acquisition"]["command"].endswith("acq-mcp")
           and "kept beside this row" in row[9] and gone(pid_file),
           "a server that answers through a host configuration: the text is its 2 bytes, the configuration kept beside the row")
+    # an answer that is JSON but not an MCP tools/list: open logs it as an error row
+    os.environ["FAKE_MODE"] = "shapeless"
+    a = argparse.Namespace(t="T1", note="", host_config=None, timeout=5, tool="x", args="{}", draft=None)
+    with contextlib.redirect_stdout(io.StringIO()):
+        door.open_cmd(a)
+    row = rows(w)[-1]
+    check(row[4] == "1" and "not an MCP" in open(os.path.join(w, "calls", f"{row[0].zfill(3)}.json")).read() and gone(pid_file),
+          "an open whose tools/list answer has no tools: one error row saying so")
     # answers and never exits: the row is an answer, the note says it was killed
     os.environ["FAKE_MODE"] = "lingers"
     a = argparse.Namespace(t="T1", note="", host_config=None, timeout=5, tool="x", args="{}", draft=None)
