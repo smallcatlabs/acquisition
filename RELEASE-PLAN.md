@@ -83,7 +83,8 @@ step and comes to the owner (rulings first, findings after).
 render and table, the functions `acq price`, `acq shop render` and
 `acq reference currency` call; no second semantics (C46). Each
 returns the document the CLI's `--json` prints for the same request
-(C11, C53), and its refusals carry the CLI's `kind`. `price_set` and
+(C11, C53); its refusals are the CLI's words, their kinds the MCP's
+own, one vocabulary per surface (amended 2026-10-19). `price_set` and
 `price_clear` take C52's create-only form, as `set_sync_policy` does:
 a new row is written without a revision, and replacing or clearing a
 row names the revision it replaces — the CLI's `--if-revision`, optional

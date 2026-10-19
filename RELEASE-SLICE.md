@@ -49,12 +49,23 @@ the options were put with a recommendation and answered 2026-10-18.
 | 1 pricing on the MCP | `db30d28a`, `40002b72` | the pricing verbs moved from the CLI binary into `acquisition_plan::pricing`, the CLI calling them; the seven tools as adapters, each the CLI's `--json` document; `tests/pricing_tools.rs`; the park deleted |
 | 2 the policies | the commit that adds the two files | `SECURITY.md` and `CONTRIBUTING.md`, V7's positions and no others, in the owner's voice; read by the owner before the commit |
 
+## Findings
+
+One row per review round; the finding, then the test that holds it
+now. The outside review is Astra's Codex pass over each step's commits.
+
+| Round | Commits | Findings | Held by |
+| --- | --- | --- | --- |
+| review 1, steps 1 and 2 (2026-10-19) | the fix commits, one per fault | five: a row on a target the facts do not hold can be written and then read nowhere but as an address under `status` (1); the receipt's `prior` is read before the store's compare-and-swap, so a create after a racing clear names the cleared row as what it replaced (2); `set` reads the facts for `in_facts` after the commit and a failed read discards the receipt of a write that landed (3); the MCP's `price_clear` opens the facts it does not need, so a facts database the CLI's clear ignores refuses the MCP's (4); the archive smoke checks `acq-mcp` is executable and never runs it (5); and two in the documents: the brief's acceptance says the tools' refusals carry the CLI's `kind` while the built kinds are the MCP's; `price_set`'s undo clause assumes a prior | the rules the owner approved, in the worker's brief below; the tests named there |
+
 ## Owner verdicts, verbatim
 
 - Step 2, on the two drafts: "I have enabled private security
   reporting. I will probably edit the drafts somewhat, but that will
   take time and thought. What you have written is a good start. Let's
   use them."
+- Review 1's fixes, on the five rules and the brief's amended line,
+  all built now: "approved. go ahead."
 
 ## Step briefs
 
@@ -99,17 +110,72 @@ no position V7 does not name. Do not commit: the owner reads both
 before the commit (the brief's acceptance). Report back the two files'
 text whole and anything V7 left you to decide, as a question.
 
+### Review 1 — the fixes
+
+Five faults, each fixed by one rule and held by a test named for the
+fault, one commit per fault, in this order. The rule is the ruling;
+the mechanism is yours. Every test fails on the code before its fix.
+
+1. **Orphan rows.** A `buyout` row on a target the facts do not hold is
+   intent to look at (C35). Rule: `status` lists each such row whole,
+   in the shape the listing's manual side already has (`ManualSide`:
+   value, `from` the target itself, `revision`, `updated_at`,
+   `written_via`, `actor`), in place of the bare address; the CLI's
+   text prints the value and revision on the row's line; `show`'s
+   refusal for a target with a row of its own says so and names
+   `acq price status` as where it is listed. No new verb; `show`
+   stays one target's listing, a subject of the facts. The write
+   test in `tests/pricing_tools.rs` then reads the row's `written_via`
+   through the surface, never through `Annotations`.
+2. **The receipt's prior.** Rule: what a write replaced is the row at
+   the revision the write named; a create names none and replaces
+   none, so its receipt's `prior` is null. In `set_buyout` and
+   `clear_buyout`, the plan crate; the store is untouched. The test
+   stages the race as the store's lock tests do (one connection holds
+   `BEGIN IMMEDIATE` across the other's write): a row at revision 1,
+   a clear landing while a create is between its read and its put,
+   and the create's receipt reports no prior.
+3. **The write is last.** Rule: `set` reads everything it reports,
+   the facts included, before the write, and nothing after it; a facts
+   read that fails refuses before anything changes. The test makes
+   the facts unreadable (drop the table through a second connection,
+   or whatever is least mechanism) and shows the row unchanged and the
+   refusal naming the facts.
+4. **Clear needs no facts.** Rule: the MCP opens for a verb what the
+   CLI opens for it. The account-refusal mapping (`no_accounts`,
+   `account_unknown`, `account_needed`, `store`) moves into an intent
+   opener `open_search` builds on; `price_clear` uses the intent one.
+   The test removes the facts database after seeding and shows a
+   revisioned clear landing on both surfaces alike.
+5. **The smoke runs `acq-mcp`.** In `tools/release-smoke.sh`, after
+   the mock login with the daemon up and before the stop: pipe an
+   `initialize`, the `notifications/initialized` notification and a
+   `tools/call` of `daemon_status` into the extracted `acq-mcp`, one
+   JSON-RPC message per line (`tests/harness/mod.rs` is the model),
+   and check the daemon it reports is running, compatible, mock, and
+   runs the extracted `acqd`. Package locally with
+   `tools/release-package.sh` and run the smoke on the archive; the
+   smoke is CI's on every platform (`release.yml`).
+
+Then one more commit: `price_set`'s description says the undo after a
+create is `price_clear` with the written revision, and after a replace
+`price_set` with the prior's value and `if_revision` the written
+revision; `MCP-REFERENCE.md` regenerated with `ACQ_UPDATE_FIXTURES=1`;
+the no-ids test still green.
+
+Not yours: the brief's acceptance line (amended by the orchestrator);
+a `kind` for a revision conflict (the seat's evidence); anything the
+fixes make you notice, which is a park in your report.
+
 ## Observations still open
 
-- Step 1's refusal words: the pricing tools' account and argument
-  kinds are the MCP's existing ones (`no_accounts`, `account_needed`,
-  `account_unknown`, `arguments`), as the search tools' are, not the
-  CLI's (`not_logged_in`, `ambiguous_account`, `unknown_account`,
-  `usage`); a stale or blind revision conflict has no `kind` on either
-  surface, so an agent tells it apart by its text; the refusals name
-  the CLI's flags (`--league`, `--if-revision`) and `acq price show`,
-  the descriptions saying how a flag maps to an argument. The release
-  seat drives both surfaces and says whether any of it costs a call.
+- Step 1's refusal words: the kind vocabulary is ruled (the brief's
+  amended acceptance, 2026-10-19: the MCP's own); a stale or blind
+  revision conflict has no `kind` on either surface, so an agent tells
+  it apart by its text; the refusals name the CLI's flags (`--league`,
+  `--if-revision`) and `acq price show`, the descriptions saying how a
+  flag maps to an argument. The release seat drives both surfaces and
+  says whether any of it costs a call.
 - Targets have two forms: an answer holds a target as an object and a
   tool takes the word form; the `target` parameter says how one becomes
   the other. Whether the seat re-reads that is the read economy park's
