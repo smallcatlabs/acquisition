@@ -405,6 +405,7 @@ mod tests {
                 by_cell,
             },
             off_page_listed: false,
+            left_out_total: 3,
             posted: vec![
                 posted("a", 1, tab("c1")),
                 posted("b", 1, tab("c1")),

@@ -352,6 +352,91 @@ fn each_pricing_read_is_the_document_the_cli_prints() {
     assert!(no_daemon_appeared(base), "a pricing read reached a daemon");
 }
 
+/// C46, C53 — the release seat's rerun (mcp-opus-2, calls 37, 38): the
+/// shop document listed every item left off for a reason, 160 KB on the
+/// owner's league, with no bound short of `page`, which drops the
+/// counts. With 60 items the game lists added to the seeded world, the
+/// default document — the tool's and the CLI's, the same — lists the
+/// first 50 and counts them all in `left_out_total`; expanded, both
+/// list every one.
+#[test]
+fn the_shop_document_bounds_what_it_leaves_out_alike_on_both_surfaces() {
+    let dir = scratch("left-out");
+    let base = &dir.0;
+    seed(base);
+    let mock = base.join("store").join("mock");
+    let mut store = Store::open(&account_path(&mock, USER)).unwrap();
+    let at = acquisition_store::now();
+    store
+        .record(
+            &Endpoint::Stashes {
+                realm: "pc".into(),
+                league: "Standard".into(),
+            },
+            &json!({ "league": "Standard" }),
+            200,
+            &json!({ "stashes": [
+                { "id": "f1", "name": "Sale", "type": "Folder", "index": 0,
+                  "children": [ { "id": "c1", "name": "~price 3 chaos", "type": "PremiumStash", "index": 1, "metadata": { "public": true } } ] },
+                { "id": "m1", "name": "Maps", "type": "MapStash", "index": 2 },
+                { "id": "b1", "name": "Bulk", "type": "PremiumStash", "index": 3, "metadata": { "public": true } } ] }),
+            at,
+        )
+        .unwrap();
+    let bulk: Vec<Value> = (0..60)
+        .map(|n| {
+            json!({ "id": format!("i-bulk-{n}"), "name": "", "typeLine": "Chaos Orb",
+                    "baseType": "Chaos Orb", "x": n % 12, "y": n / 12, "stackSize": 1,
+                    "note": "~price 1 chaos" })
+        })
+        .collect();
+    store
+        .record(
+            &Endpoint::Stash {
+                realm: "pc".into(),
+                league: "Standard".into(),
+                id: "b1".into(),
+                sub: None,
+            },
+            &json!({}),
+            200,
+            &json!({ "stash": { "id": "b1", "name": "Bulk", "type": "PremiumStash", "items": bulk } }),
+            at,
+        )
+        .unwrap();
+    drop(store);
+
+    let mut mcp = Mcp::start(base, &[]);
+    let mut totals = Vec::new();
+    for (args, verb) in [
+        (json!({}), &["shop", "render"][..]),
+        (
+            json!({ "expand": true }),
+            &["shop", "render", "--expand"][..],
+        ),
+    ] {
+        let (tool_ok, by_tool) = tool(&mut mcp, "shop_render", args.clone());
+        let (cli_ok, by_cli) = cli(base, verb);
+        assert!(tool_ok && cli_ok, "{by_tool}\n{by_cli}");
+        assert_eq!(
+            steady(by_tool.clone(), CLOCK),
+            steady(by_cli, CLOCK),
+            "shop_render {args} is not what acq {verb:?} --json prints"
+        );
+        let listed = by_tool["left_out"].as_array().map_or(0, Vec::len);
+        let total = by_tool["left_out_total"].as_u64().unwrap_or_default() as usize;
+        totals.push((listed, total));
+    }
+    let [(listed, total), (all_listed, all_total)] = totals[..] else {
+        unreachable!()
+    };
+    assert_eq!(listed, 50, "the default lists a bound of {total}");
+    assert!(total > 60, "the 60 the game lists, and more: {total}");
+    assert_eq!(all_listed, all_total, "expanded, every one is listed");
+    assert!(all_total >= total, "{all_total} < {total}");
+    assert!(no_daemon_appeared(base));
+}
+
 /// C46, C52 — a write's receipt is the CLI's for the same write, the
 /// revision named: two worlds seeded alike, one written through the
 /// tools and one through `acq`, step for step — a create, a replace, a

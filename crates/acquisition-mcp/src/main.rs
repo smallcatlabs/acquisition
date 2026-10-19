@@ -951,9 +951,9 @@ struct ShopRenderParams {
     /// One page alone, by its number from 1: that page's record in place
     /// of the whole render.
     page: Option<usize>,
-    /// List the items nothing applies to in `left_out` too (some 200
-    /// bytes an item; a league holds thousands); they are counted either
-    /// way.
+    /// List every item left off in `left_out`, past the first 50 and the
+    /// items nothing applies to included (some 200 bytes an item; a
+    /// league holds thousands); they are counted either way.
     expand: Option<bool>,
     /// Account selector (username with or without `#discriminator`, or
     /// uuid); required only when several accounts are known.
@@ -1424,7 +1424,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "The forum shop pages for one league, rendered for a person to paste by hand; this server posts nothing and reads no forum (no daemon, no network). One link code per hand-priced item under its price's spoiler, in pages of at most `size` characters, each page labelled n of N: `pages` (each `text` is what to paste), `posted` (the items on them), `left_out` (every item left off for a reason, with its `cell` — what the game already lists or a skip is omitted, a case the forum has not been observed for is blocked), `counts` (every item by its cell; the items nothing applies to are counted in `off_page` and listed in `left_out` only with `expand: true`, as `off_page_listed` says), `policy` (each cell's rule and count) and `freshness`: whether the sync policy covers the posted items and which of them are older than its window, with the refresh that would renew them — reported, never enforced. `page` returns one page's record alone. The document `acq shop render --json` prints."
+        description = "The forum shop pages for one league, rendered for a person to paste by hand; this server posts nothing and reads no forum (no daemon, no network). One link code per hand-priced item under its price's spoiler, in pages of at most `size` characters, each page labelled n of N: `pages` (each `text` is what to paste), `posted` (the items on them), `left_out` (the first 50 items left off for a reason, the blocked first, each with its `cell` — what the game already lists or a skip is omitted, a case the forum has not been observed for is blocked — and `left_out_total` counting them all; `expand: true` lists every one, the items nothing applies to too, as `off_page_listed` says), `counts` (every item by its cell; the items nothing applies to in `off_page`), `policy` (each cell's rule and count) and `freshness`: whether the sync policy covers the posted items and which of them are older than its window, with the refresh that would renew them — reported, never enforced. `page` returns one page's record alone. The document `acq shop render --json` prints."
     )]
     fn shop_render(&self, Parameters(p): Parameters<Args<ShopRenderParams>>) -> Told {
         let p = match p.read() {

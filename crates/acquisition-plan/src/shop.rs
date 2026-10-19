@@ -135,8 +135,11 @@ use crate::{Selection, SyncPolicy};
 
 /// The render's JSON shape; changes are additive (C53) until they are
 /// not, and then this moves. The shape is pinned by
-/// `reference/shop-render-schema-4.json`
-/// (`the_render_json_matches_the_committed_fixture`). **4** since
+/// `reference/shop-render-schema-5.json`
+/// (`the_render_json_matches_the_committed_fixture`). **5** since
+/// 2026-10-19: `left_out` lists at most [`LEFT_OUT_LISTED`] items, the
+/// blocked first, with `left_out_total` counting them all, unless
+/// expanded — the release seat's rerun met 160 KB of them. **4** since
 /// 2026-10-19: `left_out` lists the items left off for a reason and
 /// leaves out the ones nothing applies to unless asked
 /// ([`RenderOptions::expand`]), saying which in `off_page_listed` — the
@@ -144,7 +147,12 @@ use crate::{Selection, SyncPolicy};
 /// page shape (spoilers) renamed `Posted.price` to `title`; 2 measured
 /// staleness over the stale set only; neither 1 nor 2 reached a
 /// consumer.
-pub const SHOP_SCHEMA: u32 = 4;
+pub const SHOP_SCHEMA: u32 = 5;
+
+/// How many items left off the page the default document lists
+/// (`left_out`); `left_out_total` counts them all and `expand` lists
+/// them all (C53: a bounded detail by default).
+pub const LEFT_OUT_LISTED: usize = 50;
 
 /// The forum's hard post limit in characters (T23); the C++ app's
 /// constant (T15) had it right.
@@ -474,9 +482,14 @@ pub struct ShopRender {
     pub policy: Vec<PolicyRow>,
     pub counts: ShopCounts,
     pub posted: Vec<Posted>,
-    /// Every item omitted or blocked; the items nothing applies to too
-    /// when `off_page_listed`, else counted alone (`counts.off_page`).
+    /// The items left off the page, the blocked first, then the omitted,
+    /// then — when `off_page_listed` — the items nothing applies to, each
+    /// group in the listing's order. The default lists at most
+    /// [`LEFT_OUT_LISTED`] of them; `expand` lists them all.
     pub left_out: Vec<LeftOut>,
+    /// How many `left_out` would hold unbounded: every item omitted or
+    /// blocked, and the items nothing applies to when `off_page_listed`.
+    pub left_out_total: usize,
     /// Whether `left_out` lists the items nothing applies to
     /// ([`RenderOptions::expand`]).
     pub off_page_listed: bool,
@@ -493,8 +506,9 @@ pub struct RenderOptions<'a> {
     pub template: &'a str,
     pub now: i64,
     pub policy: PolicySource<'a>,
-    /// List the items nothing applies to in `left_out` as well; they are
-    /// counted either way.
+    /// List every item left off in `left_out`, the items nothing applies
+    /// to among them, past the default's bound; they are counted either
+    /// way.
     pub expand: bool,
 }
 
@@ -817,6 +831,17 @@ pub fn render(report: &ListingReport, opts: &RenderOptions<'_>) -> Result<ShopRe
         );
     }
     counts.pages = cut.pages.len();
+    // The blocked first — a person can act on them — then the omitted,
+    // then what nothing applies to; the default lists a bound of them.
+    left_out.sort_by_key(|l: &LeftOut| match l.verdict {
+        Verdict::Block => 0,
+        Verdict::Omit => 1,
+        Verdict::OffPage | Verdict::Post => 2,
+    });
+    let left_out_total = left_out.len();
+    if !opts.expand {
+        left_out.truncate(LEFT_OUT_LISTED);
+    }
 
     let freshness = freshness(report, &cut.entries, opts);
     let policy = Cell::ALL
@@ -838,6 +863,7 @@ pub fn render(report: &ListingReport, opts: &RenderOptions<'_>) -> Result<ShopRe
         counts,
         posted: cut.posted,
         left_out,
+        left_out_total,
         off_page_listed: opts.expand,
         pages: cut.pages,
         freshness,
@@ -1921,7 +1947,7 @@ mod tests {
     fn the_render_json_matches_the_committed_fixture() {
         let path = concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/reference/shop-render-schema-4.json"
+            "/reference/shop-render-schema-5.json"
         );
         let policy = SyncPolicy::from_value(&json!({
             "version": 3,
@@ -2148,7 +2174,7 @@ mod tests {
                 (31, 52, 5, 1889, 1)
             );
             assert_eq!(c.posted + c.omitted + c.blocked + c.off_page, c.items);
-            assert_eq!(r.posted.len() + r.left_out.len() + c.off_page, c.items);
+            assert_eq!(r.posted.len() + r.left_out_total + c.off_page, c.items);
             assert_eq!(c.by_cell.values().sum::<usize>(), c.items);
             let expected: BTreeMap<Cell, usize> = Cell::ALL
                 .iter()
@@ -2241,7 +2267,8 @@ mod tests {
         /// owner's league here: the items left off for a reason — the game
         /// lists it, skipped by hand, blocked — are listed, every one; the
         /// 1,889 nothing applies to are counted and listed only when
-        /// asked, and the document says which it did.
+        /// asked, and the document says which it did (listed to a bound since
+        /// the rerun: the test below).
         #[test]
         fn the_shop_document_lists_what_is_left_off_for_a_reason_and_counts_what_nothing_applies_to()
          {
@@ -2253,7 +2280,7 @@ mod tests {
                 r.left_out.iter().all(|l| l.verdict != Verdict::OffPage),
                 "the default document lists what nothing applies to"
             );
-            assert_eq!(r.left_out.len(), c.omitted + c.blocked);
+            assert_eq!(r.left_out_total, c.omitted + c.blocked);
             assert!(!r.off_page_listed);
             let bytes = serde_json::to_string_pretty(&r).unwrap().len();
             eprintln!("the default shop document over the owner's league: {bytes} bytes");
@@ -2274,6 +2301,7 @@ mod tests {
                 all.left_out
                     .iter()
                     .filter(|l| l.verdict != Verdict::OffPage)
+                    .take(LEFT_OUT_LISTED)
                     .collect::<Vec<_>>(),
                 r.left_out.iter().collect::<Vec<_>>()
             );
@@ -2285,6 +2313,55 @@ mod tests {
                 "expanded: {} bytes",
                 serde_json::to_string_pretty(&all).unwrap().len()
             );
+        }
+
+        /// C53, C74 — the release seat's rerun (mcp-opus-2, calls 37, 38):
+        /// the shop document was still 160 KB on the owner's league, 135 KB
+        /// of it `left_out`'s 521 items left off for a reason, and `page`
+        /// drops the counts. The default document lists at most
+        /// `LEFT_OUT_LISTED` of them — the blocked first, which a person
+        /// can act on — with `left_out_total` counting them all and every
+        /// cell's count intact; `expand` lists them all. Read through the
+        /// JSON, the contract both surfaces print. Here 57 are left off for
+        /// a reason (52 omitted, 5 blocked).
+        #[test]
+        fn the_default_shop_document_lists_a_bound_of_what_is_left_out_and_counts_it_all() {
+            let (s, report) = fixture();
+            let r = render(&report, &opts_at(s.taken_at, PolicySource::NotSet)).unwrap();
+            let doc = serde_json::to_value(&r).unwrap();
+            let listed = doc["left_out"].as_array().unwrap();
+            assert_eq!(listed.len(), 50, "the default lists a bound");
+            assert_eq!(doc["left_out_total"], json!(57), "and counts them all");
+            assert!(
+                listed[..5].iter().all(|l| l["verdict"] == json!("block")),
+                "the blocked are listed first"
+            );
+            assert_eq!(doc["counts"]["omitted"], json!(52));
+            assert_eq!(doc["counts"]["blocked"], json!(5));
+            assert_eq!(doc["counts"]["off_page"], json!(1889));
+            let bytes = serde_json::to_string_pretty(&r).unwrap().len();
+            eprintln!("the default shop document over the owner's league: {bytes} bytes");
+
+            let all = serde_json::to_value(
+                render(
+                    &report,
+                    &RenderOptions {
+                        expand: true,
+                        ..opts_at(s.taken_at, PolicySource::NotSet)
+                    },
+                )
+                .unwrap(),
+            )
+            .unwrap();
+            let every = all["left_out"].as_array().unwrap();
+            assert_eq!(every.len(), 1977 - 31, "expand lists every one");
+            assert_eq!(all["left_out_total"], json!(1977 - 31));
+            assert_eq!(
+                &every[..50],
+                &listed[..],
+                "the default is the expanded list's head"
+            );
+            assert_eq!(all["counts"], doc["counts"]);
         }
 
         /// T24 — the site as the oracle for the numbering, over the real
