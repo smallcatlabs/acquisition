@@ -439,7 +439,7 @@ fn price_set_and_clear_print_the_receipt_and_show_reads_it_back() {
     );
     assert!(!out.status.success());
     assert!(
-        stderr(&out).contains("is at revision 2 (re-read and retry)"),
+        stderr(&out).contains("item/i-map has a price at revision 2 (re-read and retry)"),
         "{}",
         stderr(&out)
     );
@@ -471,7 +471,7 @@ fn price_set_and_clear_print_the_receipt_and_show_reads_it_back() {
     let out = acq(&base, &["price", "clear", "item/i-map"]);
     assert!(!out.status.success());
     assert!(
-        stderr(&out).contains("nothing to clear: item/i-map has no price row of its own"),
+        stderr(&out).contains("item/i-map's price was cleared (revision 3): nothing to clear"),
         "{}",
         stderr(&out)
     );
@@ -563,6 +563,117 @@ fn price_list_is_bounded_by_a_limit_and_says_how_many_of_how_many() {
         said.contains(&format!("`--limit {all}` lists every one")),
         "{said}"
     );
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// The release seat: a write refused for its revision had no `kind`,
+/// the current revision only in its prose, and the store's words —
+/// `annotation item/…/buyout is at revision 4`, and on a cleared row
+/// `annotation no longer exists`, which hid the clear and the revision
+/// it still counts. Staged as met: a stale revision over a live row, and
+/// a revision named over a cleared one; each is `kind: "conflict"` with
+/// the current `revision`, in the verb's words. A target the facts do
+/// not hold is `kind: "not_found"`.
+#[test]
+fn a_write_refused_for_its_revision_is_a_conflict_naming_it_in_the_verbs_words() {
+    let base = std::env::temp_dir().join(format!(
+        "acq-price-conflict-{}-{}",
+        std::process::id(),
+        acquisition_store::now()
+    ));
+    let _ = std::fs::remove_dir_all(&base);
+    seed(&base);
+    let ok = |args: &[&str]| {
+        let out = acq(&base, args);
+        assert!(out.status.success(), "{args:?}: {}", stderr(&out));
+    };
+    let refused = |args: &[&str]| -> Value {
+        let out = acq(&base, args);
+        assert!(!out.status.success(), "{args:?} landed");
+        let doc = sole_json(&out);
+        let said = doc["error"].as_str().unwrap_or_default().to_string();
+        for word in ["annotation", "buyout", "item/i-map/"] {
+            assert!(!said.contains(word), "{said}");
+        }
+        doc
+    };
+    ok(&["price", "set", "item/i-map", "exact", "2", "divine"]);
+    ok(&[
+        "price",
+        "set",
+        "item/i-map",
+        "exact",
+        "3",
+        "divine",
+        "--if-revision",
+        "1",
+    ]);
+    let doc = refused(&[
+        "price",
+        "set",
+        "item/i-map",
+        "exact",
+        "7",
+        "divine",
+        "--if-revision",
+        "1",
+        "--json",
+    ]);
+    assert_eq!(
+        doc,
+        json!({
+            "error": "item/i-map has a price at revision 2 (re-read and retry)",
+            "kind": "conflict",
+            "revision": 2,
+        })
+    );
+    let doc = refused(&[
+        "price",
+        "clear",
+        "item/i-map",
+        "--if-revision",
+        "1",
+        "--json",
+    ]);
+    assert_eq!(
+        (&doc["kind"], &doc["revision"]),
+        (&json!("conflict"), &json!(2))
+    );
+
+    ok(&["price", "clear", "item/i-map", "--if-revision", "2"]);
+    let doc = refused(&[
+        "price",
+        "set",
+        "item/i-map",
+        "exact",
+        "1",
+        "divine",
+        "--if-revision",
+        "99",
+        "--json",
+    ]);
+    assert_eq!(
+        doc,
+        json!({
+            "error": "item/i-map's price was cleared (revision 3); a new price names no revision",
+            "kind": "conflict",
+            "revision": 3,
+        })
+    );
+    let doc = refused(&["price", "clear", "item/i-map", "--json"]);
+    assert_eq!(
+        (&doc["kind"], &doc["revision"]),
+        (&json!("conflict"), &json!(3))
+    );
+    assert!(
+        doc["error"]
+            .as_str()
+            .unwrap()
+            .starts_with("item/i-map's price was cleared (revision 3)"),
+        "{doc}"
+    );
+    let doc = refused(&["price", "show", "item/i-nowhere", "--json"]);
+    assert_eq!(doc["kind"], json!("not_found"), "{doc}");
     let _ = std::fs::remove_dir_all(&base);
 }
 

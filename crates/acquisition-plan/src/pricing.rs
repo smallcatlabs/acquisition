@@ -16,7 +16,15 @@
 //! # As built
 //!
 //! - The refusals are anyhow errors in the CLI's words, since they were
-//!   the CLI's first: a frontend reports the message whole (C11).
+//!   the CLI's first: a frontend reports the message whole (C11). The
+//!   ones an agent branches on carry a [`Refused`] — `kind: "conflict"`
+//!   with the row's current `revision` for a write refused for its
+//!   revision, `kind: "not_found"` for a target the facts do not hold —
+//!   which both frontends add to the failure document (C11, amended
+//!   2026-10-19). A refusal speaks the verb's words, never the store's
+//!   (C116, amended): a price at a revision, a price that was cleared.
+//! - A cleared row keeps counting: its tombstone holds a revision and the
+//!   next write's continues from it, so a refusal over one names it.
 //! - The league a verb reads with none given is the one the facts hold
 //!   the named target in, so an address an answer printed reads back as
 //!   printed; Standard otherwise ([`league_of`]).
@@ -53,6 +61,64 @@ use crate::price::{
 };
 use crate::shop::{ITEMS_TOKEN, Page, PolicySource, RenderOptions, ShopRender, render};
 use crate::{SyncPolicy, plan_refresh};
+
+/// A refusal an agent branches on, beside its words (C11): what kind it
+/// is, and for a write refused for its revision the row's revision now
+/// — a live row's, or the one a clear left — or none when no row was
+/// ever written. Found in an error's chain by [`Refused::find`]; its
+/// [`Refused::fields`] join the failure document on both surfaces.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Refused {
+    pub kind: RefusedKind,
+    pub message: String,
+}
+
+/// The kinds of [`Refused`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RefusedKind {
+    /// A write refused for its revision; `revision` is the row's now.
+    Conflict { revision: Option<i64> },
+    /// A target the facts do not hold.
+    NotFound,
+}
+
+impl Refused {
+    fn conflict(revision: Option<i64>, message: String) -> anyhow::Error {
+        anyhow::Error::new(Refused {
+            kind: RefusedKind::Conflict { revision },
+            message,
+        })
+    }
+
+    /// The refusal an error carries, if any.
+    pub fn find(e: &anyhow::Error) -> Option<&Refused> {
+        e.chain().find_map(|c| c.downcast_ref::<Refused>())
+    }
+
+    /// The fields a failure document adds beside `error`: `kind`, and
+    /// for a conflict `revision` (null when no row was ever written).
+    pub fn fields(&self) -> serde_json::Map<String, Value> {
+        let mut out = serde_json::Map::new();
+        match self.kind {
+            RefusedKind::Conflict { revision } => {
+                out.insert("kind".into(), json!("conflict"));
+                out.insert("revision".into(), json!(revision));
+            }
+            RefusedKind::NotFound => {
+                out.insert("kind".into(), json!("not_found"));
+            }
+        }
+        out
+    }
+}
+
+impl std::fmt::Display for Refused {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for Refused {}
 
 /// The league `status`, `shop render`, and a `show` or `list` naming no
 /// known target read when none is given.
@@ -174,12 +240,13 @@ fn not_on_record(
         }
         None => String::new(),
     };
-    anyhow::anyhow!(
-        "{target} is not in the facts for {realm}{} ({} items, {} tabs and characters on record); {hint}{row}",
-        r.header.league,
-        r.counts.items,
-        r.counts.containers
-    )
+    anyhow::Error::new(Refused {
+        kind: RefusedKind::NotFound,
+        message: format!(
+            "{target} is not in the facts for {realm}{} ({} items, {} tabs and characters on record); {hint}{row}",
+            r.header.league, r.counts.items, r.counts.containers
+        ),
+    })
 }
 
 /// `price show <target>`: one target's view, in the league the facts hold
@@ -363,11 +430,77 @@ fn current_revision(annotations: &Annotations, target: &PriceTarget) -> Result<O
 
 /// The create-only refusal: a row stands and no revision was named.
 fn standing(target: &PriceTarget, revision: i64, verb: &str) -> anyhow::Error {
-    anyhow::anyhow!(
-        "{target} has a price row of its own at revision {revision}: {verb} names the \
-         revision it replaces ({revision}), never a row it has not read — \
-         `acq price show {target}` reads it"
+    Refused::conflict(
+        Some(revision),
+        format!(
+            "{target} has a price row of its own at revision {revision}: {verb} names the \
+             revision it replaces ({revision}), never a row it has not read — \
+             `acq price show {target}` reads it"
+        ),
     )
+}
+
+/// Which write a refusal speaks for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Verb {
+    Set,
+    Clear,
+}
+
+/// A write refused for the row's state, in the verb's words: a live row
+/// at another revision; a row a clear left, at the revision its tombstone
+/// holds; or no row ever written. `current` is the live row the store
+/// reported, if any; the tombstone is read here.
+fn refused_write(
+    annotations: &Annotations,
+    target: &PriceTarget,
+    current: Option<i64>,
+    verb: Verb,
+) -> anyhow::Error {
+    if let Some(revision) = current {
+        return Refused::conflict(
+            Some(revision),
+            format!("{target} has a price at revision {revision} (re-read and retry)"),
+        );
+    }
+    let cleared = target
+        .address()
+        .ok()
+        .and_then(|(scope, key)| annotations.cleared(scope, &key, BUYOUT_KIND).ok())
+        .flatten();
+    let message = match (cleared, verb) {
+        (Some(r), Verb::Set) => {
+            format!("{target}'s price was cleared (revision {r}); a new price names no revision")
+        }
+        (Some(r), Verb::Clear) => format!(
+            "{target}'s price was cleared (revision {r}): nothing to clear \
+             (`acq price show {target}` reads what covers it)"
+        ),
+        (None, Verb::Set) => {
+            format!("{target} has no price of its own; a new price names no revision")
+        }
+        (None, Verb::Clear) => format!(
+            "nothing to clear: {target} has no price row of its own \
+             (`acq price show {target}` reads what covers it)"
+        ),
+    };
+    Refused::conflict(cleared, message)
+}
+
+/// The store's compare-and-swap refusal as [`refused_write`]'s; any other
+/// error as it was.
+fn on_conflict(
+    annotations: &Annotations,
+    target: &PriceTarget,
+    verb: Verb,
+    e: PriceWriteError,
+) -> anyhow::Error {
+    match e {
+        PriceWriteError::Store(AnnotationError::Conflict { current }) => {
+            refused_write(annotations, target, current.map(|row| row.revision), verb)
+        }
+        other => other.into(),
+    }
 }
 
 /// `set --json`: the [`PriceWrite`] plus whether the facts hold the
@@ -412,7 +545,8 @@ pub fn set(
         {
             return Err(standing(&target, row.revision, "a write over it"));
         }
-        other => other?,
+        Err(e) => return Err(on_conflict(annotations, &target, Verb::Set, e)),
+        Ok(write) => write,
     };
     Ok(SetReceipt { write, in_facts })
 }
@@ -427,24 +561,22 @@ pub fn clear(
     provenance: &Provenance,
 ) -> Result<PriceWrite> {
     let target = read_target(target)?;
-    let nothing = || {
-        anyhow::anyhow!(
-            "nothing to clear: {target} has no price row of its own \
-             (`acq price show {target}` reads what covers it)"
-        )
-    };
     let expected = match expect {
         Expect::Exactly(revision) => revision,
-        Expect::Current => current_revision(annotations, &target)?.ok_or_else(nothing)?,
+        Expect::Current => match current_revision(annotations, &target)? {
+            Some(revision) => revision,
+            None => return Err(refused_write(annotations, &target, None, Verb::Clear)),
+        },
         Expect::Create => {
             let (scope, key) = target.address()?;
             return Err(match annotations.get(scope, &key, BUYOUT_KIND)? {
                 Some(row) => standing(&target, row.revision, "a clear"),
-                None => nothing(),
+                None => refused_write(annotations, &target, None, Verb::Clear),
             });
         }
     };
-    Ok(clear_buyout(annotations, &target, expected, provenance)?)
+    clear_buyout(annotations, &target, expected, provenance)
+        .map_err(|e| on_conflict(annotations, &target, Verb::Clear, e))
 }
 
 /// `shop render`'s request beside the facts: the page size, the template

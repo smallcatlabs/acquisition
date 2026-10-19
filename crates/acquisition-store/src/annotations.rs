@@ -892,6 +892,20 @@ impl Annotations {
             .and_then(|(row, deleted)| (!deleted).then_some(row)))
     }
 
+    /// The revision a clear left at this key — its tombstone's, which the
+    /// next write's revision continues from — or `None` while a row
+    /// stands or none was ever written. A refusal reads it to say a row
+    /// was cleared, and at which revision, rather than never written.
+    pub fn cleared(
+        &self,
+        scope: &str,
+        key: &str,
+        kind: &str,
+    ) -> Result<Option<i64>, AnnotationError> {
+        Ok(row_of(&self.conn, scope, key, kind)?
+            .and_then(|(row, deleted)| deleted.then_some(row.revision)))
+    }
+
     /// The stored row of kind `K` and its typed value (C66): the same
     /// generic as the write door, so a row a newer build wrote is reported
     /// as such and an older stamp upgrades in memory. A stored row that

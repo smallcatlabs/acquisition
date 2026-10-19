@@ -890,7 +890,9 @@ fn refuse_usage(e: clap::Error) -> ! {
 /// on beyond its message.
 fn error_report(e: &anyhow::Error) -> serde_json::Value {
     let mut report = json!({ "error": format!("{e:#}") });
-    if let Some(refusal) = DaemonError::find(e) {
+    if let Some(refused) = acquisition_plan::pricing::Refused::find(e) {
+        report.as_object_mut().unwrap().extend(refused.fields());
+    } else if let Some(refusal) = DaemonError::find(e) {
         report["kind"] = json!(refusal.kind);
     } else if let Some(resolve) = e.chain().find_map(|c| c.downcast_ref::<Resolve>()) {
         match resolve {

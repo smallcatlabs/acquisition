@@ -409,6 +409,12 @@ fn each_pricing_write_is_the_receipt_the_cli_prints() {
             true,
         ),
         (
+            "price_set",
+            json!({ "target": "item/i-map", "type": "skip", "if_revision": 2 }),
+            &["price", "set", "item/i-map", "skip", "--if-revision", "2"],
+            false,
+        ),
+        (
             "price_clear",
             json!({ "target": "item/i-plain", "if_revision": 1 }),
             &["price", "clear", "item/i-plain", "--if-revision", "1"],

@@ -829,9 +829,13 @@ struct PriceClearParams {
 fn priced<T: serde::Serialize>(answer: Result<T>) -> Told {
     match answer {
         Ok(document) => told(&document),
-        Err(e) => Ok(CallToolResult::structured_error(
-            json!({ "error": format!("{e:#}") }),
-        )),
+        Err(e) => {
+            let mut report = json!({ "error": format!("{e:#}") });
+            if let Some(refused) = acquisition_plan::pricing::Refused::find(&e) {
+                report.as_object_mut().unwrap().extend(refused.fields());
+            }
+            Ok(CallToolResult::structured_error(report))
+        }
     }
 }
 
@@ -1205,7 +1209,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "The items of one league that are priced, each with both sides of its listing (no daemon, no network): `items`, each with its `subject` (an item address in `subject.target`), the hand row that applies (`manual`: the value, the row's own target in `from`, `inherited`, its `revision`), the game's reading (`game`: the note and the tab name verbatim beside what each reads as, the tab and whether it is public), the `relation` and the `effective` price; `containers`, the tabs, substashes and characters those items sit under, each with its own listing; `items_on_record`, how many items the league holds, so an empty answer says which nothing; `total`, how many the selection holds, and `listed`, how many `items` lists — fewer only under `limit`, the first in listing order, `containers` then being theirs alone. With neither `relation` nor `effective`, items nothing prices are left out, except unresolved ones, which are always listed. A container the facts do not hold is refused, never an empty selection. The document `acq price list --json` prints; a refusal is a result marked isError holding `error`, whose words name the CLI's flags (--league is `league`, --in is `in`)."
+        description = "The items of one league that are priced, each with both sides of its listing (no daemon, no network): `items`, each with its `subject` (an item address in `subject.target`), the hand row that applies (`manual`: the value, the row's own target in `from`, `inherited`, its `revision`), the game's reading (`game`: the note and the tab name verbatim beside what each reads as, the tab and whether it is public), the `relation` and the `effective` price; `containers`, the tabs, substashes and characters those items sit under, each with its own listing; `items_on_record`, how many items the league holds, so an empty answer says which nothing; `total`, how many the selection holds, and `listed`, how many `items` lists — fewer only under `limit`, the first in listing order, `containers` then being theirs alone. With neither `relation` nor `effective`, items nothing prices are left out, except unresolved ones, which are always listed. A container the facts do not hold is refused (`kind: \"not_found\"`), never an empty selection. The document `acq price list --json` prints; a refusal is a result marked isError holding `error`, whose words name the CLI's flags (--league is `league`, --in is `in`)."
     )]
     fn price_list(&self, Parameters(p): Parameters<Args<PriceListParams>>) -> Told {
         let p = match p.read() {
@@ -1236,7 +1240,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "One target's listing (no daemon, no network): `listing`, both sides with their causes — the hand row that applies with its `revision` and the target it is on (`manual.from`; the target's own row when that is the target itself, a container's when `inherited`), the note and the tab name verbatim beside what each reads as — the relation, the effective price and why; `container`, the one an item sits in; for a tab, substash or character, `items_here` (physically in it) and `items_covered_below` (covered through its children). A bare id is refused with its two readings, `item/<id>` and `character/<id>`; a target the facts do not hold is refused naming the league that holds it, if any, and saying so when it has a row of its own, which price_status lists whole. The document `acq price show --json` prints. Read it before price_set or price_clear on a target that has a row of its own: they name the revision they replace."
+        description = "One target's listing (no daemon, no network): `listing`, both sides with their causes — the hand row that applies with its `revision` and the target it is on (`manual.from`; the target's own row when that is the target itself, a container's when `inherited`), the note and the tab name verbatim beside what each reads as — the relation, the effective price and why; `container`, the one an item sits in; for a tab, substash or character, `items_here` (physically in it) and `items_covered_below` (covered through its children). A bare id is refused with its two readings, `item/<id>` and `character/<id>`; a target the facts do not hold is refused (`kind: \"not_found\"`) naming the league that holds it, if any, and saying so when it has a row of its own, which price_status lists whole. The document `acq price show --json` prints. Read it before price_set or price_clear on a target that has a row of its own: they name the revision they replace."
     )]
     fn price_show(&self, Parameters(p): Parameters<Args<PriceShowParams>>) -> Told {
         let p = match p.read() {
@@ -1313,7 +1317,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Set one target's price by hand: one row on an item, tab, substash or character, which what it covers inherits (a tab's items, a folder's tabs, a parent tab's substashes, a character's items) unless a row nearer the item says otherwise. Intent only: it sends nothing and changes nothing in game. Stricter than `acq price set`: a target that already has a row of its own is replaced only when `if_revision` names that row's revision, and without it the write is refused naming the current revision — read the target with price_show first; with no row, omit `if_revision` to create one. Returns the receipt: `target`, `written` (the row now, with its revision), `prior` (the row replaced, or null after a create) — the undo after a create is price_clear with `if_revision` the written revision, and after a replace price_set with the prior's value and `if_revision` the written revision, unless the prior is a value this build cannot read (a newer build's, replaced only by naming its revision), which it cannot write back — and `in_facts`, false for a target the facts do not hold (not fetched yet, or a typo: the row stands). The document `acq price set --json` prints."
+        description = "Set one target's price by hand: one row on an item, tab, substash or character, which what it covers inherits (a tab's items, a folder's tabs, a parent tab's substashes, a character's items) unless a row nearer the item says otherwise. Intent only: it sends nothing and changes nothing in game. Stricter than `acq price set`: a target that already has a row of its own is replaced only when `if_revision` names that row's revision, and without it the write is refused naming the current revision — `kind: \"conflict\"`, the revision in `revision`, as for a stale one — read the target with price_show first; with no row, omit `if_revision` to create one. Returns the receipt: `target`, `written` (the row now, with its revision), `prior` (the row replaced, or null after a create) — the undo after a create is price_clear with `if_revision` the written revision, and after a replace price_set with the prior's value and `if_revision` the written revision, unless the prior is a value this build cannot read (a newer build's, replaced only by naming its revision), which it cannot write back — and `in_facts`, false for a target the facts do not hold (not fetched yet, or a typo: the row stands). The document `acq price set --json` prints."
     )]
     fn price_set(&self, Parameters(p): Parameters<Args<PriceSetParams>>) -> Told {
         let p = match p.read() {
@@ -1340,7 +1344,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Remove one target's own price row; what it covered falls back to the next row up, or to the game's price. Intent only: it sends nothing. Stricter than `acq price clear`: `if_revision` must name the revision of the row it removes, and without it the clear is refused naming the current revision (or saying the target has no row of its own) — read the target with price_show first. Returns the receipt: `target`, `written` null, `prior` (the row removed); price_set with the prior's value puts it back. The document `acq price clear --json` prints."
+        description = "Remove one target's own price row; what it covered falls back to the next row up, or to the game's price. Intent only: it sends nothing. Stricter than `acq price clear`: `if_revision` must name the revision of the row it removes, and without it the clear is refused naming the current revision (or saying the target has no row of its own) — `kind: \"conflict\"`, the revision in `revision` — read the target with price_show first. Returns the receipt: `target`, `written` null, `prior` (the row removed); price_set with the prior's value puts it back. The document `acq price clear --json` prints."
     )]
     fn price_clear(&self, Parameters(p): Parameters<Args<PriceClearParams>>) -> Told {
         let p = match p.read() {
