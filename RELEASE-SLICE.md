@@ -56,7 +56,7 @@ now. The outside review is Astra's Codex pass over each step's commits.
 
 | Round | Commits | Findings | Held by |
 | --- | --- | --- | --- |
-| review 1, steps 1 and 2 (2026-10-19) | the fix commits, one per fault | five: a row on a target the facts do not hold can be written and then read nowhere but as an address under `status` (1); the receipt's `prior` is read before the store's compare-and-swap, so a create after a racing clear names the cleared row as what it replaced (2); `set` reads the facts for `in_facts` after the commit and a failed read discards the receipt of a write that landed (3); the MCP's `price_clear` opens the facts it does not need, so a facts database the CLI's clear ignores refuses the MCP's (4); the archive smoke checks `acq-mcp` is executable and never runs it (5); and two in the documents: the brief's acceptance says the tools' refusals carry the CLI's `kind` while the built kinds are the MCP's; `price_set`'s undo clause assumes a prior | the rules the owner approved, in the worker's brief below; the tests named there |
+| review 1, steps 1 and 2 (2026-10-19) | `b45a0a23`, `0b91e7c7`, `4c169939`, `3adaeefd`, `73cc6ecf`, `b7a5fa4b` | five: a row on a target the facts do not hold can be written and then read nowhere but as an address under `status` (1); the receipt's `prior` is read before the store's compare-and-swap, so a create after a racing clear names the cleared row as what it replaced (2); `set` reads the facts for `in_facts` after the commit and a failed read discards the receipt of a write that landed (3); the MCP's `price_clear` opens the facts it does not need, so a facts database the CLI's clear ignores refuses the MCP's (4); the archive smoke checks `acq-mcp` is executable and never runs it (5); and two in the documents: the brief's acceptance says the tools' refusals carry the CLI's `kind` while the built kinds are the MCP's; `price_set`'s undo clause assumes a prior | (1) `rows.unmatched` lists each row in the manual side's shape, listing schema 3, `a_row_on_a_target_the_facts_do_not_hold_is_listed_whole_and_show_says_where` (`price_json.rs`); (2) `a_create_after_a_racing_clear_reports_no_prior` (`price.rs`); (3) `a_set_whose_facts_cannot_be_read_refuses_before_the_write` (`pricing.rs`); (4) `a_clear_lands_alike_on_both_surfaces_without_the_facts` (`pricing_tools.rs`); (5) the smoke's step 5, which fails on an `acq-mcp` that never answers or never exits; the brief's line amended at `e041cd46`, the description at `b7a5fa4b` |
 
 ## Owner verdicts, verbatim
 
@@ -186,6 +186,27 @@ fixes make you notice, which is a park in your report.
   minute finds the daemon gone and must ask the person to start one.
   `ACQ_IDLE_SHUTDOWN` on the starting command is the workaround; the
   release seat (step 4) measures whether that is enough.
+- Two store tests failed one gate run in the fix worker's worktree
+  and passed on every rerun (`corpus.rs`:
+  `the_revision_moves_with_every_record_and_with_nothing_else`,
+  `a_fetch_landing_mid_read_is_the_next_reads_and_never_this_ones`).
+  The worker's reading: their `tmp()` names a directory by pid and
+  counter and never clears it, so a leftover from an earlier run with
+  the same pid seeds extra facts. Trigger: either fails a gate again;
+  the fix is to remove the directory before use, as `pricing_tools.rs`'s
+  `scratch` does.
+- `PRICING-SLICE.md` (plan 4b, review 2) cites
+  `reference/listing-report-schema-2.json`, renamed `-schema-3.json` at
+  `b45a0a23`; the docs check does not scan closed records for reference
+  paths. Trigger: this slice's close, when that citation is rewritten
+  as "schema 2, at `<commit>`".
+- `list`'s refusal for a container with a row of its own does not say
+  so, where `show`'s now does. Trigger: the release seat shows an agent
+  reaching `price_list --in` or `--covered-by` on an orphaned container.
+- `price_clear`'s receipt text says `price_set` with the prior's value
+  puts it back, which is right (a create over the tombstone) but names
+  no `if_revision` where `price_set`'s undo clause now does in both
+  cases. Trigger: the release seat stumbles on undoing a clear.
 - The whole-CLI seat's first fact (`audits/rehome-2026-10/seat/REPORT.md`,
   section 4, item 1) still stands in the tour's closing paragraph: the
   account rule is stated for job verbs only. Step 3 fixes it.
