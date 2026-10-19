@@ -1409,6 +1409,20 @@ fn store_status_says_what_its_league_count_counts() {
     let (printed, ok) = cli(&seat.base, &["store", "status"]);
     assert!(ok);
     assert_eq!(printed["league_list"], "never fetched", "{printed}");
+    // a fetch that listed none is a fetch (review 2 of the re-sit)
+    {
+        let mut store = Store::open(&account_path(&stores(&seat.base), USER)).unwrap();
+        record(
+            &mut store,
+            Endpoint::Leagues,
+            "pc",
+            json!({ "leagues": [] }),
+            50,
+        );
+    }
+    let (status, _) = seat.call("store_status", &json!({}));
+    assert_eq!(status["leagues"], 0, "{status}");
+    assert_eq!(status["league_list"], "fetched", "{status}");
 }
 
 /// The search tool's words on a site search name the field a buyer's

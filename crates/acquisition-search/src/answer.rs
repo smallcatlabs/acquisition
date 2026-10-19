@@ -2848,24 +2848,23 @@ impl Answer {
     }
 }
 
-/// The one league a query's tree fixes: a root `league=` term, or the one
-/// such term among the root's and-ed children.
+/// The one league a query's tree fixes: the one `league=` term among the
+/// root and its and-ed descendants, through every nested conjunction — a
+/// refinement parenthesizes the old text and appends a term, and means
+/// the same (review 2 of the re-sit: `(league=Standard rarity=rare)
+/// ilvl>=1` had lost its league's list age).
 fn fixed_league(tree: &Json) -> Option<&str> {
-    fn league(t: &Json) -> Option<&str> {
-        (t["field"] == "league" && t["op"] == "=")
-            .then(|| t["value"].as_str())
-            .flatten()
+    fn conjoined<'a>(t: &'a Json, found: &mut Vec<&'a str>) {
+        if t["field"] == "league" && t["op"] == "=" {
+            found.extend(t["value"].as_str());
+        }
+        if let Some(all) = t["all"].as_array() {
+            all.iter().for_each(|child| conjoined(child, found));
+        }
     }
-    if let Some(one) = league(tree) {
-        return Some(one);
-    }
-    match tree["all"]
-        .as_array()?
-        .iter()
-        .filter_map(league)
-        .collect::<Vec<_>>()
-        .as_slice()
-    {
+    let mut found = Vec::new();
+    conjoined(tree, &mut found);
+    match found.as_slice() {
         [one] => Some(one),
         _ => None,
     }

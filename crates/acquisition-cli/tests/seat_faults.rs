@@ -892,6 +892,19 @@ fn the_scope_lines_list_age_is_the_querys_leagues() {
         &["search", "--realm", "pc", "--json", "league=Standard"],
     ));
     assert_eq!(fixed["scope"]["list_seen"], later, "{}", fixed["scope"]);
+    // a refinement parenthesizes the old text and appends a term, and
+    // fixes the same league (review 2 of the re-sit)
+    let refined = sole_json(&acq(
+        &base,
+        &[
+            "search",
+            "--realm",
+            "pc",
+            "--json",
+            "(league=Standard rarity=rare) ilvl>=1",
+        ],
+    ));
+    assert_eq!(refined["scope"]["list_seen"], later, "{}", refined["scope"]);
     let whole = sole_json(&acq(&base, &["search", "--realm", "pc", "--json"]));
     let oldest = whole["scope"]["list_seen"].as_i64().unwrap();
     assert!(oldest < later, "{}", whole["scope"]);

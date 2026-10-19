@@ -493,9 +493,9 @@ pub fn status(json: bool) -> Result<()> {
         println!(
             "responses {}  league list {}  characters {}  tabs {} (every realm and league)  items {} (+{} removed)  events {}",
             st.responses,
-            match st.leagues {
-                0 => "never fetched (`acq leagues`)".to_string(),
-                n => format!("{n} leagues"),
+            match st.league_list.as_str() {
+                "never fetched" => "never fetched (`acq leagues`)".to_string(),
+                _ => format!("{} leagues", st.leagues),
             },
             st.characters,
             st.tabs,

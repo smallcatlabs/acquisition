@@ -644,11 +644,12 @@ pub struct Status {
     pub bytes: u64,
     pub responses: i64,
     pub leagues: i64,
-    /// What `leagues` counts: `never fetched` at 0 — no `leagues` job has
-    /// listed them — else `fetched`; the number alone read as a
-    /// contradiction beside tabs in seven leagues (the trade seat's CLI
-    /// runs, worded there; the re-sit's mcp-sonnet fault 7, the MCP's
-    /// bare count).
+    /// Whether the league list was ever fetched: `fetched` where a
+    /// `leagues` response landed, its list empty or not, else `never
+    /// fetched`; the bare count read as a contradiction beside tabs in
+    /// seven leagues (the trade seat's CLI runs, worded there; the
+    /// re-sit's mcp-sonnet fault 7, the MCP's bare count), and a count of
+    /// zero is not a fetch of none (review 2 of the re-sit).
     #[serde(default)]
     pub league_list: String,
     pub characters: i64,
@@ -1652,7 +1653,10 @@ impl Store {
             bytes: std::fs::metadata(&self.path).map(|m| m.len()).unwrap_or(0),
             responses: count("SELECT count(*) FROM responses")?,
             leagues: count("SELECT count(*) FROM leagues")?,
-            league_list: if count("SELECT count(*) FROM leagues")? == 0 {
+            league_list: if count(
+                "SELECT count(*) FROM responses WHERE endpoint = 'leagues' AND status BETWEEN 200 AND 299",
+            )? == 0
+            {
                 "never fetched".to_string()
             } else {
                 "fetched".to_string()
