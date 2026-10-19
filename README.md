@@ -67,8 +67,8 @@ acq auth status   # who is logged in, and whether the keyring holds the login
 ```
 
 Logging in is a person's act at a terminal: `acq` refuses to start a
-daemon against GGG without one. Every command talks to the real GGG
-unless `ACQ_PROVIDER=mock` is set; with it, a built-in stand-in serves
+daemon against GGG without one. GGG is the provider unless
+`ACQ_PROVIDER=mock` is set; with it, a built-in stand-in serves
 made-up stashes and a login page that takes any name, for trying the
 tool or an agent with no account. Its data is kept apart from the real.
 Without a keyring, a login lasts as long as the daemon that holds it.
@@ -173,14 +173,16 @@ them.
   GGG's limits, and on tabs the limit seen so far is thirty every five
   minutes, so a first sync of a few hundred tabs takes most of an hour.
   A hold can last five minutes; `acq jobs` shows each job's ETA.
-- **Jobs write the store; the rest read it.** A job verb sends through
+- **Jobs fetch; everything else is offline.** A job verb sends through
   the daemon, prints GGG's JSON (progress on stderr) and writes what it
-  fetched to the store. The store verbs (`tabs`, `search`, `show`,
-  `store`, `price`, `shop`) read it offline and see only what was
-  fetched.
-- **The league is Standard unless you name it.** Verbs that take
-  `--league` read or fetch Standard without it; `acq leagues` lists
-  yours.
+  fetched to the store. The other verbs read the store without a
+  daemon and see only what was fetched; `price set`, `policy set` and
+  `store import` write your own intent beside it.
+- **Standard unless you name a league.** `stashes`, `stash`,
+  `refresh --plan`, `tabs`, `price status` and `shop render` read or
+  fetch Standard without `--league` (a saved plan carries its own); `price show` reads the league the facts
+  hold the target in, `store characters` every league. `acq leagues`
+  lists yours.
 - **Your data stays on your machine**, under
   `~/Library/Application Support/com.smallcatlabs.acq` on macOS,
   `~/.local/share/acq` on Linux and `%APPDATA%\smallcatlabs\acq\data`
