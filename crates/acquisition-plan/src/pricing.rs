@@ -28,6 +28,11 @@
 //!   refuses such a target saying it has a row and where it is listed.
 //! - A blind write never lands over a row this build cannot read
 //!   ([`Expect::Current`]): the prior would be intent it cannot restore.
+//! - The write is last: [`set`] reads everything its receipt reports,
+//!   the facts included, before the write and nothing after it, so a
+//!   read that fails refuses before anything changes and no write lands
+//!   whose receipt was lost. A target the facts do not hold is noted,
+//!   never refused (C64).
 
 use std::str::FromStr;
 
@@ -378,6 +383,12 @@ pub fn set(
 ) -> Result<SetReceipt> {
     let target = read_target(target)?;
     let value = read_buyout(kind, amount, currency)?;
+    // Everything the receipt reports is read before the write and nothing
+    // after it, so a read that fails refuses before anything changes: the
+    // note, whether the facts hold the target at all, in any league.
+    let in_facts = store
+        .holds(&FactAddress::from(&target))
+        .context("reading the facts for the target")?;
     let expected = match expect {
         Expect::Exactly(revision) => Some(revision),
         Expect::Current => current_revision(annotations, &target)?,
@@ -391,11 +402,6 @@ pub fn set(
         }
         other => other?,
     };
-    // Read after the write, so the note never gates it: whether the facts
-    // hold the target at all, in any league.
-    let in_facts = store
-        .holds(&FactAddress::from(&target))
-        .context("reading the facts for the target")?;
     Ok(SetReceipt { write, in_facts })
 }
 
@@ -581,6 +587,62 @@ mod tests {
             id: "u".into(),
         };
         assert!(realm_of(&[&xbox, &pc], None).is_err());
+    }
+
+    /// C35 — `set` reads everything it reports before the write and
+    /// nothing after it: a facts read that fails refuses naming the facts
+    /// before anything changes, so no write lands whose receipt was lost.
+    #[test]
+    fn a_set_whose_facts_cannot_be_read_refuses_before_the_write() {
+        let dir = std::env::temp_dir().join(format!(
+            "acq-pricing-facts-{}-{}",
+            std::process::id(),
+            acquisition_store::now()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        let path = dir.join("facts.db");
+        let store = Store::open(&path).unwrap();
+        // The facts made unreadable under the open store: their item table
+        // gone, through a second connection.
+        rusqlite::Connection::open(&path)
+            .unwrap()
+            .execute_batch("DROP TABLE items")
+            .unwrap();
+        let mut a = Annotations::open_memory_for("u-1").unwrap();
+        let via = Provenance::via("test");
+        let first = set(
+            &store,
+            &mut a,
+            "item/i1",
+            "exact",
+            Some("30"),
+            Some("chaos"),
+            Expect::Create,
+            &via,
+        );
+        let err = first.unwrap_err();
+        assert!(format!("{err:#}").contains("reading the facts"), "{err:#}");
+        assert!(
+            a.get("item", "i1", BUYOUT_KIND).unwrap().is_none(),
+            "a create landed"
+        );
+        a.put::<Buyout>(
+            "item",
+            "i1",
+            &read_buyout("exact", Some("30"), Some("chaos"))
+                .unwrap()
+                .to_value(),
+            None,
+            &via,
+        )
+        .unwrap();
+        for expect in [Expect::Exactly(1), Expect::Current] {
+            let err = set(&store, &mut a, "item/i1", "skip", None, None, expect, &via).unwrap_err();
+            assert!(format!("{err:#}").contains("reading the facts"), "{err:#}");
+            let row = a.get("item", "i1", BUYOUT_KIND).unwrap().unwrap();
+            assert_eq!(row.revision, 1, "{expect:?}: a replace landed");
+        }
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// `set`'s value words are one grammar with the value's own: the
