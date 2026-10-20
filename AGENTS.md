@@ -61,6 +61,7 @@ refresh and daemon split, also read the crates' module docs (refresh:
 | the trade import | `TRADE-SLICE.md` |
 | platform arms, packaging or release | `PLATFORMS-SLICE.md` |
 | the release (note 36, step 4) | `RELEASE-SLICE.md` |
+| the road after the alpha, any step | `roadmap/README.md` |
 
 Facts about GGG live in `docs/design/network-ground-truth.md` (and the
 trade appendix beside it), cited by claim number; new claims are authored
