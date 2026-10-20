@@ -1,3 +1,11 @@
+_Author's Notes_
+
+This is an experimental rewrite of [acquisition-qt](https://github.com/smallcatlabs/acquisition-qt).
+
+This project is currently a sloppy mess. There's no UI, for starters, and the only documentation is for agents. All you get right now are a CLI, an MCP, and the ability to run trade site searches against your own downloaded stash by copying and pasting search URLs as arguments.
+
+It will probably take several months of work to get this into a decent enough shape to seriously compete with the original acquisition, so I plan on maintaining both.
+
 # Acquisition
 
 Acquisition downloads your Path of Exile stash tabs and characters to
