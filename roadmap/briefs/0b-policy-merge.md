@@ -31,9 +31,10 @@ each realm the document names replaces that realm's policy alone, and
 realms it does not name stay; a realm is removed by naming it with no
 leagues; whole-policy replacement stays reachable by one explicit flag
 on the CLI and one explicit field on the MCP, and on the MCP every
-write still names the revision it replaces (C52).** Recorded as an
+write still names the revision it replaces (C52).** Accepted by the
+owner 2026-10-19, verbatim: "My answer is: yes." Recorded as an
 amendment to the policy's entry in `decisions/plans.md` in the step's
-first commit, with the owner's words.
+first commit, with those words.
 
 ## Do
 1. Record the ruling (above) in the registry; stop and ask if the owner

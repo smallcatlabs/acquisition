@@ -115,8 +115,8 @@ phase 4's second input.
 
 ## Current step
 
-Phase 0 is open; its five briefs are ready. Next after its reviews: the
-phase 1 design session.
+Phase 0 is open; its five briefs are ready and 0b has its ruling. Next
+after its reviews: the phase 1 design session.
 
 ## Ledger
 
