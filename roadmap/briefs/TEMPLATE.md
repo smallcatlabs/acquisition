@@ -45,7 +45,9 @@ instead.
   run the drivers while the gate runs.
 - One commit per concern; the story in the message, which names this
   brief's file; a size stated in a message is measured after the last
-  edit.
+  edit. A breaker case rides in the commit of the check it stages,
+  never in a commit of its own: step 1e ran the full gate eight times
+  for that.
 - A finding is a test named for the fault, or a line in the report;
   never a new document.
 - A draft the brief names is taken verbatim unless the tree disproves

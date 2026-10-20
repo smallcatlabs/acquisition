@@ -239,7 +239,7 @@ closed unless the owner reopens it.
 - A new frontend crate, `crates/acquisition-web` (name to be fixed by
   the design), with the MCP's edges plus axum and the embedded assets.
   Root `Cargo.toml` lists members explicitly, so the crate is added
-  there. `tools/docs-check.sh` §5 reads the graph from cargo metadata
+  there. `tools/arch-check.sh` §5 reads the graph from cargo metadata
   and needs the new name added to the daemon's forbid list.
 - No daemon or protocol change is needed for the first GUI. The
   `Request` and `Response` enums (`crates/acquisition-protocol/src/protocol.rs`:

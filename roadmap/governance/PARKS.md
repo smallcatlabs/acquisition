@@ -125,11 +125,11 @@ issue is for. Forty-eight issues.
 | 28 | Currency totals and history | pricing, user | A derivation over facts, when the owner asks. | — |
 | 29 | Name to id resolution for price targets | pricing, user | `price set tab:"Maps"`, the rule of C63. | — |
 | 30 | Query by example | search, seat | The one-item view prints the item as an editable query. | — |
-| 31 | A unique's variant as a derived field | search, user | The Path of Building label (`Pre 3.23.0`, `Current`) under C107; what the fit needs is `search/legacy/README.md` at `77bca830`; 3.30's balance changes make variants matter. | — |
+| 31 | A unique's variant as a derived field | search, user | The Path of Building label (`Pre 3.23.0`, `Current`) under C107; what the fit needs is `spikes/rust-playground/search/legacy/README.md` at `77bca830`; 3.30's balance changes make variants matter. | — |
 | 32 | An incremental update of a held corpus | search, gui | Over `item_events`; M5: a resident consumer pays one whole load (492 ms) per committed tab. | phase 4 |
 | 33 | What no sitting has asked the site | search, live | A checklist: which number the site compares in a text of three numbers (`stat.text.many`); the three percentile lines and S4; Maven's Invitations; grafts; `scourge-in-sum` and `blighted-base` (`tests/trade-oracle.toml`, under `asks`). Fired twice (rounds v and x). | the next sitting |
 | 34 | The twin id the site leaves out of totals | search, live | Reported to GGG 2026-09-26; four `not mimicked` rows move when a sitting shows the site counting it. | — |
-| 35 | The answer's words the seats left unruled | search, seat | The list is `search/OBSERVATIONS.md` at `453a4429` (under `spikes/rust-playground/`), entries headed "a seat". | — |
+| 35 | The answer's words the seats left unruled | search, seat | The list is `spikes/rust-playground/search/OBSERVATIONS.md` at `453a4429`, entries headed "a seat". | — |
 | 36 | The scope's `tabs` pointer under two `league=` terms | search, seat | `fixed_league` names the league with the most never-fetched tabs, neither term's. | — |
 | 37 | Whether the site can list an item, as a field and a row's mark | search, live | Needs a sitting on what the site lists; the worst fault of six of eight seat runs (cli-opus-2 13–17, mcp-opus-2 30–32; re-sit cli-opus 1, mcp-sonnet 1). GGG's own flags are fields since C117. | 2h |
 | 38 | The query's own filtered value as the sort, unnamed | search, seat | Fired at the re-sit (cli-opus fault 4, cli-sonnet fault 2). | 2h |
