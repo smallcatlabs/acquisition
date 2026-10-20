@@ -149,10 +149,12 @@ daemons write the run directory's `sends.jsonl` instead, under
 ## If something trips
 
 A tripwire trip is evidence to read, not a retry prompt: the standing
-rule's post-violation wait, then `acq daemon reset-tripwire`. Never
-reset-and-retry. A ceiling halt leaves the queue waiting on disk: `acq
-jobs` (it reads the queue on disk once the halted daemon has idled out,
-C45), cancel what should not go out, then respawn. An interrupted
+rule's post-violation wait comes first. Never reset-and-retry. Either
+halt leaves the queue waiting on disk, and clearing it (`acq daemon
+reset-tripwire` after a trip, a respawn after a ceiling) wakes every
+job in it: first `acq jobs` (it reads the queue on disk once the
+halted daemon has idled out, C45) and `acq cancel` what should not go
+out. An interrupted
 driver leaves its `apply` parent persisted too: `acq cancel <id>`
 before the driver runs again, or the parent's remaining children go out
 during the next quote and the driver refuses the run.
