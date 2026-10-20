@@ -15,8 +15,8 @@
 #      the area, and the unbudgeted three held two thirds of a step's
 #      read while the budgeted files stayed flat (2026-09-23).
 #   2. The decision registry: one bullet per decision under a length
-#      limit, a capped count of always-loaded ones, every cited id real,
-#      the uncited ones reported.
+#      limit and with no history in it, a capped count of always-loaded
+#      ones, every cited id real, the uncited ones reported.
 #   3. Stale identifiers. A backticked code identifier in a control
 #      document that no longer exists in the workspace is a parallel
 #      description that has rotted. Checked: `Type::path` items,
@@ -141,6 +141,33 @@ done <"$reg"
 ids=$(grep -oE '^- \*\*C[0-9]+' "$reg" | sed 's/^- \*\*//' | sort -u)
 count=$(printf '%s\n' "$ids" | grep -c .)
 if ((over > 0)); then fail=1; else printf 'ok      %-18s %5d decisions, every entry within %d bytes\n' registry "$count" "$ENTRY_LIMIT"; fi
+# An entry carries no history (the entry rule, `tools/bothy.py`'s
+# docstring): no date, no commit, no owner's quote, no "Amended",
+# "Decided" or "Ruled", no seat call number. `git log -S'C<n>'` and the
+# commit messages hold the story; a marker is refused by name, with the
+# entry that carries it. The words are matched as written, so a ruling
+# may still say a thing is "ruled first".
+history=$(python3 -I - "$reg" <<'PY'
+import re, sys
+MARKERS = [
+    ("a date", r"\b\d{4}-\d{2}-\d{2}\b"),
+    ("a commit", r"\b(?=[0-9a-f]*[0-9])[0-9a-f]{7,40}\b"),
+    ('"owner:"', r"(?i:\bowner:)"),
+    ('"verbatim"', r"(?i:\bverbatim\b)"),
+    ('"Amended"', r"\bAmended\b"),
+    ('"Decided"', r"\bDecided\b"),
+    ('"Ruled"', r"\bRuled\b"),
+    ("a call number", r"\bcalls? \d+"),
+]
+for line in open(sys.argv[1], encoding="utf-8"):
+    cid = re.match(r"- \*\*(C\d+)", line).group(1)
+    for name, rx in MARKERS:
+        m = re.search(rx, line)
+        if m:
+            print(f"HISTORY {cid:<18} carries {name} ({m.group(0)!r}): git holds the story; take it out of the entry")
+PY
+) || { echo "HISTORY the scan itself failed"; fail=1; }
+if [[ -n $history ]]; then printf '%s\n' "$history"; fail=1; else printf 'ok      %-18s %5d decisions, none carrying a history marker\n' registry "$count"; fi
 cited=$(grep -rhoE '\bC[0-9]+\b' crates tools README.md search/DIGEST.md LIVE-TESTING.md RUN-LEDGER.md TESTING-NOTES.md SURFACES.md REFRESH-SLICE.md PRICING-SLICE.md SEARCH-SLICE.md TRADE-SLICE.md search/MEASUREMENTS.md search/LEDGER.md DAEMON-SPLIT-SLICE.md NETWORK-CLEANUP.md PLATFORMS-SLICE.md RELEASE-SLICE.md AGENTS.md .claude/skills 2>/dev/null \
   --include='*.rs' --include='*.sh' --include='*.py' --include='*.md' | sort -u)
 unknown=$(comm -13 <(printf '%s\n' "$ids") <(printf '%s\n' "$cited") | grep . || true)

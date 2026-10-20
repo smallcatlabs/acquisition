@@ -9,20 +9,37 @@
     python3 -I tools/bothy.py --root DIR ...        the tree to read (default: the script's parent directory)
 
 The registry is `CONTEXT.md` (invariants, principles, the cross-cutting
-rulings and parks, the index of area files) and `decisions/<area>.md`
-(one file per area: rulings, then "Parked"). The grammar is the one
-`CONTEXT.md`, "Decisions — the registry", states: one bullet per
-decision, `- **C<n> — title.** ruling *Why:* ... *Details:* ...
-*Pinned:* ... *Evidence:* ...`; one bullet per park, `item → home.
-Trigger: ...`. This script reads that grammar and never writes.
+rulings, the index of area files) and `decisions/<area>.md` (one file
+per area: rulings, then "Not doing"). This script reads that grammar
+and never writes.
+
+The entry rule. An entry is one bullet,
+`- **C<n> — title.** ruling. *Why:* one sentence. *Pinned:* the test or check that holds it.`
+The ruling is plain declaratives, one idea per sentence; there is one
+*Why:*, the reason and nothing else; *Pinned:* names the file and the
+test name or prefix that holds the property, or says `nothing yet`.
+There is no *Details:* (`show` lists where the code names the id) and
+no *Evidence:*. Every cited id carries a gloss of two to five words the
+first time it appears in the entry. An entry carries no history: no
+date, no commit, no owner's quote, no "Amended", "Decided" or "Ruled",
+no seat call number (docs-check refuses those markers); `git log -S`
+and the commit messages hold it. A ruling whose build waits says
+`Unbuilt` and names its issue or its not-doing line.
+
+The not-doing rule. "Not doing" at the foot of an area file is one
+bullet per thing someone would propose and the project declines:
+`- <item>: not until <trigger>.`, or `- <item>: refused …` for what no
+trigger reopens. The backlog is GitHub issues, never this list.
 
 `check` holds what `tools/docs-check.sh` does not: the index in
 `CONTEXT.md` agrees with the files; a cross-reference inside the
-registry resolves; a park has a home and a trigger and is not struck
-through; a path the registry names exists; a module doc that names an
-area names one that exists. docs-check keeps the byte budgets, the
-entry length, the citations from code and the uncited ids. The two
-do not overlap; a fault has one reporter.
+registry resolves; an entry has its *Why:* and its *Pinned:* and no
+*Details:* or *Evidence:*; a not-doing line states its trigger or its
+refusal and is not struck through; a path the registry names exists; a
+module doc that names an area names one that exists. docs-check keeps
+the byte budgets, the entry length, the history markers, the citations
+from code and the uncited ids. The two do not overlap; a fault has one
+reporter.
 
 Faults print as `FAIL  <kind>  <file>:<line>  <what is wrong and what to do>`.
 Notes print as `note  ...` and never fail. Standard library only.
@@ -42,8 +59,8 @@ INV_RE = re.compile(r"^(\d+)\. \*\*(.*?)\*\*")
 INDEX_RE = re.compile(r"^\| `decisions/(\w+)\.md` \| (.*?) \| (.*?) \|\s*$")
 ID_RE = re.compile(r"\b([CP])(\d+)\b")
 MARKER_RE = re.compile(r"\*(Why|Details|Pinned|Evidence):\*")
-TRIGGER_RE = re.compile(r"\bTrigger\b[^.:]{0,80}:")
-HAS_TRIGGER = re.compile(r"\btrigger\b", re.I)   # a parking-lot bullet writes "…, trigger X; …, trigger Y"
+NOT_DOING_RE = re.compile(r"^(.+?):\s+(not until|refused)\b\s*(.*)$")
+NOT_DOING = "Not doing"
 TICK_RE = re.compile(r"`([^`\s]+)`")
 # A path the registry names: has a `/`, and its last component has a file
 # extension or its first component is a directory of the tree. Not an API
@@ -64,15 +81,13 @@ class Registry:
         self.notes = []
         self.decisions = {}   # id -> dict
         self.order = []       # ids in file order
-        self.parks = []       # dict
+        self.parks = []       # the not-doing lines, each a dict
         self.principles = {}  # P<n> -> text
         self.invariants = []  # (n, text)
         self.index = {}       # area -> (line, desc, [ids])
         self.areas = {}       # area -> {file, title, intro, sections: [(heading, line)], park_heading}
         self.orientation = ""
         self.cross_heading = ""
-        self.cross_parks_heading = ""
-        self.cross_park_intro = ""
         self._read_context()
         for name in sorted(os.listdir(self.path("decisions"))) if os.path.isdir(self.path("decisions")) else []:
             if name.endswith(".md"):
@@ -102,9 +117,7 @@ class Registry:
             if line.startswith("## "):
                 section, sub = line[3:], ""
                 in_orient = section.startswith("Orientation")
-                in_parked = section.startswith("Parked")
-                if in_parked:
-                    self.cross_parks_heading = line
+                in_parked = section.startswith(NOT_DOING)
                 continue
             if line.startswith("### "):
                 sub = line[4:]
@@ -126,8 +139,6 @@ class Registry:
                 m = INV_RE.match(line)
                 if m:
                     self.invariants.append((int(m.group(1)), line))
-            if in_parked and not line.startswith("- ") and line.strip() and not self.cross_park_intro:
-                self.cross_park_intro = line
             self._entry(rel, "cross-cutting", n, line, section, in_parked)
         self.orientation = "\n".join(orient)
 
@@ -144,7 +155,7 @@ class Registry:
                 continue
             if line.startswith("## "):
                 section = line[3:]
-                in_parked = section.startswith("Parked")
+                in_parked = section.startswith(NOT_DOING)
                 if in_parked:
                     meta["park_heading"] = line
                 else:
@@ -160,19 +171,11 @@ class Registry:
         if in_parked and line.startswith("- "):
             body = line[2:]
             park = {"file": rel, "line": n, "area": area, "text": line, "body": body,
-                    "item": None, "home": None, "trigger": None,
+                    "item": None, "kind": None, "trigger": None,
                     "cites": sorted({a + b for a, b in ID_RE.findall(body)})}
-            if "→" in body:
-                item, rest = body.split("→", 1)
-                park["item"] = item.strip()
-                tm = TRIGGER_RE.search(rest)
-                if tm:
-                    park["home"] = rest[: tm.start()].strip(" .;")
-                    park["trigger"] = rest[tm.end():].strip()
-                elif HAS_TRIGGER.search(rest):
-                    park["home"], park["trigger"] = rest.strip(), "(stated per item)"
-                else:
-                    park["home"] = rest.strip()
+            m = NOT_DOING_RE.match(body)
+            if m:
+                park["item"], park["kind"], park["trigger"] = m.group(1).strip(), m.group(2), m.group(3).strip()
             self.parks.append(park)
             return
         if in_parked:
@@ -189,8 +192,7 @@ class Registry:
         cites = sorted({a + b for a, b in ID_RE.findall(body)} - {cid})
         entry = {"id": cid, "file": rel, "line": n, "area": area, "section": section,
                  "title": title, "body": body, "text": line, "cites": cites,
-                 "markers": [mk for mk in MARKER_RE.findall(body)],
-                 "dated": bool(re.search(r"\d{4}-\d{2}-\d{2}", line))}
+                 "markers": [mk for mk in MARKER_RE.findall(body)]}
         if cid in self.decisions:
             first = self.decisions[cid]
             self.fail("duplicate", rel, n,
@@ -318,18 +320,31 @@ def check(reg, show_notes=True):
     for p in reg.parks:
         for c in p["cites"]:
             if c[0] == "C" and c not in reg.decisions:
-                reg.fail("cite", p["file"], p["line"], f"a park names {c}, which no file defines")
+                reg.fail("cite", p["file"], p["line"], f"a not-doing line names {c}, which no file defines")
             if c[0] == "P" and c not in reg.principles:
-                reg.fail("cite", p["file"], p["line"], f"a park names {c}, which CONTEXT.md's principles do not define")
-    # every park is item → home, with a trigger, and not struck through
+                reg.fail("cite", p["file"], p["line"], f"a not-doing line names {c}, which CONTEXT.md's principles do not define")
+    # every entry has its Why and its Pinned, and no Details or Evidence
+    for i in reg.order:
+        d = reg.decisions[i]
+        where = (d["file"], d["line"])
+        for mk in ("Why", "Pinned"):
+            if mk not in d["markers"]:
+                reg.fail("entry", *where, f"{i} has no *{mk}:*; the entry rule (this script's docstring) asks one"
+                         + (", `nothing yet` when nothing holds it" if mk == "Pinned" else ""))
+        for mk in ("Details", "Evidence"):
+            if mk in d["markers"]:
+                reg.fail("entry", *where, f"{i} carries *{mk}:*; the entry rule has none: `show {i}` lists where the code names it, "
+                         "and evidence is cited in the ruling or the *Why:* with its gloss")
+    # every not-doing line states its trigger or its refusal, and is not struck through
     for p in reg.parks:
         where = (p["file"], p["line"])
         if p["item"] is None:
-            reg.fail("park", *where, "a park is `item → home. Trigger: ...`; this bullet has no `→`")
-        elif p["trigger"] is None:
-            reg.fail("park", *where, "this park states no trigger; deferral with no trigger is re-argued every time it is read")
+            reg.fail("notdoing", *where, "a not-doing line is `- <item>: not until <trigger>` or `- <item>: refused …`; "
+                     "this one states neither, so it is re-argued every time it is read")
+        elif p["kind"] == "not until" and not p["trigger"].strip(" .;"):
+            reg.fail("notdoing", *where, "this line says `not until` and names no trigger")
         if "~~" in p["body"]:
-            reg.fail("park", *where, "a struck-through park is deleted, not kept (CONTEXT.md, \"Parked\"); delete the bullet")
+            reg.fail("notdoing", *where, "a struck-through line is deleted, not kept; delete the bullet")
     # every path the registry names exists
     seen = set()
     for rel in ["CONTEXT.md"] + [m["file"] for m in reg.areas.values()]:
@@ -351,13 +366,7 @@ def check(reg, show_notes=True):
             for f in files:
                 reg.fail("routing", f, 1, f"names decisions/{area}.md, which does not exist; name the area's file")
     # notes: soft shape, reported and never failed
-    no_why = [i for i in reg.order if "Why" not in reg.decisions[i]["markers"]]
-    no_date = [i for i in reg.order if not reg.decisions[i]["dated"]]
     unrouted = [a for a in reg.areas if a not in code["moddoc"]]
-    if no_why:
-        reg.notes.append(f"{len(no_why)} decisions carry no *Why:* — {', '.join(no_why)}")
-    if no_date:
-        reg.notes.append(f"{len(no_date)} decisions carry no date — {', '.join(no_date)}")
     if unrouted:
         reg.notes.append("no module doc names " + ", ".join(f"decisions/{a}.md" for a in unrouted)
                          + " — `pack --path` reaches the area only through its intro's file list")
@@ -370,9 +379,10 @@ def check(reg, show_notes=True):
     if reg.faults:
         print(f"{len(reg.faults)} fault(s) in the registry")
         return 1
-    print(f"ok    registry  {len(reg.decisions)} decisions in {1 + len(reg.areas)} files, {len(reg.parks)} parks, "
+    print(f"ok    registry  {len(reg.decisions)} decisions in {1 + len(reg.areas)} files, {len(reg.parks)} not-doing lines, "
           f"{len(reg.principles)} principles, {len(reg.invariants)} invariants: the index matches the files, "
-          "every cross-reference resolves, every park has a home and a trigger, every path named exists")
+          "every cross-reference resolves, every entry has its Why and its Pinned, every not-doing line states its trigger, "
+          "every path named exists")
     return 0
 
 
@@ -393,7 +403,7 @@ def cmd_list(reg, what, area):
             if area and p["area"] != area:
                 continue
             item = p["item"] or p["body"]
-            print(f"park  {p['area']:<14} {short(item)}  [{p['file']}:{p['line']}]")
+            print(f"not   {p['area']:<14} {short(item)}  [{p['file']}:{p['line']}]")
 
 
 def cmd_show(reg, cid):
@@ -413,7 +423,7 @@ def cmd_show(reg, cid):
     named_by = [i for i in reg.order if cid in reg.decisions[i]["cites"]]
     parks_by = [p for p in reg.parks if cid in p["cites"]]
     if named_by or parks_by:
-        print("Named by: " + ", ".join(named_by + [f"a park at {p['file']}:{p['line']}" for p in parks_by]))
+        print("Named by: " + ", ".join(named_by + [f"a not-doing line at {p['file']}:{p['line']}" for p in parks_by]))
     held = code["held"].get(cid, [])
     if held:
         print(f"Held in code ({len(held)} places): " + ", ".join(f"{f}:{n}" for f, n in held[:12]) + (" …" if len(held) > 12 else ""))
@@ -465,16 +475,13 @@ def cmd_pack(reg, area, path):
         out.append("")
         parks = [p for p in reg.parks if p["area"] == a]
         if parks:
-            out += [(meta["park_heading"] or "## Parked").replace("## ", f"## `{a}`: ", 1), ""]
+            out += [(meta["park_heading"] or f"## {NOT_DOING}").replace("## ", f"## `{a}`: ", 1), ""]
             if meta["park_intro"]:
                 out += [meta["park_intro"], ""]
             out += [p["text"] for p in parks] + [""]
     cross_parks = [p["text"] for p in reg.parks if p["area"] == "cross-cutting"]
     if cross_parks:
-        out += [reg.cross_parks_heading or "## Parked (cross-cutting)", ""]
-        if reg.cross_park_intro:
-            out += [reg.cross_park_intro, ""]
-        out += cross_parks + [""]
+        out += [f"## {NOT_DOING} (cross-cutting)", ""] + cross_parks + [""]
     out += ["## Where each ruling is held (file:line that names it; the mechanism lives there)", ""]
     for a in areas:
         for i in reg.order:
@@ -503,7 +510,7 @@ def main(argv):
     sub = ap.add_subparsers(dest="verb", required=True)
     c = sub.add_parser("check", help="lint the registry; exit 1 on a fault")
     c.add_argument("--no-notes", action="store_true", help="print faults only")
-    l = sub.add_parser("list", help="one line per decision and park")
+    l = sub.add_parser("list", help="one line per decision and not-doing line")
     l.add_argument("what", nargs="?", default="all", choices=["all", "decisions", "parks"])
     l.add_argument("--area")
     s = sub.add_parser("show", help="one entry, what it names, what names it, where code holds it")

@@ -33,11 +33,7 @@ A test registry.
 
 ### Cross-cutting
 
-- **@1 — Every rule has one home.** *Why:* two homes rot (P1). Decided 2026-01-01.
-
-## Parked (cross-cutting only; do not build yet)
-
-- A second frontend → its own crate. Trigger: a consumer.
+- **@1 — Every rule has one home.** *Why:* two homes rot (P1). *Pinned:* nothing yet.
 
 ## Working style
 
@@ -50,12 +46,13 @@ The rulings that bind the store (`acquisition-store/src/lib.rs`). Read this befo
 
 ## Store
 
-- **@2 — Facts are kept verbatim.** *Why:* a derivation can be redone (@1). Decided 2026-01-02.
-- **@3 — The store sends nothing.** Pinned by `tests/read.rs`. *Why:* a read observes. Decided 2026-01-03.
+- **@2 — Facts are kept as received.** *Why:* a derivation can be redone (@1). *Pinned:* nothing yet.
+- **@3 — The store sends nothing.** *Why:* a read observes. *Pinned:* `tests/read.rs`.
 
-## Parked (do not build yet; each with its trigger)
+## Not doing
 
-- Pruning → a verb. Trigger: the owner asks.
+- Pruning: not until the owner asks.
+- A second store: refused; one store per world.
 STO
   ids >"$tmp/crates/acquisition-store/src/lib.rs" <<'LIB'
 //! The store. Rulings: `decisions/store.md`, @2, @3.
@@ -92,10 +89,14 @@ expect duplicate 'p=root/"decisions/store.md"; p.write_text(p.read_text().replac
 expect grammar   'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("- **@3 — The store sends nothing.**", "- **@3 The store sends nothing**"))'
 expect cite      'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("(@1)", "(@7)"))'
 expect cite      'p=root/"CONTEXT.md"; p.write_text(p.read_text().replace("(P1)", "(P4)"))'
-expect cite      'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("Trigger: the owner asks.", "Trigger: the owner asks (@8)."))'
-expect park      'p=root/"decisions/store.md"; p.write_text(p.read_text().replace(" Trigger: the owner asks.", ""))'
-expect park      'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("- Pruning → a verb.", "- Pruning, a verb."))'
-expect park      'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("- Pruning → a verb.", "- ~~Pruning → a verb.~~"))'
+expect cite      'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("not until the owner asks.", "not until the owner asks (@8)."))'
+expect entry     'p=root/"decisions/store.md"; p.write_text(p.read_text().replace(" *Why:* a read observes.", ""))'
+expect entry     'p=root/"decisions/store.md"; p.write_text(p.read_text().replace(" *Pinned:* `tests/read.rs`.", ""))'
+expect entry     'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("*Pinned:* `tests/read.rs`.", "*Details:* the store doc. *Pinned:* `tests/read.rs`."))'
+expect notdoing  'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("- Pruning: not until the owner asks.", "- Pruning, a verb, some day."))'
+expect notdoing  'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("- Pruning: not until the owner asks.", "- Pruning: later, when the owner asks."))'
+expect notdoing  'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("- Pruning: not until the owner asks.", "- Pruning: not until."))'
+expect notdoing  'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("- Pruning: not until the owner asks.", "- ~~Pruning: not until the owner asks.~~"))'
 expect path      'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("`tests/read.rs`", "`tests/gone.rs`"))'
 expect path      'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("`acquisition-store/src/lib.rs`", "`acquisition-store/src/old.rs`"))'
 expect routing   'p=root/"crates/acquisition-store/src/lib.rs"; p.write_text(p.read_text().replace("decisions/store.md", "decisions/stores.md"))'
