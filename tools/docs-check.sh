@@ -190,15 +190,19 @@ done < <(grep -rhoE '`[0-9a-f]{7,8}`' "${governed[@]}" --include='*.rs' --includ
 if ((dead > 0)); then fail=1; else printf 'ok      %-18s %5d cited commits, every one in this history\n' commits "$checked"; fi
 
 # ---- 3. stale identifiers -----------------------------------------------
-# The haystack is the code and its schemas; docs never vouch for docs.
+# The haystack is the code and its schemas, and the skills' own scripts
+# (the seat's drivers live only under `.claude/skills`); docs never vouch for
+# docs. The checked documents are the ones a session reads to act: the
+# entry, the README, the review checklist (its "Held by" column names
+# tests and mechanisms) and the skills.
 hay=$(mktemp)
 trap 'rm -f "$hay"' EXIT
-find crates tools -type f \( -name '*.rs' -o -name '*.sh' -o -name '*.py' -o -name '*.sql' -o -name '*.toml' \) \
+find crates tools .claude/skills -type f \( -name '*.rs' -o -name '*.sh' -o -name '*.py' -o -name '*.sql' -o -name '*.toml' \) \
   -not -path '*/target/*' -print0 | xargs -0 cat >"$hay"
-ls -R crates tools >>"$hay"
+ls -R crates tools .claude/skills >>"$hay"
 
 missing=0
-for doc in AGENTS.md README.md; do
+for doc in AGENTS.md README.md REVIEW-CHECKLIST.md .claude/skills/*/SKILL.md; do
   # backticked tokens without spaces, then the shapes worth checking
   grep -o '`[^` ]\{3,\}`' "$doc" | tr -d '`' | sort -u | while read -r tok; do
     case "$tok" in

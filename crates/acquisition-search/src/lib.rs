@@ -3,10 +3,11 @@
 //! Rulings: `decisions/search.md`, C89–C107 but C99, and C109; `decisions/trade.md`, C99, C113, C114. The language as this build
 //! knows it, an example per construct, is `--describe` ([`mod@describe`]);
 //! the rules that decide an answer are the module docs below, each under
-//! its decision's id; what the build met — the plan's rules, cited here as
-//! "rule N of the plan", the shapes of fault its reviews taught, the
-//! measurements' verdicts: `SEARCH-SLICE.md`, the closed record (the
-//! plan itself is `search/BUILD-PLAN.md` at `453a4429`); its steps and the holes ruled:
+//! its decision's id; the plan's rules, cited here as "rule N of the
+//! plan", are below; what the build met — the shapes of fault its reviews
+//! taught, the measurements' verdicts: `SEARCH-SLICE.md`, the closed
+//! record (the plan itself is `spikes/rust-playground/search/BUILD-PLAN.md`
+//! at `453a4429`); its steps and the holes ruled:
 //! `search/LEDGER.md`; the measurements' tables: `search/MEASUREMENTS.md`.
 //!
 //! # The words
@@ -45,6 +46,85 @@
 //! 7. Parentheses group and do nothing else: a rewrite that changes no
 //!    meaning changes no match, no count, no error and no route — only the
 //!    canonical text and the paths (invariant 1).
+//!
+//! # The plan's rules
+//!
+//! How a partial build stayed honest: the brief's rules, cited by number
+//! from the crate's docs and tests ("rule 8 of the plan"), each in the
+//! build's tense — "the reference" is the page the module docs and
+//! `--describe` are now (`spikes/rust-playground/search/DESIGN.md` at `0d71054f`). They bind a
+//! change to the crate as they bound a step.
+//!
+//! 1. **The parser knows the whole language from step 1; the evaluator
+//!    knows part of it.** What is not built lives in one closed list in the
+//!    crate, each entry a construct of the reference and the step that
+//!    builds it. A request that uses one is refused before anything is
+//!    evaluated — `not built: pseudo.* (step 7)` — an error of its own kind,
+//!    never the unknown-name error, never undecided, never an empty answer.
+//!    `--describe` prints the same list. One test walks it: every construct
+//!    of the reference either evaluates or refuses by that name, and the
+//!    list the test walks is the list `--describe` prints.
+//! 2. **Scope, basis and undecided are in the first answer or there is no
+//!    answer.** The first surface prints the scope block, the basis, the
+//!    four counts per term and the undecided items with their reasons. A
+//!    reason whose source is not built yet (a base the class table lacks, a
+//!    price unresolved) cannot occur, because the construct that needs it
+//!    is refused.
+//! 3. **Tests pin the crate's boundary** — a request in, an answer out, as
+//!    JSON — and the CLI's `--json`; text is a function of JSON (C53).
+//!    Every count in a fixture answer is worked by hand first, as the
+//!    reference's worked example is.
+//! 4. **A rule the reference does not state stops the step** and comes to
+//!    the owner if it changes what a user types; otherwise it is a park
+//!    with its trigger (`decisions/search.md`). A name the reference hands to the
+//!    builder — a flag, a key, a field's spelling — is not a gap: the
+//!    builder picks it and `--describe` or the help prints it. What a name
+//!    *means* — which items it matches — is. A ruled one is a line in
+//!    `search/LEDGER.md`, "Holes ruled", its evidence the ruling commit's
+//!    message; none was unruled at the close.
+//! 5. **An answer never prints a command the same build refuses.** A
+//!    block the reference bounds with a route to the whole (invariant 5)
+//!    prints that route only when it runs; until then it prints the count
+//!    left out and names the unbuilt construct. The route property's test
+//!    covers it: every command an answer prints parses and is not refused.
+//! 6. **Spent at step 11e.** The language reference is the module docs,
+//!    the clap help and `--describe`; the rule as it stood is
+//!    `spikes/rust-playground/search/BUILD-PLAN.md` at `0d71054f`.
+//! 7. **Whose store.** The agent tests on fixtures built through the
+//!    store's own ingest, and measures on a sqlite `.backup` copy under a
+//!    track's `raw/`, always with `ACQ_STORE_DIR` set. The owner's store is
+//!    opened only by the owner, at a terminal. No GGG traffic anywhere in
+//!    this plan; the one daemon is M5's, a mock session.
+//!
+//! Rules 8 to 10 are what step 4b's audits taught (`SEARCH-SLICE.md`, "Findings"),
+//! each a fault that came back until it was named;
+//! the owner approved their meaning from a plain account of each and left
+//! the wording to the builder (2026-09-22: "the words that get written down
+//! are for you"; "If so, go ahead"). Each names what already holds it: the
+//! rule is for the moment before the code is written.
+//!
+//! 8. **Unknown is said once, where the evidence is read, and of no more
+//!    than was lost.** What the deriver cannot read — a flag that is no yes
+//!    or no, a number it does not read, an array that is no array — is
+//!    unread there, at that grain: the flag, the slot, the array. Too small
+//!    and it reads as absent, and a not makes a witness of it; too large and
+//!    terms that never needed it are left open (C93). Nothing downstream
+//!    has a fallback or a second way to fail. *Held by:* the completion
+//!    property; `derive::Slot`, `Line::flags_unknown`, `Unread::line`.
+//! 9. **A cut follows the data, never the query.** A block that shows part
+//!    of something orders it by the item or by the counts, so that two
+//!    spellings of one question show the same part (invariant 7), chooses
+//!    what is relevant before it cuts, and counts what it left out in the
+//!    unit it cut — rows, values, unread parts. *Held by:* the equivalence
+//!    property, where a generated or fixed case crosses the bound: a new
+//!    bound needs a case past it.
+//! 10. **One maker for each kind of thing an answer holds.** What a group
+//!     means (`group.rs`, refused elsewhere by `tools/docs-check.sh` §7), a
+//!     command (`answer::command`: rule 5 is this rule for commands), why
+//!     an item is undecided (`eval::why`), a sum (`exact.rs`). A second
+//!     maker is how two parts of one answer come to disagree: look for the
+//!     first before writing one. *Held by:* §7; the CLI test that runs
+//!     every command printed; the cross-checks.
 //!
 //! # As built
 //!
