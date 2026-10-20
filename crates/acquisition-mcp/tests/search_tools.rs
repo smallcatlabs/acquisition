@@ -755,10 +755,16 @@ fn a_missing_store_names_the_directory_it_looked_in() {
         // and names no login for an agent to run: that is a human's
         assert!(!e["error"].as_str().unwrap().contains("acq auth"), "{e}");
     }
-    // the older store tools say the same of it
+    // the older store tools say the same of it: the refusal document,
+    // decoded before the path is looked for in it — serialised, a
+    // Windows path's backslashes are doubled, and the Windows gate of
+    // 2026-10-19 missed the directory in the text it had named
     let message = seat.mcp.expect_err("store_status", json!({}));
-    assert!(message.contains(looked.to_str().unwrap()), "{message}");
-    assert!(!message.contains("acq auth"), "{message}");
+    let e: Value = serde_json::from_str(&message).unwrap_or_else(|_| panic!("{message}"));
+    assert_eq!(e["kind"], "no_accounts", "{e}");
+    let error = e["error"].as_str().unwrap();
+    assert!(error.contains(looked.to_str().unwrap()), "{e}");
+    assert!(!error.contains("acq auth"), "{e}");
 }
 
 /// H2: `scope.account` selects the store. With two accounts known a
