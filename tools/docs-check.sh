@@ -148,6 +148,12 @@ rm -f "$reg"
 # that resolves only because another branch is fetched dies in a clone
 # of this branch: five did on 2026-10-11, master-side twins of
 # cherry-picked ground-truth commits and one review-branch commit.
+#
+# The governed files, one scope for the document scans: the roots below,
+# their *.rs, *.sh, *.py and *.md files. The cited commits here and the
+# history citations after them read the roadmap under SKIP_ROADMAP's two
+# exclusions alone (its saved reviews, its dated assessment), as the
+# registry's citations do; the document paths (6) read no roadmap file.
 governed=(crates tools README.md search/DIGEST.md RUN-LEDGER.md TESTING-NOTES.md SURFACES.md search/MEASUREMENTS.md search/LEDGER.md AGENTS.md decisions .claude/skills REVIEW-CHECKLIST.md HISTORY.md roadmap)
 revs=$(git rev-list HEAD)
 dead=0; checked=0
@@ -167,21 +173,21 @@ if ((dead > 0)); then fail=1; else printf 'ok      %-18s %5d cited commits, ever
 # the path as it was at that commit: `git cat-file` must find it there.
 # The governance design's second read trial found nine of twelve naming
 # the path as it is now, which the cited commit never held. A token with
-# no slash and no extension is a name, not a path, and is not read; the
-# roadmap is not read either, its briefs and drafts being the launching
-# session's and gone at its phase's close.
+# no slash and no extension is a name, not a path, and is not read. The
+# roadmap is read under SKIP_ROADMAP's exclusions, as the cited commits
+# are (the outside review of `1f074d5a`, finding 1).
 if ! cites=$(python3 -I - "$AT_HASH" "${governed[@]}" <<'PY'
 import os, re, subprocess, sys
 at, roots = sys.argv[1], sys.argv[2:]
 LEAD = r"(?:\s|//[!/]?|#)*"   # a line break, and a comment's leader, may fall between
 cite = re.compile(r"`([^`\s]+)`,?" + LEAD + r"(?:whole" + LEAD + r")?(" + at + ")")
-def files():
+def files():   # SKIP_ROADMAP's exclusions, as grep applies them: a directory named reviews, a file STATE-*.md
     for r in roots:
-        if r == "roadmap": continue
         if os.path.isfile(r): yield r; continue
         for d, ds, fs in os.walk(r):
-            ds[:] = sorted(x for x in ds if x != "target")
-            yield from (os.path.join(d, f) for f in sorted(fs) if f.endswith((".rs", ".sh", ".py", ".md")))
+            ds[:] = sorted(x for x in ds if x not in ("target", "reviews"))
+            yield from (os.path.join(d, f) for f in sorted(fs)
+                        if f.endswith((".rs", ".sh", ".py", ".md")) and not re.fullmatch(r"STATE-.*\.md", f))
 found = []
 for f in files():
     text = open(f, encoding="utf-8").read()
@@ -302,9 +308,9 @@ fi
 # reads code names and skips a document's: step 1d's brief named a
 # deleted document in the review checklist as its failing input, and
 # nothing refused it (the outside review of `202e4659`, finding 2). Not
-# read: the roadmap, as for 2b's citations, and the search slice's ledger
-# and digest, whose heads give the commit each of their pointers is read
-# at. Three names are of no file in this tree, by design: RePoE's
+# read: the roadmap, whose ledger and briefs tell deletions as their
+# story (about eighty such names), and the search slice's ledger and
+# digest, whose heads give the commit each of their pointers is read at. Three names are of no file in this tree, by design: RePoE's
 # licence, a seat run's debrief, and a live run's friction notes.
 if ! paths=$(python3 -I - "$AT_HASH" "${governed[@]}" <<'PY'
 import os, re, subprocess, sys

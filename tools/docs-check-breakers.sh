@@ -19,7 +19,7 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/acq-docs-breakers.XXXXXX")
-files=(decisions/plans.md REVIEW-CHECKLIST.md .claude/skills/seat/SKILL.md)
+files=(decisions/plans.md REVIEW-CHECKLIST.md .claude/skills/seat/SKILL.md roadmap/README.md)
 for f in "${files[@]}"; do mkdir -p "$scratch/keep/$(dirname "$f")"; cp "$f" "$scratch/keep/$f"; done
 restore() {
   local f
@@ -27,6 +27,7 @@ restore() {
     cp "$scratch/keep/$f" "$f"
     cmp -s "$scratch/keep/$f" "$f" || { echo "RESTORE FAILED: $f"; exit 2; }
   done
+  rm -f roadmap/reviews/zz-breaker.md
 }
 trap 'restore; rm -rf "$scratch"' EXIT
 
@@ -90,6 +91,13 @@ echo '== a history citation names the path as it was at its commit (the governan
 run_case 'the path as it is now, not as it was'                  refuse 'search/OBSERVATIONS.md` is not at 453a4429' checklist "The list is \`search/OBSERVATIONS.md\` at \`453a4429\`."
 run_case 'the same, written "whole at"'                          refuse 'search/OBSERVATIONS.md` is not at 453a4429' checklist "The list is \`search/OBSERVATIONS.md\` whole at \`453a4429\`."
 run_case 'the path as it was there'                              pass   'ok      citations'      checklist "The list is \`spikes/rust-playground/search/OBSERVATIONS.md\` at \`453a4429\`."
+# The roadmap is read under the cited commits' two exclusions alone (the
+# outside review of 1f074d5a, finding 1): its plan is read, a saved
+# review, an outside model's answer verbatim, is not.
+roadmap() { printf '%s\n' "$1" >>roadmap/README.md; }
+review()  { printf '%s\n' "$1" >roadmap/reviews/zz-breaker.md; }
+run_case 'the roadmap'"'"'s plan: the path as it is now'           refuse 'roadmap/README.md:' roadmap "The list is \`search/OBSERVATIONS.md\` at \`453a4429\`."
+run_case 'a saved review: not read'                              pass   'ok      citations'      review "The list is \`search/OBSERVATIONS.md\` at \`453a4429\`."
 
 echo '== a document name names a file in this tree (the outside review of 202e4659, finding 2)'
 run_case 'a bare deleted document in the review checklist'       refuse 'LIVE-TESTING.md` names no document in this tree' checklist "Read \`LIVE-TESTING.md\` first."
