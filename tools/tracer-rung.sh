@@ -22,7 +22,7 @@
 # probe; each character fetch is one GET on `character-request-limit`
 # (5 per 10 s, 30 per 300 s — the stash policy's shape).
 # A policy id covers the tab
-# and its children (CONTEXT.md, decided 2026-09-01): a map/unique tab's
+# and its children (C37): a map/unique tab's
 # substashes are planned the cycle after the parent's first fetch lands
 # their stubs (a plan never expands itself), a folder's children at once.
 # So an id list that names a map tab runs the discovery cycle too, and the
@@ -439,7 +439,7 @@ fi
 selection_json() { # <all|id,...> → "all" or a JSON id array
     if [ "$1" = all ]; then echo '"all"'; else echo "$1" | tr ',' '\n' | grep . | jq -R . | jq -sc .; fi
 }
-# Policy v3 (CONTEXT.md, 2026-09-02): leagues under realms, and per league
+# Policy v3 (C58, realm above league): leagues under realms, and per league
 # the facets it covers — `tabs` and/or `characters`; an absent facet is no
 # coverage of it (`none` leaves `tabs` out).
 tabs_json='[]'

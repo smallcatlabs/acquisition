@@ -108,7 +108,7 @@ def read_cycles(path):
 
 
 # Routes whose label carries the realm: `<family>[/<realm>]@<account>`;
-# pc adds nothing (CONTEXT.md, realm step 2026-09-02).
+# pc adds nothing (C58: pc is expressed by omission).
 REALM_ROUTES = {"stash-list", "stash", "character-list", "character"}
 
 

@@ -3,7 +3,7 @@
 -- verbatim except at the item seams: every item array is lifted out into
 -- `items`, one row per GGG item id, socketed gems included.
 --
--- `realm` is the coordinate above league (CONTEXT.md, 2026-09-02): PoE2
+-- `realm` is the coordinate above league (C58): PoE2
 -- shares league names with PoE1. It is the *request's* realm, stamped from
 -- the job params (pc when omitted), never read from a body.
 
@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS account (
 -- Characters are keyed by the GGG character `id` (identity; stable across
 -- renames); `name` is the address the fetch endpoint takes and can move.
 -- `league` is listing-owned — the coverage coordinate as the basis listing
--- said it — and a fetch never overwrites it (CONTEXT.md, 2026-09-02).
+-- said it — and a fetch never overwrites it (C54, the listing's authority).
 CREATE TABLE IF NOT EXISTS characters (
     id          TEXT PRIMARY KEY,
     realm       TEXT    NOT NULL DEFAULT 'pc',
