@@ -28,7 +28,10 @@ draft itself at 12,693 bytes passes.
 
 ## Do
 1. Write `AGENTS.md` from the draft. The cross-cutting entries are the
-   ones 1b wrote into `CONTEXT.md` (identical to the draft's).
+   ones 1b wrote into `CONTEXT.md`, not the draft's: 1b dropped C1's
+   "`tools/arch-check.sh` once step 1e moves them", a path the registry
+   check refuses while the file does not exist, and the same check
+   reads `AGENTS.md` after this step.
 2. `git rm CONTEXT.md`; the message cites the commit before this one.
 3. `tools/bothy.py`: the root file is `AGENTS.md`; the orientation
    section is "What Acquisition is"; the principles are the three
@@ -36,7 +39,10 @@ draft itself at 12,693 bytes passes.
    of P3 resolves to the bullet carrying it); the index table and its
    checks are deleted, areas being the files under `decisions/`; the
    docstring carries the registry grammar (from `ENTRY-RULE.md`) and
-   the not-doing rule. `pack` prints from `AGENTS.md`.
+   the not-doing rule. `pack` prints from `AGENTS.md`. The entry
+   check's emptiness test strips every kind of whitespace (a tab-only
+   *Why:* passed it; the fix-round review of 1b, finding 3), with a
+   breaker.
    `tools/bothy-breakers.sh`: the index cases go; the fixture's root
    is `AGENTS.md`.
 4. `tools/docs-check.sh`: one budget, `AGENTS.md 14000`; every other

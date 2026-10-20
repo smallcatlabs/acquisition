@@ -27,11 +27,16 @@ stale-identifier scan, staged by renaming one in a scratch copy).
 
 ## Do
 1. `tools/arch-check.sh`: section 5 (the edges) and section 7 (the
-   group reader) moved verbatim with their comments; `git mv
-   tools/docs-check-breakers.sh tools/arch-check-breakers.sh`, its
-   target the new script. `tools/trade-check.sh`: section 9 moved
-   verbatim. `docs-check.sh`'s header comment renumbered to what it
-   still holds.
+   group reader) moved verbatim with their comments. The breakers
+   follow the checks: `tools/arch-check-breakers.sh` is new and takes
+   the edge cases out of `tools/docs-check-breakers.sh`, which keeps
+   the registry and history cases (1b's worker: the two suites must
+   not cross). `tools/trade-check.sh`: section 9 moved verbatim.
+   `docs-check.sh`'s header comment renumbered to what it still holds.
+   The cited-commit scan and the history scan read commit hashes
+   through one shared matcher (`at <hash>` with or without backticks,
+   7 to 40 hex, letters-only included), with both inputs staged (1b's
+   fix-round review, finding 2; the worker's one-rule proposal).
 2. `AGENTS.md`'s gate list gains the two lines; `gate-linux.yml` runs
    both scripts and the renamed breakers. C1's *Pinned* and the three
    `REVIEW-CHECKLIST.md` rows that name `docs-check.sh` for the edges,

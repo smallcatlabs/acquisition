@@ -43,8 +43,9 @@ instead.
 - The gate (`AGENTS.md`, "Quality gate") before the commit; the commit
   gated on each stage's own exit status, never on a filtered grep. Never
   run the drivers while the gate runs.
-- One commit per concern; the story in the message; a size stated in a
-  message is measured after the last edit.
+- One commit per concern; the story in the message, which names this
+  brief's file; a size stated in a message is measured after the last
+  edit.
 - A finding is a test named for the fault, or a line in the report;
   never a new document.
 - After the commit, launch the review (`roadmap/README.md`, "Roles and
