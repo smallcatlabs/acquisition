@@ -59,7 +59,7 @@ repeated two traps, so it is a skill (P6).
   hold the reviewer to the whole, and put every budget cut on the kill
   list by finding id (both pilot runners, 2026-09-16).
 - A runner's committed output runs two to three times any guide (note
-  25 at 38.8 KB against 16; the stage-5 check at 29 KB under a brief
+  25 at `90cac21c`, 38.8 KB against 16; the stage-5 check at 29 KB under a brief
   that set none): a file past about 40 KB is read by section — `grep -n
   '^##'`, then `sed -n` by line range — never whole, and a brief gives
   a guide even for a check.

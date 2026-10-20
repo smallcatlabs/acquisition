@@ -96,8 +96,8 @@ skill (P6).
 8. The fix round. One commit per fault; each fix is held by a test in
    `crates/acquisition-cli/tests/seat_faults.rs` named for the fault. A
    fault that is a ruling's consequence is kept and made visible, or
-   the ruling is brought to the owner; one that waits is a park with
-   its trigger marked fired. Regenerate the references after help
+   the ruling is brought to the owner; one that waits is an issue
+   labelled with its trigger (`AGENTS.md`, "Where things live"). Regenerate the references after help
    changes (`ACQ_UPDATE_FIXTURES=1`).
 9. The rerun, when the round changed what an agent meets: rename the
    first run's files (`REPORT-1.md`, `calls-1.csv`), move its world
@@ -105,7 +105,7 @@ skill (P6).
    set up a fresh world, and launch a fresh runner. Never continue
    the first: it has learned the tool.
 10. Close: write `<AT>/README.md` — the runs, their call counts and
-   trees, and one row per fault with its fate (a commit, a park, or
+   trees, and one row per fault with its fate (a commit, an issue, or
    why it is no fault); `git rm <AT>/BRIEF.md`, citing its commit;
    `seat.py <WORLD> <BIN> teardown` (stops its daemon, removes its
    store). The report's "what the tour and the help did not say" is
