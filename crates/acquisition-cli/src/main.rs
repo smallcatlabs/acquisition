@@ -852,9 +852,9 @@ enum DaemonCmd {
     /// client's jobs are never cancelled by its leaving. `--json`:
     /// `stopped`, `pid`, `version`, `provider`, `compatible`, `socket`.
     Stop,
-    /// Clear the live-test rails' tripwire/ceiling halt (see LIVE-TESTING.md).
-    /// Observe the post-violation rule before using this. With no daemon
-    /// running, clears the persisted state in this shell's world
+    /// Clear the live-test rails' tripwire/ceiling halt. After a trip,
+    /// wait 360 s before clearing; a trip is evidence to read. With no
+    /// daemon running, clears the persisted state in this shell's world
     /// (`<store root>/<provider>/rails.json`) so the next daemon
     /// starts clear.
     ResetTripwire,

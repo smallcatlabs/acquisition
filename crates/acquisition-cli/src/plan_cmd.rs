@@ -1770,12 +1770,13 @@ fn render_quote(quote: &Quote, now: i64, expand: bool) -> String {
         store_cmd::ago(now, Some(quote.observed_at))
     );
     if let Some(cause) = &quote.halted {
-        // Report the cause only: a tripwire halt has a post-violation wait
-        // before `reset-tripwire` is appropriate, and a ceiling halt cannot
-        // be reset mid-lifetime at all — LIVE-TESTING.md governs clearing.
+        // Report the cause only: a tripwire halt has a 360 s post-violation
+        // wait before `reset-tripwire` is appropriate, and a ceiling halt
+        // cannot be reset mid-lifetime at all (the live-run skill).
         out.push_str(&format!(
             "  HALTED: {cause} — nothing sends while the halt stands, so every \
-             estimate below is a floor (clearing it is governed by LIVE-TESTING.md)\n"
+             estimate below is a floor (after a trip, wait 360 s before clearing; \
+             a trip is evidence to read)\n"
         ));
     }
     let width = quote

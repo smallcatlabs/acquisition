@@ -494,7 +494,8 @@ pub enum Request {
         account: Option<String>,
     },
     DaemonStatus,
-    /// Clear the live-test rails' tripwire and ceiling halt (`LIVE-TESTING.md`).
+    /// Clear the live-test rails' tripwire and ceiling halt: after a trip,
+    /// wait 360 s before clearing; a trip is evidence to read.
     ResetTripwire,
     /// Everything the live dashboard renders, in one round-trip: daemon
     /// vitals, auth state, limiter policies, jobs, HTTP sends, recent errors.
