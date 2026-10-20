@@ -7,11 +7,14 @@ copy and what the first runs showed are `MEASUREMENTS.md` ("M3, M4" and
 `item-facts/scripts/m3-ask.py`, run alone, after the three builds its
 header names. Rows stay as written: a later run is a new row, never an
 edit to an old one. No budget. Since roadmap 0a (2026-10-20) a second
-copy is asked beside it, `removed-heavy`: the same copy with 90,890
-removed items added and the live set unchanged, built by
-`item-facts/scripts/m3-removed-copy.py` with its manifest; its rows say
-so, and on it every ask is over 500, so a row gives its range and its
-highest.
+copy is asked beside it, `removed-heavy`: the same copy with removed
+items added, 90,890 removed items in total, and the live set unchanged,
+built by `item-facts/scripts/m3-removed-copy.py` with its manifest; its
+rows say so, and on it every ask is over 500, so a row gives its range
+and its highest. It stays asked at every later run: what a store's
+removed items still cost, the gone list read with each header, grows
+with their count until the prune verb (roadmap phase 3) empties it at
+a league's end (the owner's ruling, 2026-10-20).
 
 A row is the build's hash and where it stands, the first ask after the
 copy is written, and the range of the warm medians of ten asks, release

@@ -3222,7 +3222,8 @@ mod tests {
     /// 0a: a reader's open of a current file takes no write lock, so it
     /// opens while another connection holds one — an ingest in progress
     /// — where it used to wait out the busy timeout and fail; a file that
-    /// must migrate still waits for the lock, and migrates once.
+    /// must migrate still waits for the lock, and acts on the version it
+    /// reads under it, never the one it read before.
     #[test]
     fn a_current_file_opens_while_a_writer_holds_the_lock() {
         let dir =
@@ -3243,22 +3244,32 @@ mod tests {
         drop(s);
         // A file to migrate waits for the writer, then sees its work: two
         // openers racing one v8 file, the writer standing in for the
-        // first, each end stamped once.
+        // first. The opener reads v8 before the lock; the writer stamps
+        // the file newer than this build before it lets go, so an opener
+        // that acted on its first read would migrate it, and one that
+        // reads again under the lock refuses it.
         writer
             .execute_batch(
                 "DROP INDEX items_live; DROP INDEX items_live_at; PRAGMA user_version = 8; COMMIT;",
             )
             .unwrap();
-        writer.execute_batch("BEGIN IMMEDIATE;").unwrap();
+        writer
+            .execute_batch("BEGIN IMMEDIATE; PRAGMA user_version = 99;")
+            .unwrap();
         let opened = std::thread::scope(|scope| {
-            let opener = scope.spawn(|| Store::open(&path).map(|s| s.revision().unwrap()));
+            let opener = scope.spawn(|| Store::open(&path).map(drop));
             std::thread::sleep(std::time::Duration::from_millis(300));
             assert!(!opener.is_finished(), "a migrating open took no lock");
             writer.execute_batch("COMMIT;").unwrap();
             opener.join().unwrap()
-        })
-        .unwrap();
-        assert_eq!(opened.facts_version, FACT_SCHEMA_VERSION);
+        });
+        assert_eq!(
+            opened.unwrap_err().downcast_ref::<SchemaTooNew>(),
+            Some(&SchemaTooNew {
+                found: 99,
+                supported: FACT_SCHEMA_VERSION
+            })
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 

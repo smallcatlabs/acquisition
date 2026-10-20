@@ -16,11 +16,13 @@
 //! - **Streamed.** The caller's closure is handed the rows one at a time
 //!   ([`CorpusItems`]); a returned stream would have to own the statement
 //!   and the transaction it borrows. Ordered by location kind and id, then
-//!   realm and item id: the `items_location` index yields that order with
-//!   a sort per location, where realm first sorted the whole corpus,
-//!   bodies included (43 MB against 10 MB resident over 22,721 items,
-//!   2026-09-20). Every key is an ingest fact or the id, so
-//!   [`Store::rebuild`] cannot reorder a read.
+//!   realm and item id, where realm first sorted the whole corpus, bodies
+//!   included (43 MB against 10 MB resident over 22,721 items,
+//!   2026-09-20). The live read walks `items_live_at` (facts v9), which
+//!   holds the live alone in that order, so it sorts nothing and passes
+//!   no removed row; the read of all items (**All**, below) walks
+//!   `items_location` with a sort per location. Every key is an ingest
+//!   fact or the id, so [`Store::rebuild`] cannot reorder a read.
 //! - **League is joined as `read_items` joins it** (S131): a stash item's
 //!   league is its tab's; a character item's is the character's current
 //!   listing-owned league — never the stamp the item took at ingest — and

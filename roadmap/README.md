@@ -115,11 +115,9 @@ phase 4's second input.
 
 ## Current step
 
-Phase 0's five steps are built and each review is saved under
-`reviews/` (2026-10-20); none has had a fix round. The owner reads the
-findings next, and rules on 0a's bound (the removed-heavy copy at 1.34
-times the M3 copy's, not 1.2; the ledger row names the remainder);
-0a stays open until then. After that: the phase 1 design session.
+Phase 0 is built, reviewed and through its fix round (2026-10-20): every
+review's findings taken or filed as the ledger rows below say, and 0a's
+bound ruled by the owner. Next: the phase 1 design session.
 
 ## Ledger
 
@@ -136,6 +134,7 @@ times the M3 copy's, not 1.2; the ledger row names the remainder);
 | 0e's review | `reviews/0e-2d2e9a58.md`, deleted in the commit adding this row | the one finding: the profile comment's "every test binary runs SQLite, serde_json and sha2" narrowed to the dependency-heavy tests; the raised item (the report not supplied) answered by `9e57b768`, withheld by design | the same claim in `2d2e9a58`'s message and the brief's opening stand, history not being rewritten |
 | 0b's review | `reviews/0b-362294b3.md`, deleted in the commit adding this row | finding 2: a first merge kept a realm named with no leagues; now one rule, an empty realm goes from a merge whether or not a policy is stored, pinned by `a_first_merge_drops_a_realm_named_with_no_leagues`; the raised item answered: the brief's Do 3 cited C11 as though the policy's conflict were already `kind: "conflict"` with its revision, which it was not, so the brief was wrong and the frontends park stands | finding 1, the policy conflict as prose on the CLI and `kind: "refused"` without its revision on the MCP: not a 0b regression, filed to the frontends park's one refusal-sorting helper, which lands with the MCP refusal bundle at step 2g |
 | 0c's review | `reviews/0c-e8a229be.md`, deleted in the commit adding this row | all four, as two rules. A line `serde_json` refuses never reaches `rmcp`: a line past the limit is read once more for its syntax alone, so one cut short is a parse error with a null id (finding 2; one whose envelope is no object an invalid request, id null), a deep notification is no longer handed on, and a leading byte order mark is stripped first as `rmcp` strips it (finding 4). The writer is awaited however the service ends (finding 1), and the replies wait in a bounded queue the reader awaits (finding 3). The review's inputs are the tests' fixtures; the raised item, that briefs name such inputs, taken that way | — |
+| 0a's review, and 0a closed | `reviews/0a-54f4ceea.md`, deleted in the commit adding this row | the bound, the owner's ruling (2026-10-20): accepted at 1.34; the remainder is linear in the removed count, its real bound the prune verb at a league's end (phase 3), and the removed-heavy copy stays a standing M3 row so that cost stays in sight (`search/M3-LEDGER.md` says so). All three findings: the two-opener test now has the writer stamp v99 under its lock, so the waiting opener must refuse it (fails with the under-lock reread removed); the corpus doc tells the live read (`items_live_at`, no sort) from the all-items read (`items_location`); "90,890 removed items in total". The raised item, the brief naming a test that did not exist, taken as a template lesson for the phase close: a brief that names a test names its file, and the worker checks it is there | — |
 
 ## Housekeeping
 
