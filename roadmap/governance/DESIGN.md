@@ -122,7 +122,9 @@ marker, at most 15 cross-cutting, every cited `C<n>` real over the
 code, the tools, the skills, `README.md`, `REVIEW-CHECKLIST.md`,
 `TESTING-NOTES.md`, `SURFACES.md`, `RUN-LEDGER.md`, `search/` and
 `roadmap/`, the uncited reported; (2b) every cited commit in this
-history; (3) stale identifiers over `AGENTS.md`, `README.md`,
+history, and every `` `<path>` at `<hash>` `` citation resolving at
+that commit (the second read trial found nine of twelve naming a path
+as it is now, not as it was there); (3) stale identifiers over `AGENTS.md`, `README.md`,
 `REVIEW-CHECKLIST.md` and `.claude/skills/*/SKILL.md`; (4) the README's
 form; (8) the hooks note. Retired: the budgets on `CONTEXT.md`,
 `LIVE-TESTING.md`, the records and the area files; the note check

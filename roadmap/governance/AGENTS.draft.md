@@ -6,11 +6,9 @@ document. The C++ app is its own repository, `acquisition-qt`
 (GPL-3.0); nothing here derives from it (C110). History before the
 root swap is under `spikes/rust-playground/` (tag `playground-end`).
 
-This is the one file every session loads. It holds what every change
-must know: the invariants, the hard rules, the crates, the
-cross-cutting rulings, and where everything else lives. The owner (Tom)
-holds the boundaries: the invariants, the protocol, the core API
-surface and every ruling. Agents own internals.
+This is the one file every session loads. The owner (Tom) holds the
+boundaries: the invariants, the protocol, the core API surface and
+every ruling. Agents own internals.
 
 ## What Acquisition is
 
@@ -50,10 +48,15 @@ As few as possible, each a property, never a mechanism.
   (the mock-session skill). A bare `acq` opens the owner's store. Live
   runs are the owner's, from a terminal, under the live-run skill.
 - **Rulings first, findings after.** A ruling (an invariant, a
-  boundary, a registry entry) is brought to the owner and recorded in
-  `decisions/<area>.md` before the code that depends on it. A finding
-  (what building or running taught) is recorded after, at its home
-  below.
+  boundary, a registry entry) is recorded in `decisions/<area>.md`
+  before the code that depends on it. A finding (what building or
+  running taught) is recorded after, at its home below.
+- **Who decides.** Agent-facing design (a verb, a flag, an MCP tool, a
+  query word, the words of an answer) is the session's to decide and
+  build: the ruling is recorded "under the owner's delegation" and
+  listed for his review. A boundary, an invariant, process, scope,
+  anything touching the owner's real store or the real API, and a
+  commit or push he has not asked for are his first.
 - **Build order.** Run `cargo build --workspace` before anything that
   starts a daemon, and again after any test run or any edit to a
   contract input (the protocol and store sources, the manifests, the
@@ -100,7 +103,7 @@ tests and docs cite rulings by id.
 - **C4 — API requests are jobs, not calls.** A job has an id, a state and a priority. *Why:* a rate-limit wait can reach 300 s, which a blocking call cannot represent across three frontends. *Pinned:* nothing yet.
 - **C12 — A frontend consumes exactly two surfaces: the daemon protocol and the store's read API.** A third channel is a protocol or store change, ruled first. *Why:* the contract stays in two places, enforced by what a frontend links. *Pinned:* `acquisition-protocol/tests/wire.rs`.
 - **C14 — Agent traffic against GGG is allowed; the daemon is the single gate.** *Why:* GGG permits agent use that respects the API rules, and one gate every client passes through is the only enforceable line. *Pinned:* `acquisition-mcp/tests/ggg_refusal.rs`.
-- **C15 — Tokio and reqwest.** Core exposes `async fn`; frontends provide the runtime. *Why:* the ecosystem default, and a core that owns no runtime lets each frontend own its own. *Pinned:* nothing yet.
+- **C15 — Tokio and reqwest.** Core exposes `async fn`; frontends provide the runtime. *Why:* the ecosystem default; a core with no runtime lets each frontend own its own. *Pinned:* nothing yet.
 - **C34 — Four layers, each with one authoritative mutation path: facts through the store's ingest, intent through its annotation API, derivations reproducible from declared inputs, effects through the daemon.** The daemon is blind to intent and creates work only in service of client-submitted work: no schedules, no policy execution. *Why:* a sync can never clobber intent, structurally. *Pinned:* `tools/docs-check.sh` (the daemon, the protocol and the client never name the intent API).
 - **C35 — Annotations are the only irreplaceable local state.** One per-account file named by the account uuid, keyed on stable GGG ids, written only through the store crate under revision compare-and-swap; no fact-side event deletes intent; backup is a store-managed snapshot. *Why:* facts are refetchable; intent has no server to refetch from. *Pinned:* the `c35_` tests in `annotations.rs`.
 - **C38 — A plan is a serializable, immutable authorization envelope, and plans are binding.** Applying executes exactly the listed actions or a subset, never an addition; new facts produce a new plan. *Why:* reviewed work stays exact. *Pinned:* `acquisition-cli/tests/apply_loop.rs`, `acquisition-cli/tests/plan_json.rs`.
@@ -121,7 +124,7 @@ tests and docs cite rulings by id.
 
 - **A ruling**: `decisions/<area>.md`, in the entry rule's form, the owner's word first. Its mechanism is a doc comment on the code, headed by the id; its property is a test that cites the id.
 - **A finding**: the test named for the fault, or the commit message. A fault that came back is a row in `REVIEW-CHECKLIST.md`, the review checklist by area, read before reviewing a change there.
-- **Work not done yet**: a GitHub issue, labelled `area:*` (the area file it belongs to) and `trigger:*` (`user`, a user's report; `seat`, a seat run; `consumer`, a second consumer; `gui`, phase 4; `live`, a live run, a sitting or a game event). What the project declines is a "Not doing" line at the foot of the area's file, with the trigger that would reopen it.
+- **Work not done yet**: a GitHub issue, labelled `area:*` (the area file it belongs to) and `trigger:*` (`user`, a user's report; `seat`, a seat run; `consumer`, a second consumer; `gui`, phase 4; `live`, a live run, a sitting or a game event). A feature that waits for someone to ask for it is an issue. What the project declines until a named trigger is a "Not doing" line at the foot of the area's file.
 - **A fact about GGG**: a numbered claim in `docs/design/network-ground-truth.md` (the trade appendix beside it); `acquisition-qt` takes copies, never the reverse.
 - **A live run**: one `RUN-LEDGER.md` row, read by its tail; evidence under gitignored `runs/`.
 - **What a user meets** (a verb, a flag, a knob, an install step): clap help or the MCP tool text, regenerated into the references with `ACQ_UPDATE_FIXTURES=1`, and one README tour line or knob row; `readme_tour.rs` runs the tour.

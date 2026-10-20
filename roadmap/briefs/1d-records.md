@@ -52,7 +52,11 @@ scan, which this step does).
    citation of a deleted file by path becomes `<path>` at `<commit>`;
    a citation of a note becomes `note NN at <commit>`; a pointer to
    `LIVE-TESTING.md`'s rule or rails points at the live-run skill or
-   `rails.rs`. Comments only; no logic changes.
+   `rails.rs`. A history citation's path is the path as it was at
+   that commit (`git cat-file -e <hash>:<path>` must succeed): the
+   nine existing citations that fail this (the pre-swap files under
+   `spikes/rust-playground/`, and two written relative) are corrected
+   in the same pass. Comments only; no logic changes.
 5. The two code texts: the `reset-tripwire` help in
    `acquisition-cli/src/main.rs` and the protocol's doc say the rule
    in words ("after a trip, wait 360 s before clearing; a trip is
@@ -75,6 +79,8 @@ scan, which this step does).
 - `grep -rln 'SLICE\.md\|NETWORK-CLEANUP\.md\|LIVE-TESTING\.md\|CONTEXT\.md\|brainstorming-notes/' crates tools .claude .github *.md *.toml docs search`
   prints only lines in the history form (`at \`<hash>\``).
 - `CLI-REFERENCE.md` regenerated and committed.
+- Every `` `<path>` at `<hash>` `` citation under `crates tools .claude
+  *.md decisions search docs` resolves with `git cat-file -e`.
 - The gate green.
 
 ## Not in scope

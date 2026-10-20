@@ -43,7 +43,9 @@ a date, a seven-hex commit, "owner:", "verbatim", "Amended", "Decided",
    (C71, C73, C78, C99) says `Unbuilt` and names its issue by number
    once the issues exist. C1 stays pinned to `tools/docs-check.sh`
    until 1e moves the edges. C101 gains one sentence: a change to what
-   a user types comes to the owner first (the search plan's rule 4).
+   a user types is recorded as a ruling before the code, under the
+   owner's delegation (the search plan's rule 4, read with
+   `AGENTS.md`, "Who decides").
 2. Add C120 to `CONTEXT.md`'s cross-cutting section in the draft's
    words, and C110's last clause.
 3. Replace each file's "Parked" section with "## Not doing" and the

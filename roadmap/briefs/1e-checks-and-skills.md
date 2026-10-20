@@ -33,7 +33,13 @@ stale-identifier scan, staged by renaming one in a scratch copy).
    verbatim. `docs-check.sh`'s header comment renumbered to what it
    still holds.
 2. `AGENTS.md`'s gate list gains the two lines; `gate-linux.yml` runs
-   both scripts and the renamed breakers.
+   both scripts and the renamed breakers. C1's *Pinned* and the three
+   `REVIEW-CHECKLIST.md` rows that name `docs-check.sh` for the edges,
+   the group rule and the sitting tools now name the new scripts.
+   `docs-check.sh` gains one check: every `` `<path>` at `<hash>` ``
+   citation in the governed files resolves (`git cat-file -e
+   <hash>:<path>`), so a history citation names the path as it was at
+   that commit.
 3. The session-close skill from its draft. The research-track and seat
    skills: pointers only.
 4. The gate; one commit per concern; the review.
