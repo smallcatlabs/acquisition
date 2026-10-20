@@ -18,10 +18,8 @@ Part of the decision registry (`CONTEXT.md`, "Decisions — the registry"): the 
 - **C33 — The rate limiter's spec is test tables, not prose.** `docs/design/network-ground-truth.md` is the input; "given these headers, wait N seconds" tests are the permanent, enforced spec. *Why:* a table the gate runs cannot drift from the code as prose does. *Pinned:* the `ratelimit.rs` test tables.
 - **C88 — The real provider is the default; the mock is opted into.** `ACQ_PROVIDER=mock` selects the in-process mock; unset or `ggg` is the real API; any other value, or `ACQ_GGG` at all, is refused at start. A human starts a real-mode daemon: the CLI spawns or replaces one in real mode only with a terminal on stderr; a mock spawn is free; `acq-mcp` never spawns in real mode (C13, the MCP's spawn policy). The rails and one daemon per provider stand. *Why:* one gate protects the relationship, not callers kept away (C14, agents through one gate), and a mock default put every offline read behind a flag. *Pinned:* the `c88_` tests in `provider_default.rs`, the CLI's and the MCP's.
 
-## Parked (do not build yet; each with its trigger)
+## Not doing
 
-Scope this area has deferred, under the rules of `CONTEXT.md`, "Parked".
+What someone would propose and the project declines, each until the trigger it names or for good; the backlog is the repository's GitHub issues.
 
-- Wire-send budget → enforcement over actual sends, beside C42's logical bound. Trigger: a consumer that needs it.
-- The invalid-request (4xx) threshold → a ground-truth claim. Trigger: observed at a first contact (from the 2026-09-02 documentation read; not yet observed).
-- Token expiry during a limiter hold → `Bearer::token` (C87) also refusing a token the wall clock says is expired, so the send releases its permit and refreshes instead of landing one 401. Expiry is checked before the wait and a hold reaches 343 s against a ten-hour token; today that window costs one 401, which C87 then turns into the refresh. Trigger: a 401 on a token that expired during a hold, seen in a live journal (2026-09-12; not yet observed).
+- A wire-send budget beside the logical bound (C42): not until a consumer needs it.

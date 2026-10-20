@@ -28,24 +28,13 @@ Part of the decision registry (`CONTEXT.md`, "Decisions — the registry"): the 
 - **C50 — The stable account key is the profile `uuid`, fetched at login and required.** A login whose profile fetch fails fails whole: no provisional identity, no minted keys, no rename repair. `accounts.json` maps username, discriminator and provider to the uuid; fact files are named by username (refetchable), annotation files by uuid. *Why:* intent references identity, and an unstable key is what the C++ app's legacy buyouts paid for. *Pinned:* `daemon.rs`, `a_login_whose_profile_fetch_fails_fails_whole`.
 - **C51 — The daemon keeps no default account; selection is stateless.** Every submit carries `account`; omitted, it resolves only when exactly one session exists, and otherwise the daemon refuses with the list. The CLI resolves `--account` and `ACQ_ACCOUNT` against `accounts.json` client-side, so reads never spawn a daemon; matching is exact, never by prefix. A job has exactly one account; cross-account work is a frontend loop. *Why:* a default held in the daemon is state every client would have to guess. *Pinned:* `acquisition-client/tests/contract.rs`.
 
-## Parked (do not build yet; each with its trigger)
+## Not doing
 
-Scope this area has deferred, under the rules of `CONTEXT.md`, "Parked".
+What someone would propose and the project declines, each until the trigger it names or for good; the backlog is the repository's GitHub issues.
 
-- Priority levels (how many; named or numeric) → the caller states its urgency regardless of frontend; an agent in a live conversation is interactive. Trigger: a second priority level in use (C5 keeps the field).
-- Packaging beyond the archives (this entry and the nine below are the packet's parking lot, note 18 §5 at `decda84e`): an installer, Windows signing, notarization and every channel beside the GitHub archives (the archives and the macOS Developer ID signature are built: `.github/workflows/release.yml`, `PLATFORMS-SLICE.md` step 4) → the release workflow, with C82 as the acceptance criterion (`tools/release-smoke.sh`); what was read on the Microsoft Store is in `PLATFORMS-SLICE.md`. Trigger: the owner reopening a channel the narrowing of 2026-10-14 tabled (`brainstorming-notes/36-the-road-to-the-agent-release.md`, beside V5), or a user stopped by Gatekeeper on a browser-fetched macOS archive or by SmartScreen on a released Windows one (neither met, 2026-10-15).
-- A second installation on one machine → a design event under C82 (the contract-as-use-condition model is the recorded alternative). Trigger: a consumer that needs one.
-- A keeper for frontends that never spawn (cron, a real-mode MCP), which is the foreground `acqd` contract: readiness, signals, exit codes, checkpointing, launchd/systemd → the daemon. Trigger: the first non-spawning consumer in daily use.
-- Correlation ids and multiplexed requests on one connection → C85 amended. Trigger: evidence a GUI needs them.
-- keyring 4’s `keyring-core` with one store crate per platform (the macOS protected keychain, which needs a provisioning profile; oo7 or the Secret portal for a Flatpak) in place of keyring 3’s feature-selected backends, which the release chose (`auth.rs`, "keyring") → `auth.rs`. Trigger: a sandboxed package (a Flatpak, an MSIX, an App Store build) or a bundle that carries a provisioning profile.
-- Artifact dependencies (`-Z bindeps`) → `acqd` as a dev-dependency of the frontends' tests, replacing the sibling lookup there. Trigger: bindeps stabilising.
-- `world.rs` out of the store crate → a crate of its own. Trigger: a frontend that must not link SQLite.
-- A GUI-hosted daemon → refused: the GUI spawns `acqd` like the CLI. Trigger: the GUI slice recording its spawn policy.
-- `spawned_by` on the daemon → `hello`/`daemon status`. Trigger: two spawners on one machine and a human needing to know which.
-- Hash-only artifact identity → `artifact.rs` (C84). Trigger: a false match from file identity, or a second install location.
-- The Linux archives' glibc floor, Ubuntu 22.04's 2.35 (built on the oldest hosted runner) → musl static builds in `release.yml`. Trigger: a user on an older distribution.
-- An elevated daemon serves the same user's unelevated clients (measured 2026-10-15: the pipe's DACL names the user and carries no integrity label) → a high mandatory label on the pipe when `acqd` runs elevated, C112 amended. Trigger: the owner ruling elevation a boundary, or an elevated daemon met in use.
-- A host whose job object forbids breakaway ends the daemon when it exits, its jobs in flight with it (Windows' sshd does; the spawn asks to break away and falls back, `world_windows`) → a launcher outside the host's job (a scheduled task, or the keeper above). Trigger: an agent host seen ending the daemon.
-- `subst` and mapped drives under `world::canonical` (the study's one check never run) → its Windows arm. Trigger: a store root or an archive on one.
-- A job verb spawning only when a login would be restored into the daemon (the keyring or a live session; none, refuse before spawning) → the client's spawn policy. The release seat's two CLI runs called the spawn the fault (cli-opus call 101, cli-sonnet calls 92–93); C3 keeps it, the refusal now saying so. Trigger: a user reports the surprise.
-- A GGG error handed on in the daemon's words (`GET /stash/Standard/nosuchtab returned 404 …`, cli-opus call 89) → a verb-level hint beside it (`acq stashes` lists the tabs). Invariant 2 keeps the headers and the error as truth. Trigger: a user's report.
+- Priority levels beyond one: not until a second level is in use (C5 keeps the field).
+- Packaging beyond the GitHub archives (an installer, Windows signing, notarization, another channel): not until the owner reopens a channel, or a user is stopped by Gatekeeper on a browser-fetched macOS archive or by SmartScreen on a Windows one.
+- A second installation targeting one world: refused under C82; a consumer that needs one is a design event.
+- keyring 4's per-platform stores in place of keyring 3's backends: not until a sandboxed package or a provisioning-profile bundle.
+- A GUI-hosted daemon: refused; the GUI spawns `acqd` as the CLI does, and phase 4 records the spawn policy.
+- musl static Linux builds below the glibc 2.35 floor: not until a user on an older distribution.
