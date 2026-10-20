@@ -2,7 +2,8 @@
 # docs-check-breakers.sh — proves docs-check.sh refuses what it claims to,
 # by breaking a document and watching it refuse: the registry's history
 # scan (§2) and the cited commits (§2b), which read a commit written as
-# history through one matcher. The dependency guard's cases and the group rule's moved with
+# history through one matcher, and the history citations (§2b), each
+# path as it was at its commit. The dependency guard's cases and the group rule's moved with
 # their checks to `arch-check-breakers.sh` (step 1e of the roadmap); the
 # two suites do not cross.
 #
@@ -81,6 +82,13 @@ run_case 'an entry: at, letters alone, no backticks'             refuse 'carries
 run_case 'an entry: at, nine letters in backticks'               refuse 'carries a commit'        entry "$W" "at compile (at \`$H9\`). *Why:*"
 run_case 'a document: at, letters alone, no backticks'           refuse "\`$H7\` is not in this history" checklist "A note at $H7."
 run_case 'a document: at, nine letters in backticks'             refuse "\`$H9\` is not in this history" checklist "A note at \`$H9\`."
+
+echo '== a history citation names the path as it was at its commit (the governance design'"'"'s second read trial)'
+# Built with escaped backticks, so the source never holds a citation the
+# scan of tools/ would read.
+run_case 'the path as it is now, not as it was'                  refuse '`search/OBSERVATIONS.md` is not at 453a4429' checklist "The list is \`search/OBSERVATIONS.md\` at \`453a4429\`."
+run_case 'the same, written "whole at"'                          refuse '`search/OBSERVATIONS.md` is not at 453a4429' checklist "The list is \`search/OBSERVATIONS.md\` whole at \`453a4429\`."
+run_case 'the path as it was there'                              pass   'ok      citations'      checklist "The list is \`spikes/rust-playground/search/OBSERVATIONS.md\` at \`453a4429\`."
 
 echo
 printf '%d ok, %d failed\n' "$pass" "$failed"

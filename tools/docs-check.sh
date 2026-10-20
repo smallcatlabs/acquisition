@@ -15,6 +15,9 @@
 #      limit and with no history in it, a capped count of cross-cutting
 #      ones in `AGENTS.md`, every cited id real, the uncited ones
 #      reported.
+#  2b. Cited commits: a hash in the governed files is a commit of this
+#      history, and a history citation, `<path>` at `<hash>`, names the
+#      path as it was at that commit.
 #   3. Stale identifiers. A backticked code identifier in a control
 #      document that no longer exists in the workspace is a parallel
 #      description that has rotted. Checked: `Type::path` items,
@@ -158,6 +161,44 @@ done < <( { grep -rhoE '`[0-9a-f]{7,8}`' "${governed[@]}" --include='*.rs' --inc
             grep -rhoE "$AT_HASH" "${governed[@]}" --include='*.rs' --include='*.sh' --include='*.py' --include='*.md' "${SKIP_ROADMAP[@]}" 2>/dev/null | sed 's/^at //'
           } | tr -d '`' | sort -u)
 if ((dead > 0)); then fail=1; else printf 'ok      %-18s %5d cited commits, every one in this history\n' commits "$checked"; fi
+# Every history citation, `<path>` at `<hash>` (or "whole at"), names
+# the path as it was at that commit: `git cat-file` must find it there.
+# The governance design's second read trial found nine of twelve naming
+# the path as it is now, which the cited commit never held. A token with
+# no slash and no extension is a name, not a path, and is not read; the
+# roadmap is not read either, its briefs and drafts being the launching
+# session's and gone at its phase's close.
+if ! cites=$(python3 -I - "$AT_HASH" "${governed[@]}" <<'PY'
+import os, re, subprocess, sys
+at, roots = sys.argv[1], sys.argv[2:]
+LEAD = r"(?:\s|//[!/]?|#)*"   # a line break, and a comment's leader, may fall between
+cite = re.compile(r"`([^`\s]+)`,?" + LEAD + r"(?:whole" + LEAD + r")?(" + at + ")")
+def files():
+    for r in roots:
+        if r == "roadmap": continue
+        if os.path.isfile(r): yield r; continue
+        for d, ds, fs in os.walk(r):
+            ds[:] = sorted(x for x in ds if x != "target")
+            yield from (os.path.join(d, f) for f in sorted(fs) if f.endswith((".rs", ".sh", ".py", ".md")))
+found = []
+for f in files():
+    text = open(f, encoding="utf-8").read()
+    for m in cite.finditer(text):
+        path, h = m.group(1).rstrip("/"), m.group(2)[3:].strip("`")
+        if "/" in path or re.search(r"\.\w+$", path):
+            found.append((f, text.count("\n", 0, m.start()) + 1, path, h))
+answer = subprocess.run(["git", "cat-file", "--batch-check"], input="".join(f"{h}:{p}\n" for _, _, p, h in found),
+                        capture_output=True, text=True, check=True).stdout.splitlines()
+assert len(answer) == len(found), "git cat-file answered %d of %d" % (len(answer), len(found))
+bad = [c for c, a in zip(found, answer) if not re.fullmatch(r"[0-9a-f]{40} \w+ \d+", a)]
+for f, line, path, h in bad:
+    print(f"CITE    {f}:{line} `{path}` is not at {h}: name the path as it was there")
+if not bad:
+    print(f"ok      {'citations':<18} {len(found):5d} history citations, each path there at its commit")
+sys.exit(1 if bad else 0)
+PY
+); then fail=1; fi
+printf '%s\n' "$cites"
 
 # ---- 3. stale identifiers -----------------------------------------------
 # The haystack is the code and its schemas, and the skills' own scripts
