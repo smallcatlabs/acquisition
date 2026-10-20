@@ -45,8 +45,9 @@ CLI and the MCP, is where simplicity, the tests and the GUI meet.
   its own scratch subdirectory; otherwise steps run one after another in
   the main tree, because a build under a live daemon or a concurrent
   gate is C84's artifact mismatch.
-- **Codex reviews each committed step**, launched by the session that
-  made the commit, read-only, with the project's prompt:
+- **Codex reviews each committed step, and once each fix round that
+  changes behaviour**, launched by the session that made the commit,
+  read-only, with the project's prompt:
   `codex exec --sandbox read-only "$(cat roadmap/briefs/REVIEW-PROMPT.md) The commit: <sha>."` (the `review` subcommand cannot take both a commit and custom instructions, so the prompt names the commit).
   It runs on the owner's Codex account (verified from an agent shell
   2026-10-19). The findings are quoted whole in the step's report, the
@@ -109,7 +110,13 @@ phase 4's second input.
    `roadmap/reviews/<step>-<sha>.md` so they survive a session's
    compaction, and the report to the session that launched you. The
    owner reads the findings before a fix round; the commit that lands
-   the fix round deletes the review file and cites it.
+   the fix round deletes the review file and cites it. A fix round
+   that changes behaviour gets one review of its own, over its commits
+   named as one range, launched by the session that landed it and
+   saved at `roadmap/reviews/<step>-fixes-<sha>.md`; a round that
+   touches only comments and documents gets none. The owner takes or
+   files its findings; nothing is reviewed a third time unless the
+   owner asks, and the phase close deletes the file.
 4. A session ends with "Current step" below true, and nothing else in
    this file rewritten.
 
