@@ -69,7 +69,7 @@ CLI and the MCP, is where simplicity, the tests and the GUI meet.
 | Phase | Steps | Who | Needs | Closes by |
 | --- | --- | --- | --- | --- |
 | 0. The week's fixes | 0a store-age performance · 0b per-realm policy merge · 0c an unreadable MCP request gets a reply · 0d the stale and contradicting lines · 0e dev-build levers | Opus workers, parallel | — | closed 2026-10-20 |
-| 1. The governance reset | 1 design (Fable, the owner rules on the drafts) · then the migration steps the design names: entries, parks to "not doing" lines and GitHub issues, records to one review checklist and a history, checks and skills trimmed, notes deleted | Fable, then Opus | phase 0 reviewed | 2026-11-02 |
+| 1. The governance reset | 1 design (Fable; drafted 2026-10-20 at `governance/`, the owner rules on `governance/DESIGN.md`) · then, one after another in the main tree: 1b the registry (entries under the rule, "not doing" lines, the issues) · 1c `AGENTS.md` absorbs `CONTEXT.md` · 1d the records to one checklist and a history, the notes and `LIVE-TESTING.md` out · 1e the checks split and the skills trimmed | Fable, then Opus | phase 0 reviewed; 1b after the owner's ruling | 2026-11-02 |
 | 2. The keystone | 2a the shared function layer (Fable design, Opus build) · 2b the tests: one harness, one layer per behaviour, goldens, one binary per crate, nextest · 2c the journey test and real-shaped mock items · 2d the daemon and limiter file splits · 2e the game-diff tool, a mock rehearsal of a new league, a README line for starting one · 2f the ultra review of daemon, store and network (owner-triggered) and its fixes; the frontends' after 2b | mixed | phase 1 | 2026-11-12 |
 | 3. League 3.30 | the owner runs the league under the rails · count the undecided classes and untranslated mods · the prune verb (ST-3, fired) at the league end | owner, Opus | 2e | 2026-11-20 |
 | 3b. `alpha.2` | regenerate the tables when the named inputs exist: a post-launch `poe1` pin (RePoE lags launch by 0 to 13 days), the owner's four site captures (C79: nobody else may fetch them), the pins and manifests bumped, every generator's `--check` green · then the release | owner captures, Opus | 3 | when the inputs arrive, 2026-11-26 at the latest |
@@ -123,13 +123,12 @@ phase 4's second input.
 
 ## Current step
 
-Phase 0 closed 2026-10-20, at the commit adding its close row below:
-five steps built, each reviewed, fixed once, the fix round reviewed
-once, 0a's bound ruled. Next: the phase 1 design, a fresh Fable
-session from `briefs/1-governance-reset.md`. It reads the phase 0
-ledger rows first; the owner rules on its drafts and deletion lists
-before anything is deleted; nothing is built in phase 1 until the
-design is accepted.
+Phase 1's design is drafted (2026-10-20): `governance/DESIGN.md` asks
+the owner six rulings, the drafts beside it are the files they become,
+and `briefs/1b-registry.md` to `1e-checks-and-skills.md` are the
+migration, in that order. Nothing is deleted or built until the owner
+has ruled; then 1b starts, an Opus session in the main tree. Every
+deletion names the commit that holds the deleted text.
 
 ## Ledger
 
@@ -149,6 +148,7 @@ design is accepted.
 | 0a's review, and 0a closed | `reviews/0a-54f4ceea.md`, deleted in the commit adding this row | the bound, the owner's ruling (2026-10-20): accepted at 1.34; the remainder is linear in the removed count, its real bound the prune verb at a league's end (phase 3), and the removed-heavy copy stays a standing M3 row so that cost stays in sight (`search/M3-LEDGER.md` says so). All three findings: the two-opener test now has the writer stamp v99 under its lock, so the waiting opener must refuse it (fails with the under-lock reread removed); the corpus doc tells the live read (`items_live_at`, no sort) from the all-items read (`items_location`); "90,890 removed items in total". The raised item, the brief naming a test that did not exist, taken as a template lesson for the phase close: a brief that names a test names its file, and the worker checks it is there | — |
 | phase 0's fix-round review | `reviews/0-fixes-6c1fb572.md`, kept until the phase close | finding 1: the early-EOF test waited on the child with no deadline, so a transport that never exits on stdin closing would hang the gate; it now runs through the harness's `run_to_exit`, bounded by its answer-within deadline, the child killed and reaped on timeout or unwinding (a server made never to exit fails it in 30 s); test only, no behaviour change | not taken, the owner's verdicts (2026-10-20). Finding 2, a deep line's envelope not type-checked: an odd id echoed to a client that sent one, and no reply to a deep line with no id, which the design treats as a notification; every request with an id still gets a reply, and a conforming host never sends this. Finding 3, the syntax-only pass not validating UTF-8: a deep line with a raw byte in a string gets the too-deep refusal under its own id, a usable reply; stdio MCP is UTF-8 by specification. Finding 4, the two-opener test passing vacuously if the opener started over 300 ms late: the failure is a false green under a pathological delay, never a false red, the fault is caught on every ordinary run, and the fix needs a hook in the opener for the test's sake, mechanism for a case the gate will not meet; accepted |
 | phase 0 closed | the commit adding this row | briefs `0a` to `0e`, `reviews/0-fixes-6c1fb572.md` and `reviews/roadmap-a987d02f.md` deleted, held whole at `cca73395`. The seven raised items read together: three were a brief trusting the audit over the tree (0b cited a ruling as built that was parked, 0a named a test that did not exist, 0e carried a count wider than true), two asked that failing inputs be named concretely (0c, the fix round), two were the review prompt's own (the report withheld, `9e57b768`; the range inclusive, `55b41f06`); `TEMPLATE.md` now asks the brief's writer to check every citation and named test against the tree, and names failing inputs under Input. Five reviews and one fix-round review found fifteen items: eleven taken, one filed to 2g, three accepted with their reasons, none false | the roadmap review's finding 10 remainder, as its row says |
+| 1 design | the commit adding this row | `governance/`: the design, the `AGENTS.md` draft (12,693 bytes), the entry rule with ten samples, the parks' three lists (twenty not-doing lines, 23 deletions, 48 issues), the review checklist, the history, the testing notes and two skills as drafts; the four migration briefs | nothing deleted, nothing built: the owner's ruling comes first; the checklist draft is 17.6 KB against the brief's 12; all fifteen notes proposed for deletion, note 36 included, since the roadmap holds launch day |
 
 ## Housekeeping
 
