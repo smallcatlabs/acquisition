@@ -36,8 +36,9 @@ split-debuginfo = "packed"
 # Dependencies optimised and without debug info, the workspace's own
 # crates as they were (roadmap 0e, measured from an empty target dir,
 # run alone): `cargo test --workspace --all-targets` 247 s to 110 s,
-# since every test binary runs SQLite, serde_json and sha2 unoptimised
-# otherwise; a cold build 56 s to 90 s, once; target/ 11.3 to 9.4 GB.
+# the dependency-heavy tests (the store's SQLite, serde_json over item
+# bodies) having run them unoptimised; a cold build 56 s to 90 s, once;
+# target/ 11.3 to 9.4 GB.
 # A backtrace through a dependency loses its line numbers.
 [profile.dev.package."*"]
 opt-level = 2
