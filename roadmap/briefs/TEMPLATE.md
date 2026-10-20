@@ -48,6 +48,8 @@ instead.
   edit.
 - A finding is a test named for the fault, or a line in the report;
   never a new document.
+- A draft the brief names is taken verbatim unless the tree disproves
+  a sentence of it; each correction is named in the report.
 - After the commit, launch the review (`roadmap/README.md`, "Roles and
   rhythm"), save its findings verbatim at
   `roadmap/reviews/<step>-<sha>.md` and quote them in your report; do

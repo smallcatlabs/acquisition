@@ -37,6 +37,14 @@ stale-identifier scan, staged by renaming one in a scratch copy).
    through one shared matcher (`at <hash>` with or without backticks,
    7 to 40 hex, letters-only included), with both inputs staged (1b's
    fix-round review, finding 2; the worker's one-rule proposal).
+   `docs-check.sh` also gains a document-path check: a backticked
+   `*.md` token in a governed document names a file that exists, unless
+   it is written in the history form (`at \`<hash>\``); a breaker
+   stages a bare `LIVE-TESTING.md` in `REVIEW-CHECKLIST.md` (1d's
+   review, finding 2: the brief's failing input was refused by
+   nothing). `tools/preflight-breakers.sh` gains a case: every path in
+   `preflight.sh`'s dirty-file list exists (1d found a deleted one
+   there).
 2. `AGENTS.md`'s gate list gains the two lines; `gate-linux.yml` runs
    both scripts and the renamed breakers. C1's *Pinned* and the three
    `REVIEW-CHECKLIST.md` rows that name `docs-check.sh` for the edges,
