@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # docs-check.sh — the documentation half of the quality gate.
 #
-# Five checks, all mechanical (P4 and P5, `AGENTS.md`, "Principles": a
+# Six checks, all mechanical (P4 and P5, `AGENTS.md`, "Principles": a
 # rule that can be broken silently becomes a lint):
 #
 #   1. One byte budget, on the one file every session loads, `AGENTS.md`.
@@ -28,6 +28,8 @@
 #      commit-msg hook writes Claude's trailer as `Assisted-by:`. A note,
 #      never a failure: a clone that only builds (CI) needs no hook, and
 #      the setting is the clone's, so `AGENTS.md` says to make it once.
+#   6. Document paths: a backticked document name in the governed files
+#      names a file in this tree, or is cited at its commit.
 #
 # Exit 1 on any failure; the report names each offender.
 set -euo pipefail
@@ -291,5 +293,49 @@ if [[ $(git config --get core.hooksPath || true) == .githooks ]]; then
 else
   echo "note    hooks         core.hooksPath is not .githooks, so the commit-msg hook does not run: git config core.hooksPath .githooks (AGENTS.md)"
 fi
+
+# ---- 6. document paths -----------------------------------------------------
+# A backticked *.md name in the governed files names a document that
+# exists — from the root, from the citing file's directory, or as the
+# tail of a tracked path — unless it is written as history (`<path>` at
+# `<hash>`, whose path 2b holds to that commit). The identifier scan
+# reads code names and skips a document's: step 1d's brief named a
+# deleted document in the review checklist as its failing input, and
+# nothing refused it (the outside review of `202e4659`, finding 2). Not
+# read: the roadmap, as for 2b's citations, and the search slice's ledger
+# and digest, whose heads give the commit each of their pointers is read
+# at. Three names are of no file in this tree, by design: RePoE's
+# licence, a seat run's debrief, and a live run's friction notes.
+if ! paths=$(python3 -I - "$AT_HASH" "${governed[@]}" <<'PY'
+import os, re, subprocess, sys
+at, roots = sys.argv[1], sys.argv[2:]
+LEAD = r"(?:\s|//[!/]?|#)*"   # as 2b's citations
+tok = re.compile(r"`([^`\s:]+\.md)`")
+history = re.compile(r",?" + LEAD + r"(?:whole" + LEAD + r")?" + at)
+DATED = {"search/LEDGER.md", "search/DIGEST.md"}
+NOT_HERE = {"LICENSE.md", "DEBRIEF.md", "friction.md"}
+tracked = subprocess.run(["git", "ls-files"], capture_output=True, text=True, check=True).stdout.splitlines()
+tails = {"/".join(t.split("/")[i:]) for t in tracked for i in range(t.count("/") + 1)}
+def files():
+    for r in roots:
+        if r == "roadmap" or r in DATED: continue
+        if os.path.isfile(r): yield r; continue
+        for d, ds, fs in os.walk(r):
+            ds[:] = sorted(x for x in ds if x != "target")
+            yield from (os.path.join(d, f) for f in sorted(fs) if f.endswith((".rs", ".sh", ".py", ".md")))
+n = 0; bad = []
+for f in files():
+    text = open(f, encoding="utf-8").read()
+    for m in tok.finditer(text):
+        name = m.group(1)
+        if history.match(text, m.end()) or re.search(r"[<>*{}$]", name) or name in NOT_HERE: continue
+        n += 1
+        if not (os.path.exists(name) or os.path.exists(os.path.join(os.path.dirname(f), name)) or name in tails):
+            bad.append(f"PATH    {f}:{text.count(chr(10), 0, m.start()) + 1} `{name}` names no document in this tree: point at its home, or cite it as `<path>` at `<commit>`")
+print("\n".join(bad) if bad else f"ok      {'paths':<13} {n} document names, each one in this tree or cited at its commit")
+sys.exit(1 if bad else 0)
+PY
+); then fail=1; fi
+printf '%s\n' "$paths"
 
 exit $fail
