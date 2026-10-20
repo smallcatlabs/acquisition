@@ -914,3 +914,78 @@ fn removed_over_two_realms_counts_each_realms_own() {
         );
     }
 }
+
+/// 0a: a store's age is its removed items, and what has left is told
+/// apart from what is live by one lookup a gone id, never a scan of the
+/// live locations for each. Over many removed items and many tabs, the
+/// answer is what the few-removed stores above say: a removed item's id
+/// left as an item, a retired tab's as a tab, a tab id live in another
+/// league of the scope never, and the live items alone are counted.
+#[test]
+fn many_removed_items_are_each_told_apart_from_the_live_ones() {
+    let mut s = store();
+    let tabs: Vec<Value> = (0..40)
+        .map(|t| tab(&format!("t{t}"), &format!("Tab {t}")))
+        .collect();
+    list_tabs(&mut s, "pc", "Standard", Value::Array(tabs), 10);
+    list_tabs(
+        &mut s,
+        "pc",
+        "Old",
+        json!([tab("t0", "Shared"), tab("o1", "Old")]),
+        10,
+    );
+    fetch_tab(
+        &mut s,
+        "pc",
+        "Old",
+        "o1",
+        "Old",
+        vec![ring("old", "Rare", 60)],
+        11,
+    );
+    for t in 0..40 {
+        let rings = (0..50)
+            .map(|i| ring(&format!("r{t}x{i}"), "Rare", 60 + i))
+            .collect();
+        fetch_tab(
+            &mut s,
+            "pc",
+            "Standard",
+            &format!("t{t}"),
+            &format!("Tab {t}"),
+            rings,
+            20,
+        );
+        // all but the first ring of each tab leave
+        let kept = vec![ring(&format!("r{t}x0"), "Rare", 60)];
+        fetch_tab(
+            &mut s,
+            "pc",
+            "Standard",
+            &format!("t{t}"),
+            &format!("Tab {t}"),
+            kept,
+            30,
+        );
+    }
+    // the Old league's tabs are retired, `t0` among them, live in Standard
+    list_tabs(&mut s, "pc", "Old", json!([]), 40);
+
+    let live = load(&s, Some("pc"));
+    let a = as_json(&ask(&live, "").unwrap());
+    assert_eq!(a["total"]["matched"], 40, "{}", a["total"]);
+    let a = as_json(&ask(&live, "id:r7x3 or id:o1 or id:t0 or id:old").unwrap());
+    let what: Vec<Value> = a["terms"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| t["removed"]["what"].clone())
+        .collect();
+    assert_eq!(
+        what,
+        [json!("item"), json!("tab"), Value::Null, json!("item")],
+        "{}",
+        a["terms"]
+    );
+}

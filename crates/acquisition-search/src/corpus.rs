@@ -74,7 +74,7 @@
 //!   fills and is counted apart; a location never fetched is one no item
 //!   predicate supports a claim about (invariant 6 of the surface).
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use acquisition_store::corpus::{CorpusHeader, CorpusItem, LocationRow, RealmScope, Revision};
 use acquisition_store::{Annotations, Store};
@@ -723,6 +723,10 @@ impl Corpus {
                         Realm::All => true,
                     };
                     let mut gone: HashMap<String, Left> = HashMap::new();
+                    // one lookup per gone id: a store's removed items grow
+                    // with its age, and a scan of every live location for
+                    // each made the age a multiplier of the ask (0a)
+                    let live_ids: HashSet<&str> = locations.iter().map(|l| l.id.as_str()).collect();
                     let left =
                         header
                             .gone
@@ -732,7 +736,7 @@ impl Corpus {
                                 l.removed_at.map(|at| (&l.realm, &l.kind, &l.id, at))
                             }));
                     for (of, kind, id, removed_at) in left {
-                        let live = locations.iter().any(|l| l.id == *id);
+                        let live = live_ids.contains(id.as_str());
                         let later = gone.get(id).is_some_and(|l| l.removed_at >= removed_at);
                         if in_realm(of) && !live && !later {
                             gone.insert(
