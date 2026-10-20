@@ -1,84 +1,54 @@
 ---
 name: session-close
-description: End a working session on the Acquisition workspace — route what was learned to its one home, keep the always-loaded documents at budget, commit with the story in the message. Use before the last commit of any session, and whenever a slice closes.
+description: End a working session on the Acquisition workspace — run the gate bare, commit with the story in the message, and if the session was a roadmap step or closed a phase, write its row. Use before the last commit of any session.
 ---
 
 # Session close
 
-The always-loaded documents accrete when a session ends by writing its
-story into `AGENTS.md`. This procedure gives the story a home instead.
-The rule is one authoritative home per fact (`AGENTS.md`, "Where things live");
-the ladder behind it is note 09 at `decda84e`.
-
 ## 1. Gate
 
-Run the quality gate in `AGENTS.md`, "Quality gate".
-
-Run each command bare and read its exit status. A check piped through
-`grep` or `tail` reports the filter's exit, not the check's: on
-2026-09-03 an over-length registry entry was committed that way. Gate
-the commit on each stage's own status variable, never on a `grep` of
-the summary: on 2026-10-18 `if ! grep -qv "rc=0" summary` read "all
-green" over a line `test rc=101` (BSD grep's `-q` with `-v`), and the
-data commit went in red.
+Run the quality gate in `AGENTS.md`, "Quality gate", each command bare,
+and read each exit status. A check piped through `grep` or `tail`
+reports the filter's exit, not the check's; gate the commit on each
+stage's own status variable, never on a `grep` of a summary (BSD
+`grep -qv` once read "all green" over a failing line).
 
 ### Why build order matters
 
 `cargo test --all-targets` never writes `target/debug/acqd` (no test in
-the daemon crate asks for it) and rewrites `target/debug/acq-mcp` in its
-all-targets form — a different artifact: proptest, the plan crate's
-dev-dependency, unifies `num-traits/std` into the chrono that rmcp links
-(measured 2026-09-11; `acq` and `acqd` have one form each since the
-store's `test-hooks` feature and its dev-only `hooks` feature went);
-`cargo clippy` rewrites none. So run the gate's `cargo build --workspace`
-before any smoke or live run, and never run the drivers while the gate
-runs — their preflight build replaces `acqd` under a live daemon (an
-artifact mismatch, C84). An edit or a `cargo fmt` to any input of the contract
-revision (the live-run skill, "Before", step 3) after the build
-leaves `acqd` on the old revision and every daemon test failing "another
-contract": build again first (2026-09-12). `cargo build --workspace
---release` and `cargo build --release -p acquisition-cli` uplift two
-forms of `target/release/acq` from one source (sha256 `9ecf385d…` and
-`aefa167c…` at `94a3d18c`, another feature unification), and a no-op
-build swaps them: a hash in a ledger names the form that built it
-(2026-09-26).
-
-The full contract-input set is documented in
+the daemon crate asks for it) and rewrites `target/debug/acq-mcp` in
+its all-targets form, a different artifact: proptest, the plan crate's
+dev-dependency, unifies `num-traits/std` into the chrono that rmcp
+links; `acq` and `acqd` have one form each; `cargo clippy` rewrites
+none. So run the gate's `cargo build --workspace` before any smoke or
+live run, and never run the drivers while the gate runs: their
+preflight build replaces `acqd` under a live daemon, an artifact
+mismatch (C84). An edit or a `cargo fmt` to any input of the contract
+revision after the build leaves `acqd` on the old revision and every
+daemon test failing "another contract": build again first. `cargo
+build --workspace --release` and `cargo build --release -p
+acquisition-cli` uplift two forms of `target/release/acq` from one
+source, and a no-op build swaps them: a hash in a ledger names the form
+that built it. The contract's inputs are listed in
 [the revision build script](../../../crates/acquisition-protocol/build.rs).
 
-## 2. Route each thing learned
+## 2. Commit
 
-Route every item through `AGENTS.md`, "Where things live"; the
-registry format and the not-doing rule are in `tools/bothy.py`'s docstring.
-A shape of fault that came back is a `REVIEW-CHECKLIST.md` row; the
-live-run skill defines the run-ledger row. Usage references regenerate from their
-sources (commands in each reference's header); `tests/readme_tour.rs`
-and `tools/docs-check.sh` hold README's form.
+One commit per concern. The message carries the story (what changed,
+what the review found, what the run showed), because `git log` is
+where the next session reads it. A size stated in the message is
+measured with `wc -c` after the last edit, never recalled. A deleted
+text is cited as `<path>` at `<commit>`.
 
-Do not write "built on <date>", "step N done", or a list of what a test
-covers into `AGENTS.md`: git holds the first two, the test the third.
-`tools/docs-check.sh` reports decisions nothing cites; when you touch the
-code behind one, name it in a test or a doc comment so the report shrinks.
-`tools/bothy.py check` refuses a not-doing line without its trigger.
-A help string is never that doc comment: it is text the user reads, so it
-cites no id (C116); the rule's words stand in its place.
+What else a session writes back, and where, is `AGENTS.md`, "Where
+things live": a ruling to its area file, a finding to a test or the
+message, work not done to an issue, a user-facing change to the help
+and the regenerated references. Nothing else needs a home.
 
-## 3. When a slice closes
+## 3. A roadmap step or a phase close
 
-Give the slice one `HISTORY.md` line (its range, its close, the commit
-at which its working files were last whole) and a `REVIEW-CHECKLIST.md`
-row for each shape of fault its reviews taught; the records that were
-the mold are whole at `b6197a82`. An
-observation still open at the close becomes an area park with a trigger
-or is dropped, and the record says where each went (`AGENTS.md`,
-"Where things live"; `DAEMON-SPLIT-SLICE.md` at `b6197a82`, "Where the open observations went"). Strike-through items in a "Parked" list are deleted,
-not kept. A park is deleted in the commit that builds it, never because
-its trigger fired (the area file's "Not doing").
-
-## 4. Commit
-
-One commit per concern. The message carries the narrative — what
-changed, what the review found, what the run showed — because that is
-where the next session will read it (`git log`, the slice's range). A
-size stated in the message is measured with `wc -c` after the last
-edit, never recalled (four amended messages, 2026-09-16).
+A step ends with its ledger row in `roadmap/README.md` and its review
+launched (`roadmap/README.md`, "Roles and rhythm"). A phase close adds
+one `HISTORY.md` line, a `REVIEW-CHECKLIST.md` row for each shape that
+came back during the phase, and deletes the phase's briefs and review
+files, cited by commit.
