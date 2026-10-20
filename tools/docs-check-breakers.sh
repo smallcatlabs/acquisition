@@ -3,7 +3,8 @@
 # by breaking a document and watching it refuse: the registry's history
 # scan (§2) and the cited commits (§2b), which read a commit written as
 # history through one matcher, and the history citations (§2b), each
-# path as it was at its commit, and the document paths (§6). The dependency guard's cases and the group rule's moved with
+# path as it was at its commit, the document paths (§6), and the stale
+# identifiers (§3) as they read the skills. The dependency guard's cases and the group rule's moved with
 # their checks to `arch-check-breakers.sh` (step 1e of the roadmap); the
 # two suites do not cross.
 #
@@ -18,7 +19,7 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/acq-docs-breakers.XXXXXX")
-files=(decisions/plans.md REVIEW-CHECKLIST.md)
+files=(decisions/plans.md REVIEW-CHECKLIST.md .claude/skills/seat/SKILL.md)
 for f in "${files[@]}"; do mkdir -p "$scratch/keep/$(dirname "$f")"; cp "$f" "$scratch/keep/$f"; done
 restore() {
   local f
@@ -93,6 +94,21 @@ run_case 'the path as it was there'                              pass   'ok     
 echo '== a document name names a file in this tree (the outside review of 202e4659, finding 2)'
 run_case 'a bare deleted document in the review checklist'       refuse 'LIVE-TESTING.md` names no document in this tree' checklist "Read \`LIVE-TESTING.md\` first."
 run_case 'the same, cited at the commit that held it'            pass   'ok      paths'          checklist "Read \`LIVE-TESTING.md\` at \`b6197a82\` first."
+
+echo '== a skill names only tests and tools that exist (step 1d put the skills in the scan)'
+skill() {  # skill <old> <new>: an exact-once substitution in the seat skill
+  python3 - "$1" "$2" <<'PY'
+import pathlib, sys
+p = pathlib.Path('.claude/skills/seat/SKILL.md'); s = p.read_text()
+assert s.count(sys.argv[1]) == 1, 'edit anchor not found once: ' + sys.argv[1][:60]
+p.write_text(s.replace(sys.argv[1], sys.argv[2]))
+PY
+}
+# The new names are built here: this file is in the scan's haystack, and
+# a name written out in it would be found there.
+N=flaws
+run_case 'a skill names a test that does not exist'              refuse 'STALE   .claude/skills/seat/SKILL.md' skill 'tests/seat_faults.rs`' "tests/seat_$N.rs\`"
+run_case 'a skill names a tool that does not exist'              refuse 'STALE   .claude/skills/seat/SKILL.md' skill '`seat-mcp.py`' "\`seat-mcp-$N.py\`"
 
 echo
 printf '%d ok, %d failed\n' "$pass" "$failed"
