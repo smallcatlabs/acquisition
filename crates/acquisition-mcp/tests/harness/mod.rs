@@ -213,6 +213,43 @@ fn isolate(cmd: &mut Command, base: &Path, extra_env: &[(&str, &str)], stdio: fn
 /// gate, never hang it (review 2026-09-11).
 const ANSWER_WITHIN: Duration = Duration::from_secs(30);
 
+/// Run the server over `input`, then close its stdin, and return what it
+/// wrote to stdout. It must exit within [`ANSWER_WITHIN`]: one that does
+/// not is killed and the test fails, never hanging the gate; the child
+/// is killed and waited for on any unwinding too.
+pub fn run_to_exit(base: &Path, input: &[u8]) -> String {
+    struct Reaped(Child);
+    impl Drop for Reaped {
+        fn drop(&mut self) {
+            let _ = self.0.kill();
+            let _ = self.0.wait();
+        }
+    }
+    let mut child = Reaped(spawn(base, &[], &[], Stdio::piped));
+    let mut stdin = child.0.stdin.take().unwrap();
+    let mut stdout = child.0.stdout.take().unwrap();
+    let (tx, out) = channel();
+    std::thread::spawn(move || {
+        let mut bytes = Vec::new();
+        let _ = std::io::Read::read_to_end(&mut stdout, &mut bytes);
+        let _ = tx.send(bytes);
+    });
+    stdin.write_all(input).unwrap();
+    drop(stdin);
+    let deadline = Instant::now() + ANSWER_WITHIN;
+    while child.0.try_wait().unwrap().is_none() {
+        assert!(
+            Instant::now() < deadline,
+            "the server did not exit within {ANSWER_WITHIN:?} of its stdin closing"
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    let bytes = out
+        .recv_timeout(ANSWER_WITHIN)
+        .expect("the server's stdout did not close after it exited");
+    String::from_utf8_lossy(&bytes).into_owned()
+}
+
 /// A newline-delimited JSON-RPC conversation with the MCP server's stdio.
 /// The server's stdout is read on a thread into a channel, so every wait
 /// for an answer is bounded; the server is killed and waited for on

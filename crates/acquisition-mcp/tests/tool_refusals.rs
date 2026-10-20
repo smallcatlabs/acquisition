@@ -10,9 +10,7 @@
 
 mod harness;
 
-use std::io::Write;
 use std::path::PathBuf;
-use std::process::Stdio;
 use std::time::{Duration, Instant};
 
 use acquisition_plan::{PolicyWrite, put_sync_policy};
@@ -222,19 +220,15 @@ fn a_deep_line_cut_short_and_a_line_behind_a_byte_order_mark_each_get_their_repl
 
 /// The server's writer is awaited however the service ends: a line
 /// answered before initialisation, then stdin closed, still puts its
-/// parse error on stdout.
+/// parse error on stdout. A server that never exits on stdin closing
+/// fails the test within the harness's deadline rather than hanging it.
 #[test]
 fn a_reply_queued_before_initialisation_reaches_stdout_when_stdin_closes() {
     let base = std::env::temp_dir().join(format!("acq-mcp-early-eof-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&base);
     std::fs::create_dir_all(&base).unwrap();
     let _scratch = Scratch(base.clone());
-    let mut child = harness::spawn(&base, &[], &[], Stdio::piped);
-    let mut stdin = child.stdin.take().unwrap();
-    stdin.write_all(b"not JSON\n").unwrap();
-    drop(stdin);
-    let out = child.wait_with_output().unwrap();
-    let stdout = String::from_utf8_lossy(&out.stdout);
+    let stdout = harness::run_to_exit(&base, b"not JSON\n");
     let reply: Value = serde_json::from_str(stdout.lines().next().unwrap_or_default())
         .unwrap_or_else(|e| panic!("no reply on stdout ({e}): {stdout:?}"));
     assert_eq!(reply["id"], Value::Null, "{reply}");
