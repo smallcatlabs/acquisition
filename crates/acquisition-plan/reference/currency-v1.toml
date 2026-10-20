@@ -36,7 +36,7 @@
 #   section), `game:<date> dialog <name>` (the display name the owner read
 #   in the dialog — fixture, third section), `cpp:<path>@<master commit>
 #   tag <tag>` (the C++ table's tag for the same currency),
-#   `census:<date> …` (PRICING-SLICE.md, "What the census taught"), `T<n>`
+#   `census:<date> …` (`PRICING-SLICE.md` at `b6197a82`, "What the census taught"), `T<n>`
 #   (docs/design/trade-ground-truth.md), or `browser:<date> <who> <what>`
 #   (SURFACES.md). Every row carries a `game:` entry; the loader checks.
 #
@@ -49,7 +49,7 @@
 version = 1
 status = "reviewed"
 sources = [
-  "game:2026-09-04 the in-game price dialog, pc/Standard, tab ACQUISITION-PRICE-TEST — 39 words written into notes and read back (price-notes-2026-09-04.txt; LIVE-TESTING.md ledger row 2026-09-04)",
+  "game:2026-09-04 the in-game price dialog, pc/Standard, tab ACQUISITION-PRICE-TEST — 39 words written into notes and read back (price-notes-2026-09-04.txt; RUN-LEDGER.md row 2026-09-04)",
   "game:2026-09-04 the dialog's currency list and display names, as the owner read them (the fixture's third section)",
   "cpp:src/currency.cpp@fb0bbbdf (acquisition-qt@33928a87): the legacy tags and the three retired currencies' display names",
   "cpp:src/shop.cpp@33928a87 SpoilerBuyout: the C++ shop emitted `<type prefix> <amount> <tag>`",

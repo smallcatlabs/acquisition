@@ -15,7 +15,7 @@
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 //!
 //! Extracted from `acquisition-core` (now `acquisition-daemon`) as commit 1
-//! of the daemon split (`DAEMON-SPLIT-SLICE.md`, step ledger; the design
+//! of the daemon split (`DAEMON-SPLIT-SLICE.md` at `b6197a82`, step ledger; the design
 //! is the packet, note 18 §2.1 at `decda84e`). Since step 4 the
 //! revision's inputs are the contract alone — this crate and the store —
 //! so a daemon-only edit moves the daemon artifact and nothing here.

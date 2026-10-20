@@ -29,7 +29,7 @@ toml = "1"
 [profile.dev]
 # macOS defaults to split-debuginfo = "unpacked", which leaves every codegen
 # unit's object file in target/debug/deps for the debugger to find and never
-# deletes them: 600k files, 65 GB, on 2026-09-09 (brainstorming-notes/16).
+# deletes them: 600k files, 65 GB, on 2026-09-09 (note 16 at `decda84e`).
 # "packed" folds them into one .dSYM per executable at link time.
 split-debuginfo = "packed"
 

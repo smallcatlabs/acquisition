@@ -34,7 +34,7 @@ store's `test-hooks` feature and its dev-only `hooks` feature went);
 before any smoke or live run, and never run the drivers while the gate
 runs — their preflight build replaces `acqd` under a live daemon (an
 artifact mismatch, C84). An edit or a `cargo fmt` to any input of the contract
-revision (`LIVE-TESTING.md`, "Build before you run") after the build
+revision (the live-run skill, "Before", step 3) after the build
 leaves `acqd` on the old revision and every daemon test failing "another
 contract": build again first (2026-09-12). `cargo build --workspace
 --release` and `cargo build --release -p acquisition-cli` uplift two
@@ -50,8 +50,8 @@ The full contract-input set is documented in
 
 Route every item through `AGENTS.md`, "Where things live"; the
 registry format and the not-doing rule are in `tools/bothy.py`'s docstring.
-`REFRESH-SLICE.md` is the shape for a finding row; `LIVE-TESTING.md`
-defines the run-ledger row. Usage references regenerate from their
+A shape of fault that came back is a `REVIEW-CHECKLIST.md` row; the
+live-run skill defines the run-ledger row. Usage references regenerate from their
 sources (commands in each reference's header); `tests/readme_tour.rs`
 and `tools/docs-check.sh` hold README's form.
 
@@ -65,12 +65,13 @@ cites no id (C116); the rule's words stand in its place.
 
 ## 3. When a slice closes
 
-Give the slice a closed record in the mold of `NETWORK-CLEANUP.md` (step
-ledger, the shapes of fault its reviews taught, what the runs taught),
-citing the last commit that holds the open record's full text. An
+Give the slice one `HISTORY.md` line (its range, its close, the commit
+at which its working files were last whole) and a `REVIEW-CHECKLIST.md`
+row for each shape of fault its reviews taught; the records that were
+the mold are whole at `b6197a82`. An
 observation still open at the close becomes an area park with a trigger
 or is dropped, and the record says where each went (`AGENTS.md`,
-"Where things live"; `DAEMON-SPLIT-SLICE.md`, "Where the open observations went"). Strike-through items in a "Parked" list are deleted,
+"Where things live"; `DAEMON-SPLIT-SLICE.md` at `b6197a82`, "Where the open observations went"). Strike-through items in a "Parked" list are deleted,
 not kept. A park is deleted in the commit that builds it, never because
 its trigger fired (the area file's "Not doing").
 

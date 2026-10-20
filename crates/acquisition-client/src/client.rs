@@ -124,7 +124,7 @@
 //! rebuild under a live daemon is a named mismatch that the next use verb
 //! resolves by respawning. A daemon-only edit moves this value and not the
 //! contract, which is what lets a daemon edit leave every frontend
-//! untouched (`DAEMON-SPLIT-SLICE.md`, step 4's measure). A process with
+//! untouched (`DAEMON-SPLIT-SLICE.md` at `b6197a82`, step 4's measure). A process with
 //! no sibling — no `acqd` beside it — matches no daemon on this dimension
 //! and says so: it could not have started the one it found.
 //!

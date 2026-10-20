@@ -1,12 +1,12 @@
 # Item search — the slice's working directory
 
 Item search (owner, 2026-09-11: "the real heart of acquisition") is
-built and its slice closed (`SEARCH-SLICE.md`, the record). This
+built and its slice closed (`SEARCH-SLICE.md` at `b6197a82`, the record). This
 directory is where its research accumulated, one track per directory,
 and holds what the build still names. It is evidence and working
 material, not deliberation and not rulings:
-a session that thinks out loud writes a numbered `brainstorming-notes/`
-note that cites a track by path; a ruling lands in `decisions/`. Nothing
+a session that thought out loud wrote a numbered note
+(`brainstorming-notes/` at `b6197a82`) that cited a track by path; a ruling lands in `decisions/`. Nothing
 here is an authority for either; `DESIGN.md`, the one exception until
 step 11e, is the crate's module docs now.
 
@@ -37,7 +37,8 @@ deleting one; nothing else encodes it. (Set 2026-09-12.)
    track's `MANIFEST.md` (date, source, captured by, access method,
    sha256); dies with the machine; a `raw/` whose track is gone
    (`agent-seat/`, `engine-bench/`, `item-filter/`) is described by that
-   track's `MANIFEST.md` at `40b55e79`. `data/` — extracts, regenerable:
+   track's `MANIFEST.md` under
+   `spikes/rust-playground/search/` at `40b55e79`. `data/` — extracts, regenerable:
    committed, first line names the script and the input; survives the
    close only if the build cites it. `scripts/` — committed; survives the
    close in place only if the build names it or a kept table needs it,
@@ -64,7 +65,7 @@ procedure's traps live with its skill)
 - Files from the game and from Path of Building end lines with CRLF — the `Mod*.lua` tables, the clipboard text in a `fetch`'s `extended.text`: strip `\r` before matching a line end (bit the mod-table parser and the `Item Class:` check in one session); `mod-templates.csv` carries a bare CR inside 260 templates, so open the census files with `newline="\n"` or every line number past the first is off (pseudo-stats, 2026-09-18).
 
 At the close this directory shrank to what a crate, a test, a tool, a
-skill, a ruling or the record names (`SEARCH-SLICE.md`, the closed
+skill, a ruling or the record names (`SEARCH-SLICE.md` at `b6197a82`, the closed
 record); the full text is cited at a commit, below.
 
 ## Tracks
@@ -77,7 +78,7 @@ test, tool, skill, ruling or record names was deleted after it.
 | --- | --- | --- | --- |
 | `item-facts/` | What does an item look like as GGG gives it, and how big is the corpus? | the README deleted, at `40b55e79`; the files the build names stay | — |
 | `cpp-search/` | What does the C++ app's search do, filter by filter, and how does it stay instant? | the README deleted, at `40b55e79`; the files the build names stay | — |
-| `trade-query/` | What is the trade site's query language, and which of it means something for a private stash? | the README deleted, at `40b55e79`; the files the build names stay — the trade import's stat, filter and item captures and its sat searches' hashes among them (`TRADE-SLICE.md`, closed 2026-10-18) | — |
+| `trade-query/` | What is the trade site's query language, and which of it means something for a private stash? | the README deleted, at `40b55e79`; the files the build names stay — the trade import's stat, filter and item captures and its sat searches' hashes among them (`TRADE-SLICE.md` at `b6197a82`, closed 2026-10-18) | — |
 | [`repoe/`](repoe/README.md) | What does the game's own data (RePoE's export, with Path of Building as corroboration) give a stash search that the item JSON does not? | first pass complete — 2026-09-13; base-defence ranges added 2026-09-18 | 13325 |
 | `item-filter/` | What predicates does GGG's own item-filter language name over an item, and which does a stash search inherit? | deleted, the track at `40b55e79` | — |
 | `prior-art/` | How does a maintained item-to-trade tool (Awakened PoE Trade) give a line its identity and follow patches? | deleted, the track at `40b55e79` | — |
@@ -103,9 +104,9 @@ was reached". `search-forms/` is the design dialogue that chose
 the surface, history: files 10 and 11 are what was harvested, and the
 owner's words are whole in file 11. The build ran under
 `BUILD-PLAN.md`, the brief, deleted at the close and whole at
-`453a4429`; the inbound trade translation (note 36, step 3) ran under
+`453a4429`; the inbound trade translation (note 36 at `b6197a82`, step 3) ran under
 `TRADE-PLAN.md`, deleted at its close and whole at `16bba23e`, its
-record `TRADE-SLICE.md`; what the search's build met is its record, its rows — the step ledger, the
+record `TRADE-SLICE.md` at `b6197a82`; what the search's build met is its record, its rows — the step ledger, the
 holes ruled — `LEDGER.md`, looked up by the row, and its measurements —
 the tables, commands and numbers on the owner's copy — `MEASUREMENTS.md`,
 read by the block named. What a step saw that stayed open is a park in

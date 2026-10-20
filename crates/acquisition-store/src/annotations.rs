@@ -588,7 +588,7 @@ impl Annotations {
     }
 
     /// The two boundaries of a first open (C35, the creation race and its
-    /// two windows, `PRICING-SLICE.md` findings 7.3 and the 2026-09-09
+    /// two windows, `PRICING-SLICE.md` at `b6197a82` findings 7.3 and the 2026-09-09
     /// review): a losing first-time opener waits for the winner's create
     /// to commit and then proceeds; a stampless file that holds tables is
     /// refused and left byte for byte as found. So nothing that writes

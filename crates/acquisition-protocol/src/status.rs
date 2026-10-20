@@ -4,14 +4,14 @@
 //! from its limiter and rails (`ratelimit.rs`'s `rule_statuses`,
 //! `ChokePoint::policy_statuses`, `Rails::status`), and nothing here knows
 //! how. Moved here whole from `rails.rs` and `ratelimit.rs` with the
-//! protocol crate (DAEMON-SPLIT-SLICE.md, step 1); the fixtures under
+//! protocol crate (`DAEMON-SPLIT-SLICE.md` at `b6197a82`, step 1); the fixtures under
 //! `tests/fixtures/wire/` pin their shape through the responses that carry
 //! them.
 
 use serde::{Deserialize, Serialize};
 
 /// The live-test rails, for `daemon status` and the dashboard
-/// (`LIVE-TESTING.md`, "Rails").
+/// (the live-run skill, "The rails").
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RailsStatus {
     pub tripwire_enabled: bool,

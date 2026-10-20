@@ -1,4 +1,4 @@
-//! The real-scale pricing fixture (plan step 7, item 2, `PRICING-SLICE.md`)
+//! The real-scale pricing fixture (plan step 7, item 2, `PRICING-SLICE.md` at `b6197a82`)
 //! for the text views' time guards: `acquisition-plan`'s
 //! `reference/pricing-snapshot-2026-09-07.json` — the owner's pc/Standard
 //! league, names and ids hashed — tiled to the scale at which a

@@ -62,7 +62,7 @@ row. `differ` — both list it and the claims differ.
 
 Two reasons the first run found under `unlisted_since` (62 rows) and
 the list did not hold, added 2026-09-08 with the run recorded that way
-(`PRICING-SLICE.md`, the item 5 row): `socketed` — the item sits in a
+(`PRICING-SLICE.md` at `b6197a82`, the item 5 row): `socketed` — the item sits in a
 socket of another (T13: no position), and the site does not list it on
 its own; `stackable` — a currency-class stack (`stack_size` present:
 scrolls, omens, boxes), which the site trades on the bulk exchange, not

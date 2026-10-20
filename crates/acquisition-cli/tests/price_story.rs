@@ -1,4 +1,4 @@
-//! Plan step 7, item 3 (`PRICING-SLICE.md`): the pricing surface as one
+//! Plan step 7, item 3 (`PRICING-SLICE.md` at `b6197a82`): the pricing surface as one
 //! story through the spawned binary — set, show, render, clear — and the
 //! races the story invites, each pinned as a property that holds under
 //! every interleaving: two blind writers on one row never clobber and

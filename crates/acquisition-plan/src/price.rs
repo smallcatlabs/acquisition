@@ -1,6 +1,6 @@
 //! The typed price: what a `buyout` row says ([`Buyout`], C67) and what
 //! it is about ([`PriceTarget`]). Built by the pricing slice's plan step 2
-//! (`PRICING-SLICE.md`, 2026-09-05). Nothing here reads facts or a
+//! (`PRICING-SLICE.md` at `b6197a82`, 2026-09-05). Nothing here reads facts or a
 //! daemon; this module is the value's shape, its parse, its address, and
 //! — since plan step 5 (2026-09-06) — the one write path every frontend's
 //! `set` and `clear` use ([`set_buyout`], [`clear_buyout`]), through the
@@ -1360,7 +1360,7 @@ mod tests {
         assert!(a.get(CHARACTER_SCOPE, "c1", BUYOUT_KIND).unwrap().is_none());
     }
 
-    /// The plan step 7 property tests (`PRICING-SLICE.md`): the amount's
+    /// The plan step 7 property tests (`PRICING-SLICE.md` at `b6197a82`): the amount's
     /// grammar over every spelling, not the hand-picked ones above.
     mod properties {
         use super::*;

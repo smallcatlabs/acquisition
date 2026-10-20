@@ -1,6 +1,6 @@
 # The item search slice — the ledger
 
-The rows of the closed record (`SEARCH-SLICE.md`): the step ledger, the
+The rows of the closed record (`SEARCH-SLICE.md` at `b6197a82`): the step ledger, the
 holes ruled, and how the design was reached. Looked up by the row — a
 step, a hole's id, a commit — and never loaded whole. No budget: a
 line per step and per hole by construction. Nothing here is a second
@@ -59,7 +59,7 @@ same commit.
 | 11d · the retirement | `removed` alone `5d28122f`; the retirement `9a1ebc9c`; the recheck and the close, this commit | `acq items`, the MCP's `search_items` and `get_item`, `Store::search` and the tour line gone; facts v8 (`schema.sql`, `FACT_SCHEMA_VERSION`'s doc; the store's `v7_to_v8_…`), run on a fresh copy and seen by the owner before its commit; the two refusals in `price_cmd.rs` and `show.rs`; the kill-list recheck, its table the closing commit's message and its outcome the park in `decisions/search.md`; what it was to close on is the plan at `5d28122f` |
 | 11e · the reference to its homes | the move `61236446`; the directions `973865c2`; the look's round `75549bdf`; the help and the close, this commit | `search/DESIGN.md` gone, the page whole at `0d71054f`: its paragraphs in the module docs of `acquisition-search` — the three words, the seven invariants and C106's detail in `lib.rs`, the worked example in `answer.rs`, a sum's status in `pseudo.rs`, the slot words in `template.rs`, the count views in `counts.rs`, the owner's words verbatim in the module each bears on — the clap help and `--describe`; C99's detail, which no code takes, in `decisions/search.md`, "Contract detail" (`decisions/trade.md` since 2026-10-17); six directions in `search/OBSERVATIONS.md` for 11g; `--describe` gains the `+#` spelling, a template pattern's ends, the note on a sum over a pattern, and examples for `text`, `name`, `typeline`, `base`, `frame` and `ilvl` |
 | 11f · `search/` shrunk | `c756bd38`; a manifest back, this commit | 139 of the 211 tracked files under `search/` deleted, 12,927,262 bytes, each whole at `40b55e79`: what no crate, test, tool, skill, ruling or record opens or cites, by a script's census the owner read first. Seven tracks gone whole — `agent-seat`, `engine-bench`, `item-filter`, `owner-seat`, `prior-art`, `proposal-audit`, `store-as-built`; kept beside what the build names: what a kept script reads, the two manifests `SURFACES.md` names, the commands `search/MEASUREMENTS.md` names and the makers of the tables the tests include. The digest's twenty kill-list claims deleted, with their ids in its index and on nine other lines; the park fired and gone. No `raw/` touched |
-| 11g · the close | this commit | The record closed (`SEARCH-SLICE.md`: its final state, the plan's rules moved in whole); the plan and the observations deleted, each whole at `453a4429`; every observation a park with its trigger (`decisions/search.md`, `decisions/frontends.md`, `decisions/store.md`), a home it had, or dropped; this file kept, the yields by look gone; `search/README.md`, rule 4, reworded for the scripts the build names; of the three parks the step fired, pricing on the MCP kept parked by the owner; M3 at the close postponed by him, the machine busy with another session's tests, and owed with the other two parks' disposal (`decisions/search.md`, the projection park) |
+| 11g · the close | this commit | The record closed (`SEARCH-SLICE.md` at `b6197a82`: its final state, the plan's rules moved in whole); the plan and the observations deleted, each whole at `453a4429`; every observation a park with its trigger (`decisions/search.md`, `decisions/frontends.md`, `decisions/store.md`), a home it had, or dropped; this file kept, the yields by look gone; `search/README.md`, rule 4, reworded for the scripts the build names; of the three parks the step fired, pricing on the MCP kept parked by the owner; M3 at the close postponed by him, the machine busy with another session's tests, and owed with the other two parks' disposal (`decisions/search.md`, the projection park) |
 
 ## Holes ruled, and where the rule went
 
@@ -128,19 +128,19 @@ Moved from `search/README.md` when the record opened; the tracks the
 stages read are that index's rows.
 
 The synthesis runs in stages after the tracks close (the plan and the
-owner's decisions: `brainstorming-notes/23-search-synthesis-plan.md`):
+owner's decisions: note 23 at `b6197a82`):
 its briefs and drafts are numbered notes, each edited by the owner
 before it runs — the digest brief was note 21 (at c56404ca, deleted at
-acceptance), the framing is `brainstorming-notes/22-search-framing.md`;
+acceptance), the framing is note 22 at `b6197a82`;
 the digest is `DIGEST.md`, accepted 2026-09-17; the proposal brief
 for stage 3 was note 29 (at `e5d270bc`, deleted at the close), and
 the two blind proposals it produced are
-`brainstorming-notes/24-search-proposal-fable.md` and
-`brainstorming-notes/25-search-proposal-astra.md` (merged f2b06a3e). Stage
+note 24 at `b6197a82` and
+note 25 at `b6197a82` (merged f2b06a3e). Stage
 4 is an audit (`proposal-audit/`), the author's repair
 (note 32 at `a47fa1e5`), the review, a seat under note 30 (at
 `a47fa1e5`) over anonymised copies (`search/designs/`, retired at
 `548ecc4f`)
-(`brainstorming-notes/26-search-review-by-fable.md`,
-`brainstorming-notes/27-search-review-by-astra.md`), and the reconciliation,
-`brainstorming-notes/31-search-reconciliation.md`, which Astra checks. Stage 5 is the ruling packet, `brainstorming-notes/28-search-ruling-packet.md` (the owner's answers, Astra's check under note 33 at `a0d85b23`), harvested into `decisions/search.md` 2026-09-17, its contract detail `DESIGN.md` with the language reference at its head (harvested 2026-09-19). Stage 6 was the build under `BUILD-PLAN.md` (at `453a4429`), `SEARCH-SLICE.md` its record.
+(note 26 at `b6197a82`,
+note 27 at `b6197a82`), and the reconciliation,
+note 31 at `b6197a82`, which Astra checks. Stage 5 is the ruling packet, note 28 at `b6197a82` (the owner's answers, Astra's check under note 33 at `a0d85b23`), harvested into `decisions/search.md` 2026-09-17, its contract detail `DESIGN.md` with the language reference at its head (harvested 2026-09-19). Stage 6 was the build under `BUILD-PLAN.md` (at `453a4429`), `SEARCH-SLICE.md` at `b6197a82` its record.

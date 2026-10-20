@@ -1,6 +1,6 @@
 //! The game side of a listing (C69): what an item's `note` or a tab's
 //! name says, read as one pure function. Built by the pricing slice's
-//! plan step 3 (`PRICING-SLICE.md`, 2026-09-06). Nothing here reads a
+//! plan step 3 (`PRICING-SLICE.md` at `b6197a82`, 2026-09-06). Nothing here reads a
 //! store; the listing state (`listing.rs`, plan step 4) calls [`read`]
 //! once per note and once per tab name and keeps the raw text beside
 //! the result.
@@ -54,7 +54,7 @@
 //! part, the API serves the whole, and the trade site reads the price
 //! out of it and labels the listing "Price with Note" — the owner's
 //! `~price 777 chaos testing`, read by all three the same way on
-//! 2026-09-08 (`PRICING-SLICE.md`, "What the site taught", 5). Parser v1
+//! 2026-09-08 (`PRICING-SLICE.md` at `b6197a82`, "What the site taught", 5). Parser v1
 //! refused such a note on the dialog's display alone (T17 as first
 //! read); v2 reads it as the site does, the text still shown verbatim.
 //! **The two sources differ in one rule** ([`Source`]): a ratio is a
@@ -509,7 +509,7 @@ mod tests {
         }
     }
 
-    /// The plan step 7 property tests (`PRICING-SLICE.md`): the parser
+    /// The plan step 7 property tests (`PRICING-SLICE.md` at `b6197a82`): the parser
     /// over any text, not the corpus and the hand-picked lines above.
     mod properties {
         use super::*;

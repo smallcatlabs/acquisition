@@ -1,5 +1,5 @@
 //! The real-scale pricing fixture (`reference/pricing-snapshot-2026-09-07.json`;
-//! plan step 7, item 2, `PRICING-SLICE.md`): the owner's pc/Standard
+//! plan step 7, item 2, `PRICING-SLICE.md` at `b6197a82`): the owner's pc/Standard
 //! league as `redact-pricing` wrote it — 402 tabs, 41 characters, 1,977
 //! items, 16 buyout rows — every name and id hashed, every note, tab
 //! name, position, timestamp and buyout value kept. Read by the tests

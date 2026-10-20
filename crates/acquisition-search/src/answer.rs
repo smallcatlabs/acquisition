@@ -164,7 +164,7 @@
 //!   weighed 31 KB by default with every request in it, over every seat
 //!   runner's harness cut (the trade seat), and the terminal already
 //!   printed these alone.
-//! - **What is at stake in an ambiguous clause** (C119, `TRADE-SLICE.md`
+//! - **What is at stake in an ambiguous clause** (C119, `TRADE-SLICE.md` at `b6197a82`
 //!   row 8c): where the clause carries its other reading (`translate.rs`,
 //!   which says where one applies), the query with the conjunct the
 //!   reading stands in for replaced by it is asked of every item by the

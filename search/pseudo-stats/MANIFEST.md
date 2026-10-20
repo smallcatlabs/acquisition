@@ -26,7 +26,7 @@ does.
 ## The captures
 
 The pilot, 2026-09-26, 18:28–18:31 US Central, by the owner, from the links
-of `data/search-sheet.csv` at `d18fa6dd`, Standard league, PC realm. No request
+of `spikes/rust-playground/search/pseudo-stats/data/search-sheet.csv` at `d18fa6dd`, Standard league, PC realm. No request
 body was saved: the link holds the query, and the search response returns
 it.
 
@@ -38,7 +38,7 @@ it.
 | `raw/searches/p2-search.json` | 7961 | 2026-09-26 18:31 | `2e3622508623b928ba00e825b97cbe676b100f8f511cd976377b3974fcc16e7a` |
 
 The checks, 2026-09-26, 19:08–19:11 US Central, by the owner, from the links
-of `data/search-sheet.csv` at `9166e88b`. c1 found nothing, so it has no fetch:
+of `spikes/rust-playground/search/pseudo-stats/data/search-sheet.csv` at `9166e88b`. c1 found nothing, so it has no fetch:
 the file is empty.
 
 | File | Bytes | Captured | sha256 |
@@ -57,7 +57,7 @@ the file is empty.
 | `raw/searches/c6-search.json` | 7980 | 2026-09-26 19:11 | `78d27ea9fa2e8fc27e13a3444e873ff489b1024972a233acdc12e46b5faf4a0a` |
 
 Round two, 2026-09-26, 19:41–19:44 US Central (2026-09-27 00:41–00:44 UTC), by
-the owner, from the links of `data/search-sheet.csv` at `dbbdd35f`: one
+the owner, from the links of `spikes/rust-playground/search/pseudo-stats/data/search-sheet.csv` at `dbbdd35f`: one
 recording of 26 searches, exported sanitized. It holds no response body in any
 of its 2,260 entries and no cookie; its shape is `data/recording-shape.csv`.
 
@@ -73,7 +73,7 @@ no cookie. `tools/trade-split.py --write` wrote its 46 captures,
 query answers; they are the recording's bytes and are not listed apart.
 
 Round three, 2026-09-26, 20:32–20:58 US Central (2026-09-27 01:32–01:58 UTC),
-by the owner, from the links of `data/search-sheet.csv` at `ecd682e2`: one
+by the owner, from the links of `spikes/rust-playground/search/pseudo-stats/data/search-sheet.csv` at `ecd682e2`: one
 recording of 107 searches, exported with its content, no cookie. The bodies of
 its first fifteen searches (e001–e015) were gone from the browser by the
 export; two searches were refused, status 400, "Query is too complex" (e047,
@@ -84,7 +84,7 @@ e051). `tools/trade-split.py --write` wrote the 90 others' captures.
 | `raw/searches/www.pathofexile.com-2.har` | 397205793 | 2026-09-26 20:58 | `96965cf10fef27380b7142852133fbe7def44e4159ef49e8b80bb28b099e660b` |
 
 Round three's first fifteen again, and round four, 2026-09-26, by the owner,
-from the links of `data/search-sheet.csv` at `41ed6467`: four recordings, each
+from the links of `spikes/rust-playground/search/pseudo-stats/data/search-sheet.csv` at `41ed6467`: four recordings, each
 exported with its content, every body held, no cookie. The third holds
 e001–e015, the fourth f001–f025, the fifth f026–f050 with f050 asked twice
 (other results the second time; the first is kept), the sixth f051–f073.
@@ -97,7 +97,7 @@ e001–e015, the fourth f001–f025, the fifth f026–f050 with f050 asked twice
 | `raw/searches/www.pathofexile.com-6.har` | 104354088 | 2026-09-26 21:42 | `69969e36e4ed9aa7d0fda5243c3d5808fcef668e25046adff05b71d6242b6e40` |
 
 Round five (the plan's step 9c2), 2026-09-27, 09:48–09:55 US Central
-(14:48–14:55 UTC), by the owner, from the links of `data/search-sheet.csv` at
+(14:48–14:55 UTC), by the owner, from the links of `spikes/rust-playground/search/pseudo-stats/data/search-sheet.csv` at
 `01eb4b7a`: two recordings, each exported with its content, every body held,
 no cookie. The seventh holds g001–g025, the eighth g026–g044 and R1.
 `tools/trade-split.py --write` wrote their 72 captures.
@@ -108,7 +108,7 @@ no cookie. The seventh holds g001–g025, the eighth g026–g044 and R1.
 | `raw/searches/www.pathofexile.com-8.har` | 87933411 | 2026-09-27 09:55 | `cf39b195ede7a2a8fc40e210457d75cc15b515c018631ba951556162530cd551` |
 
 Round six (step 9c2), 2026-09-27, 10:39–10:50 US Central (15:39–15:50 UTC), by
-the owner, from the links of `data/search-sheet.csv` at `b22dccbe`: three
+the owner, from the links of `spikes/rust-playground/search/pseudo-stats/data/search-sheet.csv` at `b22dccbe`: three
 recordings, each exported with its content, every body held, no cookie. The
 ninth holds h001–h025, the tenth h026–h050, the eleventh h051–h053.
 `tools/trade-split.py --write` wrote their 77 captures.
@@ -120,7 +120,7 @@ ninth holds h001–h025, the tenth h026–h050, the eleventh h051–h053.
 | `raw/searches/www.pathofexile.com-11.har` | 14815306 | 2026-09-27 10:51 | `5f88ec3362c8be8493558ada4d4f5369a5721851702a9b355feba43d5e3cf3ef` |
 
 Round i (before step 9d), 2026-10-01, 09:07–09:08 US Central (14:07–14:08 UTC),
-by the owner, from the links of `data/search-sheet.csv` at `cb77add0`: one
+by the owner, from the links of `spikes/rust-playground/search/pseudo-stats/data/search-sheet.csv` at `cb77add0`: one
 recording, exported with its content, every body held, no cookie, eight of the
 round's nine searches — i07, the mutant of i06, was not opened. Four of the
 eight were refused by the splitter until it read an empty stats group as no
@@ -132,7 +132,7 @@ their 13 captures.
 | `raw/searches/www.pathofexile.com-12.har` | 36813523 | 2026-10-01 09:08 | `fc9a2e69e19ef235615f077eea883ecb98001af741d37c12576eada20214938e` |
 
 Round i's last search and round j's first page, 2026-10-01, by the owner, from
-the links of `data/search-sheet.csv` at `73ab88ce`: two recordings, each
+the links of `spikes/rust-playground/search/pseudo-stats/data/search-sheet.csv` at `73ab88ce`: two recordings, each
 exported with its content, every body held, no cookie, nothing refused. The
 thirteenth holds i07 alone, 16:52 US Central (21:52 UTC); the fourteenth holds
 j01–j25, 18:22–18:26 US Central (23:22–23:26 UTC). Round j's second page,
@@ -144,7 +144,7 @@ j26–j38, was not sat. `tools/trade-split.py --write` wrote their 46 captures.
 | `raw/searches/www.pathofexile.com-14.har` | 106648602 | 2026-10-01 18:26 | `10539698d431a8cc6ec7b02df0f1b5800c642c4d9dfbcbffc5223d02cdd03ec5` |
 
 Round j's last page, 2026-10-01, 18:34–18:37 US Central (23:34–23:37 UTC), by
-the owner, from the links of `data/search-sheet.csv` at `763735c1`: one
+the owner, from the links of `spikes/rust-playground/search/pseudo-stats/data/search-sheet.csv` at `763735c1`: one
 recording, exported with its content, every body held, no cookie, nothing
 refused: j26–j40, the round's last fifteen. `tools/trade-split.py --write`
 wrote their 24 captures.
@@ -154,7 +154,7 @@ wrote their 24 captures.
 | `raw/searches/www.pathofexile.com-15.har` | 64578012 | 2026-10-01 18:37 | `719b573a204c01538cfd6e88b716de21dd7679d2171755c394f8321057c96573` |
 
 Round k, 2026-10-04 to 2026-10-05, 16:56 to 21:47 US Central (21:56 to 02:47
-UTC), by the owner, from the links of `data/search-sheet.csv` at `726362fc`,
+UTC), by the owner, from the links of `spikes/rust-playground/search/pseudo-stats/data/search-sheet.csv` at `726362fc`,
 over several sittings: saved not as one recording but as one HAR fragment per
 call, 615 files, each named by its search and its kind
 (`k001_<time>-search.json`, `-fetch.json`), under `raw/searches/k-fragments/`
@@ -169,7 +169,7 @@ without a capture. `tools/trade-split.py --write` wrote their 615 captures.
 | `raw/searches/k-fragments/` (615 files; the hash is of the sorted files' sha256s, one a line) | 6121549 | 2026-10-04 16:56 – 2026-10-05 21:47 | `ff4cb5940b2bae2c581998bac88281c5e1089930587938ace78acbe35eb1d04e` |
 
 Round l, 2026-10-04, 21:57 to 22:35 US Central (2026-10-05 02:57 to 03:35 UTC),
-by the owner, from the links of `data/search-sheet.csv` at `b98d98e1`, saved as
+by the owner, from the links of `spikes/rust-playground/search/pseudo-stats/data/search-sheet.csv` at `b98d98e1`, saved as
 round k was: one HAR fragment per call, 190 files under
 `raw/searches/l-fragments/`. Every body held, no cookie, nothing refused, all
 111 searches. `tools/trade-split.py --write` wrote their 190 captures.
@@ -189,7 +189,7 @@ this row holds it, saved as round l was: one fragment per call, 14 files under
 | `raw/searches/m-fragments/` (14 files; the hash is of the sorted files' sha256s, one a line) | 160454 | 2026-10-07 19:08 – 19:10 | `c6fdeb8a8cdccc0010596d0b5f900365c63adb13f743e40bb17cef09abe07bc1` |
 
 Round n, 2026-10-08, 02:40 to 02:44 US Central (2026-10-08 07:40 to 07:44 UTC),
-by the owner, from the links of `data/search-sheet.csv` at `2b86eef4`, saved as
+by the owner, from the links of `spikes/rust-playground/search/pseudo-stats/data/search-sheet.csv` at `2b86eef4`, saved as
 round m was: one fragment per call, 38 files under
 `raw/searches/n-fragments/`. Every body held, no cookie, nothing refused, all
 23 searches. `tools/trade-split.py --write` wrote their 38 captures.
@@ -200,7 +200,7 @@ round m was: one fragment per call, 38 files under
 
 Rounds t, u and v (the trade import, step 7 of `search/TRADE-PLAN.md` at `77666ea4`), then
 round w, 2026-10-16, 12:35 to 13:50 by the machine's clock, US Eastern (16:35 to
-17:50 UTC), by the owner, from the links of `data/search-sheet.csv` at
+17:50 UTC), by the owner, from the links of `search/pseudo-stats/data/search-sheet.csv` at
 `7032f767` (round t) and `e062401e` (rounds u and v), and round w at `6af5b846`
 in the hour after, four of its searches in the challenge league `Allflame`;
 saved as round m was, one fragment per call. Every body held, no cookie; all
@@ -225,7 +225,7 @@ not sent (`tools/trade_query.py`).
 
 Round x (note 38 at `16bba23e`, step 5: the questions the trade seat queued), 2026-10-18,
 14:45 to 15:02 US Central (19:45 to 20:02 UTC), by the owner, from the links of
-`data/search-sheet.csv` at `48751e67` (x01–x12) and as the commit that adds this
+`search/pseudo-stats/data/search-sheet.csv` at `48751e67` (x01–x12) and as the commit that adds this
 row holds it (x13–x18, the same day's repair), one in the challenge league
 `Allflame`; saved as round w was, one fragment per call. Every body held, no
 cookie; all 18 searches answered. `tools/trade-split.py --write` wrote their

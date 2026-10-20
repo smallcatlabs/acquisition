@@ -2,8 +2,8 @@
 # (`.github/workflows/gate-linux.yml`), never by the local gate.
 # Advisories since 2026-09-12 (C8 of the 2026-09-11 census): a daemon
 # that holds real tokens earns a RustSec check. Licences, bans and
-# sources since the shipping decision (note 36, step 2;
-# `PLATFORMS-SLICE.md`, question 4, the owner's "ok" of 2026-10-14):
+# sources since the shipping decision (note 36 at `b6197a82`, step 2;
+# `PLATFORMS-SLICE.md` at `b6197a82`, question 4, the owner's "ok" of 2026-10-14):
 # what ships in an archive is what this file admits.
 [graph]
 all-features = true

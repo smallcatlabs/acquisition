@@ -120,7 +120,7 @@ the class table. Per shape: `data/percentile-shapes.csv`.
 
 ## The percentile's expected answers
 
-`scripts/percentile-expected.py` (the brief, this track's `BRIEF.md` at `615709c3`): one function from a private item's realm, base,
+`scripts/percentile-expected.py` (the brief, this track's `spikes/rust-playground/search/pseudo-stats/BRIEF.md` at `615709c3`): one function from a private item's realm, base,
 properties, marks and lines — text, array, flags, never an id — to what `pseudo.defence_pct` answers, in exact
 arithmetic, each of its 42 steps citing its sentence. `data/percentile-expected.csv`, a row a case;
 `data/percentile-expected-copy.csv`, the function over the copy's 22721 live items.
@@ -149,7 +149,7 @@ arithmetic, each of its 42 steps citing its sentence. `data/percentile-expected.
   `j5-off` 0 / 7, `local-only-explicit-only` 0 / 1. **On the ruling alone**, 9, each 0 / 0: `realm`,
   `property-unread-ignored`, `base-lacking-is-lacked`, `array-unread-ignored`, `whole-text`,
   `flag-unread-opens`, `unmarked-twin-own`, `twin-of-no-roll-opens`, `range-bound`.
-- **Read again over the trade import's sitting** (step 7 of `../TRADE-PLAN.md` at `77666ea4`, rounds t to w, 2026-10-16):
+- **Read again over the trade import's sitting** (step 7 of `search/TRADE-PLAN.md` at `77666ea4`, rounds t to w, 2026-10-16):
   7,431 cells, 5 disagreeing — u060, Simple Robes that show no defence, the site 0, 50 and 17 where the
   reading is lacked, kept so (the owner, 2026-10-16: "I accept all your recommendations") — and 2 not
   comparable: t54, a defence line in `crucibleMods` the site reads as the item's own (59, J33's question,

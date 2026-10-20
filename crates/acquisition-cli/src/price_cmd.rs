@@ -1512,7 +1512,7 @@ mod tests {
     }
 
     /// The listing state's audit views over the real-scale fixture tiled
-    /// to 32k items (plan step 7, item 2, `PRICING-SLICE.md`): `list
+    /// to 32k items (plan step 7, item 2, `PRICING-SLICE.md` at `b6197a82`): `list
     /// --effective none --expand` — every item nothing applies to, each
     /// with its texts — `show --expand` on the owner's test tab, and
     /// `status --expand`. Measured 2026-09-07 in a debug build: 300 ms,

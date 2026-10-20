@@ -1926,7 +1926,7 @@ resubmit if still wanted",
                 &entry.params,
                 entry.info.account.as_deref(),
             ) {
-                // A halted daemon (LIVE-TESTING.md rails) sends nothing:
+                // A halted daemon (the rails, `rails.rs`) sends nothing:
                 // network jobs wait, on disk, for `reset-tripwire`.
                 if halted {
                     continue;
@@ -7122,7 +7122,8 @@ mod dispatcher_tests {
     /// Journal == wire. The recorder is what the server received; the
     /// journal is what the daemon *claims* it sent. Every send must appear
     /// in both, in order, and a journal line that no server saw is as much
-    /// a defect as a send the journal missed (R4 in LIVE-TESTING). Wire
+    /// a defect as a send the journal missed (risk R4 of
+    /// `spikes/rust-playground/LIVE-TESTING.md` at `9fa99459`). Wire
     /// entries are compared by method, which is what the scripted servers
     /// record; the journal is read back here, before the harness deletes it.
     fn assert_journal_matches_wire(log_path: &std::path::Path, wire: &[String]) {
@@ -8693,7 +8694,7 @@ mod dispatcher_tests {
         }
     }
 
-    // ---- L0 live-test rails (LIVE-TESTING.md) ------------------------------
+    // ---- L0 live-test rails (`rails.rs`) ------------------------------------
 
     fn tripwire_config() -> RailsConfig {
         RailsConfig {

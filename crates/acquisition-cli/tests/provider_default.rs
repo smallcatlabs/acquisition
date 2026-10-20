@@ -127,7 +127,7 @@ fn c88_a_real_mode_daemon_is_started_from_a_terminal_and_the_mock_from_anywhere(
 /// command exits, not when the daemon does. On Windows the daemon
 /// inherited every inheritable handle of `acq`, the captured stdout among
 /// them, so this read waited out the daemon's idle shutdown (found on the
-/// first Windows run, 2026-10-14; `PLATFORMS-SLICE.md`, step 1).
+/// first Windows run, 2026-10-14; `PLATFORMS-SLICE.md` at `b6197a82`, step 1).
 #[test]
 fn a_lazily_started_daemon_keeps_no_pipe_of_the_command_that_started_it() {
     let scratch = scratch("no-pipe");

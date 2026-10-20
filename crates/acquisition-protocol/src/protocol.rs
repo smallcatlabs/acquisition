@@ -578,7 +578,7 @@ pub enum Response {
         /// Live-test rails state (tripwire, ceiling, journal).
         rails: RailsStatus,
         /// "ok" or the keyring failure; a failed save after refresh-token
-        /// rotation leaves the session memory-only (LIVE-TESTING.md R7).
+        /// rotation leaves the session memory-only (risk R7 of `spikes/rust-playground/LIVE-TESTING.md` at `9fa99459`).
         keyring: String,
         /// The log file this daemon opened (C83: the world's, under the
         /// log directory it started with) — reported, never recomputed

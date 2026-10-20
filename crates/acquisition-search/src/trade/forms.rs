@@ -9,7 +9,7 @@
 //!
 //! - **The choice before 7e** (the owner, 2026-10-17; the brief at
 //!   `77666ea4`, the section of that name;
-//!   `brainstorming-notes/37-the-stat-value.md`): the
+//!   note 37 at `b6197a82`): the
 //!   translation alone ships, and the forms knowledge is data, once — "a
 //!   forms table beside the catalogue — which texts have an opposite word,
 //!   which elide to a numberless display, the exceptions — reference data

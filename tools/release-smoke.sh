@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # release-smoke.sh — C82's acceptance check on one release archive
-# (`PLATFORMS-SLICE.md`, step 4), run by `.github/workflows/release.yml`
+# (`PLATFORMS-SLICE.md` at `b6197a82`, step 4), run by `.github/workflows/release.yml`
 # on every archive it makes and runnable by hand on any of them:
 #
 #   1. Extracted into an empty directory, the archive holds `acq`, `acqd`
@@ -11,7 +11,7 @@
 #   3. On macOS and Linux, `acq` symlinked from another directory names
 #      the same `acqd` (the locator canonicalises first). Not on Windows:
 #      a standard user's symlink is an untrusted mount point there
-#      (`PLATFORMS-SLICE.md`, "What the runs taught").
+#      (`PLATFORMS-SLICE.md` at `b6197a82`, "What the runs taught").
 #   4. A mock login, the daemon's status, and a stop, through the
 #      extracted binaries: the login completes, the daemon that answers
 #      is the extracted `acqd` and is compatible, and the stop stops it.

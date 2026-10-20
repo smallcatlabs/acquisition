@@ -142,7 +142,7 @@ says = "The league the URL names becomes a term of the search, like any other."
 [[row]]
 key = "url.poe2"
 disposition = "unsupported"
-note = "a `/trade2/` URL or the poe2 realm: inbound is PoE1 only (note 36, ruling 5); refused by name before anything is decoded"
+note = "a `/trade2/` URL or the poe2 realm: inbound is PoE1 only (note 36 at `b6197a82`, ruling 5); refused by name before anything is decoded"
 says = "A Path of Exile 2 search is not read: only Path of Exile 1 searches are."
 
 [[row]]

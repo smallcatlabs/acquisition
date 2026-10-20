@@ -5,8 +5,8 @@
 //! the rules that decide an answer are the module docs below, each under
 //! its decision's id; the plan's rules, cited here as "rule N of the
 //! plan", are below; what the build met — the shapes of fault its reviews
-//! taught, the measurements' verdicts: `SEARCH-SLICE.md`, the closed
-//! record (the plan itself is `spikes/rust-playground/search/BUILD-PLAN.md`
+//! taught: `REVIEW-CHECKLIST.md`, "Search"; the measurements' verdicts:
+//! `SEARCH-SLICE.md` at `b6197a82`, the closed record (the plan itself is `spikes/rust-playground/search/BUILD-PLAN.md`
 //! at `453a4429`); its steps and the holes ruled:
 //! `search/LEDGER.md`; the measurements' tables: `search/MEASUREMENTS.md`.
 //!
@@ -96,7 +96,7 @@
 //!    opened only by the owner, at a terminal. No GGG traffic anywhere in
 //!    this plan; the one daemon is M5's, a mock session.
 //!
-//! Rules 8 to 10 are what step 4b's audits taught (`SEARCH-SLICE.md`, "Findings"),
+//! Rules 8 to 10 are what step 4b's audits taught (`SEARCH-SLICE.md` at `b6197a82`, "Findings"),
 //! each a fault that came back until it was named;
 //! the owner approved their meaning from a plain account of each and left
 //! the wording to the builder (2026-09-22: "the words that get written down

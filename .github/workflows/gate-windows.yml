@@ -1,7 +1,7 @@
 name: Gate (Windows)
 
 # The quality gate on Windows x86_64 (AGENTS.md, "Quality gate";
-# PLATFORMS-SLICE.md, step 1): the build, the suite on the mock harness —
+# `PLATFORMS-SLICE.md` at `b6197a82`, step 1): the build, the suite on the mock harness —
 # the named-pipe endpoint (C112), the world's Windows arm — and clippy,
 # which alone lints the `cfg(windows)` code. Formatting and cargo-deny do
 # not vary by platform and stay with the Linux workflow. Plus the

@@ -4,7 +4,7 @@
 # scan (§2), fail closed, by breaking the code, the registry and the tool
 # and watching it refuse.
 #
-# Six review rounds on the guard (DAEMON-SPLIT-SLICE.md, rounds 5–11)
+# Six review rounds on the guard (`DAEMON-SPLIT-SLICE.md` at `b6197a82`, rounds 5–11)
 # found the same shape each time: a reader whose empty, partial or
 # renamed answer satisfied every rule. Each case here is one of those
 # findings, or a route a future crate could take, and states what the

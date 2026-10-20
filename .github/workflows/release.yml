@@ -1,6 +1,6 @@
 name: Release
 
-# The release archives (`PLATFORMS-SLICE.md`, step 4; the matrix is the
+# The release archives (`PLATFORMS-SLICE.md` at `b6197a82`, step 4; the matrix is the
 # owner's ruling 2): macOS aarch64 and x86_64 on an Apple-silicon runner,
 # Linux x86_64 and aarch64, Windows x86_64. Each archive holds `acq`,
 # `acqd` and `acq-mcp` side by side (C82), both licences and the
@@ -10,7 +10,7 @@ name: Release
 # here talks to GGG (C88: the smoke is mock-only).
 #
 # Dispatched by hand, the archives are this run's artifacts (ruling 3:
-# the tag waits for note 36's step 4); `sign` also signs the macOS
+# the tag waited for step 4 of note 36 at `b6197a82`); `sign` also signs the macOS
 # binaries. A `v*` tag always signs and drafts a GitHub release with the
 # archives and their SHA-256 sums. Signing runs in the `release`
 # environment (ruling 6: the owner its required reviewer; secrets

@@ -1,11 +1,11 @@
 # The item search slice — the measurements
 
-The measurements the build owed (`BUILD-PLAN.md` at `453a4429`,
+The measurements the build owed (`spikes/rust-playground/search/BUILD-PLAN.md` at `453a4429`,
 "Measurements the build owes"), each on the `.backup` copy the plan names, with the
 command that produced it and its numbers as measured, never recalled.
 Read by the block named — the measurement a step repeats, the number a
 park's trigger or a review checks — and never whole: the verdicts, one
-line each, are `SEARCH-SLICE.md`, "What the measurements taught", which
+line each, are `SEARCH-SLICE.md` at `b6197a82`, "What the measurements taught", which
 is what every reader of the record gets. A step that repeats a
 measurement adds its row or its rerun here and revises its verdict
 there. The
@@ -167,7 +167,7 @@ ruled").
 
 **M3 at each later build** — the same command, the release build judged
 against 500 ms. The verdict moves with every build and is the record's
-line, revised in place (`SEARCH-SLICE.md`, "What the measurements
+line, revised in place (`SEARCH-SLICE.md` at `b6197a82`, "What the measurements
 taught"); what each rerun showed is beneath the tables. The vocabulary
 whole at the audited step 7 build, measured beneath the table, was
 ruled at T5 and is under again at `57ec6a9e`. What an ask over
@@ -246,7 +246,7 @@ fields in one two-path extract, changed no ask by more than the noise
 55 under the budget, so the projection park's trigger does not fire by
 the owner's rule (2026-09-24), and the two asks over it are an
 evaluator cost on a floor the join raised — a shape the ruling did not
-name, brought to the owner (`search/OBSERVATIONS.md` at `453a4429`, step 9). Over the copy's fresh intent file the game alone prices
+name, brought to the owner (`spikes/rust-playground/search/OBSERVATIONS.md` at `453a4429`, step 9). Over the copy's fresh intent file the game alone prices
 what `has:priced` finds; the count is the answer's, not recorded here.
 
 What the table says: a class table's or a totals table's parse is

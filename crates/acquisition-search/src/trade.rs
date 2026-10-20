@@ -23,8 +23,8 @@
 //!   hex digits, or a decoding that is no UTF-8, is refused rather than
 //!   altered — a league is a term, and a changed one would answer nothing
 //!   with no word why. A `/trade2/` URL, or the `poe2` realm, is refused
-//!   by name before anything decodes: inbound is PoE1 only (note 36,
-//!   ruling 5).
+//!   by name before anything decodes: inbound is PoE1 only (note 36 at
+//!   `b6197a82`, ruling 5).
 //! - **The id is the query object**, gzipped and base64url-encoded without
 //!   padding (S56; the eight captured ids, `tests/trade_decode.rs`). A
 //!   bare id decodes the same way. The id's text is bounded before it is

@@ -162,7 +162,7 @@ async fn token_request(
 // never cross.
 //
 // The store is a choice, made for the release (2026-10-14; the park "the
-// credential store as an explicit choice", `PLATFORMS-SLICE.md` step 2):
+// credential store as an explicit choice", `PLATFORMS-SLICE.md` at `b6197a82` step 2):
 // keyring 3's feature-selected backends, not keyring 4's `keyring-core`
 // with a store crate per platform. That alternative's two reasons do not
 // ship. The macOS protected keychain needs `keychain-access-groups`, a
@@ -170,7 +170,7 @@ async fn token_request(
 // bare command-line tool cannot carry (Apple DTS, read 2026-10-14) — so
 // the file-based keychain `apple-native` uses is the only macOS store
 // either way. A Flatpak's Secret portal serves a sandbox the release does
-// not have (archives only, note 36). Each backend is held by what touched
+// not have (archives only, note 36 at `b6197a82`). Each backend is held by what touched
 // it: macOS by live runs (tokens stored, restored and rotated,
 // `RUN-LEDGER.md` 2026-08-22 rungs 1 and 2; a signed `acqd`'s prompts,
 // 2026-09-12), Windows by the round trip against Credential Manager

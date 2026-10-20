@@ -19,7 +19,7 @@ account, and its annotations file. Every connection is opened
 No network.
 
 What it counts is what the slice's rulings need as local evidence (the
-packet, brainstorming-notes/10 §2 step 2c): rows by type, source,
+packet, note 10 at `b6197a82` §2 step 2c): rows by type, source,
 inherited flag, currency and location type; amount shapes; `~c/o`;
 character and remove-only rows; and in the facts — `metadata.public`,
 tab index, positions, containers, socketing, and every tilde-prefixed

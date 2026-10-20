@@ -260,7 +260,7 @@ stop_daemon() {
 # its jobs, its log. Then the daemon is stopped — nothing it holds is
 # lost: the queue is on disk and `acq jobs` reads it with no daemon
 # (C45), and a daemon left up would only block the next run (preflight
-# refuses one) for as long as its idle knob allows (REFRESH-SLICE.md,
+# refuses one) for as long as its idle knob allows (`REFRESH-SLICE.md` at `b6197a82`,
 # observation; the 2026-09-12 change).
 fail_apply() { # <tag> <journal offset at cycle start> <ceiling>
     local tag=$1

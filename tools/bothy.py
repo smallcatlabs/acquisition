@@ -79,11 +79,9 @@ NOT_DOING = "Not doing"
 TICK_RE = re.compile(r"`([^`\s]+)`")
 # A path the registry names: has a `/`, and its last component has a file
 # extension or its first component is a directory of the tree. Not an API
-# route (`/profile`), not a key shape (`wanted/lot`), not a note cited by
-# number (`brainstorming-notes/10`, which docs-check resolves), and not
-# history (`search/BUILD-PLAN.md` at `453a4429`).
+# route (`/profile`), not a key shape (`wanted/lot`), and not history
+# (`spikes/rust-playground/search/BUILD-PLAN.md` at `453a4429`).
 PATH_EXT = re.compile(r"\.(rs|md|sh|py|sql|json|toml|csv|txt)$")
-NOTE_CITE = re.compile(r"^brainstorming-notes[/ ]\d+$")
 HISTORY = re.compile(r"` at `[0-9a-f]{7,}`")
 MODDOC_AREA = re.compile(r"decisions/(\w+)\.md")
 CODE_EXT = (".rs", ".sh", ".py", ".sql", ".toml")
@@ -263,8 +261,6 @@ class Registry:
     def is_path(self, tok):
         """Whether a backticked token is a path this check should resolve."""
         if "/" not in tok or tok.startswith(("/", "http", "~", "-", "../")) or re.search(r"[<>*{}$]", tok):
-            return False
-        if NOTE_CITE.match(tok):
             return False
         tok = tok.split("#")[0].split(":")[0]
         first, last = tok.split("/")[0], tok.rsplit("/", 1)[-1]

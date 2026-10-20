@@ -598,8 +598,8 @@ identically.
 ### Live-testing claims (August 24, 2026)
 
 Observed while soaking the Rust daemon against the live API on branch
-`spikes/rust-playground`; the run is recorded as rung 8 in that branch's
-`LIVE-TESTING.md`. Journal and daemon log retained in that branch's
+`spikes/rust-playground`; the run is recorded as rung 8 in
+`spikes/rust-playground/LIVE-TESTING.md` at `944406ff`. Journal and daemon log retained in that branch's
 `runs/2026-08-23-r8/`.
 
 **N34. A 401 from an expired access token carries no rate-limit headers
@@ -628,7 +628,8 @@ route's own policy counter is Q11.
 
 Observed while the Rust daemon on branch `spikes/rust-playground` pulled
 the full Standard stash (322 tabs, 18 072 items) against the live API;
-the runs are recorded as rung 10 in that branch's `LIVE-TESTING.md`.
+the runs are recorded as rung 10 in
+`spikes/rust-playground/LIVE-TESTING.md` at `944406ff`.
 Journals, daemon logs, and the 503 body are retained in that branch's
 `runs/2026-08-24-r10/`, `runs/2026-08-24-r10b/`, and
 `runs/2026-08-25-r10c/` (gitignored, on disk).
@@ -681,7 +682,7 @@ volatile until a wider sample says otherwise.
 machine and one IP do not share policy counters.** [OBSERVED — High;
 one run of two accounts, August 30, 2026]
 Two daemons, each logged into a different account, on one machine
-(spike rung 11; `LIVE-TESTING.md` run ledger,
+(spike rung 11; `RUN-LEDGER.md`,
 `runs/2026-08-30-r11/`). Account A's counted GET on
 `character-list-request-limit` read `1:10:0,1:300:0`; account B's HEAD
 probe on the same policy **4.1 s later** reported `0:10:0,0:300:0`, and
@@ -772,7 +773,7 @@ exceptions.
 ### Characters and PoE2 claims (September 2, 2026)
 
 Source for all five: the Rust spike's characters rung
-(`LIVE-TESTING.md`, run ledger rows dated
+(`RUN-LEDGER.md`, rows dated
 2026-09-02; journals and bodies under `runs/2026-09-02-characters/`,
 `runs/2026-09-02-tracer-150553/`, `-154145/`, `-160139/`, `-161419/`).
 One account (`GERWARIC#7694`), one machine, rails on, every probe at 0
@@ -895,7 +896,7 @@ the worst case (a window filled at once), not a constant.
 by events on GGG's side; `invalid_grant` ("Refresh token doesn't exist
 or has expired") is a state a client must expect, remedied only by a
 new login.** [OWNER + RUN — Confirmed; September 9, 2026]
-The spike's run ledger (`LIVE-TESTING.md`, 2026-09-09): the refresh
+The spike's run ledger (`RUN-LEDGER.md`, 2026-09-09): the refresh
 token rotated and saved at 17:34 UTC on September 8 was rejected at
 01:53 UTC on September 9 with HTTP 400 `invalid_grant`, with no use of
 it in between and no keyring warning at the save. The owner, verbatim:

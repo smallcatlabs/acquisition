@@ -1116,7 +1116,7 @@ fidelity = "ambiguous"
 statuses = { "misc_filters.mirrored" = "disabled", "stats.0" = "exact", "stats.0.0" = "ambiguous", "stats.0.1" = "exact", "status" = "listing_only", "trade_filters.sale_type" = "disabled", "type_filters.category" = "exact", "type_filters.rarity" = "exact" }
 
 # ---- step 7e: the stat however displayed, the fields as the site reads them ----------------------
-# (the brief, search/TRADE-PLAN.md at 77666ea4: "What step 7 found" and "The choice before 7e"; TRADE-SLICE.md)
+# (the brief, search/TRADE-PLAN.md at 77666ea4: "What step 7 found" and "The choice before 7e"; `TRADE-SLICE.md` at `b6197a82`)
 
 [[case]]
 name = "a bound is the stat's sum over the lines its id admits (t17–t20): two lines meet it together"

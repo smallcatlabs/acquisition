@@ -1,4 +1,4 @@
-//! The refusal walk (`SEARCH-SLICE.md`, "The plan's rules",
+//! The refusal walk (the crate's `lib.rs`, "The plan's rules",
 //! rule 1) and invariant 3 of the surface: every construct of the
 //! language either evaluates or is refused by its name on the one list
 //! `--describe` prints — never the unknown-name error, never undecided,

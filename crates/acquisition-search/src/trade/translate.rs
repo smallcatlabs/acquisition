@@ -29,7 +29,7 @@
 //!   whose note leaves it to one — is ambiguous until one has.
 //! - **What step 7's sitting settled, built at 7e** (the owner, 2026-10-16:
 //!   "I accept all your recommendations"; 2026-10-17, "The choice before
-//!   7e" in the brief at `77666ea4` and `brainstorming-notes/37-the-stat-value.md`:
+//!   7e" in the brief at `77666ea4` and note 37 at `b6197a82`:
 //!   the translation alone ships, a named
 //!   stat value is parked). A site stat is the item's stat however
 //!   displayed: a bound on it is `sum(line(T source=…).arg1)` over the
@@ -160,7 +160,7 @@
 //!   node of their own, and a bounded weighted sum's filters, conditions
 //!   inside `sum( … )`, which take no path. A query
 //!   that is one clause owns the root, written `""`.
-//! - **An ambiguous clause's other reading** (C119, `TRADE-SLICE.md` row
+//! - **An ambiguous clause's other reading** (C119, `TRADE-SLICE.md` at `b6197a82` row
 //!   8c): its row's `other`, filled as `lands` is, `{term}` the text of
 //!   the node it stands in for, once the clause stands in the query
 //!   (`readings`). It applies where the clause has every property of the

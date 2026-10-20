@@ -2241,7 +2241,7 @@ def round_x(earlier):
     socketed gem sets, under `req_filters.lvl`; x10–x11 the two ranged
     cells round v did not ask; x12 Maven's Invitations in the challenge
     league. Composed 2026-10-18 (note 38 at `16bba23e`, step 5) for the questions
-    `TRADE-SLICE.md`'s open observations queued for the next sitting."""
+    the open observations of `TRADE-SLICE.md` at `b6197a82`, queued for the next sitting."""
     composed = Composed("x", 2, earlier)
     add = composed.add
 

@@ -2,7 +2,7 @@
 //! character in one (realm, league) is listed as — the manual side, the
 //! game side, and their relation — resolved by one pure function,
 //! [`resolve`], over a [`PricingSnapshot`]. Built by the pricing slice's
-//! plan step 4 (`PRICING-SLICE.md`, 2026-09-06). Nothing here reads a
+//! plan step 4 (`PRICING-SLICE.md` at `b6197a82`, 2026-09-06). Nothing here reads a
 //! store or writes anything; the CLI (`acq price status | show | list`,
 //! `price_cmd.rs`) renders the report under C53.
 //!
@@ -49,7 +49,7 @@
 //! the parent's name and `public`, the substash's name reported verbatim
 //! beside it. A folder is a grouping, not a tab: its child's own name and
 //! `public` are read. Confirmed on the site 2026-09-09, all three ways
-//! (`PRICING-SLICE.md`, "What the site taught", 12). *Why:* the
+//! (`PRICING-SLICE.md` at `b6197a82`, "What the site taught", 12). *Why:* the
 //! owner's facts hold 64 substashes with no settable name or `public` and
 //! 77 folder children as ordinary tabs; owner, 2026-09-06: "Folders never
 //! carry price, but substash parents can." *Pinned:* the `c80_` tests.
@@ -394,7 +394,7 @@ impl Side {
 /// What applies (C81): the more specific statement, the game's on a tie.
 /// A consumer reads `side` and `kind` together — `none` and `unresolved`
 /// both carry no side, and a manual `skip` is not a price to post
-/// (`PRICING-SLICE.md`, the render handoff).
+/// (`PRICING-SLICE.md` at `b6197a82`, the render handoff).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Effective {
     /// `exact`, `negotiable`, `no_price`, `skip`, `none`, or `unresolved`
@@ -2505,7 +2505,7 @@ mod tests {
         assert!(!text.contains("\"league_unknown\":false"));
     }
 
-    /// The real-scale fixture (plan step 7, item 2, `PRICING-SLICE.md`):
+    /// The real-scale fixture (plan step 7, item 2, `PRICING-SLICE.md` at `b6197a82`):
     /// the owner's pc/Standard league as `redact-pricing` wrote it — 402
     /// tabs, 41 characters, 1,977 items, 16 rows — resolved whole. The
     /// counts are read against the file, not against themselves.

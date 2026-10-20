@@ -593,7 +593,7 @@ mod tests {
     /// The step-6 review's fourth finding: `--expand` searched the whole
     /// left-out list per line, quadratic over the 26k items it was read
     /// at. The audit view over the real-scale fixture tiled to 63k items
-    /// (plan step 7, item 2, `PRICING-SLICE.md`), measured 2026-09-07 in
+    /// (plan step 7, item 2, `PRICING-SLICE.md` at `b6197a82`), measured 2026-09-07 in
     /// a debug build: 45 ms as built; with the search put back, 3.9 s at
     /// half this scale and four-fold per doubling. The bound is the cliff
     /// between the two, not a budget — and the view still says

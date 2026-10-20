@@ -1,7 +1,7 @@
 //! `shop render` (C74, C72): the forum shop page as a pure function of
 //! the listing state ([`ListingReport`], C69/C81), the shipped currency
 //! table (C68), a template and the policy table below. Built by the
-//! pricing slice's plan step 6 (`PRICING-SLICE.md`, 2026-09-07). Nothing
+//! pricing slice's plan step 6 (`PRICING-SLICE.md` at `b6197a82`, 2026-09-07). Nothing
 //! here reads a store, contacts a daemon or sends anything: the CLI
 //! (`acq shop render`, `shop_cmd.rs`) writes the pages to stdout and the
 //! owner pastes them by hand (`SURFACES.md`, the forum row).
@@ -38,7 +38,7 @@
 //! **One cell per item.** Every item listing of the report lands in
 //! exactly one [`Cell`] of the policy table, read from the effective
 //! outcome — `side` and `kind` together (the render handoff,
-//! `PRICING-SLICE.md`) — and then from the item's address. A cell's
+//! `PRICING-SLICE.md` at `b6197a82`) — and then from the item's address. A cell's
 //! verdict is `post`, `omit`, `block` or `off_page`; the table's opening
 //! rows are the two that post (a stash item at a listed tab, a character
 //! item in a slot), everything unobserved is a blocked row citing the
@@ -1981,7 +1981,7 @@ mod tests {
         assert_eq!(back, r);
     }
 
-    /// The plan step 7 property tests (`PRICING-SLICE.md`): the page
+    /// The plan step 7 property tests (`PRICING-SLICE.md` at `b6197a82`): the page
     /// cutter over any entries, template and size.
     mod properties {
         use super::*;
@@ -2116,7 +2116,7 @@ mod tests {
         }
     }
 
-    /// The real-scale fixture (plan step 7, item 2, `PRICING-SLICE.md`):
+    /// The real-scale fixture (plan step 7, item 2, `PRICING-SLICE.md` at `b6197a82`):
     /// the owner's pc/Standard league, rendered whole — the page the
     /// owner pasted for validation reading 2, from the same facts.
     mod real_scale {

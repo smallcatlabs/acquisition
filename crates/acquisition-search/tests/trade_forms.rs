@@ -5,7 +5,7 @@
 //! - **The vocabulary is walked** and every form the game, a rule or a row
 //!   makes that is itself a text the site lists, and every text a rule
 //!   meets carrying both words of a pair, is refused by name in the table
-//!   — no more and no fewer. The brief carried note 37's counts (7 of 372
+//!   — no more and no fewer. The brief carried note 37's counts (at `b6197a82`; 7 of 372
 //!   `#% chance to`, 2 of 286 `have #% chance to`, 4 texts with both sign
 //!   words), measured on the raw texts with case kept and every text under
 //!   the rules; the rules as built stand for the texts the export joins

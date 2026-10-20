@@ -1,6 +1,6 @@
 //! The currency reference table — the first reference-data input (C68;
 //! `decisions/pricing.md`), built by the pricing slice's plan step 1
-//! (`PRICING-SLICE.md`, 2026-09-04).
+//! (`PRICING-SLICE.md` at `b6197a82`, 2026-09-04).
 //!
 //! # Decisions as recorded
 //!

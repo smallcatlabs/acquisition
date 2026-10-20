@@ -36,7 +36,7 @@ Source tags:
 | DOC | The official API reference (`https://www.pathofexile.com/developer/docs/reference`), a sanctioned surface; re-read September 4, 2026 |
 | SITE | A dated browser read of the trade site (`https://www.pathofexile.com/trade`) by the owner, saved as a page; the saved copy is the observation. Under the spike's C79 the site is a governed surface: a human reads it, tooling never fetches it |
 | OWNER | The owner's own observation in game or on the website, verbatim, dated |
-| RUN | The spike's live run against the sanctioned API: the `LIVE-TESTING.md` run-ledger row plus the facts it landed, dated. Nothing here was fetched from a surface GGG does not sanction |
+| RUN | The spike's live run against the sanctioned API: the `RUN-LEDGER.md` row plus the facts it landed, dated. Nothing here was fetched from a surface GGG does not sanction |
 | CODE | What the C++ application on `master` and the third-party tool Procurement do — evidence of what worked once, never of what the forum requires |
 | COMMUNITY | The PoE Wiki (`poewiki.net`), a third party's reading of GGG's surfaces; dated, corroboration only |
 | HYP | Hypothesis — plausible, load-bearing, unverified |
@@ -229,7 +229,7 @@ September 4, 2026 it returned the forum-listed, forum-priced,
 site-listed body armour with neither `note` nor `forum_note`.** [RUN —
 Confirmed for `/character` and this item; ledger row 2026-09-04,
 response 543]
-The run (`LIVE-TESTING.md` ledger row dated 2026-09-04; daemon pid
+The run (`RUN-LEDGER.md` row dated 2026-09-04; daemon pid
 31313, 00:51–00:52 UTC) sent `GET /character/I_EXIST` and received 200
 with 53 items. The owner had, on September 3, linked and priced that
 character's body armour (Foulborn Skin of the Lords, `inventoryId`
@@ -583,7 +583,7 @@ no `inventoryId`; a character item's `inventoryId` is its slot; `index`
 was present on every one of the 402 listed tabs.** [RUN — Confirmed for
 this account; the spike's facts, listing of September 3, 2026 11:36
 UTC]
-The spike's census (`PRICING-SLICE.md`): 792 of 792 stash items carry
+The spike's census (`PRICING-SLICE.md` at `b6197a82`): 792 of 792 stash items carry
 `inventoryId` `Stash1`; socketed items (24 in stash, 531 on characters)
 carry neither `x`/`y` nor `inventoryId`; character items carry slot
 names (`MainInventory`, `Weapon2`, `PassiveJewels`, `BodyArmour`, …);
@@ -802,5 +802,5 @@ answered.
 - `crates/acquisition-plan/reference/price-notes-2026-09-04.txt`
   — the verbatim note corpus behind T9 and T10, committed as a parser
   fixture.
-- `LIVE-TESTING.md` — the run ledger; the row
+- `RUN-LEDGER.md` — the run ledger; the row
   dated 2026-09-04 is T6, T9 and T10's run.

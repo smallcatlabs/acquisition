@@ -14,7 +14,7 @@
 //! stashes and account leagues take `xbox|sony` and are titled "PoE1
 //! only". When GGG extends PoE2 to the other families, the change is one
 //! arm in [`Family::accepts`] plus a first-contact sample under
-//! `LIVE-TESTING.md`'s standing rule — an unobserved URL shape is never
+//! the live-run skill's standing rule — an unobserved URL shape is never
 //! sent.
 //!
 //! # Decisions as recorded
@@ -62,7 +62,7 @@
 //! ## C58 — The realm step as built (2026-09-02)
 //!
 //! Properties fixed inside the ruling while building, each pinned by a
-//! test (findings that bought them: `REFRESH-SLICE.md`):
+//! test (findings that bought them: `REFRESH-SLICE.md` at `b6197a82`):
 //!
 //! - **The realm table is one type** (`realm.rs`: `Realm`,
 //!   `Family::accepts`), read by the daemon (rendering + admission), the

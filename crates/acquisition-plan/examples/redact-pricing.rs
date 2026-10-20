@@ -1,5 +1,5 @@
 //! `redact-pricing` — the writer of the real-scale pricing fixture (plan
-//! step 7, item 2, `PRICING-SLICE.md`): one (realm, league)'s pricing
+//! step 7, item 2, `PRICING-SLICE.md` at `b6197a82`): one (realm, league)'s pricing
 //! snapshot from the owner's own store, every name and id hashed, every
 //! note, tab name, position and timestamp kept, written to stdout as the
 //! `PricingSnapshot` JSON the suite reads back. The owner runs it, reads

@@ -19,7 +19,7 @@
 //! nothing talks to GGG: the test double and the rehearsal stage.
 //!
 //! Renamed from `acquisition-core` by `git mv` at the daemon split's step
-//! 3 (`DAEMON-SPLIT-SLICE.md`); the client side (`client.rs`) moved to
+//! 3 (`DAEMON-SPLIT-SLICE.md` at `b6197a82`); the client side (`client.rs`) moved to
 //! `acquisition-client` in the same commit, and `frame.rs` — the bounded
 //! reader both sides need — is one copy here and one there, because the
 //! protocol crate stays serde-only and the daemon never links the client.

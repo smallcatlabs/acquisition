@@ -1,6 +1,6 @@
 #!/bin/bash
-# preflight.sh — the live drivers' shared preflight (LIVE-TESTING.md,
-# "Build before you run"; note 16 §6.3 at decda84e). Sourced, not run:
+# preflight.sh — the live drivers' shared preflight (the live-run skill,
+# "Before", step 3; note 16 §6.3 at decda84e). Sourced, not run:
 #
 #   . "$here/tools/preflight.sh"
 #   preflight            # after MODE and RUN_DIR are chosen, before any
@@ -33,7 +33,7 @@ preflight() {
     #    the point).
     head=$(git -C "$here" rev-parse HEAD)
     tip=${head:0:12}
-    dirty=$(git -C "$here" status --porcelain -- tools LIVE-TESTING.md RUN-LEDGER.md AGENTS.md decisions crates Cargo.toml Cargo.lock)
+    dirty=$(git -C "$here" status --porcelain -- tools .claude/skills/live-run RUN-LEDGER.md AGENTS.md decisions crates Cargo.toml Cargo.lock)
     if [ -n "$dirty" ]; then
         echo "working tree differs from $tip in the rung's own files:" >&2
         echo "$dirty" >&2

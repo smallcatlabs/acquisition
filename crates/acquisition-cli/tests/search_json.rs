@@ -1,5 +1,5 @@
-//! Process-level pin of `acq search` and `acq show` (`SEARCH-SLICE.md`,
-//! rule 3: the crate's boundary, and the CLI's `--json`): the document
+//! Process-level pin of `acq search` and `acq show` (the search plan's
+//! rule 3, `acquisition-search/src/lib.rs`: the crate's boundary, and the CLI's `--json`): the document
 //! `--json` prints is the search crate's answer whole, the text is a
 //! function of it (C53), a failure is structured on both paths (C11), a
 //! flag of a later step is refused by its name, and every command an answer

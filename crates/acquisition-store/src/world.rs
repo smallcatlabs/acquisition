@@ -42,7 +42,7 @@
 //! On Unix the arm is the socket below, in the private per-user runtime
 //! directory a client verifies before it connects; the Windows arm, a
 //! named pipe under a user-only ACL whose server's process user a client
-//! checks, is step 0 of `PLATFORMS-SLICE.md`.
+//! checks, is step 0 of `PLATFORMS-SLICE.md` at `b6197a82`.
 //!
 //! ## C83 — as built (the daemon split's steps 5 and 6)
 //!
@@ -131,7 +131,7 @@
 //!   is no daemon yet. A world that does not exist has no socket: a use
 //!   door creates the root first, an observer reports absence.
 //!
-//! ## The Windows arm (`PLATFORMS-SLICE.md`, step 0)
+//! ## The Windows arm (`PLATFORMS-SLICE.md` at `b6197a82`, step 0)
 //!
 //! - **The endpoint** is a named pipe, not a socket (C112;
 //!   [`World::socket_path`], `world_windows`).

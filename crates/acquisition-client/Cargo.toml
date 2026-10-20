@@ -6,7 +6,7 @@ license.workspace = true
 publish.workspace = true
 repository.workspace = true
 
-# The client side of the daemon protocol (C1; DAEMON-SPLIT-SLICE.md step
+# The client side of the daemon protocol (C1; `DAEMON-SPLIT-SLICE.md` at `b6197a82` step
 # 3): the IPC over tokio, the three policy doors of C10, the `acqd`
 # locator (C82), the artifact comparison (C84; sha2 hashes the sibling
 # when its file identity differs from the daemon's) and the typed connect

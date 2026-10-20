@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # docs-check.sh — the documentation half of the quality gate.
 #
-# Nine checks, all mechanical (P4 and P5, `AGENTS.md`, "Principles": a
+# Eight checks, all mechanical (P4 and P5, `AGENTS.md`, "Principles": a
 # rule that can be broken silently becomes a lint):
 #
 #   1. One byte budget, on the one file every session loads, `AGENTS.md`.
@@ -29,11 +29,9 @@
 #      independence from the daemon, the daemon's from the client, the
 #      planner and any frontend, and the daemon named by no package but
 #      itself — each forbidden edge refused at any depth.
-#   6. The brainstorming notes: a note is on demand while something cites
-#      it by path and history once nothing does, so
-#      a path citation to a note that is gone is refused — history is
-#      cited as "note NN at `<commit>`" — and the uncited notes are
-#      reported, the same shape as the uncited decisions.
+#   6. Retired with the brainstorming notes (all deleted, whole at
+#      `b6197a82`): a note is cited as "note NN at `<commit>`", a commit 2b
+#      holds. The numbers after it stand, since §7 is cited by number.
 #
 #   7. One reader of a group's meaning: outside the search crate's modules
 #      that build, print and validate the query tree, and the one that
@@ -94,12 +92,15 @@ budget AGENTS.md 14000
 # so the mechanism goes to the code); every `C<n>` cited anywhere exists in
 # the registry; a decision nothing cites is reported (enforced by nothing is
 # either a lint, a test, or a smell). "Anywhere" is the code, the tools, the
-# skills, the control documents and the closed slice records — never the
-# brainstorming notes, which are disposable and may cite an id since
-# rewritten — and never the registry's own cross-references, which are
-# not a test, a doc or a tool naming the decision (the three closed
-# records joined the scan at the daemon split's close, 2026-09-11: until
-# then a stale id in one passed, and C73, C75 and C77 read as uncited).
+# skills, the control documents, the review checklist, the history and the
+# roadmap — and never the registry's own cross-references, which are not
+# a test, a doc or a tool naming the decision. Two kinds of roadmap file
+# are read by neither this scan nor 2b's, being text no session may
+# correct: a saved review (`roadmap/reviews/`, an outside model's answer
+# verbatim, deleted at its phase's close) and the dated assessment
+# (`roadmap/STATE-*.md`, corrected only when an outside review shows a
+# sentence wrong).
+SKIP_ROADMAP=(--exclude-dir=reviews --exclude='STATE-*.md')
 ENTRY_LIMIT=800
 reg=$(mktemp)
 # entries are single lines in the registry (one bullet, no continuation),
@@ -156,8 +157,8 @@ PY
 if [[ -n $history ]]; then printf '%s\n' "$history"; fail=1; else printf 'ok      %-18s %5d decisions, none carrying a history marker\n' registry "$count"; fi
 # AGENTS.md is read without its entry lines: it holds the cross-cutting
 # entries, and an entry is not a citation of itself.
-cited=$( { grep -rhoE '\bC[0-9]+\b' crates tools README.md search/DIGEST.md LIVE-TESTING.md RUN-LEDGER.md TESTING-NOTES.md SURFACES.md REFRESH-SLICE.md PRICING-SLICE.md SEARCH-SLICE.md TRADE-SLICE.md search/MEASUREMENTS.md search/LEDGER.md DAEMON-SPLIT-SLICE.md NETWORK-CLEANUP.md PLATFORMS-SLICE.md RELEASE-SLICE.md .claude/skills 2>/dev/null \
-  --include='*.rs' --include='*.sh' --include='*.py' --include='*.md'
+cited=$( { grep -rhoE '\bC[0-9]+\b' crates tools README.md search/DIGEST.md RUN-LEDGER.md TESTING-NOTES.md SURFACES.md search/MEASUREMENTS.md search/LEDGER.md REVIEW-CHECKLIST.md HISTORY.md roadmap .claude/skills 2>/dev/null \
+  --include='*.rs' --include='*.sh' --include='*.py' --include='*.md' "${SKIP_ROADMAP[@]}"
   grep -vE '^- \*\*C[0-9]+ ' AGENTS.md | grep -oE '\bC[0-9]+\b' || true; } | sort -u)
 unknown=$(comm -13 <(printf '%s\n' "$ids") <(printf '%s\n' "$cited") | grep . || true)
 if [[ -n $unknown ]]; then
@@ -175,18 +176,18 @@ rm -f "$reg"
 # that resolves only because another branch is fetched dies in a clone
 # of this branch: five did on 2026-10-11, master-side twins of
 # cherry-picked ground-truth commits and one review-branch commit.
-governed=(crates tools README.md search/DIGEST.md LIVE-TESTING.md RUN-LEDGER.md TESTING-NOTES.md SURFACES.md REFRESH-SLICE.md PRICING-SLICE.md SEARCH-SLICE.md TRADE-SLICE.md search/MEASUREMENTS.md search/LEDGER.md DAEMON-SPLIT-SLICE.md NETWORK-CLEANUP.md PLATFORMS-SLICE.md RELEASE-SLICE.md AGENTS.md decisions .claude/skills)
+governed=(crates tools README.md search/DIGEST.md RUN-LEDGER.md TESTING-NOTES.md SURFACES.md search/MEASUREMENTS.md search/LEDGER.md AGENTS.md decisions .claude/skills REVIEW-CHECKLIST.md HISTORY.md roadmap)
 revs=$(git rev-list HEAD)
 dead=0; checked=0
 while read -r h; do
   [[ -n $h ]] || continue
   checked=$((checked+1))
   if ! grep -q "^$h" <<<"$revs"; then
-    where=$(grep -rl -- "\`$h\`" "${governed[@]}" 2>/dev/null | head -1 || true)
+    where=$(grep -rl "${SKIP_ROADMAP[@]}" -- "\`$h\`" "${governed[@]}" 2>/dev/null | head -1 || true)
     printf 'COMMIT  %-18s `%s` is not in this history — cite the twin that is, or <repo>@%s\n' "$where" "$h" "$h"
     dead=$((dead+1))
   fi
-done < <(grep -rhoE '`[0-9a-f]{7,8}`' "${governed[@]}" --include='*.rs' --include='*.sh' --include='*.py' --include='*.md' 2>/dev/null | tr -d '`' | sort -u)
+done < <(grep -rhoE '`[0-9a-f]{7,8}`' "${governed[@]}" --include='*.rs' --include='*.sh' --include='*.py' --include='*.md' "${SKIP_ROADMAP[@]}" 2>/dev/null | tr -d '`' | sort -u)
 if ((dead > 0)); then fail=1; else printf 'ok      %-18s %5d cited commits, every one in this history\n' commits "$checked"; fi
 
 # ---- 3. stale identifiers -----------------------------------------------
@@ -535,28 +536,6 @@ if ((edge_bad == 0)); then
   echo 'ok      dependencies  daemon ∌ client/planner/search/frontend, nothing ∌ daemon but itself, client ∌ daemon/planner, planner ∌ daemon/client/search, search ∌ daemon/client/frontend/HTTP/async, store ∌ daemon/client/protocol/search/HTTP, daemon/protocol/client ∌ intent API, protocol = serde only (C1, C34, C39, C41, C89, §2.1)'
 fi
 
-# ---- 6. the brainstorming notes -----------------------------------------
-# A note is on demand while a ruling, a tool, a skill or a crate doc cites
-# it by path (`brainstorming-notes/NN` or `brainstorming-notes NN`), and
-# history once nothing does: deleted, cited as "note NN at `<commit>`". A
-# path citation to a note that is gone is a pointer into nothing and is
-# refused; the notes nothing cites are reported so a prune is a grep,
-# never a judgment call. The notes are not scanned for citations of each
-# other — a note cannot keep another alive.
-notes=$(ls brainstorming-notes/*.md 2>/dev/null | sed -E 's#.*/([0-9]+)-.*#\1#' | sort -u)
-note_cites=$(grep -rhoE 'brainstorming-notes[/ ][0-9]+' crates tools README.md AGENTS.md LIVE-TESTING.md RUN-LEDGER.md TESTING-NOTES.md SURFACES.md REFRESH-SLICE.md PRICING-SLICE.md SEARCH-SLICE.md TRADE-SLICE.md DAEMON-SPLIT-SLICE.md NETWORK-CLEANUP.md PLATFORMS-SLICE.md RELEASE-SLICE.md decisions search .claude/skills 2>/dev/null \
-  --include='*.rs' --include='*.sh' --include='*.py' --include='*.md' | sed -E 's#.*[/ ]##' | sort -u)
-gone=$(comm -13 <(printf '%s\n' "$notes") <(printf '%s\n' "$note_cites") | grep . || true)
-if [[ -n $gone ]]; then
-  printf 'GONE    a note cited by path no longer exists (history is cited as "note NN at `<commit>`"): %s\n' "$(echo $gone)"; fail=1
-fi
-uncited_notes=$(comm -23 <(printf '%s\n' "$notes") <(printf '%s\n' "$note_cites") | grep . || true)
-if [[ -n $uncited_notes ]]; then
-  printf 'note    uncited notes (nothing points at them; delete once their content has landed): %s\n' "$(echo $uncited_notes)"
-elif [[ -z $gone ]]; then
-  printf 'ok      %-13s every note is cited by path, every path citation resolves\n' notes
-fi
-
 # ---- 7. a group's meaning has one reader ---------------------------------
 # What `line( … )` means — what it selects, which sources it admits, its
 # together bound, whether its selector asks a flag, its template tests — is
@@ -564,7 +543,7 @@ fi
 # module, and read from there. Four outside audits of the first surface
 # found one fault five times: a meaning read again off the syntax by the
 # function that needed it next, which parentheses then changed (invariant 7
-# of the surface; `SEARCH-SLICE.md`, the findings of step 4b). P5: a rule that can
+# of the surface; `SEARCH-SLICE.md` at `b6197a82`, the findings of step 4b). P5: a rule that can
 # be broken silently becomes structure. So no source file of any crate
 # names a group's tree, authored (`Member`) or bound (`BMember`), but the
 # modules that build, print and validate it, and that one — names, and not

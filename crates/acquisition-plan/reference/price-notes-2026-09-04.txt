@@ -2,7 +2,7 @@
 #
 # Source: GET /stash/Standard/03cb479c65 (the owner's ACQUISITION-PRICE-TEST
 # tab, a public premium tab with no price in its name) on 2026-09-04
-# 00:52 UTC, response 542 in the owner's facts; LIVE-TESTING.md ledger row
+# 00:52 UTC, response 542 in the owner's facts; `RUN-LEDGER.md` row
 # of that date. Every `note` GGG's client wrote when the owner priced an
 # item through the in-game dialog, one per line, tab-separated:
 #   note<TAB>item type line<TAB>stack size

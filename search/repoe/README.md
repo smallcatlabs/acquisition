@@ -87,7 +87,7 @@ The named remainder on equipment: heist `Alert Level` lines, `Has # Abyssal Sock
 
 ## Open questions
 
-- **Q8 — Access method.** The C++ app fetches RePoE at runtime (cpp-search Q4); this track read a clone. What the design ships — a committed extract at a pinned commit, or nothing from RePoE — is the design session's ruling into `SURFACES.md`, with how the search follows updates to the game, the API and the trade site (the owner, 2026-09-13: "this stays for the design session"). Folded in: forking RePoE for the `Stats.dat` hash column, which would make the trade-id mapping an algorithm and a rename-proof join — `brainstorming-notes/20-repoe-hash-column-fork.md` has the feasibility, the cost and the recommendation to wait; the trigger is the design choosing the stat id or the trade id as a line's identity and wanting rename-proof joins.
+- **Q8 — Access method.** The C++ app fetches RePoE at runtime (cpp-search Q4); this track read a clone. What the design ships — a committed extract at a pinned commit, or nothing from RePoE — is the design session's ruling into `SURFACES.md`, with how the search follows updates to the game, the API and the trade site (the owner, 2026-09-13: "this stays for the design session"). Folded in: forking RePoE for the `Stats.dat` hash column, which would make the trade-id mapping an algorithm and a rename-proof join — note 20 at `b6197a82` has the feasibility, the cost and the recommendation to wait; the trigger is the design choosing the stat id or the trade id as a line's identity and wanting rename-proof joins.
 
 ## Provenance
 

@@ -1,4 +1,4 @@
-//! Plan step 7, item 4 (`PRICING-SLICE.md`): the daemon leaves by
+//! Plan step 7, item 4 (`PRICING-SLICE.md` at `b6197a82`): the daemon leaves by
 //! `process::exit`, so its SQLite connections are never closed and the
 //! write-ahead logs stayed uncheckpointed beside the facts file and
 //! `daemon.db` (the price-notes run, 2026-09-04: `tools/notes-check.py`

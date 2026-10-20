@@ -101,14 +101,14 @@ expect notdoing  'p=root/"decisions/store.md"; p.write_text(p.read_text().replac
 expect path      'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("`tests/read.rs`", "`tests/gone.rs`"))'
 expect path      'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("`acquisition-store/src/lib.rs`", "`acquisition-store/src/old.rs`"))'
 expect routing   'p=root/"crates/acquisition-store/src/lib.rs"; p.write_text(p.read_text().replace("decisions/store.md", "decisions/stores.md"))'
-# what must pass: history, an API route, a key shape, a note by number
+# what must pass: history, an API route, a key shape
 fixture
 python3 -I - "$tmp" <<'PY'
 import pathlib, sys
 p = pathlib.Path(sys.argv[1]) / "decisions/store.md"
-p.write_text(p.read_text().replace("Read this before", "History: `search/PLAN.md` at `453a4429`; the route `/profile`; a `wanted/lot` ratio; note `brainstorming-notes/07`. Read this before"))
+p.write_text(p.read_text().replace("Read this before", "History: `spikes/rust-playground/search/BUILD-PLAN.md` at `453a4429`; the route `/profile`; a `wanted/lot` ratio. Read this before"))
 PY
 out=$(run); n=$((n+1))
-if [[ $out == ok* ]]; then echo "ok      history, a route, a key shape and a note by number are not paths"; else echo "WRONG   a non-path was refused:"; echo "$out"; bad=1; fi
+if [[ $out == ok* ]]; then echo "ok      history, a route and a key shape are not paths"; else echo "WRONG   a non-path was refused:"; echo "$out"; bad=1; fi
 echo "$n cases"
 exit $bad

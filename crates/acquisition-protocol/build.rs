@@ -5,7 +5,7 @@
 //! crate so both sides of the socket carry it. The daemon's own sources
 //! are not inputs: a daemon-only edit moves the daemon artifact — the
 //! executable's hash, the identity's other half — and nothing else
-//! (`DAEMON-SPLIT-SLICE.md`, step 4).
+//! (`DAEMON-SPLIT-SLICE.md` at `b6197a82`, step 4).
 //!
 //! Inputs, hashed as `path NUL length NUL bytes` in sorted path order
 //! (paths relative to the workspace root) under the domain prefix
