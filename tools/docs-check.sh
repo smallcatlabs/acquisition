@@ -61,6 +61,13 @@ budget AGENTS.md 14000
 # (`roadmap/STATE-*.md`, corrected only when an outside review shows a
 # sentence wrong).
 SKIP_ROADMAP=(--exclude-dir=reviews --exclude='STATE-*.md')
+# One matcher for a commit written as history, read by both scans that
+# look for commits (the history scan below, the cited commits in 2b):
+# "at", then 7 to 40 hex with or without backticks, letters alone
+# included. Each scan had its own spelling, and an outside review of
+# `484fce3b` found an unbackticked hash, and one of nine letters, that
+# escaped both.
+AT_HASH='\bat `?[0-9a-f]{7,40}\b`?'
 ENTRY_LIMIT=800
 reg=$(mktemp)
 # entries are single lines in the registry (one bullet, no continuation),
@@ -92,13 +99,12 @@ if ((over > 0)); then fail=1; else printf 'ok      %-18s %5d decisions, every en
 # commit messages hold the story; a marker is refused by name, with the
 # entry that carries it. The words are matched as written, so a ruling
 # may still say a thing is "ruled first". A bare word of hex letters
-# alone is no commit; one written as history, after "at" in backticks,
-# is.
-history=$(python3 -I - "$reg" <<'PY'
+# alone is no commit; one written as history (`AT_HASH`, above) is.
+history=$(python3 -I - "$reg" "$AT_HASH" <<'PY'
 import re, sys
 MARKERS = [
     ("a date", r"\b\d{4}-\d{2}-\d{2}\b"),
-    ("a commit", r"\b(?=[0-9a-f]*[0-9])[0-9a-f]{7,40}\b|\bat `[a-f]{7,8}`"),
+    ("a commit", r"\b(?=[0-9a-f]*[0-9])[0-9a-f]{7,40}\b|" + sys.argv[2]),
     ('"owner:"', r"(?i:\bowner:)"),
     ('"verbatim"', r"(?i:\bverbatim\b)"),
     ('"Amended"', r"\bAmended\b"),
@@ -130,9 +136,10 @@ uncited=$(comm -23 <(printf '%s\n' "$ids") <(printf '%s\n' "$cited") | tr '\n' '
 rm -f "$reg"
 
 # ---- 2b. cited commits ----------------------------------------------------
-# A backticked 7-8 hex token in the governed documents names a commit of
-# this history — an ancestor of HEAD — or carries its repository as
-# `<repo>@<hash>` (the search tracks' form for the RePoE clones). A hash
+# A backticked 7-8 hex token in the governed documents, and a hash
+# written as history (`AT_HASH`, above), names a commit of this history
+# — an ancestor of HEAD — or carries its repository as `<repo>@<hash>`
+# (the search tracks' form for the RePoE clones). A hash
 # that resolves only because another branch is fetched dies in a clone
 # of this branch: five did on 2026-10-11, master-side twins of
 # cherry-picked ground-truth commits and one review-branch commit.
@@ -143,11 +150,13 @@ while read -r h; do
   [[ -n $h ]] || continue
   checked=$((checked+1))
   if ! grep -q "^$h" <<<"$revs"; then
-    where=$(grep -rl "${SKIP_ROADMAP[@]}" -- "\`$h\`" "${governed[@]}" 2>/dev/null | head -1 || true)
+    where=$(grep -rlE --include='*.rs' --include='*.sh' --include='*.py' --include='*.md' "${SKIP_ROADMAP[@]}" -- "\`$h\`|\bat \`?$h\b" "${governed[@]}" 2>/dev/null | head -1 || true)
     printf 'COMMIT  %-18s `%s` is not in this history — cite the twin that is, or <repo>@%s\n' "$where" "$h" "$h"
     dead=$((dead+1))
   fi
-done < <(grep -rhoE '`[0-9a-f]{7,8}`' "${governed[@]}" --include='*.rs' --include='*.sh' --include='*.py' --include='*.md' "${SKIP_ROADMAP[@]}" 2>/dev/null | tr -d '`' | sort -u)
+done < <( { grep -rhoE '`[0-9a-f]{7,8}`' "${governed[@]}" --include='*.rs' --include='*.sh' --include='*.py' --include='*.md' "${SKIP_ROADMAP[@]}" 2>/dev/null
+            grep -rhoE "$AT_HASH" "${governed[@]}" --include='*.rs' --include='*.sh' --include='*.py' --include='*.md' "${SKIP_ROADMAP[@]}" 2>/dev/null | sed 's/^at //'
+          } | tr -d '`' | sort -u)
 if ((dead > 0)); then fail=1; else printf 'ok      %-18s %5d cited commits, every one in this history\n' commits "$checked"; fi
 
 # ---- 3. stale identifiers -----------------------------------------------

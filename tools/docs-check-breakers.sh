@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # docs-check-breakers.sh — proves docs-check.sh refuses what it claims to,
 # by breaking a document and watching it refuse: the registry's history
-# scan (§2). The dependency guard's cases and the group rule's moved with
+# scan (§2) and the cited commits (§2b), which read a commit written as
+# history through one matcher. The dependency guard's cases and the group rule's moved with
 # their checks to `arch-check-breakers.sh` (step 1e of the roadmap); the
 # two suites do not cross.
 #
@@ -16,7 +17,7 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/acq-docs-breakers.XXXXXX")
-files=(decisions/plans.md)
+files=(decisions/plans.md REVIEW-CHECKLIST.md)
 for f in "${files[@]}"; do mkdir -p "$scratch/keep/$(dirname "$f")"; cp "$f" "$scratch/keep/$f"; done
 restore() {
   local f
@@ -71,6 +72,15 @@ run_case 'Decided'                                               refuse 'carries
 run_case 'Ruled'                                                 refuse 'carries "Ruled"'         entry "$W" 'at compile. Ruled at the harvest. *Why:*'
 run_case 'a seat call number'                                    refuse 'carries a call number'   entry "$W" 'at compile (cli-opus call 26). *Why:*'
 run_case 'a lowercase "ruled first" and a count are no history'  pass   'none carrying a history marker' entry "$W" 'at compile, ruled first over 3,347 tabs. *Why:*'
+
+echo '== a commit written as history: one matcher for both scans (the outside review of 484fce3b, finding 2)'
+H7=fedcba; H7+=f     # a hash of letters, and one of nine, built here so the scans of tools/ never read them
+H9=fedcba; H9+=fed
+checklist() { printf '%s\n' "$1" >>REVIEW-CHECKLIST.md; }   # a line appended to a governed document
+run_case 'an entry: at, letters alone, no backticks'             refuse 'carries a commit'        entry "$W" "at compile (at $H7). *Why:*"
+run_case 'an entry: at, nine letters in backticks'               refuse 'carries a commit'        entry "$W" "at compile (at \`$H9\`). *Why:*"
+run_case 'a document: at, letters alone, no backticks'           refuse "\`$H7\` is not in this history" checklist "A note at $H7."
+run_case 'a document: at, nine letters in backticks'             refuse "\`$H9\` is not in this history" checklist "A note at \`$H9\`."
 
 echo
 printf '%d ok, %d failed\n' "$pass" "$failed"
