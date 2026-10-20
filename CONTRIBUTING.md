@@ -29,7 +29,9 @@ is held to the same rule as my own commits:
 
 ## Issues
 
-The work I have chosen not to do yet is parked, each item with the
-trigger that would reopen it (the "Parked" sections of `CONTEXT.md` and
-`decisions/`). The parks are the graph of the work; an issue is evidence
-that may fire a trigger; a bug is a finding.
+The backlog is this repository's GitHub issues, each labelled `area:*`
+(the file under `decisions/` it belongs to) and `trigger:*` (what would
+start it: a user's report, a seat run, a second consumer, the GUI, a
+live run). What I have chosen not to do is a "Not doing" line at the
+foot of the area's file in `decisions/`, with the trigger that would
+reopen it, or refused outright. A bug report is welcome as an issue.
