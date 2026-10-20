@@ -146,12 +146,14 @@ if ((over > 0)); then fail=1; else printf 'ok      %-18s %5d decisions, every en
 # "Decided" or "Ruled", no seat call number. `git log -S'C<n>'` and the
 # commit messages hold the story; a marker is refused by name, with the
 # entry that carries it. The words are matched as written, so a ruling
-# may still say a thing is "ruled first".
+# may still say a thing is "ruled first". A bare word of hex letters
+# alone is no commit; one written as history, after "at" in backticks,
+# is.
 history=$(python3 -I - "$reg" <<'PY'
 import re, sys
 MARKERS = [
     ("a date", r"\b\d{4}-\d{2}-\d{2}\b"),
-    ("a commit", r"\b(?=[0-9a-f]*[0-9])[0-9a-f]{7,40}\b"),
+    ("a commit", r"\b(?=[0-9a-f]*[0-9])[0-9a-f]{7,40}\b|\bat `[a-f]{7,8}`"),
     ('"owner:"', r"(?i:\bowner:)"),
     ('"verbatim"', r"(?i:\bverbatim\b)"),
     ('"Amended"', r"\bAmended\b"),

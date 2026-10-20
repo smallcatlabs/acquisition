@@ -188,8 +188,10 @@ p.write_text(s.replace(line, line.replace(sys.argv[1], sys.argv[2])))
 PY
 }
 W='at compile. *Why:*'
+HEXWORD=abcdef; HEXWORD+=a   # a hash of hex letters alone, built so the cited-commit scan of tools/ never reads it
 run_case 'a date'                                                refuse 'carries a date'          entry "$W" 'at compile, as of 2026-09-03. *Why:*'
 run_case 'a commit'                                              refuse 'carries a commit'        entry "$W" 'at compile (at 16bba23e). *Why:*'
+run_case 'a commit of hex letters alone'                          refuse 'carries a commit'        entry "$W" "at compile (at \`$HEXWORD\`). *Why:*"
 run_case 'an owner quote'                                        refuse 'carries "owner:"'        entry "$W" 'at compile (owner: "agreed"). *Why:*'
 run_case 'the word verbatim'                                     refuse 'carries "verbatim"'      entry "$W" 'at compile, quoted verbatim. *Why:*'
 run_case 'Amended'                                               refuse 'carries "Amended"'       entry "$W" 'at compile. Amended after the seat. *Why:*'

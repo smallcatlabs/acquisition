@@ -289,6 +289,13 @@ class Registry:
 
 
 # ---- check -----------------------------------------------------------------
+def section_text(body, marker):
+    """The text of an entry's one `*<marker>:*` section, up to the next
+    marker or the end, without its punctuation: empty means empty."""
+    m = re.search(r"\*" + marker + r":\*(.*?)(?=\*(?:Why|Details|Pinned|Evidence):\*|$)", body)
+    return m.group(1).strip(" .;,") if m else ""
+
+
 def check(reg, show_notes=True):
     # the index agrees with the files
     for area, (n, _, ids) in reg.index.items():
@@ -328,9 +335,15 @@ def check(reg, show_notes=True):
         d = reg.decisions[i]
         where = (d["file"], d["line"])
         for mk in ("Why", "Pinned"):
-            if mk not in d["markers"]:
+            n = d["markers"].count(mk)
+            if n == 0:
                 reg.fail("entry", *where, f"{i} has no *{mk}:*; the entry rule (this script's docstring) asks one"
                          + (", `nothing yet` when nothing holds it" if mk == "Pinned" else ""))
+            elif n > 1:
+                reg.fail("entry", *where, f"{i} has {n} *{mk}:* sections; the entry rule asks exactly one: merge them")
+            elif not section_text(d["body"], mk):
+                reg.fail("entry", *where, f"{i} has an empty *{mk}:*; write "
+                         + ("the reason" if mk == "Why" else "the test that holds it, or `nothing yet`"))
         for mk in ("Details", "Evidence"):
             if mk in d["markers"]:
                 reg.fail("entry", *where, f"{i} carries *{mk}:*; the entry rule has none: `show {i}` lists where the code names it, "
