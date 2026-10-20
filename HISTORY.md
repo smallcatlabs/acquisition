@@ -20,4 +20,4 @@ commit's message; a shape that came back is `REVIEW-CHECKLIST.md`'s.
 | The trade import: a site URL as a third spelling of a query | `6745e5ba..16bba23e` | 2026-10-18 | `807f237e` (the brief's steps at `77666ea4` and `6e31d630`; note 38 at `16bba23e`) |
 | The release, `v1.0.0-alpha.1`: pricing on the MCP, the README, the policies, the seat | `05e6c70c..d0ab421e` | 2026-10-19 | `e7f279b5` (the open record and the brief at `d0ab421e`) |
 | Roadmap phase 0: the week's fixes | `roadmap/README.md`'s ledger | 2026-10-20 | `cca73395` (the briefs and the review files) |
-| Roadmap phase 1: the governance reset | `roadmap/README.md`'s ledger | — | the drafts at `b6197a82` |
+| Roadmap phase 1: the governance reset | `roadmap/README.md`'s ledger | 2026-10-20 | `0704a8f7` (the briefs, the drafts and the review files) |
