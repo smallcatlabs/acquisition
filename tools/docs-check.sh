@@ -1,22 +1,20 @@
 #!/usr/bin/env bash
 # docs-check.sh — the documentation half of the quality gate.
 #
-# Nine checks, all mechanical (P5, CONTEXT.md "Working style": a lint
-# where mechanical, a recorded property where stakes are real):
+# Nine checks, all mechanical (P4 and P5, `AGENTS.md`, "Principles": a
+# rule that can be broken silently becomes a lint):
 #
-#   1. Byte budgets on the always-loaded documents. Every session reads
-#      these before acting; growth past the budget is the signal that a
-#      narrative landed where a ruling belongs (AGENTS.md, "Routing").
-#      Moving text to its home is compliance, not gaming. Past 90% the
-#      check says so without failing, so routing happens at a session
-#      close and never as a side quest in the middle of a slice. The
-#      search slice's documents are budgeted too — the record and the
-#      area's rulings: not always loaded, but read by every session on
-#      the area, and the unbudgeted three held two thirds of a step's
-#      read while the budgeted files stayed flat (2026-09-23).
+#   1. One byte budget, on the one file every session loads, `AGENTS.md`.
+#      Growth past it is the signal that a narrative landed where a
+#      ruling, a test or a commit message belongs (`AGENTS.md`, "Where
+#      things live"). Moving text to its home is compliance, not gaming.
+#      Past 90% the check says so without failing, so routing happens at
+#      a session close and never as a side quest in the middle of a step.
+#      Every other document is read on demand and has no budget.
 #   2. The decision registry: one bullet per decision under a length
-#      limit and with no history in it, a capped count of always-loaded
-#      ones, every cited id real, the uncited ones reported.
+#      limit and with no history in it, a capped count of cross-cutting
+#      ones in `AGENTS.md`, every cited id real, the uncited ones
+#      reported.
 #   3. Stale identifiers. A backticked code identifier in a control
 #      document that no longer exists in the workspace is a parallel
 #      description that has rotted. Checked: `Type::path` items,
@@ -32,7 +30,7 @@
 #      planner and any frontend, and the daemon named by no package but
 #      itself — each forbidden edge refused at any depth.
 #   6. The brainstorming notes: a note is on demand while something cites
-#      it by path and history once nothing does (AGENTS.md, "Routing"), so
+#      it by path and history once nothing does, so
 #      a path citation to a note that is gone is refused — history is
 #      cited as "note NN at `<commit>`" — and the uncited notes are
 #      reported, the same shape as the uncited decisions.
@@ -89,21 +87,7 @@ budget() {
     printf 'ok      %-18s %7d / %7d bytes\n' "$file" "$size" "$limit"
   fi
 }
-budget AGENTS.md        9000  # raised 2026-10-18 with the crate table, moved here from the README at the release ruling
-budget CONTEXT.md      20000
-# README.md is unbudgeted since 2026-10-19: it is the users' document
-# and no agent loads it whole (AGENTS.md's reading list); the gate
-# holds its form (4 below) and its truth (readme_tour.rs), not its size.
-budget LIVE-TESTING.md 15000
-budget SEARCH-SLICE.md 24000  # the closed record, read whole before a search change: the plan's rules, the shapes of fault and a verdict per measurement. Its rows are search/LEDGER.md and its tables search/MEASUREMENTS.md, neither budgeted: a line per step and per hole, a block per measurement, each looked up and never loaded whole
-budget decisions/search.md 28000
-budget TRADE-SLICE.md   16000  # the trade import's closed record (2026-10-18): its step ledger, shapes of fault, verdicts and where each observation went
-budget decisions/trade.md  16000  # the trade boundary, split from search 2026-10-17: C99, C113, C114, the contract detail and the parks the outbound half and PoE2 will grow
-budget RELEASE-SLICE.md 20000  # the release's closed record (2026-10-19): its step ledger, shapes of fault, verdicts and where each observation went
-# search/M3-LEDGER.md has no budget: one row per M3 run, append-only.
-# RUN-LEDGER.md has no budget: one row per live run, append-only by
-# construction, read by its tail. Its rows cite decision ids (scanned
-# below) but are history, so the stale-identifier scan skips it.
+budget AGENTS.md 14000
 
 # ---- 2. the decision registry ------------------------------------------
 # Every decision is one bullet under a length limit (a narrative cannot fit,
@@ -119,22 +103,22 @@ budget RELEASE-SLICE.md 20000  # the release's closed record (2026-10-19): its s
 ENTRY_LIMIT=800
 reg=$(mktemp)
 # entries are single lines in the registry (one bullet, no continuation),
-# spread over CONTEXT.md (cross-cutting only) and decisions/*.md (per area)
-grep -hE '^- \*\*C[0-9]+ ' CONTEXT.md decisions/*.md >"$reg"
+# spread over AGENTS.md (cross-cutting only) and decisions/*.md (per area)
+grep -hE '^- \*\*C[0-9]+ ' AGENTS.md decisions/*.md >"$reg"
 dups=$(grep -oE '^- \*\*C[0-9]+' "$reg" | sort | uniq -d | sed 's/^- \*\*//' | tr '\n' ' ')
 if [[ -n $dups ]]; then echo "DUPLICATE decision id across registry files: $dups"; fail=1; fi
 CROSS_LIMIT=15
-cross=$(grep -cE '^- \*\*C[0-9]+ ' CONTEXT.md)
+cross=$(grep -cE '^- \*\*C[0-9]+ ' AGENTS.md)
 if ((cross > CROSS_LIMIT)); then
-  printf 'CROSS   %-18s %5d always-loaded decisions > %d — move area rulings to decisions/<area>.md\n' CONTEXT.md "$cross" "$CROSS_LIMIT"; fail=1
+  printf 'CROSS   %-18s %5d always-loaded decisions > %d — move area rulings to decisions/<area>.md\n' AGENTS.md "$cross" "$CROSS_LIMIT"; fail=1
 else
-  printf 'ok      %-18s %5d always-loaded decisions (limit %d)\n' CONTEXT.md "$cross" "$CROSS_LIMIT"
+  printf 'ok      %-18s %5d always-loaded decisions (limit %d)\n' AGENTS.md "$cross" "$CROSS_LIMIT"
 fi
 over=0
 while IFS= read -r line; do
   n=$(printf '%s' "$line" | wc -c | tr -d ' ')
   if ((n > ENTRY_LIMIT)); then
-    printf 'ENTRY   %-18s %5d > %d bytes  %s\n' CONTEXT.md "$n" "$ENTRY_LIMIT" "$(printf '%s' "$line" | cut -c1-40)"
+    printf 'ENTRY   %-18s %5d > %d bytes  %s\n' registry "$n" "$ENTRY_LIMIT" "$(printf '%s' "$line" | cut -c1-40)"
     over=$((over+1))
   fi
 done <"$reg"
@@ -170,8 +154,11 @@ for line in open(sys.argv[1], encoding="utf-8"):
 PY
 ) || { echo "HISTORY the scan itself failed"; fail=1; }
 if [[ -n $history ]]; then printf '%s\n' "$history"; fail=1; else printf 'ok      %-18s %5d decisions, none carrying a history marker\n' registry "$count"; fi
-cited=$(grep -rhoE '\bC[0-9]+\b' crates tools README.md search/DIGEST.md LIVE-TESTING.md RUN-LEDGER.md TESTING-NOTES.md SURFACES.md REFRESH-SLICE.md PRICING-SLICE.md SEARCH-SLICE.md TRADE-SLICE.md search/MEASUREMENTS.md search/LEDGER.md DAEMON-SPLIT-SLICE.md NETWORK-CLEANUP.md PLATFORMS-SLICE.md RELEASE-SLICE.md AGENTS.md .claude/skills 2>/dev/null \
-  --include='*.rs' --include='*.sh' --include='*.py' --include='*.md' | sort -u)
+# AGENTS.md is read without its entry lines: it holds the cross-cutting
+# entries, and an entry is not a citation of itself.
+cited=$( { grep -rhoE '\bC[0-9]+\b' crates tools README.md search/DIGEST.md LIVE-TESTING.md RUN-LEDGER.md TESTING-NOTES.md SURFACES.md REFRESH-SLICE.md PRICING-SLICE.md SEARCH-SLICE.md TRADE-SLICE.md search/MEASUREMENTS.md search/LEDGER.md DAEMON-SPLIT-SLICE.md NETWORK-CLEANUP.md PLATFORMS-SLICE.md RELEASE-SLICE.md .claude/skills 2>/dev/null \
+  --include='*.rs' --include='*.sh' --include='*.py' --include='*.md'
+  grep -vE '^- \*\*C[0-9]+ ' AGENTS.md | grep -oE '\bC[0-9]+\b' || true; } | sort -u)
 unknown=$(comm -13 <(printf '%s\n' "$ids") <(printf '%s\n' "$cited") | grep . || true)
 if [[ -n $unknown ]]; then
   printf 'UNKNOWN decision id cited outside the registry: %s\n' "$unknown" | tr '\n' ' '; echo
@@ -188,7 +175,7 @@ rm -f "$reg"
 # that resolves only because another branch is fetched dies in a clone
 # of this branch: five did on 2026-10-11, master-side twins of
 # cherry-picked ground-truth commits and one review-branch commit.
-governed=(crates tools README.md search/DIGEST.md LIVE-TESTING.md RUN-LEDGER.md TESTING-NOTES.md SURFACES.md REFRESH-SLICE.md PRICING-SLICE.md SEARCH-SLICE.md TRADE-SLICE.md search/MEASUREMENTS.md search/LEDGER.md DAEMON-SPLIT-SLICE.md NETWORK-CLEANUP.md PLATFORMS-SLICE.md RELEASE-SLICE.md AGENTS.md CONTEXT.md decisions .claude/skills)
+governed=(crates tools README.md search/DIGEST.md LIVE-TESTING.md RUN-LEDGER.md TESTING-NOTES.md SURFACES.md REFRESH-SLICE.md PRICING-SLICE.md SEARCH-SLICE.md TRADE-SLICE.md search/MEASUREMENTS.md search/LEDGER.md DAEMON-SPLIT-SLICE.md NETWORK-CLEANUP.md PLATFORMS-SLICE.md RELEASE-SLICE.md AGENTS.md decisions .claude/skills)
 revs=$(git rev-list HEAD)
 dead=0; checked=0
 while read -r h; do
@@ -211,7 +198,7 @@ find crates tools -type f \( -name '*.rs' -o -name '*.sh' -o -name '*.py' -o -na
 ls -R crates tools >>"$hay"
 
 missing=0
-for doc in AGENTS.md CONTEXT.md README.md LIVE-TESTING.md; do
+for doc in AGENTS.md README.md; do
   # backticked tokens without spaces, then the shapes worth checking
   grep -o '`[^` ]\{3,\}`' "$doc" | tr -d '`' | sort -u | while read -r tok; do
     case "$tok" in
@@ -553,7 +540,7 @@ fi
 # never a judgment call. The notes are not scanned for citations of each
 # other — a note cannot keep another alive.
 notes=$(ls brainstorming-notes/*.md 2>/dev/null | sed -E 's#.*/([0-9]+)-.*#\1#' | sort -u)
-note_cites=$(grep -rhoE 'brainstorming-notes[/ ][0-9]+' crates tools README.md CONTEXT.md AGENTS.md LIVE-TESTING.md RUN-LEDGER.md TESTING-NOTES.md SURFACES.md REFRESH-SLICE.md PRICING-SLICE.md SEARCH-SLICE.md TRADE-SLICE.md DAEMON-SPLIT-SLICE.md NETWORK-CLEANUP.md PLATFORMS-SLICE.md RELEASE-SLICE.md decisions search .claude/skills 2>/dev/null \
+note_cites=$(grep -rhoE 'brainstorming-notes[/ ][0-9]+' crates tools README.md AGENTS.md LIVE-TESTING.md RUN-LEDGER.md TESTING-NOTES.md SURFACES.md REFRESH-SLICE.md PRICING-SLICE.md SEARCH-SLICE.md TRADE-SLICE.md DAEMON-SPLIT-SLICE.md NETWORK-CLEANUP.md PLATFORMS-SLICE.md RELEASE-SLICE.md decisions search .claude/skills 2>/dev/null \
   --include='*.rs' --include='*.sh' --include='*.py' --include='*.md' | sed -E 's#.*[/ ]##' | sort -u)
 gone=$(comm -13 <(printf '%s\n' "$notes") <(printf '%s\n' "$note_cites") | grep . || true)
 if [[ -n $gone ]]; then

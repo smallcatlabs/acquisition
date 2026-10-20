@@ -8,32 +8,46 @@
     python3 -I tools/bothy.py pack --path crates/acquisition-store/src/lib.rs
     python3 -I tools/bothy.py --root DIR ...        the tree to read (default: the script's parent directory)
 
-The registry is `CONTEXT.md` (invariants, principles, the cross-cutting
-rulings, the index of area files) and `decisions/<area>.md` (one file
-per area: rulings, then "Not doing"). This script reads that grammar
-and never writes.
+The registry is the root file, `AGENTS.md` (the one file every session
+loads), and `decisions/<area>.md`, one file per area: its rulings, then
+"Not doing". From the root this script reads "What Acquisition is"
+(the orientation), "Invariants" (numbered items, each to the next),
+"Cross-cutting rulings" (the entries every area must know) and
+"Principles": three bullets, each ending with the `P<n>` ids it folds,
+so a citation of P3 resolves to the bullet that carries it. The areas
+are the files under `decisions/`; there is no index to keep. This
+script reads that grammar and never writes.
 
 The entry rule. An entry is one bullet,
 `- **C<n> — title.** ruling. *Why:* one sentence. *Pinned:* the test or check that holds it.`
-The ruling is plain declaratives, one idea per sentence; there is one
-*Why:*, the reason and nothing else; *Pinned:* names the file and the
-test name or prefix that holds the property, or says `nothing yet`.
-There is no *Details:* (`show` lists where the code names the id) and
-no *Evidence:*. Every cited id carries a gloss of two to five words the
-first time it appears in the entry. An entry carries no history: no
-date, no commit, no owner's quote, no "Amended", "Decided" or "Ruled",
-no seat call number (docs-check refuses those markers); `git log -S`
-and the commit messages hold it. A ruling whose build waits says
-`Unbuilt` and names its issue or its not-doing line.
+
+1. Plain declaratives: a subject, a verb, one idea per sentence.
+2. One *Why:*, the reason and nothing else.
+3. *Pinned:* names the file and the test name or prefix that holds the
+   property; a ruling nothing holds says `nothing yet`. There is no
+   *Details:* (`show` lists where the code names the id) and no
+   *Evidence:* (a claim is cited in the ruling or the *Why:* with its
+   gloss).
+4. A gloss of two to five words on every cited id, the first time it
+   appears in the entry: `C53 (three output levels)`. The gloss helps
+   the reader and binds nothing.
+5. No history: no date, no commit, no owner's quote, no "Decided",
+   "Ruled", "Amended" or "Kept", no seat call number, no measurement,
+   no note citation. `git log -S'C<n>'` and the commit messages hold
+   it, and docs-check refuses the markers. A ruling whose build waits
+   says `Unbuilt` and names its issue.
+6. One bullet under docs-check's length limit, 800 bytes: a prompt to
+   route a mechanism to the code, never a budget to fill.
+7. The owner's words stay the authority: an entry changes only by his
+   ruling, and the commit that changes it quotes him.
 
 The not-doing rule. "Not doing" at the foot of an area file is one
 bullet per thing someone would propose and the project declines:
 `- <item>: not until <trigger>.`, or `- <item>: refused …` for what no
 trigger reopens. The backlog is GitHub issues, never this list.
 
-`check` holds what `tools/docs-check.sh` does not: the index in
-`CONTEXT.md` agrees with the files; a cross-reference inside the
-registry resolves; an entry has its *Why:* and its *Pinned:* and no
+`check` holds what `tools/docs-check.sh` does not: a cross-reference
+inside the registry resolves; an entry has its *Why:* and its *Pinned:* and no
 *Details:* or *Evidence:*; a not-doing line states its trigger or its
 refusal and is not struck through; a path the registry names exists; a
 module doc that names an area names one that exists. docs-check keeps
@@ -54,9 +68,10 @@ from collections import defaultdict
 
 DEC_RE = re.compile(r"^- \*\*(C\d+)\s+—\s+(.*?)\*\*\s*(.*)$")
 DEC_START = re.compile(r"^- \*\*C\d")
-PRIN_RE = re.compile(r"^- \*\*(P\d+)\.\*\*\s*(.*)$")
-INV_RE = re.compile(r"^(\d+)\. \*\*(.*?)\*\*")
-INDEX_RE = re.compile(r"^\| `decisions/(\w+)\.md` \| (.*?) \| (.*?) \|\s*$")
+PRIN_RE = re.compile(r"^- \*\*(.+?)\*\*\s*(.*)$")
+PRIN_IDS = re.compile(r"\(((?:P\d+)(?:,\s*P\d+)*)\)\.?\s*$")
+INV_RE = re.compile(r"^(\d+)\. \S")
+ROOT = "AGENTS.md"
 ID_RE = re.compile(r"\b([CP])(\d+)\b")
 MARKER_RE = re.compile(r"\*(Why|Details|Pinned|Evidence):\*")
 NOT_DOING_RE = re.compile(r"^(.+?):\s+(not until|refused)\b\s*(.*)$")
@@ -82,13 +97,12 @@ class Registry:
         self.decisions = {}   # id -> dict
         self.order = []       # ids in file order
         self.parks = []       # the not-doing lines, each a dict
-        self.principles = {}  # P<n> -> text
-        self.invariants = []  # (n, text)
-        self.index = {}       # area -> (line, desc, [ids])
+        self.principles = {}  # P<n> -> the bullet that carries it
+        self.invariants = []  # (n, text: the item's lines)
         self.areas = {}       # area -> {file, title, intro, sections: [(heading, line)], park_heading}
         self.orientation = ""
         self.cross_heading = ""
-        self._read_context()
+        self._read_root()
         for name in sorted(os.listdir(self.path("decisions"))) if os.path.isdir(self.path("decisions")) else []:
             if name.endswith(".md"):
                 self._read_area(name[:-3])
@@ -105,41 +119,42 @@ class Registry:
         with open(self.path(rel), encoding="utf-8") as fh:
             return [l.rstrip("\n") for l in fh]
 
-    def _read_context(self):
-        rel = "CONTEXT.md"
+    def _read_root(self):
+        rel = ROOT
         if not os.path.exists(self.path(rel)):
-            self.fail("missing", rel, 0, "no CONTEXT.md: the registry starts there")
+            self.fail("missing", rel, 0, f"no {ROOT}: the registry starts there")
             return
-        section, sub = "", ""
-        in_orient = in_parked = False
+        section = ""
         orient = []
         for n, line in enumerate(self._lines(rel), 1):
             if line.startswith("## "):
-                section, sub = line[3:], ""
-                in_orient = section.startswith("Orientation")
-                in_parked = section.startswith(NOT_DOING)
-                continue
-            if line.startswith("### "):
-                sub = line[4:]
-                if sub.startswith("Cross-cutting"):
+                section = line[3:]
+                if section.startswith("Cross-cutting"):
                     self.cross_heading = line
                 continue
-            if in_orient and line.strip():
-                orient.append(line)
-            m = INDEX_RE.match(line)
-            if m:
-                ids = re.findall(r"C\d+", m.group(3))
-                self.index[m.group(1)] = (n, m.group(2), ids)
-                continue
-            m = PRIN_RE.match(line)
-            if m:
-                self.principles[m.group(1)] = m.group(2)
+            if section.startswith("What Acquisition is"):
+                if line.strip():
+                    orient.append(line)
                 continue
             if section.startswith("Invariants"):
-                m = INV_RE.match(line)
+                if INV_RE.match(line):
+                    self.invariants.append((int(line.split(".")[0]), line))
+                elif line.startswith("   ") and line.strip() and self.invariants:
+                    k, text = self.invariants[-1]
+                    self.invariants[-1] = (k, text + "\n" + line)
+                continue
+            if section.startswith("Principles"):
+                m = PRIN_RE.match(line)
                 if m:
-                    self.invariants.append((int(m.group(1)), line))
-            self._entry(rel, "cross-cutting", n, line, section, in_parked)
+                    ids = PRIN_IDS.search(line)
+                    if not ids:
+                        self.fail("principle", rel, n, "a principle ends with the ids it folds, `(P1, P6).`; "
+                                  "this one names none, so no citation can reach it")
+                        continue
+                    for pid in re.findall(r"P\d+", ids.group(1)):
+                        self.principles[pid] = line[2:]
+                continue
+            self._entry(rel, "cross-cutting", n, line, section, False)
         self.orientation = "\n".join(orient)
 
     def _read_area(self, area):
@@ -293,29 +308,16 @@ def section_text(body, marker):
     """The text of an entry's one `*<marker>:*` section, up to the next
     marker or the end, without its punctuation: empty means empty."""
     m = re.search(r"\*" + marker + r":\*(.*?)(?=\*(?:Why|Details|Pinned|Evidence):\*|$)", body)
-    return m.group(1).strip(" .;,") if m else ""
+    return bare(m.group(1)) if m else ""
+
+
+def bare(text):
+    """Text without its edge punctuation and whitespace of every kind
+    (a tab, a no-break space): what is left is what was written."""
+    return re.sub(r"^[\s.;,]+|[\s.;,]+$", "", text)
 
 
 def check(reg, show_notes=True):
-    # the index agrees with the files
-    for area, (n, _, ids) in reg.index.items():
-        if area not in reg.areas:
-            reg.fail("index", "CONTEXT.md", n, f"the index names decisions/{area}.md, which does not exist")
-            continue
-        in_file = [i for i in reg.order if reg.decisions[i]["area"] == area]
-        for i in ids:
-            if i not in reg.decisions:
-                reg.fail("index", "CONTEXT.md", n, f"the index lists {i} for decisions/{area}.md, and no file holds {i}")
-            elif reg.decisions[i]["area"] != area:
-                reg.fail("index", "CONTEXT.md", n,
-                         f"the index lists {i} under decisions/{area}.md, but it is in {reg.decisions[i]['file']}:{reg.decisions[i]['line']}")
-        for i in in_file:
-            if i not in ids:
-                reg.fail("index", reg.decisions[i]["file"], reg.decisions[i]["line"],
-                         f"{i} is not in CONTEXT.md's index row for decisions/{area}.md; add it there")
-    for area, meta in reg.areas.items():
-        if area not in reg.index:
-            reg.fail("index", meta["file"], 1, f"decisions/{area}.md has no row in CONTEXT.md's index table; add one")
     # every cross-reference resolves
     for i in reg.order:
         d = reg.decisions[i]
@@ -323,13 +325,13 @@ def check(reg, show_notes=True):
             if c[0] == "C" and c not in reg.decisions:
                 reg.fail("cite", d["file"], d["line"], f"{i} names {c}, which no file defines; fix the id or add the decision")
             if c[0] == "P" and c not in reg.principles:
-                reg.fail("cite", d["file"], d["line"], f"{i} names {c}, which CONTEXT.md's principles do not define")
+                reg.fail("cite", d["file"], d["line"], f"{i} names {c}, which AGENTS.md's principles do not define")
     for p in reg.parks:
         for c in p["cites"]:
             if c[0] == "C" and c not in reg.decisions:
                 reg.fail("cite", p["file"], p["line"], f"a not-doing line names {c}, which no file defines")
             if c[0] == "P" and c not in reg.principles:
-                reg.fail("cite", p["file"], p["line"], f"a not-doing line names {c}, which CONTEXT.md's principles do not define")
+                reg.fail("cite", p["file"], p["line"], f"a not-doing line names {c}, which AGENTS.md's principles do not define")
     # every entry has its Why and its Pinned, and no Details or Evidence
     for i in reg.order:
         d = reg.decisions[i]
@@ -354,13 +356,13 @@ def check(reg, show_notes=True):
         if p["item"] is None:
             reg.fail("notdoing", *where, "a not-doing line is `- <item>: not until <trigger>` or `- <item>: refused …`; "
                      "this one states neither, so it is re-argued every time it is read")
-        elif p["kind"] == "not until" and not p["trigger"].strip(" .;"):
+        elif p["kind"] == "not until" and not bare(p["trigger"]):
             reg.fail("notdoing", *where, "this line says `not until` and names no trigger")
         if "~~" in p["body"]:
             reg.fail("notdoing", *where, "a struck-through line is deleted, not kept; delete the bullet")
     # every path the registry names exists
     seen = set()
-    for rel in ["CONTEXT.md"] + [m["file"] for m in reg.areas.values()]:
+    for rel in [ROOT] + [m["file"] for m in reg.areas.values()]:
         if not os.path.exists(reg.path(rel)):
             continue
         for n, line in enumerate(reg._lines(rel), 1):
@@ -393,8 +395,8 @@ def check(reg, show_notes=True):
         print(f"{len(reg.faults)} fault(s) in the registry")
         return 1
     print(f"ok    registry  {len(reg.decisions)} decisions in {1 + len(reg.areas)} files, {len(reg.parks)} not-doing lines, "
-          f"{len(reg.principles)} principles, {len(reg.invariants)} invariants: the index matches the files, "
-          "every cross-reference resolves, every entry has its Why and its Pinned, every not-doing line states its trigger, "
+          f"{len(set(reg.principles.values()))} principles folding {len(reg.principles)} ids, "
+          f"{len(reg.invariants)} invariants: every cross-reference resolves, every entry has its Why and its Pinned, every not-doing line states its trigger, "
           "every path named exists")
     return 0
 
@@ -429,7 +431,7 @@ def cmd_show(reg, cid):
                 f"{c} ({short(reg.decisions[c]['title'], 60)})" if c in reg.decisions else
                 f"{c} ({short(reg.principles.get(c, '?'), 60)})" for c in d["cites"]))
     elif cid in reg.principles:
-        print(f"CONTEXT.md  {cid}. {reg.principles[cid]}\n")
+        print(f"{ROOT}  {cid}: {reg.principles[cid]}\n")
     else:
         print(f"no entry {cid}; `list` shows the ids", file=sys.stderr)
         return 2
@@ -461,17 +463,17 @@ def cmd_pack(reg, area, path):
             return 2
         areas = [area]
         head = f"# What to read before touching `{area}`"
-    out = [head, "", "Every line below is verbatim from `CONTEXT.md` and `decisions/<area>.md`, which are the authority; "
+    out = [head, "", "Every line below is verbatim from `AGENTS.md` and `decisions/<area>.md`, which are the authority; "
            "this is a view of them, assembled by `tools/bothy.py pack`.", ""]
     if reg.orientation:
-        out += ["## Orientation", "", reg.orientation, ""]
+        out += ["## What Acquisition is", "", reg.orientation, ""]
     if reg.invariants:
         out += ["## Invariants (never break these)", ""] + [t for _, t in reg.invariants] + [""]
     if reg.principles:
-        out += ["## Principles (cited as P<n>)", ""] + [f"- **{k}.** {v}" for k, v in reg.principles.items()] + [""]
+        out += ["## Principles (cited as P<n>)", ""] + ["- " + t for t in dict.fromkeys(reg.principles.values())] + [""]
     cross = [reg.decisions[i]["text"] for i in reg.order if reg.decisions[i]["area"] == "cross-cutting"]
     if cross:
-        out += [reg.cross_heading.replace("###", "##") if reg.cross_heading else "## Cross-cutting rulings", ""] + cross + [""]
+        out += [reg.cross_heading or "## Cross-cutting rulings", ""] + cross + [""]
     for a in areas:
         meta = reg.areas[a]
         title = re.sub(r"^Decisions\s+—\s+", "", meta["title"])

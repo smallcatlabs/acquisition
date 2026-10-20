@@ -12,32 +12,27 @@ ids() { sed 's/@\([0-9]\)/C\1/g'; }
 here=$(cd "$(dirname "$0")" && pwd)
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-fixture() {  # a clean registry: CONTEXT.md, one area, one module doc
+fixture() {  # a clean registry: AGENTS.md, one area, one module doc
   rm -rf "$tmp"/*; mkdir -p "$tmp/decisions" "$tmp/crates/acquisition-store/src" "$tmp/tools"
-  ids >"$tmp/CONTEXT.md" <<'CTX'
-# Test — Agent Context
+  ids >"$tmp/AGENTS.md" <<'CTX'
+# Test — agent entry point
 
-## Orientation (3 sentences)
+## What Acquisition is
 
 A test registry.
 
 ## Invariants
 
-1. **Nothing leaves the tree.**
+1. **Nothing leaves
+   the tree.**
 
-## Decisions — the registry
-
-| File | Area | Decisions |
-| --- | --- | --- |
-| `decisions/store.md` | Store | @2, @3 |
-
-### Cross-cutting
+## Cross-cutting rulings
 
 - **@1 — Every rule has one home.** *Why:* two homes rot (P1). *Pinned:* nothing yet.
 
-## Working style
+## Principles
 
-- **P1.** Structure over discipline.
+- **Structure over discipline.** A rule is a check (P1, P2).
 CTX
   ids >"$tmp/decisions/store.md" <<'STO'
 # Decisions — Store
@@ -82,19 +77,21 @@ PY
     printf 'MISSED  %-10s not refused:\n%s\n' "$kind" "$out"; bad=1
   fi
 }
-expect index     'p=root/"CONTEXT.md"; p.write_text(p.read_text().replace("@2, @3", "@2"))'
-expect index     'p=root/"CONTEXT.md"; p.write_text(p.read_text().replace("@2, @3", "@2, @3, @9"))'
-expect index     'p=root/"CONTEXT.md"; p.write_text(p.read_text().replace("| `decisions/store.md` | Store | @2, @3 |\n", ""))'
 expect duplicate 'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("@3 —", "@2 —"))'
 expect grammar   'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("- **@3 — The store sends nothing.**", "- **@3 The store sends nothing**"))'
 expect cite      'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("(@1)", "(@7)"))'
-expect cite      'p=root/"CONTEXT.md"; p.write_text(p.read_text().replace("(P1)", "(P4)"))'
+expect cite      'p=root/"AGENTS.md"; p.write_text(p.read_text().replace("(P1)", "(P4)"))'
+expect cite      'p=root/"AGENTS.md"; p.write_text(p.read_text().replace("(P1, P2)", "(P2)"))'
+expect principle 'p=root/"AGENTS.md"; p.write_text(p.read_text().replace(" (P1, P2).", "."))'
+expect missing   '(root/"AGENTS.md").unlink()'
 expect cite      'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("not until the owner asks.", "not until the owner asks (@8)."))'
 expect entry     'p=root/"decisions/store.md"; p.write_text(p.read_text().replace(" *Why:* a read observes.", ""))'
 expect entry     'p=root/"decisions/store.md"; p.write_text(p.read_text().replace(" *Pinned:* `tests/read.rs`.", ""))'
 expect entry     'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("*Pinned:* `tests/read.rs`.", "*Details:* the store doc. *Pinned:* `tests/read.rs`."))'
 expect entry     'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("*Why:* a read observes.", "*Why:*"))'
 expect entry     'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("*Pinned:* `tests/read.rs`.", "*Pinned:* ."))'
+expect entry     'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("*Why:* a read observes.", "*Why:*\t"))'
+expect entry     'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("*Pinned:* `tests/read.rs`.", "*Pinned:* \u00a0."))'
 expect entry     'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("*Why:* a read observes.", "*Why:* a read observes. *Why:* and sends nothing."))'
 expect entry     'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("*Pinned:* `tests/read.rs`.", "*Pinned:* `tests/read.rs`. *Pinned:* nothing yet."))'
 expect notdoing  'p=root/"decisions/store.md"; p.write_text(p.read_text().replace("- Pruning: not until the owner asks.", "- Pruning, a verb, some day."))'
