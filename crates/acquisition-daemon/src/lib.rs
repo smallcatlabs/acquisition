@@ -4,11 +4,13 @@
 //! (`rails.rs`), OAuth and sessions (`auth.rs`), the provider (`provider.rs`),
 //! the mock provider (`mockggg.rs`), the daemon's own executable identified
 //! and hashed at startup (`artifact.rs`, C84), and the daemon itself
-//! (`daemon.rs`: queue, dispatcher, Unix-socket server, idle watchdog). The only GGG
+//! (`daemon.rs`: queue, dispatcher, socket or named-pipe server, idle watchdog). The only GGG
 //! sender. It links the protocol crate and the store, never the client
 //! crate, the planner or a frontend — `tools/docs-check.sh` refuses the
 //! edges — and no package but this one names it, so "never in-process
 //! with the daemon" (C13) is a Cargo fact.
+//!
+//! Rulings: `decisions/daemon.md`, `decisions/network.md`; the cross-cutting ones are `CONTEXT.md`'s.
 //!
 //! The daemon serves the real provider by default (C88) — real OAuth
 //! against the existing "acquisition" registration and the real API —

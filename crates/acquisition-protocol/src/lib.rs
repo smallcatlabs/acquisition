@@ -12,6 +12,8 @@
 //! serde and serde_json and nothing else, and `tools/docs-check.sh`
 //! refuses more.
 //!
+//! Rulings: `decisions/daemon.md`; the cross-cutting ones are `CONTEXT.md`'s.
+//!
 //! Extracted from `acquisition-core` (now `acquisition-daemon`) as commit 1
 //! of the daemon split (`DAEMON-SPLIT-SLICE.md`, step ledger; the design
 //! is the packet, note 18 §2.1 at `decda84e`). Since step 4 the

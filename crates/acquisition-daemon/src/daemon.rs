@@ -1,6 +1,8 @@
-//! The daemon: single job queue, single worker, JSON-lines Unix socket
-//! server. It owns the shared state and clients reach it over local IPC
-//! (C2); every API request is a job, never a call (C4).
+//! The daemon: one job queue, a dispatcher running at most one task per
+//! scheduling key, and a JSON-lines server on a Unix socket or, on
+//! Windows, a named pipe (C112). It owns the shared state and clients
+//! reach it over local IPC (C2); every API request is a job, never a call
+//! (C4).
 //!
 //! Lifecycle follows the gpg-agent model: clients spawn it on demand, it exits
 //! on its own after a stretch with no connections and no live jobs.

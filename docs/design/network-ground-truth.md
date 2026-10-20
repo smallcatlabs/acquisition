@@ -2,7 +2,7 @@
 
 **Status: living research document, begun July 17, 2026.** This is the
 output of the network ground-truth research phase that paused the F56–F59
-fix work (see `docs/cleanup/findings.md` and the pause note in F56). Its
+fix work in `acquisition-qt`. Its
 job is to capture everything we know, believe, or need to learn about how
 Path of Exile's API actually limits requests — so that queueing/scheduling
 designs can be derived from cited claims instead of code archaeology and
@@ -27,7 +27,7 @@ Source tags:
 | DOC | Official developer docs (`https://www.pathofexile.com/developer/docs/index`), read July 17, 2026 |
 | GGG-EMAIL | Private correspondence between Tom and GGG support. Primary source; verbatim where quoted. Not public, not documented anywhere else |
 | INCIDENT | A specific real-world event, reconstructed from memory |
-| OBS | Instrumented observation from real sessions (none yet — see Instrumentation) |
+| OBS | Instrumented observation from real sessions (see Instrumentation) |
 | CODE | Inference from what the current client does and has survived doing |
 | TOM | Tom's recollection, not yet backed by a retrievable artifact |
 | HYP | Hypothesis — plausible, load-bearing, unverified |

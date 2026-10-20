@@ -4,6 +4,8 @@
 //! into a [`RefreshPlan`]: a serializable, immutable authorization
 //! envelope, computable with the daemon down.
 //!
+//! Rulings: `decisions/plans.md`, `decisions/pricing.md`; the cross-cutting ones are `CONTEXT.md`'s.
+//!
 //! Boundaries this crate holds (each a registry decision, cited by id):
 //! - C39: it is linked by **frontends only**, never the daemon — the
 //!   daemon crate never links this one (`tools/docs-check.sh` refuses the

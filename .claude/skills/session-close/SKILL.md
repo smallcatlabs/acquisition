@@ -62,7 +62,8 @@ code behind one, name it in a test or a doc comment so the report shrinks.
 `tools/bothy.py check` refuses an index row that does not list its
 file's ids and a park without a trigger: a ruling added to an area file
 is added to `CONTEXT.md`'s index in the same commit.
-A help string is a doc comment the user reads: cite the id there too.
+A help string is never that doc comment: it is text the user reads, so it
+cites no id (C116); the rule's words stand in its place.
 
 ## 3. When a slice closes
 

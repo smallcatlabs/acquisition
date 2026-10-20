@@ -41,8 +41,8 @@ Then, only when the work touches it:
   subdirectory, with the slice's rules in force.
 - Before touching an area, read its decisions and parks,
   `decisions/<area>.md`; the areas and their ids are the index in
-  `CONTEXT.md`, "Decisions — the registry", and each module doc names
-  its decision file and ids at the top.
+  `CONTEXT.md`, "Decisions — the registry", and each crate's entry doc
+  names its decision file at the top.
   `python3 -I tools/bothy.py pack --path <file>` prints them, with the
   invariants and the cross-cutting rulings, as one document.
 

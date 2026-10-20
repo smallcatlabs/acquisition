@@ -1,5 +1,7 @@
 //! `acq-mcp` — MCP server frontend (tracer bullet).
 //!
+//! Rulings: `decisions/frontends.md`; the cross-cutting ones are `CONTEXT.md`'s.
+//!
 //! A fourth thin client: it consumes exactly the two frontend surfaces —
 //! the daemon protocol (via `acquisition_client`) and the shared
 //! store's read API — and renders them as MCP tools over stdio.

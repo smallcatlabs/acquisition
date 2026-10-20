@@ -1,5 +1,9 @@
 # 36 — The road to the agent release (after the search slice)
 
+Read with this (2026-10-19): it is cited by `CONTEXT.md`, not
+`README.md`; the release shipped as `1.0.0-alpha.1`, not `beta.1`; the
+work after it is `roadmap/README.md`.
+
 Provenance: Fable (`claude-fable-5-1`), the session after the search
 slice closed, 2026-10-11, with the owner. Read: `AGENTS.md`,
 `README.md`, `CONTEXT.md`, every "Parked" section under `decisions/`,

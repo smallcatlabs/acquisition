@@ -4,6 +4,8 @@
 //! process (C28). `index` is the non-secret list of accounts that names
 //! those files.
 //!
+//! Rulings: `decisions/store.md`, `decisions/daemon.md`; the cross-cutting ones are `CONTEXT.md`'s.
+//!
 //! The daemon's whole contract is [`Store::record`]: endpoint, params, status,
 //! body. It never looks inside a body. Inside this crate, a body is kept
 //! verbatim except at the item seams — every array of items (a tab's

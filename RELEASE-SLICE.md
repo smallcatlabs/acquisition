@@ -45,7 +45,7 @@ the records' shapes of fault bound every step.
   create-only without a revision and stricter than the CLI's.
 - **The README**, the user's, at `README.md` in the ruling's order;
   `readme_tour.rs` runs every `sh` block in a mock world, `no_ids.rs`
-  sweeps it; `tools/docs-check.sh` holds its budget and its knob table
+  sweeps it; `tools/docs-check.sh` holds its form (the tour and the knob table)
   (shipped knobs alone).
 - **The policies**: `SECURITY.md`, `CONTRIBUTING.md`, V7's positions
   in the owner's voice; private vulnerability reporting enabled.
