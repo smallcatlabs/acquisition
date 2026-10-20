@@ -9,16 +9,20 @@ before the root swap is under `spikes/rust-playground/` (tag
 
 ## Read before changing anything
 
-Always, in this order:
-
-1. `README.md` — what exists, how to run it, knobs, known gaps.
-2. `CONTEXT.md` — invariants, cross-cutting decisions and parks, area
-   decision index, working style.
-   Owner (Tom) holds the boundaries (invariants, protocol, core API
-   surface); agents own internals.
+Always: `CONTEXT.md` — what Acquisition is, invariants, cross-cutting
+decisions and parks, area decision index, working style. Owner (Tom)
+holds the boundaries (invariants, protocol, core API surface); agents
+own internals.
 
 Then, only when the work touches it:
 
+- Before changing anything a user meets — a verb, a tool, a knob, an
+  install step, a known gap's workaround: `README.md`, the users' own
+  document, unbudgeted since 2026-10-19 and never agent reading. The
+  gate holds it true, not short: `readme_tour.rs` resolves every `acq`
+  line in its `sh` blocks under clap and checks its archive names
+  against the release workflow; the docs check holds the tour's form
+  and the knob table's completeness.
 - Before running `acq` or driving `acq-mcp`: `CLI-REFERENCE.md` and
   `MCP-REFERENCE.md` (generated semantics, checked against the binaries),
   or `acq <verb> --help`. README's tour shows only the shape.

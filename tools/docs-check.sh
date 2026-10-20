@@ -91,7 +91,9 @@ budget() {
 }
 budget AGENTS.md        9000  # raised 2026-10-18 with the crate table, moved here from the README at the release ruling
 budget CONTEXT.md      20000
-budget README.md       15000
+# README.md is unbudgeted since 2026-10-19: it is the users' document
+# and no agent loads it whole (AGENTS.md's reading list); the gate
+# holds its form (4 below) and its truth (readme_tour.rs), not its size.
 budget LIVE-TESTING.md 15000
 budget SEARCH-SLICE.md 24000  # the closed record, read whole before a search change: the plan's rules, the shapes of fault and a verdict per measurement. Its rows are search/LEDGER.md and its tables search/MEASUREMENTS.md, neither budgeted: a line per step and per hole, a block per measurement, each looked up and never loaded whole
 budget decisions/search.md 28000
