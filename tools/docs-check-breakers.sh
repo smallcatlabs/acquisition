@@ -18,6 +18,9 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
+# The review case writes, and every restore removes, this one file: a
+# file already there is someone's, so the suite refuses to start.
+if [[ -e roadmap/reviews/zz-breaker.md ]]; then echo "refusing to start: roadmap/reviews/zz-breaker.md exists, and the suite would delete it"; exit 2; fi
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/acq-docs-breakers.XXXXXX")
 files=(decisions/plans.md REVIEW-CHECKLIST.md .claude/skills/seat/SKILL.md roadmap/README.md search/README.md)
 for f in "${files[@]}"; do mkdir -p "$scratch/keep/$(dirname "$f")"; cp "$f" "$scratch/keep/$f"; done
