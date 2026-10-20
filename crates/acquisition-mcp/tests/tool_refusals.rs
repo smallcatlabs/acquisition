@@ -10,7 +10,9 @@
 
 mod harness;
 
+use std::io::Write;
 use std::path::PathBuf;
+use std::process::Stdio;
 use std::time::{Duration, Instant};
 
 use acquisition_plan::{PolicyWrite, put_sync_policy};
@@ -184,4 +186,57 @@ fn a_request_the_server_cannot_read_gets_a_reply_and_the_next_call_one_too() {
     assert_eq!(reply["error"]["code"], json!(-32700), "{reply}");
     let next = mcp.result("sync_policy", json!({}));
     assert!(next["structuredContent"]["policy"].is_object(), "{next}");
+}
+
+/// A line `serde_json` refuses never reaches `rmcp`, which would drop it:
+/// a deep line cut short is a parse error with a null id, even with its
+/// id and method read first, and a line behind a UTF-8 byte order mark
+/// is read as `rmcp` reads it (the 0c review's inputs).
+#[test]
+fn a_deep_line_cut_short_and_a_line_behind_a_byte_order_mark_each_get_their_reply() {
+    let base = std::env::temp_dir().join(format!("acq-mcp-cut-short-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    std::fs::create_dir_all(&base).unwrap();
+    let _scratch = Scratch(base.clone());
+    seed(&base);
+    let mut mcp = Mcp::start(&base, &[]);
+    for line in [
+        format!(r#"{{"params":{}"#, "[".repeat(128)),
+        format!(
+            r#"{{"jsonrpc":"2.0","id":"cut","method":"tools/call","params":{}"#,
+            "[".repeat(128)
+        ),
+    ] {
+        let reply = mcp.raw(&line, &Value::Null);
+        assert_eq!(reply["error"]["code"], json!(-32700), "{reply}");
+    }
+    let id = json!("bom");
+    let line = json!({ "jsonrpc": "2.0", "id": id, "method": "tools/call",
+        "params": { "name": "sync_policy", "arguments": {} } });
+    let reply = mcp.raw(&format!("\u{feff}{line}"), &id);
+    assert!(
+        reply["result"]["structuredContent"]["policy"].is_object(),
+        "{reply}"
+    );
+}
+
+/// The server's writer is awaited however the service ends: a line
+/// answered before initialisation, then stdin closed, still puts its
+/// parse error on stdout.
+#[test]
+fn a_reply_queued_before_initialisation_reaches_stdout_when_stdin_closes() {
+    let base = std::env::temp_dir().join(format!("acq-mcp-early-eof-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    std::fs::create_dir_all(&base).unwrap();
+    let _scratch = Scratch(base.clone());
+    let mut child = harness::spawn(&base, &[], &[], Stdio::piped);
+    let mut stdin = child.stdin.take().unwrap();
+    stdin.write_all(b"not JSON\n").unwrap();
+    drop(stdin);
+    let out = child.wait_with_output().unwrap();
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let reply: Value = serde_json::from_str(stdout.lines().next().unwrap_or_default())
+        .unwrap_or_else(|e| panic!("no reply on stdout ({e}): {stdout:?}"));
+    assert_eq!(reply["id"], Value::Null, "{reply}");
+    assert_eq!(reply["error"]["code"], json!(-32700), "{reply}");
 }

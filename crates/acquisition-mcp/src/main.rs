@@ -1754,8 +1754,14 @@ async fn main() -> Result<()> {
         std::process::exit(2);
     }
     let (stdio, writer) = transport::stdio();
-    let service = AcqMcp.serve(stdio).await?;
-    service.waiting().await?;
+    // The writer is awaited however the service ends, so a reply queued
+    // before it failed (a line answered before initialisation, then
+    // stdin closed) still reaches stdout.
+    let served: Result<()> = async {
+        AcqMcp.serve(stdio).await?.waiting().await?;
+        Ok(())
+    }
+    .await;
     let _ = writer.await;
-    Ok(())
+    served
 }
