@@ -703,8 +703,9 @@ impl SyncPolicy {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PolicyWrite {
     /// The realms the value names, each whole; a realm it names with no
-    /// leagues is removed, and a realm it does not name stays. The first
-    /// write, with nothing stored, is stored as written.
+    /// leagues is removed, stored or not, and a realm it does not name
+    /// stays. The first write, with nothing stored, is stored as written
+    /// unless it names an empty realm.
     Merge,
     /// The whole policy: what the value does not name is gone.
     Replace,
@@ -772,14 +773,20 @@ pub fn put_sync_policy(
     let value = match write {
         PolicyWrite::Replace => value,
         PolicyWrite::Merge => {
-            let written = SyncPolicy::from_value(value).map_err(PutPolicyError::Invalid)?;
+            let mut written = SyncPolicy::from_value(value).map_err(PutPolicyError::Invalid)?;
             let stored = annotations
                 .get(SYNC_POLICY_SCOPE, SYNC_POLICY_KEY, SYNC_POLICY_KIND)
                 .map_err(PutPolicyError::Store)?;
-            match stored {
+            let policy = match stored {
                 // Nothing to merge into: the put creates, or refuses a
-                // revision that names nothing, as it always has.
-                None => value,
+                // revision that names nothing, as it always has. A realm
+                // named with no leagues goes here as it does from a merge;
+                // a policy naming none is stored as written.
+                None => {
+                    let named = written.realms.len();
+                    written.realms.retain(|_, entry| !entry.leagues.is_empty());
+                    (written.realms.len() != named).then_some(written)
+                }
                 Some(row) if Some(row.revision) != expected_revision => {
                     return Err(PutPolicyError::Store(AnnotationError::Conflict {
                         current: Some(Box::new(row)),
@@ -795,6 +802,12 @@ pub fn put_sync_policy(
                             policy.realms.insert(realm, entry);
                         }
                     }
+                    Some(policy)
+                }
+            };
+            match policy {
+                None => value,
+                Some(policy) => {
                     merged = serde_json::to_value(&policy).map_err(|e| {
                         PutPolicyError::Invalid(PlanError::MalformedPolicy {
                             detail: e.to_string(),
@@ -3295,6 +3308,22 @@ mod tests {
             put_sync_policy(&mut a, &poe2, Some(4), PolicyWrite::Replace, &via_test()).unwrap();
         assert_eq!(row.revision, 5);
         assert_eq!(row.value, poe2);
+    }
+
+    /// C36, amended 2026-10-19 — a realm named with no leagues goes from a
+    /// merge whether or not a policy is stored: the first write drops it
+    /// as a later one does.
+    #[test]
+    fn a_first_merge_drops_a_realm_named_with_no_leagues() {
+        let mut a = Annotations::open_memory_for("u-1").unwrap();
+        let pc = json!({ "version": 3, "realms": { "pc": { "leagues": { "Standard":
+            { "tabs": "all", "max_age_seconds": 3600 } } } } });
+        let mut with_empty = pc.clone();
+        with_empty["realms"]["poe2"] = json!({ "leagues": {} });
+        let first =
+            put_sync_policy(&mut a, &with_empty, None, PolicyWrite::Merge, &via_test()).unwrap();
+        assert_eq!(first.revision, 1);
+        assert_eq!(first.value, pc);
     }
 
     /// A stored policy this build cannot read is never merged into: the
