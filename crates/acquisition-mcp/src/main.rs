@@ -115,6 +115,8 @@
 //!
 //! **Agent traffic against GGG is allowed; the daemon is the single gate.** Owner ruling 2026-09-01 on outside information: GGG permits agent use of the API as long as the API rules are respected. A CLI is already agent-drivable, and so increasingly is a desktop app, so the distinction between human, script and agent clients was never enforceable — what is enforceable is one gate that every client's traffic passes through, and that is the daemon (invariant 1). Consequences: the agent-traffic deferral is lifted; `acq-mcp` submits, applies and quotes in either mode against a running daemon; `quote` over MCP in real mode is simply allowed (it sends nothing). What stays: the MCP never spawns or replaces a daemon in real mode (login and the keychain are human), the live-test rails stay what `LIVE-TESTING.md` says, and every client — human or agent — is paced, journaled and halted by the same code. Decided 2026-09-01.
 
+mod transport;
+
 use std::path::PathBuf;
 
 use acquisition_client::client::{
@@ -1709,7 +1711,8 @@ impl ServerHandler for AcqMcp {
              Their arguments and answers are JSON; a count a next step hangs on — what is \
              undecided, what a key could not place — holds the request that returns its \
              members, sent back as printed, view.routes asks every count's, and a refusal is a result marked isError with readings and offers to go on \
-             from. Begin with search with no arguments, for what the store holds, or with \
+             from. A call nested deeper than {} JSON levels is not read: it is refused \
+             as arguments. Begin with search with no arguments, for what the store holds, or with \
              scope.realm named where the store holds several realms (a PoE2 character beside \
              the PoE1 stashes), since a search over several realms is refused and its offers \
              are the request in each realm: send one back. Then describe with names \
@@ -1736,7 +1739,8 @@ impl ServerHandler for AcqMcp {
              limiter working. Login is done by the human via the `acq` CLI; this server \
              never spawns or replaces a daemon in real-GGG mode — there it submits, applies \
              and quotes only through one a human already started.",
-            provider()
+            provider(),
+            transport::MAX_DEPTH,
         ));
         info
     }
@@ -1749,7 +1753,9 @@ async fn main() -> Result<()> {
         eprintln!("acq-mcp: {e}");
         std::process::exit(2);
     }
-    let service = AcqMcp.serve(rmcp::transport::stdio()).await?;
+    let (stdio, writer) = transport::stdio();
+    let service = AcqMcp.serve(stdio).await?;
     service.waiting().await?;
+    let _ = writer.await;
     Ok(())
 }

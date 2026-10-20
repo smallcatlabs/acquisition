@@ -137,3 +137,51 @@ fn a_tool_refusal_is_a_result_marked_is_error_with_its_kind() {
     assert_eq!(error["data"]["kind"], "unknown_job", "{error}");
     assert_eq!(error["message"], "no job 999", "{error}");
 }
+
+/// A request the server cannot read gets its own reply, and the server
+/// answers the next call: a query tree of 123 nots or 62 groups, or any
+/// message past 127 JSON levels, was dropped before any tool saw it,
+/// the caller waiting on it (the frontends park, now built). A tool call
+/// nested past the limit is a refusal like any other, `arguments`, its
+/// words naming the limit; a line that is not JSON is a parse error with
+/// a null id.
+#[test]
+fn a_request_the_server_cannot_read_gets_a_reply_and_the_next_call_one_too() {
+    let base = std::env::temp_dir().join(format!("acq-mcp-unreadable-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    std::fs::create_dir_all(&base).unwrap();
+    let _scratch = Scratch(base.clone());
+    seed(&base);
+    let mut mcp = Mcp::start(&base, &[]);
+    let term = json!({ "field": "rarity", "op": "=", "value": "rare" });
+    let nots = (0..123).fold(term.clone(), |inner, _| json!({ "not": inner }));
+    let groups = (0..62).fold(term, |inner, _| json!({ "all": [inner] }));
+    let deep = (0..128).fold(json!(1), |inner, _| json!([inner]));
+    for (n, arguments) in [
+        json!({ "query": { "tree": nots } }),
+        json!({ "query": { "tree": groups } }),
+        json!({ "query": { "text": "rarity=rare" }, "deep": deep }),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let id = json!(format!("deep-{n}"));
+        let line = json!({ "jsonrpc": "2.0", "id": id, "method": "tools/call",
+            "params": { "name": "search", "arguments": arguments } });
+        let reply = mcp.raw(&line.to_string(), &id);
+        let doc = &reply["result"]["structuredContent"];
+        assert_eq!(reply["result"]["isError"], json!(true), "{reply}");
+        assert_eq!(doc["kind"], json!("arguments"), "{reply}");
+        assert!(
+            doc["error"].as_str().unwrap().contains("127 levels"),
+            "{reply}"
+        );
+        // the next call is answered, its own
+        let next = mcp.result("sync_policy", json!({}));
+        assert!(next["structuredContent"]["policy"].is_object(), "{next}");
+    }
+    let reply = mcp.raw(r#"{"jsonrpc":"2.0","id":99,"method":"#, &Value::Null);
+    assert_eq!(reply["error"]["code"], json!(-32700), "{reply}");
+    let next = mcp.result("sync_policy", json!({}));
+    assert!(next["structuredContent"]["policy"].is_object(), "{next}");
+}

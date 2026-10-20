@@ -294,6 +294,28 @@ impl Mcp {
         self.stdin.flush().unwrap();
     }
 
+    /// Send one line as written and wait for the message answering `id`
+    /// (`Value::Null` for a reply to a line whose id could not be read).
+    pub fn raw(&mut self, line: &str, id: &Value) -> Value {
+        self.stdin
+            .write_all(format!("{line}\n").as_bytes())
+            .unwrap();
+        self.stdin.flush().unwrap();
+        let deadline = Instant::now() + ANSWER_WITHIN;
+        loop {
+            let left = deadline.saturating_duration_since(Instant::now());
+            let line = self
+                .lines
+                .recv_timeout(left)
+                .unwrap_or_else(|e| panic!("no answer to id {id} within {ANSWER_WITHIN:?} ({e})"));
+            let msg: Value = serde_json::from_str(&line)
+                .unwrap_or_else(|e| panic!("not JSON-RPC ({e}): {line}"));
+            if &msg["id"] == id {
+                return msg;
+            }
+        }
+    }
+
     fn rpc(&mut self, method: &str, params: Value) -> Value {
         self.next_id += 1;
         let id = self.next_id;
