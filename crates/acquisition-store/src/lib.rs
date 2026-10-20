@@ -331,10 +331,25 @@ const SCHEMA: &str = include_str!("schema.sql");
 /// (2026-10-10; B4, `search/LEDGER.md`) dropped the `items_names` index,
 /// which no query used once the substring search retired and none had
 /// used before (S124, S136), and added `items_removed`, a partial index
-/// on `removed_at`, for the search read's list of what it left out. 0 is both
+/// on `removed_at`, for the search read's list of what it left out;
+/// version 9 (2026-10-20, roadmap 0a) added `items_live` and
+/// `items_live_at`, partial indexes on where the live items sit, so a
+/// store's removed rows stop costing its live reads. 0 is both
 /// "fresh file" and "pre-versioning file" — the DDL and column checks are
 /// idempotent, so one migration path serves both.
-const FACT_SCHEMA_VERSION: i64 = 8;
+const FACT_SCHEMA_VERSION: i64 = 9;
+
+/// The live items by where they sit (facts v9): every read of the live
+/// names `removed_at IS NULL`, and a store's removed items grow with its
+/// age, so both indexes hold the live alone. `items_live` is a league's
+/// (the pricing snapshot's read); `items_live_at` is the search read's
+/// order, so it walks the live in order and never a removed row
+/// (0a, on 90,890 removed: that read 124 ms over `items_location`, 40
+/// with it; without `items_live` an empty league's read 2 ms became 9).
+const LIVE_INDEX: &str = "CREATE INDEX IF NOT EXISTS items_live
+    ON items (realm, league, location_kind, location_id) WHERE removed_at IS NULL;
+CREATE INDEX IF NOT EXISTS items_live_at
+    ON items (location_kind, location_id, realm, id) WHERE removed_at IS NULL;";
 
 /// A facts file written by a newer build than this one. Facts are
 /// refetchable, but guessing at an unknown schema is how a file gets
@@ -946,6 +961,9 @@ impl Store {
                 // v8: the index the retired substring search was given and
                 // never used goes; `items_removed` came with the DDL above.
                 tx.execute("DROP INDEX IF EXISTS items_names", [])?;
+                // v9: after every column it names exists, which a pre-v3
+                // file's items gain only above.
+                tx.execute_batch(LIVE_INDEX)?;
                 tx.pragma_update(None, "user_version", FACT_SCHEMA_VERSION)?;
             }
         }
@@ -3090,7 +3108,13 @@ mod tests {
         let fresh = indexes(&s);
         assert_eq!(
             fresh,
-            ["items_location", "items_removed", "items_socketed_in"]
+            [
+                "items_live",
+                "items_live_at",
+                "items_location",
+                "items_removed",
+                "items_socketed_in"
+            ]
         );
         let both = stash("a", vec![item("i1", "Foo", 0), item("i2", "Bar", 2)]);
         s.record(&stash_ep("a"), &json!({}), 200, &both, 100)
@@ -3116,7 +3140,68 @@ mod tests {
             let s = Store::open(&path).unwrap();
             assert_eq!(indexes(&s), fresh);
             assert_eq!(rows(&s), before);
-            assert_eq!(s.revision().unwrap().facts_version, 8);
+            assert_eq!(s.revision().unwrap().facts_version, FACT_SCHEMA_VERSION);
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Facts v9 (0a): a v8 file gains `items_live` and `items_live_at`,
+    /// the live items' partial indexes, and no row moves; a second open
+    /// changes nothing.
+    #[test]
+    fn v8_to_v9_adds_the_live_indexes_and_moves_no_row() {
+        let dir =
+            std::env::temp_dir().join(format!("acq-store-v9-{}-{}", std::process::id(), now()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("facts.db");
+        let live_index = |s: &Store| -> Vec<String> {
+            let mut stmt = s
+                .conn
+                .prepare("SELECT sql FROM sqlite_master WHERE type = 'index' AND name LIKE 'items_live%' ORDER BY name")
+                .unwrap();
+            stmt.query_map([], |r| r.get(0))
+                .unwrap()
+                .collect::<Result<_, _>>()
+                .unwrap()
+        };
+        let rows = |s: &Store| -> Vec<(String, Option<i64>)> {
+            let mut stmt = s
+                .conn
+                .prepare("SELECT id, removed_at FROM items ORDER BY id")
+                .unwrap();
+            stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+                .unwrap()
+                .collect::<Result<_, _>>()
+                .unwrap()
+        };
+        let mut s = Store::open(&path).unwrap();
+        let fresh = live_index(&s);
+        assert_eq!(fresh.len(), 2, "{fresh:?}");
+        assert!(
+            fresh
+                .iter()
+                .all(|sql| sql.contains("WHERE removed_at IS NULL")),
+            "{fresh:?}"
+        );
+        let both = stash("a", vec![item("i1", "Foo", 0), item("i2", "Bar", 2)]);
+        s.record(&stash_ep("a"), &json!({}), 200, &both, 100)
+            .unwrap();
+        let one = stash("a", vec![item("i1", "Foo", 0)]);
+        s.record(&stash_ep("a"), &json!({}), 200, &one, 200)
+            .unwrap();
+        let before = rows(&s);
+        // the file as a v8 build left it
+        s.conn
+            .execute_batch(
+                "DROP INDEX items_live; DROP INDEX items_live_at; PRAGMA user_version = 8;",
+            )
+            .unwrap();
+        drop(s);
+        for _ in 0..2 {
+            let s = Store::open(&path).unwrap();
+            assert_eq!(live_index(&s), fresh);
+            assert_eq!(rows(&s), before);
+            assert_eq!(s.revision().unwrap().facts_version, 9);
         }
         let _ = std::fs::remove_dir_all(&dir);
     }

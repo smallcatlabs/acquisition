@@ -1001,7 +1001,7 @@ mod tests {
         let path = tmp();
         let mut s = Store::open(&path).unwrap();
         let empty = s.revision().unwrap();
-        assert_eq!((empty.response, empty.facts_version), (0, 8));
+        assert_eq!((empty.response, empty.facts_version), (0, 9));
         let mut last = empty.response;
         fn moved(s: &Store, last: &mut i64, what: &str) {
             let now = s.revision().unwrap().response;

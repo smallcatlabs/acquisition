@@ -118,6 +118,9 @@ CREATE INDEX IF NOT EXISTS items_socketed_in ON items (socketed_in);
 -- What the search read's live pass names as gone (facts v8): the removed
 -- are few beside the live, and the index holds them alone.
 CREATE INDEX IF NOT EXISTS items_removed ON items (removed_at) WHERE removed_at IS NOT NULL;
+-- `items_live` and `items_live_at`, the live items by where they sit
+-- (facts v9), are made by the migration after the columns they name
+-- exist (`LIVE_INDEX`).
 
 -- What each ingest concluded, so "what changed since last time" is a query.
 CREATE TABLE IF NOT EXISTS item_events (
