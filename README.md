@@ -260,8 +260,10 @@ for test runs against GGG; `acq daemon status` prints their state.
   sends the same empty arrays for a stripped character and for one that
   carries nothing; `acq store characters` counts them in its footer
   alone ("with empty bodies").
-- Everything else not built yet is parked, with what would reopen it:
-  `CONTEXT.md` and each `decisions/<area>.md`, "Parked".
+- Everything else not built yet is a GitHub issue, labelled with its
+  area (`area:*`) and what would fire it (`trigger:*`); what the project
+  declines until a trigger is a "Not doing" line at the foot of the
+  area's `decisions/<area>.md`.
 
 ## What it does not do
 
