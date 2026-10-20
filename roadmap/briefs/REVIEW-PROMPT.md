@@ -29,7 +29,10 @@ came back until it was named:
 
 Then whether the brief's "done when" lines are actually met by what
 landed; a line that needs execution to check is reported as "not
-verified", never guessed.
+verified", never guessed. The worker's report is not supplied to
+you, by design: the commit is the evidence and the report its
+author's account, and the session that reads both holds them
+against each other. Judge the done-when against the commit alone.
 
 Report in this form, nothing else:
 - One line: the commit, and whether the brief's done-when holds.

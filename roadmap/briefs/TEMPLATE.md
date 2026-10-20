@@ -20,7 +20,10 @@ Numbered, concrete, in order. A ruling the step needs and does not have
 is the first item, brought to the owner before the code.
 
 ## Done when
-Checkable sentences. The gate green is always one of them.
+Checkable sentences, each from the commit alone: its tree or its
+message. The report may restate a fact and never holds one alone,
+because the reviewer reads the commit and not the report. The gate
+green is always one of them.
 
 ## Not in scope
 What a worker will be tempted to do and must not, with where it lives
