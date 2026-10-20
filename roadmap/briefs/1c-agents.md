@@ -58,7 +58,9 @@ draft itself at 12,693 bytes passes.
 
 ## Done when
 - `AGENTS.md` under 14,000 bytes; `CONTEXT.md` absent; `grep -rl
-  'CONTEXT\.md' crates tools .claude *.md docs search` prints nothing.
+  'CONTEXT\.md' crates tools .claude SURFACES.md README.md
+  CONTRIBUTING.md docs search` prints nothing (the records still cite
+  it and are 1d's).
 - `python3 -I tools/bothy.py pack --area store` prints the orientation,
   invariants, principles and cross-cutting rulings from `AGENTS.md`.
 - The gate green.

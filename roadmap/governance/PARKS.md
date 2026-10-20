@@ -39,7 +39,7 @@ requires each line to state its trigger ("not until"). Twenty lines.
 ### search (4)
 - A persisted projection or a totals batch: not until the empty-query load passes 500 ms release (`search/M3-LEDGER.md`); a fired trigger opens an experiment, never persistence by default. *(SR-2, SR-3, ST-2)*
 - Whole-corpus export of the derived lines: not until a recorded question the language and the JSON answer cannot serve. *(SR-4)*
-- A realm word inside a term: declined under C96; two searches are the workaround. *(SR-5)*
+- A realm word inside a term: refused under C96; two searches are the workaround. *(SR-5)*
 - Mod attribution (affix type, tier): not until a recorded question needs an affix count or a tier; C102 names it out of reach. *(SR-10)*
 
 ### trade (3)

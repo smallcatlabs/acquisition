@@ -65,6 +65,7 @@ the not-doing lines' triggers, paths, module docs).
    | `CONTEXT.md` | the commit before step 1c's | `AGENTS.md` |
    | the eight records: `NETWORK-CLEANUP.md`, `REFRESH-SLICE.md`, `PRICING-SLICE.md`, `DAEMON-SPLIT-SLICE.md`, `SEARCH-SLICE.md`, `TRADE-SLICE.md`, `PLATFORMS-SLICE.md`, `RELEASE-SLICE.md` | the commit before step 1d's; each record's row in `HISTORY.md` names the commit | `REVIEW-CHECKLIST.md`, `HISTORY.md` |
    | `LIVE-TESTING.md` | the same | the live-run skill; the ladder's `HISTORY.md` row |
+   | `SEARCH-SLICE.md`'s "The plan's rules" (rules 1 to 10, cited by number from 19 code files) | moved, not deleted | the search crate's `lib.rs` doc, verbatim; rule 4's owner clause (a change to what a user types comes to the owner first) as a sentence of C101 |
    | all fifteen `brainstorming-notes/` | the same, cited as "note NN at `<commit>`" | nothing: every ruling they held is in the registry; note 36's launch-day step is the roadmap's phase 5 row; note 37 (the stat value) and note 10's mechanism paragraph are cited from issues 46 and 48 |
    | every "Parked" section | the commit before step 1b's | "Not doing" lines and issues |
    | `tools/docs-check-breakers.sh` | renamed `tools/arch-check-breakers.sh` | — |
@@ -159,6 +160,10 @@ doing, issues · 1c `AGENTS.md` absorbs `CONTEXT.md` · 1d the records
 to one checklist and a history, the notes and `LIVE-TESTING.md` out ·
 1e the checks split and the skills trimmed".
 
+## The fix round (2026-10-20, the owner: "yes to all")
+
+Codex's seven findings (`roadmap/reviews/1-7470a3b8.md` at `cd51f43b`) and the blind read's four gaps (`1-trial-7470a3b8.md` at the same commit) are applied in the drafts and briefs: C1 pinned to the docs check until 1e; the skills' own files in the stale-identifier haystack; the limiter's truncated-body test cited; 1c's grep scoped to its files; the realm-word line "refused"; the entry rule applied to the draft's own entries; the `tool_refusals.rs` sentence corrected; the five trigger values named in `AGENTS.md`; the route property's files named; the search plan's rules given a home; each brief's gate held to its own tree.
+
 ## Raised for review
 
 - The brief named the entry sample's result as "most entries would drop
@@ -167,9 +172,10 @@ to one checklist and a history, the notes and `LIVE-TESTING.md` out ·
   near 700 because their mechanism is their ruling; the limit does not
   bite them, and the number was the report's, not the tree's.
 - The release record names `tool_refusals.rs` as the helper that sorts
-  every MCP refusal; no such file exists (the helper is `refusal()` in
-  the MCP's `main.rs`; 0b's review filed the one-helper rule to 2g).
-  The checklist names what exists. The same record's `one_stat` lives
+  every MCP refusal; that file is the MCP test that pins the refusal
+  shape, and the sorting function is `refusal()` in the MCP's
+  `main.rs` (0b's review filed the one-helper rule to 2g). The
+  checklist names both. The same record's `one_stat` lives
   in `tools/trade-forms-table.py`, not the crate; the frontends park on
   the MCP's no-daemon answers names a `get_result` and an `auth_status`
   tool, and the MCP has `job_result` and no auth tool at all.

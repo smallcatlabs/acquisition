@@ -39,6 +39,10 @@ scan, which this step does).
    commit, and correct any the drafts got wrong, saying so in the
    report.
 2. Write `TESTING-NOTES.md` and the live-run skill from the drafts.
+   Move `SEARCH-SLICE.md`'s "The plan's rules" (1 to 10) verbatim into
+   the search crate's `lib.rs` doc under a heading of that name, since
+   19 code files cite them by number; a citation of the record for a
+   rule then points at the doc.
 3. `git rm` the eight records, `LIVE-TESTING.md` and
    `brainstorming-notes/`; the message cites the commit before this one
    as holding every one of them whole.
@@ -58,7 +62,9 @@ scan, which this step does).
 6. `tools/docs-check.sh`: the scan lists drop the records,
    `LIVE-TESTING.md` and `CONTEXT.md` and add `REVIEW-CHECKLIST.md`,
    `HISTORY.md` and `roadmap`; the stale-identifier docs add
-   `REVIEW-CHECKLIST.md` and `.claude/skills/*/SKILL.md`; section 6
+   `REVIEW-CHECKLIST.md` and `.claude/skills/*/SKILL.md`, and the
+   haystack adds the skills' own files and `ls -R .claude` (the seat
+   skill's `seat.py` and `seat-mcp.py` live only there); section 6
    (the notes) is deleted with its comment.
 7. The gate; one commit per concern (the new files; the deletions and
    redirects; the help text); the review.
@@ -66,7 +72,7 @@ scan, which this step does).
 ## Done when
 - `ls *.md` shows no record, no `LIVE-TESTING.md`; `brainstorming-notes/`
   absent.
-- `grep -rln 'SLICE\.md\|NETWORK-CLEANUP\.md\|LIVE-TESTING\.md\|brainstorming-notes/' crates tools .claude .github *.md *.toml docs search`
+- `grep -rln 'SLICE\.md\|NETWORK-CLEANUP\.md\|LIVE-TESTING\.md\|CONTEXT\.md\|brainstorming-notes/' crates tools .claude .github *.md *.toml docs search`
   prints only lines in the history form (`at \`<hash>\``).
 - `CLI-REFERENCE.md` regenerated and committed.
 - The gate green.

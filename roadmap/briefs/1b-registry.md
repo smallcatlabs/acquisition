@@ -41,7 +41,9 @@ a date, a seven-hex commit, "owner:", "verbatim", "Amended", "Decided",
    name; a *Pinned* that names a test prefix (`c35_`) is checked by
    grep. The ten samples are taken verbatim. A ruling whose build waits
    (C71, C73, C78, C99) says `Unbuilt` and names its issue by number
-   once the issues exist.
+   once the issues exist. C1 stays pinned to `tools/docs-check.sh`
+   until 1e moves the edges. C101 gains one sentence: a change to what
+   a user types comes to the owner first (the search plan's rule 4).
 2. Add C120 to `CONTEXT.md`'s cross-cutting section in the draft's
    words, and C110's last clause.
 3. Replace each file's "Parked" section with "## Not doing" and the
@@ -82,7 +84,8 @@ a date, a seven-hex commit, "owner:", "verbatim", "Amended", "Decided",
 - Every `acq` runs in a mock world: `ACQ_PROVIDER=mock` and
   `ACQ_STORE_DIR` under your scratch. Never the real provider.
 - The main tree; your own scratch subdirectory, named in the launch.
-- The gate (`AGENTS.md`, "Quality gate") before the commit; the commit
+- The gate (`AGENTS.md`, "Quality gate") before the commit, green on
+  this step's own tree with nothing a later step delivers; the commit
   gated on each stage's own exit status, never on a filtered grep.
   Never run the drivers while the gate runs.
 - One commit per concern; the story in the message; a size stated in a

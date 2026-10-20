@@ -43,7 +43,7 @@ What each sample lost is said under it. Sizes are measured at the foot.
 
 ### C1 (cross-cutting; was: edge list with two amendment dates and "C12's two surfaces as edges the check refuses")
 
-- **C1 — The workspace is library-centric and the daemon is its own artifact.** `acqd` is the only GGG sender and links the protocol crate and the store, nothing else; the store links none of the workspace crates; the protocol crate links serde alone; a frontend links client, protocol, store, planner and search as it needs them, never the daemon; neither the daemon nor the planner links the search. *Why:* shared logic is written and tested once, and the edges are refused by a check, not held by discipline. *Pinned:* `tools/arch-check.sh`.
+- **C1 — The workspace is library-centric and the daemon is its own artifact.** `acqd` is the only GGG sender and links the protocol crate and the store, nothing else; the store links none of the workspace crates; the protocol crate links serde alone; a frontend links client, protocol, store, planner and search as it needs them, never the daemon; neither the daemon nor the planner links the search. *Why:* shared logic is written and tested once, and the edges are refused by a check, not held by discipline. *Pinned:* `tools/docs-check.sh` (the edges; `tools/arch-check.sh` once step 1e moves them).
 
 Lost: "Amended 2026-09-09, 2026-09-17"; the parenthetical history of C89.
 
@@ -61,9 +61,9 @@ Lost: "Decided 2026-08-31. Amended 2026-10-19 (owner: …)"; the sentence naming
 
 ### C53 (frontends; was: "Ruled 2026-09-02; amended 2026-09-03 after the live density reading", *Details*, *Evidence: ledger row*)
 
-- **C53 — Output has three levels: default text is the decision view, `--expand` the audit view, JSON the contract.** Text is a function of JSON; grouping is presentation, never authorization. Default text states repeated context once, leaves out prose and provenance that do not change the next decision, opens with one answer and ends with the next action. Ten or fewer entities are listed, more are counted. A failure names target, cause and evidence; every nothing says which nothing. Ages are text, epochs are JSON. Escapes only on a tty. JSON changes are additive. Stash tab ids sit in the last column. *Why:* a 112-request plan read in 14 lines at the terminal and was approved as it stood. *Pinned:* the `c53_` tests.
+- **C53 — Output has three levels: default text is the decision view, `--expand` the audit view, JSON the contract.** Text is a function of JSON; grouping is presentation, never authorization. Default text states repeated context once, leaves out prose and provenance that do not change the next decision, opens with one answer and ends with the next action. Ten or fewer entities are listed, more are counted. A failure names target, cause and evidence; every nothing says which nothing. Ages are text, epochs are JSON. Escapes only on a tty. JSON changes are additive. Stash tab ids sit in the last column. *Why:* a reader decides from the first screen and audits only on request. *Pinned:* the `c53_` tests.
 
-Lost: the two dates, the *Details* pointer (`plan_cmd.rs` names C53 itself), the ledger row.
+Lost: the two dates, the *Details* pointer (`plan_cmd.rs` names C53 itself), the ledger row; the review's catch, the live reading's measurement in the *Why*.
 
 ### C80 (pricing; was: "Confirmed on the site 2026-09-09, all three ways (PRICING-SLICE.md …)", owner quote, the owner's counts)
 
