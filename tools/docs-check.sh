@@ -320,7 +320,10 @@ tok = re.compile(r"`([^`\s:]+\.md)`")
 history = re.compile(r",?" + LEAD + r"(?:whole" + LEAD + r")?" + at)
 DATED = {"search/LEDGER.md", "search/DIGEST.md"}
 NOT_HERE = {"LICENSE.md", "DEBRIEF.md", "friction.md"}
-tracked = subprocess.run(["git", "ls-files"], capture_output=True, text=True, check=True).stdout.splitlines()
+# Tracked and present: `git ls-files` still lists a deletion not yet
+# staged (the outside review of `1f074d5a`, finding 2).
+tracked = [t for t in subprocess.run(["git", "ls-files"], capture_output=True, text=True, check=True).stdout.splitlines()
+           if os.path.exists(t)]
 tails = {"/".join(t.split("/")[i:]) for t in tracked for i in range(t.count("/") + 1)}
 def files():
     for r in roots:

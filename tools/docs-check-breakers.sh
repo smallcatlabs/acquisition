@@ -19,7 +19,7 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/acq-docs-breakers.XXXXXX")
-files=(decisions/plans.md REVIEW-CHECKLIST.md .claude/skills/seat/SKILL.md roadmap/README.md)
+files=(decisions/plans.md REVIEW-CHECKLIST.md .claude/skills/seat/SKILL.md roadmap/README.md search/README.md)
 for f in "${files[@]}"; do mkdir -p "$scratch/keep/$(dirname "$f")"; cp "$f" "$scratch/keep/$f"; done
 restore() {
   local f
@@ -102,6 +102,11 @@ run_case 'a saved review: not read'                              pass   'ok     
 echo '== a document name names a file in this tree (the outside review of 202e4659, finding 2)'
 run_case 'a bare deleted document in the review checklist'       refuse 'LIVE-TESTING.md` names no document in this tree' checklist "Read \`LIVE-TESTING.md\` first."
 run_case 'the same, cited at the commit that held it'            pass   'ok      paths'          checklist "Read \`LIVE-TESTING.md\` at \`b6197a82\` first."
+# A deletion not yet staged: `git ls-files` still lists the file, so a
+# pointer to it passed (the outside review of 1f074d5a, finding 2). The
+# research-track skill names it; the copy restores it.
+unstaged_deletion() { rm search/README.md; }
+run_case 'a document deleted, the deletion not staged'           refuse 'search/README.md` names no document in this tree' unstaged_deletion
 
 echo '== a skill names only tests and tools that exist (step 1d put the skills in the scan)'
 skill() {  # skill <old> <new>: an exact-once substitution in the seat skill
