@@ -115,8 +115,11 @@ phase 4's second input.
 
 ## Current step
 
-Phase 0 is open; its five briefs are ready and 0b has its ruling. Next
-after its reviews: the phase 1 design session.
+Phase 0's five steps are built and each review is saved under
+`reviews/` (2026-10-20); none has had a fix round. The owner reads the
+findings next, and rules on 0a's bound (the removed-heavy copy at 1.34
+times the M3 copy's, not 1.2; the ledger row names the remainder);
+0a stays open until then. After that: the phase 1 design session.
 
 ## Ledger
 
