@@ -112,7 +112,8 @@ phase 4's second input.
    owner reads the findings before a fix round; the commit that lands
    the fix round deletes the review file and cites it. A fix round
    that changes behaviour gets one review of its own, over its commits
-   named as one range, launched by the session that landed it and
+   named as one range, `<first>^..<last>` so git includes the first,
+   launched by the session that landed it and
    saved at `roadmap/reviews/<step>-fixes-<sha>.md`; a round that
    touches only comments and documents gets none. The owner takes or
    files its findings; nothing is reviewed a third time unless the
