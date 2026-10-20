@@ -124,7 +124,9 @@ phase 4's second input.
 
 Phase 0 is built, reviewed and through its fix round (2026-10-20): every
 review's findings taken or filed as the ledger rows below say, and 0a's
-bound ruled by the owner. Next: the phase 1 design session.
+bound ruled by the owner. The fix round's own review is saved at
+`reviews/0-fixes-6c1fb572.md`, four findings, none fixed; the owner
+takes or files them. Then: the phase 1 design session.
 
 ## Ledger
 
