@@ -9,11 +9,16 @@ One paragraph: what is true when the step is done, and why it matters.
 
 ## Read
 The files, sections and decision ids this step rests on, each with a
-few words on what to take from it.
+few words on what to take from it. The brief's writer checks every
+citation, and every test the brief relies on, against the tree
+before the brief is committed: phase 0's briefs cited a ruling as
+built that was parked, named a test that did not exist, and carried
+a count wider than true, and each cost a review finding.
 
 ## Input
 What is fixed before the work starts: a measurement, a capture, a
-ruling. A step with no fixed input says so.
+ruling, and the failing inputs the step's tests will stage, each
+named concretely. A step with no fixed input says so.
 
 ## Do
 Numbered, concrete, in order. A ruling the step needs and does not have
