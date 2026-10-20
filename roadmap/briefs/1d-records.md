@@ -48,7 +48,11 @@ scan, which this step does).
    as holding every one of them whole.
 4. Redirect every pointer in one scripted pass over the crates, the
    tools, the workflows, `about.toml`, `deny.toml`, `search/`,
-   `docs/design/`, `SURFACES.md`, `README.md` and the skills: a
+   `docs/design/`, `SURFACES.md`, `README.md`, `decisions/` and the
+   skills, including a pointer to a section of a deleted file by name
+   ("Where the open observations went", "Standing rule", a record's
+   step) and `SURFACES.md`'s three "parked (`decisions/pricing.md`)"
+   pointers, which name the issue now (1c left them): a
    citation of a deleted file by path becomes `<path>` at `<commit>`;
    a citation of a note becomes `note NN at <commit>`; a pointer to
    `LIVE-TESTING.md`'s rule or rails points at the live-run skill or
@@ -76,7 +80,7 @@ scan, which this step does).
 ## Done when
 - `ls *.md` shows no record, no `LIVE-TESTING.md`; `brainstorming-notes/`
   absent.
-- `grep -rln 'SLICE\.md\|NETWORK-CLEANUP\.md\|LIVE-TESTING\.md\|CONTEXT\.md\|brainstorming-notes/' crates tools .claude .github *.md *.toml docs search`
+- `grep -rln 'SLICE\.md\|NETWORK-CLEANUP\.md\|LIVE-TESTING\.md\|CONTEXT\.md\|brainstorming-notes/' crates tools .claude .github *.md *.toml decisions docs search`
   prints only lines in the history form (`at \`<hash>\``).
 - `CLI-REFERENCE.md` regenerated and committed.
 - Every `` `<path>` at `<hash>` `` citation under `crates tools .claude
@@ -85,6 +89,7 @@ scan, which this step does).
 
 ## Not in scope
 - Trimming the "Decisions as recorded" copies in code (phase 2).
+- Sizes: this brief quotes none; measure what you commit.
 - The checks split, the session-close skill (1e).
 - `search/README.md`'s own content beyond its pointers.
 
