@@ -809,6 +809,19 @@ impl Store {
         ensure_wal(&conn)?;
         conn.pragma_update(None, "synchronous", "NORMAL")?;
         conn.busy_timeout(std::time::Duration::from_secs(5))?;
+        // A file at this build's version is opened with a read alone: the
+        // stamp from a deferred transaction, which takes no write lock, so
+        // a reader never waits behind an ingest or blocks the daemon (0a).
+        // Anything else goes on to the lock below, which reads it again.
+        let found: i64 = {
+            let gate = conn.transaction_with_behavior(TransactionBehavior::Deferred)?;
+            let found = gate.query_row("PRAGMA user_version", [], |r| r.get(0))?;
+            gate.rollback()?;
+            found
+        };
+        if found == FACT_SCHEMA_VERSION {
+            return Ok(Store { conn, path });
+        }
         // Discovery and migration serialize under one immediate
         // transaction: two processes opening the same legacy file must not
         // both run the ALTERs (the loser would fail on a duplicate
@@ -3203,6 +3216,49 @@ mod tests {
             assert_eq!(rows(&s), before);
             assert_eq!(s.revision().unwrap().facts_version, 9);
         }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// 0a: a reader's open of a current file takes no write lock, so it
+    /// opens while another connection holds one — an ingest in progress
+    /// — where it used to wait out the busy timeout and fail; a file that
+    /// must migrate still waits for the lock, and migrates once.
+    #[test]
+    fn a_current_file_opens_while_a_writer_holds_the_lock() {
+        let dir =
+            std::env::temp_dir().join(format!("acq-store-reader-{}-{}", std::process::id(), now()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("facts.db");
+        drop(Store::open(&path).unwrap());
+        let writer = Connection::open(&path).unwrap();
+        writer.execute_batch("BEGIN IMMEDIATE;").unwrap();
+        let started = std::time::Instant::now();
+        let s = Store::open(&path).unwrap();
+        assert!(
+            started.elapsed() < std::time::Duration::from_secs(2),
+            "the open waited {:?} on the writer",
+            started.elapsed()
+        );
+        assert_eq!(s.revision().unwrap().facts_version, FACT_SCHEMA_VERSION);
+        drop(s);
+        // A file to migrate waits for the writer, then sees its work: two
+        // openers racing one v8 file, the writer standing in for the
+        // first, each end stamped once.
+        writer
+            .execute_batch(
+                "DROP INDEX items_live; DROP INDEX items_live_at; PRAGMA user_version = 8; COMMIT;",
+            )
+            .unwrap();
+        writer.execute_batch("BEGIN IMMEDIATE;").unwrap();
+        let opened = std::thread::scope(|scope| {
+            let opener = scope.spawn(|| Store::open(&path).map(|s| s.revision().unwrap()));
+            std::thread::sleep(std::time::Duration::from_millis(300));
+            assert!(!opener.is_finished(), "a migrating open took no lock");
+            writer.execute_batch("COMMIT;").unwrap();
+            opener.join().unwrap()
+        })
+        .unwrap();
+        assert_eq!(opened.facts_version, FACT_SCHEMA_VERSION);
         let _ = std::fs::remove_dir_all(&dir);
     }
 
