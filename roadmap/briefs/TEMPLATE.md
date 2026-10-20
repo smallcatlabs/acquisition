@@ -38,6 +38,9 @@ instead.
   message is measured after the last edit.
 - A finding is a test named for the fault, or a line in the report;
   never a new document.
+- After the commit, launch the review (`roadmap/README.md`, "Roles and
+  rhythm") and quote its findings whole in your report; do not fix
+  them before the owner has read them.
 
 ## Report
 Returned to the session that launched you, in this order, each a short

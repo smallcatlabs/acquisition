@@ -45,9 +45,14 @@ CLI and the MCP, is where simplicity, the tests and the GUI meet.
   its own scratch subdirectory; otherwise steps run one after another in
   the main tree, because a build under a live daemon or a concurrent
   gate is C84's artifact mismatch.
-- **Codex, via Astra**, reviews each committed step. A finding is pinned
-  as a test and fixed by one rule, never per case; a fault that came back
-  joins the review checklist.
+- **Codex reviews each committed step**, launched by the session that
+  made the commit, read-only, with the project's prompt:
+  `codex exec review --sandbox read-only --commit <sha> "$(cat roadmap/briefs/REVIEW-PROMPT.md)"`.
+  It runs on the owner's Codex account (verified from an agent shell
+  2026-10-19). The findings are quoted whole in the step's report, the
+  owner reads them and the proposed fixes before any fix is built, a
+  finding is pinned as a test and fixed by one rule, never per case,
+  and a fault that came back joins the review checklist.
 - **A step** is: brief, build, gate, commit with the story in its
   message, review, a ledger row here. A step that has not earned its
   close slips rather than ships. The report form is in
