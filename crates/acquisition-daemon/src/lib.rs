@@ -10,7 +10,7 @@
 //! edges — and no package but this one names it, so "never in-process
 //! with the daemon" (C13) is a Cargo fact.
 //!
-//! Rulings: `decisions/daemon.md`, `decisions/network.md`; the cross-cutting ones are `CONTEXT.md`'s.
+//! Rulings: `decisions/daemon.md`, `decisions/network.md`; the cross-cutting ones are `AGENTS.md`'s.
 //!
 //! The daemon serves the real provider by default (C88) — real OAuth
 //! against the existing "acquisition" registration and the real API —

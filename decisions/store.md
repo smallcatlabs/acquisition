@@ -1,6 +1,6 @@
 # Decisions — Store: facts, realm, characters
 
-Part of the decision registry (`CONTEXT.md`, "Decisions — the registry"): the rulings that bind ingest, the facts schema, items, listings and liveness, realm, characters (`acquisition-store/src/lib.rs`, `snapshot.rs`, `corpus.rs`, `acquisition-protocol/src/realm.rs`). Read this before touching that code; the cross-cutting decisions and the invariants are in `CONTEXT.md` and are always loaded. Same rules as there: one entry per ruling, in the form `CONTEXT.md` states; the mechanism lives in the code's doc comments under the id.
+Part of the decision registry (`AGENTS.md`, "Cross-cutting rulings"): the rulings that bind ingest, the facts schema, items, listings and liveness, realm, characters (`acquisition-store/src/lib.rs`, `snapshot.rs`, `corpus.rs`, `acquisition-protocol/src/realm.rs`). Read this before touching that code; the cross-cutting decisions and the invariants are in `AGENTS.md` and are always loaded. Same rules as there: one entry per ruling, in the form `tools/bothy.py`'s docstring states; the mechanism lives in the code's doc comments under the id.
 
 ## Store: facts
 

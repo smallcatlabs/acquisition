@@ -1,6 +1,6 @@
 # Decisions — Frontends and output
 
-Part of the decision registry (`CONTEXT.md`, "Decisions — the registry"): the rulings that bind the CLI, the MCP server, `dash`, rendering, `--json`, agent-boundary defaults (`acquisition-cli`, `acquisition-mcp`). Read this before touching that code; the cross-cutting decisions and the invariants are in `CONTEXT.md` and are always loaded. Same rules as there: one entry per ruling, in the form `CONTEXT.md` states; the mechanism lives in the code's doc comments under the id.
+Part of the decision registry (`AGENTS.md`, "Cross-cutting rulings"): the rulings that bind the CLI, the MCP server, `dash`, rendering, `--json`, agent-boundary defaults (`acquisition-cli`, `acquisition-mcp`). Read this before touching that code; the cross-cutting decisions and the invariants are in `AGENTS.md` and are always loaded. Same rules as there: one entry per ruling, in the form `tools/bothy.py`'s docstring states; the mechanism lives in the code's doc comments under the id.
 
 ## Frontends and output
 

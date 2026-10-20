@@ -1,6 +1,6 @@
 # Decisions — Item search: the crate, the line, the query, the answer, the basis
 
-Part of the decision registry (`CONTEXT.md`, "Decisions — the registry", whose rules apply unchanged): the rulings that bind item search and the `acquisition-search` crate; the trade boundary's are `decisions/trade.md`. Read this before touching `search/` or the crate, with `search/README.md` (the slice's working directory, its rules and traps) and `search/DIGEST.md` (the `S` ids cited here, looked up by id and never read whole).
+Part of the decision registry (`AGENTS.md`, "Cross-cutting rulings", whose rules apply unchanged): the rulings that bind item search and the `acquisition-search` crate; the trade boundary's are `decisions/trade.md`. Read this before touching `search/` or the crate, with `search/README.md` (the slice's working directory, its rules and traps) and `search/DIGEST.md` (the `S` ids cited here, looked up by id and never read whole).
 
 **Standing.** Every line stands: it changes by the owner's ruling and by nothing else, and the commit that changes it quotes him; a line found wanting is brought to him. The language on one page is `acq search --describe`; how the lines were reached is `search/LEDGER.md`, "How the design was reached"; his words on each line and the dated trail are this file's history (`git log -p decisions/search.md`).
 

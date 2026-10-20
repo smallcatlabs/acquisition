@@ -1,7 +1,7 @@
 //! `acq` — the command-line frontend: clap and rendering over the
 //! daemon protocol and the store's read API (C12).
 //!
-//! Rulings: `decisions/frontends.md`; the cross-cutting ones are `CONTEXT.md`'s.
+//! Rulings: `decisions/frontends.md`; the cross-cutting ones are `AGENTS.md`'s.
 
 mod dash;
 mod plan_cmd;

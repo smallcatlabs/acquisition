@@ -15,7 +15,7 @@ repeated two traps, so it is a skill (P6).
 
 1. Write `<track>/BRIEF.md`: the rules that bind the runner (reading
    order; work only inside the track; never the index, another track,
-   `CONTEXT.md`, `decisions/`, `SURFACES.md`; never commit, push,
+   `AGENTS.md`, `decisions/`, `SURFACES.md`; never commit, push,
    fetch, or spawn), the inputs by path, the outputs by file and
    script, the findings expected, an acceptance sentence, and the
    report asked for (at most 300 words), which names what the runner

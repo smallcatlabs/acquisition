@@ -6,8 +6,8 @@ description: End a working session on the Acquisition workspace — route what w
 # Session close
 
 The always-loaded documents accrete when a session ends by writing its
-story into `CONTEXT.md`. This procedure gives the story a home instead.
-The rule is one authoritative home per fact (`AGENTS.md`, "Routing");
+story into `AGENTS.md`. This procedure gives the story a home instead.
+The rule is one authoritative home per fact (`AGENTS.md`, "Where things live");
 the ladder behind it is note 09 at `decda84e`.
 
 ## 1. Gate
@@ -48,20 +48,18 @@ The full contract-input set is documented in
 
 ## 2. Route each thing learned
 
-Route every item through `AGENTS.md`, "Routing: one authoritative home
-per fact"; the registry format and park lifecycle are in `CONTEXT.md`.
+Route every item through `AGENTS.md`, "Where things live"; the
+registry format and the not-doing rule are in `tools/bothy.py`'s docstring.
 `REFRESH-SLICE.md` is the shape for a finding row; `LIVE-TESTING.md`
 defines the run-ledger row. Usage references regenerate from their
 sources (commands in each reference's header); `tests/readme_tour.rs`
 and `tools/docs-check.sh` hold README's form.
 
 Do not write "built on <date>", "step N done", or a list of what a test
-covers into `CONTEXT.md`: git holds the first two, the test the third.
+covers into `AGENTS.md`: git holds the first two, the test the third.
 `tools/docs-check.sh` reports decisions nothing cites; when you touch the
 code behind one, name it in a test or a doc comment so the report shrinks.
-`tools/bothy.py check` refuses an index row that does not list its
-file's ids and a park without a trigger: a ruling added to an area file
-is added to `CONTEXT.md`'s index in the same commit.
+`tools/bothy.py check` refuses a not-doing line without its trigger.
 A help string is never that doc comment: it is text the user reads, so it
 cites no id (C116); the rule's words stand in its place.
 
@@ -72,9 +70,9 @@ ledger, the shapes of fault its reviews taught, what the runs taught),
 citing the last commit that holds the open record's full text. An
 observation still open at the close becomes an area park with a trigger
 or is dropped, and the record says where each went (`AGENTS.md`,
-"Routing"; `DAEMON-SPLIT-SLICE.md`, "Where the open observations went"). Strike-through items in a "Parked" list are deleted,
+"Where things live"; `DAEMON-SPLIT-SLICE.md`, "Where the open observations went"). Strike-through items in a "Parked" list are deleted,
 not kept. A park is deleted in the commit that builds it, never because
-its trigger fired (`CONTEXT.md`, "Parked").
+its trigger fired (the area file's "Not doing").
 
 ## 4. Commit
 

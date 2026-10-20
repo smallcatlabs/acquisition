@@ -1,6 +1,6 @@
 # Decisions — Network and rate limiting
 
-Part of the decision registry (`CONTEXT.md`, "Decisions — the registry"): the rulings that bind the limiter, the gate, probes, rails, OAuth traffic, anything that sends (`acquisition-daemon/src/ratelimit.rs`, `gate.rs`, `rails.rs`, `auth.rs`, the choke point). Read this before touching that code; the cross-cutting decisions and the invariants are in `CONTEXT.md` and are always loaded. Same rules as there: one entry per ruling, in the form `CONTEXT.md` states; the mechanism lives in the code's doc comments under the id.
+Part of the decision registry (`AGENTS.md`, "Cross-cutting rulings"): the rulings that bind the limiter, the gate, probes, rails, OAuth traffic, anything that sends (`acquisition-daemon/src/ratelimit.rs`, `gate.rs`, `rails.rs`, `auth.rs`, the choke point). Read this before touching that code; the cross-cutting decisions and the invariants are in `AGENTS.md` and are always loaded. Same rules as there: one entry per ruling, in the form `tools/bothy.py`'s docstring states; the mechanism lives in the code's doc comments under the id.
 
 ## Network and rate limiting
 

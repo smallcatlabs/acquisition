@@ -58,7 +58,7 @@
 //! # Decisions as recorded
 //!
 //! The rulings are the decision registry — `decisions/daemon.md` for this
-//! area, `CONTEXT.md` for the cross-cutting ones (`C<n>`); what follows is
+//! area, `AGENTS.md` for the cross-cutting ones (`C<n>`); what follows is
 //! the entry's full text as recorded there, kept beside the code that
 //! implements it. The registry is current; this is the mechanism as
 //! decided and as built.

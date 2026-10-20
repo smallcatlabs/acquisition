@@ -9,7 +9,7 @@
 //! crate, the store and tokio, never the daemon (`acquisition-daemon`) or
 //! the planner, and `tools/docs-check.sh` refuses both edges.
 //!
-//! Rulings: `decisions/daemon.md`; the cross-cutting ones are `CONTEXT.md`'s.
+//! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 //!
 //! Extracted from `acquisition-core` as commit 3 of the daemon split
 //! (`DAEMON-SPLIT-SLICE.md`; the design is the packet, note 18 §2.1

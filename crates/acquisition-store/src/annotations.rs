@@ -33,7 +33,7 @@
 //! # Decisions as recorded
 //!
 //! The rulings are the decision registry — `decisions/plans.md` and
-//! `decisions/pricing.md` for this area, `CONTEXT.md` for the cross-cutting
+//! `decisions/pricing.md` for this area, `AGENTS.md` for the cross-cutting
 //! ones (`C<n>`); what follows is each entry's full text as recorded there,
 //! moved here because the mechanism it describes is this module's. The
 //! registry is current; this is the mechanism as decided, kept beside the

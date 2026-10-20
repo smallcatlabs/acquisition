@@ -4,7 +4,7 @@
 //! into a [`RefreshPlan`]: a serializable, immutable authorization
 //! envelope, computable with the daemon down.
 //!
-//! Rulings: `decisions/plans.md`, `decisions/pricing.md`; the cross-cutting ones are `CONTEXT.md`'s.
+//! Rulings: `decisions/plans.md`, `decisions/pricing.md`; the cross-cutting ones are `AGENTS.md`'s.
 //!
 //! Boundaries this crate holds (each a registry decision, cited by id):
 //! - C39: it is linked by **frontends only**, never the daemon — the
@@ -132,7 +132,7 @@
 //! # Decisions as recorded
 //!
 //! The rulings are the decision registry — `decisions/plans.md` for this
-//! area, `CONTEXT.md` for the cross-cutting ones (`C<n>`); what follows is each
+//! area, `AGENTS.md` for the cross-cutting ones (`C<n>`); what follows is each
 //! entry's full text as recorded there, moved here on 2026-09-02 because
 //! the mechanism it describes is this module's. The registry is current;
 //! this is the mechanism as decided, kept beside the code that implements it.

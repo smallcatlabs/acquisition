@@ -1,6 +1,6 @@
 //! `acq-mcp` — MCP server frontend (tracer bullet).
 //!
-//! Rulings: `decisions/frontends.md`; the cross-cutting ones are `CONTEXT.md`'s.
+//! Rulings: `decisions/frontends.md`; the cross-cutting ones are `AGENTS.md`'s.
 //!
 //! A fourth thin client: it consumes exactly the two frontend surfaces —
 //! the daemon protocol (via `acquisition_client`) and the shared
@@ -102,7 +102,7 @@
 //! # Decisions as recorded
 //!
 //! The rulings are the decision registry — `decisions/frontends.md` for this
-//! area, `CONTEXT.md` for the cross-cutting ones (`C<n>`); what follows is each
+//! area, `AGENTS.md` for the cross-cutting ones (`C<n>`); what follows is each
 //! entry's full text as recorded there, moved here on 2026-09-02 because
 //! the mechanism it describes is this module's. The registry is current;
 //! this is the mechanism as decided, kept beside the code that implements it.

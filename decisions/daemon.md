@@ -1,6 +1,6 @@
 # Decisions — Daemon, jobs, protocol, accounts
 
-Part of the decision registry (`CONTEXT.md`, "Decisions — the registry"): the rulings that bind the daemon, the job model, the protocol, the client, sessions and accounts (`acquisition-daemon/src/daemon.rs`, `acquisition-client/src/client.rs`, `locator.rs`, `artifact.rs`, `acquisition-protocol/src/protocol.rs`, `job.rs`, `acquisition-store/src/jobs.rs`, `index.rs`). Read this before touching that code; the cross-cutting decisions and the invariants are in `CONTEXT.md` and are always loaded. Same rules as there: one entry per ruling, in the form `CONTEXT.md` states; the mechanism lives in the code's doc comments under the id.
+Part of the decision registry (`AGENTS.md`, "Cross-cutting rulings"): the rulings that bind the daemon, the job model, the protocol, the client, sessions and accounts (`acquisition-daemon/src/daemon.rs`, `acquisition-client/src/client.rs`, `locator.rs`, `artifact.rs`, `acquisition-protocol/src/protocol.rs`, `job.rs`, `acquisition-store/src/jobs.rs`, `index.rs`). Read this before touching that code; the cross-cutting decisions and the invariants are in `AGENTS.md` and are always loaded. Same rules as there: one entry per ruling, in the form `tools/bothy.py`'s docstring states; the mechanism lives in the code's doc comments under the id.
 
 ## Daemon, jobs, protocol
 

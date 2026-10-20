@@ -4,7 +4,7 @@
 //! process (C28). `index` is the non-secret list of accounts that names
 //! those files.
 //!
-//! Rulings: `decisions/store.md`, `decisions/daemon.md`; the cross-cutting ones are `CONTEXT.md`'s.
+//! Rulings: `decisions/store.md`, `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 //!
 //! The daemon's whole contract is [`Store::record`]: endpoint, params, status,
 //! body. It never looks inside a body. Inside this crate, a body is kept
@@ -148,7 +148,7 @@
 //! # Decisions as recorded
 //!
 //! The rulings are the decision registry — `decisions/store.md` for this
-//! area, `CONTEXT.md` for the cross-cutting ones (`C<n>`); what follows is each
+//! area, `AGENTS.md` for the cross-cutting ones (`C<n>`); what follows is each
 //! entry's full text as recorded there, moved here on 2026-09-02 because
 //! the mechanism it describes is this module's. The registry is current;
 //! this is the mechanism as decided, kept beside the code that implements it.
@@ -374,7 +374,7 @@ impl std::error::Error for SchemaTooNew {}
 
 /// Malformed external input at the record boundary: a 2xx body that lacks
 /// the identity-bearing shape ingest depends on. A stable kind (downcast
-/// target) per CONTEXT.md's structured-error rule; no fact is written when
+/// target) per C47 (malformed input is a structured error); no fact is written when
 /// `record` returns it — the ingest transaction rolls back whole, so a
 /// malformed body can never retire tabs, characters, or items, and never
 /// mints a response row a snapshot could cite as a basis. What it does
