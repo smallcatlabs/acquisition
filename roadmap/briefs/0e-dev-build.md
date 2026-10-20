@@ -19,7 +19,9 @@ and the search crate and each gets a dSYM; `target/` is 86 GB.
 ## Input
 A clean baseline: `cargo build --workspace --all-targets --timings`
 and a timed `cargo test --workspace --all-targets` on the current
-profile, recorded before any change.
+profile, recorded before any change. Every measurement runs alone: no
+other worker's build, gate or measurement on the machine while it
+runs.
 
 ## Do
 1. Measure the baseline (build time, test wall, `target/` size).

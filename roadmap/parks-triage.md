@@ -1,5 +1,7 @@
 # Parks triage (2026-10-19) — 106 parks
 
+Amended 2026-10-19 after the roadmap's outside review: ST-3 is FIRED on its third clause, so six parks have fired, not five.
+
 Status key: FIRED = trigger evidence cited; SOON = LIKELY-SOON (3.30 on 2026-11-13, PoE2 1.0 on 2026-12-11, or the GUI slice); DORM = DORMANT; UNOBS = UNOBSERVABLE; WITHDR = WITHDRAWN-CANDIDATE. Size S hours / M a day or two / L a slice.
 Rule applied for FIRED: the trigger's own words are met by a cited artifact. Parks written from a seat finding whose trigger is "the next user/run that ..." are DORM, not FIRED, even when the seat evidence is strong (marked "near").
 
@@ -126,7 +128,7 @@ Rule applied for FIRED: the trigger's own words are met by a cited artifact. Par
 |---|---|---|---|---|---|
 | ST-1 | `user.db` and scope taxonomy | first user-scoped kind actually written | SOON (GUI: saved searches, shop template, ratios) | build in GUI slice; absorbs PR-11, SR-1 | M |
 | ST-2 | Search-at-scale in store (FTS, lines table) | search persistence park fires | DORM | fold into SR-2 | L |
-| ST-3 | Retention of removed items/events/responses (`acq store prune`) | first league end the store lives through, size/time over a number, or search reading removed | SOON — 3.30 on 2026-11-13 ends the league (Allflame is in RUN-LEDGER, 2026-09-07); measured 2026-09-20: 2.8 MB events, 54.4 MB file | build around 3.30; at least decide the number | M |
+| ST-3 | Retention of removed items/events/responses (`acq store prune`) | first league end the store lives through, size/time over a number, or search reading removed | FIRED — its third clause, "search reading removed", is met: `acq search --membership removed` reads them (re-read 2026-10-19 at the roadmap's review); 3.30 on 2026-11-13 ends the league too | the prune verb is phase 3's work at the league end, after 0a shows what age costs once the loop is fixed | M |
 | ST-4 | Store says "folder" once | a fifth consumer, or one of four getting it wrong | DORM | keep | S |
 | ST-5 | Realm segment semantics; PoE2 on character endpoints; inventoryId | observed at a first contact | SOON — PoE2 launch-day first contact 2026-12-11 (note 36 step 6) | fire at launch-day live run (human-run) | S |
 | ST-6 | Listing row keeps no raw JSON (non-string name/type) | second reader needing unread grain, or non-string observed | UNOBS (none in 3,427 tabs; owner "park it") | delete | S |

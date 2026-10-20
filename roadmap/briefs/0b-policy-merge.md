@@ -8,8 +8,13 @@ trigger, a second realm in daily use, has a date: PoE2 1.0 on
 merge entry).
 
 ## Read
-- `decisions/plans.md`: C37 (the planner owns the policy schema), C111,
-  and the park's own text.
+- `decisions/plans.md`: the park's own text and the type-level filters
+  park beside it (the planner owns the policy schema); C37 (a tab id
+  covers its children) for what a policy entry means; C111.
+- `decisions/frontends.md` C52: an agent never clobbers intent it has
+  not read; the MCP's `set_sync_policy` has no blind-replace form. The
+  merge changes what a write replaces, never whether it names its
+  revision.
 - `README.md`, "Known gaps", first bullet, and the tour's `policy set`
   line.
 - `crates/acquisition-plan/src/lib.rs`, the policy document and its
@@ -20,21 +25,27 @@ merge entry).
   regenerate.
 
 ## Input
-None fixed. The rule is the worker's to choose and state; the owner
-may veto it at review.
+The ruling below, accepted by the owner before any code (rulings first,
+`CONTEXT.md`, "Working style"). Proposed: **a set names whole realms;
+each realm the document names replaces that realm's policy alone, and
+realms it does not name stay; a realm is removed by naming it with no
+leagues; whole-policy replacement stays reachable by one explicit flag
+on the CLI and one explicit field on the MCP, and on the MCP every
+write still names the revision it replaces (C52).** Recorded as an
+amendment to the policy's entry in `decisions/plans.md` in the step's
+first commit, with the owner's words.
 
 ## Do
-1. State the merge rule in the help text and the tool description: a
-   set carries whole realms, each realm named replaces that realm
-   alone, realms not named stay; a realm is removed by naming it empty.
-   Whole replacement stays reachable by one explicit flag or argument
-   if a test needs it.
-2. Build it once in the plan crate's policy write, so the CLI and the
+1. Record the ruling (above) in the registry; stop and ask if the owner
+   has not yet said yes to it.
+2. State the rule in the help text and the tool description.
+3. Build it once in the plan crate's policy write, so the CLI and the
    MCP share it; keep `--if-revision` semantics as they are (C11: a
-   conflict is `kind: "conflict"` with the revision).
-3. Tests: a pc policy survives a poe2 set; an empty realm removes it;
-   the revision still advances once per write.
-4. Regenerate both references; remove the README gap; delete the park
+   conflict is `kind: "conflict"` with the revision; C52 on the MCP).
+4. Tests: a pc policy survives a poe2 set; an empty realm removes it;
+   the revision still advances once per write; the MCP still refuses a
+   replace that names no revision.
+5. Regenerate both references; remove the README gap; delete the park
    in the same commit (`CONTEXT.md`, "Parked": deleted when built).
 
 ## Done when

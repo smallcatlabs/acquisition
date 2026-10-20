@@ -39,8 +39,9 @@ instead.
 - A finding is a test named for the fault, or a line in the report;
   never a new document.
 - After the commit, launch the review (`roadmap/README.md`, "Roles and
-  rhythm") and quote its findings whole in your report; do not fix
-  them before the owner has read them.
+  rhythm"), save its findings verbatim at
+  `roadmap/reviews/<step>-<sha>.md` and quote them in your report; do
+  not fix them before the owner has read them.
 
 ## Report
 Returned to the session that launched you, in this order, each a short
@@ -50,3 +51,8 @@ paragraph or a table:
 3. Measurements, before and after, where the brief asked for them.
 4. What you left out and why.
 5. What surprised you, and what you would retract from your own report.
+6. Raised for review: anything about the brief, the plan, the tools or
+   this way of working that got in your way or that you think is wrong,
+   and what would have made the job easier. Unstructured, a sentence
+   each; the session that reads it answers every item in the ledger
+   (taken, filed, or not taken and why).

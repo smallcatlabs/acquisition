@@ -1,29 +1,39 @@
 # 0a — Store-age performance
 
 ## Goal
-A search over a long-lived store costs what a search over a fresh one
-costs. Today the live ask doubles (0.47 s to 0.98 s, release) once a
-store carries 90k removed items, and every reader takes the store's
-write lock just to open it. Three small changes and one new measurement
-copy fix the blind spot the M3 ledger has (its copy holds 6 removed
-items).
+A store's age stops multiplying the cost of a live ask. Today the ask
+doubles (0.47 s to 0.98 s, release) once a store carries 90k removed
+items: a loop over every removed id scans every live location, and an
+index cannot skip removed rows. Reading and sorting the removed ids
+stays (a linear cost the store's `gone` header carries by design); the
+multiplicative cost goes. Every reader also takes the store's write
+lock just to open it. Three small changes and one reproducible
+measurement copy fix the blind spot the M3 ledger has (its copy holds
+6 removed items).
 
 ## Read
 - `roadmap/STATE-2026-10-19.md`, report 5 ("Performance"), sections 1
   to 3 and 6: the measurements, the file and line references, the
   rulings each change touches.
-- `decisions/store.md` C48 (the schema is internal: an index is
-  allowed) and C108; `decisions/search.md` C98 (reload is whole; a
-  persisted projection waits for a measured failure).
+- `CONTEXT.md` C48 (the schema is internal: an index is allowed);
+  `decisions/store.md` C108; `decisions/search.md` C98 (reload is
+  whole; a persisted projection waits for a measured failure).
 - `search/M3-LEDGER.md` and `search/item-facts/scripts/m3-ask.py`: the
   method and the rows to add to.
 - `crates/acquisition-store/src/annotations.rs` around lines 606 to
   640: the read-only open the facts file should copy.
 
 ## Input
-The M3 copy as the ledger describes it; a second copy you build with
-synthetic removed items (the perf report's method: copy the store, add
-tens of thousands of removed rows, keep the live set unchanged).
+The M3 copy as the ledger describes it; a second copy built by a
+deterministic script you add beside the M3 script (the perf report's
+method: copy the store, add removed rows, keep the live set unchanged)
+with a manifest recording the source copy's checksum, the live and
+removed counts, and the construction parameters (how many, spread over
+which locations and leagues). The baseline is taken only after the
+script and manifest exist, and every measurement runs alone: no other
+build, gate or measurement on the machine while it runs (the M3
+method's own rule; contention adds 10 to 20 ms against a budget margin
+of 1 to 28 ms).
 
 ## Do
 1. `crates/acquisition-search/src/corpus.rs` near line 735: the per-gone
@@ -45,7 +55,11 @@ tens of thousands of removed rows, keep the live set unchanged).
 
 ## Done when
 - The three changes are in with their tests, and the ledger has
-  before-and-after rows on both copies.
+  before-and-after rows on both copies, taken alone.
+- On the same release build, the removed-heavy copy's empty ask is
+  within 1.2 times the base copy's; if it is not, the remainder is
+  profiled and named in the report and the bound is renegotiated with
+  the owner rather than the step closed.
 - The gate is green.
 
 ## Not in scope
