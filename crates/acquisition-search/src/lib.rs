@@ -119,7 +119,7 @@
 //!    property, where a generated or fixed case crosses the bound: a new
 //!    bound needs a case past it.
 //! 10. **One maker for each kind of thing an answer holds.** What a group
-//!     means (`group.rs`, refused elsewhere by `tools/docs-check.sh` §7), a
+//!     means (`group.rs`, refused elsewhere by `tools/arch-check.sh` §7), a
 //!     command (`answer::command`: rule 5 is this rule for commands), why
 //!     an item is undecided (`eval::why`), a sum (`exact.rs`). A second
 //!     maker is how two parts of one answer come to disagree: look for the
@@ -160,7 +160,7 @@
 //!   names; and the one closed list of what is not built, refused by name.
 //! - `group` — what `line( … )` means, computed once when the query is
 //!   bound: the one module that reads a group's tree for its meaning (the
-//!   build plan, step 4b; `tools/docs-check.sh` §7).
+//!   build plan, step 4b; `tools/arch-check.sh` §7).
 //! - [`class`] — the class table (C106): reviewed reference data shipped
 //!   in the binary, the item's class read from its base, and what the
 //!   search says when the table cannot class it (C93).
@@ -211,8 +211,8 @@
 //! - **C89.** The crate links the store, and the planner once a query
 //!   reads the effective price; never the daemon, the client, an HTTP
 //!   client or an async runtime, and the daemon and the planner never link
-//!   it. `tools/docs-check.sh` §5 refuses each edge, and
-//!   `tools/docs-check-breakers.sh` proves it refuses.
+//!   it. `tools/arch-check.sh` §5 refuses each edge, and
+//!   `tools/arch-check-breakers.sh` proves it refuses.
 //! - **C103, C90.** The deriver is [`mod@derive`]'s module doc; pinned by
 //!   `tests/derive.rs`, and set against the census over a real corpus by
 //!   `search/item-facts/scripts/m2-differential.py` (never in the gate).

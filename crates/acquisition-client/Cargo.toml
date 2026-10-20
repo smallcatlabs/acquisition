@@ -13,7 +13,7 @@ repository.workspace = true
 # errors, and the world it verifies (C83; step 5: the store's `world.rs`
 # names the root, the socket and the log the client reads after a failed
 # spawn). Every frontend links it; it links the protocol crate, the store
-# and tokio, never the daemon or the planner (tools/docs-check.sh refuses
+# and tokio, never the daemon or the planner (tools/arch-check.sh refuses
 # both).
 
 [dependencies]

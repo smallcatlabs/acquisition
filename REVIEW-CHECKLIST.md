@@ -51,7 +51,7 @@ come from are whole at the commit `HISTORY.md` names for each slice.
 
 | Shape | Where it came back | Held by |
 | --- | --- | --- |
-| **A reader whose partial answer satisfies every rule.** A guard parsing manifest text; `jq` in process substitutions whose failure bash drops; `cargo tree`'s host closure; names for vertices; matching counts for correspondence | eleven rounds on one check | the graph read twice and compared row by row (`tools/docs-check.sh`, the edges; `tools/docs-check-breakers.sh` stages every case) |
+| **A reader whose partial answer satisfies every rule.** A guard parsing manifest text; `jq` in process substitutions whose failure bash drops; `cargo tree`'s host closure; names for vertices; matching counts for correspondence | eleven rounds on one check | the graph read twice and compared row by row (`tools/arch-check.sh`, the edges; `tools/arch-check-breakers.sh` stages every case) |
 | **A door that fails open on what it could not tell.** An absent tool, a timeout, an error read as absence | four rounds at the doors | absence is exactly `NotFound` and `ConnectionRefused`; every probe bounded; `acquisition-client/tests/contract.rs` |
 | **A hint trusted over a re-read.** The watch kept a lagged subscription and trusted the event when its re-read failed | rounds 1 and 2 | `acquisition-cli/tests/watch_recovery.rs` |
 | **An identity judged twice.** `report()` looked at the sibling again after the verdict; the sibling was `stat`ed then reopened by path | rounds 14 and 15 | one verdict per handshake; `c84_the_sibling_is_judged_from_the_handle_that_was_identified` |
@@ -68,7 +68,7 @@ come from are whole at the commit `HISTORY.md` names for each slice.
 
 | Shape | Where it came back | Held by |
 | --- | --- | --- |
-| **A meaning read off the syntax.** Which sources a group admits, its selector, its bound, a slot, the zero block: each answered at one level and wrong one level down, so parentheses changed the answer | step 4's four audits, five times; 9c4, four times | `group.rs`, the one reader of a group's meaning (the rule in `tools/docs-check.sh`); the equivalence property; `tests/generated_rows.rs` |
+| **A meaning read off the syntax.** Which sources a group admits, its selector, its bound, a slot, the zero block: each answered at one level and wrong one level down, so parentheses changed the answer | step 4's four audits, five times; 9c4, four times | `group.rs`, the one reader of a group's meaning (the rule in `tools/arch-check.sh`); the equivalence property; `tests/generated_rows.rs` |
 | **One thing counted under two names, two taken for one.** A number read by two alternatives added twice to a sum | 9c4 | `derive::Place`; `eval::Read`; `tests/rows.rs` |
 | **Unknown said at the wrong grain.** A whole object unread for one flag that is no boolean; too wide leaves terms open, too narrow reads as absence | steps 4 to 9d-B | `derive::Slot`, `Line::flags_unknown`, `Unread::line`; the completion property |
 | **Two statuses for one thing.** A number kept beside the unread that may replace it; a total exact on the item and rounded in the bucket | steps 5, 6, 9d-B | one status per value; `exact::Exact`, units carried to the print |
@@ -88,7 +88,7 @@ come from are whole at the commit `HISTORY.md` names for each slice.
 
 | Shape | Where it came back | Held by |
 | --- | --- | --- |
-| **Evidence read off whatever is on disk.** A script without its clone wrote 16 grouping members out; an extract over a partial restore wrote 1,149 searches for 1,150; a local capture joined to the committed extract took a replaced capture's marks | three outside reviews in a row | every input declared and held to its record before any is read (`tools/sources.py`); raw read by the extract alone (`tools/trade_query.py`); the sitting tools' self-tests in `tools/docs-check.sh` |
+| **Evidence read off whatever is on disk.** A script without its clone wrote 16 grouping members out; an extract over a partial restore wrote 1,149 searches for 1,150; a local capture joined to the committed extract took a replaced capture's marks | three outside reviews in a row | every input declared and held to its record before any is read (`tools/sources.py`); raw read by the extract alone (`tools/trade_query.py`); the sitting tools' self-tests in `tools/trade-check.sh` |
 | **A reading applied past the shape it asked.** One shape's answer built for every clause that looks like it: `#% chance to X` elided everywhere where the game elides 212 of 372 | 7e and its reviews; C119's other readings | a reading applies where the clause has every property of the shape asked; the forms' identity rule (`one_stat` in `tools/trade-forms-table.py`); no expected disagreement under an exact clause (`tests/trade_oracle.rs`) |
 | **A group's statuses computed where it is written, not where it is read.** | step 4's reviews | every group bound alone; every clause that runs owns one term path inside its group |
 | **A scope read one level deep.** The league a query fixes read off the top of the tree; a fetch of no rows counted as no fetch | note 38's step 2 review; the re-sit's review | `fixed_league` reads through nested conjunctions; a fetch of no rows is a fetch |

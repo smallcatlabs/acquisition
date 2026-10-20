@@ -8,7 +8,7 @@ repository.workspace = true
 
 # The daemon's contract as a frontend sees it (`DAEMON-SPLIT-SLICE.md` at `b6197a82`;
 # note 18 at `decda84e` §2.1): serde and serde_json, nothing else — never
-# tokio, anyhow or the store. tools/docs-check.sh refuses any other
+# tokio, anyhow or the store. tools/arch-check.sh refuses any other
 # dependency; the shared-contract revision this crate's build script
 # computes moves only when the contract does — this crate, the store,
 # the manifests and the lock — never on a daemon-only edit (C84).

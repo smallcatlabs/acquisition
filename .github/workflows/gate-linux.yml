@@ -81,12 +81,20 @@ jobs:
       - name: Format
         run: cargo fmt --all -- --check
 
-      # The gate's two document checks (AGENTS.md, "Quality gate"): until
-      # these, a tree that broke either passed here unless a session had
-      # run the gate. The docs check reads the dependency graph through
-      # cargo metadata and jq; it notes, never fails on, the clone's hooks.
+      # The gate's four checks beyond cargo (AGENTS.md, "Quality gate"):
+      # until these, a tree that broke one passed here unless a session had
+      # run the gate. The docs check notes, never fails on, the clone's
+      # hooks; the architecture check reads the dependency graph through
+      # cargo metadata and jq; the trade check runs the sitting tools'
+      # self-tests.
       - name: The docs check
         run: tools/docs-check.sh
+
+      - name: The architecture check
+        run: tools/arch-check.sh
+
+      - name: The trade check
+        run: tools/trade-check.sh
 
       - name: The registry check
         run: python3 -I tools/bothy.py check
@@ -94,7 +102,7 @@ jobs:
   # The checks' own breakers: each breaks what a check guards and requires
   # the check to refuse it by name, so a check that stopped refusing — one
   # that passes everything — fails here. Beside the gate, not in it: they
-  # change rarely, and docs-check-breakers.sh edits the working tree's
+  # change rarely, and arch-check-breakers.sh edits the working tree's
   # manifests and restores them on exit (2 min here), safe in a clean
   # checkout and not under a session's edits. What they catch is the tree
   # moving under a case: two of the dependency guard's had failed unseen
@@ -122,3 +130,6 @@ jobs:
 
       - name: The docs check's breakers
         run: tools/docs-check-breakers.sh
+
+      - name: The architecture check's breakers
+        run: tools/arch-check-breakers.sh

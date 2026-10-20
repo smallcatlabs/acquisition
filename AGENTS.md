@@ -98,13 +98,13 @@ The rulings every area must know. Each area's own are in its file, one
 bullet per ruling in the form `tools/bothy.py`'s docstring states;
 tests and docs cite rulings by id.
 
-- **C1 — The workspace is library-centric and the daemon is its own artifact.** `acqd` is the only GGG sender and links the protocol crate and the store, nothing else; the store links none of the workspace crates; the protocol crate links serde alone; a frontend links client, protocol, store, planner and search as it needs them, never the daemon; neither the daemon nor the planner links the search. *Why:* shared logic is written and tested once, and the edges are refused by a check, not held by discipline. *Pinned:* `tools/docs-check.sh` (the edges).
+- **C1 — The workspace is library-centric and the daemon is its own artifact.** `acqd` is the only GGG sender and links the protocol crate and the store, nothing else; the store links none of the workspace crates; the protocol crate links serde alone; a frontend links client, protocol, store, planner and search as it needs them, never the daemon; neither the daemon nor the planner links the search. *Why:* shared logic is written and tested once, and the edges are refused by a check, not held by discipline. *Pinned:* `tools/arch-check.sh` (the edges).
 - **C2 — The daemon owns shared state; clients talk to it over local IPC.** *Why:* invariant 1 becomes structural. *Pinned:* nothing yet.
 - **C4 — API requests are jobs, not calls.** A job has an id, a state and a priority. *Why:* a rate-limit wait can reach 300 s, which a blocking call cannot represent across three frontends. *Pinned:* nothing yet.
 - **C12 — A frontend consumes exactly two surfaces: the daemon protocol and the store's read API.** A third channel is a protocol or store change, ruled first. *Why:* the contract stays in two places, enforced by what a frontend links. *Pinned:* `acquisition-protocol/tests/wire.rs`.
 - **C14 — Agent traffic against GGG is allowed; the daemon is the single gate.** *Why:* GGG permits agent use that respects the API rules, and one gate every client passes through is the only enforceable line. *Pinned:* `acquisition-mcp/tests/ggg_refusal.rs`.
 - **C15 — Tokio and reqwest.** Core exposes `async fn`; frontends provide the runtime. *Why:* the ecosystem default; a core with no runtime lets each frontend own its own. *Pinned:* nothing yet.
-- **C34 — Four layers, each with one authoritative mutation path: facts through the store's ingest, intent through its annotation API, derivations reproducible from declared inputs, effects through the daemon.** The daemon is blind to intent and creates work only in service of client-submitted work: no schedules, no policy execution. *Why:* a sync can never clobber intent, structurally. *Pinned:* `tools/docs-check.sh` (the daemon, the protocol and the client never name the intent API).
+- **C34 — Four layers, each with one authoritative mutation path: facts through the store's ingest, intent through its annotation API, derivations reproducible from declared inputs, effects through the daemon.** The daemon is blind to intent and creates work only in service of client-submitted work: no schedules, no policy execution. *Why:* a sync can never clobber intent, structurally. *Pinned:* `tools/arch-check.sh` (the daemon, the protocol and the client never name the intent API).
 - **C35 — Annotations are the only irreplaceable local state.** One per-account file named by the account uuid, keyed on stable GGG ids, written only through the store crate under revision compare-and-swap; no fact-side event deletes intent; backup is a store-managed snapshot. *Why:* facts are refetchable; intent has no server to refetch from. *Pinned:* the `c35_` tests in `annotations.rs`.
 - **C38 — A plan is a serializable, immutable authorization envelope, and plans are binding.** Applying executes exactly the listed actions or a subset, never an addition; new facts produce a new plan. *Why:* reviewed work stays exact. *Pinned:* `acquisition-cli/tests/apply_loop.rs`, `acquisition-cli/tests/plan_json.rs`.
 - **C46 — Shared semantics live in Rust, and every frontend is a Rust adapter** (clap, `rmcp`, a webview whose Rust backend is the adapter). A surface that evaluates for itself is a second semantics, ruled first. *Why:* this is what makes "built once, inherited by every frontend" true. *Pinned:* `acquisition-mcp/tests/pricing_tools.rs` (the tools call the functions the CLI calls).
@@ -148,6 +148,8 @@ cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo fmt --all -- --check
 git diff --check
 tools/docs-check.sh
+tools/arch-check.sh
+tools/trade-check.sh
 python3 -I tools/bothy.py check
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
 ```

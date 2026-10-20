@@ -16,7 +16,7 @@ method `browser`).
 The sheet is appended to and never edited (`changed`): a run that would write
 a committed line otherwise, or drop one, writes nothing and names it, and
 `--verify` holds the committed sheet to what this script composes, line for
-line (tools/docs-check.sh runs it). The batch below cannot be written over it.
+line (tools/trade-check.sh runs it). The batch below cannot be written over it.
 
 The checks ask the site of every listed item at once whether a pseudo's rows
 are complete and sound (`checks` and `round_two`, below, the second written

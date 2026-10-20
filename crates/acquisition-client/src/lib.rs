@@ -7,7 +7,7 @@
 //! typed failures at the door ([`client::ConnectError`]). Every frontend
 //! links this crate and the protocol crate; this crate links the protocol
 //! crate, the store and tokio, never the daemon (`acquisition-daemon`) or
-//! the planner, and `tools/docs-check.sh` refuses both edges.
+//! the planner, and `tools/arch-check.sh` refuses both edges.
 //!
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 //!

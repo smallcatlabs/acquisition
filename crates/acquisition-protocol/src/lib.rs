@@ -9,7 +9,7 @@
 //! ([`CONTRACT_REVISION`], computed by `build.rs`; C84). Both sides of the
 //! socket link this crate; the IPC that carries the frames does not live
 //! here — the client and the daemon each own theirs — so this crate links
-//! serde and serde_json and nothing else, and `tools/docs-check.sh`
+//! serde and serde_json and nothing else, and `tools/arch-check.sh`
 //! refuses more.
 //!
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.

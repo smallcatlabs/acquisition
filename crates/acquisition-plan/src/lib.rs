@@ -8,7 +8,7 @@
 //!
 //! Boundaries this crate holds (each a registry decision, cited by id):
 //! - C39: it is linked by **frontends only**, never the daemon — the
-//!   daemon crate never links this one (`tools/docs-check.sh` refuses the
+//!   daemon crate never links this one (`tools/arch-check.sh` refuses the
 //!   edge), so policy execution cannot reach the daemon by construction.
 //! - C38: plans are **binding**: applying one executes exactly the listed
 //!   actions or a strict subset, never an unreviewed addition. v1 plans

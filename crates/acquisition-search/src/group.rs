@@ -22,8 +22,8 @@
 //! answer (invariant 7 of the surface). So outside the modules that build,
 //! print and validate the tree (`parse`, `print`, `json`, `tree`, with
 //! `template`'s checks) and this one, nothing names a group's tree, bound
-//! or not — names, so that an alias is no way round: `tools/docs-check.sh`
-//! refuses it, and `tools/docs-check-breakers.sh` proves it refuses. A
+//! or not — names, so that an alias is no way round: `tools/arch-check.sh`
+//! refuses it, and `tools/arch-check-breakers.sh` proves it refuses. A
 //! consumer that needs
 //! a new fact of a group adds it here, beside the others, where
 //! `tests/generated_equivalence.rs` asks it of every spelling.

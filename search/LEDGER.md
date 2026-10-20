@@ -27,11 +27,11 @@ same commit.
 
 | Step | Commit | Where it lives |
 | --- | --- | --- |
-| 1 · the language | `080a8581` | `tree.rs`, `parse.rs`, `print.rs`, `json.rs`, `error.rs`; `tests/language.toml`, `tests/language.rs`; C89's edges, `tools/docs-check.sh` §5; H1–H5 |
+| 1 · the language | `080a8581` | `tree.rs`, `parse.rs`, `print.rs`, `json.rs`, `error.rs`; `tests/language.toml`, `tests/language.rs`; C89's edges, `tools/arch-check.sh` §5; H1–H5 |
 | 2 · the derivation | `ef720323` | `derive.rs`; `tests/derive.rs`; M2; D1–D5 |
 | 3 · the store's read | `c0a8f918` | the store's `corpus.rs` and its tests (C103, C108); M1 |
 | 4 · the first surface | `28606ed4` | `bind.rs`, `corpus.rs`, `eval.rs`, `answer.rs`, `describe.rs`, `show.rs`; the CLI's `search_cmd.rs` and `tests/search_json.rs`; `tests/answer.rs`, `tests/acceptance.rs`, `tests/refusal.rs`; M3, M4; B1–B11 |
-| 4b · the properties | `39e7667a`–`36a9738a` | `tests/common/generated.rs`; `tests/generated_equivalence.rs`, `tests/generated_completion.rs`, `tests/generated_cross_checks.rs`; `group.rs`; `tools/docs-check.sh` §7 |
+| 4b · the properties | `39e7667a`–`36a9738a` | `tests/common/generated.rs`; `tests/generated_equivalence.rs`, `tests/generated_completion.rs`, `tests/generated_cross_checks.rs`; `group.rs`; `tools/arch-check.sh` §7 |
 | 5 · counts and the vocabulary | `31b5f09d` | `counts.rs`, `answer::Router`; `tests/counts.rs`; E1–E5 |
 | 6 · class | `eeaec66e` | `class.rs`, `reference/classes-v1.toml`, `tools/class-table.py`; `tests/class.rs`; G1–G6 |
 | 7 · computed values | `b5d62d92` | `totals.rs`, `pseudo.rs`, the totals table (v5 since 9c3), `tools/totals-table.py`; `tests/pseudo.rs`; M6; T1, T2, T5 |

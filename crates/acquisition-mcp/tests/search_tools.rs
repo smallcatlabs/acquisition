@@ -804,7 +804,7 @@ fn the_requests_account_selects_the_store() {
 
 /// No daemon is started by any of the three: none bound a socket in the
 /// scratch world. (That none was reached for is the crate's edges: the
-/// search links no client, `tools/docs-check.sh`.)
+/// search links no client, `tools/arch-check.sh`.)
 #[test]
 fn no_tool_of_the_search_starts_a_daemon() {
     let mut seat = Seat::new();

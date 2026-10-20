@@ -79,7 +79,7 @@
 //!   weight (K5), and with none `(P1 or P2 …)`, one of its stats present
 //!   (t38); the sum made by `tree::sum_of_lines`, since
 //!   a group's tree is named by the tree's own modules alone
-//!   (`tools/docs-check.sh` §7). `if` is, per stat, not the stat's presence or
+//!   (`tools/arch-check.sh` §7). `if` is, per stat, not the stat's presence or
 //!   the stat with its bounds — `(-line(T) or line(T b))`,
 //!   `(-has:pseudo.X or pseudo.X>=v)` — and `true()` for a stat with none,
 //!   the site's own no-op; the presence is landed only for these two

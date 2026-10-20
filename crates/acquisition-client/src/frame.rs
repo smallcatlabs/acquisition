@@ -10,7 +10,7 @@
 //!
 //! One copy here and one in `acquisition-daemon/src/frame.rs`, byte for
 //! byte (the daemon split's step 3): the reader needs tokio, the protocol
-//! crate is serde-only (C1; `tools/docs-check.sh`'s allowlist refuses a
+//! crate is serde-only (C1; `tools/arch-check.sh`'s allowlist refuses a
 //! tokio feature there), and the daemon never links this crate. The
 //! constant both copies read is the protocol's, so the bound cannot
 //! drift; the tests below run in both.
