@@ -152,11 +152,12 @@ Item search over the shared store (no daemon, no network): a query in the langua
 
 ### `set_sync_policy`
 
-Write the per-account sync policy (validated strictly, compare-and-swap on if_revision). Sends nothing — intent is local; the network cost appears only when a plan is applied. Replacing an existing policy requires if_revision (from sync_policy); a stale or missing revision is a conflict, never a clobber.
+Write the per-account sync policy (validated strictly, compare-and-swap on if_revision). Sends nothing — intent is local; the network cost appears only when a plan is applied. Each realm the value names replaces that realm alone; the others stay, a realm named with no leagues is removed, and `replace: true` writes the whole policy instead. Replacing an existing policy requires if_revision (from sync_policy) either way; a stale or missing revision is a conflict, never a clobber. Returns the stored row, the whole policy as it now stands.
 
 - `account` (string | null)
-- `if_revision` (integer | null) — The revision this write replaces, from sync_policy. Required when a policy exists (replacing intent you have not read is refused as a conflict naming the current revision); omit only to create the first policy.
-- `value` (object, required) — The sync-policy value, e.g. {"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}} — per league, `tabs` and/or `characters` ("all" or an id list; absent means no coverage of that facet; an entry covering neither is refused). `tabs` is refused under realm poe2 (stashes are PoE1 only); `characters` is taken under every realm. Older values still parse: a version-1 top-level `leagues` map as realm pc, and version 1/2 as tab coverage only. Validated strictly before anything lands — a typo'd field is refused, never half-honored.
+- `if_revision` (integer | null) — The revision this write replaces, from sync_policy. Required when a policy exists (replacing intent you have not read is refused as a conflict naming the current revision), with `replace` too; omit only to create the first policy.
+- `replace` (boolean | null) — true writes the whole policy: every realm `value` does not name is removed. Default false: the realms `value` names, the rest kept.
+- `value` (object, required) — The sync-policy value, e.g. {"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}} — per league, `tabs` and/or `characters` ("all" or an id list; absent means no coverage of that facet; an entry covering neither is refused). `tabs` is refused under realm poe2 (stashes are PoE1 only); `characters` is taken under every realm. Older values still parse: a version-1 top-level `leagues` map as realm pc, and version 1/2 as tab coverage only. Validated strictly before anything lands — a typo'd field is refused, never half-honored. Each realm it names replaces that realm's stored policy, every league of it; a realm it does not name stays, and a realm named with no leagues ({"poe2":{"leagues":{}}}) is removed.
 
 ### `shop_render`
 

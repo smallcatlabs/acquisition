@@ -157,7 +157,7 @@ acq cancel <id> | set-priority <id> <n>   # cancel a subtree; change priority
 
 # keeping a league fresh: a policy, then a plan you read before it runs
 acq policy [show]   # sync policy and revision
-acq policy set '<json>'|-|@FILE [--if-revision N]   # {"version":3,"realms":{"pc":{"leagues":{…}}}}
+acq policy set '<json>'|-|@FILE [--if-revision N] [--replace]   # {"version":3,"realms":{"pc":{"leagues":{…}}}}: the realms named, the rest kept
 acq refresh --plan [--realm R] [--league L] [--expand] [--json]   # compile offline; a running daemon adds its quote
 acq refresh --apply[=plan.json] [--max-requests N]   # fetch exactly the plan; ends on what a new plan would still fetch
 
@@ -253,9 +253,6 @@ for test runs against GGG; `acq daemon status` prints their state.
 
 ## Known gaps
 
-- **`acq policy set` replaces the whole policy**, every realm of it: a
-  policy written for poe2 alone erases the pc one. Read it with
-  `acq policy show` and write it back whole.
 - **Path of Exile 2 is partial.** GGG offers no PoE2 stash tabs, so
   only characters are fetched, and the search's tables cover PoE1, so a
   PoE2 item's class and totals are undecided.

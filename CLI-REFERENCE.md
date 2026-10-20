@@ -409,7 +409,7 @@ Usage: acq policy [OPTIONS] [COMMAND]
 
 Commands:
   show  Print the stored policy value and its revision (the default)
-  set   Write the policy: inline JSON, `-` to read stdin, or `@<path>` to read a file. Validated before it is stored — a typo'd field or an unknown version is refused, never half-honored. The write replaces the whole policy, every realm and league of it: to add a league, read the policy with `acq policy show` and write it back with the league added
+  set   Write the policy: inline JSON, `-` to read stdin, or `@<path>` to read a file. Validated before it is stored — a typo'd field or an unknown version is refused, never half-honored. Each realm the value names replaces that realm's policy, every league of it; a realm it does not name stays as stored, and a realm named with no leagues (`"poe2":{"leagues":{}}`) is removed. To add a league, read the policy with `acq policy show` and write its realm back with the league added; `--replace` writes the whole policy instead
   help  Print this message or the help of the given subcommand(s)
 
 Options:
@@ -430,7 +430,7 @@ Options:
 ## `acq policy set`
 
 ```text
-Write the policy: inline JSON, `-` to read stdin, or `@<path>` to read a file. Validated before it is stored — a typo'd field or an unknown version is refused, never half-honored. The write replaces the whole policy, every realm and league of it: to add a league, read the policy with `acq policy show` and write it back with the league added
+Write the policy: inline JSON, `-` to read stdin, or `@<path>` to read a file. Validated before it is stored — a typo'd field or an unknown version is refused, never half-honored. Each realm the value names replaces that realm's policy, every league of it; a realm it does not name stays as stored, and a realm named with no leagues (`"poe2":{"leagues":{}}`) is removed. To add a league, read the policy with `acq policy show` and write its realm back with the league added; `--replace` writes the whole policy instead
 
 Usage: acq policy set [OPTIONS] <VALUE>
 
@@ -441,6 +441,9 @@ Arguments:
 Options:
       --if-revision <IF_REVISION>
           Only write if the stored policy is at exactly this revision (what `acq policy show` printed when you reviewed it); refused with the current revision otherwise. Without it the write replaces whatever revision is currently stored — though a write racing in between still conflicts rather than being clobbered
+
+      --replace
+          Replace the whole policy: every realm the value does not name is removed
 
   -h, --help
           Print help (see a summary with '-h')

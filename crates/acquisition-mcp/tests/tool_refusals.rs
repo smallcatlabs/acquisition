@@ -13,7 +13,7 @@ mod harness;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use acquisition_plan::put_sync_policy;
+use acquisition_plan::{PolicyWrite, put_sync_policy};
 use acquisition_store::{Annotations, Endpoint, Index, Provenance, Store, account_path};
 use harness::{Mcp, spawn_daemon};
 use serde_json::{Value, json};
@@ -56,6 +56,7 @@ fn seed(base: &std::path::Path) {
         &json!({ "version": 3, "realms": { "pc": { "leagues": { "Standard":
             { "tabs": "all", "max_age_seconds": 86400 } } } } }),
         None,
+        PolicyWrite::Replace,
         &Provenance::via("test"),
     )
     .unwrap();

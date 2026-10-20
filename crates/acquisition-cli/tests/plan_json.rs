@@ -259,3 +259,45 @@ fn json_stdout_is_the_contract_surface() {
 
     let _ = std::fs::remove_dir_all(&base);
 }
+
+/// C36, amended 2026-10-19 — `policy set` writes the realms it names and
+/// keeps the rest: a poe2 policy set alone leaves the pc one standing
+/// (the README's first known gap until then), a realm named with no
+/// leagues is removed, and `--replace` alone writes the whole policy.
+#[test]
+fn a_poe2_policy_set_alone_leaves_the_pc_policy_standing() {
+    let base = std::env::temp_dir().join(format!("acq-e2e-merge-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    seed_store(&base);
+    let pc = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","max_age_seconds":3600}}}}}"#;
+    let poe2 = r#"{"version":3,"realms":{"poe2":{"leagues":{"Standard":{"characters":"all","max_age_seconds":600}}}}}"#;
+    let no_poe2 = r#"{"version":3,"realms":{"poe2":{"leagues":{}}}}"#;
+    let set = |args: &[&str]| {
+        let out = acq(&base, &[&["policy", "set"], args, &["--json"]].concat());
+        assert!(out.status.success(), "{out:?}");
+        sole_json(&out)
+    };
+    assert_eq!(set(&[pc])["revision"], json!(1));
+    let both = set(&[poe2]);
+    assert_eq!(both["revision"], json!(2));
+    assert_eq!(
+        both["value"]["realms"]["pc"],
+        serde_json::from_str::<Value>(pc).unwrap()["realms"]["pc"],
+        "{both}"
+    );
+    assert!(both["value"]["realms"]["poe2"].is_object(), "{both}");
+    // The pc plan still compiles: its coverage survived the poe2 write.
+    let out = acq(&base, &["refresh", "--plan", "--json"]);
+    assert!(out.status.success(), "{out:?}");
+    let gone = set(&[no_poe2]);
+    assert_eq!(gone["revision"], json!(3));
+    assert_eq!(gone["value"], serde_json::from_str::<Value>(pc).unwrap());
+    // `--replace` writes the whole: the pc realm the value omits is gone.
+    let replaced = set(&[poe2, "--replace"]);
+    assert_eq!(replaced["revision"], json!(4));
+    assert_eq!(
+        replaced["value"],
+        serde_json::from_str::<Value>(poe2).unwrap()
+    );
+    let _ = std::fs::remove_dir_all(&base);
+}

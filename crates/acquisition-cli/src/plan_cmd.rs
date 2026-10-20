@@ -116,8 +116,8 @@ use std::path::PathBuf;
 
 use acquisition_client::client::{Client, DaemonError, Observed};
 use acquisition_plan::{
-    CharacterSkipReason, FetchReason, ListingReason, PlanError, RefreshAction, RefreshPlan,
-    SkipReason, Spent, SpentBy, apply_params_of, plan_refresh, put_sync_policy,
+    CharacterSkipReason, FetchReason, ListingReason, PlanError, PolicyWrite, RefreshAction,
+    RefreshPlan, SkipReason, Spent, SpentBy, apply_params_of, plan_refresh, put_sync_policy,
 };
 use acquisition_protocol::job::Outcome;
 use acquisition_protocol::protocol::{Quote, QuoteJob, QuoteScope, Request, Response};
@@ -181,7 +181,7 @@ pub fn policy_show(json: bool) -> Result<()> {
     Ok(())
 }
 
-pub fn policy_set(value: &str, if_revision: Option<i64>, json: bool) -> Result<()> {
+pub fn policy_set(value: &str, if_revision: Option<i64>, replace: bool, json: bool) -> Result<()> {
     let text = match value {
         "-" => std::io::read_to_string(std::io::stdin()).context("reading policy from stdin")?,
         v if v.starts_with('@') => {
@@ -192,7 +192,12 @@ pub fn policy_set(value: &str, if_revision: Option<i64>, json: bool) -> Result<(
     };
     let value: Value = serde_json::from_str(&text).context("the policy must be JSON")?;
     let (_, _, mut annotations) = open_intent()?;
-    let row = write_policy(&mut annotations, &value, if_revision)?;
+    let write = if replace {
+        PolicyWrite::Replace
+    } else {
+        PolicyWrite::Merge
+    };
+    let row = write_policy(&mut annotations, &value, if_revision, write)?;
     if json {
         println!("{}", serde_json::to_string_pretty(&row)?);
     } else {
@@ -216,11 +221,13 @@ pub fn policy_set(value: &str, if_revision: Option<i64>, json: bool) -> Result<(
 /// frontend's default rather than the shared function's — but it is still
 /// a CAS underneath: a write landing between the read and the put is a
 /// structured conflict to retry, never a silent clobber in either
-/// direction.
+/// direction. `write` is what the value replaces (C36): its realms, or
+/// with `--replace` the whole policy.
 fn write_policy(
     annotations: &mut Annotations,
     value: &Value,
     if_revision: Option<i64>,
+    write: PolicyWrite,
 ) -> Result<acquisition_store::AnnotationRow> {
     let expected = match if_revision {
         Some(revision) => Some(revision),
@@ -232,6 +239,7 @@ fn write_policy(
         annotations,
         value,
         expected,
+        write,
         &Provenance::via(WRITTEN_VIA),
     )?)
 }
@@ -1862,32 +1870,33 @@ mod tests {
             "version": 1,
             "leagues": { "Standard": { "tabs": "all", "max_age_secs": 60 } }
         });
-        assert!(write_policy(&mut a, &typo, None).is_err());
+        assert!(write_policy(&mut a, &typo, None, PolicyWrite::Merge).is_err());
         assert!(
             a.get(SYNC_POLICY_SCOPE, SYNC_POLICY_KEY, SYNC_POLICY_KIND)
                 .unwrap()
                 .is_none()
         );
         // The example the CLI prints must itself be a valid policy.
-        let first = write_policy(&mut a, &example(), None).unwrap();
+        let first = write_policy(&mut a, &example(), None, PolicyWrite::Merge).unwrap();
         assert_eq!(first.revision, 1);
         // An unconditional rewrite continues the revision sequence.
-        let second = write_policy(&mut a, &example(), None).unwrap();
+        let second = write_policy(&mut a, &example(), None, PolicyWrite::Merge).unwrap();
         assert_eq!(second.revision, 2);
     }
 
     #[test]
     fn if_revision_is_the_cas_at_the_human_boundary() {
         let mut a = annotations();
-        let first = write_policy(&mut a, &example(), None).unwrap();
+        let first = write_policy(&mut a, &example(), None, PolicyWrite::Merge).unwrap();
         // A stale expectation (someone else wrote since the review) is a
         // structured conflict naming the current revision, and the stored
         // value is untouched.
-        write_policy(&mut a, &example(), Some(first.revision)).unwrap();
+        write_policy(&mut a, &example(), Some(first.revision), PolicyWrite::Merge).unwrap();
         let err = write_policy(
             &mut a,
             &json!({"version": 1, "leagues": {}}),
             Some(first.revision),
+            PolicyWrite::Merge,
         )
         .unwrap_err();
         assert!(err.to_string().contains("revision 2"), "{err}");
@@ -1897,7 +1906,8 @@ mod tests {
             .unwrap();
         assert_eq!(held.value, example());
         // The reviewed revision, when it still stands, is replaceable.
-        let third = write_policy(&mut a, &example(), Some(held.revision)).unwrap();
+        let third =
+            write_policy(&mut a, &example(), Some(held.revision), PolicyWrite::Merge).unwrap();
         assert_eq!(third.revision, 3);
     }
 
@@ -1946,7 +1956,7 @@ mod tests {
         // Intent standing at the plan's revision: applies — and explicit
         // --realm / --league flags that agree are fine; ones that do not
         // are caller confusion, refused before spend.
-        write_policy(&mut a, &example(), None).unwrap();
+        write_policy(&mut a, &example(), None, PolicyWrite::Merge).unwrap();
         check_plan_applies(&plan, "mock", &entry, None, None, &a).unwrap();
         check_plan_applies(&plan, "mock", &entry, Some(Realm::Pc), Some("Standard"), &a).unwrap();
         let err =
@@ -1957,7 +1967,7 @@ mod tests {
         assert!(err.to_string().contains("--realm xbox"), "{err}");
         // Intent moved since the plan (the step-7 ruling): refused with
         // both revisions named, remedy = replan.
-        write_policy(&mut a, &example(), None).unwrap();
+        write_policy(&mut a, &example(), None, PolicyWrite::Merge).unwrap();
         let err = check_plan_applies(&plan, "mock", &entry, None, None, &a).unwrap_err();
         let msg = err.to_string();
         assert!(

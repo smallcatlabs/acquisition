@@ -773,10 +773,12 @@ enum PolicyCmd {
     Show,
     /// Write the policy: inline JSON, `-` to read stdin, or `@<path>` to
     /// read a file. Validated before it is stored — a typo'd field or an
-    /// unknown version is refused, never half-honored. The write replaces
-    /// the whole policy, every realm and league of it: to add a league,
-    /// read the policy with `acq policy show` and write it back with the
-    /// league added.
+    /// unknown version is refused, never half-honored. Each realm the
+    /// value names replaces that realm's policy, every league of it; a
+    /// realm it does not name stays as stored, and a realm named with no
+    /// leagues (`"poe2":{"leagues":{}}`) is removed. To add a league, read
+    /// the policy with `acq policy show` and write its realm back with the
+    /// league added; `--replace` writes the whole policy instead.
     #[command(after_long_help = "\
 The policy, version 3:
   {\"version\":3,\"realms\":{\"pc\":{\"leagues\":{\"Standard\":{\"tabs\":\"all\",\"characters\":\"all\",\"max_age_seconds\":3600}}}}}
@@ -797,6 +799,10 @@ A league entry names tabs, characters or both. Nothing is fetched by setting a p
         /// racing in between still conflicts rather than being clobbered.
         #[arg(long)]
         if_revision: Option<i64>,
+        /// Replace the whole policy: every realm the value does not name
+        /// is removed.
+        #[arg(long)]
+        replace: bool,
     },
 }
 
@@ -1254,9 +1260,11 @@ async fn run(cli: Cli) -> Result<()> {
         },
         Cmd::Policy { cmd } => match cmd {
             None | Some(PolicyCmd::Show) => plan_cmd::policy_show(cli.json),
-            Some(PolicyCmd::Set { value, if_revision }) => {
-                plan_cmd::policy_set(&value, if_revision, cli.json)
-            }
+            Some(PolicyCmd::Set {
+                value,
+                if_revision,
+                replace,
+            }) => plan_cmd::policy_set(&value, if_revision, replace, cli.json),
         },
         Cmd::Submit {
             kind,

@@ -6,7 +6,8 @@
 //! drives it), the tool
 //! surface must carry the whole loop — declare intent, compile the plan,
 //! spend it, replan — and every gate must fire through it: the
-//! create-only CAS on a blind policy write (C52), the daemon's admission
+//! create-only CAS on a blind policy write (C52), the per-realm merge
+//! of a policy write (C36), the daemon's admission
 //! budget (C42), and the step-7 staleness refusal (C44). The offline
 //! claims are proven offline (C41 — reads and plans never initiate
 //! traffic): the daemon is stopped before the staleness and empty-plan
@@ -320,6 +321,41 @@ fn the_mcp_tools_carry_the_plan_slice_and_its_gates() {
         msg.contains("revision 1") && msg.contains("revision 2") && msg.contains("replan"),
         "{msg}"
     );
+
+    // C36, amended 2026-10-19: a poe2 policy written alone leaves the pc
+    // one standing; a realm named with no leagues is removed; `replace`
+    // writes the whole — and every write over a live policy still names
+    // its revision (C52), `replace` or not, so nothing lands blind.
+    let poe2 = json!({ "version": 3, "realms": { "poe2": { "leagues": { "Standard":
+        { "characters": "all", "max_age_seconds": 600 } } } } });
+    for blind in [
+        json!({ "value": poe2 }),
+        json!({ "value": poe2, "replace": true }),
+    ] {
+        let msg = mcp.expect_err("set_sync_policy", blind);
+        assert!(msg.contains("revision 2"), "{msg}");
+    }
+    let row = mcp.expect_ok(
+        "set_sync_policy",
+        json!({ "value": poe2, "if_revision": 2 }),
+    );
+    assert_eq!(row["revision"], json!(3), "{row}");
+    let pc = &row["value"]["realms"]["pc"]["leagues"]["Standard"];
+    assert_eq!(pc["tabs"], json!(["no-such-tab"]), "{row}");
+    assert!(row["value"]["realms"]["poe2"].is_object(), "{row}");
+    let row = mcp.expect_ok(
+        "set_sync_policy",
+        json!({ "value": { "version": 3, "realms": { "poe2": { "leagues": {} } } },
+                "if_revision": 3 }),
+    );
+    assert_eq!(row["revision"], json!(4), "{row}");
+    assert!(row["value"]["realms"].get("poe2").is_none(), "{row}");
+    assert!(row["value"]["realms"]["pc"].is_object(), "{row}");
+    let row = mcp.expect_ok(
+        "set_sync_policy",
+        json!({ "value": poe2, "if_revision": 4, "replace": true }),
+    );
+    assert_eq!(row["value"], poe2, "{row}");
 
     // Neither offline path may have contacted a daemon — which in mock
     // mode would have lazy-spawned one. The socket must still be dead.

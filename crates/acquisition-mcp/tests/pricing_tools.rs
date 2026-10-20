@@ -15,7 +15,7 @@ mod harness;
 use std::path::{Path, PathBuf};
 
 use acquisition_plan::price::Buyout;
-use acquisition_plan::put_sync_policy;
+use acquisition_plan::{PolicyWrite, put_sync_policy};
 use acquisition_store::{Annotations, Endpoint, Index, Provenance, Store, account_path};
 use harness::{Mcp, acq, no_daemon_appeared};
 use serde_json::{Value, json};
@@ -149,6 +149,7 @@ fn seed(base: &Path) {
         &json!({ "version": 3, "realms": { "pc": { "leagues": { "Standard":
             { "tabs": "all", "characters": "all", "max_age_seconds": 86400 } } } } }),
         None,
+        PolicyWrite::Replace,
         &via,
     )
     .unwrap();

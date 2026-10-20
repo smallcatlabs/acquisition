@@ -120,7 +120,9 @@ use std::path::PathBuf;
 use acquisition_client::client::{
     Client, ConnectError, ConnectOptions, DaemonError, NotSpawned, Observed,
 };
-use acquisition_plan::{PlanError, RefreshPlan, apply_params_of, plan_refresh, put_sync_policy};
+use acquisition_plan::{
+    PlanError, PolicyWrite, RefreshPlan, apply_params_of, plan_refresh, put_sync_policy,
+};
 use acquisition_protocol::protocol::{ErrorKind, QuoteJob, Request, Response};
 use acquisition_protocol::realm::Realm;
 use acquisition_search::SearchError;
@@ -843,13 +845,19 @@ struct SetPolicyParams {
     /// parse: a version-1 top-level `leagues` map as realm pc, and version
     /// 1/2 as tab coverage only.
     /// Validated strictly before anything lands — a typo'd field is
-    /// refused, never half-honored.
+    /// refused, never half-honored. Each realm it names replaces that
+    /// realm's stored policy, every league of it; a realm it does not
+    /// name stays, and a realm named with no leagues
+    /// ({"poe2":{"leagues":{}}}) is removed.
     value: Value,
     /// The revision this write replaces, from sync_policy. Required when a
     /// policy exists (replacing intent you have not read is refused as a
-    /// conflict naming the current revision); omit only to create the
-    /// first policy.
+    /// conflict naming the current revision), with `replace` too; omit
+    /// only to create the first policy.
     if_revision: Option<i64>,
+    /// true writes the whole policy: every realm `value` does not name is
+    /// removed. Default false: the realms `value` names, the rest kept.
+    replace: Option<bool>,
     account: Option<String>,
 }
 
@@ -1223,16 +1231,22 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Write the per-account sync policy (validated strictly, compare-and-swap on if_revision). Sends nothing — intent is local; the network cost appears only when a plan is applied. Replacing an existing policy requires if_revision (from sync_policy); a stale or missing revision is a conflict, never a clobber."
+        description = "Write the per-account sync policy (validated strictly, compare-and-swap on if_revision). Sends nothing — intent is local; the network cost appears only when a plan is applied. Each realm the value names replaces that realm alone; the others stay, a realm named with no leagues is removed, and `replace: true` writes the whole policy instead. Replacing an existing policy requires if_revision (from sync_policy) either way; a stale or missing revision is a conflict, never a clobber. Returns the stored row, the whole policy as it now stands."
     )]
     fn set_sync_policy(&self, Parameters(p): Parameters<Args<SetPolicyParams>>) -> Told {
         answer(|| {
             let p = p.parse()?;
             let (_, _, mut annotations) = open_intent(p.account.as_deref())?;
+            let write = if p.replace.unwrap_or(false) {
+                PolicyWrite::Replace
+            } else {
+                PolicyWrite::Merge
+            };
             Ok(put_sync_policy(
                 &mut annotations,
                 &p.value,
                 p.if_revision,
+                write,
                 &Provenance::via(WRITTEN_VIA),
             )?)
         })

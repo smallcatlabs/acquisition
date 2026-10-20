@@ -380,7 +380,8 @@ impl std::error::Error for PlanError {}
 /// compiled here into minimal requests. In memory it is always the v3
 /// shape; a stored v1 or v2 value is upgraded on parse (v1 as realm pc,
 /// both as tab coverage only) and stays stored as written — what the
-/// human typed is what `policy show` shows.
+/// human typed is what `policy show` shows — until a write merges into
+/// it ([`PolicyWrite::Merge`]), which stores the merged policy as v3.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SyncPolicy {
     /// [`SYNC_POLICY_VERSION`] once parsed (older values read as v3).
@@ -698,13 +699,28 @@ impl SyncPolicy {
     }
 }
 
+/// What a sync-policy write replaces (C36, amended 2026-10-19).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PolicyWrite {
+    /// The realms the value names, each whole; a realm it names with no
+    /// leagues is removed, and a realm it does not name stays. The first
+    /// write, with nothing stored, is stored as written.
+    Merge,
+    /// The whole policy: what the value does not name is gone.
+    Replace,
+}
+
 /// Why a sync-policy write was refused: the value is not a policy this
-/// build compiles, or the store's compare-and-swap (or the store itself)
-/// refused the put. Split so a caller can render a CAS conflict — which
-/// carries the current row to re-read — differently from a typo.
+/// build compiles, the stored policy cannot be merged into, or the
+/// store's compare-and-swap (or the store itself) refused the put. Split
+/// so a caller can render a CAS conflict — which carries the current row
+/// to re-read — differently from a typo.
 #[derive(Debug)]
 pub enum PutPolicyError {
     Invalid(PlanError),
+    /// The stored policy is not one this build reads (a newer build's),
+    /// so nothing can be merged into it; a whole replacement still can.
+    StoredUnreadable(PlanError),
     Store(AnnotationError),
 }
 
@@ -712,6 +728,12 @@ impl std::fmt::Display for PutPolicyError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             PutPolicyError::Invalid(e) => write!(f, "{e}"),
+            PutPolicyError::StoredUnreadable(e) => write!(
+                f,
+                "the stored sync policy cannot be read by this build ({e}), so the realms \
+                 written cannot be merged into it: write the whole policy instead (`--replace`; on the \
+                 MCP, `replace: true`)"
+            ),
             PutPolicyError::Store(e) => write!(f, "{e}"),
         }
     }
@@ -731,12 +753,58 @@ impl std::error::Error for PutPolicyError {}
 /// default (the CLI's "replace whatever is stored") reads the current
 /// revision itself and passes it here — the blind form is a frontend
 /// policy, not this function's. `provenance` names the frontend (C65).
+///
+/// `write` is what the value replaces (C36): under
+/// [`PolicyWrite::Merge`] the stored policy is read and the realms the
+/// value names replace its own, so a poe2 policy written alone leaves
+/// the pc one standing. The merge is made from the row at exactly
+/// `expected_revision` — any other stored revision is the same conflict
+/// the put would raise — and lands in one put, so the revision advances
+/// once per write.
 pub fn put_sync_policy(
     annotations: &mut Annotations,
     value: &Value,
     expected_revision: Option<i64>,
+    write: PolicyWrite,
     provenance: &Provenance,
 ) -> Result<AnnotationRow, PutPolicyError> {
+    let merged;
+    let value = match write {
+        PolicyWrite::Replace => value,
+        PolicyWrite::Merge => {
+            let written = SyncPolicy::from_value(value).map_err(PutPolicyError::Invalid)?;
+            let stored = annotations
+                .get(SYNC_POLICY_SCOPE, SYNC_POLICY_KEY, SYNC_POLICY_KIND)
+                .map_err(PutPolicyError::Store)?;
+            match stored {
+                // Nothing to merge into: the put creates, or refuses a
+                // revision that names nothing, as it always has.
+                None => value,
+                Some(row) if Some(row.revision) != expected_revision => {
+                    return Err(PutPolicyError::Store(AnnotationError::Conflict {
+                        current: Some(Box::new(row)),
+                    }));
+                }
+                Some(row) => {
+                    let mut policy = SyncPolicy::from_value(&row.value)
+                        .map_err(PutPolicyError::StoredUnreadable)?;
+                    for (realm, entry) in written.realms {
+                        if entry.leagues.is_empty() {
+                            policy.realms.remove(&realm);
+                        } else {
+                            policy.realms.insert(realm, entry);
+                        }
+                    }
+                    merged = serde_json::to_value(&policy).map_err(|e| {
+                        PutPolicyError::Invalid(PlanError::MalformedPolicy {
+                            detail: e.to_string(),
+                        })
+                    })?;
+                    &merged
+                }
+            }
+        }
+    };
     annotations
         .put::<SyncPolicy>(
             SYNC_POLICY_SCOPE,
@@ -2178,14 +2246,16 @@ mod tests {
                 "{bad}: {err}"
             );
             let mut a = Annotations::open_memory_for("u-1").unwrap();
-            assert!(put_sync_policy(&mut a, &bad, None, &via_test()).is_err());
+            assert!(
+                put_sync_policy(&mut a, &bad, None, PolicyWrite::Replace, &via_test()).is_err()
+            );
             assert!(a.get("account", "", SYNC_POLICY_KIND).unwrap().is_none());
         }
         // A v2 value upgrades (characters: none) and is stored as written.
         let v2 = json!({ "version": 2, "realms": { "pc": { "leagues": { "Standard": {
             "tabs": "all", "max_age_seconds": 60 } } } } });
         let mut a = Annotations::open_memory_for("u-1").unwrap();
-        let row = put_sync_policy(&mut a, &v2, None, &via_test()).unwrap();
+        let row = put_sync_policy(&mut a, &v2, None, PolicyWrite::Replace, &via_test()).unwrap();
         assert_eq!(row.value, v2);
         let (_, typed) = a.get_as::<SyncPolicy>("account", "").unwrap().unwrap();
         assert_eq!(typed.version, SYNC_POLICY_VERSION);
@@ -3120,27 +3190,143 @@ mod tests {
             "version": 1,
             "leagues": { "Standard": { "tabs": "all", "max_age_secs": 60 } }
         });
-        let err = put_sync_policy(&mut a, &typo, None, &via_test()).unwrap_err();
+        let err =
+            put_sync_policy(&mut a, &typo, None, PolicyWrite::Replace, &via_test()).unwrap_err();
         assert!(matches!(err, PutPolicyError::Invalid(_)), "{err}");
         assert!(a.get("account", "", SYNC_POLICY_KIND).unwrap().is_none());
         // `None` creates; a second `None` over a live row is a conflict
         // naming the current revision — a caller (an agent especially)
         // never replaces intent it has not read.
         let value = all_policy_value(3600);
-        let first = put_sync_policy(&mut a, &value, None, &via_test()).unwrap();
+        let first =
+            put_sync_policy(&mut a, &value, None, PolicyWrite::Replace, &via_test()).unwrap();
         assert_eq!(first.revision, 1);
         assert_eq!(first.written_via, "test");
-        let err = put_sync_policy(&mut a, &value, None, &via_test()).unwrap_err();
+        let err =
+            put_sync_policy(&mut a, &value, None, PolicyWrite::Replace, &via_test()).unwrap_err();
         assert!(matches!(err, PutPolicyError::Store(_)), "{err}");
         assert!(err.to_string().contains("revision 1"), "{err}");
         // Naming the reviewed revision replaces it; naming a stale one
         // conflicts and the stored value is untouched.
-        let second = put_sync_policy(&mut a, &value, Some(1), &via_test()).unwrap();
+        let second =
+            put_sync_policy(&mut a, &value, Some(1), PolicyWrite::Replace, &via_test()).unwrap();
         assert_eq!(second.revision, 2);
-        let err = put_sync_policy(&mut a, &all_policy_value(60), Some(1), &via_test()).unwrap_err();
+        let err = put_sync_policy(
+            &mut a,
+            &all_policy_value(60),
+            Some(1),
+            PolicyWrite::Replace,
+            &via_test(),
+        )
+        .unwrap_err();
         assert!(err.to_string().contains("revision 2"), "{err}");
         let held = a.get("account", "", SYNC_POLICY_KIND).unwrap().unwrap();
         assert_eq!(held.value, value);
+    }
+
+    /// C36, amended 2026-10-19 — a set replaces the realms it names and
+    /// keeps the rest: a poe2 policy written alone leaves the pc one
+    /// standing, a realm named with no leagues goes, and only `Replace`
+    /// writes the whole; one write is one revision, and the merge never
+    /// reaches past the compare-and-swap (C52).
+    #[test]
+    fn a_poe2_policy_set_alone_leaves_the_pc_policy_standing() {
+        let mut a = Annotations::open_memory_for("u-1").unwrap();
+        let pc = json!({ "version": 3, "realms": { "pc": { "leagues": { "Standard":
+            { "tabs": "all", "max_age_seconds": 3600 } } } } });
+        let poe2 = json!({ "version": 3, "realms": { "poe2": { "leagues": { "Standard":
+            { "characters": "all", "max_age_seconds": 600 } } } } });
+        let first = put_sync_policy(&mut a, &pc, None, PolicyWrite::Merge, &via_test()).unwrap();
+        // Nothing to merge into: the first write is stored as written.
+        assert_eq!(first.value, pc);
+        let both =
+            put_sync_policy(&mut a, &poe2, Some(1), PolicyWrite::Merge, &via_test()).unwrap();
+        assert_eq!(both.revision, 2);
+        let policy = SyncPolicy::from_value(&both.value).unwrap();
+        assert!(
+            policy.league(Realm::Pc, "Standard").is_some(),
+            "{}",
+            both.value
+        );
+        assert_eq!(
+            policy
+                .league(Realm::Poe2, "Standard")
+                .unwrap()
+                .max_age_seconds,
+            600
+        );
+        // The realm named replaces that realm whole, its other leagues too.
+        let pc_hc = json!({ "version": 3, "realms": { "pc": { "leagues": { "Hardcore":
+            { "tabs": "all", "max_age_seconds": 3600 } } } } });
+        let row =
+            put_sync_policy(&mut a, &pc_hc, Some(2), PolicyWrite::Merge, &via_test()).unwrap();
+        let policy = SyncPolicy::from_value(&row.value).unwrap();
+        assert!(
+            policy.league(Realm::Pc, "Standard").is_none(),
+            "{}",
+            row.value
+        );
+        assert!(
+            policy.league(Realm::Pc, "Hardcore").is_some(),
+            "{}",
+            row.value
+        );
+        assert!(
+            policy.league(Realm::Poe2, "Standard").is_some(),
+            "{}",
+            row.value
+        );
+        // A realm named with no leagues is removed; the others stay.
+        let no_poe2 = json!({ "version": 3, "realms": { "poe2": { "leagues": {} } } });
+        let row =
+            put_sync_policy(&mut a, &no_poe2, Some(3), PolicyWrite::Merge, &via_test()).unwrap();
+        assert_eq!(row.revision, 4);
+        assert_eq!(row.value, pc_hc);
+        // A stale or missing revision is the conflict it always was, and
+        // nothing lands: the merge is made from the reviewed row alone.
+        for stale in [None, Some(3), Some(5)] {
+            let err =
+                put_sync_policy(&mut a, &poe2, stale, PolicyWrite::Merge, &via_test()).unwrap_err();
+            assert!(matches!(err, PutPolicyError::Store(_)), "{err}");
+            assert!(err.to_string().contains("revision 4"), "{err}");
+        }
+        // `Replace` writes the whole: the pc realm the value omits is gone.
+        let row =
+            put_sync_policy(&mut a, &poe2, Some(4), PolicyWrite::Replace, &via_test()).unwrap();
+        assert_eq!(row.revision, 5);
+        assert_eq!(row.value, poe2);
+    }
+
+    /// A stored policy this build cannot read is never merged into: the
+    /// refusal names the whole write that still replaces it.
+    #[test]
+    fn a_policy_this_build_cannot_read_is_replaced_whole_never_merged() {
+        let dir = std::env::temp_dir().join(format!(
+            "acq-policy-newer-{}-{}",
+            std::process::id(),
+            acquisition_store::now()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        let mut a = Annotations::open_for(&dir, "u-newer").unwrap();
+        let pc = all_policy_value(3600);
+        put_sync_policy(&mut a, &pc, None, PolicyWrite::Merge, &via_test()).unwrap();
+        // The store's own door refuses a newer version at put, so the
+        // newer build's value is planted under it, as that build would.
+        rusqlite::Connection::open(acquisition_store::annotations_path(&dir, "u-newer"))
+            .unwrap()
+            .execute(
+                "UPDATE annotations SET value = '{\"version\":99,\"realms\":{}}' \
+                 WHERE kind = ?1",
+                [SYNC_POLICY_KIND],
+            )
+            .unwrap();
+        let err =
+            put_sync_policy(&mut a, &pc, Some(1), PolicyWrite::Merge, &via_test()).unwrap_err();
+        assert!(matches!(err, PutPolicyError::StoredUnreadable(_)), "{err}");
+        assert!(err.to_string().contains("--replace"), "{err}");
+        let row = put_sync_policy(&mut a, &pc, Some(1), PolicyWrite::Replace, &via_test()).unwrap();
+        assert_eq!(row.revision, 2);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// C44 — apply refuses a plan whose policy revision is no longer the stored one, checked against a fresh read; wrong uuid or provider never spends.
@@ -3154,11 +3340,25 @@ mod tests {
         let err = plan.check_spendable("mock", Some("u-1"), &a).unwrap_err();
         assert!(matches!(err, SpendError::PolicyGone { .. }), "{err}");
         // Intent standing at the plan's revision: spendable.
-        put_sync_policy(&mut a, &all_policy_value(3600), None, &via_test()).unwrap();
+        put_sync_policy(
+            &mut a,
+            &all_policy_value(3600),
+            None,
+            PolicyWrite::Replace,
+            &via_test(),
+        )
+        .unwrap();
         plan.check_spendable("mock", Some("u-1"), &a).unwrap();
         // Intent moved since the plan (the step-7 ruling): refused with
         // both revisions named, remedy = replan.
-        put_sync_policy(&mut a, &all_policy_value(60), Some(1), &via_test()).unwrap();
+        put_sync_policy(
+            &mut a,
+            &all_policy_value(60),
+            Some(1),
+            PolicyWrite::Replace,
+            &via_test(),
+        )
+        .unwrap();
         let err = plan.check_spendable("mock", Some("u-1"), &a).unwrap_err();
         assert!(matches!(err, SpendError::PolicyMoved { .. }), "{err}");
         let msg = err.to_string();
@@ -3191,7 +3391,14 @@ mod tests {
             1000,
         );
         let mut a = Annotations::open_memory_for("u-1").unwrap();
-        put_sync_policy(&mut a, &all_policy_value(3600), None, &via_test()).unwrap();
+        put_sync_policy(
+            &mut a,
+            &all_policy_value(3600),
+            None,
+            PolicyWrite::Replace,
+            &via_test(),
+        )
+        .unwrap();
         let plan = plan_refresh(
             "mock",
             &s.refresh_snapshot("pc", "Standard", &a).unwrap(),

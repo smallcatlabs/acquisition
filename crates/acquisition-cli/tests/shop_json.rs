@@ -10,7 +10,7 @@ use std::process::{Command, Output};
 
 use acquisition_plan::price::Buyout;
 use acquisition_plan::shop::{Cell, Page, ShopRender, Verdict};
-use acquisition_plan::{SyncPolicy, put_sync_policy};
+use acquisition_plan::{PolicyWrite, SyncPolicy, put_sync_policy};
 use acquisition_store::{Annotations, Endpoint, Index, Provenance, Store, account_path};
 use serde_json::{Value, json};
 
@@ -172,7 +172,7 @@ fn seed(base: &Path) -> PathBuf {
     let policy = json!({ "version": 3, "realms": { "pc": { "leagues": { "Standard": {
         "tabs": ["f1"], "max_age_seconds": 3600 } } } } });
     let _: SyncPolicy = SyncPolicy::from_value(&policy).unwrap();
-    put_sync_policy(&mut a, &policy, None, &via).unwrap();
+    put_sync_policy(&mut a, &policy, None, PolicyWrite::Replace, &via).unwrap();
     mock
 }
 
