@@ -3,7 +3,7 @@
 //! beside the reading, for a caller that sends requests and types
 //! nothing — and each one runs.
 
-mod common;
+use crate::common;
 
 use acquisition_search::answer::{Asked, Request};
 use acquisition_search::{Corpus, SearchError};

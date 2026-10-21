@@ -16,7 +16,7 @@ use acquisition_store::{
 };
 use serde_json::{Value, json};
 
-mod harness;
+use crate::harness;
 
 use harness::{Transcript, golden, offline_acq as acq, sole_json};
 

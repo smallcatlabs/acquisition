@@ -32,7 +32,7 @@
 //! **What is measured, never required**: how often an answer called
 //! undecided is the same under every completion tried. A sampler cannot
 //! show that no completion differs, and a rule may be careful on purpose.
-//! `cargo test -p acquisition-search --test generated_completion -- --ignored --nocapture`
+//! `cargo test -p acquisition-search --test main generated_completion -- --ignored --nocapture`
 //! prints the tally the build plan's record explains.
 //!
 //! No query here holds `undecided( … )`: it says something of the evidence
@@ -48,7 +48,7 @@
 //! Which completions those are is asked of the build, `undecided( … )` of
 //! the field; that the probe is the sort's status is the cross-checks'.
 
-mod common;
+use crate::common;
 
 use std::collections::{BTreeMap, HashMap};
 

@@ -19,7 +19,7 @@ use std::path::Path;
 use acquisition_plan::{RefreshAction, RefreshPlan};
 use serde_json::{Value, json};
 
-mod harness;
+use crate::harness;
 
 use harness::{acq, login_as_mock, sole_json};
 

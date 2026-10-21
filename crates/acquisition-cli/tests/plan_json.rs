@@ -18,7 +18,7 @@ use acquisition_plan::RefreshPlan;
 use acquisition_store::{Endpoint, Index, Store, account_path};
 use serde_json::{Value, json};
 
-mod harness;
+use crate::harness;
 
 use harness::{offline_acq as acq, sole_json};
 

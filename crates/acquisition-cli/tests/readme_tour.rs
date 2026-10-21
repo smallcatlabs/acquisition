@@ -25,7 +25,7 @@
 
 use std::process::Command;
 
-mod harness;
+use crate::harness;
 use harness::{acq, login, login_with, scratch, sole_json};
 
 fn help(path: &[&str]) -> Result<String, String> {

@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use acquisition_store::{Endpoint, Index, Store, account_path};
 use serde_json::{Value, json};
 
-mod harness;
+use crate::harness;
 
 use harness::{Transcript, acq, golden, login, sole_json, start_daemon, text};
 

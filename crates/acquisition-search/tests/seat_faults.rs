@@ -13,7 +13,7 @@
 //! for the fault; its CLI and MCP faults are those crates' `seat_faults`
 //! and `search_tools`.
 
-mod common;
+use crate::common;
 
 use std::collections::BTreeSet;
 

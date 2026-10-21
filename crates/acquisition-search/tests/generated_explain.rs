@@ -18,7 +18,7 @@
 //! What this cannot see: a fault the evaluator has on a query a user
 //! types, which explain inherits. That is every other property's.
 
-mod common;
+use crate::common;
 
 use std::collections::HashMap;
 

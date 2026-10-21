@@ -12,7 +12,7 @@
 //! before the family, and a row that reads the item's category under
 //! `not` and `or` (C93).
 
-mod common;
+use crate::common;
 
 use std::collections::{BTreeMap, BTreeSet};
 

@@ -24,7 +24,7 @@
 //! What this cannot see: a fault every spelling shares. That is the
 //! hand-counted tests' and the completion property's.
 
-mod common;
+use crate::common;
 
 use std::collections::HashMap;
 

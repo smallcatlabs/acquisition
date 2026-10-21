@@ -13,7 +13,7 @@
 //! the catalogue calls the two filters ambiguous. Quality raises no
 //! elemental damage, and `pseudo.edps` is the site's figure exactly.
 
-mod common;
+use crate::common;
 
 use std::collections::BTreeMap;
 

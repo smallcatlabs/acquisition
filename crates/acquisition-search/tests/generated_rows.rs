@@ -38,7 +38,7 @@
 //! group and its not. That is the hand-counted tests' (`tests/rows.rs`,
 //! `tests/pseudo.rs`).
 
-mod common;
+use crate::common;
 
 use std::collections::HashMap;
 

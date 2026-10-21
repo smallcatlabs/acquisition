@@ -5,7 +5,7 @@
 //! empty temp dir and `ACQ_NO_SPAWN=1` makes any contact an error, so
 //! the command must answer from the binary alone.
 
-mod harness;
+use crate::harness;
 
 use harness::{Transcript, golden, offline_acq as acq, sole_json};
 

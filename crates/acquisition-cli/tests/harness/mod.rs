@@ -377,6 +377,6 @@ pub fn golden(file: &str, name: &str, transcript: &Transcript) {
         &expected,
         &actual,
         &shown,
-        &format!("ACQ_UPDATE_FIXTURES=1 cargo test -p acquisition-cli --test {stem}"),
+        &format!("ACQ_UPDATE_FIXTURES=1 cargo test -p acquisition-cli --test main {stem}"),
     );
 }

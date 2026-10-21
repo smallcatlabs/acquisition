@@ -7,7 +7,7 @@
 //! Every count is worked by hand from the fixture below, and every route
 //! followed.
 
-mod common;
+use crate::common;
 
 use std::collections::BTreeSet;
 

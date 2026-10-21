@@ -10,7 +10,7 @@
 //! to get past its offline gates to the daemon's door, so one is seeded
 //! under the scratch root — written by the store crate, sent by no one.
 
-mod harness;
+use crate::harness;
 
 use std::path::Path;
 

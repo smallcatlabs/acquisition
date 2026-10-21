@@ -11,7 +11,7 @@
 use acquisition_store::jobs::{JobDb, JobRow, daemon_db_path};
 use serde_json::json;
 
-mod harness;
+use crate::harness;
 
 use harness::{acq, scratch_tmp, sockets_under, sole_json, start_daemon, text};
 

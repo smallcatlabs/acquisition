@@ -4,7 +4,7 @@
 //! every route an answer prints is followed and compared, by id, with the
 //! members worked by hand.
 
-mod common;
+use crate::common;
 
 use std::collections::BTreeSet;
 

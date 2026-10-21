@@ -5,7 +5,7 @@
 //! dimension named, and never replaced. `ACQ_PROVIDER=ggg` appears only on the observing server, which
 //! cannot spawn in real mode by construction: nothing reaches GGG.
 
-mod harness;
+use crate::harness;
 
 use std::path::Path;
 use std::time::{Duration, Instant};

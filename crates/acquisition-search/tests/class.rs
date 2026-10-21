@@ -4,7 +4,7 @@
 //! `reqlevel` beside it. Every count is worked by hand from the fixture
 //! below.
 
-mod common;
+use crate::common;
 
 use acquisition_search::{CLASS_TABLE_VERSION, ClassTable, Request, answer, class};
 use acquisition_store::Store;

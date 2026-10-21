@@ -16,7 +16,7 @@
 //!   id's presence term, but where the id's clause is ambiguous by a
 //!   refusal, its form left to the site.
 
-mod common;
+use crate::common;
 
 use std::collections::{BTreeMap, BTreeSet};
 

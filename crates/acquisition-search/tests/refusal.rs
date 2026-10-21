@@ -6,7 +6,7 @@
 //! corpus, so the whole language corpus is asked of a store holding
 //! nothing.
 
-mod common;
+use crate::common;
 
 use acquisition_search::{ErrorKind, NOT_BUILT, SearchError, answer, describe};
 use serde::Deserialize;

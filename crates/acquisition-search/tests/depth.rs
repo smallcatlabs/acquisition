@@ -8,7 +8,7 @@
 //! deeper is refused by its kind, and so is one far past every depth that
 //! aborted. A test thread's stack is the smallest a search runs on.
 
-mod common;
+use crate::common;
 
 use acquisition_search::{Corpus, Request, answer};
 use common::*;

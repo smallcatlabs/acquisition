@@ -19,7 +19,7 @@
 //!   request's query, alone and beside its own text, it reads as the
 //!   same translation (step 5).
 
-mod common;
+use crate::common;
 
 use std::collections::{BTreeMap, BTreeSet};
 

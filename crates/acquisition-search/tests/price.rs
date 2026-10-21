@@ -4,7 +4,7 @@
 //! prints is followed and compared by id, and the price an item shows is
 //! the listing state's — never a reading of this crate's own.
 
-mod common;
+use crate::common;
 
 use std::collections::BTreeSet;
 

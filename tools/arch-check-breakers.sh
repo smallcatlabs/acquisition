@@ -25,7 +25,7 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/acq-breakers.XXXXXX")
-files=(Cargo.toml Cargo.lock crates/acquisition-plan/Cargo.toml crates/acquisition-store/Cargo.toml crates/acquisition-search/Cargo.toml crates/acquisition-cli/Cargo.toml crates/acquisition-mcp/Cargo.toml crates/acquisition-client/Cargo.toml crates/acquisition-daemon/Cargo.toml tools/arch-check.sh)
+files=(Cargo.toml Cargo.lock crates/acquisition-plan/Cargo.toml crates/acquisition-store/Cargo.toml crates/acquisition-search/Cargo.toml crates/acquisition-cli/Cargo.toml crates/acquisition-mcp/Cargo.toml crates/acquisition-client/Cargo.toml crates/acquisition-daemon/Cargo.toml crates/acquisition-cli/tests/main.rs tools/arch-check.sh)
 for f in "${files[@]}"; do mkdir -p "$scratch/keep/$(dirname "$f")"; cp "$f" "$scratch/keep/$f"; done
 restore() {
   local f
@@ -35,6 +35,7 @@ restore() {
   done
   rm -rf crates/acquisition-helper
   rm -f crates/acquisition-client/src/zz_breaker.rs crates/acquisition-cli/src/zz_breaker.rs crates/acquisition-mcp/src/zz_breaker.rs crates/acquisition-search/src/zz_breaker.rs
+  rm -f crates/acquisition-cli/tests/zz_breaker.rs
 }
 trap 'restore; rm -rf "$scratch"' EXIT
 
@@ -101,7 +102,7 @@ run_case() {  # run_case <name> <refuse|pass> <pattern the output must contain> 
      || [[ $want == pass && $status -eq 0 && $out == *"$pattern"* ]]; then
     printf 'ok      %-52s %s: %s\n' "$name" "$want" "$(grep -m1 -F "$pattern" <<<"$out" | cut -c1-90)"; pass=$((pass+1))
   else
-    printf 'FAIL    %-52s wanted %s with "%s"; exit %d, got:\n%s\n' "$name" "$want" "$pattern" "$status" "$(grep -E 'EDGE|GROUP|dependencies' <<<"$out" | sed 's/^/          /')"
+    printf 'FAIL    %-52s wanted %s with "%s"; exit %d, got:\n%s\n' "$name" "$want" "$pattern" "$status" "$(grep -E 'EDGE|GROUP|LAYOUT|dependencies|layout' <<<"$out" | sed 's/^/          /')"
     failed=$((failed+1))
   fi
   restore
@@ -190,6 +191,13 @@ run_case 'the tree under an alias'                               refuse "$GR" al
 run_case 'the tree named by its path'                            refuse "$GR" qualified
 no_group_module() { tool "group_modules='^crates/acquisition-search/src/(tree|parse|print|json|template|group)\\.rs:'" "group_modules='^crates/acquisition-search/src/(tree|parse|print|json|template)\\.rs:'"; }
 run_case 'the rule forgets the module that computes the meaning' refuse "$GR" no_group_module
+
+echo '== the code: one test binary of modules per crate, the files that set the environment their own (C122)'
+second_plain() { printf '// breaker: a second binary that sets nothing\n#[test]\nfn f() {}\n' >crates/acquisition-cli/tests/zz_breaker.rs; }
+merged_session() { printf 'mod watch_recovery;\n' >>crates/acquisition-cli/tests/main.rs; }
+run_case 'a second file without session( under tests/'           refuse 'LAYOUT  crates/acquisition-cli/tests: 2 files call no session(' second_plain
+run_case 'a session( file listed as a mod of the plain one'      refuse 'lists watch_recovery as a module' merged_session
+run_case 'the layout as it stands'                               pass   'ok      layout' none
 
 echo '== the code: shapes that must pass'
 dup() { adddep crates/acquisition-store/Cargo.toml "duplicate-helper = { path = \"$scratch/x/dup1\" }"; adddep crates/acquisition-cli/Cargo.toml "duplicate-helper = { path = \"$scratch/x/dup2\", version = \"0.2.0\" }"; }

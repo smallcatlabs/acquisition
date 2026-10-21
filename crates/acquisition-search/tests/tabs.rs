@@ -9,7 +9,7 @@
 //! 39 of another type never fetched — more than `LISTED_WHOLE`, so the
 //! listing is the `MOST_ITEMS` with the most items and the rest counted.
 
-mod common;
+use crate::common;
 
 use acquisition_search::tabs::{LISTED_WHOLE, MOST_ITEMS, Selection, Tabs};
 use acquisition_store::Store;

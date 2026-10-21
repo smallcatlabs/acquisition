@@ -48,7 +48,7 @@
 //!   they counted, and together the matches, each once — the generated
 //!   bases being of one class and one leaf.
 
-mod common;
+use crate::common;
 
 use std::collections::{BTreeMap, HashMap};
 

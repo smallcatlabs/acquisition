@@ -7,7 +7,7 @@
 //! evaluator and its routes can agree on a wrong classification. Step 4b's
 //! other properties and the hand-counted regressions remain necessary.
 
-mod common;
+use crate::common;
 
 use std::collections::{BTreeSet, HashMap};
 

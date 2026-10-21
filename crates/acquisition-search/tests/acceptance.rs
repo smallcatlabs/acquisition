@@ -5,7 +5,7 @@
 //! pinned beside them, by the wording printed. Every count is worked by
 //! hand from the fixture below.
 
-mod common;
+use crate::common;
 
 use acquisition_plan::price::{Buyout, Price, PriceTarget, set_buyout};
 use acquisition_search::{Request, describe};

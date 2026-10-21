@@ -3,7 +3,7 @@
 //! reproduced by an outside audit of step 4 (2026-09-20) against the build
 //! at `28606ed4`, which answered every one of them definitely.
 
-mod common;
+use crate::common;
 
 use acquisition_search::Corpus;
 use acquisition_store::Store;

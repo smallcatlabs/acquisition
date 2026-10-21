@@ -6,7 +6,7 @@
 //! invariants 4 and 5 of the surface (a count has a route; every block is
 //! bounded), C97 (`--describe` is the help).
 
-mod common;
+use crate::common;
 
 use acquisition_search::describe;
 use common::generated::{fixture, request, run};

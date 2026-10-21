@@ -5,6 +5,9 @@ edition.workspace = true
 license.workspace = true
 publish.workspace = true
 repository.workspace = true
+# One test binary of modules (`tests/main.rs`, C122), and each file that
+# sets the process environment its own: named below, never discovered.
+autotests = false
 
 [dependencies]
 # C89: the store, and the planner for the effective price a query reads
@@ -39,3 +42,7 @@ rusqlite = { version = "0.32", features = ["bundled", "hooks"] }
 [build-dependencies]
 # the build a basis names is a digest of sources (build.rs, C98)
 sha2 = "0.10"
+
+[[test]]
+name = "main"
+path = "tests/main.rs"

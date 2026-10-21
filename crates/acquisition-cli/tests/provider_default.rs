@@ -11,7 +11,7 @@
 
 use std::process::Command;
 
-mod harness;
+use crate::harness;
 
 use harness::{acq, acqd, command, isolate, scratch, scratch_tmp, sockets_under, sole_json, text};
 

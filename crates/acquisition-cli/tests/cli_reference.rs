@@ -2,7 +2,7 @@
 //! subcommand's `--help`, walked from the root — and this test keeps the
 //! committed copy equal to it. A golden file, not a frozen one (P5):
 //! drift fails here, and
-//! `ACQ_UPDATE_FIXTURES=1 cargo test -p acquisition-cli --test cli_reference`
+//! `ACQ_UPDATE_FIXTURES=1 cargo test -p acquisition-cli --test main cli_reference`
 //! rewrites it. The reader — an agent, a Codex session, an outside
 //! reviewer — gets every verb's semantics without building; the writer
 //! builds anyway. A verb's semantics is its help string (C11: the CLI
@@ -10,7 +10,7 @@
 
 use std::process::Command;
 
-mod harness;
+use crate::harness;
 
 const PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../CLI-REFERENCE.md");
 
@@ -109,7 +109,7 @@ fn render() -> String {
          binary's own `--help`, every subcommand walked from the root; a golden \
          file the test keeps equal to the binary. Do not edit: change the help \
          string in `crates/acquisition-cli/src/main.rs` and regenerate with \
-         `ACQ_UPDATE_FIXTURES=1 cargo test -p acquisition-cli --test cli_reference`. \
+         `ACQ_UPDATE_FIXTURES=1 cargo test -p acquisition-cli --test main cli_reference`. \
          The README's tour shows the shape; this is every verb's semantics. \
          `--json` and `--account` are global — every verb takes them — and are \
          listed once, under `acq`. The MCP server's tools are `MCP-REFERENCE.md`.\n\n",
@@ -129,7 +129,7 @@ fn the_reference_matches_the_binary() {
         &expected,
         &actual,
         "CLI-REFERENCE.md",
-        "ACQ_UPDATE_FIXTURES=1 cargo test -p acquisition-cli --test cli_reference",
+        "ACQ_UPDATE_FIXTURES=1 cargo test -p acquisition-cli --test main cli_reference",
     );
     assert!(
         actual.contains("## `acq shop render`"),

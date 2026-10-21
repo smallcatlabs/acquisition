@@ -4,7 +4,7 @@
 //! and 6 of the surface; C93's composition; C92's sort scalar; C96's
 //! scope; C98's basis at the answer's boundary.
 
-mod common;
+use crate::common;
 
 use acquisition_search::{Corpus, Realm};
 use acquisition_store::Store;

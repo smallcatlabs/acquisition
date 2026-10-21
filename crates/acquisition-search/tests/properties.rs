@@ -8,7 +8,7 @@
 //! rule against the trade site's own figures, every captured row of it.
 //! Every count and value is worked by hand from the spec beside it.
 
-mod common;
+use crate::common;
 
 use acquisition_search::properties::{self, PropertyTable, PropertyTableError};
 use acquisition_search::{PROPERTY_TABLE_VERSION, Request, answer, describe};

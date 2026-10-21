@@ -6,7 +6,7 @@
 //! by `true()` or `false()`, so each cell is what the build answers the
 //! transformed query, typed.
 
-mod common;
+use crate::common;
 
 use acquisition_search::{Corpus, Request, answer};
 use common::*;

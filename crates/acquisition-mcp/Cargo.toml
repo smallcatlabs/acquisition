@@ -5,6 +5,9 @@ edition.workspace = true
 license.workspace = true
 publish.workspace = true
 repository.workspace = true
+# One test binary of modules (`tests/main.rs`, C122), and each file that
+# sets the process environment its own: named below, never discovered.
+autotests = false
 
 [[bin]]
 name = "acq-mcp"
@@ -22,3 +25,11 @@ serde.workspace = true
 serde_json.workspace = true
 anyhow.workspace = true
 rmcp = { version = "3.1", features = ["transport-io"] }
+
+[[test]]
+name = "main"
+path = "tests/main.rs"
+
+[[test]]
+name = "plan_loop"
+path = "tests/plan_loop.rs"

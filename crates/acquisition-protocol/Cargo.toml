@@ -5,6 +5,9 @@ edition.workspace = true
 license.workspace = true
 publish.workspace = true
 repository.workspace = true
+# One test binary of modules (`tests/main.rs`, C122), and each file that
+# sets the process environment its own: named below, never discovered.
+autotests = false
 
 # The daemon's contract as a frontend sees it (`DAEMON-SPLIT-SLICE.md` at `b6197a82`;
 # note 18 at `decda84e` §2.1): serde and serde_json, nothing else — never
@@ -19,3 +22,7 @@ serde_json.workspace = true
 
 [build-dependencies]
 sha2 = "0.10"
+
+[[test]]
+name = "main"
+path = "tests/main.rs"

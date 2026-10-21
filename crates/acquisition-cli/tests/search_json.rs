@@ -14,7 +14,7 @@ use std::process::{Command, Output, Stdio};
 use acquisition_store::{Endpoint, Index, Store, account_path};
 use serde_json::{Value, json};
 
-mod harness;
+use crate::harness;
 
 use harness::{Transcript, golden, offline_acq as acq, offline_command as command, sole_json};
 

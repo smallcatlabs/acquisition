@@ -24,7 +24,7 @@ use std::time::{Duration, Instant};
 
 use serde_json::Value;
 
-mod harness;
+use crate::harness;
 
 use harness::{Proc, acqd, scratch, scratch_tmp, sockets_under, sole_json, text};
 

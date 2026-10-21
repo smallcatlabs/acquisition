@@ -4,7 +4,7 @@
 //! route resubmitted on a later basis reports both counts — through the
 //! crate's boundary, a request in, an answer out, as JSON.
 
-mod common;
+use crate::common;
 
 use acquisition_search::answer::{Asked, Request};
 use acquisition_search::{Corpus, answer};

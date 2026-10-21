@@ -11,7 +11,7 @@
 //! (C93), what does not open the field (rule 8 of the plan), and the
 //! refusal of `has:` with a slot word.
 
-mod common;
+use crate::common;
 
 use std::collections::{BTreeMap, BTreeSet};
 

@@ -5,7 +5,7 @@
 //! result is the document `acq result --json` prints. The ledger is
 //! seeded through the store crate, the daemon's own writer.
 
-mod harness;
+use crate::harness;
 
 use acquisition_store::jobs::{JobDb, JobRow, daemon_db_path};
 use harness::Mcp;

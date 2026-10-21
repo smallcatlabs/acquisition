@@ -19,7 +19,7 @@ use acquisition_plan::shop::{Cell, ShopRender};
 use acquisition_store::{AnnotationRow, Endpoint, Index, Store, account_path};
 use serde_json::{Value, json};
 
-mod harness;
+use crate::harness;
 
 use harness::{offline_acq as acq, offline_command as command, sole_json};
 

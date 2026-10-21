@@ -14,7 +14,7 @@ use std::time::{Duration, Instant};
 
 use serde_json::Value;
 
-mod harness;
+use crate::harness;
 
 use harness::{acq, login_as_mock, sole_json};
 

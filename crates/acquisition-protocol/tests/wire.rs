@@ -4,7 +4,7 @@
 //! error-kind set and the frame bound, under `tests/fixtures/wire/`. A
 //! golden file, not a frozen one (P5): a wire change fails here as a diff
 //! a reviewer reads, and
-//! `ACQ_UPDATE_FIXTURES=1 cargo test -p acquisition-protocol --test wire`
+//! `ACQ_UPDATE_FIXTURES=1 cargo test -p acquisition-protocol --test main wire`
 //! rewrites the fixtures. The matches over the enums are exhaustive, so
 //! a new variant does not compile until it is named here — and named
 //! here, it needs a sample below and a fixture on disk.
@@ -141,7 +141,7 @@ fn pin<T: Serialize + serde::de::DeserializeOwned>(
     }
     assert!(
         problems.is_empty(),
-        "the wire changed; review the diff, then `ACQ_UPDATE_FIXTURES=1 cargo test -p acquisition-protocol --test wire` if it is intended:\n\n{}",
+        "the wire changed; review the diff, then `ACQ_UPDATE_FIXTURES=1 cargo test -p acquisition-protocol --test main wire` if it is intended:\n\n{}",
         problems.join("\n")
     );
 }

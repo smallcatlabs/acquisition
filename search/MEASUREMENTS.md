@@ -291,7 +291,7 @@ What each rerun showed, in the order of the builds:
   narrowing matches three readings.
 
 **The completion property's measured half: no counterexample, at step 4b and over step 8's generators** —
-`cargo test -p acquisition-search --test generated_completion -- --ignored --nocapture`,
+`cargo test -p acquisition-search --test main generated_completion -- --ignored --nocapture`,
 2,000 cases from a fixed seed. Run 2026-09-20 before part 2 and after it,
 the same numbers both times; the figures here are the run of 2026-09-21,
 over the generators as the fifth audit left them (decimal lines, a second

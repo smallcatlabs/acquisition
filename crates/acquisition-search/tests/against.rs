@@ -5,7 +5,7 @@
 //! its reason. The seven items of the worked example against
 //! its query, each worked by hand.
 
-mod common;
+use crate::common;
 
 use acquisition_search::answer::QueryInput;
 use acquisition_store::Store;

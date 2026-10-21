@@ -9,7 +9,7 @@
 //! running, from the rulings and C93: a beast found by its category, a
 //! category under `not` and `or`, `show`, the help.
 
-mod common;
+use crate::common;
 
 use std::collections::{BTreeMap, BTreeSet};
 

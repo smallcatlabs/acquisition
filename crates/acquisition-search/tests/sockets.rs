@@ -5,7 +5,7 @@
 //! the sort, `show`, and every authoring error a socket term has. Every
 //! count is worked by hand from the fixture below.
 
-mod common;
+use crate::common;
 
 use acquisition_search::{Request, sockets};
 use acquisition_store::Store;

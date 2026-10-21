@@ -10,7 +10,7 @@
 //! whose every count is worked by hand below. Facts are seeded through
 //! the store crate; no daemon runs.
 
-mod harness;
+use crate::harness;
 
 use std::path::{Path, PathBuf};
 

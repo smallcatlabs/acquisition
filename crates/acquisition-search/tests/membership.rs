@@ -6,7 +6,7 @@
 //! through the store's own ingest: a fetch that no longer has an item,
 //! and a listing that no longer names a tab.
 
-mod common;
+use crate::common;
 
 use acquisition_search::Corpus;
 use acquisition_search::answer::{Membership, Request};

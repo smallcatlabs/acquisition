@@ -3,11 +3,11 @@
 //! arguments as the schema declares them — and this test keeps the
 //! committed copy equal to it. A golden file, not a frozen one (P5):
 //! drift fails here, and
-//! `ACQ_UPDATE_FIXTURES=1 cargo test -p acquisition-mcp --test mcp_reference`
+//! `ACQ_UPDATE_FIXTURES=1 cargo test -p acquisition-mcp --test main mcp_reference`
 //! rewrites it. An agent reads the file without building; the writer
 //! builds anyway. The CLI's counterpart is `CLI-REFERENCE.md`.
 
-mod harness;
+use crate::harness;
 
 use harness::Mcp;
 use serde_json::Value;
@@ -26,7 +26,7 @@ fn render(instructions: &str, tools: &[Value]) -> String {
          server's own `initialize` instructions and `tools/list`; a golden file \
          the test keeps equal to the binary. Do not edit: change the tool's \
          attributes in `crates/acquisition-mcp/src/main.rs` and regenerate with \
-         `ACQ_UPDATE_FIXTURES=1 cargo test -p acquisition-mcp --test mcp_reference`. \
+         `ACQ_UPDATE_FIXTURES=1 cargo test -p acquisition-mcp --test main mcp_reference`. \
          The CLI's verbs are `CLI-REFERENCE.md`.\n\n\
          ## Instructions (sent at `initialize`)\n\n",
     );
@@ -90,6 +90,6 @@ fn the_reference_matches_the_server() {
         &expected,
         &actual,
         "MCP-REFERENCE.md",
-        "ACQ_UPDATE_FIXTURES=1 cargo test -p acquisition-mcp --test mcp_reference",
+        "ACQ_UPDATE_FIXTURES=1 cargo test -p acquisition-mcp --test main mcp_reference",
     );
 }

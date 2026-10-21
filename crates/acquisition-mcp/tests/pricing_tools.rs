@@ -10,7 +10,7 @@
 //! whatever is stored. Facts and intent are seeded through the store
 //! crate; no daemon runs, and none appears.
 
-mod harness;
+use crate::harness;
 
 use std::path::{Path, PathBuf};
 

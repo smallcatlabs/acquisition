@@ -18,7 +18,7 @@ use std::process::Output;
 
 use serde_json::{Value, json};
 
-mod harness;
+use crate::harness;
 
 use harness::sole_json;
 

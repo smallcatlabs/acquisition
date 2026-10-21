@@ -5,7 +5,7 @@
 //! computed value has. Every count is worked by hand from the fixture
 //! below.
 
-mod common;
+use crate::common;
 
 use acquisition_search::{Request, TOTALS_TABLE_VERSION, describe};
 use acquisition_store::Store;

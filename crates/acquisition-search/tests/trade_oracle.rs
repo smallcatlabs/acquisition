@@ -26,7 +26,7 @@
 //! exact against what the captures show, and no labelled sibling stands in
 //! for an unlabelled one (the outside review of step 6).
 
-mod common;
+use crate::common;
 
 use std::collections::{BTreeMap, BTreeSet};
 

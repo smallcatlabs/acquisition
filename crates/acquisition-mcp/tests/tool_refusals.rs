@@ -8,7 +8,7 @@
 //! serve stays a JSON-RPC error: a daemon's own refusal carries its
 //! closed kind in `data` (C85).
 
-mod harness;
+use crate::harness;
 
 use std::time::{Duration, Instant};
 

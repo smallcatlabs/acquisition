@@ -3,7 +3,7 @@
 //! mode prints the message alone: the kind is for a program to branch on,
 //! never a prefix on prose.
 
-mod harness;
+use crate::harness;
 
 use harness::{acq, sole_json, start_daemon};
 

@@ -14,7 +14,7 @@ use acquisition_plan::{PolicyWrite, SyncPolicy, put_sync_policy};
 use acquisition_store::{Annotations, Endpoint, Index, Provenance, Store, account_path};
 use serde_json::{Value, json};
 
-mod harness;
+use crate::harness;
 
 use harness::{Transcript, golden, offline_acq as acq, sole_json};
 

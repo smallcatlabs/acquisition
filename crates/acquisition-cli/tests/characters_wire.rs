@@ -20,7 +20,7 @@ use std::process::Output;
 use acquisition_plan::{FetchReason, ListingReason, RefreshAction, RefreshPlan};
 use serde_json::{Value, json};
 
-mod harness;
+use crate::harness;
 
 use harness::sole_json;
 
