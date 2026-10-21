@@ -81,7 +81,7 @@ pub enum Apply {
     Submitted(Submitted),
 }
 
-/// An apply job the daemon admitted, and what the process that submitted
+/// An apply the daemon admitted as a job, and what the process that submitted
 /// it needs to say what landed: the store's status at the submit, its
 /// event watermark included, since what changed is a difference of two
 /// statuses.

@@ -388,8 +388,22 @@ fn did_not_come_up(acqd: &Path, base: &Path, said: &Mutex<Vec<u8>>) -> String {
 /// returns it with its pid. The sibling link is placed first, so an
 /// in-process client and the binary agree on the artifact.
 pub fn start_daemon(acq: &Path, acqd: &Path, base: &Path) -> (Proc, u64) {
+    start_daemon_with(acq, acqd, base, &[])
+}
+
+/// [`start_daemon`] with `env` set last on the daemon's own command (the
+/// journal path, [`journal_on`]): every other command keeps the isolation
+/// list unchanged.
+pub fn start_daemon_with(
+    acq: &Path,
+    acqd: &Path,
+    base: &Path,
+    env: &[(&str, &str)],
+) -> (Proc, u64) {
     link_beside_this_test(acqd);
-    let (daemon, said) = spawn_drained(daemon_command(acqd, base), acqd);
+    let mut cmd = daemon_command(acqd, base);
+    cmd.envs(env.iter().copied());
+    let (daemon, said) = spawn_drained(cmd, acqd);
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
         let mut status = Command::new(acq);
@@ -474,6 +488,134 @@ pub fn sockets_under(dir: &Path) -> Vec<PathBuf> {
 /// world into that directory, and nothing else binds there).
 pub fn no_daemon_appeared(base: &Path) -> bool {
     sockets_under(&scratch_tmp(base)).is_empty()
+}
+
+// ---- the send journal ---------------------------------------------------
+
+/// The journal of a daemon the test started under `base`, the GGG-side
+/// contract surface (`TESTING-NOTES.md`): `base/sends.jsonl`.
+pub fn journal_path(base: &Path) -> PathBuf {
+    base.join("sends.jsonl")
+}
+
+/// The knob that turns the journal on at [`journal_path`], for the
+/// daemon's own command ([`start_daemon_with`]) or a login that starts it.
+pub fn journal_on(base: &Path) -> (&'static str, String) {
+    let path = journal_path(base);
+    let path = path.to_str().expect("a UTF-8 scratch path").to_string();
+    ("ACQ_JOURNAL", path)
+}
+
+/// One rate-limit window a send's response reported: `hits` of `max` in
+/// `period` seconds under `rule` (`account`, `ip`), and the restriction
+/// active, 0 for none.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Window {
+    pub rule: String,
+    pub hits: u64,
+    pub max: u64,
+    pub period: u64,
+    pub restricted: u64,
+}
+
+/// One journaled send, by field: the daemon's pid, the method, the route
+/// (the endpoint key with its account, `stash@ExileTester`), the status,
+/// whether it counted against a window, how long it was held before
+/// dispatch, and every window its response reported.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Send {
+    pub pid: u64,
+    pub method: String,
+    pub route: String,
+    pub status: Option<u64>,
+    pub counted: bool,
+    pub wait_ms: u64,
+    pub windows: Vec<Window>,
+}
+
+fn journal_lines(base: &Path) -> Vec<Value> {
+    let path = journal_path(base);
+    let text = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("the journal {}: {e}", path.display()));
+    text.lines()
+        .filter(|l| !l.trim().is_empty())
+        .map(|l| {
+            serde_json::from_str::<Value>(l)
+                .unwrap_or_else(|e| panic!("a journal line that is not JSON ({e}): {l}"))
+        })
+        .collect()
+}
+
+/// The journal's first line, the header a daemon writes when it opens it
+/// (`event`, `pid`, `contract`, `daemon`, `clock`).
+pub fn journal_header(base: &Path) -> Value {
+    journal_lines(base)
+        .into_iter()
+        .next()
+        .unwrap_or_else(|| panic!("the journal under {} is empty", base.display()))
+}
+
+/// The windows of one send's `rate` headers: for each rule
+/// `x-rate-limit-rules` names, its `max:period:restriction` list beside its
+/// `-state` list's `hits:period:active`.
+fn windows(rate: &Value) -> Vec<Window> {
+    let header = |name: &str| rate[name].as_str().unwrap_or_default().to_string();
+    let triples = |list: &str| -> Vec<[u64; 3]> {
+        list.split(',')
+            .filter(|w| !w.is_empty())
+            .map(|w| {
+                let n: Vec<u64> = w
+                    .split(':')
+                    .map(|x| {
+                        x.parse()
+                            .unwrap_or_else(|_| panic!("a window {w:?} in {rate}"))
+                    })
+                    .collect();
+                [n[0], n[1], n[2]]
+            })
+            .collect()
+    };
+    let mut out = Vec::new();
+    for rule in header("x-rate-limit-rules")
+        .split(',')
+        .filter(|r| !r.is_empty())
+    {
+        let rule = rule.to_ascii_lowercase();
+        let limits = triples(&header(&format!("x-rate-limit-{rule}")));
+        let states = triples(&header(&format!("x-rate-limit-{rule}-state")));
+        for (limit, state) in limits.iter().zip(&states) {
+            out.push(Window {
+                rule: rule.clone(),
+                hits: state[0],
+                max: limit[0],
+                period: limit[1],
+                restricted: state[2],
+            });
+        }
+    }
+    out
+}
+
+/// Every send the journal under `base` records, in order, by field; the
+/// header and any other event line left out.
+pub fn sends(base: &Path) -> Vec<Send> {
+    journal_lines(base)
+        .into_iter()
+        .filter(|v| v.get("route").is_some())
+        .map(|v| Send {
+            pid: v["pid"]
+                .as_u64()
+                .unwrap_or_else(|| panic!("a send without a pid: {v}")),
+            method: v["method"].as_str().unwrap_or_default().to_string(),
+            route: v["route"].as_str().unwrap_or_default().to_string(),
+            status: v["status"].as_u64(),
+            counted: v["counted"]
+                .as_bool()
+                .unwrap_or_else(|| panic!("no counted: {v}")),
+            wait_ms: v["wait_ms"].as_u64().unwrap_or_default(),
+            windows: windows(&v["rate"]),
+        })
+        .collect()
 }
 
 // ---- output -------------------------------------------------------------

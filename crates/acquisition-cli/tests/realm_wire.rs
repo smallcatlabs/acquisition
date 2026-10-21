@@ -27,18 +27,15 @@ use harness::sole_json;
 /// command, so a daemon any of them starts writes it.
 fn acq(base: &Path, args: &[&str]) -> Output {
     harness::command(base, args)
-        .env("ACQ_JOURNAL", base.join("sends.jsonl"))
+        .env("ACQ_JOURNAL", harness::journal_path(base))
         .output()
         .expect("spawning acq")
 }
 
 /// The scripted mock login, its daemon journaling to `base/sends.jsonl`.
 fn login_journaled(base: &Path) {
-    let journal = base.join("sends.jsonl");
-    harness::login_as_mock(
-        base,
-        &[("ACQ_JOURNAL", journal.to_str().expect("a UTF-8 path"))],
-    );
+    let (knob, journal) = harness::journal_on(base);
+    harness::login_as_mock(base, &[(knob, journal.as_str())]);
 }
 
 /// A job command's successful payload.
@@ -48,23 +45,6 @@ fn payload(base: &Path, args: &[&str]) -> Value {
     let outcome = sole_json(&out);
     assert_eq!(outcome["outcome"], json!("success"), "{outcome}");
     outcome["payload"].clone()
-}
-
-/// The journal's sends as `(method, route, status)`, in order.
-fn sends(base: &Path) -> Vec<(String, String, Option<u64>)> {
-    let text = std::fs::read_to_string(base.join("sends.jsonl")).expect("journal");
-    text.lines()
-        .filter(|l| !l.trim().is_empty())
-        .map(|l| serde_json::from_str::<Value>(l).expect("journal line"))
-        .filter(|v| v.get("route").is_some())
-        .map(|v| {
-            (
-                v["method"].as_str().unwrap().to_string(),
-                v["route"].as_str().unwrap().to_string(),
-                v["status"].as_u64(),
-            )
-        })
-        .collect()
 }
 
 #[test]
@@ -131,15 +111,15 @@ fn realm_is_on_the_wire_exactly_as_ruled() {
     // explicit and omitted are indistinguishable), xbox sends on the
     // suffixed ones with a HEAD probe before each route's first GET,
     // and no poe2 send at all.
-    let all = sends(&base);
+    let all = harness::sends(&base);
     let account = all
         .iter()
-        .find_map(|(_, r, _)| r.strip_prefix("stash-list@").map(str::to_string))
+        .find_map(|send| send.route.strip_prefix("stash-list@").map(str::to_string))
         .expect("a pc listing was journaled");
     let on = |route: &str| -> Vec<(String, Option<u64>)> {
         all.iter()
-            .filter(|(_, r, _)| r == route)
-            .map(|(m, _, st)| (m.clone(), *st))
+            .filter(|send| send.route == route)
+            .map(|send| (send.method.clone(), send.status))
             .collect()
     };
     assert_eq!(
@@ -165,7 +145,7 @@ fn realm_is_on_the_wire_exactly_as_ruled() {
         ]
     );
     assert!(
-        all.iter().all(|(_, r, _)| !r.contains("poe2")),
+        all.iter().all(|send| !send.route.contains("poe2")),
         "a poe2 send was journaled: {all:?}"
     );
 

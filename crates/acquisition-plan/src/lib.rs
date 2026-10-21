@@ -1209,7 +1209,7 @@ fn check_quote_matches(
         let (kind, params) = action.job();
         if job.kind != kind || job.params != params {
             return Err(format!(
-                "quoted job {i} ({} {}) is not the plan's action {i} ({kind} {params})",
+                "quoted action {i} ({} {}) is not the plan's action {i} ({kind} {params})",
                 job.kind, job.params
             ));
         }

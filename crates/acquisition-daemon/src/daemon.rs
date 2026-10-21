@@ -493,7 +493,7 @@ const REFRESH_OWNER_ABANDONED: &str = "token refresh owner was abandoned before 
 /// | `Sessions::get`: several live, none named | `several accounts are logged in (…)` | `ambiguous_account` |
 /// | `Sessions::matching` (submit, quote, auth check, logout): a selector two or more live sessions match | `account … names several live sessions (…)` | `ambiguous_account` |
 /// | `resolve_account`: a selector with no session | `account …: not logged in` / `… is not logged in (live: …)` | `not_logged_in` |
-/// | `validate_apply`, `admit_realm` (submit) | `apply needs a jobs array …`, `apply job i: …`, `max_requests must be …`, `plan exceeds the budget …`, a realm refusal | `refused` |
+/// | `validate_apply`, `admit_realm` (submit) | `apply needs a jobs array …`, `action i: …`, `max_requests must be …`, `plan exceeds the budget …`, a realm refusal | `refused` |
 /// | `submit_with_parent`: parent gone or cancelled (children only; becomes the parent's outcome) | `parent job N is gone` / `was cancelled` | `refused` |
 /// | `submit_with_parent`: the sticky queue failure, or the insert failing | `the persisted queue failed (…)` | `queue_failed` |
 /// | `Status`, `Result`, `cancel`, `set_priority`: no such id | `no job N` | `unknown_job` |
@@ -3817,7 +3817,7 @@ resubmit if still wanted",
         // several sessions live is ambiguous too: a quote is one projection
         // under one headline account, and the daemon never guesses whose.
         // The judged selector is what each job resolves against, so a
-        // quoted job keys exactly what the same submit would key (an
+        // job the quote projects keys exactly what the same submit would key (an
         // omitted selector still runs accountless kinds accountless).
         let account = match account {
             Some(_) => self.canonical_account(account)?,
@@ -4320,28 +4320,28 @@ fn validate_apply(params: &Value) -> Result<(), Refusal> {
     for (i, job) in jobs.iter().enumerate() {
         let kind = job.get("kind").and_then(Value::as_str).unwrap_or("");
         let params = job.get("params").cloned().unwrap_or(Value::Null);
-        admit_realm(kind, &params).map_err(|e| refused(format!("apply job {i}: {e}")))?;
+        admit_realm(kind, &params).map_err(|e| refused(format!("action {i}: {e}")))?;
         match kind {
             "stashes" => {}
             "stash" => {
                 if params.get("deep").and_then(Value::as_bool).unwrap_or(false) {
                     return Err(refused(format!(
-                        "apply job {i}: a plan's stash fetch never fans out (`deep` must be false)"
+                        "action {i}: a plan's stash fetch never fans out (`deep` must be false)"
                     )));
                 }
                 if params.get("id").and_then(Value::as_str).is_none() {
-                    return Err(refused(format!("apply job {i}: stash needs an id")));
+                    return Err(refused(format!("action {i}: stash needs an id")));
                 }
             }
             "characters" => {}
             "character" => {
                 if params.get("name").and_then(Value::as_str).is_none() {
-                    return Err(refused(format!("apply job {i}: character needs a name")));
+                    return Err(refused(format!("action {i}: character needs a name")));
                 }
             }
             other => {
                 return Err(refused(format!(
-                    "apply job {i}: kind {other:?} is not in the plan vocabulary \
+                    "action {i}: kind {other:?} is not in the plan vocabulary \
                      (stashes, stash, characters, character)"
                 )));
             }
@@ -5239,7 +5239,7 @@ mod auth_session_tests {
         assert!(
             refused
                 .message
-                .starts_with("apply job 1: the stashes endpoints"),
+                .starts_with("action 1: the stashes endpoints"),
             "{refused}"
         );
         assert_eq!(

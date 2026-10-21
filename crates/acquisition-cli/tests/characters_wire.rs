@@ -29,18 +29,15 @@ use harness::sole_json;
 /// command, so a daemon any of them starts writes it.
 fn acq(base: &Path, args: &[&str]) -> Output {
     harness::command(base, args)
-        .env("ACQ_JOURNAL", base.join("sends.jsonl"))
+        .env("ACQ_JOURNAL", harness::journal_path(base))
         .output()
         .expect("spawning acq")
 }
 
 /// The scripted mock login, its daemon journaling to `base/sends.jsonl`.
 fn login_journaled(base: &Path) {
-    let journal = base.join("sends.jsonl");
-    harness::login_as_mock(
-        base,
-        &[("ACQ_JOURNAL", journal.to_str().expect("a UTF-8 path"))],
-    );
+    let (knob, journal) = harness::journal_on(base);
+    harness::login_as_mock(base, &[(knob, journal.as_str())]);
 }
 
 /// `refresh --plan --realm poe2 --json` as the planner's own validated
@@ -58,23 +55,6 @@ fn apply(base: &Path) -> Value {
     let outcome = sole_json(&out);
     assert_eq!(outcome["outcome"], json!("success"), "{outcome}");
     outcome["payload"].clone()
-}
-
-/// The journal's sends as `(method, route, status)`, in order.
-fn sends(base: &Path) -> Vec<(String, String, Option<u64>)> {
-    let text = std::fs::read_to_string(base.join("sends.jsonl")).expect("journal");
-    text.lines()
-        .filter(|l| !l.trim().is_empty())
-        .map(|l| serde_json::from_str::<Value>(l).expect("journal line"))
-        .filter(|v| v.get("route").is_some())
-        .map(|v| {
-            (
-                v["method"].as_str().unwrap().to_string(),
-                v["route"].as_str().unwrap().to_string(),
-                v["status"].as_u64(),
-            )
-        })
-        .collect()
 }
 
 #[test]
@@ -191,15 +171,19 @@ fn a_character_only_poe2_policy_closes_its_loop_on_the_poe2_routes() {
 
     // The journal: exactly the poe2 character routes, each probed first,
     // every send 2xx, and nothing on a stash route or a pc route.
-    let all = sends(&base);
+    let all = harness::sends(&base);
     let account = all
         .iter()
-        .find_map(|(_, r, _)| r.strip_prefix("character-list/poe2@").map(str::to_string))
+        .find_map(|send| {
+            send.route
+                .strip_prefix("character-list/poe2@")
+                .map(str::to_string)
+        })
         .expect("a poe2 character listing was journaled");
     let on = |route: &str| -> Vec<(String, Option<u64>)> {
         all.iter()
-            .filter(|(_, r, _)| r == route)
-            .map(|(m, _, st)| (m.clone(), *st))
+            .filter(|send| send.route == route)
+            .map(|send| (send.method.clone(), send.status))
             .collect()
     };
     assert_eq!(
@@ -218,7 +202,7 @@ fn a_character_only_poe2_policy_closes_its_loop_on_the_poe2_routes() {
     );
     let data_routes: Vec<&String> = all
         .iter()
-        .map(|(_, r, _)| r)
+        .map(|send| &send.route)
         .filter(|r| !r.starts_with("oauth-token") && !r.starts_with("profile"))
         .collect();
     assert!(
@@ -226,7 +210,8 @@ fn a_character_only_poe2_policy_closes_its_loop_on_the_poe2_routes() {
         "a send left the poe2 character routes: {all:?}"
     );
     assert!(
-        all.iter().all(|(_, _, st)| matches!(st, Some(200..=299))),
+        all.iter()
+            .all(|send| matches!(send.status, Some(200..=299))),
         "a non-2xx send: {all:?}"
     );
 

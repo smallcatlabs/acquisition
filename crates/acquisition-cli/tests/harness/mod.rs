@@ -10,6 +10,10 @@
 #[path = "../../../acquisition-client/tests/harness/mod.rs"]
 mod shared;
 
+/// The journey's one table of facts, shared with the MCP's twin.
+#[path = "../../../acquisition-client/tests/harness/journey.rs"]
+pub mod journey;
+
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
@@ -77,6 +81,12 @@ pub fn acqd() -> PathBuf {
 /// daemon status` sees it running, compatible and mock.
 pub fn start_daemon(base: &Path) -> (Proc, u64) {
     shared::start_daemon(acq_exe(), &acqd(), base)
+}
+
+/// [`start_daemon`] with `env` on the daemon's own command alone (the
+/// journal, [`journal_on`]).
+pub fn start_daemon_with(base: &Path, env: &[(&str, &str)]) -> (Proc, u64) {
+    shared::start_daemon_with(acq_exe(), &acqd(), base, env)
 }
 
 /// The scripted mock login as `user`.
@@ -210,24 +220,210 @@ impl Transcript {
         out
     }
 
-    /// The transcript under the normaliser's named rules, in order; a
-    /// `# holds` line is the fact as checked and is kept as written.
+    /// The transcript under the normaliser's named rules ([`normalise`]).
     fn normalised(&self) -> String {
-        self.text
-            .replace("\r\n", "\n")
-            .split_inclusive('\n')
-            .map(|line| {
-                if line.starts_with("# holds ") {
-                    return line.to_string();
-                }
-                let mut line = scratch_rule(line, &self.base);
-                line = age_rule(&line);
-                line = basis_rule(&line);
-                line = token_rule(&line);
-                line.replace(env!("CARGO_PKG_VERSION"), "<version>")
-            })
-            .collect()
+        normalise(&self.text, &self.base)
     }
+}
+
+/// The normaliser's nine named rules, in order: CRLF to LF, `scratch`,
+/// `age`, `basis`, `token` and the version line by line, then `job`,
+/// `pid` and `progress` over the whole text, since a job's ordinal is
+/// counted across the transcript and a job's progress lines are read
+/// together. A `# holds` line is the fact as checked and is kept as
+/// written. Normalising a normalised text changes nothing (the test
+/// module `normaliser.rs` holds that over every committed golden).
+pub fn normalise(text: &str, base: &Path) -> String {
+    let text: String = text
+        .replace("\r\n", "\n")
+        .split_inclusive('\n')
+        .map(|line| {
+            if is_fact(line) {
+                return line.to_string();
+            }
+            let mut line = scratch_rule(line, base);
+            line = age_rule(&line);
+            line = basis_rule(&line);
+            line = token_rule(&line);
+            line.replace(env!("CARGO_PKG_VERSION"), "<version>")
+        })
+        .collect();
+    progress_rule(&pid_rule(&job_rule(&text)))
+}
+
+/// A `# holds` line: never normalised.
+fn is_fact(line: &str) -> bool {
+    line.starts_with("# holds ")
+}
+
+/// Whether `text` at byte `at` starts a word: the text's start, or after
+/// a character that is not a letter, a digit or `_`.
+fn word_starts(text: &str, at: usize) -> bool {
+    text[..at]
+        .chars()
+        .next_back()
+        .is_none_or(|c| !(c.is_alphanumeric() || c == '_'))
+}
+
+/// The run of ASCII digits at the start of `text` when a word ends after
+/// it (none when a letter, a digit or `_` follows), else 0 bytes.
+fn digits_word(text: &str) -> usize {
+    let n = text.bytes().take_while(u8::is_ascii_digit).count();
+    let ends = text[n..]
+        .chars()
+        .next()
+        .is_none_or(|c| !(c.is_alphanumeric() || c == '_'));
+    if n > 0 && ends { n } else { 0 }
+}
+
+/// The rule `job`: a job id after `job `, `jobs `, `acq result `,
+/// `acq status `, `acq cancel ` or `acq priority `, and each id of an
+/// en-dash range or a comma list after it, is `<jN>`, N counting distinct
+/// ids by first appearance across the whole transcript, command lines
+/// included: `applying 9 requests as job 7` and a later `$ acq result 7`
+/// share `<j1>`, and `(jobs 8–16)` reads `(jobs <j2>–<j3>)`. Numbered,
+/// since a transcript relates its ids; `<jN>`, never `<job N>`, which a
+/// second pass would match. A daemon's job counter is stable by timing
+/// alone.
+fn job_rule(text: &str) -> String {
+    const PREFIXES: [&str; 6] = [
+        "acq priority ",
+        "acq result ",
+        "acq status ",
+        "acq cancel ",
+        "jobs ",
+        "job ",
+    ];
+    let mut ids: Vec<String> = Vec::new();
+    let mut ordinal = |id: &str| -> String {
+        let n = match ids.iter().position(|known| known == id) {
+            Some(i) => i + 1,
+            None => {
+                ids.push(id.to_string());
+                ids.len()
+            }
+        };
+        format!("<j{n}>")
+    };
+    let mut out = String::with_capacity(text.len());
+    for line in text.split_inclusive('\n') {
+        if is_fact(line) {
+            out.push_str(line);
+            continue;
+        }
+        let mut at = 0;
+        while at < line.len() {
+            let rest = &line[at..];
+            let prefix = PREFIXES
+                .iter()
+                .find(|p| rest.starts_with(**p) && word_starts(line, at));
+            let Some(prefix) = prefix else {
+                let c = rest.chars().next().expect("a character");
+                out.push(c);
+                at += c.len_utf8();
+                continue;
+            };
+            let mut from = at + prefix.len();
+            let n = digits_word(&line[from..]);
+            if n == 0 {
+                out.push_str(prefix);
+                at = from;
+                continue;
+            }
+            out.push_str(prefix);
+            out.push_str(&ordinal(&line[from..from + n]));
+            from += n;
+            // the ids of a range or a list after it
+            loop {
+                let rest = &line[from..];
+                let joint = ["–", ", "].into_iter().find(|j| rest.starts_with(j));
+                let Some(joint) = joint else { break };
+                let n = digits_word(&rest[joint.len()..]);
+                if n == 0 {
+                    break;
+                }
+                out.push_str(joint);
+                out.push_str(&ordinal(&rest[joint.len()..joint.len() + n]));
+                from += joint.len() + n;
+            }
+            at = from;
+        }
+    }
+    out
+}
+
+/// The rule `pid`: `pid ` and its digits are `pid <pid>`, as `daemon
+/// stopped (pid 58345)` prints it; a process id is the system's.
+fn pid_rule(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    for line in text.split_inclusive('\n') {
+        if is_fact(line) {
+            out.push_str(line);
+            continue;
+        }
+        let mut rest = line;
+        while let Some(at) = rest.find("pid ") {
+            let after = &rest[at + "pid ".len()..];
+            let n = digits_word(after);
+            out.push_str(&rest[..at + "pid ".len()]);
+            if n > 0 && word_starts(rest, at) {
+                out.push_str("<pid>");
+                rest = &after[n..];
+            } else {
+                rest = after;
+            }
+        }
+        out.push_str(rest);
+    }
+    out
+}
+
+/// The rule `progress`: of a command's stderr lines that begin `job
+/// <id>`, each job's last is kept and the earlier ones go. The first
+/// progress line prints whatever state the first poll saw; the last is
+/// the terminal one, a job's `done` or an apply's children tally, and
+/// always prints.
+fn progress_rule(text: &str) -> String {
+    let lines: Vec<&str> = text.split_inclusive('\n').collect();
+    let job_of = |line: &str| -> Option<String> {
+        let rest = line.strip_prefix("job ")?;
+        let end = rest.find([' ', ':']).unwrap_or(rest.len());
+        (end > 0).then(|| rest[..end].to_string())
+    };
+    let mut keep = vec![true; lines.len()];
+    let mut i = 0;
+    while i < lines.len() {
+        if lines[i] != "--- stderr\n" {
+            i += 1;
+            continue;
+        }
+        let start = i + 1;
+        let mut end = start;
+        while end < lines.len()
+            && !lines[end].starts_with("--- ")
+            && !lines[end].starts_with("$ acq")
+        {
+            end += 1;
+        }
+        let mut last: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+        for (at, line) in lines.iter().enumerate().take(end).skip(start) {
+            if let Some(job) = job_of(line) {
+                last.insert(job, at);
+            }
+        }
+        for (at, line) in lines.iter().enumerate().take(end).skip(start) {
+            if let Some(job) = job_of(line) {
+                keep[at] = last[&job] == at;
+            }
+        }
+        i = end;
+    }
+    lines
+        .iter()
+        .zip(keep)
+        .filter(|(_, kept)| *kept)
+        .map(|(line, _)| *line)
+        .collect()
 }
 
 /// A word as a shell reads it back: bare where it is safe, else quoted.

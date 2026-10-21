@@ -11,6 +11,10 @@
 #[path = "../../../acquisition-client/tests/harness/mod.rs"]
 mod shared;
 
+/// The journey's one table of facts, shared with the CLI's golden.
+#[path = "../../../acquisition-client/tests/harness/journey.rs"]
+pub mod journey;
+
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, Command, Stdio};
@@ -53,6 +57,36 @@ pub fn spawn_daemon(base: &Path, extra_env: &[(&str, &str)]) -> Proc {
     let mut cmd = daemon_command(&acqd, base);
     cmd.envs(extra_env.iter().copied());
     spawn_drained(cmd, &acqd).0
+}
+
+/// The daemon `acq-mcp` would spawn, started by the test with `env` on
+/// its own command alone (the journal, [`journal_on`]), returned with its
+/// pid once the `acq` beside the server sees it running, compatible and
+/// mock.
+pub fn start_daemon_with(base: &Path, env: &[(&str, &str)]) -> (Proc, u64) {
+    shared::start_daemon_with(&sibling(exe(), "acq"), &acqd_beside(exe()), base, env)
+}
+
+/// The scripted mock login through the `acq` beside the server (C82: one
+/// build wrote both), as the mock's own user.
+pub fn login_as_mock(base: &Path) {
+    shared::login(&sibling(exe(), "acq"), base, None, &[]);
+}
+
+/// Poll `job_status` until the job is terminal, then return `job_result`'s
+/// outcome: the MCP idiom, a submit returns an id and the agent polls.
+pub fn finish_job(mcp: &mut Mcp, id: &Value) -> Value {
+    let deadline = Instant::now() + Duration::from_secs(60);
+    loop {
+        let status = mcp.expect_ok("job_status", json!({ "id": id }));
+        match status["state"].as_str() {
+            Some("done") => break,
+            Some("failed") | Some("cancelled") => panic!("job did not succeed: {status}"),
+            _ if Instant::now() > deadline => panic!("job never finished: {status}"),
+            _ => std::thread::sleep(Duration::from_millis(100)),
+        }
+    }
+    mcp.expect_ok("job_result", json!({ "id": id }))
 }
 
 /// Run the `acq` beside the server under test (C82: one build wrote

@@ -44,22 +44,6 @@ fn validated_plan(result: &Value) -> RefreshPlan {
     RefreshPlan::from_value(&result["plan"]).expect("refresh_plan returned an invalid envelope")
 }
 
-/// Poll job_status until the job is terminal, then return job_result's
-/// outcome (the MCP idiom: submit returns an id, the agent polls).
-fn finish_job(mcp: &mut Mcp, id: &Value) -> Value {
-    let deadline = Instant::now() + Duration::from_secs(60);
-    loop {
-        let status = mcp.expect_ok("job_status", json!({ "id": id }));
-        match status["state"].as_str() {
-            Some("done") => break,
-            Some("failed") | Some("cancelled") => panic!("job did not succeed: {status}"),
-            _ if Instant::now() > deadline => panic!("job never finished: {status}"),
-            _ => std::thread::sleep(Duration::from_millis(100)),
-        }
-    }
-    mcp.expect_ok("job_result", json!({ "id": id }))
-}
-
 #[test]
 fn the_mcp_tools_carry_the_plan_slice_and_its_gates() {
     // The in-process protocol client below reads the world from the
@@ -120,7 +104,7 @@ fn the_mcp_tools_carry_the_plan_slice_and_its_gates() {
     // whose job it is, beside the id (C46).
     assert!(applied["skipped"]["tabs"].is_u64(), "{applied}");
     assert!(applied["account"].is_string(), "{applied}");
-    let outcome = finish_job(&mut mcp, &applied["job_id"]);
+    let outcome = harness::finish_job(&mut mcp, &applied["job_id"]);
     assert_eq!(outcome["outcome"], json!("success"), "{outcome}");
     assert_eq!(
         outcome["payload"]["children"]["done"],
