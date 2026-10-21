@@ -115,8 +115,16 @@ fixed.
   the three routes; `grep -rn "remove_harness_files(" crates/acquisition-daemon/src/daemon/tests/`
   finds calls inside `harness.rs` only, or none, but for a test item 3
   annotated.
-- `finish_harness` runs the two oracles; `finish_harness_wire` calls
-  it; `assert_never_over_the_limit` is called from `stress.rs` alone.
+- Two teardowns, as the launching session ruled when three tests
+  failed under the oracles for reasons other than the exemption:
+  `finish_harness` (a scripted server or none) runs the contract and
+  pacing oracles, `finish_harness_mock` (the counting mock) the contract
+  and never-over-the-limit oracles, each aborting the dispatcher before
+  it reads; `finish_harness_wire` is the scripted one plus the wire
+  comparison; no oracle is called outside the harness. The two tests
+  that forged a counted `GET` 429 to trip the rails forge an uncounted
+  `HEAD` 429 instead, the one assertion literal that follows named in
+  the message.
 - The message says the staged failure was seen on
   `declared_route_knowledge_holds_against_the_mock` before item 1 and
   not after.

@@ -59,7 +59,9 @@ instead.
 - After the commit, launch the review (`roadmap/README.md`, "Roles and
   rhythm"), save its findings verbatim at
   `roadmap/reviews/<step>-<sha>.md` and quote them in your report; do
-  not fix them before the owner has read them.
+  not fix them before the owner has read them. The "Current step" a
+  build commit carries says the review is pending; the review's own
+  commit is what makes it saved.
 
 ## Report
 Returned to the session that launched you, in this order, each a short
