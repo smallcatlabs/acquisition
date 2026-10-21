@@ -15,9 +15,11 @@ stage's own status variable, never on a `grep` of a summary (BSD
 
 ### Why build order matters
 
-`cargo test --all-targets` never writes `target/debug/acqd` (no test in
-the daemon crate asks for it) and rewrites `target/debug/acq-mcp` in
-its all-targets form, a different artifact: proptest, the plan crate's
+`cargo test --all-targets`, and the gate's `cargo nextest run
+--workspace --all-targets`, which builds the same way, never write
+`target/debug/acqd` (no test in the daemon crate asks for it) and
+rewrite `target/debug/acq-mcp` in its all-targets form, a different
+artifact: proptest, the plan crate's
 dev-dependency, unifies `num-traits/std` into the chrono that rmcp
 links; `acq` and `acqd` have one form each; `cargo clippy` rewrites
 none. So run the gate's `cargo build --workspace` before any smoke or
