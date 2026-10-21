@@ -136,7 +136,7 @@ use crate::ratelimit::{
 use crate::ratelimit::{endpoint_key, split_endpoint_key};
 use acquisition_protocol::artifact::Artifact;
 use acquisition_protocol::job::{
-    JobId, JobInfo, JobState, MAX_429_RETRIES, Outcome, Priority, target_of,
+    Children, JobId, JobInfo, JobState, MAX_429_RETRIES, Outcome, Priority, target_of,
 };
 use acquisition_protocol::protocol::{
     Bootstrap, BootstrapReply, ErrorKind, ErrorRecord, MAX_FRAME_BYTES, Quote, QuoteJob,
@@ -1290,13 +1290,12 @@ impl Daemon {
                         // for the set it has — but how many children never
                         // got submitted is unknowable, so once they land
                         // it finishes as interrupted, never as success.
-                        entry.deferred = Some(Outcome::Failure {
-                            error: "interrupted by a daemon restart mid fan-out: the children \
+                        entry.deferred = Some(Outcome::failure(
+                            "interrupted by a daemon restart mid fan-out: the children \
                                     submitted before the restart ran (their responses are in \
                                     the store), but the full child set is unknown — resubmit \
-                                    to complete it"
-                                .into(),
-                        });
+                                    to complete it",
+                        ));
                         held += 1;
                         finish_parents.push(entry.info.id);
                     } else if no_probe_route {
@@ -1306,14 +1305,12 @@ impl Daemon {
                         // against an empty limiter.
                         not_replayed += 1;
                         entry.info.state = JobState::Failed;
-                        entry.outcome = Some(Outcome::Failure {
-                            error: format!(
-                                "interrupted by a daemon restart and not replayed: \
+                        entry.outcome = Some(Outcome::failure(format!(
+                            "interrupted by a daemon restart and not replayed: \
 {} sends without a probe, so a replay could not learn the previous lifetime's hits first; \
 resubmit if still wanted",
-                                entry.info.kind
-                            ),
-                        });
+                            entry.info.kind
+                        )));
                     } else {
                         entry.info.state = JobState::Waiting;
                         requeued += 1;
@@ -1450,9 +1447,7 @@ resubmit if still wanted",
                 Ok(())
             }
             Err(e) => match e.downcast_ref::<acquisition_store::MalformedBody>() {
-                Some(malformed) => Err(Outcome::Failure {
-                    error: malformed.to_string(),
-                }),
+                Some(malformed) => Err(Outcome::failure(malformed.to_string())),
                 None => {
                     self.note_error(&format!("store: recording {kind} failed: {e:#}"));
                     Ok(())
@@ -1990,7 +1985,7 @@ resubmit if still wanted",
                     let left = until.saturating_duration_since(self.choke.now()).as_secs();
                     let error = format!("route {route} is degraded for another {left}s: {reason}");
                     self.note_error(&format!("job {id}: {error}"));
-                    self.start_and_finish(id, Outcome::Failure { error });
+                    self.start_and_finish(id, Outcome::failure(error));
                     return;
                 }
                 // A no-probe route's first GET is what teaches the limiter.
@@ -2087,15 +2082,13 @@ resubmit if still wanted",
                         self.emit(info);
                         return; // scheduling key released; re-pick after the hold
                     }
-                    None => Outcome::Failure {
-                        error: format!(
-                            "rate limited (429) {MAX_429_RETRIES} times; giving up: {evidence}"
-                        ),
-                    },
+                    None => Outcome::failure(format!(
+                        "rate limited (429) {MAX_429_RETRIES} times; giving up: {evidence}"
+                    )),
                 }
             }
         };
-        if let Outcome::Failure { error } = &outcome {
+        if let Outcome::Failure { error, .. } = &outcome {
             self.note_error(&format!("job {id} ({kind}): {error}"));
         }
         self.conclude(id, outcome);
@@ -2167,24 +2160,41 @@ resubmit if still wanted",
             // Sorted for every reader: the ids are the remedy's handles
             // (`acq result <id>`), and a HashMap's order is noise.
             failed_ids.sort_unstable();
-            let summary = json!({ "done": done, "failed": failed, "cancelled": cancelled, "failed_ids": failed_ids });
+            let tally = Children {
+                done,
+                failed,
+                cancelled,
+                failed_ids,
+            };
             let deferred = s.jobs.get_mut(&pid).unwrap().deferred.take().unwrap();
+            // C23: every parent failure carries the tally as a field, the
+            // sentence kept for a reader; a success carries it in its
+            // payload, as it always has.
             match deferred {
                 Outcome::Success { mut payload } if failed == 0 && cancelled == 0 => {
-                    payload["children"] = summary;
+                    payload["children"] = json!(tally);
                     Outcome::Success { payload }
                 }
                 // Cancelled children mean the work was not completed; a
                 // parent must not call that success.
                 Outcome::Success { .. } if failed == 0 => Outcome::Failure {
                     error: format!("{cancelled} of {total} child jobs were cancelled"),
+                    children: Some(tally),
                 },
                 Outcome::Success { .. } => Outcome::Failure {
                     error: format!(
-                        "{failed} of {total} child jobs failed: {failed_ids:?} (acq result <id> for each)"
+                        "{failed} of {total} child jobs failed: {:?} (acq result <id> for each)",
+                        tally.failed_ids
                     ),
+                    children: Some(tally),
                 },
-                other => other,
+                // A held failure (the interrupted fan-out a restart
+                // installs, or the parent's own): its message stands.
+                Outcome::Failure { error, .. } => Outcome::Failure {
+                    error,
+                    children: Some(tally),
+                },
+                Outcome::Cancelled => Outcome::Cancelled,
             }
         };
         self.finish(pid, final_outcome);
@@ -2265,8 +2275,8 @@ resubmit if still wanted",
         {
             Ok(outcome) => Exec::Done(outcome),
             Err(ApiError::RateLimited(evidence)) => Exec::RateLimited(evidence),
-            Err(ApiError::Protocol(error)) => Exec::Done(Outcome::Failure { error }),
-            Err(ApiError::Other(error)) => Exec::Done(Outcome::Failure { error }),
+            Err(ApiError::Protocol(error)) => Exec::Done(Outcome::failure(error)),
+            Err(ApiError::Other(error)) => Exec::Done(Outcome::failure(error)),
         }
     }
 
@@ -2289,15 +2299,11 @@ resubmit if still wanted",
                 let (token, username) = match self.valid_access_token(account, false).await {
                     Ok(pair) => pair,
                     Err(error) => {
-                        return Ok(Outcome::Failure {
-                            error: error.to_string(),
-                        });
+                        return Ok(Outcome::failure(error.to_string()));
                     }
                 };
                 let Some((_, url)) = self.route_for(kind, &params) else {
-                    return Ok(Outcome::Failure {
-                        error: "characters: unrenderable realm".into(),
-                    });
+                    return Ok(Outcome::failure("characters: unrenderable realm"));
                 };
                 let route = route.as_deref().expect("characters is a network kind");
                 let auth = Auth::Session {
@@ -2310,9 +2316,9 @@ resubmit if still wanted",
                 // nothing is recorded (the store would refuse it too —
                 // ingesting it as empty would retire every character).
                 let Some(characters) = v.get("characters").and_then(Value::as_array) else {
-                    return Ok(Outcome::Failure {
-                        error: "characters response without a `characters` array".into(),
-                    });
+                    return Ok(Outcome::failure(
+                        "characters response without a `characters` array",
+                    ));
                 };
                 let characters = json!(characters);
                 if let Err(failure) = self.record(account, kind, &params, &v) {
@@ -2346,16 +2352,12 @@ resubmit if still wanted",
                             username,
                         ),
                         Err(error) => {
-                            return Ok(Outcome::Failure {
-                                error: error.to_string(),
-                            });
+                            return Ok(Outcome::failure(error.to_string()));
                         }
                     },
                 };
                 let Some((_, url)) = self.route_for(kind, &params) else {
-                    return Ok(Outcome::Failure {
-                        error: format!("{kind} needs a name"),
-                    });
+                    return Ok(Outcome::failure(format!("{kind} needs a name")));
                 };
                 let route = route.as_deref().expect("network kind");
                 let (v, rate) = self.api_get(route, &url, auth, ready).await?;
@@ -2395,9 +2397,7 @@ resubmit if still wanted",
                 let (token, username) = match self.valid_access_token(account, false).await {
                     Ok(pair) => pair,
                     Err(error) => {
-                        return Ok(Outcome::Failure {
-                            error: error.to_string(),
-                        });
+                        return Ok(Outcome::failure(error.to_string()));
                     }
                 };
                 let league = params
@@ -2406,9 +2406,7 @@ resubmit if still wanted",
                     .unwrap_or("Standard")
                     .to_string();
                 let Some((_, url)) = self.route_for(kind, &params) else {
-                    return Ok(Outcome::Failure {
-                        error: "stashes: unrenderable realm".into(),
-                    });
+                    return Ok(Outcome::failure("stashes: unrenderable realm"));
                 };
                 let route = route.as_deref().expect("stashes is a network kind");
                 let auth = Auth::Session {
@@ -2421,9 +2419,9 @@ resubmit if still wanted",
                 // nothing is recorded — ingested as empty it would retire
                 // every tab and mint a false listing basis.
                 let Some(stashes) = v.get("stashes").and_then(Value::as_array) else {
-                    return Ok(Outcome::Failure {
-                        error: "stashes response without a `stashes` array".into(),
-                    });
+                    return Ok(Outcome::failure(
+                        "stashes response without a `stashes` array",
+                    ));
                 };
                 let stashes = json!(stashes);
                 if let Err(failure) = self.record(account, kind, &params, &v) {
@@ -2443,15 +2441,11 @@ resubmit if still wanted",
                 let (token, username) = match self.valid_access_token(account, false).await {
                     Ok(pair) => pair,
                     Err(error) => {
-                        return Ok(Outcome::Failure {
-                            error: error.to_string(),
-                        });
+                        return Ok(Outcome::failure(error.to_string()));
                     }
                 };
                 let Some((_, url)) = self.route_for("stash", &params) else {
-                    return Ok(Outcome::Failure {
-                        error: "stash needs an id".into(),
-                    });
+                    return Ok(Outcome::failure("stash needs an id"));
                 };
                 let route = route.as_deref().expect("stash is a network kind");
                 let auth = Auth::Session {
@@ -2515,9 +2509,7 @@ resubmit if still wanted",
                 let (token, username) = match self.valid_access_token(account, false).await {
                     Ok(pair) => pair,
                     Err(error) => {
-                        return Ok(Outcome::Failure {
-                            error: error.to_string(),
-                        });
+                        return Ok(Outcome::failure(error.to_string()));
                     }
                 };
                 let league = params
@@ -2538,15 +2530,11 @@ resubmit if still wanted",
                     })
                     .unwrap_or_default();
                 if !all && wanted.is_empty() {
-                    return Ok(Outcome::Failure {
-                        error: "refresh needs --all or --tabs <id,...>".into(),
-                    });
+                    return Ok(Outcome::failure("refresh needs --all or --tabs <id,...>"));
                 }
                 let realm = Realm::from_params(&params).unwrap_or(Realm::DEFAULT);
                 let Some((_, url)) = self.route_for(kind, &params) else {
-                    return Ok(Outcome::Failure {
-                        error: "refresh: unrenderable realm".into(),
-                    });
+                    return Ok(Outcome::failure("refresh: unrenderable realm"));
                 };
                 let route = route.as_deref().expect("refresh is a network kind");
                 let auth = Auth::Session {
@@ -2558,9 +2546,9 @@ resubmit if still wanted",
                 // store sees it: converted to an empty list it would
                 // "succeed" with zero children over a retired tab set.
                 let Some(listed) = v.get("stashes").and_then(Value::as_array).cloned() else {
-                    return Ok(Outcome::Failure {
-                        error: "stashes response without a `stashes` array".into(),
-                    });
+                    return Ok(Outcome::failure(
+                        "stashes response without a `stashes` array",
+                    ));
                 };
                 // The list a refresh fetches is the same response `stashes`
                 // records; the store wants it under that endpoint.
@@ -2647,9 +2635,7 @@ resubmit if still wanted",
             // possibly an earlier build.
             "apply" => {
                 if let Err(error) = validate_apply(&params) {
-                    return Ok(Outcome::Failure {
-                        error: error.to_string(),
-                    });
+                    return Ok(Outcome::failure(error.to_string()));
                 }
                 let jobs = params
                     .get("jobs")
@@ -2699,10 +2685,9 @@ resubmit if still wanted",
                 // limiter learns a second policy from real headers. Never
                 // sent to GGG: real mode has no such endpoint.
                 if self.provider.is_real() {
-                    return Ok(Outcome::Failure {
-                        error: "fetch is a mock-only kind; real mode has no fake data endpoint"
-                            .into(),
-                    });
+                    return Ok(Outcome::failure(
+                        "fetch is a mock-only kind; real mode has no fake data endpoint",
+                    ));
                 }
                 let url = format!("{}/fetch", self.provider.api_base);
                 let route = route.as_deref().expect("mock fetch is a network kind");
@@ -2721,16 +2706,14 @@ resubmit if still wanted",
                 // silent refresh through the daemon-owned session. Fake data,
                 // so in real mode it must not cost a token POST (L0 rail 6).
                 if self.provider.is_real() {
-                    return Ok(Outcome::Failure {
-                        error: "whoami is a mock-only job kind; not run against real GGG".into(),
-                    });
+                    return Ok(Outcome::failure(
+                        "whoami is a mock-only job kind; not run against real GGG",
+                    ));
                 }
                 let (token, username) = match self.valid_access_token(account, false).await {
                     Ok(pair) => pair,
                     Err(error) => {
-                        return Ok(Outcome::Failure {
-                            error: error.to_string(),
-                        });
+                        return Ok(Outcome::failure(error.to_string()));
                     }
                 };
                 tokio::time::sleep(Duration::from_millis(300)).await;
@@ -2765,9 +2748,7 @@ resubmit if still wanted",
                         .and_then(Value::as_str)
                         .map(str::to_string),
                 ) else {
-                    return Ok(Outcome::Failure {
-                        error: "probe needs a route and a url".into(),
-                    });
+                    return Ok(Outcome::failure("probe needs a route and a url"));
                 };
                 let mut session = if self.needs_auth(&route) {
                     match self.valid_access_token(account, false).await {
@@ -2776,9 +2757,7 @@ resubmit if still wanted",
                             // Close the endpoint too, or the waiting job would
                             // just ask for another probe; login reopens it.
                             self.choke.degrade(&route, &error.message);
-                            return Ok(Outcome::Failure {
-                                error: error.message,
-                            });
+                            return Ok(Outcome::failure(error.message));
                         }
                     }
                 } else {
@@ -2815,9 +2794,7 @@ resubmit if still wanted",
                                 Ok(pair) => session = Some(pair),
                                 Err(error) => {
                                     self.choke.degrade(&route, &error.message);
-                                    return Ok(Outcome::Failure {
-                                        error: error.message,
-                                    });
+                                    return Ok(Outcome::failure(error.message));
                                 }
                             }
                         }
@@ -2854,15 +2831,13 @@ resubmit if still wanted",
                             // is re-closed with the whole story.
                             self.choke.degrade(&route, &message);
                         }
-                        Outcome::Failure { error: message }
+                        Outcome::failure(message)
                     }
                 }
             }
-            other => Outcome::Failure {
-                error: format!(
-                    "unknown job kind '{other}' (kinds: sleep, fetch, whoami, profile, characters, character, leagues, stashes, stash, refresh, apply, probe)"
-                ),
-            },
+            other => Outcome::failure(format!(
+                "unknown job kind '{other}' (kinds: sleep, fetch, whoami, profile, characters, character, leagues, stashes, stash, refresh, apply, probe)"
+            )),
         })
     }
 
@@ -3105,7 +3080,9 @@ resubmit if still wanted",
                     .and_then(Value::as_str)
                     .map(str::to_string)
                     .ok_or_else(|| "profile response carried no uuid".to_string()),
-                Some(Outcome::Failure { error }) => Err(format!("profile fetch failed: {error}")),
+                Some(Outcome::Failure { error, .. }) => {
+                    Err(format!("profile fetch failed: {error}"))
+                }
                 Some(Outcome::Cancelled) => Err("profile fetch was cancelled".into()),
             },
         };
@@ -4384,9 +4361,7 @@ fn fan_out_stopped(cancelled: bool, submitted: usize, why: &str) -> Outcome {
     if cancelled {
         Outcome::Cancelled
     } else {
-        Outcome::Failure {
-            error: format!("fan-out stopped after {submitted} children: {why}"),
-        }
+        Outcome::failure(format!("fan-out stopped after {submitted} children: {why}"))
     }
 }
 
@@ -6596,7 +6571,7 @@ mod dispatcher_tests {
             "the send after the 401 is the refresh: {sends:?}"
         );
         assert_eq!(first.0.state, JobState::Failed, "{sends:?}");
-        let Outcome::Failure { error } = &first.1 else {
+        let Outcome::Failure { error, .. } = &first.1 else {
             panic!("the job that met the 401 has a failure outcome")
         };
         assert!(
@@ -6903,7 +6878,7 @@ mod dispatcher_tests {
         let errors: Vec<&str> = outcomes
             .iter()
             .map(|(_, outcome)| match outcome {
-                Outcome::Failure { error } => error.as_str(),
+                Outcome::Failure { error, .. } => error.as_str(),
                 _ => "",
             })
             .collect();
@@ -7546,7 +7521,7 @@ mod dispatcher_tests {
                 JobState::Failed => {
                     failed += 1;
                     assert_eq!(info.retries, MAX_429_RETRIES);
-                    let Outcome::Failure { error } = outcome else {
+                    let Outcome::Failure { error, .. } = outcome else {
                         panic!("failed fetch {id} had non-failure outcome")
                     };
                     assert!(error.contains("giving up"));
@@ -7781,7 +7756,7 @@ mod dispatcher_tests {
         let (info, outcome) = wait_terminal(&daemon, first).await;
         assert_eq!(info.state, JobState::Failed);
         assert_eq!(info.retries, 0);
-        let Outcome::Failure { error } = outcome else {
+        let Outcome::Failure { error, .. } = outcome else {
             panic!("503 did not fail")
         };
         assert!(error.contains("origin error page"), "{error}");
@@ -7863,7 +7838,7 @@ mod dispatcher_tests {
             .unwrap();
         let (info, outcome) = wait_terminal(&daemon, first).await;
         assert_eq!(info.state, JobState::Failed);
-        let Outcome::Failure { error } = outcome else {
+        let Outcome::Failure { error, .. } = outcome else {
             panic!("missing array did not fail the job")
         };
         assert!(error.contains("stashes"), "{error}");
@@ -7872,7 +7847,7 @@ mod dispatcher_tests {
             .unwrap();
         let (info, outcome) = wait_terminal(&daemon, second).await;
         assert_eq!(info.state, JobState::Failed);
-        let Outcome::Failure { error } = outcome else {
+        let Outcome::Failure { error, .. } = outcome else {
             panic!("id-less entry did not fail the job")
         };
         assert!(error.contains("malformed stashes response"), "{error}");
@@ -8515,7 +8490,7 @@ mod dispatcher_tests {
 
         let (info, outcome) = wait_terminal(&daemon, id).await;
         assert_eq!(info.state, JobState::Failed);
-        let Outcome::Failure { error } = outcome else {
+        let Outcome::Failure { error, .. } = outcome else {
             panic!("exhausted job did not fail")
         };
         assert!(error.contains("giving up"));
@@ -8599,7 +8574,7 @@ mod dispatcher_tests {
             let (info, outcome) = wait_terminal(&daemon, id).await;
             assert_eq!(info.state, JobState::Failed);
             assert_eq!(info.retries, 0);
-            let Outcome::Failure { error } = outcome else {
+            let Outcome::Failure { error, .. } = outcome else {
                 panic!("{status} did not fail")
             };
             assert!(error.contains("NOT retrying"));
@@ -9045,7 +9020,7 @@ mod dispatcher_tests {
             ],
             "no-probe replays fail; a mid-fan-out parent holds for its children"
         );
-        let Outcome::Failure { error } = daemon.shared.lock().unwrap().jobs[&5]
+        let Outcome::Failure { error, .. } = daemon.shared.lock().unwrap().jobs[&5]
             .outcome
             .clone()
             .unwrap()
@@ -9056,7 +9031,7 @@ mod dispatcher_tests {
         // The held parent finishes when its remaining child does — as
         // interrupted, never success: the full child set is unknown.
         daemon.cancel(7).unwrap();
-        let Outcome::Failure { error } = daemon.shared.lock().unwrap().jobs[&6]
+        let Outcome::Failure { error, children } = daemon.shared.lock().unwrap().jobs[&6]
             .outcome
             .clone()
             .unwrap()
@@ -9064,6 +9039,17 @@ mod dispatcher_tests {
             panic!("held parent must finish as interrupted, not success")
         };
         assert!(error.contains("mid fan-out"), "{error}");
+        // C23: the deferred failure keeps its message and gains the tally.
+        assert_eq!(
+            children,
+            Some(Children {
+                done: 0,
+                failed: 0,
+                cancelled: 1,
+                failed_ids: vec![],
+            }),
+            "the interrupted parent carries its children's tally as a field"
+        );
         let Outcome::Success { payload } = daemon.shared.lock().unwrap().jobs[&1]
             .outcome
             .clone()
@@ -9247,7 +9233,7 @@ mod dispatcher_tests {
         let child = daemon.submit_child(parent, "stash", json!({})).unwrap();
         daemon.cancel(child).unwrap();
         daemon.conclude(parent, Outcome::Success { payload: json!({}) });
-        let Outcome::Failure { error } = daemon.shared.lock().unwrap().jobs[&parent]
+        let Outcome::Failure { error, .. } = daemon.shared.lock().unwrap().jobs[&parent]
             .outcome
             .clone()
             .unwrap()
@@ -9665,7 +9651,7 @@ mod dispatcher_tests {
             requests.lock().unwrap().is_empty(),
             "whoami in real mode cost a token request: {outcome:?}"
         );
-        let Outcome::Failure { error } = outcome else {
+        let Outcome::Failure { error, .. } = outcome else {
             panic!("whoami ran in real mode")
         };
         assert!(error.contains("mock-only"), "{error}");

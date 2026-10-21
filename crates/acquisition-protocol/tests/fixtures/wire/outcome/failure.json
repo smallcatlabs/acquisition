@@ -1,0 +1,12 @@
+{
+  "children": {
+    "cancelled": 0,
+    "done": 2,
+    "failed": 1,
+    "failed_ids": [
+      44
+    ]
+  },
+  "error": "1 of 3 child jobs failed: [44] (acq result <id> for each)",
+  "outcome": "failure"
+}

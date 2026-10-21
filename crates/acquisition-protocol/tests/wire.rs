@@ -1,6 +1,6 @@
 //! The wire — the first of C12's two frontend surfaces — pinned (C85;
 //! TESTING-NOTES item 3): one JSON document per
-//! `Request` and `Response` variant, the bootstrap frames, the closed
+//! `Request`, `Response` and `Outcome` variant, the bootstrap frames, the closed
 //! error-kind set and the frame bound, under `tests/fixtures/wire/`. A
 //! golden file, not a frozen one (P5): a wire change fails here as a diff
 //! a reviewer reads, and
@@ -13,7 +13,7 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use acquisition_protocol::artifact::{Artifact, FileIdentity};
-use acquisition_protocol::job::{JobInfo, JobState, MAX_429_RETRIES, Outcome};
+use acquisition_protocol::job::{Children, JobInfo, JobState, MAX_429_RETRIES, Outcome};
 use acquisition_protocol::protocol::{
     Bootstrap, BootstrapReply, ErrorKind, ErrorRecord, MAX_FRAME_BYTES, Quote, QuoteJob,
     QuoteScope, Request, Response, SessionStatus, UNKNOWN, error_message,
@@ -406,6 +406,36 @@ fn responses() -> Vec<Response> {
     ]
 }
 
+/// The outcome a `result` carries, one sample per variant: `result`'s own
+/// sample above is a success, so a failure's fields are pinned here —
+/// a parent's, carrying its children's tally (C23, a parent job submits
+/// children), the shape a plain failure shares with `children` absent.
+fn outcome_name(o: &Outcome) -> &'static str {
+    match o {
+        Outcome::Success { .. } => "success",
+        Outcome::Failure { .. } => "failure",
+        Outcome::Cancelled => "cancelled",
+    }
+}
+
+fn outcomes() -> Vec<Outcome> {
+    vec![
+        Outcome::Success {
+            payload: json!({ "tabs_listed": 3, "children": { "done": 3, "failed": 0, "cancelled": 0, "failed_ids": [] } }),
+        },
+        Outcome::Failure {
+            error: "1 of 3 child jobs failed: [44] (acq result <id> for each)".into(),
+            children: Some(Children {
+                done: 2,
+                failed: 1,
+                cancelled: 0,
+                failed_ids: vec![44],
+            }),
+        },
+        Outcome::Cancelled,
+    ]
+}
+
 // ---- the pins -----------------------------------------------------------
 
 #[test]
@@ -431,6 +461,35 @@ fn c85_every_response_variant_has_a_pinned_wire_shape() {
         "response",
         &variants_of::<Response>(json!({ "resp": "__none__" })),
         &samples,
+    );
+}
+
+#[test]
+fn c85_every_outcome_variant_has_a_pinned_wire_shape() {
+    let samples: Vec<(&str, Outcome)> = outcomes()
+        .into_iter()
+        .map(|o| (outcome_name(&o), o))
+        .collect();
+    pin(
+        "outcome",
+        &variants_of::<Outcome>(json!({ "outcome": "__none__" })),
+        &samples,
+    );
+}
+
+/// A plain failure, as every daemon before the tally wrote it and every
+/// non-parent failure still is, reads with `children` absent (C23).
+#[test]
+fn c23_a_failure_without_children_reads_and_writes_without_the_field() {
+    let plain: Outcome =
+        serde_json::from_value(json!({ "outcome": "failure", "error": "boom" })).expect("reads");
+    let Outcome::Failure { error, children } = &plain else {
+        panic!("{plain:?}")
+    };
+    assert_eq!((error.as_str(), children), ("boom", &None));
+    assert_eq!(
+        serde_json::to_value(&plain).expect("serializable"),
+        json!({ "outcome": "failure", "error": "boom" })
     );
 }
 

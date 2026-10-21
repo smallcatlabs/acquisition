@@ -2151,7 +2151,7 @@ pub(crate) async fn report_apply(client: &mut Client, id: u64, outcome: &Outcome
                 if requests == 1 { "" } else { "s" }
             )
         }
-        Outcome::Failure { error } => {
+        Outcome::Failure { error, .. } => {
             let Some((k, n, ids)) = parse_children_failure(error) else {
                 return format!("job {id} failed: {error}\n");
             };
@@ -2176,7 +2176,7 @@ pub(crate) async fn report_apply(client: &mut Client, id: u64, outcome: &Outcome
                 };
                 let cause = match client.request(&Request::Result { id: *cid }).await {
                     Ok(Response::Result {
-                        outcome: Outcome::Failure { error },
+                        outcome: Outcome::Failure { error, .. },
                         ..
                     }) => error,
                     _ => format!("(acq result {cid})"),
@@ -2246,7 +2246,7 @@ fn print_outcome(id: u64, account: Option<&str>, outcome: &Outcome, json: bool) 
             println!("{}", serde_json::to_string_pretty(payload)?);
             Ok(())
         }
-        Outcome::Failure { error } => bail!("job {id} failed: {error}"),
+        Outcome::Failure { error, .. } => bail!("job {id} failed: {error}"),
         Outcome::Cancelled => bail!("job {id} was cancelled"),
     }
 }

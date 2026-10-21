@@ -130,9 +130,41 @@ pub fn target_of(kind: &str, p: &Value) -> String {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "outcome", rename_all = "snake_case")]
 pub enum Outcome {
-    Success { payload: Value },
-    Failure { error: String },
+    Success {
+        payload: Value,
+    },
+    /// `error` is the sentence for a reader; `children` is a parent's
+    /// tally, present on every parent failure and absent on any other
+    /// (C23, a parent job submits children): a client reads the field,
+    /// never the sentence.
+    Failure {
+        error: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        children: Option<Children>,
+    },
     Cancelled,
+}
+
+impl Outcome {
+    /// A failure that is not a parent's: the message alone, no tally.
+    pub fn failure(error: impl Into<String>) -> Outcome {
+        Outcome::Failure {
+            error: error.into(),
+            children: None,
+        }
+    }
+}
+
+/// C23 (a parent job submits children): what a parent's children did
+/// when the last of them finished. The same four numbers ride as
+/// `children` in a parent's success payload; on a failure they are this
+/// typed field. `failed_ids` is sorted: they are the remedy's handles.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Children {
+    pub done: u64,
+    pub failed: u64,
+    pub cancelled: u64,
+    pub failed_ids: Vec<JobId>,
 }
 
 #[cfg(test)]
