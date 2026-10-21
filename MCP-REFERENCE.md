@@ -10,13 +10,13 @@ Acquisition (provider: mock). Items: search answers a query over every item the 
 
 ### `accounts`
 
-Accounts this machine has logged into (from the store's non-secret index; no daemon).
+Accounts this machine has logged into (from the store's non-secret index; no daemon), each with its store file.
 
 No arguments.
 
 ### `apply_plan`
 
-Execute a reviewed plan: its actions and nothing else, as one `apply` parent job the daemon admits or refuses whole at submit (single-request vocabulary + the max_requests budget). Refused offline — before any daemon contact — if the stored sync-policy revision moved since the plan (replan with refresh_plan). In real-GGG mode the daemon must already be running (a human starts it; this server never spawns one there). An empty plan is a no-op with no daemon contact. A plan spends each request once: an action whose target was fetched after the plan was compiled, or whose request the daemon already holds, is listed in `spent` (with `fetched_at`, or the `job_id` holding it) and not sent again, so replaying a plan answers `applied: false` and sends nothing. Returns the parent job id and the `requests` sent; poll job_status, then job_result.
+Execute a reviewed plan: its actions and nothing else, as one `apply` parent job the daemon admits or refuses whole at submit (single-request vocabulary + the max_requests budget). Refused offline — before any daemon contact — if the stored sync-policy revision moved since the plan (replan with refresh_plan). In real-GGG mode the daemon must already be running (a human starts it; this server never spawns one there). An empty plan is a no-op with no daemon contact (`applied: false`, `note`, `skipped`). A plan spends each request once: an action whose target was fetched after the plan was compiled, or whose request the daemon already holds, is listed in `spent` (with `fetched_at`, or the `job_id` holding it) and not sent again, so replaying a plan answers `applied: false`, sends nothing, and gives `remaining_requests`, what a plan compiled now would fetch (null while a queued request has not landed). Returns the parent `job_id`, its `account`, the `requests` sent, `spent` and `skipped`; poll job_status, then job_result.
 
 - `account` (string | null)
 - `max_requests` (integer | null) — Refuse at admission — before any child job exists — if the plan authorizes more logical requests than this.
@@ -38,7 +38,7 @@ Characters known to the store, with class, level, league, and two counts — `it
 
 ### `daemon_status`
 
-The daemon running: its identity — contract revision, the executable it runs from and its hash (artifact), the world it serves (its canonical store root), the socket it was reached on (derived from the world), how that file relates to the acqd beside this server (artifact_relation: same_file, same_bytes for another copy, different, unhashable, no_sibling, unreported), which of the four dimensions match (contract_matches, artifact_matches, provider_matches, world_matches), and under wanted this server's own version, contract, provider and world with that sibling — all from the one look that judged the daemon; and, when compatible, its vitals: provider, uptime, idle_shutdown_seconds (the idle exit it was started with), connections, queue counts, rate-limit policies learned, rails state (with the journal path), keyring health, and log — the log file the daemon opened, as it reports it. Observes only: running=false when no daemon is up, with persisted — what the ledger on disk holds: waiting, recorded_running, written_at; null when this shell's world has no queue yet; running=true, compatible=false for a daemon of another contract, artifact, provider or world, reported by its identity alone and never replaced by this server; running=true, responsive=false (with socket and lock_holder, the pid the world's lock records) for something that accepted the connection and did not answer hello within 5s — a wedged daemon, for a human to stop by hand.
+The daemon running: its identity — contract revision, the executable it runs from and its hash (artifact), the world it serves (its canonical store root), the socket it was reached on (derived from the world), how that file relates to the acqd beside this server (artifact_relation: same_file, same_bytes for another copy, different, unhashable, no_sibling, unreported), which of the four dimensions match (contract_matches, artifact_matches, provider_matches, world_matches), and under wanted this server's own version, contract, provider and world with that sibling — all from the one look that judged the daemon; and, when compatible, its vitals: provider, uptime, idle_shutdown_seconds (the idle exit it was started with), connections, queue counts, rate-limit policies learned, rails state (with the journal path), keyring health, and log — the log file the daemon opened, as it reports it. Observes only: running=false when no daemon is up, with persisted — what the ledger on disk holds: waiting, recorded_running, written_at; null when this shell's world has no queue yet — and log, the last daemon's log file in this world when one exists; running=true, compatible=false for a daemon of another contract, artifact, provider or world, reported by its identity alone and never replaced by this server; running=true, responsive=false (with socket and lock_holder, the pid the world's lock records) for something that accepted the connection and did not answer hello within 5s — a wedged daemon, for a human to stop by hand.
 
 No arguments.
 
@@ -58,13 +58,13 @@ Item events (added/moved/changed/removed) from recent ingests, newest first (no 
 
 ### `job_result`
 
-A finished job's payload or error; answered across daemon restarts (the queue persists). Payloads can be large — prefer the store tools for reading data.
+A finished job's outcome — payload or error — with its job_id and account beside it; answered across daemon restarts (the queue persists), and with no daemon running read from the ledger on disk, where a finished job's outcome is final (an unfinished one is refused as wrong_state with next). A parent's failure carries its children's tally as `children` (done, failed, cancelled, failed_ids). Payloads can be large — prefer the store tools for reading data.
 
 - `id` (integer, required) — The job id, as returned by submit_job.
 
 ### `job_status`
 
-One job's state, ETA, and retries. A waiting job with a large ETA is the rate limiter holding, not a hang (holds can reach ~5 minutes).
+One job's state, ETA, and retries. A waiting job with a large ETA is the rate limiter holding, not a hang (holds can reach ~5 minutes). Observes only: with no daemon running it answers from the ledger on disk — running: false, persisted: the job's row as the last daemon recorded it, and next, the command a person runs to start a daemon; a job the ledger does not hold is refused as unknown_job with next.
 
 - `id` (integer, required) — The job id, as returned by submit_job.
 

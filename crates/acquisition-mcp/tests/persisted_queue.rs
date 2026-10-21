@@ -1,6 +1,7 @@
-//! C45 through the MCP binary: `list_jobs` and `daemon_status` with no
-//! daemon to ask answer from the ledger on disk, and spawn nothing. The
-//! ledger is seeded through the store crate, the daemon's own writer.
+//! C45 through the MCP binary: `list_jobs`, `job_status`, `job_result`
+//! and `daemon_status` with no daemon to ask answer from the ledger on
+//! disk, and spawn nothing. The ledger is seeded through the store crate,
+//! the daemon's own writer.
 
 mod harness;
 
@@ -77,4 +78,88 @@ fn c45_the_tools_read_the_queue_on_disk_when_no_daemon_answers() {
         harness::no_daemon_appeared(&base),
         "a tool spawned a daemon"
     );
+}
+
+/// C45, one job and the last log, on both surfaces: with no daemon to
+/// ask, `job_status` answers the ledger's row with `next`, `job_result`
+/// a finished job's outcome from disk with its id and account (the
+/// document `acq result --json` prints), an unfinished one is refused as
+/// `wrong_state`, and the daemon status names the log this world's last
+/// daemon wrote, as `acq daemon status --json` does.
+#[test]
+fn c45_one_job_and_the_last_log_are_read_from_disk_on_both_surfaces() {
+    let base = std::env::temp_dir().join(format!("acq-mcp-c45-one-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    std::fs::create_dir_all(&base).unwrap();
+    let _scratch = Scratch(base.clone());
+
+    let dir = base.join("store").join("mock");
+    let db = JobDb::open(&daemon_db_path(&dir)).unwrap();
+    db.upsert(&row(1, "waiting", 1_700_000_010)).unwrap();
+    db.upsert(&JobRow {
+        outcome: Some(json!({ "outcome": "success", "payload": { "fetched": 1 } })),
+        ..row(3, "done", 1_700_000_040)
+    })
+    .unwrap();
+    db.checkpoint().unwrap();
+    drop(db);
+    // The log a daemon of this world would have written, where it writes
+    // it: `<ACQ_LOG_DIR>/<the world's id>/<provider>/daemon.log`.
+    let world = acquisition_store::world::World::at(&base.join("store")).unwrap();
+    let log = base
+        .join("logs")
+        .join(world.id())
+        .join("mock")
+        .join("daemon.log");
+    std::fs::create_dir_all(log.parent().unwrap()).unwrap();
+    std::fs::write(&log, "the last daemon's words\n").unwrap();
+
+    let mut mcp = Mcp::start(&base, &[]);
+    let status = mcp.expect_ok("daemon_status", json!({}));
+    assert_eq!(status["running"], json!(false), "{status}");
+    let named = std::path::PathBuf::from(status["log"].as_str().expect("a log"));
+    assert_eq!(
+        std::fs::canonicalize(&named).unwrap(),
+        std::fs::canonicalize(&log).unwrap(),
+        "{status}"
+    );
+    let cli = json_of(&harness::acq(&base, &["daemon", "status", "--json"]));
+    assert_eq!(cli["log"], status["log"], "{cli}");
+
+    let job = mcp.expect_ok("job_status", json!({ "id": 1 }));
+    assert_eq!(job["running"], json!(false), "{job}");
+    assert_eq!(job["persisted"]["state"], json!("waiting"), "{job}");
+    assert!(job["next"].is_string(), "{job}");
+
+    let result = mcp.expect_ok("job_result", json!({ "id": 3 }));
+    assert_eq!(
+        result,
+        json!({ "job_id": 3, "account": "Exile#1234", "outcome": "success", "payload": { "fetched": 1 } })
+    );
+    assert_eq!(
+        json_of(&harness::acq(&base, &["result", "3", "--json"])),
+        result
+    );
+    let refused = mcp.result("job_result", json!({ "id": 1 }));
+    assert_eq!(refused["isError"], json!(true), "{refused}");
+    assert_eq!(
+        refused["structuredContent"]["kind"],
+        json!("wrong_state"),
+        "{refused}"
+    );
+    assert!(
+        harness::no_daemon_appeared(&base),
+        "a tool spawned a daemon"
+    );
+}
+
+/// The one JSON document a CLI command printed.
+fn json_of(out: &std::process::Output) -> serde_json::Value {
+    serde_json::from_slice(&out.stdout).unwrap_or_else(|e| {
+        panic!(
+            "no one JSON document ({e}): {}{}",
+            String::from_utf8_lossy(&out.stdout),
+            String::from_utf8_lossy(&out.stderr)
+        )
+    })
 }

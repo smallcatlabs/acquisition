@@ -34,7 +34,7 @@ restore() {
     cmp -s "$scratch/keep/$f" "$f" || { echo "RESTORE FAILED: $f"; exit 2; }
   done
   rm -rf crates/acquisition-helper
-  rm -f crates/acquisition-client/src/zz_breaker.rs crates/acquisition-cli/src/zz_breaker.rs crates/acquisition-search/src/zz_breaker.rs
+  rm -f crates/acquisition-client/src/zz_breaker.rs crates/acquisition-cli/src/zz_breaker.rs crates/acquisition-mcp/src/zz_breaker.rs crates/acquisition-search/src/zz_breaker.rs
 }
 trap 'restore; rm -rf "$scratch"' EXIT
 
@@ -164,6 +164,19 @@ run_case 'plan links search directly (a cycle: Cargo refuses it first)' refuse '
 run_case 'store links search directly (a cycle: Cargo refuses it first)' refuse 'cargo metadata failed' adddep crates/acquisition-store/Cargo.toml "$SP"
 intent_in_client() { printf '// breaker: a client that reads intent\npub fn f() -> Option<u32> { let annotations_path = 1; Some(annotations_path) }\n' >crates/acquisition-client/src/zz_breaker.rs; }
 run_case 'the intent API named in client/src'                    refuse 'names the intent API' intent_in_client
+
+echo '== the code: a frontend opens a door only the verbs crate opens (C46)'
+DR='opens a door only the verbs crate opens'
+door_in() { printf '// breaker: a frontend opening a door itself\nfn f() { let _ = %s; }\n' "$2" >"crates/$1/src/zz_breaker.rs"; }   # <frontend> <expression>
+run_case 'the CLI loads the account index'                       refuse "$DR" door_in acquisition-cli 'Index::load(dir)'
+run_case 'the MCP opens a facts file'                            refuse "$DR" door_in acquisition-mcp 'Store::open(path)'
+run_case 'the CLI opens an intent file'                          refuse "$DR" door_in acquisition-cli 'Annotations::open_for(dir, uuid)'
+run_case 'the MCP compiles a plan'                               refuse "$DR" door_in acquisition-mcp 'plan_refresh(provider, snapshot, now)'
+run_case 'the CLI runs the spend gate'                           refuse "$DR" door_in acquisition-cli 'plan.check_spendable(provider, uuid, intent)'
+run_case 'the MCP builds an apply'"'"'s parameters'                refuse "$DR" door_in acquisition-mcp 'apply_params_of(actions, None)'
+run_case 'the CLI asks for a quote'                              refuse "$DR" door_in acquisition-cli 'client.quote(jobs, None)'
+run_case 'the MCP reads the ledger'                              refuse "$DR" door_in acquisition-mcp 'Persisted::observe(provider)'
+run_case 'the CLI opens the use door'                            refuse "$DR" door_in acquisition-cli 'Client::connect(options)'
 
 echo '== the code: a group'"'"'s meaning has one reader (the build plan, step 4b)'
 GR="a group's tree is named outside"

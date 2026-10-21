@@ -226,6 +226,10 @@ fn the_mcp_tools_carry_the_plan_slice_and_its_gates() {
     // reports exactly the plan's one request.
     let applied = mcp.expect_ok("apply_plan", json!({ "plan": planned["plan"] }));
     assert_eq!(applied["requests"], json!(1), "{applied}");
+    // The one apply document both surfaces share: what was skipped, and
+    // whose job it is, beside the id (C46).
+    assert!(applied["skipped"]["tabs"].is_u64(), "{applied}");
+    assert!(applied["account"].is_string(), "{applied}");
     let outcome = finish_job(&mut mcp, &applied["job_id"]);
     assert_eq!(outcome["outcome"], json!("success"), "{outcome}");
     assert_eq!(
@@ -244,6 +248,10 @@ fn the_mcp_tools_carry_the_plan_slice_and_its_gates() {
         "{replayed}"
     );
     assert!(replayed["spent"][0]["fetched_at"].is_i64(), "{replayed}");
+    // All spent, nothing queued: what a plan compiled now would fetch,
+    // and the skipped counts every apply answer carries.
+    assert_eq!(replayed["remaining_requests"], json!(7), "{replayed}");
+    assert!(replayed["skipped"]["characters"].is_u64(), "{replayed}");
 
     // Replan: the listing is on record, so every listed tab owes its first
     // fetch (5 top-level + 2 folder children in the mock's league).
@@ -313,6 +321,7 @@ fn the_mcp_tools_carry_the_plan_slice_and_its_gates() {
     let applied = mcp.expect_ok("apply_plan", json!({ "plan": replanned["plan"] }));
     assert_eq!(applied["applied"], json!(false), "{applied}");
     assert_eq!(applied["requests"], json!(0), "{applied}");
+    assert!(applied["skipped"].is_object(), "{applied}");
 
     // …and the step-7 staleness gate refuses the revision-1 plan with the
     // remedy named, before any daemon contact.

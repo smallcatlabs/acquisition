@@ -290,8 +290,20 @@ if grep -rqE 'Annotations|annotations_path' crates/acquisition-daemon/src crates
   echo 'EDGE    crates/acquisition-{daemon,protocol,client}/src    names the intent API — the daemon, the wire and the client are permanently blind to intent (C34)'
   fail=1; edge_bad=1
 fi
+# The doors into semantics only the verbs crate opens (C46, every
+# frontend an adapter; C1 as amended): an index loaded, a facts or intent
+# file opened, a plan compiled or gated, an apply's parameters built, a
+# quote asked, the ledger read, the use door — named by no frontend's
+# source, so a frontend that answers for itself is refused here, not
+# found by a review. `Client::observe` is not a door: `auth status`,
+# `daemon stop` and `reset-tripwire` observe with no semantics to move.
+doors='Index::load|Store::open|Annotations::open_for|plan_refresh|check_spendable|apply_params_of|\.quote\(|Persisted::observe|Client::connect'
+if grep -rqE "$doors" crates/acquisition-cli/src crates/acquisition-mcp/src; then
+  echo 'EDGE    crates/acquisition-{cli,mcp}/src    opens a door only the verbs crate opens — an index, a store, a plan, a quote, the ledger or the use door is the shared layer'"'"'s (C46)'
+  fail=1; edge_bad=1
+fi
 if ((edge_bad == 0)); then
-  echo 'ok      dependencies  daemon ∌ client/planner/search/frontend, nothing ∌ daemon but itself, client ∌ daemon/planner, planner ∌ daemon/client/search, search ∌ daemon/client/frontend/HTTP/async, store ∌ daemon/client/protocol/search/HTTP, daemon/protocol/client ∌ intent API, protocol = serde only (C1, C34, C39, C41, C89, §2.1)'
+  echo 'ok      dependencies  daemon ∌ client/planner/search/frontend, nothing ∌ daemon but itself, client ∌ daemon/planner, planner ∌ daemon/client/search, search ∌ daemon/client/frontend/HTTP/async, store ∌ daemon/client/protocol/search/HTTP, daemon/protocol/client ∌ intent API, frontends ∌ the layer'"'"'s doors, protocol = serde only (C1, C34, C39, C41, C46, C89, §2.1)'
 fi
 
 # ---- 7. a group's meaning has one reader ---------------------------------

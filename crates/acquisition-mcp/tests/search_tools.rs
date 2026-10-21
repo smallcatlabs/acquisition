@@ -744,7 +744,8 @@ fn a_missing_store_names_the_directory_it_looked_in() {
     for (tool, args) in [("search", json!({})), ("show", json!({ "id": "r1" }))] {
         let (e, is_error) = seat.call(tool, &args);
         assert!(is_error, "{tool}: {e}");
-        assert_eq!(e["kind"], "no_accounts", "{tool}: {e}");
+        assert_eq!(e["kind"], "not_logged_in", "{tool}: {e}");
+        assert_eq!(e["accounts"], json!([]), "{tool}: {e}");
         assert!(
             e["error"]
                 .as_str()
@@ -761,7 +762,7 @@ fn a_missing_store_names_the_directory_it_looked_in() {
     // 2026-10-19 missed the directory in the text it had named
     let message = seat.mcp.expect_err("store_status", json!({}));
     let e: Value = serde_json::from_str(&message).unwrap_or_else(|_| panic!("{message}"));
-    assert_eq!(e["kind"], "no_accounts", "{e}");
+    assert_eq!(e["kind"], "not_logged_in", "{e}");
     let error = e["error"].as_str().unwrap();
     assert!(error.contains(looked.to_str().unwrap()), "{e}");
     assert!(!error.contains("acq auth"), "{e}");
@@ -778,12 +779,12 @@ fn the_requests_account_selects_the_store() {
     let mut seat = Seat::over(base);
     let (e, is_error) = seat.call("search", &json!({}));
     assert!(is_error, "{e}");
-    assert_eq!(e["kind"], "account_needed", "{e}");
-    assert_eq!(e["readings"], json!([USER, "Bob#9"]));
+    assert_eq!(e["kind"], "ambiguous_account", "{e}");
+    assert_eq!(e["accounts"], json!([USER, "Bob#9"]));
     let (e, is_error) = seat.call("search", &json!({ "scope": { "account": "carol" } }));
     assert!(is_error, "{e}");
-    assert_eq!(e["kind"], "account_unknown", "{e}");
-    assert_eq!(e["readings"], json!([USER, "Bob#9"]));
+    assert_eq!(e["kind"], "not_logged_in", "{e}");
+    assert_eq!(e["accounts"], json!([USER, "Bob#9"]));
 
     let (bob, refused) = seat.call("search", &json!({ "scope": { "account": "bob" } }));
     assert!(!refused, "{bob}");

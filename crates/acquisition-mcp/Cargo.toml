@@ -16,6 +16,7 @@ acquisition-protocol = { path = "../acquisition-protocol" }
 acquisition-store = { path = "../acquisition-store" }
 acquisition-plan = { path = "../acquisition-plan" }
 acquisition-search = { path = "../acquisition-search" }
+acquisition-verbs = { path = "../acquisition-verbs" }
 tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true

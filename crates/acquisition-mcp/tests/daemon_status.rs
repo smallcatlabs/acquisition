@@ -13,6 +13,7 @@ mod harness;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
+use acquisition_store::jobs::{JobDb, JobRow, daemon_db_path};
 use harness::{Mcp, spawn_daemon};
 use serde_json::{Value, json};
 
@@ -169,9 +170,10 @@ fn a_job_tool_with_no_daemon_names_the_command_that_starts_one() {
     // A host that forbids a spawn, as real mode does by this server's own
     // policy: the refusal for want of a daemon, in words.
     let mut mcp = Mcp::start(&base, &[("ACQ_NO_SPAWN", "1")]);
+    // The tools that act refuse for want of a daemon; the observers
+    // answer from the ledger (C45), below.
     for (tool, args) in [
         ("submit_job", json!({ "kind": "leagues" })),
-        ("job_status", json!({ "id": 1 })),
         ("cancel_job", json!({ "id": 1 })),
     ] {
         // The approved form: a result marked isError, `kind: "no_daemon"`,
@@ -187,6 +189,49 @@ fn a_job_tool_with_no_daemon_names_the_command_that_starts_one() {
             "{tool} with no daemon is not a no_daemon refusal naming the remedy: {result}"
         );
     }
+    // A job the ledger does not hold: the daemon's word for an id it
+    // does not remember, with what a person does.
+    let result = mcp.result("job_status", json!({ "id": 1 }));
+    let doc = &result["structuredContent"];
+    assert!(
+        result["isError"] == json!(true)
+            && doc["kind"] == json!("unknown_job")
+            && doc["next"]
+                .as_str()
+                .is_some_and(|n| n.contains("acq auth check")),
+        "a job the ledger does not hold is not unknown_job with next: {result}"
+    );
+    // A job the ledger holds: its row as recorded, running false, next.
+    let db = JobDb::open(&daemon_db_path(&base.join("store").join("mock"))).unwrap();
+    db.upsert(&JobRow {
+        id: 1,
+        kind: "leagues".into(),
+        state: "waiting".into(),
+        priority: 0,
+        submitted_by: "mcp".into(),
+        parent: None,
+        retries: 0,
+        account: None,
+        params: json!({}),
+        outcome: None,
+        deferred: None,
+        cancel_requested: false,
+        submitted_at: 1_700_000_000,
+        updated_at: 1_700_000_001,
+    })
+    .unwrap();
+    db.checkpoint().unwrap();
+    drop(db);
+    let doc = mcp.expect_ok("job_status", json!({ "id": 1 }));
+    assert_eq!(doc["running"], json!(false), "{doc}");
+    assert_eq!(doc["persisted"]["id"], json!(1), "{doc}");
+    assert_eq!(doc["persisted"]["state"], json!("waiting"), "{doc}");
+    assert!(
+        doc["next"]
+            .as_str()
+            .is_some_and(|n| n.contains("acq auth check")),
+        "{doc}"
+    );
 }
 
 /// The release seat's rerun (mcp-opus-2 calls 45, 47): the remedy named
@@ -209,7 +254,7 @@ fn the_no_daemon_remedy_names_the_provider_and_store_the_server_runs_with() {
         ("ggg", format!("ACQ_STORE_DIR={store} ")),
     ] {
         let mut mcp = Mcp::start(&base, &[("ACQ_PROVIDER", provider), ("ACQ_NO_SPAWN", "1")]);
-        let result = mcp.result("job_status", json!({ "id": 1 }));
+        let result = mcp.result("cancel_job", json!({ "id": 1 }));
         let next = result["structuredContent"]["next"]
             .as_str()
             .unwrap_or_default();

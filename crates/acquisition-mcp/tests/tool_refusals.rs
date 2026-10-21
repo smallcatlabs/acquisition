@@ -84,7 +84,7 @@ fn a_tool_refusal_is_a_result_marked_is_error_with_its_kind() {
     let mut mcp = Mcp::start(&base, &[]);
 
     // An account no store knows, on every tool that selects one: the
-    // account's kind, the known names as readings.
+    // protocol's word for it (C121), the known names as accounts.
     for (tool, mut args) in [
         ("tabs", json!({})),
         ("characters", json!({})),
@@ -98,8 +98,8 @@ fn a_tool_refusal_is_a_result_marked_is_error_with_its_kind() {
         ("refresh_plan", json!({})),
     ] {
         args["account"] = json!("GERWARIK");
-        let doc = refusal(&mut mcp, tool, args, "account_unknown");
-        assert_eq!(doc["readings"], json!([USER]), "{tool}: {doc}");
+        let doc = refusal(&mut mcp, tool, args, "not_logged_in");
+        assert_eq!(doc["accounts"], json!([USER]), "{tool}: {doc}");
     }
 
     // A league the policy does not cover: refused in the planner's words.

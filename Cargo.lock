@@ -62,6 +62,7 @@ dependencies = [
  "acquisition-protocol",
  "acquisition-search",
  "acquisition-store",
+ "acquisition-verbs",
  "anyhow",
  "rmcp",
  "serde",
