@@ -1,0 +1,11 @@
+5acd9ea5 — Done-when partly holds: rhythm deduplication fails; the three execution checks are not verified.
+
+- **P3 — `.claude/skills/session-close/SKILL.md:52`, shapes 3/7:** The skill still restates the step and phase-close procedure instead of referring to its single home. Concrete reading: it says a step ends with its review launched, whereas README’s “A step” requires review, owner reading, and a close commit. Smallest fix: replace this paragraph with the pointer; likewise consolidate the repeated close instructions at `roadmap/README.md:147` and `:177`.
+- **P3 — `roadmap/README.md:152`, shape 3:** “Current step” advances to 2e without saying this cleanup awaits review, although the commit message explicitly says its review is pending. A session following this section proceeds directly to preparing 2e. Smallest fix: name this fold’s pending review before describing 2e as next.
+- **P3 — `roadmap/README.md:184`, shape 1:** The claim that every triaged park became an issue or “Not doing” line excludes parks deliberately deleted or absorbed into rulings. Concrete counterexamples: `D-7` was deleted and `CTX-2` folded into C110, as `roadmap/governance/PARKS.md` at `0704a8f7` records. The same cause affects `roadmap/GUI-NOTES.md:92`, which says every listed park became an issue despite listing the refused GUI-hosted daemon. Smallest fix: describe all dispositions accurately in both places.
+
+- **Checks and limits:** Read the complete diff, relevant checklist, prior ledger columns, design section 7, archived park mapping, and affected procedural readers. The seven-row ledger, ancestry of every ledger hash, park-ID removal, and retention of outstanding work pass static inspection. No executable code, goldens, or reference fixtures changed. Builds, tests, `tools/docs-check.sh`, `tools/bothy.py check`, and `git diff --check` were not run, as instructed; their exit statuses are **not verified**. Current GitHub issue status was not checked.
+- **Nitpicks:** Finding 3 is a minor documentation accuracy issue; none depends on an unlikely runtime input.
+- **Brief:** The commit-message acceptance criteria were sufficient.
+- **Plan:** No additional obstacle.
+- **Prompt:** Replace the obsolete “closed slice record” wording with `REVIEW-CHECKLIST.md`, now the named review surface.
