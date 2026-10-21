@@ -15,7 +15,7 @@ is also what phase 4's web UI calls, so its shape is the GUI's API.
   2 and 11, with the file and line references); report 7, section 5,
   pre-work item 1; report 2, section 7, row 3 (the test rule that
   follows).
-- `CONTEXT.md` C1 (the crate edges and who may link what), C12 (two
+- `AGENTS.md` C1 (the crate edges and who may link what), C12 (two
   surfaces), C46 (shared semantics), C47 (errors, not panics);
   `decisions/frontends.md` C11, C116; `decisions/plans.md` C111 (the
   apply loop); `crates/acquisition-protocol/src/protocol.rs`
@@ -57,6 +57,9 @@ Phase 1 closed, so the entries this step cites are in their new form.
    MCP's reduced to rendering and adapter shape, under 2b's rule.
 
 ## Done when
+- The design half: `2a-design.md` and `2a-build.md` committed, the
+  rulings the design lists approved by the owner, its review read and
+  its findings taken or answered.
 - `try_quote`, the apply loop, the compile and no-policy mapping,
   `open_intent`, the store opener, the account resolver and the
   `daemon_status` shaping each exist once.

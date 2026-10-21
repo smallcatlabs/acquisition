@@ -14,7 +14,10 @@ account index, the GUI notes (sections 3, 5, 8, 9 and 12), the arch
 check, and an Opus inventory of every duplicate with its pins. A second
 Opus read the first draft of this file against the tree and found
 twelve faults; each is fixed below and the ones that changed the shape
-are named in section 5.
+are named in section 5. Codex's review of the design commit found four
+more (`landed` lacked the plan's scope; policy verbs needed no facts;
+the tally on the deferred failure; the missing-job case), each taken
+above.
 
 ## 1. The problem, measured against the tree
 
@@ -145,7 +148,7 @@ impl Frontend {
     pub async fn attach(&self) -> Result<Client, Fault>;                // the observation door, or the Fault that says why not
     pub async fn daemon(&self) -> Result<DaemonReport, Fault>;          // the four arms, one document
     pub async fn jobs(&self) -> Result<Jobs, Fault>;                    // live, or the ledger (C45)
-    pub async fn job(&self, id: u64) -> Result<Job, Fault>;             // live, or the ledger
+    pub async fn job(&self, id: u64) -> Result<Job, Fault>;             // live, or the ledger; Fault::NoJobOnDisk when neither holds it
     pub async fn result(&self, id: u64) -> Result<JobResult, Fault>;    // live, or a terminal outcome from the ledger; with job_id and account
     pub async fn submit(&self, client: &mut Client, kind, params, priority, account: Option<&str>) -> Result<u64, Fault>;
         // the selector passes through to the daemon unresolved, as today (C3: a job verb with no login still spawns and is refused by the daemon)
@@ -160,18 +163,19 @@ impl Account {
     pub fn facts(&self) -> Result<Store, Fault>;
     pub fn intent(&self) -> Result<Annotations, Fault>;  // Fault::NoUuid when the entry predates uuid-at-login
     pub fn open(&self) -> Result<Opened, Fault>;         // both
+    pub fn policy(&self) -> Result<Option<AnnotationRow>, Fault>;   // intent alone: a facts file this build cannot read stops neither
+    pub fn set_policy(&self, value: &Value, if_revision: Option<i64>, expect: Expect, write: PolicyWrite) -> Result<AnnotationRow, Fault>;
+        // if_revision None: Expect::Current reads the stored revision and refuses a row this build cannot read (as pricing does: C35, intent is irreplaceable); Expect::Create passes None (C52)
 }
 pub struct Opened { pub account: Account, pub facts: Store, pub intent: Annotations }
 
 // The refresh flow, over an Opened.
 impl Opened {
-    pub fn policy(&self) -> Result<Option<AnnotationRow>, Fault>;
-    pub fn set_policy(&mut self, value: &Value, if_revision: Option<i64>, expect: Expect, write: PolicyWrite) -> Result<AnnotationRow, Fault>;
-        // if_revision None: Expect::Current reads the stored revision and refuses a row this build cannot read (as pricing does: C35, intent is irreplaceable); Expect::Create passes None (C52)
     pub fn compile(&self, realm, league, now) -> Result<RefreshPlan, Fault>;    // Fault::NoSyncPolicy
     pub async fn plan(&mut self, realm, league) -> Result<Planned, Fault>;       // compile, then quote
     pub async fn apply(&mut self, plan: &RefreshPlan, max_requests: Option<u64>) -> Result<Apply, Fault>;
-    pub async fn landed(&mut self, client: &mut Client, submitted: &Submitted, progress) -> Result<Landed, Fault>;
+    pub async fn landed(&mut self, client: &mut Client, plan: &RefreshPlan, submitted: &Submitted, progress) -> Result<Landed, Fault>;
+        // the plan names the realm and league the remaining count recompiles
     pub fn events(&self, since, limit) -> Result<Vec<EventRow>, Fault>;
     pub fn events_summary(&self, since, limit) -> Result<EventsSummary, Fault>;  // the CLI's summariser, moved
 }
@@ -232,6 +236,7 @@ pub enum Fault {
     Spend(SpendError),                                          // kind refused: a gone or moved policy, the wrong provider or account
     Policy(PutPolicyError),                                     // kind refused (a revision conflict's `conflict` kind is step 2g's, filed from 0b)
     NoDaemon { may_spawn: bool },                               // kind no_daemon; next: start_command()
+    NoJobOnDisk { id: u64 },                                    // kind unknown_job (the daemon's word for an id it does not remember); next: start_command()
     Door(ConnectError),                                         // the use door did not open: the MCP's JSON-RPC data.connect, the CLI's sentence
     AnotherDaemon(Box<DaemonId>),                               // observed, not this client's: never replaced by an observer (C10)
     Unresponsive(client::Unresponsive),                         // observed, no hello within the deadline (C86)
@@ -271,8 +276,10 @@ does not yet name; the sorter gives it `refused`, as the MCP does today.
 `Outcome::Failure` gains `children: Option<Children>` beside `error`,
 where `Children { done, failed, cancelled, failed_ids }` is the summary
 the daemon already attaches, as JSON, to a parent's success payload.
-The daemon fills it on both parent-failure arms (children failed;
-children cancelled); the sentence stays for a reader. `Outcome::Failure
+The daemon fills it on every parent failure: the two arms it builds
+(children failed; children cancelled) and the deferred failure a restart
+mid fan-out installs, which `maybe_finish_parent` passes through today
+with its message kept; the sentence stays for a reader. `Outcome::Failure
 {` is written at 52 sites across the daemon and the CLI, so the
 protocol gains an `Outcome::failure(message)` constructor and every
 pattern gains `..`. The CLI's `report_apply` reads the field and
@@ -319,7 +326,8 @@ rename of a kind, as C53 (JSON changes are additive) asks:
 - `job_result` carries `job_id` and `account` beside the outcome, and
   answers a terminal job from the ledger with no daemon; `job_status`
   with no daemon answers the ledger's row as `running: false` with
-  `next` (the command that starts a daemon) instead of refusing;
+  `next` (the command that starts a daemon) instead of refusing, and a
+  job the ledger does not hold is `unknown_job` with `next`;
   `submit_job` and `cancel_job` still refuse `no_daemon`, since they
   act;
 - `daemon_status` with no daemon carries `log` when a log exists;

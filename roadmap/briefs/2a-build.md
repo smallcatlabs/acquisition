@@ -90,11 +90,14 @@ Fixed before the work starts:
     documents gain `skipped` and `remaining_requests` and keep
     `applied`, `requests`, `job_id` and `spent`.
   - `crates/acquisition-mcp/tests/daemon_status.rs`
-    `a_job_tool_with_no_daemon_names_the_command_that_starts_one`:
-    `job_status` with no daemon answers `running: false` with the
-    ledger's row and `next`, no longer a refusal; `submit_job` and
-    `cancel_job` still refuse `no_daemon` with `next`. If the owner
-    keeps the refusal (design section 7), this test stands.
+    `a_job_tool_with_no_daemon_names_the_command_that_starts_one` and
+    `the_no_daemon_remedy_names_the_provider_and_store_the_server_runs_with`:
+    both ask `job_status` for job 1 in a world with no ledger. A job the
+    ledger does not hold with no daemon becomes `unknown_job` with
+    `next`, so the first test keeps a missing-job case under that kind,
+    seeds a ledger row for the answered case (`running: false`, the row,
+    `next`), and the second moves its remedy assertion to `cancel_job`,
+    which still refuses `no_daemon` with `next`, as `submit_job` does.
   - `crates/acquisition-mcp/tests/persisted_queue.rs`
     `c45_the_tools_read_the_queue_on_disk_when_no_daemon_answers`: its
     equality stands (no log exists there); a new test stages a log
@@ -114,9 +117,10 @@ Fixed before the work starts:
   row this build cannot read; a plan whose policy revision moved; a
   plan applied twice; a plan with every request held by a queued job
   (`remaining_requests` null); a daemon absent for the quote (the one
-  note), for `job_status` (the ledger's row with `next`) and for
-  `job_result` of a finished job (its outcome from disk); a parent
-  whose child failed (the `children` field read back).
+  note), for `job_status` (the ledger's row with `next`; a job the
+  ledger does not hold, `unknown_job` with `next`) and for `job_result`
+  of a finished job (its outcome from disk); a parent whose child
+  failed (the `children` field read back).
 
 ## Do
 1. **The rulings** (commit 1, documents only, no review): C1 amended
@@ -134,8 +138,11 @@ Fixed before the work starts:
    field defaulting and skipped when absent, and `Outcome::failure(message)`
    for the constructors; every `Outcome::Failure {` constructor in the
    daemon and the CLI calls it and every pattern gains `..`; the daemon
-   fills `children` on both parent-failure arms in `maybe_finish_parent`
-   and keeps the sentence; `wire.rs` gains an `Outcome` sample for a
+   fills `children` on every parent failure in `maybe_finish_parent`:
+   the two arms it builds and the deferred failure a restart mid fan-out
+   installs, whose message is kept (the daemon's
+   `restore_drops_probes_and_finishes_a_parent_whose_children_are_done`
+   then reads the field too); `wire.rs` gains an `Outcome` sample for a
    failure carrying `children`, inside the fixture's own rules. Build,
    then test: the contract revision has moved.
 3. **The crate** (commit 3): `crates/acquisition-verbs` as design
