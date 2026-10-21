@@ -89,8 +89,9 @@ anything):
   allow-list for dependencies.
 
 Parks whose trigger is this slice, with the triage ids from
-`roadmap/parks-triage.md` at `1f524d15` (each park an issue since
-step 1b):
+`roadmap/parks-triage.md` at `1f524d15` (step 1b gave each an issue,
+a "Not doing" line, a ruling or a deletion: `roadmap/governance/PARKS.md`
+at `0704a8f7`):
 
 | Park | Where | What the GUI does with it |
 | --- | --- | --- |

@@ -151,9 +151,11 @@ list when a step's close commit or an issue takes it.
 
 Step 2d-oracle is closed and this file is folded: the ledger as written
 through 2d-oracle, one row per commit and review, is whole at
-`1f524d15`, with `parks-triage.md`. Next is 2e, the game-diff tool, a
-mock rehearsal of a new league and a README line for starting one; it
-has no brief yet. The owner reassesses the `AGENTS.md` budget when he
+`1f524d15`, with `parks-triage.md`. The fold was reviewed
+(`roadmap/reviews/roadmap-fold-5acd9ea5.md` at `8afaf1ab`) and its
+three findings taken. Next is 2e, the game-diff tool, a mock rehearsal
+of a new league and a README line for starting one; it has no brief
+yet. The owner reassesses the `AGENTS.md` budget when he
 chooses. `AGENTS.md` governs; the gate is its ten lines, under nextest.
 
 ## Ledger
@@ -174,11 +176,10 @@ messages.
 
 ## Housekeeping
 
-A brief stays until its phase closes, then is deleted and the ledger
-line cites the commit that held it. A ledger line folds at a step close
-and at a phase close, cited whole at the commit before. The dated files,
-`STATE-2026-10-19.md` and `GUI-NOTES.md`, are never rewritten; the
-assessment is corrected only where an outside review shows a sentence
-wider than its report, the correction dated in place. The parks triage
-the assessment points to, `parks-triage.md`, is whole at `1f524d15`;
-every park it judged is an issue or a "Not doing" line since step 1b.
+What "A step" does not say. The dated files, `STATE-2026-10-19.md` and
+`GUI-NOTES.md`, are never rewritten; the assessment is corrected only
+where an outside review shows a sentence wider than its report, the
+correction dated in place. The parks triage the assessment points to,
+`parks-triage.md`, is whole at `1f524d15`; step 1b gave every park it
+judged one of four fates, an issue, a "Not doing" line, a ruling or a
+deletion, listed in `roadmap/governance/PARKS.md` at `0704a8f7`.

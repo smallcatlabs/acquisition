@@ -8,9 +8,8 @@ Review the diff and the callers it affects for plain defects first:
 behavioural regressions, arithmetic and error-path failures,
 cancellation and concurrency, persistence, and anything that bypasses
 an invariant (`AGENTS.md` names them; the rate-limit choke point and
-the single gate above all). Then the area's checklist (the closed
-slice record `AGENTS.md` names for the area, its shapes-of-fault
-table). Then these shapes, which the records have taught because each
+the single gate above all). Then the area's rows of
+`REVIEW-CHECKLIST.md`, the shapes of fault that came back. Then these shapes, which the records have taught because each
 came back until it was named:
 
 1. A claim wider than its evidence: a sentence written for the common
