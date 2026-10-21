@@ -438,9 +438,13 @@ does not change; the budgets stand where the owner left them.
 
 ## 7. The owner's word
 
-Awaiting the owner's word on R1 and on the design; the surveys'
-findings below are his to weigh: the user-agent gap, and the renamed
-refusals under delegation.
+On R1 and the design, 2026-10-21, after the design's review was taken:
+"R1 is approved." Earlier the same day, on the fixture's source:
+"please use opus or sonnet subagents to find items you want to use for
+testing, and where you can't find an item you want, you can synthesize
+it from scratch or modify an existing real item from my store"; on the
+refusal wordings: "If you think the refusal wording changes make sense,
+go with it."; on the user-agent: "File the user-agent for 2f" (#51).
 
 ## Appendix A — the fixture's items (all `pc`, Standard; the owner's, as exported)
 
