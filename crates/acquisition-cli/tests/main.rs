@@ -12,6 +12,7 @@ mod cli_reference;
 mod daemon_observe;
 mod daemon_stop_checkpoint;
 mod error_kind;
+mod journey;
 mod no_ids;
 mod normaliser;
 mod persisted_queue;

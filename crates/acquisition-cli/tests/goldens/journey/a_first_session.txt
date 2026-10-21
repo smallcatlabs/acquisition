@@ -1,0 +1,260 @@
+# golden journey/a_first_session: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq policy set '{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}'
+# holds "revision 1"
+--- stdout
+sync policy written (revision 1) — preview the work with `acq refresh --plan`
+
+$ acq refresh --plan
+# holds "2 requests"
+--- stdout
+refresh Standard on mock as ExileTester — policy 1
+facts: stash never listed; characters never listed
+
+2 requests:
+  list stashes
+  list characters
+reason: stash and characters never listed
+
+quote: ETA unavailable until 2 rate-limit policies are learned
+wire: 2–6 sends; plus first-contact probes and token refresh if needed
+next: acq refresh --apply
+
+$ acq refresh --apply
+# holds "2 requests, 2 done"
+# holds "(ExileTester): 2/2 done"
+--- stdout
+applying 2 requests as job <j1>
+job <j1> done: 2 requests, 2 done (jobs <j2>–<j3>)
+changed: no items — 2 responses recorded, nothing added, changed, moved, or removed
+next: `acq refresh --plan` — 9 requests more are planned now (what this apply revealed, such as a map or unique tab's substashes, or left undone); plan and apply until the plan says nothing to do
+--- stderr
+job <j1> (ExileTester): 2/2 done
+
+$ acq refresh --plan
+# holds "9 requests"
+--- stdout
+refresh Standard on mock as ExileTester — policy 1
+facts: stash and characters listed <age> ago
+
+9 requests:
+  fetch 7 tabs
+    cur1  Currency
+    dump  Dump
+    old1  Old 1
+    old2  Old 2
+    uniq  Uniques
+    maps  Maps
+    mape  Maps (empty)
+  fetch 2 characters
+    fake0001  StashHoarder
+    fake0002  MuleQuadTab
+reason: selected tabs and characters never fetched
+skipped 1 tab: 1 folder — container only
+
+quote: ETA unavailable until 2 rate-limit policies are learned
+wire: 9–27 sends; plus first-contact probes and token refresh if needed
+next: acq refresh --apply
+
+$ acq refresh --apply
+# holds "(ExileTester): 9/9 done"
+# holds "7 requests more are planned now"
+# holds "added"
+--- stdout
+applying 9 requests as job <j4>
+job <j4> done: 9 requests, 9 done (jobs <j5>–<j6>)
+changed: +30 added at 6 locations since the apply started; 9 responses recorded (acq store events)
+next: `acq refresh --plan` — 7 requests more are planned now (what this apply revealed, such as a map or unique tab's substashes, or left undone); plan and apply until the plan says nothing to do
+--- stderr
+job <j4> (ExileTester): 9/9 done
+
+$ acq refresh --apply
+# holds "(ExileTester): 7/7 done"
+# holds "every covered entry is fresh"
+--- stdout
+applying 7 requests as job <j7>
+job <j7> done: 7 requests, 7 done (jobs <j8>–<j9>)
+changed: +19 added at 7 locations since the apply started; 7 responses recorded (acq store events)
+left: nothing — every covered entry is fresh
+--- stderr
+job <j7> (ExileTester): 7/7 done
+
+$ acq refresh --plan
+# holds "nothing to do"
+--- stdout
+nothing to do: covered entries are fresh (under 1h) or do not need fetching
+skipped 15 tabs: 14 fresh, 1 folder — container only
+skipped 2 characters: 2 fresh
+
+$ acq tabs
+# holds "15 tabs in Standard: 14 fetched, 1 folder (never fetched); 37 items"
+--- stdout
+15 tabs in Standard: 14 fetched, 1 folder (never fetched); 37 items
+name         type           items  fetched      parent       id
+Currency     CurrencyStash      3  <age> ago                    cur1
+Dump         PremiumStash      11  <age> ago                    dump
+Old leagues  Folder             -  never                     fold
+  Old 1      PremiumStash       2  <age> ago       fold         old1
+  Old 2      QuadStash          2  <age> ago       fold         old2
+Uniques      UniqueStash        0  <age> ago                    uniq
+  (unnamed)  UniqueStash        2  <age> ago       uniq         u001
+  (unnamed)  UniqueStash        3  <age> ago       uniq         u002
+  (unnamed)  UniqueStash        4  <age> ago       uniq         u003
+Maps         MapStash           0  <age> ago                    maps
+  (unnamed)  MapStash           1  <age> ago       maps         m001
+  (unnamed)  MapStash           2  <age> ago       maps         m002
+  (unnamed)  MapStash           3  <age> ago       maps         m003
+  (unnamed)  MapStash           4  <age> ago       maps         m004
+Maps (empty) MapStash           0  <age> ago                    mape
+
+$ acq search 'class=Rings rarity=rare'
+# holds "total   1 match"
+# holds "Empyrean Knot"
+--- stdout
+query   class=Rings rarity=rare
+scope   account ExileTester · pc · live · 49 items · 16 locations fetched (oldest <age> ago, newest <age> ago)
+        0 locations never fetched · location list seen <age> ago
+total   1 match
+rows    Empyrean Knot Coral Ring · rare · Standard / Dump · x 0, y 0 · fetched <age> ago
+            class Rings
+            id 51e6c1055b1d94f8c53921012d459ec5d2f4e353f674f4b03192c79375c4c682
+terms   each term counted alone over all live pc items in all leagues, never over the matches
+  0    class=Rings  1 matched · 14 failed · 34 undecided
+  1    rarity=rare  3 matched · 3 failed · 43 lacked
+routes  each returns exactly the members counted (5 more: --routes)
+  term 0 undecided (34), over the scope:
+    acq search --account ExileTester --realm pc 'undecided(class=Rings)'
+basis   store <store> · build <build> · snapshot 19 · facts v9 · intent 1 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+
+$ acq search '"+# to maximum Life">=70' --sort pseudo.total_life
+# holds "total   2 matches"
+# holds "Doryani's Prototype Saint's Hauberk"
+# holds "sorts by pseudo.total_life 89"
+# holds "sorts by pseudo.total_life 108"
+--- stdout
+query   line("# to maximum Life" arg1>=70)
+scope   account ExileTester · pc · live · 49 items · 16 locations fetched (oldest <age> ago, newest <age> ago)
+        0 locations never fetched · location list seen <age> ago
+total   2 matches
+rows    Doryani's Prototype Saint's Hauberk · unique · Standard / Dump · x 1, y 0 · fetched <age> ago
+            sorts by pseudo.total_life 89 · +89 to maximum Life (explicit)
+            id 23e1a67b5ab2bae129a4ba005c112daa706795a92b5469a0a2791e845abf26f3
+        Empyrean Knot Coral Ring · rare · Standard / Dump · x 0, y 0 · fetched <age> ago
+            sorts by pseudo.total_life 108 · +16 to Strength (explicit) · +78 to maximum Life (explicit) · +22 to maximum Life (implicit)
+            id 51e6c1055b1d94f8c53921012d459ec5d2f4e353f674f4b03192c79375c4c682
+terms   each term counted alone over all live pc items in all leagues, never over the matches
+  0    line("# to maximum Life" arg1>=70)  2 matched · 47 lacked
+routes  each returns exactly the members counted (2 more: --routes)
+basis   store <store> · build <build> · snapshot 19 · facts v9 · intent 1 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+
+$ acq search 'class="Stackable Currency"' --count base --sum stack
+# holds "total   1 match"
+# holds "sum     stack over every match: 7"
+# holds "Mirror Shard   sum 7"
+--- stdout
+query   class="Stackable Currency"
+scope   account ExileTester · pc · live · 49 items · 16 locations fetched (oldest <age> ago, newest <age> ago)
+        0 locations never fetched · location list seen <age> ago
+total   1 match · 34 undecided
+sum     stack over every match: 7
+count   base · 1 value
+        1  Mirror Shard   sum 7
+undecided the class: base not in the table unread — e.g. Fake Item 1 · id StashHoarder-inv-item1
+            `Fake Item 1` is not in the class table (classes v1); a refresh will not help; a reference update may
+terms   each term counted alone over all live pc items in all leagues, never over the matches
+  0    class="Stackable Currency"  1 matched · 14 failed · 34 undecided
+routes  each returns exactly the members counted (3 more: --routes)
+  undecided at the root (34), over the scope:
+    acq search --account ExileTester --realm pc 'undecided(class="Stackable Currency")'
+  term 0 undecided (34), over the scope:
+    acq search --account ExileTester --realm pc 'undecided(class="Stackable Currency")'
+basis   store <store> · build <build> · snapshot 19 · facts v9 · intent 1 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+
+$ acq show 51e6c1055b1d94f8c53921012d459ec5d2f4e353f674f4b03192c79375c4c682
+# holds "unread  nothing"
+# holds "explicit, crafted     +15% to Cold and Chaos Resistances"
+# holds "price   none"
+--- stdout
+Empyrean Knot Coral Ring · rare · frame rare
+id      51e6c1055b1d94f8c53921012d459ec5d2f4e353f674f4b03192c79375c4c682
+place   pc · Standard / Dump · x 0, y 0 · fetched <age> ago
+base    Coral Ring
+class   Rings
+category accessory.ring
+price   none (nothing applies) · why: acq price show --account 00000000-0000-4000-8000-85b8bb136b8e --realm pc item/51e6c1055b1d94f8c53921012d459ec5d2f4e353f674f4b03192c79375c4c682
+is      identified
+shown   Item Level: 83
+        Requires Level 64
+lines   explicit              +16 to Strength
+                              "# to Strength"   arg1 16
+        explicit              +78 to maximum Life
+                              "# to maximum Life"   arg1 78
+        explicit              +66 to maximum Mana
+                              "# to maximum Mana"   arg1 66
+        explicit              +15% to all Elemental Resistances
+                              "#% to all Elemental Resistances"   arg1 15
+        explicit, crafted     +15% to Cold and Chaos Resistances
+                              "#% to Cold and Chaos Resistances"   arg1 15
+        implicit              +22 to maximum Life
+                              "# to maximum Life"   arg1 22
+unread  nothing
+basis   store <store> · build <build> · snapshot 19 · facts v9 · intent 1 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+
+$ acq price set item/51e6c1055b1d94f8c53921012d459ec5d2f4e353f674f4b03192c79375c4c682 exact 5 chaos
+# holds "item/51e6c1055b1d94f8c53921012d459ec5d2f4e353f674f4b03192c79375c4c682: 5 chaos (revision 1), was unset"
+# holds "`acq price clear --account ExileTester item/51e6c1055b1d94f8c53921012d459ec5d2f4e353f674f4b03192c79375c4c682 --if-revision 1` undoes it"
+--- stdout
+item/51e6c1055b1d94f8c53921012d459ec5d2f4e353f674f4b03192c79375c4c682: 5 chaos (revision 1), was unset
+next: `acq price show --account ExileTester item/51e6c1055b1d94f8c53921012d459ec5d2f4e353f674f4b03192c79375c4c682` reads it beside the game side; `acq price clear --account ExileTester item/51e6c1055b1d94f8c53921012d459ec5d2f4e353f674f4b03192c79375c4c682 --if-revision 1` undoes it
+
+$ acq show 51e6c1055b1d94f8c53921012d459ec5d2f4e353f674f4b03192c79375c4c682
+# holds "price   5 chaos · manual"
+--- stdout
+Empyrean Knot Coral Ring · rare · frame rare
+id      51e6c1055b1d94f8c53921012d459ec5d2f4e353f674f4b03192c79375c4c682
+place   pc · Standard / Dump · x 0, y 0 · fetched <age> ago
+base    Coral Ring
+class   Rings
+category accessory.ring
+price   5 chaos · manual · why: acq price show --account 00000000-0000-4000-8000-85b8bb136b8e --realm pc item/51e6c1055b1d94f8c53921012d459ec5d2f4e353f674f4b03192c79375c4c682
+is      identified
+shown   Item Level: 83
+        Requires Level 64
+lines   explicit              +16 to Strength
+                              "# to Strength"   arg1 16
+        explicit              +78 to maximum Life
+                              "# to maximum Life"   arg1 78
+        explicit              +66 to maximum Mana
+                              "# to maximum Mana"   arg1 66
+        explicit              +15% to all Elemental Resistances
+                              "#% to all Elemental Resistances"   arg1 15
+        explicit, crafted     +15% to Cold and Chaos Resistances
+                              "#% to Cold and Chaos Resistances"   arg1 15
+        implicit              +22 to maximum Life
+                              "# to maximum Life"   arg1 22
+unread  nothing
+basis   store <store> · build <build> · snapshot 19 · facts v9 · intent 2 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+
+$ acq shop render
+# holds "1 item to post on 1 page; 1 omitted (1 the game lists)"
+# holds "[spoiler=\" ~price 5 chaos\"]"
+--- stdout
+49 items in Standard: 1 item to post on 1 page; 1 omitted (1 the game lists); 0 blocked; 47 nothing applies
+page 1 of 1: 156 characters, 1 item
+[spoiler="Shop Post 1 of 1 (1 item)"]
+[spoiler=" ~price 5 chaos"][linkItem realm="pc" location="Stash2" league="Standard" x="0" y="0"][/spoiler]
+[/spoiler]
+
+next: paste page 1 of 1 into the shop thread and preview it before posting; `acq shop render --page N` prints one page alone
+
+$ acq price clear item/51e6c1055b1d94f8c53921012d459ec5d2f4e353f674f4b03192c79375c4c682
+# holds "item/51e6c1055b1d94f8c53921012d459ec5d2f4e353f674f4b03192c79375c4c682: cleared, was 5 chaos (revision 1)"
+--- stdout
+item/51e6c1055b1d94f8c53921012d459ec5d2f4e353f674f4b03192c79375c4c682: cleared, was 5 chaos (revision 1)
+next: `acq price set --account ExileTester item/51e6c1055b1d94f8c53921012d459ec5d2f4e353f674f4b03192c79375c4c682 exact 5 chaos` puts it back (a create, which names no revision; the row's count continues past the clear)
+
+$ acq daemon stop
+# holds "daemon stopped (pid"
+--- stdout
+daemon stopped (pid <pid>)
+logged out with it: ExileTester — not in the keyring, so the session lived in that daemon alone; `acq auth` logs in again

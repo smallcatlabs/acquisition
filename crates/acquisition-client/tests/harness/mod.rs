@@ -618,6 +618,81 @@ pub fn sends(base: &Path) -> Vec<Send> {
         .collect()
 }
 
+/// The journal invariants a whole session can hold, by field
+/// (`TESTING-NOTES.md`, "The journal is the contract surface"): a header
+/// and the one daemon `pid` across every send; the first send per
+/// `(pid, route)` a HEAD, except the token endpoint and the routes the
+/// daemon never probes (`profile`, `league`); `counted` exactly when the
+/// method is not HEAD; no send answered 429 and every reported window at
+/// or under its maximum; and the GETs per route, its account left off,
+/// exactly `gets`, beside `token_posts` POSTs to the token endpoint and
+/// nothing else.
+pub fn assert_journal_holds(base: &Path, pid: u64, gets: &[(&str, usize)], token_posts: usize) {
+    let header = journal_header(base);
+    assert_eq!(
+        header["event"], "open",
+        "the journal's first line: {header}"
+    );
+    assert_eq!(
+        header["pid"].as_u64(),
+        Some(pid),
+        "the header's daemon: {header}"
+    );
+    let all = sends(base);
+    assert!(
+        !all.is_empty(),
+        "nothing journaled under {}",
+        base.display()
+    );
+    let name = |route: &str| route.split('@').next().unwrap_or(route).to_string();
+    let mut first: Vec<(u64, String)> = Vec::new();
+    let mut counted_gets: HashMap<String, usize> = HashMap::new();
+    let mut posts = 0;
+    for send in &all {
+        assert_eq!(send.pid, pid, "a send from another daemon: {send:?}");
+        let key = (send.pid, send.route.clone());
+        if !first.contains(&key) {
+            first.push(key);
+            let probed = !matches!(
+                name(&send.route).as_str(),
+                "oauth-token" | "profile" | "league"
+            );
+            if probed {
+                assert_eq!(
+                    send.method, "HEAD",
+                    "the first send on {} is no probe: {send:?}",
+                    send.route
+                );
+            }
+        }
+        assert_eq!(
+            send.counted,
+            send.method != "HEAD",
+            "counted is the method's: {send:?}"
+        );
+        assert_ne!(send.status, Some(429), "a send answered 429: {send:?}");
+        for window in &send.windows {
+            assert!(
+                window.hits <= window.max,
+                "a window over its maximum: {send:?}"
+            );
+        }
+        match send.method.as_str() {
+            "GET" => *counted_gets.entry(name(&send.route)).or_default() += 1,
+            "POST" if name(&send.route) == "oauth-token" => posts += 1,
+            "HEAD" => {}
+            other => panic!("a {other} send: {send:?}"),
+        }
+    }
+    let mut expected: Vec<(String, usize)> =
+        gets.iter().map(|(r, n)| (r.to_string(), *n)).collect();
+    expected.sort();
+    let mut got: Vec<(String, usize)> = counted_gets.into_iter().collect();
+    got.sort();
+    assert_eq!(got, expected, "the GETs per route");
+    assert_eq!(posts, token_posts, "the token endpoint's POSTs");
+}
+
 // ---- output -------------------------------------------------------------
 
 /// Stdout as exactly one JSON document (C11), or the test fails naming

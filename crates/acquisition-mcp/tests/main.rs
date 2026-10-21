@@ -8,6 +8,7 @@ mod harness;
 
 mod daemon_status;
 mod ggg_refusal;
+mod journey;
 mod mcp_reference;
 mod persisted_queue;
 mod pricing_tools;

@@ -131,6 +131,33 @@ process-wide write leaks into every test beside it under `cargo test`.
 under nextest (`.config/nextest.toml`), a process per test, never
 retried.
 
+## The journey
+
+One first session, from login to `daemon stop`, is held at both doors
+over the mock's real-shaped items (C123): the CLI's
+`crates/acquisition-cli/tests/journey.rs` records it as one golden
+transcript, `goldens/journey/a_first_session.txt`, and the MCP's
+`crates/acquisition-mcp/tests/journey.rs` drives the same steps through
+the tools, each field compared. Both read one table of facts,
+`crates/acquisition-client/tests/harness/journey.rs`: the requests per
+plan, the tabs and items, each query's total, the price, the shop's
+page, the journal's GETs per route. The CLI's golden holds the wording;
+the table holds the numbers both doors must see, so a change to the
+mock's items is one edit there and one regeneration.
+
+Each test starts its own daemon with the journal on its own command,
+and after the stop checks the journal by field through the shared
+reader (`assert_journal_holds`): the header and one pid across every
+send, the first send per route a probe but where the daemon never
+probes, `counted` exactly on non-HEAD sends, no 429 and no window over
+its maximum, and the GETs per route exactly what the plans named.
+
+Two invariants are out of the journey's reach. The user-agent is no
+journal field, and the mock records nothing it receives, so no test
+holds it here. A retry through a Cloudflare block cannot happen: the
+mock never serves a block, and a rule over inputs that never carry the
+case pins nothing.
+
 ## What a rewrite keeps
 
 - Component unit tests (the limiter's are its spec) survive with the

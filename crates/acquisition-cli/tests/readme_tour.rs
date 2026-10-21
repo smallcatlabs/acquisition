@@ -50,7 +50,7 @@ fn readme() -> String {
 
 /// Every line of every ```sh block, with the `NAME=value` words the
 /// shell sets for a command taken off its front.
-fn tour_lines() -> Vec<String> {
+pub(crate) fn tour_lines() -> Vec<String> {
     let mut inside = false;
     let mut lines = Vec::new();
     for line in readme().lines() {
@@ -109,7 +109,7 @@ fn flags_in(text: &str) -> Vec<String> {
 }
 
 /// `(verb path, flags)` for each alternative of one tour line.
-fn parse(line: &str) -> Vec<(Vec<String>, Vec<String>)> {
+pub(crate) fn parse(line: &str) -> Vec<(Vec<String>, Vec<String>)> {
     let code = line.split(" #").next().unwrap_or("").trim();
     let mut out = Vec::new();
     let mut path: Vec<String> = Vec::new();
