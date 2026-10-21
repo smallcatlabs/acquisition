@@ -14,93 +14,33 @@
 //!   record at the character with container `skills`;
 //! - the loop closes: the next plan is empty and applies with no daemon.
 
-use std::collections::HashMap;
-use std::io::{BufRead, BufReader, Read, Write};
-use std::net::TcpStream;
 use std::path::Path;
-use std::process::{Command, Output, Stdio};
+use std::process::Output;
 
 use acquisition_plan::{FetchReason, ListingReason, RefreshAction, RefreshPlan};
 use serde_json::{Value, json};
 
+mod harness;
+
+use harness::sole_json;
+
+/// The binary under test with the send journal at `base/sends.jsonl`, the
+/// GGG-side surface this file reads (TESTING-NOTES.md): set on every
+/// command, so a daemon any of them starts writes it.
 fn acq(base: &Path, args: &[&str]) -> Output {
-    command(base, args).output().expect("spawning acq")
+    harness::command(base, args)
+        .env("ACQ_JOURNAL", base.join("sends.jsonl"))
+        .output()
+        .expect("spawning acq")
 }
 
-fn command(base: &Path, args: &[&str]) -> Command {
-    let mut cmd = Command::new(env!("CARGO_BIN_EXE_acq"));
-    cmd.args(args)
-        .env("ACQ_STORE_DIR", base.join("store"))
-        .env("TMPDIR", scratch_tmp(base))
-        .env("XDG_RUNTIME_DIR", scratch_tmp(base))
-        .env("ACQ_LOG_DIR", base.join("logs"))
-        .env("ACQ_NO_KEYRING", "1")
-        .env("ACQ_JOURNAL", base.join("sends.jsonl"));
-    for var in [
-        "ACQ_GGG",
-        "ACQ_ACCOUNT",
-        "ACQ_TRIPWIRE",
-        "ACQ_MAX_SENDS",
-        "ACQ_IDLE_SHUTDOWN",
-        "ACQ_NO_SPAWN",
-    ] {
-        cmd.env_remove(var);
-    }
-    cmd.env("ACQ_PROVIDER", "mock");
-    cmd
-}
-
-fn sole_json(out: &Output) -> Value {
-    let stdout = String::from_utf8(out.stdout.clone()).expect("stdout is UTF-8");
-    serde_json::from_str(&stdout)
-        .unwrap_or_else(|e| panic!("stdout is not exactly one JSON document ({e}):\n{stdout}"))
-}
-
-/// One plain HTTP GET (loopback only) — enough to click the mock's approve
-/// link.
-fn http_get(url: &str) -> (u16, HashMap<String, String>, String) {
-    let rest = url.strip_prefix("http://").expect("loopback http url");
-    let (host, path) = rest.split_at(rest.find('/').unwrap_or(rest.len()));
-    let path = if path.is_empty() { "/" } else { path };
-    let mut stream = TcpStream::connect(host).expect("connecting to mock/daemon");
-    write!(
-        stream,
-        "GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n"
-    )
-    .unwrap();
-    let mut response = String::new();
-    stream.read_to_string(&mut response).unwrap();
-    let (head, body) = response
-        .split_once("\r\n\r\n")
-        .unwrap_or((response.as_str(), ""));
-    let mut lines = head.lines();
-    let status: u16 = lines
-        .next()
-        .and_then(|l| l.split_whitespace().nth(1))
-        .and_then(|s| s.parse().ok())
-        .unwrap_or_else(|| panic!("unparseable response:\n{response}"));
-    let headers = lines
-        .filter_map(|l| l.split_once(": "))
-        .map(|(k, v)| (k.to_ascii_lowercase(), v.to_string()))
-        .collect();
-    (status, headers, body.to_string())
-}
-
-/// The scripted mock login from AGENTS.md, in-process.
-fn login(base: &Path) {
-    let mut child = command(base, &["auth", "--no-browser", "--json"])
-        .stdout(Stdio::piped())
-        .spawn()
-        .expect("spawning acq auth");
-    let mut lines = BufReader::new(child.stdout.take().unwrap()).lines();
-    let first: Value = serde_json::from_str(&lines.next().unwrap().unwrap()).unwrap();
-    let authorize = first["authorize_url"].as_str().expect("authorize_url");
-    let approve = authorize.replace("/authorize?", "/approve?");
-    let (status, headers, body) = http_get(&approve);
-    assert_eq!(status, 302, "approve did not redirect: {body}");
-    let (status, _, body) = http_get(&headers["location"]);
-    assert_eq!(status, 200, "callback refused: {body}");
-    assert!(child.wait().unwrap().success(), "login did not complete");
+/// The scripted mock login, its daemon journaling to `base/sends.jsonl`.
+fn login_journaled(base: &Path) {
+    let journal = base.join("sends.jsonl");
+    harness::login_as_mock(
+        base,
+        &[("ACQ_JOURNAL", journal.to_str().expect("a UTF-8 path"))],
+    );
 }
 
 /// `refresh --plan --realm poe2 --json` as the planner's own validated
@@ -139,10 +79,9 @@ fn sends(base: &Path) -> Vec<(String, String, Option<u64>)> {
 
 #[test]
 fn a_character_only_poe2_policy_closes_its_loop_on_the_poe2_routes() {
-    let base = std::env::temp_dir().join(format!("acq-cw-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&base);
-    std::fs::create_dir_all(&base).unwrap();
-    login(&base);
+    let scratch = harness::scratch("cw");
+    let base = scratch.0.clone();
+    login_journaled(&base);
 
     // A character-only PoE2 entry is the ordinary v3 shape; a tabs facet
     // under poe2 is refused at the write, nothing stored.
@@ -293,18 +232,4 @@ fn a_character_only_poe2_policy_closes_its_loop_on_the_poe2_routes() {
 
     let out = acq(&base, &["daemon", "stop"]);
     assert!(out.status.success(), "{out:?}");
-    let _ = std::fs::remove_dir_all(&base);
-}
-
-/// The scratch temp and runtime directory of one test, under `base`:
-/// `TMPDIR` (macOS's runtime fallback) and
-/// `XDG_RUNTIME_DIR` (Linux's runtime directory) both point here, so the
-/// sockets the daemons bind — and, for a daemon a test kills rather than
-/// stops, the socket files it leaves — never touch the user's own
-/// runtime directory (C83). Created here, since the runtime directory
-/// is made under an existing parent.
-fn scratch_tmp(base: &std::path::Path) -> std::path::PathBuf {
-    let tmp = base.join("tmp");
-    let _ = std::fs::create_dir_all(&tmp);
-    tmp
 }

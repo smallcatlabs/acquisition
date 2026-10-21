@@ -10,6 +10,8 @@
 
 use std::process::Command;
 
+mod harness;
+
 const PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../CLI-REFERENCE.md");
 
 fn help(path: &[String]) -> String {
@@ -123,10 +125,11 @@ fn the_reference_matches_the_binary() {
         std::fs::write(PATH, &actual).unwrap();
     }
     let expected = std::fs::read_to_string(PATH).unwrap_or_else(|e| panic!("{PATH}: {e}"));
-    assert!(
-        expected == actual,
-        "CLI-REFERENCE.md no longer matches the binary's help; regenerate with \
-         ACQ_UPDATE_FIXTURES=1 cargo test -p acquisition-cli --test cli_reference"
+    harness::same_text(
+        &expected,
+        &actual,
+        "CLI-REFERENCE.md",
+        "ACQ_UPDATE_FIXTURES=1 cargo test -p acquisition-cli --test cli_reference",
     );
     assert!(
         actual.contains("## `acq shop render`"),

@@ -24,6 +24,12 @@ use acquisition_protocol::status::{
 use serde::Serialize;
 use serde_json::{Value, json};
 
+/// The golden files' line diff, the standard library alone: this file
+/// alone of the shared harness, since the protocol's tests link serde
+/// and nothing else (`tools/arch-check.sh`).
+#[path = "../../acquisition-client/tests/harness/diff.rs"]
+mod diff;
+
 const DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/wire");
 
 fn update() -> bool {
@@ -45,8 +51,9 @@ fn check(name: &str, actual: &Value) -> Option<String> {
     match std::fs::read_to_string(&path) {
         Ok(on_disk) if on_disk == text => None,
         Ok(on_disk) => Some(format!(
-            "{}:\n--- fixture\n{on_disk}--- this build\n{text}",
-            path.display()
+            "{} (- the fixture, + this build):\n{}",
+            path.display(),
+            diff::unified(&on_disk, &text)
         )),
         Err(e) => Some(format!("{}: {e} — this build:\n{text}", path.display())),
     }

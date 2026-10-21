@@ -6,7 +6,7 @@
 //! `price_json.rs` does.
 
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
+use std::process::Output;
 
 use acquisition_plan::price::Buyout;
 use acquisition_plan::shop::{Cell, Page, ShopRender, Verdict};
@@ -14,34 +14,12 @@ use acquisition_plan::{PolicyWrite, SyncPolicy, put_sync_policy};
 use acquisition_store::{Annotations, Endpoint, Index, Provenance, Store, account_path};
 use serde_json::{Value, json};
 
+mod harness;
+
+use harness::{offline_acq as acq, sole_json};
+
 const USER: &str = "Alice#1234";
 const UUID: &str = "u-shop";
-
-fn acq(base: &Path, args: &[&str]) -> Output {
-    let mut cmd = Command::new(env!("CARGO_BIN_EXE_acq"));
-    cmd.args(args)
-        .env("ACQ_STORE_DIR", base)
-        .env("ACQ_NO_KEYRING", "1")
-        .env("ACQ_NO_SPAWN", "1");
-    for var in [
-        "ACQ_GGG",
-        "ACQ_ACCOUNT",
-        "ACQ_TRIPWIRE",
-        "ACQ_MAX_SENDS",
-        "ACQ_JOURNAL",
-        "ACQ_IDLE_SHUTDOWN",
-    ] {
-        cmd.env_remove(var);
-    }
-    cmd.env("ACQ_PROVIDER", "mock");
-    cmd.output().expect("spawning acq")
-}
-
-fn sole_json(out: &Output) -> Value {
-    let stdout = String::from_utf8(out.stdout.clone()).expect("stdout is UTF-8");
-    serde_json::from_str(&stdout)
-        .unwrap_or_else(|e| panic!("stdout is not exactly one JSON document ({e}):\n{stdout}"))
-}
 
 fn stderr(out: &Output) -> String {
     String::from_utf8_lossy(&out.stderr).into_owned()
@@ -178,11 +156,8 @@ fn seed(base: &Path) -> PathBuf {
 
 #[test]
 fn shop_render_json_is_the_document_the_text_and_the_page_read() {
-    let base = std::env::temp_dir().join(format!(
-        "acq-shop-json-{}-{}",
-        std::process::id(),
-        acquisition_store::now()
-    ));
+    let scratch = harness::scratch("shop-json");
+    let base = scratch.0.clone();
     seed(&base);
 
     let out = acq(&base, &["shop", "render", "--json"]);
@@ -329,6 +304,4 @@ fn shop_render_json_is_the_document_the_text_and_the_page_read() {
         text.starts_with("nothing to paste for Standard: 6 items — 2 omitted"),
         "{text}"
     );
-
-    let _ = std::fs::remove_dir_all(&base);
 }

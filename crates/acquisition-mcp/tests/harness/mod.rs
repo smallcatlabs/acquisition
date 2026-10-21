@@ -1,8 +1,15 @@
-//! Shared process-test harness: spawn `acq-mcp` in an isolated
-//! environment and speak newline-delimited JSON-RPC to the server's
-//! stdio; start the daemon it would itself spawn — the `acqd` beside it
-//! (C82) — under the same isolation, owning the pid.
-#![allow(dead_code)] // each test binary uses the slice it needs
+//! The MCP's adapter over the shared process harness (C122): the harness
+//! itself is `acquisition-client/tests/harness/mod.rs`, included here by
+//! `#[path]` and re-exported whole. What stays here has one consumer:
+//! `acq-mcp` spawned under the harness's one isolation list, the daemon
+//! it would itself spawn (the `acqd` beside it, C82) started under the
+//! same list with the test owning the pid, the `acq` beside it run with
+//! no spawn, `run_to_exit`'s bounded reaping and the `Mcp` stdio client
+//! speaking newline-delimited JSON-RPC.
+#![allow(dead_code, unused_imports)] // each test binary uses the slice it needs
+
+#[path = "../../../acquisition-client/tests/harness/mod.rs"]
+mod shared;
 
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
@@ -12,200 +19,51 @@ use std::time::{Duration, Instant};
 
 use serde_json::{Value, json};
 
-/// Spawn the `acq-mcp` binary with the scratch socket/store under `base`,
-/// the live-run knobs scrubbed, and `extra_env` applied last (so a test
-/// can opt into e.g. `ACQ_PROVIDER=ggg` deliberately).
+pub use shared::*;
+
+/// The server under test.
+pub fn exe() -> &'static Path {
+    Path::new(env!("CARGO_BIN_EXE_acq-mcp"))
+}
+
+/// Spawn the `acq-mcp` binary under the isolation of `base`, stderr to
+/// null, and `extra_env` applied last (so a test can opt into e.g.
+/// `ACQ_PROVIDER=ggg` deliberately).
 pub fn spawn(
     base: &Path,
     args: &[&str],
     extra_env: &[(&str, &str)],
     stdio: fn() -> Stdio,
 ) -> Child {
-    let mut cmd = Command::new(env!("CARGO_BIN_EXE_acq-mcp"));
+    let mut cmd = Command::new(exe());
     cmd.args(args);
-    isolate(&mut cmd, base, extra_env, stdio);
+    isolate(&mut cmd, base);
+    cmd.stdin(stdio()).stdout(stdio()).stderr(Stdio::null());
+    cmd.envs(extra_env.iter().copied());
     cmd.spawn().expect("spawning acq-mcp")
 }
 
-/// The daemon `acq-mcp` would lazily spawn in mock mode: the `acqd`
-/// beside the binary under test (C82). A missing one fails here, before
-/// the test runs, naming the build step; the test owns the pid. The
-/// tests also drive the client in-process, which judges the daemon's
-/// artifact against the `acqd` beside *this* executable (C84) — a test
-/// executable in `deps/` has none — so a link of that name (`place_link`) is placed
-/// beside it, pointing one level up at the same file: the test
-/// executable names the daemon its build wrote on both paths (C82's
-/// clause for test executables).
-pub fn spawn_daemon(base: &Path, extra_env: &[(&str, &str)]) -> Daemon {
-    let acqd = acquisition_client::locator::beside(Path::new(env!("CARGO_BIN_EXE_acq-mcp")))
-        .unwrap_or_else(|e| panic!("{e}"));
-    let exe = std::env::current_exe().expect("current exe");
-    let link = exe
-        .parent()
-        .expect("a parent")
-        .join(acquisition_client::locator::ACQD);
-    place_link(&link, &acqd);
-    assert!(
-        same_file(&link, &acqd),
-        "the sibling the in-process client sees is not the daemon acq-mcp would spawn"
-    );
-    let mut cmd = Command::new(&acqd);
-    isolate(&mut cmd, base, extra_env, Stdio::null);
-    let child = cmd
-        .spawn()
-        .unwrap_or_else(|e| panic!("spawning {}: {e}", acqd.display()));
-    Daemon(child, acqd)
+/// The daemon `acq-mcp` would lazily spawn in mock mode, the `acqd` beside
+/// it, started directly so the test owns the pid, `extra_env` applied
+/// last. The tests also drive the client in-process, so the daemon's
+/// name is linked beside this executable first (C84).
+pub fn spawn_daemon(base: &Path, extra_env: &[(&str, &str)]) -> Proc {
+    let acqd = acqd_beside(exe());
+    link_beside_this_test(&acqd);
+    let mut cmd = daemon_command(&acqd, base);
+    cmd.envs(extra_env.iter().copied());
+    spawn_drained(cmd, &acqd).0
 }
 
 /// Run the `acq` beside the server under test (C82: one build wrote
-/// both), under the same isolation: what a tool's JSON is held equal to.
-/// A missing one fails here, naming the build step.
+/// both) under the same isolation, never spawning a daemon: what a
+/// tool's JSON is held equal to.
 pub fn acq(base: &Path, args: &[&str]) -> std::process::Output {
-    let acq = Path::new(env!("CARGO_BIN_EXE_acq-mcp"))
-        .parent()
-        .expect("a parent")
-        .join(format!("acq{}", std::env::consts::EXE_SUFFIX));
-    assert!(
-        acq.exists(),
-        "no acq beside acq-mcp at {}: run `cargo build --workspace` first (C82)",
-        acq.display()
-    );
-    let mut cmd = Command::new(&acq);
+    let mut cmd = Command::new(sibling(exe(), "acq"));
     cmd.args(args);
-    isolate(&mut cmd, base, &[("ACQ_NO_SPAWN", "1")], Stdio::piped);
-    cmd.stderr(Stdio::piped());
+    offline(&mut cmd, base);
+    cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
     cmd.output().expect("running acq")
-}
-
-/// No daemon came up under `base`: nothing bound a socket in the
-/// test's scratch runtime directory (C83: a daemon's socket derives from
-/// its world into that directory, and nothing else binds there).
-pub fn no_daemon_appeared(base: &Path) -> bool {
-    sockets_under(&scratch_tmp(base)).is_empty()
-}
-
-/// Every Unix socket under `dir`, recursively.
-#[cfg(unix)]
-pub fn sockets_under(dir: &Path) -> Vec<PathBuf> {
-    use std::os::unix::fs::FileTypeExt;
-    let mut found = Vec::new();
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return found;
-    };
-    for entry in entries.flatten() {
-        let kind = entry.file_type().unwrap();
-        if kind.is_dir() {
-            found.extend(sockets_under(&entry.path()));
-        } else if kind.is_socket() {
-            found.push(entry.path());
-        }
-    }
-    found.sort();
-    found
-}
-
-/// Windows: there are no socket files, so the endpoints "under `dir`"
-/// are the live pipes (C112) of the worlds a test made beside it — every
-/// directory up to two levels under `dir`'s parent, the test's scratch
-/// base, taken as a root, and its pipe kept when the pipe namespace lists
-/// it. Each test has its own base, so tests running at once never see
-/// each other's.
-#[cfg(windows)]
-pub fn sockets_under(dir: &Path) -> Vec<PathBuf> {
-    fn dirs(at: &Path, depth: u32, out: &mut Vec<PathBuf>) {
-        let Ok(entries) = std::fs::read_dir(at) else {
-            return;
-        };
-        for entry in entries.flatten() {
-            if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
-                out.push(entry.path());
-                if depth > 1 {
-                    dirs(&entry.path(), depth - 1, out);
-                }
-            }
-        }
-    }
-    let Some(base) = dir.parent() else {
-        return Vec::new();
-    };
-    let mut roots = Vec::new();
-    dirs(base, 2, &mut roots);
-    let mut found: Vec<PathBuf> = roots
-        .iter()
-        .filter_map(|root| acquisition_store::world::World::at(root).ok())
-        .filter_map(|world| world.socket_path().ok())
-        .filter(|pipe| acquisition_client::endpoint::exists(pipe))
-        .collect();
-    found.sort();
-    found.dedup();
-    found
-}
-
-/// The scratch temp and runtime directory of one test, under `base`:
-/// `TMPDIR` (macOS's runtime fallback) and
-/// `XDG_RUNTIME_DIR` (Linux's runtime directory) both point here, so the
-/// sockets the daemons bind — and, for a daemon a test kills rather than
-/// stops, the socket files it leaves — never touch the user's own
-/// runtime directory (C83). Created here, since the runtime directory
-/// is made under an existing parent.
-pub fn scratch_tmp(base: &std::path::Path) -> std::path::PathBuf {
-    let tmp = base.join("tmp");
-    let _ = std::fs::create_dir_all(&tmp);
-    tmp
-}
-
-/// The daemon a test started: killed and waited for on drop, whichever
-/// way the test ends — a timed-out answer must not leave it behind
-/// (review 2026-09-11) — and named while a test is panicking (C82: a
-/// failure says which daemon ran).
-pub struct Daemon(Child, PathBuf);
-
-impl Daemon {
-    pub fn id(&self) -> u32 {
-        self.0.id()
-    }
-}
-
-impl Drop for Daemon {
-    fn drop(&mut self) {
-        if std::thread::panicking() {
-            eprintln!(
-                "the daemon under test was {} (pid {})",
-                self.1.display(),
-                self.0.id()
-            );
-        }
-        let _ = self.0.kill();
-        let _ = self.0.wait();
-    }
-}
-
-/// The scratch socket and store under `base`, the live-run knobs
-/// scrubbed, `extra_env` applied last.
-fn isolate(cmd: &mut Command, base: &Path, extra_env: &[(&str, &str)], stdio: fn() -> Stdio) {
-    cmd.env("ACQ_STORE_DIR", base.join("store"))
-        .env("TMPDIR", scratch_tmp(base))
-        .env("XDG_RUNTIME_DIR", scratch_tmp(base))
-        .env("ACQ_LOG_DIR", base.join("logs"))
-        .env("ACQ_NO_KEYRING", "1")
-        .stdin(stdio())
-        .stdout(stdio())
-        .stderr(Stdio::null());
-    for var in [
-        "ACQ_GGG",
-        "ACQ_ACCOUNT",
-        "ACQ_TRIPWIRE",
-        "ACQ_MAX_SENDS",
-        "ACQ_JOURNAL",
-        "ACQ_IDLE_SHUTDOWN",
-        "ACQ_NO_SPAWN",
-    ] {
-        cmd.env_remove(var);
-    }
-    cmd.env("ACQ_PROVIDER", "mock");
-    for (key, value) in extra_env {
-        cmd.env(key, value);
-    }
 }
 
 /// How long one JSON-RPC answer may take before the test fails naming
@@ -425,45 +283,4 @@ impl Mcp {
             Ok(v) => panic!("{tool} unexpectedly succeeded: {v}"),
         }
     }
-}
-
-/// Place `link` as the daemon under another name (C82's clause for test
-/// executables): on Unix a symlink one level up, at the same file; on
-/// Windows a hard link — a symlink needs Developer Mode there, and one a
-/// standard user made is an untrusted mount point to its readers (os
-/// error 448) — placed again once a build has replaced the daemon. A
-/// test running beside this one may place it meanwhile.
-#[cfg_attr(unix, allow(unused_variables))]
-fn place_link(link: &Path, acqd: &Path) {
-    #[cfg(unix)]
-    {
-        let target = Path::new("..").join(acquisition_client::locator::ACQD);
-        if std::fs::read_link(link).ok().as_deref() != Some(target.as_path()) {
-            let _ = std::fs::remove_file(link);
-            if let Err(e) = std::os::unix::fs::symlink(&target, link)
-                && std::fs::read_link(link).ok().as_deref() != Some(target.as_path())
-            {
-                panic!("placing {} -> {}: {e}", link.display(), target.display());
-            }
-        }
-    }
-    #[cfg(windows)]
-    if !same_file(link, acqd) {
-        let _ = std::fs::remove_file(link);
-        if let Err(e) = std::fs::hard_link(acqd, link)
-            && !same_file(link, acqd)
-        {
-            panic!("linking {} to {}: {e}", link.display(), acqd.display());
-        }
-    }
-}
-
-/// Whether two paths open one file, by its id (C84).
-fn same_file(a: &Path, b: &Path) -> bool {
-    let id = |p: &Path| {
-        std::fs::File::open(p)
-            .and_then(|f| acquisition_store::world::file_id(&f))
-            .ok()
-    };
-    id(a).is_some() && id(a) == id(b)
 }

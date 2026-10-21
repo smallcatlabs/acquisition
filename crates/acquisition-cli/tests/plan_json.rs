@@ -13,44 +13,17 @@
 //! rather than a stray process.
 
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
 
 use acquisition_plan::RefreshPlan;
 use acquisition_store::{Endpoint, Index, Store, account_path};
 use serde_json::{Value, json};
 
+mod harness;
+
+use harness::{offline_acq as acq, sole_json};
+
 const USER: &str = "Alice#1234";
 const UUID: &str = "u-e2e";
-
-fn acq(base: &Path, args: &[&str]) -> Output {
-    let mut cmd = Command::new(env!("CARGO_BIN_EXE_acq"));
-    cmd.args(args)
-        .env("ACQ_STORE_DIR", base)
-        .env("ACQ_NO_KEYRING", "1")
-        .env("ACQ_NO_SPAWN", "1");
-    // The parent shell may carry live-run or selection state; the contract
-    // under test is the isolated mock one.
-    for var in [
-        "ACQ_GGG",
-        "ACQ_ACCOUNT",
-        "ACQ_TRIPWIRE",
-        "ACQ_MAX_SENDS",
-        "ACQ_JOURNAL",
-        "ACQ_IDLE_SHUTDOWN",
-    ] {
-        cmd.env_remove(var);
-    }
-    cmd.env("ACQ_PROVIDER", "mock");
-    cmd.output().expect("spawning acq")
-}
-
-/// stdout must be exactly one JSON document (plus whitespace) — that is
-/// the whole point of `--json`: pipeable, no banners, no trailing chatter.
-fn sole_json(out: &Output) -> Value {
-    let stdout = String::from_utf8(out.stdout.clone()).expect("stdout is UTF-8");
-    serde_json::from_str(&stdout)
-        .unwrap_or_else(|e| panic!("stdout is not exactly one JSON document ({e}):\n{stdout}"))
-}
 
 fn seed_store(base: &Path) -> PathBuf {
     let mock = base.join("mock");
@@ -90,8 +63,8 @@ fn seed_store(base: &Path) -> PathBuf {
 
 #[test]
 fn json_stdout_is_the_contract_surface() {
-    let base = std::env::temp_dir().join(format!("acq-e2e-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&base);
+    let scratch = harness::scratch("e2e");
+    let base = scratch.0.clone();
     seed_store(&base);
 
     // No policy yet: `policy show --json` answers null, exit 0 — absent
@@ -256,8 +229,6 @@ fn json_stdout_is_the_contract_surface() {
         done["note"].as_str().unwrap().contains("nothing to do"),
         "{done}"
     );
-
-    let _ = std::fs::remove_dir_all(&base);
 }
 
 /// C36, amended 2026-10-19 — `policy set` writes the realms it names and
@@ -266,8 +237,8 @@ fn json_stdout_is_the_contract_surface() {
 /// leagues is removed, and `--replace` alone writes the whole policy.
 #[test]
 fn a_poe2_policy_set_alone_leaves_the_pc_policy_standing() {
-    let base = std::env::temp_dir().join(format!("acq-e2e-merge-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&base);
+    let scratch = harness::scratch("e2e-merge");
+    let base = scratch.0.clone();
     seed_store(&base);
     let pc = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","max_age_seconds":3600}}}}}"#;
     let poe2 = r#"{"version":3,"realms":{"poe2":{"leagues":{"Standard":{"characters":"all","max_age_seconds":600}}}}}"#;
@@ -299,5 +270,4 @@ fn a_poe2_policy_set_alone_leaves_the_pc_policy_standing() {
         replaced["value"],
         serde_json::from_str::<Value>(poe2).unwrap()
     );
-    let _ = std::fs::remove_dir_all(&base);
 }

@@ -5,33 +5,13 @@
 //! empty temp dir and `ACQ_NO_SPAWN=1` makes any contact an error, so
 //! the command must answer from the binary alone.
 
-use std::path::Path;
-use std::process::{Command, Output};
+mod harness;
 
-use serde_json::Value;
-
-fn acq(base: &Path, args: &[&str]) -> Output {
-    let mut cmd = Command::new(env!("CARGO_BIN_EXE_acq"));
-    cmd.args(args)
-        .env("ACQ_STORE_DIR", base)
-        .env("ACQ_NO_KEYRING", "1")
-        .env("ACQ_NO_SPAWN", "1");
-    for var in ["ACQ_GGG", "ACQ_ACCOUNT", "ACQ_JOURNAL"] {
-        cmd.env_remove(var);
-    }
-    cmd.env("ACQ_PROVIDER", "mock");
-    cmd.output().expect("spawning acq")
-}
-
-fn sole_json(out: &Output) -> Value {
-    let stdout = String::from_utf8(out.stdout.clone()).expect("stdout is UTF-8");
-    serde_json::from_str(&stdout)
-        .unwrap_or_else(|e| panic!("stdout is not exactly one JSON document ({e}):\n{stdout}"))
-}
+use harness::{offline_acq as acq, sole_json};
 
 #[test]
 fn c68_the_table_is_enumerable_by_version_with_no_store_and_no_daemon() {
-    let tmp = tempdir();
+    let tmp = harness::scratch("reference");
     let out = acq(&tmp.0, &["--json", "reference", "currency"]);
     assert!(
         out.status.success(),
@@ -85,7 +65,7 @@ fn c68_the_table_is_enumerable_by_version_with_no_store_and_no_daemon() {
 
 #[test]
 fn c68_one_word_resolves_exactly_or_fails_naming_the_version() {
-    let tmp = tempdir();
+    let tmp = harness::scratch("reference");
     let out = acq(&tmp.0, &["--json", "reference", "currency", "exa"]);
     assert!(out.status.success());
     let v = sole_json(&out);
@@ -114,27 +94,4 @@ fn c68_one_word_resolves_exactly_or_fails_naming_the_version() {
     assert_eq!(miss.status.code(), Some(1));
     assert!(miss.stdout.is_empty());
     assert!(String::from_utf8_lossy(&miss.stderr).contains("not a currency word"));
-}
-
-/// The test's scratch directory, removed on drop (it leaked one
-/// `acq-reference-*` per run until 2026-09-11).
-struct Scratch(std::path::PathBuf);
-
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
-
-fn tempdir() -> Scratch {
-    let dir = std::env::temp_dir().join(format!(
-        "acq-reference-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
-    std::fs::create_dir_all(&dir).unwrap();
-    Scratch(dir)
 }

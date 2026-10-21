@@ -20,27 +20,12 @@
 
 mod harness;
 
-use std::collections::HashMap;
-use std::io::{Read, Write};
-use std::net::TcpStream;
 use std::time::{Duration, Instant};
 
 use acquisition_client::client::{Client, ConnectOptions};
 use acquisition_plan::{RefreshAction, RefreshPlan};
-use acquisition_protocol::protocol::{Request, Response};
-use harness::{Mcp, spawn_daemon};
+use harness::Mcp;
 use serde_json::{Value, json};
-
-/// The scratch directory, removed on drop whichever way the test ends
-/// (a timed-out answer included); declared before the daemon and the
-/// servers, so those are killed and waited for first.
-struct Scratch(std::path::PathBuf);
-
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
 
 const POLICY: &str =
     r#"{"version":1,"leagues":{"Standard":{"tabs":"all","max_age_seconds":3600}}}"#;
@@ -51,82 +36,6 @@ const POLICY: &str =
 /// policy — it names no work and is refused since policy v3.)
 const EMPTY_POLICY: &str =
     r#"{"version":1,"leagues":{"Standard":{"tabs":["no-such-tab"],"max_age_seconds":3600}}}"#;
-
-/// One plain loopback HTTP GET — enough to click the mock's approve link
-/// (same shape as `apply_loop.rs`).
-fn http_get(url: &str) -> (u16, HashMap<String, String>, String) {
-    let rest = url.strip_prefix("http://").expect("loopback http url");
-    let (host, path) = rest.split_at(rest.find('/').unwrap_or(rest.len()));
-    let path = if path.is_empty() { "/" } else { path };
-    let mut stream = TcpStream::connect(host).expect("connecting to mock/daemon");
-    write!(
-        stream,
-        "GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n"
-    )
-    .unwrap();
-    let mut response = String::new();
-    stream.read_to_string(&mut response).unwrap();
-    let (head, body) = response
-        .split_once("\r\n\r\n")
-        .unwrap_or((response.as_str(), ""));
-    let mut lines = head.lines();
-    let status: u16 = lines
-        .next()
-        .and_then(|l| l.split_whitespace().nth(1))
-        .and_then(|s| s.parse().ok())
-        .unwrap_or_else(|| panic!("unparseable response:\n{response}"));
-    let headers = lines
-        .filter_map(|l| l.split_once(": "))
-        .map(|(k, v)| (k.to_ascii_lowercase(), v.to_string()))
-        .collect();
-    (status, headers, body.to_string())
-}
-
-/// The scripted mock login, over the protocol (no `acq` binary in this
-/// crate): `auth_start` returns the authorize URL, the approve variant is
-/// clicked, its 302 followed to the daemon callback, and `auth_status`
-/// polled until this flow's own completion — `login_ok`, not merely a
-/// live session — lands.
-async fn login() {
-    let mut client = Client::connect(ConnectOptions::autonomous(false))
-        .await
-        .expect("connecting to the daemon");
-    let Response::AuthUrl { authorize_url } = client
-        .request(&Request::AuthStart)
-        .await
-        .expect("auth_start")
-    else {
-        panic!("auth_start did not return an authorize URL");
-    };
-    let approve = authorize_url.replace("/authorize?", "/approve?");
-    let (status, headers, body) = tokio::task::spawn_blocking(move || http_get(&approve))
-        .await
-        .unwrap();
-    assert_eq!(status, 302, "approve did not redirect: {body}");
-    let location = headers["location"].clone();
-    let (status, _, body) = tokio::task::spawn_blocking(move || http_get(&location))
-        .await
-        .unwrap();
-    assert_eq!(status, 200, "callback refused: {body}");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    loop {
-        match client
-            .request(&Request::AuthStatus)
-            .await
-            .expect("auth_status")
-        {
-            Response::Auth {
-                login_ok: Some(_), ..
-            } => return,
-            Response::Auth {
-                login_error: Some(e),
-                ..
-            } => panic!("login failed: {e}"),
-            _ if Instant::now() > deadline => panic!("login did not complete"),
-            _ => tokio::time::sleep(Duration::from_millis(100)).await,
-        }
-    }
-}
 
 /// Extract and re-validate the envelope a `refresh_plan` call returned:
 /// what crosses the MCP boundary must be the planner's own self-validating
@@ -153,40 +62,21 @@ fn finish_job(mcp: &mut Mcp, id: &Value) -> Value {
 
 #[test]
 fn the_mcp_tools_carry_the_plan_slice_and_its_gates() {
-    let base = std::env::temp_dir().join(format!("acq-m8-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&base);
-    std::fs::create_dir_all(&base).unwrap();
-    let _scratch = Scratch(base.clone());
-    // The in-process protocol client below reads the same knobs the
-    // children inherit.
-    // SAFETY: this is the binary's only test; nothing reads the
-    // environment concurrently.
-    unsafe {
-        for var in ["ACQ_GGG", "ACQ_ACCOUNT", "ACQ_NO_SPAWN"] {
-            std::env::remove_var(var);
-        }
-        std::env::set_var("ACQ_PROVIDER", "mock");
-        std::env::set_var("ACQ_STORE_DIR", base.join("store"));
-        std::env::set_var("TMPDIR", harness::scratch_tmp(&base));
-        std::env::set_var("XDG_RUNTIME_DIR", harness::scratch_tmp(&base));
-        std::env::set_var("ACQ_LOG_DIR", base.join("logs"));
-        std::env::set_var("ACQ_NO_KEYRING", "1");
-    }
-
-    // The daemon is started directly — the `acqd` beside `acq-mcp`, the
-    // one it would lazily spawn — so the test owns the pid.
-    let _daemon = spawn_daemon(&base, &[]);
+    // The in-process protocol client below reads the world from the
+    // environment: the harness's session applies the one isolation list
+    // to this process, and this file is its own test binary (C122). The
+    // daemon is started directly, the `acqd` beside `acq-mcp`, the one it
+    // would lazily spawn, so the test owns the pid; login is driven over
+    // the protocol the way `acq auth` drives it.
+    let session = harness::session("m8");
+    let base = session.base.clone();
     let rt = tokio::runtime::Runtime::new().unwrap();
-    rt.block_on(async {
-        let deadline = Instant::now() + Duration::from_secs(10);
-        while Client::connect(ConnectOptions::autonomous(false))
-            .await
-            .is_err()
-        {
-            assert!(Instant::now() < deadline, "daemon never bound its socket");
-            tokio::time::sleep(Duration::from_millis(50)).await;
-        }
-        login().await;
+    let _daemon = rt.block_on(async {
+        let daemon =
+            harness::start_daemon_in_process(&session, &harness::acqd_beside(harness::exe())).await;
+        let mut client = harness::compatible_client().await;
+        harness::login_in_process(&mut client, None).await;
+        daemon
     });
 
     let mut mcp = Mcp::start(&base, &[]);
@@ -377,7 +267,7 @@ fn the_mcp_tools_carry_the_plan_slice_and_its_gates() {
         );
     });
 
-    // The harness's `Mcp` and `Daemon` kill and wait on drop, then the
-    // `Scratch` guard removes the directory.
+    // The harness's `Mcp` and `Proc` kill and wait on drop, then the
+    // session removes the directory.
     drop(mcp);
 }

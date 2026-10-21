@@ -14,100 +14,14 @@
 //! Slow-ish on purpose (one daemon, ~21 mock sends, real waits): this is
 //! the one test that proves the whole slice through the real binaries.
 
-use std::collections::HashMap;
-use std::io::{BufRead, BufReader, Read, Write};
-use std::net::TcpStream;
 use std::path::Path;
-use std::process::{Command, Output, Stdio};
 
 use acquisition_plan::{RefreshAction, RefreshPlan};
 use serde_json::{Value, json};
 
-fn acq(base: &Path, args: &[&str]) -> Output {
-    command(base, args).output().expect("spawning acq")
-}
+mod harness;
 
-fn command(base: &Path, args: &[&str]) -> Command {
-    let mut cmd = Command::new(env!("CARGO_BIN_EXE_acq"));
-    cmd.args(args)
-        // The socket path must stay short (Unix sockets cap ~104 bytes),
-        // so everything lives directly under the platform temp dir.
-        .env("ACQ_STORE_DIR", base.join("store"))
-        .env("TMPDIR", scratch_tmp(base))
-        .env("XDG_RUNTIME_DIR", scratch_tmp(base))
-        .env("ACQ_LOG_DIR", base.join("logs"))
-        .env("ACQ_NO_KEYRING", "1");
-    for var in [
-        "ACQ_GGG",
-        "ACQ_ACCOUNT",
-        "ACQ_TRIPWIRE",
-        "ACQ_MAX_SENDS",
-        "ACQ_JOURNAL",
-        "ACQ_IDLE_SHUTDOWN",
-        "ACQ_NO_SPAWN",
-    ] {
-        cmd.env_remove(var);
-    }
-    cmd.env("ACQ_PROVIDER", "mock");
-    cmd
-}
-
-fn sole_json(out: &Output) -> Value {
-    let stdout = String::from_utf8(out.stdout.clone()).expect("stdout is UTF-8");
-    serde_json::from_str(&stdout)
-        .unwrap_or_else(|e| panic!("stdout is not exactly one JSON document ({e}):\n{stdout}"))
-}
-
-/// One plain HTTP GET (loopback only), returning status, lowercased
-/// headers, and body. Just enough to click the mock's approve link the way
-/// AGENTS.md scripts it with curl.
-fn http_get(url: &str) -> (u16, HashMap<String, String>, String) {
-    let rest = url.strip_prefix("http://").expect("loopback http url");
-    let (host, path) = rest.split_at(rest.find('/').unwrap_or(rest.len()));
-    let path = if path.is_empty() { "/" } else { path };
-    let mut stream = TcpStream::connect(host).expect("connecting to mock/daemon");
-    write!(
-        stream,
-        "GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n"
-    )
-    .unwrap();
-    let mut response = String::new();
-    stream.read_to_string(&mut response).unwrap();
-    let (head, body) = response
-        .split_once("\r\n\r\n")
-        .unwrap_or((response.as_str(), ""));
-    let mut lines = head.lines();
-    let status: u16 = lines
-        .next()
-        .and_then(|l| l.split_whitespace().nth(1))
-        .and_then(|s| s.parse().ok())
-        .unwrap_or_else(|| panic!("unparseable response:\n{response}"));
-    let headers = lines
-        .filter_map(|l| l.split_once(": "))
-        .map(|(k, v)| (k.to_ascii_lowercase(), v.to_string()))
-        .collect();
-    (status, headers, body.to_string())
-}
-
-/// The scripted mock login from AGENTS.md, in-process: start
-/// `acq auth --no-browser --json`, read the printed authorize URL, GET it
-/// with `/authorize?` replaced by `/approve?`, and follow the 302 to the
-/// daemon's callback (without the follow the login never completes).
-fn login(base: &Path) {
-    let mut child = command(base, &["auth", "--no-browser", "--json"])
-        .stdout(Stdio::piped())
-        .spawn()
-        .expect("spawning acq auth");
-    let mut lines = BufReader::new(child.stdout.take().unwrap()).lines();
-    let first: Value = serde_json::from_str(&lines.next().unwrap().unwrap()).unwrap();
-    let authorize = first["authorize_url"].as_str().expect("authorize_url");
-    let approve = authorize.replace("/authorize?", "/approve?");
-    let (status, headers, body) = http_get(&approve);
-    assert_eq!(status, 302, "approve did not redirect: {body}");
-    let (status, _, body) = http_get(&headers["location"]);
-    assert_eq!(status, 200, "callback refused: {body}");
-    assert!(child.wait().unwrap().success(), "login did not complete");
-}
+use harness::{acq, login_as_mock, sole_json};
 
 /// `refresh --plan --json` as the planner's own validated envelope — what
 /// stdout carries is what apply can trust.
@@ -128,11 +42,10 @@ fn apply(base: &Path, args: &[&str]) -> Value {
 
 #[test]
 fn the_plan_apply_replan_loop_closes_against_the_mock() {
-    let base = std::env::temp_dir().join(format!("acq-al-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&base);
-    std::fs::create_dir_all(&base).unwrap();
+    let scratch = harness::scratch("al");
+    let base = scratch.0.clone();
 
-    login(&base);
+    login_as_mock(&base, &[]);
     let out = acq(
         &base,
         &[
@@ -255,7 +168,6 @@ fn the_plan_apply_replan_loop_closes_against_the_mock() {
 
     let out = acq(&base, &["daemon", "stop"]);
     assert!(out.status.success(), "{out:?}");
-    let _ = std::fs::remove_dir_all(&base);
 }
 
 /// A failed apply prints in the daemon's own words, its count sentence,
@@ -264,11 +176,10 @@ fn the_plan_apply_replan_loop_closes_against_the_mock() {
 /// the real pair of binaries.
 #[test]
 fn a_failed_apply_counts_its_failed_requests_from_the_daemons_own_words() {
-    let base = std::env::temp_dir().join(format!("acq-af-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&base);
-    std::fs::create_dir_all(&base).unwrap();
+    let scratch = harness::scratch("af");
+    let base = scratch.0.clone();
 
-    login(&base);
+    login_as_mock(&base, &[]);
     let policy = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","max_age_seconds":3600}}}}}"#;
     assert!(acq(&base, &["policy", "set", policy]).status.success());
     assert!(acq(&base, &["stashes"]).status.success());
@@ -331,18 +242,4 @@ fn a_failed_apply_counts_its_failed_requests_from_the_daemons_own_words() {
         "{doc}"
     );
     assert!(failed[0]["error"].is_string(), "{doc}");
-    let _ = std::fs::remove_dir_all(&base);
-}
-
-/// The scratch temp and runtime directory of one test, under `base`:
-/// `TMPDIR` (macOS's runtime fallback) and
-/// `XDG_RUNTIME_DIR` (Linux's runtime directory) both point here, so the
-/// sockets the daemons bind — and, for a daemon a test kills rather than
-/// stops, the socket files it leaves — never touch the user's own
-/// runtime directory (C83). Created here, since the runtime directory
-/// is made under an existing parent.
-fn scratch_tmp(base: &std::path::Path) -> std::path::PathBuf {
-    let tmp = base.join("tmp");
-    let _ = std::fs::create_dir_all(&tmp);
-    tmp
 }

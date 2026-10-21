@@ -5,19 +5,9 @@
 
 mod harness;
 
-use std::path::PathBuf;
-
 use acquisition_store::jobs::{JobDb, JobRow, daemon_db_path};
 use harness::Mcp;
 use serde_json::json;
-
-struct Scratch(PathBuf);
-
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
 
 fn row(id: u64, state: &str, updated_at: i64) -> JobRow {
     JobRow {
@@ -40,10 +30,8 @@ fn row(id: u64, state: &str, updated_at: i64) -> JobRow {
 
 #[test]
 fn c45_the_tools_read_the_queue_on_disk_when_no_daemon_answers() {
-    let base = std::env::temp_dir().join(format!("acq-mcp-c45-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&base);
-    std::fs::create_dir_all(&base).unwrap();
-    let _scratch = Scratch(base.clone());
+    let scratch = harness::scratch("mcp-c45");
+    let base = scratch.0.clone();
 
     let dir = base.join("store").join("mock");
     let db = JobDb::open(&daemon_db_path(&dir)).unwrap();
@@ -89,10 +77,8 @@ fn c45_the_tools_read_the_queue_on_disk_when_no_daemon_answers() {
 /// daemon wrote, as `acq daemon status --json` does.
 #[test]
 fn c45_one_job_and_the_last_log_are_read_from_disk_on_both_surfaces() {
-    let base = std::env::temp_dir().join(format!("acq-mcp-c45-one-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&base);
-    std::fs::create_dir_all(&base).unwrap();
-    let _scratch = Scratch(base.clone());
+    let scratch = harness::scratch("mcp-c45-one");
+    let base = scratch.0.clone();
 
     let dir = base.join("store").join("mock");
     let db = JobDb::open(&daemon_db_path(&dir)).unwrap();

@@ -17,23 +17,10 @@ use acquisition_store::jobs::{JobDb, JobRow, daemon_db_path};
 use harness::{Mcp, spawn_daemon};
 use serde_json::{Value, json};
 
-/// The scratch directory, removed on drop — a failed assertion leaves
-/// nothing behind. Declared before the daemon and the servers, so those
-/// are gone first (the harness's `Daemon` and `Mcp` kill and wait).
-struct Scratch(PathBuf);
-
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
-
 #[test]
 fn c84_daemon_status_reports_the_identity_and_the_sibling_it_is_judged_against() {
-    let base = std::env::temp_dir().join(format!("acq-mcp-status-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&base);
-    std::fs::create_dir_all(&base).unwrap();
-    let _scratch = Scratch(base.clone());
+    let scratch = harness::scratch("mcp-status");
+    let base = scratch.0.clone();
     let acqd = acquisition_client::locator::beside(Path::new(env!("CARGO_BIN_EXE_acq-mcp")))
         .unwrap_or_else(|e| panic!("{e}"))
         .canonicalize()
@@ -163,10 +150,8 @@ fn c84_daemon_status_reports_the_identity_and_the_sibling_it_is_judged_against()
 /// README's line, in every mode.
 #[test]
 fn a_job_tool_with_no_daemon_names_the_command_that_starts_one() {
-    let base = std::env::temp_dir().join(format!("acq-mcp-remedy-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&base);
-    std::fs::create_dir_all(&base).unwrap();
-    let _scratch = Scratch(base.clone());
+    let scratch = harness::scratch("mcp-remedy");
+    let base = scratch.0.clone();
     // A host that forbids a spawn, as real mode does by this server's own
     // policy: the refusal for want of a daemon, in words.
     let mut mcp = Mcp::start(&base, &[("ACQ_NO_SPAWN", "1")]);
@@ -244,10 +229,8 @@ fn a_job_tool_with_no_daemon_names_the_command_that_starts_one() {
 /// the same directory, which names no provider.
 #[test]
 fn the_no_daemon_remedy_names_the_provider_and_store_the_server_runs_with() {
-    let base = std::env::temp_dir().join(format!("acq-mcp-remedy-world-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&base);
-    std::fs::create_dir_all(&base).unwrap();
-    let _scratch = Scratch(base.clone());
+    let scratch = harness::scratch("mcp-remedy-world");
+    let base = scratch.0.clone();
     let store = acquisition_search::answer::shell_quoted(&base.join("store").display().to_string());
     for (provider, prefix) in [
         ("mock", format!("ACQ_PROVIDER=mock ACQ_STORE_DIR={store} ")),

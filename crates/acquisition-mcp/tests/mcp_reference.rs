@@ -75,21 +75,21 @@ fn render(instructions: &str, tools: &[Value]) -> String {
 
 #[test]
 fn the_reference_matches_the_server() {
-    let base = std::env::temp_dir().join(format!("acq-mref-{}", std::process::id()));
-    std::fs::create_dir_all(&base).unwrap();
+    let scratch = harness::scratch("mref");
+    let base = scratch.0.clone();
     let mut mcp = Mcp::start(&base, &[]);
     let tools = mcp.list_tools();
     let actual = render(&mcp.instructions, &tools);
     let _ = mcp.child.kill();
-    let _ = std::fs::remove_dir_all(&base);
     assert!(tools.len() >= 10, "tools/list returned {}", tools.len());
     if std::env::var_os("ACQ_UPDATE_FIXTURES").is_some() {
         std::fs::write(PATH, &actual).unwrap();
     }
     let expected = std::fs::read_to_string(PATH).unwrap_or_else(|e| panic!("{PATH}: {e}"));
-    assert!(
-        expected == actual,
-        "MCP-REFERENCE.md no longer matches the server; regenerate with \
-         ACQ_UPDATE_FIXTURES=1 cargo test -p acquisition-mcp --test mcp_reference"
+    harness::same_text(
+        &expected,
+        &actual,
+        "MCP-REFERENCE.md",
+        "ACQ_UPDATE_FIXTURES=1 cargo test -p acquisition-mcp --test mcp_reference",
     );
 }

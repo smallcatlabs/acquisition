@@ -49,9 +49,8 @@ fn seed_ggg_account(base: &Path) {
 
 #[test]
 fn ggg_mode_never_spawns_a_daemon_for_the_spending_tools() {
-    let base = std::env::temp_dir().join(format!("acq-m8g-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&base);
-    std::fs::create_dir_all(&base).unwrap();
+    let scratch = harness::scratch("m8g");
+    let base = scratch.0.clone();
 
     let mut mcp = Mcp::start(&base, &[("ACQ_PROVIDER", "ggg")]);
 

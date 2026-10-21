@@ -14,46 +14,14 @@ use std::process::{Command, Output, Stdio};
 use acquisition_store::{Endpoint, Index, Store, account_path};
 use serde_json::{Value, json};
 
+mod harness;
+
+use harness::{offline_acq as acq, offline_command as command, sole_json};
+
 const USER: &str = "Alice#1234";
-
-fn command(base: &Path, args: &[&str]) -> Command {
-    let mut cmd = Command::new(env!("CARGO_BIN_EXE_acq"));
-    cmd.args(args)
-        .env("ACQ_STORE_DIR", base)
-        .env("ACQ_NO_KEYRING", "1")
-        .env("ACQ_NO_SPAWN", "1")
-        .env("ACQ_PROVIDER", "mock");
-    for var in ["ACQ_GGG", "ACQ_ACCOUNT"] {
-        cmd.env_remove(var);
-    }
-    cmd
-}
-
-fn acq(base: &Path, args: &[&str]) -> Output {
-    command(base, args).output().expect("spawning acq")
-}
-
-fn sole_json(out: &Output) -> Value {
-    let stdout = String::from_utf8(out.stdout.clone()).expect("stdout is UTF-8");
-    serde_json::from_str(&stdout)
-        .unwrap_or_else(|e| panic!("stdout is not exactly one JSON document ({e}):\n{stdout}"))
-}
 
 fn text(out: &Output) -> String {
     String::from_utf8(out.stdout.clone()).unwrap()
-}
-
-fn base() -> std::path::PathBuf {
-    static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-    let dir = std::env::temp_dir().join(format!(
-        "acq-search-cli-{}-{}",
-        std::process::id(),
-        N.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-    ));
-    // a process id comes round again: never open what an earlier run left
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
-    dir
 }
 
 /// Two fetched tabs and one never fetched: `kaom`, a unique whose name
@@ -189,7 +157,8 @@ fn seed_more(base: &Path) {
 /// touched says how much it left out and where the whole is.
 #[test]
 fn c96_c100_a_row_names_its_realm_under_all_and_says_what_it_left_out() {
-    let base = base();
+    let scratch = harness::scratch("search-cli");
+    let base = scratch.0.clone();
     seed(&base);
     seed_more(&base);
     let shown = text(&acq(
@@ -245,7 +214,8 @@ fn run_printed(base: &Path, command: &str) -> Output {
 /// review, 2026-09-21).
 #[test]
 fn rule_5_every_command_printed_runs_with_a_second_account_known() {
-    let base = base();
+    let scratch = harness::scratch("search-cli");
+    let base = scratch.0.clone();
     seed(&base);
     seed_more(&base);
     let mock = base.join("mock");
@@ -358,7 +328,8 @@ fn rule_5_every_command_printed_runs_with_a_second_account_known() {
 /// `--` — runs through a shell and returns exactly the members counted.
 #[test]
 fn step_5_a_count_at_a_terminal_and_every_route_it_prints_returns_what_it_counted() {
-    let base = base();
+    let scratch = harness::scratch("search-cli");
+    let base = scratch.0.clone();
     seed(&base);
     // the tab never fetched, fetched: a fire line GGG spelled two ways
     let mut store = Store::open(&account_path(&base.join("mock"), USER)).unwrap();
@@ -451,7 +422,8 @@ fn step_5_a_count_at_a_terminal_and_every_route_it_prints_returns_what_it_counte
 /// cell and beneath a vocabulary row.
 #[test]
 fn keys_are_parsed_strictly_and_text_says_why_a_count_has_no_route() {
-    let base = base();
+    let scratch = harness::scratch("search-cli");
+    let base = scratch.0.clone();
     seed(&base);
     let mut store = Store::open(&account_path(&base.join("mock"), USER)).unwrap();
     let stash = |id: &str| Endpoint::Stash {
@@ -537,7 +509,8 @@ fn keys_are_parsed_strictly_and_text_says_why_a_count_has_no_route() {
 /// runs; a quoted text keeps its trailing space through the binder.
 #[test]
 fn step_5_review_a_continuations_key_is_encoded_and_a_quoted_text_is_kept_whole() {
-    let base = base();
+    let scratch = harness::scratch("search-cli");
+    let base = scratch.0.clone();
     seed(&base);
     let mut store = Store::open(&account_path(&base.join("mock"), USER)).unwrap();
     // twelve templates a pattern with a comma selects, each with a comma
@@ -607,7 +580,8 @@ const LIFE: &str = r##""+# to maximum Life">=90"##;
 
 #[test]
 fn c53_search_json_is_the_answer_whole_and_the_text_is_a_function_of_it() {
-    let base = base();
+    let scratch = harness::scratch("search-cli");
+    let base = scratch.0.clone();
     seed(&base);
     let out = acq(
         &base,
@@ -732,7 +706,8 @@ fn c53_search_json_is_the_answer_whole_and_the_text_is_a_function_of_it() {
 /// the list (F5).
 #[test]
 fn first_seat_the_text_says_what_sorted_what_an_id_is_and_of_every_realm() {
-    let base = base();
+    let scratch = harness::scratch("search-cli");
+    let base = scratch.0.clone();
     seed(&base);
     seed_more(&base);
     let shown = text(&acq(&base, &["search", "--realm", "all", "is:corrupted"]));
@@ -885,7 +860,8 @@ fn first_seat_the_text_says_what_sorted_what_an_id_is_and_of_every_realm() {
 
 #[test]
 fn c11_a_failure_is_structured_and_a_later_steps_flag_is_refused_by_name() {
-    let base = base();
+    let scratch = harness::scratch("search-cli");
+    let base = scratch.0.clone();
     seed(&base);
     for (args, kind) in [
         (vec!["search", "rare"], "bare_word"),
@@ -968,7 +944,8 @@ fn c11_a_failure_is_structured_and_a_later_steps_flag_is_refused_by_name() {
 /// printed as the commands they are.
 #[test]
 fn step_10_explain_context_and_against_at_a_terminal() {
-    let base = base();
+    let scratch = harness::scratch("search-cli");
+    let base = scratch.0.clone();
     seed(&base);
 
     // kaom and r1 reach 90; r2 holds 20 and 75; r3's 40 sits beside an
@@ -1152,7 +1129,8 @@ fn step_10_explain_context_and_against_at_a_terminal() {
 /// that carries it printed so that a shell reads it back.
 #[test]
 fn a_query_with_an_apostrophe_is_read_from_stdin_and_routed_shell_quoted() {
-    let base = base();
+    let scratch = harness::scratch("search-cli");
+    let base = scratch.0.clone();
     seed(&base);
     let mut child = command(&base, &["--json", "search", "--query-file", "-"])
         .stdin(Stdio::piped())
@@ -1201,7 +1179,8 @@ fn a_query_with_an_apostrophe_is_read_from_stdin_and_routed_shell_quoted() {
 /// the intent revision, and the text is a function of the JSON (C53).
 #[test]
 fn oq6_a_price_set_by_hand_is_found_shown_and_named_in_the_basis() {
-    let base = base();
+    let scratch = harness::scratch("search-cli");
+    let base = scratch.0.clone();
     seed(&base);
     let before = sole_json(&acq(
         &base,
@@ -1256,7 +1235,8 @@ fn oq6_a_price_set_by_hand_is_found_shown_and_named_in_the_basis() {
 
 #[test]
 fn describe_and_show_print_json_whole_and_text_from_it() {
-    let base = base();
+    let scratch = harness::scratch("search-cli");
+    let base = scratch.0.clone();
     seed(&base);
     let d = sole_json(&acq(&base, &["--json", "search", "--describe"]));
     let fields: Vec<&str> = d["fields"]
@@ -1390,7 +1370,8 @@ fn describe_and_show_print_json_whole_and_text_from_it() {
 /// text taking the first named value a sort shows as the sort's own.
 #[test]
 fn step_9c3_a_row_sorted_by_a_reading_says_so_by_its_own_name() {
-    let base = base();
+    let scratch = harness::scratch("search-cli");
+    let base = scratch.0.clone();
     let mock = base.join("mock");
     std::fs::create_dir_all(&mock).unwrap();
     let mut index = Index::load(&mock).unwrap();
@@ -1484,7 +1465,8 @@ fn step_9c3_a_row_sorted_by_a_reading_says_so_by_its_own_name() {
 /// three rows, and its counts as the trade site shows them.
 #[test]
 fn step_9c4_a_mod_is_found_by_a_row_and_show_prints_its_rows() {
-    let base = base();
+    let scratch = harness::scratch("search-cli");
+    let base = scratch.0.clone();
     let mock = base.join("mock");
     std::fs::create_dir_all(&mock).unwrap();
     let mut index = Index::load(&mock).unwrap();
@@ -1630,7 +1612,8 @@ fn seed_categories(base: &Path) {
 /// Bleached Crustacean (unknown there) and a breachstone with no frame.
 #[test]
 fn step_9d_category_at_a_terminal_oq5_a_beast_the_count_and_the_help() {
-    let base = base();
+    let scratch = harness::scratch("search-cli");
+    let base = scratch.0.clone();
     seed_categories(&base);
 
     // OQ5 by category: the seed's plate and three rings with a life line,
@@ -1775,7 +1758,8 @@ fn step_9d_category_at_a_terminal_oq5_a_beast_the_count_and_the_help() {
 /// count, and nothing is left behind a "more".
 #[test]
 fn every_pick_of_a_category_term_is_printed_at_a_terminal() {
-    let base = base();
+    let scratch = harness::scratch("search-cli");
+    let base = scratch.0.clone();
     seed_categories(&base);
     let a = sole_json(&acq(&base, &["--json", "search", "category~\".\""]));
     let picks: Vec<(String, u64)> = a["terms"][0]["resolved"]["values"]
@@ -1817,7 +1801,8 @@ fn every_pick_of_a_category_term_is_printed_at_a_terminal() {
 /// Speed`; and `greaves`, with that line as an explicit.
 #[test]
 fn step_9d_c_the_ranged_family_and_a_flask_at_a_terminal() {
-    let base = base();
+    let scratch = harness::scratch("search-cli");
+    let base = scratch.0.clone();
     seed(&base);
     let mut store = Store::open(&account_path(&base.join("mock"), USER)).unwrap();
     let item = |id: &str, base: &str, rarity: &str, more: Value| {
@@ -1978,7 +1963,8 @@ fn step_9d_c_the_ranged_family_and_a_flask_at_a_terminal() {
 /// `ruby`, a Ruby Ring, which displays no defence.
 #[test]
 fn step_9d_a_the_percentile_of_a_captured_hybrid_at_a_terminal() {
-    let base = base();
+    let scratch = harness::scratch("search-cli");
+    let base = scratch.0.clone();
     seed(&base);
     let mut store = Store::open(&account_path(&base.join("mock"), USER)).unwrap();
     let property =
@@ -2085,7 +2071,8 @@ fn step_9d_a_the_percentile_of_a_captured_hybrid_at_a_terminal() {
 /// is what a reader carries to `show --against`.
 #[test]
 fn show_against_takes_a_query_that_starts_with_a_not() {
-    let base = base();
+    let scratch = harness::scratch("search-cli");
+    let base = scratch.0.clone();
     seed(&base);
     let out = acq(
         &base,
@@ -2106,7 +2093,8 @@ fn show_against_takes_a_query_that_starts_with_a_not() {
 /// `--json` runs.
 #[test]
 fn step_10_next_request_and_print_request_at_a_terminal() {
-    let base = base();
+    let scratch = harness::scratch("search-cli");
+    let base = scratch.0.clone();
     seed(&base);
     let rows = |a: &Value| a["rows"].as_array().unwrap().clone();
 
@@ -2253,7 +2241,8 @@ fn step_10_next_request_and_print_request_at_a_terminal() {
 /// runs; `acq show` shows a removed item, marked.
 #[test]
 fn step_10_membership_all_at_a_terminal() {
-    let base = base();
+    let scratch = harness::scratch("search-cli");
+    let base = scratch.0.clone();
     seed(&base);
     // a fetch of Rings that no longer has r2
     let mock = base.join("mock");
@@ -2389,7 +2378,8 @@ fn step_10_membership_all_at_a_terminal() {
 /// no membership names the three.
 #[test]
 fn membership_removed_at_a_terminal() {
-    let base = base();
+    let scratch = harness::scratch("search-cli");
+    let base = scratch.0.clone();
     seed(&base);
     // a fetch of Rings that no longer has r2
     let mock = base.join("mock");
@@ -2490,7 +2480,8 @@ fn membership_removed_at_a_terminal() {
 /// vocabulary narrowed twice, and both commands ran.
 #[test]
 fn a_printed_count_command_names_the_keys_it_was_printed_for() {
-    let base = base();
+    let scratch = harness::scratch("search-cli");
+    let base = scratch.0.clone();
     seed(&base);
     let dir = base.join("requests");
     std::fs::create_dir_all(&dir).unwrap();
@@ -2567,7 +2558,8 @@ fn a_printed_count_command_names_the_keys_it_was_printed_for() {
 /// each offer runs as `--request` reads it.
 #[test]
 fn a_refusal_offers_requests_beside_its_readings() {
-    let base = base();
+    let scratch = harness::scratch("search-cli");
+    let base = scratch.0.clone();
     seed(&base);
     seed_more(&base);
     let file = base.join("no-realm.json");
@@ -2662,7 +2654,8 @@ fn statuses(trade: &Value) -> Vec<(String, String)> {
 /// fails r3 (40) and plain (a sum of nothing, zero) — 3 matches.
 #[test]
 fn c113_a_site_search_url_runs_labelled_and_its_printed_request_reads_back() {
-    let base = base();
+    let scratch = harness::scratch("search-cli");
+    let base = scratch.0.clone();
     seed(&base);
     let url = trade_url();
     let answer = sole_json(&acq(&base, &["--json", "search", "--trade", &url]));
@@ -2773,7 +2766,8 @@ fn c113_a_site_search_url_runs_labelled_and_its_printed_request_reads_back() {
 /// read whole takes none beside it.
 #[test]
 fn k6_a_realm_beside_a_url_conflicts_and_an_id_takes_one() {
-    let base = base();
+    let scratch = harness::scratch("search-cli");
+    let base = scratch.0.clone();
     seed(&base);
     let url = trade_url();
     for realm in ["pc", "xbox"] {
@@ -2865,7 +2859,8 @@ fn k6_a_realm_beside_a_url_conflicts_and_an_id_takes_one() {
 /// realm resolves as a query's does.
 #[test]
 fn c113_the_query_json_is_read_from_stdin_and_its_sort_is_reported() {
-    let base = base();
+    let scratch = harness::scratch("search-cli");
+    let base = scratch.0.clone();
     seed(&base);
     let mut child = command(&base, &["--json", "search", "--trade-file", "-"])
         .stdin(Stdio::piped())
@@ -2917,7 +2912,8 @@ fn ids_of(answer: &Value) -> Vec<&str> {
 /// site search where it is the site's.
 #[test]
 fn rule_5_every_command_a_translated_answer_prints_runs() {
-    let base = base();
+    let scratch = harness::scratch("search-cli");
+    let base = scratch.0.clone();
     seed(&base);
     let url = trade_url();
 
@@ -3040,7 +3036,8 @@ fn rule_5_every_command_a_translated_answer_prints_runs() {
 /// lands as; the bare index names it in one line; the JSON whole holds it.
 #[test]
 fn describe_trade_is_the_catalogue() {
-    let base = base();
+    let scratch = harness::scratch("search-cli");
+    let base = scratch.0.clone();
     let named = sole_json(&acq(&base, &["--json", "search", "--describe", "trade"]));
     let rows = named["trade"]["rows"].as_array().unwrap();
     let catalogue = acquisition_search::trade::catalogue::catalogue().unwrap();

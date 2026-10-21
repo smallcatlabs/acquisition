@@ -11,7 +11,7 @@
 //! daemon contact an error.
 
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Output, Stdio};
+use std::process::{Child, Output, Stdio};
 
 use acquisition_plan::listing::ShowView;
 use acquisition_plan::price::PriceWrite;
@@ -19,32 +19,12 @@ use acquisition_plan::shop::{Cell, ShopRender};
 use acquisition_store::{AnnotationRow, Endpoint, Index, Store, account_path};
 use serde_json::{Value, json};
 
+mod harness;
+
+use harness::{offline_acq as acq, offline_command as command, sole_json};
+
 const USER: &str = "Alice#1234";
 const UUID: &str = "u-story";
-
-fn command(base: &Path, args: &[&str]) -> Command {
-    let mut cmd = Command::new(env!("CARGO_BIN_EXE_acq"));
-    cmd.args(args)
-        .env("ACQ_STORE_DIR", base)
-        .env("ACQ_NO_KEYRING", "1")
-        .env("ACQ_NO_SPAWN", "1");
-    for var in [
-        "ACQ_GGG",
-        "ACQ_ACCOUNT",
-        "ACQ_TRIPWIRE",
-        "ACQ_MAX_SENDS",
-        "ACQ_JOURNAL",
-        "ACQ_IDLE_SHUTDOWN",
-    ] {
-        cmd.env_remove(var);
-    }
-    cmd.env("ACQ_PROVIDER", "mock");
-    cmd
-}
-
-fn acq(base: &Path, args: &[&str]) -> Output {
-    command(base, args).output().expect("spawning acq")
-}
 
 /// Start `acq` without waiting, so two can overlap.
 fn spawn(base: &Path, args: &[&str]) -> Child {
@@ -53,12 +33,6 @@ fn spawn(base: &Path, args: &[&str]) -> Child {
         .stderr(Stdio::piped())
         .spawn()
         .expect("spawning acq")
-}
-
-fn sole_json(out: &Output) -> Value {
-    let stdout = String::from_utf8(out.stdout.clone()).expect("stdout is UTF-8");
-    serde_json::from_str(&stdout)
-        .unwrap_or_else(|e| panic!("stdout is not exactly one JSON document ({e}):\n{stdout}"))
 }
 
 fn stderr(out: &Output) -> String {
@@ -159,21 +133,14 @@ fn seed(base: &Path) -> PathBuf {
     mock
 }
 
-fn base_dir(name: &str) -> PathBuf {
-    std::env::temp_dir().join(format!(
-        "acq-story-{name}-{}-{}",
-        std::process::id(),
-        acquisition_store::now()
-    ))
-}
-
 /// C64, C74, C78 — the story: nothing posts until a hand price is set;
 /// `show` reads the row back; the render posts the item under its price
 /// with the link the site resolves; `clear` returns the row and the
 /// render posts nothing again. No daemon is contacted anywhere in it.
 #[test]
 fn c74_set_show_render_clear_is_one_story() {
-    let base = base_dir("story");
+    let scratch = harness::scratch("story-story");
+    let base = scratch.0.clone();
     seed(&base);
 
     let r = render(&base);
@@ -216,8 +183,6 @@ fn c74_set_show_render_clear_is_one_story() {
     let r = render(&base);
     assert_consistent(&r);
     assert_eq!((r.counts.posted, r.counts.off_page), (0, 2));
-
-    let _ = std::fs::remove_dir_all(&base);
 }
 
 /// C35, C78 — two blind writers on one row, started together, round
@@ -231,7 +196,8 @@ fn c74_set_show_render_clear_is_one_story() {
 /// to retry (`acquisition-store`, `ensure_wal`).
 #[test]
 fn c35_two_blind_writers_on_one_row_never_clobber_and_the_receipts_chain() {
-    let base = base_dir("writers");
+    let scratch = harness::scratch("story-writers");
+    let base = scratch.0.clone();
     seed(&base);
     let mut before: Option<AnnotationRow> = None;
     let mut landed = 0usize;
@@ -293,7 +259,6 @@ fn c35_two_blind_writers_on_one_row_never_clobber_and_the_receipts_chain() {
     // Whether the rounds overlapped is the machine's to decide; the
     // properties above hold either way. Said, so a run can be read.
     eprintln!("two writers: {landed} landed, {conflicts} conflicted over 5 rounds");
-    let _ = std::fs::remove_dir_all(&base);
 }
 
 /// C35, C11 — a stale `--if-revision` on `set` and on `clear` conflicts
@@ -302,7 +267,8 @@ fn c35_two_blind_writers_on_one_row_never_clobber_and_the_receipts_chain() {
 /// what they were.
 #[test]
 fn c35_a_stale_revision_conflicts_and_changes_nothing() {
-    let base = base_dir("stale");
+    let scratch = harness::scratch("story-stale");
+    let base = scratch.0.clone();
     seed(&base);
     for args in [
         ["price", "set", "item/i-a", "exact", "5", "chaos", "--json"].as_slice(),
@@ -349,7 +315,6 @@ fn c35_a_stale_revision_conflicts_and_changes_nothing() {
     let again = render(&base);
     assert_eq!(again.posted, page.posted);
     assert_eq!(again.pages, page.pages);
-    let _ = std::fs::remove_dir_all(&base);
 }
 
 /// C64, C74 — a clear landing under a render, round after round: the
@@ -359,7 +324,8 @@ fn c35_a_stale_revision_conflicts_and_changes_nothing() {
 /// never a page that counts an item it does not hold.
 #[test]
 fn c74_a_clear_under_a_render_is_never_a_torn_page() {
-    let base = base_dir("clear-under-render");
+    let scratch = harness::scratch("story-clear-under-render");
+    let base = scratch.0.clone();
     seed(&base);
     let mut seen = [0usize; 2];
     for round in 1..=6 {
@@ -414,5 +380,4 @@ fn c74_a_clear_under_a_render_is_never_a_torn_page() {
     let r = render(&base);
     assert_consistent(&r);
     assert_eq!(r.counts.posted, 0);
-    let _ = std::fs::remove_dir_all(&base);
 }

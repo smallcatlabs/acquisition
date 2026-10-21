@@ -7,7 +7,7 @@
 //! contact an error.
 
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
+use std::process::Output;
 
 use acquisition_plan::listing::{ListView, ListingReport, ShowView};
 use acquisition_plan::price::{Buyout, PriceWrite};
@@ -16,34 +16,12 @@ use acquisition_store::{
 };
 use serde_json::{Value, json};
 
+mod harness;
+
+use harness::{offline_acq as acq, sole_json};
+
 const USER: &str = "Alice#1234";
 const UUID: &str = "u-price";
-
-fn acq(base: &Path, args: &[&str]) -> Output {
-    let mut cmd = Command::new(env!("CARGO_BIN_EXE_acq"));
-    cmd.args(args)
-        .env("ACQ_STORE_DIR", base)
-        .env("ACQ_NO_KEYRING", "1")
-        .env("ACQ_NO_SPAWN", "1");
-    for var in [
-        "ACQ_GGG",
-        "ACQ_ACCOUNT",
-        "ACQ_TRIPWIRE",
-        "ACQ_MAX_SENDS",
-        "ACQ_JOURNAL",
-        "ACQ_IDLE_SHUTDOWN",
-    ] {
-        cmd.env_remove(var);
-    }
-    cmd.env("ACQ_PROVIDER", "mock");
-    cmd.output().expect("spawning acq")
-}
-
-fn sole_json(out: &Output) -> Value {
-    let stdout = String::from_utf8(out.stdout.clone()).expect("stdout is UTF-8");
-    serde_json::from_str(&stdout)
-        .unwrap_or_else(|e| panic!("stdout is not exactly one JSON document ({e}):\n{stdout}"))
-}
 
 fn stderr(out: &Output) -> String {
     String::from_utf8_lossy(&out.stderr).into_owned()
@@ -161,11 +139,8 @@ fn seed(base: &Path) -> PathBuf {
 
 #[test]
 fn price_json_documents_are_the_views_the_text_reads() {
-    let base = std::env::temp_dir().join(format!(
-        "acq-price-json-{}-{}",
-        std::process::id(),
-        acquisition_store::now()
-    ));
+    let scratch = harness::scratch("price-json");
+    let base = scratch.0.clone();
     seed(&base);
 
     // status: the report without listings, re-read exactly.
@@ -318,8 +293,6 @@ fn price_json_documents_are_the_views_the_text_reads() {
         ),
         "{text}"
     );
-
-    let _ = std::fs::remove_dir_all(&base);
 }
 
 /// The write receipt (C78): `set --json` and `clear --json` print the
@@ -329,11 +302,8 @@ fn price_json_documents_are_the_views_the_text_reads() {
 /// clear by saying so, and a new price never names a retired tag.
 #[test]
 fn price_set_and_clear_print_the_receipt_and_show_reads_it_back() {
-    let base = std::env::temp_dir().join(format!(
-        "acq-price-write-{}-{}",
-        std::process::id(),
-        acquisition_store::now()
-    ));
+    let scratch = harness::scratch("price-write");
+    let base = scratch.0.clone();
     seed(&base);
     let receipt = |out: &Output| -> PriceWrite {
         assert!(out.status.success(), "{}", stderr(out));
@@ -499,8 +469,6 @@ fn price_set_and_clear_print_the_receipt_and_show_reads_it_back() {
     ));
     assert!(w.prior.is_none());
     assert_eq!(w.written.map(|r| r.revision), Some(4));
-
-    let _ = std::fs::remove_dir_all(&base);
 }
 
 /// The release seat: `price list` had no bound, so a run asking for a
@@ -511,12 +479,8 @@ fn price_set_and_clear_print_the_receipt_and_show_reads_it_back() {
 /// listed items' alone.
 #[test]
 fn price_list_is_bounded_by_a_limit_and_says_how_many_of_how_many() {
-    let base = std::env::temp_dir().join(format!(
-        "acq-price-limit-{}-{}",
-        std::process::id(),
-        acquisition_store::now()
-    ));
-    let _ = std::fs::remove_dir_all(&base);
+    let scratch = harness::scratch("price-limit");
+    let base = scratch.0.clone();
     seed(&base);
     let whole = sole_json(&acq(
         &base,
@@ -565,7 +529,6 @@ fn price_list_is_bounded_by_a_limit_and_says_how_many_of_how_many() {
         said.contains(&format!("`--limit {all}` lists every one")),
         "{said}"
     );
-    let _ = std::fs::remove_dir_all(&base);
 }
 
 /// The release seat: a write refused for its revision had no `kind`,
@@ -578,12 +541,8 @@ fn price_list_is_bounded_by_a_limit_and_says_how_many_of_how_many() {
 /// not hold is `kind: "not_found"`.
 #[test]
 fn a_write_refused_for_its_revision_is_a_conflict_naming_it_in_the_verbs_words() {
-    let base = std::env::temp_dir().join(format!(
-        "acq-price-conflict-{}-{}",
-        std::process::id(),
-        acquisition_store::now()
-    ));
-    let _ = std::fs::remove_dir_all(&base);
+    let scratch = harness::scratch("price-conflict");
+    let base = scratch.0.clone();
     seed(&base);
     let ok = |args: &[&str]| {
         let out = acq(&base, args);
@@ -676,7 +635,6 @@ fn a_write_refused_for_its_revision_is_a_conflict_naming_it_in_the_verbs_words()
     );
     let doc = refused(&["price", "show", "item/i-nowhere", "--json"]);
     assert_eq!(doc["kind"], json!("not_found"), "{doc}");
-    let _ = std::fs::remove_dir_all(&base);
 }
 
 /// A `buyout` row as a newer build would write it: this build's parse
@@ -700,11 +658,8 @@ impl IntentValue for NewerBuyout {
 /// then shows the prior as its JSON and promises no undo.
 #[test]
 fn price_set_and_clear_refuse_a_row_this_build_cannot_read_unless_the_revision_is_named() {
-    let base = std::env::temp_dir().join(format!(
-        "acq-price-newer-{}-{}",
-        std::process::id(),
-        acquisition_store::now()
-    ));
+    let scratch = harness::scratch("price-newer");
+    let base = scratch.0.clone();
     let mock = seed(&base);
     let newer = json!({ "version": 2, "type": "auction", "reserve": "5 chaos" });
     {
@@ -762,8 +717,6 @@ fn price_set_and_clear_refuse_a_row_this_build_cannot_read_unless_the_revision_i
     );
     let w: PriceWrite = serde_json::from_value(sole_json(&out)).unwrap();
     assert_eq!(w.prior.map(|r| r.revision), Some(2));
-
-    let _ = std::fs::remove_dir_all(&base);
 }
 
 /// C35, C53 — a row on a target the facts do not hold is intent to look
@@ -777,11 +730,8 @@ fn price_set_and_clear_refuse_a_row_this_build_cannot_read_unless_the_revision_i
 /// one and counts an xbox row under `other_realm`.
 #[test]
 fn a_row_on_a_target_the_facts_do_not_hold_is_listed_whole_and_show_says_where() {
-    let base = std::env::temp_dir().join(format!(
-        "acq-price-orphan-{}-{}",
-        std::process::id(),
-        acquisition_store::now()
-    ));
+    let scratch = harness::scratch("price-orphan");
+    let base = scratch.0.clone();
     let mock = seed(&base);
     Annotations::open_for(&mock, UUID)
         .unwrap()
@@ -856,8 +806,6 @@ fn a_row_on_a_target_the_facts_do_not_hold_is_listed_whole_and_show_says_where()
         .unwrap_or_default()
         .to_string();
     assert!(!said.contains("price row of its own"), "{said}");
-
-    let _ = std::fs::remove_dir_all(&base);
 }
 
 /// Review 8 of the release (2026-10-19): `price list --limit 0` said
@@ -865,11 +813,8 @@ fn a_row_on_a_target_the_facts_do_not_hold_is_listed_whole_and_show_says_where()
 /// listed: 0`. The text says none of how many, and why.
 #[test]
 fn price_list_with_a_limit_of_zero_says_none_of_the_total() {
-    let base = std::env::temp_dir().join(format!(
-        "acq-price-limit-zero-{}-{}",
-        std::process::id(),
-        acquisition_store::now()
-    ));
+    let scratch = harness::scratch("price-limit-zero");
+    let base = scratch.0.clone();
     seed(&base);
     let doc = sole_json(&acq(&base, &["price", "list", "--limit", "0", "--json"]));
     let total = doc["total"].as_u64().unwrap_or(0);
@@ -880,7 +825,6 @@ fn price_list_with_a_limit_of_zero_says_none_of_the_total() {
         text.contains(&format!("0 of {total} items")) && !text.contains("none listed by hand"),
         "{text}"
     );
-    let _ = std::fs::remove_dir_all(&base);
 }
 
 /// A `buyout` as an older build wrote it, the writer's rule not run: how
@@ -904,11 +848,8 @@ impl IntentValue for LegacyBuyout {
 /// build cannot read.
 #[test]
 fn a_prior_naming_a_retired_currency_promises_no_undo() {
-    let base = std::env::temp_dir().join(format!(
-        "acq-price-retired-{}-{}",
-        std::process::id(),
-        acquisition_store::now()
-    ));
+    let scratch = harness::scratch("price-retired");
+    let base = scratch.0.clone();
     let mock = seed(&base);
     Annotations::open_for(&mock, UUID)
         .unwrap()
@@ -934,7 +875,6 @@ fn a_prior_naming_a_retired_currency_promises_no_undo() {
         !text.contains("3 chisel --if-revision") && text.contains("retired"),
         "{text}"
     );
-    let _ = std::fs::remove_dir_all(&base);
 }
 
 /// The rerun of the release seat (cli-opus-2 calls 51 to 54): a named
@@ -943,11 +883,8 @@ fn a_prior_naming_a_retired_currency_promises_no_undo() {
 /// the items it keeps are listed.
 #[test]
 fn a_named_limit_lists_the_items_it_bounds() {
-    let base = std::env::temp_dir().join(format!(
-        "acq-price-limit-lists-{}-{}",
-        std::process::id(),
-        acquisition_store::now()
-    ));
+    let scratch = harness::scratch("price-limit-lists");
+    let base = scratch.0.clone();
     let mock = seed(&base);
     let mut store = Store::open(&account_path(&mock, USER)).unwrap();
     let at = acquisition_store::now();
@@ -992,5 +929,4 @@ fn a_named_limit_lists_the_items_it_bounds() {
     let text = String::from_utf8_lossy(&out.stdout).to_string();
     let lines = text.lines().filter(|l| l.contains("i-big-")).count();
     assert_eq!(lines, 12, "{text}");
-    let _ = std::fs::remove_dir_all(&base);
 }

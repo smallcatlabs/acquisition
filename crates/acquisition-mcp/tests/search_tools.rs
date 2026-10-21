@@ -16,6 +16,7 @@ use std::path::{Path, PathBuf};
 
 use acquisition_store::{Endpoint, Index, Store, account_path};
 use harness::{Mcp, acq, no_daemon_appeared};
+use harness::{Scratch, scratch};
 use serde_json::{Value, json};
 
 const USER: &str = "Alice#1234";
@@ -25,25 +26,8 @@ struct Seat {
     base: PathBuf,
     mcp: Mcp,
     files: usize,
-}
-
-impl Drop for Seat {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.base);
-    }
-}
-
-fn scratch() -> PathBuf {
-    static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-    let base = std::env::temp_dir().join(format!(
-        "acq-mcp-search-{}-{}",
-        std::process::id(),
-        N.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-    ));
-    // a process id comes round again: never open what an earlier run left
-    let _ = std::fs::remove_dir_all(&base);
-    std::fs::create_dir_all(&base).unwrap();
-    base
+    /// Removed last, after the server is gone.
+    _scratch: Scratch,
 }
 
 /// Where the server and the `acq` beside it look for the mock's stores.
@@ -215,17 +199,19 @@ fn cli(base: &Path, args: &[&str]) -> (Value, bool) {
 impl Seat {
     /// The seeded fixture and a server over it.
     fn new() -> Seat {
-        let base = scratch();
-        seed(&base);
-        Seat::over(base)
+        let scratch = scratch("mcp-search");
+        seed(&scratch.0);
+        Seat::over(scratch)
     }
 
-    fn over(base: PathBuf) -> Seat {
+    fn over(scratch: Scratch) -> Seat {
+        let base = scratch.0.clone();
         let mcp = Mcp::start(&base, &[]);
         Seat {
             base,
             mcp,
             files: 0,
+            _scratch: scratch,
         }
     }
 
@@ -526,10 +512,11 @@ fn a_next_is_sent_back_whole_and_refused_across_a_changed_basis() {
 /// at a terminal, and each realm is offered as the request itself.
 #[test]
 fn a_realm_needed_is_offered_as_the_request_in_each_realm() {
-    let base = scratch();
+    let scratch = scratch("mcp-search");
+    let base = scratch.0.clone();
     seed(&base);
     seed_poe2(&base);
-    let mut seat = Seat::over(base);
+    let mut seat = Seat::over(scratch);
     let request =
         json!({ "query": { "text": "rarity=rare" }, "view": { "counts": { "keys": ["tab"] } } });
     let e = seat.refusal(&request);
@@ -561,10 +548,11 @@ fn a_realm_needed_is_offered_as_the_request_in_each_realm() {
 /// back is every item of its realm.
 #[test]
 fn no_arguments_over_two_realms_offers_every_item_of_each() {
-    let base = scratch();
+    let scratch = scratch("mcp-search");
+    let base = scratch.0.clone();
     seed(&base);
     seed_poe2(&base);
-    let mut seat = Seat::over(base);
+    let mut seat = Seat::over(scratch);
     let e = seat.refusal(&json!({}));
     assert_eq!(e["kind"], "realm_needed", "{e}");
     let offers = e["offers"]
@@ -619,7 +607,8 @@ fn a_key_is_one_entry_and_a_comma_inside_it_is_its_text() {
 /// refused toward it.
 #[test]
 fn what_has_left_is_asked_in_one_request() {
-    let base = scratch();
+    let scratch = scratch("mcp-search");
+    let base = scratch.0.clone();
     seed(&base);
     let mut store = Store::open(&account_path(&stores(&base), USER)).unwrap();
     // a fetch of Rings that no longer has r2
@@ -634,7 +623,7 @@ fn what_has_left_is_asked_in_one_request() {
         40,
     );
     drop(store);
-    let mut seat = Seat::over(base);
+    let mut seat = Seat::over(scratch);
     let left = seat.answer(&json!({ "scope": { "membership": "removed" } }));
     assert_eq!(ids(&left), ["r2"]);
     assert_eq!(left["rows"][0]["removed_at"], 40);
@@ -719,7 +708,7 @@ fn an_authoring_error_is_a_result_with_its_kind_and_readings() {
 /// entries named, with no store read — it answers over an empty world.
 #[test]
 fn describe_is_the_clis_and_reads_no_store() {
-    let mut seat = Seat::over(scratch());
+    let mut seat = Seat::over(scratch("mcp-search"));
     let (whole, refused) = seat.call("describe", &json!({}));
     assert!(!refused, "{whole}");
     assert_eq!(whole, cli(&seat.base, &["search", "--describe"]).0);
@@ -739,7 +728,7 @@ fn describe_is_the_clis_and_reads_no_store() {
 /// refusal names the directory it looked in, on `search` and on `show`.
 #[test]
 fn a_missing_store_names_the_directory_it_looked_in() {
-    let mut seat = Seat::over(scratch());
+    let mut seat = Seat::over(scratch("mcp-search"));
     let looked = stores(&seat.base);
     for (tool, args) in [("search", json!({})), ("show", json!({ "id": "r1" }))] {
         let (e, is_error) = seat.call(tool, &args);
@@ -773,10 +762,11 @@ fn a_missing_store_names_the_directory_it_looked_in() {
 /// from its own store, and a continuation carries it.
 #[test]
 fn the_requests_account_selects_the_store() {
-    let base = scratch();
+    let scratch = scratch("mcp-search");
+    let base = scratch.0.clone();
     seed(&base);
     seed_bob(&base);
-    let mut seat = Seat::over(base);
+    let mut seat = Seat::over(scratch);
     let (e, is_error) = seat.call("search", &json!({}));
     assert!(is_error, "{e}");
     assert_eq!(e["kind"], "ambiguous_account", "{e}");
@@ -906,7 +896,7 @@ fn arguments_a_tool_does_not_take_are_refused_as_a_document() {
 /// language outgrows it.
 #[test]
 fn describe_is_as_large_as_its_text_says() {
-    let mut seat = Seat::over(scratch());
+    let mut seat = Seat::over(scratch("mcp-search"));
     let size = |seat: &mut Seat, names: Value| {
         let (doc, refused) = seat.call("describe", &json!({ "names": names }));
         assert!(!refused, "{names}: {doc}");
@@ -1440,7 +1430,7 @@ fn store_status_says_what_its_league_count_counts() {
 /// text did not say spans sources (cli-opus, cli-sonnet).
 #[test]
 fn the_search_tools_words_name_tab_public_every_fidelity_and_a_sums_sources() {
-    let mut seat = Seat::over(scratch());
+    let mut seat = Seat::over(scratch("mcp-search"));
     let tools = seat.mcp.list_tools();
     let search = tools.iter().find(|t| t["name"] == "search").unwrap();
     let query = search["inputSchema"]["properties"]["query"]["description"]
@@ -1727,9 +1717,10 @@ fn seed_rings(base: &Path) {
 /// reading since round x read a Blight-ravaged map as no blighted one.
 #[test]
 fn an_ambiguous_clause_says_how_many_items_its_other_reading_would_change() {
-    let base = scratch();
+    let scratch = scratch("mcp-search");
+    let base = scratch.0.clone();
     seed_rings(&base);
-    let mut seat = Seat::over(base);
+    let mut seat = Seat::over(scratch);
     let search = json!({ "query": { "stats": [{ "type": "and", "filters": [
         { "id": "explicit.stat_3917489142", "value": { "min": 20 } },
         { "id": "explicit.stat_1030153674" } ] }] } });

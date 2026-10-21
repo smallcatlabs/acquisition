@@ -26,9 +26,6 @@ serde_json.workspace = true
 anyhow.workspace = true
 
 [dev-dependencies]
-# The daemon-backed tests log in through the mock provider's approve page,
-# as the client's contract tests do.
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 # The policy test plants a newer build's value under the store's door,
 # as the planner's own test does.
 rusqlite = "0.32"

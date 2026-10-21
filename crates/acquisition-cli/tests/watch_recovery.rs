@@ -26,7 +26,7 @@ use std::time::{Duration, Instant};
 
 mod harness;
 
-use harness::{Proc, command, scratch_tmp, start_daemon};
+use harness::{Proc, command, start_daemon, wait_all_terminal};
 
 use acquisition_client::client::{Client, Observed};
 use acquisition_protocol::protocol::{Request, Response};
@@ -136,38 +136,13 @@ async fn submit_sleep(client: &mut Client) -> u64 {
     }
 }
 
-async fn wait_all_terminal(client: &mut Client, expected: usize) {
-    let deadline = Instant::now() + Duration::from_secs(60);
-    loop {
-        let jobs = match client.request(&Request::List).await.expect("list") {
-            Response::Jobs { jobs } => jobs,
-            other => panic!("{other:?}"),
-        };
-        if jobs.len() == expected && jobs.iter().all(|j| j.state.is_terminal()) {
-            return;
-        }
-        assert!(Instant::now() < deadline, "jobs did not finish");
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
-}
-
 #[test]
 fn c85_the_watch_subscribes_and_reads_again_after_it_lagged_with_no_leftover_events() {
-    let scratch = harness::scratch("watch");
-    let base = scratch.0.clone();
-    // The in-process client below reads the socket from the environment;
-    // this binary holds one test, so nothing else reads it.
-    unsafe {
-        std::env::set_var("ACQ_STORE_DIR", base.join("store"));
-        std::env::set_var("TMPDIR", scratch_tmp(&base));
-        std::env::set_var("XDG_RUNTIME_DIR", scratch_tmp(&base));
-        std::env::set_var("ACQ_LOG_DIR", base.join("logs"));
-        std::env::set_var("ACQ_NO_KEYRING", "1");
-        for var in ["ACQ_GGG", "ACQ_ACCOUNT", "ACQ_NO_SPAWN"] {
-            std::env::remove_var(var);
-        }
-        std::env::set_var("ACQ_PROVIDER", "mock");
-    }
+    // The in-process client below reads the world from the environment:
+    // the harness's session applies the one isolation list to this
+    // process, and this file is its own test binary (C122).
+    let session = harness::session("watch");
+    let base = session.base.clone();
     let (_daemon, _) = start_daemon(&base);
     let runtime = tokio::runtime::Runtime::new().unwrap();
 

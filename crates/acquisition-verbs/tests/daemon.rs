@@ -3,218 +3,42 @@
 //! answers when no daemon runs, and the apply flow over the mock daemon —
 //! applied twice, held by a queued job, a parent whose child failed.
 //!
-//! The harness is the client's contract tests' (`acquisition-client/
-//! tests/contract.rs`), copied, not shared: one lock and a scratch world
-//! set in the environment under it (`session`), the `acqd` the gate built
-//! linked beside this test executable (`acqd_for_tests`, `place_link`),
-//! `start_daemon`, and a login through the mock's approve page. Run
-//! `cargo build --workspace` first: a `-p` test run does not build the
-//! daemon. Nothing here reaches GGG: `ACQ_PROVIDER=mock` is set.
+//! The harness is the one every crate's process tests share (C122),
+//! `acquisition-client/tests/harness/mod.rs`, included by `#[path]`: one
+//! lock and the one isolation list applied to this process (`session`),
+//! the `acqd` the gate built linked beside this test executable
+//! (`acqd_built`, `start_daemon_in_process`), and a login through the
+//! mock's approve page. This file sets the process environment, so it is
+//! its own test binary beside `documents.rs`. Run `cargo build
+//! --workspace` first: a `-p` test run does not build the daemon. Nothing
+//! here reaches GGG: the daemon runs the mock provider.
 
-use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
-use std::sync::{Mutex, MutexGuard, OnceLock};
+#[path = "../../acquisition-client/tests/harness/mod.rs"]
+mod harness;
+
 use std::time::{Duration, Instant};
 
-use acquisition_client::client::{Client, Observed};
+use acquisition_client::client::Client;
 use acquisition_plan::pricing::Expect;
 use acquisition_plan::{PolicyWrite, RefreshAction};
 use acquisition_protocol::job::Outcome;
-use acquisition_protocol::protocol::{Request, Response};
 use acquisition_protocol::realm::Realm;
 use acquisition_store::jobs::{JobDb, JobRow, daemon_db_path};
 use acquisition_verbs::jobs::{NO_RESULT, submit, wait};
 use acquisition_verbs::refresh::{quote, quote_within};
 use acquisition_verbs::{Apply, Fault, Frontend, Job, Opened};
+use harness::{Proc, Session, acqd_built, login_in_process, session, start_daemon_in_process};
 use serde_json::json;
-
-// ---- the harness, copied from the client's contract tests ---------------
-
-/// The `acqd` the gate built: `target/<profile>/acqd`, one level above the
-/// `deps/` directory this test executable runs from, linked beside it so
-/// the client finds the same file as its sibling (C84).
-fn acqd_for_tests() -> PathBuf {
-    let exe = std::env::current_exe().expect("current exe");
-    let deps_dir = exe.parent().expect("a deps directory");
-    let profile_dir = deps_dir.parent().expect("a profile directory");
-    let acqd = profile_dir.join(acquisition_client::locator::ACQD);
-    assert!(
-        acqd.is_file(),
-        "no daemon at {}: run `cargo build --workspace` first (a `-p` test run does not build it)",
-        acqd.display()
-    );
-    place_link(&deps_dir.join(acquisition_client::locator::ACQD), &acqd);
-    acqd
-}
-
-/// The link beside the test executable (C82's clause for a test
-/// executable): a symlink one level up on Unix, a hard link on Windows.
-#[cfg_attr(unix, allow(unused_variables))]
-fn place_link(link: &Path, acqd: &Path) {
-    #[cfg(unix)]
-    {
-        let target = Path::new("..").join(acquisition_client::locator::ACQD);
-        if std::fs::read_link(link).ok().as_deref() != Some(target.as_path()) {
-            let _ = std::fs::remove_file(link);
-            if let Err(e) = std::os::unix::fs::symlink(&target, link)
-                && std::fs::read_link(link).ok().as_deref() != Some(target.as_path())
-            {
-                panic!("placing {} -> {}: {e}", link.display(), target.display());
-            }
-        }
-    }
-    #[cfg(windows)]
-    {
-        let same = |a: &Path, b: &Path| {
-            let id = |p: &Path| {
-                std::fs::File::open(p)
-                    .and_then(|f| acquisition_store::world::file_id(&f))
-                    .ok()
-            };
-            id(a).is_some() && id(a) == id(b)
-        };
-        if !same(link, acqd) {
-            let _ = std::fs::remove_file(link);
-            if let Err(e) = std::fs::hard_link(acqd, link)
-                && !same(link, acqd)
-            {
-                panic!("linking {} to {}: {e}", link.display(), acqd.display());
-            }
-        }
-    }
-}
-
-static ONE_AT_A_TIME: Mutex<()> = Mutex::new(());
-static ORIGINAL_TMP: OnceLock<PathBuf> = OnceLock::new();
-
-/// A scratch store, temp and runtime directory, held for the test's
-/// duration: the process environment points at them while the lock is
-/// held.
-struct Session {
-    _lock: MutexGuard<'static, ()>,
-    base: PathBuf,
-}
-
-fn session(tag: &str) -> Session {
-    let lock = ONE_AT_A_TIME
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-    let original = ORIGINAL_TMP.get_or_init(std::env::temp_dir);
-    let base = original.join(format!("acq-v{}-{tag}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&base);
-    std::fs::create_dir_all(base.join("store")).expect("scratch dir");
-    std::fs::create_dir_all(base.join("tmp")).expect("scratch dir");
-    // SAFETY: every test in this binary takes `ONE_AT_A_TIME` before
-    // touching the environment or the client.
-    unsafe {
-        std::env::set_var("ACQ_STORE_DIR", base.join("store"));
-        std::env::set_var("ACQ_LOG_DIR", base.join("logs"));
-        std::env::set_var("TMPDIR", base.join("tmp"));
-        std::env::set_var("XDG_RUNTIME_DIR", base.join("tmp"));
-        std::env::set_var("ACQ_NO_KEYRING", "1");
-        std::env::set_var("ACQ_JOURNAL", "0");
-        std::env::set_var("ACQ_IDLE_SHUTDOWN", "30");
-        for var in [
-            "ACQ_GGG",
-            "ACQ_ACCOUNT",
-            "ACQ_TRIPWIRE",
-            "ACQ_MAX_SENDS",
-            "ACQ_NO_SPAWN",
-        ] {
-            std::env::remove_var(var);
-        }
-        std::env::set_var("ACQ_PROVIDER", "mock");
-    }
-    acquisition_store::world::app_runtime_dir().expect("the scratch runtime directory");
-    Session { _lock: lock, base }
-}
-
-impl Drop for Session {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.base);
-    }
-}
-
-/// The mock daemon, killed on drop.
-struct Daemon(Child);
-
-impl Drop for Daemon {
-    fn drop(&mut self) {
-        let _ = self.0.kill();
-        let _ = self.0.wait();
-    }
-}
-
-async fn start_daemon(s: &Session) -> Daemon {
-    let acqd = acqd_for_tests();
-    let child = Command::new(&acqd)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .unwrap_or_else(|e| panic!("spawning {}: {e}", acqd.display()));
-    let daemon = Daemon(child);
-    let deadline = Instant::now() + Duration::from_secs(10);
-    loop {
-        match Client::observe().await {
-            Ok(Observed::Compatible(_)) => return daemon,
-            Ok(Observed::Incompatible(found)) => {
-                panic!("{} is not this build's daemon: {found}", acqd.display())
-            }
-            _ => {}
-        }
-        assert!(
-            Instant::now() < deadline,
-            "the daemon did not come up on {}",
-            s.base.display()
-        );
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
-}
-
-/// Log in through the mock's approve page as `user` and wait for the
-/// daemon to register the session.
-async fn login(client: &mut Client, user: &str) {
-    let url = match client.request(&Request::AuthStart).await.unwrap() {
-        Response::AuthUrl { authorize_url } => authorize_url,
-        other => panic!("{other:?}"),
-    };
-    let approve = format!(
-        "{}&user={}",
-        url.replacen("/authorize?", "/approve?", 1),
-        user.replace('#', "%23")
-    );
-    let response = reqwest::get(&approve).await.expect("approve");
-    assert!(response.status().is_success(), "{}", response.status());
-    let deadline = Instant::now() + Duration::from_secs(30);
-    loop {
-        match client.request(&Request::AuthStatus).await.unwrap() {
-            Response::Auth {
-                pending: false,
-                login_ok: Some(_),
-                ..
-            } => return,
-            Response::Auth {
-                login_error: Some(e),
-                pending: false,
-                ..
-            } => panic!("login failed: {e}"),
-            _ => {}
-        }
-        assert!(Instant::now() < deadline, "login did not complete");
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
-}
 
 // ---- the fixtures -------------------------------------------------------
 
 /// A daemon with `alice` logged in, her stash listing fetched and a
 /// policy over Standard's tabs: the account opened, and a client.
-async fn world(s: &Session) -> (Daemon, Frontend, Opened, Client) {
-    let daemon = start_daemon(s).await;
+async fn world(s: &Session) -> (Proc, Frontend, Opened, Client) {
+    let daemon = start_daemon_in_process(s, &acqd_built()).await;
     let frontend = Frontend::agent("test").expect("the scratch environment");
     let mut client = frontend.connect().await.expect("the daemon");
-    login(&mut client, "alice").await;
+    login_in_process(&mut client, Some("alice")).await;
     let id = submit(
         &frontend,
         &mut client,

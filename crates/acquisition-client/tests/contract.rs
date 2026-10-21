@@ -8,40 +8,32 @@
 //! kinds on the domain failures a client can stage.
 //!
 //! The daemon is the `acqd` the quality gate built (`cargo build
-//! --workspace` before `cargo test`, AGENTS.md): this crate has no binary
-//! of its own and may not link the daemon, and a test executable lives in
-//! `target/<profile>/deps/`, whose parent holds no daemon — so the tests
-//! here start the one Cargo uplifts one level up, `target/<profile>/acqd`,
-//! resolved from the test executable's own location (`acqd_for_tests`).
-//! C82's rule for a test executable, which has no sibling: it names the
-//! `acqd` its build wrote (amended 2026-09-10). Not a knob:
-//! nothing production reads it. Since the identity split's step 4 the
-//! client judges a daemon's artifact against the sibling the locator
-//! names (C84), and this executable has none — so `acqd_for_tests` also
-//! places a link named `acqd` beside the test executable (`place_link`)
-//! to that same `target/<profile>/acqd`: the test executable then names the
-//! daemon its build wrote on both paths, the harness's and the client's,
-//! and the locator's rule stays the one rule. A missing daemon fails
-//! before any test runs, naming the build step; a present one is named
-//! by path in every failure — the startup failures say it outright, and
-//! `Daemon`'s drop prints it while a test is panicking, so a failed
-//! assertion's output carries which daemon ran.
+//! --workspace` before the tests, AGENTS.md): this crate has no binary of
+//! its own and may not link the daemon, so the tests start the one Cargo
+//! uplifts above `deps/`, `target/<profile>/acqd` (C82's rule for a test
+//! executable, which has no sibling: it names the `acqd` its build
+//! wrote). The process harness every crate's tests share lives here,
+//! `tests/harness/mod.rs` (C122): `acqd_built` finds that daemon and
+//! names the build step when it is missing, `start_daemon_in_process`
+//! places a link of its name beside this executable first, since the
+//! client judges a daemon's artifact against that sibling (C84), and the
+//! daemon a test starts is named by path in every failure.
 //!
 //! The client reads the world from `ACQ_STORE_DIR` and derives the
 //! socket from it (C83) into the runtime directory, process-wide
-//! settings, so the tests here run one at a time under a lock and set
-//! their own scratch store and log directory while they hold it — and a
-//! scratch temp and runtime directory (`TMPDIR`, `XDG_RUNTIME_DIR`), so
-//! the sockets these daemons bind and the real-mode lock never touch the
-//! user's own; the store root is
-//! created with the session (a scripted peer has no daemon to create it,
-//! and the world it claims must exist to be this process's). Nothing
-//! here reaches GGG: `ACQ_PROVIDER=mock` is set and the daemon runs the mock
-//! provider.
+//! settings, so each test here takes the harness's `session`: the one
+//! lock, and the one isolation list applied to this process (a scratch
+//! world, temp, runtime and log directory, every other `ACQ_*` removed),
+//! so the sockets these daemons bind and the real-mode lock never touch
+//! the user's own. The store root is created with the session (a
+//! scripted peer has no daemon to create it, and the world it claims must
+//! exist to be this process's). The raw frame client and the scripted
+//! peers below stay here: they are this file's subject (C85). Nothing
+//! here reaches GGG: the daemon runs the mock provider.
+
+mod harness;
 
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
-use std::sync::{Mutex, MutexGuard, OnceLock};
 use std::time::{Duration, Instant};
 
 use acquisition_client::client::{
@@ -53,104 +45,15 @@ use acquisition_protocol::job::JobState;
 use acquisition_protocol::protocol::{ErrorKind, MAX_FRAME_BYTES, Request, Response};
 use acquisition_protocol::{CONTRACT_REVISION, VERSION};
 use acquisition_store::world::{Lock, World};
+use harness::{
+    acqd_built, compatible_client, login_in_process, session, start_daemon_in_process,
+    wait_all_terminal,
+};
 use serde_json::{Value, json};
 use tokio::io::{AsyncWriteExt, BufReader, ReadHalf, WriteHalf};
 
 type OwnedReadHalf = ReadHalf<Stream>;
 type OwnedWriteHalf = WriteHalf<Stream>;
-
-/// The `acqd` the gate built (module doc): `target/<profile>/acqd`, one
-/// level above the `deps/` directory this test executable runs from —
-/// and, so the client in this process finds the same file as its
-/// sibling (C84 judges the artifact against it), a link of that name
-/// beside the test executable to the file one level up (`place_link`).
-fn acqd_for_tests() -> PathBuf {
-    let exe = std::env::current_exe().expect("current exe");
-    let deps_dir = exe
-        .parent()
-        .unwrap_or_else(|| panic!("{} has no parent directory", exe.display()));
-    let profile_dir = deps_dir
-        .parent()
-        .unwrap_or_else(|| panic!("{} is not under target/<profile>/deps", exe.display()));
-    let acqd = profile_dir.join(acquisition_client::locator::ACQD);
-    assert!(
-        acqd.is_file(),
-        "no daemon at {}: the contract tests drive the acqd the workspace build writes there — \
-         run `cargo build --workspace` first (the gate builds before it tests; a `-p` test run \
-         does not build it)",
-        acqd.display()
-    );
-    let link = deps_dir.join(acquisition_client::locator::ACQD);
-    place_link(&link, &acqd);
-    let sibling = acquisition_client::locator::beside(&exe).unwrap_or_else(|e| panic!("{e}"));
-    assert!(
-        same_file(&sibling, &acqd),
-        "the sibling the client sees is not the daemon the harness starts"
-    );
-    acqd
-}
-
-static ONE_AT_A_TIME: Mutex<()> = Mutex::new(());
-
-/// The temp directory as the process started, read once under the lock:
-/// every session redirects `TMPDIR` into its scratch, and the next
-/// scratch must not nest under the last.
-static ORIGINAL_TMP: OnceLock<PathBuf> = OnceLock::new();
-
-/// A scratch store, temp and runtime directory, held for the test's
-/// duration: the process environment points at them while the lock is
-/// held.
-struct Session {
-    _lock: MutexGuard<'static, ()>,
-    base: PathBuf,
-}
-
-fn session(tag: &str) -> Session {
-    let lock = ONE_AT_A_TIME
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-    let original = ORIGINAL_TMP.get_or_init(std::env::temp_dir);
-    let base = original.join(format!("acq-c{}-{tag}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&base);
-    std::fs::create_dir_all(base.join("store")).expect("scratch dir");
-    std::fs::create_dir_all(base.join("tmp")).expect("scratch dir");
-    // SAFETY: every test in this binary takes `ONE_AT_A_TIME` before
-    // touching the environment or the client, so no other thread reads
-    // these variables while they change.
-    unsafe {
-        std::env::set_var("ACQ_STORE_DIR", base.join("store"));
-        std::env::set_var("ACQ_LOG_DIR", base.join("logs"));
-        // The runtime directory (the sockets, the real-mode lock) under
-        // the scratch, on either platform.
-        std::env::set_var("TMPDIR", base.join("tmp"));
-        std::env::set_var("XDG_RUNTIME_DIR", base.join("tmp"));
-        std::env::set_var("ACQ_NO_KEYRING", "1");
-        std::env::set_var("ACQ_JOURNAL", "0");
-        std::env::set_var("ACQ_IDLE_SHUTDOWN", "30");
-        for var in [
-            "ACQ_GGG",
-            "ACQ_ACCOUNT",
-            "ACQ_TRIPWIRE",
-            "ACQ_MAX_SENDS",
-            "ACQ_NO_SPAWN",
-        ] {
-            std::env::remove_var(var);
-        }
-        std::env::set_var("ACQ_PROVIDER", "mock");
-    }
-    // The daemon's step, so a socket path resolves in this process too:
-    // a client never creates the runtime directory (C83).
-    acquisition_store::world::app_runtime_dir().expect("the scratch runtime directory");
-    Session { _lock: lock, base }
-}
-
-impl Drop for Session {
-    /// The scratch store goes with the test; the daemon, declared after
-    /// the session, is already gone by then.
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.base);
-    }
-}
 
 /// The session's socket: derived from its world (C83) — what the daemon
 /// binds and a scripted peer must bind to be found.
@@ -159,79 +62,6 @@ fn session_socket() -> PathBuf {
         .expect("the session's world")
         .socket_path()
         .expect("its socket")
-}
-
-/// The mock daemon, killed on drop if a failed assertion leaves it
-/// behind — and named then, so every failure says which daemon ran.
-struct Daemon(Child, PathBuf);
-
-impl Drop for Daemon {
-    fn drop(&mut self) {
-        if std::thread::panicking() {
-            eprintln!(
-                "the daemon under test was {} (pid {})",
-                self.1.display(),
-                self.0.id()
-            );
-        }
-        let _ = self.0.kill();
-        let _ = self.0.wait();
-    }
-}
-
-impl Daemon {
-    fn pid(&self) -> u32 {
-        self.0.id()
-    }
-
-    /// Wait for the process to exit on its own (after a stop).
-    fn wait_exit(&mut self) {
-        let deadline = Instant::now() + Duration::from_secs(10);
-        loop {
-            if self.0.try_wait().expect("try_wait").is_some() {
-                return;
-            }
-            assert!(Instant::now() < deadline, "the daemon did not exit");
-            std::thread::sleep(Duration::from_millis(50));
-        }
-    }
-}
-
-async fn start_daemon(s: &Session) -> Daemon {
-    let acqd = acqd_for_tests();
-    let child = Command::new(&acqd)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .unwrap_or_else(|e| panic!("spawning {}: {e}", acqd.display()));
-    let daemon = Daemon(child, acqd.clone());
-    let deadline = Instant::now() + Duration::from_secs(10);
-    loop {
-        match Client::observe().await {
-            Ok(Observed::Compatible(_)) => return daemon,
-            Ok(Observed::Incompatible(found)) => {
-                panic!("{} is not this build's daemon: {found}", acqd.display())
-            }
-            _ => {}
-        }
-        assert!(
-            Instant::now() < deadline,
-            "the daemon ({}) did not come up on {}",
-            acqd.display(),
-            s.base.display()
-        );
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
-}
-
-async fn compatible_client() -> Client {
-    match Client::observe().await.expect("observe") {
-        Observed::Compatible(client) => client,
-        Observed::Absent => panic!("no daemon"),
-        Observed::Incompatible(found) => panic!("{found}"),
-        Observed::Unresponsive(found) => panic!("{found}"),
-    }
 }
 
 async fn open_subscription() -> Subscription {
@@ -325,22 +155,6 @@ fn kind_of(response: Response) -> (ErrorKind, String) {
     }
 }
 
-/// Poll `list` until every job this daemon holds is terminal.
-async fn wait_all_terminal(client: &mut Client, expected: usize) {
-    let deadline = Instant::now() + Duration::from_secs(60);
-    loop {
-        let jobs = match client.request(&Request::List).await.expect("list") {
-            Response::Jobs { jobs } => jobs,
-            other => panic!("{other:?}"),
-        };
-        if jobs.len() == expected && jobs.iter().all(|j| j.state.is_terminal()) {
-            return;
-        }
-        assert!(Instant::now() < deadline, "jobs did not finish");
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
-}
-
 // ---- the bootstrap plane --------------------------------------------------
 
 /// The daemon side: a hello of any shape is answered with this daemon's
@@ -349,7 +163,7 @@ async fn wait_all_terminal(client: &mut Client, expected: usize) {
 #[tokio::test]
 async fn c85_the_daemon_identifies_itself_and_stops_across_a_contract_mismatch() {
     let s = session("boot");
-    let mut daemon = start_daemon(&s).await;
+    let mut daemon = start_daemon_in_process(&s, &acqd_built()).await;
     let mut raw = Raw::open().await;
 
     // Every connection begins with hello: a versioned request before it
@@ -381,7 +195,7 @@ async fn c85_the_daemon_identifies_itself_and_stops_across_a_contract_mismatch()
         Path::new(artifact["path"].as_str().unwrap())
             .canonicalize()
             .unwrap(),
-        acqd_for_tests().canonicalize().unwrap(),
+        acqd_built().canonicalize().unwrap(),
         "the daemon names the executable it runs from: {reply}"
     );
     let sha = artifact["sha256"].as_str().unwrap();
@@ -391,14 +205,14 @@ async fn c85_the_daemon_identifies_itself_and_stops_across_a_contract_mismatch()
     );
     assert_eq!(
         sha,
-        acquisition_client::artifact::sha256_of(&acqd_for_tests()).unwrap(),
+        acquisition_client::artifact::sha256_of(&acqd_built()).unwrap(),
         "the reported hash is the file's"
     );
     assert!(
         artifact["len"].as_u64().unwrap() > 0 && artifact["ino"].as_u64().unwrap() > 0,
         "{reply}"
     );
-    assert_eq!(reply["pid"], daemon.pid());
+    assert_eq!(reply["pid"], daemon.id());
     // The world (C83): the daemon's canonical root, this session's store.
     assert_eq!(
         reply["world"],
@@ -423,7 +237,7 @@ async fn c85_the_daemon_identifies_itself_and_stops_across_a_contract_mismatch()
         .ask(json!({ "req": "daemon_stop", "reason": "contract test", "world": "/future" }))
         .await;
     assert_eq!(reply, json!({ "resp": "stopping" }));
-    daemon.wait_exit();
+    daemon.wait_exit(Duration::from_secs(10));
     assert!(
         !endpoint::exists(&session_socket()),
         "the socket is removed on exit"
@@ -432,7 +246,9 @@ async fn c85_the_daemon_identifies_itself_and_stops_across_a_contract_mismatch()
 
 /// A scripted daemon of a future revision on the session's socket: answers
 /// every hello with `hello_reply`, every `daemon_stop` with `stop_reply`,
-/// anything else with an error of a kind this build does not know.
+/// anything else with an error of a kind this build does not know. Having
+/// answered `stopping` it closes the connection, as a daemon's exit does,
+/// so the client's stop returns at once instead of waiting out its bound.
 async fn foreign_daemon(hello_reply: Value, stop_reply: Value) -> tokio::task::JoinHandle<()> {
     let socket = session_socket();
     let mut listener =
@@ -457,6 +273,9 @@ async fn foreign_daemon(hello_reply: Value, stop_reply: Value) -> tokio::task::J
                     let mut line = reply.to_string();
                     line.push('\n');
                     if write.write_all(line.as_bytes()).await.is_err() {
+                        break;
+                    }
+                    if reply["resp"] == "stopping" {
                         break;
                     }
                 }
@@ -647,8 +466,8 @@ async fn c85_a_client_identifies_and_stops_a_foreign_daemon_across_a_contract_mi
 #[tokio::test]
 async fn c83_a_daemon_on_another_world_is_refused_and_never_replaced() {
     let s = session("world");
-    let mut daemon = start_daemon(&s).await;
-    let pid = daemon.pid();
+    let mut daemon = start_daemon_in_process(&s, &acqd_built()).await;
+    let pid = daemon.id();
     let home = World::observe().expect("the session's world");
     let home_socket = session_socket();
 
@@ -656,10 +475,7 @@ async fn c83_a_daemon_on_another_world_is_refused_and_never_replaced() {
     // and finds nothing there — the daemon's socket derives from `home`.
     let elsewhere = s.base.join("elsewhere");
     std::fs::create_dir_all(&elsewhere).unwrap();
-    // SAFETY: the session lock is held (module doc).
-    unsafe {
-        std::env::set_var("ACQ_STORE_DIR", &elsewhere);
-    }
+    s.point_world_at(&elsewhere);
     assert_ne!(
         session_socket(),
         home_socket,
@@ -671,9 +487,7 @@ async fn c83_a_daemon_on_another_world_is_refused_and_never_replaced() {
     );
     // A shell whose root does not exist has no world and no socket:
     // observation finds nothing and creates nothing.
-    unsafe {
-        std::env::set_var("ACQ_STORE_DIR", s.base.join("nowhere"));
-    }
+    s.point_world_at(&s.base.join("nowhere"));
     assert!(matches!(
         Client::observe().await.expect("observe"),
         Observed::Absent
@@ -685,9 +499,7 @@ async fn c83_a_daemon_on_another_world_is_refused_and_never_replaced() {
 
     // Back home: the same daemon, untouched, is this client's; stopped
     // from home, on its own socket.
-    unsafe {
-        std::env::set_var("ACQ_STORE_DIR", s.base.join("store"));
-    }
+    s.point_world_at(&s.base.join("store"));
     let client = compatible_client().await;
     assert_eq!(client.daemon().pid(), pid, "the daemon was replaced");
     assert_eq!(
@@ -699,7 +511,7 @@ async fn c83_a_daemon_on_another_world_is_refused_and_never_replaced() {
     drop(client);
     let stopped = Client::stop_any().await.expect("stop").expect("a daemon");
     assert_eq!(stopped.pid(), pid);
-    daemon.wait_exit();
+    daemon.wait_exit(Duration::from_secs(10));
     assert!(
         !endpoint::exists(&home_socket),
         "the socket is removed on exit"
@@ -765,7 +577,7 @@ async fn c83_a_daemon_on_another_world_is_refused_and_never_replaced() {
 #[tokio::test]
 async fn c85_malformed_and_oversize_frames_get_bad_request_and_the_connection_stays() {
     let s = session("frames");
-    let _daemon = start_daemon(&s).await;
+    let _daemon = start_daemon_in_process(&s, &acqd_built()).await;
     let mut raw = Raw::open().await;
     raw.hello().await;
 
@@ -835,7 +647,7 @@ async fn c85_malformed_and_oversize_frames_get_bad_request_and_the_connection_st
 #[tokio::test]
 async fn c85_a_subscription_carries_events_only_and_lag_is_resync_required() {
     let s = session("lag");
-    let _daemon = start_daemon(&s).await;
+    let _daemon = start_daemon_in_process(&s, &acqd_built()).await;
 
     let mut raw = Raw::open().await;
     raw.hello().await;
@@ -926,7 +738,7 @@ async fn c85_a_subscription_carries_events_only_and_lag_is_resync_required() {
 #[tokio::test]
 async fn c85_a_subscriber_sees_the_disconnect_and_subscribes_and_snapshots_again_after_a_restart() {
     let s = session("restart");
-    let mut daemon = start_daemon(&s).await;
+    let mut daemon = start_daemon_in_process(&s, &acqd_built()).await;
     let mut subscription = open_subscription().await;
     let mut client = compatible_client().await;
 
@@ -945,8 +757,8 @@ async fn c85_a_subscriber_sees_the_disconnect_and_subscribes_and_snapshots_again
     }
 
     let stopped = Client::stop_any().await.expect("stop").expect("a daemon");
-    assert_eq!(stopped.pid(), daemon.pid());
-    daemon.wait_exit();
+    assert_eq!(stopped.pid(), daemon.id());
+    daemon.wait_exit(Duration::from_secs(10));
     let end = tokio::time::timeout(Duration::from_secs(10), subscription.next())
         .await
         .expect("the stream ends");
@@ -957,7 +769,7 @@ async fn c85_a_subscriber_sees_the_disconnect_and_subscribes_and_snapshots_again
     );
     assert!(matches!(Client::observe().await.unwrap(), Observed::Absent));
 
-    let _daemon = start_daemon(&s).await;
+    let _daemon = start_daemon_in_process(&s, &acqd_built()).await;
     let mut subscription = open_subscription().await;
     let mut client = compatible_client().await;
     let live = match client.request(&Request::List).await.unwrap() {
@@ -992,7 +804,7 @@ async fn c85_a_subscriber_sees_the_disconnect_and_subscribes_and_snapshots_again
 #[tokio::test]
 async fn c85_error_kinds_classify_the_domain_failures_a_client_can_stage() {
     let s = session("kinds");
-    let _daemon = start_daemon(&s).await;
+    let _daemon = start_daemon_in_process(&s, &acqd_built()).await;
     let mut client = compatible_client().await;
 
     let (kind, message) = kind_of(
@@ -1064,7 +876,7 @@ async fn c85_error_kinds_classify_the_domain_failures_a_client_can_stage() {
 
     // Admission refusals need a session: the mock's login page accepts any
     // name, and the flow completes once its own profile job lands (C50).
-    login(&mut client, None).await;
+    login_in_process(&mut client, None).await;
     let (kind, message) = kind_of(
         submit(
             &mut client,
@@ -1102,8 +914,8 @@ async fn c85_error_kinds_classify_the_domain_failures_a_client_can_stage() {
     // Several sessions and no selector: ambiguous, never guessed. A bare
     // name two of them share is ambiguous too (C51; review finding
     // 2026-09-10); the full name selects.
-    login(&mut client, Some("Alice#1234")).await;
-    login(&mut client, Some("Alice#5678")).await;
+    login_in_process(&mut client, Some("Alice#1234")).await;
+    login_in_process(&mut client, Some("Alice#5678")).await;
     let (kind, message) = kind_of(
         submit(
             &mut client,
@@ -1156,42 +968,6 @@ async fn c85_error_kinds_classify_the_domain_failures_a_client_can_stage() {
     );
 }
 
-/// Log in through the mock provider's page: start the flow, approve it as
-/// `user` (the mock accepts any name), and wait for the daemon to
-/// register the session.
-async fn login(client: &mut Client, user: Option<&str>) {
-    let url = match client.request(&Request::AuthStart).await.unwrap() {
-        Response::AuthUrl { authorize_url } => authorize_url,
-        other => panic!("{other:?}"),
-    };
-    let mut approve = url.replacen("/authorize?", "/approve?", 1);
-    if let Some(user) = user {
-        approve.push_str(&format!("&user={}", user.replace('#', "%23")));
-    }
-    // reqwest follows the redirect to the daemon's callback, which is what
-    // completes the login.
-    let response = reqwest::get(&approve).await.expect("approve");
-    assert!(response.status().is_success(), "{}", response.status());
-    let deadline = Instant::now() + Duration::from_secs(30);
-    loop {
-        match client.request(&Request::AuthStatus).await.unwrap() {
-            Response::Auth {
-                pending: false,
-                login_ok: Some(_),
-                ..
-            } => return,
-            Response::Auth {
-                login_error: Some(e),
-                pending: false,
-                ..
-            } => panic!("login failed: {e}"),
-            _ => {}
-        }
-        assert!(Instant::now() < deadline, "login did not complete");
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
-}
-
 /// C83: a daemon exiting removes the socket file it bound and never a
 /// successor's at the same path. Staged directly: with a connection to
 /// the daemon held open, its socket is unlinked and another listener
@@ -1205,7 +981,7 @@ async fn login(client: &mut Client, user: Option<&str>) {
 #[tokio::test]
 async fn c83_a_daemon_on_its_way_out_never_unlinks_a_successors_socket() {
     let s = session("exit");
-    let mut daemon = start_daemon(&s).await;
+    let mut daemon = start_daemon_in_process(&s, &acqd_built()).await;
     let socket = session_socket();
     let mut held = Raw::open().await;
     held.hello().await;
@@ -1218,7 +994,7 @@ async fn c83_a_daemon_on_its_way_out_never_unlinks_a_successors_socket() {
         .ask(json!({ "req": "daemon_stop", "reason": "exit pin" }))
         .await;
     assert_eq!(reply, json!({ "resp": "stopping" }));
-    daemon.wait_exit();
+    daemon.wait_exit(Duration::from_secs(10));
 
     assert!(
         socket.exists(),
@@ -1229,45 +1005,4 @@ async fn c83_a_daemon_on_its_way_out_never_unlinks_a_successors_socket() {
     let (_accepted, _) = successor.accept().await.expect("the successor accepts");
     drop(successor);
     let _ = std::fs::remove_file(&socket);
-}
-
-/// Place `link` as the daemon under another name (C82's clause for test
-/// executables): on Unix a symlink one level up, at the same file; on
-/// Windows a hard link — a symlink needs Developer Mode there, and one a
-/// standard user made is an untrusted mount point to its readers (os
-/// error 448) — placed again once a build has replaced the daemon. A
-/// test running beside this one may place it meanwhile.
-#[cfg_attr(unix, allow(unused_variables))]
-fn place_link(link: &Path, acqd: &Path) {
-    #[cfg(unix)]
-    {
-        let target = Path::new("..").join(acquisition_client::locator::ACQD);
-        if std::fs::read_link(link).ok().as_deref() != Some(target.as_path()) {
-            let _ = std::fs::remove_file(link);
-            if let Err(e) = std::os::unix::fs::symlink(&target, link)
-                && std::fs::read_link(link).ok().as_deref() != Some(target.as_path())
-            {
-                panic!("placing {} -> {}: {e}", link.display(), target.display());
-            }
-        }
-    }
-    #[cfg(windows)]
-    if !same_file(link, acqd) {
-        let _ = std::fs::remove_file(link);
-        if let Err(e) = std::fs::hard_link(acqd, link)
-            && !same_file(link, acqd)
-        {
-            panic!("linking {} to {}: {e}", link.display(), acqd.display());
-        }
-    }
-}
-
-/// Whether two paths open one file, by its id (C84).
-fn same_file(a: &Path, b: &Path) -> bool {
-    let id = |p: &Path| {
-        std::fs::File::open(p)
-            .and_then(|f| acquisition_store::world::file_id(&f))
-            .ok()
-    };
-    id(a).is_some() && id(a) == id(b)
 }

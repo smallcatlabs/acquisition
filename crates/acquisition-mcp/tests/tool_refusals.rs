@@ -10,7 +10,6 @@
 
 mod harness;
 
-use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use acquisition_plan::{PolicyWrite, put_sync_policy};
@@ -20,16 +19,6 @@ use serde_json::{Value, json};
 
 const USER: &str = "Alice#1234";
 const UUID: &str = "u-refusal";
-
-/// The scratch directory, removed on drop; declared before the daemon
-/// and the server, so those are gone first.
-struct Scratch(PathBuf);
-
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
 
 /// One account with a store and a sync policy covering Standard alone.
 fn seed(base: &std::path::Path) {
@@ -76,10 +65,8 @@ fn refusal(mcp: &mut Mcp, tool: &str, args: Value, kind: &str) -> Value {
 
 #[test]
 fn a_tool_refusal_is_a_result_marked_is_error_with_its_kind() {
-    let base = std::env::temp_dir().join(format!("acq-mcp-refusal-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&base);
-    std::fs::create_dir_all(&base).unwrap();
-    let _scratch = Scratch(base.clone());
+    let scratch = harness::scratch("mcp-refusal");
+    let base = scratch.0.clone();
     seed(&base);
     let mut mcp = Mcp::start(&base, &[]);
 
@@ -147,10 +134,8 @@ fn a_tool_refusal_is_a_result_marked_is_error_with_its_kind() {
 /// a null id.
 #[test]
 fn a_request_the_server_cannot_read_gets_a_reply_and_the_next_call_one_too() {
-    let base = std::env::temp_dir().join(format!("acq-mcp-unreadable-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&base);
-    std::fs::create_dir_all(&base).unwrap();
-    let _scratch = Scratch(base.clone());
+    let scratch = harness::scratch("mcp-unreadable");
+    let base = scratch.0.clone();
     seed(&base);
     let mut mcp = Mcp::start(&base, &[]);
     let term = json!({ "field": "rarity", "op": "=", "value": "rare" });
@@ -192,10 +177,8 @@ fn a_request_the_server_cannot_read_gets_a_reply_and_the_next_call_one_too() {
 /// is read as `rmcp` reads it (the 0c review's inputs).
 #[test]
 fn a_deep_line_cut_short_and_a_line_behind_a_byte_order_mark_each_get_their_reply() {
-    let base = std::env::temp_dir().join(format!("acq-mcp-cut-short-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&base);
-    std::fs::create_dir_all(&base).unwrap();
-    let _scratch = Scratch(base.clone());
+    let scratch = harness::scratch("mcp-cut-short");
+    let base = scratch.0.clone();
     seed(&base);
     let mut mcp = Mcp::start(&base, &[]);
     for line in [
@@ -224,10 +207,8 @@ fn a_deep_line_cut_short_and_a_line_behind_a_byte_order_mark_each_get_their_repl
 /// fails the test within the harness's deadline rather than hanging it.
 #[test]
 fn a_reply_queued_before_initialisation_reaches_stdout_when_stdin_closes() {
-    let base = std::env::temp_dir().join(format!("acq-mcp-early-eof-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&base);
-    std::fs::create_dir_all(&base).unwrap();
-    let _scratch = Scratch(base.clone());
+    let scratch = harness::scratch("mcp-early-eof");
+    let base = scratch.0.clone();
     let stdout = harness::run_to_exit(&base, b"not JSON\n");
     let reply: Value = serde_json::from_str(stdout.lines().next().unwrap_or_default())
         .unwrap_or_else(|e| panic!("no reply on stdout ({e}): {stdout:?}"));

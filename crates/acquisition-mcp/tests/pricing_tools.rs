@@ -17,32 +17,11 @@ use std::path::{Path, PathBuf};
 use acquisition_plan::price::Buyout;
 use acquisition_plan::{PolicyWrite, put_sync_policy};
 use acquisition_store::{Annotations, Endpoint, Index, Provenance, Store, account_path};
-use harness::{Mcp, acq, no_daemon_appeared};
+use harness::{Mcp, acq, no_daemon_appeared, scratch};
 use serde_json::{Value, json};
 
 const USER: &str = "Alice#1234";
 const UUID: &str = "u-price";
-
-/// The scratch directory, removed on drop whichever way the test ends.
-struct Scratch(PathBuf);
-
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
-
-fn scratch(tag: &str) -> Scratch {
-    let base = std::env::temp_dir().join(format!(
-        "acq-mcp-price-{tag}-{}-{}",
-        std::process::id(),
-        acquisition_store::now()
-    ));
-    // a process id comes round again: never open what an earlier run left
-    let _ = std::fs::remove_dir_all(&base);
-    std::fs::create_dir_all(&base).unwrap();
-    Scratch(base)
-}
 
 /// The world `price_json.rs` seeds for the CLI, under the store root the
 /// server and the `acq` beside it read: a folder holding a public priced
@@ -213,7 +192,7 @@ fn tool(mcp: &mut Mcp, name: &str, args: Value) -> (bool, Value) {
 /// refusal's `{"error": …}` word for word.
 #[test]
 fn each_pricing_read_is_the_document_the_cli_prints() {
-    let dir = scratch("read");
+    let dir = scratch("mcp-price-read");
     let base = &dir.0;
     seed(base);
     let mut mcp = Mcp::start(base, &[]);
@@ -362,7 +341,7 @@ fn each_pricing_read_is_the_document_the_cli_prints() {
 /// list every one.
 #[test]
 fn the_shop_document_bounds_what_it_leaves_out_alike_on_both_surfaces() {
-    let dir = scratch("left-out");
+    let dir = scratch("mcp-price-left-out");
     let base = &dir.0;
     seed(base);
     let mock = base.join("store").join("mock");
@@ -444,7 +423,10 @@ fn the_shop_document_bounds_what_it_leaves_out_alike_on_both_surfaces() {
 /// clear, and a stale revision refused with the CLI's words.
 #[test]
 fn each_pricing_write_is_the_receipt_the_cli_prints() {
-    let (by_mcp, by_acq) = (scratch("write-mcp"), scratch("write-cli"));
+    let (by_mcp, by_acq) = (
+        scratch("mcp-price-write-mcp"),
+        scratch("mcp-price-write-cli"),
+    );
     seed(&by_mcp.0);
     seed(&by_acq.0);
     let mut mcp = Mcp::start(&by_mcp.0, &[]);
@@ -559,7 +541,7 @@ fn each_pricing_write_is_the_receipt_the_cli_prints() {
 /// through the CLI's default land — the MCP is the stricter.
 #[test]
 fn a_blind_replace_and_a_blind_clear_are_refused_naming_the_current_revision() {
-    let dir = scratch("blind");
+    let dir = scratch("mcp-price-blind");
     let base = &dir.0;
     seed(base);
     let mut mcp = Mcp::start(base, &[]);
@@ -633,7 +615,10 @@ fn a_blind_replace_and_a_blind_clear_are_refused_naming_the_current_revision() {
 /// lands alike again and the file is left as it was.
 #[test]
 fn a_clear_lands_alike_on_both_surfaces_without_the_facts() {
-    let (by_mcp, by_acq) = (scratch("clear-mcp"), scratch("clear-cli"));
+    let (by_mcp, by_acq) = (
+        scratch("mcp-price-clear-mcp"),
+        scratch("mcp-price-clear-cli"),
+    );
     seed(&by_mcp.0);
     seed(&by_acq.0);
     let facts = |base: &Path| account_path(&base.join("store").join("mock"), USER);
@@ -681,7 +666,7 @@ fn a_clear_lands_alike_on_both_surfaces_without_the_facts() {
 /// two write tools' texts say it.
 #[test]
 fn the_price_write_tools_say_a_clear_takes_a_revision() {
-    let dir = scratch("clear-revision");
+    let dir = scratch("mcp-price-clear-revision");
     let mut mcp = Mcp::start(&dir.0, &[]);
     let tools = mcp.list_tools();
     for name in ["price_set", "price_clear"] {
