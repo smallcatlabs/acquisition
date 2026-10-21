@@ -384,7 +384,8 @@ checked).
 
 ## 7. The owner's word
 
-Pending: the rulings in section 4.
+2026-10-21, on the rulings in section 4 and the design whole, verbatim:
+"Approved. Go ahead."
 
 ## Appendix A — the tests, by action (as of `3bc71a86`)
 
