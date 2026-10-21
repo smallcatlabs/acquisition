@@ -357,8 +357,10 @@ pub async fn refresh_apply(
             _ => Err(crate::AlreadyReported.into()),
         };
     }
-    let report = crate::report_apply(&mut client, id, &landed.outcome).await;
-    print!("{report}");
+    print!(
+        "{}",
+        crate::job_report(id, &landed.outcome, &landed.failed_children)
+    );
     println!("{}", changes_line(&landed.store_changes));
     match landed.outcome {
         Outcome::Success { .. } => {

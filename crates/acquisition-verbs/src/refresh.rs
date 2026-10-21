@@ -18,7 +18,7 @@ use serde::Serialize;
 
 use crate::fault::Fault;
 use crate::frontend::Opened;
-use crate::jobs::{Progress, submit, wait};
+use crate::jobs::{FailedChild, Progress, failed_children_live, submit, wait};
 
 /// The quote attempt's bound: the plan in hand is the deliverable, and a
 /// wedged daemon or socket peer must not keep an offline plan from
@@ -109,6 +109,10 @@ pub struct Landed {
     pub store_changes: StoreChanges,
     pub remaining_requests: Option<u64>,
     pub spent: Vec<Spent>,
+    /// A failed apply's first failed children, as a result details them
+    /// ([`crate::JobResult::failed_children`]); absent otherwise.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub failed_children: Vec<FailedChild>,
 }
 
 /// What the store recorded between an apply's submit and its end: the
@@ -495,6 +499,7 @@ impl Opened {
         progress: Option<&mut (dyn FnMut(&Progress) + Send)>,
     ) -> Result<Landed, Fault> {
         let outcome = wait(client, submitted.job_id, progress).await?;
+        let failed_children = failed_children_live(client, &outcome).await;
         let store_changes = StoreChanges::since(&self.facts, &submitted.before, submitted.started)?;
         Ok(Landed {
             outcome,
@@ -503,6 +508,7 @@ impl Opened {
             store_changes,
             remaining_requests: self.remaining(plan),
             spent: submitted.spent,
+            failed_children,
         })
     }
 }

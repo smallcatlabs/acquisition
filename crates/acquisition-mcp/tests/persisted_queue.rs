@@ -83,7 +83,8 @@ fn c45_the_tools_read_the_queue_on_disk_when_no_daemon_answers() {
 /// C45, one job and the last log, on both surfaces: with no daemon to
 /// ask, `job_status` answers the ledger's row with `next`, `job_result`
 /// a finished job's outcome from disk with its id and account (the
-/// document `acq result --json` prints), an unfinished one is refused as
+/// document `acq result --json` prints, a failed parent's with its failed
+/// children detailed), an unfinished one is refused as
 /// `wrong_state`, and the daemon status names the log this world's last
 /// daemon wrote, as `acq daemon status --json` does.
 #[test]
@@ -99,6 +100,26 @@ fn c45_one_job_and_the_last_log_are_read_from_disk_on_both_surfaces() {
     db.upsert(&JobRow {
         outcome: Some(json!({ "outcome": "success", "payload": { "fetched": 1 } })),
         ..row(3, "done", 1_700_000_040)
+    })
+    .unwrap();
+    // A parent whose one child failed, as the daemon leaves them: the
+    // tally on the parent, the child's own error on the child.
+    db.upsert(&JobRow {
+        kind: "apply".into(),
+        params: json!({ "jobs": [] }),
+        outcome: Some(
+            json!({ "outcome": "failure", "error": "1 of 1 child jobs failed, 0 done",
+            "children": { "done": 0, "failed": 1, "cancelled": 0, "failed_ids": [5] } }),
+        ),
+        ..row(4, "failed", 1_700_000_050)
+    })
+    .unwrap();
+    db.upsert(&JobRow {
+        parent: Some(4),
+        outcome: Some(
+            json!({ "outcome": "failure", "error": "GET /stash/Standard/tab5 returned 404" }),
+        ),
+        ..row(5, "failed", 1_700_000_045)
     })
     .unwrap();
     db.checkpoint().unwrap();
@@ -139,6 +160,19 @@ fn c45_one_job_and_the_last_log_are_read_from_disk_on_both_surfaces() {
     assert_eq!(
         json_of(&harness::acq(&base, &["result", "3", "--json"])),
         result
+    );
+    // A failed parent's result details its failed child from the ledger,
+    // in the one call: kind, target and its own error (C23, C45).
+    let parent = mcp.expect_ok("job_result", json!({ "id": 4 }));
+    assert_eq!(
+        parent["failed_children"],
+        json!([{ "job_id": 5, "kind": "stash", "target": "Standard/tab5",
+                 "error": "GET /stash/Standard/tab5 returned 404" }]),
+        "{parent}"
+    );
+    assert_eq!(
+        json_of(&harness::acq(&base, &["result", "4", "--json"])),
+        parent
     );
     let refused = mcp.result("job_result", json!({ "id": 1 }));
     assert_eq!(refused["isError"], json!(true), "{refused}");

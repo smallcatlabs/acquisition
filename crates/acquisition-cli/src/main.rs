@@ -24,7 +24,7 @@ use acquisition_protocol::realm::Realm;
 use acquisition_store::world::World;
 use acquisition_verbs::jobs::{job_info, result_live};
 use acquisition_verbs::{
-    Account, ChildTally, DaemonReport, Fault, Frontend, Job, JobResult, Jobs, Progress,
+    Account, ChildTally, DaemonReport, FailedChild, Fault, Frontend, Job, JobResult, Jobs, Progress,
 };
 use anyhow::{Result, bail};
 use clap::{Parser, Subcommand};
@@ -2027,66 +2027,14 @@ fn children_line(id: &str, t: &ChildTally) -> String {
     line
 }
 
-/// At most this many failed children are expanded inline; the rest are
-/// counted and `acq jobs` named.
-const FAILED_CHILDREN_SHOWN: usize = 10;
-
-/// The text report for an `apply` parent (rule 4 of the legibility
-/// ruling): success as one line with the child range; a failure in the
-/// daemon's own words, then, when its tally (C23) lists failed
-/// children, one line per failed child — its id, kind, target, and the
-/// error that names its evidence. The CLI composes no count of its own:
-/// the sentence is the daemon's, the rows the tally's.
-pub(crate) async fn report_apply(client: &mut Client, id: u64, outcome: &Outcome) -> String {
-    let Outcome::Failure {
-        children: Some(children),
-        ..
-    } = outcome
-    else {
-        return apply_report(id, outcome, &[]);
-    };
-    // The children as the daemon lists them this lifetime; after a
-    // restart only their ids (from the tally) remain.
-    let listed: Vec<JobInfo> = list(client)
-        .await
-        .unwrap_or_default()
-        .into_iter()
-        .filter(|j| j.parent == Some(id) && j.state == JobState::Failed)
-        .collect();
-    let mut rows = Vec::new();
-    for cid in children.failed_ids.iter().take(FAILED_CHILDREN_SHOWN) {
-        let label = match listed.iter().find(|j| j.id == *cid) {
-            Some(j) => format!("{} {}", j.kind, j.target()),
-            None => String::new(),
-        };
-        let cause = match client.request(&Request::Result { id: *cid }).await {
-            Ok(Response::Result {
-                outcome: Outcome::Failure { error, .. },
-                ..
-            }) => error,
-            _ => format!("(acq result {cid})"),
-        };
-        rows.push(FailedChild {
-            id: *cid,
-            label,
-            cause,
-        });
-    }
-    apply_report(id, outcome, &rows)
-}
-
-/// One failed child of a parent, as the report lists it.
-pub(crate) struct FailedChild {
-    pub id: u64,
-    /// Its kind and target, empty when the daemon no longer lists it.
-    pub label: String,
-    /// Its own error, or where to read it.
-    pub cause: String,
-}
-
-/// [`report_apply`]'s text from what the daemon said and the rows
-/// fetched for the failed children: no daemon is asked here.
-pub(crate) fn apply_report(id: u64, outcome: &Outcome, rows: &[FailedChild]) -> String {
+/// A finished job in text (rule 4 of the legibility ruling), the one
+/// renderer every text path calls: an apply's success as one line with
+/// its child range; a failure in the daemon's own words, then one row
+/// per failed child the layer detailed (C23) — its id, kind and target,
+/// its own error — and, when the tally holds more ids than rows, where
+/// every id is listed. The CLI composes no count of its own and fetches
+/// nothing: the sentence is the daemon's, the rows the layer's.
+pub(crate) fn job_report(id: u64, outcome: &Outcome, failed: &[FailedChild]) -> String {
     match outcome {
         Outcome::Success { payload } => {
             let requests = payload["requests"].as_u64().unwrap_or(0);
@@ -2107,25 +2055,27 @@ pub(crate) fn apply_report(id: u64, outcome: &Outcome, rows: &[FailedChild]) -> 
         }
         Outcome::Failure { error, children } => {
             let mut out = format!("job {id} failed: {error}\n");
-            let w1 = rows
+            let job = |r: &FailedChild| format!("job {}", r.job_id);
+            let label = |r: &FailedChild| format!("{} {}", r.kind, r.target).trim().to_string();
+            let w1 = failed.iter().map(|r| job(r).len()).max().unwrap_or(0);
+            let w2 = failed
                 .iter()
-                .map(|r| format!("job {}", r.id).len())
+                .map(|r| label(r).chars().count())
                 .max()
                 .unwrap_or(0);
-            let w2 = rows
-                .iter()
-                .map(|r| r.label.chars().count())
-                .max()
-                .unwrap_or(0);
-            for r in rows {
-                let job = format!("job {}", r.id);
-                out.push_str(&format!("  {job:<w1$}  {:<w2$}  {}\n", r.label, r.cause));
-            }
-            let failed = children.as_ref().map_or(0, |c| c.failed_ids.len());
-            if failed > FAILED_CHILDREN_SHOWN {
+            for r in failed {
                 out.push_str(&format!(
-                    "  and {} more failed: acq jobs\n",
-                    failed - FAILED_CHILDREN_SHOWN
+                    "  {:<w1$}  {:<w2$}  {}\n",
+                    job(r),
+                    label(r),
+                    r.error
+                ));
+            }
+            let all = children.as_ref().map_or(0, |c| c.failed_ids.len());
+            if all > failed.len() {
+                out.push_str(&format!(
+                    "  and {} more failed; `acq result {id} --json` lists every id\n",
+                    all - failed.len()
                 ));
             }
             out
@@ -2136,28 +2086,29 @@ pub(crate) fn apply_report(id: u64, outcome: &Outcome, rows: &[FailedChild]) -> 
 
 async fn print_result(client: &mut Client, id: u64, json: bool) -> Result<()> {
     let result = result_live(client, id).await?;
-    // An apply parent's payload is a child-id list and a tally; a person
-    // wants the report, not the array. Status may be gone after a daemon
-    // restart; then an apply prints without its report.
-    if !json && client.status(id).await.is_ok_and(|job| job.kind == "apply") {
-        print!("{}", report_apply(client, id, &result.outcome).await);
-        return match result.outcome {
-            Outcome::Success { .. } => Ok(()),
-            _ => Err(AlreadyReported.into()),
-        };
+    // An apply's success has its summary line; any other outcome prints
+    // through the one renderer, whatever the job's kind. Status may be
+    // gone after a daemon restart; then an apply's success prints its
+    // payload.
+    if !json
+        && matches!(result.outcome, Outcome::Success { .. })
+        && client.status(id).await.is_ok_and(|job| job.kind == "apply")
+    {
+        print!("{}", job_report(id, &result.outcome, &[]));
+        return Ok(());
     }
     print_outcome(&result, json)
 }
 
 /// A terminal job's outcome, from the daemon or from the ledger on disk.
-/// JSON is the layer's document, the outcome with the job's id and
-/// account beside it (additive, C53): a blocking verb has no other way to
-/// say which job it was or whose. Only a success exits 0 — a failed or
-/// cancelled job left nothing on stdout to use, so the exit says so in
-/// both modes (C11); the JSON outcome is the report, and main adds no
-/// second message.
+/// JSON is the layer's document, the outcome with the job's id, account
+/// and failed children beside it (additive, C53): a blocking verb has no
+/// other way to say which job it was or whose. Only a success exits 0 —
+/// a failed or cancelled job left nothing on stdout to use, so the exit
+/// says so in both modes (C11), and the text of one is [`job_report`]'s
+/// on stderr; the JSON outcome is the report, and main adds no second
+/// message.
 fn print_outcome(result: &JobResult, json: bool) -> Result<()> {
-    let id = result.job_id;
     if json {
         println!("{}", serde_json::to_string_pretty(result)?);
         return match result.outcome {
@@ -2170,8 +2121,10 @@ fn print_outcome(result: &JobResult, json: bool) -> Result<()> {
             println!("{}", serde_json::to_string_pretty(payload)?);
             Ok(())
         }
-        Outcome::Failure { error, .. } => bail!("job {id} failed: {error}"),
-        Outcome::Cancelled => bail!("job {id} was cancelled"),
+        outcome => bail!(
+            "{}",
+            job_report(result.job_id, outcome, &result.failed_children).trim_end()
+        ),
     }
 }
 
@@ -2450,20 +2403,32 @@ mod tests {
         assert!(words.contains("`acq policy show`"), "{words}");
     }
 
-    fn one_failed_child() -> (acquisition_protocol::job::Children, Vec<FailedChild>) {
-        (
-            acquisition_protocol::job::Children {
-                done: 2,
-                failed: 1,
-                cancelled: 0,
-                failed_ids: vec![7],
+    /// A parent's result as the layer gives it: the daemon's sentence,
+    /// a tally of `ids` failed, and one detailed child.
+    fn parent_failed(error: &str, ids: Vec<u64>) -> JobResult {
+        JobResult {
+            job_id: 4,
+            account: None,
+            outcome: Outcome::Failure {
+                error: error.into(),
+                children: Some(acquisition_protocol::job::Children {
+                    done: 2,
+                    failed: ids.len() as u64,
+                    cancelled: 0,
+                    failed_ids: ids,
+                }),
             },
-            vec![FailedChild {
-                id: 7,
-                label: "stash Standard/t9".into(),
-                cause: "GET /stash/Standard/t9 returned 404".into(),
+            failed_children: vec![FailedChild {
+                job_id: 7,
+                kind: "stash".into(),
+                target: "Standard/t9".into(),
+                error: "GET /stash/Standard/t9 returned 404".into(),
             }],
-        )
+        }
+    }
+
+    fn text_of(r: &JobResult) -> String {
+        job_report(r.job_id, &r.outcome, &r.failed_children)
     }
 
     /// The review's case: a restart's deferred failure (the sentence the
@@ -2471,15 +2436,10 @@ mod tests {
     /// and its remedy, and the child's row follows it.
     #[test]
     fn a_deferred_parent_failure_keeps_its_words_beside_a_failed_childs_row() {
-        let (tally, rows) = one_failed_child();
         let error = "interrupted by a daemon restart mid fan-out: the children submitted \
                      before the restart ran (their responses are in the store), but the full \
                      child set is unknown — resubmit to complete it";
-        let outcome = Outcome::Failure {
-            error: error.into(),
-            children: Some(tally),
-        };
-        let text = apply_report(4, &outcome, &rows);
+        let text = text_of(&parent_failed(error, vec![7]));
         assert!(
             text.starts_with(&format!("job 4 failed: {error}\n")),
             "{text}"
@@ -2495,18 +2455,28 @@ mod tests {
     /// the CLI composes no count of its own.
     #[test]
     fn a_failed_apply_prints_the_daemons_sentence_once_and_the_rows() {
-        let (tally, rows) = one_failed_child();
-        let outcome = Outcome::Failure {
-            error: "1 of 3 child jobs failed, 2 done".into(),
-            children: Some(tally),
-        };
-        let text = apply_report(4, &outcome, &rows);
+        let text = text_of(&parent_failed("1 of 3 child jobs failed, 2 done", vec![7]));
         assert_eq!(
             text,
             "job 4 failed: 1 of 3 child jobs failed, 2 done\n  \
              job 7  stash Standard/t9  GET /stash/Standard/t9 returned 404\n"
         );
         assert_eq!(text.matches("child jobs failed").count(), 1);
+    }
+
+    /// More failed ids than detailed rows: the rest are counted, and the
+    /// line names where every id is listed — the JSON's tally, which a
+    /// ledger read has too, never a live-only listing.
+    #[test]
+    fn failed_children_past_the_rows_are_counted_with_where_every_id_is() {
+        let text = text_of(&parent_failed(
+            "3 of 5 child jobs failed, 2 done",
+            vec![7, 8, 9],
+        ));
+        assert!(
+            text.ends_with("  and 2 more failed; `acq result 4 --json` lists every id\n"),
+            "{text}"
+        );
     }
 
     fn other_name(_: &Cmd) -> &'static str {

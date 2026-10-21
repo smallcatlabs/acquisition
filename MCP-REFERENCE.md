@@ -58,7 +58,7 @@ Item events (added/moved/changed/removed) from recent ingests, newest first (no 
 
 ### `job_result`
 
-A finished job's outcome — payload or error — with its job_id and account beside it; answered across daemon restarts (the queue persists), and with no daemon running read from the ledger on disk, where a finished job's outcome is final (an unfinished one is refused as wrong_state with next). A parent's failure carries its children's tally as `children` (done, failed, cancelled, failed_ids). Payloads can be large — prefer the store tools for reading data.
+A finished job's outcome — payload or error — with its job_id and account beside it; answered across daemon restarts (the queue persists), and with no daemon running read from the ledger on disk, where a finished job's outcome is final (an unfinished one is refused as wrong_state with next). A parent's failure carries its children's tally as `children` (done, failed, cancelled, failed_ids), and the first ten failed children with their kind, target and error as `failed_children`. Payloads can be large — prefer the store tools for reading data.
 
 - `id` (integer, required) — The job id, as returned by submit_job.
 

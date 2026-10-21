@@ -480,7 +480,7 @@ async fn a_plan_held_whole_by_a_queued_job_has_no_remaining_count() {
 #[tokio::test]
 async fn a_parent_whose_child_failed_carries_its_childrens_tally() {
     let s = session("children");
-    let (_daemon, _frontend, mut opened, mut client) = world(&s).await;
+    let (_daemon, frontend, mut opened, mut client) = world(&s).await;
     let mut plan = opened
         .compile(Realm::Pc, "Standard", acquisition_store::now())
         .unwrap();
@@ -511,6 +511,33 @@ async fn a_parent_whose_child_failed_carries_its_childrens_tally() {
     let children = children.as_ref().expect("the tally as a field");
     assert_eq!((children.failed, children.failed_ids.len()), (1, 1));
     assert_eq!(children.done + children.failed + children.cancelled, total);
+
+    // The failed child, detailed in the one answer: live, with its kind,
+    // target and own error ...
+    let child = children.failed_ids[0];
+    assert_eq!(landed.failed_children.len(), 1, "{landed:?}");
+    let live = frontend.result(landed.job_id).await.unwrap();
+    assert_eq!(live.failed_children, landed.failed_children);
+    let row = &live.failed_children[0];
+    assert_eq!((row.job_id, row.kind.as_str()), (child, "stash"), "{row:?}");
+    assert!(row.target.contains("no-such-tab"), "{row:?}");
+    assert!(
+        !row.error.is_empty() && row.error != "no result retained for this job",
+        "{row:?}"
+    );
+    // ... and from the ledger once the daemon has stopped, the same (C45:
+    // the ledger prints as the daemon would).
+    Client::stop_any()
+        .await
+        .expect("a stop")
+        .expect("a daemon acknowledged it");
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !matches!(frontend.observe().await, Ok(None)) {
+        assert!(Instant::now() < deadline, "the daemon did not stop");
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    let from_disk = frontend.result(landed.job_id).await.unwrap();
+    assert_eq!(from_disk.failed_children, live.failed_children);
 }
 
 /// The quote over a running daemon is the daemon's: no note.

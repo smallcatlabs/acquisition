@@ -300,6 +300,37 @@ fn a_failed_apply_counts_its_failed_requests_from_the_daemons_own_words() {
         String::from_utf8_lossy(&out.stderr)
     );
     assert!(stop.status.success(), "{stop:?}");
+    // The failed child's row, under the daemon's sentence.
+    assert!(said.contains("no-such-tab"), "{said}");
+
+    // With the daemon stopped, the parent's result read from the ledger
+    // prints the same: the daemon's sentence and the failed child's row
+    // (C45), and its JSON details the child (C23).
+    let parent = said
+        .split("as job ")
+        .nth(1)
+        .and_then(|rest| rest.split_whitespace().next())
+        .expect("the applying line names the job")
+        .to_string();
+    let out = acq(&base, &["result", &parent]);
+    assert_eq!(out.status.code(), Some(1), "{out:?}");
+    let told = String::from_utf8_lossy(&out.stderr).into_owned();
+    assert!(
+        told.contains(&format!(
+            "job {parent} failed: 1 of {planned} child jobs failed, {} done",
+            planned - 1
+        )),
+        "{told}"
+    );
+    assert!(told.contains("no-such-tab"), "{told}");
+    let doc = sole_json(&acq(&base, &["result", &parent, "--json"]));
+    let failed = doc["failed_children"].as_array().expect("failed_children");
+    assert_eq!(failed.len(), 1, "{doc}");
+    assert_eq!(
+        failed[0]["job_id"], doc["children"]["failed_ids"][0],
+        "{doc}"
+    );
+    assert!(failed[0]["error"].is_string(), "{doc}");
     let _ = std::fs::remove_dir_all(&base);
 }
 

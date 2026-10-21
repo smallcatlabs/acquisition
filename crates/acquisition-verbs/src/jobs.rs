@@ -8,7 +8,7 @@
 use std::time::Duration;
 
 use acquisition_client::client::{Client, DaemonError};
-use acquisition_protocol::job::{JobInfo, JobState, Outcome};
+use acquisition_protocol::job::{JobInfo, JobState, Outcome, target_of};
 use acquisition_protocol::protocol::{Request, Response};
 use acquisition_store::jobs::{Persisted, PersistedJob, PersistedRecord};
 use serde::Serialize;
@@ -152,6 +152,57 @@ pub struct JobResult {
     pub account: Option<String>,
     #[serde(flatten)]
     pub outcome: Outcome,
+    /// C23 (a parent's failure carries its children's tally): for a
+    /// parent whose children failed, the first
+    /// [`FAILED_CHILDREN_DETAILED`] of them with their kind, target and
+    /// own error, read by the same reader as the parent (the daemon, or
+    /// the ledger when none answers, C45), so one call answers what
+    /// failed and why. The tally's `failed_ids` stays whole beside it:
+    /// every id, details for the first ten. Empty, and absent from the
+    /// JSON, for any other outcome.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub failed_children: Vec<FailedChild>,
+}
+
+/// How many of a parent's failed children a result details; the tally
+/// lists every id.
+pub const FAILED_CHILDREN_DETAILED: usize = 10;
+
+/// One failed child of a parent, as the parent's result details it.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct FailedChild {
+    pub job_id: u64,
+    /// Its kind and target, empty when no record of the child can be
+    /// read (live, a daemon that no longer holds it after a restart).
+    pub kind: String,
+    pub target: String,
+    /// Its own error, or that no result is retained for it.
+    pub error: String,
+}
+
+/// The words for a child whose result cannot be read: a fact, not a guess.
+const NO_RESULT: &str = "no result retained for this job";
+
+/// The failed ids a result details, the first ten of the tally's.
+fn detailed(outcome: &Outcome) -> &[u64] {
+    match outcome {
+        Outcome::Failure {
+            children: Some(children),
+            ..
+        } => {
+            let ids = &children.failed_ids;
+            &ids[..ids.len().min(FAILED_CHILDREN_DETAILED)]
+        }
+        _ => &[],
+    }
+}
+
+/// A child's own error from its outcome, or [`NO_RESULT`].
+fn child_error(outcome: Option<Outcome>) -> String {
+    match outcome {
+        Some(Outcome::Failure { error, .. }) => error,
+        _ => NO_RESULT.into(),
+    }
 }
 
 impl Serialize for Jobs {
@@ -224,11 +275,35 @@ pub async fn result_live(client: &mut Client, id: u64) -> Result<JobResult, Faul
     let outcome = outcome_live(client, id).await?;
     // A previous lifetime's job has no status; its outcome stands alone.
     let account = client.status(id).await.ok().and_then(|job| job.account);
+    let failed_children = failed_children_live(client, &outcome).await;
     Ok(JobResult {
         job_id: id,
         account,
         outcome,
+        failed_children,
     })
+}
+
+/// C23 and C45: a parent failure's first failed children, read through
+/// the daemon, never the ledger while it answers — their results across
+/// restarts, their kind and target while it still holds them. Empty for
+/// any other outcome.
+pub async fn failed_children_live(client: &mut Client, outcome: &Outcome) -> Vec<FailedChild> {
+    let mut rows = Vec::new();
+    for &cid in detailed(outcome) {
+        let error = child_error(outcome_live(client, cid).await.ok());
+        let (kind, target) = match client.status(cid).await {
+            Ok(job) => (job.kind.clone(), job.target()),
+            Err(_) => (String::new(), String::new()),
+        };
+        rows.push(FailedChild {
+            job_id: cid,
+            kind,
+            target,
+            error,
+        });
+    }
+    rows
 }
 
 /// C4: a terminal job's outcome from the daemon alone; a job not yet
@@ -302,10 +377,32 @@ impl Frontend {
                 "job {id}'s outcome on disk does not parse: {e}"
             ))
         })?;
+        let failed_children = detailed(&outcome)
+            .iter()
+            .map(|&cid| match self.record(cid) {
+                Ok(child) => FailedChild {
+                    job_id: cid,
+                    target: target_of(&child.job.kind, &child.job.params),
+                    kind: child.job.kind,
+                    error: child_error(
+                        child
+                            .outcome
+                            .and_then(|o| serde_json::from_value::<Outcome>(o).ok()),
+                    ),
+                },
+                Err(_) => FailedChild {
+                    job_id: cid,
+                    kind: String::new(),
+                    target: String::new(),
+                    error: NO_RESULT.into(),
+                },
+            })
+            .collect();
         Ok(JobResult {
             job_id: id,
             account: record.job.account,
             outcome,
+            failed_children,
         })
     }
 

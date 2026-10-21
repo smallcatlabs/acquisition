@@ -584,7 +584,8 @@ fn the_absent_documents_say_running_false_beside_what_the_ledger_holds() {
 }
 
 /// A result carries its job's id and account beside the outcome, and a
-/// parent's failure its children's tally as a field (C23).
+/// parent's failure its children's tally as a field (C23) and its first
+/// failed children detailed.
 #[test]
 fn a_job_result_is_the_outcome_with_its_id_and_account() {
     let result = JobResult {
@@ -599,11 +600,35 @@ fn a_job_result_is_the_outcome_with_its_id_and_account() {
                 failed_ids: vec![6],
             }),
         },
+        failed_children: vec![acquisition_verbs::FailedChild {
+            job_id: 6,
+            kind: "stash".into(),
+            target: "Standard/t6".into(),
+            error: "GET /stash/Standard/t6 returned 404".into(),
+        }],
     };
     assert_eq!(
         serde_json::to_value(&result).unwrap(),
         json!({ "job_id": 4, "account": USER, "outcome": "failure",
                 "error": "1 of 2 child jobs failed, 1 done",
-                "children": { "done": 1, "failed": 1, "cancelled": 0, "failed_ids": [6] } })
+                "children": { "done": 1, "failed": 1, "cancelled": 0, "failed_ids": [6] },
+                "failed_children": [{ "job_id": 6, "kind": "stash", "target": "Standard/t6",
+                                      "error": "GET /stash/Standard/t6 returned 404" }] })
+    );
+}
+
+/// A failure that is not a parent's carries no `failed_children`: the
+/// field is absent, not an empty list (C53, additive).
+#[test]
+fn a_plain_failure_serialises_without_failed_children() {
+    let result = JobResult {
+        job_id: 9,
+        account: None,
+        outcome: Outcome::failure("GET /stash/Standard/t9 returned 404"),
+        failed_children: Vec::new(),
+    };
+    assert_eq!(
+        serde_json::to_value(&result).unwrap(),
+        json!({ "job_id": 9, "outcome": "failure", "error": "GET /stash/Standard/t9 returned 404" })
     );
 }

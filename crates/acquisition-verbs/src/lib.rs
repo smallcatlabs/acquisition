@@ -44,5 +44,5 @@ pub mod refresh;
 pub use daemon::{DaemonReport, PersistedSummary};
 pub use fault::Fault;
 pub use frontend::{Account, AccountRow, Accounts, Door, Frontend, Opened, realm};
-pub use jobs::{ChildTally, Job, JobResult, Jobs, Progress};
+pub use jobs::{ChildTally, FailedChild, Job, JobResult, Jobs, Progress};
 pub use refresh::{Apply, Landed, Planned, QuoteNote, Skipped, StoreChanges, Submitted};
