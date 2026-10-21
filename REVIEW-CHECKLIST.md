@@ -12,8 +12,8 @@ come from are whole at the commit `HISTORY.md` names for each slice.
 
 | Shape | Where it came back | Held by |
 | --- | --- | --- |
-| **A parsed value that overflows.** Strict parsing accepted header values that panicked in deadline arithmetic | network cleanup N1 | bounded, checked parsing; the `ratelimit.rs` test tables |
-| **A send recorded before its body completed.** Clean-2xx classification and send recording ran before body resolution | N1 | classification deferred to body completion; `full_200_with_truncated_body_is_network_after_observing_policy` (`ratelimit.rs`) |
+| **A parsed value that overflows.** Strict parsing accepted header values that panicked in deadline arithmetic | network cleanup N1 | bounded, checked parsing; the `acquisition-daemon/src/ratelimit/tests/spec.rs` tables |
+| **A send recorded before its body completed.** Clean-2xx classification and send recording ran before body resolution | N1 | classification deferred to body completion; `full_200_with_truncated_body_is_network_after_observing_policy` (`acquisition-daemon/src/ratelimit/tests/spec.rs`) |
 | **An owner that leaves without publishing.** An aborted refresh owner stranded its waiters forever | N2 | `RefreshOwnerGuard` publishes on drop |
 | **An estimate that bypasses the policy.** `eta_for` skipped the token policy's 60 s bucket | N4 | the limiter's bucket applied to every estimate |
 | **A stress that never reaches what it claims.** Concurrent refresh never happened; the N6 stress ran the mock on real time and the daemon on a manual clock | N6; TESTING-NOTES | a held response as the barrier; one `Clock` for mock and daemon (`MockPolicy`, `start_with_clock`); the C87 concurrent half checked at the server (`rejected_access_token_*`) |

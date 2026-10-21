@@ -1,6 +1,7 @@
 //! The daemon of the Acquisition Rust rewrite, as its own artifact (C1,
 //! C82; the binary is `acqd`, `main.rs`): the header-driven rate limiter
-//! and its choke point (`ratelimit.rs`, `gate.rs`), the live-test rails
+//! and its choke point (`ratelimit.rs` with its children under `ratelimit/`,
+//! `gate.rs`), the live-test rails
 //! (`rails.rs`), OAuth and sessions (`auth.rs`), the provider (`provider.rs`),
 //! the mock provider (`mockggg.rs`), the daemon's own executable identified
 //! and hashed at startup (`artifact.rs`, C84), and the daemon itself

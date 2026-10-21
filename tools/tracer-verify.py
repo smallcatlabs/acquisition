@@ -18,7 +18,7 @@ rule) with no active restriction, and its reported hits, per window,
 are at most this run's own GETs on that exact route inside that window
 plus GGG's timing bucket for the window's position (N11/N12: 5 s on a
 rule's first window, 60 s on the later ones — `bucket_for` in
-ratelimit.rs), so the run's first probe on a route must report 0 and a
+ratelimit/limiter.rs), so the run's first probe on a route must report 0 and a
 later probe may carry only the run's own earlier hits; each cycle's
 lifetime holds exactly its plan's GETs, its probes, and one token POST.
 Exit 0 with a draft ledger row, or 1 listing what failed.
@@ -65,7 +65,7 @@ def reported_rules(rate):
 def bucket(index):
     """GGG's timing bucket past a window (N11/N12): 5 s on a rule's first
     window, 60 s on the sustained ones — a send that old may still be
-    counted, so it is still 'ours'. Mirrors ratelimit.rs `bucket_for`."""
+    counted, so it is still 'ours'. Mirrors ratelimit/limiter.rs `bucket_for`."""
     return 5 if index == 0 else 60
 
 

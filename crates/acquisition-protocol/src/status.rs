@@ -1,7 +1,7 @@
 //! The status documents the daemon reports on the wire — inside
 //! `Response::DaemonStatus`, `Response::Dashboard` and a `Quote` — as a
 //! frontend reads them. Documents, not state: the daemon builds each one
-//! from its limiter and rails (`ratelimit.rs`'s `rule_statuses`,
+//! from its limiter and rails (`ratelimit/limiter.rs`'s `rule_statuses`,
 //! `ChokePoint::policy_statuses`, `Rails::status`), and nothing here knows
 //! how. Moved here whole from `rails.rs` and `ratelimit.rs` with the
 //! protocol crate (`DAEMON-SPLIT-SLICE.md` at `b6197a82`, step 1); the fixtures under

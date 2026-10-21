@@ -35,7 +35,7 @@ survives it is the standing rule and the rails below.
   the endpoint for 60 s (N20).
 - **Record the observed policy** (name, windows, the state after the
   GET) as one `RUN-LEDGER.md` row and as a ground-truth claim; that row
-  is what `ratelimit.rs`'s test table cites. The row carries where the
+  is what `acquisition-daemon/src/ratelimit/tests/spec.rs`'s test table cites. The row carries where the
   evidence is and where each lesson landed, never the lesson's text.
 - **Post-violation: wait 360 s, then `reset-tripwire`; never
   reset-and-retry.** After any trip write the cause in the ledger, wait
