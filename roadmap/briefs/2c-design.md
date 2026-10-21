@@ -77,50 +77,69 @@ that route (`:7183-7190`).
 ## 2. The shape
 
 Four moves, each small, each pinned at the lowest crate that holds it
-(C122), and one ruling.
+(C122), and one ruling. The owner's items were found by an Opus worker
+under his word of 2026-10-21 (section 2.1); the export tool is in the
+tree at `24fd3153`.
 
-### 2.1 The mock serves real-shaped items from a committed fixture
+### 2.1 The mock serves the owner's own items from a committed fixture
 
 A JSON file in the daemon crate, `crates/acquisition-daemon/src/mock-items.json`,
 compiled in with `include_str!` (precedent: the class table
 `acquisition-search/src/class.rs:11-14`, the price notes
 `acquisition-plan/src/price_notes_fixture.rs:25`), keyed by tab id and
-by `{character}-inv` for a character's inventory. `mock_items(tab, n)`
-(`mockggg.rs:250`, called at `:398` and `:462`) returns the fixture's
-items for a key it holds and the Fake Items it makes today for one it
-does not, so every tab the fixture does not name is unchanged and the
-counts in `MOCK_TABS` (`:220-236`) stay the listing's truth; a
-substash's `metadata.items` must equal its fixture count (`:268`), and
-a test holds that.
+by `{character}-equipment` and `{character}-inv` for a character.
+`mock_items(tab, n)` (`mockggg.rs:250`, called at `:398` and `:462`)
+returns the fixture's items for a key it holds and the Fake Items it
+makes today for one it does not, so every tab the fixture does not
+name is unchanged and the counts in `MOCK_TABS` (`:220-236`) stay the
+listing's truth; a held key's count equals its entry, and a test holds
+that.
 
-The items are the project's own, hand-written to the census claims the
-search slice recorded from the owner's data (`search/DIGEST.md:22-37`,
-`:67`: S2 every item's fields, S3 and S50 mod lines as
-`{description, flags}` objects since 2026-07-31, S9, S10 `Map (Tier N)`
-as the base, S16 sockets, S17; N43 `network-ground-truth.md:829-848`
-the frame words; T13 `trade-ground-truth.md:580-583` `Stash1`). Their
-content, the names, bases, lines and numbers, comes from the search
-crate's acceptance fixtures (`acquisition-search/tests/acceptance.rs:16-175`),
-reshaped to the real form, since every hand-written fixture in the
-tree still carries the old string lines. Five shapes, all `pc`,
-Standard (appendix A): a rare ring with life and resistance lines, one
-flagged crafted; a unique six-socket body armour with a socketed gem at
-level 20, quality 20; a currency stack; a `Map (Tier 16)` in a map
-substash; a noted item in a tab the listing marks `public`, so the
-game-side price path exists. The two faults are fixed in passing: the
-helm becomes a unique in word and frame, and character inventory items
-carry `MainInventory`.
+The bodies are the owner's own items, under his grant ("I have no
+problems with embedding items from my stash into the testing if they
+have useful traits"; "where you can't find an item you want, you can
+synthesize it from scratch or modify an existing real item from my
+store"), exported from his store by `crates/acquisition-store/examples/export-items.rs`
+(`24fd3153`, an owner-run read in `redact-pricing`'s shape) and chosen
+for the traits the journey needs (appendix A): a rare Coral Ring with
+`+78 to maximum Life` and a crafted resistance line; Doryani's
+Prototype, a six-linked unique body armour with six socketed gems, one
+at level 20 and quality 20; a Mirror Shard stack of seven; a rare
+`Map (Tier 16)`; a rare jewel noted `~price 10 chaos` in a tab listed
+`public`; and for the character, Alpha's Howl as the equipped helm and
+a unique pair of boots in the inventory, whose `inventoryId` is the
+real `MainInventory`. Nothing in a body names the owner, a character or
+an account: the fields are the item's (its GGG id, the icon's CDN path,
+the note's text). Every body is kept as exported but for its place:
+`x` and `y` set to fit the mock tab, and the gems nested back into the
+armour's `socketedItems` as GGG sends them (the store lifts each gem
+into its own row, so an export carries them apart). Where the owner's
+store had held no item with a trait, one would have been hand-written
+to the census (`search/DIGEST.md:22-37`, `:67`); none needed to be.
+The shapes the real bodies show correct the design's first draft:
+`flags` is present on a line only when set; a gem carries no `x`, `y`,
+`inventoryId` or `rarity`; currency carries no `rarity` and `ilvl` 0;
+a map's tier is in its base, `Map (Tier 16)`, and there is no Map Tier
+property (S10); the frame words are `Rare`, `Unique`, `Gem`, `Currency`.
+The two mock faults are fixed in passing: the helm is a unique in word
+and frame, and inventory items carry `MainInventory`.
 
 Not the trade captures (`search/pseudo-stats/data/bodies.json`): other
 players' items in the trade site's line shape (`{description, domain,
 hash, mods}`, no id, position or note), and the mock ships in `acqd`
 to every user; `SURFACES.md` row 23 and C79 keep that surface a
-governed input. Not the owner's store now: the highest fidelity and
-the highest cost (a redacting tool he runs, as
-`acquisition-plan/examples/redact-pricing.rs`, and his decision to
-ship the result); his roadmap grant stands and the fixture file is
-where such items would land if a shape later proves wrong. The
-`README.md:84-86` sentence stays true: the stashes are still made up.
+governed input. Not hand-written bodies where a real one exists: every
+hand-written fixture in the tree had drifted from the API's shape
+(string lines where it sends objects), and a real body is the only
+kind whose shape is certainly current. The `README.md:84-86` sentence
+stays true: the stashes are still made up; the items in them are real.
+
+**What the export taught about the store.** The owner's store is facts
+schema v8 and HEAD builds v9 (`FACT_SCHEMA_VERSION`, `lib.rs:340`);
+`Store::open` migrates an older file under a transaction, so a tool
+that says it writes nothing writes on its first open of an older store.
+The worker read a copy instead, and the owner's store was not opened.
+Raised in section 6 for the owner; not this step's.
 
 What a user and a seat meet changes: `acq search` on the mock answers.
 The release seat's brief and the mock-session skill name no item, so
@@ -311,20 +330,19 @@ The seat skill. 2d's file splits.
 jobs, protocol", the owner's word (it touches what ships to every user
 and which surfaces a fixture may draw on, C79):
 
-> - **C<next> — The stand-in provider serves real-shaped items of the
->   project's own making.** Its bodies are a committed fixture compiled
->   into `acqd`, hand-written to the shapes the census recorded from the
->   owner's data (`search/DIGEST.md`): object mod lines, the frame
->   words, `Map (Tier N)` bases, sockets, a public tab; never a body
->   taken from the trade site or from another player, and never a path
->   the daemon reads at run time. *Why:* a user, a seat and the journey
->   test meet search and price through fetching, and the fixture's
->   provenance stays the project's. *Pinned:* `acquisition-daemon`'s
+> - **C<next> — The stand-in provider serves real-shaped items from a
+>   committed fixture.** Its bodies are the owner's own items, exported
+>   from his store under his grant and chosen for the traits the journey
+>   needs, or hand-written to the census (`search/DIGEST.md`) where his
+>   store holds none; compiled into `acqd`, never a path read at run time;
+>   never a body from the trade site or another player. *Why:* a user, a
+>   seat and the journey test meet search and price through fetching, on
+>   bodies whose shape is the API's today, and the fixture's provenance
+>   stays the owner's and the project's. *Pinned:* `acquisition-daemon`'s
 >   fixture test; the journey goldens.
 
-Measured at 632 bytes as one bullet (the entry rule's 800). The owner's
-roadmap grant on his own stores is cited in the entry's file as the
-upgrade path, not in the ruling.
+Measured at 657 bytes as one bullet (the entry rule's 800). The owner's
+words of 2026-10-21 are quoted in section 2.1 and in commit 1's message.
 
 **No ruling needed:** the journey's shape (a test, under C122); the
 normaliser rules and their test (mechanism under C122); the watermark
@@ -336,10 +354,10 @@ does not change; the budgets stand where the owner left them.
 
 ## 5. Alternatives weighed and declined
 
-- **The owner's store as the fixture's source now.** Declined for this
-  step: a redacting tool, an owner's step and a shipping decision for
-  five items the census claims already describe. The grant stands; the
-  file is where they would go.
+- **Hand-written bodies to the census claims.** The first draft's
+  choice; declined once the owner opened his store: the tree's own
+  hand-written fixtures had drifted from the API's shape, and the
+  export cost one small example and one read of a copy.
 - **The trade captures as the fixture.** Declined: C79 and other
   players' items shipping in `acqd`; and the wrong line shape.
 - **A path knob for the fixture** (`ACQ_MOCK_ITEMS=<file>`). Declined:
@@ -392,6 +410,11 @@ does not change; the budgets stand where the owner left them.
   are never deleted here (`lib.rs` has no delete on `item_events`;
   the brief has the build confirm). The two-ingests-in-one-second case
   pins the property either way.
+- **A read that migrates.** `Store::open` migrates an older store on
+  its first open; `export-items` and `redact-pricing` say they write
+  nothing, which is false against a store behind HEAD's schema. Raised
+  for the owner: a read-only open (or a refusal on an older schema) for
+  the owner-run examples; a store ruling, not this step's.
 - **The user-agent is unpinned** (invariant 4). Not this step's; raised
   for the owner: a unit test in the daemon crate on the request
   builder, or an issue for 2f's ultra review of daemon and network.
@@ -407,23 +430,24 @@ Awaiting the owner's word on R1 and on the design; the surveys'
 findings below are his to weigh: the user-agent gap, and the renamed
 refusals under delegation.
 
-## Appendix A — the fixture's items (all `pc`, Standard)
+## Appendix A — the fixture's items (all `pc`, Standard; the owner's, as exported)
 
-Every item: `id`, `name`, `typeLine`, `baseType`, `frameType` and the
-capitalised `frameTypeId`, `identified`, `ilvl`, `verified`, `w`, `h`,
-`x`, `y`, `inventoryId`, `league`, `icon`; `rarity` on all but the gem
-and the currency. Mod lines `{ "description": …, "flags": … }`.
+Every body as exported, but for `x`, `y` and the gems' nesting. Ids
+are GGG's 64-hex. The exports are the build's input (`2c-build.md`).
 
-| # | Item, tab | Carries | Reaches |
+| # | Item, mock tab | What the body carries | Reaches |
 | --- | --- | --- | --- |
-| 1 | Rare Two-Stone Ring, `dump` | frame 2 `Rare`; implicit `+12% to Fire and Cold Resistances`; explicit `+78 to maximum Life`, `+37% to Fire Resistance`, one line flagged crafted; `requirements` Level | `class=Rings rarity=rare`, `"+# to maximum Life">=70`, `pseudo.total_res>=40`, `--sort pseudo.total_life`; posts as `Stash2` |
-| 2 | Unique body armour, `dump`, six sockets, one socketed gem | frame 3 `Unique`; `sockets` `{group, attr, sColour}`; the gem its own `id`, frame 4 `Gem`, `support: false`, `properties` Level `["20", 0]`, Quality `["+20%", 1]`, `socket`, `colour` | `rarity=unique`, `linked(red>=4)`, `level>=20`, `quality>=20`; the gem blocked as socketed by the shop |
-| 3 | Divine Orb ×7, `cur1` | frame 5 `Currency`, no rarity, `ilvl` 0, `stackSize` 7, `maxStackSize`, `properties` Stack Size `["7/20", 0]` | `class="Stackable Currency"`, `stack>=5`, `--sum stack`; posts |
-| 4 | `Map (Tier 16)`, `m001` | `Rare`; `properties` Map Tier, Item Quantity, Item Rarity, Monster Pack Size; explicit lines | `map_tier>=16`, `class=Maps`; blocked as a substash by the shop |
-| 5 | A noted item in `old1`, the tab listed `public` | `note` `~b/o 3 chaos` | `show`'s note and game price; `price list`'s game side; the shop omits it as listed by the game (C81) |
-| 6 | The helm on StashHoarder | `Unique`, frame 3, `frameTypeId` `Unique`; inventory items `MainInventory` | `rarity=unique` at a character; posts with a slot |
+| 1 | Empyrean Knot, Coral Ring, rare, `dump` | implicit `+22 to maximum Life`; explicit `+16 to Strength`, `+78 to maximum Life`, `+66 to maximum Mana`, `+15% to all Elemental Resistances`, `+15% to Cold and Chaos Resistances` flagged `{"crafted": true}`; `requirements` Level 64; ilvl 83 | `class=Rings rarity=rare`, `"+# to maximum Life">=70`, `pseudo.total_res`, `--sort pseudo.total_life`; posts as `Stash2` |
+| 2 | Doryani's Prototype, Saint's Hauberk, unique, `dump` | six sockets, one group (G R R R R B); `properties` Quality `+20%`, Armour, Energy Shield; `requirements`; `flavourText`; six gems nested in `socketedItems`: Smite (Level `20 (Max)`, `support: false`), Faster Attacks (21), Multistrike, Ruthless, two Awakened supports, each with Quality, `socket`, `colour`, some `corrupted` | `rarity=unique`, `linked(red>=4)`, `level>=20`, `quality>=20`, `class:gem`; the gems blocked as socketed by the shop |
+| 3 | Mirror Shard ×7, `cur1` | frame 5 `Currency`, no `rarity`, `ilvl` 0, `stackSize` 7, `maxStackSize` 20, `properties` Stack Size `["7/20", 0]`, `descrText` | `class="Stackable Currency"`, `stack>=5`, `--sum stack`; posts |
+| 4 | Dark Realm, `Map (Tier 16)`, rare, `m001` | `name` Dark Realm, `typeLine` and `baseType` `Map (Tier 16)`; `properties` Item Quantity `+52%`, Item Rarity `+31%`, Monster Pack Size `+20%` (no Map Tier property); implicit (a Citadel line with `\n`); five explicit lines; `monsterLevel` | `map_tier>=16`, `class=Maps`; blocked as a substash by the shop |
+| 5 | Ghoul Joy, Viridian Jewel, rare, `old1` (listed `public`) | `note` `~price 10 chaos`; three explicit lines | `show`'s note and game price; `price list`'s game side; the shop omits it as listed by the game (C81) |
+| 6 | Alpha's Howl, Sinner Tricorne, unique, StashHoarder's equipment | `inventoryId` `Helm`; four sockets; `properties` Evasion Rating; `requirements` | `rarity=unique` at a character; posts with a slot |
+| 7 | Seven-League Step, Rawhide Boots, unique, StashHoarder's inventory | `inventoryId` `MainInventory`; four sockets in two groups | the inventory's real slot word |
 
-The remaining tabs keep their Fake Items and counts.
+The remaining tabs, and the other three inventory slots, keep their
+Fake Items and counts (`dump` 5: the ring, the armour and three; `cur1`
+3: the shard and two; `m001` 1; `old1` 2: the jewel and one).
 
 ## Appendix B — the journey, command by command
 
@@ -440,11 +464,11 @@ today's and move with the fixture.
 | 5 | `refresh --apply` | `9 done`, `added` |
 | 6 | `refresh --apply` | `7 done`, `every covered entry is fresh` |
 | 7 | `refresh --plan` | `nothing to do` |
-| 8 | `tabs` | `15 tabs`, `14 fetched`, the item count |
-| 9 | `search 'class=Rings rarity=rare'` | `1 match`, `Two-Stone Ring` |
-| 10 | `search '"+# to maximum Life">=70 --sort pseudo.total_life'` | the total, `78` |
+| 8 | `tabs` | `15 tabs`, `14 fetched`, `31 items` |
+| 9 | `search 'class=Rings rarity=rare'` | `1 match`, `Empyrean Knot` |
+| 10 | `search '"+# to maximum Life">=70' --sort pseudo.total_life` | `2 matches`, the ring's total life and the armour's `89` |
 | 11 | `search 'class="Stackable Currency" --sum stack'` | `7` |
-| 12 | `show <ring id>` | `unread  nothing`, `total_life`, `78` |
+| 12 | `show <ring id>` | `unread  nothing`, `total_life`, `100`, `crafted` |
 | 13 | `price set item/<ring id> exact 5 chaos` | `5 chaos`, the undo command |
 | 14 | `show <ring id>` | `5 chaos` |
 | 15 | `shop render` | `1 item to post on 1 page` |

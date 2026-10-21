@@ -36,8 +36,9 @@ whole arc is pinned once, in words a reviewer reads as a diff.
 - `search/DIGEST.md:22-37`, `:67` (S2, S3, S9, S10, S16, S17, S50: the
   real shapes); `docs/design/network-ground-truth.md:829-848` (N43, the
   frame words); `docs/design/trade-ground-truth.md:580-583` (T13).
-- `crates/acquisition-search/tests/acceptance.rs:16-175`: the content
-  the fixture's items are adapted from; `crates/acquisition-search/src/derive.rs:507-600`
+- `crates/acquisition-store/examples/export-items.rs` (`24fd3153`): the
+  tool that exported the fixture's bodies, and the shape of its output;
+  `crates/acquisition-search/src/derive.rs:507-600`
   (what the search reads); `crates/acquisition-store/src/lib.rs:2054-2101`
   (what the store refuses).
 - `crates/acquisition-verbs/src/refresh.rs:128-160`, `:464-506`
@@ -70,7 +71,16 @@ whole arc is pinned once, in words a reviewer reads as a diff.
 ## Input
 
 - The owner's word on the design and on R1, quoted in `2c-design.md`
-  section 7; his words go verbatim into commit 1's message.
+  section 7; his words go verbatim into commit 1's message. His words
+  that opened his store (`2c-design.md` 2.1) too.
+- The exported bodies, the fixture's content, under the Fable
+  session's scratch:
+  `/private/tmp/claude-502/-Users-tom-Development-GitHub-smallcatlabs-acquisition/472194ff-a4c1-4a96-a6cc-0fc467f12f35/scratchpad/2c-items/bodies.json`
+  (fourteen `{location, item}` entries: the ring, the armour and its
+  six gems, the Divine Orb and the Mirror Shard, the map, the jewel,
+  the helm, the boots; the design's appendix A names the twelve the
+  fixture takes, the Divine Orb is not one of them) and one file per
+  trait beside it. Read, never edited; the fixture is built from them.
 - The measurements of `2c-design.md` appendix D: the `changed:` line
   over-counts in 9 of 20 runs; job ids identical in 20 of 20; the `job`
   rule matches nothing in the 25 goldens.
@@ -113,28 +123,39 @@ whole arc is pinned once, in words a reviewer reads as a diff.
    not change.
 3. **The mock's items.** `crates/acquisition-daemon/src/mock-items.json`,
    compiled in with `include_str!` and parsed once (a `LazyLock`; a
-   parse failure is a broken invariant, C47 allows the panic there with
-   a message in words). Its shape: an object from key to an array of
-   item bodies, keys the tab ids `dump`, `cur1`, `m001`, `old1` and
-   `StashHoarder-inv`; the bodies of appendix A, every field it lists,
-   adapted from `acceptance.rs` and shaped to S3/S50 (object mod
-   lines), N43 (the frame words), S10 (`Map (Tier 16)` as the base),
-   S16 (sockets). `mock_items(tab, n)` returns the fixture's array when
-   the key is held, else today's Fake Items; a held key's count must
-   equal `n`, held by the test below, so `MOCK_TABS` stays the
-   listing's truth and no test's count moves. The helm (`:394-396`)
-   becomes `frameType` 3, `frameTypeId` `Unique`; the character
-   inventory items (`:398`) carry `inventoryId` `MainInventory`; the
-   guardian's `normal` becomes `Normal`; the tab `old1` is listed with
+   parse failure is a broken internal invariant, C47 allows the panic
+   there with a message in words). Its shape: an object from key to an
+   array of item bodies, keys the tab ids `dump`, `cur1`, `m001`,
+   `old1`, and `StashHoarder-equipment`, `StashHoarder-inv`. The bodies
+   are the Input's exports, byte for byte but for three things: `x`
+   and `y` set to fit the mock tab (the ring and the armour beside the
+   three Fake Items in `dump`, the shard beside two in `cur1`, the map
+   alone in `m001`, the jewel beside one in `old1`; keep `w` and `h`);
+   the six gems nested back into the armour's `socketedItems` in socket
+   order, as GGG sends them (the store lifts each into its own row, so
+   the export carries them apart with `socketed_in` naming the host);
+   and nothing else (not the ids, not the icon, not the note). Fake
+   Items fill the rest of each held key to its `MOCK_TABS` count, so
+   `mock_items(tab, n)` returns the fixture's array when the key is
+   held, else today's Fake Items, and a held key's length must equal
+   `n`, held by the test below, so no test's count moves. The
+   character: `StashHoarder-equipment` holds Alpha's Howl in place of
+   the mock helm (`:394-396`, which goes, its socketed Determination
+   with it); `StashHoarder-inv` holds the boots and three Fake Items
+   whose `inventoryId` is `MainInventory`; the guardian's `normal`
+   becomes `Normal`; the tab `old1` is listed with
    `metadata.public: true`. A unit test in the daemon crate, named for
    the property: every fixture item (socketed ones included) has an
    `id` unique across the fixture, a frame word from N43's set, and mod
-   lines that are objects; each held key's count equals its `MOCK_TABS`
-   entry; staged failures (the Input's four) each refused. Grep the
+   lines that are objects with `description`; each held key's count
+   equals its `MOCK_TABS` entry or the character's slot count; staged
+   failures (the Input's four) each refused. Grep the
    tests for `Fake Item`, `-item0`, `Stash1`, `frame rare` first and
    name in the message what you found. Drive one mock world by hand
    (your scratch) and confirm `acq search 'rarity=rare'` answers and
-   `show` prints `unread  nothing` for the ring before you commit.
+   `show` prints `unread  nothing` for the ring before you commit;
+   an `unread` line that names a field is a finding about the search's
+   reading of a real body, reported, never a reason to edit the body.
 4. **The harness.** (a) The journal reader into
    `acquisition-client/tests/harness/mod.rs`: `sends(base) -> Vec<Send>`
    with method, route, status, `counted`, `wait_ms` and the window
@@ -214,8 +235,9 @@ alone, no finding fixed.
   `crates/acquisition-verbs/tests/documents.rs` and fails when
   `events_after` is replaced by `events_since(before.at)` (checked once
   by hand, the edit reverted, said in the message).
-- `crates/acquisition-daemon/src/mock-items.json` holds five keys and
-  the items of appendix A; the daemon's fixture test exists with its
+- `crates/acquisition-daemon/src/mock-items.json` holds six keys and
+  the items of appendix A, each body equal to its export but for `x`,
+  `y` and the gems' nesting (checked by a script in the report); the daemon's fixture test exists with its
   four staged refusals; in a mock world `acq search 'rarity=rare'`
   returns the ring and `show` prints `unread  nothing` for it; no test
   outside the daemon changed for a count.
@@ -236,9 +258,11 @@ alone, no finding fixed.
 
 ## Not in scope
 
-- The owner's store as a fixture source; a path knob for the fixture;
-  a receive log in the mock; a user-agent test (raised to the owner in
-  the design; his call, outside this brief unless he adds it).
+- Reading the owner's store again (the exports are the input; a body
+  it lacks is hand-written to the census, named in the report); a path
+  knob for the fixture; a receive log in the mock; the user-agent test
+  (#51, for 2f); a read-only open for the examples (raised to the
+  owner).
 - Recording `daemon status`, the `jobs` table or `jobs --watch` in a
   golden; a `cli:<pid>` rule.
 - Subsuming `apply_loop.rs` or `plan_loop.rs`; moving either binary.
