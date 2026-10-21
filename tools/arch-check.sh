@@ -21,7 +21,9 @@
 #   8. The test layout (C122): under a crate's `tests/`, at most one file
 #      calls no `session(` — the crate's one binary of modules — and every
 #      other is a binary that sets the process environment, none of them
-#      a module of the plain one.
+#      a module of the plain one; and the binaries Cargo builds are those
+#      files, the manifest's `[[test]]` list naming each where it turns
+#      discovery off, and discovery off wherever a file lists modules.
 #
 # Exit 1 on any failure; the report names each offender.
 set -euo pipefail
@@ -350,9 +352,14 @@ fi
 # the roots are the files no other file under `tests/` lists as a module;
 # at most one root calls no `session(`, and it lists none that does. A
 # file a manifest no longer discovers and no root lists is a second plain
-# root, refused alike.
+# root, refused alike. Then held to the manifest, read with tomllib:
+# where it sets `autotests = false` its `[[test]]` paths are the roots
+# exactly, so an entry deleted, which drops a binary silently, is
+# refused, and an entry naming no root too; where discovery is on every
+# file is its own binary, so a root that lists the others as modules
+# would run each of them twice, and is refused.
 if ! layout=$(python3 -I - <<'PY'
-import glob, os, re, sys
+import glob, os, re, sys, tomllib
 MOD = re.compile(r"(?m)^\s*(?:pub\s+)?mod\s+([A-Za-z_][A-Za-z0-9_]*)\s*;")
 bad = []; n = 0
 for tests in sorted(glob.glob("crates/*/tests")):
@@ -369,6 +376,18 @@ for tests in sorted(glob.glob("crates/*/tests")):
         for m in MOD.findall(text[root]):
             if m in text and "session(" in text[m]:
                 bad.append(f"LAYOUT  {tests}/{root}.rs lists {m} as a module, and {m}.rs calls session( — a file that sets the process environment is its own binary (C122)")
+    crate = os.path.dirname(tests)
+    with open(os.path.join(crate, "Cargo.toml"), "rb") as f:
+        manifest = tomllib.load(f)
+    rooted = {f"tests/{stem}.rs" for stem in roots}
+    if manifest.get("package", {}).get("autotests", True) is False:
+        declared = {os.path.normpath(t.get("path", f"tests/{t['name']}.rs")) for t in manifest.get("test", [])}
+        for path in sorted(rooted - declared):
+            bad.append(f"LAYOUT  {crate}/{path} is a test binary's root and its manifest, which turns discovery off, names it in no [[test]] entry: its tests never run (C122)")
+        for path in sorted(declared - rooted):
+            bad.append(f"LAYOUT  {crate}/Cargo.toml names {path} in a [[test]] entry, and it is no root under tests/: a module of another binary, or no file (C122)")
+    elif listed & set(text):
+        bad.append(f"LAYOUT  {crate}/Cargo.toml leaves test discovery on while a file under tests/ lists the others as modules: every file is then its own binary as well, and runs twice — set autotests = false and name the binaries (C122)")
 print("\n".join(bad) if bad else f"ok      {'layout':<13} {n} crates' tests: one binary of modules each, the files that set the process environment their own (C122)")
 sys.exit(1 if bad else 0)
 PY

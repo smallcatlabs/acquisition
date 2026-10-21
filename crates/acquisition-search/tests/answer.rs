@@ -664,7 +664,10 @@ fn c115_an_answer_unasked_carries_only_the_routes_a_next_step_hangs_on() {
 /// `scope.list_seen` under a query that fixes one league is that league's
 /// list (and the characters'), never the realm's oldest (the re-sit,
 /// mcp-opus fault 2): Standard's tabs were listed at 10, an empty
-/// Allflame listing at 5.
+/// Allflame listing at 5. A refinement, the old text parenthesised and a
+/// term appended, fixes the same league through its nested conjunction
+/// (`fixed_league`, `src/answer.rs`). A league no list names keeps the
+/// realm's oldest, never none.
 #[test]
 fn the_scopes_list_age_under_a_query_fixing_one_league_is_that_leagues() {
     let mut s = worked();
@@ -672,8 +675,12 @@ fn the_scopes_list_age_under_a_query_fixing_one_league_is_that_leagues() {
     let corpus = load(&s, Some("pc"));
     let fixed = as_json(&ask(&corpus, "league=Standard").unwrap());
     assert_eq!(fixed["scope"]["list_seen"], 10, "{}", fixed["scope"]);
+    let refined = as_json(&ask(&corpus, "(league=Standard rarity=rare) ilvl>=1").unwrap());
+    assert_eq!(refined["scope"]["list_seen"], 10, "{}", refined["scope"]);
     let whole = as_json(&ask(&corpus, "").unwrap());
     assert_eq!(whole["scope"]["list_seen"], 5, "{}", whole["scope"]);
+    let unknown = as_json(&ask(&corpus, "league=Nowhere").unwrap());
+    assert_eq!(unknown["scope"]["list_seen"], 5, "{}", unknown["scope"]);
 }
 
 /// C115, a row as slim as the decision view allows (C53, C100): a row says

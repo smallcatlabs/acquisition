@@ -915,20 +915,49 @@ fn the_search_tool_is_acq_search_request() {
 }
 
 /// `item_events`' window: `hours` how far back, 24 by default, and
-/// `limit` how many of the newest. The fixture's fetches landed in 1970,
-/// so the default window holds none of their events and a window back to
-/// then holds them, newest first.
+/// `limit` how many of the newest. Beside the fixture's five events from
+/// 1970, two tabs fetched an hour and two days ago add an item each: the
+/// default window holds the hour-old event alone, 72 hours both and none
+/// of 1970's, and a window back to then all seven, newest first.
 #[test]
 fn item_events_reads_back_its_hours_and_defaults_to_a_day() {
-    let mut seat = Seat::new();
+    let scratch = scratch("mcp-search");
+    seed(&scratch.0);
+    let now = acquisition_store::now();
+    {
+        let mut store = Store::open(&account_path(&stores(&scratch.0), USER)).unwrap();
+        for (tab, id, at) in [
+            ("t8", "recent", now - 3600),
+            ("t9", "older", now - 48 * 3600),
+        ] {
+            record(
+                &mut store,
+                stash("pc", tab),
+                "pc",
+                json!({ "stash": { "id": tab, "name": tab, "type": "PremiumStash", "items": [
+                    item(id, "", "Iron Ring", "Rare", json!({})) ] } }),
+                at,
+            );
+        }
+    }
+    let mut seat = Seat::over(scratch);
     // an array, not a document: read through the harness's `expect_ok`,
     // which takes the structured content whatever its shape
-    let recent = seat.mcp.expect_ok("item_events", json!({}));
-    assert_eq!(recent, json!([]), "{recent}");
+    let at_of = |events: &Value| -> Vec<i64> {
+        events
+            .as_array()
+            .unwrap_or_else(|| panic!("{events}"))
+            .iter()
+            .map(|e| e["at"].as_i64().unwrap())
+            .collect()
+    };
+    let day = seat.mcp.expect_ok("item_events", json!({}));
+    assert_eq!(at_of(&day), [now - 3600], "{day}");
+    let three = seat.mcp.expect_ok("item_events", json!({ "hours": 72 }));
+    assert_eq!(at_of(&three), [now - 3600, now - 48 * 3600], "{three}");
     let all = seat.mcp.expect_ok("item_events", json!({ "hours": 1.0e9 }));
-    let all = all.as_array().unwrap_or_else(|| panic!("{all}")).clone();
-    assert_eq!(all.len(), 5, "{all:?}");
-    let at: Vec<i64> = all.iter().map(|e| e["at"].as_i64().unwrap()).collect();
+    let at = at_of(&all);
+    assert_eq!(at.len(), 7, "{all}");
     assert!(at.windows(2).all(|w| w[0] >= w[1]), "newest first: {at:?}");
     let one = seat
         .mcp

@@ -86,7 +86,41 @@ pub fn scratch(tag: &str) -> Scratch {
     ));
     let _ = std::fs::remove_dir_all(&base);
     std::fs::create_dir_all(&base).unwrap_or_else(|e| panic!("scratch {}: {e}", base.display()));
+    socket_fits_under(&base);
     Scratch(base)
+}
+
+/// The longest socket a test can derive under `base` fits the cap, so a
+/// deeper temp dir or a longer tag fails here, by name, and not as a
+/// daemon that never answers. The shape is the store's
+/// (`acquisition-store/src/world.rs`): `runtime_dir_path`'s fallback
+/// `<TMPDIR>/acq-<uid>`, the longer of it and Linux's
+/// `<XDG_RUNTIME_DIR>/acq`, and `World::socket_path_under`'s
+/// `<id>.sock`, the id twelve hex digits.
+#[cfg(unix)]
+fn socket_fits_under(base: &Path) {
+    use std::os::unix::fs::MetadataExt as _;
+    let uid = std::fs::metadata(base).map(|m| m.uid()).unwrap_or(u32::MAX);
+    let socket = scratch_tmp_path(base)
+        .join(format!("acq-{uid}"))
+        .join(format!("{}.sock", "0".repeat(12)));
+    let len = socket.as_os_str().len();
+    let cap = acquisition_store::world::SOCKET_PATH_MAX;
+    assert!(
+        len <= cap,
+        "a daemon's socket under the scratch {} would be {len} bytes, past the cap of {cap}: \
+         the temp dir is too deep or the tag too long",
+        base.display()
+    );
+}
+
+#[cfg(not(unix))]
+fn socket_fits_under(_base: &Path) {}
+
+/// Where [`scratch_tmp`] puts the runtime directory, computed and not
+/// created.
+fn scratch_tmp_path(base: &Path) -> PathBuf {
+    base.join("tmp")
 }
 
 /// The scratch temp and runtime directory of one test, under `base`:
@@ -96,7 +130,7 @@ pub fn scratch(tag: &str) -> Scratch {
 /// directory (C83). Created here, since the runtime directory is made
 /// under an existing parent.
 pub fn scratch_tmp(base: &Path) -> PathBuf {
-    let tmp = base.join("tmp");
+    let tmp = scratch_tmp_path(base);
     let _ = std::fs::create_dir_all(&tmp);
     tmp
 }

@@ -24,6 +24,17 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
+# The paths the cases create and every restore removes, named once: a
+# path already there is someone's (uncommitted work, or a link to it),
+# and removing it would lose it, so the suite refuses to start.
+owned=(crates/acquisition-helper crates/acquisition-client/src/zz_breaker.rs crates/acquisition-cli/src/zz_breaker.rs
+       crates/acquisition-mcp/src/zz_breaker.rs crates/acquisition-search/src/zz_breaker.rs crates/acquisition-cli/tests/zz_breaker.rs)
+for p in "${owned[@]}"; do
+  if [[ -e $p || -L $p ]]; then
+    echo "refusing to start: $p exists, and the suite would delete it on every restore"; exit 2
+  fi
+done
+
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/acq-breakers.XXXXXX")
 files=(Cargo.toml Cargo.lock crates/acquisition-plan/Cargo.toml crates/acquisition-store/Cargo.toml crates/acquisition-search/Cargo.toml crates/acquisition-cli/Cargo.toml crates/acquisition-mcp/Cargo.toml crates/acquisition-client/Cargo.toml crates/acquisition-daemon/Cargo.toml crates/acquisition-cli/tests/main.rs tools/arch-check.sh)
 for f in "${files[@]}"; do mkdir -p "$scratch/keep/$(dirname "$f")"; cp "$f" "$scratch/keep/$f"; done
@@ -33,9 +44,7 @@ restore() {
     cp "$scratch/keep/$f" "$f"
     cmp -s "$scratch/keep/$f" "$f" || { echo "RESTORE FAILED: $f"; exit 2; }
   done
-  rm -rf crates/acquisition-helper
-  rm -f crates/acquisition-client/src/zz_breaker.rs crates/acquisition-cli/src/zz_breaker.rs crates/acquisition-mcp/src/zz_breaker.rs crates/acquisition-search/src/zz_breaker.rs
-  rm -f crates/acquisition-cli/tests/zz_breaker.rs
+  rm -rf "${owned[@]}"
 }
 trap 'restore; rm -rf "$scratch"' EXIT
 
@@ -197,6 +206,26 @@ second_plain() { printf '// breaker: a second binary that sets nothing\n#[test]\
 merged_session() { printf 'mod watch_recovery;\n' >>crates/acquisition-cli/tests/main.rs; }
 run_case 'a second file without session( under tests/'           refuse 'LAYOUT  crates/acquisition-cli/tests: 2 files call no session(' second_plain
 run_case 'a session( file listed as a mod of the plain one'      refuse 'lists watch_recovery as a module' merged_session
+unlisted_root() {  # the CLI manifest's watch_recovery entry deleted
+  python3 - <<'PY'
+import pathlib
+p = pathlib.Path('crates/acquisition-cli/Cargo.toml'); s = p.read_text()
+a = '\n[[test]]\nname = "watch_recovery"\npath = "tests/watch_recovery.rs"\n'
+assert s.count(a) == 1, 'the watch_recovery entry is not there once'
+p.write_text(s.replace(a, ''))
+PY
+}
+discovery_on() {  # the search manifest's autotests = false deleted
+  python3 - <<'PY'
+import pathlib
+p = pathlib.Path('crates/acquisition-search/Cargo.toml'); s = p.read_text()
+a = 'autotests = false\n'
+assert s.count(a) == 1, 'autotests = false is not there once'
+p.write_text(s.replace(a, ''))
+PY
+}
+run_case 'a binary'"'"'s [[test]] entry deleted'                    refuse 'tests/watch_recovery.rs is a test binary'"'"'s root' unlisted_root
+run_case 'discovery on beside a binary of modules'               refuse 'acquisition-search/Cargo.toml leaves test discovery on' discovery_on
 run_case 'the layout as it stands'                               pass   'ok      layout' none
 
 echo '== the code: shapes that must pass'
