@@ -26,6 +26,9 @@ came back until it was named:
 7. One fact read in two places, so that a fix in one leaves the other.
 8. Evidence read off whatever is on disk rather than the fixed input
    the brief names.
+9. A fixture regenerated blind: every changed file under `tests/goldens/`
+   or a `*-REFERENCE.md` is read as a diff of what a user now reads, and a
+   change no source change in the commit explains is a finding.
 
 Then whether the brief's "done when" lines are actually met by what
 landed; a line that needs execution to check is reported as "not
