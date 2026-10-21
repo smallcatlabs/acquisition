@@ -6,7 +6,7 @@
 //! deliberately minimal; this is scaffolding, not a web server.
 
 use std::collections::{HashMap, VecDeque};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, LazyLock, Mutex};
 use std::time::{Duration, Instant};
 
 use crate::ratelimit::{Clock, SystemClock};
@@ -235,6 +235,11 @@ const MOCK_TABS: &[(&str, &str, &str, usize, Option<&str>)] = &[
     ("mape", "Maps (empty)", "MapStash", 0, None),
 ];
 
+/// Tabs the listing marks `public`, whose notes the game itself lists
+/// for sale (C81, the effective price: only a public tab's game side is
+/// a statement). `old1` holds the fixture's noted jewel.
+const PUBLIC_TABS: &[&str] = &["old1"];
+
 fn mock_tab(
     id: &str,
 ) -> Option<&'static (
@@ -247,13 +252,53 @@ fn mock_tab(
     MOCK_TABS.iter().find(|t| t.0 == id)
 }
 
-fn mock_items(tab: &str, n: usize) -> Vec<serde_json::Value> {
+/// C123 (the mock's real-shaped items): the fixture, compiled in. An
+/// object from a location key to the whole item array GGG would send
+/// there: a tab id (`dump`), or `{character}-equipment` and
+/// `{character}-inv`. Its bodies are the owner's own items as his store
+/// exported them, changed in two ways only: `x` and `y` set to fit the
+/// mock tab, and the armour's six gems nested back into its
+/// `socketedItems` in socket order, as GGG sends them (the store lifts
+/// each gem into a row of its own, so the export carried them apart).
+/// Fake Items fill each held array to its location's count, so a listing
+/// count never moves; the stored item count does, by the gems.
+const MOCK_ITEMS_JSON: &str = include_str!("mock-items.json");
+
+/// The fixture, parsed once. A fixture that does not parse is a broken
+/// build, never input (C47), so the panic says so in words.
+static MOCK_ITEMS: LazyLock<serde_json::Map<String, serde_json::Value>> = LazyLock::new(|| {
+    serde_json::from_str(MOCK_ITEMS_JSON)
+        .expect("the mock's compiled-in item fixture, mock-items.json, is a JSON object")
+});
+
+/// A mock character's array sizes: one equipped item, four in the
+/// inventory.
+const EQUIPMENT_SLOTS: usize = 1;
+const INVENTORY_SLOTS: usize = 4;
+
+/// The items at a location: the fixture's array where it holds the key,
+/// else `n` Fake Items. A held array's length is the location's count, a
+/// property the fixture test holds.
+fn mock_items(key: &str, n: usize) -> Vec<serde_json::Value> {
+    if let Some(serde_json::Value::Array(held)) = MOCK_ITEMS.get(key) {
+        return held.clone();
+    }
+    // the slot word GGG gives an item where it sits: a stash item reads
+    // `Stash1` (T13), a character's `MainInventory` or its slot's name
+    let inventory = if key.ends_with("-inv") {
+        "MainInventory"
+    } else if key.ends_with("-equipment") {
+        "Helm"
+    } else {
+        "Stash1"
+    };
     (0..n)
         .map(|i| {
             json!({
-                "id": format!("{tab}-item{i}"), "name": "", "typeLine": format!("Fake Item {i}"),
+                "id": format!("{key}-item{i}"), "name": "", "typeLine": format!("Fake Item {i}"),
                 "baseType": format!("Fake Item {i}"), "w": 1, "h": 1, "x": i, "y": 0,
-                "inventoryId": "Stash1", "league": "Standard", "frameType": 0, "identified": true,
+                "inventoryId": inventory, "league": "Standard", "frameType": 0, "frameTypeId": "Normal",
+                "identified": true,
             })
         })
         .collect()
@@ -390,12 +435,8 @@ fn mock_character(realm: acquisition_protocol::realm::Realm, name: &str) -> serd
     let mut character = json!({
         "id": id, "name": name, "realm": realm.as_str(), "class": "Scion", "league": "Standard", "level": 97,
         "experience": MOCK_EXPERIENCE,
-        "equipment": [
-            { "id": format!("{name}-helm"), "name": "Starkonja's Head", "typeLine": "Silken Hood", "baseType": "Silken Hood",
-              "w": 2, "h": 2, "x": 0, "y": 0, "inventoryId": "Helm", "league": "Standard", "frameType": 3, "frameTypeId": "rare", "identified": true,
-              "socketedItems": [ { "id": format!("{name}-gem0"), "typeLine": "Determination", "baseType": "Determination", "socket": 0, "colour": "S", "frameType": 4, "frameTypeId": "gem" } ] },
-        ],
-        "inventory": mock_items(&format!("{name}-inv"), 4),
+        "equipment": mock_items(&format!("{name}-equipment"), EQUIPMENT_SLOTS),
+        "inventory": mock_items(&format!("{name}-inv"), INVENTORY_SLOTS),
         "jewels": [],
     });
     if realm == acquisition_protocol::realm::Realm::Pc && name == "StashHoarder" {
@@ -404,9 +445,9 @@ fn mock_character(realm: acquisition_protocol::realm::Realm, name: &str) -> serd
         // cannot say which array it sits in.
         character["guardian"] = json!([
             { "id": format!("{name}-guardian-helm"), "name": "", "typeLine": "Iron Hat", "baseType": "Iron Hat",
-              "w": 2, "h": 2, "x": 0, "y": 0, "inventoryId": "Helm", "league": "Standard", "frameType": 0, "frameTypeId": "normal", "identified": true },
+              "w": 2, "h": 2, "x": 0, "y": 0, "inventoryId": "Helm", "league": "Standard", "frameType": 0, "frameTypeId": "Normal", "identified": true },
             { "id": format!("{name}-guardian-weapon"), "name": "", "typeLine": "Rusted Sword", "baseType": "Rusted Sword",
-              "w": 1, "h": 3, "x": 0, "y": 0, "inventoryId": "Weapon", "league": "Standard", "frameType": 0, "frameTypeId": "normal", "identified": true },
+              "w": 1, "h": 3, "x": 0, "y": 0, "inventoryId": "Weapon", "league": "Standard", "frameType": 0, "frameTypeId": "Normal", "identified": true },
         ]);
     }
     if realm == acquisition_protocol::realm::Realm::Poe2 {
@@ -444,7 +485,13 @@ fn mock_stash_list(league: &str) -> serde_json::Value {
                     .iter()
                     .enumerate()
                     .filter(|(_, c)| c.4 == Some(t.0))
-                    .map(|(j, c)| json!({ "id": c.0, "name": c.1, "type": c.2, "index": j, "folder": t.0, "metadata": { "colour": "7c5436", "folder": true } }))
+                    .map(|(j, c)| {
+                        let mut child = json!({ "id": c.0, "name": c.1, "type": c.2, "index": j, "folder": t.0, "metadata": { "colour": "7c5436", "folder": true } });
+                        if PUBLIC_TABS.contains(&c.0) {
+                            child["metadata"]["public"] = json!(true);
+                        }
+                        child
+                    })
                     .collect::<Vec<_>>());
             }
             v
@@ -967,6 +1014,205 @@ mod tests {
             c("/profile"),
             Some(("/profile".into(), Realm::Pc, String::new()))
         );
+    }
+
+    /// GGG's `frameTypeId` words, capitalised as every real body spells
+    /// them (N43; the census met these nine).
+    const FRAME_WORDS: &[&str] = &[
+        "Normal",
+        "Magic",
+        "Rare",
+        "Unique",
+        "Gem",
+        "Currency",
+        "DivinationCard",
+        "Quest",
+        "SupporterFoil",
+    ];
+
+    /// What is wrong with a fixture, in words; empty when nothing is. Every
+    /// item, socketed ones included, has an id unique across the fixture
+    /// (the store refuses an id-less item and rolls back its whole tab), a
+    /// frame word from N43's set, and `explicitMods` and `implicitMods`
+    /// lines that are `{description}` objects (S50); each key is a mock
+    /// location whose array has that location's count.
+    fn fixture_faults(fixture: &serde_json::Value) -> Vec<String> {
+        fn walk(
+            item: &serde_json::Value,
+            at: &str,
+            ids: &mut std::collections::HashSet<String>,
+            faults: &mut Vec<String>,
+        ) {
+            match item["id"].as_str() {
+                None => faults.push(format!("{at}: an item without an id")),
+                Some(id) if !ids.insert(id.to_string()) => {
+                    faults.push(format!("{at}: the id {id} is held twice"))
+                }
+                Some(_) => {}
+            }
+            match item["frameTypeId"].as_str() {
+                Some(word) if FRAME_WORDS.contains(&word) => {}
+                other => faults.push(format!("{at}: the frame word {other:?} is none of GGG's")),
+            }
+            for array in ["explicitMods", "implicitMods"] {
+                for line in item[array].as_array().into_iter().flatten() {
+                    if line["description"].as_str().is_none() {
+                        faults.push(format!(
+                            "{at}: a line of {array} that is not an object with a description: {line}"
+                        ));
+                    }
+                }
+            }
+            for (i, gem) in item["socketedItems"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .enumerate()
+            {
+                walk(gem, &format!("{at} socketed {i}"), ids, faults);
+            }
+        }
+        let mut faults = Vec::new();
+        let mut ids = std::collections::HashSet::new();
+        let Some(keys) = fixture.as_object() else {
+            return vec!["the fixture is not an object".into()];
+        };
+        for (key, items) in keys {
+            let count = match mock_tab(key) {
+                Some(tab) => Some(tab.3),
+                None if key.ends_with("-equipment") => Some(EQUIPMENT_SLOTS),
+                None if key.ends_with("-inv") => Some(INVENTORY_SLOTS),
+                None => None,
+            };
+            let items = items.as_array().map(Vec::as_slice).unwrap_or_default();
+            match count {
+                None => faults.push(format!("{key}: no mock location has this key")),
+                Some(n) if n != items.len() => faults.push(format!(
+                    "{key}: holds {} items where the location counts {n}",
+                    items.len()
+                )),
+                Some(_) => {}
+            }
+            for (i, item) in items.iter().enumerate() {
+                walk(item, &format!("{key} {i}"), &mut ids, &mut faults);
+            }
+        }
+        faults
+    }
+
+    /// C123 (the mock's real-shaped items): the compiled-in fixture is
+    /// real-shaped and fills each location to its count, its real items
+    /// are the thirteen the owner's export named, and each of the four
+    /// faults a hand edit could bring is refused.
+    #[test]
+    fn every_fixture_item_is_real_shaped_and_each_location_holds_its_count() {
+        let fixture = serde_json::Value::Object(MOCK_ITEMS.clone());
+        assert_eq!(fixture_faults(&fixture), Vec::<String>::new());
+        let mut keys: Vec<&str> = MOCK_ITEMS.keys().map(String::as_str).collect();
+        keys.sort_unstable();
+        assert_eq!(
+            keys,
+            [
+                "StashHoarder-equipment",
+                "StashHoarder-inv",
+                "cur1",
+                "dump",
+                "m001",
+                "old1"
+            ]
+        );
+
+        // the real items, by their 64-hex ids' prefixes; the rest are Fake Items
+        fn real(item: &serde_json::Value, out: &mut Vec<String>) {
+            let id = item["id"].as_str().unwrap_or_default();
+            if id.len() == 64 {
+                out.push(id[..8].to_string());
+            }
+            for gem in item["socketedItems"].as_array().into_iter().flatten() {
+                real(gem, out);
+            }
+        }
+        let mut prefixes = Vec::new();
+        for items in MOCK_ITEMS.values() {
+            for item in items.as_array().into_iter().flatten() {
+                real(item, &mut prefixes);
+            }
+        }
+        prefixes.sort_unstable();
+        assert_eq!(
+            prefixes,
+            [
+                "17472696", "19ae55aa", "21abf694", "23e1a67b", "3c7ca2f1", "3dd01678", "51e6c105",
+                "83653ccb", "9ce07db0", "a52a2cd2", "c52162ff", "e7faac8c", "edbee5a2",
+            ]
+        );
+        let armour = &MOCK_ITEMS["dump"][1];
+        let sockets: Vec<u64> = armour["socketedItems"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|gem| gem["socket"].as_u64().unwrap())
+            .collect();
+        assert_eq!(sockets, [0, 1, 2, 3, 4, 5], "the gems nest in socket order");
+
+        // each staged fault is refused, in words naming it
+        let staged = |edit: &dyn Fn(&mut serde_json::Value), names: &str| {
+            let mut broken = fixture.clone();
+            edit(&mut broken);
+            let faults = fixture_faults(&broken);
+            assert!(
+                faults.iter().any(|f| f.contains(names)),
+                "{names:?} not refused: {faults:?}"
+            );
+        };
+        staged(
+            &|f| {
+                f["dump"][1]["socketedItems"][2]
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("id");
+            },
+            "dump 1 socketed 2: an item without an id",
+        );
+        staged(
+            &|f| f["dump"][0]["frameTypeId"] = json!("rare"),
+            "the frame word Some(\"rare\") is none of GGG's",
+        );
+        staged(
+            &|f| f["dump"][0]["explicitMods"][1] = json!("+78 to maximum Life"),
+            "a line of explicitMods that is not an object",
+        );
+        staged(
+            &|f| {
+                let extra = f["m001"][0].clone();
+                f["m001"].as_array_mut().unwrap().push(extra);
+            },
+            "m001: holds 2 items where the location counts 1",
+        );
+    }
+
+    /// The mock serves the fixture where it holds a location and Fake
+    /// Items elsewhere, every inventory item with the real slot word.
+    #[test]
+    fn the_mock_serves_the_fixture_where_it_holds_a_location() {
+        let dump = mock_stash("dump", None).unwrap();
+        assert_eq!(dump["stash"]["items"][0]["name"], "Empyrean Knot");
+        assert_eq!(dump["stash"]["items"].as_array().unwrap().len(), 5);
+        let u001 = mock_stash("uniq", Some("u001")).unwrap();
+        assert_eq!(u001["stash"]["items"][0]["typeLine"], "Fake Item 0");
+        let hoarder = mock_character(Realm::Pc, "StashHoarder");
+        assert_eq!(hoarder["character"]["equipment"][0]["name"], "Alpha's Howl");
+        for name in ["StashHoarder", "MuleQuadTab"] {
+            let character = mock_character(Realm::Pc, name);
+            for item in character["character"]["inventory"].as_array().unwrap() {
+                assert_eq!(item["inventoryId"], "MainInventory", "{name}: {item}");
+            }
+        }
+        let list = mock_stash_list("Standard");
+        let fold = &list["stashes"].as_array().unwrap()[2];
+        assert_eq!(fold["children"][0]["id"], "old1");
+        assert_eq!(fold["children"][0]["metadata"]["public"], true);
+        assert!(fold["children"][1]["metadata"]["public"].is_null());
     }
 
     #[test]

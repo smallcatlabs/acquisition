@@ -1,0 +1,1348 @@
+{
+ "cur1": [
+  {
+   "baseType": "Mirror Shard",
+   "descrText": "A stack of 20 shards becomes a Mirror of Kalandra.",
+   "frameType": 5,
+   "frameTypeId": "Currency",
+   "h": 1,
+   "icon": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvTWlycm9yU2hhcmQiLCJ3IjoxLCJoIjoxLCJzY2FsZSI6MX1d/6604b7aa32/MirrorShard.png",
+   "id": "19ae55aa95f410a20763547ba18f36841612ac41c13ffe3e28e92e9d8de03567",
+   "identified": true,
+   "ilvl": 0,
+   "inventoryId": "Stash1",
+   "league": "Standard",
+   "maxStackSize": 20,
+   "name": "",
+   "properties": [
+    {
+     "displayMode": 0,
+     "name": "Stack Size",
+     "type": 32,
+     "values": [
+      [
+       "7/20",
+       0
+      ]
+     ]
+    }
+   ],
+   "stackSize": 7,
+   "typeLine": "Mirror Shard",
+   "verified": false,
+   "w": 1,
+   "x": 0,
+   "y": 0
+  },
+  {
+   "id": "cur1-item1",
+   "name": "",
+   "typeLine": "Fake Item 1",
+   "baseType": "Fake Item 1",
+   "w": 1,
+   "h": 1,
+   "x": 1,
+   "y": 0,
+   "inventoryId": "Stash1",
+   "league": "Standard",
+   "frameType": 0,
+   "frameTypeId": "Normal",
+   "identified": true
+  },
+  {
+   "id": "cur1-item2",
+   "name": "",
+   "typeLine": "Fake Item 2",
+   "baseType": "Fake Item 2",
+   "w": 1,
+   "h": 1,
+   "x": 2,
+   "y": 0,
+   "inventoryId": "Stash1",
+   "league": "Standard",
+   "frameType": 0,
+   "frameTypeId": "Normal",
+   "identified": true
+  }
+ ],
+ "dump": [
+  {
+   "baseType": "Coral Ring",
+   "explicitMods": [
+    {
+     "description": "+16 to Strength"
+    },
+    {
+     "description": "+78 to maximum Life"
+    },
+    {
+     "description": "+66 to maximum Mana"
+    },
+    {
+     "description": "+15% to all Elemental Resistances"
+    },
+    {
+     "description": "+15% to Cold and Chaos Resistances",
+     "flags": {
+      "crafted": true
+     }
+    }
+   ],
+   "frameType": 2,
+   "frameTypeId": "Rare",
+   "h": 1,
+   "icon": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvUmluZ3MvUmluZzIiLCJ3IjoxLCJoIjoxLCJzY2FsZSI6MX1d/6e12710920/Ring2.png",
+   "id": "51e6c1055b1d94f8c53921012d459ec5d2f4e353f674f4b03192c79375c4c682",
+   "identified": true,
+   "ilvl": 83,
+   "implicitMods": [
+    {
+     "description": "+22 to maximum Life"
+    }
+   ],
+   "inventoryId": "Stash1",
+   "league": "Standard",
+   "name": "Empyrean Knot",
+   "rarity": "Rare",
+   "requirements": [
+    {
+     "displayMode": 0,
+     "name": "Level",
+     "type": 62,
+     "values": [
+      [
+       "64",
+       0
+      ]
+     ]
+    }
+   ],
+   "typeLine": "Coral Ring",
+   "verified": false,
+   "w": 1,
+   "x": 0,
+   "y": 0
+  },
+  {
+   "baseType": "Saint's Hauberk",
+   "explicitMods": [
+    {
+     "description": "191% increased Armour and Energy Shield"
+    },
+    {
+     "description": "+89 to maximum Life"
+    },
+    {
+     "description": "Deal no Non-Lightning Damage"
+    },
+    {
+     "description": "Armour also applies to Lightning Damage taken from Hits"
+    },
+    {
+     "description": "Lightning Resistance does not affect Lightning Damage taken"
+    },
+    {
+     "description": "Nearby Enemies have Lightning Resistance equal to yours"
+    }
+   ],
+   "flavourText": [
+    "\"This was the first step in some grand design, \r",
+    "lost to the ages, now ours to decipher.\" \r",
+    "- Dominus, High Templar"
+   ],
+   "frameType": 3,
+   "frameTypeId": "Unique",
+   "h": 3,
+   "icon": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQXJtb3Vycy9Cb2R5QXJtb3Vycy9TaG9ja0Nsb2FrIiwidyI6MiwiaCI6Mywic2NhbGUiOjF9XQ/44e73cc73c/ShockCloak.png",
+   "id": "23e1a67b5ab2bae129a4ba005c112daa706795a92b5469a0a2791e845abf26f3",
+   "identified": true,
+   "ilvl": 85,
+   "inventoryId": "Stash1",
+   "league": "Standard",
+   "name": "Doryani's Prototype",
+   "properties": [
+    {
+     "displayMode": 0,
+     "name": "Quality",
+     "type": 6,
+     "values": [
+      [
+       "+20%",
+       1
+      ]
+     ]
+    },
+    {
+     "displayMode": 0,
+     "name": "Armour",
+     "type": 16,
+     "values": [
+      [
+       "1659",
+       1
+      ]
+     ]
+    },
+    {
+     "displayMode": 0,
+     "name": "Energy Shield",
+     "type": 18,
+     "values": [
+      [
+       "286",
+       1
+      ]
+     ]
+    }
+   ],
+   "rarity": "Unique",
+   "requirements": [
+    {
+     "displayMode": 0,
+     "name": "Level",
+     "suffix": "(gem)",
+     "type": 62,
+     "values": [
+      [
+       "80",
+       0
+      ]
+     ]
+    },
+    {
+     "displayMode": 1,
+     "name": "Str",
+     "suffix": "(gem)",
+     "type": 63,
+     "values": [
+      [
+       "111",
+       0
+      ]
+     ]
+    },
+    {
+     "displayMode": 1,
+     "name": "Dex",
+     "suffix": "(gem)",
+     "type": 64,
+     "values": [
+      [
+       "114",
+       0
+      ]
+     ]
+    },
+    {
+     "displayMode": 1,
+     "name": "Int",
+     "suffix": "(gem)",
+     "type": 65,
+     "values": [
+      [
+       "126",
+       0
+      ]
+     ]
+    }
+   ],
+   "sockets": [
+    {
+     "attr": "D",
+     "group": 0,
+     "sColour": "G"
+    },
+    {
+     "attr": "S",
+     "group": 0,
+     "sColour": "R"
+    },
+    {
+     "attr": "S",
+     "group": 0,
+     "sColour": "R"
+    },
+    {
+     "attr": "S",
+     "group": 0,
+     "sColour": "R"
+    },
+    {
+     "attr": "S",
+     "group": 0,
+     "sColour": "R"
+    },
+    {
+     "attr": "I",
+     "group": 0,
+     "sColour": "B"
+    }
+   ],
+   "typeLine": "Saint's Hauberk",
+   "verified": false,
+   "w": 2,
+   "x": 1,
+   "y": 0,
+   "socketedItems": [
+    {
+     "baseType": "Faster Attacks Support",
+     "colour": "D",
+     "corrupted": true,
+     "descrText": "This is a Support Gem. It does not grant a bonus to your character, but to skills in sockets connected to it. Place into an item socket connected to a socket containing the Skill Gem you wish to augment. Right click to remove from a socket.",
+     "explicitMods": [
+      {
+       "description": "Supported Skills have 55% increased Attack Speed"
+      }
+     ],
+     "frameType": 4,
+     "frameTypeId": "Gem",
+     "h": 1,
+     "icon": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvR2Vtcy9TdXBwb3J0L0Zhc3RlckF0dGFja3MiLCJ3IjoxLCJoIjoxLCJzY2FsZSI6MX1d/c3e1544a95/FasterAttacks.png",
+     "id": "17472696bdf33012a202646d0b8803f34b0302a265e6653f7f321ef07d00b571",
+     "identified": true,
+     "ilvl": 0,
+     "league": "Standard",
+     "name": "",
+     "properties": [
+      {
+       "displayMode": 0,
+       "name": "Attack, Support",
+       "values": []
+      },
+      {
+       "displayMode": 0,
+       "name": "Level",
+       "type": 5,
+       "values": [
+        [
+         "21 (Max)",
+         0
+        ]
+       ]
+      },
+      {
+       "displayMode": 0,
+       "name": "Cost & Reservation Multiplier",
+       "values": [
+        [
+         "110%",
+         0
+        ]
+       ]
+      },
+      {
+       "displayMode": 0,
+       "name": "Quality",
+       "type": 6,
+       "values": [
+        [
+         "+20%",
+         1
+        ]
+       ]
+      }
+     ],
+     "requirements": [
+      {
+       "displayMode": 0,
+       "name": "Level",
+       "type": 62,
+       "values": [
+        [
+         "72",
+         0
+        ]
+       ]
+      },
+      {
+       "displayMode": 1,
+       "name": "Dex",
+       "type": 64,
+       "values": [
+        [
+         "114",
+         0
+        ]
+       ]
+      }
+     ],
+     "secDescrText": "Supports attack skills.",
+     "socket": 0,
+     "support": true,
+     "typeLine": "Faster Attacks Support",
+     "verified": false,
+     "w": 1
+    },
+    {
+     "baseType": "Smite",
+     "colour": "S",
+     "descrText": "Place into an item socket to gain this skill. Right click to remove from a socket.",
+     "explicitMods": [
+      {
+       "description": "50% of Physical Damage Converted to Lightning Damage"
+      },
+      {
+       "description": "Base duration is 4.00 seconds"
+      },
+      {
+       "description": "10% less Area Damage"
+      },
+      {
+       "description": "Base radius is 2.1 metres"
+      },
+      {
+       "description": "Base Aura radius is 4.2 metres"
+      },
+      {
+       "description": "Lightning strikes 1 target within 5 metres"
+      },
+      {
+       "description": "Aura grants 12 to 220 added Lightning Damage"
+      },
+      {
+       "description": "Aura grants 19% chance to Shock"
+      }
+     ],
+     "frameType": 4,
+     "frameTypeId": "Gem",
+     "h": 1,
+     "icon": "https://web.poecdn.com/gen/image/WzMwLDE0LHsiZiI6IjJESXRlbXMvR2Vtcy9TbWl0ZUdlbSIsInciOjEsImgiOjEsInNjYWxlIjoxfV0/080c458cfe/SmiteGem.png",
+     "id": "e7faac8c5a32ed515872d051c1943d02366126bd8bc959ee1aae80a4e26d84bb",
+     "identified": true,
+     "ilvl": 0,
+     "league": "Standard",
+     "name": "",
+     "properties": [
+      {
+       "displayMode": 0,
+       "name": "Lightning, Melee, Attack, AoE, Duration, Strike, Aura",
+       "values": []
+      },
+      {
+       "displayMode": 0,
+       "name": "Level",
+       "type": 5,
+       "values": [
+        [
+         "20 (Max)",
+         0
+        ]
+       ]
+      },
+      {
+       "displayMode": 0,
+       "name": "Cost",
+       "values": [
+        [
+         "12 Mana",
+         0
+        ]
+       ]
+      },
+      {
+       "displayMode": 0,
+       "name": "Attack Speed",
+       "values": [
+        [
+         "85% of base",
+         0
+        ]
+       ]
+      },
+      {
+       "displayMode": 0,
+       "name": "Attack Damage",
+       "values": [
+        [
+         "488.6% of base",
+         0
+        ]
+       ]
+      },
+      {
+       "displayMode": 0,
+       "name": "Effectiveness of Added Damage",
+       "values": [
+        [
+         "488%",
+         0
+        ]
+       ]
+      },
+      {
+       "displayMode": 0,
+       "name": "Quality",
+       "type": 6,
+       "values": [
+        [
+         "+20%",
+         1
+        ]
+       ]
+      }
+     ],
+     "requirements": [
+      {
+       "displayMode": 0,
+       "name": "Level",
+       "type": 62,
+       "values": [
+        [
+         "70",
+         0
+        ]
+       ]
+      },
+      {
+       "displayMode": 1,
+       "name": "Str",
+       "type": 63,
+       "values": [
+        [
+         "98",
+         0
+        ]
+       ]
+      },
+      {
+       "displayMode": 1,
+       "name": "Int",
+       "type": 65,
+       "values": [
+        [
+         "68",
+         0
+        ]
+       ]
+      }
+     ],
+     "secDescrText": "Performs a melee attack, and causes lightning to strike a nearby enemy, dealing damage in an area. Each target can only be hit once by this skill. Hitting an enemy grants an aura for a duration. Requires a Sword, Axe, Mace, Sceptre, Staff or Unarmed.",
+     "socket": 1,
+     "support": false,
+     "typeLine": "Smite",
+     "verified": false,
+     "w": 1
+    },
+    {
+     "baseType": "Awakened Elemental Damage with Attacks Support",
+     "colour": "S",
+     "corrupted": true,
+     "descrText": "This is a Support Gem. It does not grant a bonus to your character, but to skills in sockets connected to it. Place into an item socket connected to a socket containing the Skill Gem you wish to augment. Right click to remove from a socket.",
+     "explicitMods": [
+      {
+       "description": "10% increased Elemental Damage with Attack Skills"
+      },
+      {
+       "description": "Supported Attack Skills deal 39% more Elemental Damage"
+      },
+      {
+       "description": "Elemental Damage from Supported Skills cannot be Reflected"
+      }
+     ],
+     "frameType": 4,
+     "frameTypeId": "Gem",
+     "h": 1,
+     "icon": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvR2Vtcy9TdXBwb3J0L1N1cHBvcnRQbHVzL1dlYXBvbkVsZW1lbnRhbERhbWFnZVBsdXMiLCJ3IjoxLCJoIjoxLCJzY2FsZSI6MX1d/2d6aa43759/WeaponElementalDamagePlus.png",
+     "id": "3dd01678f9abffdc92bacd8c0000ce8ca301c12312e471eae49f36315d9dfdc0",
+     "identified": true,
+     "ilvl": 0,
+     "league": "Standard",
+     "name": "",
+     "properties": [
+      {
+       "displayMode": 0,
+       "name": "Attack, Support",
+       "values": []
+      },
+      {
+       "displayMode": 0,
+       "name": "Level",
+       "type": 5,
+       "values": [
+        [
+         "5 (Max)",
+         0
+        ]
+       ]
+      },
+      {
+       "displayMode": 0,
+       "name": "Cost & Reservation Multiplier",
+       "values": [
+        [
+         "130%",
+         0
+        ]
+       ]
+      },
+      {
+       "displayMode": 0,
+       "name": "Quality",
+       "type": 6,
+       "values": [
+        [
+         "+20%",
+         1
+        ]
+       ]
+      }
+     ],
+     "requirements": [
+      {
+       "displayMode": 0,
+       "name": "Level",
+       "type": 62,
+       "values": [
+        [
+         "80",
+         0
+        ]
+       ]
+      },
+      {
+       "displayMode": 1,
+       "name": "Str",
+       "type": 63,
+       "values": [
+        [
+         "79",
+         0
+        ]
+       ]
+      },
+      {
+       "displayMode": 1,
+       "name": "Int",
+       "type": 65,
+       "values": [
+        [
+         "55",
+         0
+        ]
+       ]
+      }
+     ],
+     "secDescrText": "Supports attack skills.",
+     "socket": 2,
+     "support": true,
+     "typeLine": "Awakened Elemental Damage with Attacks Support",
+     "verified": false,
+     "w": 1
+    },
+    {
+     "baseType": "Multistrike Support",
+     "colour": "S",
+     "descrText": "This is a Support Gem. It does not grant a bonus to your character, but to skills in sockets connected to it. Place into an item socket connected to a socket containing the Skill Gem you wish to augment. Right click to remove from a socket.",
+     "explicitMods": [
+      {
+       "description": "Supported Skills Repeat 2 additional times"
+      },
+      {
+       "description": "Supported Skills have 44% more Melee Attack Speed"
+      },
+      {
+       "description": "Supported Skills deal 20% less Attack Damage"
+      },
+      {
+       "description": "Supported Skills deal 10% increased Melee Damage"
+      },
+      {
+       "description": "First Repeat of Supported Skills deals 22% more Damage"
+      },
+      {
+       "description": "Second Repeat of Supported Skills deals 44% more Damage"
+      }
+     ],
+     "frameType": 4,
+     "frameTypeId": "Gem",
+     "h": 1,
+     "icon": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvR2Vtcy9TdXBwb3J0L211bHRpcGxlYXR0YWNrcyIsInciOjEsImgiOjEsInNjYWxlIjoxfV0/49bb71ab5f/multipleattacks.png",
+     "id": "a52a2cd2e5b3b2c924cfb140b5d02206a1074203305607ad3f49a4338a2c6944",
+     "identified": true,
+     "ilvl": 0,
+     "league": "Standard",
+     "name": "",
+     "properties": [
+      {
+       "displayMode": 0,
+       "name": "Attack, Melee, Support",
+       "values": []
+      },
+      {
+       "displayMode": 0,
+       "name": "Level",
+       "type": 5,
+       "values": [
+        [
+         "20 (Max)",
+         0
+        ]
+       ]
+      },
+      {
+       "displayMode": 0,
+       "name": "Cost & Reservation Multiplier",
+       "values": [
+        [
+         "150%",
+         0
+        ]
+       ]
+      },
+      {
+       "displayMode": 0,
+       "name": "Quality",
+       "type": 6,
+       "values": [
+        [
+         "+20%",
+         1
+        ]
+       ]
+      }
+     ],
+     "requirements": [
+      {
+       "displayMode": 0,
+       "name": "Level",
+       "type": 62,
+       "values": [
+        [
+         "70",
+         0
+        ]
+       ]
+      },
+      {
+       "displayMode": 1,
+       "name": "Str",
+       "type": 63,
+       "values": [
+        [
+         "70",
+         0
+        ]
+       ]
+      },
+      {
+       "displayMode": 1,
+       "name": "Dex",
+       "type": 64,
+       "values": [
+        [
+         "48",
+         0
+        ]
+       ]
+      }
+     ],
+     "secDescrText": "Supports melee attack skills, making them repeat twice when used, targeting a random enemy each time. Cannot support Vaal skills, channelling skills, travel skills, retaliation skills or triggered skills.",
+     "socket": 3,
+     "support": true,
+     "typeLine": "Multistrike Support",
+     "verified": false,
+     "w": 1
+    },
+    {
+     "baseType": "Ruthless Support",
+     "colour": "S",
+     "corrupted": true,
+     "descrText": "This is a Support Gem. It does not grant a bonus to your character, but to skills in sockets connected to it. Place into an item socket connected to a socket containing the Skill Gem you wish to augment. Right click to remove from a socket.",
+     "explicitMods": [
+      {
+       "description": "Every third Attack with Supported Melee Attacks deals a Ruthless Blow"
+      },
+      {
+       "description": "Ruthless Blows with Supported Skills deal 98% more Melee Damage"
+      },
+      {
+       "description": "Ruthless Blows with Supported Skills deal 98% more Damage with\nAilments caused by Melee Hits"
+      },
+      {
+       "description": "Ruthless Blows with Supported Skills have a base Stun Duration of 0.8 seconds"
+      },
+      {
+       "description": "Supported Skills deal 8% increased Attack Damage"
+      }
+     ],
+     "frameType": 4,
+     "frameTypeId": "Gem",
+     "h": 1,
+     "icon": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvR2Vtcy9TdXBwb3J0L1J1dGhsZXNzIiwidyI6MSwiaCI6MSwic2NhbGUiOjF9XQ/d8a9bf875d/Ruthless.png",
+     "id": "edbee5a2afd0421568f273c83bad980628c36b50ee86231b09f78baff57bb7ec",
+     "identified": true,
+     "ilvl": 0,
+     "league": "Standard",
+     "name": "",
+     "properties": [
+      {
+       "displayMode": 0,
+       "name": "Slam, Support, Melee, Attack, Strike",
+       "values": []
+      },
+      {
+       "displayMode": 0,
+       "name": "Level",
+       "type": 5,
+       "values": [
+        [
+         "20 (Max)",
+         0
+        ]
+       ]
+      },
+      {
+       "displayMode": 0,
+       "name": "Cost & Reservation Multiplier",
+       "values": [
+        [
+         "120%",
+         0
+        ]
+       ]
+      },
+      {
+       "displayMode": 0,
+       "name": "Quality",
+       "type": 6,
+       "values": [
+        [
+         "+16%",
+         1
+        ]
+       ]
+      }
+     ],
+     "requirements": [
+      {
+       "displayMode": 0,
+       "name": "Level",
+       "type": 62,
+       "values": [
+        [
+         "70",
+         0
+        ]
+       ]
+      },
+      {
+       "displayMode": 1,
+       "name": "Str",
+       "type": 63,
+       "values": [
+        [
+         "111",
+         0
+        ]
+       ]
+      }
+     ],
+     "secDescrText": "Supports melee strike or slam skills. Every third time you use a supported attack, that use of the skill will be more powerful.",
+     "socket": 4,
+     "support": true,
+     "typeLine": "Ruthless Support",
+     "verified": false,
+     "w": 1
+    },
+    {
+     "baseType": "Awakened Added Lightning Damage Support",
+     "colour": "I",
+     "corrupted": true,
+     "descrText": "This is a Support Gem. It does not grant a bonus to your character, but to skills in sockets connected to it. Place into an item socket connected to a socket containing the Skill Gem you wish to augment. Right click to remove from a socket.",
+     "explicitMods": [
+      {
+       "description": "+1 to Level of Supported Lightning Skill Gems"
+      },
+      {
+       "description": "Supported Skills have 24 to 449 added Lightning Damage"
+      },
+      {
+       "description": "Supported Skills deal 10% increased Lightning Damage"
+      }
+     ],
+     "frameType": 4,
+     "frameTypeId": "Gem",
+     "h": 1,
+     "icon": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvR2Vtcy9TdXBwb3J0L1N1cHBvcnRQbHVzL0FkZGVkTGlnaHRuaW5nRGFtYWdlUGx1cyIsInciOjEsImgiOjEsInNjYWxlIjoxfV0/12f4edd322/AddedLightningDamagePlus.png",
+     "id": "9ce07db01152a701b6aca7f2288d6ea2cf5b8a51c84337a1e1a8525e2142c75d",
+     "identified": true,
+     "ilvl": 0,
+     "league": "Standard",
+     "name": "",
+     "properties": [
+      {
+       "displayMode": 0,
+       "name": "Lightning, Support",
+       "values": []
+      },
+      {
+       "displayMode": 0,
+       "name": "Level",
+       "type": 5,
+       "values": [
+        [
+         "5 (Max)",
+         0
+        ]
+       ]
+      },
+      {
+       "displayMode": 0,
+       "name": "Cost & Reservation Multiplier",
+       "values": [
+        [
+         "120%",
+         0
+        ]
+       ]
+      },
+      {
+       "displayMode": 0,
+       "name": "Quality",
+       "type": 6,
+       "values": [
+        [
+         "+20%",
+         1
+        ]
+       ]
+      }
+     ],
+     "requirements": [
+      {
+       "displayMode": 0,
+       "name": "Level",
+       "type": 62,
+       "values": [
+        [
+         "80",
+         0
+        ]
+       ]
+      },
+      {
+       "displayMode": 1,
+       "name": "Int",
+       "type": 65,
+       "values": [
+        [
+         "126",
+         0
+        ]
+       ]
+      }
+     ],
+     "secDescrText": "Supports any skill that hits enemies.",
+     "socket": 5,
+     "support": true,
+     "typeLine": "Awakened Added Lightning Damage Support",
+     "verified": false,
+     "w": 1
+    }
+   ]
+  },
+  {
+   "id": "dump-item2",
+   "name": "",
+   "typeLine": "Fake Item 2",
+   "baseType": "Fake Item 2",
+   "w": 1,
+   "h": 1,
+   "x": 3,
+   "y": 0,
+   "inventoryId": "Stash1",
+   "league": "Standard",
+   "frameType": 0,
+   "frameTypeId": "Normal",
+   "identified": true
+  },
+  {
+   "id": "dump-item3",
+   "name": "",
+   "typeLine": "Fake Item 3",
+   "baseType": "Fake Item 3",
+   "w": 1,
+   "h": 1,
+   "x": 4,
+   "y": 0,
+   "inventoryId": "Stash1",
+   "league": "Standard",
+   "frameType": 0,
+   "frameTypeId": "Normal",
+   "identified": true
+  },
+  {
+   "id": "dump-item4",
+   "name": "",
+   "typeLine": "Fake Item 4",
+   "baseType": "Fake Item 4",
+   "w": 1,
+   "h": 1,
+   "x": 5,
+   "y": 0,
+   "inventoryId": "Stash1",
+   "league": "Standard",
+   "frameType": 0,
+   "frameTypeId": "Normal",
+   "identified": true
+  }
+ ],
+ "m001": [
+  {
+   "baseType": "Map (Tier 16)",
+   "descrText": "Travel to a Map of this tier or lower by using this in a personal Map Device. Maps can only be used once. ",
+   "explicitMods": [
+    {
+     "description": "Area has increased monster variety"
+    },
+    {
+     "description": "Players are Cursed with Temporal Chains"
+    },
+    {
+     "description": "Monsters deal 106% extra Physical Damage as Cold"
+    },
+    {
+     "description": "Players have 30% less Armour"
+    },
+    {
+     "description": "Players have 40% reduced Chance to Block"
+    }
+   ],
+   "frameType": 2,
+   "frameTypeId": "Rare",
+   "h": 1,
+   "icon": "https://web.poecdn.com/gen/image/WzI4LDE0LHsiZiI6IjJESXRlbXMvTWFwcy9BdGxhczJNYXBzL05ldy9NYXBOdW1iZXJzMTYiLCJ3IjoxLCJoIjoxLCJzY2FsZSI6MSwibW4iOjI0LCJtdCI6MCwibWMiOjR9XQ/91cc211c55/MapNumbers16.png",
+   "id": "3c7ca2f1050c2cf5245df59b525c84f267e7ea3e363eeec45ac5fa4723033d6b",
+   "identified": true,
+   "ilvl": 83,
+   "implicitMods": [
+    {
+     "description": "Map contains Drox's Citadel\nItem Quantity increases amount of Rewards Drox drops by 20% of its value"
+    }
+   ],
+   "inventoryId": "Stash1",
+   "league": "Standard",
+   "monsterLevel": 83,
+   "name": "Dark Realm",
+   "properties": [
+    {
+     "displayMode": 0,
+     "name": "Item Quantity",
+     "type": 2,
+     "values": [
+      [
+       "+52%",
+       1
+      ]
+     ]
+    },
+    {
+     "displayMode": 0,
+     "name": "Item Rarity",
+     "type": 3,
+     "values": [
+      [
+       "+31%",
+       1
+      ]
+     ]
+    },
+    {
+     "displayMode": 0,
+     "name": "Monster Pack Size",
+     "type": 4,
+     "values": [
+      [
+       "+20%",
+       1
+      ]
+     ]
+    }
+   ],
+   "rarity": "Rare",
+   "typeLine": "Map (Tier 16)",
+   "verified": false,
+   "w": 1,
+   "x": 0,
+   "y": 0
+  }
+ ],
+ "old1": [
+  {
+   "baseType": "Viridian Jewel",
+   "descrText": "Place into an allocated Jewel Socket on the Passive Skill Tree. Right click to remove from the Socket.",
+   "explicitMods": [
+    {
+     "description": "16% increased Totem Damage"
+    },
+    {
+     "description": "12% increased Global Accuracy Rating"
+    },
+    {
+     "description": "7% increased maximum Life"
+    }
+   ],
+   "frameType": 2,
+   "frameTypeId": "Rare",
+   "h": 1,
+   "icon": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvSmV3ZWxzL2Jhc2ljZGV4IiwidyI6MSwiaCI6MSwic2NhbGUiOjF9XQ/9ed22a2b94/basicdex.png",
+   "id": "c52162ffb438d0c790709f2c116ca853509c6adacb4757dbeed847d9f9c7b2a1",
+   "identified": true,
+   "ilvl": 75,
+   "inventoryId": "Stash1",
+   "league": "Standard",
+   "name": "Ghoul Joy",
+   "note": "~price 10 chaos",
+   "rarity": "Rare",
+   "typeLine": "Viridian Jewel",
+   "verified": false,
+   "w": 1,
+   "x": 0,
+   "y": 0
+  },
+  {
+   "id": "old1-item1",
+   "name": "",
+   "typeLine": "Fake Item 1",
+   "baseType": "Fake Item 1",
+   "w": 1,
+   "h": 1,
+   "x": 1,
+   "y": 0,
+   "inventoryId": "Stash1",
+   "league": "Standard",
+   "frameType": 0,
+   "frameTypeId": "Normal",
+   "identified": true
+  }
+ ],
+ "StashHoarder-equipment": [
+  {
+   "baseType": "Sinner Tricorne",
+   "explicitMods": [
+    {
+     "description": "+2 to Level of Socketed Aura Gems"
+    },
+    {
+     "description": "87% increased Evasion Rating"
+    },
+    {
+     "description": "+25% to Cold Resistance"
+    },
+    {
+     "description": "Cannot be Frozen"
+    },
+    {
+     "description": "25% chance to Avoid being Chilled"
+    },
+    {
+     "description": "16% increased Mana Reservation Efficiency of Skills"
+    }
+   ],
+   "flavourText": [
+    "Nature respects the strong\r",
+    "And paints the snow red\r",
+    "With the blood of the weak"
+   ],
+   "frameType": 3,
+   "frameTypeId": "Unique",
+   "h": 2,
+   "icon": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQXJtb3Vycy9IZWxtZXRzL1dvbGZoZWFkIiwidyI6MiwiaCI6Miwic2NhbGUiOjF9XQ/2acc10e593/Wolfhead.png",
+   "id": "21abf69498b2822dca121f574d5edeb1e5094585835d141aa0a9804c93150033",
+   "identified": true,
+   "ilvl": 85,
+   "inventoryId": "Helm",
+   "league": "Standard",
+   "name": "Alpha's Howl",
+   "properties": [
+    {
+     "displayMode": 0,
+     "name": "Evasion Rating",
+     "type": 17,
+     "values": [
+      [
+       "690",
+       1
+      ]
+     ]
+    }
+   ],
+   "rarity": "Unique",
+   "requirements": [
+    {
+     "displayMode": 0,
+     "name": "Level",
+     "suffix": "(gem)",
+     "type": 62,
+     "values": [
+      [
+       "70",
+       0
+      ]
+     ]
+    },
+    {
+     "displayMode": 1,
+     "name": "Dex",
+     "type": 64,
+     "values": [
+      [
+       "138",
+       0
+      ]
+     ]
+    },
+    {
+     "displayMode": 1,
+     "name": "Int",
+     "suffix": "(gem)",
+     "type": 65,
+     "values": [
+      [
+       "155",
+       0
+      ]
+     ]
+    }
+   ],
+   "sockets": [
+    {
+     "attr": "I",
+     "group": 0,
+     "sColour": "B"
+    },
+    {
+     "attr": "I",
+     "group": 0,
+     "sColour": "B"
+    },
+    {
+     "attr": "D",
+     "group": 0,
+     "sColour": "G"
+    },
+    {
+     "attr": "I",
+     "group": 0,
+     "sColour": "B"
+    }
+   ],
+   "typeLine": "Sinner Tricorne",
+   "verified": false,
+   "w": 2,
+   "x": 0,
+   "y": 0
+  }
+ ],
+ "StashHoarder-inv": [
+  {
+   "baseType": "Rawhide Boots",
+   "explicitMods": [
+    {
+     "description": "50% increased Movement Speed"
+    }
+   ],
+   "flavourText": [
+    "\"Death can be outrun with these, but beware!\r",
+    "In running from death, you may forget to live.\"\r",
+    "- Icius Perandus, Antiquities Collection, Item 202"
+   ],
+   "frameType": 3,
+   "frameTypeId": "Unique",
+   "h": 2,
+   "icon": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQXJtb3Vycy9Cb290cy9Cb290c0RleFVuaXF1ZTMiLCJ3IjoyLCJoIjoyLCJzY2FsZSI6MX1d/23e4614336/BootsDexUnique3.png",
+   "id": "83653ccbf5b9228450c31ccfff18c7d70a1f4d369b703c0b62e938296240b13c",
+   "identified": true,
+   "ilvl": 81,
+   "inventoryId": "MainInventory",
+   "league": "Standard",
+   "name": "Seven-League Step",
+   "properties": [
+    {
+     "displayMode": 0,
+     "name": "Evasion Rating",
+     "type": 17,
+     "values": [
+      [
+       "13",
+       0
+      ]
+     ]
+    }
+   ],
+   "rarity": "Unique",
+   "sockets": [
+    {
+     "attr": "S",
+     "group": 0,
+     "sColour": "R"
+    },
+    {
+     "attr": "S",
+     "group": 0,
+     "sColour": "R"
+    },
+    {
+     "attr": "S",
+     "group": 1,
+     "sColour": "R"
+    },
+    {
+     "attr": "D",
+     "group": 1,
+     "sColour": "G"
+    }
+   ],
+   "typeLine": "Rawhide Boots",
+   "verified": false,
+   "w": 2,
+   "x": 0,
+   "y": 0
+  },
+  {
+   "id": "StashHoarder-inv-item1",
+   "name": "",
+   "typeLine": "Fake Item 1",
+   "baseType": "Fake Item 1",
+   "w": 1,
+   "h": 1,
+   "x": 2,
+   "y": 0,
+   "inventoryId": "MainInventory",
+   "league": "Standard",
+   "frameType": 0,
+   "frameTypeId": "Normal",
+   "identified": true
+  },
+  {
+   "id": "StashHoarder-inv-item2",
+   "name": "",
+   "typeLine": "Fake Item 2",
+   "baseType": "Fake Item 2",
+   "w": 1,
+   "h": 1,
+   "x": 3,
+   "y": 0,
+   "inventoryId": "MainInventory",
+   "league": "Standard",
+   "frameType": 0,
+   "frameTypeId": "Normal",
+   "identified": true
+  },
+  {
+   "id": "StashHoarder-inv-item3",
+   "name": "",
+   "typeLine": "Fake Item 3",
+   "baseType": "Fake Item 3",
+   "w": 1,
+   "h": 1,
+   "x": 4,
+   "y": 0,
+   "inventoryId": "MainInventory",
+   "league": "Standard",
+   "frameType": 0,
+   "frameTypeId": "Normal",
+   "identified": true
+  }
+ ]
+}
