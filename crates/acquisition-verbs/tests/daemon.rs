@@ -23,7 +23,7 @@ use acquisition_protocol::job::Outcome;
 use acquisition_protocol::protocol::{Request, Response};
 use acquisition_protocol::realm::Realm;
 use acquisition_store::jobs::{JobDb, JobRow, daemon_db_path};
-use acquisition_verbs::jobs::{submit, wait};
+use acquisition_verbs::jobs::{NO_RESULT, submit, wait};
 use acquisition_verbs::refresh::{quote, quote_within};
 use acquisition_verbs::{Apply, Fault, Frontend, Job, Opened};
 use serde_json::json;
@@ -551,4 +551,86 @@ async fn a_running_daemon_quotes_the_plan() {
     let planned = quote(plan).await;
     assert_eq!(planned.quote_note, None, "{:?}", planned.quote_note);
     assert!(planned.plan.quote.is_some());
+}
+
+/// A parent's failure with its children's tally, as the daemon writes one.
+fn parent_failed(id: u64, failed_ids: &[u64]) -> JobRow {
+    JobRow {
+        kind: "apply".into(),
+        params: json!({ "jobs": [] }),
+        outcome: Some(json!({ "outcome": "failure",
+            "error": format!("{} of {} child jobs failed, 0 done", failed_ids.len(), failed_ids.len()),
+            "children": { "done": 0, "failed": failed_ids.len(), "cancelled": 0, "failed_ids": failed_ids } })),
+        ..row(id, "failed", None)
+    }
+}
+
+/// "No result retained" is said of confirmed absence alone: from the
+/// ledger, a child with no row is absent, one whose row records no
+/// outcome or an outcome that does not parse says so, and each keeps
+/// its handle.
+#[tokio::test]
+async fn a_failed_childs_unreadable_result_says_why_and_absence_alone_is_no_result() {
+    let s = session("child-reads");
+    ledger(
+        &s,
+        &[
+            parent_failed(10, &[11, 12, 13]),
+            // 11: no row at all
+            JobRow {
+                parent: Some(10),
+                ..row(12, "failed", None)
+            },
+            JobRow {
+                parent: Some(10),
+                ..row(13, "failed", Some(json!({ "outcome": "nonsense" })))
+            },
+        ],
+    );
+    let frontend = Frontend::agent("test").unwrap();
+    let result = frontend.result(10).await.unwrap();
+    let rows: Vec<(u64, &str)> = result
+        .failed_children
+        .iter()
+        .map(|c| (c.job_id, c.error.as_str()))
+        .collect();
+    assert_eq!(rows.len(), 3, "{rows:?}");
+    assert_eq!(rows[0], (11, NO_RESULT), "{rows:?}");
+    assert_eq!(
+        rows[1],
+        (12, "its row on disk records no outcome yet"),
+        "{rows:?}"
+    );
+    assert_eq!(rows[2].0, 13, "{rows:?}");
+    assert!(
+        rows[2]
+            .1
+            .starts_with("its outcome on disk does not parse: ")
+            && rows[2].1.len() > 36,
+        "{rows:?}"
+    );
+}
+
+/// Live, the daemon's word for an id it does not know is confirmed
+/// absence; the child keeps its handle.
+#[tokio::test]
+async fn a_failed_child_the_daemon_does_not_know_is_no_result_live() {
+    let s = session("child-unknown");
+    let (_daemon, _frontend, _opened, mut client) = world(&s).await;
+    let outcome = Outcome::Failure {
+        error: "1 of 1 child jobs failed, 0 done".into(),
+        children: Some(acquisition_protocol::job::Children {
+            done: 0,
+            failed: 1,
+            cancelled: 0,
+            failed_ids: vec![987_654],
+        }),
+    };
+    let rows = acquisition_verbs::jobs::failed_children_live(&mut client, &outcome).await;
+    assert_eq!(rows.len(), 1);
+    assert_eq!(
+        (rows[0].job_id, rows[0].error.as_str()),
+        (987_654, NO_RESULT)
+    );
+    assert_eq!((rows[0].kind.as_str(), rows[0].target.as_str()), ("", ""));
 }

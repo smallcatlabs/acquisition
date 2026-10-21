@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use acquisition_client::client::{Client, DaemonError};
 use acquisition_protocol::job::{JobInfo, JobState, Outcome, target_of};
-use acquisition_protocol::protocol::{Request, Response};
+use acquisition_protocol::protocol::{ErrorKind, Request, Response};
 use acquisition_store::jobs::{Persisted, PersistedJob, PersistedRecord};
 use serde::Serialize;
 use serde::ser::{SerializeMap, Serializer};
@@ -176,12 +176,15 @@ pub struct FailedChild {
     /// read (live, a daemon that no longer holds it after a restart).
     pub kind: String,
     pub target: String,
-    /// Its own error, or that no result is retained for it.
+    /// Its own error; or, where it cannot be read, what happened — that
+    /// no result is retained, or why the read failed.
     pub error: String,
 }
 
-/// The words for a child whose result cannot be read: a fact, not a guess.
-const NO_RESULT: &str = "no result retained for this job";
+/// The words for a child confirmed absent — the daemon does not know
+/// its id, or the ledger holds no row for it — and for nothing else: a
+/// read that failed for another reason says why (`child_error`).
+pub const NO_RESULT: &str = "no result retained for this job";
 
 /// The failed ids a result details, the first ten of the tally's.
 fn detailed(outcome: &Outcome) -> &[u64] {
@@ -197,12 +200,33 @@ fn detailed(outcome: &Outcome) -> &[u64] {
     }
 }
 
-/// A child's own error from its outcome, or [`NO_RESULT`].
-fn child_error(outcome: Option<Outcome>) -> String {
-    match outcome {
-        Some(Outcome::Failure { error, .. }) => error,
-        _ => NO_RESULT.into(),
+/// A failed child's error from the read of its outcome, never a guess:
+/// its own error; a tally that disagrees with the child's own outcome,
+/// said; [`NO_RESULT`] for confirmed absence alone (the daemon's
+/// `unknown_job`, the ledger's missing row); any other failed read with
+/// its cause.
+fn child_error(read: Result<Outcome, Fault>) -> String {
+    match read {
+        Ok(Outcome::Failure { error, .. }) => error,
+        Ok(Outcome::Success { .. }) => {
+            "the parent's tally lists it failed, but its own outcome is a success".into()
+        }
+        Ok(Outcome::Cancelled) => {
+            "the parent's tally lists it failed, but its own outcome is a cancellation".into()
+        }
+        Err(Fault::Daemon(e)) if e.kind == ErrorKind::UnknownJob => NO_RESULT.into(),
+        Err(Fault::NoJobOnDisk { .. }) => NO_RESULT.into(),
+        Err(fault) => format!("its result could not be read: {fault}"),
     }
+}
+
+/// A ledger row's outcome as the child reader takes it: none recorded,
+/// or one this build cannot parse, each said.
+fn disk_outcome(outcome: Option<Value>) -> Result<Outcome, String> {
+    let Some(outcome) = outcome else {
+        return Err("its row on disk records no outcome yet".into());
+    };
+    serde_json::from_value(outcome).map_err(|e| format!("its outcome on disk does not parse: {e}"))
 }
 
 impl Serialize for Jobs {
@@ -291,7 +315,7 @@ pub async fn result_live(client: &mut Client, id: u64) -> Result<JobResult, Faul
 pub async fn failed_children_live(client: &mut Client, outcome: &Outcome) -> Vec<FailedChild> {
     let mut rows = Vec::new();
     for &cid in detailed(outcome) {
-        let error = child_error(outcome_live(client, cid).await.ok());
+        let error = child_error(outcome_live(client, cid).await);
         let (kind, target) = match client.status(cid).await {
             Ok(job) => (job.kind.clone(), job.target()),
             Err(_) => (String::new(), String::new()),
@@ -384,17 +408,16 @@ impl Frontend {
                     job_id: cid,
                     target: target_of(&child.job.kind, &child.job.params),
                     kind: child.job.kind,
-                    error: child_error(
-                        child
-                            .outcome
-                            .and_then(|o| serde_json::from_value::<Outcome>(o).ok()),
-                    ),
+                    error: match disk_outcome(child.outcome) {
+                        Ok(outcome) => child_error(Ok(outcome)),
+                        Err(said) => said,
+                    },
                 },
-                Err(_) => FailedChild {
+                Err(fault) => FailedChild {
                     job_id: cid,
                     kind: String::new(),
                     target: String::new(),
-                    error: NO_RESULT.into(),
+                    error: child_error(Err(fault)),
                 },
             })
             .collect();
