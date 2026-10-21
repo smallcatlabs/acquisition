@@ -312,10 +312,12 @@ impl Frontend {
     /// C45: the ledger's open rows in this world, `None` when it has no
     /// queue yet. Read-only, never while a daemon answers.
     pub fn persisted(&self) -> Result<Option<Persisted>, Fault> {
+        self.same_world();
         Persisted::observe(self.provider).map_err(Fault::Unopened)
     }
 
     fn record(&self, id: u64) -> Result<PersistedRecord, Fault> {
+        self.same_world();
         Persisted::observe_job(self.provider, id)
             .map_err(Fault::Unopened)?
             .ok_or_else(|| Fault::NoJobOnDisk {

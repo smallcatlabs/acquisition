@@ -304,8 +304,8 @@ async fn a_quote_with_no_daemon_is_the_one_note() {
     let mut opened = account.open().unwrap();
     let planned = opened.plan(Realm::Pc, "Standard").await.unwrap();
     assert_eq!(
-        planned.quote_note.as_deref(),
-        Some("no quote: no daemon running (the plan needs none; a running daemon adds its ETA)")
+        planned.quote_note,
+        Some(acquisition_verbs::QuoteNote::NoDaemon)
     );
 }
 
@@ -354,7 +354,10 @@ async fn a_wedged_daemon_cannot_block_the_offline_plan() {
     .expect("the bounded quote attempt itself never returned");
     assert_eq!(planned.plan, plan, "the compiled plan comes back untouched");
     let note = planned.quote_note.expect("a timed-out quote says why");
-    assert!(note.contains("did not answer"), "{note}");
+    assert_eq!(
+        note,
+        acquisition_verbs::QuoteNote::Timeout(Duration::from_millis(200))
+    );
     drop(_listener);
     let _ = std::fs::remove_file(&sock);
     drop(s);

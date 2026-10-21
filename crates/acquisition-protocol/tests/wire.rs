@@ -424,7 +424,7 @@ fn outcomes() -> Vec<Outcome> {
             payload: json!({ "tabs_listed": 3, "children": { "done": 3, "failed": 0, "cancelled": 0, "failed_ids": [] } }),
         },
         Outcome::Failure {
-            error: "1 of 3 child jobs failed: [44] (acq result <id> for each)".into(),
+            error: "1 of 3 child jobs failed, 2 done".into(),
             children: Some(Children {
                 done: 2,
                 failed: 1,

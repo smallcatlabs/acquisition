@@ -116,6 +116,7 @@ impl Frontend {
     /// identity, an unresponsive peer, or this client's daemon with its
     /// vitals. Never spawns or replaces.
     pub async fn daemon(&self) -> Result<DaemonReport, Fault> {
+        self.same_world();
         let observed = acquisition_client::client::Client::observe()
             .await
             .map_err(Fault::Transport)?;

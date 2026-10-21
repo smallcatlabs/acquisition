@@ -175,8 +175,11 @@ fn fault_words(fault: &Fault, named: &str) -> String {
         Fault::NoSyncPolicy { .. } => {
             format!("{fault} — declare one with set_sync_policy first")
         }
+        // A merge reads the stored row to merge into, so the retry is a
+        // whole write naming the revision.
         Fault::UnreadablePolicy { revision, .. } => format!(
-            "{fault} — `if_revision: {revision}` replaces it deliberately; sync_policy reads it"
+            "{fault} — `replace: true` with `if_revision: {revision}` writes a whole policy over \
+             it deliberately; sync_policy reads it"
         ),
         // Absent by this server's own policy in real mode: the remedy is
         // the human's, and the words say so rather than promising a spawn.
@@ -1343,4 +1346,27 @@ async fn main() -> Result<()> {
     .await;
     let _ = writer.await;
     served
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The unreadable policy's remedy names both arguments the retry
+    /// needs: the merge would read the row it cannot.
+    #[test]
+    fn the_unreadable_policy_remedy_names_a_whole_write_at_its_revision() {
+        let words = fault_words(
+            &Fault::UnreadablePolicy {
+                revision: 3,
+                detail: "newer".into(),
+            },
+            "account",
+        );
+        assert!(
+            words.contains("`replace: true` with `if_revision: 3`"),
+            "{words}"
+        );
+        assert!(words.contains("sync_policy"), "{words}");
+    }
 }

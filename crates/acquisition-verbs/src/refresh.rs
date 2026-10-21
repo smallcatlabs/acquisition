@@ -31,7 +31,7 @@ pub const QUOTE_TIMEOUT: Duration = Duration::from_secs(5);
 pub struct Planned {
     pub plan: RefreshPlan,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub quote_note: Option<String>,
+    pub quote_note: Option<QuoteNote>,
 }
 
 /// How many tabs and characters the plan skipped: every apply answer
@@ -186,7 +186,7 @@ pub async fn quote_within(plan: RefreshPlan, limit: Duration) -> Planned {
         // account; with no name on record there is nothing to quote as.
         return Planned {
             plan,
-            quote_note: Some(quote_note(QuoteMiss::NoAccountName)),
+            quote_note: Some(QuoteNote::NoAccountName),
         };
     };
     let jobs: Vec<QuoteJob> = plan
@@ -203,18 +203,18 @@ pub async fn quote_within(plan: RefreshPlan, limit: Duration) -> Planned {
     let attempt = async {
         let mut client = match Client::observe().await {
             Ok(Observed::Compatible(client)) => client,
-            Ok(Observed::Absent) => return Err(QuoteMiss::NoDaemon),
-            Ok(Observed::Incompatible(found)) => return Err(QuoteMiss::Other(found.to_string())),
-            Ok(Observed::Unresponsive(found)) => return Err(QuoteMiss::Other(found.to_string())),
-            Err(e) => return Err(QuoteMiss::Other(format!("{e:#}"))),
+            Ok(Observed::Absent) => return Err(QuoteNote::NoDaemon),
+            Ok(Observed::Incompatible(found)) => return Err(QuoteNote::Other(found.to_string())),
+            Ok(Observed::Unresponsive(found)) => return Err(QuoteNote::Other(found.to_string())),
+            Err(e) => return Err(QuoteNote::Other(format!("{e:#}"))),
         };
         client
             .quote(jobs, Some(account))
             .await
-            .map_err(|e| QuoteMiss::Other(format!("{e:#}")))
+            .map_err(|e| QuoteNote::Other(format!("{e:#}")))
     };
     let miss = match tokio::time::timeout(limit, attempt).await {
-        Err(_) => QuoteMiss::Timeout(limit),
+        Err(_) => QuoteNote::Timeout(limit),
         Ok(Err(miss)) => miss,
         Ok(Ok(quote)) => match plan.clone().with_quote(quote) {
             Ok(enriched) => {
@@ -225,39 +225,59 @@ pub async fn quote_within(plan: RefreshPlan, limit: Duration) -> Planned {
             }
             // The daemon answered about something other than this plan —
             // a planner/daemon disagreement worth seeing, not hiding.
-            Err(e) => QuoteMiss::Rejected(e.to_string()),
+            Err(e) => QuoteNote::Rejected(e.to_string()),
         },
     };
     Planned {
         plan,
-        quote_note: Some(quote_note(miss)),
+        quote_note: Some(miss),
     }
 }
 
-/// The quote note for the common case, without an OS error: a plan never
-/// spawns a daemon, so whether spawning is allowed is beside the point.
-pub const NO_DAEMON_NOTE: &str =
-    "no quote: no daemon running (the plan needs none; a running daemon adds its ETA)";
-
-/// Why a quote is absent.
-enum QuoteMiss {
+/// Why a plan's quote is absent (C10: the plan is the deliverable, the
+/// quote decoration). Each frontend reads the cause from the variant and
+/// words its own view; `Display` is the note's one sentence per cause,
+/// and the JSON `quote_note` is that sentence on every surface.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum QuoteNote {
+    /// The facts record no account name, and a quote names exactly the
+    /// plan's account.
     NoAccountName,
+    /// No daemon runs: the common case, without an OS error — a plan
+    /// never spawns a daemon, so whether spawning is allowed is beside
+    /// the point.
     NoDaemon,
+    /// The daemon did not answer within the bound.
     Timeout(Duration),
+    /// The daemon answered about something other than this plan.
     Rejected(String),
+    /// Another daemon, an unresponsive peer, a failed conversation: its
+    /// words.
     Other(String),
 }
 
-/// The note's one sentence per cause, on every surface.
-fn quote_note(miss: QuoteMiss) -> String {
-    match miss {
-        QuoteMiss::NoAccountName => "no quote: the facts record no account name to quote as".into(),
-        QuoteMiss::NoDaemon => NO_DAEMON_NOTE.into(),
-        QuoteMiss::Timeout(limit) => {
-            format!("no quote: the daemon did not answer within {limit:?} — plan compiled offline")
+impl std::fmt::Display for QuoteNote {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            QuoteNote::NoAccountName => {
+                f.write_str("no quote: the facts record no account name to quote as")
+            }
+            QuoteNote::NoDaemon => f.write_str(
+                "no quote: no daemon running (the plan needs none; a running daemon adds its ETA)",
+            ),
+            QuoteNote::Timeout(limit) => write!(
+                f,
+                "no quote: the daemon did not answer within {limit:?} — plan compiled offline"
+            ),
+            QuoteNote::Rejected(e) => write!(f, "daemon quote rejected: {e}"),
+            QuoteNote::Other(why) => write!(f, "no quote: {why} — plan compiled offline"),
         }
-        QuoteMiss::Rejected(e) => format!("daemon quote rejected: {e}"),
-        QuoteMiss::Other(why) => format!("no quote: {why} — plan compiled offline"),
+    }
+}
+
+impl Serialize for QuoteNote {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_str(self)
     }
 }
 
@@ -352,6 +372,8 @@ impl Opened {
     /// C39 then C10: compile, then ask a running daemon's quote.
     pub async fn plan(&mut self, realm: Realm, league: &str) -> Result<Planned, Fault> {
         let plan = self.compile(realm, league, acquisition_store::now())?;
+        // The quote observes the environment's world.
+        self.account.frontend.same_world();
         Ok(quote(plan).await)
     }
 

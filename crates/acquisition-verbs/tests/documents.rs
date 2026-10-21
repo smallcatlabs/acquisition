@@ -19,7 +19,7 @@ use acquisition_verbs::jobs::job_info;
 use acquisition_verbs::refresh::{NOTHING_TO_DO, compile, quote, spent_phrase};
 use acquisition_verbs::{
     Account, Apply, DaemonReport, Door, Fault, Frontend, Job, JobResult, Jobs, Opened,
-    PersistedSummary,
+    PersistedSummary, QuoteNote,
 };
 use serde_json::{Value, json};
 
@@ -481,10 +481,39 @@ async fn a_plan_with_no_account_name_is_quoted_with_its_note() {
     let plan = compile("mock", &snapshot, USER, 2_000).unwrap();
     assert_eq!(plan.account_name, None);
     let planned = quote(plan).await;
+    assert_eq!(planned.quote_note, Some(QuoteNote::NoAccountName));
+    // The JSON note is the sentence, on every surface.
     assert_eq!(
-        planned.quote_note.as_deref(),
-        Some("no quote: the facts record no account name to quote as")
+        serde_json::to_value(&planned).unwrap()["quote_note"],
+        json!("no quote: the facts record no account name to quote as")
     );
+}
+
+/// Each cause's sentence, word for word: the JSON `quote_note` an agent
+/// reads did not change when the note became typed.
+#[test]
+fn a_quote_notes_sentence_is_its_cause_in_words() {
+    for (note, words) in [
+        (
+            QuoteNote::NoDaemon,
+            "no quote: no daemon running (the plan needs none; a running daemon adds its ETA)",
+        ),
+        (
+            QuoteNote::Timeout(std::time::Duration::from_secs(5)),
+            "no quote: the daemon did not answer within 5s — plan compiled offline",
+        ),
+        (
+            QuoteNote::Rejected("names another account".into()),
+            "daemon quote rejected: names another account",
+        ),
+        (
+            QuoteNote::Other("a daemon of another contract".into()),
+            "no quote: a daemon of another contract — plan compiled offline",
+        ),
+    ] {
+        assert_eq!(note.to_string(), words);
+        assert_eq!(serde_json::to_value(&note).unwrap(), json!(words));
+    }
 }
 
 // ---- the ledger (C45) and the documents ---------------------------------
@@ -562,7 +591,7 @@ fn a_job_result_is_the_outcome_with_its_id_and_account() {
         job_id: 4,
         account: Some(USER.into()),
         outcome: Outcome::Failure {
-            error: "1 of 2 child jobs failed: [6]".into(),
+            error: "1 of 2 child jobs failed, 1 done".into(),
             children: Some(Children {
                 done: 1,
                 failed: 1,
@@ -574,7 +603,7 @@ fn a_job_result_is_the_outcome_with_its_id_and_account() {
     assert_eq!(
         serde_json::to_value(&result).unwrap(),
         json!({ "job_id": 4, "account": USER, "outcome": "failure",
-                "error": "1 of 2 child jobs failed: [6]",
+                "error": "1 of 2 child jobs failed, 1 done",
                 "children": { "done": 1, "failed": 1, "cancelled": 0, "failed_ids": [6] } })
     );
 }

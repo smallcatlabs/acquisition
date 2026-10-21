@@ -2181,10 +2181,16 @@ resubmit if still wanted",
                     error: format!("{cancelled} of {total} child jobs were cancelled"),
                     children: Some(tally),
                 },
+                // The counts in words; the ids ride in the tally alone,
+                // never as prose a client reads back (C23).
                 Outcome::Success { .. } => Outcome::Failure {
                     error: format!(
-                        "{failed} of {total} child jobs failed: {:?} (acq result <id> for each)",
-                        tally.failed_ids
+                        "{failed} of {total} child jobs failed, {done} done{}",
+                        if cancelled > 0 {
+                            format!(", {cancelled} cancelled")
+                        } else {
+                            String::new()
+                        }
                     ),
                     children: Some(tally),
                 },

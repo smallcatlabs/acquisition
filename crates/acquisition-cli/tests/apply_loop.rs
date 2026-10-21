@@ -258,11 +258,10 @@ fn the_plan_apply_replan_loop_closes_against_the_mock() {
     let _ = std::fs::remove_dir_all(&base);
 }
 
-/// The CLI says how many of an apply's requests failed by reading the
-/// daemon's own tally, the `children` field a parent's failure carries
-/// (C23), never its sentence: a plan naming a tab the provider does not
-/// have fails that one child, and the report counts it through the real
-/// pair of binaries.
+/// A failed apply prints in the daemon's own words, its count sentence,
+/// and the rows of the failed children its tally lists (C23): a plan
+/// naming a tab the provider does not have fails that one child, through
+/// the real pair of binaries.
 #[test]
 fn a_failed_apply_counts_its_failed_requests_from_the_daemons_own_words() {
     let base = std::env::temp_dir().join(format!("acq-af-{}", std::process::id()));
@@ -294,7 +293,7 @@ fn a_failed_apply_counts_its_failed_requests_from_the_daemons_own_words() {
     );
     assert!(
         said.contains(&format!(
-            "failed: 1 of {planned} requests failed, {} done\n",
+            "failed: 1 of {planned} child jobs failed, {} done\n",
             planned - 1
         )),
         "stdout: {said}\nstderr: {}",

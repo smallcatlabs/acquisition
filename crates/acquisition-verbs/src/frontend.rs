@@ -47,8 +47,13 @@ pub struct Frontend {
     pub door: Door,
     /// The provider this process wants (C88), checked at construction.
     pub provider: &'static str,
-    /// The provider's store directory, from the same environment the
-    /// client reads (C83).
+    /// The provider's store directory. It mirrors the environment the
+    /// constructors read ([`Frontend::human`], [`Frontend::agent`]): the
+    /// client's doors and the ledger's reads reread that environment
+    /// (C83), so in the binaries the two cannot diverge. A frontend built
+    /// by hand over another directory is for store reads alone — the
+    /// account, its facts and intent; a verb that reaches the daemon or
+    /// the ledger asserts the two agree (`same_world`).
     pub dir: PathBuf,
 }
 
@@ -92,6 +97,20 @@ impl Frontend {
             provider,
             dir: store_dir(provider),
         })
+    }
+
+    /// The world this frontend names is the one the environment names:
+    /// checked before every call that rereads the environment (a door,
+    /// the ledger, the log). Only a frontend built by hand can fail it,
+    /// a broken internal invariant (C47), never an input.
+    pub(crate) fn same_world(&self) {
+        debug_assert_eq!(
+            self.dir,
+            store_dir(self.provider),
+            "this frontend names a store directory the environment does not: the daemon's \
+             doors and the ledger read the environment's world, so a frontend over another \
+             directory is for store reads alone"
+        );
     }
 
     fn index(&self) -> Result<Index, Fault> {
@@ -148,6 +167,7 @@ impl Frontend {
     /// in mock mode only. Absence this door may not fill is
     /// [`Fault::NoDaemon`]; the caller reads [`Client::spawned`].
     pub async fn connect(&self) -> Result<Client, Fault> {
+        self.same_world();
         let options = match self.door {
             Door::Human => ConnectOptions::interactive(true),
             Door::Agent => ConnectOptions::autonomous(!acquisition_protocol::provider::ggg_mode()),
@@ -166,6 +186,7 @@ impl Frontend {
     /// it is this client's, `None` when nothing listens, and a fault for
     /// another daemon or an unresponsive peer.
     pub async fn observe(&self) -> Result<Option<Client>, Fault> {
+        self.same_world();
         match Client::observe().await.map_err(Fault::Transport)? {
             Observed::Compatible(client) => Ok(Some(client)),
             Observed::Absent => Ok(None),

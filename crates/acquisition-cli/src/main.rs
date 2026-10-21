@@ -858,9 +858,11 @@ fn fault_words(fault: &Fault) -> String {
             | acquisition_plan::SpendError::PolicyMoved { .. },
         ) => format!("{fault} with `acq refresh --plan`"),
         Fault::Spend(_) => fault.to_string(),
+        // A merge reads the stored row to merge into, so the retry is a
+        // whole write naming the revision.
         Fault::UnreadablePolicy { revision, .. } => format!(
-            "{fault} — `--if-revision {revision}` replaces it deliberately, `acq policy show` \
-             names it"
+            "{fault} — `--replace --if-revision {revision}` writes a whole policy over it \
+             deliberately; `acq policy show` names it"
         ),
         Fault::NoDaemon { because: None, .. } => {
             "daemon is not running (a job command or `acq auth` starts one)".into()
@@ -2030,12 +2032,61 @@ fn children_line(id: &str, t: &ChildTally) -> String {
 const FAILED_CHILDREN_SHOWN: usize = 10;
 
 /// The text report for an `apply` parent (rule 4 of the legibility
-/// ruling): success as one line with the child range; a failure whose
-/// children failed as the count, read from the tally the daemon carries
-/// as a field (C23), then one line per failed child — its id, kind,
-/// target, and the error that names its evidence; any other failure in
-/// its own words.
+/// ruling): success as one line with the child range; a failure in the
+/// daemon's own words, then, when its tally (C23) lists failed
+/// children, one line per failed child — its id, kind, target, and the
+/// error that names its evidence. The CLI composes no count of its own:
+/// the sentence is the daemon's, the rows the tally's.
 pub(crate) async fn report_apply(client: &mut Client, id: u64, outcome: &Outcome) -> String {
+    let Outcome::Failure {
+        children: Some(children),
+        ..
+    } = outcome
+    else {
+        return apply_report(id, outcome, &[]);
+    };
+    // The children as the daemon lists them this lifetime; after a
+    // restart only their ids (from the tally) remain.
+    let listed: Vec<JobInfo> = list(client)
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|j| j.parent == Some(id) && j.state == JobState::Failed)
+        .collect();
+    let mut rows = Vec::new();
+    for cid in children.failed_ids.iter().take(FAILED_CHILDREN_SHOWN) {
+        let label = match listed.iter().find(|j| j.id == *cid) {
+            Some(j) => format!("{} {}", j.kind, j.target()),
+            None => String::new(),
+        };
+        let cause = match client.request(&Request::Result { id: *cid }).await {
+            Ok(Response::Result {
+                outcome: Outcome::Failure { error, .. },
+                ..
+            }) => error,
+            _ => format!("(acq result {cid})"),
+        };
+        rows.push(FailedChild {
+            id: *cid,
+            label,
+            cause,
+        });
+    }
+    apply_report(id, outcome, &rows)
+}
+
+/// One failed child of a parent, as the report lists it.
+pub(crate) struct FailedChild {
+    pub id: u64,
+    /// Its kind and target, empty when the daemon no longer lists it.
+    pub label: String,
+    /// Its own error, or where to read it.
+    pub cause: String,
+}
+
+/// [`report_apply`]'s text from what the daemon said and the rows
+/// fetched for the failed children: no daemon is asked here.
+pub(crate) fn apply_report(id: u64, outcome: &Outcome, rows: &[FailedChild]) -> String {
     match outcome {
         Outcome::Success { payload } => {
             let requests = payload["requests"].as_u64().unwrap_or(0);
@@ -2054,55 +2105,31 @@ pub(crate) async fn report_apply(client: &mut Client, id: u64, outcome: &Outcome
                 if requests == 1 { "" } else { "s" }
             )
         }
-        Outcome::Failure {
-            children: Some(children),
-            ..
-        } if children.failed > 0 => {
-            let k = children.failed;
-            let n = children.done + children.failed + children.cancelled;
-            let ids = &children.failed_ids;
-            let mut out = format!(
-                "job {id} failed: {k} of {n} request{} failed, {} done\n",
-                if n == 1 { "" } else { "s" },
-                n.saturating_sub(k)
-            );
-            // The children as the daemon lists them this lifetime; after
-            // a restart only their ids (from the tally) remain.
-            let listed: Vec<JobInfo> = list(client)
-                .await
-                .unwrap_or_default()
-                .into_iter()
-                .filter(|j| j.parent == Some(id) && j.state == JobState::Failed)
-                .collect();
-            let mut rows: Vec<(String, String, String)> = Vec::new();
-            for cid in ids.iter().take(FAILED_CHILDREN_SHOWN) {
-                let label = match listed.iter().find(|j| j.id == *cid) {
-                    Some(j) => format!("{} {}", j.kind, j.target()),
-                    None => String::new(),
-                };
-                let cause = match client.request(&Request::Result { id: *cid }).await {
-                    Ok(Response::Result {
-                        outcome: Outcome::Failure { error, .. },
-                        ..
-                    }) => error,
-                    _ => format!("(acq result {cid})"),
-                };
-                rows.push((format!("job {cid}"), label, cause));
+        Outcome::Failure { error, children } => {
+            let mut out = format!("job {id} failed: {error}\n");
+            let w1 = rows
+                .iter()
+                .map(|r| format!("job {}", r.id).len())
+                .max()
+                .unwrap_or(0);
+            let w2 = rows
+                .iter()
+                .map(|r| r.label.chars().count())
+                .max()
+                .unwrap_or(0);
+            for r in rows {
+                let job = format!("job {}", r.id);
+                out.push_str(&format!("  {job:<w1$}  {:<w2$}  {}\n", r.label, r.cause));
             }
-            let w1 = rows.iter().map(|r| r.0.len()).max().unwrap_or(0);
-            let w2 = rows.iter().map(|r| r.1.chars().count()).max().unwrap_or(0);
-            for (a, b, c) in &rows {
-                out.push_str(&format!("  {a:<w1$}  {b:<w2$}  {c}\n"));
-            }
-            if ids.len() > FAILED_CHILDREN_SHOWN {
+            let failed = children.as_ref().map_or(0, |c| c.failed_ids.len());
+            if failed > FAILED_CHILDREN_SHOWN {
                 out.push_str(&format!(
                     "  and {} more failed: acq jobs\n",
-                    ids.len() - FAILED_CHILDREN_SHOWN
+                    failed - FAILED_CHILDREN_SHOWN
                 ));
             }
             out
         }
-        Outcome::Failure { error, .. } => format!("job {id} failed: {error}\n"),
         Outcome::Cancelled => format!("job {id} was cancelled\n"),
     }
 }
@@ -2409,6 +2436,77 @@ mod tests {
             Cmd::Refresh { apply, .. } => assert_eq!(apply.as_deref(), Some("")),
             other => panic!("parsed into the wrong command: {}", other_name(&other)),
         }
+    }
+
+    /// The unreadable policy's remedy names both flags the retry needs:
+    /// the merge would read the row it cannot.
+    #[test]
+    fn the_unreadable_policy_remedy_names_a_whole_write_at_its_revision() {
+        let words = fault_words(&Fault::UnreadablePolicy {
+            revision: 3,
+            detail: "newer".into(),
+        });
+        assert!(words.contains("`--replace --if-revision 3`"), "{words}");
+        assert!(words.contains("`acq policy show`"), "{words}");
+    }
+
+    fn one_failed_child() -> (acquisition_protocol::job::Children, Vec<FailedChild>) {
+        (
+            acquisition_protocol::job::Children {
+                done: 2,
+                failed: 1,
+                cancelled: 0,
+                failed_ids: vec![7],
+            },
+            vec![FailedChild {
+                id: 7,
+                label: "stash Standard/t9".into(),
+                cause: "GET /stash/Standard/t9 returned 404".into(),
+            }],
+        )
+    }
+
+    /// The review's case: a restart's deferred failure (the sentence the
+    /// daemon installs mid fan-out) with a failed child keeps its warning
+    /// and its remedy, and the child's row follows it.
+    #[test]
+    fn a_deferred_parent_failure_keeps_its_words_beside_a_failed_childs_row() {
+        let (tally, rows) = one_failed_child();
+        let error = "interrupted by a daemon restart mid fan-out: the children submitted \
+                     before the restart ran (their responses are in the store), but the full \
+                     child set is unknown — resubmit to complete it";
+        let outcome = Outcome::Failure {
+            error: error.into(),
+            children: Some(tally),
+        };
+        let text = apply_report(4, &outcome, &rows);
+        assert!(
+            text.starts_with(&format!("job 4 failed: {error}\n")),
+            "{text}"
+        );
+        assert!(text.contains("resubmit"), "{text}");
+        assert!(
+            text.contains("job 7  stash Standard/t9  GET /stash/Standard/t9 returned 404"),
+            "{text}"
+        );
+    }
+
+    /// The ordinary case: the daemon's count sentence once, then the rows;
+    /// the CLI composes no count of its own.
+    #[test]
+    fn a_failed_apply_prints_the_daemons_sentence_once_and_the_rows() {
+        let (tally, rows) = one_failed_child();
+        let outcome = Outcome::Failure {
+            error: "1 of 3 child jobs failed, 2 done".into(),
+            children: Some(tally),
+        };
+        let text = apply_report(4, &outcome, &rows);
+        assert_eq!(
+            text,
+            "job 4 failed: 1 of 3 child jobs failed, 2 done\n  \
+             job 7  stash Standard/t9  GET /stash/Standard/t9 returned 404\n"
+        );
+        assert_eq!(text.matches("child jobs failed").count(), 1);
     }
 
     fn other_name(_: &Cmd) -> &'static str {

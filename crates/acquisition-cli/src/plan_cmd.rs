@@ -121,8 +121,8 @@ use acquisition_plan::{
 use acquisition_protocol::job::Outcome;
 use acquisition_protocol::protocol::{Quote, QuoteScope};
 use acquisition_protocol::realm::Realm;
-use acquisition_verbs::refresh::{NO_DAEMON_NOTE, holding_jobs, spent_phrase};
-use acquisition_verbs::{Apply, Planned, StoreChanges};
+use acquisition_verbs::refresh::{holding_jobs, spent_phrase};
+use acquisition_verbs::{Apply, Planned, QuoteNote, StoreChanges};
 use anyhow::{Context, Result, bail};
 use serde_json::Value;
 
@@ -251,7 +251,7 @@ pub async fn refresh_plan(
     }
     print!(
         "{}",
-        render_plan(&plan, quote_note.as_deref(), now, expand, source)
+        render_plan(&plan, quote_note.as_ref(), now, expand, source)
     );
     Ok(())
 }
@@ -625,7 +625,7 @@ fn render_wire(plan: &RefreshPlan) -> String {
 /// to type next.
 pub(crate) fn render_plan(
     plan: &RefreshPlan,
-    quote_note: Option<&str>,
+    quote_note: Option<&QuoteNote>,
     now: i64,
     expand: bool,
     source: Option<&str>,
@@ -663,8 +663,8 @@ pub(crate) fn render_plan(
     match (&plan.quote, quote_note) {
         (Some(quote), _) if expand => out.push_str(&render_quote(quote, now, true)),
         (Some(quote), _) => out.push_str(&render_decision_quote(quote, now)),
-        // Notes are self-describing ("no quote: …", "daemon quote
-        // rejected: …"), so no prefix here.
+        // The note's own sentence is self-describing ("no quote: …",
+        // "daemon quote rejected: …"), so no prefix here.
         (None, Some(note)) if expand => out.push_str(&format!("{note}\n")),
         (None, Some(note)) => out.push_str(&render_decision_quote_note(note)),
         (None, None) => {}
@@ -1396,15 +1396,17 @@ fn summarize_skipped_tabs(plan: &RefreshPlan, audit: bool) -> String {
     )
 }
 
-fn render_decision_quote_note(note: &str) -> String {
-    if note == NO_DAEMON_NOTE {
-        return "quote: unavailable — no daemon running\n".into();
-    }
-    let note = note.strip_prefix("no quote: ").unwrap_or(note);
-    let note = note
-        .strip_suffix(" — plan compiled offline")
-        .unwrap_or(note);
-    format!("quote: unavailable — {note}\n")
+/// The decision view's quote line: the cause, read from the note's
+/// variant, in this view's words.
+fn render_decision_quote_note(note: &QuoteNote) -> String {
+    let cause = match note {
+        QuoteNote::NoDaemon => "no daemon running".to_string(),
+        QuoteNote::NoAccountName => "the facts record no account name to quote as".into(),
+        QuoteNote::Timeout(limit) => format!("the daemon did not answer within {limit:?}"),
+        QuoteNote::Rejected(e) => format!("daemon quote rejected: {e}"),
+        QuoteNote::Other(why) => why.clone(),
+    };
+    format!("quote: unavailable — {cause}\n")
 }
 
 fn quote_scope_unlearned(scope: &QuoteScope) -> bool {
@@ -1841,8 +1843,8 @@ mod tests {
         let mut plan = tiny_plan();
         plan.actions = wall();
         plan.logical_requests = plan.actions.len() as u64;
-        let grouped = render_plan(&plan, Some(NO_DAEMON_NOTE), 2_000, false, None);
-        let expanded = render_plan(&plan, Some(NO_DAEMON_NOTE), 2_000, true, None);
+        let grouped = render_plan(&plan, Some(&QuoteNote::NoDaemon), 2_000, false, None);
+        let expanded = render_plan(&plan, Some(&QuoteNote::NoDaemon), 2_000, true, None);
         assert_eq!(
             expanded.matches("\n  fetch ").count(),
             27,
@@ -1933,7 +1935,7 @@ mod tests {
                 "skipped 1 tab: 1 folder — container only\n",
             )
         );
-        let rendered = render_plan(&plan, Some(NO_DAEMON_NOTE), 2_000, false, None);
+        let rendered = render_plan(&plan, Some(&QuoteNote::NoDaemon), 2_000, false, None);
         assert!(rendered.contains("nothing to do"), "{rendered}");
         assert!(!rendered.contains("next:"), "{rendered}");
         // Nothing to quote, so no quote line either way.
