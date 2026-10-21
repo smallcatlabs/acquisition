@@ -27,11 +27,10 @@ use std::path::Path;
 use acquisition_plan::pricing;
 use acquisition_plan::shop::{Cell, LeftOut, ShopRender, Verdict};
 use acquisition_protocol::realm::Realm;
-use acquisition_store::{Store, account_path};
 use anyhow::{Context, Result};
 
-use crate::plan_cmd::open_intent;
-use crate::store_cmd::{ago, clip, provider, realm_prefix};
+use crate::Ctx;
+use crate::store_cmd::{ago, clip, realm_prefix};
 
 /// Groups of this many items or fewer are listed one per line; larger
 /// groups are counted (C53; `--expand` lists every one).
@@ -48,7 +47,7 @@ pub struct RenderArgs<'a> {
 }
 
 /// `acq shop render`.
-pub fn render_cmd(realm: Realm, league: &str, args: &RenderArgs<'_>) -> Result<()> {
+pub fn render_cmd(cx: &Ctx, realm: Realm, league: &str, args: &RenderArgs<'_>) -> Result<()> {
     let template = match args.template {
         Some(path) => Some(
             std::fs::read_to_string(path)
@@ -57,12 +56,11 @@ pub fn render_cmd(realm: Realm, league: &str, args: &RenderArgs<'_>) -> Result<(
         None => None,
     };
     let now = acquisition_store::now();
-    let (dir, entry, annotations) = open_intent()?;
-    let store = Store::open(&account_path(&dir, &entry.username))?;
+    let opened = cx.account()?.open()?;
     let rendered = pricing::shop_render(
-        &store,
-        &annotations,
-        provider(),
+        &opened.facts,
+        &opened.intent,
+        cx.frontend.provider,
         realm,
         league,
         &pricing::ShopArgs {

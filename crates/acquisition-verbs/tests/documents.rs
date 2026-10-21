@@ -185,7 +185,7 @@ fn a_faults_kind_and_fields_are_the_protocols_words() {
 // ---- the account (C121) -------------------------------------------------
 
 #[test]
-fn no_index_file_is_not_logged_in_with_no_accounts() {
+fn no_index_file_is_not_logged_in_with_an_empty_list() {
     let s = scratch("no-index");
     let fault = frontend(&s.0).account(None).unwrap_err();
     assert!(matches!(fault, Fault::NoAccounts { .. }), "{fault}");
@@ -298,6 +298,47 @@ fn a_blind_policy_write_over_a_stored_row_this_build_cannot_read_is_refused() {
             .unwrap()
             .map(|r| r.revision),
         Some(2)
+    );
+}
+
+/// The CLI's blind default (moved here with its write): a typo'd policy
+/// is refused by the planner's strict parse and nothing lands; a write
+/// naming no revision continues the sequence; a named stale revision is
+/// a conflict naming the current one, the stored value untouched.
+#[test]
+fn a_policy_write_is_validated_and_compares_its_revision() {
+    let s = scratch("policy-cas");
+    login(&s.0, USER, UUID);
+    let account = frontend(&s.0).account(None).unwrap();
+    let typo =
+        json!({ "version": 1, "leagues": { "Standard": { "tabs": "all", "max_age_secs": 60 } } });
+    let fault = account
+        .set_policy(&typo, Expect::Current, PolicyWrite::Merge)
+        .unwrap_err();
+    assert!(matches!(fault, Fault::Policy(_)), "{fault}");
+    assert!(account.policy().unwrap().is_none());
+    let first = account
+        .set_policy(&policy(), Expect::Current, PolicyWrite::Merge)
+        .unwrap();
+    let second = account
+        .set_policy(&policy(), Expect::Current, PolicyWrite::Merge)
+        .unwrap();
+    assert_eq!((first.revision, second.revision), (1, 2));
+    let fault = account
+        .set_policy(
+            &json!({ "version": 3, "realms": {} }),
+            Expect::Exactly(first.revision),
+            PolicyWrite::Replace,
+        )
+        .unwrap_err();
+    assert!(fault.to_string().contains("revision 2"), "{fault}");
+    assert_eq!(account.policy().unwrap().unwrap().value, policy());
+    let row = account
+        .set_policy(&policy(), Expect::Exactly(2), PolicyWrite::Merge)
+        .unwrap();
+    assert_eq!(
+        row.written_via, "test",
+        "stamped with the frontend's channel"
     );
 }
 

@@ -112,55 +112,34 @@
 //!   waits for the second consumer (MCP) to ask for it.
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
 
-use acquisition_client::client::{Client, DaemonError, Observed};
+use acquisition_plan::pricing::Expect;
 use acquisition_plan::{
-    CharacterSkipReason, FetchReason, ListingReason, PlanError, PolicyWrite, RefreshAction,
-    RefreshPlan, SkipReason, Spent, SpentBy, apply_params_of, plan_refresh, put_sync_policy,
+    CharacterSkipReason, FetchReason, ListingReason, PolicyWrite, RefreshAction, RefreshPlan,
+    SkipReason, Spent,
 };
 use acquisition_protocol::job::Outcome;
-use acquisition_protocol::protocol::{Quote, QuoteJob, QuoteScope, Request, Response};
+use acquisition_protocol::protocol::{Quote, QuoteScope};
 use acquisition_protocol::realm::Realm;
-use acquisition_store::{
-    AccountEntry, Annotations, Provenance, SYNC_POLICY_KEY, SYNC_POLICY_KIND, SYNC_POLICY_SCOPE,
-    Store, account_path,
-};
+use acquisition_verbs::refresh::{NO_DAEMON_NOTE, holding_jobs, spent_phrase};
+use acquisition_verbs::{Apply, Planned, StoreChanges};
 use anyhow::{Context, Result, bail};
 use serde_json::Value;
 
-use crate::store_cmd;
+use crate::{Ctx, store_cmd};
 
 /// The channel every intent write from this binary is stamped with (C65).
 pub(crate) const WRITTEN_VIA: &str = "cli";
 
 /// A shape hint for humans; the planner's strict parse is the authority.
-const POLICY_EXAMPLE: &str = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}"#;
+pub(crate) const POLICY_EXAMPLE: &str = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}"#;
 
 /// Groups of this many entities or fewer are listed one per line; larger
 /// groups are counted (the ruling's threshold; `--expand` lists every one).
 const LIST_UP_TO: usize = 10;
 
-/// The selected account's provider directory, index entry, and annotations
-/// file — the latter addressed by the uuid the index maps the account to.
-/// An entry without a uuid predates uuid-at-login; intent cannot be bound
-/// to it.
-pub(crate) fn open_intent() -> Result<(PathBuf, AccountEntry, Annotations)> {
-    let (dir, entry) = store_cmd::resolve()?;
-    let Some(uuid) = entry.uuid.as_deref() else {
-        bail!(
-            "account {} has no recorded uuid (a login predating uuid-at-login); \
-             log in once with `acq auth` to fix it",
-            entry.username
-        );
-    };
-    let annotations = Annotations::open_for(&dir, uuid)?;
-    Ok((dir, entry, annotations))
-}
-
-pub fn policy_show(json: bool) -> Result<()> {
-    let (_, _, annotations) = open_intent()?;
-    let row = annotations.get(SYNC_POLICY_SCOPE, SYNC_POLICY_KEY, SYNC_POLICY_KIND)?;
+pub fn policy_show(cx: &Ctx, json: bool) -> Result<()> {
+    let row = cx.account()?.policy()?;
     if json {
         println!("{}", serde_json::to_string_pretty(&row)?);
         return Ok(());
@@ -181,7 +160,21 @@ pub fn policy_show(json: bool) -> Result<()> {
     Ok(())
 }
 
-pub fn policy_set(value: &str, if_revision: Option<i64>, replace: bool, json: bool) -> Result<()> {
+/// The CLI's policy write, through the layer's (C52, C35): validate, then
+/// compare-and-swap. `if_revision` is the CAS at the human boundary:
+/// given, the write lands only over exactly that revision — what the
+/// caller reviewed (`acq policy show` prints it) is what they replace.
+/// Omitted, it replaces the revision read just before the put
+/// ([`Expect::Current`], this frontend's default), still a CAS
+/// underneath, and never over a stored policy this build cannot read.
+/// `--replace` writes the whole policy instead of its realms (C36).
+pub fn policy_set(
+    cx: &Ctx,
+    value: &str,
+    if_revision: Option<i64>,
+    replace: bool,
+    json: bool,
+) -> Result<()> {
     let text = match value {
         "-" => std::io::read_to_string(std::io::stdin()).context("reading policy from stdin")?,
         v if v.starts_with('@') => {
@@ -191,13 +184,14 @@ pub fn policy_set(value: &str, if_revision: Option<i64>, replace: bool, json: bo
         v => v.to_string(),
     };
     let value: Value = serde_json::from_str(&text).context("the policy must be JSON")?;
-    let (_, _, mut annotations) = open_intent()?;
     let write = if replace {
         PolicyWrite::Replace
     } else {
         PolicyWrite::Merge
     };
-    let row = write_policy(&mut annotations, &value, if_revision, write)?;
+    let row = cx
+        .account()?
+        .set_policy(&value, Expect::or(if_revision, Expect::Current), write)?;
     if json {
         println!("{}", serde_json::to_string_pretty(&row)?);
     } else {
@@ -207,41 +201,6 @@ pub fn policy_set(value: &str, if_revision: Option<i64>, replace: bool, json: bo
         );
     }
     Ok(())
-}
-
-/// The CLI's policy write: validate-then-CAS through the planner's shared
-/// [`put_sync_policy`] (built once, inherited by every frontend).
-///
-/// `if_revision` is the CAS at the human boundary: given, the write lands
-/// only if the stored revision is exactly that — what the caller reviewed
-/// (`acq policy show` prints it) is what they replace, and another
-/// frontend's write in between is a structured conflict. Omitted, the
-/// write blindly replaces the revision read here, just before the put —
-/// the right default for one human at one keyboard, and deliberately this
-/// frontend's default rather than the shared function's — but it is still
-/// a CAS underneath: a write landing between the read and the put is a
-/// structured conflict to retry, never a silent clobber in either
-/// direction. `write` is what the value replaces (C36): its realms, or
-/// with `--replace` the whole policy.
-fn write_policy(
-    annotations: &mut Annotations,
-    value: &Value,
-    if_revision: Option<i64>,
-    write: PolicyWrite,
-) -> Result<acquisition_store::AnnotationRow> {
-    let expected = match if_revision {
-        Some(revision) => Some(revision),
-        None => annotations
-            .get(SYNC_POLICY_SCOPE, SYNC_POLICY_KEY, SYNC_POLICY_KIND)?
-            .map(|row| row.revision),
-    };
-    Ok(put_sync_policy(
-        annotations,
-        value,
-        expected,
-        write,
-        &Provenance::via(WRITTEN_VIA),
-    )?)
 }
 
 /// Read a plan envelope from a path or stdin (`-`) through the planner's
@@ -257,13 +216,16 @@ fn read_plan(source: &str) -> Result<RefreshPlan> {
     Ok(RefreshPlan::from_value(&value)?)
 }
 
-/// `acq refresh --plan`: compile the stored sync policy into the explicit
-/// action set and print it, human or JSON. Nothing is submitted and
-/// nothing is sent; the JSON form is the serialized plan envelope itself
-/// (self-validating on parse), so it can be reviewed, stored, or handed
-/// to `--apply`. `--plan=FILE` renders a reviewed envelope instead — the
-/// same renderer, the quote it carries (none is asked for), no store read.
+/// `acq refresh --plan`: the layer's compile of the stored sync policy,
+/// quoted by a running daemon if one answers (C10), printed human or
+/// JSON. Nothing is submitted and nothing is sent; the JSON form is the
+/// `plan` member of the layer's [`Planned`] — the serialized envelope
+/// itself (self-validating on parse), so it can be reviewed, stored, or
+/// handed to `--apply` — and its note goes to stderr (C11's stdout rule).
+/// `--plan=FILE` renders a reviewed envelope instead — the same
+/// renderer, the quote it carries (none is asked for), no store read.
 pub async fn refresh_plan(
+    cx: &Ctx,
     realm: Realm,
     league: &str,
     source: Option<&str>,
@@ -271,23 +233,12 @@ pub async fn refresh_plan(
     expand: bool,
 ) -> Result<()> {
     let now = acquisition_store::now();
-    let (plan, quote_note) = match source {
-        Some(source) => (read_plan(source)?, None),
-        None => {
-            let (dir, entry, annotations) = open_intent()?;
-            let store = Store::open(&account_path(&dir, &entry.username))?;
-            let snapshot = store.refresh_snapshot(realm.as_str(), league, &annotations)?;
-            let provider = store_cmd::provider();
-            let plan = match plan_refresh(provider, &snapshot, now) {
-                Err(PlanError::NoSyncPolicy) => bail!(
-                    "no sync policy is set for {} — declare one first, e.g. \
-                     `acq policy set '{POLICY_EXAMPLE}'`",
-                    entry.username
-                ),
-                other => other?,
-            };
-            try_quote(plan).await
-        }
+    let Planned { plan, quote_note } = match source {
+        Some(source) => Planned {
+            plan: read_plan(source)?,
+            quote_note: None,
+        },
+        None => cx.account()?.open()?.plan(realm, league).await?,
     };
     if json {
         // Stdout is the plan envelope, nothing else, so it can be piped;
@@ -305,191 +256,113 @@ pub async fn refresh_plan(
     Ok(())
 }
 
-/// `acq refresh --apply`: execute a plan — its unspent actions (C111), as one
-/// `apply` parent job the daemon admits or refuses whole (tracer step 7).
-/// With no source, the stored policy is compiled right now (the normal
-/// one-keyboard loop); a source is a reviewed plan envelope from
-/// `refresh --plan --json`, re-validated by the planner's own parse. The
-/// staleness gate runs before any daemon contact, and an empty plan never
-/// contacts one — there is nothing to spend. After the parent finishes the
-/// CLI reads the store back (a frontend read, no daemon) and says what
-/// landed: "what changed" is the store's to answer, not the job's.
+/// `acq refresh --apply`: execute a plan through the layer's apply — its
+/// unspent actions (C111), as one `apply` parent job the daemon admits or
+/// refuses whole (C38). With no source, the stored policy is compiled
+/// right now (the normal one-keyboard loop); a source is a reviewed plan
+/// envelope from `refresh --plan --json`, re-validated by the planner's
+/// own parse. The CLI's own flag check runs first, then the layer's
+/// staleness gate (C44), both before any daemon contact; an empty plan
+/// never contacts one. After the parent finishes, the layer reads the
+/// store back and says what landed; `--json` prints that one document.
 pub async fn refresh_apply(
+    cx: &Ctx,
     realm_flag: Option<Realm>,
     league_flag: Option<&str>,
     plan_source: Option<&str>,
     max_requests: Option<u64>,
     json: bool,
 ) -> Result<()> {
-    let (dir, entry, annotations) = open_intent()?;
-    let provider = store_cmd::provider();
-    let store = Store::open(&account_path(&dir, &entry.username))?;
+    let mut opened = cx.account()?.open()?;
     let plan = match plan_source {
         Some(source) => read_plan(source)?,
-        None => {
-            let league = league_flag.unwrap_or("Standard");
-            let realm = realm_flag.unwrap_or(Realm::DEFAULT);
-            let snapshot = store.refresh_snapshot(realm.as_str(), league, &annotations)?;
-            match plan_refresh(provider, &snapshot, acquisition_store::now()) {
-                Err(PlanError::NoSyncPolicy) => bail!(
-                    "no sync policy is set for {} — declare one first, e.g. \
-                     `acq policy set '{POLICY_EXAMPLE}'`",
-                    entry.username
-                ),
-                other => other?,
-            }
-        }
+        None => opened.compile(
+            realm_flag.unwrap_or(Realm::DEFAULT),
+            league_flag.unwrap_or(acquisition_plan::DEFAULT_LEAGUE),
+            acquisition_store::now(),
+        )?,
     };
-    check_plan_applies(
-        &plan,
-        provider,
-        &entry,
-        realm_flag,
-        league_flag,
-        &annotations,
-    )?;
-    if plan.actions.is_empty() {
-        // A strict subset of zero actions is satisfied by doing nothing;
-        // no daemon is contacted for it. "Authorizes no requests" is the
-        // honest claim — a plan can be empty for reasons besides freshness
-        // (unknown ids, folders, orphaned substashes), and the plan's own
-        // skipped/unknown reporting says which.
-        if json {
-            println!(
-                "{}",
-                serde_json::json!({
-                    "applied": false,
-                    "requests": 0,
-                    "note": "nothing to do: the plan authorizes no requests",
-                    "skipped": {
-                        "tabs": plan.skipped_tabs.len(),
-                        "characters": plan.skipped_characters.len(),
-                    },
-                })
-            );
-        } else {
-            print!("{}", render_nothing_to_do(&plan, acquisition_store::now()));
-        }
-        return Ok(());
+    check_flags(&plan, realm_flag, league_flag)?;
+    let mut slot = None;
+    let applied = opened.apply(&plan, max_requests, &mut slot).await;
+    if let Some(client) = &slot {
+        crate::note_spawn(client);
     }
-    // C111: a plan spends each request once. What was fetched after the
-    // plan's snapshot is read from the store, with no daemon; only when
-    // something is left is the daemon asked what it already holds, on the
-    // connection the submit needs anyway. (Applying spends, so the
-    // interactive connect policy, lazy spawn included, is the right one —
-    // unlike the quote path, which promises to spend nothing.) The facts
-    // are read again after the list: a fetch that finishes between the
-    // two reads is then in one of them, never in neither.
-    let mut facts = store.refresh_snapshot(plan.realm.as_str(), &plan.league, &annotations)?;
-    let (mut unspent, mut spent) = plan.unspent(&facts, &[], &entry.username);
-    let mut connected = None;
-    if !unspent.is_empty() {
-        let mut client = crate::connect(true).await?;
-        if let Response::Jobs { jobs } = client.request(&Request::List).await? {
-            facts = store.refresh_snapshot(plan.realm.as_str(), &plan.league, &annotations)?;
-            (unspent, spent) = plan.unspent(&facts, &jobs, &entry.username);
-        }
-        connected = Some(client);
-    }
-    let Some(mut client) = connected.filter(|_| !unspent.is_empty()) else {
-        // Queued requests have not landed, so what a plan compiled now
-        // would fetch still counts them: no remaining count is given, and
-        // the line names the job to wait for instead.
-        let queued = spent.iter().any(|s| matches!(s.by, SpentBy::Queued { .. }));
-        let remaining = (!queued)
-            .then(|| plan_refresh(provider, &facts, acquisition_store::now()).ok())
-            .flatten()
-            .map(|next| next.logical_requests);
-        let note = format!(
-            "nothing to do: every request of this plan is spent — {}",
-            spent_phrase(&spent, acquisition_store::now())
-        );
-        if json {
-            println!(
-                "{}",
-                serde_json::json!({
-                    "applied": false,
-                    "requests": 0,
-                    "note": note,
-                    "spent": spent,
-                    "skipped": {
-                        "tabs": plan.skipped_tabs.len(),
-                        "characters": plan.skipped_characters.len(),
-                    },
-                    "remaining_requests": remaining,
-                })
-            );
-        } else {
-            println!("{note}");
-            if let Some(line) = remaining_line(remaining) {
-                println!("{line}");
+    let submitted = match applied? {
+        nothing @ Apply::Nothing { .. } => {
+            // A strict subset of zero actions is satisfied by doing
+            // nothing; "authorizes no requests" is the honest claim — a
+            // plan can be empty for reasons besides freshness, and the
+            // plan's own skipped/unknown reporting says which.
+            if json {
+                println!("{}", serde_json::to_string(&nothing)?);
+            } else {
+                print!("{}", render_nothing_to_do(&plan, acquisition_store::now()));
             }
+            return Ok(());
         }
-        return Ok(());
+        spent @ Apply::Spent { .. } => {
+            if json {
+                println!("{}", serde_json::to_string(&spent)?);
+                return Ok(());
+            }
+            if let Apply::Spent {
+                note,
+                spent,
+                remaining_requests,
+                ..
+            } = &spent
+            {
+                println!("{note}{}", wait_hint(spent));
+                if let Some(line) = remaining_line(*remaining_requests) {
+                    println!("{line}");
+                }
+            }
+            return Ok(());
+        }
+        Apply::Submitted(submitted) => submitted,
     };
-    let params = apply_params_of(&unspent, max_requests);
-    let before = store.status()?;
-    let started = acquisition_store::now();
-    let account = entry.username.clone();
-    let id = match client
-        .request(&Request::Submit {
-            kind: "apply".into(),
-            params,
-            priority: 0,
-            submitted_by: format!("cli:{}", std::process::id()),
-            account: Some(account),
-        })
-        .await?
-    {
-        Response::Submitted { id } => id,
-        Response::Error { kind, message } => return Err(DaemonError { kind, message }.into()),
-        other => bail!("unexpected response: {other:?}"),
+    let Some(mut client) = slot else {
+        bail!("the apply was submitted on no connection this command holds");
     };
+    let id = submitted.job_id;
     if !json {
-        let sending = requests(unspent.len() as u64);
-        if spent.is_empty() {
+        let sending = requests(submitted.requests as u64);
+        if submitted.spent.is_empty() {
             println!("applying {sending} as job {id}");
         } else {
             println!(
-                "applying {sending} as job {id} ({} of the plan's {} already spent: {})",
-                spent.len(),
+                "applying {sending} as job {id} ({} of the plan's {} already spent: {}{})",
+                submitted.spent.len(),
                 plan.actions.len(),
-                spent_phrase(&spent, acquisition_store::now())
+                spent_phrase(&submitted.spent, acquisition_store::now()),
+                wait_hint(&submitted.spent)
             );
         }
     }
-    let outcome = crate::wait_for_job(&mut client, id, json).await?;
-    let changes = StoreChanges::since(&store, &before, started)?;
-    // What the policy still wants once this apply has landed: the same
-    // offline compile `refresh --plan` runs, over the facts as they now
-    // are. A fetched map or unique tab lists substashes no plan could
-    // name before, so one apply is rarely the whole sync, and the apply
-    // is the one place that can say so with a number. `None` when the
-    // compile fails; the apply's own report stands without it.
-    let remaining = store
-        .refresh_snapshot(plan.realm.as_str(), &plan.league, &annotations)
-        .ok()
-        .and_then(|snapshot| plan_refresh(provider, &snapshot, acquisition_store::now()).ok())
-        .map(|next| next.logical_requests);
+    let mut progress = crate::Progressor::new();
+    let mut report = |p: &acquisition_verbs::Progress| progress.report(p);
+    let landed = opened
+        .landed(
+            &mut client,
+            &plan,
+            submitted,
+            (!json).then_some(&mut report as &mut (dyn FnMut(&acquisition_verbs::Progress) + Send)),
+        )
+        .await?;
     if json {
-        let mut value = serde_json::to_value(&outcome)?;
-        value["job_id"] = serde_json::json!(id);
-        value["account"] = serde_json::json!(entry.username);
-        value["store_changes"] = serde_json::to_value(&changes)?;
-        value["remaining_requests"] = serde_json::json!(remaining);
-        value["spent"] = serde_json::to_value(&spent)?;
-        println!("{}", serde_json::to_string_pretty(&value)?);
-        return match outcome {
+        println!("{}", serde_json::to_string_pretty(&landed)?);
+        return match landed.outcome {
             Outcome::Success { .. } => Ok(()),
             _ => Err(crate::AlreadyReported.into()),
         };
     }
-    let report = crate::report_apply(&mut client, id, &outcome).await;
+    let report = crate::report_apply(&mut client, id, &landed.outcome).await;
     print!("{report}");
-    println!("{}", changes.line());
-    match outcome {
+    println!("{}", changes_line(&landed.store_changes));
+    match landed.outcome {
         Outcome::Success { .. } => {
-            if let Some(line) = remaining_line(remaining) {
+            if let Some(line) = remaining_line(landed.remaining_requests) {
                 println!("{line}");
             }
             Ok(())
@@ -504,44 +377,13 @@ pub async fn refresh_apply(
     }
 }
 
-/// C111, in words: how many of a plan's requests were spent before this
-/// apply and by what — fetched since (with the latest's age), or held by
-/// the daemon (with the job to wait for).
-fn spent_phrase(spent: &[Spent], now: i64) -> String {
-    let fetched: Vec<i64> = spent
-        .iter()
-        .filter_map(|s| match s.by {
-            SpentBy::Fetched { fetched_at } => Some(fetched_at),
-            SpentBy::Queued { .. } => None,
-        })
-        .collect();
-    let mut owners: Vec<u64> = spent
-        .iter()
-        .filter_map(|s| match s.by {
-            SpentBy::Queued { job_id, parent } => Some(parent.unwrap_or(job_id)),
-            SpentBy::Fetched { .. } => None,
-        })
-        .collect();
-    let queued = owners.len();
-    owners.sort_unstable();
-    owners.dedup();
-    let mut parts = Vec::new();
-    if let Some(latest) = fetched.iter().max() {
-        parts.push(format!(
-            "{} fetched after it was compiled, the latest {} ago",
-            fetched.len(),
-            dur((now - latest).max(0))
-        ));
+/// The CLI's way to wait for the job holding a spent request, after the
+/// shared phrase names it (C111): the `acq result` of that job with `--wait`.
+fn wait_hint(spent: &[Spent]) -> String {
+    match holding_jobs(spent).first() {
+        Some(first) => format!(" (`acq result {first} --wait`)"),
+        None => String::new(),
     }
-    if let Some(first) = owners.first() {
-        let names: Vec<String> = owners.iter().map(u64::to_string).collect();
-        parts.push(format!(
-            "{queued} waiting or running in {} {} (`acq result {first} --wait`)",
-            if owners.len() == 1 { "job" } else { "jobs" },
-            names.join(", ")
-        ));
-    }
-    parts.join(", ")
 }
 
 /// The apply's last line (C53: the next action): what a plan compiled
@@ -558,92 +400,46 @@ fn remaining_line(remaining: Option<u64>) -> Option<String> {
     })
 }
 
-/// What the store recorded between an apply's submit and its end: the
-/// answer to "what changed", read from the facts rather than inferred from
-/// the job. Additive on `--apply --json` as `store_changes`.
-#[derive(Debug, Default, serde::Serialize)]
-pub(crate) struct StoreChanges {
-    pub responses: i64,
-    pub added: usize,
-    pub changed: usize,
-    pub moved: usize,
-    pub removed: usize,
-    pub locations: usize,
-}
-
-impl StoreChanges {
-    fn since(store: &Store, before: &acquisition_store::Status, started: i64) -> Result<Self> {
-        let after = store.status()?;
-        let events = store.events_since(started, 1_000_000)?;
-        let mut out = StoreChanges {
-            responses: after.responses - before.responses,
-            ..Default::default()
-        };
-        let mut locations = std::collections::BTreeSet::new();
-        for e in &events {
-            match e.kind.as_str() {
-                "added" => out.added += 1,
-                "changed" => out.changed += 1,
-                "moved" => out.moved += 1,
-                "removed" => out.removed += 1,
-                _ => {}
-            }
-            for loc in [&e.from_location, &e.to_location].into_iter().flatten() {
-                locations.insert(loc.clone());
-            }
-        }
-        out.locations = locations.len();
-        Ok(out)
+/// `changed: +98 items added, 3 changed at 5 locations; 112 responses
+/// recorded (acq store events)` — nonzero kinds only.
+fn changes_line(changes: &StoreChanges) -> String {
+    let mut parts = Vec::new();
+    if changes.added > 0 {
+        parts.push(format!("+{} added", changes.added));
     }
-
-    /// `changed: +98 items added, 3 changed at 5 locations; 112 responses
-    /// recorded (acq store events)` — nonzero kinds only.
-    fn line(&self) -> String {
-        let mut parts = Vec::new();
-        if self.added > 0 {
-            parts.push(format!("+{} added", self.added));
-        }
-        if self.changed > 0 {
-            parts.push(format!("~{} changed", self.changed));
-        }
-        if self.moved > 0 {
-            parts.push(format!(">{} moved", self.moved));
-        }
-        if self.removed > 0 {
-            parts.push(format!("-{} removed", self.removed));
-        }
-        let responses = format!(
-            "{} response{} recorded",
-            self.responses,
-            if self.responses == 1 { "" } else { "s" }
-        );
-        if parts.is_empty() {
-            format!("changed: no items — {responses}, nothing added, changed, moved, or removed")
-        } else {
-            format!(
-                "changed: {} at {} location{} since the apply started; {responses} (acq store events)",
-                parts.join(", "),
-                self.locations,
-                if self.locations == 1 { "" } else { "s" }
-            )
-        }
+    if changes.changed > 0 {
+        parts.push(format!("~{} changed", changes.changed));
+    }
+    if changes.moved > 0 {
+        parts.push(format!(">{} moved", changes.moved));
+    }
+    if changes.removed > 0 {
+        parts.push(format!("-{} removed", changes.removed));
+    }
+    let responses = format!(
+        "{} response{} recorded",
+        changes.responses,
+        if changes.responses == 1 { "" } else { "s" }
+    );
+    if parts.is_empty() {
+        format!("changed: no items — {responses}, nothing added, changed, moved, or removed")
+    } else {
+        format!(
+            "changed: {} at {} location{} since the apply started; {responses} (acq store events)",
+            parts.join(", "),
+            changes.locations,
+            if changes.locations == 1 { "" } else { "s" }
+        )
     }
 }
 
-/// The step-7 staleness gate (C44), via the
-/// planner's shared [`RefreshPlan::check_spendable`]: a plan is spent only
-/// while the intent it derives from still stands, and only on the identity
-/// it names. The daemon is intent-blind, so the comparison happens
-/// frontend-side, against a fresh read of the policy row; the CLI adds
-/// only its own flag-conflict check (`--league` naming a different league
-/// than the reviewed envelope is caller confusion, refused before spend).
-fn check_plan_applies(
+/// The CLI's own check before the layer's staleness gate (C44): a
+/// `--realm` or `--league` naming another than the reviewed envelope's is
+/// caller confusion, refused before any spend.
+fn check_flags(
     plan: &RefreshPlan,
-    provider: &str,
-    entry: &AccountEntry,
     realm_flag: Option<Realm>,
     league_flag: Option<&str>,
-    annotations: &Annotations,
 ) -> Result<()> {
     if let Some(realm) = realm_flag
         && realm != plan.realm
@@ -661,94 +457,7 @@ fn check_plan_applies(
             plan.league
         );
     }
-    plan.check_spendable(provider, entry.uuid.as_deref(), annotations)
-        .map_err(|e| match e {
-            // The shared message names the remedy; the CLI names its verb.
-            acquisition_plan::SpendError::PolicyGone { .. }
-            | acquisition_plan::SpendError::PolicyMoved { .. } => {
-                anyhow::anyhow!("{e} with `acq refresh --plan`")
-            }
-            other => anyhow::anyhow!(other),
-        })
-}
-
-/// The quote attempt is bounded: the plan in hand is the deliverable, and
-/// a wedged daemon or socket peer must not keep an already-compiled
-/// offline plan from printing.
-const QUOTE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
-
-/// Best-effort enrichment: ask a *running* daemon to quote the plan's
-/// actions (read-only, non-reserving) and attach it. The plan is
-/// computable with the daemon down, so this is an observation (C10,
-/// `Client::observe`: it cannot spawn or replace — a mismatched daemon
-/// may be a human's live GGG run, and `--plan` promises to spend nothing;
-/// the interactive policy's kill-and-respawn is a spend, because the
-/// successor resumes the persisted queue) and is never waited on past
-/// [`QUOTE_TIMEOUT`]; the plan goes out unquoted with the reason instead.
-async fn try_quote(plan: RefreshPlan) -> (RefreshPlan, Option<String>) {
-    try_quote_within(plan, QUOTE_TIMEOUT).await
-}
-
-/// The one line for the common case, without an OS error: `--plan` never
-/// spawns a daemon, so whether spawning is allowed is beside the point.
-const NO_DAEMON_NOTE: &str =
-    "no quote: no daemon running (the plan needs none; a running daemon adds its ETA)";
-
-async fn try_quote_within(
-    plan: RefreshPlan,
-    limit: std::time::Duration,
-) -> (RefreshPlan, Option<String>) {
-    let Some(account) = plan.account_name.clone() else {
-        // `with_quote` requires the quote to name exactly the plan's
-        // account; with no name on record there is nothing to quote as.
-        return (
-            plan,
-            Some("no quote: the facts record no account name to quote as".into()),
-        );
-    };
-    let jobs: Vec<QuoteJob> = plan
-        .actions
-        .iter()
-        .map(|action| {
-            let (kind, params) = action.job();
-            QuoteJob {
-                kind: kind.into(),
-                params,
-            }
-        })
-        .collect();
-    let attempt = async {
-        let mut client = match Client::observe().await {
-            Ok(Observed::Compatible(client)) => client,
-            Ok(Observed::Absent) => return Err(NO_DAEMON_NOTE.to_string()),
-            Ok(Observed::Incompatible(found)) => {
-                return Err(format!("no quote: {found} — plan compiled offline"));
-            }
-            Ok(Observed::Unresponsive(found)) => {
-                return Err(format!("no quote: {found} — plan compiled offline"));
-            }
-            Err(e) => return Err(format!("no quote: {e:#} — plan compiled offline")),
-        };
-        client
-            .quote(jobs, Some(account))
-            .await
-            .map_err(|e| format!("no quote: {e:#} — plan compiled offline"))
-    };
-    match tokio::time::timeout(limit, attempt).await {
-        Err(_) => (
-            plan,
-            Some(format!(
-                "no quote: the daemon did not answer within {limit:?} — plan compiled offline"
-            )),
-        ),
-        Ok(Err(why)) => (plan, Some(why)),
-        Ok(Ok(quote)) => match plan.clone().with_quote(quote) {
-            Ok(enriched) => (enriched, None),
-            // The daemon answered about something other than this plan —
-            // a planner/daemon disagreement worth seeing, not hiding.
-            Err(e) => (plan, Some(format!("daemon quote rejected: {e}"))),
-        },
-    }
+    Ok(())
 }
 
 // ---- rendering --------------------------------------------------------------
@@ -971,7 +680,7 @@ pub(crate) fn render_plan(
                 if plan.realm != Realm::DEFAULT {
                     apply.push_str(&format!(" --realm {}", plan.realm));
                 }
-                if plan.league != "Standard" {
+                if plan.league != acquisition_plan::DEFAULT_LEAGUE {
                     apply.push_str(&format!(" --league {}", plan.league));
                 }
             }
@@ -1850,69 +1559,15 @@ fn render_scope(scope: &QuoteScope, width: usize, expand: bool) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use acquisition_store::{AnnotationRow, RefreshSnapshot};
-    use serde_json::json;
-
-    fn annotations() -> Annotations {
-        Annotations::open_memory_for("u-cli").unwrap()
-    }
+    use acquisition_store::{
+        AnnotationRow, RefreshSnapshot, SYNC_POLICY_KEY, SYNC_POLICY_KIND, SYNC_POLICY_SCOPE,
+    };
 
     fn example() -> Value {
         serde_json::from_str(POLICY_EXAMPLE).unwrap()
     }
 
-    #[test]
-    fn a_policy_is_validated_before_it_is_stored() {
-        let mut a = annotations();
-        // A typo'd field is refused by the planner's strict parse, and
-        // nothing lands on disk — intent is never half-honored, and the
-        // write surface enforces it too, not only plan time.
-        let typo = json!({
-            "version": 1,
-            "leagues": { "Standard": { "tabs": "all", "max_age_secs": 60 } }
-        });
-        assert!(write_policy(&mut a, &typo, None, PolicyWrite::Merge).is_err());
-        assert!(
-            a.get(SYNC_POLICY_SCOPE, SYNC_POLICY_KEY, SYNC_POLICY_KIND)
-                .unwrap()
-                .is_none()
-        );
-        // The example the CLI prints must itself be a valid policy.
-        let first = write_policy(&mut a, &example(), None, PolicyWrite::Merge).unwrap();
-        assert_eq!(first.revision, 1);
-        // An unconditional rewrite continues the revision sequence.
-        let second = write_policy(&mut a, &example(), None, PolicyWrite::Merge).unwrap();
-        assert_eq!(second.revision, 2);
-    }
-
-    #[test]
-    fn if_revision_is_the_cas_at_the_human_boundary() {
-        let mut a = annotations();
-        let first = write_policy(&mut a, &example(), None, PolicyWrite::Merge).unwrap();
-        // A stale expectation (someone else wrote since the review) is a
-        // structured conflict naming the current revision, and the stored
-        // value is untouched.
-        write_policy(&mut a, &example(), Some(first.revision), PolicyWrite::Merge).unwrap();
-        let err = write_policy(
-            &mut a,
-            &json!({"version": 1, "leagues": {}}),
-            Some(first.revision),
-            PolicyWrite::Merge,
-        )
-        .unwrap_err();
-        assert!(err.to_string().contains("revision 2"), "{err}");
-        let held = a
-            .get(SYNC_POLICY_SCOPE, SYNC_POLICY_KEY, SYNC_POLICY_KIND)
-            .unwrap()
-            .unwrap();
-        assert_eq!(held.value, example());
-        // The reviewed revision, when it still stands, is replaceable.
-        let third =
-            write_policy(&mut a, &example(), Some(held.revision), PolicyWrite::Merge).unwrap();
-        assert_eq!(third.revision, 3);
-    }
-
-    /// A plan with no store behind it, for exercising the quote attempt.
+    /// A plan with no store behind it, compiled through the layer.
     fn tiny_plan() -> RefreshPlan {
         let snapshot = RefreshSnapshot {
             account_uuid: "u-cli".into(),
@@ -1936,98 +1591,20 @@ mod tests {
                 actor: None,
             }),
         };
-        plan_refresh("mock", &snapshot, 2_000).unwrap()
+        acquisition_verbs::refresh::compile("mock", &snapshot, "Alice#1234", 2_000).unwrap()
     }
 
+    /// The CLI's own flag check, before the layer's staleness gate:
+    /// flags that agree pass, ones that do not are refused naming both.
     #[test]
-    fn the_staleness_gate_refuses_moved_intent_and_wrong_identity() {
+    fn apply_flags_that_contradict_the_plan_are_refused() {
         let plan = tiny_plan();
-        assert_eq!(plan.basis.policy_revision, 1);
-        let entry = AccountEntry {
-            username: "Alice#1234".into(),
-            last_login: 0,
-            persisted: true,
-            uuid: Some("u-cli".into()),
-        };
-        let mut a = annotations();
-        // Intent deleted since the plan: refused, citing the revision the
-        // plan derived from.
-        let err = check_plan_applies(&plan, "mock", &entry, None, None, &a).unwrap_err();
-        assert!(err.to_string().contains("gone"), "{err}");
-        // Intent standing at the plan's revision: applies — and explicit
-        // --realm / --league flags that agree are fine; ones that do not
-        // are caller confusion, refused before spend.
-        write_policy(&mut a, &example(), None, PolicyWrite::Merge).unwrap();
-        check_plan_applies(&plan, "mock", &entry, None, None, &a).unwrap();
-        check_plan_applies(&plan, "mock", &entry, Some(Realm::Pc), Some("Standard"), &a).unwrap();
-        let err =
-            check_plan_applies(&plan, "mock", &entry, None, Some("Hardcore"), &a).unwrap_err();
+        check_flags(&plan, None, None).unwrap();
+        check_flags(&plan, Some(Realm::Pc), Some("Standard")).unwrap();
+        let err = check_flags(&plan, None, Some("Hardcore")).unwrap_err();
         assert!(err.to_string().contains("Standard"), "{err}");
-        let err =
-            check_plan_applies(&plan, "mock", &entry, Some(Realm::Xbox), None, &a).unwrap_err();
+        let err = check_flags(&plan, Some(Realm::Xbox), None).unwrap_err();
         assert!(err.to_string().contains("--realm xbox"), "{err}");
-        // Intent moved since the plan (the step-7 ruling): refused with
-        // both revisions named, remedy = replan.
-        write_policy(&mut a, &example(), None, PolicyWrite::Merge).unwrap();
-        let err = check_plan_applies(&plan, "mock", &entry, None, None, &a).unwrap_err();
-        let msg = err.to_string();
-        assert!(
-            msg.contains("revision 1") && msg.contains("revision 2"),
-            "{msg}"
-        );
-        assert!(msg.contains("replan"), "{msg}");
-        // A plan for another identity is never spent here: wrong uuid,
-        // wrong provider.
-        let other = AccountEntry {
-            uuid: Some("u-other".into()),
-            ..entry.clone()
-        };
-        let err = check_plan_applies(&plan, "mock", &other, None, None, &a).unwrap_err();
-        assert!(err.to_string().contains("u-cli"), "{err}");
-        let err = check_plan_applies(&plan, "ggg", &entry, None, None, &a).unwrap_err();
-        assert!(err.to_string().contains("mock"), "{err}");
-    }
-
-    #[tokio::test]
-    async fn a_wedged_daemon_cannot_block_the_offline_plan() {
-        // A socket that accepts connections and never answers the
-        // handshake: the bounded quote attempt must hand back the offline
-        // plan with the timeout named, not hang the command.
-        // The socket derives from the world (C83): a scratch root is this
-        // test's world, and the wedged listener binds where its daemon
-        // would.
-        let dir = std::env::temp_dir().join(format!("acq-p6-{}", std::process::id()));
-        std::fs::create_dir_all(dir.join("store")).unwrap();
-        // SAFETY: this is the only test in the binary that touches
-        // ACQ_STORE_DIR, and nothing else in the test process reads it
-        // concurrently.
-        unsafe { std::env::set_var("ACQ_STORE_DIR", dir.join("store")) };
-        acquisition_store::world::app_runtime_dir().unwrap();
-        let sock = acquisition_store::world::World::observe()
-            .unwrap()
-            .socket_path()
-            .unwrap();
-        let _listener = acquisition_client::endpoint::Listener::bind(&sock).unwrap();
-        let plan = tiny_plan();
-        // The outer watchdog outlives the tested bound on purpose: if the
-        // production timeout is ever removed, this test must fail cleanly
-        // instead of hanging the quality gate.
-        let (back, note) = tokio::time::timeout(
-            std::time::Duration::from_secs(10),
-            try_quote_within(plan.clone(), std::time::Duration::from_millis(200)),
-        )
-        .await
-        .expect(
-            "the bounded quote attempt itself never returned — is the production timeout gone?",
-        );
-        assert_eq!(back, plan, "the compiled plan must come back untouched");
-        let note = note.expect("a timed-out quote must say why it is absent");
-        assert!(note.contains("did not answer"), "{note}");
-        // The listener's file sits in the real runtime directory: take it
-        // with the test.
-        drop(_listener);
-        let _ = std::fs::remove_file(&sock);
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     // ---- C53: decision, audit and contract views ----
@@ -2370,7 +1947,7 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(
-            none.line(),
+            changes_line(&none),
             "changed: no items — 3 responses recorded, nothing added, changed, moved, or removed"
         );
         let some = StoreChanges {
@@ -2382,7 +1959,7 @@ mod tests {
             locations: 5,
         };
         assert_eq!(
-            some.line(),
+            changes_line(&some),
             "changed: +98 added, >2 moved at 5 locations since the apply started; 112 responses recorded (acq store events)"
         );
     }

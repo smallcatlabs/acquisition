@@ -259,10 +259,10 @@ fn the_plan_apply_replan_loop_closes_against_the_mock() {
 }
 
 /// The CLI says how many of an apply's requests failed by reading the
-/// daemon's parent failure line (`k of n child jobs failed: [ids]`). The
-/// two crates share no code for that line, so only the real pair shows
-/// the words still match: a plan naming a tab the provider does not have
-/// fails that one child, and the report counts it.
+/// daemon's own tally, the `children` field a parent's failure carries
+/// (C23), never its sentence: a plan naming a tab the provider does not
+/// have fails that one child, and the report counts it through the real
+/// pair of binaries.
 #[test]
 fn a_failed_apply_counts_its_failed_requests_from_the_daemons_own_words() {
     let base = std::env::temp_dir().join(format!("acq-af-{}", std::process::id()));

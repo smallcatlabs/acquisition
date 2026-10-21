@@ -37,12 +37,10 @@ use acquisition_plan::listing::{
 use acquisition_plan::price::{Buyout, PriceTarget, PriceWrite};
 use acquisition_plan::pricing::{self, Expect, ListArgs};
 use acquisition_protocol::realm::Realm;
-use acquisition_store::{
-    AnnotationRow, Annotations, IntentValue, Provenance, Store, account_path, check_value,
-};
+use acquisition_store::{AnnotationRow, Annotations, IntentValue, Provenance, Store, check_value};
 use anyhow::Result;
 
-use crate::plan_cmd::{WRITTEN_VIA, open_intent};
+use crate::Ctx;
 use crate::store_cmd::{ago, clip, realm_prefix};
 
 /// Groups of this many items or fewer are listed one per line; larger
@@ -51,19 +49,16 @@ use crate::store_cmd::{ago, clip, realm_prefix};
 /// for twelve and was shown a header alone).
 const LIST_UP_TO: usize = 10;
 
-/// The selected account's facts file, opened beside its intent.
-fn opened() -> Result<(Store, Annotations)> {
-    let (dir, entry, annotations) = open_intent()?;
-    Ok((
-        Store::open(&account_path(&dir, &entry.username))?,
-        annotations,
-    ))
+/// The selected account's facts file, opened beside its intent (C121,
+/// C12), and the account's name.
+fn opened(cx: &Ctx) -> Result<(Store, Annotations, String)> {
+    let opened = cx.account()?.open()?;
+    Ok((opened.facts, opened.intent, opened.account.entry.username))
 }
 
 /// `acq price status`.
-pub fn status(realm: Realm, league: &str, expand: bool, json: bool) -> Result<()> {
-    let (dir, entry, annotations) = open_intent()?;
-    let store = Store::open(&account_path(&dir, &entry.username))?;
+pub fn status(cx: &Ctx, realm: Realm, league: &str, expand: bool, json: bool) -> Result<()> {
+    let (store, annotations, username) = opened(cx)?;
     let r = pricing::report(&store, &annotations, realm, league)?;
     if json {
         println!("{}", serde_json::to_string_pretty(&r.summary())?);
@@ -71,20 +66,21 @@ pub fn status(realm: Realm, league: &str, expand: bool, json: bool) -> Result<()
     }
     print!(
         "{}",
-        render_status(&r, acquisition_store::now(), expand, &entry.username)
+        render_status(&r, acquisition_store::now(), expand, &username)
     );
     Ok(())
 }
 
 /// `acq price show <target>`.
 pub fn show(
+    cx: &Ctx,
     target: &str,
     realm: Option<Realm>,
     league: Option<&str>,
     expand: bool,
     json: bool,
 ) -> Result<()> {
-    let (store, annotations) = opened()?;
+    let (store, annotations, _) = opened(cx)?;
     let view = pricing::show(&store, &annotations, target, realm, league)?;
     if json {
         println!("{}", serde_json::to_string_pretty(&view)?);
@@ -96,13 +92,14 @@ pub fn show(
 
 /// `acq price list`.
 pub fn list(
+    cx: &Ctx,
     realm: Option<Realm>,
     league: Option<&str>,
     args: &ListArgs,
     expand: bool,
     json: bool,
 ) -> Result<()> {
-    let (store, annotations) = opened()?;
+    let (store, annotations, _) = opened(cx)?;
     let view = pricing::list(&store, &annotations, realm, league, args)?;
     if json {
         println!("{}", serde_json::to_string_pretty(&view)?);
@@ -812,6 +809,7 @@ fn render_show(view: &ShowView, now: i64, expand: bool) -> String {
 /// racing in between is still a structured conflict, never a clobber.
 #[allow(clippy::too_many_arguments)]
 pub fn set(
+    cx: &Ctx,
     target: &str,
     kind: &str,
     amount: Option<&str>,
@@ -819,8 +817,7 @@ pub fn set(
     if_revision: Option<i64>,
     json: bool,
 ) -> Result<()> {
-    let (dir, entry, mut annotations) = open_intent()?;
-    let store = Store::open(&account_path(&dir, &entry.username))?;
+    let (store, mut annotations, username) = opened(cx)?;
     let receipt = pricing::set(
         &store,
         &mut annotations,
@@ -829,7 +826,7 @@ pub fn set(
         amount,
         currency,
         Expect::or(if_revision, Expect::Current),
-        &Provenance::via(WRITTEN_VIA),
+        &Provenance::via(cx.frontend.via),
     )?;
     if json {
         println!("{}", serde_json::to_string_pretty(&receipt)?);
@@ -839,7 +836,7 @@ pub fn set(
     // second account known later would make a bare command ambiguous.
     print!(
         "{}",
-        render_write(&receipt.write, Some(receipt.in_facts), &entry.username)
+        render_write(&receipt.write, Some(receipt.in_facts), &username)
     );
     Ok(())
 }
@@ -847,19 +844,20 @@ pub fn set(
 /// `acq price clear <target>`: remove the row, under the same CAS. A
 /// target with no row is a refusal that says so — every nothing says
 /// which nothing (C53).
-pub fn clear(target: &str, if_revision: Option<i64>, json: bool) -> Result<()> {
-    let (_, entry, mut annotations) = open_intent()?;
+pub fn clear(cx: &Ctx, target: &str, if_revision: Option<i64>, json: bool) -> Result<()> {
+    let account = cx.account()?;
+    let mut annotations = account.intent()?;
     let write = pricing::clear(
         &mut annotations,
         target,
         Expect::or(if_revision, Expect::Current),
-        &Provenance::via(WRITTEN_VIA),
+        &Provenance::via(cx.frontend.via),
     )?;
     if json {
         println!("{}", serde_json::to_string_pretty(&write)?);
         return Ok(());
     }
-    print!("{}", render_write(&write, None, &entry.username));
+    print!("{}", render_write(&write, None, &account.entry.username));
     Ok(())
 }
 

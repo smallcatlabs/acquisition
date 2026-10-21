@@ -62,8 +62,8 @@ struct Snap {
     errors: Vec<ErrorRecord>,
 }
 
-pub async fn run(json: bool) -> Result<()> {
-    let mut client = attach().await?;
+pub async fn run(cx: &crate::Ctx, json: bool) -> Result<()> {
+    let mut client = attach(cx).await?;
     if json {
         let resp = client.request(&Request::Dashboard).await?;
         println!("{}", serde_json::to_string_pretty(&resp)?);

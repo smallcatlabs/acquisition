@@ -256,7 +256,13 @@ fn an_account_that_cannot_be_picked_says_which_failure_and_lists_the_accounts() 
 
     let out = acq(&base, &["tabs", "--json", "--account", "Carol"]);
     assert_eq!(out.status.code(), Some(1), "{out:?}");
-    assert_eq!(sole_json(&out)["kind"], "unknown_account");
+    let report = sole_json(&out);
+    assert_eq!(report["kind"], "not_logged_in", "{report}");
+    assert_eq!(
+        report["accounts"],
+        json!(["Alice#1234", "Bob#5678"]),
+        "{report}"
+    );
 
     let out = acq(&base, &["tabs", "--json", "--account", "Alice"]);
     assert_eq!(out.status.code(), Some(0), "{out:?}");
@@ -1170,11 +1176,14 @@ fn an_apply_retried_while_its_requests_wait_queues_nothing_more() {
     assert!(!queued.is_empty(), "nothing was still waiting: {second}");
     assert!(queued.iter().any(|s| s["parent"] == parent), "{second}");
     assert!(second["remaining_requests"].is_null(), "{second}");
+    // The shared note names the job holding the requests; the way to
+    // wait for it is each frontend's own (the CLI's text adds `acq result
+    // <id> --wait`).
     assert!(
         second["note"]
             .as_str()
             .unwrap_or_default()
-            .contains(&format!("(`acq result {parent} --wait`)")),
+            .contains(&format!("in job {parent}")),
         "{second}"
     );
     let applies = open_jobs().iter().filter(|j| j["kind"] == "apply").count();

@@ -16,79 +16,72 @@ mod store_cmd;
 use std::io::{IsTerminal as _, Write as _};
 use std::time::{Duration, Instant};
 
-use acquisition_client::client::{
-    Client, ConnectOptions, DaemonError, Observed, Signal, Subscription,
-};
+use acquisition_client::client::{Client, DaemonError, Observed, Signal, Subscription};
 use acquisition_protocol::job::{JobInfo, JobState, Outcome};
 use acquisition_protocol::protocol::{ErrorKind, Request, Response};
-use acquisition_protocol::provider::{self, GGG};
+use acquisition_protocol::provider::GGG;
 use acquisition_protocol::realm::Realm;
-use acquisition_store::Resolve;
-use acquisition_store::jobs::{Persisted, PersistedJob, PersistedRecord};
 use acquisition_store::world::World;
+use acquisition_verbs::jobs::{job_info, result_live};
+use acquisition_verbs::{
+    Account, ChildTally, DaemonReport, Fault, Frontend, Job, JobResult, Jobs, Progress,
+};
 use anyhow::{Result, bail};
 use clap::{Parser, Subcommand};
 use serde_json::json;
 
-/// `--realm`: the coordinate above league (C58). pc by
-/// default, as on the wire; a typo is refused by clap before any daemon
-/// or store is touched.
-fn parse_realm(s: &str) -> Result<Realm, String> {
-    Realm::parse(s).ok_or_else(|| {
-        format!(
-            "unknown realm {s:?} (one of {})",
-            Realm::ALL.map(Realm::as_str).join(", ")
-        )
-    })
+/// Who this process is and which account its flags select (C46: the
+/// layer's values in place of process statics; C121). Built once in
+/// `run`, after the environment is checked, and handed to every verb.
+pub(crate) struct Ctx {
+    pub frontend: Frontend,
+    /// `--account` / `ACQ_ACCOUNT` as typed: a job verb passes it to the
+    /// daemon unresolved (C3), a verb that opens a store resolves it.
+    pub account: Option<String>,
 }
 
-/// A use verb's connect (C10): lazy-spawn as asked, and replace a daemon
-/// of another contract, artifact or provider (C84) — the caller is the
-/// human expressing intent.
-pub(crate) async fn connect(spawn: bool) -> Result<Client> {
-    let client = Client::connect(ConnectOptions::interactive(spawn)).await?;
-    if client.spawned() {
-        SPAWNED.store(true, std::sync::atomic::Ordering::Relaxed);
+impl Ctx {
+    /// C121: the account the flags select, resolved against the index.
+    pub fn account(&self) -> Result<Account, Fault> {
+        self.frontend.account(self.account.as_deref())
     }
+}
+
+/// A use verb's connect (C10): the layer's human door — lazy spawn, and
+/// a daemon of another contract, artifact or provider replaced (C84) —
+/// noting a spawn for the refusal that follows one.
+pub(crate) async fn connect(cx: &Ctx) -> Result<Client> {
+    let client = cx.frontend.connect().await?;
+    note_spawn(&client);
     Ok(client)
 }
 
-/// The running daemon, for a verb that observes it or acts on it (C10):
-/// never spawns or replaces. Absence and a mismatch are errors that say
-/// which; `daemon status` renders the same observation as states, and
-/// `jobs` answers absence from the ledger on disk (C45).
-pub(crate) async fn attach() -> Result<Client> {
-    client_of(Client::observe().await?)
-}
-
-/// The client an observation yields, or the error that says why not.
-fn client_of(observed: Observed) -> Result<Client> {
-    match observed {
-        Observed::Compatible(client) => Ok(client),
-        Observed::Absent => bail!("daemon is not running (a job command or `acq auth` starts one)"),
-        Observed::Incompatible(found) => bail!("{found}; {}", mismatch_remedy(&found)),
-        Observed::Unresponsive(found) => bail!("{found}"),
+/// Remember that this command started the daemon it talks to (C3).
+pub(crate) fn note_spawn(client: &Client) {
+    if client.spawned() {
+        SPAWNED.store(true, std::sync::atomic::Ordering::Relaxed);
     }
 }
 
-/// The queue on disk, for an observer with no daemon to ask (C45): this
-/// shell's world and provider, `None` when neither has been created.
-fn persisted_queue() -> Result<Option<Persisted>> {
-    Persisted::observe(provider::wanted())
+/// The running daemon, for a verb that observes it or acts on it (C10):
+/// never spawns or replaces. Absence and a mismatch are faults the CLI
+/// words; `daemon status` renders the same observation as states, and
+/// `jobs` answers absence from the ledger on disk (C45).
+pub(crate) async fn attach(cx: &Ctx) -> Result<Client> {
+    Ok(cx.frontend.attach().await?)
 }
 
 /// `jobs` with no daemon (C45): `running: false` and the persisted queue
 /// — the same table as the live list, without ETAs, under a line that
 /// says how old the picture is and what restores it.
-fn print_persisted_queue(json: bool) -> Result<()> {
-    let persisted = persisted_queue()?;
+fn print_persisted_queue(jobs: &Jobs, json: bool) -> Result<()> {
     if json {
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&json!({ "running": false, "persisted": persisted }))?
-        );
+        println!("{}", serde_json::to_string_pretty(jobs)?);
         return Ok(());
     }
+    let Jobs::Absent { persisted } = jobs else {
+        return Ok(());
+    };
     let spawns = "a job command or `acq auth` starts one";
     match persisted {
         None => println!("daemon is not running; no queue on disk ({spawns})"),
@@ -107,95 +100,30 @@ fn print_persisted_queue(json: bool) -> Result<()> {
             let jobs = p
                 .jobs
                 .iter()
-                .map(persisted_as_info)
-                .collect::<Result<Vec<_>>>()?;
+                .map(job_info)
+                .collect::<Result<Vec<_>, Fault>>()?;
             print_table(&jobs);
         }
     }
     Ok(())
 }
 
-/// A ledger row in the live list's shape, for the shared table: no ETA
-/// (nothing is predicting), the state as recorded. A state this build
-/// does not know is an error naming the row, never a guess (C47).
-fn persisted_as_info(job: &PersistedJob) -> Result<JobInfo> {
-    let state = match job.state.as_str() {
-        "waiting" => JobState::Waiting,
-        "running" => JobState::Running,
-        "done" => JobState::Done,
-        "failed" => JobState::Failed,
-        "cancelled" => JobState::Cancelled,
-        other => bail!(
-            "job {} on disk has state `{other}`, which this build does not know",
-            job.id
-        ),
-    };
-    Ok(JobInfo {
-        id: job.id,
-        kind: job.kind.clone(),
-        state,
-        priority: job.priority,
-        submitted_by: job.submitted_by.clone(),
-        eta_seconds: None,
-        parent: job.parent,
-        retries: job.retries,
-        account: job.account.clone(),
-        params: job.params.clone(),
-    })
-}
-
-/// One job from the ledger on disk, for `status` and `result` with no
-/// daemon to ask (C45). No such id, or no ledger at all, is the error
-/// that says both halves: nothing on disk, nothing running.
-fn persisted_job(id: u64) -> Result<PersistedRecord> {
-    match Persisted::observe_job(provider::wanted(), id)? {
-        Some(record) => Ok(record),
-        None => bail!(
-            "no job {id} on disk, and the daemon is not running (a job command or `acq auth` starts one)"
-        ),
-    }
-}
-
 /// `status <id>` with no daemon: the row as recorded, in `jobs`' absent
-/// shape — `running: false` beside what the ledger holds.
-fn print_persisted_job(id: u64, json: bool) -> Result<()> {
-    let record = persisted_job(id)?;
+/// shape — `running: false` beside what the ledger holds, and `next`.
+fn print_persisted_job(id: u64, job: &Job, json: bool) -> Result<()> {
     if json {
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&json!({ "running": false, "persisted": record.job }))?
-        );
+        println!("{}", serde_json::to_string_pretty(job)?);
         return Ok(());
     }
+    let Job::Absent { persisted, .. } = job else {
+        return Ok(());
+    };
     println!(
         "daemon is not running; job {id} as the ledger on disk records it, written {}",
-        store_cmd::ago(acquisition_store::now(), Some(record.job.updated_at)),
+        store_cmd::ago(acquisition_store::now(), Some(persisted.updated_at)),
     );
-    print_table(&[persisted_as_info(&record.job)?]);
+    print_table(&[job_info(persisted)?]);
     Ok(())
-}
-
-/// `result <id>` with no daemon: a terminal job's outcome is final, so it
-/// prints exactly as a daemon would answer it. A job that has none yet
-/// cannot get one until a daemon runs, and `--wait` cannot wait for that
-/// without spawning (C10): both say so.
-fn print_persisted_result(id: u64, wait: bool, json: bool) -> Result<()> {
-    let record = persisted_job(id)?;
-    let Some(outcome) = record.outcome else {
-        bail!(
-            "job {id} is recorded {} on disk and the daemon is not running: a job command \
-             starts one that resumes it{}",
-            record.job.state,
-            if wait {
-                ", and --wait can then wait for it"
-            } else {
-                ""
-            }
-        );
-    };
-    let outcome: Outcome = serde_json::from_value(outcome)
-        .map_err(|e| anyhow::anyhow!("job {id}'s outcome on disk does not parse: {e}"))?;
-    print_outcome(id, record.job.account.as_deref(), &outcome, json)
 }
 
 /// What a human does about a daemon this client will not use: a
@@ -276,7 +204,7 @@ enum Cmd {
     Characters {
         /// pc (default), xbox, sony, or poe2. pc is omitted on the wire;
         /// another realm is its own route segment, with its own probe.
-        #[arg(long, default_value = "pc", value_parser = parse_realm)]
+        #[arg(long, default_value = "pc", value_parser = acquisition_verbs::realm)]
         realm: Realm,
     },
     /// Fetch one character with its equipment and inventory.
@@ -286,7 +214,7 @@ enum Cmd {
         /// (`acq store characters`).
         name: String,
         /// pc (default), xbox, sony, or poe2; pc is omitted on the wire.
-        #[arg(long, default_value = "pc", value_parser = parse_realm)]
+        #[arg(long, default_value = "pc", value_parser = acquisition_verbs::realm)]
         realm: Realm,
     },
     /// List the account's leagues.
@@ -312,10 +240,10 @@ enum Cmd {
         /// Only tabs never fetched.
         #[arg(long)]
         never_fetched: bool,
-        #[arg(long, default_value = "Standard")]
+        #[arg(long, default_value = acquisition_plan::DEFAULT_LEAGUE)]
         league: String,
         /// pc (default), xbox, or sony — stashes are PoE1 only.
-        #[arg(long, default_value = "pc", value_parser = parse_realm)]
+        #[arg(long, default_value = "pc", value_parser = acquisition_verbs::realm)]
         realm: Realm,
     },
     /// Search the items the store holds (no daemon): a query over every
@@ -345,11 +273,11 @@ enum Cmd {
     /// List stash tabs for a league: a second rate-limit policy, paced in
     /// parallel with the character routes.
     Stashes {
-        #[arg(long, default_value = "Standard")]
+        #[arg(long, default_value = acquisition_plan::DEFAULT_LEAGUE)]
         league: String,
         /// pc (default), xbox, or sony — the stash endpoints are PoE1 only;
         /// poe2 is refused at admission.
-        #[arg(long, default_value = "pc", value_parser = parse_realm)]
+        #[arg(long, default_value = "pc", value_parser = acquisition_verbs::realm)]
         realm: Realm,
     },
     /// Fetch one stash tab (or one substash of a map/unique tab).
@@ -361,11 +289,11 @@ enum Cmd {
         /// tab: one map tab can hold hundreds.
         #[arg(long)]
         deep: bool,
-        #[arg(long, default_value = "Standard")]
+        #[arg(long, default_value = acquisition_plan::DEFAULT_LEAGUE)]
         league: String,
         /// pc (default), xbox, or sony — the stash endpoints are PoE1 only;
         /// poe2 is refused at admission.
-        #[arg(long, default_value = "pc", value_parser = parse_realm)]
+        #[arg(long, default_value = "pc", value_parser = acquisition_verbs::realm)]
         realm: Realm,
     },
     /// Refresh tabs: one stash-list request, then one `stash` child job per
@@ -435,7 +363,7 @@ is the per-location summary.")]
         /// pc (default), xbox, sony, or poe2 (a poe2 policy entry can
         /// cover characters only). With `--apply=FILE`, the plan's own
         /// realm governs; giving --realm too asserts they agree.
-        #[arg(long, value_parser = parse_realm)]
+        #[arg(long, value_parser = acquisition_verbs::realm)]
         realm: Option<Realm>,
     },
     /// The per-account sync policy: the declared coverage and freshness
@@ -571,9 +499,9 @@ enum PriceCmd {
     /// One line on the league's listing state and the next action (the
     /// default); --expand adds the game side, the rows and the basis.
     Status {
-        #[arg(long, default_value = "Standard")]
+        #[arg(long, default_value = acquisition_plan::DEFAULT_LEAGUE)]
         league: String,
-        #[arg(long, value_parser = parse_realm)]
+        #[arg(long, value_parser = acquisition_verbs::realm)]
         realm: Option<Realm>,
         #[arg(long)]
         expand: bool,
@@ -590,7 +518,7 @@ enum PriceCmd {
         league: Option<String>,
         /// The realm of an item or character target; a tab or substash
         /// address carries its own.
-        #[arg(long, value_parser = parse_realm)]
+        #[arg(long, value_parser = acquisition_verbs::realm)]
         realm: Option<Realm>,
         #[arg(long)]
         expand: bool,
@@ -607,7 +535,7 @@ enum PriceCmd {
         league: Option<String>,
         /// The realm; a tab or substash address given to --in or
         /// --covered-by carries its own.
-        #[arg(long, value_parser = parse_realm)]
+        #[arg(long, value_parser = acquisition_verbs::realm)]
         realm: Option<Realm>,
         /// none, manual_only, game_only, agree or conflict.
         #[arg(long)]
@@ -684,9 +612,9 @@ enum ShopCmd {
     /// `Stash<n>` is the tab's rank among the tabs the website lists,
     /// folders and substashes left out, not the API's index.
     Render {
-        #[arg(long, default_value = "Standard")]
+        #[arg(long, default_value = acquisition_plan::DEFAULT_LEAGUE)]
         league: String,
-        #[arg(long, value_parser = parse_realm)]
+        #[arg(long, value_parser = acquisition_verbs::realm)]
         realm: Option<Realm>,
         /// Characters per page, the template included (the forum's hard
         /// limit).
@@ -732,7 +660,7 @@ enum StoreCmd {
     /// live item count. `acq characters` (the job) fetches the list anew.
     Characters {
         /// Restrict to one realm (pc, xbox, sony, poe2); every realm otherwise.
-        #[arg(long, value_parser = parse_realm)]
+        #[arg(long, value_parser = acquisition_verbs::realm)]
         realm: Option<Realm>,
         /// Restrict to one league; every league otherwise.
         #[arg(long)]
@@ -860,9 +788,6 @@ enum DaemonCmd {
     ResetTripwire,
 }
 
-/// `--account`/`ACQ_ACCOUNT`, for every submit this process makes.
-static ACCOUNT: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
-
 /// The failure was already printed in the command's own output format (a
 /// failed job's `--json` outcome); main only sets the exit code.
 #[derive(Debug)]
@@ -903,30 +828,85 @@ fn refuse_usage(e: clap::Error) -> ! {
     std::process::exit(2);
 }
 
-/// What a failure adds to its `--json` document beside the message: a
-/// daemon refusal's closed kind (C85), and for an account that could not
-/// be picked offline the same words the daemon uses for the same remedy
-/// — `ambiguous_account` with the accounts to pick from, `not_logged_in`
-/// when none is known — or `unknown_account` for a selector matching
-/// none. Additive under C53; a failure with no kind has none to branch
-/// on beyond its message.
-fn error_report(e: &anyhow::Error) -> serde_json::Value {
-    let mut report = json!({ "error": format!("{e:#}") });
-    if let Some(refused) = acquisition_plan::pricing::Refused::find(e) {
-        report.as_object_mut().unwrap().extend(refused.fields());
-    } else if let Some(refusal) = DaemonError::find(e) {
-        report["kind"] = json!(refusal.kind);
-    } else if let Some(resolve) = e.chain().find_map(|c| c.downcast_ref::<Resolve>()) {
-        match resolve {
-            Resolve::Ambiguous(names) => {
-                report["kind"] = json!("ambiguous_account");
-                report["accounts"] = json!(names);
-            }
-            Resolve::NotFound(_) => report["kind"] = json!("unknown_account"),
-            Resolve::Empty => report["kind"] = json!("not_logged_in"),
+/// A layer fault in this frontend's words (C11, C116): the cause the
+/// fault says, and the remedy in the CLI's own verbs — `--account`, `acq
+/// auth`, `acq policy set`, `acq refresh --plan`. One arm per fault, so
+/// a cause the layer adds cannot reach a person without its remedy.
+fn fault_words(fault: &Fault) -> String {
+    match fault {
+        Fault::Environment(_)
+        | Fault::Unopened(_)
+        | Fault::Plan(_)
+        | Fault::Policy(_)
+        | Fault::Door(_)
+        | Fault::Unresponsive(_)
+        | Fault::Daemon(_)
+        | Fault::Transport(_)
+        | Fault::Other(_) => fault.to_string(),
+        Fault::NoAccounts { .. } => format!("{fault} — log in with `acq auth`"),
+        Fault::UnknownAccount { .. } => format!("{fault} (see `acq accounts`)"),
+        Fault::AmbiguousAccount { .. } => {
+            format!("{fault}; pick one with --account or ACQ_ACCOUNT")
         }
+        Fault::NoUuid { .. } => format!("{fault}; log in once with `acq auth` to fix it"),
+        Fault::NoSyncPolicy { .. } => format!(
+            "{fault} — declare one first, e.g. `acq policy set '{}'`",
+            plan_cmd::POLICY_EXAMPLE
+        ),
+        Fault::Spend(
+            acquisition_plan::SpendError::PolicyGone { .. }
+            | acquisition_plan::SpendError::PolicyMoved { .. },
+        ) => format!("{fault} with `acq refresh --plan`"),
+        Fault::Spend(_) => fault.to_string(),
+        Fault::UnreadablePolicy { revision, .. } => format!(
+            "{fault} — `--if-revision {revision}` replaces it deliberately, `acq policy show` \
+             names it"
+        ),
+        Fault::NoDaemon { because: None, .. } => {
+            "daemon is not running (a job command or `acq auth` starts one)".into()
+        }
+        Fault::NoDaemon { .. } => fault.to_string(),
+        Fault::NoJobOnDisk { .. } => {
+            format!("{fault} (a job command or `acq auth` starts one)")
+        }
+        Fault::Unfinished { id, .. } => format!(
+            "{fault}: a job command starts one that resumes it, and `acq result {id} --wait` \
+             then waits for it"
+        ),
+        Fault::AnotherDaemon(found) => format!("{fault}; {}", mismatch_remedy(found)),
     }
-    report
+}
+
+/// The failure's words: its chain as anyhow prints it, a layer fault in
+/// the CLI's words where the chain holds one.
+fn failure_words(e: &anyhow::Error) -> String {
+    let mut parts = Vec::new();
+    for link in e.chain() {
+        if let Some(fault) = link.downcast_ref::<Fault>() {
+            parts.push(fault_words(fault));
+            return parts.join(": ");
+        }
+        parts.push(link.to_string());
+    }
+    format!("{e:#}")
+}
+
+/// What a failure's `--json` document carries beside its words (C11): a
+/// layer fault's kind and fields (`accounts`, `next`: C121, C45), a
+/// pricing refusal's (`conflict` with `revision`, `not_found`), a daemon
+/// refusal's closed kind (C85). Additive under C53; a failure with no
+/// kind has none to branch on beyond its message.
+fn error_report(e: &anyhow::Error) -> serde_json::Value {
+    let mut report = serde_json::Map::new();
+    report.insert("error".into(), json!(failure_words(e)));
+    if let Some(fault) = e.chain().find_map(|c| c.downcast_ref::<Fault>()) {
+        report.extend(fault.fields());
+    } else if let Some(refused) = acquisition_plan::pricing::Refused::find(e) {
+        report.extend(refused.fields());
+    } else if let Some(refusal) = DaemonError::find(e) {
+        report.insert("kind".into(), json!(refusal.kind));
+    }
+    serde_json::Value::Object(report)
 }
 
 /// Set when this command started the daemon it then talked to, so a
@@ -942,15 +922,21 @@ fn noting_the_spawn(e: anyhow::Error) -> anyhow::Error {
     if !SPAWNED.load(std::sync::atomic::Ordering::Relaxed) {
         return e;
     }
-    match DaemonError::find(&e) {
+    let refusal = match e.chain().find_map(|c| c.downcast_ref::<Fault>()) {
+        Some(Fault::Daemon(refusal)) => Some(refusal.clone()),
+        Some(_) => None,
+        None => DaemonError::find(&e).cloned(),
+    };
+    match refusal {
         Some(refusal) if refusal.kind == ErrorKind::NotLoggedIn => {
-            anyhow::Error::from(DaemonError {
+            anyhow::Error::from(Fault::Daemon(DaemonError {
                 kind: refusal.kind,
                 message: format!(
-                    "{e:#}; a daemon was started for this command and runs until idle — \
-                     `acq daemon status` shows it, `acq daemon stop` ends it"
+                    "{}; a daemon was started for this command and runs until idle — \
+                     `acq daemon status` shows it, `acq daemon stop` ends it",
+                    failure_words(&e)
                 ),
-            })
+            }))
         }
         _ => e,
     }
@@ -960,14 +946,12 @@ fn noting_the_spawn(e: anyhow::Error) -> anyhow::Error {
 async fn main() {
     let cli = Cli::try_parse().unwrap_or_else(|e| refuse_usage(e));
     let json = cli.json;
-    store_cmd::set_selector(cli.account.clone());
-    let _ = ACCOUNT.set(cli.account.clone());
     if let Err(e) = run(cli).await.map_err(noting_the_spawn) {
         if e.downcast_ref::<AlreadyReported>().is_none() {
             if json {
                 println!("{}", error_report(&e));
             } else {
-                eprintln!("Error: {e:#}");
+                eprintln!("Error: {}", failure_words(&e));
             }
         }
         std::process::exit(1);
@@ -977,30 +961,36 @@ async fn main() {
 async fn run(cli: Cli) -> Result<()> {
     // C88: a leftover `ACQ_GGG` or an unknown provider word is refused
     // before any verb reads the provider — loudly, never the wrong mode.
-    acquisition_protocol::provider::check_environment().map_err(anyhow::Error::msg)?;
+    let cx = Ctx {
+        frontend: Frontend::human(plan_cmd::WRITTEN_VIA)?,
+        account: cli.account.clone(),
+    };
+    let cx = &cx;
     match cli.cmd {
         Cmd::Auth { cmd, no_browser } => match cmd {
-            None => login(no_browser, cli.json).await,
+            None => login(cx, no_browser, cli.json).await,
             Some(AuthCmd::Status) => {
-                let mut client = match Client::observe().await? {
-                    Observed::Absent => return store_cmd::auth_status_absent(cli.json),
-                    observed => client_of(observed)?,
+                let Some(mut client) = cx.frontend.observe().await? else {
+                    return store_cmd::auth_status_absent(cx, cli.json);
                 };
                 let status = client.request(&Request::AuthStatus).await?;
                 print_auth(&status, cli.json)?;
                 if !cli.json {
-                    store_cmd::print_other_accounts(match &status {
-                        Response::Auth { accounts, .. } => {
-                            accounts.iter().map(|a| a.username.clone()).collect()
-                        }
-                        _ => Vec::new(),
-                    })?;
+                    store_cmd::print_other_accounts(
+                        cx,
+                        match &status {
+                            Response::Auth { accounts, .. } => {
+                                accounts.iter().map(|a| a.username.clone()).collect()
+                            }
+                            _ => Vec::new(),
+                        },
+                    )?;
                 }
                 Ok(())
             }
             Some(AuthCmd::Check) => {
-                let mut client = connect(true).await?;
-                let account = ACCOUNT.get().cloned().flatten();
+                let mut client = connect(cx).await?;
+                let account = cx.account.clone();
                 match client.request(&Request::AuthCheck { account }).await? {
                     Response::Error { kind, message } => {
                         Err(anyhow::Error::from(DaemonError { kind, message })
@@ -1015,8 +1005,8 @@ async fn run(cli: Cli) -> Result<()> {
                 }
             }
             Some(AuthCmd::Logout) => {
-                let mut client = attach().await?;
-                let account = ACCOUNT.get().cloned().flatten();
+                let mut client = attach(cx).await?;
+                let account = cx.account.clone();
                 client
                     .expect_ack(&Request::AuthLogout {
                         account: account.clone(),
@@ -1031,13 +1021,14 @@ async fn run(cli: Cli) -> Result<()> {
             }
         },
         Cmd::Profile => {
-            let mut client = connect(true).await?;
-            let id = submit(&mut client, "profile".into(), json!({}), 0).await?;
+            let mut client = connect(cx).await?;
+            let id = submit(cx, &mut client, "profile".into(), json!({}), 0).await?;
             block_on_job(&mut client, id, cli.json).await
         }
         Cmd::Characters { realm } => {
-            let mut client = connect(true).await?;
+            let mut client = connect(cx).await?;
             let id = submit(
+                cx,
                 &mut client,
                 "characters".into(),
                 json!({ "realm": realm }),
@@ -1047,8 +1038,9 @@ async fn run(cli: Cli) -> Result<()> {
             block_on_job(&mut client, id, cli.json).await
         }
         Cmd::Character { name, realm } => {
-            let mut client = connect(true).await?;
+            let mut client = connect(cx).await?;
             let id = submit(
+                cx,
                 &mut client,
                 "character".into(),
                 json!({ "realm": realm, "name": name }),
@@ -1058,11 +1050,11 @@ async fn run(cli: Cli) -> Result<()> {
             block_on_job(&mut client, id, cli.json).await
         }
         Cmd::Leagues => {
-            let mut client = connect(true).await?;
-            let id = submit(&mut client, "leagues".into(), json!({}), 0).await?;
+            let mut client = connect(cx).await?;
+            let id = submit(cx, &mut client, "leagues".into(), json!({}), 0).await?;
             block_on_job(&mut client, id, cli.json).await
         }
-        Cmd::Accounts => store_cmd::accounts(cli.json),
+        Cmd::Accounts => store_cmd::accounts(cx, cli.json),
         Cmd::Tabs {
             league,
             realm,
@@ -1070,6 +1062,7 @@ async fn run(cli: Cli) -> Result<()> {
             r#type,
             never_fetched,
         } => store_cmd::tabs(
+            cx,
             realm,
             &league,
             &acquisition_search::tabs::Selection {
@@ -1079,26 +1072,27 @@ async fn run(cli: Cli) -> Result<()> {
             expand,
             cli.json,
         ),
-        Cmd::Search(args) => search_cmd::search(*args, cli.json),
-        Cmd::Show(args) => search_cmd::show_item(args, cli.json),
+        Cmd::Search(args) => search_cmd::search(cx, *args, cli.json),
+        Cmd::Show(args) => search_cmd::show_item(cx, args, cli.json),
         Cmd::Store { cmd } => match cmd {
-            StoreCmd::Status => store_cmd::status(cli.json),
+            StoreCmd::Status => store_cmd::status(cx, cli.json),
             StoreCmd::Characters { realm, league } => {
-                store_cmd::characters(realm, league.as_deref(), cli.json)
+                store_cmd::characters(cx, realm, league.as_deref(), cli.json)
             }
             StoreCmd::Events {
                 hours,
                 limit,
                 expand,
                 summary,
-            } => store_cmd::events(hours, limit, expand, summary, cli.json),
-            StoreCmd::Refused { id, limit } => store_cmd::refused(id, limit, cli.json),
-            StoreCmd::Rebuild => store_cmd::rebuild(cli.json),
-            StoreCmd::Import { path } => store_cmd::import(&path, cli.json),
+            } => store_cmd::events(cx, hours, limit, expand, summary, cli.json),
+            StoreCmd::Refused { id, limit } => store_cmd::refused(cx, id, limit, cli.json),
+            StoreCmd::Rebuild => store_cmd::rebuild(cx, cli.json),
+            StoreCmd::Import { path } => store_cmd::import(cx, &path, cli.json),
         },
         Cmd::Stashes { league, realm } => {
-            let mut client = connect(true).await?;
+            let mut client = connect(cx).await?;
             let id = submit(
+                cx,
                 &mut client,
                 "stashes".into(),
                 json!({ "realm": realm, "league": league }),
@@ -1114,8 +1108,9 @@ async fn run(cli: Cli) -> Result<()> {
             league,
             realm,
         } => {
-            let mut client = connect(true).await?;
+            let mut client = connect(cx).await?;
             let id = submit(
+                cx,
                 &mut client,
                 "stash".into(),
                 json!({ "realm": realm, "league": league, "id": id, "sub": sub, "deep": deep }),
@@ -1140,8 +1135,11 @@ async fn run(cli: Cli) -> Result<()> {
                 // a reviewed envelope.
                 let source = (!source.is_empty()).then_some(source);
                 return plan_cmd::refresh_plan(
+                    cx,
                     realm.unwrap_or(Realm::DEFAULT),
-                    league.as_deref().unwrap_or("Standard"),
+                    league
+                        .as_deref()
+                        .unwrap_or(acquisition_plan::DEFAULT_LEAGUE),
                     source.as_deref(),
                     cli.json,
                     expand,
@@ -1153,6 +1151,7 @@ async fn run(cli: Cli) -> Result<()> {
                 // means "compile the stored policy now and run that".
                 let source = (!source.is_empty()).then_some(source);
                 return plan_cmd::refresh_apply(
+                    cx,
                     realm,
                     league.as_deref(),
                     source.as_deref(),
@@ -1164,10 +1163,13 @@ async fn run(cli: Cli) -> Result<()> {
             if !all && tabs.is_empty() {
                 bail!("refresh needs --all, --tabs <id,...>, --plan, or --apply");
             }
-            let league = league.as_deref().unwrap_or("Standard");
+            let league = league
+                .as_deref()
+                .unwrap_or(acquisition_plan::DEFAULT_LEAGUE);
             let realm = realm.unwrap_or(Realm::DEFAULT);
-            let mut client = connect(true).await?;
+            let mut client = connect(cx).await?;
             let id = submit(
+                cx,
                 &mut client,
                 "refresh".into(),
                 json!({ "realm": realm, "league": league, "all": all, "tabs": tabs, "deep": deep }),
@@ -1185,13 +1187,19 @@ async fn run(cli: Cli) -> Result<()> {
                 league,
                 realm,
                 expand,
-            } => price_cmd::status(realm.unwrap_or(Realm::DEFAULT), &league, expand, cli.json),
+            } => price_cmd::status(
+                cx,
+                realm.unwrap_or(Realm::DEFAULT),
+                &league,
+                expand,
+                cli.json,
+            ),
             PriceCmd::Show {
                 target,
                 league,
                 realm,
                 expand,
-            } => price_cmd::show(&target, realm, league.as_deref(), expand, cli.json),
+            } => price_cmd::show(cx, &target, realm, league.as_deref(), expand, cli.json),
             PriceCmd::List {
                 league,
                 realm,
@@ -1202,6 +1210,7 @@ async fn run(cli: Cli) -> Result<()> {
                 limit,
                 expand,
             } => price_cmd::list(
+                cx,
                 realm,
                 league.as_deref(),
                 &acquisition_plan::pricing::ListArgs {
@@ -1221,6 +1230,7 @@ async fn run(cli: Cli) -> Result<()> {
                 currency,
                 if_revision,
             } => price_cmd::set(
+                cx,
                 &target,
                 &kind,
                 amount.as_deref(),
@@ -1231,7 +1241,7 @@ async fn run(cli: Cli) -> Result<()> {
             PriceCmd::Clear {
                 target,
                 if_revision,
-            } => price_cmd::clear(&target, if_revision, cli.json),
+            } => price_cmd::clear(cx, &target, if_revision, cli.json),
         },
         Cmd::Reference { cmd } => match cmd {
             ReferenceCmd::Currency { word, expand } => {
@@ -1247,6 +1257,7 @@ async fn run(cli: Cli) -> Result<()> {
                 page,
                 expand,
             } => shop_cmd::render_cmd(
+                cx,
                 realm.unwrap_or(Realm::DEFAULT),
                 &league,
                 &shop_cmd::RenderArgs {
@@ -1259,12 +1270,12 @@ async fn run(cli: Cli) -> Result<()> {
             ),
         },
         Cmd::Policy { cmd } => match cmd {
-            None | Some(PolicyCmd::Show) => plan_cmd::policy_show(cli.json),
+            None | Some(PolicyCmd::Show) => plan_cmd::policy_show(cx, cli.json),
             Some(PolicyCmd::Set {
                 value,
                 if_revision,
                 replace,
-            }) => plan_cmd::policy_set(&value, if_revision, replace, cli.json),
+            }) => plan_cmd::policy_set(cx, &value, if_revision, replace, cli.json),
         },
         Cmd::Submit {
             kind,
@@ -1273,8 +1284,8 @@ async fn run(cli: Cli) -> Result<()> {
             detach,
         } => {
             let params: serde_json::Value = serde_json::from_str(&params)?;
-            let mut client = connect(true).await?;
-            let id = submit(&mut client, kind, params, priority).await?;
+            let mut client = connect(cx).await?;
+            let id = submit(cx, &mut client, kind, params, priority).await?;
             if detach {
                 if cli.json {
                     println!("{}", json!({ "job_id": id }));
@@ -1289,10 +1300,11 @@ async fn run(cli: Cli) -> Result<()> {
             }
         }
         Cmd::Demo { count } => {
-            let mut client = connect(true).await?;
+            let mut client = connect(cx).await?;
             let mut ids = Vec::new();
             for i in 0..count {
                 let id = submit(
+                    cx,
                     &mut client,
                     "fetch".into(),
                     json!({ "what": format!("demo stash tab {i}") }),
@@ -1305,7 +1317,7 @@ async fn run(cli: Cli) -> Result<()> {
             println!("(mock policy: 5 per 10s, then 30 per 300s — watch the ETAs)\n");
             watch_table_until_done(&mut client, &ids).await
         }
-        Cmd::Dash => dash::run(cli.json).await,
+        Cmd::Dash => dash::run(cx, cli.json).await,
         Cmd::Version => {
             // The candidate, not the daemon running (C84): the sibling
             // `acqd` as found, with no hash — the run record hashes it.
@@ -1343,13 +1355,12 @@ async fn run(cli: Cli) -> Result<()> {
         }
         Cmd::Jobs { watch, all } => {
             if watch {
-                return watch_jobs(cli.json).await;
+                return watch_jobs(cx, cli.json).await;
             }
-            let mut client = match Client::observe().await? {
-                Observed::Absent => return print_persisted_queue(cli.json),
-                other => client_of(other)?,
+            let jobs = match cx.frontend.jobs().await? {
+                Jobs::Live(jobs) => jobs,
+                absent => return print_persisted_queue(&absent, cli.json),
             };
-            let jobs = list(&mut client).await?;
             if cli.json {
                 println!("{}", serde_json::to_string_pretty(&jobs)?);
             } else {
@@ -1358,11 +1369,10 @@ async fn run(cli: Cli) -> Result<()> {
             Ok(())
         }
         Cmd::Status { id } => {
-            let mut client = match Client::observe().await? {
-                Observed::Absent => return print_persisted_job(id, cli.json),
-                observed => client_of(observed)?,
+            let job = match cx.frontend.job(id).await? {
+                Job::Live(job) => job,
+                absent => return print_persisted_job(id, &absent, cli.json),
             };
-            let job = client.status(id).await?;
             if cli.json {
                 println!("{}", serde_json::to_string_pretty(&job)?);
             } else {
@@ -1371,9 +1381,10 @@ async fn run(cli: Cli) -> Result<()> {
             Ok(())
         }
         Cmd::Result { id, wait } => {
-            let mut client = match Client::observe().await? {
-                Observed::Absent => return print_persisted_result(id, wait, cli.json),
-                observed => client_of(observed)?,
+            let Some(mut client) = cx.frontend.observe().await? else {
+                // C45: a terminal job's outcome is final, so the ledger's
+                // prints exactly as a daemon would answer it.
+                return print_outcome(&cx.frontend.result_on_disk(id)?, cli.json);
             };
             // Only a job still in the queue is waited for: a previous
             // lifetime's result is served from retention (C45) and has no
@@ -1392,7 +1403,7 @@ async fn run(cli: Cli) -> Result<()> {
             print_result(&mut client, id, cli.json).await
         }
         Cmd::Cancel { id } => {
-            let mut client = attach().await?;
+            let mut client = attach(cx).await?;
             client.expect_ack(&Request::Cancel { id }).await?;
             if cli.json {
                 println!("{}", json!({ "job_id": id, "cancel_requested": true }));
@@ -1405,7 +1416,7 @@ async fn run(cli: Cli) -> Result<()> {
             Ok(())
         }
         Cmd::SetPriority { id, priority } => {
-            let mut client = attach().await?;
+            let mut client = attach(cx).await?;
             client
                 .expect_ack(&Request::SetPriority { id, priority })
                 .await?;
@@ -1419,191 +1430,121 @@ async fn run(cli: Cli) -> Result<()> {
         Cmd::Daemon { cmd } => match cmd {
             DaemonCmd::Status => {
                 // An observation (C10): absent, this build's, or another
-                // daemon reported and left alone — never spawned or replaced.
-                let mut client = match Client::observe().await? {
-                    Observed::Compatible(c) => c,
-                    Observed::Absent => {
-                        // What the ledger on disk holds (C45): the counts
-                        // here, the rows under `jobs`.
-                        let persisted = persisted_queue()?;
-                        // Where the last daemon of this world logged, when
-                        // it left a log: the path this shell derives, which
-                        // is the one a daemon it spawned used. The place to
-                        // look when a daemon is gone and should not be.
-                        let log = World::observe()
-                            .ok()
-                            .map(|w| w.log_path(provider::wanted()))
-                            .filter(|p| p.exists());
-                        if cli.json {
-                            let persisted = persisted.map(|p| {
-                                json!({
-                                    "waiting": p.waiting(),
-                                    "recorded_running": p.recorded_running(),
-                                    "written_at": p.written_at,
-                                })
-                            });
-                            let mut report = json!({ "running": false, "persisted": persisted });
-                            if let Some(log) = &log {
-                                report["log"] = json!(log);
-                            }
-                            println!("{report}");
-                        } else {
-                            match persisted {
-                                None => println!("daemon is not running; no queue on disk"),
-                                Some(p) => println!(
-                                    "daemon is not running; on disk: {} waiting, {} recorded running, written {}",
-                                    p.waiting(),
-                                    p.recorded_running(),
-                                    store_cmd::ago(acquisition_store::now(), p.written_at),
-                                ),
-                            }
-                            if let Some(log) = &log {
-                                println!("last log: {}", log.display());
-                            }
-                        }
-                        return Ok(());
+                // daemon reported and left alone — never spawned or
+                // replaced. The document is the layer's (C45, C84, C86).
+                let report = cx.frontend.daemon().await?;
+                if cli.json {
+                    match &report {
+                        DaemonReport::Absent { .. } => println!("{}", report.document()),
+                        _ => println!("{}", serde_json::to_string_pretty(&report.document())?),
                     }
-                    Observed::Incompatible(found) => {
-                        if cli.json {
-                            // `socket` is the report's: the endpoint the
-                            // handshake ran over.
-                            let mut report = found.report();
-                            report["running"] = json!(true);
-                            report["compatible"] = json!(false);
-                            println!("{}", serde_json::to_string_pretty(&report)?);
-                        } else {
-                            println!("{found} — running, not this client's");
-                            println!("socket: {}", found.socket());
-                            println!("next:   {}", mismatch_remedy(&found));
+                    return Ok(());
+                }
+                match report {
+                    DaemonReport::Absent { persisted, log } => {
+                        match persisted {
+                            None => println!("daemon is not running; no queue on disk"),
+                            Some(p) => println!(
+                                "daemon is not running; on disk: {} waiting, {} recorded running, written {}",
+                                p.waiting,
+                                p.recorded_running,
+                                store_cmd::ago(acquisition_store::now(), p.written_at),
+                            ),
                         }
-                        return Ok(());
+                        if let Some(log) = &log {
+                            println!("last log: {}", log.display());
+                        }
+                    }
+                    DaemonReport::Incompatible(found) => {
+                        println!("{found} — running, not this client's");
+                        println!("socket: {}", found.socket());
+                        println!("next:   {}", mismatch_remedy(&found));
                     }
                     // Something accepted and never answered (C86): a
                     // state, like the others — not this verb's error.
-                    Observed::Unresponsive(found) => {
-                        if cli.json {
+                    DaemonReport::Unresponsive(found) => println!("{found}"),
+                    DaemonReport::Running { status, identity } => {
+                        let found = *identity;
+                        if let Response::DaemonStatus {
+                            pid,
+                            version,
+                            contract,
+                            provider,
+                            uptime_seconds,
+                            idle_shutdown_seconds,
+                            connections,
+                            jobs_waiting,
+                            jobs_running,
+                            policies_known,
+                            in_flight,
+                            max_in_flight,
+                            rails,
+                            keyring,
+                            log,
+                        } = *status
+                        {
                             println!(
-                                "{}",
-                                serde_json::to_string_pretty(&json!({
-                                    "running": true,
-                                    "responsive": false,
-                                    "socket": found.at.socket,
-                                    "lock_holder": found.holder,
-                                }))?
+                                "daemon {version} (contract {contract}) pid {pid}, up {uptime_seconds}s, provider {provider}, idle exit after {idle_shutdown_seconds}s"
                             );
-                        } else {
-                            println!("{found}");
-                        }
-                        return Ok(());
-                    }
-                };
-                let found = client.daemon().clone();
-                let status = client.request(&Request::DaemonStatus).await?;
-                if cli.json {
-                    let mut report = serde_json::to_value(&status)?;
-                    report["running"] = json!(true);
-                    report["compatible"] = json!(true);
-                    // The identity the handshake carried (C84), beside the
-                    // vitals: the same keys the incompatible report has —
-                    // the daemon's contract and artifact, how the artifact
-                    // relates to this client's sibling (`same_file` or
-                    // `same_bytes`, a copy), and the sibling itself under
-                    // `wanted`, so "where did it run from" and "is that my
-                    // sibling" are both answered (review 2026-09-10).
-                    let identity = found.report();
-                    // `socket` is the one this shell reached the daemon
-                    // through (C83: derived from the world); the log is
-                    // the daemon's own report (`log`, on the wire since
-                    // the world), never recomputed here.
-                    for key in [
-                        "contract",
-                        "artifact",
-                        "world",
-                        "socket",
-                        "contract_matches",
-                        "artifact_matches",
-                        "artifact_relation",
-                        "provider_matches",
-                        "world_matches",
-                        "wanted",
-                    ] {
-                        report[key] = identity[key].clone();
-                    }
-                    println!("{}", serde_json::to_string_pretty(&report)?);
-                } else if let Response::DaemonStatus {
-                    pid,
-                    version,
-                    contract,
-                    provider,
-                    uptime_seconds,
-                    idle_shutdown_seconds,
-                    connections,
-                    jobs_waiting,
-                    jobs_running,
-                    policies_known,
-                    in_flight,
-                    max_in_flight,
-                    rails,
-                    keyring,
-                    log,
-                } = status
-                {
-                    println!(
-                        "daemon {version} (contract {contract}) pid {pid}, up {uptime_seconds}s, provider {provider}, idle exit after {idle_shutdown_seconds}s"
-                    );
-                    println!("world:  {}", found.world());
-                    match (found.artifact(), &found.verdict().artifact) {
-                        (
-                            Some(a),
-                            acquisition_client::artifact::ArtifactVerdict::SameBytes { sibling },
-                        ) => {
+                            println!("world:  {}", found.world());
+                            match (found.artifact(), &found.verdict().artifact) {
+                                (
+                                    Some(a),
+                                    acquisition_client::artifact::ArtifactVerdict::SameBytes {
+                                        sibling,
+                                    },
+                                ) => {
+                                    println!(
+                                        "acqd:   {} (sha256 {}) — the same artifact as this client's sibling {}, another copy",
+                                        a.file.path,
+                                        a.short_hash(),
+                                        sibling.path
+                                    )
+                                }
+                                (Some(a), _) => println!(
+                                    "acqd:   {} (sha256 {}) — this client's sibling, the file a job command would start",
+                                    a.file.path,
+                                    a.short_hash()
+                                ),
+                                (None, _) => println!("acqd:   not reported"),
+                            }
                             println!(
-                                "acqd:   {} (sha256 {}) — the same artifact as this client's sibling {}, another copy",
-                                a.file.path,
-                                a.short_hash(),
-                                sibling.path
-                            )
-                        }
-                        (Some(a), _) => println!(
-                            "acqd:   {} (sha256 {}) — this client's sibling, the file a job command would start",
-                            a.file.path,
-                            a.short_hash()
-                        ),
-                        (None, _) => println!("acqd:   not reported"),
-                    }
-                    println!(
-                        "connections: {connections}  waiting: {jobs_waiting}  running: {jobs_running}  in flight: {in_flight}/{max_in_flight}  policies learned: {policies_known}"
-                    );
-                    println!("socket: {}", found.socket());
-                    println!("log:    {}", log.as_deref().unwrap_or("not reported"));
-                    println!(
-                        "rails:  tripwire {} · sends {}{} · journal {}",
-                        if rails.tripwire_enabled { "ON" } else { "off" },
-                        rails.sends,
-                        rails.max_sends.map_or(String::new(), |m| format!("/{m}")),
-                        rails.journal.as_deref().unwrap_or("off"),
-                    );
-                    if let Some(cause) = &rails.halted {
-                        println!("HALTED: {cause}");
-                        // A ceiling is this lifetime's and never persisted
-                        // (rails.rs): no violation, nothing to reset — the
-                        // next daemon starts under a fresh one.
-                        if cause.starts_with("ceiling:") {
-                            println!(
-                                "        the ceiling is this daemon's alone: `acq daemon stop`, and the next one starts fresh (`acq jobs` first: queued jobs resume under it)"
+                                "connections: {connections}  waiting: {jobs_waiting}  running: {jobs_running}  in flight: {in_flight}/{max_in_flight}  policies learned: {policies_known}"
                             );
-                        } else {
+                            println!("socket: {}", found.socket());
+                            println!("log:    {}", log.as_deref().unwrap_or("not reported"));
                             println!(
-                                "        clear with `acq daemon reset-tripwire` after the post-violation wait"
+                                "rails:  tripwire {} · sends {}{} · journal {}",
+                                if rails.tripwire_enabled { "ON" } else { "off" },
+                                rails.sends,
+                                rails.max_sends.map_or(String::new(), |m| format!("/{m}")),
+                                rails.journal.as_deref().unwrap_or("off"),
                             );
+                            if let Some(cause) = &rails.halted {
+                                println!("HALTED: {cause}");
+                                // A ceiling is this lifetime's and never persisted
+                                // (rails.rs): no violation, nothing to reset — the
+                                // next daemon starts under a fresh one.
+                                if cause.starts_with("ceiling:") {
+                                    println!(
+                                        "        the ceiling is this daemon's alone: `acq daemon stop`, and the next one starts fresh (`acq jobs` first: queued jobs resume under it)"
+                                    );
+                                } else {
+                                    println!(
+                                        "        clear with `acq daemon reset-tripwire` after the post-violation wait"
+                                    );
+                                }
+                            }
+                            if keyring != "ok" {
+                                println!(
+                                    "KEYRING: {keyring} — a rotated refresh token may be memory-only"
+                                );
+                            }
+                            if let Some(cause) = &rails.refresh_failed {
+                                println!("REFRESH DISABLED: {cause}");
+                                println!("        re-login with `acq auth`");
+                            }
                         }
-                    }
-                    if keyring != "ok" {
-                        println!("KEYRING: {keyring} — a rotated refresh token may be memory-only");
-                    }
-                    if let Some(cause) = &rails.refresh_failed {
-                        println!("REFRESH DISABLED: {cause}");
-                        println!("        re-login with `acq auth`");
                     }
                 }
                 Ok(())
@@ -1738,8 +1679,8 @@ async fn run(cli: Cli) -> Result<()> {
 
 /// The interactive login flow: ask the daemon to start OAuth, hand the URL to
 /// the browser, then poll auth status until the flow resolves.
-async fn login(no_browser: bool, json: bool) -> Result<()> {
-    let mut client = connect(true).await?;
+async fn login(cx: &Ctx, no_browser: bool, json: bool) -> Result<()> {
+    let mut client = connect(cx).await?;
     let url = match client.request(&Request::AuthStart).await? {
         Response::AuthUrl { authorize_url } => authorize_url,
         Response::Error { kind, message } => return Err(DaemonError { kind, message }.into()),
@@ -1858,28 +1799,24 @@ fn open_browser(url: &str) -> bool {
         .is_ok()
 }
 
+/// C3 and C4: submit a job as this process, the account flag passed to
+/// the daemon unresolved.
 async fn submit(
+    cx: &Ctx,
     client: &mut Client,
     kind: String,
     params: serde_json::Value,
     priority: u8,
 ) -> Result<u64> {
-    let submitted_by = format!("cli:{}", std::process::id());
-    let account = ACCOUNT.get().cloned().flatten();
-    match client
-        .request(&Request::Submit {
-            kind,
-            params,
-            priority,
-            submitted_by,
-            account,
-        })
-        .await?
-    {
-        Response::Submitted { id } => Ok(id),
-        Response::Error { kind, message } => Err(DaemonError { kind, message }.into()),
-        other => bail!("unexpected response: {other:?}"),
-    }
+    Ok(acquisition_verbs::jobs::submit(
+        &cx.frontend,
+        client,
+        &kind,
+        params,
+        priority,
+        cx.account.as_deref(),
+    )
+    .await?)
 }
 
 async fn list(client: &mut Client) -> Result<Vec<JobInfo>> {
@@ -1902,7 +1839,7 @@ async fn list(client: &mut Client) -> Result<Vec<JobInfo>> {
 /// with a fresh subscription and snapshot; when the daemon goes, observe
 /// it again — an observer never spawns — and subscribe and snapshot
 /// afresh if it is back. Pinned by `tests/watch_recovery.rs`.
-async fn watch_jobs(json: bool) -> Result<()> {
+async fn watch_jobs(cx: &Ctx, json: bool) -> Result<()> {
     let print_snapshot = |jobs: &[JobInfo]| -> Result<()> {
         if json {
             println!("{}", serde_json::to_string_pretty(jobs)?);
@@ -1918,7 +1855,7 @@ async fn watch_jobs(json: bool) -> Result<()> {
             Observed::Incompatible(found) => bail!("{found}"),
             Observed::Unresponsive(found) => bail!("{found}"),
         };
-        let mut client = attach().await?;
+        let mut client = attach(cx).await?;
         if client.daemon().pid() != subscription.daemon().pid() {
             // A restart between the two connections: the subscription is
             // to a daemon that is gone. Start over.
@@ -1984,88 +1921,68 @@ pub(crate) async fn block_on_job(client: &mut Client, id: u64, json: bool) -> Re
 /// at most every this often — a 13-minute apply is not 1,500 lines.
 const PROGRESS_EVERY: Duration = Duration::from_secs(10);
 
-/// Block until the job is terminal and return its outcome. Progress goes
-/// to stderr: stdout is the answer and nothing else, in text mode as in
-/// JSON, so what a caller captures is what the job returned. `quiet`
-/// skips the progress line.
+/// Block until the job is terminal and return its outcome, through the
+/// layer's wait (C4). Progress goes to stderr: stdout is the answer and
+/// nothing else, in text mode as in JSON, so what a caller captures is
+/// what the job returned. `quiet` skips the progress line.
 pub(crate) async fn wait_for_job(client: &mut Client, id: u64, quiet: bool) -> Result<Outcome> {
-    let tty = std::io::stderr().is_terminal();
-    let mut last = String::new();
-    let mut last_print: Option<Instant> = None;
-    loop {
-        let job = client.status(id).await?;
-        let terminal = job.state.is_terminal();
-        if !quiet {
-            let line = progress_line(client, &job).await?;
-            let due = last_print.is_none_or(|t| t.elapsed() >= PROGRESS_EVERY);
-            if line != last && (tty || terminal || due) {
-                if tty {
-                    eprint!("\r\x1b[2K{line}");
-                    std::io::stderr().flush().ok();
-                } else {
-                    eprintln!("{line}");
-                }
-                last = line;
-                last_print = Some(Instant::now());
-            }
-        }
-        if terminal {
-            if !quiet && tty {
-                eprintln!();
-            }
-            return match client.request(&Request::Result { id }).await? {
-                Response::Result { outcome, .. } => Ok(outcome),
-                Response::Error { kind, message } => Err(DaemonError { kind, message }.into()),
-                other => bail!("unexpected response: {other:?}"),
-            };
-        }
-        tokio::time::sleep(Duration::from_millis(500)).await;
-    }
+    let mut progress = Progressor::new();
+    let mut report = |p: &Progress| progress.report(p);
+    let outcome = acquisition_verbs::jobs::wait(
+        client,
+        id,
+        (!quiet).then_some(&mut report as &mut (dyn FnMut(&Progress) + Send)),
+    )
+    .await?;
+    Ok(outcome)
 }
 
-/// What the children of a parent job are doing right now.
-#[derive(Default)]
-struct ChildTally {
-    total: usize,
-    done: usize,
-    failed: usize,
-    cancelled: usize,
-    waiting: usize,
-    running: usize,
-    /// The soonest predicted start among waiting children, with its kind.
-    next: Option<(u64, String)>,
+/// The progress line's state: redrawn in place on a tty, a plain line per
+/// change elsewhere, at most every [`PROGRESS_EVERY`].
+pub(crate) struct Progressor {
+    tty: bool,
+    last: String,
+    last_print: Option<Instant>,
 }
 
-async fn tally_children(client: &mut Client, parent: u64) -> Result<ChildTally> {
-    let mut tally = ChildTally::default();
-    for job in list(client).await? {
-        if job.parent != Some(parent) {
-            continue;
-        }
-        tally.total += 1;
-        match job.state {
-            JobState::Done => tally.done += 1,
-            JobState::Failed => tally.failed += 1,
-            JobState::Cancelled => tally.cancelled += 1,
-            JobState::Running => tally.running += 1,
-            JobState::Waiting => {
-                tally.waiting += 1;
-                if let Some(eta) = job.eta_seconds
-                    && eta > 0
-                    && tally.next.as_ref().is_none_or(|(e, _)| eta < *e)
-                {
-                    tally.next = Some((eta, job.kind.clone()));
-                }
-            }
+impl Progressor {
+    pub(crate) fn new() -> Progressor {
+        Progressor {
+            tty: std::io::stderr().is_terminal(),
+            last: String::new(),
+            last_print: None,
         }
     }
-    Ok(tally)
+
+    /// One reading of the job: printed when it changed and is due, and a
+    /// tty's line ended once the job is terminal.
+    pub(crate) fn report(&mut self, p: &Progress) {
+        let terminal = p.job.state.is_terminal();
+        let line = progress_line(p);
+        let due = self
+            .last_print
+            .is_none_or(|t| t.elapsed() >= PROGRESS_EVERY);
+        if line != self.last && (self.tty || terminal || due) {
+            if self.tty {
+                eprint!("\r\x1b[2K{line}");
+                std::io::stderr().flush().ok();
+            } else {
+                eprintln!("{line}");
+            }
+            self.last = line;
+            self.last_print = Some(Instant::now());
+        }
+        if terminal && self.tty {
+            eprintln!();
+        }
+    }
 }
 
 /// One line of progress: a parent reports its children (`30/112 done, 82
 /// waiting, next in ~343s (limiter hold on stash)`), any other job its
 /// own state and ETA.
-async fn progress_line(client: &mut Client, job: &JobInfo) -> Result<String> {
+fn progress_line(p: &Progress) -> String {
+    let job = &p.job;
     // The account the job runs as, on every line: with several accounts
     // known a job verb takes the one logged in (C51), and the caller
     // should see which that was before reading what came back.
@@ -2073,30 +1990,10 @@ async fn progress_line(client: &mut Client, job: &JobInfo) -> Result<String> {
         Some(account) => format!("{} ({account})", job.id),
         None => job.id.to_string(),
     };
-    let job_id = job.id;
-    if matches!(job.kind.as_str(), "apply" | "refresh") && job.state != JobState::Waiting {
-        let t = tally_children(client, job_id).await?;
-        if t.total > 0 {
-            let mut line = format!("job {id}: {}/{} done", t.done, t.total);
-            if t.failed > 0 {
-                line.push_str(&format!(", {} failed", t.failed));
-            }
-            if t.cancelled > 0 {
-                line.push_str(&format!(", {} cancelled", t.cancelled));
-            }
-            if t.running > 0 {
-                line.push_str(&format!(", {} running", t.running));
-            }
-            if t.waiting > 0 {
-                line.push_str(&format!(", {} waiting", t.waiting));
-            }
-            if let Some((eta, kind)) = t.next {
-                line.push_str(&format!(", next in ~{eta}s (limiter hold on {kind})"));
-            }
-            return Ok(line);
-        }
+    if let Some(t) = p.children.as_ref().filter(|t| t.total > 0) {
+        return children_line(&id, t);
     }
-    Ok(match (job.state, job.eta_seconds) {
+    match (job.state, job.eta_seconds) {
         (JobState::Waiting, Some(eta)) if eta > 0 && job.retries > 0 => {
             format!("job {id}: got a 429, retry {} in ~{eta}s...", job.retries)
         }
@@ -2104,24 +2001,28 @@ async fn progress_line(client: &mut Client, job: &JobInfo) -> Result<String> {
             format!("job {id}: rate limited, starting in ~{eta}s...")
         }
         (state, _) => format!("job {id}: {state}"),
-    })
+    }
 }
 
-/// The daemon's parent failure line, `k of n child jobs failed: [ids]
-/// (acq result <id> for each)`, read back into its parts. The shape is the
-/// daemon's (`maybe_finish_parent`); a change there must change this too,
-/// and the unit test below pins the coupling.
-fn parse_children_failure(error: &str) -> Option<(usize, usize, Vec<u64>)> {
-    let (head, rest) = error.split_once(" child jobs failed: [")?;
-    let (k, n) = head.split_once(" of ")?;
-    let ids_text = rest.split_once(']')?.0;
-    let ids = ids_text
-        .split(',')
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(|s| s.parse::<u64>().ok())
-        .collect::<Option<Vec<u64>>>()?;
-    Some((k.trim().parse().ok()?, n.trim().parse().ok()?, ids))
+/// A parent's line: its children counted, the next limiter hold named.
+fn children_line(id: &str, t: &ChildTally) -> String {
+    let mut line = format!("job {id}: {}/{} done", t.done, t.total);
+    if t.failed > 0 {
+        line.push_str(&format!(", {} failed", t.failed));
+    }
+    if t.cancelled > 0 {
+        line.push_str(&format!(", {} cancelled", t.cancelled));
+    }
+    if t.running > 0 {
+        line.push_str(&format!(", {} running", t.running));
+    }
+    if t.waiting > 0 {
+        line.push_str(&format!(", {} waiting", t.waiting));
+    }
+    if let Some((eta, kind)) = &t.next {
+        line.push_str(&format!(", next in ~{eta}s (limiter hold on {kind})"));
+    }
+    line
 }
 
 /// At most this many failed children are expanded inline; the rest are
@@ -2129,9 +2030,11 @@ fn parse_children_failure(error: &str) -> Option<(usize, usize, Vec<u64>)> {
 const FAILED_CHILDREN_SHOWN: usize = 10;
 
 /// The text report for an `apply` parent (rule 4 of the legibility
-/// ruling): success as one line with the child range; failure as the
-/// count, then one line per failed child — its id, kind, target, and
-/// the error that names its evidence.
+/// ruling): success as one line with the child range; a failure whose
+/// children failed as the count, read from the tally the daemon carries
+/// as a field (C23), then one line per failed child — its id, kind,
+/// target, and the error that names its evidence; any other failure in
+/// its own words.
 pub(crate) async fn report_apply(client: &mut Client, id: u64, outcome: &Outcome) -> String {
     match outcome {
         Outcome::Success { payload } => {
@@ -2151,17 +2054,20 @@ pub(crate) async fn report_apply(client: &mut Client, id: u64, outcome: &Outcome
                 if requests == 1 { "" } else { "s" }
             )
         }
-        Outcome::Failure { error, .. } => {
-            let Some((k, n, ids)) = parse_children_failure(error) else {
-                return format!("job {id} failed: {error}\n");
-            };
+        Outcome::Failure {
+            children: Some(children),
+            ..
+        } if children.failed > 0 => {
+            let k = children.failed;
+            let n = children.done + children.failed + children.cancelled;
+            let ids = &children.failed_ids;
             let mut out = format!(
                 "job {id} failed: {k} of {n} request{} failed, {} done\n",
                 if n == 1 { "" } else { "s" },
                 n.saturating_sub(k)
             );
             // The children as the daemon lists them this lifetime; after
-            // a restart only their ids (from the message) remain.
+            // a restart only their ids (from the tally) remain.
             let listed: Vec<JobInfo> = list(client)
                 .await
                 .unwrap_or_default()
@@ -2196,52 +2102,43 @@ pub(crate) async fn report_apply(client: &mut Client, id: u64, outcome: &Outcome
             }
             out
         }
+        Outcome::Failure { error, .. } => format!("job {id} failed: {error}\n"),
         Outcome::Cancelled => format!("job {id} was cancelled\n"),
     }
 }
 
 async fn print_result(client: &mut Client, id: u64, json: bool) -> Result<()> {
-    let outcome = match client.request(&Request::Result { id }).await? {
-        Response::Result { outcome, .. } => outcome,
-        Response::Error { kind, message } => return Err(DaemonError { kind, message }.into()),
-        other => bail!("unexpected response: {other:?}"),
-    };
-    // Status may be gone after a daemon restart; then the outcome is
-    // printed without its account and an apply without its report.
-    let job = client.status(id).await.ok();
+    let result = result_live(client, id).await?;
     // An apply parent's payload is a child-id list and a tally; a person
-    // wants the report, not the array.
-    if !json && job.as_ref().is_some_and(|j| j.kind == "apply") {
-        print!("{}", report_apply(client, id, &outcome).await);
-        return match outcome {
+    // wants the report, not the array. Status may be gone after a daemon
+    // restart; then an apply prints without its report.
+    if !json && client.status(id).await.is_ok_and(|job| job.kind == "apply") {
+        print!("{}", report_apply(client, id, &result.outcome).await);
+        return match result.outcome {
             Outcome::Success { .. } => Ok(()),
             _ => Err(AlreadyReported.into()),
         };
     }
-    let account = job.and_then(|j| j.account);
-    print_outcome(id, account.as_deref(), &outcome, json)
+    print_outcome(&result, json)
 }
 
 /// A terminal job's outcome, from the daemon or from the ledger on disk.
-/// JSON is the outcome with the job's id and account beside it (additive,
-/// C53): a blocking verb has no other way to say which job it was or
-/// whose. Only a success exits 0 — a failed or cancelled job left nothing
-/// on stdout to use, so the exit says so in both modes (C11); the JSON
-/// outcome is the report, and main adds no second message.
-fn print_outcome(id: u64, account: Option<&str>, outcome: &Outcome, json: bool) -> Result<()> {
+/// JSON is the layer's document, the outcome with the job's id and
+/// account beside it (additive, C53): a blocking verb has no other way to
+/// say which job it was or whose. Only a success exits 0 — a failed or
+/// cancelled job left nothing on stdout to use, so the exit says so in
+/// both modes (C11); the JSON outcome is the report, and main adds no
+/// second message.
+fn print_outcome(result: &JobResult, json: bool) -> Result<()> {
+    let id = result.job_id;
     if json {
-        let mut report = serde_json::to_value(outcome)?;
-        report["job_id"] = json!(id);
-        if let Some(account) = account {
-            report["account"] = json!(account);
-        }
-        println!("{}", serde_json::to_string_pretty(&report)?);
-        return match outcome {
+        println!("{}", serde_json::to_string_pretty(result)?);
+        return match result.outcome {
             Outcome::Success { .. } => Ok(()),
             _ => Err(AlreadyReported.into()),
         };
     }
-    match outcome {
+    match &result.outcome {
         Outcome::Success { payload } => {
             println!("{}", serde_json::to_string_pretty(payload)?);
             Ok(())
@@ -2528,20 +2425,5 @@ mod tests {
             Cmd::Refresh { plan, .. } => assert_eq!(plan.as_deref(), Some("")),
             other => panic!("parsed into the wrong command: {}", other_name(&other)),
         }
-    }
-
-    /// The parser over the line as this test writes it. That the daemon
-    /// still writes that line is `tests/apply_loop.rs`,
-    /// `a_failed_apply_counts_its_failed_requests_from_the_daemons_own_words`.
-    #[test]
-    fn a_parent_failure_line_is_read_back_whole() {
-        let (k, n, ids) = parse_children_failure(
-            "4 of 5 child jobs failed: [222, 223, 224, 226] (acq result <id> for each)",
-        )
-        .unwrap();
-        assert_eq!((k, n), (4, 5));
-        assert_eq!(ids, vec![222, 223, 224, 226]);
-        assert!(parse_children_failure("2 of 3 child jobs were cancelled").is_none());
-        assert!(parse_children_failure("GET /stash/x returned 404").is_none());
     }
 }

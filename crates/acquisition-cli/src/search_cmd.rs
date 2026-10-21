@@ -46,7 +46,7 @@
 //!   included; the request's own rule, a scope beside a URL being the
 //!   URL's, is the crate's. The text opens with the translation, its
 //!   remainder loud (`trade_text`).
-//! - **The intent file is opened beside the store** (`plan_cmd::open_intent`,
+//! - **The intent file is opened beside the store** (the layer's `Account::open`,
 //!   as `acq price` opens it): the effective price a query reads is the
 //!   listing state's (C81, C100), and every basis names the intent
 //!   revision (C98). Nothing is written to it.
@@ -64,11 +64,11 @@ use acquisition_search::show::Shown;
 use acquisition_search::trade::Source;
 use acquisition_search::trade::translate::{Fidelity, Status};
 use acquisition_search::{Priced, SearchError, answer, describe, not_built, show};
-use acquisition_store::{Store, account_path};
+use acquisition_store::Store;
 use anyhow::{Context as _, Result};
 use serde::Serialize;
 
-use crate::plan_cmd::open_intent;
+use crate::Ctx;
 use crate::store_cmd::ago;
 
 /// What `acq search` was typed with.
@@ -272,7 +272,7 @@ fn emit<T: Serialize>(value: &T, json: bool, text: impl FnOnce(&T) -> String) ->
     Ok(())
 }
 
-pub fn search(args: SearchArgs, json: bool) -> Result<()> {
+pub fn search(cx: &Ctx, args: SearchArgs, json: bool) -> Result<()> {
     let unbuilt = [
         ("--fields", args.fields.is_some()),
         ("--rebind", args.rebind),
@@ -339,7 +339,7 @@ pub fn search(args: SearchArgs, json: bool) -> Result<()> {
         let mut asked = Asked::read(&value).map_err(|e| fail(e.into(), json))?;
         asked.request.view.routes |= args.routes;
         asked.request.check().map_err(|e| fail(e.into(), json))?;
-        let (store, intent) = open_store_and_intent()?;
+        let (store, intent) = open_store_and_intent(cx)?;
         let corpus = asked
             .request
             .corpus(&store, &intent)
@@ -358,7 +358,7 @@ pub fn search(args: SearchArgs, json: bool) -> Result<()> {
         }
         request.view.routes |= args.routes;
         request.check().map_err(|e| fail(e.into(), json))?;
-        let (store, intent) = open_store_and_intent()?;
+        let (store, intent) = open_store_and_intent(cx)?;
         let corpus = request.corpus(&store, &intent).map_err(|e| fail(e, json))?;
         let answered = answer(&corpus, &request).map_err(|e| fail(e, json))?;
         return emit(&answered, json, answer_text);
@@ -506,7 +506,7 @@ pub fn search(args: SearchArgs, json: bool) -> Result<()> {
     };
     // an authoring error is said before the store is read
     request.check().map_err(|e| fail(e.into(), json))?;
-    let (store, intent) = open_store_and_intent()?;
+    let (store, intent) = open_store_and_intent(cx)?;
     // the request's own corpus, so that a refusal offers this request
     let corpus = request.corpus(&store, &intent).map_err(|e| fail(e, json))?;
     if args.print_request {
@@ -636,7 +636,7 @@ fn keys(raw: &str) -> Result<Vec<String>, String> {
         .collect())
 }
 
-pub fn show_item(args: ShowArgs, json: bool) -> Result<()> {
+pub fn show_item(cx: &Ctx, args: ShowArgs, json: bool) -> Result<()> {
     if args.basis.is_some() {
         return Err(fail(not_built("show --basis").into(), json));
     }
@@ -652,7 +652,7 @@ pub fn show_item(args: ShowArgs, json: bool) -> Result<()> {
     if let Some(query) = &against {
         query.read(None).map_err(|e| fail(e.into(), json))?;
     }
-    let (store, intent) = open_store_and_intent()?;
+    let (store, intent) = open_store_and_intent(cx)?;
     let shown = match &against {
         Some(query) => {
             acquisition_search::show::against(&store, &intent, &args.id, args.body, query)
@@ -664,11 +664,11 @@ pub fn show_item(args: ShowArgs, json: bool) -> Result<()> {
 }
 
 /// The selected account's facts and its intent file, as `acq price` opens
-/// them: the search reads both and writes neither.
-fn open_store_and_intent() -> Result<(Store, acquisition_store::Annotations)> {
-    let (dir, entry, intent) = open_intent()?;
-    let store = Store::open(&account_path(&dir, &entry.username))?;
-    Ok((store, intent))
+/// them, through the layer (C121): the search reads both and writes
+/// neither.
+fn open_store_and_intent(cx: &Ctx) -> Result<(Store, acquisition_store::Annotations)> {
+    let opened = cx.account()?.open()?;
+    Ok((opened.facts, opened.intent))
 }
 
 // ---- text, a function of the JSON ---------------------------------------------------------------

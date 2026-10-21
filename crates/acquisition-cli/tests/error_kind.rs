@@ -34,11 +34,14 @@ fn c85_a_refusal_carries_its_kind_in_json_and_only_its_message_in_text() {
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert_eq!(stderr.trim(), "Error: no job 999", "{stderr}");
 
-    // Not a daemon refusal: no kind.
+    // No daemon to ask: the ledger holds no such job, in the daemon's
+    // word for an id it does not remember, with the command that starts
+    // a daemon (C45).
     let _ = acq(&base, &["daemon", "stop"]);
     let out = acq(&base, &["status", "999", "--json"]);
     let report = sole_json(&out);
-    assert!(report.get("kind").is_none(), "{report}");
+    assert_eq!(report["kind"], "unknown_job", "{report}");
+    assert!(report["next"].is_string(), "{report}");
     assert!(
         report["error"].as_str().unwrap().contains("not running"),
         "{report}"

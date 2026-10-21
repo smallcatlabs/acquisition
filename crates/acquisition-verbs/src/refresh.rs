@@ -234,6 +234,11 @@ pub async fn quote_within(plan: RefreshPlan, limit: Duration) -> Planned {
     }
 }
 
+/// The quote note for the common case, without an OS error: a plan never
+/// spawns a daemon, so whether spawning is allowed is beside the point.
+pub const NO_DAEMON_NOTE: &str =
+    "no quote: no daemon running (the plan needs none; a running daemon adds its ETA)";
+
 /// Why a quote is absent.
 enum QuoteMiss {
     NoAccountName,
@@ -247,12 +252,7 @@ enum QuoteMiss {
 fn quote_note(miss: QuoteMiss) -> String {
     match miss {
         QuoteMiss::NoAccountName => "no quote: the facts record no account name to quote as".into(),
-        // The common case, without an OS error: a plan never spawns a
-        // daemon, so whether spawning is allowed is beside the point.
-        QuoteMiss::NoDaemon => {
-            "no quote: no daemon running (the plan needs none; a running daemon adds its ETA)"
-                .into()
-        }
+        QuoteMiss::NoDaemon => NO_DAEMON_NOTE.into(),
         QuoteMiss::Timeout(limit) => {
             format!("no quote: the daemon did not answer within {limit:?} — plan compiled offline")
         }

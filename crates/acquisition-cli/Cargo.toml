@@ -20,5 +20,6 @@ anyhow.workspace = true
 acquisition-store = { path = "../acquisition-store" }
 acquisition-plan = { path = "../acquisition-plan" }
 acquisition-search = { path = "../acquisition-search" }
+acquisition-verbs = { path = "../acquisition-verbs" }
 clap.workspace = true
 ratatui = "0.29"
