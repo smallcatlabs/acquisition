@@ -226,6 +226,8 @@ PY
 }
 run_case 'a binary'"'"'s [[test]] entry deleted'                    refuse 'tests/watch_recovery.rs is a test binary'"'"'s root' unlisted_root
 run_case 'discovery on beside a binary of modules'               refuse 'acquisition-search/Cargo.toml leaves test discovery on' discovery_on
+second_entry() { printf '\n[[test]]\nname = "main_copy"\npath = "tests/main.rs"\n' >>crates/acquisition-cli/Cargo.toml; }
+run_case 'a root named by two [[test]] entries'                  refuse 'names tests/main.rs in 2 [[test]] entries' second_entry
 run_case 'the layout as it stands'                               pass   'ok      layout' none
 
 echo '== the code: shapes that must pass'

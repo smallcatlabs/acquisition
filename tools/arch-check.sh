@@ -354,8 +354,9 @@ fi
 # file a manifest no longer discovers and no root lists is a second plain
 # root, refused alike. Then held to the manifest, read with tomllib:
 # where it sets `autotests = false` its `[[test]]` paths are the roots
-# exactly, so an entry deleted, which drops a binary silently, is
-# refused, and an entry naming no root too; where discovery is on every
+# exactly, each named once, so an entry deleted, which drops a binary
+# silently, is refused, an entry naming no root too, and a root two
+# entries name, whose suite would run twice; where discovery is on every
 # file is its own binary, so a root that lists the others as modules
 # would run each of them twice, and is refused.
 if ! layout=$(python3 -I - <<'PY'
@@ -381,7 +382,10 @@ for tests in sorted(glob.glob("crates/*/tests")):
         manifest = tomllib.load(f)
     rooted = {f"tests/{stem}.rs" for stem in roots}
     if manifest.get("package", {}).get("autotests", True) is False:
-        declared = {os.path.normpath(t.get("path", f"tests/{t['name']}.rs")) for t in manifest.get("test", [])}
+        paths = [os.path.normpath(t.get("path", f"tests/{t['name']}.rs")) for t in manifest.get("test", [])]
+        for path in sorted({p for p in paths if paths.count(p) > 1}):
+            bad.append(f"LAYOUT  {crate}/Cargo.toml names {path} in {paths.count(path)} [[test]] entries: Cargo builds and runs that suite once per entry (C122)")
+        declared = set(paths)
         for path in sorted(rooted - declared):
             bad.append(f"LAYOUT  {crate}/{path} is a test binary's root and its manifest, which turns discovery off, names it in no [[test]] entry: its tests never run (C122)")
         for path in sorted(declared - rooted):

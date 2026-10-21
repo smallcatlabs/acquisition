@@ -916,9 +916,11 @@ fn the_search_tool_is_acq_search_request() {
 
 /// `item_events`' window: `hours` how far back, 24 by default, and
 /// `limit` how many of the newest. Beside the fixture's five events from
-/// 1970, two tabs fetched an hour and two days ago add an item each: the
-/// default window holds the hour-old event alone, 72 hours both and none
-/// of 1970's, and a window back to then all seven, newest first.
+/// 1970, two tabs fetched 23 and 25 hours ago add an item each, so the
+/// day's edge is seen from both sides: the default window holds the
+/// 23-hour event alone (a 12-hour default misses it, a 48-hour one adds
+/// the other), 72 hours both and none of 1970's, and a window back to
+/// then all seven, newest first.
 #[test]
 fn item_events_reads_back_its_hours_and_defaults_to_a_day() {
     let scratch = scratch("mcp-search");
@@ -927,8 +929,8 @@ fn item_events_reads_back_its_hours_and_defaults_to_a_day() {
     {
         let mut store = Store::open(&account_path(&stores(&scratch.0), USER)).unwrap();
         for (tab, id, at) in [
-            ("t8", "recent", now - 3600),
-            ("t9", "older", now - 48 * 3600),
+            ("t8", "inside", now - 23 * 3600),
+            ("t9", "outside", now - 25 * 3600),
         ] {
             record(
                 &mut store,
@@ -952,9 +954,9 @@ fn item_events_reads_back_its_hours_and_defaults_to_a_day() {
             .collect()
     };
     let day = seat.mcp.expect_ok("item_events", json!({}));
-    assert_eq!(at_of(&day), [now - 3600], "{day}");
+    assert_eq!(at_of(&day), [now - 23 * 3600], "{day}");
     let three = seat.mcp.expect_ok("item_events", json!({ "hours": 72 }));
-    assert_eq!(at_of(&three), [now - 3600, now - 48 * 3600], "{three}");
+    assert_eq!(at_of(&three), [now - 23 * 3600, now - 25 * 3600], "{three}");
     let all = seat.mcp.expect_ok("item_events", json!({ "hours": 1.0e9 }));
     let at = at_of(&all);
     assert_eq!(at.len(), 7, "{all}");
