@@ -13,7 +13,11 @@ few words on what to take from it. The brief's writer checks every
 citation, and every test the brief relies on, against the tree
 before the brief is committed: phase 0's briefs cited a ruling as
 built that was parked, named a test that did not exist, and carried
-a count wider than true, and each cost a review finding.
+a count wider than true, and each cost a review finding. Where a brief
+changes the words or shape of a document a frontend prints, it names
+every test that asserts on that document, found by grepping the test
+trees for the old words: 2a's design named eleven, and three more
+broke.
 
 ## Input
 What is fixed before the work starts: a measurement, a capture, a
