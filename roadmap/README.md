@@ -149,14 +149,17 @@ list when a step's close commit or an issue takes it.
 
 ## Current step
 
-Step 2d-oracle is closed and this file is folded: the ledger as written
-through 2d-oracle, one row per commit and review, is whole at
-`1f524d15`, with `parks-triage.md`. The fold was reviewed
-(`roadmap/reviews/roadmap-fold-5acd9ea5.md` at `8afaf1ab`) and its
-three findings taken. Next is 2e, the game-diff tool, a mock rehearsal
-of a new league and a README line for starting one; it has no brief
-yet. The owner reassesses the `AGENTS.md` budget when he
-chooses. `AGENTS.md` governs; the gate is its ten lines, under nextest.
+Step 2e is in design. The design brief, `briefs/2e-design.md`, is at
+`08c0907a` with the owner's word at `e9b8bc78` (R1, the tables name
+their export and the gate refuses a clone past the pin; R2, a league
+the fetched list does not hold is a note, never a refusal; both
+approved 2026-10-21); its review (`roadmap/reviews/2e-design-e9b8bc78.md`
+at `0c366fac`) found four faults, all taken. Next is the build brief,
+`briefs/2e-build.md`, then an Opus worker on the owner's go. The fold
+of this file through 2d-oracle is whole at `1f524d15`, its review
+(`roadmap/reviews/roadmap-fold-5acd9ea5.md` at `8afaf1ab`) taken. The
+owner reassesses the `AGENTS.md` budget when he chooses. `AGENTS.md`
+governs; the gate is its ten lines, under nextest.
 
 ## Ledger
 

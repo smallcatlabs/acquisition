@@ -7,7 +7,15 @@ the README, the live-run skill and the ground truth). Every `file:line`
 is at `36f5e5fb`. The step's source is the assessment's report 6,
 section 5 (`STATE-2026-10-19.md:900-923`): the first, fourth, fifth and
 sixth rows of its checklist. The build brief, `2e-build.md`, follows the
-design's review; the owner's word is section 8. Nothing here is built.
+design's review; the owner's word is section 8. Codex's review of
+the design commits (`roadmap/reviews/2e-design-e9b8bc78.md` at
+`0c366fac`) found four faults, each verified against the tree and
+taken: the league note reads the latest leagues response, not the
+upserted table (2.4, 3, R2); the drift line's recovery bumps the pin
+before the generators run (2.1, R1); the empty league carries no
+substash stubs and the rehearsal's tab fact says which tabs a fetch
+reaches (2.2, 2.3); the README bullet says the first plan lists and
+the next ones fetch (2.5). Nothing here is built.
 
 ## 1. The problem, measured against the tree
 
@@ -215,9 +223,10 @@ pin check would refuse the very run the tool is for.
   e2bd511a, unread against the game"); it passes when the clone is at
   the pin and every header names the pin and the clone's version; it
   fails naming what to do when the clone's HEAD is not the pin ("the
-  clone is past the pin: run game-diff, regenerate
-  in this order, bump PINS and the manifest in one commit, or check the
-  pin out again"), when a header's pin or game is not the clone's, or
+  clone is past the pin: read what changed with game-diff; then bump
+  PINS and the manifest first, since every generator refuses a clone
+  off its pin, regenerate in this order, and commit the three
+  together; or check the pin out again"), when a header's pin or game is not the clone's, or
   when `version.txt` and `exported-version.txt` differ at the pin (the
   tables were drawn from a lagging export, said as such). Both lines
   join the loop at `tools/trade-check.sh:38-41`, the gate's existing
@@ -239,9 +248,12 @@ committed fixture), and gains what launch day has that it lacks:
 - The stash list of Standard is today's tree with today's items. The
   stash list of Hardcore and of Rehearsal is the same tree of names,
   types and the folder, with ids distinct per league (a short league
-  prefix on each fixture id, `rh-cur1`) and every tab and substash
-  empty: the account's purchased tabs, present and bare, as a league
-  is on its first morning. No item body changes, so none says a league
+  prefix on each fixture id, `rh-cur1`), every tab empty and no
+  substash stub under the map and unique tabs, since GGG appears to
+  list only non-empty substashes and the planner skips a zero-count
+  stub as empty rather than fetching it (`acquisition-plan/src/lib.rs:142`,
+  the coverage ruling's guard): the account's purchased tabs, present
+  and bare, as a league is on its first morning. No item body changes, so none says a league
   it is not in.
 - A league the list does not hold is answered as the mock answers a
   tab it does not hold: 404 on the stash list. That is the mock's
@@ -252,7 +264,8 @@ committed fixture), and gains what launch day has that it lacks:
   characters finds none, which is launch morning before the first
   character is made. `whoami`'s hard-coded league is untouched. The
   daemon's fixture test extends: three leagues listed, each non-Standard
-  league's tab ids distinct from Standard's and every one empty.
+  league's tab ids distinct from Standard's, every one empty and no
+  substash stub among them.
 
 Nothing varies at run time: no knob adds a league. The daemon's
 Standard fallbacks stay; the mock never relies on them.
@@ -271,10 +284,12 @@ league's numbers. Its steps, in the owner's order on launch day:
 3. `acq policy show`, then `acq policy set` with the pc realm written
    back whole, Standard and Rehearsal; the receipt.
 4. `acq refresh --plan --league Rehearsal` (one request, the list; the
-   characters line says none are listed in Rehearsal), apply, plan,
-   apply, plan, until "nothing to do in Rehearsal"; each `next:` line
-   carries `--league Rehearsal`.
-5. `acq tabs --league Rehearsal`: every tab fetched, 0 items; `acq tabs`:
+   characters line says none are listed in Rehearsal), apply, plan
+   (the non-folder tabs), apply, plan, until "nothing to do in
+   Rehearsal", the round count measured in the build; each `next:`
+   line carries `--league Rehearsal`.
+5. `acq tabs --league Rehearsal`: every non-folder tab fetched, the
+   folder never, no substash on record, 0 items; `acq tabs`:
    Standard's 37 items still there and no move printed anywhere, the
    fact that pins fault 1.
 6. `acq search --count league`, `acq price status --league Rehearsal`,
@@ -309,7 +324,12 @@ a plan covering characters where the listing holds none in the league
 says so; and, under ruling R2, the policy receipt and the plan carry a
 note when a league the fetched list does not hold is named ("Typo is
 not among the leagues fetched 3 m ago (`acq leagues`)", or "the league
-list was never fetched"). `acq leagues` renders a list in text mode (id,
+list was never fetched"). The list is the latest successful leagues
+response, whose whole body the store keeps as its envelope (the body
+has no item arrays; `schema.sql:10-22`), never the `leagues` table,
+which upserts and never retires a row (`lib.rs:1176-1189`): a league
+that left the list is not in it, and a list fetched empty is a fetched
+list. `acq leagues` renders a list in text mode (id,
 realm, category; `--json` unchanged), taken on the owner's word
 (section 8), since the README line sends a person there; `acq stashes` stays raw,
 not this step's. Every wording is a golden under C122, regenerated under
@@ -322,8 +342,9 @@ not this step's. Every wording is a golden under C122, regenerated under
   opens; add it to the policy by writing the realm back with every
   league it keeps (a policy naming only the new league drops Standard);
   then `acq refresh --plan --league <name>` and `--apply --league <name>`
-  until the plan says nothing to do; a new league's first plan lists
-  every tab you own, so read the ceiling first. The Standard bullet
+  until the plan says nothing to do; the first plan is one request,
+  the tab list, and the plans after it fetch every tab the policy
+  covers, so read each plan's work and its ceiling before applying. The Standard bullet
   names every verb that defaults (adding `refresh --apply`, `refresh
   --tabs`, `stash`); the tour line at `README.md:160` says "a realm is
   written whole: name every league it keeps". No new tour line: the
@@ -348,7 +369,7 @@ not this step's. Every wording is a golden under C122, regenerated under
 | --- | --- |
 | `tools/` | `game-diff.py` (the diff, the reading, `--self-test`, `--check`); `trade-check.sh` two loop entries; `trade-forms-table.py` the header read; `tracer-rung.sh` the realm written back |
 | `acquisition-daemon` | the mock's three leagues, per-league empty trees, 404 for an unlisted league; the fixture test extended |
-| `acquisition-store` | a read of the `leagues` table's ids and age for the planner and the receipt (one read, the store's read API) |
+| `acquisition-store` | one read, the store's read API: the ids and fetch time of the latest successful leagues response, from its envelope; pinned on a league that left the list and on a list fetched empty |
 | `acquisition-plan` | the plan's note for a league the list does not hold (R2); the characters-none line's fact |
 | `acquisition-verbs` | the policy receipt's note (R2), so both doors say it once |
 | `acquisition-cli` | the six wording sites (2.4); `leagues` rendered; the rehearsal module and golden; the harness tally |
@@ -368,7 +389,8 @@ word (it binds the gate and the owner's clone):
 >   commit than `PINS`, when a shipped header's pin or game version is
 >   not the clone's, or when the pinned export lags the game it names;
 >   it passes, stating so, where no clone is present. A pull is a
->   regeneration in the same commit as the pin and the manifest. *Why:*
+>   regeneration in the same commit as the pin and the manifest, the
+>   pin bumped before the generators run, which refuse otherwise. *Why:*
 >   the tables went stale silently at every patch, and a clone pulled
 >   under a pin (2026-10-21) left three generators refusing and the gate
 >   green. *Pinned:* `game-diff.py --self-test` and `--check` in
@@ -378,8 +400,9 @@ word (it binds the gate and the owner's clone):
 
 > - **C<next> — A policy may name a league the account's fetched league
 >   list does not hold; the policy receipt and the plan say so, and
->   nothing refuses.** The note names the list's age, or that it was
->   never fetched. *Why:* the list is a snapshot, stale on launch
+>   nothing refuses.** The list is the latest successful leagues
+>   response, never an accumulated table; the note names its age, or
+>   that it was never fetched. *Why:* the list is a snapshot, stale on launch
 >   morning before `acq leagues` and empty on a fresh store, and a
 >   refusal would block the user the day the league is new; the note is
 >   what keeps a typo from spending the invalid-request budget (N27).
