@@ -89,7 +89,8 @@ anything):
   allow-list for dependencies.
 
 Parks whose trigger is this slice, with the triage ids from
-`roadmap/parks-triage.md`:
+`roadmap/parks-triage.md` at `1f524d15` (each park an issue since
+step 1b):
 
 | Park | Where | What the GUI does with it |
 | --- | --- | --- |
@@ -717,7 +718,7 @@ listener), `crates/acquisition-mcp/src/*.rs` (the search tool),
 `stats-2026-09-12.json`, `grammar.json`, the `reference/` tables,
 `tools/docs-check.sh`, `deny.toml`, `.github/workflows/gate-linux.yml`,
 `rust-toolchain.toml`, root `Cargo.toml` and `Cargo.lock`,
-`roadmap/README.md` and `roadmap/parks-triage.md`.
+`roadmap/README.md` and `roadmap/parks-triage.md` at `1f524d15`.
 
 Outside it: the gerwaric clone's `src/items_model.h` and `.cpp`,
 `src/search.h`, `src/column.cpp`, `src/ui/mainwindow.cpp`,

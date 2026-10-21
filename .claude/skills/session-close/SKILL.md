@@ -49,8 +49,9 @@ and the regenerated references. Nothing else needs a home.
 
 ## 3. A roadmap step or a phase close
 
-A step ends with its ledger row in `roadmap/README.md` and its review
-launched (`roadmap/README.md`, "Roles and rhythm"). A phase close adds
-one `HISTORY.md` line, a `REVIEW-CHECKLIST.md` row for each shape that
-came back during the phase, and deletes the phase's briefs and review
-files, cited by commit.
+A step ends with its one ledger line in `roadmap/README.md` and its
+review launched; the rhythm is `roadmap/README.md`, "A step". A phase
+close folds the phase's lines into one, adds one `HISTORY.md` line, a
+`REVIEW-CHECKLIST.md` row for each shape that came back during the
+phase, and deletes the phase's briefs and review files, cited whole at
+the commit before.
