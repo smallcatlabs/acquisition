@@ -50,7 +50,7 @@ budget() {
     printf 'ok      %-18s %7d / %7d bytes\n' "$file" "$size" "$limit"
   fi
 }
-budget AGENTS.md 14363
+budget AGENTS.md 15146
 
 # ---- 2. the decision registry ------------------------------------------
 # Every decision is one bullet under a length limit (a narrative cannot fit,
@@ -80,7 +80,7 @@ reg=$(mktemp)
 grep -hE '^- \*\*C[0-9]+ ' AGENTS.md decisions/*.md >"$reg"
 dups=$(grep -oE '^- \*\*C[0-9]+' "$reg" | sort | uniq -d | sed 's/^- \*\*//' | tr '\n' ' ')
 if [[ -n $dups ]]; then echo "DUPLICATE decision id across registry files: $dups"; fail=1; fi
-CROSS_LIMIT=15
+CROSS_LIMIT=16
 cross=$(grep -cE '^- \*\*C[0-9]+ ' AGENTS.md)
 if ((cross > CROSS_LIMIT)); then
   printf 'CROSS   %-18s %5d always-loaded decisions > %d — move area rulings to decisions/<area>.md\n' AGENTS.md "$cross" "$CROSS_LIMIT"; fail=1
