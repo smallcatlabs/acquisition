@@ -32,6 +32,7 @@ come from are whole at the commit `HISTORY.md` names for each slice.
 | **A check that reads prose.** The tracer driver grepped tab ids out of `acq tabs`'s text; the third layout change aborted a passing run | the daemon split's step 7; platforms | a script reads the JSON by id; `tools/tracer-verify.py --self-test` |
 | **A stop condition that cannot fail.** "One HEAD per route" with no restarts; a matching journal count taken as proof the rail was there | TESTING-NOTES; the tracer's rounds | the daemon reports armed, ceiling, count and halt; the verifier accepts 2xx only, probe-first per account route |
 | **An index that cannot skip what the read skips.** The live read scanned removed rows under the one index, and a gone-id lookup was quadratic | phase 0, step 0a | the two live partial indexes (`items_live`, `items_live_at` in `schema.sql`); the removed-heavy copy as a standing M3 row |
+| **A count bounded by a whole-second clock.** An apply's `changed:` line read the events at or after the second it was submitted, so two applies in one second counted each other's events (9 of 20 journeys) | roadmap 2c's design survey | the event watermark, `Status.last_event` and `Store::events_after`; `two_applies_in_one_second_do_not_count_each_others_events` in `acquisition-verbs/tests/documents.rs` |
 
 ## Pricing and intent
 
