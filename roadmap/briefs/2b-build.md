@@ -40,7 +40,9 @@ tests halves, and the gate's test stage runs in about thirty seconds.
   from its `doors` rule to the end and `tools/arch-check-breakers.sh`
   (how a rule and its breaker cases are written);
   `tools/docs-check.sh` (the `budget` line; the fixture and knob
-  scans); `.github/workflows/gate-linux.yml` and `gate-windows.yml`
+  scans);
+  `crates/acquisition-search/src/tabs.rs` (`LISTED_WHOLE`, `MOST_ITEMS`:
+  the thresholds the tabs test stages); `.github/workflows/gate-linux.yml` and `gate-windows.yml`
   (the test steps); `.github/workflows/release.yml` (the
   `taiki-e/install-action` use to copy).
 
@@ -61,9 +63,11 @@ tests halves, and the gate's test stage runs in about thirty seconds.
   name. Every `*-REFERENCE.md` and fixture regenerated here is named in
   its commit's message with what changed in it.
 - Failing inputs the new tests stage: a `Tabs::of` over a store with
-  more than ten tabs across two types (counts first, ten listed, the
-  cut said, `expand` lifting it, a `Selection` by type and by
-  never-fetched); `list_seen` under a query that fixes one league; an
+  more than thirty tabs across two types (`LISTED_WHOLE` in
+  `crates/acquisition-search/src/tabs.rs` is 30, below which every tab
+  is listed; the existing forty-one-tab fixture serves): counts first,
+  the ten with the most items listed (`MOST_ITEMS`), the cut said,
+  `expand` lifting it, a `Selection` by type and by never-fetched; `list_seen` under a query that fixes one league; an
   exact trade clause's report (`{at, status, term, path}` alone); a
   `keys` entry holding a comma; a cross table past its limit
   (`view.cross.limit`); an unknown count key (the refusal names where
@@ -77,8 +81,8 @@ tests halves, and the gate's test stage runs in about thirty seconds.
   null`; the pricing verbs' limit, conflict and unreadable-row
   refusals; the MCP `show` with a malformed `against` (kind `tree`);
   the MCP `item_events` with `hours` and with none; for the layout
-  check, a second plain file beside `tests/main.rs` and a `session(`
-  file listed as a `mod`; for the orphan check, a golden file with no
+  check, a second file without `session(` under one crate's `tests/`,
+  and a `session(` file listed as a `mod` of the plain one; for the orphan check, a golden file with no
   `golden(` call naming it.
 
 ## Do
@@ -114,10 +118,14 @@ the change under 5 of your report.
    stderr piped and printed on a start timeout; `approve` encodes `#`.
    `reqwest` leaves the client's and verbs' dev-dependencies (the
    lock changes; the contract revision moves once, say so). The
-   `same_text` diff function in the shared file, used by
-   `cli_reference.rs`, `mcp_reference.rs`, `wire.rs` and the two plan
-   fixtures in place of their one-sentence failures (their write-and-
-   pass under `ACQ_UPDATE_FIXTURES=1` unchanged). In `contract.rs`,
+   `same_text` diff in its own std-only file `diff.rs` beside the
+   harness, re-exported by it: `cli_reference.rs` and
+   `mcp_reference.rs` use it through their adapters, and the protocol's
+   `wire.rs` includes `diff.rs` alone by `#[path]` (its tests link
+   serde alone; `tools/arch-check.sh` holds that), in place of their
+   one-sentence failures (the write-and-pass under
+   `ACQ_UPDATE_FIXTURES=1` unchanged); the plan's two inline fixtures
+   are not touched. In `contract.rs`,
    the scripted foreign peer exits after it answers `stopping`, as a
    daemon does, in the two tests that today wait out the client's
    10 s stop bound; if either test asserts the bound itself, it keeps
@@ -128,9 +136,11 @@ the change under 5 of your report.
 3. **One layer per behaviour.** The lower tests first, in the same
    commit: appendix A's move-downs, each a test named for its property
    in the file named (`crates/acquisition-search/tests/tabs.rs` is new;
-   the others are rows or tests beside the ones cited); then the 14
-   deletions with their two dead helpers; then the 27 thins, each
-   keeping exactly the adapter's part appendix A names. `Seat::search`
+   the others are rows or tests beside the ones cited); then the 13
+   deletions with their two dead helpers; then the 28 thins, each
+   keeping exactly the adapter's part appendix A names (aq3 keeps one
+   successful `show` with a text `against`, the site-search test one
+   with a trade `against`). `Seat::search`
    in `crates/acquisition-mcp/tests/search_tools.rs` becomes one test,
    `the_search_tool_is_acq_search_request`, over four requests (an
    answer, a refusal, a continuation, an offer), and the other tests
@@ -138,12 +148,14 @@ the change under 5 of your report.
    malformed `against`, `item_events`' `hours`). If a new test fails
    against the product, mark it `#[ignore]` with the reason in its doc
    and report it under 5: this step changes no production code.
-4. **Goldens.** `Transcript` and `golden(file!(), name, &Transcript,
-   facts)` in the CLI adapter, the normaliser's named rules in the
-   order section 2.3 gives, the file at
+4. **Goldens.** `Transcript` with `run(args, facts)` and
+   `golden(file!(), name, &Transcript)` in the CLI adapter, the
+   normaliser's named rules in the order section 2.3 gives, the file at
    `crates/acquisition-cli/tests/goldens/<stem>/<name>.txt` with the
-   header line the design specifies and `facts` required and checked
-   against the raw text before the update switch. Convert appendix B's
+   header line the design specifies; each command's `facts` checked
+   against that command's raw output before the update switch, a
+   transcript with no fact on any command refused, text commands only
+   recorded (a `--json` command stays asserted by field). Convert appendix B's
    sites (about 20 to 23 goldens), each call carrying the one or two
    facts its seat finding named; the MCP's sentence literals shrink to
    fact words with no new golden; the daemon-backed texts stay
@@ -162,10 +174,11 @@ the change under 5 of your report.
    or documents a regeneration command with `--test <file>` is
    rewritten to the merged form (the seven files the design names,
    `CLI-REFERENCE.md` and `MCP-REFERENCE.md` among them, regenerated).
-   `tools/arch-check.sh` gains the layout rule (under each crate's
-   `tests/`: `main.rs`, and beside it only files that call `session(`
-   or name `env::set_var`, none of which `main.rs` lists as a `mod`)
-   with its two breaker cases in `arch-check-breakers.sh`, run once.
+   `tools/arch-check.sh` gains the layout rule as section 2.4 states
+   it (under a crate's `tests/`, at most one file that does not call
+   `session(`; every other file calls it; none is a `mod` of the plain
+   one) with its two breaker cases in `arch-check-breakers.sh`, run
+   once.
    Measure: `cargo test --workspace --all-targets --no-run` lists the
    binaries (expect 24); time `cargo test --workspace --all-targets`
    and the search relink after `touch crates/acquisition-search/tests/
@@ -202,20 +215,22 @@ verbatim at `roadmap/reviews/2b-<last sha>.md`, commit that file alone
 - `grep -rn "fn sole_json\|fn http_get\|fn place_link\|fn approve\|fn
   scratch_tmp" crates/*/tests` finds each once, in
   `crates/acquisition-client/tests/harness/mod.rs`; `grep -rln
-  "env::set_var" crates/*/tests` names exactly `contract.rs`, the verbs
-  crate's `daemon.rs`, the CLI's `watch_recovery.rs` and the MCP's
-  `plan_loop.rs`; `reqwest` is in neither the client's nor the verbs
+  "env::set_var" crates/*/tests` names the harness file alone, and
+  `grep -rln "session(" crates/*/tests` names it and exactly
+  `contract.rs`, the verbs crate's `daemon.rs`, the CLI's
+  `watch_recovery.rs` and the MCP's `plan_loop.rs`; `reqwest` is in neither the client's nor the verbs
   crate's manifest.
 - Every test appendix A lists as deleted is absent by name; every
   move-down has its lower test by the name the commit gives it; every
   thin keeps the part named; the two gap tests exist; `Seat::search`
   spawns `acq` in one test.
 - `crates/acquisition-cli/tests/goldens/` holds the goldens, each
-  named by a `golden(` call with a non-empty `facts`; `tools/
+  named by a `golden(` call, its transcript carrying a fact on at
+  least one command; `tools/
   docs-check.sh` refuses an orphan golden, with its breaker case.
 - `cargo test --workspace --all-targets --no-run` builds 24 binaries;
-  each crate's `tests/` holds `main.rs` and only the named exceptions
-  beside it; `tools/arch-check.sh` refuses the two layout breakers.
+  under each crate's `tests/` at most one file does not call
+  `session(` and no `session(` file is a `mod` of it; `tools/arch-check.sh` refuses the two layout breakers.
 - `.config/nextest.toml` exists with `retries = 0` in both profiles;
   both gate workflows install nextest and run it; `AGENTS.md`'s gate
   names `cargo nextest run --workspace --all-targets`; C<next> is recorded

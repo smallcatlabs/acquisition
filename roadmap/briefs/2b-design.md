@@ -32,7 +32,7 @@ excess is in how the tests are built and where they sit:
   `ACQ_MOCK_DEGRADED_HEAD`): a value in the shell reaches every test
   daemon.
 - **One behaviour pinned at two or three layers.** Of 152 frontend
-  tests read, 14 pin only what a lower crate's test already holds, 12
+  tests read, 13 pin only what a lower crate's test already holds, 12
   pin a lower behaviour that has no test at its own layer, and 27 mix
   the adapter's part with the semantics. The equality check the
   assessment proposed already exists: every MCP search test runs its
@@ -142,9 +142,9 @@ exit codes (C11), text as a function of JSON (C53), flag-to-request
 mapping, printed commands that run as printed, no ids in user text
 (C116), and its text renderings.
 
-Against that rule the 152 frontend tests in scope sort as **14
-deleted, 12 moved down (11 of them then deleted), 27 thinned, 99
-kept**: about 1,000 lines of frontend tests go, and nine new lower
+Against that rule the 152 frontend tests in scope sort as **13
+deleted, 12 moved down (10 of them then deleted, one thinned), 28
+thinned, 99 kept**: about 1,000 lines of frontend tests go, and nine new lower
 tests appear where a behaviour had no pin at its own layer. The named
 list is appendix A. The move-downs are the real gain: `Tabs::of`
 (counts first, the ten with the most items, `expand`, `Selection`)
@@ -169,23 +169,31 @@ ignored completion measurement stays.
 
 ### 2.3 Goldens with facts
 
-A `golden(file!(), name, &transcript, facts)` in the CLI adapter
-compares a normalised transcript against
+A `Transcript` in the CLI adapter runs the test's text commands,
+`run(args, facts)`, recording each as `$ acq <args>`, its stdout, its
+stderr and a non-zero exit, streams kept apart, and checking that
+command's `facts` against its own raw output on the spot; a `--json`
+command is asserted by field and not recorded (its timestamps churn).
+`golden(file!(), name, &transcript)` compares the normalised
+transcript against
 `crates/acquisition-cli/tests/goldens/<test file stem>/<name>.txt`,
-one file per test, holding every `acq` the test ran as
-`$ acq <args>`, its stdout, its stderr and a non-zero exit, streams
-kept apart. On a mismatch it prints a unified line diff (a hand-rolled
+one file per test. On a mismatch it prints a unified line diff (a hand-rolled
 LCS of about forty lines in the shared harness; no new dependency) and
 the regeneration command; under `ACQ_UPDATE_FIXTURES=1` it writes the
 file and passes, the convention the five existing checks already
-follow. The same diff function serves `cli_reference.rs`,
-`mcp_reference.rs` and the two plan fixtures, which today fail with a
-sentence.
+follow. The diff lives in its own std-only file beside the harness,
+`diff.rs`, which the harness re-exports; `cli_reference.rs` and
+`mcp_reference.rs` reach it through their adapters, and the protocol's
+`wire.rs` includes the diff file alone by `#[path]`, since the
+protocol's tests link serde alone (arch-check). The plan's two inline
+fixtures keep their one-sentence failure.
 
-`facts` is required and non-empty: the one or two words the seat
-finding was about ("MapStash 3 of 3", "fetched 3d ago"), checked
-against the raw text before the update switch, so a blind
-regeneration that lost the fact still fails. That is the structural
+The facts ride on each command, not on the transcript: the one or two
+words the seat finding was about ("MapStash 3 of 3", "fetched 3d
+ago") must stand in that command's own raw output, checked before the
+update switch, so a blind regeneration that lost the fact from `show`
+while `search` still carried it fails as today's two assertions would.
+A golden whose transcript carries no fact on any command fails. That is the structural
 guard; the second, in words, is one sentence added to
 `REVIEW-PROMPT.md`: every changed file under `tests/goldens/` or a
 `*-REFERENCE.md` is read as a diff of what a user now reads, and a
@@ -244,11 +252,14 @@ merge: the search relink after a touch of its shared module 13.5 s to
 to 7.6 s; disk about 3.4 GB less per build; `cargo test` end to end
 about 94 s to 59 s, then bounded by the contract's 27 s.
 
-`tools/arch-check.sh` holds the layout: under each crate's `tests/`,
-a `main.rs` and, beside it, only files that call `session(` (or name
-`env::set_var`), each of which `main.rs` must not `mod`; with breaker
-cases in `arch-check-breakers.sh` (a second plain file beside
-`main.rs`; a `session(` file listed as a `mod`).
+`tools/arch-check.sh` holds the layout, one rule for every crate:
+under a crate's `tests/`, at most one file that does not call
+`session(`, and every other file calls it, none of them listed as a
+`mod` of the plain one. The verbs crate's `documents.rs` is its plain
+file beside `daemon.rs`; the client has `contract.rs` alone; the four
+merged crates have `main.rs`. Breaker cases in
+`arch-check-breakers.sh`: a second file without `session(` under one
+crate's `tests/`; a `session(` file listed as a `mod` of the plain one.
 
 ### 2.5 nextest in the gate
 
@@ -285,8 +296,8 @@ wall floor then drops from the 10 s pair to the trade forms' 10.8 s.
 | store, plan, search (units) | — | +3 | `league_list`; the `"sub": null` spend; the pricing refusals |
 | search | 38 → 1 | 350 → 359 | `tabs.rs` new; `answer.rs`, `counts.rs`, `refusal.rs`, `trade_translate.rs`, `next.rs` gain a test each or a row; `common` once |
 | CLI | 20 → 2 | 124 → 122 | 1 deleted, 2 moved down, 8 thinned, 8 thinned in `search_json.rs`; about 22 goldens; ten private harness copies gone |
-| MCP | 9 → 2 | 56 → 44 | 13 deleted, 10 moved down, 10 thinned, 2 added; `Seat::search`'s equality one test |
-| all | 87 → 24 | 986 → about 975 | `cargo test` about 59 s; nextest about 30 s |
+| MCP | 9 → 2 | 60 → 41 | 12 deleted, 10 moved down (9 then deleted), 11 thinned, 2 added; `Seat::search`'s equality one test |
+| all | 87 → 24 | 986 → about 977 | `cargo test` about 59 s; nextest about 30 s |
 
 ## 4. The rulings this needs
 
@@ -389,8 +400,8 @@ checked).
 
 ## Appendix A — the tests, by action (as of `3bc71a86`)
 
-**Delete (14).** MCP `search_tools.rs`: `:306 aq1`, `:348 aq2`,
-`:369 aq3`, `:440 aq5`, `:486 a_next_is_sent_back_whole…`, `:528
+**Delete (13).** MCP `search_tools.rs`: `:306 aq1`, `:348 aq2`,
+`:440 aq5`, `:486 a_next_is_sent_back_whole…`, `:528
 a_realm_needed_is_offered…`, `:563 no_arguments_over_two_realms…`,
 `:621 what_has_left_is_asked…`, `:822 a_count_read_back…`, `:861
 a_view_beside_a_request…`, `:1209 a_count_holds_its_request…`, `:1352
@@ -410,8 +421,10 @@ key from MCP `:592` (`counts.rs`); `view.cross.limit` from MCP `:1248`
 (`counts.rs` or `refusal.rs`); the bare word read as `name:` first
 from MCP `:1387` (a row in `refusal.rs:152`'s table); a touched term's
 keys from MCP `:1570` (`answer.rs`); the request-level trade rules
-from MCP `:985` (`next.rs`/`answer.rs`; CLI `search_json.rs:2664`,
-`:2919` keep their rule-5 halves). Store: `league_list` from MCP
+from MCP `:985` (`next.rs`/`answer.rs`; the MCP test is thinned, not
+deleted: one successful `show` with a trade `against` stays, the
+forwarding of that form; CLI `search_json.rs:2664`, `:2919` keep their
+rule-5 halves). Store: `league_list` from MCP
 `:1410` (`src/lib.rs` units; CLI `seat_faults.rs:1630` keeps the
 text). Verbs: `Frontend::jobs()` and `daemon()` over a ledger with
 rows from MCP `persisted_queue.rs:42` and CLI `persisted_queue.rs:38`
@@ -425,8 +438,10 @@ e2e); the pricing verbs' limit, conflict and unreadable-row refusals
 (`src/pricing.rs`, beside its three units; CLI `price_json.rs` stays
 whole).
 
-**Thin (27), keeping the adapter's part named.** MCP `search_tools.rs`:
-`:409 aq4` (one `show` with `body: true` equal to `acq show --body`),
+**Thin (28), keeping the adapter's part named.** MCP `search_tools.rs`:
+`:369 aq3` (one successful `show` with a text `against`, its outcome
+read back: the forwarding of the argument), `:409 aq4` (one `show`
+with `body: true` equal to `acq show --body`),
 `:687` (one search refusal and one `show` refusal as `isError` with
 `kind` and `readings`), `:775` (the selector mapping: `scope.account`,
 `account`, the continuation), `:1281` and `:1497` (size budget,
@@ -487,7 +502,7 @@ pub fn text(out: &Output) -> String;
 pub fn http_get(url: &str) -> (u16, HashMap<String, String>, String);
 pub fn approve(authorize_url: &str, user: Option<&str>);  // encodes `#`
 pub fn login(acq: &Path, base: &Path, user: Option<&str>, env: &[(&str, &str)]);
-pub fn same_text(expected: &str, actual: &str, path: &Path, regenerate: &str); // the diff
+pub use diff::same_text;  // diff.rs beside this file, std only: same_text(expected, actual, path, regenerate)
 pub struct Session { pub base: PathBuf /* lock held */ }
 pub fn session(tag: &str) -> Session;            // the one lock; isolation applied in-process
 impl Session { pub fn point_world_at(&self, root: &Path); }
@@ -498,7 +513,7 @@ pub async fn wait_all_terminal(client: &mut Client, expected: usize);
 
 // crates/acquisition-cli/tests/harness/mod.rs (the adapter), today's names kept:
 // acq_exe, command, command_of, command_in, acq, acqd, start_daemon, login, login_with,
-// plus Transcript::{new, run} and golden(file, name, &Transcript, facts).
+// plus Transcript::{new, run(args, facts)} and golden(file, name, &Transcript).
 // crates/acquisition-mcp/tests/harness/mod.rs: spawn, spawn_daemon, acq (no spawn),
 // run_to_exit, Mcp.
 ```
