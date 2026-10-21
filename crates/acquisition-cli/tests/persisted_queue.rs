@@ -13,7 +13,7 @@ use serde_json::json;
 
 use crate::harness;
 
-use harness::{acq, scratch_tmp, sockets_under, sole_json, start_daemon, text};
+use harness::{Transcript, acq, golden, scratch_tmp, sockets_under, sole_json, start_daemon, text};
 
 fn row(id: u64, state: &str, parent: Option<u64>, updated_at: i64) -> JobRow {
     JobRow {
@@ -53,12 +53,17 @@ fn c45_an_observer_with_no_daemon_reads_the_queue_on_disk() {
 
     // The text form: the counts and the shared table, no ETA column
     // filled.
-    let out = acq(&base, &["jobs"]);
+    let mut t = Transcript::new(&base);
+    let out = t.run(
+        &["jobs"],
+        &["2 waiting, 1 recorded running", "Standard/tab3"],
+    );
     assert!(out.status.success(), "{out:?}");
     let shown = text(&out);
     assert!(shown.contains("2 waiting, 1 recorded running"), "{shown}");
     assert!(shown.contains("Standard/tab3"), "{shown}");
     assert!(!shown.contains("tab4"), "a done row was listed: {shown}");
+    golden(file!(), "the_queue_read_from_the_ledger", &t);
     let out = acq(&base, &["daemon", "status", "--json"]);
     assert!(out.status.success(), "{out:?}");
 

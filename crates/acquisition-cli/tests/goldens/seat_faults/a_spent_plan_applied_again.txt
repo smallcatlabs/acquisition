@@ -1,0 +1,7 @@
+# golden seat_faults/a_spent_plan_applied_again: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq refresh --apply=<scratch>/plan.json
+# holds "nothing to do: every request of this plan is spent — 7 fetched after it was compiled, the latest "
+--- stdout
+nothing to do: every request of this plan is spent — 7 fetched after it was compiled, the latest <age> ago
+next: `acq refresh --plan` — 7 requests more are planned now (what this apply revealed, such as a map or unique tab's substashes, or left undone); plan and apply until the plan says nothing to do

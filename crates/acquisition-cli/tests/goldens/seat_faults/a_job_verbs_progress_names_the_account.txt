@@ -1,0 +1,24 @@
+# golden seat_faults/a_job_verbs_progress_names_the_account: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq profile
+# holds "(alice): done"
+--- stdout
+{
+  "body": {
+    "guild": {
+      "name": "Playground"
+    },
+    "name": "alice",
+    "realm": "pc",
+    "twitch": {
+      "name": "exiletester"
+    },
+    "uuid": "00000000-0000-4000-8000-000005899680"
+  },
+  "params": {},
+  "provider": "mock",
+  "rate_limit": {},
+  "username": "alice"
+}
+--- stderr
+job <j1> (alice): done

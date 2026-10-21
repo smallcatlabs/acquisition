@@ -1,0 +1,12 @@
+# golden seat_faults/an_apply_ends_on_what_is_still_planned: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq refresh --apply
+# holds "next: `acq refresh --plan` — "
+# holds " more are planned now"
+--- stdout
+applying 9 requests as job <j1>
+job <j1> done: 9 requests, 9 done (jobs <j2>–<j3>)
+changed: +30 added at 6 locations since the apply started; 9 responses recorded (acq store events)
+next: `acq refresh --plan` — 7 requests more are planned now (what this apply revealed, such as a map or unique tab's substashes, or left undone); plan and apply until the plan says nothing to do
+--- stderr
+job <j1> (alice): 9/9 done

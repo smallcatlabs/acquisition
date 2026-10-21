@@ -1,0 +1,9 @@
+# golden apply_loop/a_failed_applys_result_from_the_ledger: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq result <j1>
+# holds "failed: 1 of 7 child jobs failed, 6 done"
+# holds "no-such-tab"
+--- stderr
+Error: job <j1> failed: 1 of 7 child jobs failed, 6 done
+  job <j2>  stash Standard/no-such-tab  GET /stash/Standard/no-such-tab returned 404 Not Found; rate headers {}; body: {"error":"no such stash"}
+--- exit 1

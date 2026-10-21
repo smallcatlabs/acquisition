@@ -1,0 +1,7 @@
+# golden seat_faults/a_cancelled_jobs_result: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq result <j1>
+# holds "was cancelled"
+--- stderr
+Error: job <j1> was cancelled
+--- exit 1

@@ -1,0 +1,7 @@
+# golden seat_faults/a_stop_names_the_logins_it_ended: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq daemon stop
+# holds "logged out with it: alice — not in the keyring"
+--- stdout
+daemon stopped (pid <pid>)
+logged out with it: alice — not in the keyring, so the session lived in that daemon alone; `acq auth` logs in again

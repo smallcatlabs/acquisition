@@ -77,6 +77,8 @@ fn c10_observation_never_spawns_or_replaces_and_reports_the_mismatch() {
     let out = acq_wanting_ggg(&base, &["daemon", "status", "--json"]);
     assert!(out.status.success(), "{out:?}");
     assert_eq!(sole_json(&out)["pid"], pid);
+    // Stays a literal, as every mismatch report below: each names a
+    // socket, a pid, paths and digests that vary, and asserts one word.
     let out = acq_wanting_ggg(&base, &["daemon", "status"]);
     assert!(out.status.success(), "{out:?}");
     let shown = text(&out);

@@ -1,0 +1,7 @@
+# golden seat_faults/auth_status_without_a_keyring: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq auth status
+# holds "keyring: unavailable: disabled by ACQ_NO_KEYRING"
+--- stdout
+not logged in — run `acq auth`
+keyring: unavailable: disabled by ACQ_NO_KEYRING

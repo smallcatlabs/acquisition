@@ -1,0 +1,12 @@
+# golden persisted_queue/the_queue_read_from_the_ledger: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq jobs
+# holds "2 waiting, 1 recorded running"
+# holds "Standard/tab3"
+--- stdout
+daemon is not running; on disk: 2 waiting, 1 recorded running, written <age> ago — a job command spawns a successor that restores them, and `acq cancel <id>` then acts on them
+id  parent  kind   target         state    prio  account     by   eta
+ 1          stash  Standard/tab1  waiting     5  Exile#1234  cli
+ 2          stash  Standard/tab2  running     5  Exile#1234  cli
+ 3       2  stash  Standard/tab3  waiting     5  Exile#1234  cli
+3 jobs: 1 running, 2 waiting, 0 done

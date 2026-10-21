@@ -68,13 +68,14 @@ fn a_fresh_daemon_told_not_to_use_the_keyring_never_reports_it_ok() {
     let base = scratch.0.clone();
     let (_daemon, _pid) = start_daemon(&base);
 
-    let out = acq(&base, &["auth", "status"]);
-    let said = text(&out);
-    assert!(
-        said.contains("keyring: unavailable: disabled by ACQ_NO_KEYRING"),
-        "{said}"
+    let mut t = Transcript::new(&base);
+    let out = t.run(
+        &["auth", "status"],
+        &["keyring: unavailable: disabled by ACQ_NO_KEYRING"],
     );
+    let said = text(&out);
     assert!(!said.contains("keyring: ok"), "{said}");
+    golden(file!(), "auth_status_without_a_keyring", &t);
 
     let status: Value = sole_json(&acq(&base, &["auth", "status", "--json"]));
     assert_eq!(
@@ -272,13 +273,15 @@ fn a_job_verb_prints_its_answer_alone_and_says_whose_job_it_was() {
     let (_daemon, _pid) = start_daemon(&base);
     login(&base, "alice");
 
-    let out = acq(&base, &["profile"]);
+    let mut t = Transcript::new(&base);
+    let out = t.run(&["profile"], &["(alice): done"]);
     assert!(out.status.success(), "{}", text(&out));
     let payload: Value = serde_json::from_str(&stdout(&out))
         .unwrap_or_else(|e| panic!("stdout is not the payload alone ({e}):\n{}", stdout(&out)));
     assert_eq!(payload["body"]["name"], "alice", "{payload}");
     let progress = stderr(&out);
     assert!(progress.contains("(alice): done"), "{progress}");
+    golden(file!(), "a_job_verbs_progress_names_the_account", &t);
 
     let outcome = sole_json(&acq(&base, &["profile", "--json"]));
     assert_eq!(outcome["outcome"], "success", "{outcome}");
@@ -321,13 +324,15 @@ fn a_detached_job_is_collected_by_waiting_and_a_cancelled_one_is_no_success() {
     let out = acq(&base, &["result", &id, "--wait", "--json"]);
     assert_eq!(out.status.code(), Some(1), "{out:?}");
     assert_eq!(sole_json(&out)["outcome"], "cancelled");
-    let out = acq(&base, &["result", &id]);
+    let mut t = Transcript::new(&base);
+    let out = t.run(&["result", &id], &["was cancelled"]);
     assert_eq!(out.status.code(), Some(1), "{out:?}");
     assert!(out.stdout.is_empty(), "{out:?}");
     assert!(
         stderr(&out).contains(&format!("job {id} was cancelled")),
         "{out:?}"
     );
+    golden(file!(), "a_cancelled_jobs_result", &t);
 }
 
 /// `status <id>` and `result <id>` said only "daemon is not running"
@@ -367,6 +372,8 @@ fn a_finished_jobs_result_is_answered_from_disk_with_no_daemon() {
     // text lines.
     let out = acq(&base, &["result", &id, "--json"]);
     assert_eq!(out.status.code(), Some(0), "{out:?}");
+    // Stays a literal: the job's table under this line pads its `by`
+    // header to the submitting pid's width, so a golden would shift.
     let said = stdout(&acq(&base, &["status", &id]));
     assert!(
         said.starts_with(&format!(
@@ -375,6 +382,7 @@ fn a_finished_jobs_result_is_answered_from_disk_with_no_daemon() {
         "{said}"
     );
 
+    // Stays a literal: one refusal line, which a golden holds no better.
     let out = acq(&base, &["result", "999"]);
     assert_eq!(out.status.code(), Some(1), "{out:?}");
     assert!(
@@ -392,6 +400,8 @@ fn a_finished_jobs_result_is_answered_from_disk_with_no_daemon() {
         std::path::Path::new(log).ends_with("mock/daemon.log"),
         "{status}"
     );
+    // Stays a literal: the log path's directory is the world's hash,
+    // which no golden rule normalises.
     assert!(stdout(&acq(&base, &["daemon", "status"])).contains(&format!("last log: {log}")));
 }
 
@@ -444,7 +454,11 @@ fn an_apply_ends_by_saying_what_a_new_plan_would_still_fetch() {
     assert!(acq(&base, &["stashes"]).status.success());
     assert!(acq(&base, &["characters"]).status.success());
 
-    let out = acq(&base, &["refresh", "--apply"]);
+    let mut t = Transcript::new(&base);
+    let out = t.run(
+        &["refresh", "--apply"],
+        &["next: `acq refresh --plan` — ", " more are planned now"],
+    );
     assert!(out.status.success(), "{}", text(&out));
     let said = stdout(&out);
     let last = said.lines().last().unwrap_or_default();
@@ -452,14 +466,17 @@ fn an_apply_ends_by_saying_what_a_new_plan_would_still_fetch() {
         last.starts_with("next: `acq refresh --plan` — ") && last.contains(" more are planned now"),
         "{said}"
     );
+    golden(file!(), "an_apply_ends_on_what_is_still_planned", &t);
 
     // The count itself is the verbs crate's (C111); the second round here
     // is what leaves nothing planned.
     let out = acq(&base, &["refresh", "--apply", "--json"]);
     assert_eq!(out.status.code(), Some(0), "{}", text(&out));
 
-    let said = stdout(&acq(&base, &["refresh", "--plan"]));
+    let mut t = Transcript::new(&base);
+    let said = stdout(&t.run(&["refresh", "--plan"], &["nothing to do"]));
     assert!(said.contains("nothing to do"), "{said}");
+    golden(file!(), "the_second_round_leaves_nothing_planned", &t);
 }
 
 /// `search --describe` was 117,523 bytes with no way to read it in parts
@@ -542,6 +559,8 @@ fn jobs_lists_what_is_open_and_counts_the_finished_it_leaves_out() {
     }
     assert_eq!(last, "12");
 
+    // Stays a literal: the jobs table pads its `by` header to the
+    // submitting pid's width, so a golden would shift with the pid.
     let said = stdout(&acq(&base, &["jobs"]));
     let rows = said.lines().filter(|l| l.contains(" sleep ")).count();
     assert_eq!(rows, 10, "{said}");
@@ -581,13 +600,18 @@ fn stopping_a_daemon_says_which_logins_ended_with_it() {
     let (daemon, _pid) = start_daemon(&base);
     login(&base, "alice");
 
-    let out = acq(&base, &["daemon", "stop"]);
+    let mut t = Transcript::new(&base);
+    let out = t.run(
+        &["daemon", "stop"],
+        &["logged out with it: alice — not in the keyring"],
+    );
     let said = stdout(&out);
     assert!(out.status.success(), "{}", text(&out));
     assert!(
         said.contains("logged out with it: alice — not in the keyring"),
         "{said}"
     );
+    golden(file!(), "a_stop_names_the_logins_it_ended", &t);
     drop(daemon);
 
     // With no session there is nothing to say.
@@ -815,15 +839,15 @@ fn a_plan_file_applied_twice_sends_nothing_the_second_time() {
     let first = acq(&base, &["refresh", &apply, "--json"]);
     assert_eq!(first.status.code(), Some(0), "{}", text(&first));
 
-    let out = acq(&base, &["refresh", &apply]);
+    let spent = format!(
+        "nothing to do: every request of this plan is spent — {planned} fetched after it was compiled, the latest "
+    );
+    let mut t = Transcript::new(&base);
+    let out = t.run(&["refresh", &apply], &[&spent]);
     assert!(out.status.success(), "{}", text(&out));
     let said = stdout(&out);
-    assert!(
-        said.starts_with(&format!(
-            "nothing to do: every request of this plan is spent — {planned} fetched after it was compiled, the latest "
-        )),
-        "{said}"
-    );
+    assert!(said.starts_with(&spent), "{said}");
+    golden(file!(), "a_spent_plan_applied_again", &t);
 }
 
 /// C111, across doors: a fetch `acq stash` queued spends the plan's
@@ -983,6 +1007,8 @@ fn an_apply_retried_while_its_requests_wait_queues_nothing_more() {
     // `a_plan_held_whole_by_a_queued_job_has_no_remaining_count`); here,
     // the exit code and the text: the shared note names the job holding
     // the requests, and the CLI's own way to wait for it follows.
+    // Stays a literal: the apply above is killed mid-fan-out by design,
+    // so what this one finds queued is a race a golden would freeze.
     let out = acq(&base, &["refresh", &apply]);
     assert_eq!(out.status.code(), Some(0), "{}", text(&out));
     let said = stdout(&out);
@@ -1931,6 +1957,8 @@ fn the_version_line_names_the_provider() {
     std::fs::create_dir_all(&base).unwrap();
     let out = acq(&base, &["version"]);
     let _ = std::fs::remove_dir_all(&base);
+    // Stays a literal: no daemon backs the version line, and its build
+    // and contract digests move with every edit.
     let first = text(&out).lines().next().unwrap_or_default().to_string();
     assert!(
         first.starts_with("acq ") && first.contains("provider mock"),
@@ -1948,6 +1976,7 @@ fn a_job_verb_refused_for_want_of_a_login_says_a_daemon_started() {
     let base = &dir.0;
     let out = acq(base, &["profile"]);
     assert!(!out.status.success());
+    // Stays a literal: one refusal line, which a golden holds no better.
     let said = String::from_utf8_lossy(&out.stderr).to_string();
     assert!(
         said.contains("not logged in") && said.contains("a daemon was started"),

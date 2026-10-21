@@ -21,7 +21,7 @@ use serde_json::{Value, json};
 
 use crate::harness;
 
-use harness::{acq, login_as_mock, sole_json};
+use harness::{Transcript, acq, golden, login_as_mock, sole_json};
 
 /// `refresh --plan --json` as the planner's own validated envelope — what
 /// stdout carries is what apply can trust.
@@ -193,6 +193,8 @@ fn a_failed_apply_counts_its_failed_requests_from_the_daemons_own_words() {
     let file = base.join("plan.json");
     std::fs::write(&file, plan.to_string()).unwrap();
 
+    // Stays a literal: a failed apply prints the daemon log's path, whose
+    // directory is the world's hash, which no golden rule normalises.
     let out = acq(&base, &["refresh", &format!("--apply={}", file.display())]);
     let said = String::from_utf8_lossy(&out.stdout).into_owned();
     let stop = acq(&base, &["daemon", "stop"]);
@@ -223,7 +225,12 @@ fn a_failed_apply_counts_its_failed_requests_from_the_daemons_own_words() {
         .and_then(|rest| rest.split_whitespace().next())
         .expect("the applying line names the job")
         .to_string();
-    let out = acq(&base, &["result", &parent]);
+    let read_back = format!(
+        "failed: 1 of {planned} child jobs failed, {} done",
+        planned - 1
+    );
+    let mut t = Transcript::new(&base);
+    let out = t.run(&["result", &parent], &[&read_back, "no-such-tab"]);
     assert_eq!(out.status.code(), Some(1), "{out:?}");
     let told = String::from_utf8_lossy(&out.stderr).into_owned();
     assert!(
@@ -234,6 +241,7 @@ fn a_failed_apply_counts_its_failed_requests_from_the_daemons_own_words() {
         "{told}"
     );
     assert!(told.contains("no-such-tab"), "{told}");
+    golden(file!(), "a_failed_applys_result_from_the_ledger", &t);
     let doc = sole_json(&acq(&base, &["result", &parent, "--json"]));
     let failed = doc["failed_children"].as_array().expect("failed_children");
     assert_eq!(failed.len(), 1, "{doc}");

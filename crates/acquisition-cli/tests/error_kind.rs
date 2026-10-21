@@ -29,6 +29,7 @@ fn c85_a_refusal_carries_its_kind_in_json_and_only_its_message_in_text() {
         "{report}"
     );
 
+    // Stays a literal: one refusal line, held whole by this equality.
     let out = acq(&base, &["status", "999"]);
     assert_eq!(out.status.code(), Some(1), "{out:?}");
     let stderr = String::from_utf8_lossy(&out.stderr);
