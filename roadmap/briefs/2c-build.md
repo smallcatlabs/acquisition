@@ -11,7 +11,8 @@ project's own making beside its Fake Items, so a user, a seat and a
 test reach search and price through fetching; one journey from login
 to `daemon stop` is held by a CLI golden transcript and an MCP twin
 that read one table of facts, with the daemon's journal checked by
-field; the `changed:` line counts one apply's events and no other's;
+field; the `changed:` line counts no event committed before the apply
+was submitted, the same second's earlier events included;
 and the daemon-backed texts that 2b left as literals are goldens where
 a rule can hold them. Why: the keystone phase ends with a tool whose
 whole arc is pinned once, in words a reviewer reads as a diff.
@@ -76,11 +77,18 @@ whole arc is pinned once, in words a reviewer reads as a diff.
 - The exported bodies, the fixture's content, under the Fable
   session's scratch:
   `/private/tmp/claude-502/-Users-tom-Development-GitHub-smallcatlabs-acquisition/472194ff-a4c1-4a96-a6cc-0fc467f12f35/scratchpad/2c-items/bodies.json`
-  (fourteen `{location, item}` entries: the ring, the armour and its
-  six gems, the Divine Orb and the Mirror Shard, the map, the jewel,
-  the helm, the boots; the design's appendix A names the twelve the
-  fixture takes, the Divine Orb is not one of them) and one file per
-  trait beside it. Read, never edited; the fixture is built from them.
+  (fourteen `{location, item}` entries; its SHA-256 is
+  `9c5796a8e0b645c04a65869bddb13244413ce22488a9db065b805acf28d7f68b`,
+  checked with `shasum -a 256` before the file is read, a mismatch a
+  stop and a report) and one file per trait beside it. The fixture
+  takes thirteen of the fourteen, by id (the Divine Orb,
+  `5aefb2bb…`, is left out): the ring `51e6c105…`; the armour
+  `23e1a67b…` and its gems `e7faac8c…` (Smite), `17472696…`,
+  `3dd01678…`, `a52a2cd2…`, `edbee5a2…`, `9ce07db0…`; the Mirror Shard
+  `19ae55aa…`; the map `3c7ca2f1…`; the jewel `c52162ff…`; the helm
+  `21abf694…`; the boots `83653ccb…` (the full 64-hex ids are in the
+  file; the fixture test asserts these thirteen prefixes are the ids it
+  holds). Read, never edited; the fixture is built from them.
 - The measurements of `2c-design.md` appendix D: the `changed:` line
   over-counts in 9 of 20 runs; job ids identical in 20 of 20; the `job`
   rule matches nothing in the 25 goldens.
@@ -138,7 +146,10 @@ whole arc is pinned once, in words a reviewer reads as a diff.
    Items fill the rest of each held key to its `MOCK_TABS` count, so
    `mock_items(tab, n)` returns the fixture's array when the key is
    held, else today's Fake Items, and a held key's length must equal
-   `n`, held by the test below, so no test's count moves. The
+   `n`, held by the test below, so no listing count moves; the stored
+   item count does (the six gems become rows: 37 items for 31), so grep
+   the tests for `31 items`, `45` and the counts an apply prints before
+   the edit, and name in the message each that changed. The
    character: `StashHoarder-equipment` holds Alpha's Howl in place of
    the mock helm (`:394-396`, which goes, its socketed Determination
    with it); `StashHoarder-inv` holds the boots and three Fake Items
@@ -232,9 +243,11 @@ alone, no finding fixed.
 - `grep -rn "started" crates/acquisition-verbs/src/refresh.rs` finds no
   `Submitted.started`; `Status` has `last_event`; `events_after` exists
   and `events_since` is unchanged; the two-ingests test exists in
-  `crates/acquisition-verbs/tests/documents.rs` and fails when
-  `events_after` is replaced by `events_since(before.at)` (checked once
-  by hand, the edit reverted, said in the message).
+  `crates/acquisition-verbs/tests/documents.rs`, runs, and fails its
+  count assertion when `events_after(before.last_event, …)` is replaced
+  by `events_since(<the staged ingests' shared at>, …)`, the old read by
+  seconds (checked once by hand, the edit reverted, said in the
+  message).
 - `crates/acquisition-daemon/src/mock-items.json` holds six keys and
   the items of appendix A, each body equal to its export but for `x`,
   `y` and the gems' nesting (checked by a script in the report); the daemon's fixture test exists with its

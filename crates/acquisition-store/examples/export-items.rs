@@ -18,8 +18,13 @@
 //!
 //! **What it reads.** The store as every `acq` read opens it
 //! (`Store::open`: WAL, the busy timeout — a daemon may be running), then
-//! one `Store::item` per id. No fact and no row is written; no daemon is
-//! contacted; nothing touches the network.
+//! one `Store::item` per id. No fact and no row is written by this
+//! program; no daemon is contacted; nothing touches the network. One
+//! caveat `Store::open` carries: a store behind this build's facts
+//! schema is migrated on its first open, which is a write, and so was
+//! the owner's v8 store against the v9 build of 2026-10-21. To export
+//! from a store you mean to leave as it is, export from a copy
+//! (`sqlite3 <db> ".backup <copy>"`, then `--dir` at the copy).
 //!
 //! **What it prints.** For each id found, `{"location": …, "item": …}`:
 //! `item` is the stored body, which is GGG's item minus its lifted

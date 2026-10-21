@@ -87,13 +87,18 @@ A JSON file in the daemon crate, `crates/acquisition-daemon/src/mock-items.json`
 compiled in with `include_str!` (precedent: the class table
 `acquisition-search/src/class.rs:11-14`, the price notes
 `acquisition-plan/src/price_notes_fixture.rs:25`), keyed by tab id and
-by `{character}-equipment` and `{character}-inv` for a character.
+by `{character}-equipment` and `{character}-inv` for a character. The
+thirteen bodies it takes are named by id in `2c-build.md`'s Input with
+the export's digest.
 `mock_items(tab, n)` (`mockggg.rs:250`, called at `:398` and `:462`)
 returns the fixture's items for a key it holds and the Fake Items it
 makes today for one it does not, so every tab the fixture does not
 name is unchanged and the counts in `MOCK_TABS` (`:220-236`) stay the
-listing's truth; a held key's count equals its entry, and a test holds
-that.
+listing's truth; a held key's top-level array has its entry's length,
+and a test holds that. The stored item count does move: the store
+lifts the armour's six gems into rows of their own, so a full sync
+stores 37 items where it stored 31, and every test that asserts that
+count is found by grep before the edit and named.
 
 The bodies are the owner's own items, under his grant ("I have no
 problems with embedding items from my stash into the testing if they
@@ -175,8 +180,9 @@ so it needs no in-process session and sits in the MCP's `tests/main.rs`.
 It drives `set_sync_policy`, then `refresh_plan`, `apply_plan`,
 `job_status` until done and `job_result` per cycle (`finish_job`,
 today private to `plan_loop.rs:49-61`, moves to the MCP adapter),
-`tabs`, `search`, `price_set`, `show`, `shop_render`, `price_clear`
-with `if_revision` (the MCP's clear requires it where the CLI's does
+`tabs`, `search` (the currency request carrying the count view the
+CLI's `--count base --sum stack` builds), `price_set`, `show`,
+`shop_render`, `price_clear` with `if_revision` (the MCP's clear requires it where the CLI's does
 not, `MCP-REFERENCE.md:7`; the twin names the difference in its doc
 comment), `daemon_status`, and stops the daemon it owns. JSON is
 asserted by field (2b's rule).
@@ -263,8 +269,9 @@ line in `normalised` (`:215-231`):
 - **progress.** On stderr, of the lines that begin `job <id>` the
   rule keeps each job's last; the first progress line prints whatever
   state the first poll saw (`main.rs:1944-1981`), and the terminal line
-  always prints, so a transcript holds `job <j1> (alice): done` whatever
-  the timing.
+  always prints: a simple job's `done`, an apply's children tally
+  (`job <id> (alice): 2/2 done`, `children_line`, `main.rs:2010`), so a
+  transcript holds that line whatever the timing.
 
 **A test of the normaliser**, a `#[test]` module in the CLI adapter
 (it compiles into `tests/main`): one case per rule from measured text,
@@ -290,7 +297,12 @@ daemon backs (`:1936`).
 
 ### 2.4 The `changed:` line is fixed by a watermark
 
-`StoreChanges::since` takes an event-id watermark, not a second. The
+`StoreChanges::since` takes an event-id watermark, not a second, so an
+apply's `changed:` line counts no event committed before the apply was
+submitted, the earlier events of the same second included; an event
+another job commits while the apply runs is still counted, since
+attributing events to an apply would need the store to carry the job,
+which no fault asks for. The
 store's `Status` gains `last_event: i64`, the greatest `item_events.id`
 (`INTEGER PRIMARY KEY`, `schema.sql:127`, monotonic within one store;
 `sqlite_sequence` is not involved, so the brief has the build confirm
@@ -459,16 +471,16 @@ today's and move with the fixture.
 | 0 | `acq auth --no-browser --json` (outside the transcript) | — |
 | 1 | `policy set '<policy json>'` | `revision 1` |
 | 2 | `refresh --plan` | `2 requests` |
-| 3 | `refresh --apply` | `2 done`, `(alice): done` (stderr) |
+| 3 | `refresh --apply` | `2 done`, `(alice): 2/2 done` (stderr) |
 | 4 | `refresh --plan` | `9 requests` |
-| 5 | `refresh --apply` | `9 done`, `added` |
-| 6 | `refresh --apply` | `7 done`, `every covered entry is fresh` |
+| 5 | `refresh --apply` | `9/9 done`, `added` |
+| 6 | `refresh --apply` | `7/7 done`, `every covered entry is fresh` |
 | 7 | `refresh --plan` | `nothing to do` |
-| 8 | `tabs` | `15 tabs`, `14 fetched`, `31 items` |
+| 8 | `tabs` | `15 tabs`, `14 fetched`, `37 items` (the six gems are rows of their own) |
 | 9 | `search 'class=Rings rarity=rare'` | `1 match`, `Empyrean Knot` |
 | 10 | `search '"+# to maximum Life">=70' --sort pseudo.total_life` | `2 matches`, the ring's total life and the armour's `89` |
-| 11 | `search 'class="Stackable Currency" --sum stack'` | `7` |
-| 12 | `show <ring id>` | `unread  nothing`, `total_life`, `100`, `crafted` |
+| 11 | `search 'class="Stackable Currency"' --count base --sum stack` | `Mirror Shard`, `7` (a sum stands beside a count, `answer.rs:1052`) |
+| 12 | `show <ring id>` | `unread  nothing`, `total_life`, `108` (22 + 78 + 16 × 0.5 by `totals-v6.toml:790-792`), `crafted` |
 | 13 | `price set item/<ring id> exact 5 chaos` | `5 chaos`, the undo command |
 | 14 | `show <ring id>` | `5 chaos` |
 | 15 | `shop render` | `1 item to post on 1 page` |
