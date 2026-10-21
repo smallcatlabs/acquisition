@@ -113,6 +113,24 @@ About half the register's entries have a journal invariant. The rest:
    things a goal-seeking builder could get wrong without the suite
    noticing; the live runs are the un-gameable half and stay human-run.
 
+## The suite's shape
+
+A behaviour is pinned once, at the lowest crate that holds it, and a
+frontend's tests pin what its adapter adds (C122). Every process test
+takes one harness, `crates/acquisition-client/tests/harness/mod.rs`,
+whose one isolation list scrubs every `ACQ_*` by prefix; the CLI's and
+the MCP's `tests/harness/mod.rs` bind it to their binary. The CLI's
+wording is held by goldens under `crates/acquisition-cli/tests/goldens/`,
+each command naming the facts a reader must find, checked before the
+update switch, so a blind regeneration fails; `tools/docs-check.sh`
+refuses a golden no test names. A crate's integration tests are one
+binary, `tests/main.rs` of modules; a test that sets the process
+environment (one that calls `session(`) is its own binary, because a
+process-wide write leaks into every test beside it under `cargo test`.
+`tools/arch-check.sh` holds that layout, and the gate runs the suite
+under nextest (`.config/nextest.toml`), a process per test, never
+retried.
+
 ## What a rewrite keeps
 
 - Component unit tests (the limiter's are its spec) survive with the
