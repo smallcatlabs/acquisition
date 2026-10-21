@@ -402,7 +402,7 @@ crate's `src/`, so the check that exists resolves it.
 
 ## 8. The owner's word
 
-Awaited.
+On the design as reviewed, 2026-10-21: "build it".
 
 ## Appendix A — the daemon's items by destination (at `446223ff`)
 

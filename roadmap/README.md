@@ -125,9 +125,10 @@ phase 4's second input.
 
 ## Current step
 
-Step 2d's design is written (`briefs/2d-design.md`, its build brief
-`briefs/2d-build.md`) and awaits the owner's word; the build follows
-it, an Opus worker in the main tree. The owner reassesses the
+Step 2d is being built: the owner's word on the design was "build it"
+(2026-10-21, `briefs/2d-design.md` section 8), and an Opus worker runs
+`briefs/2d-build.md` in the main tree, three move commits and the
+review; nothing else in the tree is edited meanwhile. The owner reassesses the
 `AGENTS.md` budgets when he chooses. `AGENTS.md` governs; the gate is
 its ten lines, under nextest.
 
