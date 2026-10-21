@@ -160,11 +160,9 @@ async fn n6_integration_stress_mixes_policies_refresh_rotation_and_cancellation_
         }
     }
     // The counting mock makes N4 non-vacuous: every line's state is the
-    // mock's own count, so "never over the limit" pins the product.
-    // Checked before the job counts so a violation reports as itself.
+    // mock's own count, so "never over the limit", which the mock
+    // teardown runs, pins the product.
     let sends = journal_sends(&log_path);
-    assert_wire_contract(&sends);
-    assert_never_over_the_limit(&sends);
     let fetch_waits: Vec<u64> = sends
         .iter()
         .filter(|s| s["route"] == "fetch" && s["method"] == "GET")
@@ -250,5 +248,5 @@ async fn n6_integration_stress_mixes_policies_refresh_rotation_and_cancellation_
         ]
     );
 
-    finish_harness(dispatcher, &log_path);
+    finish_harness_mock(dispatcher, &log_path);
 }

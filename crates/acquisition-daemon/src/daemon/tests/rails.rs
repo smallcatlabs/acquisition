@@ -143,13 +143,13 @@ async fn halted_daemon_refuses_refresh_before_any_send() {
     let (mut daemon, log_path) = test_daemon_with(Provider::mock(&base), clock, tripwire_config());
     let rails = daemon.choke.rails().clone();
     rails.record(&crate::rails::SendReport {
-        method: "GET",
+        method: "HEAD",
         route: "character-list",
         url_path: "/character",
         status: Some(429),
         error: None,
         ok: false,
-        counted: true,
+        counted: false,
         rate: &Value::Null,
         shape: None,
         headers: &serde_json::Value::Null,
@@ -168,8 +168,8 @@ async fn halted_daemon_refuses_refresh_before_any_send() {
     );
     assert!(requests.lock().unwrap().is_empty());
     server.abort();
-    // The one journal line is the synthetic 429 recorded above, not a
+    // The one journal line is the synthetic probe recorded above, not a
     // send; nothing else may have been written.
-    assert_journal_matches_wire(&log_path, &["GET".to_string()]);
-    remove_harness_files(&log_path);
+    assert_journal_matches_wire(&log_path, &["HEAD".to_string()]);
+    finish_harness(None, &log_path);
 }

@@ -153,7 +153,7 @@ async fn the_queue_and_results_survive_a_daemon_restart() {
     let (daemon, log3) = persisting_daemon("http://127.0.0.1:1", &db);
     assert!(daemon.shared.lock().unwrap().jobs.is_empty());
     for p in [log1, log2, log3] {
-        remove_harness_files(&p);
+        finish_harness(None, &p);
     }
     remove_db(&db);
 }
@@ -261,7 +261,7 @@ async fn restore_drops_probes_and_finishes_a_parent_whose_children_are_done() {
         "the probe row is gone from the table too"
     );
     assert_eq!(daemon.shared.lock().unwrap().next_id, 8);
-    remove_harness_files(&log);
+    finish_harness(None, &log);
     remove_db(&db);
 }
 
@@ -292,7 +292,7 @@ async fn a_failed_queue_write_refuses_new_jobs_and_stops_dispatch() {
         !Daemon::has_live_jobs(&daemon.shared.lock().unwrap(), true),
         "the parked queue does not hold the daemon up"
     );
-    remove_harness_files(&log);
+    finish_harness(None, &log);
     remove_db(&db);
 }
 
@@ -304,7 +304,7 @@ async fn a_broken_queue_is_fatal_to_restore() {
     break_queue(&db);
     let err = daemon.restore_jobs(Retention::default()).unwrap_err();
     assert!(err.to_string().contains("could not read"), "{err:#}");
-    remove_harness_files(&log);
+    finish_harness(None, &log);
     remove_db(&db);
 }
 
@@ -338,8 +338,7 @@ async fn a_transition_that_cannot_persist_does_not_run() {
         daemon.queue_failed().is_some(),
         "the failed write tripped the queue"
     );
-    dispatcher.abort();
-    remove_harness_files(&log);
+    finish_harness(dispatcher, &log);
     remove_db(&db);
 }
 
@@ -364,7 +363,7 @@ async fn cancel_and_reprioritize_report_a_failed_queue_write() {
         JobState::Cancelled,
         "the cancellation still holds for this lifetime"
     );
-    remove_harness_files(&log);
+    finish_harness(None, &log);
     remove_db(&db);
 }
 
@@ -384,6 +383,6 @@ async fn a_result_read_failure_is_reported_not_no_job() {
         ),
         other => panic!("{other:?}"),
     }
-    remove_harness_files(&log);
+    finish_harness(None, &log);
     remove_db(&db);
 }

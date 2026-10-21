@@ -63,7 +63,7 @@ async fn rejected_refresh_grant_disables_further_refreshes_until_logout() {
     );
     server.await.unwrap();
     assert_journal_matches_wire(&log_path, &wire_posts(&requests));
-    remove_harness_files(&log_path);
+    finish_harness(None, &log_path);
 }
 
 #[tokio::test]
@@ -97,5 +97,5 @@ async fn transient_refresh_failures_do_not_mark_the_session() {
     assert_eq!(requests.lock().unwrap().len(), 2);
     server.await.unwrap();
     assert_journal_matches_wire(&log_path, &wire_posts(&requests));
-    remove_harness_files(&log_path);
+    finish_harness(None, &log_path);
 }

@@ -78,14 +78,18 @@ of the evidence. Every harness daemon journals;
 server received, so the journal's own failure is caught by the recorder
 and the recorder's coupling by the journal.
 
-Invariants derived from the register, not from the code. The first
-four are what the three oracles in
-`crates/acquisition-daemon/src/daemon/tests/harness.rs` check
-(`assert_journal_matches_wire`, `assert_wire_contract`,
-`assert_pacing_follows_responses`): `finish_harness_wire` runs all
-three in twelve tests, ten more run one or two of them through their
-own helpers, and twenty whose daemons journal check nothing. The rest
-are scenario pins:
+Invariants derived from the register, not from the code. The oracles
+are in `crates/acquisition-daemon/src/daemon/tests/harness.rs`, and
+every journaling harness daemon ends through one of two teardowns: the
+scripted one (`finish_harness`, a scripted server or none) runs the
+contract oracle (`assert_wire_contract`) and pacing follows responses
+(`assert_pacing_follows_responses`); the mock one (`finish_harness_mock`,
+the counting mock) runs the contract oracle and never over the limit
+(`assert_never_over_the_limit`), the two pacing oracles being
+complements; where a scripted server records, `finish_harness_wire`
+adds the wire comparison (`assert_journal_matches_wire`). Two tests trip
+the rails by recording a forged probe answered 429, never a forged
+send. The rest are scenario pins:
 
 | Invariant | Source | Pins |
 | --- | --- | --- |
@@ -95,7 +99,7 @@ are scenario pins:
 | a send is held only if the previous landed response on its route was a 429, then for `[Retry-After, Retry-After + RETRY_BUCKET_PAD + BUFFER]`; otherwise `wait_ms == 0` | N19, N33 | safety floor and performance ceiling at once (scripted servers only; against a counting mock the limiter holds before a violation and the last row applies) |
 | after a 401 the account's next send is `POST oauth-token` (sequential, over the journal); no HEAD or GET carrying the rejected bearer reaches the server after a 401 was answered (concurrent, at the server) | N34, C87 | refresh on rejection |
 | after a laptop sleep past expiry, no 401, a refresh reaches the wire, all sends within 60 virtual s | R8 | wall-clock expiry |
-| no send answered 429; every reported window state `hits ≤ max` with no restriction active (`assert_never_over_the_limit`) | N4/N25 | never over the limit; real only against a counting mock (`MockPolicy`), in the N6 stress |
+| no send answered 429; every reported window state `hits ≤ max` with no restriction active (`assert_never_over_the_limit`) | N4/N25 | never over the limit; real only against a counting mock (`MockPolicy`), in the mock teardown's tests |
 
 Each has been broken deliberately and seen to fail. A pre-emptive hold
 appears as `wait_ms` on exactly the send that was held and as ETA on

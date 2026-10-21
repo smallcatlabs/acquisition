@@ -101,7 +101,7 @@ async fn apply_fans_out_exactly_its_tuples_and_records_through_the_store() {
     let store = Store::open(&account_path(&store_dir, "Alice#1234")).unwrap();
     assert_eq!(store.status().unwrap().responses, 2);
     drop(store);
-    finish_harness(dispatcher, &log_path);
+    finish_harness_mock(dispatcher, &log_path);
     let _ = std::fs::remove_dir_all(&store_dir);
 }
 
@@ -193,7 +193,7 @@ async fn apply_admission_refuses_bad_vocabulary_and_blown_budgets_whole() {
         daemon.shared.lock().unwrap().jobs[&id].info.state,
         JobState::Waiting
     );
-    remove_harness_files(&log_path);
+    finish_harness(None, &log_path);
 }
 
 #[tokio::test]
@@ -212,7 +212,7 @@ async fn a_cancelled_parent_cannot_gain_children() {
     daemon.cancel(parent).unwrap();
     let err = daemon.submit_child(parent, "stash", json!({})).unwrap_err();
     assert!(err.message.contains("cancelled"), "{err}");
-    remove_harness_files(&log);
+    finish_harness(None, &log);
 }
 
 #[tokio::test]
@@ -242,7 +242,7 @@ async fn a_parent_cancelled_after_its_last_child_is_not_a_success() {
     };
     assert_eq!(state, JobState::Cancelled, "never a success");
     assert!(matches!(outcome, Some(Outcome::Cancelled)));
-    remove_harness_files(&log);
+    finish_harness(None, &log);
 }
 
 #[tokio::test]
@@ -266,7 +266,7 @@ async fn cancelled_children_do_not_make_a_parent_successful() {
         panic!("a parent with cancelled children must not succeed")
     };
     assert!(error.contains("cancelled"), "{error}");
-    remove_harness_files(&log);
+    finish_harness(None, &log);
 }
 
 #[tokio::test]
@@ -297,5 +297,5 @@ async fn a_cancellation_pending_at_finish_wins_the_terminal_state() {
     };
     assert_eq!(state, JobState::Cancelled);
     assert!(matches!(outcome, Some(Outcome::Cancelled)));
-    remove_harness_files(&log);
+    finish_harness(None, &log);
 }

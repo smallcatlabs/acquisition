@@ -6,7 +6,6 @@
 
 use super::harness::*;
 use crate::daemon::*;
-use std::sync::atomic::Ordering;
 
 /// A server that answers by *what was sent*, not by position in a
 /// script: a stale bearer gets 401 on any route (on GETs only when
@@ -85,11 +84,8 @@ async fn rejected_access_token_scenario(
 ) -> (Vec<Value>, (JobInfo, Outcome), (JobInfo, Outcome)) {
     let (base, server) = bearer_aware_server("at-old", "at-new", probe_checks_bearer).await;
     let clock = Arc::new(ManualClock::new());
-    let journal = std::env::temp_dir().join(format!(
-        "acquisition-c87-{}-{}.jsonl",
-        std::process::id(),
-        TEST_LOG_ID.fetch_add(1, Ordering::Relaxed)
-    ));
+    let log_path = test_log_path();
+    let journal = journal_of(&log_path);
     let _ = std::fs::remove_file(&journal);
     let rails = Arc::new(Rails::with_config_and_clock(
         RailsConfig {
@@ -98,11 +94,12 @@ async fn rejected_access_token_scenario(
         },
         clock.clone(),
     ));
-    let (daemon, log_path) = test_daemon_scenario(
+    let (daemon, log_path) = test_daemon_scenario_at(
         Provider::mock(&base),
         clock.clone(),
         rails,
         Arc::new(NoopCredentialStore),
+        log_path,
     );
     {
         let mut s = daemon.shared.lock().unwrap();
@@ -131,19 +128,13 @@ async fn rejected_access_token_scenario(
         .unwrap();
     let second = wait_terminal(&daemon, second).await;
     server.abort();
+    let sends = journal_sends(&log_path);
     finish_harness(dispatcher, &log_path);
-    let mut lines = read_journal(&journal);
-    let _ = std::fs::remove_file(&journal);
-    assert_eq!(
-        lines.first().map(|l| l["event"].clone()),
-        Some("open".into())
-    );
-    lines.remove(0);
-    (lines, first, second)
+    (sends, first, second)
 }
 
-/// What both shapes must show (C87): the journal rule holds with its
-/// 401 arm entered, exactly one 401 in the whole run (the rejected
+/// What both shapes must show (C87), past the journal oracles the
+/// scenario's teardown ran: exactly one 401 in the whole run (the rejected
 /// bearer is never sent again), the first job failed saying so, the
 /// second job finished under the refreshed bearer.
 fn assert_rejected_bearer_refreshed(
@@ -151,8 +142,6 @@ fn assert_rejected_bearer_refreshed(
     first: &(JobInfo, Outcome),
     second: &(JobInfo, Outcome),
 ) {
-    assert_wire_contract(sends);
-    assert_pacing_follows_responses(sends);
     let unauthorized: Vec<usize> = sends
         .iter()
         .enumerate()
@@ -320,11 +309,8 @@ async fn rejected_bearer_under_the_gate(
 ) {
     let (base, server, arrivals, release) = bearer_recording_server("at-old", "at-new").await;
     let clock = Arc::new(ManualClock::new());
-    let journal = std::env::temp_dir().join(format!(
-        "acquisition-c87-gate-{}-{}.jsonl",
-        std::process::id(),
-        TEST_LOG_ID.fetch_add(1, Ordering::Relaxed)
-    ));
+    let log_path = test_log_path();
+    let journal = journal_of(&log_path);
     let _ = std::fs::remove_file(&journal);
     let rails = Arc::new(Rails::with_config_and_clock(
         RailsConfig {
@@ -333,11 +319,12 @@ async fn rejected_bearer_under_the_gate(
         },
         clock.clone(),
     ));
-    let (daemon, log_path) = test_daemon_scenario(
+    let (daemon, log_path) = test_daemon_scenario_at(
         Provider::mock(&base),
         clock.clone(),
         rails,
         Arc::new(NoopCredentialStore),
+        log_path,
     );
     {
         let mut s = daemon.shared.lock().unwrap();
@@ -414,12 +401,10 @@ async fn rejected_bearer_under_the_gate(
         outcomes.push(wait_terminal(&daemon, id).await);
     }
     server.abort();
+    let sends = journal_sends(&log_path);
     finish_harness(dispatcher, &log_path);
-    let mut lines = read_journal(&journal);
-    let _ = std::fs::remove_file(&journal);
-    lines.remove(0);
     let arrivals = arrivals.lock().unwrap().clone();
-    (arrivals, lines, outcomes)
+    (arrivals, sends, outcomes)
 }
 
 /// What both waiting shapes must show, at the server where dispatch
@@ -434,8 +419,6 @@ fn assert_rejected_bearer_not_dispatched(
     sends: &[Value],
     outcomes: &[(JobInfo, Outcome)],
 ) {
-    assert_wire_contract(sends);
-    assert_pacing_follows_responses(sends);
     assert!(
         !arrivals
             .iter()
@@ -547,11 +530,8 @@ async fn rejected_access_token_is_not_dispatched_by_a_waiting_probe_after_its_40
 async fn expired_token_after_laptop_sleep_is_refreshed_before_any_send() {
     let (base, server) = bearer_aware_server("at-old", "at-new", true).await;
     let clock = Arc::new(ManualClock::new());
-    let journal = std::env::temp_dir().join(format!(
-        "acquisition-r8-{}-{}.jsonl",
-        std::process::id(),
-        TEST_LOG_ID.fetch_add(1, Ordering::Relaxed)
-    ));
+    let log_path = test_log_path();
+    let journal = journal_of(&log_path);
     let _ = std::fs::remove_file(&journal);
     let rails = Arc::new(Rails::with_config_and_clock(
         RailsConfig {
@@ -560,11 +540,12 @@ async fn expired_token_after_laptop_sleep_is_refreshed_before_any_send() {
         },
         clock.clone(),
     ));
-    let (daemon, log_path) = test_daemon_scenario(
+    let (daemon, log_path) = test_daemon_scenario_at(
         Provider::mock(&base),
         clock.clone(),
         rails,
         Arc::new(NoopCredentialStore),
+        log_path,
     );
     {
         let mut s = daemon.shared.lock().unwrap();
@@ -591,10 +572,8 @@ async fn expired_token_after_laptop_sleep_is_refreshed_before_any_send() {
         .unwrap();
     let (info, _) = wait_terminal(&daemon, id).await;
     server.abort();
-    finish_harness(dispatcher, &log_path);
-
     let lines = read_journal(&journal);
-    let _ = std::fs::remove_file(&journal);
+    finish_harness(dispatcher, &log_path);
     let header = &lines[0];
     assert_eq!(header["event"], "open");
     assert_eq!(header["clock"], "manual");
@@ -606,8 +585,6 @@ async fn expired_token_after_laptop_sleep_is_refreshed_before_any_send() {
     );
     assert_eq!(header["ts"], "2000-01-01T00:00:00.000Z");
     let sends = &lines[1..];
-    assert_wire_contract(sends);
-    assert_pacing_follows_responses(sends);
 
     assert!(
         sends.iter().all(|l| l["status"] != 401),

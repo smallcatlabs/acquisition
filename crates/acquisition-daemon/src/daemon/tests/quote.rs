@@ -108,7 +108,7 @@ async fn quote_projects_per_scope_reserves_nothing_and_names_what_it_cannot_see(
     // Read-only and non-reserving: no job exists, nothing was sent.
     assert!(daemon.shared.lock().unwrap().jobs.is_empty());
     assert_eq!(daemon.choke.recent_sends().len(), sends_before);
-    remove_harness_files(&log_path);
+    finish_harness_mock(None, &log_path);
 }
 
 /// C40 — the projection counts the queue ahead and keys the same scopes a submit would.
@@ -226,5 +226,5 @@ async fn quote_counts_queued_jobs_ahead_and_keys_scopes_per_account() {
         Response::Error { message, .. } => assert!(message.contains("several"), "{message}"),
         other => panic!("{other:?}"),
     }
-    remove_harness_files(&log_path);
+    finish_harness_mock(None, &log_path);
 }

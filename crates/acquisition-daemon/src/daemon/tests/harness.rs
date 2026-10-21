@@ -334,12 +334,55 @@ pub(super) async fn wait_terminal(daemon: &Daemon, id: JobId) -> (JobInfo, Outco
     .expect("dispatcher completed the scripted job")
 }
 
-pub(super) fn finish_harness(dispatcher: tokio::task::JoinHandle<()>, log_path: &std::path::Path) {
-    dispatcher.abort();
+/// The teardown of a harness daemon that faces a scripted server or no
+/// server. Every journaling harness daemon ends through this or
+/// `finish_harness_mock`, so no journal a harness daemon writes goes
+/// unread. The two differ in one oracle, because the two pacing oracles
+/// are complements: "pacing follows responses" is real only against a
+/// scripted server that echoes what the script names, and "never over
+/// the limit" only against a counting mock, where the limiter holds
+/// before a violation and a held send is the expected shape. Which
+/// teardown a test calls is the one thing it chooses; nothing is
+/// skipped by a flag. Both hold the journal to `assert_wire_contract`.
+pub(super) fn finish_harness(
+    dispatcher: impl Into<Option<tokio::task::JoinHandle<()>>>,
+    log_path: &std::path::Path,
+) {
+    finish_with(dispatcher, log_path, assert_pacing_follows_responses);
+}
+
+/// The teardown of a harness daemon that faces the counting mock
+/// (`mockggg`): the contract oracle and `assert_never_over_the_limit`.
+/// See `finish_harness` for why the two teardowns differ.
+pub(super) fn finish_harness_mock(
+    dispatcher: impl Into<Option<tokio::task::JoinHandle<()>>>,
+    log_path: &std::path::Path,
+) {
+    finish_with(dispatcher, log_path, assert_never_over_the_limit);
+}
+
+/// Abort the dispatcher, if the test started one and still holds it,
+/// so no task writes while the oracles read; read the journal and hold
+/// it to the contract oracle and the teardown's pacing oracle; remove
+/// the log and the journal. A daemon whose rails journal nothing has no
+/// file beside its log, and the read is skipped.
+fn finish_with(
+    dispatcher: impl Into<Option<tokio::task::JoinHandle<()>>>,
+    log_path: &std::path::Path,
+    pacing: fn(&[Value]),
+) {
+    if let Some(dispatcher) = dispatcher.into() {
+        dispatcher.abort();
+    }
+    if journal_of(log_path).exists() {
+        let sends = journal_sends(log_path);
+        assert_wire_contract(&sends);
+        pacing(&sends);
+    }
     remove_harness_files(log_path);
 }
 
-pub(super) fn remove_harness_files(log_path: &std::path::Path) {
+fn remove_harness_files(log_path: &std::path::Path) {
     let _ = std::fs::remove_file(log_path);
     let _ = std::fs::remove_file(journal_of(log_path));
 }
@@ -375,16 +418,14 @@ pub(super) fn assert_journal_matches_wire(log_path: &std::path::Path, wire: &[St
     );
 }
 
-/// `finish_harness` for tests that hold a wire recorder.
+/// `finish_harness` for tests that hold a wire recorder: the journal
+/// held equal to the wire, then the rest of the teardown.
 pub(super) fn finish_harness_wire(
     dispatcher: tokio::task::JoinHandle<()>,
     log_path: &std::path::Path,
     wire: &Arc<Mutex<Vec<String>>>,
 ) {
     assert_journal_matches_wire(log_path, &wire.lock().unwrap());
-    let sends = journal_sends(log_path);
-    assert_pacing_follows_responses(&sends);
-    assert_wire_contract(&sends);
     finish_harness(dispatcher, log_path);
 }
 
@@ -409,7 +450,10 @@ pub(super) fn full_hold_ms() -> u64 {
 ///
 /// - N16/N24, probe-before-send: within one daemon lifetime the first
 ///   send on any API route is a HEAD. The token endpoint is never
-///   probed.
+///   probed, nor are `profile` and `league`, the two routes
+///   `Daemon::NO_PROBE_ROUTES` declares (C32); the route's name is the
+///   part of its endpoint key before `@`, as the client harness's rule
+///   reads it.
 /// - N24, accounting: a HEAD is never counted; everything else is.
 ///
 /// Not here, though it was from 2026-08-24 to 2026-09-12: "after a
@@ -421,13 +465,17 @@ pub(super) fn full_hold_ms() -> u64 {
 /// rejection has landed. The sequential shape is pinned over the
 /// journal by the `rejected_access_token_*` scenarios, the concurrent
 /// shape at the server by `rejected_access_token_is_not_dispatched_*`.
-pub(super) fn assert_wire_contract(sends: &[Value]) {
+fn assert_wire_contract(sends: &[Value]) {
     let mut seen: HashSet<(u64, String)> = HashSet::new();
     for send in sends {
         let pid = send["pid"].as_u64().unwrap();
         let route = send["route"].as_str().unwrap().to_string();
         let method = send["method"].as_str().unwrap();
-        if route != "oauth-token" && seen.insert((pid, route.clone())) {
+        let probed = !matches!(
+            crate::ratelimit::split_endpoint_key(&route).0,
+            "oauth-token" | "profile" | "league"
+        );
+        if probed && seen.insert((pid, route.clone())) {
             assert_eq!(
                 method, "HEAD",
                 "first send on {route} in pid {pid} was not a probe: {send}"
@@ -449,10 +497,11 @@ pub(super) fn assert_wire_contract(sends: &[Value]) {
 /// back without rate headers (rung 10's origin 503), in which case the
 /// hit is assumed counted and the hold may reach the longest window
 /// period of the route's last known policy plus the same pad. Everything
-/// else goes out at once. Runs over every harness journal, so a rewrite
+/// else goes out at once. Runs over every journal a scripted server's
+/// or a serverless daemon writes (`finish_harness`), so a rewrite
 /// that paces slower (or stops pacing) fails here without any test
 /// naming the numbers.
-pub(super) fn assert_pacing_follows_responses(sends: &[Value]) {
+fn assert_pacing_follows_responses(sends: &[Value]) {
     let pad = full_hold_ms();
     let mut last_on_route: HashMap<String, &Value> = HashMap::new();
     let mut longest_period_ms: HashMap<String, u64> = HashMap::new();
@@ -521,9 +570,9 @@ pub(super) fn assert_pacing_follows_responses(sends: &[Value]) {
 /// active. Against the scripted server this is vacuous (it echoes what
 /// the script says); against `mockggg` on the test clock the state is
 /// the mock's own count, so a limiter that sends one too many fails
-/// here. Rule names come from `X-Rate-Limit-Rules`, so this reads any
+/// here. Runs in `finish_harness_mock`, over every daemon facing it. Rule names come from `X-Rate-Limit-Rules`, so this reads any
 /// rule set, not only `Account`.
-pub(super) fn assert_never_over_the_limit(sends: &[Value]) {
+fn assert_never_over_the_limit(sends: &[Value]) {
     for send in sends {
         assert_ne!(send["status"], 429, "a send was answered 429: {send}");
         let rate = &send["rate"];

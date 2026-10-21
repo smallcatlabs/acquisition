@@ -36,7 +36,7 @@ async fn a_halted_daemon_with_only_waiting_jobs_is_idle() {
         Daemon::has_live_jobs(&daemon.shared.lock().unwrap(), true),
         "a running job keeps even a halted daemon up"
     );
-    remove_harness_files(&log);
+    finish_harness(None, &log);
 }
 
 /// C3's idle verdict, read on the daemon's clock: a fresh daemon is
@@ -84,13 +84,13 @@ fn idle_verdict_follows_the_clock_the_connections_and_the_queue() {
         "the waiting job holds an unhalted daemon"
     );
     daemon.choke.rails().record(&crate::rails::SendReport {
-        method: "GET",
+        method: "HEAD",
         route: "fetch",
         url_path: "/fetch",
         status: Some(429),
         error: None,
         ok: false,
-        counted: true,
+        counted: false,
         rate: &Value::Null,
         shape: None,
         headers: &serde_json::Value::Null,
@@ -106,7 +106,7 @@ fn idle_verdict_follows_the_clock_the_connections_and_the_queue() {
         JobState::Waiting,
         "the queue is still there for the successor"
     );
-    remove_harness_files(&log);
+    finish_harness(None, &log);
 }
 
 /// The verdict's fourth clause: a counted hit inside a policy window

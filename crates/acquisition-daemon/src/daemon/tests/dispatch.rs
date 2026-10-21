@@ -514,8 +514,7 @@ async fn declared_route_knowledge_holds_against_the_mock() {
         daemon.choke.endpoint_state("league@Alice#1234"),
         EndpointState::Policy(ref name) if name.starts_with("league-request-limit")
     ));
-    dispatcher.abort();
-    let _ = std::fs::remove_file(&log_path);
+    finish_harness_mock(dispatcher, &log_path);
 }
 
 #[tokio::test]
@@ -782,5 +781,5 @@ async fn whoami_is_refused_in_real_mode_without_a_token_request() {
     server.abort();
     assert_journal_matches_wire(&log_path, &wire_posts(&requests));
     assert!(journal_sends(&log_path).is_empty());
-    remove_harness_files(&log_path);
+    finish_harness(None, &log_path);
 }
