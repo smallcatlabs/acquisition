@@ -126,6 +126,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "acquisition-verbs"
+version = "1.0.0-alpha.1"
+dependencies = [
+ "acquisition-client",
+ "acquisition-plan",
+ "acquisition-protocol",
+ "acquisition-search",
+ "acquisition-store",
+ "anyhow",
+ "reqwest",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

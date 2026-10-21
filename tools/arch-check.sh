@@ -47,7 +47,14 @@ fail=0
 # and the planner once a query reads the effective price, never the
 # daemon, the client, a frontend, an HTTP client or an async runtime, and
 # neither the daemon nor the planner links it — a plan takes item ids,
-# never a query, and a search edit recompiles no daemon (C89).
+# never a query, and a search edit recompiles no daemon (C89). The verbs
+# crate (`acquisition-verbs`, C1 as amended, C46) holds what needs the
+# daemon and the store together and links the client, the protocol
+# crate, the store, the planner and the search; a frontend may link it,
+# and nothing below it may. It needs no list of its own: each lower
+# crate's list already refuses, at any depth, a crate the verbs crate
+# links, and the daemon's `only_self` and its client entry cover the
+# daemon in both directions.
 #
 # One graph, from Cargo: the `resolve` section of `cargo metadata
 # --all-features` — every package Cargo resolves for this workspace with

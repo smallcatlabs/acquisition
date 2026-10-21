@@ -256,6 +256,10 @@ pub mod price;
 #[cfg(test)]
 pub(crate) mod price_notes_fixture;
 pub mod pricing;
+
+/// The league a verb reads when none is given: one constant for the
+/// planner, the verbs crate and every frontend.
+pub use pricing::DEFAULT_LEAGUE;
 #[cfg(test)]
 pub(crate) mod real_scale_fixture;
 pub mod shop;
