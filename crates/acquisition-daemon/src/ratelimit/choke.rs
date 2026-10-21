@@ -223,14 +223,14 @@ impl ChokePoint {
         self.clock.sleep(duration).await;
     }
 
-    /// Ask whether `route` may send now, or learn how long to wait. This is a
+    /// See `Limiter::declare_policyless`.
     pub fn declare_policyless(&self, route: &str) {
         self.limiter.lock().unwrap().declare_policyless(route);
     }
 
+    /// Ask whether `route` may send now, or learn how long to wait. This is a
     /// pacing hint for the cancellation-aware dispatcher; every transport
     /// method repeats the final check under a live gate permit.
-    /// See `Limiter::declare_policyless`.
     pub fn check(&self, route: &str) -> Result<(), Duration> {
         let wait = self.limiter.lock().unwrap().wait_for(route, self.now());
         if wait.is_zero() { Ok(()) } else { Err(wait) }

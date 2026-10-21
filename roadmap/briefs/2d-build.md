@@ -90,7 +90,8 @@ go on the wire, and a script holds that the move was a move.
    Run the checker: `python3 -I move-check.py <(git show
    446223ff:crates/acquisition-daemon/src/ratelimit.rs)
    crates/acquisition-daemon/src/ratelimit.rs
-   crates/acquisition-daemon/src/ratelimit/*.rs`; it must print
+   crates/acquisition-daemon/src/ratelimit/*.rs
+   crates/acquisition-daemon/src/ratelimit/tests/spec.rs`; it must print
    `ok … 0 differences`. Edit the citations: `decisions/network.md`
    C17, C18, C19 (its limiter half), C20, C21 (its limiter half), C32
    (its limiter half), C33; `decisions/daemon.md` C31;
@@ -242,7 +243,13 @@ paragraph or a table:
 
 ## Appendix A — the checker
 
-Save as `move-check.py` in your scratch. Standard library only.
+Save as `move-check.py` in your scratch. Standard library only. This is
+the checker as the build ran it: the first form stripped a visibility
+token only on an item's first line, so a widened field, an item under a
+`#[derive]` or `#[cfg]` attribute and a braced `use` each showed as a
+difference on the real split; the worker amended it (the token stripped
+on any line of an item, every `use` set aside) and the fix round put
+the amended form here.
 
 ```python
 #!/usr/bin/env python3
@@ -284,11 +291,12 @@ SET_ASIDE = re.compile(
 WRAPPER = re.compile(
     r"^\s*(pub(\((crate|super)\))?\s+)?(unsafe\s+)?(impl|mod|trait)\b"
 )
-VIS = re.compile(r"^(\s*)pub(\((crate|super|self|in [\w:]+)\))?\s+")
+VIS = re.compile(r"^(\s*)pub(\((crate|super|self|in [\w:]+)\))?\s+", re.M)
 STRING = re.compile(
     r'(r#*"(?:[^"]|"(?!#))*"#*|"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])\')', re.S
 )
 WS = re.compile(r"\s+")
+USE_ITEM = re.compile(r"^(#\[[^\]]*\])*use[A-Za-z_]\w*(::|;)")   # a `use` the one-line set-aside missed: braced, or under an attribute
 TRAILING_COMMA = re.compile(r",(?=[\)\]\}>])")
 
 
@@ -324,8 +332,9 @@ def read(path):
         nonlocal cur, cur_depth
         if cur:
             text = "\n".join(cur)
-            text = VIS.sub(r"\1", text, count=1)
-            items[normalise(text)] += 1
+            text = VIS.sub(r"\1", text)
+            if not USE_ITEM.match(normalise(text)):
+                items[normalise(text)] += 1
         cur, cur_depth = [], None
 
     for raw in lines:
@@ -392,15 +401,17 @@ sys.exit(1 if bad else 0)
 ```
 
 Run it on each commit's tree before the gate; quote its last line in
-the message. Checked by the design session on this tree: the limiter
-cut into the five files of the design (every file formatted by rustfmt,
-the spec dedented) and the daemon's one `impl Daemon` cut into three
-files both report 0 differences; a changed string literal, the
-`RateLimited` and `Network` returns of `classify_response` swapped, two
-adjacent `let` statements swapped, a signature given a parameter and a
-comment line deleted each report a difference and exit 1; a method
-widened to `pub(super)`, a doc paragraph reattached to an item in
-another file and an item placed in another file than its neighbour each
-report 0. What it cannot see: a change inside a `use` or `mod` line,
-or in a `//!` line; the compiler sees the first, the done-when's byte
-counts the second.
+the message. As run on the three move commits against `446223ff`: the
+limiter (`ratelimit.rs`, `ratelimit/*.rs`, `ratelimit/tests/spec.rs`)
+0 differences; the daemon's tests 2, the one comment Do 2 orders
+changed (the `is_idle` pin's wording), which is the expected
+difference of that commit; the daemon 0. Checked by the design session
+on the first form and holding on this one: a changed string literal,
+the `RateLimited` and `Network` returns of `classify_response` swapped,
+two adjacent `let` statements swapped, a signature given a parameter
+and a comment line deleted each report a difference and exit 1; a
+method widened to `pub(super)`, a doc paragraph reattached to an item
+in another file and an item placed in another file than its neighbour
+each report 0. What it cannot see: a change inside a `use` or `mod`
+line, or in a `//!` line; the compiler sees the first, the done-when's
+byte counts the second.

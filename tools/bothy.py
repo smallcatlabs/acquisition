@@ -46,6 +46,12 @@ bullet per thing someone would propose and the project declines:
 `- <item>: not until <trigger>.`, or `- <item>: refused …` for what no
 trigger reopens. The backlog is GitHub issues, never this list.
 
+`pack --path` routes a file by the `decisions/<area>.md` its module doc
+names near the top; a file that names none is routed by the area intros
+whose ticked tokens end with its name or start with its crate, so a
+crate path in an intro routes every unrouted file of that crate there
+(the 2d build: plans' intro names `kinds.rs` bare for that reason).
+
 `check` holds what `tools/docs-check.sh` does not: a cross-reference
 inside the registry resolves; an entry has its *Why:* and its *Pinned:* and no
 *Details:* or *Evidence:*; a not-doing line states its trigger or its
