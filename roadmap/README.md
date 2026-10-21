@@ -70,7 +70,7 @@ CLI and the MCP, is where simplicity, the tests and the GUI meet.
 | --- | --- | --- | --- | --- |
 | 0. The week's fixes | 0a store-age performance · 0b per-realm policy merge · 0c an unreadable MCP request gets a reply · 0d the stale and contradicting lines · 0e dev-build levers | Opus workers, parallel | — | closed 2026-10-20 |
 | 1. The governance reset | 1 design (Fable) · 1b the registry (entries under the rule, "not doing" lines, the issues) · 1c `AGENTS.md` absorbs `CONTEXT.md` · 1d the records to one checklist and a history, the notes and `LIVE-TESTING.md` out · 1e the checks split and the skills trimmed | Fable, then Opus | — | closed 2026-10-20 |
-| 2. The keystone | 2a the shared function layer (Fable design, Opus build) · 2b the tests: one harness, one layer per behaviour, goldens, one binary per crate, nextest · 2c the journey test and real-shaped mock items · 2d the daemon and limiter file splits · 2e the game-diff tool, a mock rehearsal of a new league, a README line for starting one · 2f the ultra review of daemon, store and network (owner-triggered) and its fixes; the frontends' after 2b | mixed | phase 1 | 2026-11-12 |
+| 2. The keystone | 2a the shared function layer (Fable design, Opus build) · 2b the tests: one harness, one layer per behaviour, goldens, one binary per crate, nextest · 2c the journey test and real-shaped mock items · 2d the daemon and limiter file splits · 2d-oracle the journal oracles over every journaling daemon · 2e the game-diff tool, a mock rehearsal of a new league, a README line for starting one · 2f the ultra review of daemon, store and network (owner-triggered) and its fixes; the frontends' after 2b | mixed | phase 1 | 2026-11-12 |
 | 3. League 3.30 | the owner runs the league under the rails · count the undecided classes and untranslated mods · the prune verb (ST-3, fired) at the league end | owner, Opus | 2e | 2026-11-20 |
 | 3b. `alpha.2` | regenerate the tables when the named inputs exist: a post-launch `poe1` pin (RePoE lags launch by 0 to 13 days), the owner's four site captures (C79: nobody else may fetch them), the pins and manifests bumped, every generator's `--check` green · then the release | owner captures, Opus | 3 | when the inputs arrive, 2026-11-26 at the latest |
 | 4. The GUI | 4 design (Fable: C16 amended to the loopback web UI, the listener's security, the spawn policy for a frontend with no terminal, item images in or out) · the corpus held in `acq-mcp` · the subscriber with reconnect · the server · the web views · hardening | Fable, then Opus | 2a, 2b | 2026-12-10 |
@@ -125,13 +125,12 @@ phase 4's second input.
 
 ## Current step
 
-Step 2d is closed. Next is 2e, the game-diff tool, a mock rehearsal
-of a new league and a README line for starting one; before 2f the
-owner decides whether the proposed `2d-oracle` step runs (the journal
-oracles over every journaling daemon, the probe-first exemptions
-aligned: `briefs/2d-design.md` section 7, item 1). The owner
-reassesses the `AGENTS.md` budgets when he chooses. `AGENTS.md`
-governs; the gate is its ten lines, under nextest.
+Step 2d-oracle is being built: the owner's word was "ok, go ahead"
+(2026-10-21), and an Opus worker runs `briefs/2d-oracle.md` in the
+main tree, one commit and its review; nothing else in the tree is
+edited meanwhile. After it, the owner's roadmap cleanup session, then
+2e. The owner reassesses the `AGENTS.md` budgets when he chooses.
+`AGENTS.md` governs; the gate is its ten lines, under nextest.
 
 ## Ledger
 
