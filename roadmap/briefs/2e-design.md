@@ -7,7 +7,7 @@ the README, the live-run skill and the ground truth). Every `file:line`
 is at `36f5e5fb`. The step's source is the assessment's report 6,
 section 5 (`STATE-2026-10-19.md:900-923`): the first, fourth, fifth and
 sixth rows of its checklist. The build brief, `2e-build.md`, follows the
-owner's word on section 4. Nothing here is built.
+design's review; the owner's word is section 8. Nothing here is built.
 
 ## 1. The problem, measured against the tree
 
@@ -310,8 +310,8 @@ says so; and, under ruling R2, the policy receipt and the plan carry a
 note when a league the fetched list does not hold is named ("Typo is
 not among the leagues fetched 3 m ago (`acq leagues`)", or "the league
 list was never fetched"). `acq leagues` renders a list in text mode (id,
-realm, category; `--json` unchanged), under the owner's delegation,
-since the README line sends a person there; `acq stashes` stays raw,
+realm, category; `--json` unchanged), taken on the owner's word
+(section 8), since the README line sends a person there; `acq stashes` stays raw,
 not this step's. Every wording is a golden under C122, regenerated under
 `ACQ_UPDATE_FIXTURES=1` and read as a diff.
 
@@ -448,14 +448,18 @@ paragraph; the driver; the tests. `AGENTS.md` does not change.
 
 ## 7. Raised for the owner, each with its home
 
-1. **The clone.** Before the build, `git -C ../poe1 checkout e2bd511a`
-   (the generators refuse until then and the drift line would), or
-   decide that 3b's pin bump comes first. His terminal.
-2. **R1 and R2**, section 4, before the code.
-3. **`acq leagues` rendered** in text mode: under delegation, his to
-   cut.
-4. **The driver's merge.** His tool for phase 3; the smallest change
-   that keeps Standard.
+1. **The clone.** Checked out at the pin by the owner, 2026-10-21
+   (measured: `rev-parse HEAD` is `poe1@e2bd511a`, `class-table.py
+   --check` 0). Resolved.
+2. **R1 and R2**, section 4: approved 2026-10-21. The build writes
+   them to the registry before the code.
+3. **`acq leagues` rendered** in text mode: the owner asked for advice
+   as a primary user of the CLI; advised taken (the README line sends
+   a person there to copy one name; the JSON stays for agents) and
+   taken.
+4. **The driver's merge**: advised taken (the Allflame run's hand
+   restore; one read and one insert; the test does not depend on it)
+   and taken.
 5. **The Standard default is unruled** (section 1.4). #19 holds the
    sticky default for phase 4; nothing now unless he wants a line.
 6. **`base-defences.py` is gone** and 3b cannot regenerate
@@ -473,7 +477,13 @@ paragraph; the driver; the tests. `AGENTS.md` does not change.
 
 ## 8. The owner's word
 
-Pending.
+On 2026-10-21, after reading the brief: R1 and R2, "approved"; the
+clone, "i have checked out e2bd511a"; on the two delegated items,
+"what do you advise for these as one of the primary users of the
+cli?", and both taken on the advice in section 7; the rhythm, "commit,
+then update, then commit after updating and start a review." Earlier
+the same day, opening the step: "a Fable brief first, surveys before
+the brief, nothing built until I say so."
 
 ## Appendix A — the rehearsal by hand (2026-10-21, mock world, `acq 1.0.0-alpha.1`)
 
