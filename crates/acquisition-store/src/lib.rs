@@ -376,12 +376,22 @@ impl std::error::Error for SchemaTooNew {}
 /// another schema version than this build's — older, newer, or none.
 /// Nothing was written to it. `file` names which file in words ("facts",
 /// "annotation"); the facts store and the annotations file refuse alike.
+/// `remedy` is the next step for an older file, chosen by the door that
+/// opened it, since only that door knows which of its older versions its
+/// writing open migrates and which it refuses; the facts door passes
+/// [`MIGRATE_REMEDY`]. A newer or unstamped file has one remedy whichever
+/// door met it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SchemaNotCurrent {
     pub file: &'static str,
     pub found: i64,
     pub supported: i64,
+    pub remedy: &'static str,
 }
+
+/// The remedy for an older file the writing open migrates.
+pub const MIGRATE_REMEDY: &str = "a read-only open never migrates it; open it with `acq` once \
+     to migrate, or use the build that wrote it";
 
 impl std::fmt::Display for SchemaNotCurrent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -389,19 +399,20 @@ impl std::fmt::Display for SchemaNotCurrent {
             file,
             found,
             supported,
+            remedy,
         } = *self;
         if found == 0 {
             write!(
                 f,
                 "the {file} file carries no schema version: it is empty or was not \
-                 written by Acquisition, and a read-only open reads nothing from it"
+                 written by Acquisition, and a read-only open reads nothing from it; \
+                 check that `--dir` and `--account` name an existing Acquisition store"
             )
         } else if found < supported {
             write!(
                 f,
                 "the {file} file is at schema version {found}, older than this build's \
-                 version {supported}, and a read-only open never migrates it: open it with \
-                 `acq` once to migrate, or use the build that wrote it"
+                 version {supported}: {remedy}"
             )
         } else {
             write!(
@@ -881,6 +892,7 @@ impl Store {
                 file: "facts",
                 found,
                 supported: FACT_SCHEMA_VERSION,
+                remedy: MIGRATE_REMEDY,
             })
             .context(format!("{} was not opened", path.display())));
         }
@@ -4376,6 +4388,7 @@ mod tests {
                     file: "facts",
                     found: stamp,
                     supported: FACT_SCHEMA_VERSION,
+                    remedy: MIGRATE_REMEDY,
                 })
             );
             let text = format!("{err:#}");
@@ -4404,6 +4417,27 @@ mod tests {
                 );
             }
         }
+        // An unstamped file (empty: no Acquisition store is here) is
+        // refused with the next step, and stays empty.
+        let empty = dir.join("empty.db");
+        std::fs::write(&empty, b"").unwrap();
+        let err = Store::open_read_only(&empty).err().unwrap();
+        assert_eq!(
+            err.downcast_ref::<SchemaNotCurrent>().map(|e| e.found),
+            Some(0)
+        );
+        let text = format!("{err:#}");
+        assert!(
+            text.contains("carries no schema version")
+                && text.contains(
+                    "check that `--dir` and `--account` name an existing Acquisition store"
+                ),
+            "{text}"
+        );
+        assert!(
+            std::fs::read(&empty).unwrap().is_empty(),
+            "the empty file was written"
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 

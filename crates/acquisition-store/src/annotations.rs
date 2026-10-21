@@ -121,6 +121,11 @@ const SCHEMA_VERSION: i64 = 3;
 /// without provenance would need a writer invented for it (C65).
 const SCHEMA_FLOOR: i64 = 3;
 
+/// C124: the read-only door's remedy for a file below [`SCHEMA_FLOOR`],
+/// in the words [`AnnotationError::SchemaTooOld`] gives for it, so the
+/// read-only door and the writing door tell the owner the same thing.
+const BELOW_FLOOR_REMEDY: &str = "a development build wrote it; delete it and set the policy again";
+
 const SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS annotations (
     scope       TEXT    NOT NULL,
@@ -560,8 +565,11 @@ impl Annotations {
     /// with SQLite's read-only flag and never created; nothing is written
     /// — no journal-mode switch, no stamp, no uuid bound — and only the
     /// busy timeout is set. A file at any version but this build's is
-    /// refused with [`AnnotationError::NotCurrent`]; one carrying another
-    /// account's uuid with [`AnnotationError::WrongAccount`]. A file with
+    /// refused with [`AnnotationError::NotCurrent`], whose remedy for an
+    /// older file is the writing door's: below the schema floor the words
+    /// [`AnnotationError::SchemaTooOld`] gives, from it up the migration
+    /// `init` would run. One carrying another account's uuid is refused
+    /// with [`AnnotationError::WrongAccount`]. A file with
     /// no stored uuid, which [`Annotations::open_for`] would stamp, opens
     /// with none, and a read that pairs intent with facts refuses it.
     pub fn open_read_only_for(dir: &Path, uuid: &str) -> Result<Annotations, AnnotationError> {
@@ -586,6 +594,11 @@ impl Annotations {
                 file: "annotation",
                 found,
                 supported: SCHEMA_VERSION,
+                remedy: if found < SCHEMA_FLOOR {
+                    BELOW_FLOOR_REMEDY
+                } else {
+                    crate::MIGRATE_REMEDY
+                },
             }));
         }
         let stored: Option<String> = conn
@@ -2103,9 +2116,14 @@ mod tests {
     }
 
     /// C124 (a read never migrates): the annotations file's read-only
-    /// door refuses a file a version behind and one a version ahead with
+    /// door refuses every older file and one a version ahead with
     /// `NotCurrent`, in words naming both versions and the remedy, and
-    /// leaves its bytes as found; a missing file is refused, not created.
+    /// leaves its bytes as found. The remedy is the writing door's: a file
+    /// below the floor (v1, v2) is told to be deleted and its policy set
+    /// again, never to be migrated, as `init` refuses it; one from the
+    /// floor up, which `init` would migrate, is told to open it with `acq`.
+    /// An unstamped (empty) file is refused with the next step and left
+    /// empty; a missing file is refused, not created.
     #[test]
     fn c124_a_read_only_open_refuses_another_version_and_leaves_the_file_unchanged() {
         let dir = std::env::temp_dir().join(format!(
@@ -2119,7 +2137,7 @@ mod tests {
             !annotations_path(&dir, "u-0").exists(),
             "a read-only open created the file"
         );
-        for stamp in [SCHEMA_VERSION - 1, SCHEMA_VERSION + 1] {
+        for stamp in (1..SCHEMA_VERSION).chain([SCHEMA_VERSION + 1]) {
             let uuid = format!("u-{stamp}");
             {
                 let a = Annotations::open_for(&dir, &uuid).unwrap();
@@ -2130,12 +2148,8 @@ mod tests {
             let err = Annotations::open_read_only_for(&dir, &uuid).err();
             match &err {
                 Some(AnnotationError::NotCurrent(e)) => assert_eq!(
-                    *e,
-                    crate::SchemaNotCurrent {
-                        file: "annotation",
-                        found: stamp,
-                        supported: SCHEMA_VERSION,
-                    }
+                    (e.file, e.found, e.supported),
+                    ("annotation", stamp, SCHEMA_VERSION)
                 ),
                 other => panic!("expected NotCurrent, got {other:?}"),
             }
@@ -2145,7 +2159,9 @@ mod tests {
                     && text.contains(&format!("this build's version {SCHEMA_VERSION}")),
                 "{text}"
             );
-            let remedy = if stamp < SCHEMA_VERSION {
+            let remedy = if stamp < SCHEMA_FLOOR {
+                "a development build wrote it; delete it and set the policy again"
+            } else if stamp < SCHEMA_VERSION {
                 "open it with `acq` once to migrate, or use the build that wrote it"
             } else {
                 "use the build that wrote it"
@@ -2156,7 +2172,41 @@ mod tests {
                 before,
                 "the refused v{stamp} file changed"
             );
+            if stamp < SCHEMA_FLOOR {
+                assert!(!text.contains("migrat"), "{text}");
+                // The writing door refuses it in the same words.
+                let writing = Annotations::open_for(&dir, &uuid).err();
+                assert!(
+                    matches!(writing, Some(AnnotationError::SchemaTooOld { .. })),
+                    "{writing:?}"
+                );
+                let writing = writing.map(|e| e.to_string()).unwrap_or_default();
+                assert!(
+                    writing.contains("delete it and set the policy again"),
+                    "{writing}"
+                );
+            }
         }
+        let empty = annotations_path(&dir, "u-empty");
+        std::fs::write(&empty, b"").unwrap();
+        match Annotations::open_read_only_for(&dir, "u-empty").err() {
+            Some(AnnotationError::NotCurrent(e)) => {
+                assert_eq!(e.found, 0);
+                let text = e.to_string();
+                assert!(
+                    text.contains("carries no schema version")
+                        && text.contains(
+                            "check that `--dir` and `--account` name an existing Acquisition store"
+                        ),
+                    "{text}"
+                );
+            }
+            other => panic!("expected NotCurrent, got {other:?}"),
+        }
+        assert!(
+            std::fs::read(&empty).unwrap().is_empty(),
+            "the empty file was written"
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 
