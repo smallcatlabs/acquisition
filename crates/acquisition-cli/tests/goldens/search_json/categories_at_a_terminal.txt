@@ -1,0 +1,118 @@
+# golden search_json/categories_at_a_terminal: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq search '(category=armour or category=accessory) (reqlevel=..30 or -has:reqlevel) (line(template:resistance) or line(template:life) or line(template:damage))'
+# holds "category armour.boots"
+# holds "categories v1 · beast colours v1"
+--- stdout
+query   (category=armour or category=accessory) (reqlevel=..30 or -has:reqlevel) (line(template:resistance) or line(template:life) or line(template:damage))
+scope   account Alice#1234 · pc · live · 10 items · 3 locations fetched (oldest <age> ago, newest <age> ago)
+        0 locations never fetched · location list seen <age> ago
+total   5 matches
+rows    Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
+            category accessory.ring · +95 to maximum Life (explicit)
+            id r1
+        Rune Coil Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
+            category accessory.ring · +75 to maximum Life (explicit) · +20 to maximum Life (implicit)
+            id r2
+        Kaom's Heart Glorious Plate · unique · Standard / Dump · x 0, y 0 · fetched <age> ago
+            category armour.chest · +500 to maximum Life (explicit)
+            id kaom
+        Hex Band Two-Stone Ring · rare · Standard / Dump · x 0, y 0 · fetched <age> ago
+            category accessory.ring · +40 to maximum Life (explicit)
+            id r3
+        Iron Greaves · rare · Standard / Never · x 0, y 0 · fetched <age> ago
+            category armour.boots · reqlevel 20 · +30 to maximum Life (explicit)
+            id boots
+terms   each term counted alone over all live pc items in all leagues, never over the matches
+  0.0   category=armour            2 matched · 8 failed
+  0.1   category=accessory         4 matched · 6 failed
+  1.0   reqlevel=..30              1 matched · 9 lacked
+  1.1.0 has:reqlevel               1 matched · 9 lacked
+  2.0   line(template:resistance)  0 matched · 9 lacked · 1 undecided
+  2.1   line(template:life)        5 matched · 5 lacked
+       → # to maximum Life (5)
+  2.2   line(template:damage)      1 matched · 8 lacked · 1 undecided
+       → Deals # to # Fire Damage (1)
+routes  each returns exactly the members counted (13 more: --routes)
+  term 2.0 undecided (1), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'undecided(line(template:resistance))'
+  term 2.2 undecided (1), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'undecided(line(template:damage))'
+basis   store <store> · build <build> · snapshot 5 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+
+$ acq show crab
+# holds "open monster.yellowbeast, monster.redbeast:"
+--- stdout
+Bleached Crustacean · frame rare
+id      crab
+place   pc · Standard / Never · x 0, y 0 · fetched <age> ago
+base    Bleached Crustacean
+class   Stackable Currency
+category monster.beast
+         open monster.yellowbeast, monster.redbeast: the beast colour table marks `Bleached Crustacean` unknown: the site listed it under neither colour (beast colours v1)
+price   none (nothing applies) · why: acq price show --account u-search --realm pc item/crab
+is      identified
+unread  nothing
+basis   store <store> · build <build> · snapshot 5 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+
+$ acq show hellion
+# holds "category monster.yellowbeast"
+--- stdout
+Dune Hellion · frame rare
+id      hellion
+place   pc · Standard / Never · x 0, y 0 · fetched <age> ago
+base    Dune Hellion
+class   Stackable Currency
+category monster.yellowbeast
+price   none (nothing applies) · why: acq price show --account u-search --realm pc item/hellion
+is      identified
+unread  nothing
+basis   store <store> · build <build> · snapshot 5 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+
+$ acq show fire
+# holds "category gem.activegem"
+--- stdout
+Fireball · frame gem
+id      fire
+place   pc · Standard / Never · x 0, y 0 · fetched <age> ago
+base    Fireball
+class   Skill Gems
+category gem.activegem
+price   none (nothing applies) · why: acq price show --account u-search --realm pc item/fire
+is      identified
+lines   explicit              Deals 9 to 14 Fire Damage
+                              "Deals # to # Fire Damage"   low 9 · high 14 · avg 11.5 · arg1 9 · arg2 14
+unread  nothing
+basis   store <store> · build <build> · snapshot 5 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+
+$ acq search --count category --routes
+# holds "count   category · 7 values"
+--- stdout
+query   (every item in scope)
+scope   account Alice#1234 · pc · live · 10 items · 3 locations fetched (oldest <age> ago, newest <age> ago)
+        0 locations never fetched · location list seen <age> ago
+total   10 matches
+count   category · 7 values
+        4  accessory.ring
+        1  armour.boots
+        1  armour.chest
+        1  gem.activegem
+        1  map
+        1  monster.beast
+        1  monster.yellowbeast
+routes  each returns exactly the members counted
+  category accessory.ring (4), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'category="accessory.ring"'
+  category armour.boots (1), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'category="armour.boots"'
+  category armour.chest (1), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'category="armour.chest"'
+  category gem.activegem (1), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'category="gem.activegem"'
+  category map (1), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'category=map (-category~"^(map[.]fragment|map[.]breachstone|map[.]invitation|map[.]scarab)$" or undecided(category~"^(map[.]fragment|map[.]breachstone|map[.]invitation|map[.]scarab)$"))'
+  category monster.beast (1), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'category="monster.beast" (-category~"^(monster[.]yellowbeast|monster[.]redbeast)$" or undecided(category~"^(monster[.]yellowbeast|monster[.]redbeast)$"))'
+  category monster.yellowbeast (1), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'category="monster.yellowbeast"'
+basis   store <store> · build <build> · snapshot 5 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2

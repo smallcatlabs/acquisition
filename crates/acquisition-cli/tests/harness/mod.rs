@@ -95,3 +95,288 @@ pub fn login_with(base: &Path, user: &str, env: &[(&str, &str)]) {
 pub fn login_as_mock(base: &Path, env: &[(&str, &str)]) {
     shared::login(acq_exe(), base, None, env);
 }
+
+// ---- goldens (C122) -------------------------------------------------------
+
+/// A transcript of `acq`'s text commands for a golden: each command as
+/// `$ acq <args>`, the facts it must hold as a `# holds` line, its stdout
+/// and its stderr apart, and its exit status when not 0. Each command's
+/// facts are checked against its own raw output as it runs, before any
+/// normalising and whatever the update switch says, so a regeneration
+/// that lost a fact from one command fails even where another still
+/// prints it. A `--json` command is never recorded: JSON is the contract
+/// and is asserted by field.
+pub struct Transcript {
+    base: PathBuf,
+    offline: bool,
+    text: String,
+    facts: usize,
+}
+
+impl Transcript {
+    /// Commands under [`command`]'s isolation, the world at `base/store`.
+    pub fn new(base: &Path) -> Transcript {
+        Transcript {
+            base: base.to_path_buf(),
+            offline: false,
+            text: String::new(),
+            facts: 0,
+        }
+    }
+
+    /// Commands under [`offline_command`]'s, the world `world` itself.
+    pub fn offline(world: &Path) -> Transcript {
+        Transcript {
+            offline: true,
+            ..Transcript::new(world)
+        }
+    }
+
+    /// Run `acq <args>`, check that each of `facts` stands in its stdout or
+    /// its stderr, record it, and hand back its output.
+    pub fn run(&mut self, args: &[&str], facts: &[&str]) -> Output {
+        self.run_fed(args, None, facts)
+    }
+
+    /// [`Transcript::run`] with `stdin` fed to the command, recorded
+    /// beside it.
+    pub fn run_fed(&mut self, args: &[&str], stdin: Option<&str>, facts: &[&str]) -> Output {
+        assert!(
+            !args.contains(&"--json"),
+            "acq {args:?}: a --json command is asserted by field, never recorded in a golden"
+        );
+        let mut cmd = if self.offline {
+            offline_command(&self.base, args)
+        } else {
+            command(&self.base, args)
+        };
+        let out = match stdin {
+            None => cmd.output().expect("spawning acq"),
+            Some(fed) => {
+                use std::io::Write as _;
+                let mut child = cmd
+                    .stdin(std::process::Stdio::piped())
+                    .stdout(std::process::Stdio::piped())
+                    .stderr(std::process::Stdio::piped())
+                    .spawn()
+                    .expect("spawning acq");
+                child
+                    .stdin
+                    .take()
+                    .expect("piped")
+                    .write_all(fed.as_bytes())
+                    .expect("feeding acq");
+                child.wait_with_output().expect("acq's output")
+            }
+        };
+        let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
+        let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
+        for fact in facts {
+            assert!(
+                stdout.contains(fact) || stderr.contains(fact),
+                "acq {}: the fact {fact:?} is not in what it printed:\n--- stdout\n{stdout}--- stderr\n{stderr}",
+                args.join(" ")
+            );
+        }
+        self.facts += facts.len();
+        if !self.text.is_empty() {
+            self.text.push('\n');
+        }
+        self.text.push_str("$ acq");
+        for arg in args {
+            self.text.push(' ');
+            self.text.push_str(&shell_word(arg));
+        }
+        self.text.push('\n');
+        if let Some(fed) = stdin {
+            self.text.push_str(&format!("--- stdin\n{fed}\n"));
+        }
+        for fact in facts {
+            self.text.push_str(&format!("# holds {fact:?}\n"));
+        }
+        for (label, stream) in [("stdout", &stdout), ("stderr", &stderr)] {
+            if !stream.is_empty() {
+                self.text.push_str(&format!("--- {label}\n{stream}"));
+                if !stream.ends_with('\n') {
+                    self.text.push_str("\n(no final newline)\n");
+                }
+            }
+        }
+        match out.status.code() {
+            Some(0) => {}
+            Some(code) => self.text.push_str(&format!("--- exit {code}\n")),
+            None => self.text.push_str("--- exit by a signal\n"),
+        }
+        out
+    }
+
+    /// The transcript under the normaliser's named rules, in order; a
+    /// `# holds` line is the fact as checked and is kept as written.
+    fn normalised(&self) -> String {
+        self.text
+            .replace("\r\n", "\n")
+            .split_inclusive('\n')
+            .map(|line| {
+                if line.starts_with("# holds ") {
+                    return line.to_string();
+                }
+                let mut line = scratch_rule(line, &self.base);
+                line = age_rule(&line);
+                line = basis_rule(&line);
+                line = token_rule(&line);
+                line.replace(env!("CARGO_PKG_VERSION"), "<version>")
+            })
+            .collect()
+    }
+}
+
+/// A word as a shell reads it back: bare where it is safe, else quoted.
+fn shell_word(word: &str) -> String {
+    if !word.is_empty()
+        && word
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || "_-./=:,@%+".contains(c))
+    {
+        word.to_string()
+    } else {
+        format!("'{}'", word.replace('\'', r"'\''"))
+    }
+}
+
+/// The rule `scratch`: the test's base directory, as given, canonicalised
+/// and, on Windows, with its backslashes doubled as JSON writes them, is
+/// `<scratch>`.
+fn scratch_rule(text: &str, base: &Path) -> String {
+    let mut spellings = vec![base.display().to_string()];
+    if let Ok(canonical) = std::fs::canonicalize(base) {
+        spellings.push(canonical.display().to_string());
+    }
+    if cfg!(windows) {
+        let doubled: Vec<String> = spellings.iter().map(|s| s.replace('\\', r"\\")).collect();
+        spellings.extend(doubled);
+    }
+    // the longest first, so a canonical path is never half replaced
+    spellings.sort_by_key(|s| std::cmp::Reverse(s.len()));
+    let mut text = text.to_string();
+    for spelling in spellings {
+        text = text.replace(&spelling, "<scratch>");
+    }
+    text
+}
+
+/// The rule `age`: `<n>s ago`, `<n>m ago`, `<n>h ago` and `<n>d ago` are
+/// `<age> ago`, since a seeded fetch grows older every day.
+fn age_rule(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(at) = rest.find(" ago") {
+        let head = &rest[..at];
+        let bytes = head.as_bytes();
+        let n = bytes.len();
+        let mut start = n;
+        if n >= 2 && matches!(bytes[n - 1], b's' | b'm' | b'h' | b'd') {
+            let mut i = n - 1;
+            while i > 0 && bytes[i - 1].is_ascii_digit() {
+                i -= 1;
+            }
+            let bounded = i == 0 || !bytes[i - 1].is_ascii_alphanumeric();
+            if i < n - 1 && bounded {
+                start = i;
+            }
+        }
+        if start < n {
+            out.push_str(&head[..start]);
+            out.push_str("<age> ago");
+        } else {
+            out.push_str(head);
+            out.push_str(" ago");
+        }
+        rest = &rest[at + " ago".len()..];
+    }
+    out.push_str(rest);
+    out
+}
+
+/// The rule `basis`: the basis line's store and build digests are
+/// `<store>` and `<build>`; the build's changes with every source edit.
+fn basis_rule(text: &str) -> String {
+    let digest = |line: &str, word: &str, with: &str| -> String {
+        let key = format!("{word} ");
+        match line.find(&key) {
+            Some(at) => {
+                let from = at + key.len();
+                let to = line[from..].find(' ').map_or(line.len(), |n| from + n);
+                format!("{}{with}{}", &line[..from], &line[to..])
+            }
+            None => line.to_string(),
+        }
+    };
+    text.split_inclusive('\n')
+        .map(|line| {
+            if line.starts_with("basis   store ") {
+                digest(&digest(line, "store", "<store>"), "build", "<build>")
+            } else {
+                line.to_string()
+            }
+        })
+        .collect()
+}
+
+/// The rule `token`: a continuation token, `acq1.` and its encoding, is
+/// `acq1.<token>`.
+fn token_rule(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(at) = rest.find("acq1.") {
+        out.push_str(&rest[..at]);
+        let after = &rest[at + "acq1.".len()..];
+        let n = after
+            .chars()
+            .take_while(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '-')
+            .map(char::len_utf8)
+            .sum::<usize>();
+        out.push_str(if n > 0 { "acq1.<token>" } else { "acq1." });
+        rest = &after[n..];
+    }
+    out.push_str(rest);
+    out
+}
+
+/// Compare `transcript` with the golden `<stem>/<name>.txt` under
+/// `tests/goldens/` (`file` is the calling test file's `file!()`), or
+/// write it under `ACQ_UPDATE_FIXTURES=1`. A transcript whose commands
+/// carry no fact is refused, whatever the switch: a golden names what a
+/// reader must find (C122).
+pub fn golden(file: &str, name: &str, transcript: &Transcript) {
+    assert!(
+        transcript.facts > 0,
+        "golden {name}: no command carries a fact; name the words a reader must find (C122)"
+    );
+    let stem = Path::new(file)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .expect("a test file's stem");
+    let shown = format!("crates/acquisition-cli/tests/goldens/{stem}/{name}.txt");
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/goldens")
+        .join(stem)
+        .join(format!("{name}.txt"));
+    let actual = format!(
+        "# golden {stem}/{name}: acq's text, normalised (C122). Each `# holds` line is a fact \
+         checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read \
+         the diff.\n\n{}",
+        transcript.normalised()
+    );
+    if std::env::var_os("ACQ_UPDATE_FIXTURES").is_some() {
+        std::fs::create_dir_all(path.parent().expect("a parent")).expect("the goldens directory");
+        std::fs::write(&path, &actual).expect("writing the golden");
+        return;
+    }
+    let expected = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{shown}: {e}"));
+    same_text(
+        &expected,
+        &actual,
+        &shown,
+        &format!("ACQ_UPDATE_FIXTURES=1 cargo test -p acquisition-cli --test {stem}"),
+    );
+}

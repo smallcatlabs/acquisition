@@ -1,0 +1,26 @@
+# golden price_json/a_write_walk_refused: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq price set item/i-map skip --if-revision 1
+# holds "item/i-map has a price at revision 2 (re-read and retry)"
+--- stderr
+Error: item/i-map has a price at revision 2 (re-read and retry)
+--- exit 1
+
+$ acq price set item/i-map exact 1 chisel
+# holds "currency \"chisel\" is retired"
+--- stderr
+Error: buyout: currency "chisel" is retired (2026-09-04 — not offered by the in-game price dialog): a new price cannot name it, though a stored row may
+--- exit 1
+
+$ acq price clear item/i-map
+# holds "item/i-map: cleared, was 1/5 divine b/o (revision 2)"
+# holds "puts it back"
+--- stdout
+item/i-map: cleared, was 1/5 divine b/o (revision 2)
+next: `acq price set --account 'Alice#1234' item/i-map negotiable 1/5 divine` puts it back (a create, which names no revision; the row's count continues past the clear)
+
+$ acq price clear item/i-map
+# holds "item/i-map's price was cleared (revision 3): nothing to clear"
+--- stderr
+Error: item/i-map's price was cleared (revision 3): nothing to clear (`acq price show item/i-map` reads what covers it)
+--- exit 1

@@ -1,0 +1,54 @@
+# golden search_json/a_price_set_by_hand: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq search --realm pc has:priced
+# holds "price 12.5 chaos · price.side manual"
+# holds "· intent 1 ·"
+--- stdout
+query   has:priced
+scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (oldest <age> ago, newest <age> ago)
+        1 location never fetched: PremiumStash 1 of 3 · location list seen <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
+total   1 match
+            1 location was never fetched: nothing here says what they hold
+rows    Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
+            price 12.5 chaos · price.side manual
+            id r1
+terms   each term counted alone over all live pc items in all leagues, never over the matches
+  0    has:priced  1 matched · 4 lacked
+routes  each returns exactly the members counted (2 more: --routes)
+basis   store <store> · build <build> · snapshot 4 · facts v9 · intent 1 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+
+$ acq show r1
+# holds "price   12.5 chaos · manual · why: acq price show"
+--- stdout
+Doom Loop Two-Stone Ring · rare · frame rare
+id      r1
+place   pc · Standard / Rings · x 0, y 0 · fetched <age> ago
+base    Two-Stone Ring
+class   Rings
+category accessory.ring
+price   12.5 chaos · manual · why: acq price show --account u-search --realm pc item/r1
+is      identified
+shown   Item Level: 84
+lines   explicit              +95 to maximum Life
+                              "# to maximum Life"   arg1 95
+unread  nothing
+basis   store <store> · build <build> · snapshot 4 · facts v9 · intent 1 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+
+$ acq show r2
+# holds "price   none (nothing applies)"
+--- stdout
+Rune Coil Two-Stone Ring · rare · frame rare
+id      r2
+place   pc · Standard / Rings · x 0, y 0 · fetched <age> ago
+base    Two-Stone Ring
+class   Rings
+category accessory.ring
+price   none (nothing applies) · why: acq price show --account u-search --realm pc item/r2
+is      identified
+shown   Item Level: 84
+lines   explicit              +75 to maximum Life
+                              "# to maximum Life"   arg1 75
+        implicit              +20 to maximum Life
+                              "# to maximum Life"   arg1 20
+unread  nothing
+basis   store <store> · build <build> · snapshot 4 · facts v9 · intent 1 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2

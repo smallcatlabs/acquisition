@@ -1,0 +1,48 @@
+# golden price_json/list_show_and_refusals: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq price list --in tab/pc/f1 --relation none
+# holds "none match for Standard with relation none in tab/pc/f1"
+--- stdout
+4 items on record, none match for Standard with relation none in tab/pc/f1
+next: `acq price status` says what is on record
+
+$ acq price show tab/pc/f1
+# holds "items covered through children: 2 items"
+--- stdout
+tab/pc/f1: Sale (Folder)
+relation manual_only: by hand: skip; the game states nothing
+effective: skip — skip by hand (row on tab/pc/f1); the game states nothing
+by hand: skip (own row, revision 1, set <age> ago)
+in game: none
+  no tab name read: a folder's name is never a price
+items here: none on record
+items covered through children: 2 items — 1 agree, 1 conflict
+  conflict     game  skip               5 chaos            Chaos Orb x5                             i-noted
+  agree        hand  3 chaos            3 chaos            Chaos Orb x5                             i-plain
+next: `acq price show item/<id>` is one item
+
+$ acq price list --in tab/pc/nope
+# holds "tab/pc/nope is not in the facts for Standard"
+--- stderr
+Error: tab/pc/nope is not in the facts for Standard (4 items, 5 tabs and characters on record); `acq search` finds an item's id, `acq tabs` a tab's
+--- exit 1
+
+$ acq price list --in tab/xbox/c1 --realm pc
+# holds "tab/xbox/c1 is a xbox address; pc was given"
+--- stderr
+Error: tab/xbox/c1 is a xbox address; pc was given (--realm or another address)
+--- exit 1
+
+$ acq price list --in tab/xbox/c1
+# holds "not in the facts for xbox/Standard"
+--- stderr
+Error: tab/xbox/c1 is not in the facts for xbox/Standard (0 items, 0 tabs and characters on record); `acq search` finds an item's id, `acq tabs` a tab's
+--- exit 1
+
+$ acq price status --league Hardcore
+# holds "no items on record for Hardcore"
+# holds "2 for other leagues"
+--- stdout
+no items on record for Hardcore: 0 tabs and characters listed, none fetched with items
+rows: 0 of 3 apply here; 1 name nothing in the facts, 0 unreadable, 2 for other leagues, 0 for other realms
+next: `acq refresh --plan` shows what a refresh would fetch

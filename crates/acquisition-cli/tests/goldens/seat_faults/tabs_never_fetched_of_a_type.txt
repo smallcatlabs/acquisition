@@ -1,0 +1,20 @@
+# golden seat_faults/tabs_never_fetched_of_a_type: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq tabs --type UniqueStash --never-fetched
+# holds "40 never-fetched UniqueStash tabs"
+# holds "10 of 40 shown: `acq tabs --expand --type UniqueStash --never-fetched` lists all"
+--- stdout
+42 tabs in Standard: 1 fetched, 40 never fetched, 1 folder (never fetched); 1 items
+40 never-fetched UniqueStash tabs
+name       type         items  fetched      parent       id
+Uniques 1  UniqueStash      -  never                     u1
+Uniques 10 UniqueStash      -  never                     u10
+Uniques 11 UniqueStash      -  never                     u11
+Uniques 12 UniqueStash      -  never                     u12
+Uniques 13 UniqueStash      -  never                     u13
+Uniques 14 UniqueStash      -  never                     u14
+Uniques 15 UniqueStash      -  never                     u15
+Uniques 16 UniqueStash      -  never                     u16
+Uniques 17 UniqueStash      -  never                     u17
+Uniques 18 UniqueStash      -  never                     u18
+10 of 40 shown: `acq tabs --expand --type UniqueStash --never-fetched` lists all

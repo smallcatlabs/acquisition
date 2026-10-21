@@ -11,7 +11,7 @@ use serde_json::{Value, json};
 
 mod harness;
 
-use harness::{acq, login, sole_json, start_daemon, text};
+use harness::{Transcript, acq, golden, login, sole_json, start_daemon, text};
 
 /// One account's facts in two leagues of pc, seeded through the store
 /// crate with no daemon: Standard holds tab `a1` with item `i-std`,
@@ -146,12 +146,10 @@ fn another_leagues_price_row_is_never_counted_as_naming_nothing() {
         assert!(out.status.success(), "{}", text(&out));
     }
 
-    let said = text(&acq(&base, &["price", "status"]));
-    assert!(
-        said.contains(
-            "rows: 0 of 3 apply here; 1 name nothing in the facts, 0 unreadable, 2 for other leagues, 0 for other realms"
-        ),
-        "{said}"
+    let mut t = Transcript::new(&base);
+    t.run(
+        &["price", "status"],
+        &["1 name nothing in the facts", "2 for other leagues"],
     );
     let report = sole_json(&acq(&base, &["price", "status", "--json"]));
     assert_eq!(
@@ -164,13 +162,11 @@ fn another_leagues_price_row_is_never_counted_as_naming_nothing() {
         Some(1)
     );
 
-    let said = text(&acq(&base, &["price", "status", "--league", "Allflame"]));
-    assert!(
-        said.contains(
-            "rows: 2 of 3 apply here; 1 name nothing in the facts, 0 unreadable, 0 for other leagues, 0 for other realms"
-        ),
-        "{said}"
+    t.run(
+        &["price", "status", "--league", "Allflame"],
+        &["rows: 2 of 3 apply here"],
     );
+    golden(file!(), "price_status_other_leagues", &t);
 }
 
 /// `--json` was not total: a command line the parser refused printed
@@ -613,11 +609,8 @@ fn tabs_says_its_counts_first_and_counts_a_large_league() {
     let scratch = harness::scratch("seat-tabs");
     let base = scratch.0.clone();
     seed_two_leagues(&base);
-    let said = stdout(&acq(&base, &["tabs"]));
-    assert!(
-        said.starts_with("1 tabs in Standard: 1 fetched; 1 items\n"),
-        "{said}"
-    );
+    let mut t = Transcript::new(&base);
+    let said = stdout(&t.run(&["tabs"], &["1 tabs in Standard: 1 fetched; 1 items"]));
     assert!(
         said.contains("a1"),
         "a small league is listed whole:\n{said}"
@@ -649,28 +642,16 @@ fn tabs_says_its_counts_first_and_counts_a_large_league() {
         .unwrap();
     drop(store);
 
-    let said = stdout(&acq(&base, &["tabs"]));
-    let lines: Vec<&str> = said.lines().collect();
-    assert_eq!(
-        lines[0], "41 tabs in Standard: 1 fetched, 40 never fetched; 1 items",
-        "{said}"
-    );
+    let said = stdout(&t.run(
+        &["tabs"],
+        &[
+            "41 tabs in Standard: 1 fetched, 40 never fetched; 1 items",
+            "next: `acq tabs --expand` lists all 41",
+        ],
+    ));
     assert!(
-        lines
-            .iter()
-            .any(|l| l.starts_with("QuadStash") && l.contains("40")),
-        "{said}"
-    );
-    assert!(
-        lines.len() < 25,
+        said.lines().count() < 25,
         "a large league is counted, never listed:\n{said}"
-    );
-    assert!(
-        lines
-            .last()
-            .unwrap()
-            .starts_with("next: `acq tabs --expand` lists all 41"),
-        "{said}"
     );
     let all = stdout(&acq(&base, &["tabs", "--expand"]));
     assert!(all.contains("q40") && all.lines().count() > 41, "{all}");
@@ -692,16 +673,14 @@ fn tabs_says_its_counts_first_and_counts_a_large_league() {
         )
         .unwrap();
     drop(store);
-    let said = stdout(&acq(&base, &["tabs", "--league", "Hard Mode"]));
-    let next = said.lines().last().unwrap_or_default();
-    assert!(
-        next.contains("`acq tabs --expand --league 'Hard Mode'` lists all 41"),
-        "{said}"
+    t.run(
+        &["tabs", "--league", "Hard Mode"],
+        &[
+            "`acq tabs --expand --league 'Hard Mode'` lists all 41",
+            r#"`acq search --realm pc 'league="Hard Mode"' --count tab`"#,
+        ],
     );
-    assert!(
-        next.contains(r#"`acq search --realm pc 'league="Hard Mode"' --count tab`"#),
-        "{said}"
-    );
+    golden(file!(), "tabs_counts_first", &t);
     let all = stdout(&acq(&base, &["tabs", "--expand", "--league", "Hard Mode"]));
     assert!(all.contains("q40") && all.lines().count() > 41, "{all}");
     let counted = acq(
@@ -756,22 +735,15 @@ fn tabs_lists_the_never_fetched_of_one_type() {
     // the flags read as it, in the text.
     // the text: the league's counts, the selection in words, the rows,
     // and what lists the rest
-    let said = stdout(&acq(
-        &base,
+    let mut t = Transcript::new(&base);
+    t.run(
         &["tabs", "--type", "UniqueStash", "--never-fetched"],
-    ));
-    let lines: Vec<&str> = said.lines().collect();
-    assert_eq!(
-        lines[0],
-        "42 tabs in Standard: 1 fetched, 40 never fetched, 1 folder (never fetched); 1 items",
-        "{said}"
+        &[
+            "40 never-fetched UniqueStash tabs",
+            "10 of 40 shown: `acq tabs --expand --type UniqueStash --never-fetched` lists all",
+        ],
     );
-    assert_eq!(lines[1], "40 never-fetched UniqueStash tabs", "{said}");
-    assert!(
-        lines.last().unwrap()
-            == &"10 of 40 shown: `acq tabs --expand --type UniqueStash --never-fetched` lists all",
-        "{said}"
-    );
+    golden(file!(), "tabs_never_fetched_of_a_type", &t);
     let all = stdout(&acq(
         &base,
         &[
@@ -794,16 +766,17 @@ fn shows_price_line_says_why_none() {
     let scratch = harness::scratch("seat-price-why");
     let base = scratch.0.clone();
     seed_two_leagues(&base);
-    let shown = stdout(&acq(&base, &["show", "i-std"]));
+    let mut t = Transcript::new(&base);
+    let shown = stdout(&t.run(
+        &["show", "i-std"],
+        &["price   none (nothing applies) · why: acq price show "],
+    ));
     let line = shown
         .lines()
         .find(|l| l.starts_with("price   "))
         .unwrap_or_else(|| panic!("{shown}"));
-    assert!(
-        line.starts_with("price   none (nothing applies) · why: acq price show "),
-        "{line}"
-    );
     assert!(!line.contains("(none)"), "{line}");
+    golden(file!(), "show_price_line_why_none", &t);
     let doc = sole_json(&acq(&base, &["show", "--json", "i-std"]));
     assert_eq!(doc["price"]["why"], "nothing applies", "{}", doc["price"]);
 }
@@ -1093,22 +1066,20 @@ fn every_total_says_what_was_never_fetched_not_a_zeros_alone() {
         )
         .unwrap();
     drop(store);
+    let mut t = Transcript::new(&base);
     for (query, total) in [
         ("league=Standard", "total   1 match"),
         ("league=Nowhere", "total   0 matches"),
     ] {
-        let shown = stdout(&acq(&base, &["search", "--realm", "pc", query]));
-        let lines: Vec<&str> = shown.lines().collect();
-        let at = lines
-            .iter()
-            .position(|l| *l == total)
-            .unwrap_or_else(|| panic!("{shown}"));
-        assert_eq!(
-            lines[at + 1],
-            "            1 location was never fetched: nothing here says what they hold",
-            "{shown}"
+        t.run(
+            &["search", "--realm", "pc", query],
+            &[
+                total,
+                "1 location was never fetched: nothing here says what they hold",
+            ],
         );
     }
+    golden(file!(), "every_total_says_the_never_fetched", &t);
 }
 
 /// A map search printed the flat "2940 locations never fetched" a ring
@@ -1145,35 +1116,30 @@ fn the_scope_line_names_the_never_fetched_by_tab_type_and_points_at_tabs() {
         )
         .unwrap();
     drop(store);
-    let shown = stdout(&acq(&base, &["search", "--realm", "pc", "league=Standard"]));
+    let mut t = Transcript::new(&base);
+    let shown = stdout(&t.run(
+        &["search", "--realm", "pc", "league=Standard"],
+        &["MapStash 3 of 3", "2 more in 2 other types"],
+    ));
+    golden(file!(), "scope_line_by_tab_type", &t);
+    assert!(!shown.contains("--view locations"), "{shown}");
+    // the pointer, parsed from the line and run as printed, lists the
+    // never fetched of the league it names
     let line = shown
         .lines()
         .find(|l| l.contains("never fetched:"))
         .unwrap_or_else(|| panic!("{shown}"));
+    let pointer = line
+        .split(" · each tab: ")
+        .nth(1)
+        .unwrap_or_else(|| panic!("no pointer: {line}"));
+    let out = run_as_printed(&base, pointer);
+    assert!(out.status.success(), "`{pointer}`: {}", text(&out));
+    let listed = stdout(&out);
     assert!(
-        line.starts_with(
-            "        8 locations never fetched: MapStash 3 of 3, UniqueStash 2 of 2, CurrencyStash 1 of 1, 2 more in 2 other types · location list seen "
-        ),
-        "{shown}"
+        listed.contains("8 never-fetched tabs") && listed.contains("m3"),
+        "`{pointer}` lists other than the never fetched:\n{listed}"
     );
-    assert!(
-        line.ends_with(" · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched"),
-        "{shown}"
-    );
-    // the pointer runs as printed, and lists the never fetched
-    let out = acq(
-        &base,
-        &[
-            "tabs",
-            "--account",
-            "Alice#1234",
-            "--realm",
-            "pc",
-            "--never-fetched",
-        ],
-    );
-    assert!(out.status.success(), "{}", stdout(&out));
-    assert!(!shown.contains("--view locations"), "{shown}");
 }
 
 /// The scope line's `tabs` pointer named no league, so it listed
@@ -1216,8 +1182,9 @@ fn the_tabs_pointer_names_the_league_its_never_fetched_tabs_are_in() {
             .unwrap();
     }
     drop(store);
-    let pointer = |query: &str| {
-        let shown = stdout(&acq(&base, &["search", "--realm", "pc", query]));
+    let mut t = Transcript::new(&base);
+    let mut pointer = |query: &str, fact: &str| {
+        let shown = stdout(&t.run(&["search", "--realm", "pc", query], &[fact]));
         let line = shown
             .lines()
             .find(|l| l.contains("never fetched:"))
@@ -1230,16 +1197,17 @@ fn the_tabs_pointer_names_the_league_its_never_fetched_tabs_are_in() {
     };
     const ALLFLAME: &str =
         " · each tab: acq tabs --account 'Alice#1234' --realm pc --league Allflame --never-fetched";
-    assert_eq!(pointer("league=Allflame"), ALLFLAME);
     assert_eq!(
-        pointer("league=Standard"),
-        " · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched"
+        pointer("league=Allflame", "--league Allflame --never-fetched"),
+        ALLFLAME
     );
+    pointer("league=Standard", "--league Standard --never-fetched");
     // no league fixed: the league holding the most, the others counted
     assert_eq!(
-        pointer("rarity=normal"),
+        pointer("rarity=normal", "1 other league holds never-fetched tabs"),
         format!("{ALLFLAME} · 1 other league holds never-fetched tabs")
     );
+    golden(file!(), "tabs_pointer_names_its_league", &t);
     // run as printed, the command lists the never-fetched tabs it points at
     let args: Vec<String> = ALLFLAME
         .trim_start_matches(" · each tab: acq ")
@@ -1407,16 +1375,16 @@ fn a_rows_place_says_how_long_ago_its_location_was_fetched() {
         )
         .unwrap();
     drop(store);
-    let shown = stdout(&acq(&base, &["search", "--realm", "pc", "league=Standard"]));
-    assert!(
-        shown.contains("Standard / Gear · x 0, y 0 · fetched 3d ago"),
-        "{shown}"
+    let mut t = Transcript::new(&base);
+    t.run(
+        &["search", "--realm", "pc", "league=Standard"],
+        &["Standard / Gear · x 0, y 0 · fetched 3d ago"],
     );
-    let shown = stdout(&acq(&base, &["show", "i-std"]));
-    assert!(
-        shown.contains("Standard / Gear · x 0, y 0 · fetched 3d ago"),
-        "{shown}"
+    t.run(
+        &["show", "i-std"],
+        &["Standard / Gear · x 0, y 0 · fetched 3d ago"],
     );
+    golden(file!(), "place_and_its_age", &t);
 }
 
 /// `price show` refused the bare id every other verb prints, and the
@@ -1447,11 +1415,15 @@ fn store_status_says_what_its_league_and_tab_counts_count() {
     let scratch = harness::scratch("seat-status");
     let base = scratch.0.clone();
     seed_two_leagues(&base);
-    let shown = stdout(&acq(&base, &["store", "status"]));
-    assert!(
-        shown.contains("league list never fetched (`acq leagues`)  characters 0  tabs 2 (every realm and league)"),
-        "{shown}"
+    let mut t = Transcript::new(&base);
+    t.run(
+        &["store", "status"],
+        &[
+            "league list never fetched (`acq leagues`)",
+            "tabs 2 (every realm and league)",
+        ],
     );
+    golden(file!(), "store_status_counts", &t);
 }
 
 /// A unique tab's page with no name printed as its bare id after its tab,
@@ -1659,23 +1631,20 @@ fn an_ambiguous_clauses_line_says_what_its_other_reading_adds_and_drops() {
             ring("plain", &["25% increased Rarity of Items found"]),
             ring("both", &["30% increased Rarity of Items found", "10% reduced Rarity of Items found"]) ] } }),
     );
-    let mut child = harness::command(&base, &["search", "--realm", "pc", "--trade-file", "-"])
-        .stdin(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::piped())
-        .spawn()
-        .unwrap();
-    use std::io::Write as _;
-    child
-        .stdin
-        .take()
-        .unwrap()
-        .write_all(
-            br#"{"query": {"stats": [{"type": "and", "filters": [{"id": "explicit.stat_3917489142", "value": {"min": 20}}, {"id": "explicit.stat_1030153674"}]}]}}"#,
-        )
-        .unwrap();
-    let out = child.wait_with_output().unwrap();
+    let mut t = Transcript::new(&base);
+    let out = t.run_fed(
+        &["search", "--realm", "pc", "--trade-file", "-"],
+        Some(
+            r#"{"query": {"stats": [{"type": "and", "filters": [{"id": "explicit.stat_3917489142", "value": {"min": 20}}, {"id": "explicit.stat_1030153674"}]}]}}"#,
+        ),
+        &[
+            " · read the other way: adds 0, drops 1",
+            "  clause stats.0.0 read the other way, drops (1), over the scope:",
+        ],
+    );
     let shown = stdout(&out);
     assert!(out.status.success(), "{shown}");
+    golden(file!(), "an_ambiguous_clause_adds_and_drops", &t);
     let line = |starts: &str| {
         shown
             .lines()
@@ -1683,15 +1652,12 @@ fn an_ambiguous_clauses_line_says_what_its_other_reading_adds_and_drops() {
             .unwrap_or_else(|| panic!("no line {starts}: {shown}"))
             .to_string()
     };
-    assert!(
-        line("ambiguous stats.0.0").ends_with(" · read the other way: adds 0, drops 1"),
-        "{shown}"
-    );
     // a clause with no other reading says nothing of one (C93)
     assert!(
         !line("ambiguous stats.0.1").contains("other way"),
         "{shown}"
     );
+    // the route under that heading runs as printed, and drops `both`
     let routes: Vec<&str> = shown
         .lines()
         .skip_while(|l| !l.starts_with("routes"))
@@ -1700,10 +1666,12 @@ fn an_ambiguous_clauses_line_says_what_its_other_reading_adds_and_drops() {
         .iter()
         .position(|l| *l == "  clause stats.0.0 read the other way, drops (1), over the scope:")
         .unwrap_or_else(|| panic!("{shown}"));
-    assert_eq!(
-        routes[at + 1],
-        "    acq search --account 'Alice#1234' --realm pc 'sum(line(\"#% increased Rarity of Items found\" source=explicit).arg1)>=20 line(\"#% reduced Rarity of Items found\" source=explicit) line((\"Recover #% of Mana on Kill\" or \"Lose #% of Mana on Kill\") source=explicit)'",
-        "{shown}"
+    let route = run_as_printed(&base, routes[at + 1].trim());
+    assert!(route.status.success(), "{}", text(&route));
+    assert!(
+        stdout(&route).contains("total   1 match"),
+        "{}",
+        text(&route)
     );
     assert!(!shown.contains("read the other way, adds"), "{shown}");
 }
@@ -1892,8 +1860,11 @@ fn the_trade_headers_over_line_never_reads_as_full_coverage() {
         )
         .unwrap();
     drop(store);
-    let shown = stdout(&acq(
-        &base,
+    // the words "public listings" name the field a buyer's view asks: no
+    // run of the re-sit found `tab.public` from them (the Sonnet runs
+    // never, the Opus runs through a refusal or a 20 KB describe)
+    let mut t = Transcript::new(&base);
+    let shown = stdout(&t.run(
         &[
             "search",
             "--realm",
@@ -1901,22 +1872,18 @@ fn the_trade_headers_over_line_never_reads_as_full_coverage() {
             "--trade",
             r#"{"query": {"type": "Chaos Orb"}}"#,
         ],
+        &[
+            "the items the store has fetched",
+            "a tab's being tab.public",
+            "never fetched: MapStash 1 of 1",
+        ],
     ));
     let over = shown
         .lines()
         .find(|l| l.trim_start().starts_with("over "))
         .unwrap_or_else(|| panic!("{shown}"));
     assert!(!over.contains("every place"), "{over}");
-    assert!(over.contains("the items the store has fetched"), "{over}");
-    assert!(
-        over.contains("what it never fetched is the scope's"),
-        "{over}"
-    );
-    // the words "public listings" name the field a buyer's view asks: no
-    // run of the re-sit found `tab.public` from them (the Sonnet runs
-    // never, the Opus runs through a refusal or a 20 KB describe)
-    assert!(over.contains("a tab's being tab.public"), "{over}");
-    assert!(shown.contains("never fetched: MapStash 1 of 1"), "{shown}");
+    golden(file!(), "trade_over_line", &t);
 }
 
 /// `--view locations` was refused by name as not built, and since the

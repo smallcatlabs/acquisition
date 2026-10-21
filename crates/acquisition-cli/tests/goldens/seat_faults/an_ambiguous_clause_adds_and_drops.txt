@@ -1,0 +1,29 @@
+# golden seat_faults/an_ambiguous_clause_adds_and_drops: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq search --realm pc --trade-file -
+--- stdin
+{"query": {"stats": [{"type": "and", "filters": [{"id": "explicit.stat_3917489142", "value": {"min": 20}}, {"id": "explicit.stat_1030153674"}]}]}}
+# holds " · read the other way: adds 0, drops 1"
+# holds "  clause stats.0.0 read the other way, drops (1), over the scope:"
+--- stdout
+trade   from the query JSON: ambiguous — every clause ran, 2 as the site may not read them
+        over      the items the store has fetched, priced or not — what it never fetched is the scope's: the site shows public listings, a tab's being tab.public, so the search is the site's and the items are yours
+        ambiguous stats.0.0  the bound sums the text and its plurals; not its forms "#% reduced Rarity of Items found" (opposite) · read the other way: adds 0, drops 1
+        ambiguous stats.0.1  the text's other id: explicit.stat_1604736568
+query   sum(line("#% increased Rarity of Items found" source=explicit).arg1)>=20 line(("Recover #% of Mana on Kill" or "Lose #% of Mana on Kill") source=explicit)
+scope   account Alice#1234 · pc · live · 2 items · 1 location fetched (oldest <age> ago, newest <age> ago)
+        0 locations never fetched · location list seen <age> ago
+total   2 matches
+rows    Iron Ring · Standard / Rings · x 0, y 0 · fetched <age> ago
+            sum(line("#% increased Rarity of Items found" source=explicit).arg1) 30 · 30% increased Rarity of Items found (explicit) · Recover 2% of Mana on Kill (explicit)
+            id both
+        Iron Ring · Standard / Rings · x 0, y 0 · fetched <age> ago
+            sum(line("#% increased Rarity of Items found" source=explicit).arg1) 25 · 25% increased Rarity of Items found (explicit) · Recover 2% of Mana on Kill (explicit)
+            id plain
+terms   each term counted alone over all live pc items in all leagues, never over the matches
+  0    sum(line("#% increased Rarity of Items found" source=explicit).arg1)>=20  2 matched
+  1    line(("Recover #% of Mana on Kill" or "Lose #% of Mana on Kill") source=explicit)  2 matched
+routes  each returns exactly the members counted (2 more: --routes)
+  clause stats.0.0 read the other way, drops (1), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'sum(line("#% increased Rarity of Items found" source=explicit).arg1)>=20 line("#% reduced Rarity of Items found" source=explicit) line(("Recover #% of Mana on Kill" or "Lose #% of Mana on Kill") source=explicit)'
+basis   store <store> · build <build> · snapshot 3 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2

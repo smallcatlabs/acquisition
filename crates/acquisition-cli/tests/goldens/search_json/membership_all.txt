@@ -1,0 +1,66 @@
+# golden search_json/membership_all: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq search --realm pc rarity=rare --membership all --routes
+# holds " · all · 4 items live · 1 removed · "
+# holds "each term counted alone over all live and removed pc items"
+--- stdout
+query   rarity=rare
+scope   account Alice#1234 · pc · all · 4 items live · 1 removed · 2 locations fetched (oldest <age> ago, newest <age> ago)
+        1 location never fetched: PremiumStash 1 of 3 · location list seen <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
+total   4 matches
+            1 location was never fetched: nothing here says what they hold
+rows    Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
+            id r1
+        Rune Coil Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago · removed <age> ago
+            id r2
+        Dull Turn Iron Ring · rare · Standard / Dump · x 0, y 0 · fetched <age> ago
+            id plain
+        Hex Band Two-Stone Ring · rare · Standard / Dump · x 0, y 0 · fetched <age> ago
+            id r3
+terms   each term counted alone over all live and removed pc items in all leagues, never over the matches
+  0    rarity=rare  4 matched · 1 failed
+routes  each returns exactly the members counted
+  term 0 matched (4), over the scope:
+    acq search --account 'Alice#1234' --realm pc rarity=rare --membership all
+  term 0 failed (1), over the scope:
+    acq search --account 'Alice#1234' --realm pc 'has:rarity -rarity=rare' --membership all
+basis   store <store> · build <build> · snapshot 5 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+
+$ acq search --realm pc id:r2
+# holds "id:r2 — it left the scope, as its term says"
+--- stdout
+query   id:r2
+scope   account Alice#1234 · pc · live · 4 items · 2 locations fetched (oldest <age> ago, newest <age> ago)
+        1 location never fetched: PremiumStash 1 of 3 · location list seen <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
+total   0 matches
+            1 location was never fetched: nothing here says what they hold
+nothing in scope carries the id of term 0: id:r2 — it left the scope, as its term says
+offers  each part of the query forced true and forced false, the part fewest items match first
+    acq search --account 'Alice#1234' --realm pc id:r2 --explain 0
+        every item in scope, this query set aside
+    acq search --account 'Alice#1234' --realm pc id:r2 --limit 20 --context corpus
+terms   each term counted alone over all live pc items in all leagues, never over the matches
+  0    id:r2  0 matched · 4 failed
+       this id is an item that left the scope <age> ago: acq search --account 'Alice#1234' --realm pc id:r2 --membership all
+routes  each returns exactly the members counted (1 more: --routes)
+basis   store <store> · build <build> · snapshot 5 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+
+$ acq show r2
+# holds "removed "
+--- stdout
+Rune Coil Two-Stone Ring · rare · frame rare
+id      r2
+removed <age> ago: no longer in the stash, shown as it was last seen
+place   pc · Standard / Rings · x 0, y 0 · fetched <age> ago
+base    Two-Stone Ring
+class   Rings
+category accessory.ring
+price   none (the item is no longer where it was, so no listing state prices it)
+is      identified
+shown   Item Level: 84
+lines   explicit              +75 to maximum Life
+                              "# to maximum Life"   arg1 75
+        implicit              +20 to maximum Life
+                              "# to maximum Life"   arg1 20
+unread  nothing
+basis   store <store> · build <build> · snapshot 5 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2

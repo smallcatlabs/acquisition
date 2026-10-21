@@ -1,0 +1,48 @@
+# golden seat_faults/tabs_pointer_names_its_league: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq search --realm pc league=Allflame
+# holds "--league Allflame --never-fetched"
+--- stdout
+query   league=Allflame
+scope   account Alice#1234 · pc · live · 2 items · 2 locations fetched (oldest <age> ago, newest <age> ago)
+        3 locations never fetched: MapStash 1 of 1, PremiumStash 1 of 3, UniqueStash 1 of 1 · location list seen <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Allflame --never-fetched
+total   1 match
+            3 locations were never fetched: nothing here says what they hold
+rows    Chaos Orb · Allflame / Gear · x 0, y 0 · fetched <age> ago
+            id i-all
+terms   each term counted alone over all live pc items in all leagues, never over the matches
+  0    league=Allflame  1 matched · 1 failed
+routes  each returns exactly the members counted (2 more: --routes)
+basis   store <store> · build <build> · snapshot 7 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+
+$ acq search --realm pc league=Standard
+# holds "--league Standard --never-fetched"
+--- stdout
+query   league=Standard
+scope   account Alice#1234 · pc · live · 2 items · 2 locations fetched (oldest <age> ago, newest <age> ago)
+        3 locations never fetched: MapStash 1 of 1, PremiumStash 1 of 3, UniqueStash 1 of 1 · location list seen <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
+total   1 match
+            3 locations were never fetched: nothing here says what they hold
+rows    Chaos Orb · Standard / Gear · x 0, y 0 · fetched <age> ago
+            id i-std
+terms   each term counted alone over all live pc items in all leagues, never over the matches
+  0    league=Standard  1 matched · 1 failed
+routes  each returns exactly the members counted (2 more: --routes)
+basis   store <store> · build <build> · snapshot 7 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+
+$ acq search --realm pc rarity=normal
+# holds "1 other league holds never-fetched tabs"
+--- stdout
+query   rarity=normal
+scope   account Alice#1234 · pc · live · 2 items · 2 locations fetched (oldest <age> ago, newest <age> ago)
+        3 locations never fetched: MapStash 1 of 1, PremiumStash 1 of 3, UniqueStash 1 of 1 · location list seen <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Allflame --never-fetched · 1 other league holds never-fetched tabs
+total   0 matches
+            3 locations were never fetched: nothing here says what they hold
+offers  each part of the query forced true and forced false, the part fewest items match first
+    acq search --account 'Alice#1234' --realm pc rarity=normal --explain 0
+        every item in scope, this query set aside
+    acq search --account 'Alice#1234' --realm pc rarity=normal --limit 20 --context corpus
+terms   each term counted alone over all live pc items in all leagues, never over the matches
+  0    rarity=normal  0 matched · 2 lacked
+routes  each returns exactly the members counted (1 more: --routes)
+basis   store <store> · build <build> · snapshot 7 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2

@@ -1,0 +1,30 @@
+# golden search_json/a_site_search_url_labelled: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq search --trade https://www.pathofexile.com/trade/search/Standard/H4sIAAAAAAAA_5XM0QrCMAyF4XfJdZFhB2N7FRlSuwiB2JYtFUfJu5speO9t_pyvwSZB6gZTg1yEcoIJcmJKCOo-0dqlgewFLYW0gIM7seD6DbTYGV-FKZKcjsHVn8fR90PXe_t9Bq548A8ye-hUZ3U_L6410o3xL9SEWd8TZHM0ugAAAA
+# holds "trade   from a URL: PARTIAL — 2 clauses not run, so this is not the site's search"
+# holds "NOT RUN   stats.1    A crucible tree path is not read; not run."
+--- stdout
+trade   from a URL: PARTIAL — 2 clauses not run, so this is not the site's search
+        over      the items the store has fetched, priced or not — what it never fetched is the scope's: the site shows public listings, a tab's being tab.public, so the search is the site's and the items are yours
+        NOT RUN   stats.1    A crucible tree path is not read; not run.
+        NOT RUN   stats.1.0  its group `stats.1` translates whole or not at all, and is unsupported
+        reported  status     Online, available or securable is the seller's state, not the item's, so it means nothing in your stash.
+query   league=Standard sum(line("# to maximum Life" source=explicit).arg1)>=70
+scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (oldest <age> ago, newest <age> ago)
+        1 location never fetched: PremiumStash 1 of 3 · location list seen <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
+total   3 matches
+            1 location was never fetched: nothing here says what they hold
+rows    Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
+            sum(line("# to maximum Life" source=explicit).arg1) 95 · +95 to maximum Life (explicit)
+            id r1
+        Rune Coil Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
+            sum(line("# to maximum Life" source=explicit).arg1) 75 · +75 to maximum Life (explicit)
+            id r2
+        Kaom's Heart Glorious Plate · unique · Standard / Dump · x 0, y 0 · fetched <age> ago
+            sum(line("# to maximum Life" source=explicit).arg1) 500 · +500 to maximum Life (explicit)
+            id kaom
+terms   each term counted alone over all live pc items in all leagues, never over the matches
+  0    league=Standard                                          5 matched
+  1    sum(line("# to maximum Life" source=explicit).arg1)>=70  3 matched · 2 failed
+routes  each returns exactly the members counted (3 more: --routes)
+basis   store <store> · build <build> · snapshot 4 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2

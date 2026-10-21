@@ -1,0 +1,8 @@
+# golden seat_faults/store_status_counts: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq store status
+# holds "league list never fetched (`acq leagues`)"
+# holds "tabs 2 (every realm and league)"
+--- stdout
+<scratch>/store/mock/Alice_1234.db  (0.1 MB)
+responses 5  league list never fetched (`acq leagues`)  characters 0  tabs 2 (every realm and league)  items 2 (+0 removed)  events 2

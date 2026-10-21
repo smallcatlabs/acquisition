@@ -30,6 +30,8 @@
 #      the setting is the clone's, so `AGENTS.md` says to make it once.
 #   6. Document paths: a backticked document name in the governed files
 #      names a file in this tree, or is cited at its commit.
+#   7. Goldens: every golden file is named by a `golden(` call in its
+#      stem's test file, so none outlives the test that wrote it (C122).
 #
 # Exit 1 on any failure; the report names each offender.
 set -euo pipefail
@@ -346,5 +348,26 @@ sys.exit(1 if bad else 0)
 PY
 ); then fail=1; fi
 printf '%s\n' "$paths"
+
+# ---- 7. goldens ------------------------------------------------------------
+# A golden is `<crate>/tests/goldens/<stem>/<name>.txt`, written by
+# `golden(file!(), "<name>", …)` in `<crate>/tests/<stem>.rs` (C122, the
+# CLI's test harness): one with no such call is an orphan, a transcript
+# no test reads, which no regeneration updates.
+if ! goldens=$(python3 -I - <<'PY'
+import glob, os, re, sys
+bad = []; n = 0
+for g in sorted(glob.glob("crates/*/tests/goldens/*/*.txt")):
+    n += 1
+    stem, name = os.path.basename(os.path.dirname(g)), os.path.splitext(os.path.basename(g))[0]
+    test = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(g))), stem + ".rs")
+    text = open(test, encoding="utf-8").read() if os.path.isfile(test) else ""
+    if not re.search(r'golden\(\s*file!\(\),\s*"' + re.escape(name) + '"', text):
+        bad.append(f'GOLDEN  {g} is named by no golden(file!(), "{name}", …) in {test}: delete it, or name it there')
+print("\n".join(bad) if bad else f"ok      {'goldens':<13} {n} goldens, each named by its test file")
+sys.exit(1 if bad else 0)
+PY
+); then fail=1; fi
+printf '%s\n' "$goldens"
 
 exit $fail

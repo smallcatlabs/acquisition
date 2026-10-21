@@ -1,0 +1,52 @@
+# golden seat_faults/tabs_counts_first: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq tabs
+# holds "1 tabs in Standard: 1 fetched; 1 items"
+--- stdout
+1 tabs in Standard: 1 fetched; 1 items
+name type          items  fetched      parent       id
+Gear PremiumStash      1  <age> ago                    a1
+
+$ acq tabs
+# holds "41 tabs in Standard: 1 fetched, 40 never fetched; 1 items"
+# holds "next: `acq tabs --expand` lists all 41"
+--- stdout
+41 tabs in Standard: 1 fetched, 40 never fetched; 1 items
+type           tabs  fetched   items
+PremiumStash      1        1       1
+QuadStash        40        0       0
+the ten with the most items:
+name    type          items  fetched      parent       id
+Gear    PremiumStash      1  <age> ago                    a1
+Dump 1  QuadStash         -  never                     q1
+Dump 10 QuadStash         -  never                     q10
+Dump 11 QuadStash         -  never                     q11
+Dump 12 QuadStash         -  never                     q12
+Dump 13 QuadStash         -  never                     q13
+Dump 14 QuadStash         -  never                     q14
+Dump 15 QuadStash         -  never                     q15
+Dump 16 QuadStash         -  never                     q16
+Dump 17 QuadStash         -  never                     q17
+next: `acq tabs --expand` lists all 41; `acq search --realm pc league=Standard --count tab` counts what a query matches by tab
+
+$ acq tabs --league 'Hard Mode'
+# holds "`acq tabs --expand --league 'Hard Mode'` lists all 41"
+# holds "`acq search --realm pc 'league=\"Hard Mode\"' --count tab`"
+--- stdout
+41 tabs in Hard Mode: 0 fetched, 41 never fetched; 0 items
+type           tabs  fetched   items
+PremiumStash      1        0       0
+QuadStash        40        0       0
+the ten with the most items:
+name    type          items  fetched      parent       id
+Gear    PremiumStash      -  never                     a1
+Dump 1  QuadStash         -  never                     q1
+Dump 10 QuadStash         -  never                     q10
+Dump 11 QuadStash         -  never                     q11
+Dump 12 QuadStash         -  never                     q12
+Dump 13 QuadStash         -  never                     q13
+Dump 14 QuadStash         -  never                     q14
+Dump 15 QuadStash         -  never                     q15
+Dump 16 QuadStash         -  never                     q16
+Dump 17 QuadStash         -  never                     q17
+next: `acq tabs --expand --league 'Hard Mode'` lists all 41; `acq search --realm pc 'league="Hard Mode"' --count tab` counts what a query matches by tab

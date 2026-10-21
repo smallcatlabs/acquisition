@@ -1,0 +1,50 @@
+# golden reference_currency/the_table: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq reference currency
+# holds "39 currencies the game writes, 3 retired"
+# holds "retired 2026-09-04"
+--- stdout
+currency table v1 (reviewed): 39 currencies the game writes, 3 retired, 8 with aliases
+  chaos                  Chaos Orb
+  divine                 Divine Orb                   also divines
+  alch                   Orb of Alchemy               also alchs
+  exalted                Exalted Orb                  also exa
+  alt                    Orb of Alteration            also alts
+  mirror                 Mirror of Kalandra           also mir, mirr, mirrors
+  chrome                 Chromatic Orb                also chrom
+  blessed                Blessed Orb
+  fusing                 Orb of Fusing                also fuse
+  jewellers              Jeweller's Orb               also jew
+  regal                  Regal Orb
+  vaal                   Vaal Orb
+  chance                 Orb of Chance
+  annul                  Orb of Annulment
+  aug                    Orb of Augmentation
+  regret                 Orb of Regret
+  scour                  Orb of Scouring
+  transmute              Orb of Transmutation
+  wisdom                 Scroll of Wisdom
+  portal                 Portal Scroll
+  scrap                  Armourer's Scrap
+  whetstone              Blacksmith's Whetstone
+  gcp                    Gemcutter's Prism
+  bauble                 Glassblower's Bauble
+  offer                  Offering to the Goddess
+  offer-dedication       Dedication to the Goddess
+  offer-gift             Gift to the Goddess
+  offer-tribute          Tribute to the Goddess
+  lesser-ember           Lesser Eldritch Ember
+  greater-ember          Greater Eldritch Ember
+  grand-ember            Grand Eldritch Ember
+  excep-ember            Exceptional Eldritch Ember
+  lesser-echor           Lesser Eldritch Ichor
+  greater-echor          Greater Eldritch Ichor
+  grand-echor            Grand Eldritch Ichor
+  excep-echor            Exceptional Eldritch Ichor
+  facetors               Facetor's Lens
+  engineers              Engineer's Orb
+  infused-engineers-orb  Infused Engineer's Orb
+  chisel                 Cartographer's Chisel        retired 2026-09-04 — not offered by the in-game price dialog
+  coin                   Perandus Coin                retired 2026-09-04 — not offered by the in-game price dialog
+  silver                 Silver Coin                  retired 2026-09-04 — not offered by the in-game price dialog
+a price cites the word at left; `acq reference currency <word>` resolves one

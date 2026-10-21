@@ -7,7 +7,7 @@
 
 mod harness;
 
-use harness::{offline_acq as acq, sole_json};
+use harness::{Transcript, golden, offline_acq as acq, sole_json};
 
 #[test]
 fn c68_the_table_is_enumerable_by_version_with_no_store_and_no_daemon() {
@@ -31,28 +31,27 @@ fn c68_the_table_is_enumerable_by_version_with_no_store_and_no_daemon() {
         3
     );
 
-    let text = acq(&tmp.0, &["reference", "currency"]);
+    let mut t = Transcript::offline(&tmp.0);
+    let text = t.run(
+        &["reference", "currency"],
+        &[
+            "39 currencies the game writes, 3 retired",
+            "retired 2026-09-04",
+        ],
+    );
     assert!(text.status.success());
     let stdout = String::from_utf8(text.stdout).unwrap();
-    assert!(stdout.starts_with("currency table v1 ("), "{stdout}");
-    assert!(
-        stdout.contains("39 currencies the game writes, 3 retired"),
-        "{stdout}"
-    );
     assert!(
         stdout
             .lines()
             .any(|l| l.contains("exalted") && l.contains("also exa"))
     );
     assert!(
-        stdout
-            .lines()
-            .any(|l| l.contains("chisel") && l.contains("retired 2026-09-04"))
-    );
-    assert!(
         !stdout.contains("game:2026"),
         "evidence is the audit view: {stdout}"
     );
+
+    golden(file!(), "the_table", &t);
 
     let audit = acq(&tmp.0, &["reference", "currency", "--expand"]);
     let stdout = String::from_utf8(audit.stdout).unwrap();
@@ -73,12 +72,11 @@ fn c68_one_word_resolves_exactly_or_fails_naming_the_version() {
     assert_eq!(v["version"], 1);
     assert_eq!(v["currency"]["tag"], "exalted");
     assert_eq!(v["currency"]["emit"], "exalted");
+    let mut t = Transcript::offline(&tmp.0);
 
-    let text = acq(&tmp.0, &["reference", "currency", "exa"]);
-    let stdout = String::from_utf8(text.stdout).unwrap();
-    assert!(
-        stdout.starts_with("exa is an alias of exalted: currency table v1"),
-        "{stdout}"
+    t.run(
+        &["reference", "currency", "exa"],
+        &["exa is an alias of exalted: currency table v1"],
     );
 
     let miss = acq(&tmp.0, &["--json", "reference", "currency", "Chaos"]);
@@ -90,8 +88,11 @@ fn c68_one_word_resolves_exactly_or_fails_naming_the_version() {
         "{err}"
     );
 
-    let miss = acq(&tmp.0, &["reference", "currency", "Chaos"]);
+    let miss = t.run(
+        &["reference", "currency", "Chaos"],
+        &["not a currency word"],
+    );
     assert_eq!(miss.status.code(), Some(1));
     assert!(miss.stdout.is_empty());
-    assert!(String::from_utf8_lossy(&miss.stderr).contains("not a currency word"));
+    golden(file!(), "one_word_resolved_or_refused", &t);
 }

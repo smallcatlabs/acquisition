@@ -1,0 +1,36 @@
+# golden seat_faults/every_total_says_the_never_fetched: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq search --realm pc league=Standard
+# holds "total   1 match"
+# holds "1 location was never fetched: nothing here says what they hold"
+--- stdout
+query   league=Standard
+scope   account Alice#1234 · pc · live · 2 items · 2 locations fetched (oldest <age> ago, newest <age> ago)
+        1 location never fetched: PremiumStash 1 of 3 · location list seen <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
+total   1 match
+            1 location was never fetched: nothing here says what they hold
+rows    Chaos Orb · Standard / Gear · x 0, y 0 · fetched <age> ago
+            id i-std
+terms   each term counted alone over all live pc items in all leagues, never over the matches
+  0    league=Standard  1 matched · 1 failed
+routes  each returns exactly the members counted (2 more: --routes)
+basis   store <store> · build <build> · snapshot 6 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+
+$ acq search --realm pc league=Nowhere
+# holds "total   0 matches"
+# holds "1 location was never fetched: nothing here says what they hold"
+--- stdout
+query   league=Nowhere
+scope   account Alice#1234 · pc · live · 2 items · 2 locations fetched (oldest <age> ago, newest <age> ago)
+        1 location never fetched: PremiumStash 1 of 3 · location list seen <age> ago
+total   0 matches
+            1 location was never fetched: nothing here says what they hold
+nothing in scope carries the league of term 0: league=Nowhere — a line the search cannot name is shown as unknown, with what it knows of it, and never fuzzy-matched
+offers  each part of the query forced true and forced false, the part fewest items match first
+    acq search --account 'Alice#1234' --realm pc league=Nowhere --explain 0
+        every item in scope, this query set aside
+    acq search --account 'Alice#1234' --realm pc league=Nowhere --limit 20 --context corpus
+terms   each term counted alone over all live pc items in all leagues, never over the matches
+  0    league=Nowhere  0 matched · 2 failed
+routes  each returns exactly the members counted (1 more: --routes)
+basis   store <store> · build <build> · snapshot 6 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2

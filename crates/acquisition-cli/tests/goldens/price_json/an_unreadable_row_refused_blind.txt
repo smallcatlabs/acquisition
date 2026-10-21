@@ -1,0 +1,22 @@
+# golden price_json/an_unreadable_row_refused_blind: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq price set item/i-map skip
+# holds "item/i-map holds a value this build cannot read (revision 1: buyout declares version 2, newer than this build's v1)"
+# holds "`--if-revision 1` replaces it deliberately"
+--- stderr
+Error: item/i-map holds a value this build cannot read (revision 1: buyout declares version 2, newer than this build's v1); not replaced blind — `--if-revision 1` replaces it deliberately, `acq price show item/i-map` names it
+--- exit 1
+
+$ acq price clear item/i-map
+# holds "item/i-map holds a value this build cannot read (revision 1: buyout declares version 2, newer than this build's v1)"
+# holds "`--if-revision 1` replaces it deliberately"
+--- stderr
+Error: item/i-map holds a value this build cannot read (revision 1: buyout declares version 2, newer than this build's v1); not replaced blind — `--if-revision 1` replaces it deliberately, `acq price show item/i-map` names it
+--- exit 1
+
+$ acq price set item/i-map skip --if-revision 1
+# holds "was an unreadable value {\"reserve\":\"5 chaos\",\"type\":\"auction\",\"version\":2} (revision 1)"
+# holds "the prior cannot be put back: this build cannot read it"
+--- stdout
+item/i-map: skip (revision 2), was an unreadable value {"reserve":"5 chaos","type":"auction","version":2} (revision 1)
+next: `acq price show --account 'Alice#1234' item/i-map` reads it beside the game side; the prior cannot be put back: this build cannot read it (its JSON is in --json)

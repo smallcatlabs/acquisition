@@ -16,7 +16,7 @@ use serde_json::{Value, json};
 
 mod harness;
 
-use harness::{offline_acq as acq, offline_command as command, sole_json};
+use harness::{Transcript, golden, offline_acq as acq, offline_command as command, sole_json};
 
 const USER: &str = "Alice#1234";
 
@@ -633,31 +633,23 @@ fn c53_search_json_is_the_answer_whole_and_the_text_is_a_function_of_it() {
     assert_eq!(ids, ["kaom", "r1"]);
     assert_eq!(a["total"]["undecided_reasons"][0]["example"]["id"], "r3");
 
-    // the text says what the JSON says: every block, every nonzero count, every id
-    let shown = text(&acq(&base, &["search", "--realm", "pc", LIFE, "--routes"]));
-    for needle in [
-        "query   line(\"# to maximum Life\" arg1>=90)",
-        "scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched",
-        "1 location never fetched",
-        "· each tab: acq tabs",
-        &format!(
-            "basis   store {} · build {} · snapshot {} · facts v",
-            a["basis"]["store"].as_str().unwrap(),
-            a["basis"]["build"].as_str().unwrap(),
-            a["basis"]["snapshot"]["response"]
-        ),
-        "2 matched · 1 failed · 1 lacked · 1 undecided · 1 reaches 90 only together",
-        "total   2 matches · 1 undecided",
-        "Kaom's Heart Glorious Plate · unique · Standard / Dump",
-        "+500 to maximum Life (explicit)",
-        "id kaom",
-        "undecided implicit lines unread — e.g. Hex Band Two-Stone Ring · id r3",
-    ] {
+    // the text says what the JSON says: every block, every nonzero count,
+    // every id, the basis's digests among them
+    let mut t = Transcript::offline(&base);
+    let shown = text(&t.run(
+        &["search", "--realm", "pc", LIFE, "--routes"],
+        &[
+            "2 matched · 1 failed · 1 lacked · 1 undecided · 1 reaches 90 only together",
+            "total   2 matches · 1 undecided",
+        ],
+    ));
+    for digest in [&a["basis"]["store"], &a["basis"]["build"]] {
         assert!(
-            shown.contains(needle),
-            "the text lacks `{needle}`:\n{shown}"
+            shown.contains(digest.as_str().unwrap()),
+            "{digest}: {shown}"
         );
     }
+    golden(file!(), "answer_with_routes", &t);
 
     // rule 5, the route property at a terminal: every command the answer
     // prints runs, and returns as many as it counted
@@ -710,20 +702,18 @@ fn first_seat_the_text_says_what_sorted_what_an_id_is_and_of_every_realm() {
     let base = scratch.0.clone();
     seed(&base);
     seed_more(&base);
-    let shown = text(&acq(&base, &["search", "--realm", "all", "is:corrupted"]));
-    assert!(
-        shown.contains("over all live items of every realm in all leagues"),
-        "{shown}"
+    let mut t = Transcript::offline(&base);
+    t.run(
+        &["search", "--realm", "all", "is:corrupted"],
+        &["over all live items of every realm in all leagues"],
     );
-    let shown = text(&acq(
-        &base,
+    t.run(
         &[
             "search", "--realm", "pc", "--sort", "ilvl", "--desc", "--limit", "1",
         ],
-    ));
-    assert!(shown.contains("sorts by ilvl 84"), "{shown}");
-    let shown = text(&acq(
-        &base,
+        &["sorts by ilvl 84"],
+    );
+    t.run(
         &[
             "search",
             "--realm",
@@ -735,12 +725,7 @@ fn first_seat_the_text_says_what_sorted_what_an_id_is_and_of_every_realm() {
             "--limit",
             "1",
         ],
-    ));
-    assert!(
-        shown.contains(
-            "sorts by line(\"# to maximum Life\").arg1 95 · +95 to maximum Life (explicit)"
-        ),
-        "{shown}"
+        &["sorts by line(\"# to maximum Life\").arg1 95 · +95 to maximum Life (explicit)"],
     );
     // a line the sort and a term both show is printed once, with another
     // term's evidence between them (the seat's ask 56 replayed)
@@ -827,8 +812,7 @@ fn first_seat_the_text_says_what_sorted_what_an_id_is_and_of_every_realm() {
     // the review of 9b, a presentation gap: a row that sorts last names
     // what it was sorted by — r3's implicit array is unread, so its 40 is
     // no largest, and `plain` has no life line at all
-    let shown = text(&acq(
-        &base,
+    t.run(
         &[
             "search",
             "--realm",
@@ -837,25 +821,22 @@ fn first_seat_the_text_says_what_sorted_what_an_id_is_and_of_every_realm() {
             "--sort",
             "line(\"# to maximum Life\").arg1",
         ],
-    ));
-    assert!(
-        shown.contains("sorts last: incomplete at 40 (line(\"# to maximum Life\").arg1)"),
-        "{shown}"
+        &[
+            "sorts last: incomplete at 40 (line(\"# to maximum Life\").arg1)",
+            "sorts last: no satisfying occurrence (line(\"# to maximum Life\").arg1)",
+        ],
     );
-    assert!(
-        shown.contains("sorts last: no satisfying occurrence (line(\"# to maximum Life\").arg1)"),
-        "{shown}"
+    t.run(
+        &["search", "--realm", "pc", "id:r"],
+        &["an id is matched whole"],
     );
-    let shown = text(&acq(&base, &["search", "--realm", "pc", "id:r"]));
-    assert!(
-        shown.contains("nothing in scope carries the id of term 0: id:r — an id is matched whole"),
-        "{shown}"
+    let out = t.run(
+        &["search", "--realm", "pc", "class:staff"],
+        &["near it", "class=Staves"],
     );
-    let out = acq(&base, &["search", "--realm", "pc", "class:staff"]);
     let err = String::from_utf8(out.stderr).unwrap();
-    assert!(err.contains("near it"), "{err}");
-    assert!(err.contains("class=Staves"), "{err}");
     assert!(!err.contains("Abyss Jewels"), "{err}");
+    golden(file!(), "first_seat_sort_lines_and_ids", &t);
 }
 
 #[test]
@@ -994,23 +975,14 @@ fn step_10_explain_context_and_against_at_a_terminal() {
         (&json!(0), &json!(0))
     );
     assert_eq!(a["rows"], json!([]));
-    let shown = text(&acq(
-        &base,
+    let mut t = Transcript::offline(&base);
+    let shown = text(&t.run(
         &["search", "--realm", "pc", LIFE, "--explain", "0.1"],
+        &[
+            "as given      2 matches · 1 undecided",
+            "forced true   4 matches",
+        ],
     ));
-    for needle in [
-        "explain 0.1  arg1>=90",
-        "as given      2 matches · 1 undecided",
-        "forced true   4 matches",
-        "line(\"# to maximum Life\" true())",
-        "forced false  0 matches",
-        "line(\"# to maximum Life\" false())",
-    ] {
-        assert!(
-            shown.contains(needle),
-            "the text lacks `{needle}`:\n{shown}"
-        );
-    }
     assert!(!shown.contains("rows    "), "{shown}");
 
     // the corpus context: the empty query, and the typed one set aside
@@ -1037,20 +1009,10 @@ fn step_10_explain_context_and_against_at_a_terminal() {
     );
     assert_eq!(a["total"]["matched"], 5);
     assert_eq!(a["view"]["counts"]["tables"][0]["key"], "rarity");
-    let shown = text(&acq(
-        &base,
+    t.run(
         &["search", "--realm", "pc", LIFE, "--context", "corpus"],
-    ));
-    for needle in [
-        "query   (every item in scope)",
-        "aside   line(\"# to maximum Life\" arg1>=90) — set aside under --context corpus, counted nowhere",
-        "total   5 matches",
-    ] {
-        assert!(
-            shown.contains(needle),
-            "the text lacks `{needle}`:\n{shown}"
-        );
-    }
+        &["aside   line(\"# to maximum Life\" arg1>=90) — set aside under --context corpus, counted nowhere"],
+    );
     // `matches` is what every answer is
     let plain = sole_json(&acq(&base, &["--json", "search", "--realm", "pc", LIFE]));
     let matches = sole_json(&acq(
@@ -1080,30 +1042,23 @@ fn step_10_explain_context_and_against_at_a_terminal() {
     assert_eq!(against["outcome"], "no_match");
     assert_eq!(against["nodes"][0]["outcome"], "failed");
     assert_eq!(against["nodes"][0]["shows"].as_array().unwrap().len(), 2);
-    let shown = text(&acq(&base, &["show", "r2", "--against", LIFE]));
-    for needle in [
-        "against line(\"# to maximum Life\" arg1>=90)",
-        "no match",
-        "0    line(\"# to maximum Life\" arg1>=90)  failed",
-        "+20 to maximum Life (implicit)",
-        "+75 to maximum Life (explicit)",
-    ] {
-        assert!(
-            shown.contains(needle),
-            "the text lacks `{needle}`:\n{shown}"
-        );
-    }
+    t.run(
+        &["show", "r2", "--against", LIFE],
+        &["0    line(\"# to maximum Life\" arg1>=90)  failed"],
+    );
     // an undecided item says why
-    let shown = text(&acq(&base, &["show", "r3", "--against", LIFE]));
-    assert!(shown.contains("undecided"), "{shown}");
-    assert!(shown.contains("implicit lines unread"), "{shown}");
+    t.run(
+        &["show", "r3", "--against", LIFE],
+        &["implicit lines unread"],
+    );
 
     // a zero answer prints its offers as commands: explain of each part,
     // fewest matched first, then the corpus
-    let shown = text(&acq(
-        &base,
+    let shown = text(&t.run(
         &["search", "--realm", "pc", "rarity=rare rarity=unique"],
+        &["--limit 20 --context corpus"],
     ));
+    golden(file!(), "explain_aside_and_against", &t);
     let commands = printed_commands(&shown);
     let offered: Vec<&String> = commands
         .iter()
@@ -1191,26 +1146,17 @@ fn oq6_a_price_set_by_hand_is_found_shown_and_named_in_the_basis() {
         "{}",
         String::from_utf8_lossy(&set.stderr)
     );
-    let shown = text(&acq(&base, &["search", "--realm", "pc", "has:priced"]));
-    for needle in [
-        "price 12.5 chaos · price.side manual",
-        "· intent 1 ·",
-        "currency v1 · notes v2",
-    ] {
-        assert!(
-            shown.contains(needle),
-            "the text lacks `{needle}`:\n{shown}"
-        );
-    }
-    let shown = text(&acq(&base, &["show", "r1"]));
-    assert!(
-        shown.contains(
-            "price   12.5 chaos · manual · why: acq price show --account u-search --realm pc item/r1\n"
-        ),
-        "{shown}"
+    let mut t = Transcript::offline(&base);
+    t.run(
+        &["search", "--realm", "pc", "has:priced"],
+        &["price 12.5 chaos · price.side manual", "· intent 1 ·"],
     );
-    let none = text(&acq(&base, &["show", "r2"]));
-    assert!(none.contains("price   none (nothing applies)"), "{none}");
+    t.run(
+        &["show", "r1"],
+        &["price   12.5 chaos · manual · why: acq price show"],
+    );
+    t.run(&["show", "r2"], &["price   none (nothing applies)"]);
+    golden(file!(), "a_price_set_by_hand", &t);
 }
 
 #[test]
@@ -1319,29 +1265,22 @@ fn describe_and_show_print_json_whole_and_text_from_it() {
     let s = sole_json(&acq(&base, &["--json", "show", "r3", "--body"]));
     assert_eq!(s["item"]["unread"][0]["part"], "lines");
     assert!(s["body"].as_str().unwrap().contains("unreadable"));
-    let shown = text(&acq(&base, &["show", "r2"]));
-    for needle in [
-        "Rune Coil Two-Stone Ring · rare",
-        "id      r2",
-        "place   pc · Standard / Rings",
-        "implicit",
-        "\"# to maximum Life\"   arg1 20",
-        "unread  nothing",
-    ] {
-        assert!(
-            shown.contains(needle),
-            "the text lacks `{needle}`:\n{shown}"
-        );
-    }
+    let mut t = Transcript::offline(&base);
+    let shown = text(&t.run(
+        &["show", "r2"],
+        &["\"# to maximum Life\"   arg1 20", "unread  nothing"],
+    ));
     assert!(
         !shown.contains("sockets"),
         "a ring has no sockets line:\n{shown}"
     );
     // the sockets as the game shows them, and the largest link group (step 8)
-    let shown = text(&acq(&base, &["show", "kaom"]));
-    assert!(shown.contains("sockets R-R-G B · links 3"), "{shown}");
-    let rows = text(&acq(&base, &["search", "--realm", "pc", "linked(red>=2)"]));
-    assert!(rows.contains("R-R-G (link group)"), "{rows}");
+    t.run(&["show", "kaom"], &["sockets R-R-G B · links 3"]);
+    t.run(
+        &["search", "--realm", "pc", "linked(red>=2)"],
+        &["R-R-G (link group)"],
+    );
+    golden(file!(), "an_items_detail", &t);
 }
 
 /// Step 9c3, met at the first smoke of the build: a row sorted by a
@@ -1588,34 +1527,27 @@ fn step_9d_category_at_a_terminal_oq5_a_beast_the_count_and_the_help() {
     // and the boots; the gem's damage line and the plain ring's mana stay out
     let oq5 = "(category=armour or category=accessory) (reqlevel=..30 or -has:reqlevel) \
                (line(template:resistance) or line(template:life) or line(template:damage))";
-    let shown = text(&acq(&base, &["search", oq5]));
-    assert!(
-        shown.contains("categories v1 · beast colours v1"),
-        "{shown}"
+    let mut t = Transcript::offline(&base);
+    t.run(
+        &["search", oq5],
+        &["category armour.boots", "categories v1 · beast colours v1"],
     );
-    assert!(shown.contains("category armour.boots"), "{shown}");
 
     // the beast, by its category and by its colour
-    let shown = text(&acq(&base, &["show", "crab"]));
-    for needle in [
-        "class   Stackable Currency",
-        "category monster.beast",
-        "open monster.yellowbeast, monster.redbeast:",
-    ] {
-        assert!(
-            shown.contains(needle),
-            "the text lacks `{needle}`:\n{shown}"
-        );
-    }
-    let shown = text(&acq(&base, &["show", "hellion"]));
-    assert!(shown.contains("category monster.yellowbeast"), "{shown}");
-    let shown = text(&acq(&base, &["show", "fire"]));
-    assert!(shown.contains("category gem.activegem"), "{shown}");
+    t.run(
+        &["show", "crab"],
+        &["open monster.yellowbeast, monster.redbeast:"],
+    );
+    t.run(&["show", "hellion"], &["category monster.yellowbeast"]);
+    t.run(&["show", "fire"], &["category gem.activegem"]);
 
     // counted: every route printed returns what its heading counted, the
     // breachstone's among them — under `map`, its leaf open (J21)
-    let shown = text(&acq(&base, &["search", "--count", "category", "--routes"]));
-    assert!(shown.contains("count   category · 7 values"), "{shown}");
+    let shown = text(&t.run(
+        &["search", "--count", "category", "--routes"],
+        &["count   category · 7 values"],
+    ));
+    golden(file!(), "categories_at_a_terminal", &t);
     let lines: Vec<&str> = shown.lines().collect();
     let mut ran = 0;
     for pair in lines.windows(2) {
@@ -2046,8 +1978,9 @@ fn step_10_membership_all_at_a_terminal() {
 
     // What each membership holds is the search crate's (`membership.rs`);
     // here, the text lines and every printed command run.
-    let shown = text(&acq(
-        &base,
+    // The terms are counted over both, and the block says so.
+    let mut t = Transcript::offline(&base);
+    let shown = text(&t.run(
         &[
             "search",
             "--realm",
@@ -2057,16 +1990,11 @@ fn step_10_membership_all_at_a_terminal() {
             "all",
             "--routes",
         ],
+        &[
+            " · all · 4 items live · 1 removed · ",
+            "each term counted alone over all live and removed pc items",
+        ],
     ));
-    assert!(
-        shown.contains(" · all · 4 items live · 1 removed · "),
-        "{shown}"
-    );
-    // the terms are counted over both, and the block says so
-    assert!(
-        shown.contains("each term counted alone over all live and removed pc items"),
-        "{shown}"
-    );
     assert!(
         shown
             .lines()
@@ -2084,7 +2012,10 @@ fn step_10_membership_all_at_a_terminal() {
     }
 
     // an id that left: said on the term, with the command that finds it
-    let gone = text(&acq(&base, &["search", "--realm", "pc", "id:r2"]));
+    let gone = text(&t.run(
+        &["search", "--realm", "pc", "id:r2"],
+        &["id:r2 — it left the scope, as its term says"],
+    ));
     let said = gone
         .lines()
         .find(|l| l.contains("this id is an item that left the scope"))
@@ -2097,14 +2028,11 @@ fn step_10_membership_all_at_a_terminal() {
     assert_eq!(ids(&sole_json(&run_printed(&base, &command))), ["r2"]);
     assert!(!gone.contains("a part of one finds nothing"), "{gone}");
     assert!(!gone.contains("never fuzzy-matched"), "{gone}");
-    assert!(
-        gone.contains("id:r2 — it left the scope, as its term says"),
-        "{gone}"
-    );
 
     // `acq show` shows it, marked
-    let shown = text(&acq(&base, &["show", "r2"]));
+    let shown = text(&t.run(&["show", "r2"], &["removed "]));
     assert!(shown.lines().any(|l| l.starts_with("removed ")), "{shown}");
+    golden(file!(), "membership_all", &t);
     assert!(!text(&acq(&base, &["show", "r1"])).contains("\nremoved "));
 
     // a word that is no membership, and a membership beside a token
@@ -2418,29 +2346,16 @@ fn c113_a_site_search_url_runs_labelled_and_its_printed_request_reads_back() {
 
     // the text opens with the translation, its remainder loud, each
     // clause with the reason for its status, and only then the query
-    let shown = text(&acq(&base, &["search", "--trade", &url]));
-    let lines: Vec<&str> = shown.lines().collect();
-    assert_eq!(
-        lines[0],
-        "trade   from a URL: PARTIAL — 2 clauses not run, so this is not the site's search"
-    );
-    assert_eq!(lines[1], TRADE_OVER);
-    assert!(
-        lines[2]
-            .starts_with("        NOT RUN   stats.1    A crucible tree path is not read; not run."),
-        "{shown}"
-    );
-    assert!(
-        lines[3].starts_with("        NOT RUN   stats.1.0  its group `stats.1`"),
-        "{shown}"
-    );
-    assert!(
-        lines[4].starts_with(
-            "        reported  status     Online, available or securable is the seller's state"
-        ),
-        "{shown}"
-    );
-    assert_eq!(lines[5], format!("query   {TRADE_TEXT}"));
+    let mut t = Transcript::offline(&base);
+    let shown = text(&t.run(
+        &["search", "--trade", &url],
+        &[
+            "trade   from a URL: PARTIAL — 2 clauses not run, so this is not the site's search",
+            "NOT RUN   stats.1    A crucible tree path is not read; not run.",
+        ],
+    ));
+    assert_eq!(shown.lines().nth(1), Some(TRADE_OVER), "{shown}");
+    golden(file!(), "a_site_search_url_labelled", &t);
 
     // --print-request: the site search beside the text it translates to,
     // the realm the URL's

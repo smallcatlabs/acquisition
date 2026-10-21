@@ -593,9 +593,10 @@ fn a_trade_fidelity_is_never_said_to_be_the_sites_items() {
     let query = search["inputSchema"]["properties"]["query"]["description"]
         .as_str()
         .unwrap();
+    // the fact words; the description whole is MCP-REFERENCE.md's
     for said in [
-        "`fidelity`, how far the text is the site's search",
-        "Never how far the items are the site's: the answer is over the items the store has fetched, priced or not — what it never fetched is `scope.never_fetched` — and the site shows public listings, a tab's being `tab.public`.",
+        "how far the text is the site's search",
+        "Never how far the items are the site's",
     ] {
         assert!(query.contains(said), "{said}: {query}");
     }
@@ -611,10 +612,12 @@ fn the_never_fetched_count_says_what_it_counts_and_what_no_answer_sees() {
     let tools = seat.mcp.list_tools();
     let search = tools.iter().find(|t| t["name"] == "search").unwrap();
     let text = search["description"].as_str().unwrap();
-    assert!(
-        text.contains("`never_fetched` counts the tabs, their pages and the characters a listing names and no fetch has filled, and no answer says what they hold"),
-        "{text}"
-    );
+    for said in [
+        "`never_fetched` counts the tabs, their pages and the characters",
+        "no answer says what they hold",
+    ] {
+        assert!(text.contains(said), "{said}: {text}");
+    }
 }
 
 /// A pattern term's `resolved` values were read as the answer's tier
@@ -629,8 +632,8 @@ fn a_terms_counts_and_resolved_values_are_said_to_be_over_the_scope() {
     let search = tools.iter().find(|t| t["name"] == "search").unwrap();
     let text = search["description"].as_str().unwrap();
     for said in [
-        "each term alone over every item in scope, never over the matches, which are `total`",
-        "a pattern term's `resolved` is what it matched there, its `rest.denominator` `scope`",
+        "never over the matches, which are `total`",
+        "`resolved` is what it matched there",
         "`items` every live item in scope before any term",
     ] {
         assert!(text.contains(said), "{said}: {text}");
@@ -647,10 +650,12 @@ fn show_names_a_terms_outcomes_and_a_groups() {
     let tools = seat.mcp.list_tools();
     let show = tools.iter().find(|t| t["name"] == "show").unwrap();
     let text = show["description"].as_str().unwrap();
-    assert!(
-        text.contains("a term's `matched`, `failed`, `lacked` or `undecided`, a group's `match`, `no_match` or `undecided`"),
-        "{text}"
-    );
+    for said in [
+        "a term's `matched`, `failed`, `lacked` or `undecided`",
+        "a group's `match`, `no_match` or `undecided`",
+    ] {
+        assert!(text.contains(said), "{said}: {text}");
+    }
 }
 
 /// The keys of the JSON object a text opens with, in the order the text
@@ -804,18 +809,20 @@ fn the_search_tools_words_name_tab_public_every_fidelity_and_a_sums_sources() {
     let query = search["inputSchema"]["properties"]["query"]["description"]
         .as_str()
         .unwrap();
-    assert!(
-        query.contains("the site shows public listings, a tab's being `tab.public`"),
-        "{query}"
-    );
-    assert!(
-        query.contains("exact, ambiguous where a clause ran as the site may not read it, or partial where the remainder is not empty"),
-        "{query}"
-    );
+    for said in [
+        "a tab's being `tab.public`",
+        "exact, ambiguous where a clause ran as the site may not read it",
+        "partial where the remainder is not empty",
+    ] {
+        assert!(query.contains(said), "{said}: {query}");
+    }
     let view = search["inputSchema"]["properties"]["view"]["description"]
         .as_str()
         .unwrap();
-    assert!(view.contains("a sum of one (`sum(\"# to maximum Life\")`), spanning every source unless `source=` names one"), "{view}");
+    assert!(
+        view.contains("spanning every source unless `source=` names one"),
+        "{view}"
+    );
 }
 
 /// The never fetched by name (the re-sit, every run's first or second
@@ -858,10 +865,7 @@ fn a_rows_place_carries_when_its_location_was_fetched() {
     let tools = seat.mcp.list_tools();
     let search = tools.iter().find(|t| t["name"] == "search").unwrap();
     let text = search["description"].as_str().unwrap();
-    assert!(
-        text.contains("when that place was last fetched (`place.fetched_at`)"),
-        "{text}"
-    );
+    assert!(text.contains("(`place.fetched_at`)"), "{text}");
 }
 
 /// `scope.never_fetched` stood unsized and which tabs it counted could not
@@ -875,10 +879,13 @@ fn the_scope_counts_the_never_fetched_by_tab_type_and_names_the_list() {
     let tools = seat.mcp.list_tools();
     let search = tools.iter().find(|t| t["name"] == "search").unwrap();
     let text = search["description"].as_str().unwrap();
-    assert!(
-        text.contains("`never_fetched_by_type` is the same by tab type, a character's `character`, each counted as the `tabs` tool counts a type, and `tabs` lists a league's tabs, `never_fetched_leagues` naming the leagues that hold a never-fetched tab, the most first"),
-        "{text}"
-    );
+    for said in [
+        "`never_fetched_by_type` is the same by tab type",
+        "`tabs` lists a league's tabs",
+        "`never_fetched_leagues`",
+    ] {
+        assert!(text.contains(said), "{said}: {text}");
+    }
 }
 
 /// The equality the frontends rest on, once (C46): a request through the

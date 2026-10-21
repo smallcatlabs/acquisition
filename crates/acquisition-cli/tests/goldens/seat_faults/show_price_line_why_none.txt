@@ -1,0 +1,14 @@
+# golden seat_faults/show_price_line_why_none: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq show i-std
+# holds "price   none (nothing applies) · why: acq price show "
+--- stdout
+Chaos Orb
+id      i-std
+place   pc · Standard / Gear · x 0, y 0 · fetched <age> ago
+base    Chaos Orb
+class   Stackable Currency
+category currency
+price   none (nothing applies) · why: acq price show --account u-seat --realm pc item/i-std
+unread  nothing
+basis   store <store> · build <build> · snapshot 5 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2

@@ -1,0 +1,18 @@
+# golden seat_faults/price_status_other_leagues: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq price status
+# holds "1 name nothing in the facts"
+# holds "2 for other leagues"
+--- stdout
+1 item in Standard: 0 the game decides, 0 decided by hand, 1 nothing applies
+sides: 0 priced in game, 0 by hand; 0 agree, 0 conflict
+rows: 0 of 3 apply here; 1 name nothing in the facts, 0 unreadable, 2 for other leagues, 0 for other realms
+next: `acq price list --account 'Alice#1234'` groups the listed items by tab; `acq price show --account 'Alice#1234' <target>` is one listing
+
+$ acq price status --league Allflame
+# holds "rows: 2 of 3 apply here"
+--- stdout
+1 item in Allflame: 0 the game decides, 1 decided by hand, 0 nothing applies
+sides: 0 priced in game, 1 by hand; 0 agree, 0 conflict
+rows: 2 of 3 apply here; 1 name nothing in the facts, 0 unreadable, 0 for other leagues, 0 for other realms
+next: `acq price list --account 'Alice#1234' --league Allflame` groups the listed items by tab; `acq price show --account 'Alice#1234' --league Allflame <target>` is one listing

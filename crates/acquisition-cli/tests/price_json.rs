@@ -18,7 +18,7 @@ use serde_json::{Value, json};
 
 mod harness;
 
-use harness::{offline_acq as acq, sole_json};
+use harness::{Transcript, golden, offline_acq as acq, sole_json};
 
 const USER: &str = "Alice#1234";
 const UUID: &str = "u-price";
@@ -210,16 +210,10 @@ fn price_json_documents_are_the_views_the_text_reads() {
         .map(|l| l.subject.target.to_string())
         .collect();
     assert_eq!(ids, ["item/i-noted", "item/i-plain"]);
-    let out = acq(
-        &base,
+    let mut t = Transcript::offline(&base);
+    t.run(
         &["price", "list", "--in", "tab/pc/f1", "--relation", "none"],
-    );
-    let text = String::from_utf8_lossy(&out.stdout);
-    assert!(
-        text.starts_with(
-            "4 items on record, none match for Standard with relation none in tab/pc/f1\n"
-        ),
-        "{text}"
+        &["none match for Standard with relation none in tab/pc/f1"],
     );
 
     // show: an item's view carries its container; a folder's carries the
@@ -249,50 +243,37 @@ fn price_json_documents_are_the_views_the_text_reads() {
     let view: ShowView = serde_json::from_value(sole_json(&out)).unwrap();
     assert!(view.items_here.is_empty());
     assert_eq!(view.items_covered_below.len(), 2);
-    let out = acq(&base, &["price", "show", "tab/pc/f1"]);
-    let text = String::from_utf8_lossy(&out.stdout);
-    assert!(
-        text.contains("items here: none on record\nitems covered through children: 2 items"),
-        "{text}"
+    t.run(
+        &["price", "show", "tab/pc/f1"],
+        &["items covered through children: 2 items"],
     );
 
     // A container not on record, or another realm's address, is a
     // refusal naming the facts — never an empty selection.
-    let out = acq(&base, &["price", "list", "--in", "tab/pc/nope"]);
-    assert!(!out.status.success());
-    assert!(
-        stderr(&out).contains("tab/pc/nope is not in the facts for Standard"),
-        "{}",
-        stderr(&out)
-    );
-    let out = acq(
-        &base,
-        &["price", "list", "--in", "tab/xbox/c1", "--realm", "pc"],
-    );
-    assert!(!out.status.success());
-    assert!(
-        stderr(&out).contains("tab/xbox/c1 is a xbox address; pc was given"),
-        "{}",
-        stderr(&out)
-    );
-    let out = acq(&base, &["price", "list", "--in", "tab/xbox/c1"]);
-    assert!(!out.status.success());
-    assert!(
-        stderr(&out).contains("not in the facts for xbox/Standard"),
-        "{}",
-        stderr(&out)
-    );
+    for (args, said) in [
+        (
+            &["price", "list", "--in", "tab/pc/nope"][..],
+            "tab/pc/nope is not in the facts for Standard",
+        ),
+        (
+            &["price", "list", "--in", "tab/xbox/c1", "--realm", "pc"][..],
+            "tab/xbox/c1 is a xbox address; pc was given",
+        ),
+        (
+            &["price", "list", "--in", "tab/xbox/c1"][..],
+            "not in the facts for xbox/Standard",
+        ),
+    ] {
+        let out = t.run(args, &[said]);
+        assert!(!out.status.success(), "{args:?}");
+    }
 
     // A league with no facts still shows the intent rows (C35).
-    let out = acq(&base, &["price", "status", "--league", "Hardcore"]);
-    let text = String::from_utf8_lossy(&out.stdout);
-    assert!(
-        text.starts_with(
-            "no items on record for Hardcore: 0 tabs and characters listed, none fetched with items\n\
-             rows: 0 of 3 apply here; 1 name nothing in the facts, 0 unreadable, 2 for other leagues, 0 for other realms\n"
-        ),
-        "{text}"
+    t.run(
+        &["price", "status", "--league", "Hardcore"],
+        &["no items on record for Hardcore", "2 for other leagues"],
     );
+    golden(file!(), "list_show_and_refusals", &t);
 }
 
 /// The write receipt (C78): `set --json` and `clear --json` print the
@@ -404,49 +385,39 @@ fn price_set_and_clear_print_the_receipt_and_show_reads_it_back() {
     assert_eq!(w.written.as_ref().map(|r| r.revision), Some(2));
 
     // A stale revision conflicts, naming the current one; nothing landed.
-    let out = acq(
-        &base,
+    let mut t = Transcript::offline(&base);
+    let out = t.run(
         &["price", "set", "item/i-map", "skip", "--if-revision", "1"],
+        &["item/i-map has a price at revision 2 (re-read and retry)"],
     );
     assert!(!out.status.success());
-    assert!(
-        stderr(&out).contains("item/i-map has a price at revision 2 (re-read and retry)"),
-        "{}",
-        stderr(&out)
-    );
     let (value, revision) =
         manual(&acq(&base, &["price", "show", "item/i-map", "--json"])).unwrap();
     assert_eq!((value.to_string(), revision), ("1/5 divine b/o".into(), 2));
 
     // A retired tag is refused for a new price, in words.
-    let out = acq(
-        &base,
+    let out = t.run(
         &["price", "set", "item/i-map", "exact", "1", "chisel"],
+        &["currency \"chisel\" is retired"],
     );
     assert!(!out.status.success());
-    assert!(
-        stderr(&out).contains("currency \"chisel\" is retired"),
-        "{}",
-        stderr(&out)
-    );
 
     // The text receipt of a clear ends with the command that puts it back.
-    let out = acq(&base, &["price", "clear", "item/i-map"]);
+    let out = t.run(
+        &["price", "clear", "item/i-map"],
+        &[
+            "item/i-map: cleared, was 1/5 divine b/o (revision 2)",
+            "puts it back",
+        ],
+    );
     assert!(out.status.success(), "{}", stderr(&out));
-    assert_eq!(
-        String::from_utf8_lossy(&out.stdout),
-        "item/i-map: cleared, was 1/5 divine b/o (revision 2)\n\
-         next: `acq price set --account 'Alice#1234' item/i-map negotiable 1/5 divine` puts it back \
-         (a create, which names no revision; the row's count continues past the clear)\n"
-    );
     assert!(manual(&acq(&base, &["price", "show", "item/i-map", "--json"])).is_none());
-    let out = acq(&base, &["price", "clear", "item/i-map"]);
-    assert!(!out.status.success());
-    assert!(
-        stderr(&out).contains("item/i-map's price was cleared (revision 3): nothing to clear"),
-        "{}",
-        stderr(&out)
+    let out = t.run(
+        &["price", "clear", "item/i-map"],
+        &["item/i-map's price was cleared (revision 3): nothing to clear"],
     );
+    assert!(!out.status.success());
+    golden(file!(), "a_write_walk_refused", &t);
     let out = acq(&base, &["price", "status", "--json"]);
     let report: ListingReport = serde_json::from_value(sole_json(&out)).unwrap();
     assert_eq!(
@@ -671,18 +642,19 @@ fn price_set_and_clear_refuse_a_row_this_build_cannot_read_unless_the_revision_i
     let report: ListingReport = serde_json::from_value(sole_json(&out)).unwrap();
     assert_eq!(report.rows.unreadable.len(), 1);
 
+    let mut t = Transcript::offline(&base);
     for blind in [
-        vec!["price", "set", "item/i-map", "skip"],
-        vec!["price", "clear", "item/i-map"],
+        &["price", "set", "item/i-map", "skip"][..],
+        &["price", "clear", "item/i-map"][..],
     ] {
-        let out = acq(&base, &blind);
-        assert!(!out.status.success(), "{blind:?} must refuse");
-        let err = stderr(&out);
-        assert!(
-            err.contains("item/i-map holds a value this build cannot read (revision 1: buyout declares version 2, newer than this build's v1)")
-                && err.contains("`--if-revision 1` replaces it deliberately"),
-            "{blind:?}: {err}"
+        let out = t.run(
+            blind,
+            &[
+                "item/i-map holds a value this build cannot read (revision 1: buyout declares version 2, newer than this build's v1)",
+                "`--if-revision 1` replaces it deliberately",
+            ],
         );
+        assert!(!out.status.success(), "{blind:?} must refuse");
     }
     let a = Annotations::open_for(&mock, UUID).unwrap();
     let row = a.get("item", "i-map", "buyout").unwrap().unwrap();
@@ -690,19 +662,15 @@ fn price_set_and_clear_refuse_a_row_this_build_cannot_read_unless_the_revision_i
     drop(a);
 
     // The reviewed path: the receipt shows the JSON and promises no undo.
-    let out = acq(
-        &base,
+    let out = t.run(
         &["price", "set", "item/i-map", "skip", "--if-revision", "1"],
+        &[
+            &format!("was an unreadable value {newer} (revision 1)"),
+            "the prior cannot be put back: this build cannot read it",
+        ],
     );
     assert!(out.status.success(), "{}", stderr(&out));
-    assert_eq!(
-        String::from_utf8_lossy(&out.stdout),
-        format!(
-            "item/i-map: skip (revision 2), was an unreadable value {newer} (revision 1)\n\
-             next: `acq price show --account 'Alice#1234' item/i-map` reads it beside the game side; \
-             the prior cannot be put back: this build cannot read it (its JSON is in --json)\n"
-        )
-    );
+    golden(file!(), "an_unreadable_row_refused_blind", &t);
     let out = acq(
         &base,
         &[

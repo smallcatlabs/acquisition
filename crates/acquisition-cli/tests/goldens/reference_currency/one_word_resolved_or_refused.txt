@@ -1,0 +1,17 @@
+# golden reference_currency/one_word_resolved_or_refused: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq reference currency exa
+# holds "exa is an alias of exalted: currency table v1"
+--- stdout
+exa is an alias of exalted: currency table v1
+  exalted                Exalted Orb                  also exa
+                           game:2026-09-04 note `~price 999 exalted`
+                           game:2026-09-04 dialog `Exalted Orb`
+                           cpp:src/currency.cpp@fb0bbbdf tag `exa`
+                           census:2026-09-03 rows 37 item (tag `exa`); notes 37, every one spelled `exalted`
+
+$ acq reference currency Chaos
+# holds "not a currency word"
+--- stderr
+Error: "Chaos" is not a currency word in currency table v1 (words are exact and case-sensitive; `acq reference currency` lists them)
+--- exit 1

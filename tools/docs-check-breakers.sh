@@ -18,9 +18,13 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
-# The review case writes, and every restore removes, this one file: a
-# file already there is someone's, so the suite refuses to start.
-if [[ -e roadmap/reviews/zz-breaker.md ]]; then echo "refusing to start: roadmap/reviews/zz-breaker.md exists, and the suite would delete it"; exit 2; fi
+# The review case and the golden case write, and every restore removes,
+# one file each: a file already there is someone's, so the suite refuses
+# to start.
+golden_breaker=crates/acquisition-cli/tests/goldens/seat_faults/zz_breaker.txt
+for f in roadmap/reviews/zz-breaker.md "$golden_breaker"; do
+  if [[ -e $f ]]; then echo "refusing to start: $f exists, and the suite would delete it"; exit 2; fi
+done
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/acq-docs-breakers.XXXXXX")
 files=(decisions/plans.md REVIEW-CHECKLIST.md .claude/skills/seat/SKILL.md roadmap/README.md search/README.md)
 for f in "${files[@]}"; do mkdir -p "$scratch/keep/$(dirname "$f")"; cp "$f" "$scratch/keep/$f"; done
@@ -30,7 +34,7 @@ restore() {
     cp "$scratch/keep/$f" "$f"
     cmp -s "$scratch/keep/$f" "$f" || { echo "RESTORE FAILED: $f"; exit 2; }
   done
-  rm -f roadmap/reviews/zz-breaker.md
+  rm -f roadmap/reviews/zz-breaker.md "$golden_breaker"
 }
 trap 'restore; rm -rf "$scratch"' EXIT
 
@@ -125,6 +129,11 @@ PY
 N=flaws
 run_case 'a skill names a test that does not exist'              refuse 'STALE   .claude/skills/seat/SKILL.md' skill 'tests/seat_faults.rs`' "tests/seat_$N.rs\`"
 run_case 'a skill names a tool that does not exist'              refuse 'STALE   .claude/skills/seat/SKILL.md' skill '`seat-mcp.py`' "\`seat-mcp-$N.py\`"
+
+echo '== a golden is named by its test file (C122)'
+orphan() { printf '# an orphan\n' >"$golden_breaker"; }
+run_case 'a golden no golden( call names'                        refuse "GOLDEN  $golden_breaker" orphan
+run_case 'every golden named'                                    pass   'goldens, each named by its test file' none
 
 echo
 printf '%d ok, %d failed\n' "$pass" "$failed"

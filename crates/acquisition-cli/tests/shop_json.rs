@@ -16,7 +16,7 @@ use serde_json::{Value, json};
 
 mod harness;
 
-use harness::{offline_acq as acq, sole_json};
+use harness::{Transcript, golden, offline_acq as acq, sole_json};
 
 const USER: &str = "Alice#1234";
 const UUID: &str = "u-shop";
@@ -216,17 +216,16 @@ fn shop_render_json_is_the_document_the_text_and_the_page_read() {
 
     // The text is a function of the document: the one line, the
     // coverage line, the page under its label, the next action.
-    let out = acq(&base, &["shop", "render"]);
+    let mut t = Transcript::offline(&base);
+    let out = t.run(
+        &["shop", "render"],
+        &[
+            "2 items to post on 1 page",
+            "coverage: 1 container on the page outside the sync policy (revision 1): character/ch1",
+        ],
+    );
     assert!(out.status.success(), "{}", stderr(&out));
     let text = String::from_utf8_lossy(&out.stdout);
-    assert!(
-        text.starts_with(
-            "6 items in Standard: 2 items to post on 1 page; 2 omitted (2 the game lists); 2 blocked (1 a ratio, 1 in a substash); 0 nothing applies\n\
-             coverage: 1 container on the page outside the sync policy (revision 1): character/ch1; add them with `acq policy set`\n"
-        ),
-        "{text}"
-    );
-    assert!(text.contains("blocked:\n"), "{text}");
     assert!(
         text.contains(&format!(
             "page 1 of 1: {} characters, 2 items\n{page_text}\n",
@@ -234,10 +233,7 @@ fn shop_render_json_is_the_document_the_text_and_the_page_read() {
         )),
         "{text}"
     );
-    assert!(
-        text.ends_with("`acq shop render --page N` prints one page alone\n"),
-        "{text}"
-    );
+    golden(file!(), "shop_render", &t);
 
     // --page N is the page's text and nothing else; --json the record.
     let out = acq(&base, &["shop", "render", "--page", "1"]);
