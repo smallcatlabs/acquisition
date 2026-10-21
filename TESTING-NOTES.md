@@ -84,7 +84,7 @@ four run over every harness journal; the rest are scenario pins:
 | Invariant | Source | Pins |
 | --- | --- | --- |
 | journal send methods == wire, in order, header as line 0 | R4 | the oracle itself |
-| per `(pid, route ≠ oauth-token)` the first send is `HEAD` | N16/N24 | probe before send |
+| per `(pid, route)` the first send is `HEAD`, except `oauth-token` and the two routes the daemon never probes, `profile` and `league` | N16/N24 | probe before send |
 | `counted == (method != HEAD)` | N24 | the product's accounting |
 | a send is held only if the previous landed response on its route was a 429, then for `[Retry-After, Retry-After + RETRY_BUCKET_PAD + BUFFER]`; otherwise `wait_ms == 0` | N19, N33 | safety floor and performance ceiling at once (scripted servers only; against a counting mock the limiter holds before a violation and the last row applies) |
 | after a 401 the account's next send is `POST oauth-token` (sequential, over the journal); no HEAD or GET carrying the rejected bearer reaches the server after a 401 was answered (concurrent, at the server) | N34, C87 | refresh on rejection |
