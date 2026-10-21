@@ -692,6 +692,14 @@ pub struct Status {
     /// character's latest fetch — PoE2's id-less gem entries, a property
     /// of their host, never rows.
     pub granted_skills: i64,
+    /// The greatest `item_events.id`, 0 for none: a watermark, so a
+    /// later read asks for the events committed after this status was
+    /// taken ([`Store::events_after`]). The id is a rowid that only
+    /// grows (nothing deletes from `item_events`), where `at` is whole
+    /// seconds and two ingests in one second share it. Not a count, so
+    /// not printed with the counts.
+    #[serde(skip)]
+    pub last_event: i64,
 }
 
 pub mod annotations;
@@ -1710,6 +1718,7 @@ impl Store {
                 "SELECT COALESCE(SUM(value), 0) FROM characters c, json_each(json_extract(c.json, '$._unlifted'))
                   WHERE c.removed_at IS NULL",
             )?,
+            last_event: count("SELECT COALESCE(MAX(id), 0) FROM item_events")?,
         })
     }
 
@@ -1889,6 +1898,30 @@ impl Store {
               WHERE e.at >= ?1 ORDER BY e.at DESC, e.id DESC LIMIT ?2",
         )?;
         let rows = stmt.query_map(params![since, limit as i64], |r| {
+            Ok(EventRow {
+                at: r.get(0)?,
+                item_id: r.get(1)?,
+                kind: r.get(2)?,
+                from_location: r.get(3)?,
+                to_location: r.get(4)?,
+                name: r.get(5)?,
+                type_line: r.get(6)?,
+            })
+        })?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
+    /// Item events committed after the event `id` (a [`Status::last_event`]
+    /// watermark), oldest first, at most `limit`: what landed since a
+    /// status was taken, the same second's earlier events excluded, which
+    /// a read by `at` cannot tell apart.
+    pub fn events_after(&self, id: i64, limit: usize) -> Result<Vec<EventRow>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT e.at, e.item_id, e.kind, e.from_location, e.to_location, i.name, i.type_line
+               FROM item_events e LEFT JOIN items i ON i.id = e.item_id
+              WHERE e.id > ?1 ORDER BY e.id LIMIT ?2",
+        )?;
+        let rows = stmt.query_map(params![id, limit as i64], |r| {
             Ok(EventRow {
                 at: r.get(0)?,
                 item_id: r.get(1)?,

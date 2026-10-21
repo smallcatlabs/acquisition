@@ -16,7 +16,7 @@ use acquisition_store::{
     AccountEntry, Annotations, Endpoint, Index, SYNC_POLICY_KIND, Store, account_path,
 };
 use acquisition_verbs::jobs::job_info;
-use acquisition_verbs::refresh::{NOTHING_TO_DO, compile, quote, spent_phrase};
+use acquisition_verbs::refresh::{NOTHING_TO_DO, StoreChanges, compile, quote, spent_phrase};
 use acquisition_verbs::{
     Account, Apply, DaemonReport, Door, Fault, Frontend, Job, JobResult, Jobs, Opened,
     PersistedSummary, QuoteNote,
@@ -438,6 +438,61 @@ async fn a_plan_the_facts_have_spent_is_spent_with_its_remaining_count() {
         "a frontend's command in the shared note: {note}"
     );
     assert!(client.is_none(), "a spent plan contacted a daemon");
+}
+
+/// Two applies landing in one second (C34, facts through the store):
+/// each apply's `changed:` counts the events committed after its own
+/// submit, never the same second's earlier ones. The fault this names:
+/// the count read events by whole seconds, so the second apply counted
+/// the first one's events again (9 of 20 journeys).
+#[test]
+fn two_applies_in_one_second_do_not_count_each_others_events() {
+    let s = scratch("watermark");
+    let mut opened = opened(&s.0);
+    let at = 5_000;
+    listing(
+        &mut opened.facts,
+        at,
+        json!([{ "id": "t1", "name": "One", "type": "PremiumStash", "index": 0 },
+               { "id": "t2", "name": "Two", "type": "PremiumStash", "index": 1 }]),
+    );
+    let fetch = |store: &mut Store, id: &str, n: usize| {
+        let items: Vec<Value> = (0..n)
+            .map(|i| {
+                json!({ "id": format!("{id}-i{i}"), "name": "", "typeLine": "Chaos Orb",
+                             "baseType": "Chaos Orb", "x": i, "y": 0, "w": 1, "h": 1 })
+            })
+            .collect();
+        store
+            .record(
+                &Endpoint::Stash {
+                    realm: "pc".into(),
+                    league: "Standard".into(),
+                    id: id.into(),
+                    sub: None,
+                },
+                &json!({}),
+                200,
+                &json!({ "stash": { "id": id, "name": id, "type": "PremiumStash", "index": 0, "items": items } }),
+                at,
+            )
+            .unwrap();
+    };
+    let first = opened.facts.status().unwrap();
+    fetch(&mut opened.facts, "t1", 2);
+    let second = opened.facts.status().unwrap();
+    fetch(&mut opened.facts, "t2", 3);
+
+    let changes = StoreChanges::since(&opened.facts, &second).unwrap();
+    assert_eq!(
+        (changes.added, changes.locations, changes.responses),
+        (3, 1, 1),
+        "the second apply counted only the second ingest: {changes:?}"
+    );
+    // The first apply still counts what landed while it ran, the second
+    // ingest included: the watermark excludes the past, never a neighbour.
+    let changes = StoreChanges::since(&opened.facts, &first).unwrap();
+    assert_eq!((changes.added, changes.locations), (5, 2), "{changes:?}");
 }
 
 /// C111 in words: the queued half names the jobs, never a command.

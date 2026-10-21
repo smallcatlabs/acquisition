@@ -82,8 +82,9 @@ pub enum Apply {
 }
 
 /// An apply job the daemon admitted, and what the process that submitted
-/// it needs to say what landed: the store's status and the clock at the
-/// submit, since what changed is a difference of two statuses.
+/// it needs to say what landed: the store's status at the submit, its
+/// event watermark included, since what changed is a difference of two
+/// statuses.
 #[derive(Debug, Serialize)]
 pub struct Submitted {
     pub job_id: u64,
@@ -93,8 +94,6 @@ pub struct Submitted {
     pub skipped: Skipped,
     #[serde(skip)]
     pub before: Status,
-    #[serde(skip)]
-    pub started: i64,
 }
 
 /// What an apply did once its job finished: the outcome, the store's
@@ -130,11 +129,13 @@ pub struct StoreChanges {
 
 impl StoreChanges {
     /// C34 (facts through the store): the difference between `before`
-    /// and the store now, and the item events since `started`.
-    pub fn since(store: &Store, before: &Status, started: i64) -> Result<StoreChanges, Fault> {
+    /// and the store now, and the item events committed after `before`
+    /// was taken: by its event watermark, never by the clock, whose whole
+    /// seconds let two applies in one second count each other's events.
+    pub fn since(store: &Store, before: &Status) -> Result<StoreChanges, Fault> {
         let after = store.status().map_err(Fault::Other)?;
         let events = store
-            .events_since(started, 1_000_000)
+            .events_after(before.last_event, 1_000_000)
             .map_err(Fault::Other)?;
         let mut out = StoreChanges {
             responses: after.responses - before.responses,
@@ -467,7 +468,6 @@ impl Opened {
             }
         };
         let before = self.facts.status().map_err(Fault::Other)?;
-        let started = acquisition_store::now();
         let job_id = submit(
             &frontend,
             connected,
@@ -484,7 +484,6 @@ impl Opened {
             spent,
             skipped,
             before,
-            started,
         }))
     }
 
@@ -500,7 +499,7 @@ impl Opened {
     ) -> Result<Landed, Fault> {
         let outcome = wait(client, submitted.job_id, progress).await?;
         let failed_children = failed_children_live(client, &outcome).await;
-        let store_changes = StoreChanges::since(&self.facts, &submitted.before, submitted.started)?;
+        let store_changes = StoreChanges::since(&self.facts, &submitted.before)?;
         Ok(Landed {
             outcome,
             job_id: submitted.job_id,
