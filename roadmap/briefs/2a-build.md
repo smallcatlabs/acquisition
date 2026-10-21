@@ -131,8 +131,9 @@ Fixed before the work starts:
    raised to what the file then measures plus a hundred bytes, the
    owner's permission quoted in the message. `python3 -I tools/bothy.py
    check` and `tools/docs-check.sh` green. Between this commit and the
-   last, the registry names tests that still assert the old words;
-   "Current step" in `roadmap/README.md` says the build is under way.
+   last, the registry names tests that still assert the old words, and
+   the Fable session's "Current step" in `roadmap/README.md` says the
+   build is under way (the worker does not edit that file).
 2. **The protocol** (commit 2): `Children` in `job.rs`,
    `Outcome::Failure { error, children: Option<Children> }` with the
    field defaulting and skipped when absent, and `Outcome::failure(message)`
