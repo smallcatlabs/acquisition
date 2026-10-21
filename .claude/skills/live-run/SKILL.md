@@ -45,7 +45,7 @@ survives it is the standing rule and the rails below.
 - **A failed probe leaves only headers.** A HEAD has no body, so a
   probe's non-2xx is classified from its response headers, which the
   journal, the daemon log and the trip cause all carry. Routes known
-  not to accept HEAD skip the probe (`route_probes` in `daemon.rs`) and
+  not to accept HEAD skip the probe (`route_probes` in `daemon/routes.rs`) and
   are taught by their first GET (C32).
 - **A soak derives its ceiling from cadence times intended duration**
   (200 sends at one per 10 min is 33 h), and from the run's own

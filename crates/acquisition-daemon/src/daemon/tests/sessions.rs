@@ -3,6 +3,7 @@
 //!
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
+use crate::daemon::refresh::{REFRESH_OWNER_ABANDONED, SESSION_CHANGED_DURING_REFRESH};
 use crate::daemon::*;
 
 /// C51: a bare name two live sessions share is refused, never guessed

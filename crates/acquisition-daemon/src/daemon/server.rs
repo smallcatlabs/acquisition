@@ -1,0 +1,543 @@
+//! The connection and the lifecycle: a connection's frames, each request,
+//! the status documents, the rails reset, the idle verdict and watchdog,
+//! and the exit.
+//!
+//! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
+
+use super::*;
+
+impl Daemon {
+    fn session_statuses(&self, s: &Shared) -> Vec<SessionStatus> {
+        let wall = self.choke.wall();
+        let mut v: Vec<SessionStatus> = s
+            .auth
+            .by_account
+            .values()
+            .map(|session| SessionStatus {
+                username: session.username.clone().unwrap_or_default(),
+                access_expires_in_seconds: session
+                    .access_expires_at
+                    .map(|t| t.duration_since(wall).unwrap_or_default().as_secs()),
+                keyring: session.keyring.clone(),
+            })
+            .collect();
+        v.sort_by(|a, b| a.username.cmp(&b.username));
+        v
+    }
+
+    /// The account reported as "the" username: the most recent login while
+    /// it is live, else the sole session. Informational only.
+    fn headline_session<'a>(&self, s: &'a Shared) -> Option<&'a AuthSession> {
+        s.auth
+            .last_login
+            .as_ref()
+            .and_then(|u| s.auth.find(u))
+            .or_else(|| s.auth.get(None).ok())
+    }
+
+    pub(super) fn keyring_summary(&self, s: &Shared) -> String {
+        self.headline_session(s)
+            .map(|session| session.keyring.clone())
+            .unwrap_or_else(|| s.auth.keyring.clone())
+    }
+
+    pub(super) fn auth_status(&self) -> Response {
+        let s = self.shared.lock().unwrap();
+        let head = self.headline_session(&s);
+        Response::Auth {
+            logged_in: !s.auth.by_account.is_empty(),
+            pending: s.auth.pending.is_some(),
+            login_ok: s
+                .auth
+                .flow_result
+                .as_ref()
+                .and_then(|r| r.as_ref().ok().cloned()),
+            login_error: s
+                .auth
+                .flow_result
+                .as_ref()
+                .and_then(|r| r.as_ref().err().cloned()),
+            username: head.and_then(|h| h.username.clone()),
+            access_expires_in_seconds: head.and_then(|h| h.access_expires_at).map(|t| {
+                t.duration_since(self.choke.wall())
+                    .unwrap_or_default()
+                    .as_secs()
+            }),
+            keyring: self.keyring_summary(&s),
+            provider: self.provider.name.to_string(),
+            accounts: self.session_statuses(&s),
+        }
+    }
+
+    // ---- connection handling -------------------------------------------
+
+    /// One connection, frame by frame (C85). Every frame is read under
+    /// the bound, then tried on the bootstrap plane first — `hello` and
+    /// `daemon_stop` are answered on any connection in any state, so a
+    /// client of another revision can identify this daemon and a human
+    /// can stop it — and only then parsed as a versioned request. A frame
+    /// that is oversize, not JSON, or not a request of this version is
+    /// answered `bad_request` and the connection stays; so is a
+    /// versioned request on a connection that has subscribed. Frames are
+    /// answered in order, one at a time; a subscribed connection also
+    /// carries `event` frames, and `resync_required` when the event
+    /// channel overran it.
+    pub(super) async fn handle_conn(self: Arc<Self>, stream: Stream) {
+        {
+            let now = self.choke.now();
+            let mut s = self.shared.lock().unwrap();
+            s.connections += 1;
+            s.last_activity = now;
+        }
+
+        let (read, mut write) = tokio::io::split(stream);
+        let mut reader = BufReader::new(read);
+        let mut events: Option<broadcast::Receiver<JobInfo>> = None;
+        // Every connection begins with the hello exchange (C85): a
+        // versioned request before it is refused, so a peer that never
+        // identified itself performs nothing (review round 1).
+        let mut greeted = false;
+
+        loop {
+            tokio::select! {
+                frame = read_frame(&mut reader, MAX_FRAME_BYTES) => {
+                    let frame = match frame {
+                        Ok(Frame::Closed) | Err(_) => break,
+                        Ok(frame) => frame,
+                    };
+                    let bytes = match frame {
+                        Frame::Oversize => {
+                            let response = Refusal::new(
+                                ErrorKind::BadRequest,
+                                format!("frame exceeds {MAX_FRAME_BYTES} bytes; discarded through its newline"),
+                            );
+                            if write_line(&mut write, &Response::from(response)).await.is_err() {
+                                break;
+                            }
+                            continue;
+                        }
+                        Frame::Line(bytes) => bytes,
+                        Frame::Closed => unreachable!("handled above"),
+                    };
+                    if bytes.iter().all(u8::is_ascii_whitespace) {
+                        continue;
+                    }
+                    match Bootstrap::read(&bytes) {
+                        Some(Bootstrap::Hello {
+                            version,
+                            contract,
+                            world,
+                        }) => {
+                            // The daemon names itself in every dimension
+                            // (C84, C83) and decides nothing: the client
+                            // judges staleness and replaces, refuses or
+                            // reports (C10). What the client said about
+                            // itself is logged when it differs, so a
+                            // mismatch is visible from this side too.
+                            if contract != acquisition_protocol::CONTRACT_REVISION {
+                                self.log(&format!(
+                                    "contract mismatch: client {contract} (version {version}), daemon {} (version {})",
+                                    acquisition_protocol::CONTRACT_REVISION,
+                                    acquisition_protocol::VERSION
+                                ));
+                            }
+                            let own_world = self
+                                .world
+                                .clone()
+                                .unwrap_or_else(|| acquisition_protocol::protocol::UNKNOWN.to_string());
+                            if world != own_world {
+                                self.log(&format!(
+                                    "world mismatch: client on {world}, daemon on {own_world} — the client refuses this daemon"
+                                ));
+                            }
+                            let hello = BootstrapReply::Hello {
+                                version: acquisition_protocol::VERSION.to_string(),
+                                contract: acquisition_protocol::CONTRACT_REVISION.to_string(),
+                                artifact: self.artifact.clone(),
+                                pid: std::process::id(),
+                                provider: self.provider.name.to_string(),
+                                world: own_world,
+                            };
+                            if write_line(&mut write, &hello).await.is_err() {
+                                break;
+                            }
+                            greeted = true;
+                            continue;
+                        }
+                        Some(Bootstrap::DaemonStop) => {
+                            let _ = write_line(&mut write, &BootstrapReply::Stopping).await;
+                            self.exit_process("stop requested; exiting");
+                        }
+                        None => {}
+                    }
+                    let response = if !greeted {
+                        Refusal::new(
+                            ErrorKind::BadRequest,
+                            "the connection has not opened with hello; every connection begins with the hello exchange",
+                        )
+                        .into()
+                    } else if events.is_some() {
+                        Refusal::new(
+                            ErrorKind::BadRequest,
+                            "this connection is a subscription: after `subscribed` it carries events only; requests go on a connection of their own",
+                        )
+                        .into()
+                    } else {
+                        match serde_json::from_slice::<Request>(&bytes) {
+                            Ok(req) => self.handle_request(req, &mut events).await,
+                            Err(e) => Refusal::new(ErrorKind::BadRequest, format!("bad request: {e}")).into(),
+                        }
+                    };
+                    if write_line(&mut write, &response).await.is_err() {
+                        break;
+                    }
+                }
+                signal = recv_event(&mut events) => {
+                    let response = match signal {
+                        Signal::Event(job) => Response::Event { job },
+                        Signal::Lagged(missed) => Response::ResyncRequired { missed },
+                    };
+                    if write_line(&mut write, &response).await.is_err() {
+                        break;
+                    }
+                }
+            }
+        }
+
+        let now = self.choke.now();
+        let mut s = self.shared.lock().unwrap();
+        s.connections -= 1;
+        s.last_activity = now;
+    }
+
+    pub(super) async fn handle_request(
+        self: &Arc<Self>,
+        req: Request,
+        events: &mut Option<broadcast::Receiver<JobInfo>>,
+    ) -> Response {
+        match req {
+            Request::Submit {
+                kind,
+                params,
+                priority,
+                submitted_by,
+                account,
+            } => match self
+                .resolve_account(&kind, account.as_deref())
+                .and_then(|account| self.submit(kind, params, priority, submitted_by, account))
+            {
+                Ok(id) => Response::Submitted { id },
+                Err(refusal) => {
+                    self.note_error(&format!("submit refused: {refusal}"));
+                    refusal.into()
+                }
+            },
+            Request::Status { id } => match self.shared.lock().unwrap().snapshot(self, id) {
+                Some(job) => Response::Status { job },
+                None => Refusal::no_job(id).into(),
+            },
+            Request::Result { id } => {
+                let held = {
+                    let s = self.shared.lock().unwrap();
+                    s.jobs.get(&id).map(|e| (e.info.state, e.outcome.clone()))
+                };
+                match held {
+                    Some((_, Some(outcome))) => Response::Result { id, outcome },
+                    Some((state, None)) => {
+                        Refusal::new(ErrorKind::WrongState, format!("job {id} is still {state}"))
+                            .into()
+                    }
+                    // Not this lifetime's: a previous daemon's result, if
+                    // retention still has it.
+                    None => match self.stored_outcome(id) {
+                        Ok(Some(outcome)) => Response::Result { id, outcome },
+                        Ok(None) => Refusal::no_job(id).into(),
+                        Err(refusal) => {
+                            self.note_error(&format!("result {id}: {refusal}"));
+                            refusal.into()
+                        }
+                    },
+                }
+            }
+            Request::Cancel { id } => match self.cancel(id) {
+                Ok(()) => Response::Ack,
+                Err(refusal) => refusal.into(),
+            },
+            Request::SetPriority { id, priority } => match self.set_priority(id, priority) {
+                Ok(()) => {
+                    self.work.notify_one();
+                    Response::Ack
+                }
+                Err(refusal) => refusal.into(),
+            },
+            Request::List => Response::Jobs {
+                jobs: self.shared.lock().unwrap().list(self),
+            },
+            Request::Subscribe => {
+                *events = Some(self.events.subscribe());
+                Response::Subscribed
+            }
+            Request::AuthStart => match self.auth_start().await {
+                Ok(authorize_url) => Response::AuthUrl { authorize_url },
+                Err(refusal) => refusal.into(),
+            },
+            Request::AuthStatus => self.auth_status(),
+            Request::AuthCheck { account } => match self.canonical_account(account.as_deref()) {
+                Err(refusal) => refusal.into(),
+                Ok(account) => match self.valid_access_token(account.as_deref(), true).await {
+                    Ok(_) => self.auth_status(),
+                    Err(refusal) => {
+                        self.note_error(&format!("auth check failed: {refusal}"));
+                        refusal.into()
+                    }
+                },
+            },
+            Request::AuthLogout { account } => {
+                // A live session (named, or the sole one) logs out; a known
+                // but not live account only loses its keyring entry.
+                let live = {
+                    let s = self.shared.lock().unwrap();
+                    match &account {
+                        None => s
+                            .auth
+                            .get(None)
+                            .map(|x| x.username.clone().unwrap_or_default()),
+                        Some(req) => s.auth.matching(req).and_then(|found| {
+                            found
+                                .map(|x| x.username.clone().unwrap_or_default())
+                                .ok_or_else(|| no_session(req))
+                        }),
+                    }
+                };
+                match (live, &account) {
+                    (Ok(username), _) => {
+                        if let Err(e) = self.logout(Some(&username)) {
+                            self.log(&format!("keyring clear failed: {e}"));
+                        }
+                        Response::Ack
+                    }
+                    (Err(_), Some(req)) => match self.forget_account(req) {
+                        Ok(()) => Response::Ack,
+                        Err(refusal) => refusal.into(),
+                    },
+                    (Err(refusal), None) => refusal.into(),
+                }
+            }
+            Request::Quote { jobs, account } => match self.quote(&jobs, account.as_deref()) {
+                Ok(quote) => Response::Quote { quote },
+                Err(refusal) => refusal.into(),
+            },
+            Request::DaemonStatus => {
+                let s = self.shared.lock().unwrap();
+                let (in_flight, max_in_flight) = self.choke.actual_send_occupancy();
+                let (waiting, running) =
+                    s.jobs
+                        .values()
+                        .fold((0, 0), |(w, r), e| match e.info.state {
+                            JobState::Waiting => (w + 1, r),
+                            JobState::Running => (w, r + 1),
+                            _ => (w, r),
+                        });
+                Response::DaemonStatus {
+                    pid: std::process::id(),
+                    version: acquisition_protocol::VERSION.to_string(),
+                    contract: acquisition_protocol::CONTRACT_REVISION.to_string(),
+                    provider: self.provider.name.to_string(),
+                    uptime_seconds: self.uptime_seconds(),
+                    idle_shutdown_seconds: idle_shutdown_from_env().as_secs(),
+                    connections: s.connections,
+                    jobs_waiting: waiting,
+                    jobs_running: running,
+                    policies_known: self.choke.policy_statuses().len(),
+                    in_flight,
+                    max_in_flight,
+                    rails: self.rails().status(),
+                    keyring: self.keyring_summary(&s),
+                    log: self.log_path.clone(),
+                }
+            }
+            Request::ResetTripwire => {
+                self.reset_rails();
+                Response::Ack
+            }
+            Request::Dashboard => {
+                let now = self.choke.now();
+                let s = self.shared.lock().unwrap();
+                let (in_flight, max_in_flight) = self.choke.actual_send_occupancy();
+                Response::Dashboard {
+                    pid: std::process::id(),
+                    version: acquisition_protocol::VERSION.to_string(),
+                    contract: acquisition_protocol::CONTRACT_REVISION.to_string(),
+                    provider: self.provider.name.to_string(),
+                    uptime_seconds: self.uptime_seconds(),
+                    connections: s.connections,
+                    logged_in: !s.auth.by_account.is_empty(),
+                    username: self.headline_session(&s).and_then(|h| h.username.clone()),
+                    access_expires_in_seconds: self
+                        .headline_session(&s)
+                        .and_then(|h| h.access_expires_at)
+                        .map(|t| {
+                            t.duration_since(self.choke.wall())
+                                .unwrap_or_default()
+                                .as_secs()
+                        }),
+                    keyring: self.keyring_summary(&s),
+                    in_flight,
+                    max_in_flight,
+                    policies: self.choke.policy_statuses(),
+                    policyless_endpoints: self.choke.policyless_endpoints(),
+                    degraded_endpoints: self.choke.degraded_endpoints(),
+                    jobs: s.list(self),
+                    sends: self.choke.recent_sends(),
+                    rails: self.rails().status(),
+                    errors: s
+                        .errors
+                        .iter()
+                        .rev()
+                        .map(|(at, message)| ErrorRecord {
+                            seconds_ago: now.saturating_duration_since(*at).as_secs_f64(),
+                            message: message.clone(),
+                        })
+                        .collect(),
+                }
+            }
+        }
+    }
+
+    /// Clear the rails halt and wake the jobs that were waiting on it.
+    pub(super) fn reset_rails(&self) {
+        self.rails().reset_tripwire();
+        self.log("live-test rails reset by request");
+        self.work.notify_one();
+    }
+
+    /// The one way out. The daemon leaves by `process::exit`, so nothing
+    /// is dropped: the store's and the queue's write-ahead logs are
+    /// checkpointed here first (`Store::checkpoint`: an exit without it
+    /// left every fact since the last automatic checkpoint in a `-wal`
+    /// beside the file — the price-notes run, 2026-09-04; plan step 7,
+    /// item 4), then the socket is removed, then the process exits. A
+    /// checkpoint a reader keeps from finishing is logged, never waited
+    /// on. Pinned by `tests/daemon_stop_checkpoint.rs` (acquisition-cli).
+    fn exit_process(&self, why: &str) -> ! {
+        self.log(why);
+        {
+            let guard = self.store.lock().unwrap();
+            if let Some((account, store)) = guard.as_ref() {
+                match store.checkpoint() {
+                    Ok(c) => self.log(&format!(
+                        "store: {account}'s facts checkpointed on exit ({} of {} WAL pages{})",
+                        c.checkpointed,
+                        c.wal_pages,
+                        if c.busy {
+                            "; a reader kept it from finishing"
+                        } else {
+                            ""
+                        }
+                    )),
+                    Err(e) => self.note_error(&format!(
+                        "store: checkpoint of {account}'s facts on exit failed: {e:#}"
+                    )),
+                }
+            }
+        }
+        match self.jobs_db.lock().unwrap().checkpoint() {
+            Ok(c) => self.log(&format!(
+                "jobs: queue checkpointed on exit ({} of {} WAL pages{})",
+                c.checkpointed,
+                c.wal_pages,
+                if c.busy {
+                    "; a reader kept it from finishing"
+                } else {
+                    ""
+                }
+            )),
+            Err(e) => self.note_error(&format!("jobs: queue checkpoint on exit failed: {e:#}")),
+        }
+        if let Some(socket) = &self.socket_path {
+            socket.remove_if_still_ours();
+        }
+        std::process::exit(0);
+    }
+
+    /// The idle verdict (C3; the halted arm is C25): no connection, no
+    /// live job, the last activity at least `idle_shutdown` ago, and no
+    /// limiter history worth keeping — a pending wait or counted hits
+    /// inside a policy window, which a daemon respawned a minute later
+    /// would otherwise have to assume the worst about. Every clause reads
+    /// the daemon's clock, so a test advances a manual clock past the
+    /// knob instead of waiting. Pinned: `tests/idle.rs`'s `idle_verdict_*`.
+    pub(super) fn is_idle(&self, idle_shutdown: Duration) -> bool {
+        let now = self.choke.now();
+        let idle = {
+            let s = self.shared.lock().unwrap();
+            let parked = self.rails().halted().is_some() || self.queue_failed().is_some();
+            let live_jobs = Self::has_live_jobs(&s, parked);
+            s.connections == 0
+                && !live_jobs
+                && now.saturating_duration_since(s.last_activity) >= idle_shutdown
+        };
+        idle && !self.choke.is_live()
+    }
+
+    /// Polls the verdict on tokio time, deliberately not on the daemon's
+    /// `Clock`: the test `ManualClock` advances on every `sleep`, so a
+    /// poller on it would drive the clock forward `IDLE_POLL` per yield.
+    /// The verdict is the tested part; this loop is never spawned under a
+    /// manual clock (the harness constructors spawn nothing).
+    pub(super) async fn idle_watchdog(self: Arc<Self>) {
+        let idle_shutdown = idle_shutdown_from_env();
+        loop {
+            tokio::time::sleep(IDLE_POLL).await;
+            if self.is_idle(idle_shutdown) {
+                self.exit_process("idle timeout; exiting");
+            }
+        }
+    }
+}
+
+impl Daemon {
+    /// Whether any job keeps the daemon up. A halted daemon's waiting jobs
+    /// do not: they are on disk, and its successor holds them until the
+    /// reset (C25). A parent holding its result runs no task of its own.
+    pub(super) fn has_live_jobs(s: &Shared, halted: bool) -> bool {
+        s.jobs.values().any(|e| match e.info.state {
+            JobState::Running => e.deferred.is_none() || !halted,
+            JobState::Waiting => !halted,
+            _ => false,
+        })
+    }
+}
+
+/// What a subscribed connection is told next: an event, or that it
+/// missed some (C85).
+enum Signal {
+    Event(JobInfo),
+    /// The broadcast channel overran this receiver; `missed` events are
+    /// gone. The subscriber snapshots again.
+    Lagged(u64),
+}
+
+async fn recv_event(rx: &mut Option<broadcast::Receiver<JobInfo>>) -> Signal {
+    match rx {
+        Some(rx) => match rx.recv().await {
+            Ok(info) => Signal::Event(info),
+            // A loss the client cannot observe cannot be recovered from,
+            // so it is reported, never skipped (C85); the receiver has
+            // already advanced past the gap. Closed can't happen while
+            // the daemon holds the sender.
+            Err(broadcast::error::RecvError::Lagged(missed)) => Signal::Lagged(missed),
+            Err(broadcast::error::RecvError::Closed) => std::future::pending().await,
+        },
+        None => std::future::pending().await,
+    }
+}
+
+async fn write_line<T: serde::Serialize>(
+    write: &mut WriteHalf<Stream>,
+    response: &T,
+) -> std::io::Result<()> {
+    let mut line = serde_json::to_string(response).expect("response serializes");
+    line.push('\n');
+    write.write_all(line.as_bytes()).await
+}

@@ -40,7 +40,7 @@ import tempfile
 from datetime import datetime
 
 # Routes taught by their first GET rather than a probe (declared route
-# knowledge in daemon.rs), plus the token endpoint, which has no probe.
+# knowledge in daemon/routes.rs), plus the token endpoint, which has no probe.
 NO_PROBE = {"oauth-token", "profile", "league"}
 
 

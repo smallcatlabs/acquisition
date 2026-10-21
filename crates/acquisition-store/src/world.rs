@@ -108,7 +108,7 @@
 //!   `<base>/<id>/<provider>/sends.jsonl`. They are append-only and
 //!   never durable state; the daemon bounds them (rotated once at its
 //!   start past a cap — the mechanism and the size are the daemon's,
-//!   `daemon.rs`). `ACQ_JOURNAL` still overrides the journal — a live run
+//!   `daemon/start.rs`). `ACQ_JOURNAL` still overrides the journal — a live run
 //!   points it into its evidence directory, where the ledger cites it —
 //!   and `0` disables it (`rails.rs`).
 //! - **The socket.** [`World::socket_path`] is `<runtime>/<id>.sock` —

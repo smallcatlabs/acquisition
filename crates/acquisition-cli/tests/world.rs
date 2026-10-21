@@ -583,7 +583,7 @@ fn c83_diagnostics_live_under_the_log_directory_and_are_bounded() {
     std::fs::create_dir_all(log.parent().unwrap()).unwrap();
     // A log the last lifetime left over the cap — a gibibyte, sparse, so
     // the test stages no bytes and pins no number: the length is what
-    // rotation reads (the cap is the daemon's, `daemon.rs`).
+    // rotation reads (the cap is the daemon's, `daemon/start.rs`).
     let over = 1u64 << 30;
     std::fs::File::create(&log).unwrap().set_len(over).unwrap();
 

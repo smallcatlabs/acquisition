@@ -75,7 +75,7 @@ def verify(journal, offset, out=print):
             else:
                 out(f"  {m} {r} -> {st}  wait_ms {s.get('wait_ms')}{flag}")
         for r, m in first.items():
-            # Declared no-probe routes (daemon.rs NO_PROBE_ROUTES; N38/N39, the
+            # Declared no-probe routes (daemon/routes.rs NO_PROBE_ROUTES; N38/N39, the
             # token endpoint): the login's own GET /profile has no HEAD before it.
             if r.split("@", 1)[0] not in NO_PROBE and m != "HEAD":
                 fail.append(f"lifetime {i}: first send on {r} was {m}, not the probe")

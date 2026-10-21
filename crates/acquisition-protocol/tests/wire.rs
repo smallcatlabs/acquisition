@@ -222,7 +222,7 @@ fn quote() -> Quote {
             eta_seconds: Some(0),
             notes: vec![],
         }],
-        // The daemon's own sentence (`daemon.rs`, the quote's `not_covered`),
+        // The daemon's own sentence (`daemon/quote.rs`, the quote's `not_covered`),
         // built from the promise so the sample cannot contradict it (review
         // finding 2026-09-10: the fixture said 3 beside a constant of 2).
         not_covered: vec![format!(

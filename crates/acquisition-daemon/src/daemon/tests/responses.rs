@@ -2,6 +2,8 @@
 //!
 //! Rulings: `decisions/network.md`; the cross-cutting ones are `AGENTS.md`'s.
 
+use crate::daemon::dispatch::may_requeue_429;
+use crate::daemon::kinds::classify_api_body;
 use crate::daemon::*;
 
 fn rate() -> Value {

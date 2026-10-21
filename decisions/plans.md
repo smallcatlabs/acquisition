@@ -1,6 +1,6 @@
 # Decisions — Intent, plans, apply
 
-Part of the decision registry (`AGENTS.md`, "Cross-cutting rulings"): the rulings that bind the sync policy, the planner, plan envelopes, quote, apply and its gates (`acquisition-plan`, `acquisition-store/src/annotations.rs`, the `apply` kind in `daemon.rs`). Read this before touching that code; the cross-cutting decisions and the invariants are in `AGENTS.md` and are always loaded. Same rules as there: one entry per ruling, in the form `tools/bothy.py`'s docstring states; the mechanism lives in the code's doc comments under the id.
+Part of the decision registry (`AGENTS.md`, "Cross-cutting rulings"): the rulings that bind the sync policy, the planner, plan envelopes, quote, apply and its gates (`acquisition-plan`, `acquisition-store/src/annotations.rs`, the `apply` kind in `kinds.rs`). Read this before touching that code; the cross-cutting decisions and the invariants are in `AGENTS.md` and are always loaded. Same rules as there: one entry per ruling, in the form `tools/bothy.py`'s docstring states; the mechanism lives in the code's doc comments under the id.
 
 ## Intent, plans, apply
 
