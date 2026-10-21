@@ -3657,6 +3657,55 @@ mod tests {
         );
     }
 
+    /// C111 — a job is read by the request it names, not by how its params
+    /// are spelt: `acq stash <tab>` queues `"sub": null` where a plan's
+    /// action names no sub, and that open job spends the action (the
+    /// seat: an apply behind a waiting stash fetch queued it again).
+    #[test]
+    fn an_open_job_spelling_no_sub_as_null_spends_the_action_naming_none() {
+        use acquisition_protocol::job::JobState;
+        let mut s = store();
+        list(
+            &mut s,
+            json!([
+                { "id": "t1", "name": "One", "type": "PremiumStash", "index": 0 },
+                { "id": "t2", "name": "Two", "type": "PremiumStash", "index": 1 },
+            ]),
+            1000,
+        );
+        let policy = all_policy_value(3600);
+        let plan = plan(&s, &policy, 1400);
+        assert_eq!(plan.actions.len(), 2, "{:?}", plan.actions);
+        let (kind, mut params) = plan.actions[0].job();
+        assert!(params.get("sub").is_none(), "{params}");
+        params["sub"] = Value::Null;
+        let live = [JobInfo {
+            id: 30,
+            kind: kind.into(),
+            state: JobState::Waiting,
+            priority: 0,
+            submitted_by: "cli".into(),
+            eta_seconds: None,
+            parent: None,
+            retries: 0,
+            account: Some("tom".into()),
+            params,
+        }];
+        let facts = snapshot_with(&s, &policy);
+        let (unspent, spent) = plan.unspent(&facts, &live, "tom");
+        assert_eq!(unspent, plan.actions[1..].to_vec());
+        assert_eq!(
+            spent,
+            vec![Spent {
+                action: plan.actions[0].clone(),
+                by: SpentBy::Queued {
+                    job_id: 30,
+                    parent: None
+                },
+            }]
+        );
+    }
+
     /// Realm rides through: a plan for Standard on xbox lists and fetches
     /// under xbox and its tuples say so explicitly; the pc snapshot of
     /// the same league is not covered by an xbox-only policy.

@@ -1291,3 +1291,80 @@ fn c105_ten_rare_items_by_class_sum_to_the_total() {
     assert_eq!(sum, 10);
     assert_eq!(a["total"]["matched"], 10);
 }
+
+/// A key is one entry of `keys` (the MCP seat, step 11c: `describe`'s
+/// `line:resist,life`, a terminal's list, sent as one entry answered a
+/// table of nothing): two entries are two tables, and a comma inside one
+/// is part of its text, a pattern no line matches.
+#[test]
+fn a_key_is_one_entry_and_a_comma_inside_it_is_its_text() {
+    let s = stash();
+    let two = counted(&s, "", &["line:resist", "line:life"]);
+    let tables = two["view"]["counts"]["tables"].as_array().unwrap();
+    assert_eq!(tables.len(), 2, "{tables:?}");
+    assert!(
+        tables.iter().all(|t| t["values"].as_u64().unwrap() > 0),
+        "{tables:?}"
+    );
+    let one = counted(&s, "", &["line:resist,life"]);
+    let tables = one["view"]["counts"]["tables"].as_array().unwrap();
+    assert_eq!(tables.len(), 1, "{tables:?}");
+    assert_eq!(tables[0]["key"], "line:resist,life");
+    assert_eq!(tables[0]["values"], 0);
+}
+
+/// C115: a crossed table past its limit counts the cells it left out and
+/// names the request's field that lists them, never a terminal's flag;
+/// within its limit it names nothing.
+#[test]
+fn a_crossed_table_past_its_limit_names_the_field_that_lists_the_rest() {
+    let s = stash();
+    let cross = |limit: u64| {
+        view(
+            &s,
+            "pc",
+            "",
+            json!({ "cross": { "keys": ["tab", "rarity"], "limit": limit } }),
+        )
+        .unwrap()["view"]["cross"]
+            .clone()
+    };
+    let cut = cross(1);
+    let all = cut["cells_in_all"].as_u64().unwrap();
+    assert!(all > 1, "{cut}");
+    assert_eq!(cut["left_out"], all - 1, "{cut}");
+    assert_eq!(cut["left_out_needs"], "view.cross.limit");
+    let whole = cross(all);
+    assert_eq!(whole["left_out"], 0, "{whole}");
+    assert!(whole.get("left_out_needs").is_none(), "{whole}");
+}
+
+/// A count by `kind` was refused with readings none of which fit, and
+/// nothing said where the keys are (the trade seat: mcp-sonnet-2 call 5,
+/// its fault 7). An unknown key's refusal names the entry of `describe`
+/// that lists them all, and that entry holds every key a count takes.
+#[test]
+fn a_refused_count_key_says_where_every_key_is_listed() {
+    let s = stash();
+    let e = view(
+        &s,
+        "pc",
+        "",
+        json!({ "counts": { "keys": ["league", "kind"] } }),
+    )
+    .unwrap_err();
+    assert_eq!(e["kind"], "unknown_name", "{e}");
+    assert!(
+        e["error"]
+            .as_str()
+            .unwrap()
+            .contains("--describe counts lists all"),
+        "{e}"
+    );
+    assert!(!e["readings"].as_array().unwrap().is_empty(), "{e}");
+    let listed = serde_json::to_value(describe(&["counts".to_string()]).unwrap()).unwrap();
+    let keys = listed["counts"][0]["values"].as_array().unwrap();
+    for key in ["class", "category", "frame", "tab.type"] {
+        assert!(keys.iter().any(|k| k == key), "{key}: {listed}");
+    }
+}

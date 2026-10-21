@@ -583,6 +583,110 @@ fn the_absent_documents_say_running_false_beside_what_the_ledger_holds() {
     );
 }
 
+/// C84 and C10: a running daemon's report is one flat document, its
+/// vitals and the identity keys of its handshake side by side under
+/// `running` and `compatible`; another daemon's is its identity alone,
+/// `compatible: false`, each dimension named (the frontends print it and
+/// pin what they add: never replaced, the sibling under `wanted`).
+#[test]
+fn a_daemons_report_is_flat_whether_it_is_this_clients_or_another() {
+    use acquisition_client::client::{DaemonId, Endpoint, Reported};
+    use acquisition_protocol::protocol::Response;
+    use acquisition_protocol::status::RailsStatus;
+    let identity = |provider: &str| {
+        DaemonId::judged(
+            Reported {
+                pid: 4242,
+                version: "0.0.1".into(),
+                contract: "ffffffffffff".into(),
+                artifact: None,
+                provider: provider.into(),
+                world: "/w".into(),
+            },
+            Endpoint {
+                socket: "/run/acq/w.sock".into(),
+            },
+            Ok("/w".into()),
+        )
+    };
+    let status = Response::DaemonStatus {
+        pid: 4242,
+        version: "0.0.1".into(),
+        contract: "ffffffffffff".into(),
+        provider: "mock".into(),
+        uptime_seconds: 61,
+        idle_shutdown_seconds: 60,
+        connections: 1,
+        jobs_waiting: 0,
+        jobs_running: 0,
+        policies_known: 0,
+        in_flight: 0,
+        max_in_flight: 2,
+        rails: RailsStatus {
+            tripwire_enabled: false,
+            halted: None,
+            refresh_failed: None,
+            sends: 0,
+            max_sends: None,
+            journal: None,
+        },
+        keyring: "ok".into(),
+        log: Some("/l/daemon.log".into()),
+    };
+    let identity_keys = [
+        "contract",
+        "artifact",
+        "world",
+        "socket",
+        "contract_matches",
+        "artifact_matches",
+        "artifact_relation",
+        "provider_matches",
+        "world_matches",
+        "wanted",
+    ];
+    let running = serde_json::to_value(DaemonReport::Running {
+        status: Box::new(status),
+        identity: Box::new(identity("mock")),
+    })
+    .unwrap();
+    assert_eq!(
+        (&running["running"], &running["compatible"]),
+        (&json!(true), &json!(true))
+    );
+    for vital in [
+        "pid",
+        "uptime_seconds",
+        "idle_shutdown_seconds",
+        "rails",
+        "keyring",
+        "log",
+    ] {
+        assert!(running.get(vital).is_some(), "{vital}: {running}");
+    }
+    for key in identity_keys {
+        assert!(running.get(key).is_some(), "{key}: {running}");
+    }
+    assert_eq!(running["socket"], "/run/acq/w.sock");
+    assert_eq!(running["world"], "/w");
+    assert_eq!(running["world_matches"], true);
+    assert!(running["wanted"].is_object(), "{running}");
+
+    let other =
+        serde_json::to_value(DaemonReport::Incompatible(Box::new(identity("ggg")))).unwrap();
+    assert_eq!(
+        (&other["running"], &other["compatible"]),
+        (&json!(true), &json!(false))
+    );
+    assert_eq!(other["pid"], 4242, "{other}");
+    for key in identity_keys {
+        assert!(other.get(key).is_some(), "{key}: {other}");
+    }
+    assert_eq!(other["provider"], "ggg", "{other}");
+    assert_eq!(other["contract_matches"], false, "{other}");
+    assert!(other.get("uptime_seconds").is_none(), "{other}");
+}
+
 /// A result carries its job's id and account beside the outcome, and a
 /// parent's failure its children's tally as a field (C23) and its first
 /// failed children detailed.

@@ -522,3 +522,45 @@ fn nothing_of_a_request_stands_beside_a_request() {
                        "token": "acq1.x", "path": "1", "node": "rarity=rare" });
     assert!(Asked::read(&held).is_ok());
 }
+
+/// TRADE_ID of the frontends' tests: a site search of the explicit life
+/// lines' sum at 70 or more, with a crucible tree path in the remainder.
+const TRADE_ID: &str = "H4sIAAAAAAAA_5XM0QrCMAyF4XfJdZFhB2N7FRlSuwiB2JYtFUfJu5speO9t_pyvwSZB6gZTg1yEcoIJcmJKCOo-0dqlgewFLYW0gIM7seD6DbTYGV-FKZKcjsHVn8fR90PXe_t9Bq548A8ye-hUZ3U_L6410o3xL9SEWd8TZHM0ugAAAA";
+
+/// C113, the request-level rules of a site search (step 5 of the trade
+/// brief): a continuation keeps the site search and its report; a text
+/// beside it that is not its translation is refused; a scope realm beside
+/// a URL is the URL's or a refusal; a trade that is neither text nor an
+/// object is refused — each a `trade` refusal, before anything is counted.
+#[test]
+fn a_site_search_is_kept_by_its_continuation_and_its_request_is_whole() {
+    let s = worked();
+    let corpus = load(&s, Some("pc"));
+    let url = format!("https://www.pathofexile.com/trade/search/Standard/{TRADE_ID}");
+    let first = asked(
+        &corpus,
+        &json!({ "query": { "trade": url }, "view": { "rows": { "limit": 2 } } }),
+    )
+    .unwrap();
+    assert_eq!(first["query"]["trade"]["source"], "url", "{first}");
+    let next = &first["view"]["rows"]["next"];
+    assert_eq!(next["request"]["query"]["trade"], json!(url), "{next}");
+    let second = as_json(&Asked::read(next).unwrap().answer(&corpus).unwrap());
+    assert_eq!(second["query"]["trade"], first["query"]["trade"]);
+    assert!(!in_order(&second).is_empty(), "{second}");
+
+    for refused in [
+        json!({ "query": { "trade": url, "text": "league=Standard" } }),
+        json!({ "scope": { "realm": "sony" }, "query": { "trade": url } }),
+        json!({ "query": { "trade": 7 } }),
+    ] {
+        let e = asked(&corpus, &refused).unwrap_err();
+        assert_eq!(e["kind"], "trade", "{refused}: {e}");
+    }
+    let resolved = asked(
+        &corpus,
+        &json!({ "scope": { "realm": "pc" }, "query": { "trade": url } }),
+    )
+    .unwrap();
+    assert_eq!(resolved["query"], first["query"]);
+}

@@ -125,30 +125,6 @@ fn seed(base: &Path) {
     );
 }
 
-/// A second realm in the same store: one poe2 ring.
-fn seed_poe2(base: &Path) {
-    let mut store = Store::open(&account_path(&stores(base), USER)).unwrap();
-    record(
-        &mut store,
-        Endpoint::Stashes {
-            realm: "poe2".into(),
-            league: "Standard".into(),
-        },
-        "poe2",
-        json!({ "stashes": [{ "id": "p1", "name": "Rings", "type": "PremiumStash" }] }),
-        40,
-    );
-    record(
-        &mut store,
-        stash("poe2", "p1"),
-        "poe2",
-        json!({ "stash": { "id": "p1", "name": "Rings", "type": "PremiumStash", "items": [
-            item("two", "Bleak Eye", "Iron Ring", "Rare", json!({ "explicitMods": ["+30 to Spirit"] })),
-        ] } }),
-        50,
-    );
-}
-
 /// A second account, with one item of its own.
 fn seed_bob(base: &Path) {
     let dir = stores(base);
@@ -233,10 +209,18 @@ impl Seat {
         (doc, result["isError"] == json!(true))
     }
 
-    /// A request through `search`, held equal to the same request through
+    /// A request through `search`: the document, and whether it was a
+    /// refusal. That it is `acq search --request`'s is one test,
+    /// `the_search_tool_is_acq_search_request`; both doors call the same
+    /// functions (C46), so the rest ask the tool alone.
+    fn search(&mut self, request: &Value) -> (Value, bool) {
+        self.call("search", request)
+    }
+
+    /// A request through `search` held equal to the same request through
     /// `acq search --request`: one document, and a refusal on both or on
     /// neither.
-    fn search(&mut self, request: &Value) -> (Value, bool) {
+    fn search_beside_the_cli(&mut self, request: &Value) -> (Value, bool) {
         self.files += 1;
         let file = self.base.join(format!("request-{}.json", self.files));
         std::fs::write(&file, request.to_string()).unwrap();
@@ -269,374 +253,35 @@ fn ids(answer: &Value) -> Vec<&str> {
         .collect()
 }
 
-/// A table's buckets as (value, count).
-fn buckets(table: &Value) -> Vec<(String, u64)> {
-    table["buckets"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|b| {
-            (
-                b["value"].as_str().unwrap_or("?").to_string(),
-                b["count"].as_u64().unwrap(),
-            )
-        })
-        .collect()
-}
-
-const OQ1: &str = "class:ring rarity=rare (line(template:resistance) or line(template:strength))";
-
-/// AQ1: three tables and no rows, the empty request's scope — and `{}`
-/// is a request: every item, the realm resolved to the one held (H3).
+/// AQ3's adapter part: `show` forwards `against`, a query as a request
+/// holds one, and the outcome is read back (r2's two life lines are 20
+/// and 75: no one occurrence reaches 90). What a row names and a zero
+/// answer offers are the search crate's (`answer.rs`).
 #[test]
-fn aq1_counts_by_tab_league_and_rarity_and_no_rows() {
+fn aq3_show_forwards_against_and_says_why_not() {
     let mut seat = Seat::new();
-    let every = seat.answer(&json!({}));
-    assert_eq!(every["total"]["matched"], 5);
-    assert_eq!(every["scope"]["realm"], "pc");
-    assert_eq!(every["scope"]["account"]["name"], USER);
-
-    // every route asked (C115): a bucket's is sent back below
-    let a = seat.answer(
-        &json!({ "view": { "counts": { "keys": ["tab", "league", "rarity"] }, "routes": true } }),
-    );
-    assert!(a["rows"].as_array().unwrap().is_empty(), "{}", a["rows"]);
-    let tables = a["view"]["counts"]["tables"].as_array().unwrap();
-    let keys: Vec<&str> = tables.iter().map(|t| t["key"].as_str().unwrap()).collect();
-    assert_eq!(keys, ["tab", "league", "rarity"]);
-    assert_eq!(
-        buckets(&tables[0]),
-        [("Dump".to_string(), 3), ("Rings".to_string(), 2)]
-    );
-    assert_eq!(buckets(&tables[1]), [("Standard".to_string(), 5)]);
-    assert_eq!(
-        buckets(&tables[2]),
-        [("rare".to_string(), 4), ("unique".to_string(), 1)]
-    );
-    // the flags a terminal types give the same tables
-    let (typed, _) = cli(
-        &seat.base,
-        &["search", "--count", "tab,league,rarity", "--routes"],
-    );
-    assert_eq!(
-        typed["view"]["counts"]["tables"],
-        a["view"]["counts"]["tables"]
-    );
-    // a bucket is a count with its route, sent back as printed
-    let dump = tables[0]["buckets"][0].clone();
-    let members = seat.answer(&dump);
-    assert_eq!(ids(&members), ["kaom", "plain", "str"]);
-}
-
-/// AQ2: the old query parenthesised and one new term. `r2` matches OQ1
-/// with 40 of resistance and `str` with none, and both must leave.
-#[test]
-fn aq2_a_refinement_is_the_old_query_parenthesised_and_a_new_term() {
-    let mut seat = Seat::new();
-    let old = seat.answer(&json!({ "query": { "text": OQ1 } }));
-    assert_eq!(ids(&old), ["r1", "r2", "str"]);
-    let refined = format!(
-        "({}) pseudo.total_res>=60",
-        old["query"]["text"].as_str().unwrap()
-    );
-    let new = seat.answer(&json!({ "query": { "text": refined } }));
-    assert_eq!(ids(&new), ["r1"]);
-    // the tree an answer returned is accepted in place of its text (C104)
-    let by_tree = seat.answer(&json!({ "query": { "tree": new["query"]["tree"] } }));
-    assert_eq!(by_tree["query"], new["query"]);
-    assert_eq!(by_tree["rows"], new["rows"]);
-    let (typed, _) = cli(&seat.base, &["search", &refined]);
-    assert_eq!(typed["rows"], new["rows"]);
-}
-
-/// AQ3: a row names what matched, a zero answer names the scope searched
-/// and offers requests that run, and `show` with `against` says why not.
-#[test]
-fn aq3_a_row_names_what_matched_a_zero_answer_its_scope_and_show_says_why_not() {
-    let mut seat = Seat::new();
-    let a = seat.answer(&json!({ "query": { "text": "\"+# to maximum Life\">=90" } }));
-    assert_eq!(ids(&a), ["r1", "kaom"]);
-    assert_eq!(
-        a["rows"][0]["matched"][0]["shows"][0]["line"]["text"],
-        "+95 to maximum Life"
-    );
-
-    let zero = seat.answer(&json!({ "query": { "text": "rarity=rare name:kaom" } }));
-    assert_eq!(zero["total"]["matched"], 0);
-    assert_eq!(zero["scope"]["realm"], "pc");
-    assert_eq!(zero["scope"]["items"], 5);
-    // what it offers is sent back as printed: explain of each part, and
-    // the corpus beside the same view
-    let explains = zero["zero"]["offers"]["explain"].as_array().unwrap();
-    assert_eq!(explains.len(), 2, "{}", zero["zero"]);
-    for offer in explains {
-        let explained = seat.answer(offer);
-        assert_eq!(explained["view"]["explain"]["path"], offer["path"]);
-    }
-    let corpus = seat.answer(&zero["zero"]["offers"]["context"]);
-    assert_eq!(corpus["total"]["matched"], 5);
-    assert_eq!(corpus["set_aside"]["text"], zero["query"]["text"]);
-
-    // r2's two life lines are 20 and 75: no one occurrence reaches 90
-    let args = json!({ "id": "r2", "against": { "text": "\"+# to maximum Life\">=90" } });
-    let (shown, refused) = seat.call("show", &args);
+    let text = "\"+# to maximum Life\">=90";
+    let (shown, refused) = seat.call("show", &json!({ "id": "r2", "against": { "text": text } }));
     assert!(!refused, "{shown}");
-    assert_eq!(shown["against"]["outcome"], "no_match");
-    let (printed, _) = cli(
-        &seat.base,
-        &["show", "r2", "--against", "\"+# to maximum Life\">=90"],
+    assert_eq!(shown["against"]["outcome"], "no_match", "{shown}");
+    assert_eq!(
+        shown["against"]["query"]["text"], "line(\"# to maximum Life\" arg1>=90)",
+        "{shown}"
     );
-    assert_eq!(shown, printed);
 }
 
-/// AQ4: every id an answer printed is accepted back, by `id:` and by
-/// `show`, whose document is `acq show`'s — the stored body on request.
+/// AQ4's adapter part: `show` with `body: true` is `acq show --body`,
+/// the stored body verbatim.
 #[test]
-fn aq4_every_printed_id_is_accepted_back() {
+fn aq4_show_with_its_body_is_the_clis() {
     let mut seat = Seat::new();
-    let every = seat.answer(&json!({}));
-    let printed = ids(&every)
-        .into_iter()
-        .map(str::to_string)
-        .collect::<Vec<_>>();
-    assert_eq!(printed, ["r1", "r2", "kaom", "plain", "str"]);
-    for id in &printed {
-        let found = seat.answer(&json!({ "query": { "text": format!("id:{id}") } }));
-        assert_eq!(ids(&found), [id.as_str()]);
-        let (shown, refused) = seat.call("show", &json!({ "id": id }));
-        assert!(!refused, "{shown}");
-        assert_eq!(shown["item"]["facts"]["id"], id.as_str());
-        assert!(shown.get("body").is_none(), "{shown}");
-        assert_eq!(shown, cli(&seat.base, &["show", id]).0);
-    }
-    // a place's id is its items
-    let tab = seat.answer(&json!({ "query": { "text": "id:t1" } }));
-    assert_eq!(ids(&tab), ["r1", "r2"]);
-    let (with_body, _) = seat.call("show", &json!({ "id": "kaom", "body": true }));
+    let (with_body, refused) = seat.call("show", &json!({ "id": "kaom", "body": true }));
+    assert!(!refused, "{with_body}");
     assert!(
         with_body["body"].as_str().unwrap().contains("Kaom's Heart"),
         "{with_body}"
     );
     assert_eq!(with_body, cli(&seat.base, &["show", "kaom", "--body"]).0);
-}
-
-/// AQ5: a mod with a value across every mod array, counted and sorted:
-/// 500 and 95 match; `r2`'s 75 and 20 fail, each alone; two lack the line.
-#[test]
-fn aq5_life_at_ninety_or_more_counted_and_sorted() {
-    let mut seat = Seat::new();
-    let request = json!({
-        "query": { "text": "\"+# to maximum Life\">=90" },
-        "view": { "rows": { "sort": "line(\"+# to maximum Life\").arg1", "desc": true }, "routes": true },
-    });
-    let a = seat.answer(&request);
-    assert_eq!(a["total"]["matched"], 2);
-    assert_eq!(ids(&a), ["kaom", "r1"]);
-    let sorted: Vec<&Value> = a["rows"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|row| &row["sort"]["value"])
-        .collect();
-    assert_eq!(sorted, [&json!(500), &json!(95)]);
-    let term = &a["terms"][0];
-    assert_eq!(
-        (
-            &term["matched"]["count"],
-            &term["failed"]["count"],
-            &term["lacked"]["count"]
-        ),
-        (&json!(2), &json!(1), &json!(2))
-    );
-    let (typed, _) = cli(
-        &seat.base,
-        &[
-            "search",
-            "\"+# to maximum Life\">=90",
-            "--sort",
-            "line(\"+# to maximum Life\").arg1",
-            "--desc",
-            "--routes",
-        ],
-    );
-    assert_eq!(typed["rows"], a["rows"]);
-    assert_eq!(typed["terms"], a["terms"]);
-    // the failed count's route, sent back as printed, is r2
-    assert_eq!(ids(&seat.answer(&term["failed"])), ["r2"]);
-}
-
-/// H1: a `next` is sent back as the answer holds it, and the pages in
-/// order are the answer; across a fetch it is refused, the refusal a
-/// result marked an error, and what it offers is a request that runs.
-#[test]
-fn a_next_is_sent_back_whole_and_refused_across_a_changed_basis() {
-    let mut seat = Seat::new();
-    let first = seat.answer(&json!({ "view": { "rows": { "limit": 2 } } }));
-    assert_eq!(ids(&first), ["r1", "r2"]);
-    let next = first["view"]["rows"]["next"].clone();
-    // the request and nothing beside it: a token is a terminal's (C115)
-    assert_eq!(
-        next.as_object().unwrap().keys().collect::<Vec<_>>(),
-        ["request"],
-        "{next}"
-    );
-    let second = seat.answer(&next);
-    assert_eq!(ids(&second), ["kaom", "plain"]);
-    // a token alone is no request: the tool takes none
-    let token: acquisition_search::answer::Request =
-        serde_json::from_value(next["request"].clone()).unwrap();
-    let (refused, is_error) = seat.call("search", &json!({ "token": token.token() }));
-    assert!(is_error, "{refused}");
-    assert_eq!(refused["kind"], "tree");
-
-    {
-        let mut store = Store::open(&account_path(&stores(&seat.base), USER)).unwrap();
-        record(
-            &mut store,
-            stash("pc", "t2"),
-            "pc",
-            json!({ "stash": { "id": "t2", "name": "Dump", "type": "PremiumStash", "items": [] } }),
-            60,
-        );
-    }
-    let e = seat.refusal(&next);
-    assert_eq!(e["kind"], "basis_changed", "{e}");
-    let offers = e["offers"].as_array().unwrap_or_else(|| panic!("{e}"));
-    assert_eq!(offers.len(), 1, "{e}");
-    let again = seat.answer(&offers[0]);
-    assert_eq!(ids(&again), ["r1", "r2"]);
-    assert_eq!(again["total"]["matched"], 2);
-}
-
-/// H3 and H5: over two realms a request naming none is refused as it is
-/// at a terminal, and each realm is offered as the request itself.
-#[test]
-fn a_realm_needed_is_offered_as_the_request_in_each_realm() {
-    let scratch = scratch("mcp-search");
-    let base = scratch.0.clone();
-    seed(&base);
-    seed_poe2(&base);
-    let mut seat = Seat::over(scratch);
-    let request =
-        json!({ "query": { "text": "rarity=rare" }, "view": { "counts": { "keys": ["tab"] } } });
-    let e = seat.refusal(&request);
-    assert_eq!(e["kind"], "realm_needed", "{e}");
-    let offers = e["offers"]
-        .as_array()
-        .unwrap_or_else(|| panic!("{e}"))
-        .clone();
-    let matched: Vec<(String, u64)> = offers
-        .iter()
-        .map(|offer| {
-            let a = seat.answer(offer);
-            (
-                a["scope"]["realm"].as_str().unwrap().to_string(),
-                a["total"]["matched"].as_u64().unwrap(),
-            )
-        })
-        .collect();
-    // pc: r1, r2, plain, str; poe2: two
-    assert_eq!(matched, [("pc".to_string(), 4), ("poe2".to_string(), 1)]);
-    let all =
-        seat.answer(&json!({ "scope": { "realm": "all" }, "query": { "text": "rarity=rare" } }));
-    assert_eq!(all["total"]["matched"], 5);
-}
-
-/// The instructions' first step, `search` with no arguments, over a store
-/// of two realms (the MCP seat, step 11c: the instructions said to begin
-/// there and said nothing of the refusal): refused, and each offer sent
-/// back is every item of its realm.
-#[test]
-fn no_arguments_over_two_realms_offers_every_item_of_each() {
-    let scratch = scratch("mcp-search");
-    let base = scratch.0.clone();
-    seed(&base);
-    seed_poe2(&base);
-    let mut seat = Seat::over(scratch);
-    let e = seat.refusal(&json!({}));
-    assert_eq!(e["kind"], "realm_needed", "{e}");
-    let offers = e["offers"]
-        .as_array()
-        .unwrap_or_else(|| panic!("{e}"))
-        .clone();
-    let held: Vec<(String, u64)> = offers
-        .iter()
-        .map(|offer| {
-            let a = seat.answer(offer);
-            (
-                a["scope"]["realm"].as_str().unwrap().to_string(),
-                a["total"]["matched"].as_u64().unwrap(),
-            )
-        })
-        .collect();
-    assert_eq!(held, [("pc".to_string(), 5), ("poe2".to_string(), 1)]);
-}
-
-/// A key is one entry of `keys` (the MCP seat, step 11c: `describe`'s
-/// `line:resist,life`, a terminal's list, sent as one entry answered a
-/// table of nothing and `none` for every item): the terminal's list is
-/// two entries, and a comma inside one is part of its text.
-#[test]
-fn a_key_is_one_entry_and_a_comma_inside_it_is_its_text() {
-    let mut seat = Seat::new();
-    let two =
-        seat.answer(&json!({ "view": { "counts": { "keys": ["line:resist", "line:life"] } } }));
-    let (typed, _) = cli(&seat.base, &["search", "--count", "line:resist,life"]);
-    assert_eq!(
-        two["view"]["counts"]["tables"],
-        typed["view"]["counts"]["tables"]
-    );
-    let tables = two["view"]["counts"]["tables"].as_array().unwrap();
-    assert_eq!(tables.len(), 2, "{tables:?}");
-    assert!(
-        tables.iter().all(|t| t["values"].as_u64().unwrap() > 0),
-        "{tables:?}"
-    );
-
-    let one = seat.answer(&json!({ "view": { "counts": { "keys": ["line:resist,life"] } } }));
-    let tables = one["view"]["counts"]["tables"].as_array().unwrap();
-    assert_eq!(tables.len(), 1, "{tables:?}");
-    assert_eq!(tables[0]["key"], "line:resist,life");
-    assert_eq!(tables[0]["values"], 0);
-}
-
-/// The seat's X1 in one request (both runs of step 11c reached the
-/// removed by a term no rule states): `removed` is a membership, the
-/// answer is what has left and nothing live, each row with when it left
-/// and where it was last seen; and the term an agent tries first is
-/// refused toward it.
-#[test]
-fn what_has_left_is_asked_in_one_request() {
-    let scratch = scratch("mcp-search");
-    let base = scratch.0.clone();
-    seed(&base);
-    let mut store = Store::open(&account_path(&stores(&base), USER)).unwrap();
-    // a fetch of Rings that no longer has r2
-    record(
-        &mut store,
-        stash("pc", "t1"),
-        "pc",
-        json!({ "stash": { "id": "t1", "name": "Rings", "type": "PremiumStash", "items": [
-            item("r1", "Doom Loop", "Two-Stone Ring", "Rare", json!({ "explicitMods":
-                ["+95 to maximum Life", "+65% to Fire Resistance"] })),
-        ] } }),
-        40,
-    );
-    drop(store);
-    let mut seat = Seat::over(scratch);
-    let left = seat.answer(&json!({ "scope": { "membership": "removed" } }));
-    assert_eq!(ids(&left), ["r2"]);
-    assert_eq!(left["rows"][0]["removed_at"], 40);
-    assert_eq!(left["rows"][0]["place"]["name"], "Rings");
-    let scope = &left["scope"];
-    assert_eq!(scope["membership"], "removed");
-    assert_eq!((&scope["items"], &scope["removed"]), (&json!(4), &json!(1)));
-
-    let refused = seat.refusal(&json!({ "query": { "text": "is:removed" } }));
-    assert!(
-        refused["error"].as_str().unwrap().contains("membership"),
-        "{refused}"
-    );
 }
 
 /// C109, C47: four hundred nested parentheses once aborted the server, which
@@ -671,37 +316,47 @@ fn a_query_nested_too_deep_is_refused_and_the_server_answers_the_next_call() {
 }
 
 /// An authoring error is the CLI's document in a result marked an error,
-/// never a protocol error: its readings are what an agent reads next.
+/// never a protocol error: its readings are what an agent reads next. One
+/// on `search` and one on `show`; the kinds themselves are the search
+/// crate's (`refusal.rs`).
 #[test]
 fn an_authoring_error_is_a_result_with_its_kind_and_readings() {
     let mut seat = Seat::new();
-    let e = seat.refusal(&json!({ "query": { "text": "ring" } }));
+    let (e, is_error) = seat.search(&json!({ "query": { "text": "ring" } }));
+    assert!(is_error, "{e}");
     assert_eq!(e["kind"], "bare_word", "{e}");
     assert!(!e["readings"].as_array().unwrap().is_empty(), "{e}");
-    let e = seat.refusal(
-        &json!({ "query": { "text": "rarity=rare" }, "view": { "explain": { "path": "9" } } }),
-    );
-    assert_eq!(e["kind"], "no_such_path", "{e}");
-    // a request that is none: a key the request does not have
-    let e = seat.refusal(&json!({ "text": "rarity=rare" }));
-    assert_eq!(e["kind"], "tree", "{e}");
-    // `show` of a tab's id says what it is and offers the search of it
-    let (e, is_error) = seat.call("show", &json!({ "id": "t1" }));
-    assert!(is_error, "{e}");
-    assert_eq!(e["kind"], "not_an_item");
-    assert_eq!(e, cli(&seat.base, &["show", "t1"]).0);
-    let listed = seat.answer(&e["offers"][0]);
-    assert_eq!(ids(&listed), ["r1", "r2"]);
-    let (e, is_error) = seat.call("show", &json!({ "id": "nope" }));
-    assert!(is_error, "{e}");
-    assert_eq!(e["kind"], "item_not_found");
-    // `against` is a query as a request holds one, its error the binder's
     let (e, is_error) = seat.call(
         "show",
         &json!({ "id": "r1", "against": { "text": "ring" } }),
     );
     assert!(is_error, "{e}");
-    assert_eq!(e["kind"], "bare_word");
+    assert_eq!(e["kind"], "bare_word", "{e}");
+    assert!(!e["readings"].as_array().unwrap().is_empty(), "{e}");
+}
+
+/// A malformed `against`, one that is no query as a request holds one, is
+/// refused before any store is read: `tree`, as the request's own
+/// malformed query is, in a result marked an error.
+#[test]
+fn a_malformed_against_is_refused_as_a_tree() {
+    let mut seat = Seat::new();
+    for against in [
+        json!({ "txt": "rarity=rare" }),
+        json!(5),
+        json!("rarity=rare"),
+    ] {
+        let (e, is_error) = seat.call("show", &json!({ "id": "r1", "against": against }));
+        assert!(is_error, "{against}: {e}");
+        assert_eq!(e["kind"], "tree", "{against}: {e}");
+        assert!(
+            e["error"]
+                .as_str()
+                .unwrap()
+                .starts_with("`against` is a query as a request holds one"),
+            "{against}: {e}"
+        );
+    }
 }
 
 /// `describe` is `acq search --describe`: the language whole, or the
@@ -757,9 +412,11 @@ fn a_missing_store_names_the_directory_it_looked_in() {
     assert!(!error.contains("acq auth"), "{e}");
 }
 
-/// H2: `scope.account` selects the store. With two accounts known a
-/// request naming none is refused and lists them; one named is answered
-/// from its own store, and a continuation carries it.
+/// H2: the account selector's mapping. `scope.account` selects the store
+/// a search reads, a continuation carries it, and `show`'s `account`
+/// selects by name or uuid. What an account that cannot be picked is
+/// refused as is the verbs crate's (C121; `tool_refusals.rs` for this
+/// surface's).
 #[test]
 fn the_requests_account_selects_the_store() {
     let scratch = scratch("mcp-search");
@@ -767,15 +424,6 @@ fn the_requests_account_selects_the_store() {
     seed(&base);
     seed_bob(&base);
     let mut seat = Seat::over(scratch);
-    let (e, is_error) = seat.call("search", &json!({}));
-    assert!(is_error, "{e}");
-    assert_eq!(e["kind"], "ambiguous_account", "{e}");
-    assert_eq!(e["accounts"], json!([USER, "Bob#9"]));
-    let (e, is_error) = seat.call("search", &json!({ "scope": { "account": "carol" } }));
-    assert!(is_error, "{e}");
-    assert_eq!(e["kind"], "not_logged_in", "{e}");
-    assert_eq!(e["accounts"], json!([USER, "Bob#9"]));
-
     let (bob, refused) = seat.call("search", &json!({ "scope": { "account": "bob" } }));
     assert!(!refused, "{bob}");
     assert_eq!(ids(&bob), ["bob1"]);
@@ -803,64 +451,6 @@ fn no_tool_of_the_search_starts_a_daemon() {
     seat.call("describe", &json!({}));
     seat.call("show", &json!({ "id": "r1" }));
     assert!(no_daemon_appeared(&seat.base));
-}
-
-/// H1, whatever `--request` reads: a count sent back with its request
-/// is told, under `before`, where the count has moved since — and with
-/// the answer's basis beside it, wherever the basis has.
-#[test]
-fn a_count_read_back_says_what_it_was_where_it_has_moved() {
-    let mut seat = Seat::new();
-    let a = seat.answer(&json!({ "query": { "text": "rarity=rare" }, "view": { "routes": true } }));
-    let route = a["terms"][0]["matched"].clone();
-    assert_eq!(route["count"], 4);
-    let mut labelled = route.clone();
-    labelled["counted_at"] = a["basis"].clone();
-    for sent in [&route, &labelled] {
-        let same = seat.answer(sent);
-        assert_eq!(same["total"]["matched"], 4);
-        assert!(same.get("before").is_none(), "{same}");
-    }
-    // the Dump tab fetched again without `plain`: three rares, a later basis
-    {
-        let mut store = Store::open(&account_path(&stores(&seat.base), USER)).unwrap();
-        record(
-            &mut store,
-            stash("pc", "t2"),
-            "pc",
-            json!({ "stash": { "id": "t2", "name": "Dump", "type": "PremiumStash", "items": [
-                item("kaom", "Kaom's Heart", "Glorious Plate", "Unique", json!({ "explicitMods": ["+500 to maximum Life"] })),
-                item("str", "Grim Knot", "Iron Ring", "Rare", json!({ "explicitMods": ["+25 to Strength"] })),
-            ] } }),
-            60,
-        );
-    }
-    let moved = seat.answer(&route);
-    assert_eq!(moved["total"]["matched"], 3);
-    assert_eq!(moved["before"], json!({ "count": 4 }));
-    let told = seat.answer(&labelled);
-    assert_eq!(
-        told["before"],
-        json!({ "count": 4, "counted_at": a["basis"] })
-    );
-}
-
-/// A request an answer held is whole: a view written beside it is
-/// refused, never dropped unread — on the tool as at the terminal.
-#[test]
-fn a_view_beside_a_request_is_refused_and_never_dropped() {
-    let mut seat = Seat::new();
-    let a = seat.answer(&json!({ "query": { "text": "rarity=rare" }, "view": { "routes": true } }));
-    let mut sent = a["terms"][0]["matched"].clone();
-    sent["view"] = json!({ "counts": { "keys": ["tab"] } });
-    let e = seat.refusal(&sent);
-    assert_eq!(e["kind"], "tree", "{e}");
-    assert!(e["error"].as_str().unwrap().contains("`view`"), "{e}");
-    // written inside it, the view is the request's
-    let mut inside = a["terms"][0]["matched"].clone();
-    inside["request"]["view"] = json!({ "counts": { "keys": ["tab"] } });
-    let counted = seat.answer(&inside);
-    assert_eq!(counted["view"]["counts"]["tables"][0]["key"], "tab");
 }
 
 /// Arguments a tool does not take are refused in the same document as
@@ -963,52 +553,19 @@ fn describe_is_as_large_as_its_text_says() {
 /// 7f made it the site's no-op).
 const TRADE_ID: &str = "H4sIAAAAAAAA_5XM0QrCMAyF4XfJdZFhB2N7FRlSuwiB2JYtFUfJu5speO9t_pyvwSZB6gZTg1yEcoIJcmJKCOo-0dqlgewFLYW0gIM7seD6DbTYGV-FKZKcjsHVn8fR90PXe_t9Bq548A8ye-hUZ3U_L6410o3xL9SEWd8TZHM0ugAAAA";
 
-/// C113, step 5 of the trade brief: the `query` takes `{"trade": …}` —
-/// a URL, an id or the query JSON as a string, or the JSON as an object —
-/// and answers as `acq search --request` does, its report under
-/// `query.trade`. Worked by hand over the fixture: the explicit life
-/// lines' sum at 70 or more holds of r1 (95), r2 (75 explicit) and kaom
-/// (500) — 3. A `next` keeps the site search and its label; a text
-/// beside it that is not its translation is refused; a scope realm beside
-/// a URL is the URL's or nothing; `describe` names `trade`.
+/// C113, step 5 of the trade brief: `show`'s `against` takes a site search
+/// as a query, its report beside the text, and only in the item's realm
+/// (K6; the outside review of step 5: an xbox URL showed a pc item a
+/// match). The request-level rules (a continuation keeps the site search,
+/// an edited text, a realm beside a URL, a trade that is none) are the
+/// search crate's (`next.rs`).
 #[test]
 fn a_site_search_is_a_query_and_its_report_stands_in_the_answer() {
     let mut seat = Seat::new();
     let url = format!("https://www.pathofexile.com/trade/search/Standard/{TRADE_ID}");
-    let first =
-        seat.answer(&json!({ "query": { "trade": url }, "view": { "rows": { "limit": 2 } } }));
-    assert_eq!(ids(&first), ["r1", "r2"]);
+    let (first, refused) = seat.search(&json!({ "query": { "trade": url } }));
+    assert!(!refused, "{first}");
     assert_eq!(first["total"]["matched"], 3);
-    let trade = &first["query"]["trade"];
-    assert_eq!(trade["source"], "url");
-    assert_eq!(trade["fidelity"], "partial");
-    assert_eq!(trade["remainder"], json!(["stats.1", "stats.1.0"]));
-    assert_eq!(first["scope"]["realm"], "pc");
-
-    let next = first["view"]["rows"]["next"].clone();
-    assert_eq!(next["request"]["query"]["trade"], json!(url), "{next}");
-    let second = seat.answer(&next);
-    assert_eq!(ids(&second), ["kaom"]);
-    assert_eq!(second["query"]["trade"], first["query"]["trade"]);
-
-    // the query JSON as an object: no league, so no league term
-    let object =
-        seat.answer(&json!({ "query": { "trade": { "query": { "name": "Kaom's Heart" } } } }));
-    assert_eq!(object["query"]["text"], "name=\"Kaom's Heart\"");
-    assert_eq!(object["query"]["trade"]["source"], "json");
-    assert_eq!(ids(&object), ["kaom"]);
-
-    let edited = json!({ "query": { "trade": url, "text": "league=Standard" } });
-    let e = seat.refusal(&edited);
-    assert_eq!(e["kind"], "trade", "{e}");
-    let e = seat.refusal(&json!({ "scope": { "realm": "sony" }, "query": { "trade": url } }));
-    assert_eq!(e["kind"], "trade", "{e}");
-    let resolved = seat.answer(&json!({ "scope": { "realm": "pc" }, "query": { "trade": url } }));
-    assert_eq!(resolved["query"], json!(first["query"]));
-    let e = seat.refusal(&json!({ "query": { "trade": 7 } }));
-    assert_eq!(e["kind"], "trade", "{e}");
-
-    // `show`'s against takes it as a query, its report beside the text
     let (shown, refused) = seat.call(
         "show",
         &json!({ "id": "plain", "against": { "trade": url } }),
@@ -1017,20 +574,10 @@ fn a_site_search_is_a_query_and_its_report_stands_in_the_answer() {
     assert_eq!(shown["against"]["query"]["text"], first["query"]["text"]);
     assert_eq!(shown["against"]["query"]["trade"], first["query"]["trade"]);
     assert_eq!(shown["against"]["outcome"], "no_match");
-    // and only in the item's realm: the URL's is the search's scope (K6;
-    // the outside review of step 5: an xbox URL showed a pc item a match)
     let xbox = url.replace("/search/", "/search/xbox/");
     let (e, refused) = seat.call("show", &json!({ "id": "r1", "against": { "trade": xbox } }));
     assert!(refused, "{e}");
     assert_eq!(e["kind"], "trade", "{e}");
-
-    let (described, refused) = seat.call("describe", &json!({ "names": ["trade"] }));
-    assert!(!refused, "{described}");
-    assert_eq!(
-        described,
-        cli(&seat.base, &["search", "--describe", "trade"]).0
-    );
-    assert!(described["trade"]["rows"].as_array().unwrap().len() > 100);
 }
 
 /// A reader took a trade answer's `fidelity: exact` for "the site would
@@ -1188,108 +735,16 @@ fn the_answers_text_leads_with_its_total_never_with_its_terms() {
     );
 }
 
-/// C115: a count's bucket requests were 13,693 bytes for 17 numbers
-/// (the trade seat, mcp-sonnet-1 call 8), and a counts-only answer 16,742
-/// (mcp-opus-2 call 12): every count held its request, where the terminal
-/// printed a route only where a next step hangs on one. Unasked, a value's
-/// bucket and a term's matched, failed and lacked are their numbers alone,
-/// and `view.routes` asks every count's — as `--routes` does, the same
-/// document on both surfaces.
-#[test]
-fn a_count_holds_its_request_only_where_routes_are_asked() {
-    let mut seat = Seat::new();
-    let plain = seat.answer(&json!({ "view": { "counts": { "keys": ["tab"] } } }));
-    let table = &plain["view"]["counts"]["tables"][0];
-    assert_eq!(
-        buckets(table),
-        [("Dump".to_string(), 3), ("Rings".to_string(), 2)]
-    );
-    for bucket in table["buckets"].as_array().unwrap() {
-        assert!(bucket.get("request").is_none(), "{bucket}");
-    }
-    let asked = seat.answer(&json!({ "view": { "counts": { "keys": ["tab"] }, "routes": true } }));
-    let table = &asked["view"]["counts"]["tables"][0];
-    for bucket in table["buckets"].as_array().unwrap() {
-        assert!(bucket.get("request").is_some(), "{bucket}");
-    }
-    assert_eq!(ids(&seat.answer(&table["buckets"][1])), ["r1", "r2"]);
-    let (typed, _) = cli(&seat.base, &["search", "--count", "tab", "--routes"]);
-    assert_eq!(typed["view"], asked["view"]);
-
-    let plain = seat.answer(&json!({ "query": { "text": "rarity=rare" } }));
-    for k in ["matched", "failed", "lacked"] {
-        assert!(plain["terms"][0][k].get("request").is_none(), "{k}");
-    }
-    assert_eq!(plain["terms"][0]["failed"]["count"], 1);
-    // alone, `routes` is the default view, every route asked
-    let asked =
-        seat.answer(&json!({ "query": { "text": "rarity=rare" }, "view": { "routes": true } }));
-    assert_eq!(asked["view"]["rows"]["limit"], 20);
-    assert_eq!(ids(&seat.answer(&asked["terms"][0]["failed"])), ["kaom"]);
-    let e = seat.refusal(&json!({ "view": { "routes": "yes" } }));
-    assert_eq!(e["kind"], "tree", "{e}");
-}
-
-/// C115: a cut table said `left_out_needs: "--limit"`, a terminal's flag
-/// in the MCP's answer (the trade seat: mcp-opus-2 call 33, mcp-sonnet-2
-/// call 17, which guessed `view.counts.limit` from the schema). It names
-/// the request's field, and the field, sent, lists the rest.
-#[test]
-fn a_cut_table_names_the_request_field_that_lists_the_rest() {
-    let mut seat = Seat::new();
-    let cut = seat.answer(&json!({ "view": { "counts": { "keys": ["base"], "limit": 1 } } }));
-    let table = &cut["view"]["counts"]["tables"][0];
-    assert_eq!(
-        (&table["values"], &table["left_out"]),
-        (&json!(3), &json!(2))
-    );
-    assert_eq!(table["left_out_needs"], "view.counts.limit");
-    let whole = seat.answer(&json!({ "view": { "counts": { "keys": ["base"], "limit": 3 } } }));
-    let table = &whole["view"]["counts"]["tables"][0];
-    assert_eq!(table["left_out"], 0);
-    assert!(table.get("left_out_needs").is_none(), "{table}");
-
-    let cut =
-        seat.answer(&json!({ "view": { "cross": { "keys": ["tab", "rarity"], "limit": 1 } } }));
-    let cross = &cut["view"]["cross"];
-    assert_eq!(
-        (&cross["cells_in_all"], &cross["left_out"]),
-        (&json!(3), &json!(2))
-    );
-    assert_eq!(cross["left_out_needs"], "view.cross.limit");
-}
-
 /// C115: `tabs` answered the owner's Standard in 745,672 bytes with no
 /// limit, cut to its head by the door in three of the trade seat's runs
-/// (mcp-opus-1 call 9, mcp-opus-2 call 10, mcp-sonnet-2 call 6: "it has
-/// no limit or filter argument, so a whole league's tab list cannot be
-/// read"); the CLI's counts-first shape was its text alone. Over 41 tabs,
-/// two fetched: the counts and the counts by type first, the ten with the
-/// most items listed and the rest counted, `expand` for all — the same
-/// document `acq tabs --json` prints.
+/// (mcp-opus-1 call 9, mcp-opus-2 call 10, mcp-sonnet-2 call 6). The
+/// listing rule is the search crate's (`tabs.rs`); here, the adapter's
+/// part over 41 tabs: the answer's size, the counts first in its text,
+/// `expand` mapped, and the document `acq tabs --json` prints.
 #[test]
 fn tabs_counts_first_and_lists_the_ten_with_the_most_items() {
     let mut seat = Seat::new();
-    {
-        let mut store = Store::open(&account_path(&stores(&seat.base), USER)).unwrap();
-        let mut stashes = vec![
-            json!({ "id": "t1", "name": "Rings", "type": "PremiumStash" }),
-            json!({ "id": "t2", "name": "Dump", "type": "PremiumStash" }),
-        ];
-        stashes.extend((0..39).map(
-            |i| json!({ "id": format!("q{i}"), "name": format!("Q {i}"), "type": "QuadStash" }),
-        ));
-        record(
-            &mut store,
-            Endpoint::Stashes {
-                realm: "pc".into(),
-                league: "Standard".into(),
-            },
-            "pc",
-            json!({ "stashes": stashes }),
-            40,
-        );
-    }
+    forty_one_tabs(&seat.base, "QuadStash");
     let result = seat.mcp.result("tabs", json!({}));
     let text = result["content"][0]["text"].as_str().unwrap().to_string();
     assert!(text.len() < 10_000, "{} bytes", text.len());
@@ -1301,125 +756,38 @@ fn tabs_counts_first_and_lists_the_ten_with_the_most_items() {
     );
     let (tabs, refused) = seat.call("tabs", &json!({}));
     assert!(!refused, "{tabs}");
-    assert_eq!(tabs["items"], 5);
-    assert_eq!(
-        tabs["by_type"],
-        json!([
-            { "type": "PremiumStash", "tabs": 2, "fetched": 2, "items": 5 },
-            { "type": "QuadStash", "tabs": 39, "fetched": 0, "items": 0 },
-        ])
-    );
-    assert_eq!(tabs["listed"], "most_items");
-    let listed: Vec<&str> = tabs["rows"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|t| t["id"].as_str().unwrap())
-        .collect();
-    assert_eq!(listed.len(), 10);
-    assert_eq!(listed[..2], ["t2", "t1"]);
-    assert_eq!(tabs["left_out"], 31);
-    assert_eq!(tabs["left_out_needs"], "expand");
+    assert_eq!(tabs["rows"].as_array().unwrap().len(), 10);
     let (printed, ok) = cli(&seat.base, &["tabs"]);
     assert!(ok);
     assert_eq!(printed, tabs);
 
     let (all, _) = seat.call("tabs", &json!({ "expand": true }));
-    assert_eq!(all["listed"], "all");
     assert_eq!(all["rows"].as_array().unwrap().len(), 41);
-    assert_eq!(all["left_out"], 0);
-    assert!(all.get("left_out_needs").is_none(), "{all}");
     let (printed, _) = cli(&seat.base, &["tabs", "--expand"]);
     assert_eq!(printed, all);
 }
 
-/// A zero answer offered "Fenumus' Weave" for `name:loreweave` under the
-/// words "never fuzzy-matched" (the re-sit, mcp-opus call 34, its fault
-/// 4: "a wrong lead"). Where a term's near values are offered, `said`
-/// says they are suggestions with their own counts, never matches; with
-/// none offered the words are as before.
-#[test]
-fn a_zero_answers_suggestion_is_said_to_be_one() {
-    let mut seat = Seat::new();
-    let (zero, refused) = seat
-        .search(&json!({ "scope": { "realm": "pc" }, "query": { "text": "name=\"Doom Ring\"" } }));
-    assert!(!refused, "{zero}");
-    assert_eq!(zero["total"]["matched"], 0, "{zero}");
-    let nothing = &zero["zero"]["resolved_to_nothing"][0];
-    assert_eq!(nothing["suggestions"][0]["value"], "Doom Loop", "{zero}");
-    let said = zero["zero"]["said"].as_str().unwrap();
-    assert!(said.contains("never fuzzy-matched"), "{said}");
-    assert!(
-        said.contains("offered beside it as a suggestion with its own count, never as a match"),
-        "{said}"
+/// Pc Standard listed again as 41 tabs: Rings and Dump, and 39 of `kind`
+/// never fetched.
+fn forty_one_tabs(base: &Path, kind: &str) {
+    let mut store = Store::open(&account_path(&stores(base), USER)).unwrap();
+    let mut stashes = vec![
+        json!({ "id": "t1", "name": "Rings", "type": "PremiumStash" }),
+        json!({ "id": "t2", "name": "Dump", "type": "PremiumStash" }),
+    ];
+    stashes.extend(
+        (0..39).map(|i| json!({ "id": format!("q{i}"), "name": format!("Q {i}"), "type": kind })),
     );
-    let (bare, _) =
-        seat.search(&json!({ "scope": { "realm": "pc" }, "query": { "text": "name=\"Zzz\"" } }));
-    assert_eq!(
-        bare["zero"]["resolved_to_nothing"][0]["suggestions"],
-        json!([]),
-        "{bare}"
+    record(
+        &mut store,
+        Endpoint::Stashes {
+            realm: "pc".into(),
+            league: "Standard".into(),
+        },
+        "pc",
+        json!({ "stashes": stashes }),
+        40,
     );
-    assert!(
-        !bare["zero"]["said"]
-            .as_str()
-            .unwrap()
-            .contains("suggestion"),
-        "{bare}"
-    );
-}
-
-/// A bare word's readings offered a phrase and a template, not a name:
-/// a Sonnet run of the re-sit took the first and searched line text for
-/// a unique, five calls to `name:` (mcp-sonnet calls 18–21, its fault
-/// 3). The name reading comes first, and runs as offered.
-#[test]
-fn a_bare_words_readings_offer_it_as_a_name_first() {
-    let mut seat = Seat::new();
-    let (e, refused) =
-        seat.search(&json!({ "scope": { "realm": "pc" }, "query": { "text": "Loreweave" } }));
-    assert!(refused, "{e}");
-    assert_eq!(e["kind"], "bare_word", "{e}");
-    assert_eq!(e["readings"][0], "name:Loreweave", "{e}");
-    let (ran, refused) = seat.search(
-        &json!({ "scope": { "realm": "pc" }, "query": { "text": e["readings"][0].as_str().unwrap() } }),
-    );
-    assert!(!refused, "{ran}");
-    assert_eq!(ran["total"]["matched"], 0, "{ran}");
-    // a closed value still reads first
-    let (e, _) = seat.search(&json!({ "scope": { "realm": "pc" }, "query": { "text": "rare" } }));
-    assert_eq!(e["readings"][0], "rarity=rare", "{e}");
-    assert_eq!(e["readings"][1], "name:rare", "{e}");
-}
-
-/// `store_status` said `leagues: 0` beside tabs in seven leagues, a bare
-/// number the CLI's text had worded at the trade seat and the MCP's
-/// JSON had not (the re-sit, mcp-sonnet call 3, its fault 7): the
-/// document says what the count counts.
-#[test]
-fn store_status_says_what_its_league_count_counts() {
-    let mut seat = Seat::new();
-    let (status, refused) = seat.call("store_status", &json!({}));
-    assert!(!refused, "{status}");
-    assert_eq!(status["leagues"], 0, "{status}");
-    assert_eq!(status["league_list"], "never fetched", "{status}");
-    let (printed, ok) = cli(&seat.base, &["store", "status"]);
-    assert!(ok);
-    assert_eq!(printed["league_list"], "never fetched", "{printed}");
-    // a fetch that listed none is a fetch (review 2 of the re-sit)
-    {
-        let mut store = Store::open(&account_path(&stores(&seat.base), USER)).unwrap();
-        record(
-            &mut store,
-            Endpoint::Leagues,
-            "pc",
-            json!({ "leagues": [] }),
-            50,
-        );
-    }
-    let (status, _) = seat.call("store_status", &json!({}));
-    assert_eq!(status["leagues"], 0, "{status}");
-    assert_eq!(status["league_list"], "fetched", "{status}");
 }
 
 /// The search tool's words on a site search name the field a buyer's
@@ -1450,76 +818,24 @@ fn the_search_tools_words_name_tab_public_every_fidelity_and_a_sums_sources() {
     assert!(view.contains("a sum of one (`sum(\"# to maximum Life\")`), spanning every source unless `source=` names one"), "{view}");
 }
 
-/// `scope.list_seen` under a query fixing one league is that league's
-/// list and the characters', not the realm's oldest (the re-sit,
-/// mcp-opus fault 2); held equal to the CLI's.
-#[test]
-fn the_scopes_list_age_is_the_querys_leagues() {
-    let mut seat = Seat::new();
-    {
-        let mut store = Store::open(&account_path(&stores(&seat.base), USER)).unwrap();
-        store
-            .record(
-                &Endpoint::Stashes {
-                    realm: "pc".into(),
-                    league: "Allflame".into(),
-                },
-                &json!({ "realm": "pc", "league": "Allflame" }),
-                200,
-                &json!({ "stashes": [] }),
-                5,
-            )
-            .unwrap();
-    }
-    let (fixed, refused) =
-        seat.search(&json!({ "scope": { "realm": "pc" }, "query": { "text": "league=Standard" } }));
-    assert!(!refused, "{fixed}");
-    assert_eq!(fixed["scope"]["list_seen"], 10, "{}", fixed["scope"]);
-    let (whole, _) = seat.search(&json!({ "scope": { "realm": "pc" } }));
-    assert_eq!(whole["scope"]["list_seen"], 5, "{}", whole["scope"]);
-}
-
 /// The never fetched by name (the re-sit, every run's first or second
-/// ask: mcp-opus calls 34–37, mcp-sonnet 18–23): `type` and
-/// `never_fetched` select the rows under the league's counts, held
-/// equal to `acq tabs --type … --never-fetched --json`.
+/// ask: mcp-opus calls 34-37, mcp-sonnet 18-23): `type` and
+/// `never_fetched` map to the selection, held equal to `acq tabs --type …
+/// --never-fetched --json`, and `expand` lists the selection whole; what
+/// the selection holds is the search crate's (`tabs.rs`).
 #[test]
 fn tabs_lists_the_never_fetched_of_one_type() {
     let mut seat = Seat::new();
-    {
-        let mut store = Store::open(&account_path(&stores(&seat.base), USER)).unwrap();
-        let mut stashes = vec![
-            json!({ "id": "t1", "name": "Rings", "type": "PremiumStash" }),
-            json!({ "id": "t2", "name": "Dump", "type": "PremiumStash" }),
-        ];
-        stashes.extend((0..39).map(
-            |i| json!({ "id": format!("u{i}"), "name": format!("U {i}"), "type": "UniqueStash" }),
-        ));
-        record(
-            &mut store,
-            Endpoint::Stashes {
-                realm: "pc".into(),
-                league: "Standard".into(),
-            },
-            "pc",
-            json!({ "stashes": stashes }),
-            40,
-        );
-    }
+    forty_one_tabs(&seat.base, "UniqueStash");
     let (tabs, refused) = seat.call(
         "tabs",
         &json!({ "type": "UniqueStash", "never_fetched": true }),
     );
     assert!(!refused, "{tabs}");
-    assert_eq!(tabs["tabs"], 41, "{tabs}");
-    assert_eq!(tabs["selected"], 39, "{tabs}");
     assert_eq!(
         tabs["selection"],
         json!({ "type": "UniqueStash", "never_fetched": true })
     );
-    assert_eq!(tabs["rows"].as_array().unwrap().len(), 10, "{tabs}");
-    assert_eq!(tabs["left_out"], 29, "{tabs}");
-    assert_eq!(tabs["left_out_needs"], "expand", "{tabs}");
     let (printed, ok) = cli(
         &seat.base,
         &["tabs", "--type", "UniqueStash", "--never-fetched"],
@@ -1531,82 +847,14 @@ fn tabs_lists_the_never_fetched_of_one_type() {
         &json!({ "type": "UniqueStash", "never_fetched": true, "expand": true }),
     );
     assert_eq!(all["rows"].as_array().unwrap().len(), 39, "{all}");
-    assert!(
-        all["rows"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .all(|r| r["fetched_at"].is_null()),
-        "{all}"
-    );
-    // without a selection the document is as before
-    let (plain, _) = seat.call("tabs", &json!({}));
-    assert!(
-        plain.get("selection").is_none() && plain.get("selected").is_none(),
-        "{plain}"
-    );
 }
 
-/// C115, a row as slim as the decision view allows (C53, C100): the
-/// trade seat's twenty rings were 30,696 bytes and over every runner's
-/// harness cut (mcp-opus-2 call 11, mcp-sonnet-2 call 8: "I lost the
-/// answer and paid a second call"), each row carrying every term it
-/// touched whole beside its path, each line an empty `flags`, and the
-/// `next` its request twice — once as a terminal's token. A row now says
-/// each term by its path, which the terms block names, and the lines it
-/// touched with their values; a line has `flags` where it has any; `next`
-/// is the request alone.
-#[test]
-fn a_row_says_its_lines_and_values_and_no_copy_of_its_terms() {
-    let mut seat = Seat::new();
-    let a = seat.answer(&json!({
-        "query": { "text": "\"+# to maximum Life\">=90" },
-        "view": { "rows": { "limit": 1 } },
-    }));
-    assert_eq!(ids(&a), ["r1"]);
-    let touched = a["rows"][0]["matched"].as_array().unwrap();
-    for t in touched {
-        let keys: Vec<&String> = t.as_object().unwrap().keys().collect();
-        assert!(
-            keys.iter()
-                .all(|k| ["path", "shows", "left_out"].contains(&k.as_str())),
-            "{t}"
-        );
-    }
-    let life = touched.iter().find(|t| t["path"] == "0").unwrap();
-    assert_eq!(
-        life["shows"],
-        json!([{ "line": { "source": "explicit", "text": "+95 to maximum Life" } }])
-    );
-    assert_eq!(
-        a["terms"][0]["term"],
-        "line(\"# to maximum Life\" arg1>=90)"
-    );
-    let next = &a["view"]["rows"]["next"];
-    assert!(
-        next.get("token").is_none() && next["request"].is_object(),
-        "{next}"
-    );
-}
-
-/// A row's place carried no age, and "where do I pick it up" was
-/// answered from `show`'s `last_seen` beside a scope whose fetches spanned
-/// 3.2 million seconds (the trade seat: mcp-sonnet-2 calls 3, 14, 24, its
-/// fault 4). C118: the place carries its location's `fetched_at`, an
-/// epoch, and the tool's text names it.
+/// A row's place carried no age (the trade seat: mcp-sonnet-2 calls 3, 14,
+/// 24, its fault 4). C118: the place carries its location's `fetched_at`,
+/// and the tool's text names it.
 #[test]
 fn a_rows_place_carries_when_its_location_was_fetched() {
-    let mut seat = Seat::new();
-    let a =
-        seat.answer(&json!({ "query": { "text": "rarity=unique or \"+# to maximum Life\">=90" } }));
-    let mut ages: Vec<(&str, &Value)> = a["rows"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|r| (r["id"].as_str().unwrap(), &r["place"]["fetched_at"]))
-        .collect();
-    ages.sort_by_key(|(id, _)| *id);
-    assert_eq!(ages, [("kaom", &json!(30)), ("r1", &json!(20))]);
+    let mut seat = Seat::over(scratch("mcp-search"));
     let tools = seat.mcp.list_tools();
     let search = tools.iter().find(|t| t["name"] == "search").unwrap();
     let text = search["description"].as_str().unwrap();
@@ -1616,37 +864,14 @@ fn a_rows_place_carries_when_its_location_was_fetched() {
     );
 }
 
-/// `scope.never_fetched: 2940` was in every answer, and which tabs it
-/// counted could not be learned: `tabs` answered 745,672 bytes, cut to its
-/// head, and a map count stood unsized (the trade seat: mcp-opus-2 calls
-/// 3, 10, its fault 2; mcp-sonnet-2 reading 2,940 as items). C118: the
-/// scope counts the never fetched by tab type as `tabs` counts a type,
-/// and the tool's text says so and names `tabs` as the list.
+/// `scope.never_fetched` stood unsized and which tabs it counted could not
+/// be learned (the trade seat: mcp-opus-2 calls 3, 10, its fault 2;
+/// mcp-sonnet-2 reading 2,940 as items). C118: the tool's text says the
+/// scope counts the never fetched by tab type as `tabs` counts a type, and
+/// names `tabs` as the list.
 #[test]
 fn the_scope_counts_the_never_fetched_by_tab_type_and_names_the_list() {
-    let mut seat = Seat::new();
-    let mut store = Store::open(&account_path(&stores(&seat.base), USER)).unwrap();
-    record(
-        &mut store,
-        Endpoint::Stashes {
-            realm: "pc".into(),
-            league: "Standard".into(),
-        },
-        "pc",
-        json!({ "stashes": [
-            { "id": "t1", "name": "Rings", "type": "PremiumStash" },
-            { "id": "t2", "name": "Dump", "type": "PremiumStash" },
-            { "id": "m1", "name": "Maps", "type": "MapStash" } ] }),
-        40,
-    );
-    drop(store);
-    let a = seat.answer(&json!({ "query": { "text": "rarity=unique" } }));
-    assert_eq!(a["scope"]["never_fetched"], 1, "{}", a["scope"]);
-    assert_eq!(
-        a["scope"]["never_fetched_by_type"],
-        json!([{ "type": "MapStash", "tabs": 1, "fetched": 0, "items": 0 }])
-    );
-    assert_eq!(a["scope"]["never_fetched_leagues"], json!(["Standard"]));
+    let mut seat = Seat::over(scratch("mcp-search"));
     let tools = seat.mcp.list_tools();
     let search = tools.iter().find(|t| t["name"] == "search").unwrap();
     let text = search["description"].as_str().unwrap();
@@ -1656,194 +881,51 @@ fn the_scope_counts_the_never_fetched_by_tab_type_and_names_the_list() {
     );
 }
 
-/// Three pc rings in one tab of Standard, each recovering mana on kill:
-/// 25% increased Rarity, 30% increased beside 10% reduced, and 15%.
-fn seed_rings(base: &Path) {
-    let dir = stores(base);
-    std::fs::create_dir_all(&dir).unwrap();
-    let mut index = Index::load(&dir).unwrap();
-    index.record_login(USER, "u-search", false, 1).unwrap();
-    let mut store = Store::open(&account_path(&dir, USER)).unwrap();
-    record(
-        &mut store,
-        Endpoint::Profile,
-        "pc",
-        json!({ "uuid": "u-search", "name": USER }),
-        1,
-    );
-    record(
-        &mut store,
-        Endpoint::Stashes {
-            realm: "pc".into(),
-            league: "Standard".into(),
-        },
-        "pc",
-        json!({ "stashes": [{ "id": "m1", "name": "Rings", "type": "PremiumStash" }] }),
-        10,
-    );
-    let ring = |id: &str, rarity: &[&str]| {
-        let mut lines: Vec<&str> = rarity.to_vec();
-        lines.push("Recover 2% of Mana on Kill");
-        item(
-            id,
-            "",
-            "Iron Ring",
-            "Rare",
-            json!({ "explicitMods": lines }),
-        )
-    };
-    record(
-        &mut store,
-        stash("pc", "m1"),
-        "pc",
-        json!({ "stash": { "id": "m1", "name": "Rings", "type": "PremiumStash", "items": [
-            ring("plain", &["25% increased Rarity of Items found"]),
-            ring("both", &["30% increased Rarity of Items found", "10% reduced Rarity of Items found"]),
-            ring("low", &["15% increased Rarity of Items found"]),
-        ] } }),
-        20,
-    );
-}
-
-/// C119: both second-round Opus runs measured each ambiguity by hand at
-/// three or four calls (the trade seat: mcp-opus-2 calls 34, 38, 40),
-/// one saying the label "does not hint at how much is at stake". A
-/// clause whose other reading the catalogue holds carries it, with the
-/// items in scope it adds and drops against the query as run — each
-/// count's request unasked, a next step hanging on it, and returning
-/// exactly its members — and a clause with none carries nothing. Here the
-/// seat's `increased Rarity` at 20 read without its `reduced` form, beside
-/// a text two stats share; the maps the seat asked by carry no other
-/// reading since round x read a Blight-ravaged map as no blighted one.
+/// The equality the frontends rest on, once (C46): a request through the
+/// `search` tool is the document `acq search --request` prints, a refusal
+/// on both or on neither, over the four kinds of request an agent sends:
+/// one it wrote, one refused, a continuation and an offer, each sent back
+/// as printed.
 #[test]
-fn an_ambiguous_clause_says_how_many_items_its_other_reading_would_change() {
-    let scratch = scratch("mcp-search");
-    let base = scratch.0.clone();
-    seed_rings(&base);
-    let mut seat = Seat::over(scratch);
-    let search = json!({ "query": { "stats": [{ "type": "and", "filters": [
-        { "id": "explicit.stat_3917489142", "value": { "min": 20 } },
-        { "id": "explicit.stat_1030153674" } ] }] } });
-    let a = seat.answer(&json!({ "scope": { "realm": "pc" }, "query": { "trade": search } }));
-    let mut found = ids(&a);
-    found.sort();
-    assert_eq!(found, ["both", "plain"], "{a}");
-    let clauses = a["query"]["trade"]["clauses"].as_array().unwrap();
-    let at = |name: &str| clauses.iter().find(|c| c["at"] == name).unwrap();
-    assert!(at("stats.0.1").get("other").is_none(), "{a}");
-    let other = &at("stats.0.0")["other"];
-    assert_eq!(
-        other["reading"],
-        "sum(line(\"#% increased Rarity of Items found\" source=explicit).arg1)>=20 -line(\"#% reduced Rarity of Items found\" source=explicit)",
-        "{other}"
-    );
-    assert_eq!(other["adds"], json!({ "count": 0 }), "{other}");
-    assert_eq!(other["drops"]["count"], 1, "{other}");
-    let dropped = seat.answer(&other["drops"]["request"]);
-    assert_eq!(ids(&dropped), ["both"], "{dropped}");
-}
-
-/// A report clause is one of two shapes (C100): an exact clause with a
-/// term of its own is `at`, `status`, `term` and `path` exactly; any other
-/// keeps the site's filter and its catalogue rows. A row with neither its
-/// term nor its filter connects nothing to its translation.
-fn slim_or_whole(c: &Value) {
-    let mut keys: Vec<&str> = c.as_object().unwrap().keys().map(String::as_str).collect();
-    keys.sort();
-    if c["status"] == "exact" && c.get("term").is_some() {
-        assert_eq!(keys, ["at", "path", "status", "term"], "{c}");
-    } else {
-        assert!(c.get("site").is_some() && c.get("rows").is_some(), "{c}");
-    }
-}
-
-/// The trade report weighed 2,732 bytes of the ring URL's three-row
-/// answer of 7,888 (measured after the answer's weight was cut, C115):
-/// each of nine clauses echoed the site's filter, its catalogue row and
-/// the row's sentence — one sentence four times for four pseudo stats —
-/// beside the text that states the whole translation. An exact clause with
-/// a term of its own is that term: `at`, `status`, `term` and `path`
-/// alone. Every other clause — a weighted sum's filter, with no term of
-/// its own, among them (the outside review of step 3) — keeps the site's
-/// filter, its rows and what they say, and `describe` keeps every row's
-/// sentence.
-#[test]
-fn a_trade_reports_exact_clause_is_where_it_stands_and_its_term_alone() {
+fn the_search_tool_is_acq_search_request() {
     let mut seat = Seat::new();
-    let url = format!("https://www.pathofexile.com/trade/search/Standard/{TRADE_ID}");
-    let a = seat.answer(&json!({ "query": { "trade": url }, "view": { "rows": { "limit": 0 } } }));
-    let clauses = a["query"]["trade"]["clauses"].as_array().unwrap();
-    let (exact, other): (Vec<&Value>, Vec<&Value>) = clauses
-        .iter()
-        .partition(|c| c["status"] == "exact" && c.get("term").is_some());
-    assert!(!exact.is_empty() && !other.is_empty(), "{a}");
-    for c in &exact {
-        slim_or_whole(c);
-    }
-    let league = exact.iter().find(|c| c["at"] == "url.league").unwrap();
-    assert_eq!(
-        **league,
-        json!({ "at": "url.league", "status": "exact", "term": "league=Standard", "path": "0" })
+    let (answer, refused) = seat.search_beside_the_cli(
+        &json!({ "query": { "text": "rarity=rare" }, "view": { "rows": { "limit": 2 } } }),
     );
-    for c in &other {
-        slim_or_whole(c);
-        assert!(!c["notes"].as_array().unwrap().is_empty(), "{c}");
-    }
-    // a weighted sum's filters have no term of their own — the sum is the
-    // group's — so the text does not state them: each keeps its whole row
-    let sum = json!({ "query": { "stats": [{ "type": "weight", "value": { "min": 60 }, "filters": [
-        { "id": "implicit.stat_3372524247", "value": { "weight": 1 } },
-        { "id": "implicit.stat_4220027924", "value": { "weight": 1 } } ] }] } });
-    let summed = seat.answer(&json!({ "scope": { "realm": "pc" }, "query": { "trade": sum } }));
-    for at in ["stats.0.0", "stats.0.1"] {
-        let c = summed["query"]["trade"]["clauses"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .find(|c| c["at"] == at)
-            .unwrap();
-        assert_eq!(c["status"], "exact", "{c}");
-        assert!(c.get("term").is_none(), "{c}");
-        slim_or_whole(c);
-        assert_eq!(c["rows"], json!(["stat.implicit"]), "{c}");
-        assert!(c["site"]["id"].is_string(), "{c}");
-    }
-    // the check refuses a row that says neither its term nor its filter
-    let bare = json!({ "at": "stats.0.0", "status": "exact" });
-    assert!(std::panic::catch_unwind(|| slim_or_whole(&bare)).is_err());
-    // the sentence an exact clause no longer carries is the catalogue's
-    let (described, _) = seat.call("describe", &json!({ "names": ["trade"] }));
-    let row = described["trade"]["rows"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|r| r["key"] == "url.league")
-        .unwrap()
-        .clone();
-    assert_eq!(
-        row["says"], "The league the URL names becomes a term of the search, like any other.",
-        "{row}"
-    );
+    assert!(!refused, "{answer}");
+    assert_eq!(ids(&answer), ["r1", "r2"]);
+    let (e, refused) = seat.search_beside_the_cli(&json!({ "query": { "text": "ring" } }));
+    assert!(refused, "{e}");
+    assert_eq!(e["kind"], "bare_word", "{e}");
+    let (next, refused) = seat.search_beside_the_cli(&answer["view"]["rows"]["next"]);
+    assert!(!refused, "{next}");
+    assert_eq!(ids(&next), ["plain", "str"]);
+    let (zero, _) = seat.search(&json!({ "query": { "text": "rarity=rare name:kaom" } }));
+    assert_eq!(zero["total"]["matched"], 0, "{zero}");
+    let (offered, refused) = seat.search_beside_the_cli(&zero["zero"]["offers"]["context"]);
+    assert!(!refused, "{offered}");
+    assert_eq!(offered["total"]["matched"], 5, "{offered}");
 }
 
-/// A count by `kind` was refused with `int`, `line` and `links` as its
-/// readings, none of which fit, and nothing said where the keys are
-/// (the trade seat: mcp-sonnet-2 call 5, its fault 7, "`kind` got no
-/// suggestion that fit"). An unknown name's refusal that offers near ones
-/// from a long list names the entry of `describe` that lists them all,
-/// and that entry answers with every key a count takes.
+/// `item_events`' window: `hours` how far back, 24 by default, and
+/// `limit` how many of the newest. The fixture's fetches landed in 1970,
+/// so the default window holds none of their events and a window back to
+/// then holds them, newest first.
 #[test]
-fn a_refused_count_key_says_where_every_key_is_listed() {
+fn item_events_reads_back_its_hours_and_defaults_to_a_day() {
     let mut seat = Seat::new();
-    let e = seat.refusal(&json!({ "view": { "counts": { "keys": ["league", "kind"] } } }));
-    assert_eq!(e["kind"], "unknown_name", "{e}");
-    let message = e["error"].as_str().unwrap();
-    assert!(message.contains("--describe counts lists all"), "{e}");
-    assert!(!e["readings"].as_array().unwrap().is_empty(), "{e}");
-    let (listed, refused) = seat.call("describe", &json!({ "names": ["counts"] }));
-    assert!(!refused, "{listed}");
-    let keys = listed["counts"][0]["values"].as_array().unwrap();
-    for key in ["class", "category", "frame", "tab.type"] {
-        assert!(keys.iter().any(|k| k == key), "{key}: {listed}");
-    }
+    // an array, not a document: read through the harness's `expect_ok`,
+    // which takes the structured content whatever its shape
+    let recent = seat.mcp.expect_ok("item_events", json!({}));
+    assert_eq!(recent, json!([]), "{recent}");
+    let all = seat.mcp.expect_ok("item_events", json!({ "hours": 1.0e9 }));
+    let all = all.as_array().unwrap_or_else(|| panic!("{all}")).clone();
+    assert_eq!(all.len(), 5, "{all:?}");
+    let at: Vec<i64> = all.iter().map(|e| e["at"].as_i64().unwrap()).collect();
+    assert!(at.windows(2).all(|w| w[0] >= w[1]), "newest first: {at:?}");
+    let one = seat
+        .mcp
+        .expect_ok("item_events", json!({ "hours": 1.0e9, "limit": 1 }));
+    assert_eq!(one.as_array().unwrap().len(), 1, "{one}");
+    assert_eq!(one[0], all[0]);
 }

@@ -709,6 +709,236 @@ pub fn currency_document(word: Option<&str>) -> Result<CurrencyDocument> {
 mod tests {
     use super::*;
 
+    /// One account's facts in memory: pc Standard's tab `t1` fetched with
+    /// two unpriced items, `i1` and `i2`; and its intent file, empty.
+    fn priced() -> (Store, Annotations) {
+        use acquisition_store::Endpoint;
+        let mut store = Store::open_memory().unwrap();
+        let item = |id: &str, x: i64| {
+            json!({ "id": id, "name": "", "typeLine": "Iron Ring", "baseType": "Iron Ring",
+                    "frameType": 2, "x": x, "y": 0, "w": 1, "h": 1, "inventoryId": "Stash1" })
+        };
+        let pc = json!({ "realm": "pc", "league": "Standard" });
+        store
+            .record(
+                &Endpoint::Profile,
+                &json!({}),
+                200,
+                &json!({ "uuid": "u-1", "name": "A" }),
+                1,
+            )
+            .unwrap();
+        store
+            .record(
+                &Endpoint::Stashes {
+                    realm: "pc".into(),
+                    league: "Standard".into(),
+                },
+                &pc,
+                200,
+                &json!({ "stashes": [{ "id": "t1", "name": "One", "type": "PremiumStash", "index": 0 }] }),
+                10,
+            )
+            .unwrap();
+        store
+            .record(
+                &Endpoint::Stash {
+                    realm: "pc".into(),
+                    league: "Standard".into(),
+                    id: "t1".into(),
+                    sub: None,
+                },
+                &pc,
+                200,
+                &json!({ "stash": { "id": "t1", "name": "One", "type": "PremiumStash", "index": 0,
+                                    "items": [item("i1", 0), item("i2", 1)] } }),
+                20,
+            )
+            .unwrap();
+        (store, Annotations::open_memory_for("u-1").unwrap())
+    }
+
+    /// `price list --limit N` holds the first N in listing order and says
+    /// how many the selection holds and how many it lists; the containers
+    /// are the listed items' alone (the release seat: a league's conflicts
+    /// were 49 to 67 KB, cut by a harness after the first item).
+    #[test]
+    fn a_list_is_bounded_by_its_limit_and_counts_the_selection() {
+        let (store, a) = priced();
+        let args = |limit| ListArgs {
+            effective: Some("none".into()),
+            limit,
+            ..ListArgs::default()
+        };
+        let whole = list(&store, &a, None, None, &args(None)).unwrap();
+        assert_eq!((whole.total, whole.listed, whole.items.len()), (2, 2, 2));
+        let limited = list(&store, &a, None, None, &args(Some(1))).unwrap();
+        assert_eq!((limited.total, limited.listed), (2, 1));
+        assert_eq!(limited.items, whole.items[..1].to_vec());
+        assert_eq!(limited.filter.limit, Some(1));
+        let chain = serde_json::to_value(&limited.items[0]).unwrap()["chain"].clone();
+        for c in &limited.containers {
+            let target = serde_json::to_value(c).unwrap()["subject"]["target"].clone();
+            assert!(chain.as_array().unwrap().contains(&target), "{target}");
+        }
+    }
+
+    /// A write refused for its revision is `conflict` with the row's
+    /// revision now, in the verb's words, never the store's: a stale
+    /// revision over a live row; a revision named over a cleared one; a
+    /// clear of a cleared row. A target the facts do not hold is
+    /// `not_found`.
+    #[test]
+    fn a_write_refused_for_its_revision_is_a_conflict_naming_it_in_the_verbs_words() {
+        let (store, mut a) = priced();
+        let via = Provenance::via("test");
+        let refused = |e: anyhow::Error| {
+            Refused::find(&e)
+                .cloned()
+                .unwrap_or_else(|| panic!("{e:#}"))
+        };
+        set(
+            &store,
+            &mut a,
+            "item/i1",
+            "exact",
+            Some("2"),
+            Some("divine"),
+            Expect::Current,
+            &via,
+        )
+        .unwrap();
+        set(
+            &store,
+            &mut a,
+            "item/i1",
+            "exact",
+            Some("3"),
+            Some("divine"),
+            Expect::Exactly(1),
+            &via,
+        )
+        .unwrap();
+        let r = refused(
+            set(
+                &store,
+                &mut a,
+                "item/i1",
+                "exact",
+                Some("7"),
+                Some("divine"),
+                Expect::Exactly(1),
+                &via,
+            )
+            .unwrap_err(),
+        );
+        assert_eq!(r.kind, RefusedKind::Conflict { revision: Some(2) });
+        assert_eq!(
+            r.message,
+            "item/i1 has a price at revision 2 (re-read and retry)"
+        );
+        let r = refused(clear(&mut a, "item/i1", Expect::Exactly(1), &via).unwrap_err());
+        assert_eq!(r.kind, RefusedKind::Conflict { revision: Some(2) });
+
+        clear(&mut a, "item/i1", Expect::Exactly(2), &via).unwrap();
+        let r = refused(
+            set(
+                &store,
+                &mut a,
+                "item/i1",
+                "exact",
+                Some("1"),
+                Some("divine"),
+                Expect::Exactly(99),
+                &via,
+            )
+            .unwrap_err(),
+        );
+        assert_eq!(r.kind, RefusedKind::Conflict { revision: Some(3) });
+        assert_eq!(
+            r.message,
+            "item/i1's price was cleared (revision 3); a new price names no revision"
+        );
+        let r = refused(clear(&mut a, "item/i1", Expect::Current, &via).unwrap_err());
+        assert_eq!(r.kind, RefusedKind::Conflict { revision: Some(3) });
+        assert!(
+            r.message
+                .starts_with("item/i1's price was cleared (revision 3)"),
+            "{}",
+            r.message
+        );
+        for word in ["annotation", "buyout"] {
+            assert!(!r.message.contains(word), "{}", r.message);
+        }
+
+        let e = show(&store, &a, "item/i-nowhere", None, None).unwrap_err();
+        assert_eq!(refused(e).kind, RefusedKind::NotFound);
+    }
+
+    /// A row this build cannot read (a newer build's value) is never
+    /// replaced or cleared blind: both refuse naming its revision and the
+    /// reviewed path, and the row is untouched; a named revision replaces
+    /// it deliberately.
+    #[test]
+    fn a_row_this_build_cannot_read_is_never_written_blind() {
+        #[derive(Serialize)]
+        #[serde(transparent)]
+        struct NewerBuyout(Value);
+        impl IntentValue for NewerBuyout {
+            const KIND: &'static str = "buyout";
+            const VERSION: i64 = 99;
+            fn parse(value: &Value) -> Result<Self, String> {
+                Ok(NewerBuyout(value.clone()))
+            }
+        }
+        let (store, mut a) = priced();
+        let via = Provenance::via("test");
+        let newer = json!({ "version": 2, "type": "auction", "reserve": "5 chaos" });
+        a.put::<NewerBuyout>("item", "i1", &newer, None, &Provenance::via("future"))
+            .unwrap();
+        let said = [
+            "item/i1 holds a value this build cannot read (revision 1: buyout declares version 2, newer than this build's v1)",
+            "`--if-revision 1` replaces it deliberately",
+        ];
+        let blind = [
+            set(
+                &store,
+                &mut a,
+                "item/i1",
+                "skip",
+                None,
+                None,
+                Expect::Current,
+                &via,
+            )
+            .map(|_| ())
+            .unwrap_err(),
+            clear(&mut a, "item/i1", Expect::Current, &via)
+                .map(|_| ())
+                .unwrap_err(),
+        ];
+        for e in blind {
+            let e = format!("{e:#}");
+            for words in said {
+                assert!(e.contains(words), "{words}: {e}");
+            }
+        }
+        let row = a.get("item", "i1", BUYOUT_KIND).unwrap().unwrap();
+        assert_eq!((row.revision, &row.value), (1, &newer), "untouched");
+        let written = set(
+            &store,
+            &mut a,
+            "item/i1",
+            "skip",
+            None,
+            None,
+            Expect::Exactly(1),
+            &via,
+        )
+        .unwrap();
+        assert_eq!(written.write.prior.map(|r| r.revision), Some(1));
+    }
+
     /// A tab or substash address carries its realm; a realm given beside
     /// it must agree; an item or character takes the given realm, default
     /// pc.

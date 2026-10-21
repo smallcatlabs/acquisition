@@ -2457,6 +2457,33 @@ fn ingest_item(
 mod tests {
     use super::*;
 
+    /// `status` said `leagues: 0` beside tabs in seven leagues, a bare
+    /// number (the re-sit, mcp-sonnet call 3, its fault 7): `league_list`
+    /// says whether the list was ever fetched, and a fetch that listed none
+    /// is a fetch (review 2 of the re-sit), its count still none.
+    #[test]
+    fn the_league_list_is_never_fetched_until_a_fetch_even_one_that_lists_none() {
+        let mut s = Store::open_memory().unwrap();
+        let status = s.status().unwrap();
+        assert_eq!(
+            (status.leagues, status.league_list.as_str()),
+            (0, "never fetched")
+        );
+        s.record(
+            &Endpoint::Leagues,
+            &json!({}),
+            200,
+            &json!({ "leagues": [] }),
+            50,
+        )
+        .unwrap();
+        let status = s.status().unwrap();
+        assert_eq!(
+            (status.leagues, status.league_list.as_str()),
+            (0, "fetched")
+        );
+    }
+
     fn item(id: &str, name: &str, x: i64) -> Value {
         json!({ "id": id, "name": name, "typeLine": "Imperial Bow", "baseType": "Imperial Bow", "x": x, "y": 0, "w": 2, "h": 4, "inventoryId": "Stash1", "league": "Standard" })
     }

@@ -229,6 +229,78 @@ async fn with_no_daemon_a_job_is_answered_from_the_ledger() {
     assert!(matches!(frontend.observe().await, Ok(None)));
 }
 
+/// C45: with no daemon the queue is the ledger's: `jobs` lists the open
+/// rows as the last daemon left them (two waiting, one a child, and one
+/// recorded running; a finished and a cancelled row left out), their bulk
+/// columns unread, and `daemon` counts them, the picture's age the newest
+/// write of any row; neither spawns, and a world with no ledger yet is
+/// `persisted: null`, not an empty queue.
+#[tokio::test]
+async fn with_no_daemon_the_queue_and_its_counts_are_the_ledgers() {
+    let s = session("queue");
+    let frontend = Frontend::agent("test").unwrap();
+    assert_eq!(
+        serde_json::to_value(frontend.jobs().await.unwrap()).unwrap(),
+        json!({ "running": false, "persisted": null })
+    );
+    ledger(
+        &s,
+        &[
+            JobRow {
+                updated_at: 1_700_000_010,
+                ..row(1, "waiting", None)
+            },
+            JobRow {
+                updated_at: 1_700_000_030,
+                ..row(2, "running", None)
+            },
+            JobRow {
+                parent: Some(2),
+                updated_at: 1_700_000_020,
+                ..row(3, "waiting", None)
+            },
+            JobRow {
+                updated_at: 1_700_000_005,
+                ..row(
+                    4,
+                    "done",
+                    Some(json!({ "outcome": "success", "payload": {} })),
+                )
+            },
+            JobRow {
+                updated_at: 1_700_000_040,
+                ..row(5, "cancelled", None)
+            },
+        ],
+    );
+    let jobs = serde_json::to_value(frontend.jobs().await.unwrap()).unwrap();
+    assert_eq!(jobs["running"], json!(false), "{jobs}");
+    assert_eq!(
+        jobs["persisted"]["written_at"],
+        json!(1_700_000_040),
+        "{jobs}"
+    );
+    let listed = jobs["persisted"]["jobs"].as_array().unwrap();
+    let ids: Vec<u64> = listed.iter().map(|j| j["id"].as_u64().unwrap()).collect();
+    assert_eq!(ids, [1, 2, 3], "{jobs}");
+    assert_eq!(listed[1]["state"], "running");
+    assert_eq!(listed[2]["parent"], 2);
+    assert_eq!(listed[0]["params"]["id"], "tab1");
+    assert!(
+        listed[0].get("deferred").is_none(),
+        "bulk columns are not read: {jobs}"
+    );
+
+    assert_eq!(
+        serde_json::to_value(frontend.daemon().await.unwrap()).unwrap(),
+        json!({
+            "running": false,
+            "persisted": { "waiting": 2, "recorded_running": 1, "written_at": 1_700_000_040 }
+        })
+    );
+    assert!(matches!(frontend.observe().await, Ok(None)));
+}
+
 // ---- the apply flow over the mock (C38, C111, C23) -----------------------
 
 /// C111: a plan applied, landed, and applied again sends nothing the

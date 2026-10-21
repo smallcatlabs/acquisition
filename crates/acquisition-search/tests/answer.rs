@@ -660,3 +660,60 @@ fn c115_an_answer_unasked_carries_only_the_routes_a_next_step_hangs_on() {
         &by_class["view"]["counts"]["tables"][0]["buckets"][0]
     ));
 }
+
+/// `scope.list_seen` under a query that fixes one league is that league's
+/// list (and the characters'), never the realm's oldest (the re-sit,
+/// mcp-opus fault 2): Standard's tabs were listed at 10, an empty
+/// Allflame listing at 5.
+#[test]
+fn the_scopes_list_age_under_a_query_fixing_one_league_is_that_leagues() {
+    let mut s = worked();
+    list_tabs(&mut s, "pc", "Allflame", json!([]), 5);
+    let corpus = load(&s, Some("pc"));
+    let fixed = as_json(&ask(&corpus, "league=Standard").unwrap());
+    assert_eq!(fixed["scope"]["list_seen"], 10, "{}", fixed["scope"]);
+    let whole = as_json(&ask(&corpus, "").unwrap());
+    assert_eq!(whole["scope"]["list_seen"], 5, "{}", whole["scope"]);
+}
+
+/// C115, a row as slim as the decision view allows (C53, C100): a row says
+/// each term it touched by its path, which the terms block names, and the
+/// lines it touched with their values, and nothing else of the term; a
+/// line has `flags` only where it has any; `next` is the request alone,
+/// never a terminal's token beside it.
+#[test]
+fn a_touched_term_on_a_row_is_its_path_its_lines_and_what_it_left_out() {
+    let s = worked();
+    let corpus = load(&s, Some("pc"));
+    let request = serde_json::from_value(json!({
+        "query": { "text": "\"+# to maximum Life\">=90" },
+        "view": { "rows": { "limit": 1 } },
+    }))
+    .unwrap();
+    let a = as_json(&acquisition_search::answer(&corpus, &request).unwrap());
+    assert_eq!(a["rows"][0]["id"], "r1", "{a}");
+    let touched = a["rows"][0]["matched"].as_array().unwrap();
+    assert!(!touched.is_empty(), "{a}");
+    for t in touched {
+        let keys: Vec<&String> = t.as_object().unwrap().keys().collect();
+        assert!(
+            keys.iter()
+                .all(|k| ["path", "shows", "left_out"].contains(&k.as_str())),
+            "{t}"
+        );
+    }
+    let life = touched.iter().find(|t| t["path"] == "0").unwrap();
+    assert_eq!(
+        life["shows"],
+        json!([{ "line": { "source": "explicit", "text": "+95 to maximum Life" } }])
+    );
+    assert_eq!(
+        a["terms"][0]["term"],
+        "line(\"# to maximum Life\" arg1>=90)"
+    );
+    let next = &a["view"]["rows"]["next"];
+    assert!(
+        next.get("token").is_none() && next["request"].is_object(),
+        "{next}"
+    );
+}

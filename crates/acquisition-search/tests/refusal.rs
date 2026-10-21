@@ -152,23 +152,32 @@ fn c102_s53_a_class_is_a_derivation_the_search_owns_and_says_so() {
 fn a_name_the_language_does_not_know_is_an_authoring_error_with_near_names() {
     let store = common::store();
     let corpus = common::load(&store, None);
-    for (text, kind, reading) in [
-        ("rarty=rare", "unknown_name", Some("rarity=rare")),
-        ("rarity=rar", "unknown_value", Some("rarity=rare")),
-        ("is:corupted", "unknown_name", Some("is:corrupted")),
-        ("ilvl:84", "operator_mismatch", Some("ilvl=84")),
-        ("name~\"(\"", "bad_pattern", None),
-        ("line(is:corrupted)", "unknown_name", None),
-        ("is:crafted", "unknown_name", Some("line(is:crafted)")),
-        ("rare", "bare_word", Some("rarity=rare")),
-        ("corrupted", "bare_word", Some("is:corrupted")),
-        ("line(fractured)", "bare_word", Some("is:fractured")),
+    // `readings` is the head of what is offered, in order: a bare word is
+    // a closed value's first where it is one, then a name (a Sonnet run of
+    // the re-sit took a phrase reading and searched line text for a unique,
+    // mcp-sonnet calls 18 to 21), and every bare word's readings run.
+    for (text, kind, readings) in [
+        ("rarty=rare", "unknown_name", &["rarity=rare"][..]),
+        ("rarity=rar", "unknown_value", &["rarity=rare"]),
+        ("is:corupted", "unknown_name", &["is:corrupted"]),
+        ("ilvl:84", "operator_mismatch", &["ilvl=84"]),
+        ("name~\"(\"", "bad_pattern", &[]),
+        ("line(is:corrupted)", "unknown_name", &[]),
+        ("is:crafted", "unknown_name", &["line(is:crafted)"]),
+        ("rare", "bare_word", &["rarity=rare", "name:rare"]),
+        ("Loreweave", "bare_word", &["name:Loreweave"]),
+        ("corrupted", "bare_word", &["is:corrupted"]),
+        ("line(fractured)", "bare_word", &["is:fractured"]),
     ] {
         let e = common::ask(&corpus, text).unwrap_err();
         let json = e.to_json();
         assert_eq!(json["kind"], kind, "`{text}`: {e}");
-        if let Some(reading) = reading {
-            assert_eq!(json["readings"][0], reading, "`{text}`: {e}");
+        for (at, reading) in readings.iter().enumerate() {
+            assert_eq!(json["readings"][at], *reading, "`{text}`: {e}");
+        }
+        if kind == "bare_word" {
+            let first = json["readings"][0].as_str().unwrap();
+            common::ask(&corpus, first).unwrap_or_else(|e| panic!("`{first}`: {e}"));
         }
     }
 }

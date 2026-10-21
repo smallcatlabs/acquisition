@@ -1,22 +1,25 @@
 //! The MCP's `daemon_status` through the binary (C10, C84, C83): absence
-//! is a state; a running daemon this server may use is reported with its
-//! identity — contract, the executable it runs from and its hash, how
-//! that file relates to the `acqd` beside `acq-mcp` (`artifact_relation`)
-//! and that sibling under `wanted`, and the world it serves (its
-//! canonical root, `world_matches`); a daemon of another provider is
-//! reported as incompatible with the dimension named, and never
-//! replaced. `ACQ_PROVIDER=ggg` appears only on the observing server, which
+//! is a state; a running daemon this server may use is reported judged
+//! against the `acqd` beside `acq-mcp`, that sibling under `wanted`; a
+//! daemon of another provider is reported as incompatible with the
+//! dimension named, and never replaced. `ACQ_PROVIDER=ggg` appears only on the observing server, which
 //! cannot spawn in real mode by construction: nothing reaches GGG.
 
 mod harness;
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::{Duration, Instant};
 
 use acquisition_store::jobs::{JobDb, JobRow, daemon_db_path};
 use harness::{Mcp, spawn_daemon};
-use serde_json::{Value, json};
+use serde_json::json;
 
+/// The report's shape, its vitals and identity keys side by side, is the
+/// verbs crate's (`acquisition-verbs/tests/documents.rs`); here, what
+/// this server adds: absence is a state and no daemon appears for it; a
+/// running daemon is judged against the `acqd` beside `acq-mcp`, which the
+/// report names under `wanted`; and a server wanting another provider
+/// reports the daemon incompatible and never replaces it.
 #[test]
 fn c84_daemon_status_reports_the_identity_and_the_sibling_it_is_judged_against() {
     let scratch = harness::scratch("mcp-status");
@@ -26,8 +29,6 @@ fn c84_daemon_status_reports_the_identity_and_the_sibling_it_is_judged_against()
         .canonicalize()
         .unwrap();
 
-    // Absent: a state, not an error — with nothing on disk to read (C45:
-    // no world yet, so `persisted` is null) — and no daemon appears.
     let mut mcp = Mcp::start(&base, &[]);
     assert_eq!(
         mcp.expect_ok("daemon_status", json!({})),
@@ -38,8 +39,6 @@ fn c84_daemon_status_reports_the_identity_and_the_sibling_it_is_judged_against()
         "daemon_status spawned a daemon"
     );
 
-    // Running and this server's: the vitals, and the identity keys the
-    // incompatible report has, from one look at the sibling.
     let daemon = spawn_daemon(&base, &[]);
     let deadline = Instant::now() + Duration::from_secs(10);
     let status = loop {
@@ -55,48 +54,6 @@ fn c84_daemon_status_reports_the_identity_and_the_sibling_it_is_judged_against()
         std::thread::sleep(Duration::from_millis(50));
     };
     assert_eq!(status["compatible"], true, "{status}");
-    assert_eq!(status["provider"], "mock", "{status}");
-    assert!(
-        status["contract"].as_str().is_some_and(|c| c.len() == 12),
-        "{status}"
-    );
-    assert_eq!(
-        Path::new(status["artifact"]["path"].as_str().unwrap())
-            .canonicalize()
-            .unwrap(),
-        acqd,
-        "{status}"
-    );
-    let sha = status["artifact"]["sha256"].as_str().unwrap();
-    assert!(
-        sha.len() == 64 && sha.bytes().all(|b| b.is_ascii_hexdigit()),
-        "{status}"
-    );
-    assert_eq!(status["artifact_relation"], "same_file", "{status}");
-    for key in [
-        "contract_matches",
-        "artifact_matches",
-        "provider_matches",
-        "world_matches",
-    ] {
-        assert_eq!(status[key], true, "{key}: {status}");
-    }
-    // The socket (C83): derived from the world into the scratch runtime
-    // directory — the one file bound there — the one this server reached
-    // the daemon through.
-    assert_eq!(
-        harness::sockets_under(&harness::scratch_tmp(&base)),
-        vec![PathBuf::from(status["socket"].as_str().unwrap())],
-        "{status}"
-    );
-    assert_eq!(
-        status["world"],
-        acquisition_store::world::canonical(&base.join("store"))
-            .unwrap()
-            .display()
-            .to_string(),
-        "{status}"
-    );
     assert_eq!(
         Path::new(status["wanted"]["acqd"]["path"].as_str().unwrap())
             .canonicalize()
@@ -104,44 +61,18 @@ fn c84_daemon_status_reports_the_identity_and_the_sibling_it_is_judged_against()
         acqd,
         "{status}"
     );
-    assert_eq!(status["wanted"]["contract"], status["contract"], "{status}");
-    assert!(
-        status["uptime_seconds"].is_number() && status["rails"].is_object(),
-        "{status}"
-    );
-    // The log the daemon opened, reported by the daemon (C83): under the
-    // harness's log directory, not recomputed by this server.
-    assert!(
-        status["log"].as_str().is_some_and(|log| log
-            .starts_with(&base.join("logs").display().to_string())
-            && Path::new(log).ends_with("mock/daemon.log")),
-        "{status}"
-    );
+    assert_eq!(status["artifact_relation"], "same_file", "{status}");
     let pid = status["pid"].as_u64().unwrap();
     assert_eq!(pid, u64::from(daemon.id()), "{status}");
 
-    // A server that wants ggg observes the mock daemon: incompatible on
-    // the provider dimension alone, the artifact still its sibling, the
-    // daemon left running.
     let mut real = Mcp::start(&base, &[("ACQ_PROVIDER", "ggg")]);
     let report = real.expect_ok("daemon_status", json!({}));
-    assert_eq!(report["running"], true, "{report}");
     assert_eq!(report["compatible"], false, "{report}");
     assert_eq!(report["pid"], pid, "{report}");
-    assert_eq!(report["contract_matches"], true, "{report}");
-    assert_eq!(report["artifact_matches"], true, "{report}");
-    assert_eq!(report["artifact_relation"], "same_file", "{report}");
     assert_eq!(report["provider_matches"], false, "{report}");
-    assert_eq!(report["world_matches"], true, "{report}");
     assert_eq!(report["wanted"]["provider"], "ggg", "{report}");
-    assert_eq!(
-        report["artifact"]["sha256"],
-        Value::String(sha.to_string()),
-        "{report}"
-    );
     let again = mcp.expect_ok("daemon_status", json!({}));
     assert_eq!(again["pid"], pid, "the daemon was replaced: {again}");
-    // The guards kill the daemon and remove the scratch directory.
 }
 
 /// The release seat (mcp-opus calls 40 to 42, mcp-sonnet 42 to 45): a

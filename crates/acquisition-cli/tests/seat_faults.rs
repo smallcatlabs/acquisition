@@ -234,16 +234,15 @@ fn an_account_that_cannot_be_picked_says_which_failure_and_lists_the_accounts() 
     let scratch = harness::scratch("seat-account");
     let base = scratch.0.clone();
 
-    let out = acq(&base, &["tabs", "--json"]);
-    assert_eq!(out.status.code(), Some(1), "{out:?}");
-    assert_eq!(sole_json(&out)["kind"], "not_logged_in");
-
     seed_two_leagues(&base);
     Index::load(&base.join("store").join("mock"))
         .unwrap()
         .record_login("Bob#5678", "u-bob", false, acquisition_store::now())
         .unwrap();
 
+    // One case through the binary: exit 1 and the fault's fields under
+    // `--json`. Which failure each selector is, is the verbs crate's
+    // (C121; `acquisition-verbs/tests/documents.rs`).
     let out = acq(&base, &["tabs", "--json"]);
     assert_eq!(out.status.code(), Some(1), "{out:?}");
     let report = sole_json(&out);
@@ -253,19 +252,7 @@ fn an_account_that_cannot_be_picked_says_which_failure_and_lists_the_accounts() 
         json!(["Alice#1234", "Bob#5678"]),
         "{report}"
     );
-
-    let out = acq(&base, &["tabs", "--json", "--account", "Carol"]);
-    assert_eq!(out.status.code(), Some(1), "{out:?}");
-    let report = sole_json(&out);
-    assert_eq!(report["kind"], "not_logged_in", "{report}");
-    assert_eq!(
-        report["accounts"],
-        json!(["Alice#1234", "Bob#5678"]),
-        "{report}"
-    );
-
-    let out = acq(&base, &["tabs", "--json", "--account", "Alice"]);
-    assert_eq!(out.status.code(), Some(0), "{out:?}");
+    assert!(report["error"].is_string(), "{report}");
 }
 
 fn stdout(out: &std::process::Output) -> String {
@@ -374,17 +361,16 @@ fn a_finished_jobs_result_is_answered_from_disk_with_no_daemon() {
         .as_u64()
         .expect("a job id")
         .to_string();
-    let live = sole_json(&acq(&base, &["result", &id, "--wait", "--json"]));
+    let waited = acq(&base, &["result", &id, "--wait", "--json"]);
+    assert_eq!(waited.status.code(), Some(0), "{waited:?}");
     assert!(acq(&base, &["daemon", "stop"]).status.success());
     drop(daemon);
 
+    // What the ledger answers is the verbs crate's (C45,
+    // `acquisition-verbs/tests/daemon.rs`); here, the exit codes and the
+    // text lines.
     let out = acq(&base, &["result", &id, "--json"]);
     assert_eq!(out.status.code(), Some(0), "{out:?}");
-    assert_eq!(sole_json(&out), live, "the ledger's answer is the daemon's");
-
-    let status = sole_json(&acq(&base, &["status", &id, "--json"]));
-    assert_eq!(status["running"], false, "{status}");
-    assert_eq!(status["persisted"]["state"], "done", "{status}");
     let said = stdout(&acq(&base, &["status", &id]));
     assert!(
         said.starts_with(&format!(
@@ -471,11 +457,10 @@ fn an_apply_ends_by_saying_what_a_new_plan_would_still_fetch() {
         "{said}"
     );
 
-    let outcome = sole_json(&acq(&base, &["refresh", "--apply", "--json"]));
-    assert_eq!(outcome["outcome"], "success", "{outcome}");
-    assert_eq!(outcome["remaining_requests"], 0, "{outcome}");
-    assert_eq!(outcome["account"], "alice", "{outcome}");
-    assert!(outcome["job_id"].is_u64(), "{outcome}");
+    // The count itself is the verbs crate's (C111); the second round here
+    // is what leaves nothing planned.
+    let out = acq(&base, &["refresh", "--apply", "--json"]);
+    assert_eq!(out.status.code(), Some(0), "{}", text(&out));
 
     let said = stdout(&acq(&base, &["refresh", "--plan"]));
     assert!(said.contains("nothing to do"), "{said}");
@@ -689,24 +674,7 @@ fn tabs_says_its_counts_first_and_counts_a_large_league() {
     );
     let all = stdout(&acq(&base, &["tabs", "--expand"]));
     assert!(all.contains("q40") && all.lines().count() > 41, "{all}");
-    let cut = sole_json(&acq(&base, &["tabs", "--json"]));
-    assert_eq!(cut["tabs"], 41, "{cut}");
-    assert_eq!(cut["rows"].as_array().unwrap().len(), 10, "{cut}");
-    assert_eq!(cut["left_out"], 31, "{cut}");
-    assert_eq!(cut["left_out_needs"], "expand", "{cut}");
-    let whole = sole_json(&acq(&base, &["tabs", "--json", "--expand"]));
-    let rows = whole["rows"].as_array().unwrap();
-    assert_eq!(rows.len(), 41, "{whole}");
-    assert_eq!(whole["left_out"], 0, "{whole}");
-    let q40 = rows.iter().find(|r| r["id"] == "q40").unwrap();
-    for field in ["id", "name", "type", "item_count", "parent", "fetched_at"] {
-        assert!(q40.get(field).is_some(), "{field} missing: {q40}");
-    }
-    assert_eq!(q40["type"], "QuadStash", "{q40}");
-    assert!(
-        q40["fetched_at"].is_null() && q40["parent"].is_null(),
-        "{q40}"
-    );
+    // The document `--json` prints is the search crate's (`tabs.rs`).
 
     // The next commands keep the league shown: they named Standard's
     // defaults whatever league the summary was of.
@@ -784,56 +752,8 @@ fn tabs_lists_the_never_fetched_of_one_type() {
         )
         .unwrap();
     drop(store);
-    let cut = sole_json(&acq(
-        &base,
-        &["tabs", "--json", "--type", "uniquestash", "--never-fetched"],
-    ));
-    // the league's counts stay the league's
-    assert_eq!(cut["tabs"], 42, "{cut}");
-    assert_eq!(cut["never_fetched"], 40, "{cut}");
-    assert_eq!(
-        cut["selection"],
-        json!({ "type": "uniquestash", "never_fetched": true }),
-        "{cut}"
-    );
-    assert_eq!(cut["selected"], 40, "{cut}");
-    assert_eq!(cut["rows"].as_array().unwrap().len(), 10, "{cut}");
-    assert_eq!(cut["left_out"], 30, "{cut}");
-    assert_eq!(cut["left_out_needs"], "expand", "{cut}");
-    let all = sole_json(&acq(
-        &base,
-        &[
-            "tabs",
-            "--json",
-            "--type",
-            "UniqueStash",
-            "--never-fetched",
-            "--expand",
-        ],
-    ));
-    let rows = all["rows"].as_array().unwrap();
-    assert_eq!(rows.len(), 40, "{all}");
-    assert!(
-        rows.iter()
-            .all(|r| r["type"] == "UniqueStash" && r["fetched_at"].is_null()),
-        "{all}"
-    );
-    assert_eq!(all["left_out"], 0, "{all}");
-    // a folder is never fetched and holds nothing: not a tab to refresh
-    let never = sole_json(&acq(&base, &["tabs", "--json", "--never-fetched"]));
-    assert_eq!(never["selected"], 40, "{never}");
-    let none = sole_json(&acq(
-        &base,
-        &[
-            "tabs",
-            "--json",
-            "--type",
-            "PremiumStash",
-            "--never-fetched",
-        ],
-    ));
-    assert_eq!(none["selected"], 0, "{none}");
-    assert_eq!(none["rows"], json!([]), "{none}");
+    // What the selection holds is the search crate's (`tabs.rs`); here,
+    // the flags read as it, in the text.
     // the text: the league's counts, the selection in words, the rows,
     // and what lists the rest
     let said = stdout(&acq(
@@ -863,67 +783,6 @@ fn tabs_lists_the_never_fetched_of_one_type() {
         ],
     ));
     assert!(all.contains("u40") && !all.contains("shown:"), "{all}");
-}
-
-/// The scope line said "location list seen 41d ago" under a
-/// `league=Standard` query whose own list was 3 days old: the age was
-/// the realm's oldest list, another league's (the re-sit, mcp-opus
-/// fault 2, read against `tabs` and `refresh --plan` and never
-/// resolved). Under a query that fixes one league the age is that
-/// league's list and the characters'; with none fixed, the realm's
-/// oldest, as before.
-#[test]
-fn the_scope_lines_list_age_is_the_querys_leagues() {
-    let scratch = harness::scratch("seat-list-age");
-    let base = scratch.0.clone();
-    seed_two_leagues(&base);
-    let mock = base.join("store").join("mock");
-    let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
-    let later = acquisition_store::now() + 600;
-    store
-        .record(
-            &Endpoint::Stashes {
-                realm: "pc".into(),
-                league: "Standard".into(),
-            },
-            &json!({ "league": "Standard" }),
-            200,
-            &json!({ "stashes": [ { "id": "a1", "name": "Gear", "type": "PremiumStash", "index": 0 } ] }),
-            later,
-        )
-        .unwrap();
-    drop(store);
-    let fixed = sole_json(&acq(
-        &base,
-        &["search", "--realm", "pc", "--json", "league=Standard"],
-    ));
-    assert_eq!(fixed["scope"]["list_seen"], later, "{}", fixed["scope"]);
-    // a refinement parenthesizes the old text and appends a term, and
-    // fixes the same league (review 2 of the re-sit)
-    let refined = sole_json(&acq(
-        &base,
-        &[
-            "search",
-            "--realm",
-            "pc",
-            "--json",
-            "(league=Standard rarity=rare) ilvl>=1",
-        ],
-    ));
-    assert_eq!(refined["scope"]["list_seen"], later, "{}", refined["scope"]);
-    let whole = sole_json(&acq(&base, &["search", "--realm", "pc", "--json"]));
-    let oldest = whole["scope"]["list_seen"].as_i64().unwrap();
-    assert!(oldest < later, "{}", whole["scope"]);
-    // a league no list names keeps the realm's age, never none
-    let unknown = sole_json(&acq(
-        &base,
-        &["search", "--realm", "pc", "--json", "league=Nowhere"],
-    ));
-    assert_eq!(
-        unknown["scope"]["list_seen"], oldest,
-        "{}",
-        unknown["scope"]
-    );
 }
 
 /// `show` printed `price   none (none)` for an unpriced item — the
@@ -977,23 +836,11 @@ fn a_plan_file_applied_twice_sends_nothing_the_second_time() {
     let planned = plan["logical_requests"].as_u64().expect("a count");
     assert!(planned > 1, "{plan}");
 
-    let first = sole_json(&acq(&base, &["refresh", &apply, "--json"]));
-    assert_eq!(first["outcome"], "success", "{first}");
-    assert_eq!(first["payload"]["requests"], planned, "{first}");
-    assert_eq!(first["spent"], json!([]), "{first}");
-
-    let out = acq(&base, &["refresh", &apply, "--json"]);
-    assert!(out.status.success(), "{}", text(&out));
-    let second = sole_json(&out);
-    assert_eq!(second["applied"], false, "{second}");
-    assert_eq!(second["requests"], 0, "{second}");
-    assert!(second.get("job_id").is_none(), "{second}");
-    let spent = second["spent"].as_array().expect("a list");
-    assert_eq!(spent.len() as u64, planned, "{second}");
-    for (entry, action) in spent.iter().zip(plan["actions"].as_array().unwrap()) {
-        assert_eq!(&entry["action"], action, "{second}");
-        assert!(entry["fetched_at"].is_i64(), "{second}");
-    }
+    // What spent the plan is the verbs crate's (C111,
+    // `a_plan_applied_twice_is_spent_the_second_time`); here, the exit
+    // codes and the line the second apply says.
+    let first = acq(&base, &["refresh", &apply, "--json"]);
+    assert_eq!(first.status.code(), Some(0), "{}", text(&first));
 
     let out = acq(&base, &["refresh", &apply]);
     assert!(out.status.success(), "{}", text(&out));
@@ -1004,12 +851,6 @@ fn a_plan_file_applied_twice_sends_nothing_the_second_time() {
         )),
         "{said}"
     );
-
-    // One apply's worth of fetches is all the daemon ever ran.
-    let jobs = sole_json(&acq(&base, &["jobs", "--all", "--json"]));
-    let jobs = jobs.as_array().expect("a list of jobs");
-    let applies = jobs.iter().filter(|j| j["kind"] == "apply").count();
-    assert_eq!(applies, 1, "{jobs:?}");
 }
 
 /// C111, across doors: a fetch `acq stash` queued spends the plan's
@@ -1112,7 +953,6 @@ fn an_apply_retried_while_its_requests_wait_queues_nothing_more() {
     let base = scratch.0.clone();
     let (_daemon, _pid) = start_daemon(&base);
     let (apply, plan) = a_saved_plan(&base);
-    let planned = plan["logical_requests"].as_u64().expect("a count");
 
     // Spend the stash route's burst so the apply's fetches wait.
     let tab = plan["actions"][0]["id"].as_str().expect("a tab id");
@@ -1166,28 +1006,18 @@ fn an_apply_retried_while_its_requests_wait_queues_nothing_more() {
     let _ = first.kill();
     let _ = first.wait();
 
-    let out = acq(&base, &["refresh", &apply, "--json"]);
-    assert!(out.status.success(), "{}", text(&out));
-    let second = sole_json(&out);
-    assert_eq!(second["applied"], false, "{second}");
-    let spent = second["spent"].as_array().expect("a list");
-    assert_eq!(spent.len() as u64, planned, "{second}");
-    let queued: Vec<&Value> = spent.iter().filter(|s| s["job_id"].is_u64()).collect();
-    assert!(!queued.is_empty(), "nothing was still waiting: {second}");
-    assert!(queued.iter().any(|s| s["parent"] == parent), "{second}");
-    assert!(second["remaining_requests"].is_null(), "{second}");
-    // The shared note names the job holding the requests; the way to
-    // wait for it is each frontend's own (the CLI's text adds `acq result
-    // <id> --wait`).
+    // What the daemon's list spends is the verbs crate's (C111,
+    // `a_plan_held_whole_by_a_queued_job_has_no_remaining_count`); here,
+    // the exit code and the text: the shared note names the job holding
+    // the requests, and the CLI's own way to wait for it follows.
+    let out = acq(&base, &["refresh", &apply]);
+    assert_eq!(out.status.code(), Some(0), "{}", text(&out));
+    let said = stdout(&out);
+    assert!(said.contains(&format!("in job {parent}")), "{said}");
     assert!(
-        second["note"]
-            .as_str()
-            .unwrap_or_default()
-            .contains(&format!("in job {parent}")),
-        "{second}"
+        said.contains("`acq result ") && said.contains(" --wait`"),
+        "{said}"
     );
-    let applies = open_jobs().iter().filter(|j| j["kind"] == "apply").count();
-    assert_eq!(applies, 1, "the retry queued a second apply");
 }
 
 /// A reader took `exact` for "the site would show me the same": the
@@ -1548,20 +1378,6 @@ fn a_long_term_path_never_runs_into_its_term() {
     }
 }
 
-/// A row named the tab and never the cell, which the person needs to
-/// pick the item up (the trade seat: cli-opus call 30, its fault 3;
-/// cli-sonnet call 23, its fault 2). The place's text ends with it.
-#[test]
-fn a_rows_place_says_which_cell_the_item_sits_in() {
-    let scratch = harness::scratch("seat-cell");
-    let base = scratch.0.clone();
-    seed_two_leagues(&base);
-    let shown = stdout(&acq(&base, &["search", "--realm", "pc", "league=Standard"]));
-    assert!(shown.contains("Standard / Gear · x 0, y 0"), "{shown}");
-    let shown = stdout(&acq(&base, &["show", "i-std"]));
-    assert!(shown.contains("Standard / Gear · x 0, y 0"), "{shown}");
-}
-
 /// A row and `show` said where an item sits and never how old that is,
 /// while `tabs` printed every tab's age (the trade seat: cli-opus-2 call
 /// 46, its fault 2, for "where do I pick it up"). C118: the place ends
@@ -1757,29 +1573,13 @@ fn a_count_holds_its_request_only_where_the_routes_are_asked() {
             .any(|l| l == "routes  each returns exactly the members counted (4 more: --routes)"),
         "{shown}"
     );
+    // Which counts carry their route is the search crate's (C115,
+    // `answer.rs`); here, the text lines and `--routes` read beside
+    // `--next`.
     let plain = sole_json(&acq(
         &base,
         &["--json", "search", "--realm", "pc", query, "--limit", "1"],
     ));
-    assert_eq!(plain["terms"][0]["failed"]["count"], 1);
-    assert!(
-        plain["terms"][0]["failed"].get("request").is_none(),
-        "{plain}"
-    );
-    let asked = sole_json(&acq(
-        &base,
-        &[
-            "--json", "search", "--realm", "pc", query, "--limit", "1", "--routes",
-        ],
-    ));
-    assert!(
-        asked["terms"][0]["failed"]["request"].is_object(),
-        "{asked}"
-    );
-    assert_eq!(
-        asked["view"]["rows"]["next"]["request"]["view"]["routes"],
-        true
-    );
     let shown = stdout(&acq(&base, &["search", "--realm", "pc", query, "--routes"]));
     assert!(
         shown

@@ -1,15 +1,15 @@
 //! C45 through the real binary: an observer with no daemon to ask reads
-//! the queue from the ledger on disk — `jobs` lists the non-terminal
-//! rows as the last daemon left them, `daemon status` counts them — and
-//! neither spawns anything. The ledger is seeded through the store crate
-//! (the daemon's own writer), so what the verbs read is exactly what a
-//! daemon would have left: two waiting rows (one a child), one recorded
-//! running, one done that must not appear.
+//! the queue from the ledger on disk, and spawns nothing. What `jobs` and
+//! `daemon status` answer from it is the verbs crate's
+//! (`acquisition-verbs/tests/daemon.rs`); here, the text a person reads.
+//! The ledger is seeded through the store crate (the daemon's own
+//! writer): two waiting rows (one a child), one recorded running, one
+//! done that must not appear.
 //! And C6's retention beside it: a result a previous daemon left is
 //! served to `result --wait` as to `result`.
 
 use acquisition_store::jobs::{JobDb, JobRow, daemon_db_path};
-use serde_json::{Value, json};
+use serde_json::json;
 
 mod harness;
 
@@ -51,24 +51,6 @@ fn c45_an_observer_with_no_daemon_reads_the_queue_on_disk() {
     db.checkpoint().unwrap();
     drop(db);
 
-    // `jobs --json`: running false, the three open rows by id, the
-    // newest write as the picture's age.
-    let out = acq(&base, &["jobs", "--json"]);
-    assert!(out.status.success(), "{out:?}");
-    let report = sole_json(&out);
-    assert_eq!(report["running"], json!(false));
-    assert_eq!(report["persisted"]["written_at"], json!(1_700_000_030));
-    let jobs = report["persisted"]["jobs"].as_array().unwrap();
-    let ids: Vec<u64> = jobs.iter().map(|j| j["id"].as_u64().unwrap()).collect();
-    assert_eq!(ids, vec![1, 2, 3], "{report}");
-    assert_eq!(jobs[1]["state"], json!("running"));
-    assert_eq!(jobs[2]["parent"], json!(2));
-    assert_eq!(jobs[0]["params"]["id"], json!("tab1"));
-    assert!(
-        jobs[0].get("deferred").is_none(),
-        "bulk columns are not read: {report}"
-    );
-
     // The text form: the counts and the shared table, no ETA column
     // filled.
     let out = acq(&base, &["jobs"]);
@@ -77,17 +59,8 @@ fn c45_an_observer_with_no_daemon_reads_the_queue_on_disk() {
     assert!(shown.contains("2 waiting, 1 recorded running"), "{shown}");
     assert!(shown.contains("Standard/tab3"), "{shown}");
     assert!(!shown.contains("tab4"), "a done row was listed: {shown}");
-
-    // `daemon status --json`: the counts beside `running: false`.
     let out = acq(&base, &["daemon", "status", "--json"]);
     assert!(out.status.success(), "{out:?}");
-    assert_eq!(
-        sole_json(&out),
-        json!({
-            "running": false,
-            "persisted": { "waiting": 2, "recorded_running": 1, "written_at": 1_700_000_030 }
-        })
-    );
 
     // Nothing spawned: no socket derived into the scratch runtime
     // directory, and the ledger is untouched.
@@ -97,15 +70,6 @@ fn c45_an_observer_with_no_daemon_reads_the_queue_on_disk() {
     );
     let db = JobDb::open(&daemon_db_path(&dir)).unwrap();
     assert_eq!(db.load().unwrap().len(), 4);
-
-    // A world with no ledger yet reads as `persisted: null`, not as an
-    // empty queue: the root exists (a store, no daemon ever), the file
-    // does not.
-    let fresh = harness::scratch("c45-fresh");
-    std::fs::create_dir_all(fresh.0.join("store")).unwrap();
-    let out = acq(&fresh.0, &["jobs", "--json"]);
-    assert!(out.status.success(), "{out:?}");
-    assert_eq!(sole_json(&out)["persisted"], Value::Null);
 }
 
 /// C6, retention: a job finished by a previous daemon is no longer in

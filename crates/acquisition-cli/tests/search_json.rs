@@ -1182,12 +1182,6 @@ fn oq6_a_price_set_by_hand_is_found_shown_and_named_in_the_basis() {
     let scratch = harness::scratch("search-cli");
     let base = scratch.0.clone();
     seed(&base);
-    let before = sole_json(&acq(
-        &base,
-        &["--json", "search", "--realm", "pc", "has:priced"],
-    ));
-    assert_eq!(before["total"]["matched"], 0);
-    assert_eq!(before["basis"]["intent"], 0);
     let set = acq(
         &base,
         &["price", "set", "item/r1", "exact", "12.5", "chaos"],
@@ -1197,17 +1191,6 @@ fn oq6_a_price_set_by_hand_is_found_shown_and_named_in_the_basis() {
         "{}",
         String::from_utf8_lossy(&set.stderr)
     );
-    let a = sole_json(&acq(
-        &base,
-        &["--json", "search", "--realm", "pc", "has:priced"],
-    ));
-    assert_eq!(a["total"]["matched"], 1);
-    assert_eq!(a["rows"][0]["id"], "r1");
-    assert_eq!(
-        a["rows"][0]["matched"][0]["shows"][0]["value"]["value"],
-        "12.5 chaos"
-    );
-    assert_eq!(a["basis"]["intent"], 1);
     let shown = text(&acq(&base, &["search", "--realm", "pc", "has:priced"]));
     for needle in [
         "price 12.5 chaos · price.side manual",
@@ -1219,9 +1202,6 @@ fn oq6_a_price_set_by_hand_is_found_shown_and_named_in_the_basis() {
             "the text lacks `{needle}`:\n{shown}"
         );
     }
-    let one = sole_json(&acq(&base, &["--json", "show", "r1"]));
-    assert_eq!(one["price"]["status"], "is");
-    assert_eq!(one["price"]["text"], "12.5 chaos");
     let shown = text(&acq(&base, &["show", "r1"]));
     assert!(
         shown.contains(
@@ -1517,18 +1497,6 @@ fn step_9c4_a_mod_is_found_by_a_row_and_show_prints_its_rows() {
         20,
     );
     drop(store);
-    let found = sole_json(&acq(
-        &base,
-        &[
-            "--json",
-            "search",
-            "--realm",
-            "pc",
-            r##""#% to all Elemental Resistances"<0 pseudo.count_res=3 pseudo.count_ele_res=3"##,
-        ],
-    ));
-    assert_eq!(found["total"]["matched"], 1);
-    assert_eq!(found["rows"][0]["id"], "thread");
     let said = text(&acq(
         &base,
         &[
@@ -1620,17 +1588,6 @@ fn step_9d_category_at_a_terminal_oq5_a_beast_the_count_and_the_help() {
     // and the boots; the gem's damage line and the plain ring's mana stay out
     let oq5 = "(category=armour or category=accessory) (reqlevel=..30 or -has:reqlevel) \
                (line(template:resistance) or line(template:life) or line(template:damage))";
-    let a = sole_json(&acq(&base, &["--json", "search", oq5]));
-    let mut found: Vec<&str> = a["rows"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|r| r["id"].as_str().unwrap())
-        .collect();
-    found.sort_unstable();
-    assert_eq!(found, ["boots", "kaom", "r1", "r2", "r3"]);
-    assert_eq!(a["basis"]["categories"], 1);
-    assert_eq!(a["basis"]["beast_colours"], 1);
     let shown = text(&acq(&base, &["search", oq5]));
     assert!(
         shown.contains("categories v1 · beast colours v1"),
@@ -1639,19 +1596,6 @@ fn step_9d_category_at_a_terminal_oq5_a_beast_the_count_and_the_help() {
     assert!(shown.contains("category armour.boots"), "{shown}");
 
     // the beast, by its category and by its colour
-    let a = sole_json(&acq(
-        &base,
-        &["--json", "search", "category=\"monster.yellowbeast\""],
-    ));
-    assert_eq!(a["total"]["matched"], 1);
-    assert_eq!(a["rows"][0]["id"], "hellion");
-    assert_eq!(a["terms"][0]["undecided"]["count"], 1);
-    let a = sole_json(&acq(&base, &["--json", "search", "category:beast"]));
-    assert_eq!(a["total"]["matched"], 2);
-    let s = sole_json(&acq(&base, &["--json", "show", "crab"]));
-    assert_eq!(s["class"], json!({ "is": "Stackable Currency" }));
-    assert_eq!(s["category"]["listed"], json!(["monster.beast"]));
-    assert_eq!(s["category"]["open"][0]["part"], "colour");
     let shown = text(&acq(&base, &["show", "crab"]));
     for needle in [
         "class   Stackable Currency",
@@ -1670,31 +1614,6 @@ fn step_9d_category_at_a_terminal_oq5_a_beast_the_count_and_the_help() {
 
     // counted: every route printed returns what its heading counted, the
     // breachstone's among them — under `map`, its leaf open (J21)
-    let counted = sole_json(&acq(&base, &["--json", "search", "--count", "category"]));
-    let by: Vec<(String, u64)> = counted["view"]["counts"]["tables"][0]["buckets"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|b| {
-            (
-                b["value"].as_str().unwrap_or("").to_string(),
-                b["count"].as_u64().unwrap(),
-            )
-        })
-        .collect();
-    assert_eq!(
-        by,
-        [
-            ("accessory.ring", 4),
-            ("armour.boots", 1),
-            ("armour.chest", 1),
-            ("gem.activegem", 1),
-            ("map", 1),
-            ("monster.beast", 1),
-            ("monster.yellowbeast", 1),
-        ]
-        .map(|(id, n)| (id.to_string(), n))
-    );
     let shown = text(&acq(&base, &["search", "--count", "category", "--routes"]));
     assert!(shown.contains("count   category · 7 values"), "{shown}");
     let lines: Vec<&str> = shown.lines().collect();
@@ -1723,14 +1642,6 @@ fn step_9d_category_at_a_terminal_oq5_a_beast_the_count_and_the_help() {
     assert!(crossed.contains("cross   category × tab"), "{crossed}");
 
     // the help: the field, and every id with the site's text for it
-    let d = sole_json(&acq(&base, &["--json", "search", "--describe", "category"]));
-    assert_eq!(d["fields"][0]["name"], "category");
-    assert_eq!(d["fields"][0]["values"].as_array().unwrap().len(), 82);
-    assert_eq!(d["categories"].as_array().unwrap().len(), 82);
-    assert_eq!(
-        d["categories"][0],
-        json!({ "id": "weapon", "text": "Any Weapon", "holds": d["categories"][0]["holds"] })
-    );
     let shown = text(&acq(&base, &["search", "--describe", "category"]));
     for needle in [
         "monster.yellowbeast",
@@ -1837,29 +1748,8 @@ fn step_9d_c_the_ranged_family_and_a_flask_at_a_terminal() {
         )
         .unwrap();
     drop(store);
-    let found = |query: &str| -> (Vec<String>, Value) {
-        let a = sole_json(&acq(&base, &["--json", "search", query]));
-        let mut ids: Vec<String> = a["rows"]
-            .as_array()
-            .unwrap_or_else(|| panic!("`{query}`: {a}"))
-            .iter()
-            .map(|r| r["id"].as_str().unwrap().to_string())
-            .collect();
-        ids.sort_unstable();
-        (ids, a)
-    };
-
-    // the closing row: the bare name is the `avg`
-    let (ids, a) = found("pseudo.adds_fire_to_attacks=15.5");
-    assert_eq!(ids, ["ruby", "wand"]);
-    assert_eq!(a["basis"]["totals"], 6);
-    assert_eq!(a["query"]["text"], "pseudo.adds_fire_to_attacks=15.5");
-    assert_eq!(found("pseudo.adds_fire=15.5").0, ["ruby"]);
-    assert_eq!(
-        found("pseudo.adds_fire.low=10 pseudo.adds_fire.high=21").0,
-        ["ruby"]
-    );
-    assert_eq!(found("has:pseudo.adds_fire_to_spells").0, ["ruby"]);
+    // What each total matches is the search crate's (`ranged.rs`); here,
+    // the text lines.
     let sorted = text(&acq(
         &base,
         &[
@@ -1879,74 +1769,10 @@ fn step_9d_c_the_ranged_family_and_a_flask_at_a_terminal() {
         sorted.contains("sorts last: no satisfying occurrence (pseudo.adds_fire)"),
         "{sorted}"
     );
-    let summed = sole_json(&acq(
-        &base,
-        &[
-            "--json",
-            "search",
-            "has:pseudo.adds_fire_to_attacks",
-            "--count",
-            "base",
-            "--sum",
-            "pseudo.adds_fire",
-        ],
-    ));
-    assert_eq!(
-        summed["view"]["counts"]["sum"],
-        json!({ "name": "pseudo.adds_fire", "value": 15.5, "lacking": 1 })
-    );
-
-    // a flask's own line is counted by no total (J29)
-    assert_eq!(found("has:pseudo.increased_movement_speed").0, ["greaves"]);
-    assert_eq!(
-        found("id:flask -has:pseudo.increased_movement_speed").0,
-        ["flask"]
-    );
-    // and found by its line still
-    assert_eq!(
-        found("\"#% increased Movement Speed\"=40").0,
-        ["flask", "greaves"]
-    );
-
-    // `--describe` of one ranged total
-    let d = sole_json(&acq(
-        &base,
-        &["--json", "search", "--describe", "adds_fire"],
-    ));
-    assert_eq!(d["computed"].as_array().unwrap().len(), 1);
-    assert_eq!(d["computed"][0]["name"], "pseudo.adds_fire");
-    assert_eq!(d["computed"][0]["kind"], "ranged total");
-    let what = d["computed"][0]["what"].as_str().unwrap();
-    for needle in [
-        "pseudo_adds_fire_damage",
-        "line(\"Adds # to # Fire Damage\")",
-        "category=weapon",
-        "`crucibleMods`",
-        "`utilityMods`",
-        "no weapon the trade site listed was found to carry one",
-    ] {
-        assert!(
-            what.contains(needle),
-            "the definition lacks `{needle}`: {what}"
-        );
-    }
-    assert!(
-        d["totals"].as_str().unwrap().starts_with("totals v6, "),
-        "{d}"
-    );
     let shown = text(&acq(&base, &["search", "--describe", "adds_fire"]));
     assert!(
         shown.contains("pseudo.adds_fire") && shown.contains("`utilityMods`"),
         "{shown}"
-    );
-    // the refusal of a ranged total is gone from the list of what is not built
-    let all = sole_json(&acq(&base, &["--json", "search", "--describe"]));
-    assert!(
-        all["not_built"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .all(|n| n["construct"] != "pseudo.<name>.<slot>")
     );
 }
 
@@ -1994,27 +1820,8 @@ fn step_9d_a_the_percentile_of_a_captured_hybrid_at_a_terminal() {
         )
         .unwrap();
     drop(store);
-    let found = |query: &str| -> (Vec<String>, Value) {
-        let a = sole_json(&acq(&base, &["--json", "search", query]));
-        let mut ids: Vec<String> = a["rows"]
-            .as_array()
-            .unwrap_or_else(|| panic!("`{query}`: {a}"))
-            .iter()
-            .map(|r| r["id"].as_str().unwrap().to_string())
-            .collect();
-        ids.sort_unstable();
-        (ids, a)
-    };
-
-    // the captured hybrid, as the site showed it
-    let (ids, a) = found("pseudo.defence_pct=90");
-    assert_eq!(ids, ["mitts"]);
-    assert_eq!(a["basis"]["defences"], 1);
-    assert_eq!(a["query"]["text"], "pseudo.defence_pct=90");
-    assert_eq!(
-        a["rows"][0]["matched"][0]["shows"][0],
-        json!({ "value": { "name": "pseudo.defence_pct", "value": 90 } })
-    );
+    // What the percentile matches, and an item that lacks it, are the
+    // search crate's (`percentile.rs`); here, the text lines.
     let shown = text(&acq(
         &base,
         &["search", "--realm", "pc", "pseudo.defence_pct>=80"],
@@ -2022,47 +1829,10 @@ fn step_9d_a_the_percentile_of_a_captured_hybrid_at_a_terminal() {
     assert!(shown.contains("pseudo.defence_pct 90"), "{shown}");
     assert!(shown.contains("defences v1"), "{shown}");
 
-    // an item that lacks the field: lacked, never zero, and never a match.
-    // A term's counts are over the scope: the seed's five items display no
-    // defence and `ruby` is the sixth, `mitts` the one that has it
-    let (ids, a) = found("id:ruby pseudo.defence_pct>=0");
-    assert_eq!(ids, [] as [&str; 0]);
-    assert_eq!(a["terms"][1]["matched"]["count"], 1);
-    assert_eq!(a["terms"][1]["lacked"]["count"], 6);
-    assert_eq!(a["terms"][1]["failed"]["count"], 0);
-    assert_eq!(a["total"]["undecided"]["count"], 0);
-    assert_eq!(found("id:ruby -has:pseudo.defence_pct").0, ["ruby"]);
-
-    // `--describe` of it
-    let d = sole_json(&acq(
-        &base,
-        &["--json", "search", "--describe", "defence_pct"],
-    ));
-    assert_eq!(d["computed"].as_array().unwrap().len(), 1);
-    assert_eq!(d["computed"][0]["name"], "pseudo.defence_pct");
-    let what = d["computed"][0]["what"].as_str().unwrap();
-    for needle in [
-        "The percentile of all base defence rolls, averaged",
-        "exact half",
-        "defences v1",
-    ] {
-        assert!(
-            what.contains(needle),
-            "the definition lacks `{needle}`: {what}"
-        );
-    }
     let shown = text(&acq(&base, &["search", "--describe", "defence_pct"]));
     assert!(
         shown.contains("pseudo.defence_pct") && shown.contains("exact half"),
         "{shown}"
-    );
-    let all = sole_json(&acq(&base, &["--json", "search", "--describe"]));
-    assert!(
-        all["not_built"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .all(|n| n["construct"] != "pseudo.defence_pct")
     );
 }
 
@@ -2274,25 +2044,8 @@ fn step_10_membership_all_at_a_terminal() {
             .collect()
     };
 
-    let live = sole_json(&acq(&base, &["--json", "search", "--realm", "pc"]));
-    assert!(!ids(&live).contains(&"r2".to_string()));
-    assert_eq!(live["scope"]["membership"], "live");
-    let all = sole_json(&acq(
-        &base,
-        &["--json", "search", "--realm", "pc", "--membership", "all"],
-    ));
-    assert_eq!(all["scope"]["membership"], "all");
-    assert_eq!(all["scope"]["items"], live["scope"]["items"]);
-    assert_eq!(all["scope"]["removed"], 1);
-    assert_eq!(ids(&all).len(), ids(&live).len() + 1);
-    let r2 = all["rows"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|r| r["id"] == "r2")
-        .unwrap();
-    assert_eq!(r2["removed_at"], 40);
-    assert_eq!(r2["place"]["name"], "Rings");
+    // What each membership holds is the search crate's (`membership.rs`);
+    // here, the text lines and every printed command run.
     let shown = text(&acq(
         &base,
         &[
@@ -2350,9 +2103,6 @@ fn step_10_membership_all_at_a_terminal() {
     );
 
     // `acq show` shows it, marked
-    let out = acq(&base, &["--json", "show", "r2"]);
-    assert!(out.status.success());
-    assert_eq!(sole_json(&out)["item"]["facts"]["removed_at"], 40);
     let shown = text(&acq(&base, &["show", "r2"]));
     assert!(shown.lines().any(|l| l.starts_with("removed ")), "{shown}");
     assert!(!text(&acq(&base, &["show", "r1"])).contains("\nremoved "));
@@ -2403,31 +2153,8 @@ fn membership_removed_at_a_terminal() {
         .unwrap();
     drop(store);
 
-    let left = sole_json(&acq(
-        &base,
-        &[
-            "--json",
-            "search",
-            "--realm",
-            "pc",
-            "--membership",
-            "removed",
-        ],
-    ));
-    let ids: Vec<&str> = left["rows"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|r| r["id"].as_str().unwrap())
-        .collect();
-    assert_eq!(ids, ["r2"]);
-    assert_eq!(left["rows"][0]["removed_at"], 40);
-    assert_eq!(left["scope"]["membership"], "removed");
-    assert_eq!(
-        (&left["scope"]["items"], &left["scope"]["removed"]),
-        (&json!(4), &json!(1))
-    );
-
+    // What `removed` holds is the search crate's (`membership.rs`); here,
+    // the text lines and every printed command run.
     let shown = text(&acq(
         &base,
         &[

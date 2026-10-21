@@ -72,18 +72,11 @@ fn c10_observation_never_spawns_or_replaces_and_reports_the_mismatch() {
     // as running and incompatible on the provider dimension alone, with
     // exit 0 — and it is still the same daemon afterwards.
     let (_daemon, pid) = start_daemon(&base);
+    // The report's fields are the verbs crate's (`documents.rs`); here,
+    // the exit code, the text and that nothing is replaced.
     let out = acq_wanting_ggg(&base, &["daemon", "status", "--json"]);
     assert!(out.status.success(), "{out:?}");
-    let report = sole_json(&out);
-    assert_eq!(report["running"], true, "{report}");
-    assert_eq!(report["compatible"], false, "{report}");
-    assert_eq!(report["pid"], pid, "{report}");
-    assert_eq!(report["provider"], "mock", "{report}");
-    assert_eq!(report["contract_matches"], true, "{report}");
-    assert_eq!(report["artifact_matches"], true, "{report}");
-    assert_eq!(report["provider_matches"], false, "{report}");
-    assert_eq!(report["world_matches"], true, "{report}");
-    assert_eq!(report["wanted"]["provider"], "ggg", "{report}");
+    assert_eq!(sole_json(&out)["pid"], pid);
     let out = acq_wanting_ggg(&base, &["daemon", "status"]);
     assert!(out.status.success(), "{out:?}");
     let shown = text(&out);
@@ -120,9 +113,7 @@ fn c10_observation_never_spawns_or_replaces_and_reports_the_mismatch() {
     let out = acq_wanting_ggg(&base, &["daemon", "stop", "--json"]);
     assert!(out.status.success(), "{out:?}");
     let stopped = sole_json(&out);
-    assert_eq!(stopped["stopped"], true, "{stopped}");
     assert_eq!(stopped["pid"], pid, "{stopped}");
-    assert_eq!(stopped["compatible"], false, "{stopped}");
     // The socket it was stopped through: this world's, in the scratch
     // runtime directory (C83), gone once the daemon has exited.
     let socket = PathBuf::from(stopped["socket"].as_str().unwrap());
@@ -145,26 +136,13 @@ fn c10_observation_never_spawns_or_replaces_and_reports_the_mismatch() {
         std::thread::sleep(Duration::from_millis(20));
     }
     assert!(sockets_under(&scratch_tmp(&base)).is_empty());
-    // Absent again — now with a world and a ledger the daemon left, which
-    // holds no rows (C45): counted, not null.
-    // — and the log that daemon left, named beside it.
-    let out = acq(&base, &["daemon", "status", "--json"]);
-    let mut absent_again = sole_json(&out);
-    let log = absent_again
-        .as_object_mut()
-        .and_then(|o| o.remove("log"))
-        .expect("the stopped daemon's log");
+    // Absent again, and the text names the log that daemon left.
+    let out = acq(&base, &["daemon", "status"]);
+    assert!(out.status.success(), "{out:?}");
+    let shown = text(&out);
     assert!(
-        log.as_str()
-            .is_some_and(|l| Path::new(l).ends_with("mock/daemon.log")),
-        "{log}"
-    );
-    assert_eq!(
-        absent_again,
-        serde_json::json!({
-            "running": false,
-            "persisted": { "waiting": 0, "recorded_running": 0, "written_at": null }
-        })
+        shown.contains("last log: ") && shown.contains("daemon.log"),
+        "{shown}"
     );
 }
 
