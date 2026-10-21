@@ -60,10 +60,11 @@ As few as possible, each a property, never a mechanism.
 - **Build order.** Run `cargo build --workspace` before anything that
   starts a daemon, and again after any test run or any edit to a
   contract input (the protocol and store sources, the manifests, the
-  lock). `cargo test --all-targets` rewrites `acq-mcp` in another form
-  and never writes `acqd`, so a daemon started after tests is an
-  artifact mismatch (C84). Never run the live drivers while the gate
-  runs. The session-close skill explains the artifacts.
+  lock). `cargo test --all-targets`, and `cargo nextest run`, rewrite
+  `acq-mcp` in another form and never write `acqd`, so a daemon
+  started after tests is an artifact mismatch (C84). Never run the
+  live drivers while the gate runs. The session-close skill explains
+  the artifacts.
 - **The gate decides.** Every change keeps it green (below). A commit
   is gated on each stage's own exit status, never on a filtered grep.
 - **No id in user-facing text** (C116): help, refusals, reasons and
@@ -145,7 +146,7 @@ trade site).
 
 ```sh
 cargo build --workspace
-cargo test --workspace --all-targets
+cargo nextest run --workspace --all-targets
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo fmt --all -- --check
 git diff --check
@@ -157,4 +158,6 @@ RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
 ```
 
 Once per clone: `git config core.hooksPath .githooks` (the commit-msg
-hook writes Claude's trailer as `Assisted-by:`).
+hook writes Claude's trailer as `Assisted-by:`) and `cargo install
+cargo-nextest --locked` (the gate's runner; `cargo test` still runs the
+suite).

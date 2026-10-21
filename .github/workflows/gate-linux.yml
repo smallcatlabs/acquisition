@@ -33,6 +33,12 @@ jobs:
       - name: Install the pinned toolchain
         run: rustup toolchain install
 
+      # The gate's test runner (AGENTS.md, "Quality gate"; `.config/
+      # nextest.toml`, its `ci` profile), pinned.
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest@0.9.149
+
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: .
@@ -72,7 +78,7 @@ jobs:
             eval "$(printf ci-throwaway | gnome-keyring-daemon --components=secrets --daemonize --unlock)"
             export ACQ_KEYRING_ROUNDTRIP=1
             export ACQ_CASES=full
-            cargo test --workspace --all-targets --locked
+            cargo nextest run --workspace --all-targets --locked --profile ci
           '
 
       - name: Clippy

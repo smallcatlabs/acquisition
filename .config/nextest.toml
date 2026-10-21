@@ -1,0 +1,23 @@
+# The gate's test runner (C122, AGENTS.md "Quality gate"): a process per
+# test, so the files that set the process environment and the client
+# contract's one lock cost nothing, and `cargo test` stays the supported
+# fallback. Read by cargo-nextest; `cargo test` ignores it.
+
+[profile.default]
+# Never retried: a retry turns a flaky limiter or gate test green, the
+# opposite of "the gate decides". A test that fails once is a finding.
+retries = 0
+# Every failure reported, as `cargo test --no-fail-fast` did; nextest's
+# own default stops at the first.
+fail-fast = false
+# A hung test is killed only past the code's longest in-test deadline
+# (60 s): flagged slow at 30 s, terminated at four periods.
+slow-timeout = { period = "30s", terminate-after = 4 }
+
+[profile.ci]
+# As the default, and never retried here either (the reason above).
+retries = 0
+fail-fast = false
+# Sized from the slowest honest test under ACQ_CASES=full (26.5 s on the
+# development machine); a four-core runner is slower.
+slow-timeout = { period = "60s", terminate-after = 4 }
