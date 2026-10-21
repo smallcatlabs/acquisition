@@ -5,7 +5,15 @@ surveys of the tree at `446223ff` (two Opus: the production code's
 coupling map and seams; the tests, their helpers and the journal
 oracles; one Sonnet: every citation of the two files and what each
 check would say). Every `file:line` is at `446223ff`. The build brief
-is `2d-build.md`. Nothing here is built.
+is `2d-build.md`. Nothing here is built. Codex's review of the design
+commit (`roadmap/reviews/2d-dc993ddb.md`) found five faults, each
+verified against the tree and taken: the checker now compares items as
+ordered code with their literals intact and sets the `impl` and `mod`
+wrappers aside, proven on two rehearsal splits and eight cases (2.5);
+the pins are written from `crates/` so `bothy check` resolves them
+(appendix B); the size criterion reaches only this step's files; the
+oracle sentence says what the scenario helpers run (section 7); and
+the `pub(super)` count is appendix A's own, about sixty-five.
 
 ## 1. The problem, measured against the tree
 
@@ -113,7 +121,7 @@ anywhere: the startup that builds the `Daemon` literal and the two test
 harnesses that build it field by field (`daemon.rs:4757-4781`, `:5073`,
 `:6380`) are children too. What widens is a method or free function
 defined in one child and called from another or from a test file,
-about forty tokens in all (appendix A names each).
+about sixty-five tokens in all (appendix A names each).
 
 ### 2.1 The daemon: a root and ten children
 
@@ -186,7 +194,7 @@ files goes to the harness. Each test file opens with
 | `ratelimit/policy.rs` | the header contract (`:103-438`): `Window`, `WindowState`, `Rule`, `Policy`, `PolicyParseError`, `RetryAfter`, the parsers; the two caps (`RETRY_AFTER_CAP_SECS`, `MAX_POLICY_*`); `response_headers_snapshot` and `rate_limit_snapshot` | 480 | network |
 | `ratelimit/limiter.rs` | the buckets and their constants (`:58-102`), `EndpointState`, the keys, `PolicyState`, `Limiter`, the deadline arithmetic, `ScopeProjection` and `rule_statuses` (`:439-1297`); the C18 and C19 blocks | 920 | network |
 | `ratelimit/choke.rs` | `Bearer`, `ProbeError`, `SendError`, `CompletedResponse`, the classification, `SentAt`, `ChokePoint` and its sends, `build_client`, the timeouts (`:1298-2161`) | 870 | network |
-| `ratelimit/spec.rs` | the test module whole (`:2205-4509`) | 2,300 | — |
+| `acquisition-daemon/src/ratelimit/spec.rs` | the test module whole (`:2205-4509`) | 2,300 | — |
 
 The spec stays one file by C33's own word: it is the limiter's spec,
 "test tables, not prose", and `CHAR_LIST`, `with_state`, `parse` and
@@ -221,21 +229,32 @@ corrected. Each is in section 7 with its home.
 
 A pure move is a property the gate cannot see and a reviewer cannot
 read off a 10,000-line diff, so the build brief carries a script
-(`2d-build.md`, appendix A) that holds it: the statements of the old
-file, read from `git show <sha>:<path>`, equal the statements of the
-new files as a multiset. It sets aside what a split must change (blank
-lines, `use` and `mod` lines, `//!` lines, `#[cfg(test)]` and `#[path]`
-attributes, a leading visibility token), removes whitespace, cuts code
-at `;`, `{` and `}`, drops the trailing comma rustfmt drops when it
-joins lines, and keeps each comment line as one statement. Measured on
-this tree: the dispatcher tests dedented into a file and formatted
-reflow 58 lines and the checker reports 0 missing, 0 added; one
-signature given an extra parameter reports 1 and 1; `daemon.rs` against
-itself is 7,481 statements and `ratelimit.rs` 2,539. Each move commit
-quotes the checker's line in its message. Module-doc lines are outside
-the checker, so the message also states that every `## C<n>` block
-appears once across the crate's module docs at its recorded size
-(section 1's bytes).
+(`2d-build.md`, appendix A) that holds it: the items of the old file,
+read from `git show <sha>:<path>`, equal the items of the new files as
+a multiset, each item its code in order. An item is a declaration at
+the top of a file or inside an `impl`, `mod` or `trait` block, with its
+body; its whitespace outside string and character literals is
+collapsed, so rustfmt's reflow at a new nesting depth changes nothing,
+and the literals are kept byte for byte, so a space inside one is a
+difference; a trailing comma rustfmt drops when it joins lines is
+dropped on both sides. Comment lines are a multiset of their own, so a
+doc paragraph may be reattached (2.4) and a deleted one is missed. Set
+aside, because a split must change them: blank lines, `use` and `mod`
+lines, `//!` lines, `#[cfg(test)]` and `#[path]`, the opening and
+closing lines of the `impl`, `mod` and `trait` blocks a split
+multiplies, and a leading visibility token. Measured on this tree:
+`daemon.rs` is 342 items and 1,212 comment lines, `ratelimit.rs` 200
+and 432; the limiter cut into the five files of 2.3 and formatted, and
+the daemon's `impl Daemon` cut into three files, each report 0
+differences; a changed string literal, two returns of
+`classify_response` swapped, two adjacent `let`s swapped, a signature
+given a parameter and a comment deleted each report a difference; a
+widened method, a reattached paragraph and an item placed in another
+file than its neighbour each report none. Each move commit quotes the
+checker's line in its message. Module-doc lines are outside the
+checker, so the message also states that every `## C<n>` block appears
+once across the crate's module docs at its recorded size (section 1's
+bytes).
 
 ## 3. What each reader meets afterwards
 
@@ -243,9 +262,11 @@ appears once across the crate's module docs at its recorded size
   crates/acquisition-daemon/src/daemon/refresh.rs` and reads the
   network area, where C24 and C87 are; the routes file reads network,
   the quote reads plans, the dispatch reads both daemon and network.
-- **The registry** names each pinned test by a path with a slash
-  (`daemon/tests/queue.rs`, `a_broken_queue_is_fatal_to_restore`), which
-  `bothy check` resolves from then on; the nineteen fields (C19 and C32 name both files) and the three
+- **The registry** names each pinned test by a path from `crates/`, as
+  the intros do (`acquisition-daemon/src/daemon/tests/queue.rs`,
+  `a_broken_queue_is_fatal_to_restore`), which `bothy check` resolves
+  from then on (`tools/bothy.py:269-276` tries the tree, `crates/` and
+  each crate's directory, never a crate's `src/`); the nineteen fields (C19 and C32 name both files) and the three
   intros of appendix B are edited in the commit that moves each test.
 - **`TESTING-NOTES.md`** names `daemon/tests/harness.rs` as the
   oracles' home and says what is true of who runs them (section 7's
@@ -321,7 +342,7 @@ crate's `src/`, so the check that exists resolves it.
 - **Four intra-doc links** (`daemon.rs:175`, `:480`, `:903`, `:3029`):
   each pair lands in one file; `cargo doc` under `-D warnings` is a
   gate stage.
-- **Tests in a sibling of the method they call.** About thirty
+- **Tests in a sibling of the method they call.** About sixty-five
   `pub(super)` tokens, each named in appendix A; a missed one is a
   compile error, not a silent change.
 - **rustfmt's reflow** when a nested test module becomes a file: the
@@ -340,9 +361,9 @@ crate's `src/`, so the check that exists resolves it.
 
 1. **The oracles' coverage and `TESTING-NOTES.md`'s sentence.** The
    step corrects the sentence to what is true: the three oracles run
-   through `finish_harness_wire` in twelve tests and through the
-   scenario helpers in ten more, and twenty journaling daemons check
-   nothing. Running the oracles over every journaling daemon, and
+   through `finish_harness_wire` in twelve tests, ten more run one or
+   two of them through their own helpers, and twenty journaling daemons
+   check nothing. Running the oracles over every journaling daemon, and
    aligning the probe-first rule's exemptions with `NO_PROBE_ROUTES`,
    is a test change with fallout the survey could not size (`:8064`
    sends on both exempt routes and checks nothing today); proposed as a
@@ -411,27 +432,27 @@ names in the report any line this table misplaces.
 
 | Site | Today | After |
 | --- | --- | --- |
-| `decisions/daemon.md:7` (C3) | `daemon.rs`, `idle_verdict_*` | `daemon/tests/idle.rs`, `idle_verdict_*` |
-| `decisions/daemon.md:9` (C6) | `daemon.rs`, `a_broken_queue_is_fatal_to_restore` | `daemon/tests/queue.rs`, … |
-| `decisions/daemon.md:20` (C23) | `daemon.rs`, the two parent tests | `daemon/tests/parents.rs`, … |
-| `decisions/daemon.md:29` (C31) | `ratelimit.rs`, `account_rules_are_paced_per_account` | `ratelimit/spec.rs`, … |
-| `decisions/daemon.md:31` (C50) | `daemon.rs`, `a_login_whose_profile_fetch_fails_fails_whole` | `daemon/tests/login.rs`, … |
-| `decisions/network.md:7,8,18` (C17, C18, C33) | the `ratelimit.rs` test tables | the `ratelimit/spec.rs` tables |
-| `decisions/network.md:9` (C19) | `ratelimit.rs`, …; `daemon.rs`, `headerless_503_…` | `ratelimit/spec.rs`, …; `daemon/tests/dispatch.rs`, … |
-| `decisions/network.md:10` (C20) | `ratelimit.rs`, `probes_teach_…` | `ratelimit/spec.rs`, … |
-| `decisions/network.md:11` (C21) | `ratelimit.rs`, `common_gate_caps_…`; `gate.rs`, … | `ratelimit/spec.rs`, …; `gate.rs` unchanged |
-| `decisions/network.md:13` (C24) | `daemon.rs`, the dead-grant test and `a_completed_login_clears_the_dead_grant_mark` | `daemon/tests/refresh.rs`, …; `daemon/tests/login.rs`, … |
-| `decisions/network.md:14` (C87) | `daemon.rs`, `rejected_access_token_*` | `daemon/tests/bearer.rs`, … |
-| `decisions/network.md:15` (C25) | `daemon.rs`, the halted-idle and halted-refresh tests | `daemon/tests/idle.rs`, …; `daemon/tests/rails.rs`, … |
-| `decisions/network.md:16` (C26) | `daemon.rs`, the two 429 tests | `daemon/tests/dispatch.rs`, … |
-| `decisions/network.md:17` (C32) | `ratelimit.rs`, …; `daemon.rs`, `declared_route_knowledge_holds_against_the_mock` | `ratelimit/spec.rs`, …; `daemon/tests/dispatch.rs`, … |
-| `decisions/plans.md:10,12,13` (C40, C42, C43) | `daemon.rs`, … | `daemon/tests/quote.rs`, …; `daemon/tests/parents.rs`, … (both) |
-| `decisions/daemon.md:3`, `network.md:3`, `plans.md:3` | the intros' file lists | `acquisition-daemon/src/daemon.rs` and the files under `daemon/`; `acquisition-daemon/src/ratelimit.rs` and the files under `ratelimit/`; "the `apply` kind in `daemon/kinds.rs`" |
+| `decisions/daemon.md:7` (C3) | `daemon.rs`, `idle_verdict_*` | `acquisition-daemon/src/daemon/tests/idle.rs`, `idle_verdict_*` |
+| `decisions/daemon.md:9` (C6) | `daemon.rs`, `a_broken_queue_is_fatal_to_restore` | `acquisition-daemon/src/daemon/tests/queue.rs`, … |
+| `decisions/daemon.md:20` (C23) | `daemon.rs`, the two parent tests | `acquisition-daemon/src/daemon/tests/parents.rs`, … |
+| `decisions/daemon.md:29` (C31) | `ratelimit.rs`, `account_rules_are_paced_per_account` | `acquisition-daemon/src/ratelimit/spec.rs`, … |
+| `decisions/daemon.md:31` (C50) | `daemon.rs`, `a_login_whose_profile_fetch_fails_fails_whole` | `acquisition-daemon/src/daemon/tests/login.rs`, … |
+| `decisions/network.md:7,8,18` (C17, C18, C33) | the `ratelimit.rs` test tables | the `acquisition-daemon/src/ratelimit/spec.rs` tables |
+| `decisions/network.md:9` (C19) | `ratelimit.rs`, …; `daemon.rs`, `headerless_503_…` | `acquisition-daemon/src/ratelimit/spec.rs`, …; `acquisition-daemon/src/daemon/tests/dispatch.rs`, … |
+| `decisions/network.md:10` (C20) | `ratelimit.rs`, `probes_teach_…` | `acquisition-daemon/src/ratelimit/spec.rs`, … |
+| `decisions/network.md:11` (C21) | `ratelimit.rs`, `common_gate_caps_…`; `gate.rs`, … | `acquisition-daemon/src/ratelimit/spec.rs`, …; `gate.rs` unchanged |
+| `decisions/network.md:13` (C24) | `daemon.rs`, the dead-grant test and `a_completed_login_clears_the_dead_grant_mark` | `acquisition-daemon/src/daemon/tests/refresh.rs`, …; `acquisition-daemon/src/daemon/tests/login.rs`, … |
+| `decisions/network.md:14` (C87) | `daemon.rs`, `rejected_access_token_*` | `acquisition-daemon/src/daemon/tests/bearer.rs`, … |
+| `decisions/network.md:15` (C25) | `daemon.rs`, the halted-idle and halted-refresh tests | `acquisition-daemon/src/daemon/tests/idle.rs`, …; `acquisition-daemon/src/daemon/tests/rails.rs`, … |
+| `decisions/network.md:16` (C26) | `daemon.rs`, the two 429 tests | `acquisition-daemon/src/daemon/tests/dispatch.rs`, … |
+| `decisions/network.md:17` (C32) | `ratelimit.rs`, …; `daemon.rs`, `declared_route_knowledge_holds_against_the_mock` | `acquisition-daemon/src/ratelimit/spec.rs`, …; `acquisition-daemon/src/daemon/tests/dispatch.rs`, … |
+| `decisions/plans.md:10,12,13` (C40, C42, C43) | `daemon.rs`, … | `acquisition-daemon/src/daemon/tests/quote.rs`, …; `acquisition-daemon/src/daemon/tests/parents.rs`, … (both) |
+| `decisions/daemon.md:3`, `network.md:3`, `plans.md:3` | the intros' file lists | `acquisition-daemon/src/daemon.rs` and the files under `daemon/`; `acquisition-daemon/src/ratelimit.rs` and the files under `ratelimit/`; "the `apply` kind in `acquisition-daemon/src/daemon/kinds.rs`" |
 | `crates/acquisition-daemon/src/lib.rs:3,7` | the module list | the roots and their directories, one clause each |
 | `README.md:234-235,246` | `[daemon.rs][daemon]`, the link to `daemon.rs` | `[start.rs][daemon]`, the link to `daemon/start.rs` |
-| `REVIEW-CHECKLIST.md:15,16` | the `ratelimit.rs` test tables; `(ratelimit.rs)` | `ratelimit/spec.rs` |
+| `REVIEW-CHECKLIST.md:15,16` | the `ratelimit.rs` test tables; `(ratelimit.rs)` | `acquisition-daemon/src/ratelimit/spec.rs` |
 | `TESTING-NOTES.md:81-82` and `:171` | "The first four run over every harness journal"; "The harness leaves `daemon.rs`" | section 7's sentence, naming `daemon/tests/harness.rs`; "leaves `daemon/tests/`" |
-| `.claude/skills/live-run/SKILL.md:38,48` | `ratelimit.rs`'s test table; `route_probes` in `daemon.rs` | `ratelimit/spec.rs`; `daemon/routes.rs` |
+| `.claude/skills/live-run/SKILL.md:38,48` | `ratelimit.rs`'s test table; `route_probes` in `daemon.rs` | `acquisition-daemon/src/ratelimit/spec.rs`; `daemon/routes.rs` |
 | `crates/acquisition-protocol/src/status.rs:4` | `ratelimit.rs`'s `rule_statuses` | `ratelimit/limiter.rs`'s |
 | `crates/acquisition-protocol/tests/wire.rs:225` | `daemon.rs`, the quote's `not_covered` | `daemon/quote.rs` |
 | `crates/acquisition-store/src/world.rs:111`, `crates/acquisition-cli/tests/world.rs:586` | the cap is the daemon's, `daemon.rs` | `daemon/start.rs` |

@@ -45,18 +45,20 @@ go on the wire, and a script holds that the move was a move.
 - The tree at `446223ff`. The line ranges in the design's appendices
   are at that commit; you confirm each against the tree before you
   move it and name any range the design misplaces in your report.
-- `daemon.rs`: 9,894 lines, 7,481 statements by the checker, 69 tests
-  (`#[test]` and `#[tokio::test]`); `ratelimit.rs`: 4,509 lines, 2,539
-  statements, 47 tests; the crate: 147 tests.
+- `daemon.rs`: 9,894 lines, 342 items and 1,212 comment lines by the
+  checker, 69 tests (`#[test]` and `#[tokio::test]`); `ratelimit.rs`:
+  4,509 lines, 200 items and 432 comment lines, 47 tests; the crate:
+  147 tests.
 - The module-doc blocks and their sizes, which must survive whole:
   `daemon.rs:18-21` C6 (4,985 bytes), `:22-25` C23 (1,156), `:26-29`
   C31 (2,129), `:30-33` C32 (1,200), `:34-37` C43 (1,566), `:38-110`
   C49–C51 (4,994); `ratelimit.rs:33-36` C18 (1,026), `:37-39` C19
   (859). `gate.rs` is not touched.
 - The checker, appendix A below, saved to your scratch as
-  `move-check.py` and run as the appendix says. Its own failing input:
-  one signature given an extra parameter prints `MISSING x1` and
-  `ADDED x1` and exits 1 (checked by the design session on this tree).
+  `move-check.py` and run as the appendix says. Its failing inputs are
+  the appendix's five, each checked by the design session on this tree;
+  stage one of them once (a signature given a parameter), see the
+  `FAIL` line, revert it, and say so in the first move commit's message.
 - `bothy check`'s failing input for the pins: a *Pinned:* path with a
   slash to a file that does not exist prints `FAIL path` and exits 1;
   stage it once on one field, see it fail, revert it, and say so in the
@@ -89,7 +91,7 @@ go on the wire, and a script holds that the move was a move.
    446223ff:crates/acquisition-daemon/src/ratelimit.rs)
    crates/acquisition-daemon/src/ratelimit.rs
    crates/acquisition-daemon/src/ratelimit/*.rs`; it must print
-   `ok … 0 missing, 0 added`. Edit the citations: `decisions/network.md`
+   `ok … 0 differences`. Edit the citations: `decisions/network.md`
    C17, C18, C19 (its limiter half), C20, C21 (its limiter half), C32
    (its limiter half), C33; `decisions/daemon.md` C31;
    `REVIEW-CHECKLIST.md:15-16`; `.claude/skills/live-run/SKILL.md:38`;
@@ -143,7 +145,7 @@ go on the wire, and a script holds that the move was a move.
 Commits: three, in that order, each message naming this brief and
 telling the story: which ranges of the old file each new file holds
 (so `git blame -C -C` has its pointer), the checker's `ok` line
-quoted, the `pub(super)` tokens listed, the doc blocks' bytes confirmed
+quoted with its counts, the `pub(super)` tokens listed, the doc blocks' bytes confirmed
 (`wc -c` over the moved lines), the citations edited. The full gate
 bare before each (`cargo build --workspace` first, the nextest line,
 then the rest), each stage's own exit status on its own line, the
@@ -153,13 +155,14 @@ commit inside an `if` on the ten statuses.
 
 - `crates/acquisition-daemon/src/ratelimit.rs` and `daemon.rs` exist
   beside `ratelimit/` and `daemon/`; `daemon/tests/` holds the
-  fourteen files of the design's table; no production file under
-  `crates/acquisition-daemon/src/` is over 1,000 lines, no test file
-  over 1,400 but `ratelimit/spec.rs`; the per-file line counts are in
+  fourteen files of the design's table; of the files this step
+  creates or keeps as a root, no production file is over 1,000 lines
+  and no test file over 1,400 but `ratelimit/spec.rs` (`mockggg.rs` and
+  `rails.rs` are not this step's); the per-file line counts are in
   commit 3's message.
 - Each move commit's message quotes the checker's line, `ok … 0
-  missing, 0 added`, with its statement count; the checker rerun by the
-  reviewer on each commit's tree prints the same.
+  differences`, with its item and comment counts; the checker rerun on
+  each commit's tree prints the same.
 - `cargo nextest run -p acquisition-daemon` reports 147 tests, all
   green; `grep -rc '#\[test\]\|#\[tokio::test\]' crates/acquisition-daemon/src`
   summed is 147.
@@ -173,7 +176,9 @@ commit inside an `if` on the ten statuses.
   `kinds.rs`); `bothy check` is green.
 - `grep -n '`daemon.rs`\|`ratelimit.rs`' decisions/*.md REVIEW-CHECKLIST.md TESTING-NOTES.md .claude/skills/*/SKILL.md`
   finds nothing; every *Pinned:* field appendix B lists names its
-  file by a path with a slash that exists.
+  file by a path from `crates/` that `bothy check` resolves
+  (`acquisition-daemon/src/daemon/tests/idle.rs`, never
+  `daemon/tests/idle.rs`: `tools/bothy.py:269-276`).
 - `main.rs`, `auth.rs`, `mockggg.rs`, `rails.rs`, `gate.rs` and every
   other crate are byte-identical to `446223ff` except the comments
   appendix B names.
@@ -241,80 +246,161 @@ Save as `move-check.py` in your scratch. Standard library only.
 
 ```python
 #!/usr/bin/env python3
-"""A pure-move check over a file split: the code of the old file equals
-the code of the new files, as a multiset of statements, after the things
-a split must change are set aside. Set aside: blank lines; `use`, `mod`
-and `pub use` declarations; module docs (`//!`); `#[cfg(test)]` and
-`#[path]` attributes; a visibility token (`pub`, `pub(crate)`,
-`pub(super)`) at the start of a declaration. Insensitive to rustfmt's
-reflow when an item moves to another nesting depth: whitespace is
-removed, a code run is cut into statements at `;`, `{` and `}`, and a
-comma rustfmt drops when it joins lines (before `)`, `]`, `>`, `}`) is
-dropped on both sides. A comment line is one statement of its own.
+"""A pure-move check over a file split: every item of the old file is
+in the new files as it was, and nothing else is.
+
+An item is a declaration at the top of a file or inside an `impl`,
+`mod` or `trait` block: a function with its body, a struct, an enum, a
+constant, a type alias, a trait method's signature. Its text is read in
+order, so a statement swapped with its neighbour, a changed literal or
+a changed signature is a different item; string and character literals
+are kept byte for byte, and whitespace outside them is collapsed so
+rustfmt's reflow at a new nesting depth changes nothing. Comment lines
+(`//`, `///`) are a multiset of their own, so a doc paragraph may be
+reattached to the item it describes. Set aside, because a split must
+change them: blank lines; module docs (`//!`); `use` and `mod`
+declarations; `#[cfg(test)]` and `#[path]` attributes; the opening and
+closing lines of an `impl`, `mod` or `trait` block (the wrappers a split
+multiplies); a visibility token (`pub`, `pub(crate)`, `pub(super)`) at
+the start of an item.
 
     python3 -I move-check.py <old> <new>...
     python3 -I move-check.py <(git show <sha>:crates/acquisition-daemon/src/daemon.rs) \
         crates/acquisition-daemon/src/daemon.rs crates/acquisition-daemon/src/daemon/*.rs
 
 Prints what is missing from the new files and what they add that the
-old file lacked; exit 1 on either. Standard library only.
+old file lacked, items and comments; exit 1 on either. Standard
+library only. Braces inside strings and comments are masked before the
+nesting depth is counted; the same reading is applied to both sides,
+so a misread cancels unless the text differs.
 """
 import re
 import sys
 from collections import Counter
 
 SET_ASIDE = re.compile(
-    r"^\s*(//!|(pub(\((crate|super)\))?\s+)?(use|mod)\s|#\[cfg\(test\)\]|#\[path\s*=)"
+    r"^\s*(//!|(pub(\((crate|super)\))?\s+)?(use|mod)\s[^{]*;\s*$|#\[cfg\(test\)\]|#\[path\s*=)"
+)
+WRAPPER = re.compile(
+    r"^\s*(pub(\((crate|super)\))?\s+)?(unsafe\s+)?(impl|mod|trait)\b"
 )
 VIS = re.compile(r"^(\s*)pub(\((crate|super|self|in [\w:]+)\))?\s+")
+STRING = re.compile(
+    r'(r#*"(?:[^"]|"(?!#))*"#*|"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])\')', re.S
+)
 WS = re.compile(r"\s+")
 TRAILING_COMMA = re.compile(r",(?=[\)\]\}>])")
 
 
-def statements(path):
-    out = Counter()
-    code = []
+def mask(line):
+    """The line with string and char literals replaced by `S` and a
+    trailing `//` comment removed, for counting braces."""
+    out = STRING.sub("S", line)
+    i = out.find("//")
+    return out[:i] if i >= 0 else out
 
-    def flush():
-        if not code:
-            return
-        run = TRAILING_COMMA.sub("", WS.sub("", "".join(code)))
-        for unit in re.split(r"(?<=[;{}])", run):
-            if unit:
-                out[unit] += 1
-        code.clear()
 
+def normalise(text):
+    """Whitespace collapsed outside literals; a trailing comma before a
+    closer dropped (rustfmt drops it when it joins lines)."""
+    parts = STRING.split(text)
+    for i in range(0, len(parts), 2):
+        parts[i] = TRAILING_COMMA.sub("", WS.sub("", parts[i]))
+    return "".join(parts)
+
+
+def read(path):
+    items, comments = Counter(), Counter()
     with open(path, encoding="utf-8") as fh:
-        for raw in fh:
-            line = raw.rstrip("\n")
-            if not line.strip() or SET_ASIDE.match(line):
+        lines = [l.rstrip("\n") for l in fh]
+    depth = 0
+    pdepth = 0           # parens and brackets open
+    wrappers = []        # depths at which a wrapper opened
+    pending = None       # a wrapper header whose `{` has not come yet
+    cur = []             # the item being gathered
+    cur_depth = None     # its base depth
+
+    def close_item():
+        nonlocal cur, cur_depth
+        if cur:
+            text = "\n".join(cur)
+            text = VIS.sub(r"\1", text, count=1)
+            items[normalise(text)] += 1
+        cur, cur_depth = [], None
+
+    for raw in lines:
+        s = raw.strip()
+        if not s:
+            continue
+        if s.startswith("//"):
+            if not s.startswith("//!"):
+                comments[s] += 1
+            continue
+        masked = mask(raw)
+        opens, closes = masked.count("{"), masked.count("}")
+        before = depth
+        depth = depth + opens - closes
+        pdepth += masked.count("(") + masked.count("[") - masked.count(")") - masked.count("]")
+        balanced = depth == (cur_depth if cur_depth is not None else before) and pdepth == 0
+        if pending is not None:
+            if depth > pending:
+                wrappers.append(pending)
+                pending = None
+            continue
+        if cur_depth is None:
+            # a line that closes a wrapper
+            if wrappers and depth == wrappers[-1] and closes and s.startswith("}"):
+                wrappers.pop()
                 continue
-            line = VIS.sub(r"\1", line).strip()
-            if line.startswith("//"):
-                flush()
-                out[line] += 1
-            else:
-                code.append(line)
-    flush()
-    return out
+            if SET_ASIDE.match(raw):
+                continue
+            if WRAPPER.match(raw):
+                if depth > before:
+                    wrappers.append(before)
+                elif not opens:
+                    pending = before   # `impl X for Y` with its `{` on a later line
+                continue               # `impl X for Y {}` opens and closes here
+            cur, cur_depth = [raw], before
+            if balanced and (s.endswith(";") or s.endswith("}")):
+                close_item()
+            continue
+        cur.append(raw)
+        if balanced and (s.endswith("}") or s.endswith(";")):
+            close_item()
+    close_item()
+    return items, comments
 
 
-old = statements(sys.argv[1])
-new = Counter()
+old_items, old_comments = read(sys.argv[1])
+new_items, new_comments = Counter(), Counter()
 for p in sys.argv[2:]:
-    new.update(statements(p))
-missing, added = old - new, new - old
-for k, n in sorted(missing.items()):
-    print(f"MISSING x{n}: {k[:160]}")
-for k, n in sorted(added.items()):
-    print(f"ADDED   x{n}: {k[:160]}")
-verdict = "ok" if not (missing or added) else "FAIL"
-print(f"{verdict}  {sum(old.values())} statements before, {sum(new.values())} after, "
-      f"{sum(missing.values())} missing, {sum(added.values())} added")
-sys.exit(1 if (missing or added) else 0)
+    i, c = read(p)
+    new_items.update(i)
+    new_comments.update(c)
+
+bad = 0
+for label, old, new in (("item", old_items, new_items), ("comment", old_comments, new_comments)):
+    for k, n in sorted((old - new).items()):
+        print(f"MISSING {label} x{n}: {k[:200]}")
+        bad += n
+    for k, n in sorted((new - old).items()):
+        print(f"ADDED   {label} x{n}: {k[:200]}")
+        bad += n
+print(f"{'ok' if not bad else 'FAIL'}  {sum(old_items.values())} items and {sum(old_comments.values())} comment lines before, "
+      f"{sum(new_items.values())} and {sum(new_comments.values())} after, {bad} differences")
+sys.exit(1 if bad else 0)
 ```
 
 Run it on each commit's tree before the gate; quote its last line in
-the message. Rustfmt's reflow of a dedented test is invisible to it
-(checked on this tree: 58 reflowed lines, 0 reported); an edited
-statement is not.
+the message. Checked by the design session on this tree: the limiter
+cut into the five files of the design (every file formatted by rustfmt,
+the spec dedented) and the daemon's one `impl Daemon` cut into three
+files both report 0 differences; a changed string literal, the
+`RateLimited` and `Network` returns of `classify_response` swapped, two
+adjacent `let` statements swapped, a signature given a parameter and a
+comment line deleted each report a difference and exit 1; a method
+widened to `pub(super)`, a doc paragraph reattached to an item in
+another file and an item placed in another file than its neighbour each
+report 0. What it cannot see: a change inside a `use` or `mod` line,
+or in a `//!` line; the compiler sees the first, the done-when's byte
+counts the second.
