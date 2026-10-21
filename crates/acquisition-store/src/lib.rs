@@ -308,7 +308,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
-use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
+use rusqlite::{Connection, OpenFlags, OptionalExtension, TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
@@ -371,6 +371,49 @@ impl std::fmt::Display for SchemaTooNew {
 }
 
 impl std::error::Error for SchemaTooNew {}
+
+/// C124 (a read never migrates): a read-only open met a file stamped at
+/// another schema version than this build's — older, newer, or none.
+/// Nothing was written to it. `file` names which file in words ("facts",
+/// "annotation"); the facts store and the annotations file refuse alike.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SchemaNotCurrent {
+    pub file: &'static str,
+    pub found: i64,
+    pub supported: i64,
+}
+
+impl std::fmt::Display for SchemaNotCurrent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let SchemaNotCurrent {
+            file,
+            found,
+            supported,
+        } = *self;
+        if found == 0 {
+            write!(
+                f,
+                "the {file} file carries no schema version: it is empty or was not \
+                 written by Acquisition, and a read-only open reads nothing from it"
+            )
+        } else if found < supported {
+            write!(
+                f,
+                "the {file} file is at schema version {found}, older than this build's \
+                 version {supported}, and a read-only open never migrates it: open it with \
+                 `acq` once to migrate, or use the build that wrote it"
+            )
+        } else {
+            write!(
+                f,
+                "the {file} file is at schema version {found}, newer than this build's \
+                 version {supported}: use the build that wrote it"
+            )
+        }
+    }
+}
+
+impl std::error::Error for SchemaNotCurrent {}
 
 /// Malformed external input at the record boundary: a 2xx body that lacks
 /// the identity-bearing shape ingest depends on. A stable kind (downcast
@@ -806,6 +849,45 @@ impl Store {
         }
         let conn = Connection::open(path).with_context(|| format!("opening {}", path.display()))?;
         Self::init(conn, path.to_path_buf())
+    }
+
+    /// C124 (a read never migrates): the store's read-only door, for a
+    /// tool that presents itself as a read and is neither `acq` nor the
+    /// daemon (the owner-run examples). The file is opened with SQLite's
+    /// read-only flag and never created; no journal-mode switch and no
+    /// pragma write is made, only the busy timeout (a connection setting:
+    /// a daemon may be writing). A file at any version but this build's
+    /// is refused with [`SchemaNotCurrent`] and left as it was found;
+    /// migration is [`Store::open`]'s, which `acq` and the daemon use. A
+    /// WAL file's `-wal` and `-shm` may be created beside it, as for any
+    /// reader; the file itself is not written. Every write through the
+    /// handle fails as SQLite's read-only refusal.
+    pub fn open_read_only(path: &Path) -> Result<Store> {
+        if !path.is_file() {
+            anyhow::bail!(
+                "no store file at {}: a read-only open never creates one",
+                path.display()
+            );
+        }
+        let conn = Connection::open_with_flags(
+            path,
+            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )
+        .with_context(|| format!("opening {} read-only", path.display()))?;
+        conn.busy_timeout(std::time::Duration::from_secs(5))?;
+        let found: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
+        if found != FACT_SCHEMA_VERSION {
+            return Err(anyhow::Error::new(SchemaNotCurrent {
+                file: "facts",
+                found,
+                supported: FACT_SCHEMA_VERSION,
+            })
+            .context(format!("{} was not opened", path.display())));
+        }
+        Ok(Store {
+            conn,
+            path: path.to_path_buf(),
+        })
     }
 
     pub fn open_memory() -> Result<Store> {
@@ -4239,6 +4321,126 @@ mod tests {
         let st = s.status().unwrap();
         assert_eq!((st.withheld_responses, st.withheld_items), (1, 2));
         drop(s);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The bytes of a file, hashed: what "left as it was found" is judged by.
+    fn file_hash(path: &Path) -> Vec<u8> {
+        use sha2::Digest;
+        sha2::Sha256::digest(std::fs::read(path).unwrap()).to_vec()
+    }
+
+    fn read_only_scratch(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "acq-store-ro-{name}-{}-{}",
+            std::process::id(),
+            now()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        dir
+    }
+
+    /// C124 (a read never migrates): a file one version behind (a v8
+    /// file, without the v9 live indexes) and one a version ahead are
+    /// each refused by the read-only door with `SchemaNotCurrent`, in
+    /// words that name both versions and the remedy, and the file's bytes
+    /// are the same after the attempt. The control: `Store::open` on the
+    /// behind file migrates it and its hash moves, so an unchanged hash
+    /// is the door's doing and not a hash blind to a migration. A missing
+    /// file is refused and not created.
+    #[test]
+    fn c124_a_read_only_open_refuses_another_version_and_leaves_the_file_unchanged() {
+        let dir = read_only_scratch("refuse");
+        let missing = dir.join("missing.db");
+        assert!(Store::open_read_only(&missing).is_err());
+        assert!(!missing.exists(), "a read-only open created the file");
+        for (stamp, ddl) in [
+            (
+                FACT_SCHEMA_VERSION - 1,
+                "DROP INDEX items_live; DROP INDEX items_live_at;",
+            ),
+            (FACT_SCHEMA_VERSION + 1, ""),
+        ] {
+            let path = dir.join(format!("v{stamp}.db"));
+            drop(Store::open(&path).unwrap());
+            {
+                let c = Connection::open(&path).unwrap();
+                c.execute_batch(ddl).unwrap();
+                c.pragma_update(None, "user_version", stamp).unwrap();
+            }
+            let before = file_hash(&path);
+            let err = Store::open_read_only(&path).err().unwrap();
+            assert_eq!(
+                err.downcast_ref::<SchemaNotCurrent>(),
+                Some(&SchemaNotCurrent {
+                    file: "facts",
+                    found: stamp,
+                    supported: FACT_SCHEMA_VERSION,
+                })
+            );
+            let text = format!("{err:#}");
+            assert!(
+                text.contains(&format!("schema version {stamp}"))
+                    && text.contains(&format!("this build's version {FACT_SCHEMA_VERSION}")),
+                "{text}"
+            );
+            let remedy = if stamp < FACT_SCHEMA_VERSION {
+                "open it with `acq` once to migrate, or use the build that wrote it"
+            } else {
+                "use the build that wrote it"
+            };
+            assert!(text.contains(remedy), "{text}");
+            assert_eq!(
+                file_hash(&path),
+                before,
+                "the refused v{stamp} file changed"
+            );
+            if stamp < FACT_SCHEMA_VERSION {
+                drop(Store::open(&path).unwrap());
+                assert_ne!(
+                    file_hash(&path),
+                    before,
+                    "the control migration left no mark"
+                );
+            }
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// C124: a file at this build's version opens through the read-only
+    /// door and reads; a write through the handle is SQLite's refusal;
+    /// the file's bytes are the same after.
+    #[test]
+    fn c124_a_read_only_open_reads_a_current_file_and_writes_nothing() {
+        let dir = read_only_scratch("read");
+        let path = dir.join("current.db");
+        {
+            let mut s = Store::open(&path).unwrap();
+            s.record(
+                &stash_ep("a"),
+                &json!({"league":"Standard","id":"a"}),
+                200,
+                &stash("a", vec![item("i1", "Foo", 0)]),
+                100,
+            )
+            .unwrap();
+        }
+        let before = file_hash(&path);
+        let mut ro = Store::open_read_only(&path).unwrap();
+        assert_eq!(ro.item("i1").unwrap().unwrap().name, "Foo");
+        assert!(
+            ro.record(
+                &stash_ep("a"),
+                &json!({"league":"Standard","id":"a"}),
+                200,
+                &stash("a", vec![]),
+                200,
+            )
+            .is_err(),
+            "a write through the read-only door landed"
+        );
+        drop(ro);
+        assert_eq!(file_hash(&path), before, "the current file changed");
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

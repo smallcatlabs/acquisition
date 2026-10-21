@@ -100,7 +100,7 @@
 
 use std::path::{Path, PathBuf};
 
-use rusqlite::{Connection, ErrorCode, OptionalExtension, TransactionBehavior, params};
+use rusqlite::{Connection, ErrorCode, OpenFlags, OptionalExtension, TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -424,6 +424,10 @@ pub enum AnnotationError {
         floor: i64,
         path: PathBuf,
     },
+    /// C124 (a read never migrates): the read-only door met a file at
+    /// another schema version than this build's, older or newer; nothing
+    /// was written to it.
+    NotCurrent(crate::SchemaNotCurrent),
     /// The file carries another account's uuid: a copy or rename cannot
     /// silently pair one account's intent with another account's facts.
     WrongAccount {
@@ -472,6 +476,7 @@ impl std::fmt::Display for AnnotationError {
                  (a development build wrote it); delete it and set the policy again",
                 path.display()
             ),
+            AnnotationError::NotCurrent(e) => write!(f, "{e}"),
             AnnotationError::WrongAccount { stored, requested } => write!(
                 f,
                 "annotation file belongs to account uuid {stored}, not {requested}"
@@ -547,6 +552,60 @@ impl Annotations {
         let mut a = Self::open(&annotations_path(dir, uuid))?;
         a.bind(uuid)?;
         Ok(a)
+    }
+
+    /// C124 (a read never migrates): the annotations file's read-only
+    /// door, beside [`crate::Store::open_read_only`], for a tool that
+    /// presents itself as a read. The account's file under `dir` is opened
+    /// with SQLite's read-only flag and never created; nothing is written
+    /// — no journal-mode switch, no stamp, no uuid bound — and only the
+    /// busy timeout is set. A file at any version but this build's is
+    /// refused with [`AnnotationError::NotCurrent`]; one carrying another
+    /// account's uuid with [`AnnotationError::WrongAccount`]. A file with
+    /// no stored uuid, which [`Annotations::open_for`] would stamp, opens
+    /// with none, and a read that pairs intent with facts refuses it.
+    pub fn open_read_only_for(dir: &Path, uuid: &str) -> Result<Annotations, AnnotationError> {
+        let path = annotations_path(dir, uuid);
+        if !path.is_file() {
+            return Err(AnnotationError::Io(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                format!(
+                    "no annotation file at {}: a read-only open never creates one",
+                    path.display()
+                ),
+            )));
+        }
+        let conn = Connection::open_with_flags(
+            &path,
+            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )?;
+        conn.busy_timeout(BUSY_TIMEOUT)?;
+        let found: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
+        if found != SCHEMA_VERSION {
+            return Err(AnnotationError::NotCurrent(crate::SchemaNotCurrent {
+                file: "annotation",
+                found,
+                supported: SCHEMA_VERSION,
+            }));
+        }
+        let stored: Option<String> = conn
+            .query_row("SELECT value FROM meta WHERE key = ?1", [META_UUID], |r| {
+                r.get(0)
+            })
+            .optional()?;
+        if let Some(stored) = &stored
+            && stored != uuid
+        {
+            return Err(AnnotationError::WrongAccount {
+                stored: stored.clone(),
+                requested: uuid.to_string(),
+            });
+        }
+        Ok(Annotations {
+            conn,
+            path,
+            uuid: stored,
+        })
     }
 
     /// An in-memory file bound to `uuid`, for tests and ephemeral use.
@@ -2034,6 +2093,108 @@ mod tests {
         match Annotations::open(&path).err() {
             Some(AnnotationError::SchemaTooNew { found: 99, .. }) => {}
             other => panic!("expected SchemaTooNew, got {other:?}"),
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    fn file_hash(path: &Path) -> Vec<u8> {
+        use sha2::Digest;
+        sha2::Sha256::digest(std::fs::read(path).unwrap()).to_vec()
+    }
+
+    /// C124 (a read never migrates): the annotations file's read-only
+    /// door refuses a file a version behind and one a version ahead with
+    /// `NotCurrent`, in words naming both versions and the remedy, and
+    /// leaves its bytes as found; a missing file is refused, not created.
+    #[test]
+    fn c124_a_read_only_open_refuses_another_version_and_leaves_the_file_unchanged() {
+        let dir = std::env::temp_dir().join(format!(
+            "acq-ann-ro-refuse-{}-{}",
+            std::process::id(),
+            crate::now()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(Annotations::open_read_only_for(&dir, "u-0").is_err());
+        assert!(
+            !annotations_path(&dir, "u-0").exists(),
+            "a read-only open created the file"
+        );
+        for stamp in [SCHEMA_VERSION - 1, SCHEMA_VERSION + 1] {
+            let uuid = format!("u-{stamp}");
+            {
+                let a = Annotations::open_for(&dir, &uuid).unwrap();
+                a.conn.pragma_update(None, "user_version", stamp).unwrap();
+            }
+            let path = annotations_path(&dir, &uuid);
+            let before = file_hash(&path);
+            let err = Annotations::open_read_only_for(&dir, &uuid).err();
+            match &err {
+                Some(AnnotationError::NotCurrent(e)) => assert_eq!(
+                    *e,
+                    crate::SchemaNotCurrent {
+                        file: "annotation",
+                        found: stamp,
+                        supported: SCHEMA_VERSION,
+                    }
+                ),
+                other => panic!("expected NotCurrent, got {other:?}"),
+            }
+            let text = err.map(|e| e.to_string()).unwrap_or_default();
+            assert!(
+                text.contains(&format!("schema version {stamp}"))
+                    && text.contains(&format!("this build's version {SCHEMA_VERSION}")),
+                "{text}"
+            );
+            let remedy = if stamp < SCHEMA_VERSION {
+                "open it with `acq` once to migrate, or use the build that wrote it"
+            } else {
+                "use the build that wrote it"
+            };
+            assert!(text.contains(remedy), "{text}");
+            assert_eq!(
+                file_hash(&path),
+                before,
+                "the refused v{stamp} file changed"
+            );
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// C124: a current file opens through the read-only door bound to
+    /// the uuid it stores and reads; a write through it is refused; its
+    /// bytes are unchanged; another account's file is refused as
+    /// `WrongAccount`, as `open_for` refuses it.
+    #[test]
+    fn c124_a_read_only_open_reads_a_current_file_and_writes_nothing() {
+        let dir = std::env::temp_dir().join(format!(
+            "acq-ann-ro-read-{}-{}",
+            std::process::id(),
+            crate::now()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        {
+            let mut a = Annotations::open_for(&dir, "u-1").unwrap();
+            a.put::<Buyout>("item", "i1", &price("1 divine"), None, &via_test())
+                .unwrap();
+        }
+        let path = annotations_path(&dir, "u-1");
+        let before = file_hash(&path);
+        let mut ro = Annotations::open_read_only_for(&dir, "u-1").unwrap();
+        assert_eq!(ro.uuid(), Some("u-1"));
+        assert_eq!(ro.list(None, None).unwrap().len(), 1);
+        assert!(
+            ro.put::<Buyout>("item", "i2", &price("2 divine"), None, &via_test())
+                .is_err(),
+            "a write through the read-only door landed"
+        );
+        drop(ro);
+        assert_eq!(file_hash(&path), before, "the current file changed");
+        std::fs::copy(&path, annotations_path(&dir, "u-2")).unwrap();
+        match Annotations::open_read_only_for(&dir, "u-2").err() {
+            Some(AnnotationError::WrongAccount { stored, requested }) => {
+                assert_eq!((stored.as_str(), requested.as_str()), ("u-1", "u-2"));
+            }
+            other => panic!("expected WrongAccount, got {other:?}"),
         }
         let _ = std::fs::remove_dir_all(&dir);
     }

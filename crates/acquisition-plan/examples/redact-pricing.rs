@@ -18,11 +18,14 @@
 //! `acq accounts` lists them); `--dir <provider store dir>` (the
 //! platform's, `acq daemon status` prints it).
 //!
-//! **What it reads.** The store as every `acq` read opens it
-//! (`Store::open`: WAL, the busy timeout — a daemon may be running) and
-//! the account's annotations file bound to its uuid; then one
-//! `pricing_snapshot` in one transaction, the same read `acq price` and
-//! `acq shop render` make. No fact and no row is written; no daemon is
+//! **What it reads.** The store and the account's annotations file
+//! through their read-only doors (`Store::open_read_only` and
+//! `Annotations::open_read_only_for`, C124: a read never migrates; the
+//! busy timeout, since a daemon may be running), the annotations file
+//! checked against the account's uuid; then one `pricing_snapshot` in
+//! one transaction, the same read `acq price` and `acq shop render` make.
+//! Each open is read-only and refuses a file at another schema version
+//! than this build's. No fact and no row is written; no daemon is
 //! contacted; nothing touches the network.
 //!
 //! **What it hashes** — with a secret drawn for this run and kept nowhere,
@@ -288,8 +291,8 @@ fn main() -> Result<()> {
             entry.username
         );
     };
-    let store = Store::open(&account_path(&dir, &entry.username))?;
-    let annotations = Annotations::open_for(&dir, uuid)?;
+    let store = Store::open_read_only(&account_path(&dir, &entry.username))?;
+    let annotations = Annotations::open_read_only_for(&dir, uuid)?;
     let snapshot = store.pricing_snapshot(realm.as_str(), &league, &annotations)?;
     let redacted = Redactor::new()?.snapshot(snapshot)?;
 

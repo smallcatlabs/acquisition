@@ -16,15 +16,12 @@
 //! platform's, `acq daemon status` prints it). Then one or more item ids
 //! (`acq search --json` prints them).
 //!
-//! **What it reads.** The store as every `acq` read opens it
-//! (`Store::open`: WAL, the busy timeout — a daemon may be running), then
-//! one `Store::item` per id. No fact and no row is written by this
-//! program; no daemon is contacted; nothing touches the network. One
-//! caveat `Store::open` carries: a store behind this build's facts
-//! schema is migrated on its first open, which is a write, and so was
-//! the owner's v8 store against the v9 build of 2026-10-21. To export
-//! from a store you mean to leave as it is, export from a copy
-//! (`sqlite3 <db> ".backup <copy>"`, then `--dir` at the copy).
+//! **What it reads.** The store through its read-only door
+//! (`Store::open_read_only`, C124: a read never migrates; the busy
+//! timeout, since a daemon may be running), then one `Store::item` per
+//! id. The open is read-only and refuses a store at another schema
+//! version than this build's. No fact and no row is written by this
+//! program; no daemon is contacted; nothing touches the network.
 //!
 //! **What it prints.** For each id found, `{"location": …, "item": …}`:
 //! `item` is the stored body, which is GGG's item minus its lifted
@@ -73,7 +70,7 @@ fn main() -> Result<()> {
     let dir = dir.unwrap_or_else(|| store_dir(&provider));
     let index = Index::load(&dir)?;
     let entry = index.resolve(account.as_deref())?.clone();
-    let store = Store::open(&account_path(&dir, &entry.username))?;
+    let store = Store::open_read_only(&account_path(&dir, &entry.username))?;
 
     let mut found = Vec::new();
     let mut missing = 0usize;
