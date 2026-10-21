@@ -79,7 +79,13 @@ server received, so the journal's own failure is caught by the recorder
 and the recorder's coupling by the journal.
 
 Invariants derived from the register, not from the code. The first
-four run over every harness journal; the rest are scenario pins:
+four are what the three oracles in
+`crates/acquisition-daemon/src/daemon/tests/harness.rs` check
+(`assert_journal_matches_wire`, `assert_wire_contract`,
+`assert_pacing_follows_responses`): `finish_harness_wire` runs all
+three in twelve tests, ten more run one or two of them through their
+own helpers, and twenty whose daemons journal check nothing. The rest
+are scenario pins:
 
 | Invariant | Source | Pins |
 | --- | --- | --- |
@@ -168,5 +174,5 @@ case pins nothing.
   the journal. `wait_ms` is a requirement on any design.
 - Harness tests that reach into internals pin this implementation's
   concurrency mechanics; they die with a rewrite and should. The
-  harness leaves `daemon.rs` the day a fresh build of the daemon
+  harness leaves `daemon/tests/` the day a fresh build of the daemon
   starts, not before.
