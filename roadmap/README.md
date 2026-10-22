@@ -95,7 +95,7 @@ plan or the tools, and the close answers every item.
 | --- | --- | --- | --- | --- |
 | 0. The week's fixes | 0a to 0e | Opus workers | — | closed 2026-10-20 |
 | 1. The governance reset | 1 design, 1b to 1e | Fable, then Opus | — | closed 2026-10-20 |
-| 2. The keystone | closed: 2a the shared function layer · 2b the tests · 2c the journey test and real-shaped mock items · 2d the daemon and limiter file splits · 2d-oracle the journal oracles over every journaling daemon. Ahead: 2e the game-diff tool, a mock rehearsal of a new league, a README line for starting one (the assessment's report 6, section 5, is its source) · 2f the ultra review of daemon, store and network (owner-triggered) and its fixes, its inputs under "Open"; the frontends' after it · 2g the read economy and the MCP refusal and receipt bundle (#9, #10), one bound at the shared layer under C53's three output levels · 2h the queued search and trade issues (#38, #46, #47; #37 once the owner has sat the site), which slips before 2e to 2g do | mixed | phase 1 | 2026-11-12 |
+| 2. The keystone | closed: 2a the shared function layer · 2b the tests · 2c the journey test and real-shaped mock items · 2d the daemon and limiter file splits · 2d-oracle the journal oracles over every journaling daemon · 2e the game-diff tool, a new-league rehearsal and the README line. Ahead: 2f the ultra review of daemon, store and network (owner-triggered) and its fixes, its inputs under "Open"; the frontends' after it · 2g the read economy and the MCP refusal and receipt bundle (#9, #10), one bound at the shared layer under C53's three output levels · 2h the queued search and trade issues (#38, #46, #47; #37 once the owner has sat the site), which slips before 2f and 2g do | mixed | phase 1 | 2026-11-12 |
 | 3. League 3.30 | the owner runs the league under the rails · count the undecided classes and untranslated mods · the prune verb (#43) at the league end | owner, Opus | 2e | 2026-11-20 |
 | 3b. `alpha.2` | regenerate the tables when the named inputs exist: a post-launch `poe1` pin (RePoE lags launch by 0 to 13 days), the owner's four site captures (C79: nobody else may fetch them), the pins and manifests bumped, every generator's `--check` green · then the release | owner captures, Opus | 3 | when the inputs arrive, 2026-11-26 at the latest |
 | 4. The GUI | the keeper bundle (#1) as the first pre-work, the first long-lived frontend being its consumer · 4 design (Fable: C16, the Tauri ruling, amended to the loopback web UI; the listener's security; the spawn policy for a frontend with no terminal; item images in or out; `GUI-NOTES.md` the second input) · the corpus held in `acq-mcp` · the subscriber with reconnect · the server · the web views · hardening | Fable, then Opus | 2a, 2b | 2026-12-10 |
@@ -125,16 +125,25 @@ list when a step's close commit or an issue takes it.
   generic reference-table loader, the `Thing` columns, the lock merge,
   sharing `frame.rs`.
 - **Unruled**: the stream of a text failure's report (`refresh --apply`
-  prints it on stdout, `acq result` on stderr).
+  prints it on stdout, `acq result` on stderr); `--if-revision 0` as
+  "no policy stands" is the CLI's meaning alone, where the MCP's
+  `if_revision` names a revision and creates when none is given (2e's
+  second fix round).
+- **For 3b, the regeneration**: #53, the defence extract's generator
+  is not in the tree; the pin is bumped before the generators run
+  (C125, the tables name their export); at `poe1@ee2084de` the forms
+  table would differ by two trade-stat ids (2e's measurement).
 - **The owner's**: the `AGENTS.md` budget, raised to 15,277 bytes under
   his temporary permission during phase 2, his to reassess; whether a
   *Pinned:* path with a slash becomes a bothy rule (2d writes nineteen
   that way); the Windows gate, which runs on his push (the guest was
-  down for 2d and 2d-oracle).
+  down for 2d and 2d-oracle, and no 2e commit has run under it: the
+  rehearsal golden's log path is the first a Windows path meets).
 - **Tooling, no step named**: the document-path check reads no roadmap
   file, whose ledger and briefs tell deletions as story; the trade
-  check has no breaker suite; a `log` normaliser rule for
-  `<scratch>/logs/<hash>` when a second golden needs it; a session's
+  check has no breaker suite; `bothy pack --path README.md` returns
+  the search and trade rulings, since the basename matches intros that
+  name `search/README.md` (`tools/bothy.py:284-305`); a session's
   must-read carries the memory index beside `AGENTS.md`.
 - **An issue ready for a step, none named**: #11, the words nobody
   understood, which waited on 2a.
@@ -149,22 +158,14 @@ list when a step's close commit or an issue takes it.
 
 ## Current step
 
-Step 2e is built, its review pending. The build brief,
-`briefs/2e-build.md`, ran on the owner's go in the main tree: six
-commits from `35e0b03c` (the rulings C125, the tables name their
-export, and C126, a league the list lacks is a note; the game-diff
-tool and the drift line; the mock's three leagues; the league named in
-every line about its work; the rehearsal; the documents and the
-driver). Codex's review of them (`reviews/2e-4e543dd0.md`, whole at
-`1491c4b8`) found six faults; the owner took all six and ruled on the
-worker's three raised items, and the fix round is two commits from
-`252e8c9e`. Its review (`reviews/2e-fixes-bb319873.md`, whole at
-`2a9fe34a`) found three faults, all taken by the owner in a second
-fix round of one commit, unreviewed (nothing is reviewed a third
-time). The close is next. The design brief, `briefs/2e-design.md`, is at `08c0907a`
-with the owner's word at `e9b8bc78` and its review taken at
-`cb7db91c`. The owner reassesses the `AGENTS.md` budget when he
-chooses. `AGENTS.md` governs; the gate is its ten lines, under
+Step 2e is closed; its ledger line is below and its close commit's
+message checks the build brief's done-when line by line. Next is 2f,
+the ultra review of daemon, store and network, which the owner
+triggers himself (`/code-review ultra`, billed) with its inputs under
+"Open"; its fixes follow as fix rounds under "A step", and nothing is
+built for it before his trigger. His push runs the Windows gate, which
+has run on no 2e commit. The owner reassesses the `AGENTS.md` budget
+when he chooses. `AGENTS.md` governs; the gate is its ten lines, under
 nextest.
 
 ## Ledger
@@ -182,7 +183,7 @@ messages.
 | 2c the journey test and real-shaped mock items | design `4d2932fb`, `c04cb535`, `1c347053`; build `f4e5cb15` to `f38fa001`; closed `2b275eec` | 2026-10-21 | #51 for 2f; a `log` rule when a second golden needs it; the read-only open, since ruled C124 and closed as #52 (`3795e6ec`) |
 | 2d the daemon and limiter file splits | design `dc993ddb`, `ac98c488`; build `e4019380` to `c670f112`; closed `af5badde` | 2026-10-21 | 2f's inputs and the owner's two, under "Open" |
 | 2d-oracle the journal oracles over every journaling daemon | `e59ee842`; closed `1f524d15` | 2026-10-21 | the login daemons journal nothing (2f) |
-| 2e the game-diff tool, a new-league rehearsal and the README line | design `08c0907a`, `e9b8bc78`, `cb7db91c`; build from `35e0b03c`, six commits; review pending | — | named at the close |
+| 2e the game-diff tool, a new-league rehearsal and the README line | design `08c0907a`, `e9b8bc78`, `cb7db91c`, `53ec784f`; build `35e0b03c` to `4e543dd0`; fixes `252e8c9e`, `bb319873`, `fb8371e0`; closed by the commit carrying this line | 2026-10-21 | #53 for 3b; the two claims for phase 3's live run (the live-run skill); the Windows gate on 2e and the CLI-only `--if-revision 0`, under "Open" |
 
 ## Housekeeping
 

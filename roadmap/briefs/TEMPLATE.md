@@ -29,14 +29,19 @@ named concretely. A step with no fixed input says so.
 
 ## Do
 Numbered, concrete, in order. A ruling the step needs and does not have
-is the first item, brought to the owner before the code.
+is the first item, brought to the owner before the code; a ruling
+drafted for it is measured against the entry rule's 800 bytes before
+it reaches the build brief (2e's first draft was 860).
 
 ## Done when
 Checkable sentences, each from the commit alone: its tree or its
 message. The report may restate a fact and never holds one alone,
 because the reviewer reads the commit and not the report. The gate
 green is always one of them, on the step's own tree: a step never
-needs what a later step delivers.
+needs what a later step delivers. A number or a literal in a line is
+measured on the tree the brief is written against, or the line says
+the build measures it: 2e's brief said fourteen tabs where the empty
+league lists seven, and a grep whose literal the fix changed.
 
 ## Not in scope
 What a worker will be tempted to do and must not, with where it lives
