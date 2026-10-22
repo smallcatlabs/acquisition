@@ -54,7 +54,13 @@ async fn learned_daemon() -> Arc<Daemon> {
     for route in ["fetch", "fetch@alice"] {
         daemon
             .choke
-            .head(route, &format!("{base}/fetch"), None, daemon.choke.now())
+            .head(
+                route,
+                &format!("{base}/fetch"),
+                None,
+                daemon.choke.now(),
+                ALWAYS_WANTED,
+            )
             .await
             .unwrap();
     }

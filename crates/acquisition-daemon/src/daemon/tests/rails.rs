@@ -160,7 +160,10 @@ async fn halted_daemon_refuses_refresh_before_any_send() {
         wait: Duration::ZERO,
     });
     logged_in(&mut daemon);
-    let error = daemon.valid_access_token(None, false).await.unwrap_err();
+    let error = daemon
+        .valid_access_token(None, false, None)
+        .await
+        .unwrap_err();
     assert!(
         error.message.contains("halted by live-test rails"),
         "{error}"
@@ -454,7 +457,10 @@ async fn a_token_522_refuses_in_the_halts_words() {
     let rails = daemon.choke.rails().clone();
     logged_in(&mut daemon);
 
-    let refusal = daemon.valid_access_token(None, false).await.unwrap_err();
+    let refusal = daemon
+        .valid_access_token(None, false, None)
+        .await
+        .unwrap_err();
     assert_eq!(refusal.kind, ErrorKind::Upstream, "{refusal}");
     let halt = rails.halted().expect("the 522 halted this lifetime");
     assert!(
@@ -471,7 +477,10 @@ async fn a_token_522_refuses_in_the_halts_words() {
     assert!(!refusal.message.contains("acq auth"), "{refusal}");
     assert_eq!(rails.refresh_failed("test-user"), None, "no dead grant");
 
-    let second = daemon.valid_access_token(None, false).await.unwrap_err();
+    let second = daemon
+        .valid_access_token(None, false, None)
+        .await
+        .unwrap_err();
     assert_eq!(second.kind, ErrorKind::Upstream, "{second}");
     assert!(second.message.contains(&halt), "{second}");
     server.await.unwrap();
@@ -519,4 +528,141 @@ async fn a_cloudflare_503_job_names_the_trip_and_quotes_no_page() {
     assert_eq!(requests.lock().unwrap().as_slice(), ["HEAD", "GET"]);
     server.await.unwrap();
     finish_harness_wire(dispatcher, &log_path, &requests);
+}
+
+/// C25's cancel arm: a cancel that lands while the job runs, and that
+/// a halt then meets before the job's send, concludes the job cancelled.
+/// It never returns to waiting, where the reset would send it. The job's
+/// refresh POST is held on the wire and the job cancelled; the POST
+/// lands and meets the ceiling of one; the job's GET is refused by the
+/// halt, which comes before the cancel at the choke point, and the job,
+/// parked by it, concludes cancelled, in memory and on disk.
+#[tokio::test]
+async fn a_cancel_before_the_halt_parks_the_job_concludes_it_cancelled() {
+    let db = test_db_path();
+    let (base, sent_log, arrived, release) = account_server(("POST", "/token", 0)).await;
+    let (daemon, log_path) = ceiling_daemon(&base, 1, &db);
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    let id = daemon
+        .submit(
+            "profile".into(),
+            json!({}),
+            0,
+            "test".into(),
+            Some("test-user".into()),
+        )
+        .unwrap();
+    arrived.await.unwrap();
+    daemon.cancel(id).unwrap();
+    release.send(()).unwrap();
+    wait_halted_and_settled(&daemon, &[id]).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let (state, outcome) = {
+        let s = daemon.shared.lock().unwrap();
+        (s.jobs[&id].info.state, s.jobs[&id].outcome.clone())
+    };
+    assert_eq!(state, JobState::Cancelled, "{outcome:?}");
+    let row = JobDb::open(&db).unwrap().get(id).unwrap().expect("the row");
+    assert_eq!(row.state, JobState::Cancelled.to_string(), "on disk");
+    assert_eq!(
+        sent_log.lock().unwrap().as_slice(),
+        [sent("test-user", "POST")]
+    );
+    assert_journal_matches_wire(&log_path, &wire_methods(&sent_log));
+    finish_harness(dispatcher, &log_path);
+    remove_db(&db);
+}
+
+/// C25 with C129: a refresh answered by a Cloudflare block on the token
+/// POST sets the block mark, and the job that asked is turned away to
+/// wait for the reset, not failed: GGG never saw its request.
+#[tokio::test]
+async fn a_blocked_token_post_leaves_the_job_waiting() {
+    let db = test_db_path();
+    let challenge = ScriptedResponse {
+        method: "POST",
+        path: "/token",
+        ..ScriptedResponse::cloudflare_403_challenge()
+    };
+    let (base, requests, server) = scripted_server(vec![challenge]).await;
+    let (daemon, log_path) = ceiling_daemon(&base, 10, &db);
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    let id = daemon
+        .submit(
+            "profile".into(),
+            json!({}),
+            0,
+            "test".into(),
+            Some("test-user".into()),
+        )
+        .unwrap();
+    wait_halted_and_settled(&daemon, &[id]).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    assert_parked(&daemon, &db, id);
+    assert!(daemon.pick_runnable().is_empty(), "the pick passes it over");
+    server.await.unwrap();
+    assert_eq!(requests.lock().unwrap().as_slice(), ["POST"]);
+    finish_harness_wire(dispatcher, &log_path, &requests);
+    remove_db(&db);
+}
+
+/// C25's pick-time hold on `whoami`, which has no route and may still
+/// send a refresh: two accounts' `whoami`, each with a refresh due; the
+/// first POST meets the ceiling of one and the other's refresh is refused
+/// by the halt. That job waits, and the pick passes it over while halted:
+/// no spin, and no second refresh.
+#[tokio::test]
+async fn a_parked_whoami_is_not_picked_again_while_halted() {
+    let db = test_db_path();
+    let (base, sent_log, _arrived, _release) = account_server(("NONE", "/", 0)).await;
+    let (daemon, log_path) = ceiling_daemon(&base, 1, &db);
+    daemon.shared.lock().unwrap().auth.by_account.insert(
+        "other".into(),
+        AuthSession {
+            username: Some("other".into()),
+            refresh_token: Some("rt-other".into()),
+            ..Default::default()
+        },
+    );
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    let ids: Vec<JobId> = ["test-user", "other"]
+        .into_iter()
+        .map(|account| {
+            daemon
+                .submit(
+                    "whoami".into(),
+                    json!({}),
+                    0,
+                    "test".into(),
+                    Some(account.into()),
+                )
+                .unwrap()
+        })
+        .collect();
+    wait_halted_and_settled(&daemon, &ids).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    // With the dispatcher stopped and no task left running, the pick
+    // passes the turned-away job over.
+    dispatcher.abort();
+    tokio::time::timeout(Duration::from_secs(3), async {
+        while !daemon.shared.lock().unwrap().active_jobs.is_empty() {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("no job task left running");
+    let parked: Vec<JobId> = {
+        let s = daemon.shared.lock().unwrap();
+        ids.iter()
+            .copied()
+            .filter(|id| s.jobs[id].info.state == JobState::Waiting)
+            .collect()
+    };
+    assert_eq!(parked.len(), 1, "one whoami was turned away");
+    assert_parked(&daemon, &db, parked[0]);
+    assert!(daemon.pick_runnable().is_empty(), "the pick passes it over");
+    assert_eq!(wire_methods(&sent_log), ["POST"], "no second refresh");
+    assert_journal_matches_wire(&log_path, &wire_methods(&sent_log));
+    finish_harness(None, &log_path);
+    remove_db(&db);
 }

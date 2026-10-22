@@ -17,7 +17,10 @@ async fn rejected_refresh_grant_disables_further_refreshes_until_logout() {
     let rails = daemon.choke.rails().clone();
     logged_in(&mut daemon);
 
-    let first = daemon.valid_access_token(None, false).await.unwrap_err();
+    let first = daemon
+        .valid_access_token(None, false, None)
+        .await
+        .unwrap_err();
     assert!(first.message.contains("400 Bad Request"), "{first}");
     assert_eq!(
         first.kind,
@@ -32,7 +35,10 @@ async fn rejected_refresh_grant_disables_further_refreshes_until_logout() {
             .contains("HTTP 400")
     );
 
-    let second = daemon.valid_access_token(None, false).await.unwrap_err();
+    let second = daemon
+        .valid_access_token(None, false, None)
+        .await
+        .unwrap_err();
     assert!(
         second
             .message
@@ -75,7 +81,10 @@ async fn transient_refresh_failures_do_not_mark_the_session() {
     let rails = daemon.choke.rails().clone();
     logged_in(&mut daemon);
 
-    let first = daemon.valid_access_token(None, false).await.unwrap_err();
+    let first = daemon
+        .valid_access_token(None, false, None)
+        .await
+        .unwrap_err();
     assert!(first.message.contains("503"), "{first}");
     assert_eq!(
         first.kind,
@@ -92,7 +101,7 @@ async fn transient_refresh_failures_do_not_mark_the_session() {
     assert!(rails.halted().unwrap().contains("503"));
     rails.reset_tripwire();
 
-    let (token, user) = daemon.valid_access_token(None, false).await.unwrap();
+    let (token, user) = daemon.valid_access_token(None, false, None).await.unwrap();
     assert_eq!((token.as_str(), user.as_str()), ("at-new", "test-user"));
     assert_eq!(requests.lock().unwrap().len(), 2);
     server.await.unwrap();
@@ -135,7 +144,10 @@ async fn a_token_3xx_is_refused_with_the_target_redacted_and_no_body() {
         test_daemon_with(Provider::mock(&base), clock, RailsConfig::default());
     logged_in(&mut daemon);
 
-    let refusal = daemon.valid_access_token(None, false).await.unwrap_err();
+    let refusal = daemon
+        .valid_access_token(None, false, None)
+        .await
+        .unwrap_err();
     assert_eq!(refusal.kind, ErrorKind::Upstream, "{refusal}");
     assert!(refusal.message.contains("307"), "{refusal}");
     assert!(
@@ -185,7 +197,10 @@ async fn a_cloudflare_block_on_the_token_route_is_no_rejected_grant() {
     let rails = daemon.choke.rails().clone();
     logged_in(&mut daemon);
 
-    let refusal = daemon.valid_access_token(None, false).await.unwrap_err();
+    let refusal = daemon
+        .valid_access_token(None, false, None)
+        .await
+        .unwrap_err();
     assert_eq!(
         refusal.kind,
         ErrorKind::Upstream,
@@ -226,7 +241,10 @@ async fn a_cloudflare_block_on_the_token_route_is_no_rejected_grant() {
         "the session stands"
     );
 
-    let second = daemon.valid_access_token(None, false).await.unwrap_err();
+    let second = daemon
+        .valid_access_token(None, false, None)
+        .await
+        .unwrap_err();
     assert_eq!(second.kind, ErrorKind::Upstream, "{second}");
     assert!(!second.message.contains("acq auth"), "{second}");
     server.await.unwrap();

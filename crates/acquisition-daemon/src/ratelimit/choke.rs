@@ -46,6 +46,9 @@ pub enum ProbeError {
     /// origin (C128): nothing was sent, and the route is closed for a
     /// cooldown so its waiting job does not ask again at once.
     OffOrigin(String),
+    /// C25: the probe was no longer wanted at admission; nothing was sent
+    /// and the route is untouched.
+    Cancelled,
 }
 
 impl std::fmt::Display for ProbeError {
@@ -54,11 +57,26 @@ impl std::fmt::Display for ProbeError {
             ProbeError::StaleBearer => f.write_str(STALE_BEARER),
             ProbeError::Failed { reason, .. } => f.write_str(reason),
             ProbeError::OffOrigin(reason) => f.write_str(reason),
+            ProbeError::Cancelled => f.write_str(CANCELLED),
         }
     }
 }
 
 const STALE_BEARER: &str = "the bearer this send was to carry was rejected before it left the gate";
+
+/// C25: whether the send is still wanted, asked at the choke point's
+/// admission: at the top of every pass of its pacing loop and again once
+/// the gate admits it, before the send. A job's check is "not cancelled";
+/// a refresh's is "some job or caller on its flight still waits for it".
+/// `false` turns the send away with nothing sent (`SendError::Cancelled`);
+/// a send already admitted is never called back.
+pub type Wanted<'a> = &'a (dyn Fn() -> bool + Sync);
+
+/// The check of a send nobody can cancel: a login's code exchange, and
+/// the choke point's own tests.
+pub const ALWAYS_WANTED: Wanted<'static> = &|| true;
+
+const CANCELLED: &str = "cancelled before it was sent";
 
 #[derive(Debug)]
 pub enum SendError {
@@ -73,6 +91,9 @@ pub enum SendError {
     /// Refused before any permit: the send was to carry a bearer to a URL
     /// off the provider's API origin (C128). Nothing was sent.
     OffOrigin(String),
+    /// C25: the send was no longer wanted at admission (its job was
+    /// cancelled while it waited); nothing was sent.
+    Cancelled,
 }
 
 /// A landed exchange after its body transfer has resolved. Non-2xx statuses
@@ -98,6 +119,7 @@ impl fmt::Display for SendError {
             SendError::Transport(error) => write!(f, "{error}"),
             SendError::Halted(cause) => write!(f, "{cause}"),
             SendError::OffOrigin(reason) => write!(f, "{reason}"),
+            SendError::Cancelled => f.write_str(CANCELLED),
             SendError::Protocol(error) => {
                 write!(f, "rate-limit protocol failure: {error}")
             }
@@ -338,8 +360,9 @@ impl ChokePoint {
     /// immediately before dispatch. The pre-check keeps rate-limit sleeps
     /// permit-free. Rechecking both the route mapping and limiter state after
     /// admission closes races with landed responses, including N33's
-    /// `oauth-token` -> `token-request-limit` discovery transition.
-    async fn acquire_send(&self, route: &str) -> Result<SendPermit, SendError> {
+    /// `oauth-token` -> `token-request-limit` discovery transition. A send
+    /// no longer `wanted` (C25) is turned away at the same two points.
+    async fn acquire_send(&self, route: &str, wanted: Wanted<'_>) -> Result<SendPermit, SendError> {
         // Rails are consulted before any waiting or permit: a halted daemon
         // neither sleeps toward a send nor occupies gate capacity.
         loop {
@@ -348,6 +371,9 @@ impl ChokePoint {
             // trip that happened while it waited.
             if let Some(cause) = self.rails.halted() {
                 return Err(SendError::Halted(cause));
+            }
+            if !wanted() {
+                return Err(SendError::Cancelled);
             }
             if let Err(wait) = self.check(route) {
                 self.sleep(wait.clamp(Duration::from_millis(50), HALT_POLL))
@@ -360,6 +386,10 @@ impl ChokePoint {
             if let Some(cause) = self.rails.halted() {
                 drop(permit);
                 return Err(SendError::Halted(cause));
+            }
+            if !wanted() {
+                drop(permit);
+                return Err(SendError::Cancelled);
             }
             let mapping_is_current = self.serial_key(route) == serial_key;
             match (mapping_is_current, self.check(route)) {
@@ -378,10 +408,13 @@ impl ChokePoint {
     /// HEAD uses the same permit-free pacing loop, then takes the gate's
     /// exclusive writer reservation. A final check after admission handles a
     /// landed response that installed a hold while the probe was queued.
-    async fn acquire_head(&self, route: &str) -> Result<SendPermit, SendError> {
+    async fn acquire_head(&self, route: &str, wanted: Wanted<'_>) -> Result<SendPermit, SendError> {
         loop {
             if let Some(cause) = self.rails.halted() {
                 return Err(SendError::Halted(cause));
+            }
+            if !wanted() {
+                return Err(SendError::Cancelled);
             }
             if let Err(wait) = self.check(route) {
                 self.sleep(wait.clamp(Duration::from_millis(50), HALT_POLL))
@@ -393,6 +426,10 @@ impl ChokePoint {
             if let Some(cause) = self.rails.halted() {
                 drop(permit);
                 return Err(SendError::Halted(cause));
+            }
+            if !wanted() {
+                drop(permit);
+                return Err(SendError::Cancelled);
             }
             match self.check(route) {
                 Ok(()) => return Ok(permit),
@@ -472,6 +509,7 @@ impl ChokePoint {
         url: &str,
         bearer: Option<&dyn Bearer>,
         since: Instant,
+        wanted: Wanted<'_>,
     ) -> Result<(reqwest::StatusCode, Policy, serde_json::Value), ProbeError> {
         if bearer.is_some()
             && let Err(reason) = self.admit_bearer_url(url)
@@ -482,12 +520,15 @@ impl ChokePoint {
             return Err(ProbeError::OffOrigin(reason));
         }
         let _permit = self
-            .acquire_head(route)
+            .acquire_head(route, wanted)
             .await
-            .map_err(|error| ProbeError::Failed {
-                status: None,
-                halted: matches!(error, SendError::Halted(_)),
-                reason: error.to_string(),
+            .map_err(|error| match error {
+                SendError::Cancelled => ProbeError::Cancelled,
+                error => ProbeError::Failed {
+                    status: None,
+                    halted: matches!(error, SendError::Halted(_)),
+                    reason: error.to_string(),
+                },
             })?;
         // Read after admission (C87): the exclusive permit may have waited
         // behind sends that carried this token to a 401.
@@ -906,8 +947,9 @@ impl ChokePoint {
         url: &str,
         params: &[(&str, &str)],
         since: Instant,
+        wanted: Wanted<'_>,
     ) -> Result<CompletedResponse, SendError> {
-        let _permit = self.acquire_send(route).await?;
+        let _permit = self.acquire_send(route, wanted).await?;
         let wait = self.now().saturating_duration_since(since);
         let result = self
             .http
@@ -930,9 +972,10 @@ impl ChokePoint {
         url: &str,
         bearer: &dyn Bearer,
         since: Instant,
+        wanted: Wanted<'_>,
     ) -> Result<CompletedResponse, SendError> {
         self.admit_bearer_url(url).map_err(SendError::OffOrigin)?;
-        let _permit = self.acquire_send(route).await?;
+        let _permit = self.acquire_send(route, wanted).await?;
         let Some(token) = bearer.token() else {
             return Err(SendError::StaleBearer);
         };
@@ -962,8 +1005,9 @@ impl ChokePoint {
         route: &str,
         url: &str,
         since: Instant,
+        wanted: Wanted<'_>,
     ) -> Result<CompletedResponse, SendError> {
-        let _permit = self.acquire_send(route).await?;
+        let _permit = self.acquire_send(route, wanted).await?;
         let wait = self.now().saturating_duration_since(since);
         let result = self.http.get(url).send().await.map_err(|e| e.to_string());
         self.finish_send(route, "GET", url, result, true, wait)

@@ -352,7 +352,13 @@ async fn rejected_bearer_under_the_gate(
     for (route, path) in routes {
         daemon
             .choke
-            .head(route, &format!("{base}{path}"), None, daemon.choke.now())
+            .head(
+                route,
+                &format!("{base}{path}"),
+                None,
+                daemon.choke.now(),
+                ALWAYS_WANTED,
+            )
             .await
             .unwrap();
     }

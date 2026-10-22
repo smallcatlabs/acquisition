@@ -21,7 +21,13 @@ async fn quote_projects_per_scope_reserves_nothing_and_names_what_it_cannot_see(
     // probe path; `character-list` stays unlearned.
     daemon
         .choke
-        .head("fetch", &format!("{base}/fetch"), None, daemon.choke.now())
+        .head(
+            "fetch",
+            &format!("{base}/fetch"),
+            None,
+            daemon.choke.now(),
+            ALWAYS_WANTED,
+        )
         .await
         .unwrap();
     let sends_before = daemon.choke.recent_sends().len();
@@ -120,7 +126,13 @@ async fn quote_counts_queued_jobs_ahead_and_keys_scopes_per_account() {
     daemon.shared.lock().unwrap().auth.rename("", "Alice#1234");
     daemon
         .choke
-        .head("fetch", &format!("{base}/fetch"), None, daemon.choke.now())
+        .head(
+            "fetch",
+            &format!("{base}/fetch"),
+            None,
+            daemon.choke.now(),
+            ALWAYS_WANTED,
+        )
         .await
         .unwrap();
     // Three fetch jobs sit waiting (no dispatcher runs here).

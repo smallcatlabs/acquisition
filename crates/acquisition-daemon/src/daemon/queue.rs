@@ -385,6 +385,15 @@ resubmit if still wanted",
         let s = self.shared.lock().unwrap();
         s.jobs.get(&id).map(|e| e.cancel_requested).unwrap_or(true)
     }
+
+    /// C25: whether a cancel was asked of job `id` while it ran, the check
+    /// its sends carry to the choke point. Only a cancel turns a send away:
+    /// a job not in the queue (a test driving `execute_inner` directly)
+    /// is still wanted.
+    pub(super) fn cancel_asked(&self, id: JobId) -> bool {
+        let s = self.shared.lock().unwrap();
+        s.jobs.get(&id).is_some_and(|e| e.cancel_requested)
+    }
 }
 
 /// Realm admission: a kind in a realm family (`acquisition_protocol::realm`) must name a

@@ -11,7 +11,7 @@ use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
 use crate::provider::{Provider, SCOPES};
-use crate::ratelimit::{ChokePoint, SendError};
+use crate::ratelimit::{ALWAYS_WANTED, ChokePoint, SendError, Wanted};
 
 pub fn random_token(prefix: &str) -> String {
     let mut bytes = [0u8; 24];
@@ -46,6 +46,9 @@ pub struct TokenError {
     /// C25: the choke point refused the request under a halt; nothing
     /// was sent.
     pub halted: bool,
+    /// C25: no one waiting on the request still wanted it when the choke
+    /// point would have admitted it; nothing was sent.
+    pub cancelled: bool,
     pub message: String,
 }
 
@@ -61,6 +64,7 @@ impl TokenError {
             status: None,
             blocked: false,
             halted: false,
+            cancelled: false,
             message,
         }
     }
@@ -113,14 +117,18 @@ pub async fn exchange_code(
             ("redirect_uri", redirect_uri),
             ("scope", &scope),
         ],
+        ALWAYS_WANTED,
     )
     .await
 }
 
+/// `wanted` is the refresh flight's check (C25): the POST is turned away
+/// before it is sent once no one waiting on the flight still wants it.
 pub async fn refresh(
     choke: &ChokePoint,
     provider: &Provider,
     refresh_token: &str,
+    wanted: Wanted<'_>,
 ) -> Result<TokenResponse, TokenError> {
     token_request(
         choke,
@@ -130,6 +138,7 @@ pub async fn refresh(
             ("client_id", provider.client_id),
             ("refresh_token", refresh_token),
         ],
+        wanted,
     )
     .await
 }
@@ -138,15 +147,26 @@ async fn token_request(
     choke: &ChokePoint,
     provider: &Provider,
     params: &[(&str, &str)],
+    wanted: Wanted<'_>,
 ) -> Result<TokenResponse, TokenError> {
     // Accountless on purpose: the token endpoint is `Ip`-scoped (N33) and
     // never probed, so every account's login shares this one known key.
     let response = choke
-        .post_form("oauth-token", &provider.token_url, params, choke.now())
+        .post_form(
+            "oauth-token",
+            &provider.token_url,
+            params,
+            choke.now(),
+            wanted,
+        )
         .await
         .map_err(|error| match error {
             SendError::Halted(_) => TokenError {
                 halted: true,
+                ..TokenError::transport(error.to_string())
+            },
+            SendError::Cancelled => TokenError {
+                cancelled: true,
                 ..TokenError::transport(error.to_string())
             },
             _ => TokenError::transport(error.to_string()),
@@ -160,6 +180,7 @@ async fn token_request(
             status: Some(status.as_u16()),
             blocked: true,
             halted: false,
+            cancelled: false,
             message: format!(
                 "Cloudflare answered in GGG's place at the token endpoint ({status}), so the daemon has stopped sending: {}",
                 crate::rails::BLOCK_REMEDY
@@ -176,6 +197,7 @@ async fn token_request(
             status: Some(status.as_u16()),
             blocked: false,
             halted: true,
+            cancelled: false,
             message: choke.rails().halted().unwrap_or_else(|| {
                 format!(
                     "Cloudflare could not reach GGG at the token endpoint ({status}): {}",
@@ -194,6 +216,7 @@ async fn token_request(
             status: Some(status.as_u16()),
             blocked: false,
             halted: false,
+            cancelled: false,
             message: format!("token endpoint returned {status} (rate headers {rate}): {body}"),
         });
     }
@@ -204,6 +227,7 @@ async fn token_request(
         status: Some(status.as_u16()),
         blocked: false,
         halted: false,
+        cancelled: false,
         message: e.to_string(),
     })
 }
@@ -358,7 +382,9 @@ mod tests {
         let choke = ChokePoint::new();
         let provider = Provider::mock(&base);
 
-        let error = refresh(&choke, &provider, "rt-test").await.unwrap_err();
+        let error = refresh(&choke, &provider, "rt-test", ALWAYS_WANTED)
+            .await
+            .unwrap_err();
         assert!(!error.message.contains("expected value"), "{error}");
         assert_eq!(
             choke.endpoint_state("oauth-token"),
@@ -441,7 +467,7 @@ mod tests {
         let refresh = {
             let choke = choke.clone();
             let provider = provider.clone();
-            tokio::spawn(async move { refresh(&choke, &provider, "rt-old").await })
+            tokio::spawn(async move { refresh(&choke, &provider, "rt-old", ALWAYS_WANTED).await })
         };
         assert!(
             tokio::time::timeout(std::time::Duration::from_millis(50), arrived_rx.recv())

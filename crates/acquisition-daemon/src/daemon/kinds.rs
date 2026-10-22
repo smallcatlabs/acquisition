@@ -23,12 +23,21 @@ pub(super) enum ApiError {
     /// own, its refresh's, or its probe's), or the block that sets one
     /// answered it. GGG saw nothing of the job: it returns to waiting.
     Halted(String),
+    /// C25: the job was cancelled while it waited at the choke point
+    /// (its own send's admission, or its refresh's), and nothing of it
+    /// was sent. It concludes cancelled.
+    Cancelled,
 }
 
 /// C25: a token refusal reaching its job. A halt's turns the job away to
-/// wait for the reset; any other fails it in the refusal's words.
+/// wait for the reset; a refresh called off when its owner was cancelled
+/// reaches a job only once that job is cancelled too (one still wanting
+/// the token asks again), and it concludes cancelled; any other fails it
+/// in the refusal's words.
 fn refused(refusal: Refusal) -> Result<Outcome, ApiError> {
-    if refusal.halted {
+    if refusal.cancelled {
+        Err(ApiError::Cancelled)
+    } else if refusal.halted {
         Err(ApiError::Halted(refusal.message))
     } else {
         Ok(Outcome::failure(refusal.message))
@@ -232,6 +241,7 @@ impl Daemon {
     /// `execute_inner` returns: a failure, or a halt's refusal (C25).
     async fn render_then_authenticate(
         &self,
+        id: JobId,
         kind: &str,
         params: &Value,
         account: Option<&str>,
@@ -246,7 +256,7 @@ impl Daemon {
             Some((token, username)) => (Auth::Staged(token), username),
             None => {
                 let (token, username) = self
-                    .valid_access_token(account, false)
+                    .valid_access_token(account, false, Some(id))
                     .await
                     .map_err(refused)?;
                 (
@@ -277,13 +287,15 @@ impl Daemon {
             // requeues only acceptable 429s, while Cloudflare-shaped blocks
             // are never retried.
             "characters" => {
-                let (url, auth, username) =
-                    match self.render_then_authenticate(kind, &params, account).await {
-                        Ok(rendered) => rendered,
-                        Err(stop) => return stop,
-                    };
+                let (url, auth, username) = match self
+                    .render_then_authenticate(id, kind, &params, account)
+                    .await
+                {
+                    Ok(rendered) => rendered,
+                    Err(stop) => return stop,
+                };
                 let route = route.as_deref().expect("characters is a network kind");
-                let (v, rate) = self.api_get(route, &url, auth, ready).await?;
+                let (v, rate) = self.api_get(id, route, &url, auth, ready).await?;
                 // A 2xx without the `characters` array is a malformed
                 // response, not an empty account: the job fails and
                 // nothing is recorded (the store would refuse it too —
@@ -307,13 +319,15 @@ impl Daemon {
                 }
             }
             "character" | "leagues" | "profile" => {
-                let (url, auth, username) =
-                    match self.render_then_authenticate(kind, &params, account).await {
-                        Ok(rendered) => rendered,
-                        Err(stop) => return stop,
-                    };
+                let (url, auth, username) = match self
+                    .render_then_authenticate(id, kind, &params, account)
+                    .await
+                {
+                    Ok(rendered) => rendered,
+                    Err(stop) => return stop,
+                };
                 let route = route.as_deref().expect("network kind");
-                let (v, rate) = self.api_get(route, &url, auth, ready).await?;
+                let (v, rate) = self.api_get(id, route, &url, auth, ready).await?;
                 if let Err(failure) = self.record(account, kind, &params, &v) {
                     return Ok(failure);
                 }
@@ -347,18 +361,20 @@ impl Daemon {
             // The stash list: one request under stash-list-request-limit, the
             // second real policy. Tab contents are a later step.
             "stashes" => {
-                let (url, auth, username) =
-                    match self.render_then_authenticate(kind, &params, account).await {
-                        Ok(rendered) => rendered,
-                        Err(stop) => return stop,
-                    };
+                let (url, auth, username) = match self
+                    .render_then_authenticate(id, kind, &params, account)
+                    .await
+                {
+                    Ok(rendered) => rendered,
+                    Err(stop) => return stop,
+                };
                 let league = params
                     .get("league")
                     .and_then(Value::as_str)
                     .unwrap_or("Standard")
                     .to_string();
                 let route = route.as_deref().expect("stashes is a network kind");
-                let (v, rate) = self.api_get(route, &url, auth, ready).await?;
+                let (v, rate) = self.api_get(id, route, &url, auth, ready).await?;
                 // A 2xx without the `stashes` array is a malformed
                 // response, not an empty account: the job fails and
                 // nothing is recorded — ingested as empty it would retire
@@ -383,13 +399,15 @@ impl Daemon {
                 }
             }
             "stash" => {
-                let (url, auth, _) =
-                    match self.render_then_authenticate(kind, &params, account).await {
-                        Ok(rendered) => rendered,
-                        Err(stop) => return stop,
-                    };
+                let (url, auth, _) = match self
+                    .render_then_authenticate(id, kind, &params, account)
+                    .await
+                {
+                    Ok(rendered) => rendered,
+                    Err(stop) => return stop,
+                };
                 let route = route.as_deref().expect("stash is a network kind");
-                let (v, rate) = self.api_get(route, &url, auth, ready).await?;
+                let (v, rate) = self.api_get(id, route, &url, auth, ready).await?;
                 if let Err(failure) = self.record(account, kind, &params, &v) {
                     return Ok(failure);
                 }
@@ -457,13 +475,15 @@ impl Daemon {
                     Err(words) => return Ok(Outcome::failure(words)),
                 };
                 let realm = Realm::from_params(&params).unwrap_or(Realm::DEFAULT);
-                let (url, auth, _) =
-                    match self.render_then_authenticate(kind, &params, account).await {
-                        Ok(rendered) => rendered,
-                        Err(stop) => return stop,
-                    };
+                let (url, auth, _) = match self
+                    .render_then_authenticate(id, kind, &params, account)
+                    .await
+                {
+                    Ok(rendered) => rendered,
+                    Err(stop) => return stop,
+                };
                 let route = route.as_deref().expect("refresh is a network kind");
-                let (v, rate) = self.api_get(route, &url, auth, ready).await?;
+                let (v, rate) = self.api_get(id, route, &url, auth, ready).await?;
                 // A malformed listing fails the refresh whole, before the
                 // store sees it: converted to an empty list it would
                 // "succeed" with zero children over a retired tab set.
@@ -619,7 +639,7 @@ impl Daemon {
                 }
                 let url = format!("{}/fetch", self.provider.api_base);
                 let route = route.as_deref().expect("mock fetch is a network kind");
-                let (v, rate) = self.api_get(route, &url, Auth::None, ready).await?;
+                let (v, rate) = self.api_get(id, route, &url, Auth::None, ready).await?;
                 Outcome::Success {
                     payload: json!({
                         "note": "fake data from the in-process mock",
@@ -638,10 +658,11 @@ impl Daemon {
                         "whoami is a mock-only job kind; not run against real GGG",
                     ));
                 }
-                let (token, username) = match self.valid_access_token(account, false).await {
-                    Ok(pair) => pair,
-                    Err(error) => return refused(error),
-                };
+                let (token, username) =
+                    match self.valid_access_token(account, false, Some(id)).await {
+                        Ok(pair) => pair,
+                        Err(error) => return refused(error),
+                    };
                 tokio::time::sleep(Duration::from_millis(300)).await;
                 if self.cancelled(id) {
                     return Ok(Outcome::Cancelled);
@@ -677,9 +698,11 @@ impl Daemon {
                     return Ok(Outcome::failure("probe needs a route and a url"));
                 };
                 let mut session = if self.needs_auth(&route) {
-                    match self.valid_access_token(account, false).await {
+                    match self.valid_access_token(account, false, Some(id)).await {
                         Ok(pair) => Some(pair),
-                        // C25: a halt closes nothing; the probe waits too.
+                        // C25: a halt closes nothing; the probe waits too,
+                        // and a cancel closes nothing either.
+                        Err(error) if error.cancelled => return Err(ApiError::Cancelled),
                         Err(error) if error.halted => return Err(ApiError::Halted(error.message)),
                         Err(error) => {
                             // Close the endpoint too, or the waiting job would
@@ -692,6 +715,7 @@ impl Daemon {
                     None
                 };
                 let mut retried = false;
+                let wanted = || !self.cancel_asked(id);
                 let (probed, cleared_for) = loop {
                     let bearer = session
                         .as_ref()
@@ -703,6 +727,7 @@ impl Daemon {
                             &url,
                             bearer.as_ref().map(|b| b as &dyn Bearer),
                             ready,
+                            &wanted,
                         )
                         .await;
                     let cleared_for = bearer
@@ -718,8 +743,12 @@ impl Daemon {
                             let (_, username) = session
                                 .as_ref()
                                 .expect("only a session's bearer can go stale");
-                            match self.valid_access_token(Some(username), false).await {
+                            match self
+                                .valid_access_token(Some(username), false, Some(id))
+                                .await
+                            {
                                 Ok(pair) => session = Some(pair),
+                                Err(error) if error.cancelled => return Err(ApiError::Cancelled),
                                 Err(error) if error.halted => {
                                     return Err(ApiError::Halted(error.message));
                                 }
@@ -753,6 +782,9 @@ impl Daemon {
                     // C25: a probe a halt refused, or Cloudflare answered,
                     // waits like any job. Failed, it would fail every job
                     // waiting on its route.
+                    // C25: cancelled before the HEAD went out; the route
+                    // is untouched.
+                    Err(ProbeError::Cancelled) => return Err(ApiError::Cancelled),
                     Err(error @ ProbeError::Failed { halted: true, .. }) => {
                         return Err(ApiError::Halted(format!(
                             "HEAD {}: {error}",
@@ -791,26 +823,32 @@ impl Daemon {
     /// Cloudflare-shaped 403/503 is never retried (invariant 3).
     async fn api_get(
         &self,
+        id: JobId,
         route: &str,
         url: &str,
         mut auth: Auth,
         ready: Instant,
     ) -> Result<(Value, Value), ApiError> {
         let mut retried = false;
+        // C25: a cancel reaches the send until the gate admits it.
+        let wanted = || !self.cancel_asked(id);
         loop {
             let (sent, cleared_for) = match &auth {
                 Auth::Session { token, username } => {
                     let bearer = SessionBearer::new(self, username, token);
-                    let sent = self.choke.get_bearer(route, url, &bearer, ready).await;
+                    let sent = self
+                        .choke
+                        .get_bearer(route, url, &bearer, ready, &wanted)
+                        .await;
                     (sent, bearer.was_cleared().then(|| username.clone()))
                 }
                 Auth::Staged(token) => (
                     self.choke
-                        .get_bearer(route, url, &StagedBearer(token.clone()), ready)
+                        .get_bearer(route, url, &StagedBearer(token.clone()), ready, &wanted)
                         .await,
                     None,
                 ),
-                Auth::None => (self.choke.get(route, url, ready).await, None),
+                Auth::None => (self.choke.get(route, url, ready, &wanted).await, None),
             };
             let response = match sent {
                 // C87: the token this send was to carry was rejected while
@@ -821,11 +859,15 @@ impl Daemon {
                     let Auth::Session { username, .. } = &auth else {
                         unreachable!("only a session's bearer can go stale")
                     };
-                    match self.valid_access_token(Some(username), false).await {
+                    match self
+                        .valid_access_token(Some(username), false, Some(id))
+                        .await
+                    {
                         Ok((token, username)) => {
                             auth = Auth::Session { token, username };
                             continue;
                         }
+                        Err(refusal) if refusal.cancelled => return Err(ApiError::Cancelled),
                         Err(refusal) => {
                             let message = format!("GET {}: {}", url_path(url), refusal.message);
                             return Err(if refusal.halted {
@@ -861,6 +903,7 @@ impl Daemon {
                 Err(SendError::OffOrigin(reason)) => {
                     return Err(ApiError::Other(format!("GET {}: {reason}", url_path(url))));
                 }
+                Err(SendError::Cancelled) => return Err(ApiError::Cancelled),
                 Ok(response) => response,
             };
             self.announce_trip();

@@ -303,7 +303,10 @@ impl Daemon {
             Request::AuthStatus => self.auth_status(),
             Request::AuthCheck { account } => match self.canonical_account(account.as_deref()) {
                 Err(refusal) => refusal.into(),
-                Ok(account) => match self.valid_access_token(account.as_deref(), true).await {
+                Ok(account) => match self
+                    .valid_access_token(account.as_deref(), true, None)
+                    .await
+                {
                     Ok(_) => self.auth_status(),
                     Err(refusal) => {
                         self.note_error(&format!("auth check failed: {refusal}"));

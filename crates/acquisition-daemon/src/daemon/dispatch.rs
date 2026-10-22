@@ -462,6 +462,9 @@ impl Daemon {
             Err(ApiError::Protocol(error)) => Exec::Done(Outcome::failure(error)),
             Err(ApiError::Other(error)) => Exec::Done(Outcome::failure(error)),
             Err(ApiError::Halted(cause)) => Exec::Parked(cause),
+            // C25: cancelled while it waited at the choke point; nothing
+            // of it was sent.
+            Err(ApiError::Cancelled) => Exec::Done(Outcome::Cancelled),
         }
     }
 }

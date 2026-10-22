@@ -200,6 +200,7 @@ async fn dispatcher_rate_waits_do_not_cap_independent_job_progress() {
             &format!("{base}/character"),
             None,
             daemon.choke.now(),
+            ALWAYS_WANTED,
         )
         .await
         .unwrap();
@@ -210,6 +211,7 @@ async fn dispatcher_rate_waits_do_not_cap_independent_job_progress() {
             &format!("{base}/stash/Standard"),
             None,
             daemon.choke.now(),
+            ALWAYS_WANTED,
         )
         .await
         .unwrap();
@@ -1509,4 +1511,269 @@ async fn a_head_403_without_cf_mitigated_still_degrades() {
     assert_eq!(requests.lock().unwrap().as_slice(), ["HEAD"]);
     server.await.unwrap();
     finish_harness_wire(dispatcher, &log_path, &requests);
+}
+
+// ---- C25: a cancel reaches a job parked at the choke point ----------------
+
+/// A harness daemon on the manual clock with two sessions, `test-user`
+/// and `other`, each with its refresh due.
+fn two_account_daemon(base: &str) -> (Arc<Daemon>, PathBuf) {
+    let (mut daemon, log_path) = test_daemon(base, Arc::new(ManualClock::new()));
+    logged_in(&mut daemon);
+    daemon.shared.lock().unwrap().auth.by_account.insert(
+        "other".into(),
+        AuthSession {
+            username: Some("other".into()),
+            refresh_token: Some("rt-other".into()),
+            ..Default::default()
+        },
+    );
+    (daemon, log_path)
+}
+
+fn submit_for(daemon: &Daemon, kind: &str, account: &str) -> JobId {
+    daemon
+        .submit(
+            kind.into(),
+            json!({}),
+            0,
+            "test".into(),
+            Some(account.into()),
+        )
+        .unwrap()
+}
+
+/// Wait until `account`'s refresh flight is up with `waiters` callers
+/// waiting on its owner: every job named has asked for the refresh, and
+/// none has sent it.
+async fn wait_for_flight(daemon: &Daemon, account: &str, waiters: usize) {
+    tokio::time::timeout(Duration::from_secs(3), async {
+        loop {
+            let joined = daemon
+                .shared
+                .lock()
+                .unwrap()
+                .auth
+                .find(account)
+                .and_then(|session| session.refresh_flight.as_ref())
+                .is_some_and(|flight| flight.result.receiver_count() == waiters);
+            if joined {
+                return;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("the jobs joined the refresh flight");
+}
+
+async fn wait_outcome(daemon: &Daemon, id: JobId) -> Outcome {
+    wait_terminal(daemon, id).await.1
+}
+
+/// C25: a cancel reaches a job parked Running in its refresh's wait on
+/// the token route. `other` refreshes once, so the route's policy is
+/// learned; its second POST is held on the wire, holding the route's one
+/// permit, and `test-user`'s job, already running, owns its own refresh
+/// flight and waits behind it at the gate. The job is cancelled and the
+/// POST released: the job's refresh is turned away once the gate admits
+/// it, nothing is sent for it, and it concludes cancelled. The next job
+/// for the same account refreshes and goes out.
+#[tokio::test]
+async fn a_cancel_reaches_a_job_waiting_on_the_token_route() {
+    let (base, sent_log, arrived, release) = account_server(("POST", "/token", 1)).await;
+    let (daemon, log_path) = two_account_daemon(&base);
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    let warm = submit_for(&daemon, "profile", "other");
+    assert!(matches!(
+        wait_outcome(&daemon, warm).await,
+        Outcome::Success { .. }
+    ));
+    daemon
+        .shared
+        .lock()
+        .unwrap()
+        .auth
+        .find_mut("other")
+        .unwrap()
+        .access_token = None;
+    let first = submit_for(&daemon, "profile", "other");
+    arrived.await.unwrap();
+    let parked = submit_for(&daemon, "profile", "test-user");
+    wait_for_flight(&daemon, "test-user", 0).await;
+    // Long enough for the parked refresh to reach the gate's queue.
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let warmed = [
+        sent("other", "POST"),
+        sent("other", "GET"),
+        sent("other", "POST"),
+    ];
+    assert_eq!(
+        sent_log.lock().unwrap().as_slice(),
+        warmed,
+        "the parked refresh has sent nothing"
+    );
+    daemon.cancel(parked).unwrap();
+    release.send(()).unwrap();
+
+    let outcome = wait_outcome(&daemon, parked).await;
+    assert!(matches!(outcome, Outcome::Cancelled), "{outcome:?}");
+    assert!(matches!(
+        wait_outcome(&daemon, first).await,
+        Outcome::Success { .. }
+    ));
+    let mut expected = warmed.to_vec();
+    expected.push(sent("other", "GET"));
+    assert_eq!(
+        sent_log.lock().unwrap().as_slice(),
+        expected,
+        "nothing was sent for the cancelled job"
+    );
+    let next = submit_for(&daemon, "profile", "test-user");
+    assert!(matches!(
+        wait_outcome(&daemon, next).await,
+        Outcome::Success { .. }
+    ));
+    expected.extend([sent("test-user", "POST"), sent("test-user", "GET")]);
+    assert_eq!(sent_log.lock().unwrap().as_slice(), expected);
+    assert_journal_matches_wire(&log_path, &wire_methods(&sent_log));
+    finish_harness(dispatcher, &log_path);
+}
+
+/// C25: a cancel reaches a job's own send at the choke point's admission.
+/// The job is cancelled while its refresh's POST is on the wire; the POST,
+/// already admitted, lands and its tokens are kept; the job's GET is
+/// turned away before it is sent, and it concludes cancelled. The next
+/// job goes out on the kept token, with no second refresh.
+#[tokio::test]
+async fn a_cancel_during_the_refresh_turns_the_jobs_send_away() {
+    let (base, sent_log, arrived, release) = account_server(("POST", "/token", 0)).await;
+    let (daemon, log_path) = two_account_daemon(&base);
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    let id = submit_for(&daemon, "profile", "test-user");
+    arrived.await.unwrap();
+    daemon.cancel(id).unwrap();
+    release.send(()).unwrap();
+
+    let outcome = wait_outcome(&daemon, id).await;
+    assert!(matches!(outcome, Outcome::Cancelled), "{outcome:?}");
+    assert_eq!(
+        sent_log.lock().unwrap().as_slice(),
+        [sent("test-user", "POST")],
+        "the admitted refresh landed; the job's own GET was never sent"
+    );
+    let next = submit_for(&daemon, "profile", "test-user");
+    assert!(matches!(
+        wait_outcome(&daemon, next).await,
+        Outcome::Success { .. }
+    ));
+    assert_eq!(
+        sent_log.lock().unwrap().as_slice(),
+        [sent("test-user", "POST"), sent("test-user", "GET")]
+    );
+    assert_journal_matches_wire(&log_path, &wire_methods(&sent_log));
+    finish_harness(dispatcher, &log_path);
+}
+
+/// C25 stops at admission: a cancel that lands while the job's GET is on
+/// the wire un-sends nothing. The GET lands and is journaled, and the job
+/// concludes as a running job cancelled at its end always has: cancelled.
+#[tokio::test]
+async fn a_cancel_after_admission_leaves_the_send_landed() {
+    let (base, sent_log, arrived, release) = account_server(("GET", "/profile", 0)).await;
+    let (daemon, log_path) = two_account_daemon(&base);
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    let id = submit_for(&daemon, "profile", "test-user");
+    arrived.await.unwrap();
+    daemon.cancel(id).unwrap();
+    release.send(()).unwrap();
+
+    let outcome = wait_outcome(&daemon, id).await;
+    assert!(matches!(outcome, Outcome::Cancelled), "{outcome:?}");
+    assert_eq!(
+        sent_log.lock().unwrap().as_slice(),
+        [sent("test-user", "POST"), sent("test-user", "GET")]
+    );
+    let journal = journal_sends(&log_path);
+    assert_eq!(journal.len(), 2);
+    assert_eq!(journal[1]["method"], "GET");
+    assert_eq!(
+        journal[1]["ok"], true,
+        "the admitted GET landed: {journal:?}"
+    );
+    assert_journal_matches_wire(&log_path, &wire_methods(&sent_log));
+    finish_harness(dispatcher, &log_path);
+}
+
+/// C25 on a shared refresh: a cancel of one job never cancels the refresh
+/// for another. `test-user`'s profile job owns the flight and its
+/// `whoami` waits on it, both behind `other`'s POST on the token route.
+/// Cancelling the owner, the waiter, or both: one POST goes out while
+/// either job still wants it (a cancelled owner's flight is called off and
+/// the waiter asks again), the job still wanted goes out, the cancelled
+/// one concludes cancelled with no send of its own, and when both are
+/// cancelled the POST is never sent.
+#[tokio::test]
+async fn a_cancel_of_one_job_on_a_shared_refresh_keeps_it_for_the_other() {
+    for (cancel_owner, cancel_waiter) in [(true, false), (false, true), (true, true)] {
+        let case = format!("owner cancelled {cancel_owner}, waiter cancelled {cancel_waiter}");
+        let (base, sent_log, arrived, release) = account_server(("POST", "/token", 0)).await;
+        let (daemon, log_path) = two_account_daemon(&base);
+        let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+        let first = submit_for(&daemon, "profile", "other");
+        arrived.await.unwrap();
+        let owner = submit_for(&daemon, "profile", "test-user");
+        wait_for_flight(&daemon, "test-user", 0).await;
+        let waiter = submit_for(&daemon, "whoami", "test-user");
+        wait_for_flight(&daemon, "test-user", 1).await;
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        if cancel_owner {
+            daemon.cancel(owner).unwrap();
+        }
+        if cancel_waiter {
+            daemon.cancel(waiter).unwrap();
+        }
+        release.send(()).unwrap();
+
+        for (id, cancelled) in [(owner, cancel_owner), (waiter, cancel_waiter)] {
+            let outcome = wait_outcome(&daemon, id).await;
+            if cancelled {
+                assert!(
+                    matches!(outcome, Outcome::Cancelled),
+                    "{case}: job {id}: {outcome:?}"
+                );
+            } else {
+                assert!(
+                    matches!(outcome, Outcome::Success { .. }),
+                    "{case}: job {id}: {outcome:?}"
+                );
+            }
+        }
+        wait_outcome(&daemon, first).await;
+        let mut test_user: Vec<String> = sent_log
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(_, account)| account == "test-user")
+            .map(|(method, _)| method.clone())
+            .collect();
+        test_user.sort();
+        let expected: &[&str] = match (cancel_owner, cancel_waiter) {
+            (true, true) => &[],
+            (true, false) => &["POST"],
+            (false, _) => &["GET", "POST"],
+        };
+        assert_eq!(test_user, expected, "{case}");
+        // `other`'s GET and `test-user`'s POST may cross on the wire, so
+        // the journal is held to the wire as a count of each method.
+        let mut wire = wire_methods(&sent_log);
+        let mut journal: Vec<String> = journal_sends(&log_path)
+            .iter()
+            .map(|line| line["method"].as_str().unwrap().to_string())
+            .collect();
+        wire.sort();
+        journal.sort();
+        assert_eq!(journal, wire, "{case}");
+        finish_harness(dispatcher, &log_path);
+    }
 }

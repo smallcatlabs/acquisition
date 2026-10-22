@@ -432,10 +432,12 @@ async fn concurrent_expiry_has_one_refresh_owner_and_shared_waiter_result() {
     let (daemon, store, log_path) = test_daemon(&delayed.base);
 
     let owner_daemon = daemon.clone();
-    let owner = tokio::spawn(async move { owner_daemon.valid_access_token(None, false).await });
+    let owner =
+        tokio::spawn(async move { owner_daemon.valid_access_token(None, false, None).await });
     delayed.arrived.await.unwrap();
     let waiter_daemon = daemon.clone();
-    let waiter = tokio::spawn(async move { waiter_daemon.valid_access_token(None, false).await });
+    let waiter =
+        tokio::spawn(async move { waiter_daemon.valid_access_token(None, false, None).await });
     tokio::task::yield_now().await;
     delayed.release.send(()).unwrap();
 
@@ -522,7 +524,12 @@ async fn authentication_completes_before_the_api_send_takes_a_gate_slot() {
         tokio::spawn(async move {
             daemon
                 .choke
-                .get("hold-route", &url, daemon.choke.now())
+                .get(
+                    "hold-route",
+                    &url,
+                    daemon.choke.now(),
+                    crate::ratelimit::ALWAYS_WANTED,
+                )
                 .await
         })
     };
@@ -566,14 +573,15 @@ async fn abandoned_refresh_owner_completes_all_waiters_and_allows_retry() {
     let before = daemon.shared.lock().unwrap().auth.one().generations;
 
     let owner_daemon = daemon.clone();
-    let owner = tokio::spawn(async move { owner_daemon.valid_access_token(None, false).await });
+    let owner =
+        tokio::spawn(async move { owner_daemon.valid_access_token(None, false, None).await });
     responses.first_arrived.await.unwrap();
 
     let mut waiters = Vec::new();
     for _ in 0..3 {
         let waiter_daemon = daemon.clone();
         waiters.push(tokio::spawn(async move {
-            waiter_daemon.valid_access_token(None, false).await
+            waiter_daemon.valid_access_token(None, false, None).await
         }));
     }
     wait_for_refresh_waiters(&daemon, waiters.len()).await;
@@ -604,7 +612,7 @@ async fn abandoned_refresh_owner_completes_all_waiters_and_allows_retry() {
     responses.release_first.send(()).unwrap();
     let retry = tokio::time::timeout(
         Duration::from_secs(2),
-        daemon.valid_access_token(None, false),
+        daemon.valid_access_token(None, false, None),
     )
     .await
     .expect("retry after owner abandonment completed")
@@ -631,7 +639,8 @@ async fn abandoned_refresh_owner_without_waiters_allows_retry() {
     let before = daemon.shared.lock().unwrap().auth.one().generations;
 
     let owner_daemon = daemon.clone();
-    let owner = tokio::spawn(async move { owner_daemon.valid_access_token(None, false).await });
+    let owner =
+        tokio::spawn(async move { owner_daemon.valid_access_token(None, false, None).await });
     responses.first_arrived.await.unwrap();
     owner.abort();
     assert!(owner.await.unwrap_err().is_cancelled());
@@ -647,7 +656,7 @@ async fn abandoned_refresh_owner_without_waiters_allows_retry() {
     responses.release_first.send(()).unwrap();
     let retry = tokio::time::timeout(
         Duration::from_secs(2),
-        daemon.valid_access_token(None, false),
+        daemon.valid_access_token(None, false, None),
     )
     .await
     .expect("retry after owner abandonment completed")
@@ -676,7 +685,8 @@ async fn successful_refresh_rotation_advances_token_generations_and_persists_new
     let before = daemon.shared.lock().unwrap().auth.one().generations;
 
     let refresh_daemon = daemon.clone();
-    let refresh = tokio::spawn(async move { refresh_daemon.valid_access_token(None, false).await });
+    let refresh =
+        tokio::spawn(async move { refresh_daemon.valid_access_token(None, false, None).await });
     delayed.arrived.await.unwrap();
     delayed.release.send(()).unwrap();
     assert_eq!(
@@ -712,10 +722,12 @@ async fn refresh_failure_is_shared_and_leaves_token_state_unchanged() {
     let before = daemon.shared.lock().unwrap().auth.one().generations;
 
     let owner_daemon = daemon.clone();
-    let owner = tokio::spawn(async move { owner_daemon.valid_access_token(None, false).await });
+    let owner =
+        tokio::spawn(async move { owner_daemon.valid_access_token(None, false, None).await });
     delayed.arrived.await.unwrap();
     let waiter_daemon = daemon.clone();
-    let waiter = tokio::spawn(async move { waiter_daemon.valid_access_token(None, false).await });
+    let waiter =
+        tokio::spawn(async move { waiter_daemon.valid_access_token(None, false, None).await });
     tokio::task::yield_now().await;
     delayed.release.send(()).unwrap();
 
@@ -742,7 +754,8 @@ async fn logout_during_refresh_rejects_stale_completion_in_memory_and_keyring() 
     let (daemon, store, log_path) = test_daemon(&delayed.base);
 
     let refresh_daemon = daemon.clone();
-    let refresh = tokio::spawn(async move { refresh_daemon.valid_access_token(None, false).await });
+    let refresh =
+        tokio::spawn(async move { refresh_daemon.valid_access_token(None, false, None).await });
     delayed.arrived.await.unwrap();
     daemon.logout(None).unwrap();
     delayed.release.send(()).unwrap();
@@ -773,7 +786,8 @@ async fn reauthentication_during_refresh_keeps_new_session_and_rejects_old_compl
     let before = daemon.shared.lock().unwrap().auth.one().generations;
 
     let refresh_daemon = daemon.clone();
-    let refresh = tokio::spawn(async move { refresh_daemon.valid_access_token(None, false).await });
+    let refresh =
+        tokio::spawn(async move { refresh_daemon.valid_access_token(None, false, None).await });
     delayed.arrived.await.unwrap();
     let flow_generation = daemon.begin_auth_flow();
     let staged = daemon
@@ -834,7 +848,8 @@ async fn a_refresh_rename_updates_the_index_mapping_in_place() {
     daemon.shared.lock().unwrap().auth.one_mut().uuid = Some("u-1".into());
 
     let refresh_daemon = daemon.clone();
-    let refresh = tokio::spawn(async move { refresh_daemon.valid_access_token(None, false).await });
+    let refresh =
+        tokio::spawn(async move { refresh_daemon.valid_access_token(None, false, None).await });
     delayed.arrived.await.unwrap();
     delayed.release.send(()).unwrap();
     assert_eq!(
@@ -916,7 +931,7 @@ async fn a_token_is_refused_once_the_session_no_longer_matches_the_job() {
     }
     // The job's account has a session: its live token, no refresh.
     let (token, user) = daemon
-        .valid_access_token(Some("old-user"), false)
+        .valid_access_token(Some("old-user"), false, None)
         .await
         .unwrap();
     assert_eq!((token.as_str(), user.as_str()), ("at-live", "old-user"));
@@ -928,12 +943,15 @@ async fn a_token_is_refused_once_the_session_no_longer_matches_the_job() {
         ..AuthSession::default()
     });
     let (token, _) = daemon
-        .valid_access_token(Some("old-user"), false)
+        .valid_access_token(Some("old-user"), false, None)
         .await
         .unwrap();
     assert_eq!(token, "at-live");
     // No selector with two sessions live: refused, never guessed.
-    let err = daemon.valid_access_token(None, false).await.unwrap_err();
+    let err = daemon
+        .valid_access_token(None, false, None)
+        .await
+        .unwrap_err();
     assert!(
         err.message.contains("several accounts") && err.message.contains("--account"),
         "{err}"
@@ -941,12 +959,12 @@ async fn a_token_is_refused_once_the_session_no_longer_matches_the_job() {
     // old-user logs out: its jobs fail at token time, before any send.
     daemon.logout(Some("old-user")).unwrap();
     let err = daemon
-        .valid_access_token(Some("old-user"), false)
+        .valid_access_token(Some("old-user"), false, None)
         .await
         .unwrap_err();
     assert!(err.message.contains("no session for \"old-user\""), "{err}");
     // The other session is untouched, and is now the sole one.
-    assert!(daemon.valid_access_token(None, false).await.is_ok());
+    assert!(daemon.valid_access_token(None, false, None).await.is_ok());
     remove_test_log(&log_path);
 }
 

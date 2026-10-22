@@ -11,6 +11,8 @@ pub(super) const SESSION_CHANGED_DURING_REFRESH: &str =
     "authentication session changed while token refresh was in progress";
 pub(super) const REFRESH_OWNER_ABANDONED: &str =
     "token refresh owner was abandoned before producing a result";
+pub(super) const REFRESH_CALLED_OFF: &str =
+    "token refresh called off before it was sent: the job that asked for it was cancelled";
 
 struct RefreshOwnerGuard<'a> {
     daemon: &'a Daemon,
@@ -123,10 +125,38 @@ impl Daemon {
     /// is taken — a logout of A after A's job was submitted fails A's job
     /// here, before any send ("no session for A"). `None` is the sole
     /// session (auth verbs), refused when several are live.
+    ///
+    /// `party` is the job that asks, or `None` for a caller that is no
+    /// job (C25). The flight's owner carries its POST to the choke point
+    /// with its own job's cancel check, so a cancel of the owner turns the
+    /// POST away unsent and the flight ends `cancelled`. A refresh is
+    /// shared, and a cancel of one job never cancels it for another: every
+    /// waiter on a called-off flight that still wants the token asks
+    /// again, the first as the owner of a fresh flight. No send is added;
+    /// the one POST the flight would have made is made by the new owner.
     pub(super) async fn valid_access_token(
         &self,
         account: Option<&str>,
         force_refresh: bool,
+        party: Option<JobId>,
+    ) -> Result<(String, String), Refusal> {
+        loop {
+            let result = self
+                .valid_access_token_once(account, force_refresh, party)
+                .await;
+            match &result {
+                Err(refusal)
+                    if refusal.cancelled && party.is_none_or(|job| !self.cancel_asked(job)) => {}
+                _ => return result,
+            }
+        }
+    }
+
+    async fn valid_access_token_once(
+        &self,
+        account: Option<&str>,
+        force_refresh: bool,
+        party: Option<JobId>,
     ) -> Result<(String, String), Refusal> {
         enum Decision {
             Owner {
@@ -209,7 +239,9 @@ impl Daemon {
                 };
                 // May wait on the token endpoint's limiter; the shared lock is
                 // not held here, so every concurrent caller can join this owner.
-                let refresh = auth::refresh(&self.choke, &self.provider, &refresh_token).await;
+                let wanted = || party.is_none_or(|job| !self.cancel_asked(job));
+                let refresh =
+                    auth::refresh(&self.choke, &self.provider, &refresh_token, &wanted).await;
                 self.announce_trip();
                 // L0 rail 2: mark a rejected grant before the flight is
                 // closed, so no caller can pass the fast path and re-send the
@@ -244,6 +276,12 @@ impl Daemon {
                 // one, carries the mark that turns a job away (C25): the
                 // job and every waiter on this flight return to waiting.
                 let refresh = refresh.map_err(|e| {
+                    if e.cancelled {
+                        return Refusal {
+                            cancelled: true,
+                            ..Refusal::new(ErrorKind::Upstream, REFRESH_CALLED_OFF)
+                        };
+                    }
                     let kind = if e.is_rejected_grant() {
                         ErrorKind::NotLoggedIn
                     } else {

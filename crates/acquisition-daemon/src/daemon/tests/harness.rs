@@ -5,6 +5,8 @@
 //! Rulings: `decisions/network.md`; the cross-cutting ones are `AGENTS.md`'s.
 
 use crate::daemon::*;
+/// The check of a send no test cancels (C25).
+pub(super) use crate::ratelimit::ALWAYS_WANTED;
 use crate::ratelimit::Clock;
 use std::collections::HashSet;
 use std::future::Future;
@@ -762,4 +764,117 @@ pub(super) fn logged_in(daemon: &mut Arc<Daemon>) {
     s.auth.one_mut().refresh_token = Some("rt-old".into());
     s.auth.rename("", "test-user");
     s.auth.keyring = "ok".into();
+}
+
+/// One send as the account server saw it: the method, and the account it
+/// was for (the token POST's grant, or the GET's bearer).
+pub(super) type Sent = (String, String);
+
+/// A server for the cancel scenarios that answers by what was sent, each
+/// connection on its own task: `POST /token` with the grant's account's
+/// tokens (`rt-old` is `test-user`'s, `rt-<name>` is `<name>`'s, and the
+/// rotated token is `rt-<name>`), and `GET /profile` with the bearer's
+/// account, without rate headers as GGG serves it. Of the requests
+/// matching `hold`'s method and path, the one numbered `hold.2` (from 0)
+/// is held: `arrived` fires when it is in, and it is answered when
+/// `release` fires.
+pub(super) async fn account_server(
+    hold: (&'static str, &'static str, usize),
+) -> (
+    String,
+    Arc<Mutex<Vec<Sent>>>,
+    oneshot::Receiver<()>,
+    oneshot::Sender<()>,
+) {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let sent: Arc<Mutex<Vec<Sent>>> = Arc::default();
+    let (arrived_tx, arrived_rx) = oneshot::channel();
+    let (release_tx, release_rx) = oneshot::channel::<()>();
+    let held = Arc::new(Mutex::new(Some((arrived_tx, release_rx))));
+    let matched = Arc::new(AtomicU64::new(0));
+    let recorded = sent.clone();
+    tokio::spawn(async move {
+        loop {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let recorded = recorded.clone();
+            let held = held.clone();
+            let matched = matched.clone();
+            tokio::spawn(async move {
+                let Some(request) = mockggg::read_request(&mut stream).await else {
+                    return;
+                };
+                let account = if request.path == "/token" {
+                    let grant: HashMap<String, String> =
+                        url::form_urlencoded::parse(request.body.as_bytes())
+                            .into_owned()
+                            .collect();
+                    match grant["refresh_token"].as_str() {
+                        "rt-old" => "test-user".to_string(),
+                        token => token.trim_start_matches("rt-").to_string(),
+                    }
+                } else {
+                    request
+                        .headers
+                        .get("authorization")
+                        .map(|bearer| bearer.trim_start_matches("Bearer at-").to_string())
+                        .unwrap_or_default()
+                };
+                recorded
+                    .lock()
+                    .unwrap()
+                    .push((request.method.clone(), account.clone()));
+                if (request.method.as_str(), request.path.as_str()) == (hold.0, hold.1)
+                    && matched.fetch_add(1, Ordering::SeqCst) == hold.2 as u64
+                {
+                    let taken = held.lock().unwrap().take();
+                    if let Some((arrived, release)) = taken {
+                        arrived.send(()).unwrap();
+                        let _ = release.await;
+                    }
+                }
+                if request.path == "/token" {
+                    let body = json!({
+                        "access_token": format!("at-{account}"),
+                        "refresh_token": format!("rt-{account}"),
+                        "expires_in": 3600,
+                        "username": account,
+                    })
+                    .to_string();
+                    let headers = concat!(
+                        "X-Rate-Limit-Policy: token-request-limit\r\n",
+                        "X-Rate-Limit-Rules: Ip\r\n",
+                        "X-Rate-Limit-Ip: 60:30:30\r\n",
+                        "X-Rate-Limit-Ip-State: 1:30:0\r\n",
+                    );
+                    mockggg::respond_with(
+                        &mut stream,
+                        "200 OK",
+                        "application/json",
+                        headers,
+                        &body,
+                    )
+                    .await;
+                } else {
+                    let body = json!({ "uuid": format!("uuid-{account}"), "name": account });
+                    mockggg::respond(&mut stream, "200 OK", "application/json", &body.to_string())
+                        .await;
+                }
+            });
+        }
+    });
+    (base, sent, arrived_rx, release_tx)
+}
+
+pub(super) fn sent(account: &str, method: &str) -> Sent {
+    (method.to_string(), account.to_string())
+}
+
+/// The methods the server saw, for the journal oracle.
+pub(super) fn wire_methods(sent: &Arc<Mutex<Vec<Sent>>>) -> Vec<String> {
+    sent.lock()
+        .unwrap()
+        .iter()
+        .map(|(m, _)| m.clone())
+        .collect()
 }

@@ -308,6 +308,11 @@ pub struct Refusal {
     /// `upstream`); a job that meets it returns to waiting and spends no
     /// retry.
     pub halted: bool,
+    /// C25: the refresh was called off before it was sent, for the job
+    /// that owned its flight was cancelled. Never on the wire: a caller
+    /// still wanting the refresh asks again (`valid_access_token`), and a
+    /// cancelled job that meets it concludes cancelled.
+    pub cancelled: bool,
 }
 
 impl Refusal {
@@ -316,6 +321,7 @@ impl Refusal {
             kind,
             message: message.into(),
             halted: false,
+            cancelled: false,
         }
     }
 

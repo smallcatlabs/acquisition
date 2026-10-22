@@ -1754,7 +1754,7 @@ async fn full_200_with_truncated_body_is_network_after_observing_policy() {
     let (url, server) = serve_one_raw(raw).await;
     let choke = ChokePoint::new();
 
-    let result = choke.get(route, &url, choke.now()).await;
+    let result = choke.get(route, &url, choke.now(), ALWAYS_WANTED).await;
     assert!(matches!(result, Err(SendError::Transport(_))));
     assert_eq!(
         choke.endpoint_state(route),
@@ -1785,7 +1785,10 @@ async fn tripwire_halts_the_next_send_before_any_permit() {
     let choke =
         ChokePoint::with_clock_and_rails(Arc::new(SystemClock), rails.clone(), NO_BEARER_API);
 
-    let landed = choke.get(route, &url, choke.now()).await.unwrap();
+    let landed = choke
+        .get(route, &url, choke.now(), ALWAYS_WANTED)
+        .await
+        .unwrap();
     assert_eq!(landed.status.as_u16(), 429);
     server.await.unwrap();
     assert!(rails.halted().unwrap().contains("429 on GET /test"));
@@ -1794,13 +1797,13 @@ async fn tripwire_halts_the_next_send_before_any_permit() {
     // error, so a `Halted` result proves nothing was attempted.
     let unreachable = "http://127.0.0.1:9/never";
     let refused = choke
-        .get(route, unreachable, choke.now())
+        .get(route, unreachable, choke.now(), ALWAYS_WANTED)
         .await
         .err()
         .expect("halted");
     assert!(matches!(refused, SendError::Halted(_)), "{refused}");
     let head = choke
-        .head(route, unreachable, None, choke.now())
+        .head(route, unreachable, None, choke.now(), ALWAYS_WANTED)
         .await
         .unwrap_err();
     assert!(
@@ -1808,7 +1811,13 @@ async fn tripwire_halts_the_next_send_before_any_permit() {
         "{head}"
     );
     let post = choke
-        .post_form("oauth-token", unreachable, &[("a", "b")], choke.now())
+        .post_form(
+            "oauth-token",
+            unreachable,
+            &[("a", "b")],
+            choke.now(),
+            ALWAYS_WANTED,
+        )
         .await
         .err()
         .expect("halted");
@@ -1869,14 +1878,18 @@ async fn a_send_parked_in_the_gate_is_refused_after_a_trip() {
     let head_url = format!("{base}/probe");
     let head = tokio::spawn(async move {
         head_choke
-            .head("parked", &head_url, None, head_choke.now())
+            .head("parked", &head_url, None, head_choke.now(), ALWAYS_WANTED)
             .await
     });
     head_arrived.await.unwrap();
 
     let get_choke = choke.clone();
     let get_url = format!("{base}/data");
-    let get = tokio::spawn(async move { get_choke.get("parked", &get_url, choke.now()).await });
+    let get = tokio::spawn(async move {
+        get_choke
+            .get("parked", &get_url, choke.now(), ALWAYS_WANTED)
+            .await
+    });
     tokio::time::sleep(Duration::from_millis(50)).await; // let it park
     assert!(!get.is_finished(), "the GET must be parked behind the HEAD");
 
@@ -2015,7 +2028,10 @@ async fn headerless_503_on_an_established_policy_paces_as_if_counted() {
         body.len()
     ))
     .await;
-    let completed = choke.get(route, &url, choke.now()).await.expect("landed");
+    let completed = choke
+        .get(route, &url, choke.now(), ALWAYS_WANTED)
+        .await
+        .expect("landed");
     assert_eq!(completed.status.as_u16(), 503);
     server.await.unwrap();
     let wait = choke.check(route).unwrap_err();
@@ -2051,7 +2067,7 @@ async fn transport_failure_on_an_established_policy_paces_as_if_counted() {
     assert!(choke.check(route).is_ok());
 
     let refused = choke
-        .get(route, "http://127.0.0.1:9/lost", choke.now())
+        .get(route, "http://127.0.0.1:9/lost", choke.now(), ALWAYS_WANTED)
         .await
         .err()
         .expect("transport failure");
@@ -2082,7 +2098,13 @@ async fn transport_failure_on_an_established_policy_paces_as_if_counted() {
         )
         .unwrap();
     let _ = head_choke
-        .head(route, "http://127.0.0.1:9/lost", None, choke.now())
+        .head(
+            route,
+            "http://127.0.0.1:9/lost",
+            None,
+            choke.now(),
+            ALWAYS_WANTED,
+        )
         .await;
     assert_ne!(
         head_choke.endpoint_state(route),
@@ -2110,7 +2132,7 @@ async fn malformed_200_with_truncated_body_is_network_and_preserves_policy() {
         .unwrap();
     let (url, server) = serve_one_raw(raw_response("200 OK", "", 100, "{}")).await;
 
-    let result = choke.get(route, &url, choke.now()).await;
+    let result = choke.get(route, &url, choke.now(), ALWAYS_WANTED).await;
     assert!(matches!(result, Err(SendError::Transport(_))));
     let status = choke.policy_statuses().pop().unwrap();
     assert_eq!(status.headers, established_raw);
@@ -2128,7 +2150,7 @@ async fn complete_malformed_200_is_protocol() {
     let choke = ChokePoint::new();
 
     assert!(matches!(
-        choke.get(route, &url, choke.now()).await,
+        choke.get(route, &url, choke.now(), ALWAYS_WANTED).await,
         Err(SendError::Protocol(_))
     ));
     let send = choke.recent_sends().pop().unwrap();
@@ -2226,10 +2248,15 @@ async fn a_3xx_is_one_send_one_journal_line_and_no_second_request() {
                             ("refresh_token", "c130-rt"),
                         ],
                         choke.now(),
+                        ALWAYS_WANTED,
                     )
                     .await
             }
-            _ => choke.get("c130-get", &url, choke.now()).await,
+            _ => {
+                choke
+                    .get("c130-get", &url, choke.now(), ALWAYS_WANTED)
+                    .await
+            }
         };
         assert_eq!(
             requests.load(Ordering::SeqCst),
@@ -2286,6 +2313,7 @@ async fn a_3xx_is_one_send_one_journal_line_and_no_second_request() {
                 &format!("{base}/profile"),
                 &bearer,
                 choke.now(),
+                ALWAYS_WANTED,
             )
             .await;
         assert_eq!(
@@ -2376,7 +2404,7 @@ async fn truncated_429_and_500_keep_status_and_record_transfer_evidence() {
         let choke = ChokePoint::new();
 
         let response = choke
-            .get(&route, &url, choke.now())
+            .get(&route, &url, choke.now(), ALWAYS_WANTED)
             .await
             .expect("non-2xx status keeps precedence over body failure");
         assert_eq!(response.status.as_u16(), status);
@@ -2428,7 +2456,7 @@ async fn common_gate_caps_gets_until_response_bodies_complete() {
             let url = format!("{base}/{index}");
             tokio::spawn(async move {
                 choke
-                    .get(&format!("route-{index}"), &url, choke.now())
+                    .get(&format!("route-{index}"), &url, choke.now(), ALWAYS_WANTED)
                     .await
             })
         })
@@ -2493,12 +2521,20 @@ async fn head_waits_exclusively_for_an_incomplete_get_body() {
     let choke = Arc::new(ChokePoint::new());
     let get = {
         let choke = choke.clone();
-        tokio::spawn(async move { choke.get("ordinary-route", &get_url, choke.now()).await })
+        tokio::spawn(async move {
+            choke
+                .get("ordinary-route", &get_url, choke.now(), ALWAYS_WANTED)
+                .await
+        })
     };
     get_arrived.await.unwrap();
     let head = {
         let choke = choke.clone();
-        tokio::spawn(async move { choke.head("head-route", &head_url, None, choke.now()).await })
+        tokio::spawn(async move {
+            choke
+                .head("head-route", &head_url, None, choke.now(), ALWAYS_WANTED)
+                .await
+        })
     };
     let mut head_arrived = Box::pin(head_arrived);
     assert!(
@@ -2555,7 +2591,7 @@ async fn waiting_head_has_writer_preference_over_later_mixed_policy_send() {
         let choke = choke.clone();
         tokio::spawn(async move {
             choke
-                .get("writer-first-route", &first_url, choke.now())
+                .get("writer-first-route", &first_url, choke.now(), ALWAYS_WANTED)
                 .await
         })
     };
@@ -2563,7 +2599,12 @@ async fn waiting_head_has_writer_preference_over_later_mixed_policy_send() {
         let choke = choke.clone();
         tokio::spawn(async move {
             choke
-                .get("writer-second-route", &second_url, choke.now())
+                .get(
+                    "writer-second-route",
+                    &second_url,
+                    choke.now(),
+                    ALWAYS_WANTED,
+                )
                 .await
         })
     };
@@ -2576,7 +2617,12 @@ async fn waiting_head_has_writer_preference_over_later_mixed_policy_send() {
         let choke = choke.clone();
         tokio::spawn(async move {
             choke
-                .get("writer-canceled-route", &canceled_url, choke.now())
+                .get(
+                    "writer-canceled-route",
+                    &canceled_url,
+                    choke.now(),
+                    ALWAYS_WANTED,
+                )
                 .await
         })
     };
@@ -2616,7 +2662,13 @@ async fn waiting_head_has_writer_preference_over_later_mixed_policy_send() {
         let choke = choke.clone();
         tokio::spawn(async move {
             choke
-                .head("writer-head-route", &head_url, None, choke.now())
+                .head(
+                    "writer-head-route",
+                    &head_url,
+                    None,
+                    choke.now(),
+                    ALWAYS_WANTED,
+                )
                 .await
         })
     };
@@ -2634,7 +2686,7 @@ async fn waiting_head_has_writer_preference_over_later_mixed_policy_send() {
         let choke = choke.clone();
         tokio::spawn(async move {
             choke
-                .get("writer-later-route", &later_url, choke.now())
+                .get("writer-later-route", &later_url, choke.now(), ALWAYS_WANTED)
                 .await
         })
     };
@@ -2946,9 +2998,12 @@ async fn c128_a_bearer_goes_only_to_the_api_origin_and_nothing_reaches_either_se
     ];
     let bound = Duration::from_secs(5);
     for url in &off_origin {
-        let get = tokio::time::timeout(bound, choke.get_bearer("c128", url, &bearer, choke.now()))
-            .await
-            .unwrap_or_else(|_| panic!("a bearer GET to {url} was not refused before sending"));
+        let get = tokio::time::timeout(
+            bound,
+            choke.get_bearer("c128", url, &bearer, choke.now(), ALWAYS_WANTED),
+        )
+        .await
+        .unwrap_or_else(|_| panic!("a bearer GET to {url} was not refused before sending"));
         assert!(
             matches!(&get, Err(SendError::OffOrigin(_))),
             "a bearer GET to {url}: {:?}",
@@ -2956,7 +3011,13 @@ async fn c128_a_bearer_goes_only_to_the_api_origin_and_nothing_reaches_either_se
         );
         let head = tokio::time::timeout(
             bound,
-            choke.head("c128", url, Some(&bearer as &dyn Bearer), choke.now()),
+            choke.head(
+                "c128",
+                url,
+                Some(&bearer as &dyn Bearer),
+                choke.now(),
+                ALWAYS_WANTED,
+            ),
         )
         .await
         .unwrap_or_else(|_| panic!("a bearer HEAD to {url} was not refused before sending"));
@@ -3004,6 +3065,7 @@ async fn c128_a_bearer_goes_only_to_the_api_origin_and_nothing_reaches_either_se
             &format!("http://127.0.0.1:{api_port}/profile"),
             &bearer,
             choke.now(),
+            ALWAYS_WANTED,
         )
         .await
         .expect("a bearer GET to the API origin goes out");
