@@ -423,10 +423,13 @@ impl Daemon {
         }
     }
 
-    /// Clear the rails halt and wake the jobs that were waiting on it.
+    /// Clear the rails halt and the Cloudflare block mark (C129), and wake
+    /// the jobs that were waiting on them.
     pub(super) fn reset_rails(&self) {
         self.rails().reset_tripwire();
-        self.log("live-test rails reset by request");
+        self.log(
+            "halt reset by request: the tripwire's trip and any Cloudflare block mark cleared",
+        );
         self.work.notify_one();
     }
 

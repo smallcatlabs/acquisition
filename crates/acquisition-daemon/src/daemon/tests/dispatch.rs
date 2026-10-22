@@ -872,9 +872,11 @@ async fn a_cloudflare_block_admits_nothing_and_survives_a_restart() {
 
 /// C129's false positives: GGG's own 4xx is no block. A JSON 404 with
 /// GGG's headers (its message saying "array id", which holds "ray id"
-/// inside a word), and a 403 that names its own auth error in
+/// inside a word), a 403 that names its own auth error in
 /// `WWW-Authenticate` and carries no `cf-mitigated` (its body mentioning
-/// Cloudflare), each fail their job and leave the daemon sending: the
+/// Cloudflare), and GGG's JSON echoing a name the user chose that holds a
+/// page marker ("CloudflareFan", a league "Error 1015 SSF") beside GGG's
+/// policy header, each fail their job and leave the daemon sending: the
 /// next job's GET goes out.
 #[tokio::test]
 async fn ggg_4xx_answers_are_not_cloudflare_blocks() {
@@ -901,6 +903,24 @@ async fn ggg_4xx_answers_are_not_cloudflare_blocks() {
             ),
         ),
         ("an auth error", auth_error),
+        (
+            "GGG's 404 echoing CloudflareFan",
+            ScriptedResponse::full(
+                "GET",
+                "404 Not Found",
+                None,
+                r#"{"error":{"code":1,"message":"Character not found: CloudflareFan"}}"#,
+            ),
+        ),
+        (
+            "GGG's 400 echoing a league",
+            ScriptedResponse::full(
+                "GET",
+                "400 Bad Request",
+                None,
+                r#"{"error":{"code":2,"message":"Invalid league: Error 1015 SSF"}}"#,
+            ),
+        ),
     ] {
         let responses = vec![
             ScriptedResponse::full("HEAD", "204 No Content", None, ""),

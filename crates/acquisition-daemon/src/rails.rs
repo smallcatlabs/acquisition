@@ -1,5 +1,6 @@
 //! Live-test safety rails (package L0, `LIVE-TESTING.md` at `b6197a82`; the rule
-//! they serve is the live-run skill's).
+//! they serve is the live-run skill's), and the Cloudflare block mark that
+//! holds every daemon (C129).
 //!
 //! The rails never add a send and never delay a halt; they only refuse or
 //! record. `ChokePoint` consults them immediately before acquiring any gate
@@ -240,13 +241,16 @@ pub enum BlockShape {
 impl BlockShape {
     pub fn of(body: &str) -> BlockShape {
         let lower = body.to_ascii_lowercase();
-        // "Ray ID" as a phrase: a JSON message about an "array id" is not
-        // Cloudflare's page, and a marker now sets a persisted mark (C129).
-        let ray_id = lower.match_indices("ray id").any(|(at, _)| {
-            !lower[..at]
-                .chars()
-                .next_back()
-                .is_some_and(|c| c.is_ascii_alphanumeric())
+        // "Ray ID" as a whole phrase, as Cloudflare's footer shows it
+        // ("Ray ID: <hex>"): "array id", "x ray identity" and "X-Ray ID"
+        // are prose, and a marker can set a persisted mark (C129).
+        let joined = |c: char| c.is_ascii_alphanumeric() || c == '-' || c == '_';
+        let ray_id = lower.match_indices("ray id").any(|(at, phrase)| {
+            !lower[..at].chars().next_back().is_some_and(joined)
+                && !lower[at + phrase.len()..]
+                    .chars()
+                    .next()
+                    .is_some_and(joined)
         });
         if lower.contains("cloudflare") || ray_id || lower.contains("error 1015") {
             BlockShape::Cloudflare
@@ -286,8 +290,12 @@ pub struct Verdict {
     /// carries `cf-mitigated` (which beats `www-authenticate`), or a 429
     /// with no `X-Rate-Limit-Policy` (GGG's own carry the full set, N25,
     /// N33; Cloudflare's rate limit carries none, N48, N49), or a page
-    /// marker in a body that names no auth error of its own. `server`
-    /// and `cf-ray` are never evidence.
+    /// marker in an answer with no `X-Rate-Limit-Policy` that names no
+    /// auth error of its own. A page Cloudflare serves in GGG's place
+    /// cannot carry GGG's headers, and GGG's JSON may echo a name the user
+    /// chose ("CloudflareFan"). `WWW-Authenticate` still counts: GGG's
+    /// auth errors carry no rate-limit header at all (N34). `server` and
+    /// `cf-ray` are never evidence.
     pub block: bool,
 }
 
@@ -298,7 +306,9 @@ impl Verdict {
         let block = (400..500).contains(&status)
             && (has("cf-mitigated")
                 || (status == 429 && !has("x-rate-limit-policy"))
-                || (shape == BlockShape::Cloudflare && !has("www-authenticate")));
+                || (shape == BlockShape::Cloudflare
+                    && !has("x-rate-limit-policy")
+                    && !has("www-authenticate")));
         Verdict { shape, block }
     }
 }
@@ -770,6 +780,22 @@ mod tests {
             BlockShape::Unclassified
         );
         assert_eq!(BlockShape::of("ray id: 8a1"), BlockShape::Cloudflare);
+        // A whole phrase at both ends: neither a word that runs on past
+        // it nor a hyphenated "X-Ray" is Cloudflare's footer.
+        for prose in ["x ray identity", "X-Ray ID: 4", "stray idol"] {
+            assert_eq!(BlockShape::of(prose), BlockShape::Unclassified, "{prose}");
+        }
+        // What Cloudflare's error page footer actually shows.
+        assert_eq!(
+            BlockShape::of(
+                r#"<span class="cf-footer-item">Cloudflare Ray ID: <strong class="font-semibold">8a1f2c3d4e5f6a7b</strong></span>"#
+            ),
+            BlockShape::Cloudflare
+        );
+        assert_eq!(
+            BlockShape::of("<p>Ray ID: 8a1f2c3d4e5f6a7b</p>"),
+            BlockShape::Cloudflare
+        );
     }
 
     /// C129: a block is a 4xx that is not GGG's, judged from the status,
@@ -784,6 +810,10 @@ mod tests {
             "www-authenticate": "Bearer error=\"invalid_token\""
         });
         let cloudflare_ish = json!({ "server": "cloudflare", "cf-ray": "8a1-SJC" });
+        // GGG's own JSON echoing a name the user chose: a page marker
+        // under GGG's policy header is GGG's answer, not Cloudflare's page.
+        let fan = r#"{"error":{"code":1,"message":"Character not found: CloudflareFan"}}"#;
+        let league = r#"{"error":{"code":2,"message":"Invalid league: Error 1015 SSF"}}"#;
         for (status, headers, body, block) in [
             (429, json!({}), None, true),
             (429, json!({ "retry-after": "30" }), Some("{}"), true),
@@ -791,7 +821,26 @@ mod tests {
             (403, json!({ "cf-mitigated": "challenge" }), None, true),
             (403, challenged, Some("{}"), true),
             (403, auth.clone(), Some(page), false),
-            (403, ggg.clone(), Some(page), true),
+            // A marker beside GGG's policy header is GGG's (the owner's
+            // ruling, 2026-10-22): this row was `true`.
+            (403, ggg.clone(), Some(page), false),
+            (404, ggg.clone(), Some(fan), false),
+            (400, ggg.clone(), Some(league), false),
+            (404, json!({}), Some(fan), true),
+            (400, json!({}), Some(league), true),
+            (
+                403,
+                ggg.clone(),
+                Some("<p>Ray ID: 8a1f2c3d4e5f6a7b</p>"),
+                false,
+            ),
+            (
+                403,
+                json!({}),
+                Some("<p>Ray ID: 8a1f2c3d4e5f6a7b</p>"),
+                true,
+            ),
+            (404, json!({}), Some("x ray identity"), false),
             (401, json!({}), Some(page), true),
             (404, json!({}), Some(page), true),
             (404, ggg.clone(), Some(r#"{"error":{"code":1}}"#), false),

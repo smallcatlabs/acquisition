@@ -63,7 +63,7 @@ pub enum SendError {
     Transport(String),
     Protocol(PolicyObservationError),
     /// Refused before any permit by the live-test rails (tripwire or
-    /// ceiling); nothing was sent.
+    /// ceiling) or by a Cloudflare block mark (C129); nothing was sent.
     Halted(String),
     /// Refused before any permit: the send was to carry a bearer to a URL
     /// off the provider's API origin (C128). Nothing was sent.
