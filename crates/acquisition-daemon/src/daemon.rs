@@ -130,7 +130,7 @@ use std::collections::VecDeque;
 
 use crate::frame::{Frame, read_frame};
 use crate::provider::{CALLBACK_PATH, Provider, SCOPES};
-use crate::rails::{BlockShape, Rails, RailsConfig, verify_state};
+use crate::rails::{BlockShape, Rails, RailsConfig, Verdict, verify_state};
 use crate::ratelimit::{
     Bearer, ChokePoint, Clock, EndpointState, ProbeError, RetryAfter, SendError, SystemClock,
     url_path,
@@ -807,6 +807,13 @@ impl Daemon {
     /// Log a rails trip once, the first time any send path notices it.
     fn announce_trip(&self) {
         if let Some(cause) = self.rails().take_unannounced_trip() {
+            if cause.starts_with("Cloudflare answered") {
+                self.note_error(&format!(
+                    "SENDS STOPPED: {cause}; {}",
+                    crate::rails::BLOCK_REMEDY
+                ));
+                return;
+            }
             let until = if cause.starts_with("ceiling:") {
                 "for the rest of this daemon's lifetime"
             } else {

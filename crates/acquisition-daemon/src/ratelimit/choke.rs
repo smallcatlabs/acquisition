@@ -80,6 +80,10 @@ pub struct CompletedResponse {
     pub rate: serde_json::Value,
     pub retry_after: RetryAfter,
     pub body: Result<String, String>,
+    /// C129: for a non-2xx, the choke point's one judgement of what it
+    /// was — its body's shape, and whether Cloudflare answered in GGG's
+    /// place. `None` for a 2xx. Callers act on this, never on the body.
+    pub verdict: Option<Verdict>,
 }
 
 impl fmt::Display for SendError {
@@ -100,6 +104,9 @@ impl std::error::Error for SendError {}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum ResponseClassification {
+    /// C129: Cloudflare answered in GGG's place. Terminal, never retried,
+    /// and the send's report sets the block mark.
+    Blocked,
     Success,
     RateLimited(RetryAfter),
     Http(u16),
@@ -109,12 +116,18 @@ pub(super) enum ResponseClassification {
 
 /// D8 precedence in one total function. Observation is already complete when
 /// this runs; it can update pacing but never override status/network outcome.
+/// A block (C129, the response's [`Verdict`]) comes first: a 429 that is
+/// Cloudflare's is no rate limit of GGG's.
 pub(super) fn classify_response(
     status: Option<u16>,
     network_error: bool,
     observation: Result<(), PolicyObservationError>,
     retry_after: &RetryAfter,
+    block: bool,
 ) -> ResponseClassification {
+    if block {
+        return ResponseClassification::Blocked;
+    }
     if status == Some(429) {
         return ResponseClassification::RateLimited(retry_after.clone());
     }
@@ -546,6 +559,7 @@ impl ChokePoint {
             (Ok((status, Ok(_))), Err(error)) if status.is_success() => Some(error.as_str()),
             _ => None,
         };
+        let verdict = verdict_of(&completed, &headers);
         self.record_completed(
             route,
             "HEAD",
@@ -554,6 +568,7 @@ impl ChokePoint {
             protocol_failure,
             &raw,
             &headers,
+            verdict,
             false,
             wait,
         );
@@ -697,6 +712,9 @@ impl ChokePoint {
             }
             Err(error) => Err(error),
         };
+        // C129: decided once, here, from the status, the headers and the
+        // whole body; the journal, the mark and the caller all read this.
+        let verdict = verdict_of(&result, &headers);
         let classification = classify_response(
             status,
             match &result {
@@ -705,6 +723,7 @@ impl ChokePoint {
             },
             observation,
             &retry_after,
+            verdict.is_some_and(|verdict| verdict.block),
         );
         let protocol_failure = match &classification {
             ResponseClassification::Protocol(error) => Some(error.to_string()),
@@ -718,25 +737,30 @@ impl ChokePoint {
             protocol_failure.as_deref(),
             &rate,
             &headers,
+            verdict,
             counted,
             wait,
         );
         match (classification, result) {
             (ResponseClassification::Success, Ok((status, Ok(body))))
+            | (ResponseClassification::Blocked, Ok((status, Ok(body))))
             | (ResponseClassification::RateLimited(_), Ok((status, Ok(body))))
             | (ResponseClassification::Http(_), Ok((status, Ok(body)))) => Ok(CompletedResponse {
                 status,
                 rate,
                 retry_after,
                 body: Ok(body),
+                verdict,
             }),
-            (ResponseClassification::RateLimited(_), Ok((status, Err(error))))
+            (ResponseClassification::Blocked, Ok((status, Err(error))))
+            | (ResponseClassification::RateLimited(_), Ok((status, Err(error))))
             | (ResponseClassification::Http(_), Ok((status, Err(error)))) => {
                 Ok(CompletedResponse {
                     status,
                     rate,
                     retry_after,
                     body: Err(error),
+                    verdict,
                 })
             }
             (ResponseClassification::Protocol(error), _) => Err(SendError::Protocol(error)),
@@ -764,6 +788,7 @@ impl ChokePoint {
         protocol_failure: Option<&str>,
         rate: &serde_json::Value,
         headers: &serde_json::Value,
+        verdict: Option<Verdict>,
         counted: bool,
         wait: Duration,
     ) {
@@ -778,14 +803,9 @@ impl ChokePoint {
         let path = url_path(url);
         let transport_error = result.as_ref().err().map(String::as_str);
         let status = result.as_ref().ok().map(|(status, _)| status.as_u16());
-        let shape = match (&result, status) {
-            (Ok((_, body)), Some(403 | 503)) => Some(
-                body.as_deref()
-                    .map(BlockShape::of)
-                    .unwrap_or(BlockShape::Unclassified),
-            ),
-            _ => None,
-        };
+        // Recorded while the caller still holds the send's permit: a
+        // block's mark is set before any send admitted after it can pass
+        // the halt check (C129).
         self.rails.record(&SendReport {
             method,
             route: endpoint,
@@ -796,7 +816,8 @@ impl ChokePoint {
             counted,
             rate,
             headers,
-            shape,
+            shape: verdict.map(|verdict| verdict.shape),
+            block: verdict.is_some_and(|verdict| verdict.block),
             wait,
         });
         let mut sends = self.sends.lock().unwrap();
@@ -884,6 +905,17 @@ impl ChokePoint {
         self.finish_send(route, "GET", url, result, true, wait)
             .await
     }
+}
+
+/// C129: the verdict on a landed non-2xx, from its status, its headers (the
+/// `response_headers_snapshot`) and its whole body; `None` for a 2xx or a
+/// send that never landed.
+fn verdict_of(
+    result: &Result<(reqwest::StatusCode, Result<String, String>), String>,
+    headers: &serde_json::Value,
+) -> Option<Verdict> {
+    let (status, body) = result.as_ref().ok()?;
+    (!status.is_success()).then(|| Verdict::of(status.as_u16(), headers, body.as_deref().ok()))
 }
 
 /// A URL's origin in words for a refusal: its serialized origin, or the

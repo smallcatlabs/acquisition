@@ -787,11 +787,13 @@ enum DaemonCmd {
     /// client's jobs are never cancelled by its leaving. `--json`:
     /// `stopped`, `pid`, `version`, `provider`, `compatible`, `socket`.
     Stop,
-    /// Clear the live-test rails' tripwire/ceiling halt. After a trip,
-    /// wait 360 s before clearing; a trip is evidence to read. With no
-    /// daemon running, clears the persisted state in this shell's world
-    /// (`<store root>/<provider>/rails.json`) so the next daemon
-    /// starts clear.
+    /// Clear the rails halt: the live-test tripwire's or ceiling's, and
+    /// the mark a Cloudflare answer in GGG's place leaves, which holds
+    /// every daemon until cleared. After a trip, wait 360 s before
+    /// clearing; a trip or a mark is evidence to read, and the next send
+    /// goes to GGG. With no daemon running, clears the persisted state in
+    /// this shell's world (`<store root>/<provider>/rails.json`) so the
+    /// next daemon starts clear.
     ResetTripwire,
 }
 
@@ -1545,7 +1547,11 @@ async fn run(cli: Cli) -> Result<()> {
                                 // A ceiling is this lifetime's and never persisted
                                 // (rails.rs): no violation, nothing to reset — the
                                 // next daemon starts under a fresh one.
-                                if cause.starts_with("ceiling:") {
+                                if cause.starts_with("Cloudflare answered") {
+                                    println!(
+                                        "        every daemon holds until `acq daemon reset-tripwire`; read the cause first: the next send goes to GGG"
+                                    );
+                                } else if cause.starts_with("ceiling:") {
                                     println!(
                                         "        the ceiling is this daemon's alone: `acq daemon stop`, and the next one starts fresh (`acq jobs` first: queued jobs resume under it)"
                                     );
@@ -1576,7 +1582,7 @@ async fn run(cli: Cli) -> Result<()> {
                         if cli.json {
                             println!("{}", serde_json::to_string_pretty(&resp)?);
                         } else {
-                            println!("rails reset");
+                            println!("rails reset; the next send goes to GGG");
                         }
                     }
                     // Another daemon holds its rails in memory; clearing the
@@ -1628,7 +1634,7 @@ async fn run(cli: Cli) -> Result<()> {
                         } else {
                             for state in cleared {
                                 println!(
-                                    "daemon is not running; cleared persisted rails state {}",
+                                    "daemon is not running; cleared persisted rails state {} (the next daemon's next send goes to GGG)",
                                     state.display()
                                 );
                             }

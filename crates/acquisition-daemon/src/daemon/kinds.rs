@@ -841,7 +841,14 @@ impl Daemon {
             let retry_after = response.retry_after;
             let path = url_path(url);
             self.log(&format!("GET {path} -> {status} | rate headers: {rate}"));
-            let classified = classify_api_body(status, &retry_after, &path, rate, response.body);
+            let classified = classify_api_body(
+                status,
+                &retry_after,
+                &path,
+                rate,
+                response.body,
+                response.verdict,
+            );
             if let Some(username) = cleared_for {
                 return classified.map_err(|error| match error {
                     ApiError::Other(evidence) => ApiError::Other(format!(
@@ -945,30 +952,41 @@ fn fan_out_stopped(cancelled: bool, submitted: usize, why: &str) -> Outcome {
     }
 }
 
+/// A response's outcome for its job. `verdict` is the choke point's
+/// judgement of a non-2xx (C129): a block is terminal and never re-queued,
+/// whatever its `Retry-After`, and its shape is read from the whole body,
+/// not from the 300 characters the error text keeps.
 pub(super) fn classify_api_body(
     status: reqwest::StatusCode,
     retry_after: &RetryAfter,
     path: &str,
     rate: Value,
     body: Result<String, String>,
+    verdict: Option<Verdict>,
 ) -> Result<(Value, Value), ApiError> {
     // Status owns non-2xx outcomes even if reading the error body also failed
     // (D8). The body error remains in the evidence rather than becoming fake
     // empty content.
     if !status.is_success() {
+        let block = verdict.is_some_and(|verdict| verdict.block);
+        let shape = verdict.map_or(BlockShape::Unclassified, |verdict| verdict.shape);
         let body = match body {
             Ok(body) => body.chars().take(300).collect(),
             Err(error) => format!("<body read transport failure: {error}>"),
         };
         let evidence = format!("GET {path} returned {status}; rate headers {rate}; body: {body}");
         return Err(match status.as_u16() {
+            _ if block => ApiError::Other(format!(
+                "{evidence} — Cloudflare answered in GGG's place; NOT retrying, and {}",
+                crate::rails::BLOCK_REMEDY
+            )),
             429 if retry_after.is_acceptable() => ApiError::RateLimited(evidence),
             429 => ApiError::Other(format!(
                 "terminal rate limit: {evidence}; {retry_after}; NOT retrying"
             )),
             403 | 503 => ApiError::Other(format!(
                 "{evidence} — {}; NOT retrying (invariant 3)",
-                BlockShape::of(&body).describe()
+                shape.describe()
             )),
             _ => ApiError::Other(evidence),
         });

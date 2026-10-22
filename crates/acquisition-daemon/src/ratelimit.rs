@@ -38,7 +38,7 @@ use acquisition_protocol::status::{
 };
 
 use crate::gate::{SendGate, SendPermit};
-use crate::rails::{BlockShape, Rails, SendReport};
+use crate::rails::{Rails, SendReport, Verdict};
 
 mod choke;
 mod limiter;

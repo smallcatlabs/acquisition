@@ -727,6 +727,215 @@ async fn dispatcher_never_retries_403_or_503() {
     }
 }
 
+/// C129: a response Cloudflare gave in GGG's place is a stop. With the
+/// tripwire off, the block fails its job at once (no re-queue, whatever
+/// its `Retry-After`), admits no further send on any route (a second
+/// account's job, whose session would need a refresh first, stays
+/// waiting and nothing reaches the wire for it), and leaves a mark in the
+/// world that a later daemon, also without the tripwire, honours. The
+/// mark names the status, method, route and time, never the body. The
+/// three shapes: Cloudflare's documented 1015 (its one marker past the
+/// 300 characters a failure keeps), a challenge carrying `cf-mitigated`,
+/// and a 429 with no header and no marker at all (N49).
+#[tokio::test]
+async fn a_cloudflare_block_admits_nothing_and_survives_a_restart() {
+    let markerless_429 = ScriptedResponse {
+        method: "GET",
+        path: "/fetch",
+        status: "429 Too Many Requests",
+        headers: String::new(),
+        body: "Too many requests from this client".into(),
+    };
+    for (name, block, status, shape) in [
+        (
+            "1015",
+            ScriptedResponse::cloudflare_1015_429(),
+            429,
+            "cloudflare",
+        ),
+        (
+            "challenge",
+            ScriptedResponse::cloudflare_403_challenge(),
+            403,
+            "unclassified",
+        ),
+        ("markerless 429", markerless_429, 429, "unclassified"),
+    ] {
+        let body = block.body.clone();
+        let responses = vec![
+            ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+            block,
+        ];
+        let (base, requests, server) = scripted_server(responses).await;
+        let clock = Arc::new(ManualClock::new());
+        let state_path = std::env::temp_dir().join(format!(
+            "acq-c129-rails-{}-{}.json",
+            std::process::id(),
+            TEST_LOG_ID.fetch_add(1, Ordering::Relaxed)
+        ));
+        let _ = std::fs::remove_file(&state_path);
+        let (mut daemon, log_path) = test_daemon_with(
+            Provider::mock(&base),
+            clock,
+            RailsConfig {
+                state_path: Some(state_path.clone()),
+                ..RailsConfig::default()
+            },
+        );
+        assert!(!daemon.choke.rails().config().tripwire);
+        logged_in(&mut daemon);
+        let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+        let first = daemon
+            .submit("fetch".into(), json!({}), 0, "test".into(), None)
+            .unwrap();
+        let (info, outcome) = wait_terminal(&daemon, first).await;
+        assert_eq!(info.state, JobState::Failed, "{name}");
+        assert_eq!(info.retries, 0, "{name}: a block is never re-queued");
+        let Outcome::Failure { error, .. } = outcome else {
+            panic!("{name}: the block did not fail its job")
+        };
+        assert!(
+            error.contains("Cloudflare answered in GGG's place"),
+            "{name}: {error}"
+        );
+
+        // Submitted only after the block landed: the gate is two wide, and
+        // a sibling submitted earlier could be admitted beside it.
+        let second = daemon
+            .submit(
+                "stashes".into(),
+                json!({}),
+                0,
+                "test".into(),
+                Some("test-user".into()),
+            )
+            .unwrap();
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        let state = daemon.shared.lock().unwrap().jobs[&second].info.state;
+        assert_eq!(
+            state,
+            JobState::Waiting,
+            "{name}: the sibling stays waiting"
+        );
+        assert!(
+            daemon.choke.rails().halted().is_some(),
+            "{name}: this daemon is halted"
+        );
+        assert_eq!(
+            requests.lock().unwrap().as_slice(),
+            ["HEAD", "GET"],
+            "{name}"
+        );
+        server.await.unwrap();
+        let sends = journal_sends(&log_path);
+        assert_eq!(sends[1]["status"], status, "{name}");
+        assert_eq!(sends[1]["shape"], shape, "{name}: {}", sends[1]);
+
+        // A later daemon, the tripwire still off, honours the mark.
+        let rebuilt = Rails::with_config(RailsConfig {
+            state_path: Some(state_path.clone()),
+            ..RailsConfig::default()
+        });
+        let cause = rebuilt.halted().expect("the mark survives the daemon");
+        assert!(
+            cause.contains(&format!(
+                "Cloudflare answered in GGG's place: {status} on GET fetch at 2000-01-01T"
+            )),
+            "{name}: {cause}"
+        );
+        assert!(cause.contains("reset-tripwire"), "{name}: {cause}");
+        let persisted = std::fs::read_to_string(&state_path).unwrap();
+        let fragments = [
+            "Ray ID",
+            "<html",
+            "<!DOCTYPE",
+            "Just a moment",
+            "rate limited",
+            "Too many requests",
+        ];
+        for evidence in [&cause, &persisted] {
+            for fragment in fragments.iter().filter(|fragment| body.contains(*fragment)) {
+                assert!(
+                    !evidence.contains(fragment),
+                    "{name}: the mark kept the body's {fragment:?}: {evidence}"
+                );
+            }
+            for header in ["challenge", "Retry-After"] {
+                assert!(!evidence.contains(header), "{name}: {evidence}");
+            }
+        }
+        drop(rebuilt);
+        finish_harness_wire(dispatcher, &log_path, &requests);
+        let _ = std::fs::remove_file(&state_path);
+    }
+}
+
+/// C129's false positives: GGG's own 4xx is no block. A JSON 404 with
+/// GGG's headers (its message saying "array id", which holds "ray id"
+/// inside a word), and a 403 that names its own auth error in
+/// `WWW-Authenticate` and carries no `cf-mitigated` (its body mentioning
+/// Cloudflare), each fail their job and leave the daemon sending: the
+/// next job's GET goes out.
+#[tokio::test]
+async fn ggg_4xx_answers_are_not_cloudflare_blocks() {
+    let auth_error = {
+        let mut response = ScriptedResponse::full(
+            "GET",
+            "403 Forbidden",
+            None,
+            r#"{"error":"insufficient_scope","error_description":"see the Cloudflare-fronted docs"}"#,
+        );
+        response.headers.push_str(
+            "WWW-Authenticate: Bearer realm=\"pathofexile:production\", error=\"insufficient_scope\"\r\n",
+        );
+        response
+    };
+    for (name, rejected) in [
+        (
+            "GGG's 404",
+            ScriptedResponse::full(
+                "GET",
+                "404 Not Found",
+                None,
+                r#"{"error":{"code":1,"message":"Resource not found: unknown array id"}}"#,
+            ),
+        ),
+        ("an auth error", auth_error),
+    ] {
+        let responses = vec![
+            ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+            rejected,
+            ScriptedResponse::full("GET", "200 OK", None, r#"{"items":["after"]}"#),
+        ];
+        let (base, requests, server) = scripted_server(responses).await;
+        let clock = Arc::new(ManualClock::new());
+        let (daemon, log_path) = test_daemon(&base, clock);
+        let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+        let first = daemon
+            .submit("fetch".into(), json!({}), 0, "test".into(), None)
+            .unwrap();
+        let (info, outcome) = wait_terminal(&daemon, first).await;
+        assert_eq!(info.state, JobState::Failed, "{name}");
+        let Outcome::Failure { error, .. } = outcome else {
+            panic!("{name}: did not fail")
+        };
+        assert!(!error.contains("Cloudflare answered"), "{name}: {error}");
+        assert_eq!(daemon.choke.rails().halted(), None, "{name}");
+        let second = daemon
+            .submit("fetch".into(), json!({}), 0, "test".into(), None)
+            .unwrap();
+        let (_, outcome) = wait_terminal(&daemon, second).await;
+        assert_eq!(fetch_payload_marker(&outcome), "after", "{name}");
+        assert_eq!(
+            requests.lock().unwrap().as_slice(),
+            ["HEAD", "GET", "GET"],
+            "{name}"
+        );
+        server.await.unwrap();
+        finish_harness_wire(dispatcher, &log_path, &requests);
+    }
+}
+
 /// C130: a GET's 302 fails its job with the status and the redirect's
 /// target shown only redacted. The body, which echoes the target with its
 /// query, is not kept: the sentinel reaches neither the job's failure,

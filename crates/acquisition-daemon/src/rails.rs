@@ -16,6 +16,11 @@
 //!   `refresh_token` grant marks the session refresh-failed; later refreshes
 //!   fail fast without sending until login or logout. Persisted with the
 //!   tripwire.
+//! - **Cloudflare block mark** (C129, every daemon, tripwire on or off):
+//!   a landed 4xx that is not GGG's ([`Verdict::of`]) refuses every later
+//!   send until `reset_tripwire`. The mark carries the status, method,
+//!   route and time, never a body or another header, and persists in the
+//!   same file, loaded whatever the tripwire says.
 //! - **Send ceiling** (`ACQ_MAX_SENDS=<n>`, ladder-only): after `n` real
 //!   sends in this daemon lifetime the daemon halts with cause `ceiling`.
 //!   Per-lifetime and never persisted.
@@ -42,10 +47,9 @@
 //!   (`stash-list/xbox@Alice#1234`). A non-2xx line adds a `headers`
 //!   object (the `X-Rate-Limit-*`, `Retry-After`, `cf-*`, `content-type`,
 //!   `server`, `date` headers — for a failed HEAD probe, the whole of the
-//!   evidence), and a 403/503 line carries `shape`: `cloudflare` (N3/N28
+//!   evidence), and `shape`, what the body looked like: `cloudflare` (N3/N28
 //!   page markers), `origin` (an openresty/nginx error page that passed
-//!   through Cloudflare — rung 10's 503, N35), or `unclassified`; all three
-//!   are equally never retried.
+//!   through Cloudflare — rung 10's 503, N35), or `unclassified`.
 //! - Misunderstood values (`ACQ_TRIPWIRE=maybe`, `ACQ_MAX_SENDS=ten`) are
 //!   logged at startup as `RAILS CONFIG` errors and the rail stays off; a
 //!   persisted trip is honored only by a daemon started with the tripwire.
@@ -140,12 +144,16 @@ impl RailsConfig {
     }
 }
 
-/// What persists across daemon restarts. Only violation-class trips and
-/// the refresh-failed mark; the ceiling is per lifetime by decision.
+/// What persists across daemon restarts. Only violation-class trips, the
+/// Cloudflare block mark and the refresh-failed mark; the ceiling is per
+/// lifetime by decision.
 #[derive(Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 struct Persisted {
     #[serde(default)]
     tripped: Option<String>,
+    /// C129: the block mark's cause (status, method, route and time).
+    #[serde(default)]
+    blocked: Option<String>,
     /// Per account (username → cause). The pre-multi-account file had one
     /// `refresh_failed` string; it is ignored on load (one re-login).
     #[serde(default)]
@@ -199,6 +207,9 @@ pub fn verify_state(path: &Path) -> Result<Option<()>, StateError> {
 struct State {
     /// Violation/Cloudflare trip cause (persisted).
     tripped: Option<String>,
+    /// C129: Cloudflare answered in GGG's place (persisted, honoured with
+    /// the tripwire on or off).
+    blocked: Option<String>,
     /// Ceiling trip cause (this lifetime only).
     ceiling_tripped: Option<String>,
     /// Accounts whose refresh grant the provider rejected (persisted).
@@ -229,8 +240,15 @@ pub enum BlockShape {
 impl BlockShape {
     pub fn of(body: &str) -> BlockShape {
         let lower = body.to_ascii_lowercase();
-        if lower.contains("cloudflare") || lower.contains("ray id") || lower.contains("error 1015")
-        {
+        // "Ray ID" as a phrase: a JSON message about an "array id" is not
+        // Cloudflare's page, and a marker now sets a persisted mark (C129).
+        let ray_id = lower.match_indices("ray id").any(|(at, _)| {
+            !lower[..at]
+                .chars()
+                .next_back()
+                .is_some_and(|c| c.is_ascii_alphanumeric())
+        });
+        if lower.contains("cloudflare") || ray_id || lower.contains("error 1015") {
             BlockShape::Cloudflare
         } else if lower.contains("openresty") || lower.contains("nginx") {
             BlockShape::Origin
@@ -257,6 +275,34 @@ impl BlockShape {
     }
 }
 
+/// C129 — what a landed non-2xx was, decided once by the choke point from
+/// three inputs and nothing else: the status, the response headers (as
+/// `response_headers_snapshot` keeps them) and the whole body.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Verdict {
+    /// What the body looked like (a HEAD's, which has none, is unclassified).
+    pub shape: BlockShape,
+    /// Cloudflare answered in GGG's place: a 4xx that is not GGG's. It
+    /// carries `cf-mitigated` (which beats `www-authenticate`), or a 429
+    /// with no `X-Rate-Limit-Policy` (GGG's own carry the full set, N25,
+    /// N33; Cloudflare's rate limit carries none, N48, N49), or a page
+    /// marker in a body that names no auth error of its own. `server`
+    /// and `cf-ray` are never evidence.
+    pub block: bool,
+}
+
+impl Verdict {
+    pub fn of(status: u16, headers: &Value, body: Option<&str>) -> Verdict {
+        let shape = body.map_or(BlockShape::Unclassified, BlockShape::of);
+        let has = |name: &str| headers.get(name).is_some();
+        let block = (400..500).contains(&status)
+            && (has("cf-mitigated")
+                || (status == 429 && !has("x-rate-limit-policy"))
+                || (shape == BlockShape::Cloudflare && !has("www-authenticate")));
+        Verdict { shape, block }
+    }
+}
+
 /// One completed exchange, as the choke point reports it. Never carries a
 /// token, an Authorization header, or a body.
 pub struct SendReport<'a> {
@@ -272,8 +318,12 @@ pub struct SendReport<'a> {
     /// The response headers of a non-2xx (`response_headers_snapshot`), or
     /// Null. A HEAD has no body, so for a failed probe this is the evidence.
     pub headers: &'a Value,
-    /// For a 403/503, what the body looked like; `None` for every other status.
+    /// For a landed non-2xx, what the body looked like; `None` for a 2xx
+    /// and for a send that never landed.
     pub shape: Option<BlockShape>,
+    /// C129: the choke point judged this response Cloudflare's in GGG's
+    /// place ([`Verdict`]); recording it sets the block mark.
+    pub block: bool,
     /// How long the send was held before it reached the transport: from
     /// the moment it was ready (a job picked by the dispatcher, a token
     /// refresh entering the choke) to dispatch, on the monotonic clock.
@@ -318,6 +368,9 @@ impl Rails {
             if config.tripwire {
                 state.tripped = persisted.tripped;
             }
+            // The block mark is product behaviour (C129): every daemon
+            // honours it.
+            state.blocked = persisted.blocked;
             state.refresh_failed = persisted.refresh_failed_by_account;
         }
         let (journal, journal_error) = match &config.journal_path {
@@ -388,6 +441,9 @@ impl Rails {
     /// any gate permit is acquired.
     pub fn halted(&self) -> Option<String> {
         let s = self.state.lock().unwrap();
+        if let Some(cause) = &s.blocked {
+            return Some(format!("halted: {cause}; {BLOCK_REMEDY}"));
+        }
         s.tripped
             .clone()
             .or_else(|| self.ceiling_met(&s))
@@ -413,14 +469,33 @@ impl Rails {
         })
     }
 
-    /// Journal the exchange, count it toward the ceiling, and trip on a
-    /// violation or Cloudflare-shaped status when the tripwire is enabled.
-    /// Returns the trip cause if this report tripped anything.
+    /// Journal the exchange, count it toward the ceiling, set the block
+    /// mark on a block (C129), and trip on a violation or
+    /// Cloudflare-shaped status when the tripwire is enabled. Returns the
+    /// cause if this report halted anything. The choke point calls this
+    /// while the send's permit is still held, so no send admitted after
+    /// the block has landed can pass the halt check.
     pub fn record(&self, report: &SendReport<'_>) -> Option<String> {
         self.journal_line(report);
         let mut s = self.state.lock().unwrap();
         s.sends = s.sends.saturating_add(1);
         let mut newly = None;
+        if report.block && s.blocked.is_none() {
+            // Status, method, route and time: never a body or a header
+            // value, for the cause is written to disk.
+            let cause = format!(
+                "Cloudflare answered in GGG's place: {} on {} {} at {}",
+                report
+                    .status
+                    .map_or_else(|| "no status".to_string(), |status| status.to_string()),
+                report.method,
+                report.route,
+                iso_utc(self.clock.wall())
+            );
+            s.blocked = Some(cause.clone());
+            self.persist_locked(&s);
+            newly = Some(cause);
+        }
         if self.config.tripwire && s.tripped.is_none() {
             let cause = match report.status {
                 Some(429) => Some(format!(
@@ -462,7 +537,7 @@ impl Rails {
             };
             if let Some(cause) = cause {
                 s.tripped = Some(cause.clone());
-                newly = Some(cause);
+                newly.get_or_insert(cause);
                 self.persist_locked(&s);
             }
         }
@@ -492,12 +567,14 @@ impl Rails {
         self.state.lock().unwrap().unannounced.take()
     }
 
-    /// Clear the violation trip. A met ceiling stands (`ceiling_met`): it
+    /// Clear the violation trip and the block mark (C129: the explicit
+    /// verb is `reset-tripwire`). A met ceiling stands (`ceiling_met`): it
     /// is the lifetime's. The refresh-failed mark is not a trip; it
     /// clears on login or logout.
     pub fn reset_tripwire(&self) {
         let mut s = self.state.lock().unwrap();
         s.tripped = None;
+        s.blocked = None;
         s.ceiling_tripped = None;
         self.persist_locked(&s);
     }
@@ -539,7 +616,11 @@ impl Rails {
         let s = self.state.lock().unwrap();
         RailsStatus {
             tripwire_enabled: self.config.tripwire,
-            halted: s.tripped.clone().or_else(|| self.ceiling_met(&s)),
+            halted: s
+                .blocked
+                .clone()
+                .or_else(|| s.tripped.clone())
+                .or_else(|| self.ceiling_met(&s)),
             refresh_failed: (!s.refresh_failed.is_empty()).then(|| {
                 let mut v: Vec<String> = s
                     .refresh_failed
@@ -565,9 +646,13 @@ impl Rails {
         };
         let persisted = Persisted {
             tripped: s.tripped.clone(),
+            blocked: s.blocked.clone(),
             refresh_failed_by_account: s.refresh_failed.clone(),
         };
-        if persisted.tripped.is_none() && persisted.refresh_failed_by_account.is_empty() {
+        if persisted.tripped.is_none()
+            && persisted.blocked.is_none()
+            && persisted.refresh_failed_by_account.is_empty()
+        {
             let _ = std::fs::remove_file(path);
             return;
         }
@@ -606,6 +691,10 @@ impl Rails {
     }
 }
 
+/// What lifts a block's halt, in the halt's own words.
+pub(crate) const BLOCK_REMEDY: &str =
+    "nothing more is sent until `acq daemon reset-tripwire` clears the mark";
+
 /// ISO 8601 UTC with milliseconds, without pulling in a date crate.
 fn iso_utc(at: SystemTime) -> String {
     let now = at.duration_since(UNIX_EPOCH).unwrap_or_default();
@@ -632,6 +721,12 @@ fn iso_utc(at: SystemTime) -> String {
 mod tests {
     use super::*;
 
+    /// A 429's headers as GGG sends them: it names its policy, so it is
+    /// GGG's and no block (C129), which is what `block: false` claims.
+    static GGG_429: std::sync::LazyLock<Value> = std::sync::LazyLock::new(
+        || json!({ "x-rate-limit-policy": "character-list-request-limit" }),
+    );
+
     fn report(status: Option<u16>) -> SendReport<'static> {
         SendReport {
             method: "GET",
@@ -643,7 +738,12 @@ mod tests {
             counted: true,
             rate: &Value::Null,
             shape: None,
-            headers: &Value::Null,
+            block: false,
+            headers: if status == Some(429) {
+                &GGG_429
+            } else {
+                &Value::Null
+            },
             wait: Duration::ZERO,
         }
     }
@@ -664,6 +764,122 @@ mod tests {
         );
         assert_eq!(BlockShape::of(""), BlockShape::Unclassified);
         assert_eq!(BlockShape::of("{}"), BlockShape::Unclassified);
+        // "Ray ID" is a phrase, not a substring of a word.
+        assert_eq!(
+            BlockShape::of(r#"{"error":{"message":"unknown array id"}}"#),
+            BlockShape::Unclassified
+        );
+        assert_eq!(BlockShape::of("ray id: 8a1"), BlockShape::Cloudflare);
+    }
+
+    /// C129: a block is a 4xx that is not GGG's, judged from the status,
+    /// the headers and the whole body alone.
+    #[test]
+    fn a_block_is_a_4xx_that_is_not_gggs() {
+        let ggg = json!({ "x-rate-limit-policy": "stash-list-request-limit" });
+        let page = "<html><title>Attention Required! | Cloudflare</title></html>";
+        let auth = json!({ "www-authenticate": "Bearer error=\"insufficient_scope\"" });
+        let challenged = json!({
+            "cf-mitigated": "challenge",
+            "www-authenticate": "Bearer error=\"invalid_token\""
+        });
+        let cloudflare_ish = json!({ "server": "cloudflare", "cf-ray": "8a1-SJC" });
+        for (status, headers, body, block) in [
+            (429, json!({}), None, true),
+            (429, json!({ "retry-after": "30" }), Some("{}"), true),
+            (429, ggg.clone(), Some("{}"), false),
+            (403, json!({ "cf-mitigated": "challenge" }), None, true),
+            (403, challenged, Some("{}"), true),
+            (403, auth.clone(), Some(page), false),
+            (403, ggg.clone(), Some(page), true),
+            (401, json!({}), Some(page), true),
+            (404, json!({}), Some(page), true),
+            (404, ggg.clone(), Some(r#"{"error":{"code":1}}"#), false),
+            (403, cloudflare_ish.clone(), Some("{}"), false),
+            (
+                503,
+                json!({ "cf-mitigated": "challenge" }),
+                Some(page),
+                false,
+            ),
+            (522, json!({}), Some(page), false),
+            (200, json!({}), Some(page), false),
+        ] {
+            let verdict = Verdict::of(status, &headers, body);
+            assert_eq!(verdict.block, block, "{status} {headers} {body:?}");
+        }
+        assert_eq!(
+            Verdict::of(404, &json!({}), Some(page)).shape,
+            BlockShape::Cloudflare
+        );
+        assert_eq!(
+            Verdict::of(403, &json!({}), None).shape,
+            BlockShape::Unclassified
+        );
+    }
+
+    /// C129: the block mark is set by a report the choke point judged a
+    /// block, persists beside the other marks, holds a daemon started
+    /// without the tripwire, carries no body or header value, and clears
+    /// on `reset_tripwire`, which rewrites the file without it.
+    #[test]
+    fn a_block_mark_is_honoured_without_the_tripwire() {
+        let path =
+            std::env::temp_dir().join(format!("acq-rails-block-{}.json", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        let config = RailsConfig {
+            state_path: Some(path.clone()),
+            ..RailsConfig::default()
+        };
+        let headers = json!({ "cf-mitigated": "challenge", "retry-after": "30" });
+        {
+            let rails = Rails::with_config(config.clone());
+            assert!(rails.mark_refresh_failed("A#1", "400"));
+            let cause = rails
+                .record(&SendReport {
+                    route: "stash@A#1",
+                    url_path: "/stash/Standard",
+                    status: Some(403),
+                    headers: &headers,
+                    shape: Some(BlockShape::Unclassified),
+                    block: true,
+                    ..report(Some(403))
+                })
+                .expect("a block halts with the tripwire off");
+            assert!(
+                cause.starts_with("Cloudflare answered in GGG's place: 403 on GET stash@A#1 at "),
+                "{cause}"
+            );
+            assert!(rails.halted().unwrap().contains(&cause));
+            assert_eq!(rails.status().halted.as_deref(), Some(cause.as_str()));
+        }
+        let text = std::fs::read_to_string(&path).unwrap();
+        assert!(!text.contains("challenge"), "no header value: {text}");
+        assert_eq!(verify_state(&path), Ok(Some(())));
+        {
+            let rails = Rails::with_config(config.clone());
+            let halted = rails.halted().expect("the mark survives the lifetime");
+            assert!(halted.contains("403 on GET stash@A#1"), "{halted}");
+            assert!(halted.contains("reset-tripwire"), "{halted}");
+            assert!(!halted.contains("live-test rails"), "{halted}");
+            rails.reset_tripwire();
+            assert_eq!(rails.halted(), None);
+        }
+        let persisted: Persisted =
+            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(persisted.blocked, None, "the reset rewrote the file");
+        assert_eq!(
+            persisted
+                .refresh_failed_by_account
+                .get("A#1")
+                .map(String::as_str),
+            Some("400")
+        );
+        assert_eq!(Rails::with_config(config).halted(), None);
+        // Strict over the new field: a mark that is not a cause refuses.
+        std::fs::write(&path, r#"{"blocked":7}"#).unwrap();
+        assert!(verify_state(&path).is_err());
+        let _ = std::fs::remove_file(&path);
     }
 
     #[test]

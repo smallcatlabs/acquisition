@@ -548,6 +548,7 @@ async fn c127_a_refresh_that_selects_nothing_is_refused_at_submit() {
         json!({ "league": "Standard", "all": "true" }),
         json!({ "league": "Standard", "tabs": [1, 2] }),
         json!({ "league": "Standard", "tabs": "t1" }),
+        json!({ "league": "Standard", "tabs": [""] }),
     ] {
         let what = format!("refresh {params}");
         let response = client_submit(&daemon, "refresh", params, Some("test-user")).await;

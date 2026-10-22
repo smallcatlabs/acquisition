@@ -1139,10 +1139,38 @@ fn retryable_429_records_before_classification_and_holds_despite_bad_policy() {
             now,
         },
     );
+    // C129: GGG's 429 whose rate headers are unusable is still GGG's and
+    // stays retryable; one with no `X-Rate-Limit-Policy` at all (this
+    // one's headers) is Cloudflare's, a block, never retried. Either way
+    // the limiter has already recorded it and holds (below).
+    let ggg = Verdict::of(
+        429,
+        &serde_json::json!({ "x-rate-limit-policy": "character-list-request-limit" }),
+        None,
+    );
+    assert!(!ggg.block);
     assert!(matches!(
-        classify_response(Some(429), false, observation, &retry_after),
+        classify_response(
+            Some(429),
+            false,
+            observation.clone(),
+            &retry_after,
+            ggg.block
+        ),
         ResponseClassification::RateLimited(RetryAfter::Acceptable { seconds: 2 })
     ));
+    let headerless = Verdict::of(429, &serde_json::json!({}), None);
+    assert!(headerless.block);
+    assert_eq!(
+        classify_response(
+            Some(429),
+            false,
+            observation,
+            &retry_after,
+            headerless.block
+        ),
+        ResponseClassification::Blocked
+    );
 
     let state = limiter
         .policies
@@ -1252,10 +1280,14 @@ fn every_landed_429_holds_at_least_the_retry_bucket() {
                 now,
             )
             .unwrap();
+        // GGG's 429 (it names its policy, C129) whose other rate headers
+        // are missing: what C19 governs. A 429 with no policy header at
+        // all is Cloudflare's, a block.
+        let headers = [("x-rate-limit-policy", "character-list-request-limit")];
         let observation = limiter.observe_landed(
             "/character",
             LandedObservation {
-                policy: parse(&[]),
+                policy: parse(&headers),
                 retry_after: &retry_after,
                 raw: serde_json::Value::Null,
                 counted: true,
@@ -1263,7 +1295,13 @@ fn every_landed_429_holds_at_least_the_retry_bucket() {
                 now,
             },
         );
-        let classification = classify_response(Some(429), false, observation, &retry_after);
+        let verdict = Verdict::of(
+            429,
+            &serde_json::json!({ "x-rate-limit-policy": "character-list-request-limit" }),
+            None,
+        );
+        let classification =
+            classify_response(Some(429), false, observation, &retry_after, verdict.block);
         assert_eq!(
             classification,
             ResponseClassification::RateLimited(retry_after.clone())
@@ -1365,32 +1403,64 @@ fn non_full_head_429_is_setup_failure_even_with_acceptable_retry_after() {
 
 #[test]
 fn response_classification_precedence_is_status_network_then_protocol() {
+    // GGG's headers name the policy and lack the rest: the observation
+    // fails, and the response is still GGG's.
     let malformed = PolicyObservationError::Parse(PolicyParseError::MissingHeader {
-        name: "x-rate-limit-policy".into(),
+        name: "x-rate-limit-rules".into(),
     });
+    let ggg = Verdict::of(
+        429,
+        &serde_json::json!({ "x-rate-limit-policy": "p" }),
+        None,
+    );
+    let cloudflare = Verdict::of(429, &serde_json::json!({}), None);
     let retry_after = retry(Some("3"));
+    // C129: a block comes first; a 429 that is Cloudflare's is no rate
+    // limit of GGG's, whatever its transfer or its headers did.
     assert_eq!(
-        classify_response(Some(429), true, Err(malformed.clone()), &retry_after),
+        classify_response(
+            Some(429),
+            true,
+            Err(malformed.clone()),
+            &retry_after,
+            cloudflare.block
+        ),
+        ResponseClassification::Blocked
+    );
+    assert_eq!(
+        classify_response(
+            Some(429),
+            true,
+            Err(malformed.clone()),
+            &retry_after,
+            ggg.block
+        ),
         ResponseClassification::RateLimited(retry_after.clone())
     );
     assert_eq!(
-        classify_response(Some(500), true, Err(malformed.clone()), &retry_after),
+        classify_response(Some(500), true, Err(malformed.clone()), &retry_after, false),
         ResponseClassification::Http(500)
     );
     assert_eq!(
-        classify_response(Some(200), true, Err(malformed.clone()), &retry_after),
+        classify_response(Some(200), true, Err(malformed.clone()), &retry_after, false),
         ResponseClassification::Network
     );
     assert_eq!(
-        classify_response(Some(200), false, Err(malformed.clone()), &retry_after),
+        classify_response(
+            Some(200),
+            false,
+            Err(malformed.clone()),
+            &retry_after,
+            false
+        ),
         ResponseClassification::Protocol(malformed)
     );
     assert_eq!(
-        classify_response(Some(204), false, Ok(()), &retry_after),
+        classify_response(Some(204), false, Ok(()), &retry_after, false),
         ResponseClassification::Success
     );
     assert_eq!(
-        classify_response(None, true, Ok(()), &retry_after),
+        classify_response(None, true, Ok(()), &retry_after, false),
         ResponseClassification::Network
     );
 }
@@ -1533,6 +1603,8 @@ async fn a_send_parked_in_the_gate_is_refused_after_a_trip() {
     tokio::time::sleep(Duration::from_millis(50)).await; // let it park
     assert!(!get.is_finished(), "the GET must be parked behind the HEAD");
 
+    // GGG's 429 (it names its policy): a ladder trip, not a block (C129).
+    let ggg = serde_json::json!({ "x-rate-limit-policy": "elsewhere-policy" });
     rails.record(&SendReport {
         method: "GET",
         route: "elsewhere",
@@ -1542,8 +1614,9 @@ async fn a_send_parked_in_the_gate_is_refused_after_a_trip() {
         ok: false,
         counted: true,
         rate: &serde_json::Value::Null,
-        headers: &serde_json::Value::Null,
+        headers: &ggg,
         shape: None,
+        block: false,
         wait: Duration::ZERO,
     });
     release_tx.send(()).unwrap();

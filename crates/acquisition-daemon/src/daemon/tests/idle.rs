@@ -83,6 +83,8 @@ fn idle_verdict_follows_the_clock_the_connections_and_the_queue() {
         !daemon.is_idle(knob),
         "the waiting job holds an unhalted daemon"
     );
+    // GGG's 429 (it names its policy): a ladder trip, not a block (C129).
+    let ggg = json!({ "x-rate-limit-policy": "dispatcher-test-policy" });
     daemon.choke.rails().record(&crate::rails::SendReport {
         method: "HEAD",
         route: "fetch",
@@ -93,7 +95,8 @@ fn idle_verdict_follows_the_clock_the_connections_and_the_queue() {
         counted: false,
         rate: &Value::Null,
         shape: None,
-        headers: &serde_json::Value::Null,
+        block: false,
+        headers: &ggg,
         wait: Duration::ZERO,
     });
     assert!(daemon.rails().halted().is_some(), "the tripwire tripped");

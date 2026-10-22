@@ -866,6 +866,7 @@ pub(super) fn refresh_selection(params: &Value) -> Result<(bool, Vec<String>), S
         .map(|a| {
             a.iter()
                 .filter_map(Value::as_str)
+                .filter(|tab| !tab.is_empty())
                 .map(str::to_string)
                 .collect()
         })

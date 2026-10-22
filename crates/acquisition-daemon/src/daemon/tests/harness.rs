@@ -109,8 +109,20 @@ pub(super) struct ScriptedResponse {
 }
 
 impl ScriptedResponse {
+    /// A GGG response on `/fetch`, with the full rate-limit header set.
     pub(super) fn full(
         method: &'static str,
+        status: &'static str,
+        retry_after: Option<u64>,
+        body: &str,
+    ) -> Self {
+        ScriptedResponse::full_at(method, "/fetch", status, retry_after, body)
+    }
+
+    /// `full`'s GGG response on any method and path.
+    pub(super) fn full_at(
+        method: &'static str,
+        path: &'static str,
         status: &'static str,
         retry_after: Option<u64>,
         body: &str,
@@ -120,7 +132,7 @@ impl ScriptedResponse {
             .unwrap_or_default();
         ScriptedResponse {
             method,
-            path: "/fetch",
+            path,
             status,
             headers: format!(
                 "X-Rate-Limit-Policy: dispatcher-test-policy\r\nX-Rate-Limit-Rules: Account\r\nX-Rate-Limit-Account: 100:1:60\r\nX-Rate-Limit-Account-State: 0:1:0\r\n{retry_after}"
@@ -134,6 +146,36 @@ impl ScriptedResponse {
     pub(super) fn with_raw_retry_after(mut self, raw: &str) -> Self {
         self.headers.push_str(&format!("Retry-After: {raw}\r\n"));
         self
+    }
+
+    /// Cloudflare's error 1015 as its docs describe it (N48): a 429 with
+    /// `Retry-After: 30`, an HTML page, and no GGG header. The page's one
+    /// marker, its "Ray ID", comes after its 300th character, past what a
+    /// job's failure text keeps of a body, so a shape read from the kept
+    /// text would miss it.
+    pub(super) fn cloudflare_1015_429() -> Self {
+        let filler = "You are being rate limited. ".repeat(12);
+        ScriptedResponse {
+            method: "GET",
+            path: "/fetch",
+            status: "429 Too Many Requests",
+            headers: "Retry-After: 30\r\n".into(),
+            body: format!(
+                "<!DOCTYPE html><html><head><title>Access denied</title></head><body><h1>Access denied</h1><p>{filler}</p><p>Ray ID: 8a1f2c3d4e5f6a7b</p></body></html>"
+            ),
+        }
+    }
+
+    /// A Cloudflare challenge in GGG's place (N28): a 403 carrying
+    /// `cf-mitigated: challenge` and no GGG header.
+    pub(super) fn cloudflare_403_challenge() -> Self {
+        ScriptedResponse {
+            method: "GET",
+            path: "/fetch",
+            status: "403 Forbidden",
+            headers: "cf-mitigated: challenge\r\n".into(),
+            body: "<!DOCTYPE html><html><head><title>Just a moment...</title></head><body></body></html>".into(),
+        }
     }
 
     pub(super) fn malformed_head_429() -> Self {

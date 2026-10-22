@@ -142,6 +142,8 @@ async fn halted_daemon_refuses_refresh_before_any_send() {
     let clock = Arc::new(ManualClock::new());
     let (mut daemon, log_path) = test_daemon_with(Provider::mock(&base), clock, tripwire_config());
     let rails = daemon.choke.rails().clone();
+    // GGG's 429 (it names its policy): a ladder trip, not a block (C129).
+    let ggg = json!({ "x-rate-limit-policy": "character-list-request-limit" });
     rails.record(&crate::rails::SendReport {
         method: "HEAD",
         route: "character-list",
@@ -152,7 +154,8 @@ async fn halted_daemon_refuses_refresh_before_any_send() {
         counted: false,
         rate: &Value::Null,
         shape: None,
-        headers: &serde_json::Value::Null,
+        block: false,
+        headers: &ggg,
         wait: Duration::ZERO,
     });
     logged_in(&mut daemon);
