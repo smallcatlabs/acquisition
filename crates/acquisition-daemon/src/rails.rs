@@ -24,8 +24,9 @@
 //!   route and time, never a body or another header, and persists in the
 //!   same file, loaded whatever the tripwire says.
 //! - **Unreachable origin** (C129, every daemon, tripwire on or off): a
-//!   landed 5xx that is Cloudflare's own page ([`Verdict::of`]),
-//!   Cloudflare answering for an origin it cannot reach, refuses every
+//!   landed 5xx that is Cloudflare's, by its status alone (520–527, 530)
+//!   or by its own page ([`Verdict::of`]), Cloudflare answering for an
+//!   origin it cannot reach, refuses every
 //!   later send for the rest of this daemon lifetime. Never persisted: a
 //!   restart or `reset_tripwire` clears it.
 //! - **Send ceiling** (`ACQ_MAX_SENDS=<n>`, ladder-only): after `n` real
@@ -219,6 +220,10 @@ struct State {
     ceiling_tripped: Option<String>,
     /// Accounts whose refresh grant the provider rejected (persisted).
     refresh_failed: HashMap<String, String>,
+    /// The state file's fields this build does not know: held only to be
+    /// written back unchanged, so a later build's state survives this
+    /// daemon's writes as the ladder's trip does.
+    unknown: std::collections::BTreeMap<String, Value>,
     sends: u64,
     /// A trip nobody has logged yet; drained by the daemon's `announce_trip`.
     unannounced: Option<String>,
@@ -283,6 +288,11 @@ impl BlockShape {
     }
 }
 
+/// C129: the 5xx statuses only Cloudflare sends (its 52x for an origin it
+/// cannot reach or read, and 530 with its 1xxx errors; the owner's ruling,
+/// 2026-10-22). The status alone is the evidence: no GGG server sends one.
+pub const CLOUDFLARE_5XX: [u16; 9] = [520, 521, 522, 523, 524, 525, 526, 527, 530];
+
 /// C129 — what a landed non-2xx was, decided once by the choke point from
 /// three inputs and nothing else: the status, the response headers (as
 /// `response_headers_snapshot` keeps them) and the whole body.
@@ -301,11 +311,13 @@ pub struct Verdict {
     /// auth errors carry no rate-limit header at all (N34). `server` and
     /// `cf-ray` are never evidence.
     pub block: bool,
-    /// Cloudflare answered for an origin it could not reach: a 5xx whose
-    /// body carries a page marker in an answer with no
+    /// Cloudflare answered for an origin it could not reach: a 5xx in
+    /// Cloudflare's own set ([`CLOUDFLARE_5XX`]: 520–527 and 530), whatever
+    /// its body, empty, unread or a HEAD's absent one included; or any
+    /// other 5xx whose body carries a page marker in an answer with no
     /// `X-Rate-Limit-Policy`, under the block's own narrowing (a page
-    /// Cloudflare made cannot carry GGG's headers; GGG's JSON may echo
-    /// a marker). It halts this daemon lifetime and leaves no mark. GGG's
+    /// Cloudflare made cannot carry GGG's headers; GGG's JSON may echo a
+    /// marker). It halts this daemon lifetime and leaves no mark. GGG's
     /// origin 5xx (N35's openresty page) carries no marker and is no halt.
     pub unreachable: bool,
 }
@@ -320,9 +332,10 @@ impl Verdict {
                 || (shape == BlockShape::Cloudflare
                     && !has("x-rate-limit-policy")
                     && !has("www-authenticate")));
-        let unreachable = (500..600).contains(&status)
-            && shape == BlockShape::Cloudflare
-            && !has("x-rate-limit-policy");
+        let unreachable = CLOUDFLARE_5XX.contains(&status)
+            || ((500..600).contains(&status)
+                && shape == BlockShape::Cloudflare
+                && !has("x-rate-limit-policy"));
         Verdict {
             shape,
             block,
@@ -405,6 +418,7 @@ impl Rails {
             // honours it.
             state.blocked = persisted.blocked;
             state.refresh_failed = persisted.refresh_failed_by_account;
+            state.unknown = persisted.unknown;
         }
         let (journal, journal_error) = match &config.journal_path {
             None => (None, None),
@@ -471,18 +485,22 @@ impl Rails {
     }
 
     /// Why a send must be refused right now, if it must. Consulted before
-    /// any gate permit is acquired.
+    /// any gate permit is acquired. A persisted cause is named before the
+    /// lifetime's, as in [`Rails::status`]: a Cloudflare 503 with the
+    /// tripwire on sets both the unreachable-origin halt and a trip, and
+    /// the halt's "a restart clears it" would be untrue of the trip.
     pub fn halted(&self) -> Option<String> {
         let s = self.state.lock().unwrap();
         if let Some(cause) = &s.blocked {
             return Some(format!("halted: {cause}; {BLOCK_REMEDY}"));
         }
+        if let Some(cause) = &s.tripped {
+            return Some(format!("halted by live-test rails: {cause}"));
+        }
         if let Some(cause) = &s.unreachable {
             return Some(format!("halted: {cause}; {UNREACHABLE_REMEDY}"));
         }
-        s.tripped
-            .clone()
-            .or_else(|| self.ceiling_met(&s))
+        self.ceiling_met(&s)
             .map(|cause| format!("halted by live-test rails: {cause}"))
     }
 
@@ -671,11 +689,14 @@ impl Rails {
         let s = self.state.lock().unwrap();
         RailsStatus {
             tripwire_enabled: self.config.tripwire,
+            // What a restart keeps first (the block mark, the trip), so
+            // the words a frontend prints for the cause are true of every
+            // halt held.
             halted: s
                 .blocked
                 .clone()
-                .or_else(|| s.unreachable.clone())
                 .or_else(|| s.tripped.clone())
+                .or_else(|| s.unreachable.clone())
                 .or_else(|| self.ceiling_met(&s)),
             refresh_failed: (!s.refresh_failed.is_empty()).then(|| {
                 let mut v: Vec<String> = s
@@ -704,6 +725,7 @@ impl Rails {
             tripped: s.tripped.clone().or_else(|| s.dormant_trip.clone()),
             blocked: s.blocked.clone(),
             refresh_failed_by_account: s.refresh_failed.clone(),
+            unknown: s.unknown.clone(),
         };
         let _ = persisted.write(path);
     }
@@ -910,10 +932,12 @@ mod tests {
     }
 
     /// C129: a 5xx is Cloudflare's for an origin it could not reach when
-    /// its body carries a page marker and it carries no GGG policy header
-    /// (the block's narrowing); never a block, and no 4xx is one.
+    /// its status is one only Cloudflare sends (520–527, 530), whatever
+    /// its body or headers, or when its body carries a page marker and it
+    /// carries no GGG policy header (the block's narrowing); never a
+    /// block, and no 4xx is one.
     #[test]
-    fn an_unreachable_origin_is_a_5xx_with_cloudflares_page() {
+    fn an_unreachable_origin_is_cloudflares_5xx_status_or_page() {
         let ggg = json!({ "x-rate-limit-policy": "stash-list-request-limit" });
         let page =
             "<html><title>522: Connection timed out</title><p>Cloudflare Ray ID: 8a1</p></html>";
@@ -929,12 +953,34 @@ mod tests {
                 Some("<p>Ray ID: 8a1f2c3d4e5f6a7b</p>"),
                 true,
             ),
-            (522, ggg.clone(), Some(page), false),
             (500, ggg.clone(), Some(fan), false),
             (503, json!({}), Some(openresty), false),
             (502, json!({}), Some(nginx), false),
             (503, json!({}), Some("{}"), false),
-            (522, json!({}), None, false),
+            // Cloudflare's own statuses: the status alone, so an empty
+            // body, an unread one (`None`, as a HEAD's) and a body of
+            // GGG's shape all halt.
+            (522, json!({}), None, true),
+            (522, json!({}), Some(""), true),
+            (522, ggg.clone(), Some(page), true),
+            (520, json!({}), Some("{}"), true),
+            (521, json!({}), None, true),
+            (523, json!({}), None, true),
+            (524, json!({}), Some(openresty), true),
+            (525, json!({}), None, true),
+            (526, json!({}), None, true),
+            (527, json!({}), None, true),
+            (530, json!({}), None, true),
+            (530, ggg.clone(), Some(fan), true),
+            // Its neighbours are not in the set, and no other 5xx halts
+            // without a page.
+            (519, json!({}), None, false),
+            (528, json!({}), None, false),
+            (529, json!({}), None, false),
+            (531, json!({}), None, false),
+            (500, json!({}), None, false),
+            (503, json!({}), None, false),
+            (504, json!({}), Some(""), false),
             (404, json!({}), Some(page), false),
             (429, json!({}), Some(page), false),
             (200, json!({}), Some(page), false),
@@ -1038,6 +1084,51 @@ mod tests {
             cause.ends_with("unclassified body, possibly a Cloudflare block"),
             "{cause}"
         );
+    }
+
+    /// C129 beside the tripwire: a Cloudflare 503 with the tripwire on
+    /// sets the lifetime's unreachable-origin halt and a persisted trip.
+    /// The words name the trip, which a restart keeps, and never say a
+    /// restart clears what holds; the next daemon is still halted on it.
+    #[test]
+    fn a_cloudflare_503_under_the_tripwire_is_named_by_its_trip() {
+        let path = std::env::temp_dir().join(format!(
+            "acq-rails-unreachable-trip-{}.json",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_file(&path);
+        let config = RailsConfig {
+            tripwire: true,
+            state_path: Some(path.clone()),
+            ..RailsConfig::default()
+        };
+        let headers = json!({});
+        {
+            let rails = Rails::with_config(config.clone());
+            rails.record(&SendReport {
+                headers: &headers,
+                shape: Some(BlockShape::Cloudflare),
+                unreachable: true,
+                ..report(Some(503))
+            });
+            let halted = rails.halted().expect("halted");
+            assert!(
+                halted.starts_with("halted by live-test rails: 503 on GET /character"),
+                "{halted}"
+            );
+            assert!(!halted.contains("restart"), "{halted}");
+            let status = rails.status().halted.expect("halted");
+            assert!(status.starts_with("503 on GET /character"), "{status}");
+        }
+        let next = Rails::with_config(config);
+        assert!(
+            next.halted()
+                .is_some_and(|halted| halted.contains("503 on GET /character")),
+            "the trip outlives the lifetime: {:?}",
+            next.halted()
+        );
+        drop(next);
+        let _ = std::fs::remove_file(&path);
     }
 
     #[test]
@@ -1344,6 +1435,39 @@ mod tests {
         ] {
             assert!(!lower.contains(key), "journal leaked {key}: {text}");
         }
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// A field of the state file this build does not know is a later
+    /// build's: the daemon carries it through its own writes unchanged,
+    /// as it carries the ladder's trip, and a reset keeps it.
+    #[test]
+    fn a_later_builds_field_survives_this_daemons_writes() {
+        let path =
+            std::env::temp_dir().join(format!("acq-rails-later-{}.json", std::process::id()));
+        std::fs::write(
+            &path,
+            r#"{"blocked":"Cloudflare answered in GGG's place: 403 on GET x at t","later_build_mark":{"cause":"a later halt"}}"#,
+        )
+        .unwrap();
+        let later = |path: &std::path::Path| {
+            let text = std::fs::read_to_string(path).unwrap();
+            serde_json::from_str::<Value>(&text).unwrap()["later_build_mark"].clone()
+        };
+        let rails = Rails::with_config(RailsConfig {
+            state_path: Some(path.clone()),
+            ..RailsConfig::default()
+        });
+        assert!(rails.mark_refresh_failed("A#1", "400"));
+        assert_eq!(later(&path), json!({ "cause": "a later halt" }));
+        rails.reset_tripwire();
+        assert_eq!(later(&path), json!({ "cause": "a later halt" }));
+        rails.clear_refresh_failed("A#1");
+        assert_eq!(
+            later(&path),
+            json!({ "cause": "a later halt" }),
+            "the file holds the later field alone, and is kept"
+        );
         let _ = std::fs::remove_file(&path);
     }
 

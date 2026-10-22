@@ -533,13 +533,55 @@ fn c24_the_offline_reset_clears_the_halt_and_keeps_the_dead_grant_marks() {
     assert!(out.status.success(), "{out:?}");
     assert_eq!(sole_json(&out)["cleared"], false);
     assert!(current.exists(), "the dead-grant marks keep the file");
+    assert_eq!(sole_json(&out)["unreadable"], false);
     // A file nobody can read is still the verb's to remove: the daemon
-    // refuses to start over it, naming this verb.
+    // refuses to start over it, naming this verb. The words say the file
+    // was removed unread, marks and all, never that a halt was cleared.
     std::fs::write(&current, "{corrupt").unwrap();
     let out = acq_in(base, "store", &["daemon", "reset-tripwire", "--json"], &[]);
     assert!(out.status.success(), "{out:?}");
-    assert_eq!(sole_json(&out)["cleared"], true);
+    let removed = sole_json(&out);
+    assert_eq!(removed["cleared"], true, "{removed}");
+    assert_eq!(removed["unreadable"], true, "{removed}");
     assert!(!current.exists(), "the unreadable state was not removed");
+    std::fs::write(&current, "{corrupt").unwrap();
+    let out = acq_in(base, "store", &["daemon", "reset-tripwire"], &[]);
+    assert!(out.status.success(), "{out:?}");
+    let said = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        said.contains("removed")
+            && said.contains("could not be read")
+            && said.contains("dead-grant marks")
+            && !said.contains("cleared the rails halt"),
+        "{said}"
+    );
+    assert!(!current.exists(), "the unreadable state was not removed");
+}
+
+/// C83: the offline reset holds the world lock across its read and its
+/// write, so no daemon can start between them and have its marks
+/// overwritten; while another process holds the lock, it refuses and
+/// leaves the file as it was.
+#[test]
+fn the_offline_reset_holds_the_world_lock() {
+    let scratch = scratch("rails-lock");
+    let base = &scratch.0;
+    let current = base.join("store").join("mock").join("rails.json");
+    std::fs::create_dir_all(current.parent().unwrap()).unwrap();
+    let staged = r#"{"tripped":"429 on GET /stash/Standard"}"#;
+    std::fs::write(&current, staged).unwrap();
+    let world = acquisition_store::world::World::at(&base.join("store")).unwrap();
+    let held = acquisition_store::world::Lock::acquire(&world.lock_path()).unwrap();
+    let out = acq_in(base, "store", &["daemon", "reset-tripwire", "--json"], &[]);
+    assert_eq!(out.status.code(), Some(1), "{out:?}");
+    let msg = sole_json(&out)["error"].as_str().unwrap().to_string();
+    assert!(msg.contains("held by another process"), "{msg}");
+    assert_eq!(std::fs::read_to_string(&current).unwrap(), staged);
+    drop(held);
+    let out = acq_in(base, "store", &["daemon", "reset-tripwire", "--json"], &[]);
+    assert!(out.status.success(), "{out:?}");
+    assert_eq!(sole_json(&out)["cleared"], true);
+    assert!(!current.exists());
 }
 
 /// The halt's advice follows its kind: a tripwire's persists in the world

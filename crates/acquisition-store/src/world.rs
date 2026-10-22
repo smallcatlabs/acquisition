@@ -809,6 +809,10 @@ impl Lock {
 /// - `refresh_failed_by_account`, the dead-grant marks (C24), which
 ///   persist across restarts and clear on login or logout, never on a
 ///   reset.
+///
+/// A field this build does not know is a later build's owner: it is
+/// carried in [`RailsState::unknown`] and written back unchanged, so an
+/// older daemon or reset never erases it.
 #[derive(Debug, Default, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct RailsState {
     #[serde(default)]
@@ -817,9 +821,13 @@ pub struct RailsState {
     #[serde(default)]
     pub blocked: Option<String>,
     /// Per account (username → cause). The pre-multi-account file had one
-    /// `refresh_failed` string; it is ignored on load (one re-login).
+    /// `refresh_failed` string; it is honoured by no daemon (one re-login)
+    /// and carried with the unknown fields.
     #[serde(default)]
     pub refresh_failed_by_account: std::collections::HashMap<String, String>,
+    /// Every field this build does not know, kept for the build that does.
+    #[serde(flatten)]
+    pub unknown: std::collections::BTreeMap<String, serde_json::Value>,
 }
 
 impl RailsState {
@@ -828,6 +836,7 @@ impl RailsState {
         self.tripped.is_none()
             && self.blocked.is_none()
             && self.refresh_failed_by_account.is_empty()
+            && self.unknown.is_empty()
     }
 
     /// What `reset-tripwire` clears, on either path: the trip and the
@@ -841,7 +850,10 @@ impl RailsState {
     }
 
     /// Write the state to `path`, or remove the file when it holds
-    /// nothing.
+    /// nothing. The write is atomic: the whole text goes to a file beside
+    /// it, is flushed to disk, and is renamed over it, so a crash leaves
+    /// the old state or the new, never a torn one the next daemon refuses
+    /// to start over (and the reset would remove, marks and all).
     pub fn write(&self, path: &Path) -> std::io::Result<()> {
         if self.holds_nothing() {
             return match std::fs::remove_file(path) {
@@ -850,7 +862,19 @@ impl RailsState {
             };
         }
         let text = serde_json::to_string(self).map_err(std::io::Error::other)?;
-        std::fs::write(path, text)
+        let mut partial = path.as_os_str().to_owned();
+        partial.push(".partial");
+        let partial = PathBuf::from(partial);
+        let written = (|| {
+            let mut file = std::fs::File::create(&partial)?;
+            file.write_all(text.as_bytes())?;
+            file.sync_all()?;
+            std::fs::rename(&partial, path)
+        })();
+        if written.is_err() {
+            let _ = std::fs::remove_file(&partial);
+        }
+        written
     }
 }
 
@@ -1136,6 +1160,54 @@ mod tests {
                 "{err}"
             );
         }
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// The rails state's fields are three owners'; a field this build
+    /// does not know is a later build's, and survives a read, a reset and
+    /// a write unchanged. A file holding only such a field is kept. The
+    /// write leaves nothing beside the file (its partial is renamed).
+    #[test]
+    fn the_rails_state_keeps_a_later_builds_fields() {
+        let base = scratch("rails-unknown");
+        std::fs::create_dir_all(&base).unwrap();
+        let path = base.join("rails.json");
+        let later = r#"{"since":"2027-01-01","cause":"a later halt"}"#;
+        std::fs::write(
+            &path,
+            format!(
+                r#"{{"tripped":"429 on GET /x","later_build_mark":{later},"refresh_failed_by_account":{{"A#1":"400"}}}}"#
+            ),
+        )
+        .unwrap();
+        let mut held: RailsState =
+            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert!(held.reset(), "the trip was cleared");
+        held.write(&path).unwrap();
+        let text = std::fs::read_to_string(&path).unwrap();
+        let written: serde_json::Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(
+            written["later_build_mark"],
+            serde_json::from_str::<serde_json::Value>(later).unwrap(),
+            "{text}"
+        );
+        assert_eq!(written["refresh_failed_by_account"]["A#1"], "400", "{text}");
+        assert!(written["tripped"].is_null(), "{text}");
+
+        let only_later = RailsState {
+            unknown: [("later_build_mark".to_string(), serde_json::json!(1))].into(),
+            ..RailsState::default()
+        };
+        assert!(!only_later.holds_nothing());
+        only_later.write(&path).unwrap();
+        let reread: RailsState =
+            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(reread, only_later);
+        let beside: Vec<_> = std::fs::read_dir(&base)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name())
+            .collect();
+        assert_eq!(beside, ["rails.json"], "no partial left beside the file");
         let _ = std::fs::remove_dir_all(&base);
     }
 }

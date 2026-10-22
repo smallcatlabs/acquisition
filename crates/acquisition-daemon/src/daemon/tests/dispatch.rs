@@ -971,17 +971,34 @@ async fn ggg_4xx_answers_are_not_cloudflare_blocks() {
 /// lifetime: a sibling submitted after it lands stays waiting. The halt
 /// is the lifetime's and leaves no mark, so a `Rails` rebuilt from the
 /// same state file is clear; `reset-tripwire` lifts it here, and the
-/// sibling goes out. Two statuses: the 522 Cloudflare names for an origin
-/// it cannot reach, and a 503 carrying Cloudflare's page.
+/// sibling goes out. The 522 Cloudflare names for an origin it cannot
+/// reach, with its page and with no body at all, and a 530, halt on
+/// their status alone; a 503 halts by carrying Cloudflare's page.
 #[tokio::test]
 async fn a_cloudflare_5xx_halts_this_lifetime_and_leaves_no_mark() {
     let cloudflare_503 = ScriptedResponse {
         status: "503 Service Unavailable",
         ..ScriptedResponse::cloudflare_522()
     };
-    for (name, unreachable, status) in [
-        ("522", ScriptedResponse::cloudflare_522(), 522),
-        ("503 with Cloudflare's page", cloudflare_503, 503),
+    let empty_522 = ScriptedResponse {
+        body: String::new(),
+        ..ScriptedResponse::cloudflare_522()
+    };
+    let empty_530 = ScriptedResponse {
+        status: "530 Origin Unreachable",
+        body: String::new(),
+        ..ScriptedResponse::cloudflare_522()
+    };
+    for (name, unreachable, status, shape) in [
+        ("522", ScriptedResponse::cloudflare_522(), 522, "cloudflare"),
+        (
+            "503 with Cloudflare's page",
+            cloudflare_503,
+            503,
+            "cloudflare",
+        ),
+        ("522 with no body", empty_522, 522, "unclassified"),
+        ("530 with no body", empty_530, 530, "unclassified"),
     ] {
         let responses = vec![
             ScriptedResponse::full("HEAD", "204 No Content", None, ""),
@@ -1019,6 +1036,10 @@ async fn a_cloudflare_5xx_halts_this_lifetime_and_leaves_no_mark() {
             error.contains("Cloudflare could not reach GGG"),
             "{name}: {error}"
         );
+        assert!(
+            !error.contains("Ray ID") && !error.contains("DOCTYPE"),
+            "{name}: Cloudflare's page is no word of GGG's: {error}"
+        );
 
         // Submitted only after the 5xx landed (the gate is two wide).
         let second = daemon
@@ -1053,7 +1074,7 @@ async fn a_cloudflare_5xx_halts_this_lifetime_and_leaves_no_mark() {
         let sends = journal_sends(&log_path);
         assert_eq!(sends.len(), 2, "{name}: {sends:?}");
         assert_eq!(sends[1]["status"], status, "{name}");
-        assert_eq!(sends[1]["shape"], "cloudflare", "{name}: {}", sends[1]);
+        assert_eq!(sends[1]["shape"], shape, "{name}: {}", sends[1]);
 
         // The lifetime's alone: a later daemon starts clear.
         let rebuilt = Rails::with_config(RailsConfig {

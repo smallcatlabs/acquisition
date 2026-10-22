@@ -869,6 +869,18 @@ impl Daemon {
             let retry_after = response.retry_after;
             let path = url_path(url);
             self.log(&format!("GET {path} -> {status} | rate headers: {rate}"));
+            if response.verdict.is_some_and(|verdict| verdict.unreachable) {
+                // C129: the choke point has halted this lifetime. The job
+                // fails in the halt's words, true of whatever else it
+                // holds (a tripwire's trip beside it outlives a restart),
+                // and Cloudflare's page is no word of GGG's to quote.
+                return Err(unreachable_failure(
+                    &path,
+                    status,
+                    &rate,
+                    self.choke.rails().halted(),
+                ));
+            }
             let classified = classify_api_body(
                 status,
                 &retry_after,
@@ -980,6 +992,27 @@ fn fan_out_stopped(cancelled: bool, submitted: usize, why: &str) -> Outcome {
     }
 }
 
+/// C129: a GET Cloudflare answered for an origin it could not reach. The
+/// status and the rate headers are the evidence, never the body (the
+/// page is Cloudflare's); `halt` is the rails' own words when the daemon
+/// has them, else the unreachable halt's remedy.
+fn unreachable_failure(
+    path: &str,
+    status: reqwest::StatusCode,
+    rate: &Value,
+    halt: Option<String>,
+) -> ApiError {
+    let halt = halt.unwrap_or_else(|| {
+        format!(
+            "Cloudflare could not reach GGG: {}",
+            crate::rails::UNREACHABLE_REMEDY
+        )
+    });
+    ApiError::Other(format!(
+        "GET {path} returned {status}; rate headers {rate} — NOT retrying; {halt}"
+    ))
+}
+
 /// A response's outcome for its job. `verdict` is the choke point's
 /// judgement of a non-2xx (C129): a block is terminal and never re-queued,
 /// whatever its `Retry-After`, and its shape is read from the whole body,
@@ -1009,10 +1042,7 @@ pub(super) fn classify_api_body(
                 "{evidence} — Cloudflare answered in GGG's place; NOT retrying, and {}",
                 crate::rails::BLOCK_REMEDY
             )),
-            _ if unreachable => ApiError::Other(format!(
-                "{evidence} — Cloudflare could not reach GGG; NOT retrying, and {}",
-                crate::rails::UNREACHABLE_REMEDY
-            )),
+            _ if unreachable => unreachable_failure(path, status, &rate, None),
             429 if retry_after.is_acceptable() => ApiError::RateLimited(evidence),
             429 => ApiError::Other(format!(
                 "terminal rate limit: {evidence}; {retry_after}; NOT retrying"

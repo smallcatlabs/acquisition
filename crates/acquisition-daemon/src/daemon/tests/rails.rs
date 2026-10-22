@@ -370,3 +370,153 @@ async fn a_ceiling_of_none_leaves_the_job_waiting() {
     finish_harness(dispatcher, &log_path);
     remove_db(&db);
 }
+
+/// C129 on HEAD: a status only Cloudflare sends is the evidence, so a
+/// probe answered 522 with no body (a HEAD has none) halts this daemon
+/// lifetime as a GET's would; nothing more goes out, and no mark is left.
+/// Like a blocked probe it is no probe failure (C25: nothing fails for
+/// want of a send): the route learns nothing and is not degraded, and
+/// the job waits. After `reset-tripwire` the route is probed afresh and
+/// the job goes out.
+#[tokio::test]
+async fn a_head_522_halts_this_lifetime() {
+    let (base, requests, server) = scripted_server(vec![
+        ScriptedResponse {
+            method: "HEAD",
+            body: String::new(),
+            ..ScriptedResponse::cloudflare_522()
+        },
+        ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+        ScriptedResponse::full("GET", "200 OK", None, r#"{"items":["after"]}"#),
+    ])
+    .await;
+    let clock = Arc::new(ManualClock::new());
+    let (daemon, log_path) = test_daemon(&base, clock);
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    let id = daemon
+        .submit("fetch".into(), json!({}), 0, "test".into(), None)
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(3), async {
+        while daemon.choke.rails().halted().is_none() {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("the HEAD 522 halted the daemon");
+    // Long enough for a second probe or a GET, were either admitted.
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    let halt = daemon.choke.rails().halted().unwrap();
+    assert!(
+        halt.contains("Cloudflare could not reach GGG: 522 on HEAD fetch at 2000-01-01T"),
+        "{halt}"
+    );
+    assert!(halt.contains("this daemon lifetime"), "{halt}");
+    assert_eq!(requests.lock().unwrap().as_slice(), ["HEAD"]);
+    let sends = journal_sends(&log_path);
+    assert_eq!(sends.len(), 1, "{sends:?}");
+    assert_eq!(sends[0]["status"], 522);
+    assert_eq!(
+        daemon.shared.lock().unwrap().jobs[&id].info.state,
+        JobState::Waiting,
+        "the job waits on the halt"
+    );
+    assert_eq!(
+        daemon.choke.endpoint_state("fetch"),
+        EndpointState::Unknown,
+        "Cloudflare's 5xx teaches the route nothing"
+    );
+
+    daemon.reset_rails();
+    let (info, _) = wait_terminal(&daemon, id).await;
+    assert_eq!(info.state, JobState::Done, "{info:?}");
+    assert_eq!(info.retries, 0, "{info:?}");
+    assert_eq!(requests.lock().unwrap().as_slice(), ["HEAD", "HEAD", "GET"]);
+    server.await.unwrap();
+    finish_harness_wire(dispatcher, &log_path, &requests);
+}
+
+/// C129 on the token route: a token POST answered by Cloudflare's 522
+/// refuses in the halt's own words, quoting none of Cloudflare's page
+/// (it is no word of GGG's on the grant), marks no dead grant, and the
+/// next ask is refused by the halt without a send.
+#[tokio::test]
+async fn a_token_522_refuses_in_the_halts_words() {
+    let (base, requests, server) = scripted_server(vec![ScriptedResponse {
+        method: "POST",
+        path: "/token",
+        ..ScriptedResponse::cloudflare_522()
+    }])
+    .await;
+    let clock = Arc::new(ManualClock::new());
+    let (mut daemon, log_path) =
+        test_daemon_with(Provider::mock(&base), clock, RailsConfig::default());
+    let rails = daemon.choke.rails().clone();
+    logged_in(&mut daemon);
+
+    let refusal = daemon.valid_access_token(None, false).await.unwrap_err();
+    assert_eq!(refusal.kind, ErrorKind::Upstream, "{refusal}");
+    let halt = rails.halted().expect("the 522 halted this lifetime");
+    assert!(
+        halt.contains("Cloudflare could not reach GGG: 522 on POST oauth-token"),
+        "{halt}"
+    );
+    assert!(
+        refusal.message.contains(&halt),
+        "the halt's words, {halt:?}: {refusal}"
+    );
+    for page in ["Ray ID", "Connection timed out", "DOCTYPE", "unable to"] {
+        assert!(!refusal.message.contains(page), "{page}: {refusal}");
+    }
+    assert!(!refusal.message.contains("acq auth"), "{refusal}");
+    assert_eq!(rails.refresh_failed("test-user"), None, "no dead grant");
+
+    let second = daemon.valid_access_token(None, false).await.unwrap_err();
+    assert_eq!(second.kind, ErrorKind::Upstream, "{second}");
+    assert!(second.message.contains(&halt), "{second}");
+    server.await.unwrap();
+    assert_eq!(requests.lock().unwrap().as_slice(), ["POST"]);
+    assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
+    finish_harness(None, &log_path);
+}
+
+/// C129 beside the tripwire: a GET answered by a 503 carrying
+/// Cloudflare's page halts this lifetime and trips the persisted
+/// tripwire. The job's failure speaks in the halt's words, which name
+/// the trip a restart keeps, never "a restart clears it", and quotes
+/// none of Cloudflare's page.
+#[tokio::test]
+async fn a_cloudflare_503_job_names_the_trip_and_quotes_no_page() {
+    let (base, requests, server) = scripted_server(vec![
+        ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+        ScriptedResponse {
+            status: "503 Service Unavailable",
+            ..ScriptedResponse::cloudflare_522()
+        },
+    ])
+    .await;
+    let clock = Arc::new(ManualClock::new());
+    let (daemon, log_path) = test_daemon_with(Provider::mock(&base), clock, tripwire_config());
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    let id = daemon
+        .submit("fetch".into(), json!({}), 0, "test".into(), None)
+        .unwrap();
+    let (info, outcome) = wait_terminal(&daemon, id).await;
+    assert_eq!(info.state, JobState::Failed, "{info:?}");
+    let Outcome::Failure { error, .. } = outcome else {
+        panic!("the 503 did not fail its job")
+    };
+    let halt = daemon.choke.rails().halted().expect("halted");
+    assert!(
+        halt.starts_with("halted by live-test rails: 503 on GET /fetch"),
+        "{halt}"
+    );
+    assert!(error.contains(&halt), "the halt's words, {halt:?}: {error}");
+    assert!(!error.contains("restart"), "{error}");
+    for page in ["Ray ID", "Connection timed out", "DOCTYPE", "unable to"] {
+        assert!(!error.contains(page), "{page}: {error}");
+    }
+    assert_eq!(requests.lock().unwrap().as_slice(), ["HEAD", "GET"]);
+    server.await.unwrap();
+    finish_harness_wire(dispatcher, &log_path, &requests);
+}

@@ -166,6 +166,24 @@ async fn token_request(
             ),
         });
     }
+    if response.verdict.is_some_and(|verdict| verdict.unreachable) {
+        // C129: the choke point has halted this lifetime. Cloudflare's
+        // page says nothing of GGG's, so it is not shown either; the words
+        // are the halt's own, true of whatever else it holds (a tripwire's
+        // trip beside it outlives a restart). GGG never saw the request,
+        // so the job that asked waits for the reset, as under a block (C25).
+        return Err(TokenError {
+            status: Some(status.as_u16()),
+            blocked: false,
+            halted: true,
+            message: choke.rails().halted().unwrap_or_else(|| {
+                format!(
+                    "Cloudflare could not reach GGG at the token endpoint ({status}): {}",
+                    crate::rails::UNREACHABLE_REMEDY
+                )
+            }),
+        });
+    }
     if !status.is_success() {
         let rate = response.rate;
         let body = response

@@ -556,18 +556,22 @@ impl ChokePoint {
             Err(error) => Err(format!("HEAD failed: {error}")),
         };
         // C129: a HEAD has no body, so no page marker counts here; only
-        // `cf-mitigated`, or a 429 with no policy header, makes a block.
-        // A 403 without `cf-mitigated` (`/profile`'s HEAD, N38) is no
+        // `cf-mitigated`, or a 429 with no policy header, makes a block,
+        // and only a status of Cloudflare's own 5xx set halts the lifetime;
+        // neither is a probe failure. A 403 without `cf-mitigated` (`/profile`'s HEAD, N38) is no
         // block and degrades the route as any failed probe does.
         let verdict = completed.as_ref().ok().and_then(|(status, _)| {
             (!status.is_success()).then(|| Verdict::of(status.as_u16(), &headers, None))
         });
         let blocked = verdict.is_some_and(|verdict| verdict.block);
+        // Cloudflare's 5xx for an origin it could not reach is no answer
+        // of GGG's either, and halts as a block does (C129, C25).
+        let unreachable = verdict.is_some_and(|verdict| verdict.unreachable);
         let now = self.now();
-        if blocked {
+        if blocked || unreachable {
             // No probe failure: the route learns no policy and is not
             // degraded from an answer that was not GGG's, so the jobs
-            // waiting on it stay waiting under the mark, and after
+            // waiting on it stay waiting under the halt, and after
             // `reset-tripwire` the route is probed afresh. A blocked 429
             // still holds the route for its `Retry-After`, as a blocked
             // GET's does.
@@ -614,16 +618,20 @@ impl ChokePoint {
             wait,
         );
         let status = completed.as_ref().ok().map(|(status, _)| status.as_u16());
-        if blocked {
-            // The mark is set (`record_completed` above); a block is no
-            // rejection of the bearer either.
+        if blocked || unreachable {
+            // The halt is set (`record_completed` above); Cloudflare's
+            // answer is no rejection of the bearer either.
             return Err(ProbeError::Failed {
                 status,
                 halted: true,
-                reason: self
-                    .rails
-                    .halted()
-                    .unwrap_or_else(|| "Cloudflare answered in GGG's place".to_string()),
+                reason: self.rails.halted().unwrap_or_else(|| {
+                    if blocked {
+                        "Cloudflare answered in GGG's place"
+                    } else {
+                        "Cloudflare could not reach GGG"
+                    }
+                    .to_string()
+                }),
             });
         }
         // A rejection is published while this permit is still held (C87),

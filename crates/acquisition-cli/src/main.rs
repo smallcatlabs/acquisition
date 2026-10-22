@@ -21,7 +21,7 @@ use acquisition_protocol::job::{JobInfo, JobState, Outcome};
 use acquisition_protocol::protocol::{ErrorKind, Request, Response};
 use acquisition_protocol::provider::GGG;
 use acquisition_protocol::realm::Realm;
-use acquisition_store::world::{RailsState, World};
+use acquisition_store::world::{Lock, RailsState, World};
 use acquisition_verbs::jobs::{job_info, result_live};
 use acquisition_verbs::{
     Account, ChildTally, DaemonReport, FailedChild, Fault, Frontend, Job, JobResult, Jobs, Progress,
@@ -1606,14 +1606,29 @@ async fn run(cli: Cli) -> Result<()> {
                         // marks kept (C24), in the store's one format
                         // (`RailsState`; C1, no frontend links the daemon).
                         let provider = acquisition_protocol::provider::wanted();
-                        let candidates: Vec<std::path::PathBuf> = World::observe()
+                        let world = World::observe().ok();
+                        // The world lock (C83), held across the read and
+                        // the write: no daemon can start between them,
+                        // load the state and have its marks overwritten.
+                        // Taken, it is also the proof no daemon runs here.
+                        let _lock = match &world {
+                            Some(world) => Some(Lock::acquire(&world.lock_path()).map_err(|e| {
+                                anyhow::anyhow!(
+                                    "a daemon took this world while the reset ran: {e}; `acq daemon reset-tripwire` again asks it"
+                                )
+                            })?),
+                            None => None,
+                        };
+                        let candidates: Vec<std::path::PathBuf> = world
                             .map(|world| vec![world.rails_state_path(provider)])
                             .unwrap_or_default();
                         // A file it cannot read, or an empty directory in a
                         // file's place, is removed (the daemon refuses to
                         // start over either shape, and names this verb as
                         // the remedy); anything else is named for the hand.
-                        let mut cleared = Vec::new();
+                        // Each entry: the path, and whether it was removed
+                        // unread rather than reset.
+                        let mut cleared: Vec<(std::path::PathBuf, bool)> = Vec::new();
                         for state in &candidates {
                             let removed = match std::fs::symlink_metadata(state) {
                                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
@@ -1628,20 +1643,22 @@ async fn run(cli: Cli) -> Result<()> {
                                         if !held.reset() {
                                             continue;
                                         }
-                                        held.write(state)
+                                        held.write(state).map(|()| false)
                                     }
-                                    None => std::fs::remove_file(state),
+                                    None => std::fs::remove_file(state).map(|()| true),
                                 },
-                                Ok(meta) if meta.is_dir() => std::fs::remove_dir(state).map_err(|e| {
-                                    std::io::Error::new(
-                                        e.kind(),
-                                        format!("it is a directory that is not empty ({e}); remove it by hand"),
-                                    )
-                                }),
-                                Ok(_) => std::fs::remove_file(state),
+                                Ok(meta) if meta.is_dir() => std::fs::remove_dir(state)
+                                    .map(|()| true)
+                                    .map_err(|e| {
+                                        std::io::Error::new(
+                                            e.kind(),
+                                            format!("it is a directory that is not empty ({e}); remove it by hand"),
+                                        )
+                                    }),
+                                Ok(_) => std::fs::remove_file(state).map(|()| true),
                             };
                             match removed {
-                                Ok(()) => cleared.push(state.clone()),
+                                Ok(unread) => cleared.push((state.clone(), unread)),
                                 Err(e) => bail!(
                                     "daemon is not running; could not clear {}: {e}",
                                     state.display()
@@ -1649,18 +1666,30 @@ async fn run(cli: Cli) -> Result<()> {
                             }
                         }
                         if cli.json {
+                            let first = cleared.first();
                             println!(
                                 "{}",
-                                json!({ "cleared": !cleared.is_empty(), "state": cleared.first() })
+                                json!({
+                                    "cleared": !cleared.is_empty(),
+                                    "state": first.map(|(state, _)| state),
+                                    "unreadable": first.is_some_and(|(_, unread)| *unread),
+                                })
                             );
                         } else if cleared.is_empty() {
                             println!("daemon is not running and no rails halt is persisted");
                         } else {
-                            for state in cleared {
-                                println!(
-                                    "daemon is not running; cleared the rails halt persisted in {} (the next daemon's next send goes to GGG)",
-                                    state.display()
-                                );
+                            for (state, unread) in cleared {
+                                if unread {
+                                    println!(
+                                        "daemon is not running; removed {}, which could not be read as rails state: whatever it held is gone, a halt or dead-grant marks alike (the next daemon starts clear)",
+                                        state.display()
+                                    );
+                                } else {
+                                    println!(
+                                        "daemon is not running; cleared the rails halt persisted in {} (the next daemon's next send goes to GGG)",
+                                        state.display()
+                                    );
+                                }
                             }
                         }
                     }
