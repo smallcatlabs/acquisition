@@ -808,9 +808,23 @@ pub fn login(acq: &Path, base: &Path, user: Option<&str>, env: &[(&str, &str)]) 
         .spawn()
         .expect("spawning acq auth");
     let mut lines = std::io::BufReader::new(child.stdout.take().unwrap()).lines();
-    let first: Value = serde_json::from_str(&lines.next().unwrap().unwrap()).unwrap();
-    let authorize = first["authorize_url"].as_str().expect("authorize_url");
-    approve(authorize, user);
+    // What the login printed first, said whole when it is not the URL: a
+    // cold-start failure carries its evidence. The child's stderr is
+    // inherited, so it is in the test's own output beside this.
+    let said = match lines.next() {
+        Some(Ok(line)) => line,
+        Some(Err(e)) => format!("<stdout unreadable: {e}>"),
+        None => "<stdout closed before a line>".to_string(),
+    };
+    let authorize = serde_json::from_str::<Value>(&said)
+        .ok()
+        .and_then(|first| first["authorize_url"].as_str().map(str::to_string))
+        .unwrap_or_else(|| {
+            panic!(
+                "`acq auth --no-browser --json` printed no authorize_url first; its first stdout line: {said:?}"
+            )
+        });
+    approve(&authorize, user);
     assert!(child.wait().unwrap().success(), "login did not complete");
 }
 
