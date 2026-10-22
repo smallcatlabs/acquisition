@@ -530,6 +530,88 @@ async fn c127_a_row_that_renders_no_url_fails_before_any_refresh() {
     finish_harness_wire(dispatcher, &log_path, &requests);
 }
 
+/// C127 (the door judges every param that shapes a send): a client's
+/// `refresh` that selects nothing (no `all` true, no tab id in `tabs`) is
+/// refused at submit, before a job id exists. It would still render a
+/// URL, so on a route never probed, with the session's refresh due, an
+/// admitted one queued a HEAD probe that spent a token before the job
+/// failed. The journal equals the wire, both empty.
+#[tokio::test]
+async fn c127_a_refresh_that_selects_nothing_is_refused_at_submit() {
+    let (base, requests, server) = token_server_answering(vec![]).await;
+    let (mut daemon, log_path) = test_daemon(&base, Arc::new(ManualClock::new()));
+    logged_in(&mut daemon);
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    for params in [
+        json!({ "league": "Standard" }),
+        json!({ "league": "Standard", "all": false, "tabs": [] }),
+        json!({ "league": "Standard", "all": "true" }),
+        json!({ "league": "Standard", "tabs": [1, 2] }),
+        json!({ "league": "Standard", "tabs": "t1" }),
+    ] {
+        let what = format!("refresh {params}");
+        let response = client_submit(&daemon, "refresh", params, Some("test-user")).await;
+        assert_refused(
+            response,
+            &what,
+            &[
+                "refresh needs a selection",
+                "`all` true",
+                "`tabs`",
+                "tab id",
+            ],
+        );
+        assert_nothing_admitted(&daemon, &what);
+    }
+    for _ in 0..50 {
+        tokio::task::yield_now().await;
+    }
+    server.abort();
+    assert!(
+        requests.lock().unwrap().is_empty(),
+        "the token server saw no request"
+    );
+    finish_harness_wire(dispatcher, &log_path, &requests);
+}
+
+/// C127 (a row that renders no URL spends no token), for `characters`:
+/// its one no-URL case is a realm the daemon's own submit refuses, so the
+/// handler is called directly, on a session whose refresh is due. It fails
+/// in the door's words, and the journal equals the wire, both empty.
+#[tokio::test]
+async fn c127_a_characters_row_that_renders_no_url_fails_before_any_refresh() {
+    let (base, requests, server) = token_server_answering(vec![]).await;
+    let (mut daemon, log_path) = test_daemon(&base, Arc::new(ManualClock::new()));
+    logged_in(&mut daemon);
+    let params = json!({ "realm": "nope" });
+    let said = admit_realm("characters", &params)
+        .expect_err("the door refuses the realm")
+        .message;
+    let outcome = daemon
+        .execute_inner(
+            9,
+            "characters",
+            params,
+            None,
+            Some("test-user"),
+            daemon.choke.now(),
+        )
+        .await
+        .unwrap_or_else(|e| panic!("characters: {e:?}"));
+    let Outcome::Failure { error, .. } = &outcome else {
+        panic!("characters with realm \"nope\": {outcome:?}")
+    };
+    assert_eq!(error, &said, "the failure is the door's words");
+    assert!(error.contains("nope"), "{error}");
+    server.abort();
+    assert!(
+        requests.lock().unwrap().is_empty(),
+        "the token server saw no request"
+    );
+    assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
+    finish_harness(None, &log_path);
+}
+
 /// C127 (no legitimate value is refused or changed): realistic league,
 /// character, stash and substash values on every realm a family takes,
 /// each run through `route_for` and then `url::Url::parse` (what reqwest

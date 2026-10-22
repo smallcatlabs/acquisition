@@ -434,20 +434,13 @@ impl Daemon {
                     .unwrap_or("Standard")
                     .to_string();
                 let deep = params.get("deep").and_then(Value::as_bool).unwrap_or(false);
-                let all = params.get("all").and_then(Value::as_bool).unwrap_or(false);
-                let wanted: Vec<String> = params
-                    .get("tabs")
-                    .and_then(Value::as_array)
-                    .map(|a| {
-                        a.iter()
-                            .filter_map(Value::as_str)
-                            .map(str::to_string)
-                            .collect()
-                    })
-                    .unwrap_or_default();
-                if !all && wanted.is_empty() {
-                    return Ok(Outcome::failure("refresh needs --all or --tabs <id,...>"));
-                }
+                // The door refused a refresh that selects nothing (C127);
+                // a restored row from an older build fails here in its
+                // words, before it renders or authenticates.
+                let (all, wanted) = match refresh_selection(&params) {
+                    Ok(selection) => selection,
+                    Err(words) => return Ok(Outcome::failure(words)),
+                };
                 let realm = Realm::from_params(&params).unwrap_or(Realm::DEFAULT);
                 let (url, auth, _) =
                     match self.render_then_authenticate(kind, &params, account).await {

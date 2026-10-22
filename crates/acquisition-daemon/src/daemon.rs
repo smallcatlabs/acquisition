@@ -168,7 +168,7 @@ use endpoint::{BoundSocket, Listener, Stream};
 use kinds::{ApiError, validate_apply};
 use queue::{
     APPLY_MAX_ACTIONS, admit_client, admit_realm, admit_segments, bounded_message, check_sleep,
-    client_kinds, describe, describe_str,
+    client_kinds, describe, describe_str, refresh_selection,
 };
 use refresh::AccessTokenResult;
 use routes::why_no_url;
