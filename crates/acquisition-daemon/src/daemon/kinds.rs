@@ -35,12 +35,22 @@ pub(super) enum ApiError {
 /// the token asks again), and it concludes cancelled; any other fails it
 /// in the refusal's words.
 fn refused(refusal: Refusal) -> Result<Outcome, ApiError> {
+    turned_away(refusal, |message| Ok(Outcome::failure(message)))
+}
+
+/// [`refused`]'s split, with what any other refusal becomes given by the
+/// caller: the one place a refusal is turned into cancelled, halted or a
+/// failure.
+fn turned_away<T>(
+    refusal: Refusal,
+    failed: impl FnOnce(String) -> Result<T, ApiError>,
+) -> Result<T, ApiError> {
     if refusal.cancelled {
         Err(ApiError::Cancelled)
     } else if refusal.halted {
         Err(ApiError::Halted(refusal.message))
     } else {
-        Ok(Outcome::failure(refusal.message))
+        failed(refusal.message)
     }
 }
 
@@ -702,13 +712,14 @@ impl Daemon {
                         Ok(pair) => Some(pair),
                         // C25: a halt closes nothing; the probe waits too,
                         // and a cancel closes nothing either.
-                        Err(error) if error.cancelled => return Err(ApiError::Cancelled),
-                        Err(error) if error.halted => return Err(ApiError::Halted(error.message)),
                         Err(error) => {
-                            // Close the endpoint too, or the waiting job would
-                            // just ask for another probe; login reopens it.
-                            self.choke.degrade(&route, &error.message);
-                            return Ok(Outcome::failure(error.message));
+                            return turned_away(error, |message| {
+                                // Close the endpoint too, or the waiting job
+                                // would just ask for another probe; login
+                                // reopens it.
+                                self.choke.degrade(&route, &message);
+                                Ok(Outcome::failure(message))
+                            });
                         }
                     }
                 } else {
@@ -748,13 +759,11 @@ impl Daemon {
                                 .await
                             {
                                 Ok(pair) => session = Some(pair),
-                                Err(error) if error.cancelled => return Err(ApiError::Cancelled),
-                                Err(error) if error.halted => {
-                                    return Err(ApiError::Halted(error.message));
-                                }
                                 Err(error) => {
-                                    self.choke.degrade(&route, &error.message);
-                                    return Ok(Outcome::failure(error.message));
+                                    return turned_away(error, |message| {
+                                        self.choke.degrade(&route, &message);
+                                        Ok(Outcome::failure(message))
+                                    });
                                 }
                             }
                         }
@@ -867,14 +876,9 @@ impl Daemon {
                             auth = Auth::Session { token, username };
                             continue;
                         }
-                        Err(refusal) if refusal.cancelled => return Err(ApiError::Cancelled),
-                        Err(refusal) => {
-                            let message = format!("GET {}: {}", url_path(url), refusal.message);
-                            return Err(if refusal.halted {
-                                ApiError::Halted(message)
-                            } else {
-                                ApiError::Other(message)
-                            });
+                        Err(mut refusal) => {
+                            refusal.message = format!("GET {}: {}", url_path(url), refusal.message);
+                            return turned_away(refusal, |message| Err(ApiError::Other(message)));
                         }
                     }
                 }
