@@ -359,8 +359,10 @@ fn parse_state(header: &str, raw: &str) -> Result<Vec<WindowState>, PolicyParseE
 /// snapshot keeps plus the ones that say *who* answered (Cloudflare or the
 /// origin) and *what* it sent. A HEAD has no body, so for a probe these
 /// headers are the only evidence a failure leaves. Never `set-cookie`.
+/// A 3xx's `location` is kept with its query and fragment reduced (C130).
 pub fn response_headers_snapshot(headers: &reqwest::header::HeaderMap) -> serde_json::Value {
     const KEEP: &[&str] = &[
+        "location",
         "retry-after",
         "cf-ray",
         "cf-cache-status",
@@ -376,10 +378,50 @@ pub fn response_headers_snapshot(headers: &reqwest::header::HeaderMap) -> serde_
     for (name, value) in headers {
         let name = name.as_str();
         if name.starts_with("x-rate-limit") || KEEP.contains(&name) {
-            map.insert(name.into(), value.to_str().unwrap_or("<non-utf8>").into());
+            let value = value.to_str().unwrap_or("<non-utf8>");
+            let value = if name == "location" {
+                redacted_location(value)
+            } else {
+                value.to_string()
+            };
+            map.insert(name.into(), value.into());
         }
     }
     serde_json::Value::Object(map)
+}
+
+/// A `Location` as the journal may keep it (C130): scheme, host, port and
+/// path. A code or a token can ride a query or a fragment, so each is
+/// replaced by a mark that says one was there; user information is
+/// dropped. A relative reference keeps its path the same way.
+pub(crate) fn redacted_location(location: &str) -> String {
+    let marks = |query: bool, fragment: bool| {
+        format!(
+            "{}{}",
+            if query { "?…" } else { "" },
+            if fragment { "#…" } else { "" }
+        )
+    };
+    if let Ok(url) = url::Url::parse(location) {
+        let host = url.host_str().unwrap_or("");
+        let port = url
+            .port()
+            .map(|port| format!(":{port}"))
+            .unwrap_or_default();
+        return format!(
+            "{}://{host}{port}{}{}",
+            url.scheme(),
+            url.path(),
+            marks(url.query().is_some(), url.fragment().is_some())
+        );
+    }
+    let end = location.find(['?', '#']).unwrap_or(location.len());
+    let tail = &location[end..];
+    format!(
+        "{}{}",
+        &location[..end],
+        marks(tail.starts_with('?'), tail.contains('#'))
+    )
 }
 
 /// The `X-Rate-Limit-*` (+ `Retry-After`) headers as a JSON object, for

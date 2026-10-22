@@ -1777,6 +1777,196 @@ async fn complete_malformed_200_is_protocol() {
     server.await.unwrap();
 }
 
+/// A server that answers its first request with what `first` builds from
+/// its base URL and every later one with a 200 carrying full policy
+/// headers, counting the requests that reach it. Every answer closes its
+/// connection, so a followed redirect is a new connection and is counted.
+async fn counting_server(
+    first: impl FnOnce(&str) -> String,
+) -> (
+    String,
+    Arc<std::sync::atomic::AtomicUsize>,
+    tokio::task::JoinHandle<()>,
+) {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let first = first(&base);
+    let requests = Arc::new(AtomicUsize::new(0));
+    let seen = requests.clone();
+    let task = tokio::spawn(async move {
+        loop {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let mut request = [0; 4096];
+            let _ = stream.read(&mut request).await.unwrap();
+            let answer = if seen.fetch_add(1, Ordering::SeqCst) == 0 {
+                first.clone()
+            } else {
+                raw_response("200 OK", &full_rate_headers("c130-after", None), 2, "{}")
+            };
+            stream.write_all(answer.as_bytes()).await.unwrap();
+        }
+    });
+    (base, requests, task)
+}
+
+/// A 3xx carrying full policy headers and a `Location`.
+fn redirect_response(status: &str, location: &str) -> String {
+    raw_response(
+        status,
+        &format!(
+            "{}Location: {location}\r\n",
+            full_rate_headers("c130-policy", None)
+        ),
+        0,
+        "",
+    )
+}
+
+/// C130: the one client follows no redirect. A 307 on the token POST and
+/// a 302 on a GET each land as the response they are: one request reaches
+/// the server, the choke point records one send, and the journal writes
+/// one line whose headers keep the `location` with its query reduced to a
+/// mark. A bearer GET whose 302 points at another port, or at another
+/// path on its own origin, sends nothing more.
+#[tokio::test]
+async fn a_3xx_is_one_send_one_journal_line_and_no_second_request() {
+    use crate::rails::RailsConfig;
+    use std::sync::atomic::Ordering;
+    const SECRET: &str = "c130-sentinel-code";
+
+    for (method, status_line, status) in [
+        ("POST", "307 Temporary Redirect", 307),
+        ("GET", "302 Found", 302),
+    ] {
+        let (base, requests, server) = counting_server(|base| {
+            redirect_response(status_line, &format!("{base}/elsewhere?code={SECRET}"))
+        })
+        .await;
+        let journal = std::env::temp_dir().join(format!(
+            "acq-c130-journal-{}-{method}.jsonl",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_file(&journal);
+        let rails = Arc::new(Rails::with_config(RailsConfig {
+            journal_path: Some(journal.clone()),
+            ..RailsConfig::default()
+        }));
+        let choke = ChokePoint::with_clock_and_rails(Arc::new(SystemClock), rails, NO_BEARER_API);
+
+        let url = format!("{base}/start");
+        let landed = match method {
+            "POST" => {
+                choke
+                    .post_form(
+                        "oauth-token",
+                        &url,
+                        &[
+                            ("grant_type", "refresh_token"),
+                            ("refresh_token", "c130-rt"),
+                        ],
+                        choke.now(),
+                    )
+                    .await
+            }
+            _ => choke.get("c130-get", &url, choke.now()).await,
+        };
+        assert_eq!(
+            requests.load(Ordering::SeqCst),
+            1,
+            "a {status} on {method} reached the server more than once: the redirect was followed"
+        );
+        let landed = landed.unwrap_or_else(|error| panic!("{method} {status}: {error}"));
+        assert_eq!(landed.status.as_u16(), status, "{method}");
+        let sends = choke.recent_sends();
+        assert_eq!(sends.len(), 1, "{method}: one send recorded");
+        assert!(!sends[0].ok, "{method}: a 3xx is not a success");
+
+        let text = std::fs::read_to_string(&journal).unwrap();
+        let lines: Vec<serde_json::Value> = text
+            .lines()
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect();
+        assert_eq!(lines.len(), 2, "the header and one send: {text}");
+        assert_eq!(lines[1]["method"], method);
+        assert_eq!(lines[1]["status"], status);
+        assert_eq!(
+            lines[1]["headers"]["location"],
+            format!("{base}/elsewhere?…"),
+            "{text}"
+        );
+        assert!(!text.contains(SECRET), "the journal kept the query: {text}");
+        let _ = std::fs::remove_file(&journal);
+        server.abort();
+    }
+
+    // The bearer arm: a 302 to another port of the same host (the residual
+    // past C128's check, which judges only the URL a caller hands in), and
+    // to another path of the API origin itself.
+    let foreign = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let foreign_port = foreign.local_addr().unwrap().port();
+    for elsewhere in ["foreign", "own"] {
+        let (base, requests, server) = counting_server(|base| {
+            let location = match elsewhere {
+                "foreign" => format!("http://127.0.0.1:{foreign_port}/x"),
+                _ => format!("{base}/x"),
+            };
+            redirect_response("302 Found", &location)
+        })
+        .await;
+        let choke = ChokePoint::with_clock_and_rails(
+            Arc::new(SystemClock),
+            Arc::new(Rails::disabled()),
+            &base,
+        );
+        let bearer = CountingBearer(std::sync::atomic::AtomicUsize::new(0));
+        let landed = choke
+            .get_bearer(
+                "c130-bearer",
+                &format!("{base}/profile"),
+                &bearer,
+                choke.now(),
+            )
+            .await;
+        assert_eq!(
+            requests.load(Ordering::SeqCst),
+            1,
+            "a bearer GET's 302 to the {elsewhere} location was followed"
+        );
+        assert!(
+            tokio::time::timeout(Duration::from_millis(200), foreign.accept())
+                .await
+                .is_err(),
+            "a bearer GET's 302 to the {elsewhere} location reached the foreign port"
+        );
+        assert_eq!(landed.expect("the 302 lands").status.as_u16(), 302);
+        assert_eq!(choke.recent_sends().len(), 1, "{elsewhere}: one send");
+        server.abort();
+    }
+}
+
+#[test]
+fn a_journaled_location_keeps_its_origin_and_path_and_marks_the_rest() {
+    for (raw, kept) in [
+        (
+            "https://api.example/oauth/token",
+            "https://api.example/oauth/token",
+        ),
+        (
+            "https://api.example:8443/a?code=s",
+            "https://api.example:8443/a?…",
+        ),
+        (
+            "https://u:p@api.example/a#access_token=s",
+            "https://api.example/a#…",
+        ),
+        ("/relative?refresh_token=s#t", "/relative?…#…"),
+        ("/relative#t?x", "/relative#…"),
+    ] {
+        assert_eq!(redacted_location(raw), kept, "{raw}");
+    }
+}
+
 #[tokio::test]
 async fn truncated_429_and_500_keep_status_and_record_transfer_evidence() {
     for (status_line, status, retry_after) in [

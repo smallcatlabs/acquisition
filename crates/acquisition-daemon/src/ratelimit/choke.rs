@@ -176,8 +176,13 @@ const HALT_POLL: Duration = Duration::from_secs(1);
 fn build_client() -> reqwest::Client {
     // The user-agent goes on the client itself so no request — token
     // exchange included — can be sent without it (CONTEXT invariant 4).
+    // C130: no redirect is followed. A 3xx lands as the response it is,
+    // observed and journaled with its `location`; a followed 307 would
+    // re-send a token request's form body wherever `Location` points, as
+    // a second send under this one's permit and journal line.
     reqwest::Client::builder()
         .user_agent(crate::provider::USER_AGENT)
+        .redirect(reqwest::redirect::Policy::none())
         .connect_timeout(CONNECT_TIMEOUT)
         .timeout(REQUEST_TIMEOUT)
         .build()
