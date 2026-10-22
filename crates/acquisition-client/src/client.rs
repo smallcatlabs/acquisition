@@ -328,11 +328,12 @@ pub enum ConnectError {
 pub const HELLO_WITHIN: Duration = Duration::from_secs(5);
 
 /// How long `daemon stop` waits, after the daemon's `stopping`, for the
-/// daemon to be gone: its exit checkpoints the store and the queue, then
-/// removes the endpoint (`exit_process`), and until then its listener
-/// still accepts a connection that only ever reads end-of-file. Past the
-/// bound the stop is still the daemon's acknowledged one.
-pub const STOPPED_WITHIN: Duration = Duration::from_secs(10);
+/// daemon to be gone (C133): its exit waits up to 15 s for what it has
+/// in flight to land and be recorded, checkpoints the store and the
+/// queue, then removes the endpoint (`leave`), and the stop's connection
+/// stays open until the process ends. This is that bound plus five
+/// seconds. Past it the stop is still the daemon's acknowledged one.
+pub const STOPPED_WITHIN: Duration = Duration::from_secs(20);
 
 /// A peer that accepted a connection on the world's socket and did not
 /// answer `hello` within [`HELLO_WITHIN`] (C86). `holder` is the pid the

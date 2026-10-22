@@ -49,6 +49,13 @@ impl Daemon {
         if self.queue_failed().is_some() {
             return Vec::new();
         }
+        // C133: an exiting daemon starts nothing, of any kind, and a job
+        // its halt turned away is not picked again at once (the drain
+        // would spin, a queue write per pass). The queue is the next
+        // daemon's.
+        if self.exit.begun() {
+            return Vec::new();
+        }
         let mut busy: HashSet<String> = s.active_jobs.values().cloned().collect();
         let halted = self.rails().halted().is_some();
         let mut picks = Vec::new();

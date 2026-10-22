@@ -374,6 +374,7 @@ pub(super) fn test_daemon_scenario_at(
         store: Mutex::new(None),
         jobs_db: Mutex::new(JobDb::open_memory().unwrap()),
         queue_failure: Mutex::new(None),
+        exit: Exit::default(),
     });
     // Test daemons know what the real one knows about routes.
     Daemon::declare_route_knowledge(&daemon.choke);

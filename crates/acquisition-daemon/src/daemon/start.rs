@@ -349,6 +349,7 @@ async fn run_with_log(
         store: Mutex::new(None),
         jobs_db,
         queue_failure: Mutex::new(None),
+        exit: Exit::default(),
     });
 
     {

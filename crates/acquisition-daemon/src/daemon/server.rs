@@ -168,9 +168,12 @@ impl Daemon {
                             greeted = true;
                             continue;
                         }
+                        // C133: the stop connection stays open until the
+                        // process ends, so a client's replace never
+                        // reconnects to a draining daemon.
                         Some(Bootstrap::DaemonStop) => {
                             let _ = write_line(&mut write, &BootstrapReply::Stopping).await;
-                            self.exit_process("stop requested; exiting");
+                            self.exit("stop requested; exiting").await;
                         }
                         None => {}
                     }
@@ -241,7 +244,9 @@ impl Daemon {
                 priority,
                 submitted_by,
                 account,
-            } => match admit_client(&kind, &params, self.provider.is_real())
+            } => match self
+                .refuse_while_stopping()
+                .and_then(|()| admit_client(&kind, &params, self.provider.is_real()))
                 .and_then(|()| self.resolve_account(&kind, account.as_deref()))
                 .and_then(|account| self.submit(kind, params, priority, submitted_by, account))
             {
@@ -443,16 +448,99 @@ impl Daemon {
         Ok(())
     }
 
-    /// The one way out. The daemon leaves by `process::exit`, so nothing
-    /// is dropped: the store's and the queue's write-ahead logs are
-    /// checkpointed here first (`Store::checkpoint`: an exit without it
-    /// left every fact since the last automatic checkpoint in a `-wal`
+    /// C133: a submit after the exit began is refused, in words a frontend
+    /// can act on; the queue is the next daemon's.
+    pub(super) fn refuse_while_stopping(&self) -> Result<(), Refusal> {
+        if self.exit.begun() {
+            return Err(Refusal::new(
+                ErrorKind::Refused,
+                "the daemon is stopping; try again in a moment",
+            ));
+        }
+        Ok(())
+    }
+
+    /// C133, the one exit every cause runs: begin, drain, leave. A cause
+    /// that finds the exit already begun waits for the process to end
+    /// with it (a second stop's connection stays open, as the first's).
+    pub(super) async fn exit(&self, why: &str) -> ! {
+        if !self.begin_exit(why) {
+            std::future::pending::<()>().await;
+        }
+        self.drain().await;
+        self.leave()
+    }
+
+    /// C133: begin the exit, once; `false` if it had begun already. The
+    /// bound is armed first, on tokio time, before any lock is taken, so
+    /// a cause can never wait behind one (a keyring save holds `shared`
+    /// and may be a prompt no one answers). Then the lifetime's halt is
+    /// set in the rails: the choke point admits nothing more, and a job
+    /// parked before its send is turned away to waiting (C25). The
+    /// dispatcher is woken so the parked jobs see it, and from here a
+    /// submit is refused as stopping; `hello` is still answered.
+    pub(super) fn begin_exit(&self, why: &str) -> bool {
+        if self.exit.begun.swap(true, Ordering::SeqCst) {
+            return false;
+        }
+        let _ = self
+            .exit
+            .deadline
+            .set(tokio::time::Instant::now() + self.exit.bound);
+        self.rails().begin_stopping();
+        self.log(why);
+        self.work.notify_one();
+        true
+    }
+
+    /// C133: wait until no job task is past admission, no session's
+    /// refresh is in flight and no login's code exchange is, or until the
+    /// bound. Returns what the bound cut, `None` when nothing was. Never
+    /// blocks on `shared`: a look that finds it held looks again, so the
+    /// bound ends the wait whatever holds the lock. What is cut is left
+    /// running on disk for the persisted queue to replay (C6).
+    pub(super) async fn drain(&self) -> Option<InFlight> {
+        let deadline = self
+            .exit
+            .deadline
+            .get()
+            .copied()
+            .unwrap_or_else(tokio::time::Instant::now);
+        let mut seen = None;
+        loop {
+            if let Ok(s) = self.shared.try_lock() {
+                let left = InFlight::of(&s);
+                drop(s);
+                if left.is_empty() {
+                    self.log("exit: nothing in flight");
+                    return None;
+                }
+                seen = Some(left);
+            }
+            let now = tokio::time::Instant::now();
+            if now >= deadline {
+                let cut = seen.unwrap_or_default();
+                self.log(&format!(
+                    "exit: the bound of {}s cut {}",
+                    self.exit.bound.as_secs_f64(),
+                    cut.describe()
+                ));
+                return Some(cut);
+            }
+            tokio::time::sleep_until(deadline.min(now + DRAIN_POLL)).await;
+        }
+    }
+
+    /// C133, the last of the exit. The daemon leaves by `process::exit`,
+    /// so nothing is dropped: the store's and the queue's write-ahead logs
+    /// are checkpointed here first (`Store::checkpoint`: an exit without
+    /// it left every fact since the last automatic checkpoint in a `-wal`
     /// beside the file — the price-notes run, 2026-09-04; plan step 7,
     /// item 4), then the socket is removed, then the process exits. A
     /// checkpoint a reader keeps from finishing is logged, never waited
-    /// on. Pinned by `tests/daemon_stop_checkpoint.rs` (acquisition-cli).
-    fn exit_process(&self, why: &str) -> ! {
-        self.log(why);
+    /// on. Tests never call it. Pinned by `tests/daemon_stop_checkpoint.rs`
+    /// (acquisition-cli).
+    fn leave(&self) -> ! {
         // Each checkpoint's result is bound before it is reported, so its
         // guard is dropped first: `note_error` takes `shared`, which comes
         // before `jobs_db` in the lock order (`struct Daemon`), and a
@@ -513,8 +601,11 @@ impl Daemon {
             let s = self.shared.lock().unwrap();
             let parked = self.rails().halted().is_some() || self.queue_failed().is_some();
             let live_jobs = Self::has_live_jobs(&s, parked);
+            // A login holds the daemon (C133): its browser step and code
+            // exchange belong to no connection and no job.
             s.connections == 0
                 && !live_jobs
+                && s.auth.pending.is_none()
                 && now.saturating_duration_since(s.last_activity) >= idle_shutdown
         };
         idle && !self.choke.is_live()
@@ -530,7 +621,7 @@ impl Daemon {
         loop {
             tokio::time::sleep(IDLE_POLL).await;
             if self.is_idle(idle_shutdown) {
-                self.exit_process("idle timeout; exiting");
+                self.exit("idle timeout; exiting").await;
             }
         }
     }
@@ -546,6 +637,65 @@ impl Daemon {
             JobState::Waiting => !halted,
             _ => false,
         })
+    }
+}
+
+/// C133: what the exit's drain waits for, as one look saw it.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub(super) struct InFlight {
+    /// Jobs whose task is past admission, by id.
+    pub(super) jobs: Vec<JobId>,
+    /// Accounts whose token refresh is in flight.
+    pub(super) refreshes: Vec<String>,
+    /// Login code exchanges in flight.
+    pub(super) exchanges: usize,
+}
+
+impl InFlight {
+    fn of(s: &Shared) -> InFlight {
+        let mut jobs: Vec<JobId> = s.active_jobs.keys().copied().collect();
+        jobs.sort_unstable();
+        let mut refreshes: Vec<String> = s
+            .auth
+            .by_account
+            .iter()
+            .filter(|(_, session)| session.refresh_flight.is_some())
+            .map(|(account, _)| account.clone())
+            .collect();
+        refreshes.sort();
+        InFlight {
+            jobs,
+            refreshes,
+            exchanges: s.auth.exchanges,
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.jobs.is_empty() && self.refreshes.is_empty() && self.exchanges == 0
+    }
+
+    fn describe(&self) -> String {
+        if self.is_empty() {
+            return "nothing it could see (the daemon's state was held throughout)".into();
+        }
+        let mut parts = Vec::new();
+        if !self.jobs.is_empty() {
+            let ids: Vec<String> = self.jobs.iter().map(JobId::to_string).collect();
+            parts.push(format!(
+                "job {} (left running on disk for the next daemon)",
+                ids.join(", ")
+            ));
+        }
+        if !self.refreshes.is_empty() {
+            parts.push(format!(
+                "the token refresh of {}",
+                self.refreshes.join(", ")
+            ));
+        }
+        if self.exchanges > 0 {
+            parts.push("a login's code exchange".into());
+        }
+        parts.join("; ")
     }
 }
 

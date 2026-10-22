@@ -114,7 +114,8 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant, SystemTime};
 
 use acquisition_store::jobs::{JobDb, JobRow, Retention};
@@ -177,6 +178,46 @@ use start::idle_shutdown_from_env;
 const IDLE_SHUTDOWN: Duration = Duration::from_secs(60);
 
 const IDLE_POLL: Duration = Duration::from_secs(5);
+
+/// C133: how long the exit waits, on wall-clock (tokio) time, for the
+/// jobs past admission, the token refreshes and a login's code exchange
+/// to land and be recorded. The client's `STOPPED_WITHIN` is this plus
+/// five seconds.
+const EXIT_BOUND: Duration = Duration::from_secs(15);
+
+/// How often the exit's drain looks again at what is still in flight.
+const DRAIN_POLL: Duration = Duration::from_millis(10);
+
+/// C133: the exit's own state, outside every lock, so a cause that
+/// begins the exit (a stop, the idle verdict, a signal) arms its bound
+/// before it can wait on one. The bound runs on tokio time, never the
+/// daemon's `Clock`: the harness's `ManualClock` advances on every
+/// sleep, and a drain bounded on it would cut at once.
+struct Exit {
+    begun: AtomicBool,
+    deadline: OnceLock<tokio::time::Instant>,
+    bound: Duration,
+}
+
+impl Exit {
+    fn with_bound(bound: Duration) -> Exit {
+        Exit {
+            begun: AtomicBool::new(false),
+            deadline: OnceLock::new(),
+            bound,
+        }
+    }
+
+    fn begun(&self) -> bool {
+        self.begun.load(Ordering::SeqCst)
+    }
+}
+
+impl Default for Exit {
+    fn default() -> Exit {
+        Exit::with_bound(EXIT_BOUND)
+    }
+}
 const ERROR_HISTORY: usize = 50;
 /// Probes outrank everything: every job on that route is waiting on one.
 const PROBE_PRIORITY: Priority = u8::MAX;
@@ -277,6 +318,7 @@ impl Entry {
 /// | `Sessions::get`: several live, none named | `several accounts are logged in (…)` | `ambiguous_account` |
 /// | `Sessions::matching` (submit, quote, auth check, logout): a selector two or more live sessions match | `account … names several live sessions (…)` | `ambiguous_account` |
 /// | `resolve_account`: a selector with no session | `account …: not logged in` / `… is not logged in (live: …)` | `not_logged_in` |
+/// | `refuse_while_stopping` (submit, once the exit has begun, C133) | `the daemon is stopping; try again in a moment` | `refused` |
 /// | `validate_apply`, `admit_realm`, `admit_params_size`, `admit_submitter` (submit) | `apply needs a jobs array …`, `action i: …`, `max_requests must be …`, `plan exceeds the budget …`, a realm refusal, `params of N bytes as JSON exceed …`, `submitted_by must be at most …` | `refused` |
 /// | `submit_with_parent`: parent gone or cancelled (children only; becomes the parent's outcome) | `parent job N is gone` / `was cancelled` | `refused` |
 /// | `submit_with_parent`: the sticky queue failure, or the insert failing | `the persisted queue failed (…)` | `queue_failed` |
@@ -418,6 +460,10 @@ struct Sessions {
     by_account: HashMap<String, AuthSession>,
     /// A login flow waiting on the browser (its flow generation).
     pending: Option<u64>,
+    /// Login code exchanges on the wire or landing: a spawned task's,
+    /// neither a job nor a refresh, counted here so the exit's drain
+    /// sees them (C133).
+    exchanges: usize,
     next_flow: u64,
     /// A login past token exchange, waiting on its profile job's uuid.
     staging: Option<Staging>,
@@ -725,7 +771,7 @@ impl Shared {
 /// std guard is held across an `.await` (clippy's `await_holding_lock`,
 /// denied by the gate). A guard in a `match` scrutinee lives through
 /// every arm, so a result that is reported is bound to a local first
-/// (`exit_process`).
+/// (`leave`).
 pub struct Daemon {
     shared: Mutex<Shared>,
     /// On `Daemon`, not `Shared`, so `log`'s uptime prefix needs no lock:
@@ -769,6 +815,8 @@ pub struct Daemon {
     /// record and reopened when the session's username changes. The daemon
     /// only ever writes it.
     store: Mutex<Option<(String, Store)>>,
+    /// C133: the exit, begun at most once. Outside every lock.
+    exit: Exit,
     /// The persisted queue (`daemon.db`), mirrored from memory at every
     /// state change and read at start. Always present: `run` refuses to
     /// start without it, and test daemons get a throwaway in-memory one —

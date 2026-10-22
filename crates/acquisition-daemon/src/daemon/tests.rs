@@ -6,6 +6,7 @@
 mod bearer;
 mod diagnostics;
 mod dispatch;
+mod exit;
 mod harness;
 mod idle;
 mod list;

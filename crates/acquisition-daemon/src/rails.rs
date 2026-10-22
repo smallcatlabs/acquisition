@@ -218,6 +218,9 @@ struct State {
     unreachable: Option<String>,
     /// Ceiling trip cause (this lifetime only).
     ceiling_tripped: Option<String>,
+    /// C133: the daemon is on its way out (this lifetime only, never
+    /// persisted, and no reset clears it).
+    stopping: bool,
     /// Accounts whose refresh grant the provider rejected (persisted).
     refresh_failed: HashMap<String, String>,
     /// The state file's fields this build does not know: held only to be
@@ -503,8 +506,20 @@ impl Rails {
         if let Some(cause) = &s.unreachable {
             return Some(format!("halted: {cause}; {UNREACHABLE_REMEDY}"));
         }
-        self.ceiling_met(&s)
-            .map(|cause| format!("halted by live-test rails: {cause}"))
+        if let Some(cause) = self.ceiling_met(&s) {
+            return Some(format!("halted by live-test rails: {cause}"));
+        }
+        s.stopping.then(|| STOPPING.to_string())
+    }
+
+    /// C133: the daemon's exit has begun. From here the choke point admits
+    /// nothing more, as under any halt, so a job parked before its send is
+    /// turned away to waiting (C25) and what is already on the wire lands.
+    /// Held for the rest of the lifetime: `reset-tripwire` does not lift
+    /// it, nothing persists it, and `status` does not report it (its
+    /// words name a remedy, and an exit has none).
+    pub fn begin_stopping(&self) {
+        self.state.lock().unwrap().stopping = true;
     }
 
     /// The ceiling holds on the count, not on a flag a reset could clear:
@@ -793,6 +808,9 @@ impl Rails {
         let _ = file.flush();
     }
 }
+
+/// The exit's halt, in the words a turned-away job's log line carries.
+pub(crate) const STOPPING: &str = "halted: the daemon is stopping";
 
 /// What lifts a block's halt, in the halt's own words.
 pub(crate) const BLOCK_REMEDY: &str =

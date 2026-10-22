@@ -43,6 +43,9 @@ impl Daemon {
                     .await;
             match callback {
                 Ok(Ok(code)) => {
+                    // C133: the exchange is counted from before its send
+                    // until its tokens are staged, so the exit waits for it.
+                    daemon.shared.lock().unwrap().auth.exchanges += 1;
                     let exchanged = auth::exchange_code(
                         &daemon.choke,
                         &daemon.provider,
@@ -53,8 +56,11 @@ impl Daemon {
                     .await;
                     // A block on the exchange is announced as on any send.
                     daemon.announce_trip();
-                    match exchanged {
-                        Ok(tokens) => match daemon.stage_auth_flow(flow_generation, tokens) {
+                    let staged =
+                        exchanged.map(|tokens| daemon.stage_auth_flow(flow_generation, tokens));
+                    daemon.shared.lock().unwrap().auth.exchanges -= 1;
+                    match staged {
+                        Ok(staged) => match staged {
                             Some(staged) => {
                                 daemon.login_with_profile(flow_generation, staged).await;
                             }

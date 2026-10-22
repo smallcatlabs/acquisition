@@ -783,8 +783,11 @@ enum DaemonCmd {
     Status,
     /// Stop the daemon listening on this shell's world's socket,
     /// this build's — its contract and artifact — or another's.
-    /// Queued jobs stay on disk and resume under the next one; a
-    /// client's jobs are never cancelled by its leaving. `--json`:
+    /// The daemon waits up to 15 seconds for requests already sent to
+    /// GGG to land and be recorded, sending nothing new, and this
+    /// command waits with it until the daemon is gone. Queued
+    /// jobs stay on disk and resume under the next one; a client's
+    /// jobs are never cancelled by its leaving. `--json`:
     /// `stopped`, `pid`, `version`, `provider`, `compatible`, `socket`.
     Stop,
     /// Clear the rails halt: the live-test tripwire's or ceiling's, and
