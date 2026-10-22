@@ -557,7 +557,11 @@ fn current_uid() -> u32 {
 /// directory, where a path the attacker made first, or made loose
 /// between creation and a later chmod, would be used as ours (review
 /// 2026-09-11, twice). On a non-Unix platform only the existence check
-/// is made.
+/// is made. The checks after creation, never the create, are what hold
+/// that attack, so a create that meets AlreadyExists is not refused: it
+/// is two of our own starts at once (a cold CI runner's first tests),
+/// and the directory the other made is checked as made. Every other
+/// create error is a refusal.
 pub fn private_dir(path: &Path) -> std::io::Result<PathBuf> {
     use std::io::{Error, ErrorKind};
     if let Err(e) = std::fs::symlink_metadata(path)
@@ -570,15 +574,21 @@ pub fn private_dir(path: &Path) -> std::io::Result<PathBuf> {
             use std::os::unix::fs::DirBuilderExt;
             builder.mode(0o700);
         }
-        builder.create(path).map_err(|e| {
-            Error::new(
-                e.kind(),
-                format!(
-                    "could not create the private directory {}: {e}",
-                    path.display()
-                ),
-            )
-        })?;
+        match builder.create(path) {
+            Ok(()) => {}
+            // two of our own starts at once: the other made it first, and
+            // the checks below hold it as they hold any directory found
+            Err(e) if e.kind() == ErrorKind::AlreadyExists => {}
+            Err(e) => {
+                return Err(Error::new(
+                    e.kind(),
+                    format!(
+                        "could not create the private directory {}: {e}",
+                        path.display()
+                    ),
+                ));
+            }
+        }
     }
     existing_private_dir(path)
 }
@@ -915,6 +925,43 @@ mod tests {
         assert_eq!(
             real_mode_lock_path().unwrap().parent(),
             Some(runtime.as_path())
+        );
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// C83: two of our own starts making one fresh private directory at
+    /// once both succeed: the one that loses the create's race meets
+    /// AlreadyExists and checks the directory as made, and the directory
+    /// passes the checks. Raced on a barrier, two hundred fresh paths, so
+    /// the race is met (a cold CI runner's first tests did, on Windows).
+    #[test]
+    fn two_starts_making_one_private_dir_at_once_both_succeed() {
+        let base = scratch("race");
+        std::fs::create_dir_all(&base).unwrap();
+        let mut refused = Vec::new();
+        for i in 0..200 {
+            let path = base.join(format!("acq-{i}"));
+            let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
+            let racers: Vec<_> = (0..2)
+                .map(|_| {
+                    let (path, barrier) = (path.clone(), barrier.clone());
+                    std::thread::spawn(move || {
+                        barrier.wait();
+                        private_dir(&path)
+                    })
+                })
+                .collect();
+            for racer in racers {
+                if let Err(e) = racer.join().unwrap() {
+                    refused.push(format!("{i}: {e}"));
+                }
+            }
+            existing_private_dir(&path).unwrap();
+        }
+        assert!(
+            refused.is_empty(),
+            "{} of 400 calls refused: {refused:?}",
+            refused.len()
         );
         let _ = std::fs::remove_dir_all(&base);
     }
