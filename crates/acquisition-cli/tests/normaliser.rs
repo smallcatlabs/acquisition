@@ -128,7 +128,48 @@ fn the_log_rule_names_the_world_in_a_log_path_under_the_scratch() {
         "<scratch>/logs/9FC87288B973/mock/daemon.log\n",
         "<scratch>/logs/9fc87288b973\n",
         "<scratch>/store/9fc87288b973/mock\n",
-        "<scratch>\\store\\9fc87288b973\\mock\n",
+    ] {
+        assert_eq!(n(text), text);
+    }
+}
+
+/// Windows: a path under the scratch base is written with forward slashes
+/// whatever separator it was read with, in the output and on the command
+/// line, where the quoting is judged after the rule, so the backslash
+/// that made `--apply=` a quoted word makes none.
+#[test]
+fn the_scratch_rule_writes_a_path_under_the_base_with_forward_slashes() {
+    let base = Path::new("C:\\Users\\t\\AppData\\Local\\Temp\\acq-seat");
+    assert_eq!(
+        normalise(
+            "store: C:\\Users\\t\\AppData\\Local\\Temp\\acq-seat\\store\\mock\\Alice_1234.db\n",
+            base
+        ),
+        "store: <scratch>/store/mock/Alice_1234.db\n"
+    );
+    assert_eq!(
+        normalise(
+            "{\"path\": \"<scratch>\\\\store\\\\mock\\\\Alice_1234.db\"}\n",
+            base
+        ),
+        "{\"path\": \"<scratch>/store/mock/Alice_1234.db\"}\n"
+    );
+    assert_eq!(
+        crate::harness::shown_word(
+            "--apply=C:\\Users\\t\\AppData\\Local\\Temp\\acq-seat\\plan.json",
+            base
+        ),
+        "--apply=<scratch>/plan.json"
+    );
+    // a word the rule does not touch keeps its quoting
+    assert_eq!(
+        crate::harness::shown_word("class=Rings rarity=rare", base),
+        "'class=Rings rarity=rare'"
+    );
+    // not under the base: left as it was
+    for text in [
+        "<scratch>.json\n",
+        "D:\\other\\store\\mock\\Alice_1234.db\n",
     ] {
         assert_eq!(n(text), text);
     }

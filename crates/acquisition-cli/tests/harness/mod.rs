@@ -195,7 +195,7 @@ impl Transcript {
         self.text.push_str("$ acq");
         for arg in args {
             self.text.push(' ');
-            self.text.push_str(&shell_word(arg));
+            self.text.push_str(&shown_word(arg, &self.base));
         }
         self.text.push('\n');
         if let Some(fed) = stdin {
@@ -226,7 +226,8 @@ impl Transcript {
     }
 }
 
-/// The normaliser's ten named rules, in order: CRLF to LF, `scratch`,
+/// The normaliser's ten named rules, in order: CRLF to LF, `scratch`
+/// (which a command's words take before their quoting, [`shown_word`]),
 /// `log`, `age`, `basis`, `token` and the version line by line, then `job`,
 /// `pid` and `progress` over the whole text, since a job's ordinal is
 /// counted across the transcript and a job's progress lines are read
@@ -440,9 +441,27 @@ fn shell_word(word: &str) -> String {
     }
 }
 
+/// A command's word as the transcript shows it: the `scratch` rule runs
+/// on the word first, and the quoting is judged on that canonical form,
+/// `<scratch>` standing for a path of safe characters, so a separator
+/// that provoked quoting on one platform (Windows' backslash) provokes
+/// none: `--apply=<scratch>/plan.json` on every platform.
+pub fn shown_word(word: &str, base: &Path) -> String {
+    let shown = scratch_rule(word, base);
+    let judged = shown.replace("<scratch>", "scratch");
+    if shell_word(&judged) == judged {
+        shown
+    } else {
+        shell_word(&shown)
+    }
+}
+
 /// The rule `scratch`: the test's base directory, as given, canonicalised
 /// and, on Windows, with its backslashes doubled as JSON writes them, is
-/// `<scratch>`.
+/// `<scratch>`; and a path under it is written with forward slashes to
+/// its end (whitespace, a quote, `)`, `,` or `;`), whatever separator it
+/// was read with (one backslash, or two as JSON writes them), so one
+/// golden reads the same on Windows.
 fn scratch_rule(text: &str, base: &Path) -> String {
     let mut spellings = vec![base.display().to_string()];
     if let Ok(canonical) = std::fs::canonicalize(base) {
@@ -458,7 +477,29 @@ fn scratch_rule(text: &str, base: &Path) -> String {
     for spelling in spellings {
         text = text.replace(&spelling, "<scratch>");
     }
-    text
+    forward_slashes_under_scratch(&text)
+}
+
+/// Each path that starts `<scratch>` and a separator, written with
+/// forward slashes to its end; any other `<scratch>` is left as it is.
+fn forward_slashes_under_scratch(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(at) = rest.find("<scratch>") {
+        out.push_str(&rest[..at + "<scratch>".len()]);
+        let tail = &rest[at + "<scratch>".len()..];
+        if !tail.starts_with(['\\', '/']) {
+            rest = tail;
+            continue;
+        }
+        let end = tail
+            .find(|c: char| c.is_whitespace() || matches!(c, '"' | '\'' | ')' | ',' | ';'))
+            .unwrap_or(tail.len());
+        out.push_str(&tail[..end].replace("\\\\", "/").replace('\\', "/"));
+        rest = &tail[end..];
+    }
+    out.push_str(rest);
+    out
 }
 
 /// The rule `log`: a log path under the scratch, `<scratch>`, a
