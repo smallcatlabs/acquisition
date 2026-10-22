@@ -538,33 +538,14 @@ impl Rails {
         s.sends = s.sends.saturating_add(1);
         let mut newly = None;
         if report.block && s.blocked.is_none() {
-            // Status, method, route and time: never a body or a header
-            // value, for the cause is written to disk.
-            let cause = format!(
-                "Cloudflare answered in GGG's place: {} on {} {} at {}",
-                report
-                    .status
-                    .map_or_else(|| "no status".to_string(), |status| status.to_string()),
-                report.method,
-                report.route,
-                iso_utc(self.clock.wall())
-            );
+            let cause = self.cloudflare_cause("Cloudflare answered in GGG's place", report);
             s.blocked = Some(cause.clone());
             self.persist_locked(&mut s);
             newly = Some(cause);
         }
         if report.unreachable && s.unreachable.is_none() {
-            // The same words as the mark's, and like it never a body; held
-            // in memory alone, so the next daemon starts clear.
-            let cause = format!(
-                "Cloudflare could not reach GGG: {} on {} {} at {}",
-                report
-                    .status
-                    .map_or_else(|| "no status".to_string(), |status| status.to_string()),
-                report.method,
-                report.route,
-                iso_utc(self.clock.wall())
-            );
+            // Held in memory alone, so the next daemon starts clear.
+            let cause = self.cloudflare_cause("Cloudflare could not reach GGG", report);
             s.unreachable = Some(cause.clone());
             newly.get_or_insert(cause);
         }
@@ -632,6 +613,21 @@ impl Rails {
             s.unannounced = Some(cause.clone());
         }
         newly
+    }
+
+    /// A C129 halt's cause: `what` (the prefix the CLI and the daemon's
+    /// announcement read), then the status, method, route and time. Never
+    /// a body or a header value, for the block mark's is written to disk.
+    fn cloudflare_cause(&self, what: &str, report: &SendReport<'_>) -> String {
+        format!(
+            "{what}: {} on {} {} at {}",
+            report
+                .status
+                .map_or_else(|| "no status".to_string(), |status| status.to_string()),
+            report.method,
+            report.route,
+            iso_utc(self.clock.wall())
+        )
     }
 
     /// The most recent trip that has not been logged yet, once.
