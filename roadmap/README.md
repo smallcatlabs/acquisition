@@ -149,18 +149,19 @@ list when a step's close commit or an issue takes it.
 
 ## Current step
 
-Step 2e is in design. The design brief, `briefs/2e-design.md`, is at
-`08c0907a` with the owner's word at `e9b8bc78` (R1, the tables name
-their export and the gate refuses a clone past the pin; R2, a league
-the fetched list does not hold is a note, never a refusal; both
-approved 2026-10-21); its review (`roadmap/reviews/2e-design-e9b8bc78.md`
-at `0c366fac`) found four faults, all taken. The build brief,
-`briefs/2e-build.md`, is in the tree; an Opus worker runs it on the
-owner's go, in the main tree. The fold
-of this file through 2d-oracle is whole at `1f524d15`, its review
-(`roadmap/reviews/roadmap-fold-5acd9ea5.md` at `8afaf1ab`) taken. The
-owner reassesses the `AGENTS.md` budget when he chooses. `AGENTS.md`
-governs; the gate is its ten lines, under nextest.
+Step 2e is built, its review pending. The build brief,
+`briefs/2e-build.md`, ran on the owner's go in the main tree: six
+commits from `35e0b03c` (the rulings C125, the tables name their
+export, and C126, a league the list lacks is a note; the game-diff
+tool and the drift line; the mock's three leagues; the league named in
+every line about its work; the rehearsal; the documents and the
+driver). Codex reviews `35e0b03c^` to this step's last build commit;
+its findings are saved under `reviews/` and read by the owner before
+any fix. The design brief, `briefs/2e-design.md`, is at `08c0907a`
+with the owner's word at `e9b8bc78` and its review taken at
+`cb7db91c`. The owner reassesses the `AGENTS.md` budget when he
+chooses. `AGENTS.md` governs; the gate is its ten lines, under
+nextest.
 
 ## Ledger
 
@@ -177,6 +178,7 @@ messages.
 | 2c the journey test and real-shaped mock items | design `4d2932fb`, `c04cb535`, `1c347053`; build `f4e5cb15` to `f38fa001`; closed `2b275eec` | 2026-10-21 | #51 for 2f; a `log` rule when a second golden needs it; the read-only open, since ruled C124 and closed as #52 (`3795e6ec`) |
 | 2d the daemon and limiter file splits | design `dc993ddb`, `ac98c488`; build `e4019380` to `c670f112`; closed `af5badde` | 2026-10-21 | 2f's inputs and the owner's two, under "Open" |
 | 2d-oracle the journal oracles over every journaling daemon | `e59ee842`; closed `1f524d15` | 2026-10-21 | the login daemons journal nothing (2f) |
+| 2e the game-diff tool, a new-league rehearsal and the README line | design `08c0907a`, `e9b8bc78`, `cb7db91c`; build from `35e0b03c`, six commits; review pending | — | named at the close |
 
 ## Housekeeping
 

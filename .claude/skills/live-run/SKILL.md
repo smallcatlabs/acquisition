@@ -55,6 +55,23 @@ Every job kind has had first contact (`RUN-LEDGER.md`); a new kind gets
 the same treatment under this rule. What the samples found that headers
 could not teach is declared route knowledge (C32; N38, N39).
 
+## A new league on a contacted route
+
+A new league is a new string on routes already contacted, so it is no
+first contact (C59, an unobserved URL shape is never sent: the shape
+is observed) and its plans need no new probe. Run `acq leagues` first,
+under its own ceiling (its HEAD counts too, N39), and check the name
+it lists before any policy names it: a policy naming a league the list
+does not hold is noted, never refused, and an apply over a typo sends
+a stash list for a league that does not exist (N27, the
+invalid-request budget). Write the realm back with every league it
+keeps (`policy set` replaces a realm whole), then take each cycle's
+ceiling from its plan as the refresh loop's driver derives it. After,
+the ledger row, and two claims nothing records yet: the real
+`/account/leagues` answer's fields, and what GGG answers a stash list
+for a league that does not exist, recorded if a run ever meets it and
+never provoked.
+
 ## The rails
 
 Knobs and defaults are the README's "Knobs" table; `acq daemon status`

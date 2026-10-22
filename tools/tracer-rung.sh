@@ -446,10 +446,19 @@ tabs_json='[]'
 [ "$SELECTION" != none ] && tabs_json=$(selection_json "$SELECTION")
 chars_json='[]'
 [ -n "$CHARACTERS" ] && chars_json=$(selection_json "$CHARACTERS")
+# A `policy set` replaces each realm it names whole (C36, the sync
+# policy's replace rule), so the realm is written back with every league
+# the stored policy keeps in it and this run's league set: a run over a
+# new league keeps Standard (the Allflame run dropped it, RUN-LEDGER.md).
+# With no policy stored, the realm holds this league alone, as before.
+STORED=$("$ACQ" policy show --json)
 POLICY=$(jq -nc --arg r "$REALM" --arg l "$LEAGUE" --argjson t "$tabs_json" --argjson c "$chars_json" --argjson a "$MAX_AGE" \
-    '{version: 3, realms: {($r): {leagues: {($l): ({max_age_seconds: $a}
+    --argjson s "$STORED" \
+    '(($s // {}).value // {}) as $v
+    | (($v.realms // {})[$r].leagues // (if $r == "pc" and ($v.version // 3) < 3 then $v.leagues else null end) // {}) as $kept
+    | {version: 3, realms: {($r): {leagues: ($kept + {($l): ({max_age_seconds: $a}
         + (if $t != [] then {tabs: $t} else {} end)
-        + (if $c != [] then {characters: $c} else {} end))}}}}')
+        + (if $c != [] then {characters: $c} else {} end))})}}}')
 echo ""
 echo "phase 2: writing the sync policy (no daemon, no wire):"
 echo "  $POLICY"

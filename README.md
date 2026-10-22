@@ -157,7 +157,7 @@ acq cancel <id> | set-priority <id> <n>   # cancel a subtree; change priority
 
 # keeping a league fresh: a policy, then a plan you read before it runs
 acq policy [show]   # sync policy and revision
-acq policy set '<json>'|-|@FILE [--if-revision N] [--replace]   # {"version":3,"realms":{"pc":{"leagues":{…}}}}: the realms named, the rest kept
+acq policy set '<json>'|-|@FILE [--if-revision N] [--replace]   # {"version":3,"realms":{"pc":{"leagues":{…}}}}: a realm is written whole, so name every league it keeps; realms not named are kept
 acq refresh --plan [--realm R] [--league L] [--expand] [--json]   # compile offline; a running daemon adds its quote
 acq refresh --apply[=plan.json] [--max-requests N]   # fetch exactly the plan; ends on what a new plan would still fetch
 
@@ -205,10 +205,18 @@ them.
   well: `price set` and `policy set` write intent beside the facts,
   and `store import` replays a snapshot of facts.
 - **Standard unless you name a league.** `stashes`, `stash`,
-  `refresh --plan`, `tabs`, `price status` and `shop render` read or
-  fetch Standard without `--league` (a saved plan carries its own);
-  `price show` reads the league the facts hold the target in,
-  `store characters` every league. `acq leagues` lists yours.
+  `refresh --plan`, `refresh --apply`, `refresh --tabs`, `tabs`,
+  `price status` and `shop render` read or fetch Standard without
+  `--league` (a saved plan carries its own); `price show` reads the
+  league the facts hold the target in, `store characters` every
+  league. `acq leagues` lists yours.
+- **A new league.** `acq leagues` names it the day it opens; add it to
+  the policy by writing the realm back with every league it keeps (a
+  policy naming only the new league drops Standard); then `acq refresh
+  --plan --league <name>` and `--apply --league <name>` until the plan
+  says nothing to do; the first plan is one request, the tab list, and
+  the plans after it fetch every tab the policy covers, so read each
+  plan's work and its ceiling before applying.
 - **Your data stays on your machine**, under
   `~/Library/Application Support/com.smallcatlabs.acq` on macOS,
   `~/.local/share/acq` on Linux and `%APPDATA%\smallcatlabs\acq\data`
