@@ -43,15 +43,17 @@ impl Daemon {
                     .await;
             match callback {
                 Ok(Ok(code)) => {
-                    match auth::exchange_code(
+                    let exchanged = auth::exchange_code(
                         &daemon.choke,
                         &daemon.provider,
                         &code,
                         &verifier,
                         &redirect_uri,
                     )
-                    .await
-                    {
+                    .await;
+                    // A block on the exchange is announced as on any send.
+                    daemon.announce_trip();
+                    match exchanged {
                         Ok(tokens) => match daemon.stage_auth_flow(flow_generation, tokens) {
                             Some(staged) => {
                                 daemon.login_with_profile(flow_generation, staged).await;

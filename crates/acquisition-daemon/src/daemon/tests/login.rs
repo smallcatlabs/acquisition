@@ -376,6 +376,74 @@ async fn a_cloudflare_block_on_the_code_exchange_is_no_rejected_grant() {
     finish_harness(None, &log_path);
 }
 
+/// C129, the login arm's announcement: a block on the code exchange is
+/// logged as the daemon's error when it lands, as a block on any other
+/// send is, and is not logged again as current after `reset-tripwire`:
+/// the next block's own cause is the one announced.
+#[tokio::test]
+async fn a_block_on_the_code_exchange_is_announced_when_it_lands() {
+    let challenge = ScriptedResponse {
+        method: "POST",
+        path: "/token",
+        ..ScriptedResponse::cloudflare_403_challenge()
+    };
+    let responses = vec![
+        challenge,
+        ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+        ScriptedResponse::cloudflare_403_challenge(),
+    ];
+    let (base, requests, server) = scripted_server(responses).await;
+    let clock = Arc::new(ManualClock::new());
+    let (daemon, log_path) = test_daemon_with(Provider::mock(&base), clock, RailsConfig::default());
+    daemon.shared.lock().unwrap().auth.by_account.clear();
+    let errors = |daemon: &Daemon| -> Vec<String> {
+        let s = daemon.shared.lock().unwrap();
+        s.errors
+            .iter()
+            .map(|(_, message)| message.clone())
+            .collect()
+    };
+
+    let authorize = url::Url::parse(&daemon.auth_start().await.unwrap()).unwrap();
+    let query: HashMap<String, String> = authorize.query_pairs().into_owned().collect();
+    let callback = format!(
+        "{}?code=code-x&state={}",
+        query["redirect_uri"], query["state"]
+    );
+    assert!(reqwest::get(&callback).await.unwrap().status().is_success());
+    while login_result(&daemon).2.is_none() {
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    let logged = errors(&daemon);
+    assert!(
+        logged
+            .iter()
+            .any(|e| e.starts_with("SENDS STOPPED: ") && e.contains("403 on POST oauth-token")),
+        "the exchange's block is announced: {logged:?}"
+    );
+
+    daemon.reset_rails().unwrap();
+    let before = errors(&daemon).len();
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    let id = daemon
+        .submit("fetch".into(), json!({}), 0, "test".into(), None)
+        .unwrap();
+    let (info, _) = wait_terminal(&daemon, id).await;
+    assert_eq!(info.state, JobState::Failed);
+    let logged = errors(&daemon);
+    let stopped: Vec<&String> = logged[before..]
+        .iter()
+        .filter(|e| e.starts_with("SENDS STOPPED: "))
+        .collect();
+    assert!(
+        stopped.len() == 1 && stopped[0].contains("403 on GET fetch"),
+        "after the reset, only the next block's own cause is announced: {:?}",
+        &logged[before..]
+    );
+    server.await.unwrap();
+    finish_harness_wire(dispatcher, &log_path, &requests);
+}
+
 /// C131, the login arm: a code exchange answered 200 with its tokens but
 /// no rate-limit header at all installs them, and the login completes
 /// on them; the exchange stays a journaled protocol failure.

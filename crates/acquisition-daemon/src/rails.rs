@@ -645,7 +645,9 @@ impl Rails {
     /// unreachable-origin halt; the persisted ones are what
     /// [`RailsState::reset`] clears offline. A met ceiling stands
     /// (`ceiling_met`): it is the lifetime's. The refresh-failed mark is
-    /// not a trip; it clears on login or logout.
+    /// not a trip; it clears on login or logout. A halt nobody announced
+    /// is forgotten with it: its cause is no longer current, and held, it
+    /// would hide the next halt's (`record` queues one at a time).
     ///
     /// The reset is written before it is made: a write that fails leaves
     /// every halt standing, in memory as on disk, and is the error.
@@ -661,6 +663,7 @@ impl Rails {
         s.blocked = None;
         s.unreachable = None;
         s.ceiling_tripped = None;
+        s.unannounced = None;
         Ok(())
     }
 
@@ -1090,6 +1093,26 @@ mod tests {
         std::fs::write(&path, r#"{"blocked":7}"#).unwrap();
         assert!(verify_state(&path).is_err());
         let _ = std::fs::remove_file(&path);
+    }
+
+    /// A reset forgets a halt nobody announced: its cause is no longer
+    /// current, and the next halt's own cause is the one announced.
+    #[test]
+    fn a_reset_forgets_an_unannounced_halt() {
+        let rails = Rails::disabled();
+        let block = |route| SendReport {
+            route,
+            status: Some(403),
+            shape: Some(BlockShape::Unclassified),
+            block: true,
+            ..report(Some(403))
+        };
+        let stale = rails.record(&block("oauth-token")).expect("a block halts");
+        assert!(stale.contains("on GET oauth-token"), "{stale}");
+        rails.reset_tripwire().unwrap();
+        assert_eq!(rails.take_unannounced_trip(), None, "the reset forgot it");
+        let next = rails.record(&block("stash@A#1")).expect("a block halts");
+        assert_eq!(rails.take_unannounced_trip(), Some(next));
     }
 
     #[test]
