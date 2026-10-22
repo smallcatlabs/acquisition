@@ -67,13 +67,14 @@ const STALE_BEARER: &str = "the bearer this send was to carry was rejected befor
 /// C25: whether the send is still wanted, asked at the choke point's
 /// admission: at the top of every pass of its pacing loop and again once
 /// the gate admits it, before the send. A job's check is "not cancelled";
-/// a refresh's is "some job or caller on its flight still waits for it".
-/// `false` turns the send away with nothing sent (`SendError::Cancelled`);
+/// a refresh's is its flight owner's alone (the owner's job is not
+/// cancelled, or the owner is no job), and a waiter on a flight called
+/// off that way asks again, as the owner of a fresh one if it still
+/// wants the token. `false` turns the send away with nothing sent (`SendError::Cancelled`);
 /// a send already admitted is never called back.
 pub type Wanted<'a> = &'a (dyn Fn() -> bool + Sync);
 
-/// The check of a send nobody can cancel: a login's code exchange, and
-/// the choke point's own tests.
+/// The check of a send nobody can cancel: the choke point's own tests.
 pub const ALWAYS_WANTED: Wanted<'static> = &|| true;
 
 const CANCELLED: &str = "cancelled before it was sent";

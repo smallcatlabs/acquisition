@@ -11,7 +11,7 @@ use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
 use crate::provider::{Provider, SCOPES};
-use crate::ratelimit::{ALWAYS_WANTED, ChokePoint, SendError, Wanted};
+use crate::ratelimit::{ChokePoint, SendError, Wanted};
 
 pub fn random_token(prefix: &str) -> String {
     let mut bytes = [0u8; 24];
@@ -46,8 +46,10 @@ pub struct TokenError {
     /// C25: the choke point refused the request under a halt; nothing
     /// was sent.
     pub halted: bool,
-    /// C25: no one waiting on the request still wanted it when the choke
-    /// point would have admitted it; nothing was sent.
+    /// C25: the request's own check said it was no longer wanted (a
+    /// refresh's is its flight owner's job, cancelled) when the choke
+    /// point would have admitted it; nothing was sent. Another job waiting
+    /// on that refresh is not cancelled by it, and asks again.
     pub cancelled: bool,
     pub message: String,
 }
@@ -69,8 +71,9 @@ impl TokenError {
         }
     }
 
-    /// C25: GGG never saw the request, for a halt refused it or the block
-    /// that sets one answered it. The job that asked waits for the reset.
+    /// C25: a halt refused the request, or the answer was Cloudflare's and
+    /// set one (a block, or an origin it could not reach). The job that
+    /// asked waits for the reset.
     pub fn met_a_halt(&self) -> bool {
         self.halted || self.blocked
     }
@@ -106,12 +109,15 @@ pub struct TokenResponse {
 /// malformed input, refused like a body that is no token response.
 pub const MAX_ACCESS_TOKEN_LIFETIME_SECS: u64 = 366 * 24 * 60 * 60;
 
+/// `wanted` is the login flow's check (C25): the POST is turned away
+/// before it is sent once a newer login has superseded the flow.
 pub async fn exchange_code(
     choke: &ChokePoint,
     provider: &Provider,
     code: &str,
     verifier: &str,
     redirect_uri: &str,
+    wanted: Wanted<'_>,
 ) -> Result<TokenResponse, TokenError> {
     // GGG's public-client docs include `scope` in the exchange; no secret is
     // ever sent (and must not be — an empty client_secret is a server error).
@@ -127,7 +133,7 @@ pub async fn exchange_code(
             ("redirect_uri", redirect_uri),
             ("scope", &scope),
         ],
-        ALWAYS_WANTED,
+        wanted,
     )
     .await
 }
@@ -201,8 +207,14 @@ async fn token_request(
         // C129: the choke point has halted this lifetime. Cloudflare's
         // page says nothing of GGG's, so it is not shown either; the words
         // are the halt's own, true of whatever else it holds (a tripwire's
-        // trip beside it outlives a restart). GGG never saw the request,
-        // so the job that asked waits for the reset, as under a block (C25).
+        // trip beside it outlives a restart). The job that asked waits for
+        // the reset, as under a block (C25). GGG never saw the request on
+        // most of Cloudflare's statuses, but on a 520 or a 524 the origin
+        // was reached and may have spent the grant: a refresh token
+        // rotates on every grant (N33), so the next refresh after the reset
+        // can meet a 400, which marks the grant dead and asks for one
+        // login (C24); a login's one-use code may be spent the same way,
+        // and the login is repeated. Nothing is installed from this answer.
         return Err(TokenError {
             status: Some(status.as_u16()),
             blocked: false,
@@ -353,7 +365,7 @@ pub fn keyring_clear(service: &str, username: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ratelimit::EndpointState;
+    use crate::ratelimit::{ALWAYS_WANTED, EndpointState};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpListener;
     use tokio::sync::{mpsc, oneshot};
@@ -481,7 +493,15 @@ mod tests {
             let choke = choke.clone();
             let provider = provider.clone();
             tokio::spawn(async move {
-                exchange_code(&choke, &provider, "code", "verifier", "http://callback").await
+                exchange_code(
+                    &choke,
+                    &provider,
+                    "code",
+                    "verifier",
+                    "http://callback",
+                    ALWAYS_WANTED,
+                )
+                .await
             })
         };
         let first = arrived_rx.recv().await.unwrap();

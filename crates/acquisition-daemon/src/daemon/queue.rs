@@ -129,6 +129,7 @@ impl Daemon {
         let entries: Vec<Entry> = rows.into_iter().filter_map(Entry::from_row).collect();
         let has_children: HashSet<JobId> = entries.iter().filter_map(|e| e.info.parent).collect();
         let (mut requeued, mut held, mut not_replayed, mut dropped, mut fault) = (0, 0, 0, 0, 0);
+        let mut fault_on_disk = true;
         let mut finish_parents = Vec::new();
         let mut restored = Vec::new();
         {
@@ -153,7 +154,7 @@ impl Daemon {
                     fault += 1;
                     entry.info.state = JobState::Failed;
                     entry.outcome = Some(Outcome::failure(FAULT_WORDS));
-                    self.persist(&entry);
+                    fault_on_disk = self.persist(&entry);
                 } else if entry.info.state == JobState::Running {
                     let no_probe_route = self
                         .keyed_route_for(
@@ -208,8 +209,17 @@ resubmit if still wanted",
             }
         }
         // C134: removed once its job's failure is on disk, so a second
-        // restore finds the job terminal and the marker gone.
-        if let Some(path) = &marker {
+        // restore finds the job terminal and the marker gone. A failure
+        // the queue could not write keeps the marker: the row still says
+        // the job was open, and the next restore fails it, not replays it.
+        if !fault_on_disk {
+            if let Some(path) = &marker {
+                self.log(&format!(
+                    "FAULT: the marker {} is kept: its job's failure could not be written",
+                    path.display()
+                ));
+            }
+        } else if let Some(path) = &marker {
             match std::fs::remove_file(path) {
                 Ok(()) => {}
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}

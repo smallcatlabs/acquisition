@@ -444,6 +444,61 @@ async fn a_block_on_the_code_exchange_is_announced_when_it_lands() {
     finish_harness_wire(dispatcher, &log_path, &requests);
 }
 
+/// C25, the login arm: a flow a newer login superseded sends nothing.
+/// Its callback still lands (the browser was already sent), but its code
+/// exchange is turned away before the gate admits it: no POST reaches
+/// the wire, the newer flow stays pending, and the journal agrees.
+#[tokio::test]
+async fn a_superseded_login_flow_sends_no_code_exchange() {
+    let grant = ScriptedResponse {
+        method: "POST",
+        path: "/token",
+        status: "200 OK",
+        headers: String::new(),
+        body: json!({
+            "access_token": "at-stale",
+            "refresh_token": "rt-stale",
+            "expires_in": 3600,
+            "username": "test-user",
+        })
+        .to_string(),
+    };
+    let (base, requests, server) = scripted_server(vec![grant]).await;
+    let clock = Arc::new(ManualClock::new());
+    let (daemon, log_path) = test_daemon_with(Provider::mock(&base), clock, RailsConfig::default());
+    daemon.shared.lock().unwrap().auth.by_account.clear();
+
+    let first = url::Url::parse(&daemon.auth_start().await.unwrap()).unwrap();
+    let _second = daemon.auth_start().await.unwrap();
+    let query: HashMap<String, String> = first.query_pairs().into_owned().collect();
+    let callback = format!(
+        "{}?code=code-x&state={}",
+        query["redirect_uri"], query["state"]
+    );
+    assert!(reqwest::get(&callback).await.unwrap().status().is_success());
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while !std::fs::read_to_string(&log_path)
+            .unwrap_or_default()
+            .contains("stale auth flow completion ignored")
+        {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("the superseded flow finished");
+
+    assert!(
+        requests.lock().unwrap().is_empty(),
+        "the superseded flow sent its exchange: {:?}",
+        requests.lock().unwrap()
+    );
+    assert_eq!(login_result(&daemon), (false, None, None));
+    assert!(daemon.shared.lock().unwrap().auth.pending.is_some());
+    assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
+    server.abort();
+    finish_harness(None, &log_path);
+}
+
 /// C131, the login arm: a code exchange answered 200 with its tokens but
 /// no rate-limit header at all installs them, and the login completes
 /// on them; the exchange stays a journaled protocol failure.

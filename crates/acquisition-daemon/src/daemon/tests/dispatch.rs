@@ -735,10 +735,11 @@ async fn dispatcher_never_retries_403_or_503() {
 /// account's job, whose session would need a refresh first, stays
 /// waiting and nothing reaches the wire for it), and leaves a mark in the
 /// world that a later daemon, also without the tripwire, honours. The
-/// mark names the status, method, route and time, never the body. The
-/// three shapes: Cloudflare's documented 1015 (its one marker past the
-/// 300 characters a failure keeps), a challenge carrying `cf-mitigated`,
-/// and a 429 with no header and no marker at all (N49).
+/// mark and the job's failure name the status, method, route and time,
+/// never the body: the failure is in the halt's words, as the token
+/// route's is. The three shapes: Cloudflare's documented 1015 (its one
+/// marker past the body's first 300 characters), a challenge carrying
+/// `cf-mitigated`, and a 429 with no header and no marker at all (N49).
 #[tokio::test]
 async fn a_cloudflare_block_admits_nothing_and_survives_a_restart() {
     let markerless_429 = ScriptedResponse {
@@ -874,6 +875,14 @@ async fn a_cloudflare_block_admits_nothing_and_survives_a_restart() {
             for header in ["challenge", "Retry-After"] {
                 assert!(!evidence.contains(header), "{name}: {evidence}");
             }
+        }
+        // The failure keeps the rate headers as evidence, never the page.
+        assert!(error.contains("reset-tripwire"), "{name}: {error}");
+        for fragment in fragments.iter().filter(|fragment| body.contains(*fragment)) {
+            assert!(
+                !error.contains(fragment),
+                "{name}: the failure echoed the body's {fragment:?}: {error}"
+            );
         }
         drop(rebuilt);
         finish_harness_wire(dispatcher, &log_path, &requests);

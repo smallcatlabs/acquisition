@@ -916,15 +916,20 @@ impl Daemon {
             let retry_after = response.retry_after;
             let path = url_path(url);
             self.log(&format!("GET {path} -> {status} | rate headers: {rate}"));
-            if response.verdict.is_some_and(|verdict| verdict.unreachable) {
-                // C129: the choke point has halted this lifetime. The job
-                // fails in the halt's words, true of whatever else it
-                // holds (a tripwire's trip beside it outlives a restart),
-                // and Cloudflare's page is no word of GGG's to quote.
-                return Err(unreachable_failure(
+            if let Some(verdict) = response
+                .verdict
+                .filter(|verdict| verdict.block || verdict.unreachable)
+            {
+                // C129: the choke point has halted, for a block or an
+                // unreachable origin. The job fails in the halt's words,
+                // true of whatever else it holds (a tripwire's trip beside
+                // an unreachable halt outlives a restart), and Cloudflare's
+                // page is no word of GGG's to quote, as on the token route.
+                return Err(cloudflare_failure(
                     &path,
                     status,
                     &rate,
+                    verdict,
                     self.choke.rails().halted(),
                 ));
             }
@@ -1039,21 +1044,30 @@ fn fan_out_stopped(cancelled: bool, submitted: usize, why: &str) -> Outcome {
     }
 }
 
-/// C129: a GET Cloudflare answered for an origin it could not reach. The
-/// status and the rate headers are the evidence, never the body (the
-/// page is Cloudflare's); `halt` is the rails' own words when the daemon
-/// has them, else the unreachable halt's remedy.
-fn unreachable_failure(
+/// C129: a GET Cloudflare answered in GGG's place, a block or an origin
+/// it could not reach. The status and the rate headers are the evidence,
+/// never the body (the page is Cloudflare's, no word of GGG's); `halt` is
+/// the rails' own words when the daemon has them, else the remedy of the
+/// halt the verdict set.
+fn cloudflare_failure(
     path: &str,
     status: reqwest::StatusCode,
     rate: &Value,
+    verdict: Verdict,
     halt: Option<String>,
 ) -> ApiError {
     let halt = halt.unwrap_or_else(|| {
-        format!(
-            "Cloudflare could not reach GGG: {}",
-            crate::rails::UNREACHABLE_REMEDY
-        )
+        if verdict.block {
+            format!(
+                "Cloudflare answered in GGG's place: {}",
+                crate::rails::BLOCK_REMEDY
+            )
+        } else {
+            format!(
+                "Cloudflare could not reach GGG: {}",
+                crate::rails::UNREACHABLE_REMEDY
+            )
+        }
     });
     ApiError::Other(format!(
         "GET {path} returned {status}; rate headers {rate} — NOT retrying; {halt}"
@@ -1063,7 +1077,8 @@ fn unreachable_failure(
 /// A response's outcome for its job. `verdict` is the choke point's
 /// judgement of a non-2xx (C129): a block is terminal and never re-queued,
 /// whatever its `Retry-After`, and its shape is read from the whole body,
-/// not from the 300 characters the error text keeps.
+/// not from the 300 characters another failure's text keeps. A block
+/// and an unreachable origin keep none of Cloudflare's page.
 pub(super) fn classify_api_body(
     status: reqwest::StatusCode,
     retry_after: &RetryAfter,
@@ -1076,8 +1091,9 @@ pub(super) fn classify_api_body(
     // (D8). The body error remains in the evidence rather than becoming fake
     // empty content.
     if !status.is_success() {
-        let block = verdict.is_some_and(|verdict| verdict.block);
-        let unreachable = verdict.is_some_and(|verdict| verdict.unreachable);
+        if let Some(verdict) = verdict.filter(|verdict| verdict.block || verdict.unreachable) {
+            return Err(cloudflare_failure(path, status, &rate, verdict, None));
+        }
         let shape = verdict.map_or(BlockShape::Unclassified, |verdict| verdict.shape);
         let body = match body {
             Ok(body) => body.chars().take(300).collect(),
@@ -1085,11 +1101,6 @@ pub(super) fn classify_api_body(
         };
         let evidence = format!("GET {path} returned {status}; rate headers {rate}; body: {body}");
         return Err(match status.as_u16() {
-            _ if block => ApiError::Other(format!(
-                "{evidence} — Cloudflare answered in GGG's place; NOT retrying, and {}",
-                crate::rails::BLOCK_REMEDY
-            )),
-            _ if unreachable => unreachable_failure(path, status, &rate, None),
             429 if retry_after.is_acceptable() => ApiError::RateLimited(evidence),
             429 => ApiError::Other(format!(
                 "terminal rate limit: {evidence}; {retry_after}; NOT retrying"

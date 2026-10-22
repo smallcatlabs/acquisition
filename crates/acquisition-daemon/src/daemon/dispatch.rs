@@ -27,7 +27,11 @@ tokio::task_local! {
     /// polling thread, so the panic hook reads it there (`try_with`)
     /// and its fault marker names the job; outside a job's task it is
     /// unset and the hook writes no marker. No job spawns a task of its
-    /// own, so every send a job makes is polled under it.
+    /// own, so the daemon's half of every send a job makes is polled
+    /// under it. The HTTP library's half is not: hyper-util spawns the
+    /// connection tasks that read and parse GGG's bytes, and a panic in
+    /// one of them writes no marker, so its job is replayed on the next
+    /// start (one send for each start a client causes).
     pub(super) static RUNNING_JOB: JobId;
 }
 

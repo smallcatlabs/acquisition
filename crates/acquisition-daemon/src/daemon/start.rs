@@ -190,7 +190,12 @@ async fn watch(
 ) {
     let (first, number) = streams.next().await;
     let Some(daemon) = attached.get() else {
-        eprintln!("acqd: {first} before the daemon was built; exiting at once");
+        // A write whose failure is ignored: `eprintln!` panics on a broken
+        // stderr, and this thread is the one that ends the process.
+        let _ = writeln!(
+            std::io::stderr(),
+            "acqd: {first} before the daemon was built; exiting at once"
+        );
         std::process::exit(128 + number);
     };
     let why = format!("{first} received; exiting");

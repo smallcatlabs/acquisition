@@ -853,7 +853,9 @@ impl RailsState {
     /// nothing. The write is atomic: the whole text goes to a file beside
     /// it, is flushed to disk, and is renamed over it, so a crash leaves
     /// the old state or the new, never a torn one the next daemon refuses
-    /// to start over (and the reset would remove, marks and all).
+    /// to start over (and the reset would remove, marks and all). A file
+    /// already there keeps its permissions: the new text takes them
+    /// before it is written, so a file its owner narrowed stays narrowed.
     pub fn write(&self, path: &Path) -> std::io::Result<()> {
         if self.holds_nothing() {
             return match std::fs::remove_file(path) {
@@ -867,6 +869,11 @@ impl RailsState {
         let partial = PathBuf::from(partial);
         let written = (|| {
             let mut file = std::fs::File::create(&partial)?;
+            match std::fs::metadata(path) {
+                Ok(held) => file.set_permissions(held.permissions())?,
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(e) => return Err(e),
+            }
             file.write_all(text.as_bytes())?;
             file.sync_all()?;
             std::fs::rename(&partial, path)
@@ -1208,6 +1215,27 @@ mod tests {
             .map(|entry| entry.unwrap().file_name())
             .collect();
         assert_eq!(beside, ["rails.json"], "no partial left beside the file");
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// A rewrite keeps the file's mode: a rails state its owner narrowed
+    /// to 0600 is not widened to the umask's default by the next mark.
+    #[cfg(unix)]
+    #[test]
+    fn the_rails_state_rewrite_keeps_the_files_mode() {
+        use std::os::unix::fs::PermissionsExt;
+        let base = scratch("rails-mode");
+        std::fs::create_dir_all(&base).unwrap();
+        let path = base.join("rails.json");
+        std::fs::write(&path, r#"{"tripped":"429 on GET /x"}"#).unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+        let state = RailsState {
+            blocked: Some("a block".into()),
+            ..RailsState::default()
+        };
+        state.write(&path).unwrap();
+        let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600, "the rewrite changed the mode to {mode:o}");
         let _ = std::fs::remove_dir_all(&base);
     }
 }

@@ -698,6 +698,56 @@ async fn a_fault_marker_fails_its_job_once() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// C134: a fault whose failure the queue could not write keeps its
+/// marker, for the row still says the job was open: the next restore
+/// fails the job instead of replaying it, and only then is the marker
+/// removed. The write is refused by a trigger staged on the queue file.
+#[tokio::test]
+async fn a_fault_marker_outlives_a_failure_the_queue_could_not_write() {
+    let dir = std::env::temp_dir().join(format!(
+        "acquisition-fault-kept-{}-{}",
+        std::process::id(),
+        TEST_LOG_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let db = acquisition_store::jobs::daemon_db_path(&dir);
+    JobDb::open(&db)
+        .unwrap()
+        .upsert(&sleep_row(1, "running"))
+        .unwrap();
+    let refuse = |sql: &str| {
+        rusqlite::Connection::open(&db)
+            .unwrap()
+            .execute_batch(sql)
+            .unwrap();
+    };
+    refuse(
+        "CREATE TRIGGER staged_refusal BEFORE INSERT ON jobs WHEN NEW.state = 'failed'
+         BEGIN SELECT RAISE(ABORT, 'staged refusal'); END;",
+    );
+    let marker = dir.join("fault.json");
+    std::fs::write(&marker, "{\"job\":1}\n").unwrap();
+
+    let (daemon, log1) = world_daemon(&dir);
+    assert_eq!(row_of(&db, 1).state, "running", "the failure was refused");
+    assert!(
+        marker.exists(),
+        "the marker was removed with the failure unwritten"
+    );
+    drop(daemon);
+
+    refuse("DROP TRIGGER staged_refusal;");
+    let (daemon, log2) = world_daemon(&dir);
+    assert_eq!(row_of(&db, 1).state, "failed", "the job was replayed");
+    assert!(!marker.exists(), "the marker outlived the written failure");
+    drop(daemon);
+    for log in [log1, log2] {
+        finish_harness(None, &log);
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 /// The child's exit status: the hook reached its end. `run` passes
 /// `std::process::abort`; the test passes this, so a passing run leaves
 /// no crash report behind.

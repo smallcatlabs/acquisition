@@ -46,18 +46,27 @@ impl Daemon {
                     // C133: the exchange is counted from before its send
                     // until its tokens are staged, so the exit waits for it.
                     daemon.shared.lock().unwrap().auth.exchanges += 1;
+                    // C25: a flow a newer login superseded sends nothing;
+                    // its tokens would only be ignored, and its code spent.
+                    let wanted =
+                        || daemon.shared.lock().unwrap().auth.pending == Some(flow_generation);
                     let exchanged = auth::exchange_code(
                         &daemon.choke,
                         &daemon.provider,
                         &code,
                         &verifier,
                         &redirect_uri,
+                        &wanted,
                     )
                     .await;
                     // A block on the exchange is announced as on any send.
                     daemon.announce_trip();
-                    let staged =
-                        exchanged.map(|tokens| daemon.stage_auth_flow(flow_generation, tokens));
+                    let staged = match exchanged {
+                        Err(error) if error.cancelled => Ok(None),
+                        exchanged => {
+                            exchanged.map(|tokens| daemon.stage_auth_flow(flow_generation, tokens))
+                        }
+                    };
                     daemon.shared.lock().unwrap().auth.exchanges -= 1;
                     match staged {
                         Ok(staged) => match staged {

@@ -1551,15 +1551,30 @@ async fn run(cli: Cli) -> Result<()> {
                                 println!("HALTED: {cause}");
                                 // A ceiling is this lifetime's and never persisted
                                 // (rails.rs): no violation, nothing to reset — the
-                                // next daemon starts under a fresh one.
+                                // next daemon starts under a fresh one. Met beside
+                                // another halt, the reset lifts that one only, so
+                                // the advice names the ceiling too.
+                                let ceiling_too = !cause.starts_with("ceiling:")
+                                    && rails.max_sends.is_some_and(|max| rails.sends >= max);
                                 if cause.starts_with("Cloudflare answered") {
                                     println!(
-                                        "        every daemon holds until `acq daemon reset-tripwire`; read the cause first: the next send goes to GGG"
+                                        "        every daemon holds until `acq daemon reset-tripwire`; read the cause first{}",
+                                        if ceiling_too {
+                                            ""
+                                        } else {
+                                            ": the next send goes to GGG"
+                                        }
                                     );
                                 } else if cause.starts_with("Cloudflare could not reach GGG") {
-                                    println!(
-                                        "        this daemon's alone, never persisted: `acq daemon reset-tripwire` or a restart clears it; the next send goes to GGG"
-                                    );
+                                    if ceiling_too {
+                                        println!(
+                                            "        this daemon's alone, never persisted: a restart clears it"
+                                        );
+                                    } else {
+                                        println!(
+                                            "        this daemon's alone, never persisted: `acq daemon reset-tripwire` or a restart clears it; the next send goes to GGG"
+                                        );
+                                    }
                                 } else if cause.starts_with("ceiling:") {
                                     println!(
                                         "        the ceiling is this daemon's alone: `acq daemon stop`, and the next one starts fresh (`acq jobs` first: queued jobs resume under it)"
@@ -1567,6 +1582,11 @@ async fn run(cli: Cli) -> Result<()> {
                                 } else {
                                     println!(
                                         "        clear with `acq daemon reset-tripwire` after the post-violation wait"
+                                    );
+                                }
+                                if ceiling_too {
+                                    println!(
+                                        "        the ceiling is met too, and a reset does not lift it: only the next daemon starts under a fresh one (`acq daemon stop`; `acq jobs` first: queued jobs resume under it)"
                                     );
                                 }
                             }
@@ -1619,11 +1639,17 @@ async fn run(cli: Cli) -> Result<()> {
                         // the write: no daemon can start between them,
                         // load the state and have its marks overwritten.
                         // Taken, it is also the proof no daemon runs here.
+                        // Only a held lock means a daemon; a lock that
+                        // could not be opened says what failed.
                         let _lock = match &world {
                             Some(world) => Some(Lock::acquire(&world.lock_path()).map_err(|e| {
-                                anyhow::anyhow!(
-                                    "a daemon took this world while the reset ran: {e}; `acq daemon reset-tripwire` again asks it"
-                                )
+                                if e.io.is_some() {
+                                    anyhow::anyhow!("{e}; the reset cleared nothing")
+                                } else {
+                                    anyhow::anyhow!(
+                                        "a daemon took this world while the reset ran: {e}; `acq daemon reset-tripwire` again asks it"
+                                    )
+                                }
                             })?),
                             None => None,
                         };

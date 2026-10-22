@@ -494,19 +494,32 @@ impl Rails {
     /// any gate permit is acquired. A persisted cause is named before the
     /// lifetime's, as in [`Rails::status`]: a Cloudflare 503 with the
     /// tripwire on sets both the unreachable-origin halt and a trip, and
-    /// the halt's "a restart clears it" would be untrue of the trip.
+    /// the halt's "a restart clears it" would be untrue of the trip. A
+    /// ceiling met beside another halt is named with it: `reset-tripwire`
+    /// lifts the others and never the ceiling, so a remedy that names the
+    /// reset alone would be untrue of it.
     pub fn halted(&self) -> Option<String> {
         let s = self.state.lock().unwrap();
+        let ceiling = self.ceiling_met(&s);
+        let with_ceiling = |words: String| match &ceiling {
+            Some(ceiling) => format!("{words}; and {ceiling}, which a reset does not lift"),
+            None => words,
+        };
         if let Some(cause) = &s.blocked {
-            return Some(format!("halted: {cause}; {BLOCK_REMEDY}"));
+            return Some(with_ceiling(format!("halted: {cause}; {BLOCK_REMEDY}")));
         }
         if let Some(cause) = &s.tripped {
-            return Some(format!("halted by live-test rails: {cause}"));
+            return Some(with_ceiling(format!("halted by live-test rails: {cause}")));
         }
         if let Some(cause) = &s.unreachable {
-            return Some(format!("halted: {cause}; {UNREACHABLE_REMEDY}"));
+            return Some(match &ceiling {
+                Some(ceiling) => format!(
+                    "halted: {cause}; and {ceiling}; nothing more is sent this daemon lifetime, and only a restart clears both"
+                ),
+                None => format!("halted: {cause}; {UNREACHABLE_REMEDY}"),
+            });
         }
-        if let Some(cause) = self.ceiling_met(&s) {
+        if let Some(cause) = ceiling {
             return Some(format!("halted by live-test rails: {cause}"));
         }
         s.stopping.then(|| STOPPING.to_string())
@@ -871,6 +884,45 @@ mod tests {
                 &Value::Null
             },
             wait: Duration::ZERO,
+        }
+    }
+
+    /// A ceiling met beside another halt is named with it, for a reset
+    /// lifts the other halt and never the ceiling: no words held while
+    /// both stand say the reset sends again.
+    #[test]
+    fn a_ceiling_met_beside_another_halt_is_named_with_it() {
+        let unreachable = SendReport {
+            unreachable: true,
+            ..report(Some(522))
+        };
+        let block = SendReport {
+            block: true,
+            ..report(Some(403))
+        };
+        for (name, sent, tripwire) in [
+            ("unreachable", unreachable, false),
+            ("trip", report(Some(429)), true),
+            ("block", block, false),
+        ] {
+            let rails = Rails::with_config(RailsConfig {
+                tripwire,
+                max_sends: Some(1),
+                ..RailsConfig::default()
+            });
+            rails.record(&sent);
+            let words = rails.halted().expect("halted");
+            assert!(
+                words.contains("ceiling: 1 of 1 sends used"),
+                "{name}: {words}"
+            );
+            assert!(
+                !words.contains("reset-tripwire` or a restart clears it"),
+                "{name}: {words}"
+            );
+            rails.reset_tripwire().unwrap();
+            let after = rails.halted().expect("the ceiling outlives the reset");
+            assert!(after.contains("ceiling"), "{name}: {after}");
         }
     }
 

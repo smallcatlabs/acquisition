@@ -96,9 +96,13 @@ impl Listener {
         }
         #[cfg(windows)]
         {
-            // C134: a failed connect leaves the instance broken (a client
-            // that came and went before it was taken, a pipe error), and
-            // waiting on it again would fail again. A fresh instance is
+            // C134: a failed connect leaves the instance broken, and
+            // waiting on it again would fail again. Only a synchronous
+            // `ConnectNamedPipe` error reaches here: a client that came
+            // and went before it was taken is returned as a connection
+            // (mio counts `ERROR_NO_DATA` as connected), whose task then
+            // meets the end of the stream; and an asynchronous failure is
+            // retried inside the connect, never returned. A fresh instance is
             // created before the broken one is dropped, so the name is
             // never free for another process to take. When even that
             // fails, the broken one is kept, the name with it, and the

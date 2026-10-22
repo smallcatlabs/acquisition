@@ -584,11 +584,40 @@ fn the_offline_reset_holds_the_world_lock() {
     assert!(!current.exists());
 }
 
+/// The offline reset names a lock it could not open for what failed,
+/// never as a daemon that took the world: a read-only world with no
+/// daemon in it fails to create its lock file, and the file is left.
+#[cfg(unix)]
+#[test]
+fn the_offline_reset_names_a_lock_it_could_not_open() {
+    use std::os::unix::fs::PermissionsExt;
+    let scratch = scratch("rails-lock-io");
+    let base = &scratch.0;
+    let root = base.join("store");
+    let current = root.join("mock").join("rails.json");
+    std::fs::create_dir_all(current.parent().unwrap()).unwrap();
+    let staged = r#"{"tripped":"429 on GET /stash/Standard"}"#;
+    std::fs::write(&current, staged).unwrap();
+    std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o555)).unwrap();
+    let out = acq_in(base, "store", &["daemon", "reset-tripwire", "--json"], &[]);
+    std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o755)).unwrap();
+    assert_eq!(out.status.code(), Some(1), "{out:?}");
+    let msg = sole_json(&out)["error"].as_str().unwrap().to_string();
+    assert!(
+        msg.contains("could not take the lock")
+            && msg.contains("cleared nothing")
+            && !msg.contains("a daemon took this world"),
+        "{msg}"
+    );
+    assert_eq!(std::fs::read_to_string(&current).unwrap(), staged);
+}
+
 /// The halt's advice follows its kind: a tripwire's persists in the world
 /// and waits out the post-violation time before `reset-tripwire`; a
 /// ceiling is the lifetime's alone, so `daemon status` sends the reader to
 /// the next daemon, never to the reset (seen 2026-10-15 on a first
-/// contact that met its ceiling exactly).
+/// contact that met its ceiling exactly); a trip beside a ceiling met is
+/// advised as both, for the reset lifts the trip alone.
 #[test]
 fn a_ceiling_halt_is_advised_as_the_lifetimes_and_a_trip_as_a_reset() {
     let scratch = scratch("halts");
@@ -644,9 +673,25 @@ fn a_ceiling_halt_is_advised_as_the_lifetimes_and_a_trip_as_a_reset() {
             && said.contains("post-violation"),
         "{said}"
     );
+    assert!(!said.contains("ceiling is met too"), "{said}");
     let out = acq_in(base, "store", &["daemon", "stop", "--json"], &trip);
     assert!(out.status.success(), "{out:?}");
     wait_stopped(base, "store", &trip);
+
+    // The trip beside a ceiling already met: the reset lifts the trip
+    // alone, so the advice names the ceiling and the next daemon too.
+    let both = [("ACQ_TRIPWIRE", "1"), ("ACQ_MAX_SENDS", "0")];
+    let (_daemon, _pid) = start_daemon(base, "store", &both);
+    let said = text(&acq_in(base, "store", &["daemon", "status"], &both));
+    assert!(
+        said.contains("staged trip")
+            && said.contains("ceiling is met too, and a reset does not lift it")
+            && said.contains("the next daemon"),
+        "{said}"
+    );
+    let out = acq_in(base, "store", &["daemon", "stop", "--json"], &both);
+    assert!(out.status.success(), "{out:?}");
+    wait_stopped(base, "store", &both);
 }
 
 /// C83: the log and the default journal live under the log directory,

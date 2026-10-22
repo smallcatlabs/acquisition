@@ -218,8 +218,13 @@ cleanup() {
         if [ -z "${PID:-}" ]; then
             echo "*** aborted before any daemon started; nothing was sent."
         elif daemon_up; then
-            echo "*** aborted mid-run with a daemon still up (possibly halted). Jobs are on disk:"
-            echo "*** acq daemon status / acq jobs; cancel what should not resume; acq daemon stop."
+            # Ctrl-C reaches the daemon too (it shares the script's process
+            # group), and it drains and leaves by itself (C133); an abort
+            # that was no signal leaves it up until its idle exit.
+            echo "*** aborted mid-run with a daemon up (possibly halted). After Ctrl-C it drains"
+            echo "*** and leaves by itself within 18 s; otherwise it stays until its idle exit."
+            echo "*** Jobs are on disk: acq daemon status / acq jobs; cancel what should not resume;"
+            echo "*** acq daemon stop ends it now."
             if [ "$MODE" = mock ]; then echo "*** (this run's world: ACQ_STORE_DIR=$ACQ_STORE_DIR — the socket derives from it)"; fi
             echo "*** Partial evidence is in $RUN_DIR and $JOURNAL"
         else
