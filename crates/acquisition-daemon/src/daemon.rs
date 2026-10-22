@@ -166,7 +166,7 @@ pub use start::{DIAGNOSTIC_CAP_BYTES, rotate_if_over, run};
 
 use endpoint::{BoundSocket, Listener, Stream};
 use kinds::{ApiError, validate_apply};
-use queue::admit_realm;
+use queue::{admit_client_kind, admit_realm};
 use refresh::AccessTokenResult;
 use start::idle_shutdown_from_env;
 

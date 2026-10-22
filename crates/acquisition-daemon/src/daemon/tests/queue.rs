@@ -1,10 +1,63 @@
-//! The persisted queue: a restart, a restore, and a queue write that fails.
+//! The queue: what a client may submit, a restart, a restore, and a
+//! queue write that fails.
 //!
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
 use super::harness::*;
 use crate::daemon::*;
 use std::sync::atomic::Ordering;
+
+// ---- admission (C127) ------------------------------------------------
+
+/// C127 (a client never submits a daemon-only kind): a client's `probe`,
+/// naming a route and a URL of its own, is refused at the door with the
+/// refused-work kind, before a job id exists, and nothing reaches the
+/// wire. The scripted server would answer the HEAD the probe would send.
+#[tokio::test]
+async fn c127_a_client_probe_is_refused_and_sends_nothing() {
+    let (base, requests, server) =
+        scripted_server(vec![ScriptedResponse::full("HEAD", "200 OK", None, "")]).await;
+    let clock = Arc::new(ManualClock::new());
+    let (daemon, log_path) = test_daemon(&base, clock);
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    let response = daemon
+        .handle_request(
+            Request::Submit {
+                kind: "probe".into(),
+                params: json!({ "route": "fetch", "url": format!("{base}/fetch") }),
+                priority: 0,
+                submitted_by: "client".into(),
+                account: None,
+            },
+            &mut None,
+        )
+        .await;
+    match response {
+        Response::Error { kind, message } => {
+            assert_eq!(kind, ErrorKind::Refused, "{message}");
+            assert!(
+                message.contains("probe")
+                    && message.contains("daemon itself")
+                    && message.contains("a client cannot submit"),
+                "the refusal says the rule in words: {message}"
+            );
+        }
+        other => panic!("a client's probe was admitted: {other:?}"),
+    }
+    assert!(
+        daemon.shared.lock().unwrap().jobs.is_empty(),
+        "a refused submit admits no job"
+    );
+    for _ in 0..50 {
+        tokio::task::yield_now().await;
+    }
+    server.abort();
+    assert!(
+        requests.lock().unwrap().is_empty(),
+        "nothing reached the wire"
+    );
+    finish_harness_wire(dispatcher, &log_path, &requests);
+}
 
 // ---- persistence (C6) ------------------------------------------------
 

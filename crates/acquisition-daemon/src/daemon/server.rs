@@ -222,8 +222,8 @@ impl Daemon {
                 priority,
                 submitted_by,
                 account,
-            } => match self
-                .resolve_account(&kind, account.as_deref())
+            } => match admit_client_kind(&kind)
+                .and_then(|()| self.resolve_account(&kind, account.as_deref()))
                 .and_then(|account| self.submit(kind, params, priority, submitted_by, account))
             {
                 Ok(id) => Response::Submitted { id },

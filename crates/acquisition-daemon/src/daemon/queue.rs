@@ -403,6 +403,26 @@ pub(super) fn admit_realm(kind: &str, params: &Value) -> Result<(), Refusal> {
         .map_err(|e| Refusal::new(ErrorKind::Refused, e))
 }
 
+/// C127 — A client names a job's kind, never a daemon-only one. Kind
+/// admission at the client's door (`Request::Submit`, in `server.rs`),
+/// before account resolution and before an id exists. A daemon-only kind
+/// is one the daemon submits for itself: `probe`, whose route and URL are
+/// the daemon's to choose (`ensure_probe`, one HEAD per route, N16); a
+/// client's pair would carry the bearer to any host and install that
+/// host's policy on the route. The daemon's own submissions call `submit`
+/// directly and never pass this door. Every other kind is admitted here
+/// and judged where it runs.
+pub(super) fn admit_client_kind(kind: &str) -> Result<(), Refusal> {
+    match kind {
+        "probe" => Err(Refusal::new(
+            ErrorKind::Refused,
+            "a probe is queued by the daemon itself before a route's first use; \
+a client cannot submit one",
+        )),
+        _ => Ok(()),
+    }
+}
+
 /// A child submission's parent is no longer there to take it.
 fn parent_gone(parent: JobId) -> Refusal {
     Refusal::new(ErrorKind::Refused, format!("parent job {parent} is gone"))

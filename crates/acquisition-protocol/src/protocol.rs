@@ -277,9 +277,9 @@ pub enum ErrorKind {
     /// priority change off `waiting`. Re-read the job.
     WrongState,
     /// Well-formed work the daemon will not admit, judged before a job id
-    /// exists: a kind outside a plan's vocabulary, a realm the kind's
-    /// family does not take, a plan over its budget, a malformed tuple.
-    /// Nothing was submitted.
+    /// exists: a kind only the daemon submits, a kind outside a plan's
+    /// vocabulary, a realm the kind's family does not take, a plan over
+    /// its budget, a malformed tuple. Nothing was submitted.
     Refused,
     /// The persisted queue (`daemon.db`) failed a read or a write. A write
     /// failure is sticky (C6): the daemon refuses new work until restart.
