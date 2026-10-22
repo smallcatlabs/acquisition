@@ -4,7 +4,9 @@
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
 use super::harness::*;
-use crate::daemon::queue::{PARAMS_MAX_BYTES, SEGMENT_MAX_BYTES, SUBMITTER_MAX_BYTES};
+use crate::daemon::queue::{
+    APPLY_MAX_ACTIONS, PARAMS_MAX_BYTES, SEGMENT_MAX_BYTES, SUBMITTER_MAX_BYTES,
+};
 use crate::daemon::*;
 use std::sync::atomic::Ordering;
 
@@ -930,6 +932,50 @@ async fn c127_params_over_their_bound_are_refused_and_a_large_plan_is_admitted()
     assert!(
         matches!(response, Response::Submitted { id: 2 }),
         "params at the bound are admitted: {response:?}"
+    );
+    finish_harness(None, &log_path);
+}
+
+/// C127 (an apply's actions have a bound): an `apply` of one action over
+/// `APPLY_MAX_ACTIONS` is refused at submit, naming its count and the
+/// bound and pointing to a narrower selection, and spends no id, though
+/// its tiny tuples sit far under `PARAMS_MAX_BYTES`; the bound wins over a
+/// `max_requests` the plan also exceeds. An `apply` of exactly `APPLY_MAX_ACTIONS` is
+/// admitted (the owner-sized plan is admitted above).
+#[tokio::test]
+async fn c127_an_apply_over_its_action_bound_is_refused_and_one_at_it_is_admitted() {
+    let (daemon, log_path) = live_daemon("http://127.0.0.1:1");
+    let jobs = |n: usize| -> Vec<Value> { vec![json!({ "kind": "stashes", "params": {} }); n] };
+    let over = APPLY_MAX_ACTIONS + 1;
+    for (what, plan) in [
+        (
+            "an apply over its action bound",
+            json!({ "jobs": jobs(over) }),
+        ),
+        (
+            "an apply over its action bound and its budget",
+            json!({ "jobs": jobs(over), "max_requests": 1 }),
+        ),
+    ] {
+        assert!(serde_json::to_vec(&plan).unwrap().len() < PARAMS_MAX_BYTES);
+        let response = client_submit(&daemon, "apply", plan, None).await;
+        assert_refused(
+            response,
+            what,
+            &[
+                &format!("an apply of {over} actions"),
+                &format!("bound of {APPLY_MAX_ACTIONS} actions"),
+                "nothing was submitted",
+                "covers fewer tabs or characters",
+            ],
+        );
+        assert_nothing_admitted(&daemon, what);
+    }
+    let plan = json!({ "jobs": jobs(APPLY_MAX_ACTIONS), "max_requests": APPLY_MAX_ACTIONS });
+    let response = client_submit(&daemon, "apply", plan, None).await;
+    assert!(
+        matches!(response, Response::Submitted { id: 1 }),
+        "an apply at its action bound is admitted, as job 1: {response:?}"
     );
     finish_harness(None, &log_path);
 }

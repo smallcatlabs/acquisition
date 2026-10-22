@@ -7,7 +7,7 @@
 //!
 //! ## C43 — Apply is its own pure fan-out parent job kind (`apply`), never the `refresh` parent.
 //!
-//! **Apply is its own pure fan-out parent job kind (`apply`), never the `refresh` parent.** The refresh parent re-lists by construction — it fans out from the listing it just fetched — which contradicts "executes exactly the listed actions": a plan's listing is an optional action and its fetches derive from reviewed facts. So `apply`'s params carry the plan's actions as explicit `(kind, params)` child tuples; the parent performs no send of its own, submits exactly one child per tuple, and holds for them. "Never expands" is structural, not disciplinary: the daemon stays plan-blind (it cannot link the plan crate, and it reads no intent — C34; the store it links only to write facts and keep its queue), so what it admits is **vocabulary, not meaning** — only single-request kinds (`stashes`, or `stash` with `deep` false), each of which submits no children. Admission is at submit, before a job id exists: a malformed tuple list, an empty one, or a logical bound over the caller's `max_requests` refuses the submit whole — the mid-fan-out terminalization path is never the budget's normal mechanism (D8). Plan validation, the staleness check, and rendering actions to tuples are the frontend's (`acq refresh --apply`, through the planner's validating parse). The ad-hoc `refresh` kind (`--all`/`--tabs`) stays untouched as the explicit client-stated-selection surface; whether it retires rides on step 9's friction notes. Decided 2026-09-01.
+//! **Apply is its own pure fan-out parent job kind (`apply`), never the `refresh` parent.** The refresh parent re-lists by construction — it fans out from the listing it just fetched — which contradicts "executes exactly the listed actions": a plan's listing is an optional action and its fetches derive from reviewed facts. So `apply`'s params carry the plan's actions as explicit `(kind, params)` child tuples; the parent performs no send of its own, submits exactly one child per tuple, and holds for them. "Never expands" is structural, not disciplinary: the daemon stays plan-blind (it cannot link the plan crate, and it reads no intent — C34; the store it links only to write facts and keep its queue), so what it admits is **vocabulary, not meaning** — only single-request kinds (`stashes`, or `stash` with `deep` false), each of which submits no children. Admission is at submit, before a job id exists: a malformed tuple list, an empty one, one longer than `APPLY_MAX_ACTIONS`, or a logical bound over the caller's `max_requests` refuses the submit whole — the mid-fan-out terminalization path is never the budget's normal mechanism (D8). Plan validation, the staleness check, and rendering actions to tuples are the frontend's (`acq refresh --apply`, through the planner's validating parse). The ad-hoc `refresh` kind (`--all`/`--tabs`) stays untouched as the explicit client-stated-selection surface; whether it retires rides on step 9's friction notes. Decided 2026-09-01.
 //!
 
 use super::*;
@@ -882,11 +882,14 @@ impl Daemon {
 /// single-request one that submits no children — `stashes`, `stash` with
 /// `deep` absent/false, `characters`, or `character` with a name
 /// (characters joined 2026-09-02) — so no child can expand the reviewed set;
-/// and when the caller declares `max_requests`, the tuple count must not
-/// exceed it. Runs at submit, before a job id exists, so a refusal
-/// admits nothing (mid-fan-out terminalization is never the budget's
-/// mechanism); a misread budget refuses too — a limit half-honored by
-/// ignoring it would spend exactly what the caller tried to cap.
+/// it carries at most `APPLY_MAX_ACTIONS` tuples, judged before any tuple
+/// and before `max_requests`, so an oversized plan is told to narrow its
+/// selection whatever its budget says; and when the caller declares `max_requests`,
+/// the tuple count must not exceed it. Runs at submit, before a job id
+/// exists, so a refusal admits nothing (mid-fan-out terminalization is
+/// never the budget's mechanism); a misread budget refuses too — a limit
+/// half-honored by ignoring it would spend exactly what the caller tried
+/// to cap.
 pub(super) fn validate_apply(params: &Value) -> Result<(), Refusal> {
     let refused = |message: String| Refusal::new(ErrorKind::Refused, message);
     let Some(jobs) = params.get("jobs").and_then(Value::as_array) else {
@@ -899,6 +902,13 @@ pub(super) fn validate_apply(params: &Value) -> Result<(), Refusal> {
             "apply with an empty `jobs` array: a plan with no actions has nothing to execute"
                 .into(),
         ));
+    }
+    if jobs.len() > APPLY_MAX_ACTIONS {
+        return Err(refused(format!(
+            "an apply of {} actions exceeds the bound of {APPLY_MAX_ACTIONS} actions — \
+nothing was submitted; a sync policy that covers fewer tabs or characters plans fewer actions",
+            jobs.len()
+        )));
     }
     for (i, job) in jobs.iter().enumerate() {
         let kind = job.get("kind").and_then(Value::as_str).unwrap_or("");

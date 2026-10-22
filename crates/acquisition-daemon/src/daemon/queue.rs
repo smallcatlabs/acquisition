@@ -782,6 +782,19 @@ pub(super) fn bounded_message(error: &dyn std::fmt::Display, tail: &str) -> Stri
 /// frame.
 pub(super) const PARAMS_MAX_BYTES: usize = 8 << 20;
 
+/// The most actions one `apply` may carry. Each becomes a child job, so
+/// the count, not the bytes, is what grows the queue: tiny tuples under
+/// `PARAMS_MAX_BYTES` reached about 381,000 children, past the roughly
+/// 220,000 (about 304 bytes each) that `list`'s frame holds. The bound
+/// guards that frame, not a plan's size: the planner has no size limit
+/// of its own, and a plan is one (realm, league), the largest observed,
+/// the owner's Standard, at most 3,408 actions (two listings, 3,347 tabs
+/// by N47, the realm's 59 characters by the sample of 2026-09-02 in
+/// `RUN-LEDGER.md`). A heavy account, with a remove-only map tab from
+/// each of some 35 leagues, is estimated at 10,000 to 12,000; 50,000 is
+/// four to five times that, and about a quarter of what the frame holds.
+pub(super) const APPLY_MAX_ACTIONS: usize = 50_000;
+
 /// C127 — A submit's `params` are at most `PARAMS_MAX_BYTES` as JSON,
 /// judged after the checks that name a param, so a value one of them
 /// refuses is refused in its words. The refusal names the size, never
