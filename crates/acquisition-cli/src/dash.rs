@@ -446,9 +446,12 @@ fn policy_detail(p: &PolicyStatus, sends: &[SendRecord]) -> Vec<Line<'static>> {
             )),
         ]),
     ];
+    // What the last 429's header carried, as sent: the daemon reports no
+    // number when it carried none (missing or unreadable), and an over-cap
+    // value as the server sent it. The hold itself is the next safe send.
     if let Some(ra) = p.retry_after_secs {
         lines.push(Line::from(Span::styled(
-            format!("retry-after        {ra}s on the last response — the server said WAIT (limiter adds the bucket)"),
+            format!("retry-after        {ra}s on the last 429 — the server said WAIT (limiter holds it up to its cap, plus the bucket)"),
             Style::new().red().bold(),
         )));
     }

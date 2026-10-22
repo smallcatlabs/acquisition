@@ -133,6 +133,8 @@ pub(super) struct PolicyState {
     /// A 429 hold is independent of policy validity. It is installed from
     /// every landed 429 (C19) even when the landed policy set is malformed.
     retry_hold_until: Option<Instant>,
+    /// The last 429's `Retry-After` as the header carried it (none when it
+    /// carried no count), for the status; the hold above is the arithmetic.
     last_retry_after_secs: Option<u64>,
 }
 
@@ -562,7 +564,10 @@ impl Limiter {
             return;
         };
         state.retry_hold_until = Some(state.retry_hold_until.map_or(until, |old| old.max(until)));
-        state.last_retry_after_secs = Some(seconds);
+        // The status reports what the header carried, never the clamped
+        // `seconds` above: a missing value is not "0", an over-cap one is
+        // not the cap (invariant 2).
+        state.last_retry_after_secs = retry_after.carried_secs();
     }
 
     pub fn violation_count(&self) -> u64 {

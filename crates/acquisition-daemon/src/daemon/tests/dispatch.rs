@@ -590,6 +590,62 @@ async fn dispatcher_exhausts_on_third_429_without_a_fourth_send_or_final_sleep()
     finish_harness_wire(dispatcher, &log_path, &requests);
 }
 
+/// C19: a landed GET 429 holds its route for its `Retry-After`, clamped
+/// to the cap, plus the retry bucket, whatever the header carried. Such a
+/// 429 is not retried, so a second job's send shows the hold: 61 s after
+/// a missing or garbled value, 961 s after an over-cap one.
+#[tokio::test]
+async fn a_get_429_without_a_usable_retry_after_holds_the_next_send() {
+    let missing = || ScriptedResponse::full("GET", "429 Too Many Requests", None, "{}");
+    let cases = [
+        ("missing", missing(), full_hold_ms()),
+        (
+            "garbled",
+            missing().with_raw_retry_after("soon"),
+            full_hold_ms(),
+        ),
+        (
+            "over the cap",
+            missing().with_raw_retry_after("5000"),
+            crate::ratelimit::RETRY_AFTER_CAP_SECS * 1000 + full_hold_ms(),
+        ),
+    ];
+    for (name, rejected, hold) in cases {
+        let responses = vec![
+            ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+            rejected,
+            ScriptedResponse::full("GET", "200 OK", None, r#"{"items":["after"]}"#),
+        ];
+        let (base, requests, server) = scripted_server(responses).await;
+        let clock = Arc::new(ManualClock::new());
+        let (daemon, log_path) = test_daemon(&base, clock);
+        let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+        let first = daemon
+            .submit("fetch".into(), json!({}), 0, "test".into(), None)
+            .unwrap();
+        let (info, _) = wait_terminal(&daemon, first).await;
+        assert_eq!(info.state, JobState::Failed, "{name}");
+        assert_eq!(info.retries, 0, "{name}");
+        let second = daemon
+            .submit("fetch".into(), json!({}), 0, "test".into(), None)
+            .unwrap();
+        let (_, outcome) = wait_terminal(&daemon, second).await;
+        assert_eq!(fetch_payload_marker(&outcome), "after", "{name}");
+        assert_eq!(
+            requests.lock().unwrap().as_slice(),
+            ["HEAD", "GET", "GET"],
+            "{name}"
+        );
+        assert_eq!(
+            journal_waits(&log_path),
+            [0, 0, hold],
+            "{name}: the next send waits the clamped Retry-After plus the bucket"
+        );
+        server.await.unwrap();
+        finish_harness_wire(dispatcher, &log_path, &requests);
+    }
+}
+
 #[tokio::test]
 async fn dispatcher_requeue_preserves_fifo_job_identity() {
     let responses = vec![

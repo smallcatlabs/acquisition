@@ -129,6 +129,13 @@ impl ScriptedResponse {
         }
     }
 
+    /// The same response carrying `Retry-After` exactly as given, for a
+    /// value `full` cannot spell (garbled, negative, over-cap).
+    pub(super) fn with_raw_retry_after(mut self, raw: &str) -> Self {
+        self.headers.push_str(&format!("Retry-After: {raw}\r\n"));
+        self
+    }
+
     pub(super) fn malformed_head_429() -> Self {
         ScriptedResponse {
             method: "HEAD",
@@ -489,18 +496,22 @@ fn assert_wire_contract(sends: &[Value]) {
     }
 }
 
-/// The pacing invariant, derived from N19 rather than from the code: a
-/// send on a route is held only because the previous landed response on
-/// that route was a 429, and then for at least its `Retry-After` and at
-/// most `Retry-After + RETRY_BUCKET_PAD + BUFFER`, the largest hold the
-/// limiter is allowed to impose — or because it was counted and came
-/// back without rate headers (rung 10's origin 503), in which case the
-/// hit is assumed counted and the hold may reach the longest window
-/// period of the route's last known policy plus the same pad. Everything
-/// else goes out at once. Runs over every journal a scripted server's
-/// or a serverless daemon writes (`finish_harness`), so a rewrite
-/// that paces slower (or stops pacing) fails here without any test
-/// naming the numbers.
+/// The pacing invariant, derived from N19 and C19 rather than from the
+/// code: a send on a route is held only because the previous landed
+/// response on that route was a 429, or was counted and came back
+/// without rate headers (rung 10's origin 503). After a counted 429 the
+/// hold is at least C19's: its `Retry-After` clamped to the cap (a
+/// missing, malformed or negative value counting as zero) plus
+/// `RETRY_BUCKET_PAD + BUFFER`, whatever the header carried, and at most
+/// that, unless the 429 was also headerless and the longer hold below
+/// applies. After a headerless counted response the hit is assumed
+/// counted and the hold may reach the longest window period of the
+/// route's last known policy plus the same pad. A HEAD's 429 (not a
+/// counted send, so outside C19) is held at least its raw `Retry-After`
+/// and at most that plus the pad. Everything else goes out at once.
+/// Runs over every journal a scripted server's or a serverless daemon
+/// writes (`finish_harness`), so a rewrite that paces slower (or stops
+/// pacing) fails here without any test naming the numbers.
 fn assert_pacing_follows_responses(sends: &[Value]) {
     let pad = full_hold_ms();
     let mut last_on_route: HashMap<String, &Value> = HashMap::new();
@@ -515,9 +526,23 @@ fn assert_pacing_follows_responses(sends: &[Value]) {
     for send in sends {
         let route = send["route"].as_str().unwrap().to_string();
         let wait = send["wait_ms"].as_u64().expect("wait_ms");
-        match last_on_route.get(&route) {
-            Some(prev) if headerless(prev) => {
-                let ceiling = longest_period_ms.get(&route).copied().unwrap_or(0) + pad;
+        let prev = last_on_route.get(&route);
+        let raw_retry_after = prev.and_then(|prev| prev["rate"]["retry-after"].as_str());
+        let headerless_ceiling = prev
+            .filter(|prev| headerless(prev))
+            .map(|_| longest_period_ms.get(&route).copied().unwrap_or(0) + pad);
+        match prev {
+            Some(prev) if prev["status"] == 429 && prev["counted"] == true => {
+                let floor = c19_retry_secs(raw_retry_after) * 1000 + pad;
+                let ceiling = floor.max(headerless_ceiling.unwrap_or(0));
+                assert!(
+                    (floor..=ceiling).contains(&wait),
+                    "after a 429 with Retry-After {raw_retry_after:?} the next send on \
+                         {route} waited {wait} ms; allowed {floor}..={ceiling}: {send}"
+                );
+            }
+            Some(_) if headerless_ceiling.is_some() => {
+                let ceiling = headerless_ceiling.unwrap_or(0);
                 assert!(
                     wait <= ceiling,
                     "after a headerless counted response the next send on {route} \
@@ -525,15 +550,14 @@ fn assert_pacing_follows_responses(sends: &[Value]) {
                 );
             }
             Some(prev) if prev["status"] == 429 => {
-                let retry_after: u64 = prev["rate"]["retry-after"]
-                    .as_str()
-                    .and_then(|s| s.parse().ok())
-                    .unwrap_or(0);
-                let floor = retry_after * 1000;
+                let floor = raw_retry_after
+                    .and_then(|s| s.parse::<u64>().ok())
+                    .unwrap_or(0)
+                    * 1000;
                 assert!(
                     (floor..=floor + pad).contains(&wait),
-                    "after a 429 with Retry-After {retry_after} the next send on \
-                         {route} waited {wait} ms; allowed {floor}..={}: {send}",
+                    "after a HEAD 429 with Retry-After {raw_retry_after:?} the next send \
+                         on {route} waited {wait} ms; allowed {floor}..={}: {send}",
                     floor + pad
                 );
             }
@@ -563,6 +587,21 @@ fn assert_pacing_follows_responses(sends: &[Value]) {
         }
         last_on_route.insert(route, send);
     }
+}
+
+/// C19's reading of a landed 429's `Retry-After`, written from the
+/// ruling's words rather than from the parser: a whole number of seconds,
+/// clamped to the cap; a missing, malformed or negative value counts as
+/// zero, and a run of digits too long to count is over the cap.
+fn c19_retry_secs(raw: Option<&str>) -> u64 {
+    let cap = crate::ratelimit::RETRY_AFTER_CAP_SECS;
+    let Some(value) = raw.map(str::trim) else {
+        return 0;
+    };
+    if value.is_empty() || !value.bytes().all(|b| b.is_ascii_digit()) {
+        return 0;
+    }
+    value.parse::<u64>().map_or(cap, |seconds| seconds.min(cap))
 }
 
 /// N4/N25 over the journal: no send is answered 429, and every window

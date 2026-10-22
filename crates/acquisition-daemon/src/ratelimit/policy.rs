@@ -234,6 +234,20 @@ impl RetryAfter {
         }
     }
 
+    /// The number of seconds the header itself carried, for the status
+    /// (invariant 2: report what the server said, never the hold's own
+    /// arithmetic). An over-cap value is reported as sent; a missing,
+    /// malformed or negative one, or one too large to count, carried none.
+    pub fn carried_secs(&self) -> Option<u64> {
+        match self {
+            RetryAfter::Acceptable { seconds } => Some(*seconds),
+            RetryAfter::OverCap { raw } => raw.trim().parse().ok(),
+            RetryAfter::Missing | RetryAfter::Malformed { .. } | RetryAfter::Negative { .. } => {
+                None
+            }
+        }
+    }
+
     pub fn is_acceptable(&self) -> bool {
         matches!(self, RetryAfter::Acceptable { .. })
     }

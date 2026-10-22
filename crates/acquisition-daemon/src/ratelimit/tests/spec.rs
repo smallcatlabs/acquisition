@@ -1230,13 +1230,17 @@ fn every_landed_429_holds_at_least_the_retry_bucket() {
     let capped = Duration::from_secs(RETRY_AFTER_CAP_SECS) + floor;
     assert_eq!(floor, Duration::from_secs(61));
     assert_eq!(capped, Duration::from_secs(961));
+    // The status reports what the header carried (invariant 2), never
+    // the hold's arithmetic: no number for a missing or bad value, the
+    // over-cap number as sent.
     let cases = [
-        (retry(None), floor),
-        (retry(Some("soon")), floor),
-        (retry(Some("-1")), floor),
-        (retry(Some("901")), capped),
+        (retry(None), floor, None),
+        (retry(Some("soon")), floor, None),
+        (retry(Some("-1")), floor, None),
+        (retry(Some("901")), capped, Some(901)),
+        (retry(Some("5000")), capped, Some(5000)),
     ];
-    for (retry_after, hold) in cases {
+    for (retry_after, hold, reported) in cases {
         let now = far_future();
         let mut limiter = Limiter::new();
         limiter
@@ -1269,6 +1273,11 @@ fn every_landed_429_holds_at_least_the_retry_bucket() {
             limiter.wait_for("/character", now),
             hold,
             "the hold for {retry_after}"
+        );
+        assert_eq!(
+            limiter.statuses(now)[0].retry_after_secs,
+            reported,
+            "the status's retry-after for {retry_after}"
         );
         assert_eq!(limiter.statuses(now)[0].history_len, 1);
         assert_eq!(limiter.violation_count(), 1);
