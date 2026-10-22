@@ -713,14 +713,16 @@ pub struct LeagueList {
 }
 
 /// The latest successful `leagues` response's list, or none when no list
-/// was ever fetched. A stored envelope that does not parse is an error
+/// was ever fetched. Latest is the response recorded last, by its id, as
+/// the stash and character listing readers take it: a clock set back
+/// between two fetches never makes the older list the current one. A stored envelope that does not parse is an error
 /// naming its row, never a panic (C47).
 pub(crate) fn league_list_in(conn: &Connection) -> Result<Option<LeagueList>> {
     let latest: Option<(i64, i64, String)> = conn
         .query_row(
             "SELECT id, fetched_at, envelope FROM responses
               WHERE endpoint = 'leagues' AND status BETWEEN 200 AND 299
-              ORDER BY fetched_at DESC, id DESC LIMIT 1",
+              ORDER BY id DESC LIMIT 1",
             [],
             |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
         )
@@ -2696,6 +2698,37 @@ mod tests {
             s.status().unwrap().leagues,
             3,
             "the table keeps the retired row"
+        );
+    }
+
+    /// C126: the list is the response recorded last, never the one whose
+    /// fetch time is largest: a clock set back between two fetches still
+    /// reads the later list.
+    #[test]
+    fn the_later_list_is_read_though_its_clock_ran_back() {
+        let mut s = Store::open_memory().unwrap();
+        s.record(
+            &Endpoint::Leagues,
+            &json!({}),
+            200,
+            &leagues(&["Standard", "Mercenaries"]),
+            100,
+        )
+        .unwrap();
+        s.record(
+            &Endpoint::Leagues,
+            &json!({}),
+            200,
+            &leagues(&["Standard", "Rehearsal"]),
+            99,
+        )
+        .unwrap();
+        assert_eq!(
+            s.league_list().unwrap(),
+            Some(LeagueList {
+                fetched_at: 99,
+                ids: vec!["Standard".into(), "Rehearsal".into()]
+            })
         );
     }
 

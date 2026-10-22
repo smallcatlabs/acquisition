@@ -214,9 +214,10 @@ them.
   the policy by writing the realm back with every league it keeps (a
   policy naming only the new league drops Standard); then `acq refresh
   --plan --league <name>` and `--apply --league <name>` until the plan
-  says nothing to do; the first plan is one request, the tab list, and
-  the plans after it fetch every tab the policy covers, so read each
-  plan's work and its ceiling before applying.
+  says nothing to do; the first plan is the listings, one or two (the
+  tab list, and the character list when it is stale), and the plans
+  after it fetch every tab the policy covers, so read each plan's work
+  and its ceiling before applying.
 - **Your data stays on your machine**, under
   `~/Library/Application Support/com.smallcatlabs.acq` on macOS,
   `~/.local/share/acq` on Linux and `%APPDATA%\smallcatlabs\acq\data`

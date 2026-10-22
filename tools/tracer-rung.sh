@@ -462,7 +462,17 @@ POLICY=$(jq -nc --arg r "$REALM" --arg l "$LEAGUE" --argjson t "$tabs_json" --ar
 echo ""
 echo "phase 2: writing the sync policy (no daemon, no wire):"
 echo "  $POLICY"
-"$ACQ" policy set "$POLICY" --json >"$RUN_DIR/policy.json"
+# The write is over the revision read above: a policy another client
+# changed in between is a conflict that stops the run, never an
+# overwrite of its edit. With none stored the write creates, as before.
+STORED_REVISION=$(jq -r 'if . == null then empty else .revision end' <<<"$STORED")
+IF_REVISION=()
+[ -n "$STORED_REVISION" ] && IF_REVISION=(--if-revision "$STORED_REVISION")
+if ! "$ACQ" policy set "$POLICY" ${IF_REVISION[@]+"${IF_REVISION[@]}"} --json >"$RUN_DIR/policy.json"; then
+    echo "*** the sync policy is no longer revision ${STORED_REVISION:-none} (another client wrote it since it was read); nothing written — stop, read \`acq policy show\`, and run again" >&2
+    cat "$RUN_DIR/policy.json" >&2
+    exit 1
+fi
 REVISION=$(jq -r '.revision' "$RUN_DIR/policy.json")
 echo "  revision $REVISION"
 "$ACQ" policy show | tee "$RUN_DIR/policy-show.txt"

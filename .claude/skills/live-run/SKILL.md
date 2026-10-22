@@ -59,7 +59,9 @@ could not teach is declared route knowledge (C32; N38, N39).
 
 A new league is a new string on routes already contacted, so it is no
 first contact (C59, an unobserved URL shape is never sent: the shape
-is observed) and its plans need no new probe. Run `acq leagues` first,
+is observed): a daemon that has already contacted a route probes it
+no further for the new league, while a fresh daemon probes each route
+on its first send as always, and its ceiling counts that probe. Run `acq leagues` first,
 under its own ceiling (its HEAD counts too, N39), and check the name
 it lists before any policy names it: a policy naming a league the list
 does not hold is noted, never refused, and an apply over a typo sends

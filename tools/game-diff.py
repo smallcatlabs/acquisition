@@ -70,8 +70,9 @@ TABLES = [
     ("defences-v1", "tools/defence-table.py", ["base_items.json"],
      "the ranges of `properties`; it checks itself against search/repoe/data/base-defences.csv, "
      "whose generator is not in the tree (deleted at c756bd38), so a change to a range stops it"),
-    ("categories-v1", "tools/category-table.py", ["item_classes.json"],
-     "after the class table, which it reads; it refuses a class it cannot place, which a new class is"),
+    ("categories-v1", "tools/category-table.py", ["base_items.json", "gems.json", "item_classes.json"],
+     "after the class table, which it reads, so the class table's inputs are its own; it refuses a "
+     "class it cannot place, which a new class is, and checks its name rules against the bases"),
     ("trade-stats-v1", "tools/trade-stats-table.py", [],
      "the site's stat capture, the owner's (a sitting), not the export: no diff here moves it"),
     ("trade-game-forms-v1", "tools/trade-forms-table.py", ["stat_translations.json"],
@@ -133,6 +134,19 @@ def title(name, entry):
 
 def one_line(text):
     return str(text).replace("\n", " / ")
+
+
+def variants(old, new):
+    """A translation's English strings that changed, by position: each
+    `'old' -> 'new'`, a string added or dropped against nothing."""
+    pairs = []
+    for i in range(max(len(old), len(new))):
+        a = old[i] if i < len(old) else None
+        b = new[i] if i < len(new) else None
+        if a != b:
+            pairs.append(f"{i}: {one_line(a) if a is not None else 'nothing'!r} -> "
+                         f"{one_line(b) if b is not None else 'nothing'!r}")
+    return "; ".join(pairs)
 
 
 def label(name, key, entry):
@@ -237,8 +251,7 @@ def render(doc, everything):
             out.append("  changed by field: " + ", ".join(f"{k} {v}" for k, v in f["changed_by_field"].items()))
         lists = [("added", f["added"]), ("removed", f["removed"]),
                  ("renamed", [f"{r['key']}: {r['old']!r} -> {r['new']!r}" if not isinstance(r["old"], tuple)
-                              else f"{r['key']}: {one_line(r['old'][0] if r['old'] else '')!r} -> "
-                              f"{one_line(r['new'][0] if r['new'] else '')!r}" for r in f["renamed"]])]
+                              else f"{r['key']}: {variants(r['old'], r['new'])}" for r in f["renamed"]])]
         if "trade_stats_added" in f:
             lists += [("trade stat ids added", f["trade_stats_added"]),
                       ("trade stat ids removed", f["trade_stats_removed"])]
@@ -314,9 +327,10 @@ def self_test():
     trade stat id added under an existing translation; then the drift line's
     three outcomes: no clone, a clone at the pin, a clone off it, and a
     header naming another game."""
-    failed = []
+    failed, made = [], []
 
     def expect(name, ok):
+        made.append(name)
         print(f"{'ok' if ok else 'DIFFER'}  {name}")
         if not ok:
             failed.append(name)
@@ -349,14 +363,16 @@ def self_test():
             {"Ring1": ring, "Ring2": {**ring, "name": "Coral Ring"}, "Ring3": {**ring, "name": "Paua Ring"},
              "Ring4": {**ring, "name": "Gold Ring"}},
             [{"ids": ["life"], "English": [{"string": "+{0} to maximum Life"}],
-              "trade_stats": [{"id": "explicit.stat_1"}]}],
+              "trade_stats": [{"id": "explicit.stat_1"}]},
+             {"ids": ["es"], "English": [{"string": "A"}, {"string": "B"}]}],
             "1.0.0.1", "Export 1.0.0.1")
         new = snapshot(
             {"Ring1": ring, "Ring2": {**ring, "name": "Coral Loop"}, "Ring4": {**ring, "name": "Gold Ring",
                                                                                  "tags": ["ring", "gold"]},
              "Ring5": {**ring, "name": "Moonstone Ring"}},
             [{"ids": ["life"], "English": [{"string": "+{0} to maximum Life"}],
-              "trade_stats": [{"id": "explicit.stat_1"}, {"id": "fractured.stat_1"}]}],
+              "trade_stats": [{"id": "explicit.stat_1"}, {"id": "fractured.stat_1"}]},
+             {"ids": ["es"], "English": [{"string": "A"}, {"string": "C"}]}],
             "1.0.0.2", "Export 1.0.0.2")
 
         doc = diff(repo, old, new)
@@ -369,9 +385,15 @@ def self_test():
         expect("a changed field is counted by field", bases["changed"] == 2
                and bases["changed_by_field"] == {"name": 1, "tags": 1})
         expect("a trade stat id added under an existing translation is named",
-               st["trade_stats_added"] == ["fractured.stat_1"] and st["added"] == [] and st["changed"] == 1)
+               st["trade_stats_added"] == ["fractured.stat_1"] and st["added"] == [] and st["changed"] == 2)
         expect("an untouched file reports nothing", f["mods.json"]["changed"] == 0 and not f["mods.json"]["added"])
         text = render(doc, False)
+        expect("a translation whose second string changed shows that string, not its unchanged first",
+               "es: 1: 'B' -> 'C'" in text)
+        categories = next(t for t in doc["tables"] if t["table"] == "categories-v1")
+        classes_moved = next(t for t in doc["tables"] if t["table"] == "classes-v1")["inputs_moved"]
+        expect("a base-only change moves the category table, which reads the class table",
+               categories["inputs_moved"] == ["base_items.json"] == classes_moved)
         expect("the reading names the class table first and the forms table after the stat table",
                text.index("1. classes-v1") < text.index("3. categories-v1") < text.index("5. trade-game-forms-v1")
                and "bump PINS" in text)
@@ -404,7 +426,7 @@ def self_test():
         subprocess.run(g + ["checkout", "-q", lagging], check=True)
         passed, line = check(clones, {"poe1": lagging}, headers)
         expect("--check, a pinned export that lags its game: fails, saying so", not passed and "lags" in line)
-    print(f"{7 + 5} cases made here, {len(failed)} differ")
+    print(f"{len(made)} cases made here, {len(failed)} differ")
     return 1 if failed else 0
 
 
