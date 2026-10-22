@@ -226,9 +226,9 @@ impl Transcript {
     }
 }
 
-/// The normaliser's ten named rules, in order: CRLF to LF, `scratch`
+/// The normaliser's eleven named rules, in order: CRLF to LF, `scratch`
 /// (which a command's words take before their quoting, [`shown_word`]),
-/// `log`, `age`, `basis`, `token` and the version line by line, then `job`,
+/// `log`, `age`, `eta`, `basis`, `token` and the version line by line, then `job`,
 /// `pid` and `progress` over the whole text, since a job's ordinal is
 /// counted across the transcript and a job's progress lines are read
 /// together. A `# holds` line is the fact as checked and is kept as
@@ -245,6 +245,7 @@ pub fn normalise(text: &str, base: &Path) -> String {
             let mut line = scratch_rule(line, base);
             line = log_rule(&line);
             line = age_rule(&line);
+            line = eta_rule(&line);
             line = basis_rule(&line);
             line = token_rule(&line);
             line.replace(env!("CARGO_PKG_VERSION"), "<version>")
@@ -583,6 +584,27 @@ fn age_rule(text: &str) -> String {
     }
     out.push_str(rest);
     out
+}
+
+/// The rule `eta`: a line that ends ` — ~<n>s`, a plan quote's wait, ends
+/// ` — ~<eta>s`. The wait is the window's length less the real age of its
+/// oldest send, so it moves with the run's speed; its exact seconds are
+/// the limiter's unit tests', at fixed instants. Only the line's end is
+/// read, behind the dash the quote writes, so a `~<n>s` elsewhere (a
+/// token's lifetime, a job's wait) is left as it is, and `ready` stays.
+fn eta_rule(text: &str) -> String {
+    let (body, newline) = match text.strip_suffix('\n') {
+        Some(body) => (body, "\n"),
+        None => (text, ""),
+    };
+    let Some(head) = body.strip_suffix('s') else {
+        return text.to_string();
+    };
+    let digits = head.len() - head.trim_end_matches(|c: char| c.is_ascii_digit()).len();
+    match head[..head.len() - digits].strip_suffix(" — ~") {
+        Some(before) if digits > 0 => format!("{before} — ~<eta>s{newline}"),
+        _ => text.to_string(),
+    }
 }
 
 /// The rule `basis`: the basis line's store and build digests are

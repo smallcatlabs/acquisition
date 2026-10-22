@@ -41,6 +41,36 @@ fn the_job_rule_numbers_ids_by_first_appearance_across_the_transcript() {
     }
 }
 
+/// A quote's wait moves with the run's speed (`launch_morning` printed
+/// `~13s` and, under load, `~14s`); any `~<n>s` that is not a quote
+/// line's end is exact or not a quote's, and stays.
+#[test]
+fn the_eta_rule_names_a_quote_lines_wait_and_nothing_else() {
+    for seconds in ["13", "14", "2", "300"] {
+        assert_eq!(
+            n(&format!(
+                "  stash-request-limit  7 requests — ~{seconds}s\n"
+            )),
+            "  stash-request-limit  7 requests — ~<eta>s\n"
+        );
+    }
+    assert_eq!(
+        n("  stash-request-limit  7 requests, 2 queued — ~13s"),
+        "  stash-request-limit  7 requests, 2 queued — ~<eta>s"
+    );
+    for text in [
+        "  stash-list-request-limit  1 request — ready\n",
+        "access token valid for ~3600s (renewed on use; the login outlasts it)\n",
+        "rate limited, starting in ~13s...\n",
+        "3 waiting (next starts in ~2s, the last in ~13s)\n",
+        "  stash-request-limit  7 requests — ~13s more\n",
+        "  stash-request-limit  7 requests — ~s\n",
+        "  stash-request-limit  7 requests ~13s\n",
+    ] {
+        assert_eq!(n(text), text);
+    }
+}
+
 #[test]
 fn the_pid_rule_names_a_process_id() {
     assert_eq!(

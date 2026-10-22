@@ -98,6 +98,9 @@ fn a_new_league_starts_empty_beside_standard_and_a_typo_is_named() {
             &[
                 format!("fetch {NEW_LEAGUE_TABS_FETCHED} tabs"),
                 format!("{second} requests:"),
+                // a wait, not `ready`: the golden masks its seconds,
+                // which move with the run's speed
+                format!("stash-request-limit  {second} requests — ~"),
             ],
         ),
         step(

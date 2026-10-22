@@ -69,6 +69,7 @@ job <j2> (ExileTester): 1/1 done
 $ acq refresh --plan --league Rehearsal
 # holds "fetch 7 tabs"
 # holds "7 requests:"
+# holds "stash-request-limit  7 requests — ~"
 --- stdout
 refresh Rehearsal on mock as ExileTester — policy 2
 facts: stash listed <age> ago
@@ -87,7 +88,7 @@ reason: selected tabs never fetched
 skipped 1 tab: 1 folder — container only
 
 quote (<age> ago):
-  stash-request-limit  7 requests — ~13s
+  stash-request-limit  7 requests — ~<eta>s
 wire: 7–21 sends; plus first-contact probes and token refresh if needed
 next: acq refresh --apply --league Rehearsal
 
