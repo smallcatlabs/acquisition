@@ -287,7 +287,7 @@ pub(super) fn test_daemon_scenario_at(
         events: broadcast::channel(256).0,
         work: Notify::new(),
         log: Mutex::new(log),
-        choke: ChokePoint::with_clock_and_rails(clock, rails),
+        choke: ChokePoint::with_clock_and_rails(clock, rails, &provider.api_base),
         provider,
         artifact: None,
         credential_store,

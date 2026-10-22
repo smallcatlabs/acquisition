@@ -16,6 +16,10 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio::sync::{mpsc, oneshot};
 
+/// The API base of a choke point whose test sends no bearer: a port
+/// nothing listens on.
+const NO_BEARER_API: &str = "http://127.0.0.1:9";
+
 /// A row of the pacing table.
 struct Row {
     name: &'static str,
@@ -1410,7 +1414,8 @@ async fn tripwire_halts_the_next_send_before_any_permit() {
         tripwire: true,
         ..RailsConfig::default()
     }));
-    let choke = ChokePoint::with_clock_and_rails(Arc::new(SystemClock), rails.clone());
+    let choke =
+        ChokePoint::with_clock_and_rails(Arc::new(SystemClock), rails.clone(), NO_BEARER_API);
 
     let landed = choke.get(route, &url, choke.now()).await.unwrap();
     assert_eq!(landed.status.as_u16(), 429);
@@ -1489,6 +1494,7 @@ async fn a_send_parked_in_the_gate_is_refused_after_a_trip() {
     let choke = Arc::new(ChokePoint::with_clock_and_rails(
         Arc::new(SystemClock),
         rails.clone(),
+        NO_BEARER_API,
     ));
 
     let head_choke = choke.clone();
@@ -2308,4 +2314,109 @@ fn a_declared_policyless_route_accepts_a_headerless_2xx_and_nothing_else_does() 
         l.endpoint_state(&profile, now),
         EndpointState::Policy(_)
     ));
+}
+
+/// A bearer that counts how often its token was read.
+struct CountingBearer(std::sync::atomic::AtomicUsize);
+
+impl Bearer for CountingBearer {
+    fn token(&self) -> Option<String> {
+        self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        Some("c128-token".into())
+    }
+    fn rejected(&self, _token: &str) {}
+}
+
+/// C128: a bearer goes only to the provider's API origin. A GET or a HEAD
+/// carrying one to another port, another host name or another scheme is
+/// refused before any permit, the token is never read, and no connection
+/// reaches the foreign server or the API's own listener (the other host
+/// name and the other scheme point at it). The same bearer to the API
+/// origin still goes out, carrying the token.
+#[tokio::test]
+async fn c128_a_bearer_goes_only_to_the_api_origin_and_nothing_reaches_either_server() {
+    let api = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let foreign = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let api_port = api.local_addr().unwrap().port();
+    let foreign_port = foreign.local_addr().unwrap().port();
+    let choke = ChokePoint::with_clock_and_rails(
+        Arc::new(SystemClock),
+        Arc::new(Rails::disabled()),
+        &format!("http://127.0.0.1:{api_port}"),
+    );
+    let bearer = CountingBearer(std::sync::atomic::AtomicUsize::new(0));
+    let off_origin = [
+        format!("http://127.0.0.1:{foreign_port}/profile"),
+        format!("http://localhost:{api_port}/profile"),
+        format!("https://127.0.0.1:{api_port}/profile"),
+    ];
+    let bound = Duration::from_secs(5);
+    for url in &off_origin {
+        let get = tokio::time::timeout(bound, choke.get_bearer("c128", url, &bearer, choke.now()))
+            .await
+            .unwrap_or_else(|_| panic!("a bearer GET to {url} was not refused before sending"));
+        assert!(
+            matches!(&get, Err(SendError::OffOrigin(_))),
+            "a bearer GET to {url}: {:?}",
+            get.as_ref().err()
+        );
+        let head = tokio::time::timeout(
+            bound,
+            choke.head("c128", url, Some(&bearer as &dyn Bearer), choke.now()),
+        )
+        .await
+        .unwrap_or_else(|_| panic!("a bearer HEAD to {url} was not refused before sending"));
+        assert!(
+            matches!(&head, Err(ProbeError::OffOrigin(_))),
+            "a bearer HEAD to {url}: {:?}",
+            head.as_ref().err()
+        );
+    }
+    assert_eq!(
+        bearer.0.load(std::sync::atomic::Ordering::SeqCst),
+        0,
+        "the token was read for a send that was refused"
+    );
+    for (name, listener) in [("the foreign server", &foreign), ("the API's", &api)] {
+        assert!(
+            tokio::time::timeout(Duration::from_millis(200), listener.accept())
+                .await
+                .is_err(),
+            "a refused send reached {name} listener"
+        );
+    }
+    assert!(
+        choke.recent_sends().is_empty(),
+        "a refused send was recorded"
+    );
+
+    // The control: the API origin admits the same bearer.
+    let server = tokio::spawn(async move {
+        let (mut stream, _) = api.accept().await.unwrap();
+        let mut request = [0; 4096];
+        let n = stream.read(&mut request).await.unwrap();
+        let request = String::from_utf8_lossy(&request[..n]).to_ascii_lowercase();
+        stream
+            .write_all(
+                raw_response("200 OK", &full_rate_headers("c128-policy", None), 2, "{}").as_bytes(),
+            )
+            .await
+            .unwrap();
+        request
+    });
+    let landed = choke
+        .get_bearer(
+            "c128-control",
+            &format!("http://127.0.0.1:{api_port}/profile"),
+            &bearer,
+            choke.now(),
+        )
+        .await
+        .expect("a bearer GET to the API origin goes out");
+    assert_eq!(landed.status.as_u16(), 200);
+    let request = server.await.unwrap();
+    assert!(
+        request.contains("authorization: bearer c128-token"),
+        "the API origin's send carried no bearer: {request}"
+    );
 }

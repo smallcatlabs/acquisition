@@ -214,7 +214,8 @@ fn test_daemon(base: &str) -> (Arc<Daemon>, Arc<MemoryCredentialStore>, PathBuf)
         .open(&log_path)
         .unwrap();
     let credential_store = Arc::new(MemoryCredentialStore::default());
-    let choke = ChokePoint::new();
+    let choke =
+        ChokePoint::with_clock_and_rails(Arc::new(SystemClock), Arc::new(Rails::disabled()), base);
     let now = choke.now();
     let daemon = Arc::new(Daemon {
         shared: Mutex::new(Shared {

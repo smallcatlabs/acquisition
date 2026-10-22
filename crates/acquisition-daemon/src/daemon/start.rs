@@ -254,7 +254,7 @@ async fn run_with_log(
     let mut rails_config = RailsConfig::from_env(&rails_state, &default_journal);
     rails_config.daemon_artifact = Some(artifact.sha256.clone());
     let rails = Arc::new(Rails::with_config_and_clock(rails_config, clock.clone()));
-    let choke = ChokePoint::with_clock_and_rails(clock, rails);
+    let choke = ChokePoint::with_clock_and_rails(clock, rails, &provider.api_base);
     Daemon::declare_route_knowledge(&choke);
     let now = choke.now();
 

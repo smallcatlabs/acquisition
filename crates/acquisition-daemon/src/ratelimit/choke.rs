@@ -37,6 +37,10 @@ pub enum ProbeError {
     /// The status is what lets the daemon act on a 401 (C87) without
     /// parsing the reason.
     Failed { status: Option<u16>, reason: String },
+    /// The probe was to carry a bearer to a URL off the provider's API
+    /// origin (C128): nothing was sent, and the route is closed for a
+    /// cooldown so its waiting job does not ask again at once.
+    OffOrigin(String),
 }
 
 impl std::fmt::Display for ProbeError {
@@ -44,6 +48,7 @@ impl std::fmt::Display for ProbeError {
         match self {
             ProbeError::StaleBearer => f.write_str(STALE_BEARER),
             ProbeError::Failed { reason, .. } => f.write_str(reason),
+            ProbeError::OffOrigin(reason) => f.write_str(reason),
         }
     }
 }
@@ -60,6 +65,9 @@ pub enum SendError {
     /// Refused before any permit by the live-test rails (tripwire or
     /// ceiling); nothing was sent.
     Halted(String),
+    /// Refused before any permit: the send was to carry a bearer to a URL
+    /// off the provider's API origin (C128). Nothing was sent.
+    OffOrigin(String),
 }
 
 /// A landed exchange after its body transfer has resolved. Non-2xx statuses
@@ -79,6 +87,7 @@ impl fmt::Display for SendError {
             SendError::StaleBearer => f.write_str(STALE_BEARER),
             SendError::Transport(error) => write!(f, "{error}"),
             SendError::Halted(cause) => write!(f, "{cause}"),
+            SendError::OffOrigin(reason) => write!(f, "{reason}"),
             SendError::Protocol(error) => {
                 write!(f, "rate-limit protocol failure: {error}")
             }
@@ -147,6 +156,10 @@ pub struct ChokePoint {
     sends: Mutex<VecDeque<SentAt>>,
     clock: Arc<dyn Clock>,
     rails: Arc<Rails>,
+    /// C128 — The one origin a bearer may be sent to: the provider's API
+    /// origin, given at construction. `None` (no API base, or one that
+    /// does not parse) admits a bearer nowhere.
+    bearer_origin: Option<url::Origin>,
 }
 
 /// Connect and whole-request (headers + body) timeouts on the one client
@@ -179,8 +192,9 @@ impl Default for ChokePoint {
 
 impl ChokePoint {
     /// Same construction in mock and real mode: the limiter starts empty and
-    /// learns policies from responses. Rails are disabled; the daemon uses
-    /// `with_rails`.
+    /// learns policies from responses. Rails are disabled and no API origin
+    /// is known, so no bearer is sent anywhere (C128); the daemon uses
+    /// `with_clock_and_rails`.
     pub fn new() -> Self {
         ChokePoint::with_rails(Arc::new(Rails::disabled()))
     }
@@ -193,10 +207,17 @@ impl ChokePoint {
             sends: Mutex::new(VecDeque::new()),
             clock: Arc::new(SystemClock),
             rails,
+            bearer_origin: None,
         }
     }
 
-    pub(crate) fn with_clock_and_rails(clock: Arc<dyn Clock>, rails: Arc<Rails>) -> Self {
+    /// The daemon's choke point: its clock, its rails, and the provider's
+    /// API base, whose origin is the only one a bearer goes to (C128).
+    pub(crate) fn with_clock_and_rails(
+        clock: Arc<dyn Clock>,
+        rails: Arc<Rails>,
+        api_base: &str,
+    ) -> Self {
         ChokePoint {
             http: build_client(),
             limiter: Mutex::new(Limiter::new()),
@@ -204,6 +225,28 @@ impl ChokePoint {
             sends: Mutex::new(VecDeque::new()),
             clock,
             rails,
+            bearer_origin: url::Url::parse(api_base).ok().map(|base| base.origin()),
+        }
+    }
+
+    /// C128 — A bearer goes only to the provider's API origin: scheme, host
+    /// and port, as the URL parser compares them. Judged here, at the one
+    /// place a bearer is attached, before any wait or permit, so the
+    /// property holds whatever URL a caller hands in. A refused send sent
+    /// nothing, so it leaves no journal line, as a halted one leaves none.
+    fn admit_bearer_url(&self, url: &str) -> Result<(), String> {
+        let origin = url::Url::parse(url).ok().map(|url| url.origin());
+        match (&self.bearer_origin, origin) {
+            (Some(allowed), Some(origin)) if *allowed == origin => Ok(()),
+            (Some(allowed), _) => Err(format!(
+                "refused before sending: a bearer goes only to the provider's API origin ({}), not to {}",
+                allowed.ascii_serialization(),
+                url_origin_words(url)
+            )),
+            (None, _) => Err(format!(
+                "refused before sending: this choke point knows no API origin, so a bearer goes nowhere, not to {}",
+                url_origin_words(url)
+            )),
         }
     }
 
@@ -394,6 +437,14 @@ impl ChokePoint {
         bearer: Option<&dyn Bearer>,
         since: Instant,
     ) -> Result<(reqwest::StatusCode, Policy, serde_json::Value), ProbeError> {
+        if bearer.is_some()
+            && let Err(reason) = self.admit_bearer_url(url)
+        {
+            // Closed like a probe with no session to probe with, so the
+            // job waiting on this route does not queue another at once.
+            self.degrade(route, &reason);
+            return Err(ProbeError::OffOrigin(reason));
+        }
         let _permit = self
             .acquire_head(route)
             .await
@@ -782,6 +833,7 @@ impl ChokePoint {
         bearer: &dyn Bearer,
         since: Instant,
     ) -> Result<CompletedResponse, SendError> {
+        self.admit_bearer_url(url).map_err(SendError::OffOrigin)?;
         let _permit = self.acquire_send(route).await?;
         let Some(token) = bearer.token() else {
             return Err(SendError::StaleBearer);
@@ -818,5 +870,14 @@ impl ChokePoint {
         let result = self.http.get(url).send().await.map_err(|e| e.to_string());
         self.finish_send(route, "GET", url, result, true, wait)
             .await
+    }
+}
+
+/// A URL's origin in words for a refusal: its serialized origin, or the
+/// fact that it does not parse as one.
+fn url_origin_words(url: &str) -> String {
+    match url::Url::parse(url) {
+        Ok(url) => url.origin().ascii_serialization(),
+        Err(_) => "a URL that does not parse".into(),
     }
 }

@@ -845,6 +845,9 @@ impl Daemon {
                         url_path(url)
                     )));
                 }
+                Err(SendError::OffOrigin(reason)) => {
+                    return Err(ApiError::Other(format!("GET {}: {reason}", url_path(url))));
+                }
                 Ok(response) => response,
             };
             self.announce_trip();
