@@ -916,6 +916,207 @@ fn etas_for_every_position_match_the_simulation_that_keeps_every_send() {
     assert!(cases[0].0.etas_for("/character", 0, now).is_empty());
 }
 
+/// A fixed-seed SplitMix64: the fuzz below is the same on every run and
+/// every machine, with no RNG dependency.
+struct SplitMix(u64);
+
+impl SplitMix {
+    fn next(&mut self) -> u64 {
+        self.0 = self.0.wrapping_add(0x9e37_79b9_7f4a_7c15);
+        let mut z = self.0;
+        z = (z ^ (z >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
+        z ^ (z >> 31)
+    }
+
+    /// Uniform in `0..=max`.
+    fn upto(&mut self, max: u64) -> u64 {
+        self.next() % (max + 1)
+    }
+
+    fn pick<T: Copy>(&mut self, from: &[T]) -> T {
+        from[self.upto(from.len() as u64 - 1) as usize]
+    }
+
+    fn chance(&mut self, percent: u64) -> bool {
+        self.upto(99) < percent
+    }
+}
+
+/// A policy the parser would refuse as well as accept: one or two rules
+/// of one to three windows, periods 0 to 1800 s, max hits including 0,
+/// reported hits around the limit and some active restrictions.
+fn fuzz_policy(rng: &mut SplitMix, name: &str) -> Policy {
+    let rules = (0..1 + rng.upto(1))
+        .map(|i| {
+            let windows = 1 + rng.upto(2);
+            let mut limits = Vec::new();
+            let mut state = Vec::new();
+            for _ in 0..windows {
+                let period_secs = if rng.chance(60) {
+                    rng.pick(&[0, 1, 2, 5, 10, 30, 60, 300, 1800])
+                } else {
+                    rng.upto(1800)
+                };
+                let max_hits = if rng.chance(60) {
+                    rng.pick(&[0, 1, 2, 3, 5, 10, 30])
+                } else {
+                    rng.upto(40) as u32
+                };
+                limits.push(Window {
+                    max_hits,
+                    period_secs,
+                    restriction_secs: rng.upto(600),
+                });
+                state.push(WindowState {
+                    hits: rng.upto(u64::from(max_hits) + 3) as u32,
+                    period_secs,
+                    restricted_secs: if rng.chance(20) { 1 + rng.upto(119) } else { 0 },
+                });
+            }
+            Rule {
+                name: ["Account", "Ip"][i as usize].to_string(),
+                limits,
+                state,
+            }
+        })
+        .collect();
+    Policy {
+        name: name.to_string(),
+        rules,
+    }
+}
+
+/// The same policy under its name with new reported state and limits:
+/// a dynamic change within its shape (history kept, N9), or with one
+/// period moved, a new shape (history discarded, F65).
+fn fuzz_rekey(rng: &mut SplitMix, policy: &Policy) -> Policy {
+    let mut next = policy.clone();
+    let reshape = rng.chance(30);
+    for rule in &mut next.rules {
+        for (limit, state) in rule.limits.iter_mut().zip(&mut rule.state) {
+            limit.max_hits = rng.upto(40) as u32;
+            state.hits = rng.upto(u64::from(limit.max_hits) + 3) as u32;
+            if reshape && rng.chance(50) {
+                limit.period_secs = rng.upto(1800);
+                state.period_secs = limit.period_secs;
+            }
+        }
+    }
+    next
+}
+
+/// `etas_for`'s stale-send drop held to the simulation that keeps every
+/// send, over limiter states drawn from a fixed seed: one or two rules,
+/// one to three windows, periods 0 to 1800 s and max hits including 0,
+/// reported hits and active restrictions, the token policy's name,
+/// counted history out of order and some of it after `now`, rekeys of
+/// the policy under its name mid-history, 429 holds, uncounted probes
+/// and lost sends. The four hand-picked states above passed a drop made
+/// 3% too eager; this fuzz fails it (the independent check of the linear
+/// `List`, attack 3).
+#[test]
+fn etas_for_match_the_simulation_that_keeps_every_send_over_fuzzed_states() {
+    const STATES: usize = 1_000;
+    const POSITIONS: usize = 160;
+    let now = far_future();
+    let mut rng = SplitMix(0x5eed_2f0c_a11e_7a5e);
+    let endpoint = "/fuzz";
+    for case in 0..STATES {
+        let name = rng.pick(&["fuzz-policy", "token-request-limit", "stash-request-limit"]);
+        let mut policy = fuzz_policy(&mut rng, name);
+        let mut limiter = Limiter::new();
+        // An offset from now: mostly the past, as far back as twice the
+        // longest window, and sometimes a little after now.
+        let at = |rng: &mut SplitMix| {
+            if rng.chance(10) {
+                now + Duration::from_millis(rng.upto(60_000))
+            } else {
+                now - Duration::from_millis(rng.upto(3_600_000))
+            }
+        };
+        let first = at(&mut rng);
+        if rng.chance(30) {
+            limiter.observe_probe(endpoint, Ok(policy.clone()), serde_json::Value::Null, first);
+        } else {
+            let _ = limiter.observe(
+                endpoint,
+                Ok(policy.clone()),
+                serde_json::Value::Null,
+                true,
+                first,
+            );
+        }
+        for _ in 0..rng.upto(40) {
+            let when = at(&mut rng);
+            match rng.upto(9) {
+                0 => {
+                    policy = fuzz_rekey(&mut rng, &policy);
+                    let _ = limiter.observe(
+                        endpoint,
+                        Ok(policy.clone()),
+                        serde_json::Value::Null,
+                        true,
+                        when,
+                    );
+                }
+                1 => limiter.note_lost_send(endpoint, when),
+                2 => {
+                    let retry_after = if rng.chance(70) {
+                        RetryAfter::Acceptable {
+                            seconds: rng.upto(120),
+                        }
+                    } else {
+                        RetryAfter::Missing
+                    };
+                    let _ = limiter.observe_landed(
+                        endpoint,
+                        LandedObservation {
+                            policy: Ok(policy.clone()),
+                            retry_after: &retry_after,
+                            raw: serde_json::Value::Null,
+                            counted: true,
+                            status: 429,
+                            now: when,
+                        },
+                    );
+                }
+                3 => {
+                    let _ = limiter.observe(
+                        endpoint,
+                        Ok(policy.clone()),
+                        serde_json::Value::Null,
+                        false,
+                        when,
+                    );
+                }
+                _ => {
+                    let _ = limiter.observe(
+                        endpoint,
+                        Ok(policy.clone()),
+                        serde_json::Value::Null,
+                        true,
+                        when,
+                    );
+                }
+            }
+        }
+        let etas = limiter.etas_for(endpoint, POSITIONS, now);
+        assert_eq!(
+            etas,
+            limiter.etas_for_keeping_every_send(endpoint, POSITIONS, now),
+            "state {case}: {policy:?}"
+        );
+        for k in [0, 1, 7, 99, POSITIONS - 1] {
+            assert_eq!(
+                etas[k],
+                limiter.eta_for(endpoint, k as u32, now),
+                "state {case} at {k}: {policy:?}"
+            );
+        }
+    }
+}
+
 #[test]
 fn probes_teach_without_counting_and_degrade_on_n20_shapes() {
     let now = far_future();
