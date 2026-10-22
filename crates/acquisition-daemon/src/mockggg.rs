@@ -235,6 +235,55 @@ const MOCK_TABS: &[(&str, &str, &str, usize, Option<&str>)] = &[
     ("mape", "Maps (empty)", "MapStash", 0, None),
 ];
 
+/// The mock account's leagues on pc, as `/account/leagues` lists them:
+/// `(id, description, category, tab id prefix)`. Standard holds the
+/// fixture's tree and items. Every other league holds the same tree of
+/// names, types and the folder, its ids prefixed so none is Standard's,
+/// every tab empty and no substash stub under the map and unique tabs, as
+/// GGG appears to list only non-empty substashes: the account's purchased
+/// tabs, present and bare, as a league is on its first morning.
+/// `Rehearsal` is the fixture's challenge league, named so nobody takes it
+/// for a real one. A league this table does not list is answered 404 on
+/// its stash list and on its tabs: the mock's convention, as it answers a
+/// tab it does not hold, and not GGG's. What GGG answers a stash list for
+/// a league that does not exist is unrecorded; it is never provoked
+/// (N27, the invalid-request budget).
+const MOCK_LEAGUES: &[(&str, &str, &str, &str)] = &[
+    ("Standard", "The default game mode.", "Standard", ""),
+    (
+        "Hardcore",
+        "A character killed in Hardcore is moved to Standard.",
+        "Standard",
+        "hc-",
+    ),
+    (
+        "Rehearsal",
+        "The mock's challenge league, empty on its first morning.",
+        "Rehearsal",
+        "rh-",
+    ),
+];
+
+/// A listed league's tab id prefix, `""` for Standard; `None` for a
+/// league the mock does not list. The league arrives as the path segment
+/// (`%20` for a space, undecoded), so a name with a space is unlisted.
+fn league_prefix(league: &str) -> Option<&'static str> {
+    MOCK_LEAGUES.iter().find(|l| l.0 == league).map(|l| l.3)
+}
+
+/// `GET /account/leagues`: the three of [`MOCK_LEAGUES`], each in the
+/// shape the real endpoint gives (`id`, `realm`, `description`,
+/// `category.id`).
+fn mock_league_list() -> serde_json::Value {
+    let leagues: Vec<serde_json::Value> = MOCK_LEAGUES
+        .iter()
+        .map(|(id, description, category, _)| {
+            json!({ "id": id, "realm": "pc", "description": description, "category": { "id": category } })
+        })
+        .collect();
+    json!({ "leagues": leagues })
+}
+
 /// Tabs the listing marks `public`, whose notes the game itself lists
 /// for sale (C81, the effective price: only a public tab's game side is
 /// a statement). `old1` holds the fixture's noted jewel.
@@ -473,20 +522,24 @@ fn mock_character(realm: acquisition_protocol::realm::Realm, name: &str) -> serd
     json!({ "character": character })
 }
 
-fn mock_stash_list(league: &str) -> serde_json::Value {
+/// The stash list of a listed league (`None` for one the mock does not
+/// list): Standard's ids as the tab table gives them, another league's
+/// under its prefix ([`MOCK_LEAGUES`]).
+fn mock_stash_list(league: &str) -> Option<serde_json::Value> {
+    let prefix = league_prefix(league)?;
     let top: Vec<serde_json::Value> = MOCK_TABS
         .iter()
         .enumerate()
         .filter(|(_, t)| t.4.is_none())
         .map(|(i, t)| {
-            let mut v = json!({ "id": t.0, "name": t.1, "type": t.2, "index": i, "metadata": { "colour": "7c5436" }, "league": league });
+            let mut v = json!({ "id": format!("{prefix}{}", t.0), "name": t.1, "type": t.2, "index": i, "metadata": { "colour": "7c5436" }, "league": league });
             if t.2 == "Folder" {
                 v["children"] = json!(MOCK_TABS
                     .iter()
                     .enumerate()
                     .filter(|(_, c)| c.4 == Some(t.0))
                     .map(|(j, c)| {
-                        let mut child = json!({ "id": c.0, "name": c.1, "type": c.2, "index": j, "folder": t.0, "metadata": { "colour": "7c5436", "folder": true } });
+                        let mut child = json!({ "id": format!("{prefix}{}", c.0), "name": c.1, "type": c.2, "index": j, "folder": format!("{prefix}{}", t.0), "metadata": { "colour": "7c5436", "folder": true } });
                         if PUBLIC_TABS.contains(&c.0) {
                             child["metadata"]["public"] = json!(true);
                         }
@@ -497,11 +550,27 @@ fn mock_stash_list(league: &str) -> serde_json::Value {
             v
         })
         .collect();
-    json!({ "stashes": top })
+    Some(json!({ "stashes": top }))
 }
 
-/// One fetched tab or substash.
-fn mock_stash(id: &str, sub: Option<&str>) -> Option<serde_json::Value> {
+/// One fetched tab or substash of a listed league. Standard's tabs hold
+/// the fixture's items and its map and unique tabs list their substash
+/// stubs; another league's tab, its id under the league's prefix, is
+/// empty, lists no stub and has no substash to fetch.
+fn mock_stash(league: &str, id: &str, sub: Option<&str>) -> Option<serde_json::Value> {
+    let prefix = league_prefix(league)?;
+    if !prefix.is_empty() {
+        let t = mock_tab(id.strip_prefix(prefix)?)?;
+        if sub.is_some()
+            || t.4
+                .is_some_and(|p| mock_tab(p).is_some_and(|p| p.2 != "Folder"))
+        {
+            return None;
+        }
+        return Some(json!({ "stash": {
+            "id": id, "name": t.1, "type": t.2, "index": 0, "metadata": { "colour": "7c5436" }, "items": [],
+        } }));
+    }
     let t = mock_tab(sub.unwrap_or(id))?;
     if sub.is_some() && t.4 != Some(id) {
         return None; // a substash is only reachable under its own parent
@@ -732,7 +801,7 @@ async fn handle(
             // and item ids are GGG-unique, so the mock never reuses pc's
             // under another realm.
             let body = if policy_key == "/stash/tab" {
-                match mock_stash(parts[1], parts.get(2).copied())
+                match mock_stash(parts[0], parts[1], parts.get(2).copied())
                     .filter(|_| realm == acquisition_protocol::realm::Realm::Pc)
                 {
                     Some(v) => v,
@@ -748,18 +817,26 @@ async fn handle(
                     }
                 }
             } else if policy_key == "/stash" {
-                if realm == acquisition_protocol::realm::Realm::Pc {
-                    mock_stash_list(parts[0])
-                } else {
+                if realm != acquisition_protocol::realm::Realm::Pc {
                     json!({ "stashes": [] })
+                } else if let Some(list) = mock_stash_list(parts[0]) {
+                    list
+                } else {
+                    // the mock's convention for a league it does not
+                    // list (`MOCK_LEAGUES`), never GGG's recorded answer
+                    respond(
+                        &mut stream,
+                        "404 Not Found",
+                        "application/json",
+                        &json!({ "error": "no such league" }).to_string(),
+                    )
+                    .await;
+                    return;
                 }
             } else if policy_key == "/character/name" {
                 mock_character(realm, parts[0])
             } else if req.path == "/account/leagues" {
-                json!({ "leagues": [
-                    { "id": "Standard", "realm": "pc", "description": "The default game mode.", "category": { "id": "Standard" } },
-                    { "id": "Hardcore", "realm": "pc", "description": "A character killed in Hardcore is moved to Standard.", "category": { "id": "Standard" } },
-                ]})
+                mock_league_list()
             } else if policy_key == "/character" {
                 mock_character_list(realm)
             } else {
@@ -1195,10 +1272,10 @@ mod tests {
     /// Items elsewhere, every inventory item with the real slot word.
     #[test]
     fn the_mock_serves_the_fixture_where_it_holds_a_location() {
-        let dump = mock_stash("dump", None).unwrap();
+        let dump = mock_stash("Standard", "dump", None).unwrap();
         assert_eq!(dump["stash"]["items"][0]["name"], "Empyrean Knot");
         assert_eq!(dump["stash"]["items"].as_array().unwrap().len(), 5);
-        let u001 = mock_stash("uniq", Some("u001")).unwrap();
+        let u001 = mock_stash("Standard", "uniq", Some("u001")).unwrap();
         assert_eq!(u001["stash"]["items"][0]["typeLine"], "Fake Item 0");
         let hoarder = mock_character(Realm::Pc, "StashHoarder");
         assert_eq!(hoarder["character"]["equipment"][0]["name"], "Alpha's Howl");
@@ -1208,11 +1285,99 @@ mod tests {
                 assert_eq!(item["inventoryId"], "MainInventory", "{name}: {item}");
             }
         }
-        let list = mock_stash_list("Standard");
+        let list = mock_stash_list("Standard").unwrap();
         let fold = &list["stashes"].as_array().unwrap()[2];
         assert_eq!(fold["children"][0]["id"], "old1");
         assert_eq!(fold["children"][0]["metadata"]["public"], true);
         assert!(fold["children"][1]["metadata"]["public"].is_null());
+    }
+
+    /// Three leagues are listed. Each league but Standard holds Standard's
+    /// tree of names and types under ids none of Standard's, every tab
+    /// empty and no substash stub on a fetched map or unique tab; a
+    /// league the mock does not list has no stash list and no tab.
+    #[test]
+    fn three_leagues_are_listed_and_each_but_standard_starts_empty() {
+        let leagues = mock_league_list();
+        let ids: Vec<&str> = leagues["leagues"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|l| l["id"].as_str().unwrap())
+            .collect();
+        assert_eq!(ids, ["Standard", "Hardcore", "Rehearsal"]);
+        for l in leagues["leagues"].as_array().unwrap() {
+            assert_eq!(l["realm"], "pc");
+            assert!(l["category"]["id"].is_string() && l["description"].is_string());
+        }
+
+        // every id a listing gives, folder children included, and the type
+        fn listed(list: &serde_json::Value) -> Vec<(String, String, String)> {
+            let mut out = Vec::new();
+            for t in list["stashes"].as_array().unwrap() {
+                out.push((
+                    t["id"].as_str().unwrap().to_string(),
+                    t["name"].as_str().unwrap().to_string(),
+                    t["type"].as_str().unwrap().to_string(),
+                ));
+                for c in t["children"].as_array().into_iter().flatten() {
+                    out.push((
+                        c["id"].as_str().unwrap().to_string(),
+                        c["name"].as_str().unwrap().to_string(),
+                        c["type"].as_str().unwrap().to_string(),
+                    ));
+                }
+            }
+            out
+        }
+        let standard = listed(&mock_stash_list("Standard").unwrap());
+        let standard_ids: Vec<&String> = standard.iter().map(|t| &t.0).collect();
+        for league in ["Hardcore", "Rehearsal"] {
+            let tabs = listed(&mock_stash_list(league).unwrap());
+            let names = |v: &[(String, String, String)]| {
+                v.iter()
+                    .map(|t| (t.1.clone(), t.2.clone()))
+                    .collect::<Vec<_>>()
+            };
+            assert_eq!(
+                names(&tabs),
+                names(&standard),
+                "{league}: Standard's tree of names and types"
+            );
+            for (id, _, kind) in &tabs {
+                assert!(
+                    !standard_ids.contains(&id),
+                    "{league}: {id} is one of Standard's ids"
+                );
+                if kind == "Folder" {
+                    continue;
+                }
+                let tab = mock_stash(league, id, None)
+                    .unwrap_or_else(|| panic!("{league}: {id} is not fetchable"));
+                assert_eq!(
+                    tab["stash"]["items"],
+                    json!([]),
+                    "{league}: {id} holds items"
+                );
+                assert!(
+                    tab["stash"]["children"].is_null(),
+                    "{league}: {id} lists a substash stub"
+                );
+            }
+            // Standard's ids are not this league's, and no substash is reachable
+            assert!(mock_stash(league, "dump", None).is_none());
+            assert!(
+                mock_stash(
+                    league,
+                    &format!("{}maps", league_prefix(league).unwrap()),
+                    Some("m001")
+                )
+                .is_none()
+            );
+        }
+        assert!(mock_stash_list("Typo").is_none());
+        assert!(mock_stash("Typo", "dump", None).is_none());
+        assert!(mock_stash("Standard", "rh-dump", None).is_none());
     }
 
     #[test]
