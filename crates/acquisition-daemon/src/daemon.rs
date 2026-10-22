@@ -167,7 +167,8 @@ pub use start::{DIAGNOSTIC_CAP_BYTES, rotate_if_over, run};
 use endpoint::{BoundSocket, Listener, Stream};
 use kinds::{ApiError, validate_apply};
 use queue::{
-    admit_client, admit_realm, admit_segments, check_sleep, client_kinds, describe, describe_str,
+    admit_client, admit_realm, admit_segments, bounded_message, check_sleep, client_kinds,
+    describe, describe_str,
 };
 use refresh::AccessTokenResult;
 use routes::why_no_url;
@@ -276,7 +277,7 @@ impl Entry {
 /// | `Sessions::get`: several live, none named | `several accounts are logged in (…)` | `ambiguous_account` |
 /// | `Sessions::matching` (submit, quote, auth check, logout): a selector two or more live sessions match | `account … names several live sessions (…)` | `ambiguous_account` |
 /// | `resolve_account`: a selector with no session | `account …: not logged in` / `… is not logged in (live: …)` | `not_logged_in` |
-/// | `validate_apply`, `admit_realm` (submit) | `apply needs a jobs array …`, `action i: …`, `max_requests must be …`, `plan exceeds the budget …`, a realm refusal | `refused` |
+/// | `validate_apply`, `admit_realm`, `admit_params_size`, `admit_submitter` (submit) | `apply needs a jobs array …`, `action i: …`, `max_requests must be …`, `plan exceeds the budget …`, a realm refusal, `params of N bytes as JSON exceed …`, `submitted_by must be at most …` | `refused` |
 /// | `submit_with_parent`: parent gone or cancelled (children only; becomes the parent's outcome) | `parent job N is gone` / `was cancelled` | `refused` |
 /// | `submit_with_parent`: the sticky queue failure, or the insert failing | `the persisted queue failed (…)` | `queue_failed` |
 /// | `Status`, `Result`, `cancel`, `set_priority`: no such id | `no job N` | `unknown_job` |
@@ -289,7 +290,7 @@ impl Entry {
 /// | `valid_access_token`: the session changed under the refresh | `authentication session changed …` | `not_logged_in` |
 /// | `valid_access_token`: the refresh owner was dropped | `token refresh owner was abandoned …` | `internal` |
 /// | `forget_account`: no index (harness daemons), an unreadable index, a keyring clear that failed | `no account index …`, `accounts index: …`, the keyring's error | `internal` |
-/// | `forget_account`: the index knows no such account / several | the index's message | `not_logged_in` / `ambiguous_account` |
+/// | `forget_account`: the index knows no such account / several | `no account matches …` / the index's message | `not_logged_in` / `ambiguous_account` |
 /// | `logout`: the keyring clear failed (logged, never on the wire) | the keyring's error | `internal` |
 ///
 /// Not a kind of its own: a rails halt never refuses a submit — a halted
@@ -537,7 +538,8 @@ impl Sessions {
             return Err(Refusal::new(
                 ErrorKind::AmbiguousAccount,
                 format!(
-                    "account {selector:?} names several live sessions ({}); use the full name",
+                    "account {} names several live sessions ({}); use the full name",
+                    describe_str(selector),
                     names.join(", ")
                 ),
             ));

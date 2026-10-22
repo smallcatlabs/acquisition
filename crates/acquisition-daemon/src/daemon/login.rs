@@ -384,12 +384,21 @@ impl Daemon {
             .map_err(|e| Refusal::new(ErrorKind::Internal, format!("accounts index: {e:#}")))?;
         let entry = index
             .resolve(Some(selector))
-            .map_err(|e| {
-                let kind = match e {
-                    acquisition_store::Resolve::Ambiguous(_) => ErrorKind::AmbiguousAccount,
-                    _ => ErrorKind::NotLoggedIn,
-                };
-                Refusal::new(kind, e.to_string())
+            .map_err(|e| match e {
+                acquisition_store::Resolve::Ambiguous(_) => {
+                    Refusal::new(ErrorKind::AmbiguousAccount, e.to_string())
+                }
+                // The index's own words quote the selector whole (C127).
+                acquisition_store::Resolve::NotFound(selector) => Refusal::new(
+                    ErrorKind::NotLoggedIn,
+                    format!(
+                        "no account matches {} (see `acq accounts`)",
+                        describe_str(&selector)
+                    ),
+                ),
+                acquisition_store::Resolve::Empty => {
+                    Refusal::new(ErrorKind::NotLoggedIn, e.to_string())
+                }
             })?
             .clone();
         // Nothing to clear for a session that was never in the keyring.

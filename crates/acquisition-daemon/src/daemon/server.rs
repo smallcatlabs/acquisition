@@ -132,11 +132,14 @@ impl Daemon {
                             // (C84, C83) and decides nothing: the client
                             // judges staleness and replaces, refuses or
                             // reports (C10). What the client said about
-                            // itself is logged when it differs, so a
+                            // itself is logged when it differs, bounded
+                            // (C127: one hello writes no 64 MiB line), so a
                             // mismatch is visible from this side too.
                             if contract != acquisition_protocol::CONTRACT_REVISION {
                                 self.log(&format!(
-                                    "contract mismatch: client {contract} (version {version}), daemon {} (version {})",
+                                    "contract mismatch: client {} (version {}), daemon {} (version {})",
+                                    bounded_message(&contract, ""),
+                                    bounded_message(&version, ""),
                                     acquisition_protocol::CONTRACT_REVISION,
                                     acquisition_protocol::VERSION
                                 ));
@@ -147,7 +150,8 @@ impl Daemon {
                                 .unwrap_or_else(|| acquisition_protocol::protocol::UNKNOWN.to_string());
                             if world != own_world {
                                 self.log(&format!(
-                                    "world mismatch: client on {world}, daemon on {own_world} — the client refuses this daemon"
+                                    "world mismatch: client on {}, daemon on {own_world} — the client refuses this daemon",
+                                    bounded_message(&world, "")
                                 ));
                             }
                             let hello = BootstrapReply::Hello {
@@ -185,7 +189,22 @@ impl Daemon {
                     } else {
                         match serde_json::from_slice::<Request>(&bytes) {
                             Ok(req) => self.handle_request(req, &mut events).await,
-                            Err(e) => Refusal::new(ErrorKind::BadRequest, format!("bad request: {e}")).into(),
+                            // serde quotes a mistyped value whole: bounded,
+                            // so the refusal fits the response frame (C127).
+                            // A cut message loses serde's position at its
+                            // end, so it is said again (a tagged request's
+                            // fields have none: line 0).
+                            Err(e) => {
+                                let at = match e.line() {
+                                    0 => String::new(),
+                                    line => format!(" at line {line} column {}", e.column()),
+                                };
+                                Refusal::new(
+                                    ErrorKind::BadRequest,
+                                    format!("bad request: {}", bounded_message(&e, &at)),
+                                )
+                                .into()
+                            }
                         }
                     };
                     if write_line(&mut write, &response).await.is_err() {

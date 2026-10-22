@@ -192,6 +192,8 @@ resubmit if still wanted",
             validate_apply(&params)?;
         }
         admit_realm(&kind, &params)?;
+        admit_params_size(&params)?;
+        admit_submitter(&submitted_by)?;
         self.submit_with_parent(kind, params, priority, submitted_by, account, None)
     }
 
@@ -713,6 +715,123 @@ fn preview<T: serde::Serialize + ?Sized>(value: &T, size: impl FnOnce(usize) -> 
     } else {
         format!("{text}… ({})", size(head.total))
     }
+}
+
+/// The longest message of an error a refusal quotes, in bytes: the
+/// longest the decoder writes for a value it names by type (an unknown
+/// `req`, which lists the fifteen this version reads) is about 300.
+pub(super) const MESSAGE_MAX_BYTES: usize = 512;
+
+/// C127 — An error's message, bounded: whole when it is at most
+/// `MESSAGE_MAX_BYTES`; else its head, cut on a character boundary, its
+/// whole length, and `tail` (where the cut text said where it went
+/// wrong). The decoder's message for a frame that is not a request quotes
+/// the mistyped value whole, Debug-escaped, so a value that fits the
+/// request frame made a refusal over the response frame, and the refusal
+/// was lost. Its message has no one shape to find the value in (a string
+/// is quoted, a variant or a field is in backticks), so the whole text is
+/// bounded, and its head keeps the decoder's words and the value's type.
+/// One pass that keeps only the head.
+pub(super) fn bounded_message(error: &dyn std::fmt::Display, tail: &str) -> String {
+    /// A writer that counts everything and keeps the head whole.
+    struct Head {
+        kept: String,
+        cut: bool,
+        total: usize,
+    }
+    impl std::fmt::Write for Head {
+        fn write_str(&mut self, s: &str) -> std::fmt::Result {
+            self.total += s.len();
+            if !self.cut {
+                let room = MESSAGE_MAX_BYTES - self.kept.len();
+                let mut end = room.min(s.len());
+                while !s.is_char_boundary(end) {
+                    end -= 1;
+                }
+                self.kept.push_str(&s[..end]);
+                self.cut = end < s.len();
+            }
+            Ok(())
+        }
+    }
+    let mut head = Head {
+        kept: String::new(),
+        cut: false,
+        total: 0,
+    };
+    // `Head` never fails; a `Display` that does leaves what it wrote.
+    let _ = std::fmt::write(&mut head, format_args!("{error}"));
+    if head.cut {
+        format!(
+            "{}… (a message of {} bytes, cut){tail}",
+            head.kept, head.total
+        )
+    } else {
+        head.kept
+    }
+}
+
+/// The most bytes a submit's `params` may take as JSON. They are stored
+/// and echoed as submitted (C7), so without a bound one submit of junk
+/// made `list` larger than the response frame, and the queue kept it.
+/// The largest legitimate params are an `apply`'s, one tuple per action
+/// of a plan, and a plan is one (realm, league): the owner's Standard,
+/// 3,347 tabs (3,009 of them map and unique substashes, N47) and 59
+/// characters, is 3,408 actions, about 370 KB, or 560 KB with a 64-byte
+/// league name. 8 MiB is over twenty times that, and an eighth of the
+/// frame.
+pub(super) const PARAMS_MAX_BYTES: usize = 8 << 20;
+
+/// C127 — A submit's `params` are at most `PARAMS_MAX_BYTES` as JSON,
+/// judged after the checks that name a param, so a value one of them
+/// refuses is refused in its words. The refusal names the size, never
+/// the value.
+pub(super) fn admit_params_size(params: &Value) -> Result<(), Refusal> {
+    /// A writer that only counts.
+    struct Count(usize);
+    impl std::io::Write for Count {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            self.0 += buf.len();
+            Ok(buf.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    let mut count = Count(0);
+    // Serializing a `Value` fails only on the writer, which never does.
+    let _ = serde_json::to_writer(&mut count, params);
+    if count.0 <= PARAMS_MAX_BYTES {
+        return Ok(());
+    }
+    Err(Refusal::new(
+        ErrorKind::Refused,
+        format!(
+            "params of {} bytes as JSON exceed the bound of {PARAMS_MAX_BYTES} bytes; \
+submit the work in parts",
+            count.0
+        ),
+    ))
+}
+
+/// The most bytes a submit's `submitted_by` may take. It is stored and
+/// echoed like its params; a real one is a frontend's name and its pid
+/// (`cli:12345`, `acquisition-verbs`' `jobs.rs`), a dozen bytes.
+pub(super) const SUBMITTER_MAX_BYTES: usize = 128;
+
+/// C127 — A submit's `submitted_by` is at most `SUBMITTER_MAX_BYTES`; the
+/// refusal describes it, never echoes it.
+pub(super) fn admit_submitter(submitted_by: &str) -> Result<(), Refusal> {
+    if submitted_by.len() <= SUBMITTER_MAX_BYTES {
+        return Ok(());
+    }
+    Err(Refusal::new(
+        ErrorKind::Refused,
+        format!(
+            "submitted_by must be at most {SUBMITTER_MAX_BYTES} bytes, not {}",
+            describe_str(submitted_by)
+        ),
+    ))
 }
 
 /// C127 — Admission at the client's door (`Request::Submit`, in

@@ -4,7 +4,7 @@
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
 use super::harness::*;
-use crate::daemon::queue::SEGMENT_MAX_BYTES;
+use crate::daemon::queue::{PARAMS_MAX_BYTES, SEGMENT_MAX_BYTES, SUBMITTER_MAX_BYTES};
 use crate::daemon::*;
 use std::sync::atomic::Ordering;
 
@@ -839,6 +839,98 @@ async fn c127_a_refused_value_is_described_by_its_type_and_size_within_the_respo
         }
         assert_nothing_admitted(&daemon, what);
     }
+    finish_harness(None, &log_path);
+}
+
+/// C127 (a submit's params have a bound): params one byte over
+/// `PARAMS_MAX_BYTES` as JSON are refused at submit, naming their size and
+/// not their value, and spend no id, as is a `submitted_by` over
+/// `SUBMITTER_MAX_BYTES`; params at the bound are admitted,
+/// and so is an `apply` the size of the largest plan observed, the
+/// owner's Standard: 3,347 tabs, 3,009 of them substashes, and 59
+/// characters (N47).
+#[tokio::test]
+async fn c127_params_over_their_bound_are_refused_and_a_large_plan_is_admitted() {
+    let (daemon, log_path) = live_daemon("http://127.0.0.1:1");
+    // `{"pad":"…"}` is ten bytes around the string.
+    let pad = |len: usize| json!({ "pad": "x".repeat(len - 10) });
+    let over = pad(PARAMS_MAX_BYTES + 1);
+    assert_eq!(
+        serde_json::to_vec(&over).unwrap().len(),
+        PARAMS_MAX_BYTES + 1
+    );
+    let response = client_submit(&daemon, "sleep", over, None).await;
+    let Response::Error { kind, message } = &response else {
+        panic!("params over the bound were admitted: {response:?}")
+    };
+    assert_eq!(*kind, ErrorKind::Refused, "{message}");
+    assert!(
+        message.contains(&(PARAMS_MAX_BYTES + 1).to_string())
+            && message.contains(&PARAMS_MAX_BYTES.to_string()),
+        "the refusal names the size and the bound: {message}"
+    );
+    assert!(
+        message.len() <= 1024 && !message.contains("xxxx"),
+        "the refusal quotes nothing of the value: {message}"
+    );
+    assert_nothing_admitted(&daemon, "params over the bound");
+    // A submit's other stored and echoed string, its submitter, has a
+    // bound of its own, and is described, never echoed.
+    let submitter = "y".repeat(20 << 20);
+    let response = daemon
+        .handle_request(
+            Request::Submit {
+                kind: "sleep".into(),
+                params: json!({}),
+                priority: 0,
+                submitted_by: submitter,
+                account: None,
+            },
+            &mut None,
+        )
+        .await;
+    assert_refused(
+        response,
+        "a submitter over its bound",
+        &[
+            "submitted_by must be at most",
+            &SUBMITTER_MAX_BYTES.to_string(),
+            "(a string of 20971520 bytes)",
+        ],
+    );
+    assert_nothing_admitted(&daemon, "a submitter over its bound");
+
+    let mut jobs = vec![
+        json!({ "kind": "stashes", "params": { "realm": "pc", "league": "Standard" } }),
+        json!({ "kind": "characters", "params": { "realm": "pc" } }),
+    ];
+    for i in 0..338 {
+        jobs.push(json!({ "kind": "stash", "params": {
+            "realm": "pc", "league": "Standard", "id": format!("{i:010x}"), "deep": false,
+        } }));
+    }
+    for i in 0..3009 {
+        jobs.push(json!({ "kind": "stash", "params": {
+            "realm": "pc", "league": "Standard", "id": format!("{:010x}", i % 14),
+            "sub": format!("{i:010x}"), "deep": false,
+        } }));
+    }
+    for i in 0..59 {
+        jobs.push(json!({ "kind": "character", "params": {
+            "realm": "pc", "name": format!("ACharacterName{i}"),
+        } }));
+    }
+    let plan = json!({ "jobs": jobs, "max_requests": 3408 });
+    let response = client_submit(&daemon, "apply", plan, None).await;
+    assert!(
+        matches!(response, Response::Submitted { id: 1 }),
+        "the largest plan observed is admitted, as job 1: {response:?}"
+    );
+    let response = client_submit(&daemon, "sleep", pad(PARAMS_MAX_BYTES), None).await;
+    assert!(
+        matches!(response, Response::Submitted { id: 2 }),
+        "params at the bound are admitted: {response:?}"
+    );
     finish_harness(None, &log_path);
 }
 

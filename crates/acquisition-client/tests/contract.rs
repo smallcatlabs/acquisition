@@ -638,6 +638,94 @@ async fn c85_malformed_and_oversize_frames_get_bad_request_and_the_connection_st
     assert_eq!(raw.next().await["resp"], "daemon_status");
 }
 
+/// C127 (no refusal echoes a client value whole), on the wire: a request
+/// that fits its frame but carries 20 MiB of backslashes where the
+/// daemon refuses it is answered with a refusal that fits the response
+/// frame, of the right kind, naming the value's type and a size. Quoted
+/// whole, each escape doubles every backslash twice over, and the refusal
+/// was over the frame: the client discarded it and the structured error
+/// was lost. The first two are frames that do not decode (a string where
+/// a number belongs); the third is an account the index does not know.
+#[tokio::test]
+async fn c127_a_refusal_quoting_a_huge_client_value_fits_the_response_frame() {
+    let s = session("huge");
+    let _daemon = start_daemon_in_process(&s, &acqd_built()).await;
+    let mut client = compatible_client().await;
+    // An indexed account, so the logout below reaches the index's lookup.
+    login_in_process(&mut client, None).await;
+    let mut raw = Raw::open().await;
+    raw.hello().await;
+
+    let huge = "\\".repeat(20 << 20);
+    let huge_len = huge.len().to_string();
+    let cases = [
+        (
+            "a status whose id is a string",
+            json!({ "req": "status", "id": huge }),
+            ErrorKind::BadRequest,
+            vec!["bad request", "invalid type: string", "bytes, cut)"],
+        ),
+        (
+            "a submit whose priority is a string",
+            json!({
+                "req": "submit",
+                "kind": "sleep",
+                "params": {},
+                "priority": huge,
+                "submitted_by": "contract",
+            }),
+            ErrorKind::BadRequest,
+            vec!["bad request", "invalid type: string", "bytes, cut)"],
+        ),
+        (
+            "a logout of an account nobody knows",
+            json!({ "req": "auth_logout", "account": huge }),
+            ErrorKind::NotLoggedIn,
+            vec!["no account matches", "(a string of", &huge_len],
+        ),
+    ];
+    for (what, request, kind, said) in cases {
+        let frame = request.to_string();
+        assert!(
+            frame.len() < MAX_FRAME_BYTES,
+            "{what}: the request fits its frame ({} bytes)",
+            frame.len()
+        );
+        raw.send(frame.as_bytes()).await;
+        let reply = match read_frame(&mut raw.reader, MAX_FRAME_BYTES)
+            .await
+            .expect("read")
+        {
+            Frame::Line(bytes) => serde_json::from_slice::<Value>(&bytes).expect("json"),
+            other => panic!("{what}: the refusal did not fit the response frame: {other:?}"),
+        };
+        assert_eq!(error_kind(&reply), kind, "{what}");
+        let message = reply["message"].as_str().unwrap();
+        assert!(
+            message.len() <= 1024,
+            "{what}: the refusal quotes a bounded head, not {} bytes",
+            message.len()
+        );
+        for words in said {
+            assert!(message.contains(words), "{what}: says {words:?}: {message}");
+        }
+    }
+    // The bound cuts no message the decoder writes for a short value: an
+    // unknown request is answered with the whole list of the known ones.
+    let reply = raw.ask(json!({ "req": "nonesuch" })).await;
+    assert_eq!(error_kind(&reply), ErrorKind::BadRequest, "{reply}");
+    let message = reply["message"].as_str().unwrap();
+    assert!(
+        message.contains("`nonesuch`")
+            && message.contains("`dashboard`")
+            && !message.contains("cut)"),
+        "{message}"
+    );
+    // The connection stays.
+    let reply = raw.ask(json!({ "req": "list" })).await;
+    assert_eq!(reply["resp"], "jobs", "{reply}");
+}
+
 // ---- subscriptions ----------------------------------------------------------
 
 /// After `subscribed` a connection carries events only — a request there
