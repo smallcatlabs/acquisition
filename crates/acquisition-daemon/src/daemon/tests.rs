@@ -8,6 +8,7 @@ mod diagnostics;
 mod dispatch;
 mod harness;
 mod idle;
+mod list;
 mod login;
 mod parents;
 mod queue;

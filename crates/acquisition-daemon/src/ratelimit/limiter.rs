@@ -223,7 +223,57 @@ impl Limiter {
     /// from that history (a prediction of what the server will report —
     /// headers remain the truth for real sends). An estimate, not a promise.
     pub fn eta_for(&self, endpoint: &str, ahead: u32, now: Instant) -> Duration {
+        self.simulate(endpoint, ahead as usize, now, true, |_| {})
+    }
+
+    /// `eta_for` for every queue position at once: element `k` is
+    /// `eta_for(endpoint, k, now)`, for `k` in `0..count`. The simulation
+    /// for `ahead = k` is the prefix of the one for any larger `ahead`, so
+    /// one pass yields them all: a queue of `n` same-route jobs costs one
+    /// forward simulation, not `n` of them (the daemon's `List`).
+    pub fn etas_for(&self, endpoint: &str, count: usize, now: Instant) -> Vec<Duration> {
+        let mut etas = Vec::with_capacity(count);
+        if let Some(last) = count.checked_sub(1) {
+            self.simulate(endpoint, last, now, true, |eta| etas.push(eta));
+        }
+        etas
+    }
+
+    /// `etas_for` with every simulated send kept to the end: the plain
+    /// simulation, the oracle `forget_stale` is held to.
+    #[cfg(test)]
+    pub(crate) fn etas_for_keeping_every_send(
+        &self,
+        endpoint: &str,
+        count: usize,
+        now: Instant,
+    ) -> Vec<Duration> {
+        let mut etas = Vec::with_capacity(count);
+        if let Some(last) = count.checked_sub(1) {
+            self.simulate(endpoint, last, now, false, |eta| etas.push(eta));
+        }
+        etas
+    }
+
+    /// The forward simulation behind `eta_for` and `etas_for`: `each` is
+    /// called with the ETA at every position `0..=ahead`, in order, and
+    /// the last is returned. With `forget_stale`, a send older than the
+    /// policy's longest window is dropped from the simulated history:
+    /// the simulated instant never moves back, so every window count
+    /// and every deadline would skip it from then on, and keeping it
+    /// made a long queue's one simulation quadratic in its length.
+    fn simulate(
+        &self,
+        endpoint: &str,
+        ahead: usize,
+        now: Instant,
+        forget_stale: bool,
+        mut each: impl FnMut(Duration),
+    ) -> Duration {
         let Some(state) = self.policy_for(endpoint) else {
+            for _ in 0..=ahead {
+                each(Duration::ZERO);
+            }
             return Duration::ZERO;
         };
         let mut history = state.history.clone();
@@ -263,9 +313,25 @@ impl Limiter {
                 0
             }
         };
+        let longest = state
+            .policy
+            .rules
+            .iter()
+            .flat_map(|rule| rule.limits.iter())
+            .map(|w| Duration::from_secs(w.period_secs))
+            .max()
+            .unwrap_or(Duration::ZERO);
         let mut t = now.checked_add(self.wait_for(endpoint, now)).unwrap_or(now);
+        each(t.saturating_duration_since(now));
         for _ in 0..ahead {
             history.push_back(t);
+            while forget_stale
+                && history
+                    .front()
+                    .is_some_and(|&h| t.duration_since(h) >= longest)
+            {
+                history.pop_front();
+            }
             let mut next = t;
             for rule in &state.policy.rules {
                 for (i, w) in rule.limits.iter().enumerate() {
@@ -292,6 +358,7 @@ impl Limiter {
                 }
             }
             t = next;
+            each(t.saturating_duration_since(now));
         }
         t.saturating_duration_since(now)
     }

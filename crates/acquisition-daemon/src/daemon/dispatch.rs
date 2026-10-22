@@ -49,6 +49,10 @@ impl Daemon {
         let mut busy: HashSet<String> = s.active_jobs.values().cloned().collect();
         let halted = self.rails().halted().is_some();
         let mut picks = Vec::new();
+        // Whether a route's probe is pending, asked once per route: the
+        // question scans every job, and a queue waiting on one probe
+        // would otherwise scan it once per job.
+        let mut probing: HashMap<String, bool> = HashMap::new();
         for id in s.queue_order() {
             let entry = &s.jobs[&id];
             if let Some((route, _)) = self.keyed_route_for(
@@ -63,7 +67,9 @@ impl Daemon {
                 }
                 // A job whose route is still being probed has nothing to do yet.
                 if self.choke.endpoint_state(&route) == EndpointState::Unknown
-                    && Self::probe_pending(&s, &route)
+                    && *probing
+                        .entry(route)
+                        .or_insert_with_key(|route| Self::probe_pending(&s, route))
                 {
                     continue;
                 }

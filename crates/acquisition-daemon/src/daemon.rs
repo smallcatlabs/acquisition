@@ -629,46 +629,78 @@ impl Shared {
     /// Snapshot with eta filled in for waiting jobs. The daemon can predict
     /// because it sees the whole queue and the limiter.
     fn snapshot(&self, daemon: &Daemon, id: JobId) -> Option<JobInfo> {
-        let queue = self.queue_order();
         let entry = self.jobs.get(&id)?;
         let mut info = entry.info.clone();
         info.eta_seconds = if info.state == JobState::Waiting {
-            match daemon.keyed_route_for(&info.kind, &entry.params, info.account.as_deref()) {
-                Some((route, _)) => {
-                    // Only same-route jobs ahead of us compete for the same
-                    // policy; counting them is what the estimate needs.
-                    let ahead = queue
-                        .iter()
-                        .take_while(|&&q| q != id)
-                        .filter(|q| {
-                            self.jobs
-                                .get(q)
-                                .and_then(|e| {
-                                    daemon.keyed_route_for(
-                                        &e.info.kind,
-                                        &e.params,
-                                        e.info.account.as_deref(),
-                                    )
-                                })
-                                .is_some_and(|(r, _)| r == route)
-                        })
-                        .count();
-                    Some(daemon.choke.eta_for(&route, ahead as u32).as_secs())
-                }
-                None => Some(0),
-            }
+            self.waiting_etas(daemon, Some(id)).get(&id).copied()
         } else {
             None
         };
         Some(info)
     }
 
+    /// Every job, by id, each with its eta. The queue is ordered and each
+    /// route simulated once per call, never once per job: a per-job
+    /// snapshot walked the whole queue for every waiting job, all under
+    /// `shared`, and 3,408 jobs held the dispatcher for a second.
     fn list(&self, daemon: &Daemon) -> Vec<JobInfo> {
-        let mut ids: Vec<JobId> = self.jobs.keys().copied().collect();
-        ids.sort();
-        ids.into_iter()
-            .filter_map(|id| self.snapshot(daemon, id))
-            .collect()
+        let etas = self.waiting_etas(daemon, None);
+        let mut jobs: Vec<JobInfo> = self
+            .jobs
+            .values()
+            .map(|e| {
+                let mut info = e.info.clone();
+                info.eta_seconds = if info.state == JobState::Waiting {
+                    etas.get(&info.id).copied()
+                } else {
+                    None
+                };
+                info
+            })
+            .collect();
+        jobs.sort_by_key(|info| info.id);
+        jobs
+    }
+
+    /// The eta, in seconds, of each waiting job (only `only`'s, when
+    /// given). Only same-route jobs ahead of a job compete for its
+    /// policy, so its estimate is its route's forward simulation at the
+    /// count of those; a job whose kind sends nothing waits for nothing.
+    fn waiting_etas(&self, daemon: &Daemon, only: Option<JobId>) -> HashMap<JobId, u64> {
+        let mut etas = HashMap::new();
+        // Per route: how many of its jobs the walk has passed, and the
+        // waiting jobs it must estimate, with their counts ahead.
+        let mut routes: HashMap<String, (usize, Vec<(JobId, usize)>)> = HashMap::new();
+        for id in self.queue_order() {
+            let e = &self.jobs[&id];
+            let wanted = only.is_none_or(|o| o == id);
+            match daemon.keyed_route_for(&e.info.kind, &e.params, e.info.account.as_deref()) {
+                Some((route, _)) => {
+                    let (passed, wanted_here) = routes.entry(route).or_default();
+                    if wanted {
+                        wanted_here.push((id, *passed));
+                    }
+                    *passed += 1;
+                }
+                None if wanted => {
+                    etas.insert(id, 0);
+                }
+                None => {}
+            }
+            if only == Some(id) {
+                break;
+            }
+        }
+        for (route, (_, wanted)) in routes {
+            let Some(&(_, deepest)) = wanted.last() else {
+                continue;
+            };
+            let by_position = daemon.choke.etas_for(&route, deepest + 1);
+            for (id, ahead) in wanted {
+                etas.insert(id, by_position[ahead].as_secs());
+            }
+        }
+        etas
     }
 }
 

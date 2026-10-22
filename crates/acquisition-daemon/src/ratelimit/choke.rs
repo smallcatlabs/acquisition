@@ -305,6 +305,15 @@ impl ChokePoint {
             .eta_for(route, ahead, self.now())
     }
 
+    /// Every queue position's ETA on `route` under one limiter lock —
+    /// see `Limiter::etas_for`.
+    pub fn etas_for(&self, route: &str, count: usize) -> Vec<Duration> {
+        self.limiter
+            .lock()
+            .unwrap()
+            .etas_for(route, count, self.now())
+    }
+
     /// The key under which in-flight requests on `route` must be
     /// serialized: its policy name once known (same-name policies share
     /// counters across routes, N6), else the route itself.

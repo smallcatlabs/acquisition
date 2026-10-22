@@ -840,6 +840,82 @@ fn eta_counts_reported_hits_the_local_history_never_saw() {
     );
 }
 
+/// `etas_for` is `eta_for` at every queue position, and forgetting
+/// simulated sends older than the longest window changes no estimate:
+/// held to the simulation that keeps every send, over queues long
+/// enough for the windows to slide many times, under a two-window
+/// policy with local history, a seeded deficit, the token policy's
+/// single window and a 299-of-300 window.
+#[test]
+fn etas_for_every_position_match_the_simulation_that_keeps_every_send() {
+    let now = far_future();
+    let mut cases: Vec<(Limiter, &str)> = Vec::new();
+
+    let mut l = Limiter::new();
+    run(
+        &mut l,
+        "/character",
+        &with_state(CHAR_LIST, "2:10:0,2:300:0"),
+        &[4.0, 0.0],
+        now,
+    );
+    cases.push((l, "/character"));
+
+    let mut l = Limiter::new();
+    l.observe_probe(
+        "/character",
+        Ok(parse(&with_state(CHAR_LIST, "1:10:0,4:300:0")).unwrap()),
+        serde_json::Value::Null,
+        now,
+    );
+    cases.push((l, "/character"));
+
+    let mut l = Limiter::new();
+    let token = [
+        ("x-rate-limit-policy", "token-request-limit"),
+        ("x-rate-limit-rules", "Ip"),
+        ("x-rate-limit-ip", "60:30:30"),
+        ("x-rate-limit-ip-state", "1:30:0"),
+    ];
+    run(&mut l, "oauth-token", &token, &[0.0], now);
+    cases.push((l, "oauth-token"));
+
+    let mut l = Limiter::new();
+    let big = [
+        ("x-rate-limit-policy", "big-window"),
+        ("x-rate-limit-rules", "Account"),
+        ("x-rate-limit-account", "300:60:60"),
+        ("x-rate-limit-account-state", "299:60:0"),
+    ];
+    l.observe_probe(
+        "/big",
+        Ok(parse(&big).unwrap()),
+        serde_json::Value::Null,
+        now,
+    );
+    cases.push((l, "/big"));
+
+    for (l, endpoint) in &cases {
+        let etas = l.etas_for(endpoint, 700, now);
+        assert_eq!(
+            etas,
+            l.etas_for_keeping_every_send(endpoint, 700, now),
+            "{endpoint}"
+        );
+        for k in [0, 1, 2, 57, 299, 300, 699] {
+            assert_eq!(
+                etas[k],
+                l.eta_for(endpoint, k as u32, now),
+                "{endpoint} at {k}"
+            );
+        }
+        assert!(etas.windows(2).all(|w| w[0] <= w[1]), "{endpoint}");
+        assert!(etas[699] > etas[0], "{endpoint}: {:?}", etas[699]);
+    }
+    assert!(Limiter::new().etas_for("/unknown", 3, now) == [Duration::ZERO; 3]);
+    assert!(cases[0].0.etas_for("/character", 0, now).is_empty());
+}
+
 #[test]
 fn probes_teach_without_counting_and_degrade_on_n20_shapes() {
     let now = far_future();
