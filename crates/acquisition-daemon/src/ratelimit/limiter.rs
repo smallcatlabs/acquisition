@@ -34,6 +34,8 @@ pub const BUFFER: Duration = Duration::from_secs(1);
 /// A retry always pays the largest timing bucket GGG has named, independent
 /// of whether the response's policy headers are usable (D3/N19).
 pub const RETRY_BUCKET_PAD: Duration = Duration::from_secs(60);
+/// The OAuth token endpoint's route: never probed, accountless (N33).
+pub const TOKEN_ROUTE: &str = "oauth-token";
 
 /// Which timing bucket applies to the `index`-th window of a rule.
 /// Positional classification (Q4, Tom's hypothesis): the first window is
@@ -489,7 +491,9 @@ impl Limiter {
     /// Record and reconcile one landed ordinary response. Counted history
     /// and 429 violations are recorded before policy parsing/classification;
     /// every 429 then installs its hold (C19, whatever its Retry-After
-    /// carried) regardless of whether reconciliation succeeds.
+    /// carried) regardless of whether reconciliation succeeds. A counted
+    /// token 2xx with no rate-limit header at all, on a token route not yet
+    /// established, holds the route one timing bucket (C131).
     pub(super) fn observe_landed(
         &mut self,
         endpoint: &str,
@@ -498,6 +502,15 @@ impl Limiter {
         if landed.status == 429 {
             self.violations = self.violations.saturating_add(1);
         }
+        let headerless = landed
+            .raw
+            .as_object()
+            .is_none_or(|raw| !raw.keys().any(|name| name.starts_with("x-rate-limit")));
+        let token_floor = landed.counted
+            && headerless
+            && (200..300).contains(&landed.status)
+            && endpoint == TOKEN_ROUTE
+            && !matches!(self.endpoints.get(endpoint), Some(EndpointState::Policy(_)));
         let reconciled = self.observe_impl(
             endpoint,
             landed.policy,
@@ -508,7 +521,27 @@ impl Limiter {
         if landed.status == 429 {
             self.install_retry_hold(endpoint, landed.retry_after, landed.now);
         }
+        // C131: reached only when reconciliation failed, so after the
+        // policyless arm (`/profile` is never held). An established route
+        // is paced as counted instead (C19), and a malformed but present
+        // header set is held by nothing.
+        if token_floor && reconciled.is_err() {
+            self.install_token_floor_hold(endpoint, landed.now);
+        }
         reconciled
+    }
+
+    /// C131: hold the token route `RETRY_BUCKET_PAD`, the one timing
+    /// bucket, from a headerless answer that leaves the route with no
+    /// policy to pace the next grant by.
+    fn install_token_floor_hold(&mut self, endpoint: &str, now: Instant) {
+        let Some(until) = checked_deadline(now, [RETRY_BUCKET_PAD]) else {
+            return;
+        };
+        self.retry_holds
+            .entry(endpoint.to_string())
+            .and_modify(|(old_until, _)| *old_until = (*old_until).max(until))
+            .or_insert((until, 0));
     }
 
     fn observe_impl(

@@ -375,3 +375,105 @@ async fn a_cloudflare_block_on_the_code_exchange_is_no_rejected_grant() {
     assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
     finish_harness(None, &log_path);
 }
+
+/// C131, the login arm: a code exchange answered 200 with its tokens but
+/// no rate-limit header at all installs them, and the login completes
+/// on them; the exchange stays a journaled protocol failure.
+#[tokio::test]
+async fn a_headerless_code_exchange_2xx_installs_its_tokens() {
+    let grant = ScriptedResponse {
+        method: "POST",
+        path: "/token",
+        status: "200 OK",
+        headers: String::new(),
+        body: json!({
+            "access_token": "at-new",
+            "refresh_token": "rt-rotated",
+            "expires_in": 3600,
+            "username": "test-user",
+        })
+        .to_string(),
+    };
+    // GGG serves `/profile` without rate headers (C32).
+    let profile = ScriptedResponse {
+        method: "GET",
+        path: "/profile",
+        status: "200 OK",
+        headers: String::new(),
+        body: json!({ "uuid": "uuid-test-user", "name": "test-user" }).to_string(),
+    };
+    let (base, requests, server) = scripted_server(vec![grant, profile]).await;
+    let clock = Arc::new(ManualClock::new());
+    let log_path = test_log_path();
+    let _ = std::fs::remove_file(journal_of(&log_path));
+    let rails = Arc::new(Rails::with_config_and_clock(
+        RailsConfig {
+            journal_path: Some(journal_of(&log_path)),
+            ..RailsConfig::default()
+        },
+        clock.clone(),
+    ));
+    let credentials = Arc::new(RecordingCredentialStore::default());
+    let (mut daemon, log_path) = test_daemon_scenario_at(
+        Provider::mock(&base),
+        clock,
+        rails,
+        credentials.clone() as Arc<dyn CredentialStore>,
+        log_path,
+    );
+    let store_dir = std::env::temp_dir().join(format!(
+        "acq-login-{}-{}",
+        std::process::id(),
+        TEST_LOG_ID.fetch_add(1, Ordering::Relaxed)
+    ));
+    let _ = std::fs::remove_dir_all(&store_dir);
+    Arc::get_mut(&mut daemon).expect("fresh daemon").store_dir = Some(store_dir.clone());
+    daemon.shared.lock().unwrap().auth.by_account.clear();
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+
+    let authorize = url::Url::parse(&daemon.auth_start().await.unwrap()).unwrap();
+    let query: HashMap<String, String> = authorize.query_pairs().into_owned().collect();
+    let callback = format!(
+        "{}?code=code-x&state={}",
+        query["redirect_uri"], query["state"]
+    );
+    assert!(reqwest::get(&callback).await.unwrap().status().is_success());
+    let (logged_in, ok, error) = tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            let result = login_result(&daemon);
+            if result.1.is_some() || result.2.is_some() {
+                break result;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("the login finished");
+    assert_eq!(
+        (logged_in, ok.as_deref(), error.as_deref()),
+        (true, Some("test-user"), None)
+    );
+    {
+        let s = daemon.shared.lock().unwrap();
+        let session = s.auth.find("test-user").expect("registered");
+        assert_eq!(session.access_token.as_deref(), Some("at-new"));
+        assert_eq!(session.refresh_token.as_deref(), Some("rt-rotated"));
+    }
+    assert_eq!(
+        credentials
+            .saves
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(_, token, user)| (token.as_str(), user.as_str()))
+            .collect::<Vec<_>>(),
+        [("rt-rotated", "test-user")]
+    );
+    let sends = journal_sends(&log_path);
+    assert_eq!(sends[0]["method"], "POST");
+    assert_eq!(sends[0]["ok"], false, "{}", sends[0]);
+    server.await.unwrap();
+    assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
+    finish_harness(dispatcher, &log_path);
+    let _ = std::fs::remove_dir_all(&store_dir);
+}

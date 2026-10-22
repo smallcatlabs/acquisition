@@ -2159,6 +2159,26 @@ async fn complete_malformed_200_is_protocol() {
     server.await.unwrap();
 }
 
+/// C131's limit: a GET's protocol failure keeps nothing. A 200 carrying
+/// a token-shaped body and no rate-limit header at all, on a route not
+/// yet established, is still an error with no body, and installs no hold;
+/// the token route's keep and hold are the token route's alone.
+#[tokio::test]
+async fn a_headerless_get_2xx_keeps_nothing_and_takes_no_hold() {
+    let route = "headerless-get";
+    let body = r#"{"access_token":"at-x","refresh_token":"rt-x","expires_in":3600,"username":"u"}"#;
+    let (url, server) = serve_one_raw(raw_response("200 OK", "", body.len(), body)).await;
+    let choke = ChokePoint::new();
+
+    assert!(matches!(
+        choke.get(route, &url, choke.now(), ALWAYS_WANTED).await,
+        Err(SendError::Protocol(_))
+    ));
+    assert_eq!(choke.check(route), Ok(()), "a GET takes no hold");
+    assert!(!choke.recent_sends().pop().unwrap().ok);
+    server.await.unwrap();
+}
+
 /// A server that answers its first request with what `first` builds from
 /// its base URL and every later one with a 200 carrying full policy
 /// headers, counting the requests that reach it. Every answer closes its

@@ -101,6 +101,9 @@ pub enum SendError {
 /// clean 2xx transfer failures are returned as `SendError::Transport` before
 /// callers can inspect this package (D3/D8). A 3xx's `body` is not the
 /// server's: it says where the redirect pointed, redacted (C130).
+/// `protocol` names a clean 2xx's protocol failure, and is only ever set
+/// on the token path (`post_form`, C131); every other send returns it as
+/// `SendError::Protocol` with its body dropped.
 pub struct CompletedResponse {
     pub status: reqwest::StatusCode,
     pub rate: serde_json::Value,
@@ -110,6 +113,9 @@ pub struct CompletedResponse {
     /// was — its body's shape, and whether Cloudflare answered in GGG's
     /// place. `None` for a 2xx. Callers act on this, never on the body.
     pub verdict: Option<Verdict>,
+    /// C131: the 2xx's pacing headers were unusable; the send is
+    /// journaled as this failure, and its body is the server's.
+    pub protocol: Option<PolicyObservationError>,
 }
 
 impl fmt::Display for SendError {
@@ -764,7 +770,11 @@ impl ChokePoint {
     /// Observation is independent of status classification. Full matching
     /// headers update pacing on every landed response, while a malformed or
     /// mismatched observation becomes a protocol failure only when the HTTP
-    /// response would otherwise be a clean success (D8/R6-3).
+    /// response would otherwise be a clean success (D8/R6-3). With
+    /// `keep_protocol_body` (the token path alone, C131) that failure comes
+    /// back as the completed response with the failure named, its body
+    /// kept; otherwise it is `SendError::Protocol` and the body is dropped.
+    #[allow(clippy::too_many_arguments)]
     async fn finish_send(
         &self,
         endpoint: &str,
@@ -773,6 +783,7 @@ impl ChokePoint {
         result: Result<reqwest::Response, String>,
         counted: bool,
         wait: Duration,
+        keep_protocol_body: bool,
     ) -> Result<CompletedResponse, SendError> {
         let retry_after = result.as_ref().map_or(RetryAfter::Missing, |response| {
             retry_after_from_headers(response.headers())
@@ -855,6 +866,7 @@ impl ChokePoint {
                 retry_after,
                 body: Ok(body),
                 verdict,
+                protocol: None,
             }),
             (ResponseClassification::Blocked, Ok((status, Err(error))))
             | (ResponseClassification::RateLimited(_), Ok((status, Err(error))))
@@ -865,6 +877,21 @@ impl ChokePoint {
                     retry_after,
                     body: Err(error),
                     verdict,
+                    protocol: None,
+                })
+            }
+            // C131: a token 2xx keeps its body, so the grant it carries
+            // is installed; the journal above already holds the failure.
+            (ResponseClassification::Protocol(error), Ok((status, Ok(body))))
+                if keep_protocol_body =>
+            {
+                Ok(CompletedResponse {
+                    status,
+                    rate,
+                    retry_after,
+                    body: Ok(body),
+                    verdict,
+                    protocol: Some(error),
                 })
             }
             (ResponseClassification::Protocol(error), _) => Err(SendError::Protocol(error)),
@@ -940,7 +967,9 @@ impl ChokePoint {
     }
 
     /// The one way to send a form POST: waits for the limiter, then sends.
-    /// The limiter lock is never held across an await.
+    /// The limiter lock is never held across an await. Its only caller is
+    /// the token request, so a clean 2xx whose pacing headers are unusable
+    /// comes back with its body and the failure named (C131).
     pub async fn post_form(
         &self,
         route: &str,
@@ -958,7 +987,7 @@ impl ChokePoint {
             .send()
             .await
             .map_err(|e| e.to_string());
-        self.finish_send(route, "POST", url, result, true, wait)
+        self.finish_send(route, "POST", url, result, true, wait, true)
             .await
     }
 
@@ -988,7 +1017,7 @@ impl ChokePoint {
             .await
             .map_err(|e| e.to_string());
         let response = self
-            .finish_send(route, "GET", url, result, true, wait)
+            .finish_send(route, "GET", url, result, true, wait, false)
             .await;
         if let Ok(completed) = &response
             && completed.status.as_u16() == 401
@@ -1010,7 +1039,7 @@ impl ChokePoint {
         let _permit = self.acquire_send(route, wanted).await?;
         let wait = self.now().saturating_duration_since(since);
         let result = self.http.get(url).send().await.map_err(|e| e.to_string());
-        self.finish_send(route, "GET", url, result, true, wait)
+        self.finish_send(route, "GET", url, result, true, wait, false)
             .await
     }
 }

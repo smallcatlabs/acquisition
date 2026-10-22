@@ -252,3 +252,183 @@ async fn a_cloudflare_block_on_the_token_route_is_no_rejected_grant() {
     assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
     finish_harness(None, &log_path);
 }
+
+/// A token answer in the scripted server's shape: `POST /token`, the
+/// given status and rate headers, and the rotated grant (or `body`).
+fn token_answer(status: &'static str, headers: &str, body: Option<&str>) -> ScriptedResponse {
+    ScriptedResponse {
+        method: "POST",
+        path: "/token",
+        status,
+        headers: headers.into(),
+        body: body.map(str::to_string).unwrap_or_else(|| {
+            json!({
+                "access_token": "at-new",
+                "refresh_token": "rt-rotated",
+                "expires_in": 3600,
+                "username": "test-user",
+            })
+            .to_string()
+        }),
+    }
+}
+
+const TOKEN_HEADERS: &str = "X-Rate-Limit-Policy: token-request-limit\r\nX-Rate-Limit-Rules: Ip\r\nX-Rate-Limit-Ip: 60:30:30\r\nX-Rate-Limit-Ip-State: 1:30:0\r\n";
+
+/// A logged-in daemon facing `answers`, on the manual clock, its
+/// credential store a recorder the test keeps.
+async fn token_daemon(
+    answers: Vec<ScriptedResponse>,
+) -> (
+    Arc<Daemon>,
+    Arc<RecordingCredentialStore>,
+    Arc<ManualClock>,
+    PathBuf,
+    Arc<Mutex<Vec<String>>>,
+    tokio::task::JoinHandle<()>,
+) {
+    let (base, requests, server) = scripted_server(answers).await;
+    let clock = Arc::new(ManualClock::new());
+    let (mut daemon, log_path) =
+        test_daemon_with(Provider::mock(&base), clock.clone(), RailsConfig::default());
+    logged_in(&mut daemon);
+    let credentials = Arc::new(RecordingCredentialStore::default());
+    Arc::get_mut(&mut daemon).unwrap().credential_store = credentials.clone();
+    (daemon, credentials, clock, log_path, requests, server)
+}
+
+fn session_refresh_token(daemon: &Daemon) -> Option<String> {
+    daemon
+        .shared
+        .lock()
+        .unwrap()
+        .auth
+        .one()
+        .refresh_token
+        .clone()
+}
+
+/// C131: a token 200 that carries its tokens but no rate-limit header at
+/// all installs the rotated tokens, and the refresh succeeds on them;
+/// the send stays a journaled protocol failure, and the unestablished
+/// token route is held one timing bucket, so the next grant leaves only
+/// after 60 s.
+#[tokio::test]
+async fn a_headerless_token_2xx_installs_its_tokens_and_holds_the_route() {
+    let (daemon, credentials, clock, log_path, requests, server) = token_daemon(vec![
+        token_answer("200 OK", "", None),
+        token_answer("200 OK", TOKEN_HEADERS, None),
+    ])
+    .await;
+
+    let (token, user) = daemon.valid_access_token(None, false, None).await.unwrap();
+    assert_eq!((token.as_str(), user.as_str()), ("at-new", "test-user"));
+    assert_eq!(
+        session_refresh_token(&daemon).as_deref(),
+        Some("rt-rotated"),
+        "the rotated refresh token is the session's"
+    );
+    assert_eq!(
+        credentials.saves.lock().unwrap().as_slice(),
+        [(
+            daemon.provider.keyring_service.to_string(),
+            "rt-rotated".to_string(),
+            "test-user".to_string()
+        )],
+        "the rotated refresh token is saved"
+    );
+    let first = journal_sends(&log_path);
+    assert_eq!(first.len(), 1);
+    assert_eq!(first[0]["ok"], false, "{}", first[0]);
+    assert!(
+        first[0]["error"]
+            .as_str()
+            .is_some_and(|error| error.contains("x-rate-limit-policy")),
+        "the journal names the protocol failure: {}",
+        first[0]
+    );
+    assert_eq!(requests.lock().unwrap().len(), 1, "one POST so far");
+
+    // The access token expires on the wall clock alone, so the hold the
+    // first answer installed is still ahead on the monotonic one.
+    clock.laptop_sleep(Duration::from_secs(3600));
+    let (token, _) = daemon.valid_access_token(None, false, None).await.unwrap();
+    assert_eq!(token, "at-new");
+    let sends = journal_sends(&log_path);
+    assert_eq!(sends.len(), 2);
+    assert_eq!(sends[1]["ok"], true, "{}", sends[1]);
+    assert_eq!(
+        sends[1]["wait_ms"], 60000,
+        "the second grant waits one timing bucket: {}",
+        sends[1]
+    );
+    server.await.unwrap();
+    assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
+    finish_harness(None, &log_path);
+}
+
+/// C131's limit: a 200 that is no token response (a portal page) installs
+/// nothing; the refresh fails upstream with the session standing.
+#[tokio::test]
+async fn a_token_2xx_that_is_no_token_response_installs_nothing() {
+    let (daemon, credentials, _clock, log_path, requests, server) =
+        token_daemon(vec![token_answer(
+            "200 OK",
+            "",
+            Some("<!DOCTYPE html><html><body>Path of Exile</body></html>"),
+        )])
+        .await;
+
+    let refusal = daemon
+        .valid_access_token(None, false, None)
+        .await
+        .unwrap_err();
+    assert_eq!(refusal.kind, ErrorKind::Upstream, "{refusal}");
+    assert_eq!(
+        session_refresh_token(&daemon).as_deref(),
+        Some("rt-old"),
+        "the session stands"
+    );
+    assert!(credentials.saves.lock().unwrap().is_empty());
+    assert_eq!(daemon.choke.rails().refresh_failed("test-user"), None);
+    let sends = journal_sends(&log_path);
+    assert_eq!(sends.len(), 1);
+    assert_eq!(sends[0]["ok"], false, "{}", sends[0]);
+    server.await.unwrap();
+    assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
+    finish_harness(None, &log_path);
+}
+
+/// C131's hold is for an answer with no rate-limit header at all: a token
+/// 200 whose header set is present but malformed installs its tokens and
+/// holds nothing, so the next grant goes out at once.
+#[tokio::test]
+async fn a_token_2xx_with_malformed_rate_headers_installs_its_tokens_without_a_hold() {
+    let (daemon, credentials, clock, log_path, requests, server) = token_daemon(vec![
+        token_answer(
+            "200 OK",
+            "X-Rate-Limit-Policy: token-request-limit\r\n",
+            None,
+        ),
+        token_answer("200 OK", TOKEN_HEADERS, None),
+    ])
+    .await;
+
+    let (token, _) = daemon.valid_access_token(None, false, None).await.unwrap();
+    assert_eq!(token, "at-new");
+    assert_eq!(
+        session_refresh_token(&daemon).as_deref(),
+        Some("rt-rotated")
+    );
+    assert_eq!(credentials.saves.lock().unwrap().len(), 1);
+
+    clock.laptop_sleep(Duration::from_secs(3600));
+    daemon.valid_access_token(None, false, None).await.unwrap();
+    let sends = journal_sends(&log_path);
+    assert_eq!(sends.len(), 2);
+    assert_eq!(sends[0]["ok"], false, "{}", sends[0]);
+    assert_eq!(sends[1]["wait_ms"], 0, "no hold: {}", sends[1]);
+    server.await.unwrap();
+    assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
+    finish_harness(None, &log_path);
+}

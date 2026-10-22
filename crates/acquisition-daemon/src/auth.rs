@@ -153,7 +153,7 @@ async fn token_request(
     // never probed, so every account's login shares this one known key.
     let response = choke
         .post_form(
-            "oauth-token",
+            crate::ratelimit::TOKEN_ROUTE,
             &provider.token_url,
             params,
             choke.now(),
@@ -223,12 +223,22 @@ async fn token_request(
     let body = response
         .body
         .expect("clean 2xx responses have a completed body");
+    // C131: a 2xx whose pacing headers were unusable still carries the
+    // grant, and the refresh token it replaces is spent (N33), so the
+    // tokens are installed; the choke point has journaled the send as
+    // the protocol failure it is. Only a whole token response counts:
+    // all four fields, so a portal or Cloudflare page installs nothing.
     serde_json::from_str::<TokenResponse>(&body).map_err(|e| TokenError {
         status: Some(status.as_u16()),
         blocked: false,
         halted: false,
         cancelled: false,
-        message: e.to_string(),
+        message: match &response.protocol {
+            Some(protocol) => {
+                format!("{e}; and the answer's rate-limit headers were unusable: {protocol}")
+            }
+            None => e.to_string(),
+        },
     })
 }
 
