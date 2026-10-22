@@ -137,8 +137,8 @@ list when a step's close commit or an issue takes it.
   his temporary permission during phase 2, his to reassess; whether a
   *Pinned:* path with a slash becomes a bothy rule (2d writes nineteen
   that way); the Windows gate, which runs on his push (the guest was
-  down for 2d and 2d-oracle, and no 2e commit has run under it: the
-  rehearsal golden's log path is the first a Windows path meets).
+  down for 2d and 2d-oracle; green at `7b4793fe` after the fixes the
+  "Current step" names).
 - **Tooling, no step named**: the document-path check reads no roadmap
   file, whose ledger and briefs tell deletions as story; the trade
   check has no breaker suite; `bothy pack --path README.md` returns
@@ -163,8 +163,12 @@ message checks the build brief's done-when line by line. Next is 2f,
 the ultra review of daemon, store and network, which the owner
 triggers himself (`/code-review ultra`, billed) with its inputs under
 "Open"; its fixes follow as fix rounds under "A step", and nothing is
-built for it before his trigger. His push runs the Windows gate, which
-has run on no 2e commit. The owner reassesses the `AGENTS.md` budget
+built for it before his trigger. Both remote gates ran green at
+`7b4793fe`, six commits past the close: the two certificate advisories
+(RUSTSEC-2026-0381, -0382) the local gate cannot see, two goldens'
+backslash paths, the login helper's silence, and two daemons creating
+one Windows runtime directory at once, all unreviewed on the owner's
+word for the ultra review to read. The owner reassesses the `AGENTS.md` budget
 when he chooses. `AGENTS.md` governs; the gate is its ten lines, under
 nextest.
 
@@ -183,7 +187,7 @@ messages.
 | 2c the journey test and real-shaped mock items | design `4d2932fb`, `c04cb535`, `1c347053`; build `f4e5cb15` to `f38fa001`; closed `2b275eec` | 2026-10-21 | #51 for 2f; a `log` rule when a second golden needs it; the read-only open, since ruled C124 and closed as #52 (`3795e6ec`) |
 | 2d the daemon and limiter file splits | design `dc993ddb`, `ac98c488`; build `e4019380` to `c670f112`; closed `af5badde` | 2026-10-21 | 2f's inputs and the owner's two, under "Open" |
 | 2d-oracle the journal oracles over every journaling daemon | `e59ee842`; closed `1f524d15` | 2026-10-21 | the login daemons journal nothing (2f) |
-| 2e the game-diff tool, a new-league rehearsal and the README line | design `08c0907a`, `e9b8bc78`, `cb7db91c`, `53ec784f`; build `35e0b03c` to `4e543dd0`; fixes `252e8c9e`, `bb319873`, `fb8371e0`; closed by the commit carrying this line | 2026-10-21 | #53 for 3b; the two claims for phase 3's live run (the live-run skill); the Windows gate on 2e and the CLI-only `--if-revision 0`, under "Open" |
+| 2e the game-diff tool, a new-league rehearsal and the README line | design `08c0907a`, `e9b8bc78`, `cb7db91c`, `53ec784f`; build `35e0b03c` to `4e543dd0`; fixes `252e8c9e`, `bb319873`, `fb8371e0`; closed by the commit carrying this line | 2026-10-21 | #53 for 3b; the two claims for phase 3's live run (the live-run skill); the CLI-only `--if-revision 0`, under "Open"; the six remote-gate fixes after the close, named under "Current step" |
 
 ## Housekeeping
 
