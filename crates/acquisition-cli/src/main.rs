@@ -385,8 +385,9 @@ is the per-location summary.")]
         /// `{"league", "realm"}`, stash `{"id", "sub", "deep", "league",
         /// "realm"}`, refresh `{"tabs": […] or "all": true, "deep",
         /// "league", "realm"}`, sleep `{"seconds"}` (0 to 3600); realm defaults to pc
-        /// and league to Standard. A name, league or id is one path segment:
-        /// a slash, `..` or a control character is refused. `acq status <id> --json` shows a job's params.
+        /// and league to Standard. A name, league or id is one path segment of at most
+        /// 255 bytes: a slash, a control character, or only dots and spaces before any
+        /// `;` is refused, and a stash needs its id. `acq status <id> --json` shows a job's params.
         #[arg(long, default_value = "{}")]
         params: String,
         /// Higher runs sooner. Default 0.

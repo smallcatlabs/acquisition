@@ -22,9 +22,11 @@ impl Daemon {
     /// share state, N6). pc adds nothing to either, so every pc URL and
     /// journal route is byte-identical to the pre-realm ones. A param on
     /// the URL is one percent-encoded segment, or there is no URL (C127,
-    /// `with_segments`). `fetch` is a fake data endpoint that exists only
-    /// on the mock.
+    /// `with_segments`): params the client's door would refuse
+    /// (`admit_segments`) render none, and `why_no_url` says why. `fetch`
+    /// is a fake data endpoint that exists only on the mock.
     pub(super) fn route_for(&self, kind: &str, params: &Value) -> Option<(String, String)> {
+        admit_segments(kind, params).ok()?;
         let base = &self.provider.api_base;
         // Admission (`admit_realm`) refused anything a family does not
         // take before a job existed; a row that still fails here (a
@@ -184,4 +186,18 @@ fn with_segments(prefix: &str, segments: &[&str]) -> Option<String> {
     let mut url = url::Url::parse(prefix).ok()?;
     url.path_segments_mut().ok()?.extend(segments);
     Some(url.into())
+}
+
+/// C127 — Why `route_for` rendered no URL for a row that never passed the
+/// client's door (a restored row, or a child whose params came from a
+/// response), in the door's own words: the realm refusal, or the segment
+/// refusal. A job that cannot render its URL fails with these words.
+pub(super) fn why_no_url(kind: &str, params: &Value) -> String {
+    if let Err(refusal) = admit_realm(kind, params) {
+        return refusal.message;
+    }
+    if let Err(words) = admit_segments(kind, params) {
+        return words;
+    }
+    format!("{kind}: no URL renders from these params")
 }

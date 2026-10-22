@@ -225,7 +225,7 @@ impl Daemon {
                     }
                 };
                 let Some((_, url)) = self.route_for(kind, &params) else {
-                    return Ok(Outcome::failure("characters: unrenderable realm"));
+                    return Ok(Outcome::failure(why_no_url(kind, &params)));
                 };
                 let route = route.as_deref().expect("characters is a network kind");
                 let auth = Auth::Session {
@@ -279,7 +279,7 @@ impl Daemon {
                     },
                 };
                 let Some((_, url)) = self.route_for(kind, &params) else {
-                    return Ok(Outcome::failure(format!("{kind} needs a name")));
+                    return Ok(Outcome::failure(why_no_url(kind, &params)));
                 };
                 let route = route.as_deref().expect("network kind");
                 let (v, rate) = self.api_get(route, &url, auth, ready).await?;
@@ -328,7 +328,7 @@ impl Daemon {
                     .unwrap_or("Standard")
                     .to_string();
                 let Some((_, url)) = self.route_for(kind, &params) else {
-                    return Ok(Outcome::failure("stashes: unrenderable realm"));
+                    return Ok(Outcome::failure(why_no_url(kind, &params)));
                 };
                 let route = route.as_deref().expect("stashes is a network kind");
                 let auth = Auth::Session {
@@ -367,7 +367,7 @@ impl Daemon {
                     }
                 };
                 let Some((_, url)) = self.route_for("stash", &params) else {
-                    return Ok(Outcome::failure("stash needs an id"));
+                    return Ok(Outcome::failure(why_no_url("stash", &params)));
                 };
                 let route = route.as_deref().expect("stash is a network kind");
                 let auth = Auth::Session {
@@ -456,7 +456,7 @@ impl Daemon {
                 }
                 let realm = Realm::from_params(&params).unwrap_or(Realm::DEFAULT);
                 let Some((_, url)) = self.route_for(kind, &params) else {
-                    return Ok(Outcome::failure("refresh: unrenderable realm"));
+                    return Ok(Outcome::failure(why_no_url(kind, &params)));
                 };
                 let route = route.as_deref().expect("refresh is a network kind");
                 let auth = Auth::Session {
@@ -908,16 +908,10 @@ pub(super) fn validate_apply(params: &Value) -> Result<(), Refusal> {
                         "action {i}: a plan's stash fetch never fans out (`deep` must be false)"
                     )));
                 }
-                if params.get("id").and_then(Value::as_str).is_none() {
-                    return Err(refused(format!("action {i}: stash needs an id")));
-                }
             }
-            "characters" => {}
-            "character" => {
-                if params.get("name").and_then(Value::as_str).is_none() {
-                    return Err(refused(format!("action {i}: character needs a name")));
-                }
-            }
+            // A stash's id and a character's name are required segments,
+            // judged by `admit_segments` above (C127).
+            "characters" | "character" => {}
             other => {
                 return Err(refused(format!(
                     "action {i}: kind {other:?} is not in the plan vocabulary \

@@ -425,6 +425,8 @@ pub(super) struct KindRow {
     pub(super) door: Door,
     /// Params each rendered as exactly one path segment (`route_for`).
     pub(super) segments: &'static [&'static str],
+    /// The segment params without which no URL renders.
+    pub(super) required: &'static [&'static str],
     /// A further check of the params, run at submit.
     pub(super) check: Option<ParamCheck>,
 }
@@ -442,72 +444,84 @@ pub(super) const KINDS: &[KindRow] = &[
         kind: "profile",
         door: Door::Client,
         segments: &[],
+        required: &[],
         check: None,
     },
     KindRow {
         kind: "characters",
         door: Door::Client,
         segments: &[],
+        required: &[],
         check: None,
     },
     KindRow {
         kind: "character",
         door: Door::Client,
         segments: &["name"],
+        required: &["name"],
         check: None,
     },
     KindRow {
         kind: "leagues",
         door: Door::Client,
         segments: &[],
+        required: &[],
         check: None,
     },
     KindRow {
         kind: "stashes",
         door: Door::Client,
         segments: &["league"],
+        required: &[],
         check: None,
     },
     KindRow {
         kind: "stash",
         door: Door::Client,
         segments: &["league", "id", "sub"],
+        required: &["id"],
         check: None,
     },
     KindRow {
         kind: "refresh",
         door: Door::Client,
         segments: &["league"],
+        required: &[],
         check: None,
     },
     KindRow {
         kind: "apply",
         door: Door::Client,
         segments: &[],
+        required: &[],
         check: None,
     },
     KindRow {
         kind: "sleep",
         door: Door::MockOnly,
         segments: &[],
+        required: &[],
         check: Some(check_sleep),
     },
     KindRow {
         kind: "fetch",
         door: Door::MockOnly,
         segments: &[],
+        required: &[],
         check: None,
     },
     KindRow {
         kind: "whoami",
         door: Door::MockOnly,
         segments: &[],
+        required: &[],
         check: None,
     },
     KindRow {
         kind: "probe",
         door: Door::DaemonOnly,
         segments: &[],
+        required: &[],
         check: None,
     },
 ];
@@ -522,33 +536,63 @@ pub(super) fn client_kinds() -> String {
         .join(", ")
 }
 
-/// C127 — Whether a param is exactly one path segment: not empty, not a
-/// dot segment, no separator (`/`, or `\`, which a URL parser reads as one)
-/// and no control character (a URL parser drops tabs and newlines, which
-/// can make a dot segment of what was not one). Anything else is legal
-/// and is percent-encoded where it is rendered (a space in a league name).
+/// The longest path param a segment takes, in UTF-8 bytes. The longest
+/// legitimate values are a few dozen bytes: a stash or substash id is 10
+/// hex characters, a character's id 64, a character name a couple of
+/// dozen, and a league name with an event or private suffix about 40
+/// ("Ruthless Hardcore SSF Mercenaries (PL55)"). 255 is several times
+/// that, and keeps a three-segment URL under a few kilobytes encoded.
+pub(super) const SEGMENT_MAX_BYTES: usize = 255;
+
+/// C127 — Whether a param is exactly one path segment: at most
+/// `SEGMENT_MAX_BYTES`; no separator (`/`, or `\`, which a URL parser
+/// reads as one); no control character (a URL parser drops tabs and
+/// newlines, which can make a dot segment of what was not one); and its
+/// head, the part before any `;`, names something other than dots and
+/// spaces. A server that strips `;` path parameters (Tomcat, Jetty) reads
+/// `..;x` as `..`, and one that trims trailing dots and spaces (IIS) reads
+/// `.. .` as `..`; an empty head would leave an empty segment. Anything
+/// else is legal and is percent-encoded where it is rendered (a space in a
+/// league name, `#` in an event's).
 pub(super) fn is_one_segment(value: &str) -> bool {
-    !value.is_empty()
-        && value != "."
-        && value != ".."
+    let head = value.split(';').next().unwrap_or(value);
+    value.len() <= SEGMENT_MAX_BYTES
+        && !head.chars().all(|c| c == '.' || c.is_whitespace())
         && !value.contains(['/', '\\'])
         && !value.chars().any(char::is_control)
 }
 
-/// C127 — The kind's segment params, judged: each one present is a string
-/// that is exactly one path segment.
+/// C127 — The kind's segment params, judged: each one the row requires is
+/// present, and each one present is a string that is exactly one path
+/// segment. `route_for` renders no URL for params this refuses, and a
+/// job's failure then says these words.
 pub(super) fn admit_segments(kind: &str, params: &Value) -> Result<(), String> {
     let Some(row) = KINDS.iter().find(|row| row.kind == kind) else {
         return Ok(());
     };
     for name in row.segments {
         match params.get(*name) {
+            None | Some(Value::Null) if row.required.contains(name) => {
+                let article = if name.starts_with(['a', 'e', 'i', 'o', 'u']) {
+                    "an"
+                } else {
+                    "a"
+                };
+                return Err(format!("{kind} needs {article} {name}"));
+            }
             None | Some(Value::Null) => {}
             Some(Value::String(value)) if is_one_segment(value) => {}
             Some(Value::String(value)) => {
+                // A value over the bound is named by its length, not echoed.
+                let value = if value.len() <= SEGMENT_MAX_BYTES {
+                    format!("{value:?}")
+                } else {
+                    format!("of {} bytes", value.len())
+                };
                 return Err(format!(
-                    "{kind}: `{name}` {value:?} is not one path segment — it must be non-empty, \
-not `.` or `..`, and hold no slash, backslash or control character"
+                    "{kind}: `{name}` {value} is not one path segment — it must name something \
+other than dots and spaces before any `;`, be at most {SEGMENT_MAX_BYTES} bytes, and hold no \
+slash, backslash or control character"
                 ));
             }
             Some(other) => {

@@ -170,6 +170,7 @@ use queue::{
     SLEEP_MAX_SECONDS, admit_client, admit_realm, admit_segments, client_kinds, is_one_segment,
 };
 use refresh::AccessTokenResult;
+use routes::why_no_url;
 use start::idle_shutdown_from_env;
 
 const IDLE_SHUTDOWN: Duration = Duration::from_secs(60);

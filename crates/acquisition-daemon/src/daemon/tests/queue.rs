@@ -4,6 +4,7 @@
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
 use super::harness::*;
+use crate::daemon::queue::SEGMENT_MAX_BYTES;
 use crate::daemon::*;
 use std::sync::atomic::Ordering;
 
@@ -276,6 +277,294 @@ fn c127_a_rendered_path_param_is_one_encoded_segment_or_no_url() {
         ),
     ] {
         assert_eq!(daemon.route_for(kind, &params), None, "{kind} {params}");
+    }
+}
+
+/// C127 (a path param is one segment, as a server may read it): a server
+/// that strips `;` path parameters (Tomcat, Jetty) reads `..;x` as `..`,
+/// and one that trims trailing dots and spaces (IIS) reads `.. .` as `..`.
+/// A segment whose head, the part before any `;`, is only dots and spaces
+/// is refused at submit before a job id exists, and renders no URL.
+#[tokio::test]
+async fn c127_a_dot_segment_behind_a_semicolon_or_a_space_is_refused() {
+    let (daemon, _) = test_daemon("http://127.0.0.1:9", Arc::new(ManualClock::new()));
+    for league in [
+        "..;",
+        ";..",
+        "..;x=1",
+        ".;",
+        ";",
+        ";Standard",
+        ".. .",
+        "...",
+        " ",
+        " .. ",
+    ] {
+        let params = json!({ "league": league });
+        let what = format!("stashes {params}");
+        let response = client_submit(&daemon, "stashes", params.clone(), None).await;
+        assert_refused(response, &what, &["`league`", "one path segment"]);
+        assert_nothing_admitted(&daemon, &what);
+        assert_eq!(daemon.route_for("stashes", &params), None, "{what}");
+    }
+}
+
+/// C127 (a path param is bounded): a segment param longer than the bound
+/// in UTF-8 bytes is refused at submit before a job id exists, and renders
+/// no URL; one at the bound renders. Multi-byte characters count as bytes,
+/// since each goes out as its percent-encoded bytes.
+#[tokio::test]
+async fn c127_a_path_param_longer_than_the_bound_is_refused() {
+    let (daemon, _) = test_daemon("http://127.0.0.1:9", Arc::new(ManualClock::new()));
+    let at_bound = "a".repeat(SEGMENT_MAX_BYTES);
+    assert!(
+        daemon
+            .route_for("stashes", &json!({ "league": at_bound }))
+            .is_some(),
+        "a league at the bound renders"
+    );
+    for (kind, params) in [
+        (
+            "stashes",
+            json!({ "league": "a".repeat(SEGMENT_MAX_BYTES + 1) }),
+        ),
+        (
+            "character",
+            json!({ "name": "é".repeat(SEGMENT_MAX_BYTES / 2 + 1) }),
+        ),
+        (
+            "stash",
+            json!({ "league": "Standard", "id": "t1", "sub": "f".repeat(100_000) }),
+        ),
+    ] {
+        let what = format!("{kind} of {} bytes", params.to_string().len());
+        let response = client_submit(&daemon, kind, params.clone(), None).await;
+        assert_refused(
+            response,
+            &what,
+            &[
+                "one path segment",
+                &format!("at most {SEGMENT_MAX_BYTES} bytes"),
+                // Named by its length, never echoed whole.
+                "bytes is not one path segment",
+            ],
+        );
+        assert_nothing_admitted(&daemon, &what);
+        assert_eq!(daemon.route_for(kind, &params), None, "{what}");
+    }
+}
+
+/// C127 (a required segment is judged at the door): a `stash` without an
+/// id, with or without a `sub`, and a `character` without a name are
+/// refused at submit before a job id exists, as an `apply` tuple already
+/// was; neither could render a URL.
+#[tokio::test]
+async fn c127_a_stash_without_an_id_is_refused_at_submit() {
+    let (daemon, _) = test_daemon("http://127.0.0.1:9", Arc::new(ManualClock::new()));
+    for (kind, params, said) in [
+        (
+            "stash",
+            json!({ "league": "Standard", "sub": "s1" }),
+            "stash needs an id",
+        ),
+        (
+            "stash",
+            json!({ "league": "Standard" }),
+            "stash needs an id",
+        ),
+        (
+            "stash",
+            json!({ "id": null, "sub": "s1" }),
+            "stash needs an id",
+        ),
+        (
+            "character",
+            json!({ "realm": "pc" }),
+            "character needs a name",
+        ),
+    ] {
+        let what = format!("{kind} {params}");
+        let response = client_submit(&daemon, kind, params, None).await;
+        assert_refused(response, &what, &[said]);
+        assert_nothing_admitted(&daemon, &what);
+    }
+}
+
+/// C127 (a row that renders no URL says why): a row that never passed the
+/// client's door (here the daemon's own submit, as a restored row or a
+/// child whose params came from a response) and whose params render no
+/// URL fails naming the real cause in the door's words, and sends nothing.
+#[tokio::test]
+async fn c127_a_row_that_renders_no_url_fails_naming_the_cause() {
+    let (base, requests, server) = scripted_server(vec![
+        ScriptedResponse::full("HEAD", "200 OK", None, ""),
+        ScriptedResponse::full("GET", "200 OK", None, "{}"),
+    ])
+    .await;
+    let (daemon, log_path) = live_daemon(&base);
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    for (kind, params, said) in [
+        (
+            "stash",
+            json!({ "league": "Standard", "id": "t1", "sub": ".." }),
+            "`sub` \"..\" is not one path segment",
+        ),
+        (
+            "stash",
+            json!({ "league": "..;", "id": "t1" }),
+            "`league` \"..;\" is not one path segment",
+        ),
+        (
+            "character",
+            json!({ "name": "a/b" }),
+            "`name` \"a/b\" is not one path segment",
+        ),
+        (
+            "stashes",
+            json!({ "league": 7 }),
+            "`league` must be a string that is one path segment",
+        ),
+        (
+            "refresh",
+            json!({ "league": "..", "all": true }),
+            "`league` \"..\" is not one path segment",
+        ),
+    ] {
+        let what = format!("{kind} {params}");
+        let id = daemon
+            .submit(
+                kind.into(),
+                params,
+                0,
+                "daemon".into(),
+                Some("Alice#1234".into()),
+            )
+            .unwrap_or_else(|e| panic!("{what}: the daemon's own submit was refused: {e}"));
+        let (info, outcome) = wait_terminal(&daemon, id).await;
+        assert_eq!(info.state, JobState::Failed, "{what}: {outcome:?}");
+        let Outcome::Failure { error, .. } = &outcome else {
+            panic!("{what}: {outcome:?}")
+        };
+        assert!(
+            error.contains(said),
+            "{what}: the failure says {said:?}: {error}"
+        );
+        for wrong in ["needs an id", "needs a name", "unrenderable realm"] {
+            assert!(
+                !error.contains(wrong),
+                "{what}: a misleading cause: {error}"
+            );
+        }
+    }
+    server.abort();
+    assert!(
+        requests.lock().unwrap().is_empty(),
+        "nothing reached the wire"
+    );
+    finish_harness_wire(dispatcher, &log_path, &requests);
+}
+
+/// C127 (no legitimate value is refused or changed): realistic league,
+/// character, stash and substash values on every realm a family takes,
+/// each run through `route_for` and then `url::Url::parse` (what reqwest
+/// does with the string), map to exactly these wire paths. A guard: it
+/// holds before and after any tightening of the segment rule.
+#[test]
+fn c127_legitimate_values_render_to_these_wire_paths() {
+    let (daemon, _) = test_daemon("https://api.pathofexile.com", Arc::new(ManualClock::new()));
+    let table = [
+        (
+            "stashes",
+            json!({ "league": "Standard" }),
+            "/stash/Standard",
+        ),
+        (
+            "stashes",
+            json!({ "league": "Hardcore" }),
+            "/stash/Hardcore",
+        ),
+        ("stashes", json!({}), "/stash/Standard"),
+        (
+            "stashes",
+            json!({ "league": "Phrecia 2.0" }),
+            "/stash/Phrecia%202.0",
+        ),
+        (
+            "stashes",
+            json!({ "league": "SSF Standard" }),
+            "/stash/SSF%20Standard",
+        ),
+        (
+            "stashes",
+            json!({ "league": "HC SSF Settlers of Kalguur" }),
+            "/stash/HC%20SSF%20Settlers%20of%20Kalguur",
+        ),
+        (
+            "stashes",
+            json!({ "league": "My League (PL12345)" }),
+            "/stash/My%20League%20(PL12345)",
+        ),
+        (
+            "refresh",
+            json!({ "league": "Ruthless Hardcore SSF Mercenaries (PL55)", "all": true }),
+            "/stash/Ruthless%20Hardcore%20SSF%20Mercenaries%20(PL55)",
+        ),
+        (
+            "stashes",
+            json!({ "league": "Event #2" }),
+            "/stash/Event%20%232",
+        ),
+        (
+            "stashes",
+            json!({ "league": "Standard", "realm": "xbox" }),
+            "/stash/xbox/Standard",
+        ),
+        (
+            "stash",
+            json!({ "league": "Standard", "id": "0a1b2c3d4e" }),
+            "/stash/Standard/0a1b2c3d4e",
+        ),
+        (
+            "stash",
+            json!({ "league": "Phrecia 2.0", "id": "0a1b2c3d4e", "sub": "f9e8d7c6b5", "deep": false }),
+            "/stash/Phrecia%202.0/0a1b2c3d4e/f9e8d7c6b5",
+        ),
+        (
+            "stash",
+            json!({ "league": "Hardcore", "id": "0a1b2c3d4e", "realm": "xbox" }),
+            "/stash/xbox/Hardcore/0a1b2c3d4e",
+        ),
+        ("characters", json!({}), "/character"),
+        ("characters", json!({ "realm": "poe2" }), "/character/poe2"),
+        ("characters", json!({ "realm": "xbox" }), "/character/xbox"),
+        (
+            "character",
+            json!({ "name": "Éowyn_Tempête" }),
+            "/character/%C3%89owyn_Temp%C3%AAte",
+        ),
+        (
+            "character",
+            json!({ "name": "Søren_the_Exile", "realm": "poe2" }),
+            "/character/poe2/S%C3%B8ren_the_Exile",
+        ),
+        (
+            "character",
+            json!({ "name": "Witch_HC", "realm": "xbox" }),
+            "/character/xbox/Witch_HC",
+        ),
+    ];
+    for (kind, params, path) in table {
+        let what = format!("{kind} {params}");
+        assert_eq!(admit_segments(kind, &params), Ok(()), "{what} is admitted");
+        let (_, rendered) = daemon
+            .route_for(kind, &params)
+            .unwrap_or_else(|| panic!("{what} rendered no URL"));
+        let wire = url::Url::parse(&rendered).unwrap();
+        assert_eq!(wire.host_str(), Some("api.pathofexile.com"), "{what}");
+        assert_eq!(wire.query(), None, "{what}");
+        assert_eq!(wire.fragment(), None, "{what}");
+        assert_eq!(wire.path(), path, "{what}");
+        assert_eq!(wire.as_str(), rendered, "{what}: the parse changed nothing");
     }
 }
 
