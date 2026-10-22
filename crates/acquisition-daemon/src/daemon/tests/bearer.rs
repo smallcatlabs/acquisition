@@ -611,3 +611,124 @@ async fn expired_token_after_laptop_sleep_is_refreshed_before_any_send() {
         );
     }
 }
+
+/// C129 over C87: a 401 that Cloudflare gave in GGG's place (it carries
+/// `cf-mitigated`, and no GGG header) is no rejection of the bearer. The
+/// block halts the daemon; after `reset-tripwire` the account's next send
+/// carries the same token, and no refresh is spent on a token GGG never
+/// judged. Breaker: report every 401 to the bearer in `get_bearer` and
+/// the next send is a refresh POST, which rotates the refresh token for
+/// nothing.
+#[tokio::test]
+async fn a_cloudflare_401_on_the_get_keeps_the_access_token() {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let wire: Arc<Mutex<Vec<(String, String)>>> = Arc::default();
+    let server = {
+        let wire = wire.clone();
+        tokio::spawn(async move {
+            let mut gets = 0;
+            loop {
+                let (mut stream, _) = listener.accept().await.unwrap();
+                let Some(request) = mockggg::read_request(&mut stream).await else {
+                    continue;
+                };
+                let bearer = request
+                    .headers
+                    .get("authorization")
+                    .and_then(|v| v.strip_prefix("Bearer "))
+                    .unwrap_or("")
+                    .to_string();
+                wire.lock().unwrap().push((request.method.clone(), bearer));
+                let api_headers = "X-Rate-Limit-Policy: scenario-policy\r\nX-Rate-Limit-Rules: Account\r\nX-Rate-Limit-Account: 100:1:60\r\nX-Rate-Limit-Account-State: 0:1:0\r\n";
+                let (status, headers, body) = if request.path == "/token" {
+                    let body = json!({
+                        "access_token": "at-new",
+                        "refresh_token": "rt-rotated",
+                        "expires_in": 3600,
+                        "username": "scenario-user",
+                    })
+                    .to_string();
+                    (
+                        "200 OK",
+                        "X-Rate-Limit-Policy: token-request-limit\r\nX-Rate-Limit-Rules: Ip\r\nX-Rate-Limit-Ip: 60:30:30\r\nX-Rate-Limit-Ip-State: 1:30:0\r\n",
+                        body,
+                    )
+                } else if request.method == "HEAD" {
+                    ("204 No Content", api_headers, String::new())
+                } else {
+                    gets += 1;
+                    if gets == 1 {
+                        (
+                            "401 Unauthorized",
+                            "cf-mitigated: challenge\r\n",
+                            "<!DOCTYPE html><html><head><title>Just a moment...</title></head><body></body></html>".to_string(),
+                        )
+                    } else {
+                        ("200 OK", api_headers, r#"{"characters":[]}"#.to_string())
+                    }
+                };
+                mockggg::respond_with(&mut stream, status, "application/json", headers, &body)
+                    .await;
+            }
+        })
+    };
+    let clock = Arc::new(ManualClock::new());
+    let log_path = test_log_path();
+    let journal = journal_of(&log_path);
+    let _ = std::fs::remove_file(&journal);
+    let rails = Arc::new(Rails::with_config_and_clock(
+        RailsConfig {
+            journal_path: Some(journal.clone()),
+            ..RailsConfig::default()
+        },
+        clock.clone(),
+    ));
+    let (daemon, log_path) = test_daemon_scenario_at(
+        Provider::mock(&base),
+        clock.clone(),
+        rails,
+        Arc::new(NoopCredentialStore),
+        log_path,
+    );
+    {
+        let mut s = daemon.shared.lock().unwrap();
+        s.auth.rename("", "scenario-user");
+        daemon.install_tokens_locked(
+            s.auth.one_mut(),
+            auth::TokenResponse {
+                access_token: "at-old".into(),
+                refresh_token: "rt-old".into(),
+                expires_in: 3600,
+                username: "scenario-user".into(),
+            },
+        );
+    }
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    let first = daemon
+        .submit("characters".into(), json!({}), 0, "test".into(), None)
+        .unwrap();
+    let (info, _) = wait_terminal(&daemon, first).await;
+    assert_eq!(info.state, JobState::Failed);
+    assert!(daemon.choke.rails().halted().is_some(), "the block halts");
+    daemon.reset_rails().unwrap();
+    let second = daemon
+        .submit("characters".into(), json!({}), 0, "test".into(), None)
+        .unwrap();
+    let (info, outcome) = wait_terminal(&daemon, second).await;
+    server.abort();
+    let sends = journal_sends(&log_path);
+    let wire = wire.lock().unwrap().clone();
+    finish_harness(dispatcher, &log_path);
+    assert!(
+        sends.iter().all(|l| l["method"] != "POST"),
+        "no refresh is spent after a block's 401: {sends:?}"
+    );
+    let gets: Vec<&str> = wire
+        .iter()
+        .filter(|(method, _)| method == "GET")
+        .map(|(_, bearer)| bearer.as_str())
+        .collect();
+    assert_eq!(gets, ["at-old", "at-old"], "{wire:?}");
+    assert_eq!(info.state, JobState::Done, "{outcome:?}\n{sends:?}");
+}

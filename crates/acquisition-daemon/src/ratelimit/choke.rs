@@ -1019,8 +1019,11 @@ impl ChokePoint {
         let response = self
             .finish_send(route, "GET", url, result, true, wait, false)
             .await;
+        // C129: a 401 Cloudflare gave in GGG's place is no rejection of
+        // the bearer, as on the probe: the token GGG never judged stands.
         if let Ok(completed) = &response
             && completed.status.as_u16() == 401
+            && !completed.verdict.is_some_and(|verdict| verdict.block)
         {
             bearer.rejected(&token);
         }
