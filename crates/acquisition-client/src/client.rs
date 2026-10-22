@@ -1540,6 +1540,10 @@ fn spawn_daemon(world: &World) -> Result<Spawned, ConnectError> {
             spawned => spawned,
         }
     };
+    // Unix: a process group of its own (C27), so the Ctrl-C a terminal
+    // sends to the foreground job that started it never reaches it.
+    #[cfg(unix)]
+    std::os::unix::process::CommandExt::process_group(&mut command, 0);
     #[cfg(not(windows))]
     let spawned = command.spawn();
     let child = spawned.map_err(|e| ConnectError::SpawnFailed {
