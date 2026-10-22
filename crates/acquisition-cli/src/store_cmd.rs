@@ -394,9 +394,17 @@ pub fn characters(cx: &Ctx, realm: Option<Realm>, league: Option<&str>, json: bo
         return Ok(());
     }
     if characters.is_empty() {
+        // the league or realm asked about, as a line about a league names
+        // it; the file when the whole store holds none
+        let place = match (realm, league) {
+            (None, None) => store.path().display().to_string(),
+            (realm, Some(league)) => {
+                format!("{}{league}", realm.map(realm_prefix).unwrap_or_default())
+            }
+            (Some(realm), None) => format!("realm {realm}"),
+        };
         println!(
-            "no characters known in {} (run `acq characters` or cover them in the sync policy)",
-            store.path().display()
+            "no characters known in {place} (run `acq characters` or cover them in the sync policy)"
         );
         return Ok(());
     }
@@ -810,6 +818,53 @@ fn strip_idless_items(items: &mut Vec<Value>, skipped: &mut usize) {
             *skipped += before - gems.len();
         }
     }
+}
+
+/// `acq leagues` in text: the list GGG returned, one league a line with
+/// its realm and category, ready to copy a name from; `--json` prints the
+/// job's answer as it came. A payload of another shape prints whole.
+pub fn leagues_text(payload: &Value) -> String {
+    // the job's payload carries GGG's body under `body`
+    let body = payload.get("body").unwrap_or(payload);
+    let Some(leagues) = body.get("leagues").and_then(Value::as_array) else {
+        return format!(
+            "{}\n",
+            serde_json::to_string_pretty(payload).unwrap_or_default()
+        );
+    };
+    let field = |l: &Value, path: &[&str]| -> String {
+        let mut v = l;
+        for key in path {
+            v = &v[*key];
+        }
+        v.as_str().unwrap_or("-").to_string()
+    };
+    let rows: Vec<[String; 3]> = leagues
+        .iter()
+        .map(|l| {
+            [
+                field(l, &["id"]),
+                field(l, &["realm"]),
+                field(l, &["category", "id"]),
+            ]
+        })
+        .collect();
+    let w = rows
+        .iter()
+        .map(|r| r[0].chars().count())
+        .chain([6])
+        .max()
+        .unwrap_or(6);
+    let mut out = format!(
+        "{} {}\n{:<w$}  realm  category\n",
+        rows.len(),
+        if rows.len() == 1 { "league" } else { "leagues" },
+        "league"
+    );
+    for [id, realm, category] in &rows {
+        out.push_str(&format!("{id:<w$}  {realm:<5}  {category}\n"));
+    }
+    out
 }
 
 #[cfg(test)]

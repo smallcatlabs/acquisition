@@ -115,8 +115,8 @@ use std::collections::BTreeMap;
 
 use acquisition_plan::pricing::Expect;
 use acquisition_plan::{
-    CharacterSkipReason, FetchReason, ListingReason, PolicyWrite, RefreshAction, RefreshPlan,
-    SkipReason, Spent,
+    CharacterSkipReason, FetchReason, LeagueNote, ListingReason, PlanNotes, PolicyWrite,
+    RefreshAction, RefreshPlan, SkipReason, Spent,
 };
 use acquisition_protocol::job::Outcome;
 use acquisition_protocol::protocol::{Quote, QuoteScope};
@@ -189,18 +189,71 @@ pub fn policy_set(
     } else {
         PolicyWrite::Merge
     };
-    let row = cx
-        .account()?
-        .set_policy(&value, Expect::or(if_revision, Expect::Current), write)?;
+    let written =
+        cx.account()?
+            .set_policy(&value, Expect::or(if_revision, Expect::Current), write)?;
     if json {
-        println!("{}", serde_json::to_string_pretty(&row)?);
+        println!("{}", serde_json::to_string_pretty(&written)?);
     } else {
         println!(
             "sync policy written (revision {}) — preview the work with `acq refresh --plan`",
-            row.revision
+            written.row.revision
+        );
+        print!(
+            "{}",
+            league_note_lines(&written.league_notes, acquisition_store::now())
         );
     }
     Ok(())
+}
+
+/// C126 (a league the list lacks is a note): one line for each league
+/// the fetched league list does not hold, or one line naming every
+/// league when no list was ever fetched. Nothing refuses on it.
+fn league_note_lines(notes: &[LeagueNote], now: i64) -> String {
+    let mut out = String::new();
+    let unread: Vec<&str> = notes
+        .iter()
+        .filter(|n| n.list_fetched_at.is_none())
+        .map(|n| n.league.as_str())
+        .collect();
+    if !unread.is_empty() {
+        out.push_str(&format!(
+            "note: the league list was never fetched, so {} {} not read against it (`acq leagues` fetches it)\n",
+            unread.join(", "),
+            if unread.len() == 1 { "is" } else { "are" }
+        ));
+    }
+    for note in notes {
+        if let Some(at) = note.list_fetched_at {
+            out.push_str(&format!(
+                "note: {} is not among the leagues fetched {} (`acq leagues`)\n",
+                note.league,
+                store_cmd::ago(now, Some(at))
+            ));
+        }
+    }
+    out
+}
+
+/// The compile's notes under a plan (C126; a covered league with no
+/// character listed in it).
+fn plan_note_lines(plan: &RefreshPlan, notes: &PlanNotes, now: i64) -> String {
+    let mut out = league_note_lines(notes.league.as_slice(), now);
+    if notes.no_characters_listed {
+        let listed = plan
+            .basis
+            .character_listing
+            .as_ref()
+            .map(|l| format!(", listed {}", store_cmd::ago(now, Some(l.fetched_at))))
+            .unwrap_or_default();
+        out.push_str(&format!(
+            "characters: none in {}{} (the realm's character listing{listed})\n",
+            store_cmd::realm_prefix(plan.realm),
+            plan.league
+        ));
+    }
+    out
 }
 
 /// Read a plan envelope from a path or stdin (`-`) through the planner's
@@ -233,25 +286,32 @@ pub async fn refresh_plan(
     expand: bool,
 ) -> Result<()> {
     let now = acquisition_store::now();
-    let Planned { plan, quote_note } = match source {
+    let Planned {
+        plan,
+        quote_note,
+        notes,
+    } = match source {
         Some(source) => Planned {
             plan: read_plan(source)?,
             quote_note: None,
+            notes: PlanNotes::default(),
         },
         None => cx.account()?.open()?.plan(realm, league).await?,
     };
     if json {
         // Stdout is the plan envelope, nothing else, so it can be piped;
-        // why the quote is absent is diagnostics, not part of the plan.
+        // why the quote is absent, and the compile's notes, are
+        // diagnostics, not part of the plan.
         if let Some(note) = &quote_note {
             eprintln!("note: {note}");
         }
+        eprint!("{}", plan_note_lines(&plan, &notes, now));
         println!("{}", serde_json::to_string_pretty(&plan)?);
         return Ok(());
     }
     print!(
         "{}",
-        render_plan(&plan, quote_note.as_ref(), now, expand, source)
+        render_plan(&plan, quote_note.as_ref(), &notes, now, expand, source)
     );
     Ok(())
 }
@@ -314,7 +374,7 @@ pub async fn refresh_apply(
             } = &spent
             {
                 println!("{note}{}", wait_hint(spent));
-                if let Some(line) = remaining_line(*remaining_requests) {
+                if let Some(line) = remaining_line(*remaining_requests, &plan) {
                     println!("{line}");
                 }
             }
@@ -364,7 +424,7 @@ pub async fn refresh_apply(
     println!("{}", changes_line(&landed.store_changes));
     match landed.outcome {
         Outcome::Success { .. } => {
-            if let Some(line) = remaining_line(landed.remaining_requests) {
+            if let Some(line) = remaining_line(landed.remaining_requests, &plan) {
                 println!("{line}");
             }
             Ok(())
@@ -389,17 +449,36 @@ fn wait_hint(spent: &[Spent]) -> String {
 }
 
 /// The apply's last line (C53: the next action): what a plan compiled
-/// now would still fetch, or that nothing is left.
-fn remaining_line(remaining: Option<u64>) -> Option<String> {
+/// now would still fetch, or that nothing is left. The command carries
+/// the plan's realm and league where they are not the defaults, so it
+/// plans the league just applied as printed.
+fn remaining_line(remaining: Option<u64>, plan: &RefreshPlan) -> Option<String> {
     Some(match remaining? {
         0 => "left: nothing — every covered entry is fresh".into(),
         n => format!(
-            "next: `acq refresh --plan` — {} more are planned now (what this apply revealed, \
+            "next: `acq refresh --plan{}` — {} more are planned now (what this apply revealed, \
              such as a map or unique tab's substashes, or left undone); plan and apply until \
              the plan says nothing to do",
+            scope_flags(plan),
             requests(n)
         ),
     })
+}
+
+/// ` --realm R --league L` for a plan off the defaults, each only where
+/// it differs, the league quoted where a shell needs it.
+fn scope_flags(plan: &RefreshPlan) -> String {
+    let mut flags = String::new();
+    if plan.realm != Realm::DEFAULT {
+        flags.push_str(&format!(" --realm {}", plan.realm));
+    }
+    if plan.league != acquisition_plan::DEFAULT_LEAGUE {
+        flags.push_str(&format!(
+            " --league {}",
+            acquisition_search::answer::shell_quoted(&plan.league)
+        ));
+    }
+    flags
 }
 
 /// `changed: +98 items added, 3 changed at 5 locations; 112 responses
@@ -628,18 +707,21 @@ fn render_wire(plan: &RefreshPlan) -> String {
 pub(crate) fn render_plan(
     plan: &RefreshPlan,
     quote_note: Option<&QuoteNote>,
+    notes: &PlanNotes,
     now: i64,
     expand: bool,
     source: Option<&str>,
 ) -> String {
     if plan.actions.is_empty() && !expand {
-        return render_nothing_to_do(plan, now);
+        return render_nothing_to_do(plan, now) + &plan_note_lines(plan, notes, now);
     }
     let mut out = render_header(plan, now, expand);
     if plan.actions.is_empty() {
         out.push_str(&render_nothing_to_do(plan, now));
+        out.push_str(&plan_note_lines(plan, notes, now));
         return out;
     }
+    out.push_str(&plan_note_lines(plan, notes, now));
     let common_reason = if expand {
         None
     } else {
@@ -678,14 +760,7 @@ pub(crate) fn render_plan(
         let mut apply = String::from("acq refresh --apply");
         match source {
             Some(path) => apply.push_str(&format!("={path}")),
-            None => {
-                if plan.realm != Realm::DEFAULT {
-                    apply.push_str(&format!(" --realm {}", plan.realm));
-                }
-                if plan.league != acquisition_plan::DEFAULT_LEAGUE {
-                    apply.push_str(&format!(" --league {}", plan.league));
-                }
-            }
+            None => apply.push_str(&scope_flags(plan)),
         }
         out.push_str(&format!("next: {apply}\n"));
     }
@@ -735,6 +810,12 @@ fn render_skips(plan: &RefreshPlan, audit: bool) -> String {
 
 /// The no-op apply's text: what is fresh and for how long, then the claim.
 fn render_nothing_to_do(plan: &RefreshPlan, now: i64) -> String {
+    // the league the claim is about, as every line about its work names it
+    let head = format!(
+        "nothing to do in {}{}",
+        store_cmd::realm_prefix(plan.realm),
+        plan.league
+    );
     let fresh_tabs = plan
         .skipped_tabs
         .iter()
@@ -760,14 +841,14 @@ fn render_nothing_to_do(plan: &RefreshPlan, now: i64) -> String {
         let plan_age = (now - plan.generated_at).max(0);
         if plan_age >= 90 {
             return format!(
-                "nothing to do: this {}-old plan found {} fresh (under {})\n",
+                "{head}: this {}-old plan found {} fresh (under {})\n",
                 dur(plan_age),
                 fresh.join(" and "),
                 policy_window(plan.max_age_seconds)
             );
         }
         return format!(
-            "nothing to do: {} {} fresh (under {})\n",
+            "{head}: {} {} fresh (under {})\n",
             fresh.join(" and "),
             if fresh_tabs + fresh_characters == 1 {
                 "is"
@@ -781,31 +862,31 @@ fn render_nothing_to_do(plan: &RefreshPlan, now: i64) -> String {
     let has_covered_entries = !plan.skipped_tabs.is_empty() || !plan.skipped_characters.is_empty();
     let mut out = if has_covered_entries && plan_age < 90 {
         if fresh.is_empty() {
-            "nothing to do: covered entries do not need fetching\n".to_string()
+            format!("{head}: covered entries do not need fetching\n")
         } else {
             format!(
-                "nothing to do: covered entries are fresh (under {}) or do not need fetching\n",
+                "{head}: covered entries are fresh (under {}) or do not need fetching\n",
                 policy_window(plan.max_age_seconds)
             )
         }
     } else if has_covered_entries {
         if fresh.is_empty() {
             format!(
-                "nothing to do: this {}-old plan found covered entries that did not need fetching\n",
+                "{head}: this {}-old plan found covered entries that did not need fetching\n",
                 dur(plan_age)
             )
         } else {
             format!(
-                "nothing to do: this {}-old plan found covered entries fresh (under {}) or not needing a fetch\n",
+                "{head}: this {}-old plan found covered entries fresh (under {}) or not needing a fetch\n",
                 dur(plan_age),
                 policy_window(plan.max_age_seconds)
             )
         }
     } else if plan_age < 90 {
-        "nothing to do: no requests authorized\n".to_string()
+        format!("{head}: no requests authorized\n")
     } else {
         format!(
-            "nothing to do: this {}-old plan authorizes no requests\n",
+            "{head}: this {}-old plan authorizes no requests\n",
             dur(plan_age)
         )
     };
@@ -1583,6 +1664,7 @@ mod tests {
             tabs: Vec::new(),
             character_listing: None,
             characters: Vec::new(),
+            league_list: None,
             policy: Some(AnnotationRow {
                 scope: SYNC_POLICY_SCOPE.into(),
                 key: SYNC_POLICY_KEY.into(),
@@ -1845,8 +1927,22 @@ mod tests {
         let mut plan = tiny_plan();
         plan.actions = wall();
         plan.logical_requests = plan.actions.len() as u64;
-        let grouped = render_plan(&plan, Some(&QuoteNote::NoDaemon), 2_000, false, None);
-        let expanded = render_plan(&plan, Some(&QuoteNote::NoDaemon), 2_000, true, None);
+        let grouped = render_plan(
+            &plan,
+            Some(&QuoteNote::NoDaemon),
+            &PlanNotes::default(),
+            2_000,
+            false,
+            None,
+        );
+        let expanded = render_plan(
+            &plan,
+            Some(&QuoteNote::NoDaemon),
+            &PlanNotes::default(),
+            2_000,
+            true,
+            None,
+        );
         assert_eq!(
             expanded.matches("\n  fetch ").count(),
             27,
@@ -1875,12 +1971,26 @@ mod tests {
         assert!(expanded.contains("MapStash"), "{expanded}");
         assert!(expanded.contains("HEAD probe"), "{expanded}");
         // Rendered from a file, the next step names that file.
-        let from_file = render_plan(&plan, None, 2_000, false, Some("/tmp/p.json"));
+        let from_file = render_plan(
+            &plan,
+            None,
+            &PlanNotes::default(),
+            2_000,
+            false,
+            Some("/tmp/p.json"),
+        );
         assert!(
             from_file.contains("next: acq refresh --apply=/tmp/p.json"),
             "{from_file}"
         );
-        let old = render_plan(&plan, None, 9_200, false, Some("/tmp/p.json"));
+        let old = render_plan(
+            &plan,
+            None,
+            &PlanNotes::default(),
+            9_200,
+            false,
+            Some("/tmp/p.json"),
+        );
         assert!(old.contains("on mock as Alice#1234"), "{old}");
         assert!(old.contains("(plan 2h old)"), "{old}");
     }
@@ -1907,11 +2017,11 @@ mod tests {
         let text = render_nothing_to_do(&plan, plan.generated_at);
         assert_eq!(
             text,
-            "nothing to do: 69 tabs and 41 characters are fresh (under 1h)\n"
+            "nothing to do in Standard: 69 tabs and 41 characters are fresh (under 1h)\n"
         );
         assert_eq!(
             render_nothing_to_do(&plan, plan.generated_at + 7_200),
-            "nothing to do: this 2h-old plan found 69 tabs and 41 characters fresh (under 1h)\n"
+            "nothing to do in Standard: this 2h-old plan found 69 tabs and 41 characters fresh (under 1h)\n"
         );
 
         plan.skipped_tabs.push(acquisition_plan::SkippedTab {
@@ -1922,7 +2032,7 @@ mod tests {
         assert_eq!(
             render_nothing_to_do(&plan, plan.generated_at),
             concat!(
-                "nothing to do: covered entries are fresh (under 1h) or do not need fetching\n",
+                "nothing to do in Standard: covered entries are fresh (under 1h) or do not need fetching\n",
                 "skipped 70 tabs: 69 fresh, 1 folder — container only\n",
                 "skipped 41 characters: 41 fresh\n",
             )
@@ -1933,11 +2043,18 @@ mod tests {
         assert_eq!(
             render_nothing_to_do(&plan, plan.generated_at),
             concat!(
-                "nothing to do: covered entries do not need fetching\n",
+                "nothing to do in Standard: covered entries do not need fetching\n",
                 "skipped 1 tab: 1 folder — container only\n",
             )
         );
-        let rendered = render_plan(&plan, Some(&QuoteNote::NoDaemon), 2_000, false, None);
+        let rendered = render_plan(
+            &plan,
+            Some(&QuoteNote::NoDaemon),
+            &PlanNotes::default(),
+            2_000,
+            false,
+            None,
+        );
         assert!(rendered.contains("nothing to do"), "{rendered}");
         assert!(!rendered.contains("next:"), "{rendered}");
         // Nothing to quote, so no quote line either way.

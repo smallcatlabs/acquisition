@@ -4,6 +4,7 @@ $ acq policy set '{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"al
 # holds "revision 1"
 --- stdout
 sync policy written (revision 1) — preview the work with `acq refresh --plan`
+note: the league list was never fetched, so Standard is not read against it (`acq leagues` fetches it)
 
 $ acq refresh --plan
 # holds "2 requests"
@@ -11,6 +12,7 @@ $ acq refresh --plan
 refresh Standard on mock as ExileTester — policy 1
 facts: stash never listed; characters never listed
 
+note: the league list was never fetched, so Standard is not read against it (`acq leagues` fetches it)
 2 requests:
   list stashes
   list characters
@@ -37,6 +39,7 @@ $ acq refresh --plan
 refresh Standard on mock as ExileTester — policy 1
 facts: stash and characters listed <age> ago
 
+note: the league list was never fetched, so Standard is not read against it (`acq leagues` fetches it)
 9 requests:
   fetch 7 tabs
     cur1  Currency
@@ -82,9 +85,10 @@ job <j7> (ExileTester): 7/7 done
 $ acq refresh --plan
 # holds "nothing to do"
 --- stdout
-nothing to do: covered entries are fresh (under 1h) or do not need fetching
+nothing to do in Standard: covered entries are fresh (under 1h) or do not need fetching
 skipped 15 tabs: 14 fresh, 1 folder — container only
 skipped 2 characters: 2 fresh
+note: the league list was never fetched, so Standard is not read against it (`acq leagues` fetches it)
 
 $ acq tabs
 # holds "15 tabs in Standard: 14 fetched, 1 folder (never fetched); 37 items"

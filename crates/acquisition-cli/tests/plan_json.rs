@@ -104,11 +104,17 @@ fn json_stdout_is_the_contract_surface() {
     let out = acq(&base, &["policy", "show", "--json"]);
     assert_eq!(sole_json(&out), Value::Null);
 
-    // A valid write answers the stored row; show answers the same row.
+    // A valid write answers the stored row, and C126's note on a league
+    // the fetched league list does not hold: here no list was ever
+    // fetched. Show answers the same row.
     let policy = r#"{"version":1,"leagues":{"Standard":{"tabs":"all","max_age_seconds":3600}}}"#;
     let out = acq(&base, &["policy", "set", policy, "--json"]);
     assert!(out.status.success(), "{out:?}");
-    let row = sole_json(&out);
+    let mut row = sole_json(&out);
+    assert_eq!(
+        row.as_object_mut().unwrap().remove("league_notes"),
+        Some(json!([{ "league": "Standard", "list_fetched_at": null }]))
+    );
     assert_eq!(row["revision"], json!(1));
     assert_eq!(row["value"], serde_json::from_str::<Value>(policy).unwrap());
     // C65: the row says which channel wrote it; no actor was claimed.

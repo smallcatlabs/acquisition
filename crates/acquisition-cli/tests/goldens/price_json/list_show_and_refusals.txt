@@ -45,4 +45,4 @@ $ acq price status --league Hardcore
 --- stdout
 no items on record for Hardcore: 0 tabs and characters listed, none fetched with items
 rows: 0 of 3 apply here; 1 name nothing in the facts, 0 unreadable, 2 for other leagues, 0 for other realms
-next: `acq refresh --plan` shows what a refresh would fetch
+next: `acq refresh --plan --league Hardcore` shows what a refresh would fetch

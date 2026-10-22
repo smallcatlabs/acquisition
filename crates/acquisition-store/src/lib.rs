@@ -698,6 +698,48 @@ pub struct ItemRow {
     pub json: Value,
 }
 
+/// C126 (a league the list lacks is a note): the account's league list
+/// as the latest successful `leagues` response gave it, read from that
+/// response's envelope (the body has no item arrays, so the envelope is
+/// the body), never from the `leagues` table, which upserts and never
+/// retires a row. A league that left the list is not in it, and a list
+/// fetched empty is a fetched list.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LeagueList {
+    /// When that response landed, unix seconds.
+    pub fetched_at: i64,
+    /// The league ids it listed, in its order.
+    pub ids: Vec<String>,
+}
+
+/// The latest successful `leagues` response's list, or none when no list
+/// was ever fetched. A stored envelope that does not parse is an error
+/// naming its row, never a panic (C47).
+pub(crate) fn league_list_in(conn: &Connection) -> Result<Option<LeagueList>> {
+    let latest: Option<(i64, i64, String)> = conn
+        .query_row(
+            "SELECT id, fetched_at, envelope FROM responses
+              WHERE endpoint = 'leagues' AND status BETWEEN 200 AND 299
+              ORDER BY fetched_at DESC, id DESC LIMIT 1",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        )
+        .optional()?;
+    let Some((id, fetched_at, envelope)) = latest else {
+        return Ok(None);
+    };
+    let body: Value = serde_json::from_str(&envelope)
+        .with_context(|| format!("response {id}: the stored league list does not parse"))?;
+    let ids = body
+        .get("leagues")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|l| l.get("id").and_then(Value::as_str).map(str::to_string))
+        .collect();
+    Ok(Some(LeagueList { fetched_at, ids }))
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EventRow {
     pub at: i64,
@@ -1781,6 +1823,12 @@ impl Store {
         }))
     }
 
+    /// The account's league list as last fetched (C126): see
+    /// [`LeagueList`].
+    pub fn league_list(&self) -> Result<Option<LeagueList>> {
+        league_list_in(&self.conn)
+    }
+
     pub fn status(&self) -> Result<Status> {
         let count = |sql: &str| -> Result<i64> { Ok(self.conn.query_row(sql, [], |r| r.get(0))?) };
         Ok(Status {
@@ -2608,6 +2656,63 @@ mod tests {
         assert_eq!(
             (status.leagues, status.league_list.as_str()),
             (0, "fetched")
+        );
+    }
+
+    fn leagues(ids: &[&str]) -> Value {
+        json!({ "leagues": ids.iter().map(|id| json!({ "id": id, "realm": "pc" })).collect::<Vec<_>>() })
+    }
+
+    /// C126 (a league the list lacks is a note): the list is the latest
+    /// response's, so a league the game retired is not held, though the
+    /// `leagues` table, which upserts, still has its row.
+    #[test]
+    fn a_league_that_left_the_list_is_not_held() {
+        let mut s = Store::open_memory().unwrap();
+        s.record(
+            &Endpoint::Leagues,
+            &json!({}),
+            200,
+            &leagues(&["Standard", "Mercenaries"]),
+            50,
+        )
+        .unwrap();
+        s.record(
+            &Endpoint::Leagues,
+            &json!({}),
+            200,
+            &leagues(&["Standard", "Rehearsal"]),
+            60,
+        )
+        .unwrap();
+        assert_eq!(
+            s.league_list().unwrap(),
+            Some(LeagueList {
+                fetched_at: 60,
+                ids: vec!["Standard".into(), "Rehearsal".into()]
+            })
+        );
+        assert_eq!(
+            s.status().unwrap().leagues,
+            3,
+            "the table keeps the retired row"
+        );
+    }
+
+    /// C126: no list before a fetch; a fetch that listed none is a list,
+    /// fetched, holding nothing.
+    #[test]
+    fn a_list_fetched_empty_is_a_fetched_list() {
+        let mut s = Store::open_memory().unwrap();
+        assert_eq!(s.league_list().unwrap(), None);
+        s.record(&Endpoint::Leagues, &json!({}), 200, &leagues(&[]), 70)
+            .unwrap();
+        assert_eq!(
+            s.league_list().unwrap(),
+            Some(LeagueList {
+                fetched_at: 70,
+                ids: vec![]
+            })
         );
     }
 

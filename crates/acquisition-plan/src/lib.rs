@@ -274,7 +274,7 @@ use acquisition_protocol::protocol::Quote;
 use acquisition_protocol::realm::{Family, Realm};
 use acquisition_store::{
     AnnotationError, AnnotationRow, Annotations, CharacterSnapshot, Endpoint, IntentValue,
-    ListingBasis, Provenance, RefreshSnapshot, SYNC_POLICY_KEY, SYNC_POLICY_KIND,
+    LeagueList, ListingBasis, Provenance, RefreshSnapshot, SYNC_POLICY_KEY, SYNC_POLICY_KIND,
     SYNC_POLICY_SCOPE, TabSnapshot, ValueError, check_value,
 };
 
@@ -700,6 +700,101 @@ impl SyncPolicy {
     /// One (realm, league)'s coverage, if the policy names it.
     pub fn league(&self, realm: Realm, league: &str) -> Option<&LeaguePolicy> {
         self.realms.get(&realm).and_then(|r| r.leagues.get(league))
+    }
+}
+
+/// C126 — a league the list lacks is a note: a league a policy or a plan
+/// names that the account's fetched league list does not hold. The list
+/// is the latest successful leagues response (`LeagueList`), never an
+/// accumulated table; `list_fetched_at` is when it was fetched, `None`
+/// when no list was ever fetched, so every league is unread against it.
+/// Nothing refuses on it: the list is stale on launch morning before the
+/// user fetches it, and the note is what keeps a typo from spending a
+/// request on a league that does not exist.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct LeagueNote {
+    pub league: String,
+    pub list_fetched_at: Option<i64>,
+}
+
+/// C126: a note for each of `leagues` the list does not hold, in the
+/// order given, each league once.
+pub fn league_notes<'a>(
+    leagues: impl IntoIterator<Item = &'a str>,
+    list: Option<&LeagueList>,
+) -> Vec<LeagueNote> {
+    let mut notes: Vec<LeagueNote> = Vec::new();
+    for league in leagues {
+        let held = list.is_some_and(|l| l.ids.iter().any(|id| id == league));
+        if !held && !notes.iter().any(|n| n.league == league) {
+            notes.push(LeagueNote {
+                league: league.to_string(),
+                list_fetched_at: list.map(|l| l.fetched_at),
+            });
+        }
+    }
+    notes
+}
+
+impl SyncPolicy {
+    /// Every league the policy names, realm by realm, each once.
+    pub fn leagues(&self) -> Vec<&str> {
+        let mut out: Vec<&str> = Vec::new();
+        for realm in self.realms.values() {
+            for league in realm.leagues.keys() {
+                if !out.contains(&league.as_str()) {
+                    out.push(league);
+                }
+            }
+        }
+        out
+    }
+}
+
+/// What a compile saw beside the plan it made: observations of the store
+/// at the snapshot, never authorization, so they ride beside the envelope
+/// (as the quote's note does) and never in it.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+pub struct PlanNotes {
+    /// C126: the plan's league, when the fetched league list lacks it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub league: Option<LeagueNote>,
+    /// The policy covers this league's characters, the realm's character
+    /// listing is on record, and it names none in the league: why the
+    /// plan has no character work (a new league before its first
+    /// character).
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub no_characters_listed: bool,
+}
+
+impl PlanNotes {
+    pub fn is_empty(&self) -> bool {
+        self.league.is_none() && !self.no_characters_listed
+    }
+}
+
+/// The notes of a compile over `snapshot` ([`PlanNotes`]). A snapshot
+/// with no policy, or whose policy does not cover its league, has none:
+/// the compile refuses it first.
+pub fn plan_notes(snapshot: &RefreshSnapshot) -> PlanNotes {
+    let covered = snapshot
+        .policy
+        .as_ref()
+        .and_then(|row| SyncPolicy::from_value(&row.value).ok())
+        .and_then(|policy| {
+            let realm = Realm::parse(&snapshot.realm)?;
+            policy
+                .league(realm, &snapshot.league)
+                .map(|l| l.characters.is_some())
+        });
+    let Some(characters_covered) = covered else {
+        return PlanNotes::default();
+    };
+    PlanNotes {
+        league: league_notes([snapshot.league.as_str()], snapshot.league_list.as_ref()).pop(),
+        no_characters_listed: characters_covered
+            && snapshot.character_listing.is_some()
+            && snapshot.characters.is_empty(),
     }
 }
 

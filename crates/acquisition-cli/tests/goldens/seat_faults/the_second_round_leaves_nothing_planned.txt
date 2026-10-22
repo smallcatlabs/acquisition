@@ -3,6 +3,7 @@
 $ acq refresh --plan
 # holds "nothing to do"
 --- stdout
-nothing to do: covered entries are fresh (under 1h) or do not need fetching
+nothing to do in Standard: covered entries are fresh (under 1h) or do not need fetching
 skipped 15 tabs: 14 fresh, 1 folder — container only
 skipped 2 characters: 2 fresh
+note: the league list was never fetched, so Standard is not read against it (`acq leagues` fetches it)

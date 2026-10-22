@@ -13,7 +13,7 @@ use std::path::PathBuf;
 
 use acquisition_client::client::{Client, ConnectError, ConnectOptions, Observed};
 use acquisition_plan::pricing::Expect;
-use acquisition_plan::{PolicyWrite, SyncPolicy, put_sync_policy};
+use acquisition_plan::{LeagueNote, PolicyWrite, SyncPolicy, league_notes, put_sync_policy};
 use acquisition_protocol::realm::Realm;
 use acquisition_store::{
     AccountEntry, AnnotationRow, Annotations, Index, Provenance, Resolve, SYNC_POLICY_KEY,
@@ -307,13 +307,16 @@ impl Account {
     /// means, as pricing's verbs take it: [`Expect::Current`] reads the
     /// stored revision just before the write and refuses a stored row
     /// this build cannot read; [`Expect::Create`] writes only where none
-    /// stands. `write` is what the value replaces (C36).
+    /// stands. `write` is what the value replaces (C36). The receipt
+    /// carries a note for each league the value names that the account's
+    /// fetched league list does not hold (C126); nothing refuses on it, and
+    /// a facts file this build cannot read leaves the receipt without notes.
     pub fn set_policy(
         &self,
         value: &Value,
         expect: Expect,
         write: PolicyWrite,
-    ) -> Result<AnnotationRow, Fault> {
+    ) -> Result<PolicyWritten, Fault> {
         let mut intent = self.intent()?;
         let expected = match expect {
             Expect::Exactly(revision) => Some(revision),
@@ -336,14 +339,36 @@ impl Account {
                 }
             }
         };
-        Ok(put_sync_policy(
+        let row = put_sync_policy(
             &mut intent,
             value,
             expected,
             write,
             &Provenance::via(self.frontend.via),
-        )?)
+        )?;
+        let notes = match (
+            SyncPolicy::from_value(value),
+            self.facts().ok().map(|f| f.league_list()),
+        ) {
+            (Ok(written), Some(Ok(list))) => league_notes(written.leagues(), list.as_ref()),
+            _ => Vec::new(),
+        };
+        Ok(PolicyWritten {
+            row,
+            league_notes: notes,
+        })
     }
+}
+
+/// A sync-policy write as both doors report it (C36, C126): the stored
+/// row, whole, and a note for each league the written value names that
+/// the account's fetched league list does not hold.
+#[derive(Clone, Debug, Serialize)]
+pub struct PolicyWritten {
+    #[serde(flatten)]
+    pub row: AnnotationRow,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub league_notes: Vec<LeagueNote>,
 }
 
 /// An account's facts and intent, open together (C12): what the refresh

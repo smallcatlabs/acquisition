@@ -217,7 +217,9 @@ enum Cmd {
         #[arg(long, default_value = "pc", value_parser = acquisition_verbs::realm)]
         realm: Realm,
     },
-    /// List the account's leagues.
+    /// List the account's leagues: one a line, with its realm and category
+    /// (`--json`: GGG's answer whole). A new league is listed here the day
+    /// it opens.
     Leagues,
     /// Accounts this machine has logged into (the store's index; no daemon).
     Accounts,
@@ -1054,7 +1056,18 @@ async fn run(cli: Cli) -> Result<()> {
         Cmd::Leagues => {
             let mut client = connect(cx).await?;
             let id = submit(cx, &mut client, "leagues".into(), json!({}), 0).await?;
-            block_on_job(&mut client, id, cli.json).await
+            if cli.json {
+                return block_on_job(&mut client, id, true).await;
+            }
+            wait_for_job(&mut client, id, false).await?;
+            let result = result_live(&mut client, id).await?;
+            match &result.outcome {
+                Outcome::Success { payload } => {
+                    print!("{}", store_cmd::leagues_text(payload));
+                    Ok(())
+                }
+                _ => print_outcome(&result, false),
+            }
         }
         Cmd::Accounts => store_cmd::accounts(cx, cli.json),
         Cmd::Tabs {

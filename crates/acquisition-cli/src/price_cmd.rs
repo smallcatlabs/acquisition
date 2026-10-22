@@ -208,9 +208,8 @@ fn render_status(r: &ListingReport, now: i64, expand: bool, account: &str) -> St
     // Every command the next step prints, as it runs: the account it ran as, and the
     // league and realm where they are not the defaults (the release
     // seat's rerun: Allflame's next step read Standard, call 48).
-    let scope = format!(
-        "--account {}{}{}",
-        acquisition_search::answer::shell_quoted(account),
+    let place_flags = format!(
+        "{}{}",
         match r.header.realm.segment() {
             Some(seg) => format!(" --realm {seg}"),
             None => String::new(),
@@ -223,6 +222,10 @@ fn render_status(r: &ListingReport, now: i64, expand: bool, account: &str) -> St
                 acquisition_search::answer::shell_quoted(&r.header.league)
             )
         }
+    );
+    let scope = format!(
+        "--account {}{place_flags}",
+        acquisition_search::answer::shell_quoted(account),
     );
     let mut out = String::new();
     let h = &r.header;
@@ -253,7 +256,7 @@ fn render_status(r: &ListingReport, now: i64, expand: bool, account: &str) -> St
         let next = if !r.rows.unreadable.is_empty() {
             format!("`acq price status {scope} --expand` lists the rows that cannot be read")
         } else {
-            "`acq refresh --plan` shows what a refresh would fetch".to_string()
+            format!("`acq refresh --plan{place_flags}` shows what a refresh would fetch")
         };
         out.push_str(&format!("next: {next}\n"));
         return out;

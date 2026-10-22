@@ -973,7 +973,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Write the per-account sync policy (validated strictly, compare-and-swap on if_revision). Sends nothing — intent is local; the network cost appears only when a plan is applied. Each realm the value names replaces that realm alone; the others stay, a realm named with no leagues is removed, and `replace: true` writes the whole policy instead. Replacing an existing policy requires if_revision (from sync_policy) either way; a stale or missing revision is a conflict, never a clobber. Returns the stored row, the whole policy as it now stands."
+        description = "Write the per-account sync policy (validated strictly, compare-and-swap on if_revision). Sends nothing — intent is local; the network cost appears only when a plan is applied. Each realm the value names replaces that realm alone; the others stay, a realm named with no leagues is removed, and `replace: true` writes the whole policy instead. Replacing an existing policy requires if_revision (from sync_policy) either way; a stale or missing revision is a conflict, never a clobber. Returns the stored row, the whole policy as it now stands, and `league_notes` when the value names a league the account's fetched league list does not hold: each such league with `list_fetched_at`, when that list was fetched, null when it never was (a `leagues` job fetches it). Nothing refuses on a note."
     )]
     fn set_sync_policy(&self, Parameters(p): Parameters<Args<SetPolicyParams>>) -> Told {
         answer(|| {
@@ -993,7 +993,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Compile the stored sync policy + facts on record into a RefreshPlan for one (realm, league): the explicit, bounded action set applying would execute — stash listing and tab fetches, the realm's character listing and character fetches, each facet as the policy covers it — with per-action reasons, skipped tabs and characters, unknown ids, and a coarse wire estimate. Offline — sends nothing, spends nothing. A running daemon adds its read-only quote (ETA + rate-limit headroom; never spawned for this); `quote_note` says why one is absent. Review the plan, then hand `plan` to apply_plan."
+        description = "Compile the stored sync policy + facts on record into a RefreshPlan for one (realm, league): the explicit, bounded action set applying would execute — stash listing and tab fetches, the realm's character listing and character fetches, each facet as the policy covers it — with per-action reasons, skipped tabs and characters, unknown ids, and a coarse wire estimate. Offline — sends nothing, spends nothing. A running daemon adds its read-only quote (ETA + rate-limit headroom; never spawned for this); `quote_note` says why one is absent. `notes.league` names the plan's league when the account's fetched league list does not hold it (`list_fetched_at` null: no list was ever fetched), and `notes.no_characters_listed` says the policy covers the league's characters and the realm's character listing names none in it. Review the plan, then hand `plan` to apply_plan."
     )]
     async fn refresh_plan(&self, Parameters(p): Parameters<Args<PlanParams>>) -> Told {
         settled(

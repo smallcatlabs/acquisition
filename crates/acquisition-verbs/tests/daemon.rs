@@ -154,6 +154,7 @@ async fn a_wedged_daemon_cannot_block_the_offline_plan() {
         tabs: Vec::new(),
         character_listing: None,
         characters: Vec::new(),
+        league_list: None,
         policy: Some(acquisition_store::AnnotationRow {
             scope: acquisition_store::SYNC_POLICY_SCOPE.into(),
             key: acquisition_store::SYNC_POLICY_KEY.into(),

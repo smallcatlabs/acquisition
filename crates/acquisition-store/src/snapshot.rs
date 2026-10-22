@@ -138,6 +138,10 @@ pub struct RefreshSnapshot {
     /// (realm, league) policy can cover and every league plan of the
     /// realm therefore reports. Read in the same transaction.
     pub characters: Vec<CharacterSnapshot>,
+    /// The account's league list as last fetched (C126, a league the list
+    /// lacks is a note), read in the same transaction; `None` when no list
+    /// was ever fetched.
+    pub league_list: Option<crate::LeagueList>,
     /// The sync-policy annotation at its revision — the annotation basis
     /// a plan cites. `None` means exactly "no sync policy": the
     /// annotations handle is required, so absent intent is never
@@ -246,6 +250,7 @@ impl Store {
         let character_listing = character_basis(&tx, realm)?;
         let tabs = read_tabs(&tx, realm, league)?;
         let characters = read_characters(&tx, realm, league)?;
+        let league_list = crate::league_list_in(&tx)?;
         tx.finish()?;
         let policy = annotations.get(SYNC_POLICY_SCOPE, SYNC_POLICY_KEY, SYNC_POLICY_KIND)?;
         Ok(RefreshSnapshot {
@@ -258,6 +263,7 @@ impl Store {
             tabs,
             character_listing,
             characters,
+            league_list,
             policy,
         })
     }

@@ -285,7 +285,7 @@ fn a_blind_policy_write_over_a_stored_row_this_build_cannot_read_is_refused() {
     let row = account
         .set_policy(&policy(), Expect::Exactly(1), PolicyWrite::Replace)
         .unwrap();
-    assert_eq!(row.revision, 2);
+    assert_eq!(row.row.revision, 2);
     // And the create-only form refuses a row standing.
     let fault = account
         .set_policy(&policy(), Expect::Create, PolicyWrite::Replace)
@@ -323,11 +323,11 @@ fn a_policy_write_is_validated_and_compares_its_revision() {
     let second = account
         .set_policy(&policy(), Expect::Current, PolicyWrite::Merge)
         .unwrap();
-    assert_eq!((first.revision, second.revision), (1, 2));
+    assert_eq!((first.row.revision, second.row.revision), (1, 2));
     let fault = account
         .set_policy(
             &json!({ "version": 3, "realms": {} }),
-            Expect::Exactly(first.revision),
+            Expect::Exactly(first.row.revision),
             PolicyWrite::Replace,
         )
         .unwrap_err();
@@ -337,7 +337,7 @@ fn a_policy_write_is_validated_and_compares_its_revision() {
         .set_policy(&policy(), Expect::Exactly(2), PolicyWrite::Merge)
         .unwrap();
     assert_eq!(
-        row.written_via, "test",
+        row.row.written_via, "test",
         "stamped with the frontend's channel"
     );
 }

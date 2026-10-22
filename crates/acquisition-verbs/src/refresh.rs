@@ -9,7 +9,9 @@ use std::collections::BTreeSet;
 use std::time::Duration;
 
 use acquisition_client::client::{Client, Observed};
-use acquisition_plan::{RefreshPlan, Spent, SpentBy, apply_params_of, plan_refresh};
+use acquisition_plan::{
+    PlanNotes, RefreshPlan, Spent, SpentBy, apply_params_of, plan_notes, plan_refresh,
+};
 use acquisition_protocol::job::{JobInfo, Outcome};
 use acquisition_protocol::protocol::{QuoteJob, Request, Response};
 use acquisition_protocol::realm::Realm;
@@ -32,6 +34,11 @@ pub struct Planned {
     pub plan: RefreshPlan,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub quote_note: Option<QuoteNote>,
+    /// What the compile saw beside the plan (C126, a league the list
+    /// lacks; a covered league with no character listed): empty for a
+    /// plan read from a file, which reads no store.
+    #[serde(skip_serializing_if = "PlanNotes::is_empty")]
+    pub notes: PlanNotes,
 }
 
 /// How many tabs and characters the plan skipped: every apply answer
@@ -192,6 +199,7 @@ pub async fn quote_within(plan: RefreshPlan, limit: Duration) -> Planned {
         return Planned {
             plan,
             quote_note: Some(QuoteNote::NoAccountName),
+            notes: PlanNotes::default(),
         };
     };
     let jobs: Vec<QuoteJob> = plan
@@ -226,6 +234,7 @@ pub async fn quote_within(plan: RefreshPlan, limit: Duration) -> Planned {
                 return Planned {
                     plan: enriched,
                     quote_note: None,
+                    notes: PlanNotes::default(),
                 };
             }
             // The daemon answered about something other than this plan —
@@ -236,6 +245,7 @@ pub async fn quote_within(plan: RefreshPlan, limit: Duration) -> Planned {
     Planned {
         plan,
         quote_note: Some(miss),
+        notes: PlanNotes::default(),
     }
 }
 
@@ -374,12 +384,21 @@ impl Opened {
         )
     }
 
-    /// C39 then C10: compile, then ask a running daemon's quote.
+    /// C39 then C10: compile, then ask a running daemon's quote; the
+    /// compile's notes (C126) from the same snapshot.
     pub async fn plan(&mut self, realm: Realm, league: &str) -> Result<Planned, Fault> {
-        let plan = self.compile(realm, league, acquisition_store::now())?;
+        let snapshot = self.snapshot(realm, league)?;
+        let plan = compile(
+            self.account.frontend.provider,
+            &snapshot,
+            &self.account.entry.username,
+            acquisition_store::now(),
+        )?;
         // The quote observes the environment's world.
         self.account.frontend.same_world();
-        Ok(quote(plan).await)
+        let mut planned = quote(plan).await;
+        planned.notes = plan_notes(&snapshot);
+        Ok(planned)
     }
 
     /// What a plan compiled now over the facts would fetch: `None` when
