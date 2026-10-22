@@ -935,6 +935,40 @@ identified by its id and located by its parent's name; its own name
 identifies nothing (the spike's C80 reads the parent for the same
 reason).
 
+### Cloudflare documentation claims (October 22, 2026)
+
+**N48. Cloudflare serves error 1015 as HTTP 429 with the code in an
+HTML body and, since March 12, 2026, a `Retry-After` of 30 s unless the
+rate-limiting rule sets its own; a JSON variant carries
+`retry_after`.** [Cloudflare public docs — High; unobserved from GGG;
+retrieved October 22, 2026]
+Sources: the 1xxx reference
+(`https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-1xxx-errors/`)
+maps 1015 to HTTP 429 and says "1XXX errors appear in the HTML body of
+the response"; the 1015 page
+(`https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-1xxx-errors/error-1015/`)
+names rate-limiting rules as the cause and says repeated attempts extend
+the block, stating no status or headers; the changelog
+(`https://developers.cloudflare.com/changelog/post/2026-03-12-retry-after-header-for-1xxx-errors/`)
+gives retryable 1xxx responses a standard `Retry-After` (1015: 30 s; a
+WAF rate-limiting rule's own value takes precedence) and a JSON variant
+selected by `Accept: application/json`. The daemon sets no `Accept`, so
+it would get the HTML page. Consequence: a 429 with an acceptable
+`Retry-After` and no `X-Rate-Limit-*` is the documented shape of a
+layer-1 rate limit, not of GGG's (GGG's own 429s carry the full header
+set, N25, N33).
+
+**N49. A Cloudflare rate-limiting rule's Block action answers with any
+status 400–499 (default 429) and an optional custom body up to 30 KB in
+JSON, HTML, XML or text, so a layer-1 block need carry no page
+marker.** [Cloudflare public docs — High; unobserved from GGG;
+retrieved October 22, 2026]
+Source: the rate-limiting rule parameters page
+(`https://developers.cloudflare.com/waf/rate-limiting-rules/parameters/`),
+which mentions neither `Retry-After`, 1015 nor `cf-mitigated`.
+`cf-mitigated: challenge` is the observed signal of a challenge (N28),
+not of a rate limit.
+
 ## Open questions
 
 - **Q1. HEAD sanction verbatim. RESOLVED July 18, 2026** — Tom
@@ -1003,7 +1037,10 @@ reason).
   presentation (1015 page?), duration, and scope (API only, or
   website/game too). Deliberately *not* to be re-established
   experimentally (N4); memory and any surviving reports are the only
-  sources.
+  sources. Also unknown, against Cloudflare's documented shapes (N48,
+  N49): what GGG's own rules send (status, body, `Retry-After`);
+  whether GGG's Cloudflare 52x pages carry the page markers. The next
+  real block is the evidence, read from the send journal.
 - **Q8. What does "frequently" mean for revocation (N10)?** Probably
   unanswerable except by asking GGG; relevant to how much residual
   violation rate (Q5) is tolerable.

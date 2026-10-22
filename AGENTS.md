@@ -63,8 +63,8 @@ As few as possible, each a property, never a mechanism.
   lock). `cargo test --all-targets`, and `cargo nextest run`, rewrite
   `acq-mcp` in another form and never write `acqd`, so a daemon
   started after tests is an artifact mismatch (C84). Never run the
-  live drivers while the gate runs. The session-close skill explains
-  the artifacts.
+  live drivers, a bare `acq` or a second gate while the gate runs. The
+  session-close skill explains the artifacts.
 - **The gate decides.** Every change keeps it green (below). A commit
   is gated on each stage's own exit status, never on a filtered grep.
 - **No id in user-facing text** (C116): help, refusals, reasons and
