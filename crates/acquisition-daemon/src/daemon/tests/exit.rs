@@ -3,7 +3,8 @@
 //! test runs a harness daemon with a short bound on tokio time and never
 //! calls `leave`, which ends the process. C134, the panic's end: the hook
 //! that writes the log line and the fault marker, and the restore that
-//! fails the marker's job once.
+//! fails the marker's job once. C134, the listener: an accept error is
+//! served through, logged with a backoff.
 //!
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
@@ -802,4 +803,136 @@ fn a_panic_is_logged_marks_its_job_and_ends_the_process() {
     assert!(log.contains("PANIC outside any job at "), "{log}");
     assert!(!dir.join("fault.json").exists(), "no job, no marker");
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// C134's seam: errors put in front of a real listener, or of none (a
+/// listener that never connects anyone).
+#[cfg(unix)]
+struct Faulty {
+    errors: std::collections::VecDeque<std::io::Error>,
+    inner: Option<crate::daemon::endpoint::Listener>,
+}
+
+#[cfg(unix)]
+impl crate::daemon::endpoint::Accept for Faulty {
+    fn accept(
+        &mut self,
+    ) -> impl Future<Output = std::io::Result<crate::daemon::endpoint::Stream>> + Send {
+        let error = self.errors.pop_front();
+        let inner = &mut self.inner;
+        async move {
+            match (error, inner) {
+                (Some(e), _) => Err(e),
+                (None, Some(listener)) => listener.accept().await,
+                (None, None) => std::future::pending().await,
+            }
+        }
+    }
+}
+
+#[cfg(unix)]
+fn accept_failures(log_path: &std::path::Path) -> Vec<String> {
+    std::fs::read_to_string(log_path)
+        .unwrap_or_default()
+        .lines()
+        .filter(|l| l.contains("accept failed"))
+        .map(str::to_string)
+        .collect()
+}
+
+/// C134: an error from `accept` is logged once and served through: the
+/// next connection is answered, and nothing exits.
+#[cfg(unix)]
+#[tokio::test]
+async fn a_listener_error_is_served_through() {
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
+    let (daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
+    let path = std::env::temp_dir().join(format!(
+        "acq-listener-{}-{}.sock",
+        std::process::id(),
+        TEST_LOG_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
+    let _ = std::fs::remove_file(&path);
+    let (listener, bound) = crate::daemon::endpoint::Listener::bind(&path)
+        .await
+        .unwrap();
+    let faulty = Faulty {
+        errors: [std::io::Error::from(std::io::ErrorKind::ConnectionAborted)].into(),
+        inner: Some(listener),
+    };
+    let serving = tokio::spawn(daemon.clone().serve(faulty, Duration::from_millis(1)));
+
+    let answer = tokio::time::timeout(Duration::from_secs(5), async {
+        let stream = tokio::net::UnixStream::connect(&path).await?;
+        let (read, mut write) = tokio::io::split(stream);
+        write.write_all(b"{\"req\":\"hello\"}\n").await?;
+        let mut line = String::new();
+        tokio::io::BufReader::new(read).read_line(&mut line).await?;
+        std::io::Result::Ok(line)
+    })
+    .await
+    .expect("the next connection is answered in time")
+    .expect("the next connection is answered");
+    assert!(
+        matches!(
+            acquisition_protocol::protocol::BootstrapReply::read(answer.as_bytes()),
+            Some(acquisition_protocol::protocol::BootstrapReply::Hello { .. })
+        ),
+        "{answer}"
+    );
+    assert!(!serving.is_finished(), "the accept loop serves on");
+    assert!(!daemon.exit.begun(), "nothing exited");
+    let failures = accept_failures(&log_path);
+    assert_eq!(failures.len(), 1, "logged once: {failures:?}");
+
+    serving.abort();
+    bound.remove_if_still_ours();
+    finish_harness(None, &log_path);
+}
+
+/// C134: a run of errors writes a bounded number of log lines, each kind
+/// reported the first time, and the loop serves on through it.
+#[cfg(unix)]
+#[tokio::test]
+async fn a_run_of_listener_errors_logs_a_bounded_number_of_lines() {
+    let (daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
+    let mut errors: std::collections::VecDeque<std::io::Error> = (0..1000)
+        .map(|_| std::io::Error::other("too many open files"))
+        .collect();
+    errors.push_back(std::io::Error::from(std::io::ErrorKind::ConnectionAborted));
+    let faulty = Faulty {
+        errors,
+        inner: None,
+    };
+    let serving = tokio::spawn(daemon.clone().serve(faulty, Duration::ZERO));
+    let aborted = std::io::Error::from(std::io::ErrorKind::ConnectionAborted).to_string();
+    tokio::time::timeout(Duration::from_secs(10), async {
+        while !accept_failures(&log_path)
+            .iter()
+            .any(|l| l.contains(&aborted))
+        {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .expect("the run of errors is served through to its end");
+    assert!(!serving.is_finished(), "the accept loop serves on");
+    serving.abort();
+
+    let failures = accept_failures(&log_path);
+    assert!(
+        (3..=12).contains(&failures.len()),
+        "a thousand errors in a row, a handful of lines: {failures:?}"
+    );
+    assert_eq!(
+        failures.iter().filter(|l| l.contains(&aborted)).count(),
+        1,
+        "a new kind is reported the first time: {failures:?}"
+    );
+    assert!(
+        failures.iter().any(|l| l.contains("512 times")),
+        "a later line says how many: {failures:?}"
+    );
+    assert!(!daemon.exit.begun(), "nothing exited");
+    finish_harness(None, &log_path);
 }

@@ -1,5 +1,5 @@
 //! The daemon's start: the world and its locks, the log, the knobs read at
-//! start, and the bound on the diagnostic files.
+//! start, the bound on the diagnostic files, and the accept loop.
 //!
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
@@ -416,7 +416,7 @@ async fn run_with_log(
     let rails_state = world.rails_state_path(provider_name);
     verify_state(&rails_state)?;
 
-    let (mut listener, bound) = Listener::bind(&path).await?;
+    let (listener, bound) = Listener::bind(&path).await?;
 
     // Who this daemon is (C84): the executable it runs from, identified
     // and hashed once, before the journal opens — its header names the
@@ -626,8 +626,76 @@ async fn run_with_log(
     tokio::spawn(daemon.clone().dispatcher());
     tokio::spawn(daemon.clone().idle_watchdog());
 
-    loop {
-        let stream = listener.accept().await?;
-        tokio::spawn(daemon.clone().handle_conn(stream));
+    daemon.serve(listener, ACCEPT_PAUSE_CAP).await
+}
+
+/// C134: the longest the accept loop pauses after an error before it
+/// accepts again; a run of errors doubles the pause up to it.
+const ACCEPT_PAUSE_CAP: Duration = Duration::from_secs(1);
+
+/// C134: the pause after the first error of a run.
+const ACCEPT_PAUSE_FIRST: Duration = Duration::from_millis(10);
+
+impl Daemon {
+    /// C134, the accept loop: every connection gets its own task, and an
+    /// error from `accept` never ends the daemon. Each kind of error is
+    /// reported the first time, then at its 2nd, 4th, 8th… occurrence
+    /// ([`AcceptErrors`]), since the log is bounded only at start and a
+    /// daemon with live jobs never idles out; after each error the loop
+    /// pauses, doubling from [`ACCEPT_PAUSE_FIRST`] to `pause_cap` over a
+    /// run, so a lasting error (no descriptor left) is no busy loop. On
+    /// Windows the endpoint has already replaced the broken pipe instance
+    /// with a fresh one. A daemon no client can reach is ended by C3's
+    /// idle exit. It never returns.
+    pub(super) async fn serve(
+        self: Arc<Self>,
+        mut listener: impl Accept,
+        pause_cap: Duration,
+    ) -> ! {
+        let mut errors = AcceptErrors::default();
+        let mut run: u32 = 0;
+        loop {
+            match listener.accept().await {
+                Ok(stream) => {
+                    run = 0;
+                    tokio::spawn(self.clone().handle_conn(stream));
+                }
+                Err(e) => {
+                    if let Some(line) = errors.note(&e) {
+                        self.note_error(&line);
+                    }
+                    let pause = ACCEPT_PAUSE_FIRST
+                        .saturating_mul(1u32 << run.min(16))
+                        .min(pause_cap);
+                    run = run.saturating_add(1);
+                    tokio::time::sleep(pause).await;
+                }
+            }
+        }
+    }
+}
+
+/// C134: how many times each kind of accept error has been seen this
+/// lifetime, keyed on the OS error code where there is one.
+#[derive(Default)]
+struct AcceptErrors {
+    seen: HashMap<(std::io::ErrorKind, Option<i32>), u64>,
+}
+
+impl AcceptErrors {
+    /// Count `e`; the line to log when this occurrence is the first of
+    /// its kind or a power of two, `None` otherwise.
+    fn note(&mut self, e: &std::io::Error) -> Option<String> {
+        let n = self.seen.entry((e.kind(), e.raw_os_error())).or_default();
+        *n += 1;
+        match *n {
+            1 => Some(format!(
+                "listener: accept failed: {e}; serving on (this error is logged again at its 2nd, 4th, 8th… occurrence)"
+            )),
+            n if n.is_power_of_two() => Some(format!(
+                "listener: accept failed {n} times so far with this error: {e}; serving on"
+            )),
+            _ => None,
+        }
     }
 }

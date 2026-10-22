@@ -166,7 +166,7 @@ mod tests;
 pub use start::{DIAGNOSTIC_CAP_BYTES, rotate_if_over, run};
 
 use dispatch::RUNNING_JOB;
-use endpoint::{BoundSocket, Listener, Stream};
+use endpoint::{Accept, BoundSocket, Listener, Stream};
 use kinds::{ApiError, validate_apply};
 use queue::{
     APPLY_MAX_ACTIONS, admit_client, admit_realm, admit_segments, bounded_message, check_sleep,

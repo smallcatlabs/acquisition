@@ -96,10 +96,45 @@ impl Listener {
         }
         #[cfg(windows)]
         {
-            self.next.connect().await?;
+            // C134: a failed connect leaves the instance broken (a client
+            // that came and went before it was taken, a pipe error), and
+            // waiting on it again would fail again. A fresh instance is
+            // created before the broken one is dropped, so the name is
+            // never free for another process to take. When even that
+            // fails, the broken one is kept, the name with it, and the
+            // next accept tries again after the loop's pause.
+            if let Err(e) = self.next.connect().await {
+                return Err(match Self::instance(&self.name, false) {
+                    Ok(fresh) => {
+                        drop(std::mem::replace(&mut self.next, fresh));
+                        e
+                    }
+                    Err(fresh) => std::io::Error::new(
+                        e.kind(),
+                        format!("{e}; a fresh pipe instance could not be created: {fresh}"),
+                    ),
+                });
+            }
+            // A connected instance whose successor cannot be created is
+            // kept: its client waits, and the next accept, finding it
+            // connected, tries the successor again.
             let fresh = Self::instance(&self.name, false)?;
             Ok(std::mem::replace(&mut self.next, fresh))
         }
+    }
+}
+
+/// C134: what the accept loop ([`Daemon::serve`]) takes connections
+/// from: the [`Listener`], or in a test a listener with errors put in
+/// front of it.
+pub(super) trait Accept {
+    /// The next connection, or the error that kept it from arriving.
+    fn accept(&mut self) -> impl Future<Output = std::io::Result<Stream>> + Send;
+}
+
+impl Accept for Listener {
+    fn accept(&mut self) -> impl Future<Output = std::io::Result<Stream>> + Send {
+        Listener::accept(self)
     }
 }
 
