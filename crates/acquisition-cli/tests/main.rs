@@ -13,6 +13,7 @@ mod daemon_observe;
 mod daemon_stop_checkpoint;
 mod error_kind;
 mod journey;
+mod new_league;
 mod no_ids;
 mod normaliser;
 mod persisted_queue;

@@ -1,0 +1,207 @@
+# golden new_league/launch_morning: acq's text, normalised (C122). Each `# holds` line is a fact checked in that command's own output; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+$ acq leagues
+# holds "3 leagues"
+# holds "Rehearsal  "
+--- stdout
+3 leagues
+league     realm  category
+Standard   pc     Standard
+Hardcore   pc     Standard
+Rehearsal  pc     Rehearsal
+--- stderr
+job <j1> (ExileTester): done
+
+$ acq policy
+# holds "revision 1"
+--- stdout
+{
+  "realms": {
+    "pc": {
+      "leagues": {
+        "Standard": {
+          "characters": "all",
+          "max_age_seconds": 3600,
+          "tabs": "all"
+        }
+      }
+    }
+  },
+  "version": 3
+}
+revision 1, updated <age> ago
+
+$ acq policy set '{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600},"Rehearsal":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}'
+# holds "revision 2"
+--- stdout
+sync policy written (revision 2) — preview the work with `acq refresh --plan`
+
+$ acq refresh --plan --league Rehearsal
+# holds "refresh Rehearsal on mock"
+# holds "1 request:"
+# holds "characters: none in Rehearsal"
+# holds "next: acq refresh --apply --league Rehearsal"
+--- stdout
+refresh Rehearsal on mock as ExileTester — policy 2
+facts: stash never listed
+
+characters: none in Rehearsal (the realm's character listing, listed <age> ago)
+1 request:
+  list stashes
+reason: stash never listed
+
+quote (<age> ago):
+  stash-list-request-limit  1 request — ready
+wire: 1–3 sends; plus first-contact probes and token refresh if needed
+next: acq refresh --apply --league Rehearsal
+
+$ acq refresh --apply --league Rehearsal
+# holds "1 request, 1 done"
+# holds "next: `acq refresh --plan --league Rehearsal` — 7 requests more"
+--- stdout
+applying 1 request as job <j2>
+job <j2> done: 1 request, 1 done (job <j3>)
+changed: no items — 1 response recorded, nothing added, changed, moved, or removed
+next: `acq refresh --plan --league Rehearsal` — 7 requests more are planned now (what this apply revealed, such as a map or unique tab's substashes, or left undone); plan and apply until the plan says nothing to do
+--- stderr
+job <j2> (ExileTester): 1/1 done
+
+$ acq refresh --plan --league Rehearsal
+# holds "fetch 7 tabs"
+# holds "7 requests:"
+--- stdout
+refresh Rehearsal on mock as ExileTester — policy 2
+facts: stash listed <age> ago
+
+characters: none in Rehearsal (the realm's character listing, listed <age> ago)
+7 requests:
+  fetch 7 tabs
+    rh-cur1  Currency
+    rh-dump  Dump
+    rh-old1  Old 1
+    rh-old2  Old 2
+    rh-uniq  Uniques
+    rh-maps  Maps
+    rh-mape  Maps (empty)
+reason: selected tabs never fetched
+skipped 1 tab: 1 folder — container only
+
+quote (<age> ago):
+  stash-request-limit  7 requests — ~13s
+wire: 7–21 sends; plus first-contact probes and token refresh if needed
+next: acq refresh --apply --league Rehearsal
+
+$ acq refresh --apply --league Rehearsal
+# holds "7 requests, 7 done"
+# holds "nothing added, changed, moved, or removed"
+# holds "left: nothing"
+--- stdout
+applying 7 requests as job <j4>
+job <j4> done: 7 requests, 7 done (jobs <j5>–<j6>)
+changed: no items — 7 responses recorded, nothing added, changed, moved, or removed
+left: nothing — every covered entry is fresh
+--- stderr
+job <j4> (ExileTester): 7/7 done
+
+$ acq refresh --plan --league Rehearsal
+# holds "nothing to do in Rehearsal:"
+--- stdout
+nothing to do in Rehearsal: covered entries are fresh (under 1h) or do not need fetching
+skipped 8 tabs: 7 fresh, 1 folder — container only
+characters: none in Rehearsal (the realm's character listing, listed <age> ago)
+
+$ acq tabs --league Rehearsal
+# holds "8 tabs in Rehearsal: 7 fetched, 1 folder (never fetched); 0 items"
+--- stdout
+8 tabs in Rehearsal: 7 fetched, 1 folder (never fetched); 0 items
+name         type           items  fetched      parent       id
+Currency     CurrencyStash      0  <age> ago                   rh-cur1
+Dump         PremiumStash       0  <age> ago                    rh-dump
+Old leagues  Folder             -  never                     rh-fold
+  Old 1      PremiumStash       0  <age> ago       rh-fold      rh-old1
+  Old 2      QuadStash          0  <age> ago       rh-fold      rh-old2
+Uniques      UniqueStash        0  <age> ago                    rh-uniq
+Maps         MapStash           0  <age> ago                    rh-maps
+Maps (empty) MapStash           0  <age> ago                    rh-mape
+
+$ acq tabs
+# holds "15 tabs in Standard: 14 fetched, 1 folder (never fetched); 37 items"
+--- stdout
+15 tabs in Standard: 14 fetched, 1 folder (never fetched); 37 items
+name         type           items  fetched      parent       id
+Currency     CurrencyStash      3  <age> ago                   cur1
+Dump         PremiumStash      11  <age> ago                   dump
+Old leagues  Folder             -  never                     fold
+  Old 1      PremiumStash       2  <age> ago      fold         old1
+  Old 2      QuadStash          2  <age> ago      fold         old2
+Uniques      UniqueStash        0  <age> ago                   uniq
+  (unnamed)  UniqueStash        2  <age> ago      uniq         u001
+  (unnamed)  UniqueStash        3  <age> ago      uniq         u002
+  (unnamed)  UniqueStash        4  <age> ago      uniq         u003
+Maps         MapStash           0  <age> ago                   maps
+  (unnamed)  MapStash           1  <age> ago      maps         m001
+  (unnamed)  MapStash           2  <age> ago      maps         m002
+  (unnamed)  MapStash           3  <age> ago      maps         m003
+  (unnamed)  MapStash           4  <age> ago      maps         m004
+Maps (empty) MapStash           0  <age> ago                   mape
+
+$ acq search --count league
+# holds "count   league · 1 value"
+# holds "  Standard"
+--- stdout
+query   (every item in scope)
+scope   account ExileTester · pc · live · 49 items · 23 locations fetched (oldest <age> ago, newest <age> ago)
+        0 locations never fetched · location list seen <age> ago
+total   49 matches
+count   league · 1 value
+       49  Standard
+routes  each returns exactly the members counted (1 more: --routes)
+basis   store <store> · build <build> · snapshot 28 · facts v9 · intent 2 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+
+$ acq price status --league Rehearsal
+# holds "no items on record for Rehearsal"
+# holds "next: `acq refresh --plan --league Rehearsal`"
+--- stdout
+no items on record for Rehearsal: 8 tabs and characters listed, none fetched with items
+next: `acq refresh --plan --league Rehearsal` shows what a refresh would fetch
+
+$ acq store characters --league Rehearsal
+# holds "no characters known in Rehearsal ("
+--- stdout
+no characters known in Rehearsal (run `acq characters` or cover them in the sync policy)
+
+$ acq refresh --plan
+# holds "nothing to do in Standard:"
+--- stdout
+nothing to do in Standard: covered entries are fresh (under 1h) or do not need fetching
+skipped 15 tabs: 14 fresh, 1 folder — container only
+skipped 2 characters: 2 fresh
+
+$ acq policy set '{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600},"Rehearsal":{"tabs":"all","characters":"all","max_age_seconds":3600},"Typo":{"tabs":"all","max_age_seconds":3600}}}}}'
+# holds "note: Typo is not among the leagues fetched"
+--- stdout
+sync policy written (revision 3) — preview the work with `acq refresh --plan`
+note: Typo is not among the leagues fetched <age> ago (`acq leagues`)
+
+$ acq refresh --plan --league Typo
+# holds "note: Typo is not among the leagues fetched"
+# holds "1 request:"
+--- stdout
+refresh Typo on mock as ExileTester — policy 3
+facts: stash never listed
+
+note: Typo is not among the leagues fetched <age> ago (`acq leagues`)
+1 request:
+  list stashes
+reason: stash never listed
+
+quote (<age> ago):
+  stash-list-request-limit  1 request — ready
+wire: 1–3 sends; plus first-contact probes and token refresh if needed
+next: acq refresh --apply --league Typo
+
+$ acq daemon stop
+# holds "daemon stopped (pid"
+--- stdout
+daemon stopped (pid <pid>)
+logged out with it: ExileTester — not in the keyring, so the session lived in that daemon alone; `acq auth` logs in again

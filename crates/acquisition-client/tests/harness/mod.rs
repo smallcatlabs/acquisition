@@ -527,6 +527,9 @@ pub struct Send {
     pub pid: u64,
     pub method: String,
     pub route: String,
+    /// The request's path (`/stash/Rehearsal/rh-cur1`): where a stash
+    /// send's league is, since its route names none.
+    pub path: String,
     pub status: Option<u64>,
     pub counted: bool,
     pub wait_ms: u64,
@@ -608,6 +611,7 @@ pub fn sends(base: &Path) -> Vec<Send> {
                 .unwrap_or_else(|| panic!("a send without a pid: {v}")),
             method: v["method"].as_str().unwrap_or_default().to_string(),
             route: v["route"].as_str().unwrap_or_default().to_string(),
+            path: v["path"].as_str().unwrap_or_default().to_string(),
             status: v["status"].as_u64(),
             counted: v["counted"]
                 .as_bool()
@@ -618,16 +622,37 @@ pub fn sends(base: &Path) -> Vec<Send> {
         .collect()
 }
 
+/// The league a send's path names: the segment after `/stash`, a realm
+/// segment skipped, as it went on the wire (a space is `%20`); none for
+/// a path of another family.
+pub fn league_of(path: &str) -> Option<String> {
+    let mut parts = path.strip_prefix("/stash/")?.split('/');
+    let first = parts.next()?;
+    let league = if matches!(first, "xbox" | "sony" | "poe2") {
+        parts.next()?
+    } else {
+        first
+    };
+    Some(league.to_string())
+}
+
 /// The journal invariants a whole session can hold, by field
 /// (`TESTING-NOTES.md`, "The journal is the contract surface"): a header
 /// and the one daemon `pid` across every send; the first send per
 /// `(pid, route)` a HEAD, except the token endpoint and the routes the
 /// daemon never probes (`profile`, `league`); `counted` exactly when the
-/// method is not HEAD; no send answered 429 and every reported window at
-/// or under its maximum; and the GETs per route, its account left off,
-/// exactly `gets`, beside `token_posts` POSTs to the token endpoint and
-/// nothing else.
-pub fn assert_journal_holds(base: &Path, pid: u64, gets: &[(&str, usize)], token_posts: usize) {
+/// method is not HEAD; a HEAD only as that first send, so a new string
+/// on a contacted route (a new league) is never probed again; no send
+/// answered 429 and every reported window at or under its maximum; and
+/// the GETs per route, its account left off, and per league where the
+/// path names one ([`league_of`]), exactly `gets`, beside `token_posts`
+/// POSTs to the token endpoint and nothing else.
+pub fn assert_journal_holds(
+    base: &Path,
+    pid: u64,
+    gets: &[(&str, Option<&str>, usize)],
+    token_posts: usize,
+) {
     let header = journal_header(base);
     assert_eq!(
         header["event"], "open",
@@ -646,7 +671,7 @@ pub fn assert_journal_holds(base: &Path, pid: u64, gets: &[(&str, usize)], token
     );
     let name = |route: &str| route.split('@').next().unwrap_or(route).to_string();
     let mut first: Vec<(u64, String)> = Vec::new();
-    let mut counted_gets: HashMap<String, usize> = HashMap::new();
+    let mut counted_gets: HashMap<(String, Option<String>), usize> = HashMap::new();
     let mut posts = 0;
     for send in &all {
         assert_eq!(send.pid, pid, "a send from another daemon: {send:?}");
@@ -664,6 +689,11 @@ pub fn assert_journal_holds(base: &Path, pid: u64, gets: &[(&str, usize)], token
                     send.route
                 );
             }
+        } else {
+            assert_ne!(
+                send.method, "HEAD",
+                "a second probe on a contacted route: {send:?}"
+            );
         }
         assert_eq!(
             send.counted,
@@ -678,18 +708,24 @@ pub fn assert_journal_holds(base: &Path, pid: u64, gets: &[(&str, usize)], token
             );
         }
         match send.method.as_str() {
-            "GET" => *counted_gets.entry(name(&send.route)).or_default() += 1,
+            "GET" => {
+                *counted_gets
+                    .entry((name(&send.route), league_of(&send.path)))
+                    .or_default() += 1
+            }
             "POST" if name(&send.route) == "oauth-token" => posts += 1,
             "HEAD" => {}
             other => panic!("a {other} send: {send:?}"),
         }
     }
-    let mut expected: Vec<(String, usize)> =
-        gets.iter().map(|(r, n)| (r.to_string(), *n)).collect();
+    let mut expected: Vec<((String, Option<String>), usize)> = gets
+        .iter()
+        .map(|(r, l, n)| ((r.to_string(), l.map(str::to_string)), *n))
+        .collect();
     expected.sort();
-    let mut got: Vec<(String, usize)> = counted_gets.into_iter().collect();
+    let mut got: Vec<((String, Option<String>), usize)> = counted_gets.into_iter().collect();
     got.sort();
-    assert_eq!(got, expected, "the GETs per route");
+    assert_eq!(got, expected, "the GETs per route and league");
     assert_eq!(posts, token_posts, "the token endpoint's POSTs");
 }
 

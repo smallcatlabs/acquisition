@@ -68,15 +68,60 @@ pub const PRICE_REVISION: u64 = 1;
 pub const POSTED_ITEMS: u64 = 1;
 pub const POSTED_PAGES: u64 = 1;
 
-/// The GETs the journal holds per route, without its account: the
-/// login's profile, then what the plans named, one stash listing, one
-/// character listing, the two characters and the fourteen tabs.
-pub const GETS: [(&str, usize); 5] = [
-    ("profile", 1),
-    ("stash-list", 1),
-    ("character-list", 1),
-    ("character", 2),
-    ("stash", 14),
+/// The GETs the journal holds per route, without its account, and per
+/// league where the path names one: the login's profile, then what the
+/// plans named, one stash listing, one character listing, the two
+/// characters and the fourteen tabs.
+pub const GETS: [(&str, Option<&str>, usize); 5] = [
+    ("profile", None, 1),
+    ("stash-list", Some("Standard"), 1),
+    ("character-list", None, 1),
+    ("character", None, 2),
+    ("stash", Some("Standard"), 14),
+];
+
+// ---- the new-league rehearsal (`acquisition-cli/tests/new_league.rs`) ----
+
+/// The mock's challenge league, which starts empty, and how many leagues
+/// `acq leagues` lists with it (Standard, Hardcore, Rehearsal).
+pub const LEAGUE: &str = "Rehearsal";
+pub const LEAGUES_LISTED: u64 = 3;
+
+/// The pc realm written back whole: Standard kept, the new league added
+/// (a policy naming only the new league would drop Standard).
+pub const NEW_LEAGUE_POLICY: &str = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600},"Rehearsal":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}"#;
+pub const NEW_LEAGUE_POLICY_REVISION: u64 = 2;
+
+/// The requests each plan over the new league names until it is empty:
+/// its stash listing (the realm's character listing is fresh from
+/// Standard's sync, and lists no character in the league), then its
+/// seven non-folder tabs, empty, with no substash stub to reveal. The
+/// third plan names none.
+pub const NEW_LEAGUE_PLAN_REQUESTS: [u64; 2] = [1, 7];
+
+/// The new league's tabs as `acq tabs --league` counts them: Standard's
+/// tree of fifteen without the seven substashes no stub reveals, all
+/// but the folder fetched, no item in any.
+pub const NEW_LEAGUE_TABS_LISTED: u64 = 8;
+pub const NEW_LEAGUE_TABS_FETCHED: u64 = 7;
+
+/// A league no list holds, written into the realm beside the two.
+pub const TYPO: &str = "Typo";
+pub const TYPO_POLICY: &str = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600},"Rehearsal":{"tabs":"all","characters":"all","max_age_seconds":3600},"Typo":{"tabs":"all","max_age_seconds":3600}}}}}"#;
+
+/// The rehearsal's GETs per route and league: Standard's sync as the
+/// journey's, then the league list, the new league's listing and its
+/// seven tabs, and the typo's one listing, answered 404 by the mock.
+pub const NEW_LEAGUE_GETS: [(&str, Option<&str>, usize); 9] = [
+    ("profile", None, 1),
+    ("stash-list", Some("Standard"), 1),
+    ("character-list", None, 1),
+    ("character", None, 2),
+    ("stash", Some("Standard"), 14),
+    ("league", None, 1),
+    ("stash-list", Some("Rehearsal"), 1),
+    ("stash", Some("Rehearsal"), 7),
+    ("stash-list", Some("Typo"), 1),
 ];
 
 /// The token endpoint's POSTs: the login's code exchange alone.

@@ -169,3 +169,50 @@ fn a_first_session_through_the_tools_holds_the_journeys_facts() {
     daemon.wait_exit(Duration::from_secs(10));
     harness::assert_journal_holds(&base, pid, &GETS, TOKEN_POSTS);
 }
+
+/// The new-league rehearsal's twin (`acquisition-cli/tests/new_league.rs`):
+/// two fields of the same table, since the semantics are the shared
+/// layer's and pinned below the doors. With the league list and the
+/// realm's character listing fetched, a plan over the new league is its
+/// one stash listing; and the receipt of a policy naming a league the
+/// list does not hold carries the note (C126, a league the list lacks
+/// is a note), naming it.
+#[test]
+fn a_new_league_through_the_tools_holds_the_rehearsals_facts() {
+    let scratch = harness::scratch("mnewleague");
+    let base = scratch.0.clone();
+    let (mut daemon, _pid) = harness::start_daemon_with(&base, &[]);
+    harness::login_as_mock(&base);
+    let mut mcp = Mcp::start(&base, &[]);
+
+    for kind in ["leagues", "characters"] {
+        let submitted = mcp.expect_ok("submit_job", json!({ "kind": kind }));
+        let outcome = harness::finish_job(&mut mcp, &submitted["job_id"]);
+        assert_eq!(outcome["outcome"], "success", "{outcome}");
+    }
+    let policy: Value = serde_json::from_str(NEW_LEAGUE_POLICY).expect("JSON");
+    let written = mcp.expect_ok("set_sync_policy", json!({ "value": policy }));
+    assert!(written.get("league_notes").is_none(), "{written}");
+
+    let plan = mcp.expect_ok("refresh_plan", json!({ "league": LEAGUE }));
+    assert_eq!(
+        (&plan["plan"]["league"], &plan["plan"]["logical_requests"]),
+        (&json!(LEAGUE), &json!(NEW_LEAGUE_PLAN_REQUESTS[0])),
+        "{plan}"
+    );
+
+    let typo: Value = serde_json::from_str(TYPO_POLICY).expect("JSON");
+    let written = mcp.expect_ok(
+        "set_sync_policy",
+        json!({ "value": typo, "if_revision": written["revision"] }),
+    );
+    let notes = written["league_notes"].as_array().expect("league_notes");
+    assert_eq!(notes.len(), 1, "{written}");
+    assert_eq!(notes[0]["league"], json!(TYPO), "{written}");
+    assert!(notes[0]["list_fetched_at"].is_i64(), "{written}");
+
+    drop(mcp);
+    let stop = harness::acq(&base, &["daemon", "stop"]);
+    assert!(stop.status.success(), "{stop:?}");
+    daemon.wait_exit(Duration::from_secs(10));
+}
