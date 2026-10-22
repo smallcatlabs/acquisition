@@ -789,7 +789,8 @@ enum DaemonCmd {
     Stop,
     /// Clear the rails halt: the live-test tripwire's or ceiling's, and
     /// the mark a Cloudflare answer in GGG's place leaves, which holds
-    /// every daemon until cleared. After a trip, wait 360 s before
+    /// every daemon until cleared, and the halt this daemon keeps after
+    /// Cloudflare could not reach GGG. After a trip, wait 360 s before
     /// clearing; a trip or a mark is evidence to read, and the next send
     /// goes to GGG. With no daemon running, clears the halt persisted in
     /// this shell's world (`<store root>/<provider>/rails.json`) so the
@@ -1551,6 +1552,10 @@ async fn run(cli: Cli) -> Result<()> {
                                 if cause.starts_with("Cloudflare answered") {
                                     println!(
                                         "        every daemon holds until `acq daemon reset-tripwire`; read the cause first: the next send goes to GGG"
+                                    );
+                                } else if cause.starts_with("Cloudflare could not reach GGG") {
+                                    println!(
+                                        "        this daemon's alone, never persisted: `acq daemon reset-tripwire` or a restart clears it; the next send goes to GGG"
                                     );
                                 } else if cause.starts_with("ceiling:") {
                                     println!(

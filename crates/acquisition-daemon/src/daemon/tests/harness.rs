@@ -178,6 +178,31 @@ impl ScriptedResponse {
         }
     }
 
+    /// Cloudflare answering for an origin it cannot reach: a 522 with
+    /// Cloudflare's own error page ("Ray ID" in its footer) and no GGG
+    /// header. The page's text is from knowledge of it, not a capture.
+    pub(super) fn cloudflare_522() -> Self {
+        ScriptedResponse {
+            method: "GET",
+            path: "/fetch",
+            status: "522 Origin Connection Time-out",
+            headers: String::new(),
+            body: "<!DOCTYPE html><html><head><title>api.pathofexile.com | 522: Connection timed out</title></head><body><h1>Connection timed out</h1><p>Cloudflare was unable to establish a connection to the origin web server.</p><p>Cloudflare Ray ID: 8a1f2c3d4e5f6a7b</p></body></html>".into(),
+        }
+    }
+
+    /// GGG's origin 503 as rung 10 met it (N35): openresty's page, no rate
+    /// header, no Cloudflare marker.
+    pub(super) fn origin_503() -> Self {
+        ScriptedResponse {
+            method: "GET",
+            path: "/fetch",
+            status: "503 Service Unavailable",
+            headers: String::new(),
+            body: "<html><head><title>503 Service Temporarily Unavailable</title></head><body><center><h1>503 Service Temporarily Unavailable</h1></center><hr><center>openresty</center></body></html>".into(),
+        }
+    }
+
     pub(super) fn malformed_head_429() -> Self {
         ScriptedResponse {
             method: "HEAD",

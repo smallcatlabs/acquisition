@@ -423,12 +423,13 @@ impl Daemon {
         }
     }
 
-    /// Clear the rails halt and the Cloudflare block mark (C129), and wake
-    /// the jobs that were waiting on them.
+    /// Clear the rails halt, the Cloudflare block mark and the lifetime's
+    /// unreachable-origin halt (C129), and wake the jobs that were waiting
+    /// on them.
     pub(super) fn reset_rails(&self) {
         self.rails().reset_tripwire();
         self.log(
-            "halt reset by request: the tripwire's trip and any Cloudflare block mark cleared",
+            "halt reset by request: the tripwire's trip, any Cloudflare block mark and any halt for an origin Cloudflare could not reach cleared",
         );
         self.work.notify_one();
     }

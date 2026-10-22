@@ -155,6 +155,7 @@ async fn halted_daemon_refuses_refresh_before_any_send() {
         rate: &Value::Null,
         shape: None,
         block: false,
+        unreachable: false,
         headers: &ggg,
         wait: Duration::ZERO,
     });

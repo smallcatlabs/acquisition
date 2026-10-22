@@ -96,6 +96,7 @@ fn idle_verdict_follows_the_clock_the_connections_and_the_queue() {
         rate: &Value::Null,
         shape: None,
         block: false,
+        unreachable: false,
         headers: &ggg,
         wait: Duration::ZERO,
     });

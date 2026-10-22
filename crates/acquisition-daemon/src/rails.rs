@@ -23,6 +23,11 @@
 //!   send until `reset_tripwire`. The mark carries the status, method,
 //!   route and time, never a body or another header, and persists in the
 //!   same file, loaded whatever the tripwire says.
+//! - **Unreachable origin** (C129, every daemon, tripwire on or off): a
+//!   landed 5xx that is Cloudflare's own page ([`Verdict::of`]),
+//!   Cloudflare answering for an origin it cannot reach, refuses every
+//!   later send for the rest of this daemon lifetime. Never persisted: a
+//!   restart or `reset_tripwire` clears it.
 //! - **Send ceiling** (`ACQ_MAX_SENDS=<n>`, ladder-only): after `n` real
 //!   sends in this daemon lifetime the daemon halts with cause `ceiling`.
 //!   Per-lifetime and never persisted.
@@ -207,6 +212,9 @@ struct State {
     /// C129: Cloudflare answered in GGG's place (persisted, honoured with
     /// the tripwire on or off).
     blocked: Option<String>,
+    /// C129: Cloudflare could not reach GGG (this lifetime only, never
+    /// persisted; `reset_tripwire` clears it).
+    unreachable: Option<String>,
     /// Ceiling trip cause (this lifetime only).
     ceiling_tripped: Option<String>,
     /// Accounts whose refresh grant the provider rejected (persisted).
@@ -293,6 +301,13 @@ pub struct Verdict {
     /// auth errors carry no rate-limit header at all (N34). `server` and
     /// `cf-ray` are never evidence.
     pub block: bool,
+    /// Cloudflare answered for an origin it could not reach: a 5xx whose
+    /// body carries a page marker in an answer with no
+    /// `X-Rate-Limit-Policy`, under the block's own narrowing (a page
+    /// Cloudflare made cannot carry GGG's headers; GGG's JSON may echo
+    /// a marker). It halts this daemon lifetime and leaves no mark. GGG's
+    /// origin 5xx (N35's openresty page) carries no marker and is no halt.
+    pub unreachable: bool,
 }
 
 impl Verdict {
@@ -305,7 +320,14 @@ impl Verdict {
                 || (shape == BlockShape::Cloudflare
                     && !has("x-rate-limit-policy")
                     && !has("www-authenticate")));
-        Verdict { shape, block }
+        let unreachable = (500..600).contains(&status)
+            && shape == BlockShape::Cloudflare
+            && !has("x-rate-limit-policy");
+        Verdict {
+            shape,
+            block,
+            unreachable,
+        }
     }
 }
 
@@ -330,6 +352,9 @@ pub struct SendReport<'a> {
     /// C129: the choke point judged this response Cloudflare's in GGG's
     /// place ([`Verdict`]); recording it sets the block mark.
     pub block: bool,
+    /// C129: Cloudflare could not reach GGG ([`Verdict`]); recording it
+    /// halts this daemon lifetime.
+    pub unreachable: bool,
     /// How long the send was held before it reached the transport: from
     /// the moment it was ready (a job picked by the dispatcher, a token
     /// refresh entering the choke) to dispatch, on the monotonic clock.
@@ -452,6 +477,9 @@ impl Rails {
         if let Some(cause) = &s.blocked {
             return Some(format!("halted: {cause}; {BLOCK_REMEDY}"));
         }
+        if let Some(cause) = &s.unreachable {
+            return Some(format!("halted: {cause}; {UNREACHABLE_REMEDY}"));
+        }
         s.tripped
             .clone()
             .or_else(|| self.ceiling_met(&s))
@@ -503,6 +531,21 @@ impl Rails {
             s.blocked = Some(cause.clone());
             self.persist_locked(&s);
             newly = Some(cause);
+        }
+        if report.unreachable && s.unreachable.is_none() {
+            // The same words as the mark's, and like it never a body; held
+            // in memory alone, so the next daemon starts clear.
+            let cause = format!(
+                "Cloudflare could not reach GGG: {} on {} {} at {}",
+                report
+                    .status
+                    .map_or_else(|| "no status".to_string(), |status| status.to_string()),
+                report.method,
+                report.route,
+                iso_utc(self.clock.wall())
+            );
+            s.unreachable = Some(cause.clone());
+            newly.get_or_insert(cause);
         }
         if self.config.tripwire && s.tripped.is_none() {
             let cause = match report.status {
@@ -575,8 +618,9 @@ impl Rails {
         self.state.lock().unwrap().unannounced.take()
     }
 
-    /// Clear the violation trip (honoured or dormant) and the block mark
-    /// (C129: the explicit verb is `reset-tripwire`), what
+    /// Clear the violation trip (honoured or dormant), the block mark
+    /// (C129: the explicit verb is `reset-tripwire`) and the lifetime's
+    /// unreachable-origin halt; the persisted ones are what
     /// [`RailsState::reset`] clears offline. A met ceiling stands
     /// (`ceiling_met`): it is the lifetime's. The refresh-failed mark is
     /// not a trip; it clears on login or logout.
@@ -585,6 +629,7 @@ impl Rails {
         s.tripped = None;
         s.dormant_trip = None;
         s.blocked = None;
+        s.unreachable = None;
         s.ceiling_tripped = None;
         self.persist_locked(&s);
     }
@@ -629,6 +674,7 @@ impl Rails {
             halted: s
                 .blocked
                 .clone()
+                .or_else(|| s.unreachable.clone())
                 .or_else(|| s.tripped.clone())
                 .or_else(|| self.ceiling_met(&s)),
             refresh_failed: (!s.refresh_failed.is_empty()).then(|| {
@@ -696,6 +742,10 @@ impl Rails {
 pub(crate) const BLOCK_REMEDY: &str =
     "nothing more is sent until `acq daemon reset-tripwire` clears the mark";
 
+/// What lifts the unreachable-origin halt, in the halt's own words.
+pub(crate) const UNREACHABLE_REMEDY: &str =
+    "nothing more is sent this daemon lifetime; `acq daemon reset-tripwire` or a restart clears it";
+
 /// ISO 8601 UTC with milliseconds, without pulling in a date crate.
 fn iso_utc(at: SystemTime) -> String {
     let now = at.duration_since(UNIX_EPOCH).unwrap_or_default();
@@ -740,6 +790,7 @@ mod tests {
             rate: &Value::Null,
             shape: None,
             block: false,
+            unreachable: false,
             headers: if status == Some(429) {
                 &GGG_429
             } else {
@@ -858,6 +909,47 @@ mod tests {
         );
     }
 
+    /// C129: a 5xx is Cloudflare's for an origin it could not reach when
+    /// its body carries a page marker and it carries no GGG policy header
+    /// (the block's narrowing); never a block, and no 4xx is one.
+    #[test]
+    fn an_unreachable_origin_is_a_5xx_with_cloudflares_page() {
+        let ggg = json!({ "x-rate-limit-policy": "stash-list-request-limit" });
+        let page =
+            "<html><title>522: Connection timed out</title><p>Cloudflare Ray ID: 8a1</p></html>";
+        let openresty = "<html><center>503 Service Temporarily Unavailable</center><hr><center>openresty</center></html>";
+        let nginx = "<html><center>502 Bad Gateway</center><hr><center>nginx</center></html>";
+        let fan = r#"{"error":{"message":"Internal error for CloudflareFan"}}"#;
+        for (status, headers, body, unreachable) in [
+            (522, json!({}), Some(page), true),
+            (503, json!({}), Some(page), true),
+            (
+                500,
+                json!({}),
+                Some("<p>Ray ID: 8a1f2c3d4e5f6a7b</p>"),
+                true,
+            ),
+            (522, ggg.clone(), Some(page), false),
+            (500, ggg.clone(), Some(fan), false),
+            (503, json!({}), Some(openresty), false),
+            (502, json!({}), Some(nginx), false),
+            (503, json!({}), Some("{}"), false),
+            (522, json!({}), None, false),
+            (404, json!({}), Some(page), false),
+            (429, json!({}), Some(page), false),
+            (200, json!({}), Some(page), false),
+        ] {
+            let verdict = Verdict::of(status, &headers, body);
+            assert_eq!(
+                verdict.unreachable, unreachable,
+                "{status} {headers} {body:?}"
+            );
+            if status >= 500 {
+                assert!(!verdict.block, "{status} {headers} {body:?}");
+            }
+        }
+    }
+
     /// C129: the block mark is set by a report the choke point judged a
     /// block, persists beside the other marks, holds a daemon started
     /// without the tripwire, carries no body or header value, and clears
@@ -883,6 +975,7 @@ mod tests {
                     headers: &headers,
                     shape: Some(BlockShape::Unclassified),
                     block: true,
+                    unreachable: false,
                     ..report(Some(403))
                 })
                 .expect("a block halts with the tripwire off");
@@ -1319,6 +1412,7 @@ mod tests {
         rails.record(&SendReport {
             headers: &headers,
             block: true,
+            unreachable: false,
             ..report(Some(403))
         });
         let held = read();

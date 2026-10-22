@@ -864,6 +864,7 @@ impl ChokePoint {
             headers,
             shape: verdict.map(|verdict| verdict.shape),
             block: verdict.is_some_and(|verdict| verdict.block),
+            unreachable: verdict.is_some_and(|verdict| verdict.unreachable),
             wait,
         });
         let mut sends = self.sends.lock().unwrap();

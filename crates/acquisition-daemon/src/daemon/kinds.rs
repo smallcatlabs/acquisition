@@ -969,6 +969,7 @@ pub(super) fn classify_api_body(
     // empty content.
     if !status.is_success() {
         let block = verdict.is_some_and(|verdict| verdict.block);
+        let unreachable = verdict.is_some_and(|verdict| verdict.unreachable);
         let shape = verdict.map_or(BlockShape::Unclassified, |verdict| verdict.shape);
         let body = match body {
             Ok(body) => body.chars().take(300).collect(),
@@ -979,6 +980,10 @@ pub(super) fn classify_api_body(
             _ if block => ApiError::Other(format!(
                 "{evidence} — Cloudflare answered in GGG's place; NOT retrying, and {}",
                 crate::rails::BLOCK_REMEDY
+            )),
+            _ if unreachable => ApiError::Other(format!(
+                "{evidence} — Cloudflare could not reach GGG; NOT retrying, and {}",
+                crate::rails::UNREACHABLE_REMEDY
             )),
             429 if retry_after.is_acceptable() => ApiError::RateLimited(evidence),
             429 => ApiError::Other(format!(

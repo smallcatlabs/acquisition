@@ -965,6 +965,173 @@ async fn ggg_4xx_answers_are_not_cloudflare_blocks() {
     }
 }
 
+/// C129: a 5xx carrying a Cloudflare page marker and no GGG policy header
+/// is Cloudflare answering for an origin it cannot reach. Its job fails
+/// at once, never retried (C26), and nothing more is sent this daemon
+/// lifetime: a sibling submitted after it lands stays waiting. The halt
+/// is the lifetime's and leaves no mark, so a `Rails` rebuilt from the
+/// same state file is clear; `reset-tripwire` lifts it here, and the
+/// sibling goes out. Two statuses: the 522 Cloudflare names for an origin
+/// it cannot reach, and a 503 carrying Cloudflare's page.
+#[tokio::test]
+async fn a_cloudflare_5xx_halts_this_lifetime_and_leaves_no_mark() {
+    let cloudflare_503 = ScriptedResponse {
+        status: "503 Service Unavailable",
+        ..ScriptedResponse::cloudflare_522()
+    };
+    for (name, unreachable, status) in [
+        ("522", ScriptedResponse::cloudflare_522(), 522),
+        ("503 with Cloudflare's page", cloudflare_503, 503),
+    ] {
+        let responses = vec![
+            ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+            unreachable,
+            ScriptedResponse::full("GET", "200 OK", None, r#"{"items":["after"]}"#),
+        ];
+        let (base, requests, server) = scripted_server(responses).await;
+        let clock = Arc::new(ManualClock::new());
+        let state_path = std::env::temp_dir().join(format!(
+            "acq-c129-lifetime-{}-{}.json",
+            std::process::id(),
+            TEST_LOG_ID.fetch_add(1, Ordering::Relaxed)
+        ));
+        let _ = std::fs::remove_file(&state_path);
+        let (daemon, log_path) = test_daemon_with(
+            Provider::mock(&base),
+            clock,
+            RailsConfig {
+                state_path: Some(state_path.clone()),
+                ..RailsConfig::default()
+            },
+        );
+        assert!(!daemon.choke.rails().config().tripwire);
+        let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+        let first = daemon
+            .submit("fetch".into(), json!({}), 0, "test".into(), None)
+            .unwrap();
+        let (info, outcome) = wait_terminal(&daemon, first).await;
+        assert_eq!(info.state, JobState::Failed, "{name}");
+        assert_eq!(info.retries, 0, "{name}: a 5xx is never retried");
+        let Outcome::Failure { error, .. } = outcome else {
+            panic!("{name}: the 5xx did not fail its job")
+        };
+        assert!(
+            error.contains("Cloudflare could not reach GGG"),
+            "{name}: {error}"
+        );
+
+        // Submitted only after the 5xx landed (the gate is two wide).
+        let second = daemon
+            .submit("fetch".into(), json!({}), 0, "test".into(), None)
+            .unwrap();
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        let state = daemon.shared.lock().unwrap().jobs[&second].info.state;
+        assert_eq!(
+            state,
+            JobState::Waiting,
+            "{name}: the sibling stays waiting"
+        );
+        let cause = daemon
+            .choke
+            .rails()
+            .halted()
+            .unwrap_or_else(|| panic!("{name}: this daemon is not halted"));
+        assert!(
+            cause.contains(&format!(
+                "Cloudflare could not reach GGG: {status} on GET fetch at 2000-01-01T"
+            )),
+            "{name}: {cause}"
+        );
+        assert!(cause.contains("this daemon lifetime"), "{name}: {cause}");
+        assert!(cause.contains("reset-tripwire"), "{name}: {cause}");
+        assert!(!cause.contains("Ray ID"), "{name}: {cause}");
+        assert_eq!(
+            requests.lock().unwrap().as_slice(),
+            ["HEAD", "GET"],
+            "{name}"
+        );
+        let sends = journal_sends(&log_path);
+        assert_eq!(sends.len(), 2, "{name}: {sends:?}");
+        assert_eq!(sends[1]["status"], status, "{name}");
+        assert_eq!(sends[1]["shape"], "cloudflare", "{name}: {}", sends[1]);
+
+        // The lifetime's alone: a later daemon starts clear.
+        let rebuilt = Rails::with_config(RailsConfig {
+            state_path: Some(state_path.clone()),
+            ..RailsConfig::default()
+        });
+        assert_eq!(rebuilt.halted(), None, "{name}: no mark was left");
+        drop(rebuilt);
+
+        daemon.reset_rails();
+        let (_, outcome) = wait_terminal(&daemon, second).await;
+        assert_eq!(fetch_payload_marker(&outcome), "after", "{name}");
+        assert_eq!(
+            requests.lock().unwrap().as_slice(),
+            ["HEAD", "GET", "GET"],
+            "{name}"
+        );
+        server.await.unwrap();
+        finish_harness_wire(dispatcher, &log_path, &requests);
+        let _ = std::fs::remove_file(&state_path);
+    }
+}
+
+/// C129's 5xx without Cloudflare's shape halts nothing: GGG's origin 503
+/// (N35's openresty page, no marker, no rate header) and a 5xx whose body
+/// holds a marker beside GGG's policy header (GGG's JSON echoing a name
+/// the user chose; a page Cloudflare serves in GGG's place cannot carry
+/// GGG's headers) each fail their job, never retried, and the next job's
+/// GET goes out.
+#[tokio::test]
+async fn a_5xx_without_cloudflares_shape_halts_nothing() {
+    for (name, unshaped) in [
+        ("origin 503", ScriptedResponse::origin_503()),
+        (
+            "GGG's 500 echoing CloudflareFan",
+            ScriptedResponse::full(
+                "GET",
+                "500 Internal Server Error",
+                None,
+                r#"{"error":{"code":0,"message":"Internal error for CloudflareFan, Ray ID: 8a1"}}"#,
+            ),
+        ),
+    ] {
+        let responses = vec![
+            ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+            unshaped,
+            ScriptedResponse::full("GET", "200 OK", None, r#"{"items":["after"]}"#),
+        ];
+        let (base, requests, server) = scripted_server(responses).await;
+        let clock = Arc::new(ManualClock::new());
+        let (daemon, log_path) = test_daemon(&base, clock);
+        let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+        let first = daemon
+            .submit("fetch".into(), json!({}), 0, "test".into(), None)
+            .unwrap();
+        let (info, outcome) = wait_terminal(&daemon, first).await;
+        assert_eq!(info.state, JobState::Failed, "{name}");
+        assert_eq!(info.retries, 0, "{name}");
+        let Outcome::Failure { error, .. } = outcome else {
+            panic!("{name}: did not fail")
+        };
+        assert!(!error.contains("Cloudflare could not"), "{name}: {error}");
+        assert_eq!(daemon.choke.rails().halted(), None, "{name}");
+        let second = daemon
+            .submit("fetch".into(), json!({}), 0, "test".into(), None)
+            .unwrap();
+        let (_, outcome) = wait_terminal(&daemon, second).await;
+        assert_eq!(fetch_payload_marker(&outcome), "after", "{name}");
+        assert_eq!(
+            requests.lock().unwrap().as_slice(),
+            ["HEAD", "GET", "GET"],
+            "{name}"
+        );
+        server.await.unwrap();
+        finish_harness_wire(dispatcher, &log_path, &requests);
+    }
+}
+
 /// C130: a GET's 302 fails its job with the status and the redirect's
 /// target shown only redacted. The body, which echoes the target with its
 /// query, is not kept: the sentinel reaches neither the job's failure,
