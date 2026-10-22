@@ -392,11 +392,10 @@ pub fn response_headers_snapshot(headers: &reqwest::header::HeaderMap) -> serde_
     for (name, value) in headers {
         let name = name.as_str();
         if name.starts_with("x-rate-limit") || KEEP.contains(&name) {
-            let value = value.to_str().unwrap_or("<non-utf8>");
-            let value = if name == "location" {
-                redacted_location(value)
-            } else {
-                value.to_string()
+            let value = match value.to_str() {
+                Err(_) => "<non-utf8>".to_string(),
+                Ok(value) if name == "location" => redacted_location(value),
+                Ok(value) => value.to_string(),
             };
             map.insert(name.into(), value.into());
         }
@@ -404,38 +403,80 @@ pub fn response_headers_snapshot(headers: &reqwest::header::HeaderMap) -> serde_
     serde_json::Value::Object(map)
 }
 
-/// A `Location` as the journal may keep it (C130): scheme, host, port and
-/// path. A code or a token can ride a query or a fragment, so each is
-/// replaced by a mark that says one was there; user information is
-/// dropped. A relative reference keeps its path the same way.
+/// The longest origin and path a redacted `Location` keeps, in
+/// characters, before it is cut with a mark. A host is at most 253
+/// characters, and a login or challenge page's origin and path fits well
+/// inside 512 with room for a long path; past that, more of it says
+/// nothing a reader needs, and the journal line and the failure text stay
+/// bounded whatever a server sends.
+pub(crate) const LOCATION_CHARS: usize = 512;
+
+/// A `Location` as the daemon may record or report it (C130): the target
+/// is shown only redacted, wherever it lands — the journal's header
+/// snapshot, a job's failure, a token request's refusal. Every form is
+/// resolved the way a client would resolve it, against an `https` base,
+/// so a scheme-relative `//host/…` and an absolute URL meet the same
+/// parser. What is kept is the origin (scheme, host, port) and the path,
+/// cut at [`LOCATION_CHARS`]; user information is dropped, and a query or
+/// a fragment, where a code or a token can ride, is replaced by a mark
+/// that says one was there. A scheme with no host (`data:`, `mailto:`,
+/// `urn:`) carries its content where a host would be, so it is shown as
+/// the scheme and a mark. A scheme-relative reference keeps its leading
+/// `//`, a path-relative one is the path it resolves to from the root,
+/// and one the parser refuses is a mark alone.
 pub(crate) fn redacted_location(location: &str) -> String {
-    let marks = |query: bool, fragment: bool| {
-        format!(
-            "{}{}",
-            if query { "?…" } else { "" },
-            if fragment { "#…" } else { "" }
-        )
+    const BASES: [&str; 2] = ["https://a.invalid/", "https://b.invalid/"];
+    let resolved = BASES.map(|base| {
+        url::Url::parse(base)
+            .and_then(|base| base.join(location))
+            .ok()
+    });
+    let [Some(url), Some(other)] = resolved else {
+        return "<unreadable location>".into();
     };
-    if let Ok(url) = url::Url::parse(location) {
-        let host = url.host_str().unwrap_or("");
-        let port = url
-            .port()
-            .map(|port| format!(":{port}"))
-            .unwrap_or_default();
-        return format!(
-            "{}://{host}{port}{}{}",
-            url.scheme(),
-            url.path(),
-            marks(url.query().is_some(), url.fragment().is_some())
-        );
+    // Against two bases a relative reference takes each base's host; one
+    // that names its own host (absolute or scheme-relative) keeps it.
+    let names_host = url.host_str() == other.host_str();
+    let absolute = url::Url::parse(location).is_ok();
+    let origin = match (url.host_str(), names_host) {
+        (None, _) => return format!("{}:…", url.scheme()),
+        (Some(host), true) => {
+            let port = url
+                .port()
+                .map(|port| format!(":{port}"))
+                .unwrap_or_default();
+            let scheme = if absolute {
+                format!("{}:", url.scheme())
+            } else {
+                String::new()
+            };
+            format!("{scheme}//{host}{port}")
+        }
+        (Some(_), false) => String::new(),
+    };
+    let mut kept = format!("{origin}{}", url.path());
+    if kept.chars().count() > LOCATION_CHARS {
+        kept = kept.chars().take(LOCATION_CHARS).collect();
+        kept.push('…');
     }
-    let end = location.find(['?', '#']).unwrap_or(location.len());
-    let tail = &location[end..];
-    format!(
-        "{}{}",
-        &location[..end],
-        marks(tail.starts_with('?'), tail.contains('#'))
-    )
+    if url.query().is_some() {
+        kept.push_str("?…");
+    }
+    if url.fragment().is_some() {
+        kept.push_str("#…");
+    }
+    kept
+}
+
+/// What stands for a 3xx's body wherever a caller would show one (C130):
+/// where it pointed, redacted. The body itself is never kept.
+pub(crate) fn redirect_evidence(headers: &reqwest::header::HeaderMap) -> String {
+    let target = match headers.get(reqwest::header::LOCATION).map(|v| v.to_str()) {
+        Some(Ok(location)) => redacted_location(location),
+        Some(Err(_)) => "<non-utf8>".into(),
+        None => "no location".into(),
+    };
+    format!("<a redirect's body is not kept; it pointed to {target}>")
 }
 
 /// The `X-Rate-Limit-*` (+ `Retry-After`) headers as a JSON object, for

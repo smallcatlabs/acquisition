@@ -907,13 +907,33 @@ mod tests {
             shape: Some(BlockShape::of(&body)),
             ..report(Some(403))
         });
+        // A 302 whose `Location` carries a sentinel in its user
+        // information, its query and its fragment (C130): the target is
+        // kept as origin and path, the rest only as marks.
+        let mut redirect = HeaderMap::new();
+        redirect.insert(
+            "location",
+            HeaderValue::from_str(&format!(
+                "https://u:{cookie}@evil.example/cb?code={code}#access_token={access}"
+            ))
+            .unwrap(),
+        );
+        let headers = response_headers_snapshot(&redirect);
+        rails.record(&SendReport {
+            method: "POST",
+            route: "oauth-token",
+            url_path: &url_path,
+            counted: true,
+            headers: &headers,
+            ..report(Some(302))
+        });
 
         let text = std::fs::read_to_string(&path).unwrap();
         let lines: Vec<Value> = text
             .lines()
             .map(|l| serde_json::from_str(l).unwrap())
             .collect();
-        assert_eq!(lines.len(), 4, "header plus three sends");
+        assert_eq!(lines.len(), 5, "header plus four sends");
         assert_eq!(lines[0]["event"], "open");
         assert_eq!(lines[0]["clock"], "system");
         assert_eq!(
@@ -942,6 +962,11 @@ mod tests {
             "token-request-limit"
         );
         assert!(lines[3]["headers"]["www-authenticate"].is_string());
+        assert_eq!(lines[4]["status"], 302);
+        assert_eq!(
+            lines[4]["headers"]["location"],
+            "https://evil.example/cb?…#…"
+        );
 
         // A line's keys are the report's: the writer names nothing else.
         const KEYS: [&str; 13] = [

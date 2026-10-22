@@ -99,3 +99,69 @@ async fn transient_refresh_failures_do_not_mark_the_session() {
     assert_journal_matches_wire(&log_path, &wire_posts(&requests));
     finish_harness(None, &log_path);
 }
+
+/// C130: a token POST's 307 is refused upstream with the status and the
+/// redirect's target shown only redacted. The body, which echoes the
+/// target with its query, is not kept: the sentinel reaches neither the
+/// refusal, the journal, the daemon log nor its recent errors.
+#[tokio::test]
+async fn a_token_3xx_is_refused_with_the_target_redacted_and_no_body() {
+    const SENTINEL: &str = "c130-token-sentinel";
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let requests = Arc::new(Mutex::new(Vec::new()));
+    let captured = requests.clone();
+    let server = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.unwrap();
+        let request = mockggg::read_request(&mut stream).await.unwrap();
+        assert_eq!(request.path, "/token");
+        captured.lock().unwrap().push(request.body.clone());
+        let target = format!("https://www.pathofexile.com/oauth/token?state={SENTINEL}");
+        let headers = format!(
+            "X-Rate-Limit-Policy: token-request-limit\r\nX-Rate-Limit-Rules: Ip\r\nX-Rate-Limit-Ip: 60:30:30\r\nX-Rate-Limit-Ip-State: 1:30:0\r\nLocation: {target}\r\n"
+        );
+        let body = format!(r#"{{"moved_to":"{target}"}}"#);
+        mockggg::respond_with(
+            &mut stream,
+            "307 Temporary Redirect",
+            "application/json",
+            &headers,
+            &body,
+        )
+        .await;
+    });
+    let clock = Arc::new(ManualClock::new());
+    let (mut daemon, log_path) =
+        test_daemon_with(Provider::mock(&base), clock, RailsConfig::default());
+    logged_in(&mut daemon);
+
+    let refusal = daemon.valid_access_token(None, false).await.unwrap_err();
+    assert_eq!(refusal.kind, ErrorKind::Upstream, "{refusal}");
+    assert!(refusal.message.contains("307"), "{refusal}");
+    assert!(
+        !refusal.message.contains(SENTINEL),
+        "the refusal kept it: {refusal}"
+    );
+    assert!(
+        refusal
+            .message
+            .contains("https://www.pathofexile.com/oauth/token?…"),
+        "the refusal names where the 307 pointed: {refusal}"
+    );
+    let journal = std::fs::read_to_string(journal_of(&log_path)).unwrap();
+    assert!(
+        !journal.contains(SENTINEL),
+        "the journal kept it: {journal}"
+    );
+    let log = std::fs::read_to_string(&log_path).unwrap();
+    assert!(!log.contains(SENTINEL), "the daemon log kept it: {log}");
+    let errors = format!("{:?}", daemon.shared.lock().unwrap().errors);
+    assert!(
+        !errors.contains(SENTINEL),
+        "recent errors kept it: {errors}"
+    );
+    assert_eq!(requests.lock().unwrap().len(), 1, "one send, no follow");
+    server.await.unwrap();
+    assert_journal_matches_wire(&log_path, &wire_posts(&requests));
+    finish_harness(None, &log_path);
+}

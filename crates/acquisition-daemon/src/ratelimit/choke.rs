@@ -73,7 +73,8 @@ pub enum SendError {
 /// A landed exchange after its body transfer has resolved. Non-2xx statuses
 /// retain their status precedence even when `body` is a transfer failure;
 /// clean 2xx transfer failures are returned as `SendError::Transport` before
-/// callers can inspect this package (D3/D8).
+/// callers can inspect this package (D3/D8). A 3xx's `body` is not the
+/// server's: it says where the redirect pointed, redacted (C130).
 pub struct CompletedResponse {
     pub status: reqwest::StatusCode,
     pub rate: serde_json::Value,
@@ -684,8 +685,15 @@ impl ChokePoint {
         let result = match result {
             Ok(response) => {
                 let status = response.status();
+                // C130: a 3xx's body echoes its target, query and all, and
+                // every caller turns a non-2xx body into failure or refusal
+                // text. It is drained, so the permit spans the whole
+                // exchange, and replaced here, once, by where it pointed.
+                let redirect = status
+                    .is_redirection()
+                    .then(|| redirect_evidence(response.headers()));
                 let body = response.text().await.map_err(|error| error.to_string());
-                Ok((status, body))
+                Ok((status, body.map(|body| redirect.unwrap_or(body))))
             }
             Err(error) => Err(error),
         };

@@ -727,6 +727,64 @@ async fn dispatcher_never_retries_403_or_503() {
     }
 }
 
+/// C130: a GET's 302 fails its job with the status and the redirect's
+/// target shown only redacted. The body, which echoes the target with its
+/// query, is not kept: the sentinel reaches neither the job's failure,
+/// the journal, the daemon log nor its recent errors.
+#[tokio::test]
+async fn a_get_3xx_fails_its_job_with_the_target_redacted_and_no_body() {
+    const SENTINEL: &str = "c130-get-sentinel";
+    let target = format!("https://www.pathofexile.com/login?code={SENTINEL}");
+    let mut redirect = ScriptedResponse::full(
+        "GET",
+        "302 Found",
+        None,
+        &format!(r#"<html><a href="{target}">Found</a></html>"#),
+    );
+    redirect
+        .headers
+        .push_str(&format!("Location: {target}\r\n"));
+    let responses = vec![
+        ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+        redirect,
+    ];
+    let (base, requests, server) = scripted_server(responses).await;
+    let clock = Arc::new(ManualClock::new());
+    let (daemon, log_path) = test_daemon(&base, clock);
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    let id = daemon
+        .submit("fetch".into(), json!({}), 0, "test".into(), None)
+        .unwrap();
+
+    let (info, outcome) = wait_terminal(&daemon, id).await;
+    assert_eq!(info.state, JobState::Failed);
+    assert_eq!(info.retries, 0);
+    let Outcome::Failure { error, .. } = outcome else {
+        panic!("a 302 did not fail its job")
+    };
+    assert!(error.contains("302 Found"), "{error}");
+    assert!(!error.contains(SENTINEL), "the failure kept it: {error}");
+    assert!(
+        error.contains("https://www.pathofexile.com/login?…"),
+        "the failure names where the 302 pointed: {error}"
+    );
+    let journal = std::fs::read_to_string(journal_of(&log_path)).unwrap();
+    assert!(
+        !journal.contains(SENTINEL),
+        "the journal kept it: {journal}"
+    );
+    let log = std::fs::read_to_string(&log_path).unwrap();
+    assert!(!log.contains(SENTINEL), "the daemon log kept it: {log}");
+    let errors = format!("{:?}", daemon.shared.lock().unwrap().errors);
+    assert!(
+        !errors.contains(SENTINEL),
+        "recent errors kept it: {errors}"
+    );
+    assert_eq!(requests.lock().unwrap().as_slice(), ["HEAD", "GET"]);
+    server.await.unwrap();
+    finish_harness_wire(dispatcher, &log_path, &requests);
+}
+
 #[tokio::test]
 async fn full_acceptable_head_429_establishes_under_hold_without_job_retry() {
     let responses = vec![

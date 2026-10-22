@@ -1956,6 +1956,8 @@ async fn a_3xx_is_one_send_one_journal_line_and_no_second_request() {
 
 #[test]
 fn a_journaled_location_keeps_its_origin_and_path_and_marks_the_rest() {
+    // Every arm is judged before the assert, so a red names them all.
+    let mut wrong = Vec::new();
     for (raw, kept) in [
         (
             "https://api.example/oauth/token",
@@ -1971,9 +1973,39 @@ fn a_journaled_location_keeps_its_origin_and_path_and_marks_the_rest() {
         ),
         ("/relative?refresh_token=s#t", "/relative?…#…"),
         ("/relative#t?x", "/relative#…"),
+        // A scheme-relative reference names its own host: shown, with
+        // its user information dropped like an absolute one's.
+        ("//u:p@evil.example/x?code=s", "//evil.example/x?…"),
+        ("//evil.example/x?code=s", "//evil.example/x?…"),
+        ("//evil.example:8443/x", "//evil.example:8443/x"),
+        ("\\\\evil\\cb?code=s", "//evil/cb?…"),
+        ("https:\\\\evil\\cb?code=s", "https://evil/cb?…"),
+        // A path-relative one is the path it resolves to.
+        ("cb/next?code=s", "/cb/next?…"),
+        ("https://secretuser@h/", "https://h/"),
+        (
+            "https://bücher.example/x?y",
+            "https://xn--bcher-kva.example/x?…",
+        ),
+        ("  https://h/a\tb?code=s", "https://h/ab?…"),
+        // A host-less scheme has no origin to show: the scheme alone.
+        ("data:text/plain,secret", "data:…"),
+        ("mailto:secret@h", "mailto:…"),
+        ("urn:secret", "urn:…"),
+        ("https://[bad/x?code=s", "<unreadable location>"),
     ] {
-        assert_eq!(redacted_location(raw), kept, "{raw}");
+        let got = redacted_location(raw);
+        if got != kept {
+            wrong.push(format!("{raw:?} gave {got:?}, not {kept:?}"));
+        }
     }
+    assert!(wrong.is_empty(), "{}", wrong.join("\n"));
+    // A location past the bound is cut, and its marks survive the cut.
+    let long = format!("https://h/{}?code=s", "a".repeat(200_000));
+    let kept = redacted_location(&long);
+    assert!(kept.starts_with("https://h/aaa"), "{kept}");
+    assert!(kept.ends_with("…?…"), "{kept}");
+    assert_eq!(kept.chars().count(), LOCATION_CHARS + 3, "{kept}");
 }
 
 #[tokio::test]
