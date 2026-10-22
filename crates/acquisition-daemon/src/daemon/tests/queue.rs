@@ -44,10 +44,7 @@ async fn c127_a_client_probe_is_refused_and_sends_nothing() {
         }
         other => panic!("a client's probe was admitted: {other:?}"),
     }
-    assert!(
-        daemon.shared.lock().unwrap().jobs.is_empty(),
-        "a refused submit admits no job"
-    );
+    assert_nothing_admitted(&daemon, "probe");
     for _ in 0..50 {
         tokio::task::yield_now().await;
     }
@@ -57,6 +54,336 @@ async fn c127_a_client_probe_is_refused_and_sends_nothing() {
         "nothing reached the wire"
     );
     finish_harness_wire(dispatcher, &log_path, &requests);
+}
+
+/// A refused submit admits no job and spends no id: the refusal came
+/// before `next_id` moved, so the next admitted job is still job 1.
+fn assert_nothing_admitted(daemon: &Daemon, what: &str) {
+    let s = daemon.shared.lock().unwrap();
+    assert!(s.jobs.is_empty(), "{what}: a refused submit admits no job");
+    assert_eq!(s.next_id, 1, "{what}: a refused submit spent a job id");
+}
+
+/// A client's submit through the door every frontend uses.
+async fn client_submit(
+    daemon: &Arc<Daemon>,
+    kind: &str,
+    params: Value,
+    account: Option<&str>,
+) -> Response {
+    daemon
+        .handle_request(
+            Request::Submit {
+                kind: kind.into(),
+                params,
+                priority: 0,
+                submitted_by: "client".into(),
+                account: account.map(str::to_string),
+            },
+            &mut None,
+        )
+        .await
+}
+
+/// The response is a refusal with the refused-work kind whose words
+/// include every one of `said`.
+fn assert_refused(response: Response, what: &str, said: &[&str]) {
+    match response {
+        Response::Error { kind, message } => {
+            assert_eq!(kind, ErrorKind::Refused, "{what}: {message}");
+            for words in said {
+                assert!(
+                    message.contains(words),
+                    "{what}: the refusal says {words:?}: {message}"
+                );
+            }
+        }
+        other => panic!("{what} was admitted: {other:?}"),
+    }
+}
+
+/// A harness daemon with one live session holding a fresh access
+/// token, so a network job it admitted would send at once.
+fn live_daemon(base: &str) -> (Arc<Daemon>, PathBuf) {
+    let (daemon, log_path) = test_daemon(base, Arc::new(ManualClock::new()));
+    {
+        let mut s = daemon.shared.lock().unwrap();
+        s.auth.rename("", "Alice#1234");
+        let session = s.auth.one_mut();
+        session.username = Some("Alice#1234".into());
+        session.access_token = Some("at-test.Alice#1234".into());
+        session.access_expires_at = Some(daemon.choke.wall() + Duration::from_secs(3600));
+    }
+    (daemon, log_path)
+}
+
+/// C127 (a path param is one segment): a client's path param that is not
+/// exactly one segment is refused at submit, through `Submit` and through
+/// an `apply` tuple, before a job id exists, and nothing reaches the
+/// wire. The first case is the shape that steered a character fetch onto
+/// `/account/leagues` with the bearer: `..` to climb, `?` to cut the rest
+/// of the path off as a query. The server would answer anything sent.
+#[tokio::test]
+async fn c127_a_path_param_that_is_not_one_segment_is_refused_and_sends_nothing() {
+    let (base, requests, server) = scripted_server(vec![
+        ScriptedResponse::full("HEAD", "200 OK", None, ""),
+        ScriptedResponse::full("GET", "200 OK", None, "{}"),
+    ])
+    .await;
+    let (daemon, log_path) = live_daemon(&base);
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    let account = Some("Alice#1234");
+    let cases = [
+        (
+            "character",
+            json!({ "name": "../../account/leagues?x=" }),
+            "`name`",
+        ),
+        ("character", json!({ "name": "a/b" }), "`name`"),
+        (
+            "stashes",
+            json!({ "league": "../../character" }),
+            "`league`",
+        ),
+        ("stashes", json!({ "league": ".." }), "`league`"),
+        ("stashes", json!({ "league": "" }), "`league`"),
+        ("stashes", json!({ "league": "\t.." }), "`league`"),
+        ("stashes", json!({ "league": "a\\b" }), "`league`"),
+        ("stashes", json!({ "league": 7 }), "`league`"),
+        (
+            "refresh",
+            json!({ "league": "../x", "all": true }),
+            "`league`",
+        ),
+        (
+            "stash",
+            json!({ "league": "Standard", "id": "../../profile" }),
+            "`id`",
+        ),
+        (
+            "stash",
+            json!({ "league": "Standard", "id": "t1", "sub": ".." }),
+            "`sub`",
+        ),
+        (
+            "stash",
+            json!({ "league": "../Standard", "id": "t1", "deep": true }),
+            "`league`",
+        ),
+    ];
+    for (kind, params, param) in cases {
+        let what = format!("{kind} {params}");
+        let response = client_submit(&daemon, kind, params.clone(), account).await;
+        assert_refused(response, &what, &[param, "one path segment"]);
+        assert_nothing_admitted(&daemon, &what);
+        // The same tuple as a plan's action, where the vocabulary takes it.
+        if matches!(kind, "character" | "stash") && params.get("deep").is_none() {
+            let apply = json!({ "jobs": [{ "kind": kind, "params": params }] });
+            let what = format!("apply of {what}");
+            let response = client_submit(&daemon, "apply", apply, account).await;
+            assert_refused(response, &what, &["action 0", param, "one path segment"]);
+            assert_nothing_admitted(&daemon, &what);
+        }
+    }
+    for _ in 0..50 {
+        tokio::task::yield_now().await;
+    }
+    server.abort();
+    assert!(
+        requests.lock().unwrap().is_empty(),
+        "nothing reached the wire"
+    );
+    finish_harness_wire(dispatcher, &log_path, &requests);
+}
+
+/// C127 (a path param is one segment, encoded): a league whose name holds
+/// a space is a legitimate segment; it is admitted, and the probe and the
+/// GET carry it percent-encoded as one segment, as the journal records.
+#[tokio::test]
+async fn c127_a_league_with_a_space_is_admitted_and_sent_encoded() {
+    let policy = "X-Rate-Limit-Policy: stash-list-test\r\nX-Rate-Limit-Rules: Account\r\nX-Rate-Limit-Account: 100:1:60\r\nX-Rate-Limit-Account-State: 0:1:0\r\n";
+    let (base, requests, server) = scripted_server(vec![
+        ScriptedResponse {
+            method: "HEAD",
+            path: "/stash/Hard%20Mode",
+            status: "204 No Content",
+            headers: policy.into(),
+            body: String::new(),
+        },
+        ScriptedResponse {
+            method: "GET",
+            path: "/stash/Hard%20Mode",
+            status: "200 OK",
+            headers: policy.replace("0:1:0", "1:1:0"),
+            body: r#"{"stashes":[]}"#.into(),
+        },
+    ])
+    .await;
+    let (daemon, log_path) = live_daemon(&base);
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    let response = client_submit(
+        &daemon,
+        "stashes",
+        json!({ "league": "Hard Mode" }),
+        Some("Alice#1234"),
+    )
+    .await;
+    let Response::Submitted { id } = response else {
+        panic!("a league with a space was refused: {response:?}")
+    };
+    let (info, outcome) = wait_terminal(&daemon, id).await;
+    assert_eq!(info.state, JobState::Done, "{outcome:?}");
+    server.await.unwrap();
+    let paths: Vec<Value> = journal_sends(&log_path)
+        .iter()
+        .map(|send| send["path"].clone())
+        .collect();
+    assert_eq!(
+        paths,
+        [json!("/stash/Hard%20Mode"), json!("/stash/Hard%20Mode")]
+    );
+    finish_harness_wire(dispatcher, &log_path, &requests);
+}
+
+/// C127 (a path param is one segment, encoded): where a URL is rendered,
+/// each path param is percent-encoded as one segment, so `%`, `#` and `?`
+/// stay inside it; a value that is not one segment renders no URL at all,
+/// so a row that never passed the door (a restored row, a child whose id
+/// came from a response) sends nothing.
+#[test]
+fn c127_a_rendered_path_param_is_one_encoded_segment_or_no_url() {
+    let (daemon, _) = test_daemon("http://mock", Arc::new(ManualClock::new()));
+    assert_eq!(
+        daemon
+            .route_for("stash", &json!({ "league": "50% Off #2", "id": "a?b" }))
+            .unwrap()
+            .1,
+        "http://mock/stash/50%25%20Off%20%232/a%3Fb"
+    );
+    assert_eq!(
+        daemon
+            .route_for("character", &json!({ "name": "Ünïcode_Exile" }))
+            .unwrap()
+            .1,
+        "http://mock/character/%C3%9Cn%C3%AFcode_Exile"
+    );
+    for (kind, params) in [
+        ("character", json!({ "name": "../../account/leagues?x=" })),
+        ("stashes", json!({ "league": ".." })),
+        (
+            "stash",
+            json!({ "league": "Standard", "id": "t1", "sub": "\t.." }),
+        ),
+    ] {
+        assert_eq!(daemon.route_for(kind, &params), None, "{kind} {params}");
+    }
+}
+
+/// C127 (a mock-only kind is the mock's): in real mode a client's
+/// `sleep`, `fetch` and `whoami` are refused at the door, before a job id
+/// exists, and nothing reaches the wire. Real in name only: every URL is
+/// the local server's, which would answer one request of any kind.
+#[tokio::test]
+async fn c127_a_mock_only_kind_is_refused_in_real_mode() {
+    let (base, requests, server) =
+        scripted_server(vec![ScriptedResponse::full("GET", "200 OK", None, "{}")]).await;
+    let provider = Provider {
+        name: acquisition_protocol::provider::GGG,
+        ..Provider::mock(&base)
+    };
+    assert!(provider.is_real());
+    let (daemon, log_path) = test_daemon_with(
+        provider,
+        Arc::new(ManualClock::new()),
+        RailsConfig::default(),
+    );
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    for kind in ["sleep", "fetch", "whoami"] {
+        let response = client_submit(&daemon, kind, json!({ "seconds": 3600 }), None).await;
+        assert_refused(response, kind, &[kind, "mock-only", "real mode"]);
+        assert_nothing_admitted(&daemon, kind);
+    }
+    for _ in 0..50 {
+        tokio::task::yield_now().await;
+    }
+    server.abort();
+    assert!(
+        requests.lock().unwrap().is_empty(),
+        "nothing reached the wire"
+    );
+    finish_harness_wire(dispatcher, &log_path, &requests);
+}
+
+/// C127 (a sleep is bounded): the mock's `sleep` with seconds that are
+/// negative, beyond the bound or not a number is refused at submit, before
+/// a job id exists; a sleep within the bound is admitted as job 1. A row
+/// that never passed the door fails as a job instead of panicking.
+#[tokio::test]
+async fn c127_a_sleep_with_bad_seconds_is_refused_at_submit() {
+    let (daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    for seconds in [
+        json!(-1),
+        json!(1e300),
+        json!(3601),
+        json!("5"),
+        json!(true),
+    ] {
+        let what = format!("sleep {seconds}");
+        let response = client_submit(&daemon, "sleep", json!({ "seconds": seconds }), None).await;
+        assert_refused(response, &what, &["sleep", "`seconds`", "from 0 to 3600"]);
+        assert_nothing_admitted(&daemon, &what);
+    }
+    let response = client_submit(&daemon, "sleep", json!({ "seconds": 0 }), None).await;
+    let Response::Submitted { id } = response else {
+        panic!("a sleep within the bound was refused: {response:?}")
+    };
+    assert_eq!(id, 1, "the refusals spent no id");
+    let (info, _) = wait_terminal(&daemon, id).await;
+    assert_eq!(info.state, JobState::Done);
+    let outcome = daemon
+        .execute_inner(
+            9,
+            "sleep",
+            json!({ "seconds": -1 }),
+            None,
+            None,
+            daemon.choke.now(),
+        )
+        .await
+        .unwrap();
+    assert!(
+        matches!(&outcome, Outcome::Failure { error, .. } if error.contains("seconds")),
+        "{outcome:?}"
+    );
+    finish_harness(dispatcher, &log_path);
+}
+
+/// C127 (the kind table): a kind the daemon does not run is refused at
+/// the door, before a job id exists, naming only the kinds a client may
+/// submit: never the daemon's own `probe`.
+#[tokio::test]
+async fn c127_an_unknown_kind_is_refused_naming_only_client_kinds() {
+    let (daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
+    let response = client_submit(&daemon, "bogus", json!({}), None).await;
+    let message = match &response {
+        Response::Error { message, .. } => message.clone(),
+        other => panic!("an unknown kind was admitted: {other:?}"),
+    };
+    assert_refused(
+        response,
+        "bogus",
+        &[
+            "unknown job kind \"bogus\"",
+            "profile",
+            "stash",
+            "sleep",
+            "whoami",
+        ],
+    );
+    assert!(!message.contains("probe"), "{message}");
+    assert_nothing_admitted(&daemon, "bogus");
+    finish_harness(None, &log_path);
 }
 
 // ---- persistence (C6) ------------------------------------------------

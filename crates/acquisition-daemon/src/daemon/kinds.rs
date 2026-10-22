@@ -590,7 +590,14 @@ impl Daemon {
             "sleep" => {
                 // Real seconds by design, not the daemon's clock: the mock's
                 // demo and the watch tests want a job that visibly takes time.
+                // The door bounds `seconds` (C127); a row that never
+                // passed it fails here rather than panic in the timer.
                 let seconds = params.get("seconds").and_then(Value::as_f64).unwrap_or(3.0);
+                if !(0.0..=SLEEP_MAX_SECONDS).contains(&seconds) {
+                    return Ok(Outcome::failure(format!(
+                        "sleep: `seconds` must be a number from 0 to {SLEEP_MAX_SECONDS}, not {seconds}"
+                    )));
+                }
                 let deadline = Instant::now() + Duration::from_secs_f64(seconds);
                 while Instant::now() < deadline {
                     if self.cancelled(id) {
@@ -757,8 +764,11 @@ impl Daemon {
                     }
                 }
             }
+            // The door refuses a kind outside the table (C127); this is a
+            // restored row from a build with another table.
             other => Outcome::failure(format!(
-                "unknown job kind '{other}' (kinds: sleep, fetch, whoami, profile, characters, character, leagues, stashes, stash, refresh, apply, probe)"
+                "unknown job kind {other:?}; a client may submit: {}",
+                client_kinds()
             )),
         })
     }
@@ -886,6 +896,7 @@ pub(super) fn validate_apply(params: &Value) -> Result<(), Refusal> {
         let kind = job.get("kind").and_then(Value::as_str).unwrap_or("");
         let params = job.get("params").cloned().unwrap_or(Value::Null);
         admit_realm(kind, &params).map_err(|e| refused(format!("action {i}: {e}")))?;
+        admit_segments(kind, &params).map_err(|e| refused(format!("action {i}: {e}")))?;
         match kind {
             "stashes" => {}
             "stash" => {

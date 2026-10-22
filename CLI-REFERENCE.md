@@ -466,10 +466,10 @@ Submit any job kind by hand
 Usage: acq submit [OPTIONS] <KIND>
 
 Arguments:
-  <KIND>  A network kind — profile, characters, character, leagues, stashes, stash, refresh, apply — or sleep, which never sends, or a mock-only one: fetch, whoami (refused in real mode)
+  <KIND>  A network kind — profile, characters, character, leagues, stashes, stash, refresh, apply — or a mock-only one, refused in real mode: sleep, which never sends, fetch, whoami
 
 Options:
-      --params <PARAMS>      JSON params, as the verb of the same name sends them: characters `{"realm"}`, character `{"name", "realm"}`, stashes `{"league", "realm"}`, stash `{"id", "sub", "deep", "league", "realm"}`, refresh `{"tabs": […] or "all": true, "deep", "league", "realm"}`, sleep `{"seconds"}`; realm defaults to pc and league to Standard. `acq status <id> --json` shows a job's params [default: {}]
+      --params <PARAMS>      JSON params, as the verb of the same name sends them: characters `{"realm"}`, character `{"name", "realm"}`, stashes `{"league", "realm"}`, stash `{"id", "sub", "deep", "league", "realm"}`, refresh `{"tabs": […] or "all": true, "deep", "league", "realm"}`, sleep `{"seconds"}` (0 to 3600); realm defaults to pc and league to Standard. A name, league or id is one path segment: a slash, `..` or a control character is refused. `acq status <id> --json` shows a job's params [default: {}]
       --priority <PRIORITY>  Higher runs sooner. Default 0 [default: 0]
       --detach               Return the job id immediately instead of blocking with progress
   -h, --help                 Print help

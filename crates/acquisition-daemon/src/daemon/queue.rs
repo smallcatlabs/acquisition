@@ -403,24 +403,213 @@ pub(super) fn admit_realm(kind: &str, params: &Value) -> Result<(), Refusal> {
         .map_err(|e| Refusal::new(ErrorKind::Refused, e))
 }
 
-/// C127 — A client names a job's kind, never a daemon-only one. Kind
-/// admission at the client's door (`Request::Submit`, in `server.rs`),
-/// before account resolution and before an id exists. A daemon-only kind
-/// is one the daemon submits for itself: `probe`, whose route and URL are
-/// the daemon's to choose (`ensure_probe`, one HEAD per route, N16); a
-/// client's pair would carry the bearer to any host and install that
-/// host's policy on the route. The daemon's own submissions call `submit`
-/// directly and never pass this door. Every other kind is admitted here
-/// and judged where it runs.
-pub(super) fn admit_client_kind(kind: &str) -> Result<(), Refusal> {
-    match kind {
-        "probe" => Err(Refusal::new(
-            ErrorKind::Refused,
-            "a probe is queued by the daemon itself before a route's first use; \
-a client cannot submit one",
-        )),
-        _ => Ok(()),
+/// C127 — Where a kind may be submitted from, and in which provider mode.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(super) enum Door {
+    /// A client submits it in either mode.
+    Client,
+    /// A client submits it against the mock alone: it sends nothing real,
+    /// or sends only to the mock's fake endpoints.
+    MockOnly,
+    /// Only the daemon submits it, for itself.
+    DaemonOnly,
+}
+
+/// A kind's further check of its params: the refusal's words, or nothing.
+pub(super) type ParamCheck = fn(&Value) -> Result<(), String>;
+
+/// C127 — One row of the kind table: a kind, its door, the params that
+/// become path segments of its URL, and any further check of its params.
+pub(super) struct KindRow {
+    pub(super) kind: &'static str,
+    pub(super) door: Door,
+    /// Params each rendered as exactly one path segment (`route_for`).
+    pub(super) segments: &'static [&'static str],
+    /// A further check of the params, run at submit.
+    pub(super) check: Option<ParamCheck>,
+}
+
+/// The longest `sleep` the mock takes, in seconds: an hour is longer than
+/// any demonstration or test wants, and a bound keeps the timer finite.
+pub(super) const SLEEP_MAX_SECONDS: f64 = 3600.0;
+
+/// C127 — The kind table: every kind the daemon runs, in one place. The
+/// client's door (`admit_client`), apply's tuples (`validate_apply`, by
+/// `admit_segments`), the unknown-kind failure and the refusal texts read
+/// it; a kind that is not a row is refused at the door.
+pub(super) const KINDS: &[KindRow] = &[
+    KindRow {
+        kind: "profile",
+        door: Door::Client,
+        segments: &[],
+        check: None,
+    },
+    KindRow {
+        kind: "characters",
+        door: Door::Client,
+        segments: &[],
+        check: None,
+    },
+    KindRow {
+        kind: "character",
+        door: Door::Client,
+        segments: &["name"],
+        check: None,
+    },
+    KindRow {
+        kind: "leagues",
+        door: Door::Client,
+        segments: &[],
+        check: None,
+    },
+    KindRow {
+        kind: "stashes",
+        door: Door::Client,
+        segments: &["league"],
+        check: None,
+    },
+    KindRow {
+        kind: "stash",
+        door: Door::Client,
+        segments: &["league", "id", "sub"],
+        check: None,
+    },
+    KindRow {
+        kind: "refresh",
+        door: Door::Client,
+        segments: &["league"],
+        check: None,
+    },
+    KindRow {
+        kind: "apply",
+        door: Door::Client,
+        segments: &[],
+        check: None,
+    },
+    KindRow {
+        kind: "sleep",
+        door: Door::MockOnly,
+        segments: &[],
+        check: Some(check_sleep),
+    },
+    KindRow {
+        kind: "fetch",
+        door: Door::MockOnly,
+        segments: &[],
+        check: None,
+    },
+    KindRow {
+        kind: "whoami",
+        door: Door::MockOnly,
+        segments: &[],
+        check: None,
+    },
+    KindRow {
+        kind: "probe",
+        door: Door::DaemonOnly,
+        segments: &[],
+        check: None,
+    },
+];
+
+/// The kinds a client may name, comma-separated, for the refusal texts.
+pub(super) fn client_kinds() -> String {
+    KINDS
+        .iter()
+        .filter(|row| row.door != Door::DaemonOnly)
+        .map(|row| row.kind)
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// C127 — Whether a param is exactly one path segment: not empty, not a
+/// dot segment, no separator (`/`, or `\`, which a URL parser reads as one)
+/// and no control character (a URL parser drops tabs and newlines, which
+/// can make a dot segment of what was not one). Anything else is legal
+/// and is percent-encoded where it is rendered (a space in a league name).
+pub(super) fn is_one_segment(value: &str) -> bool {
+    !value.is_empty()
+        && value != "."
+        && value != ".."
+        && !value.contains(['/', '\\'])
+        && !value.chars().any(char::is_control)
+}
+
+/// C127 — The kind's segment params, judged: each one present is a string
+/// that is exactly one path segment.
+pub(super) fn admit_segments(kind: &str, params: &Value) -> Result<(), String> {
+    let Some(row) = KINDS.iter().find(|row| row.kind == kind) else {
+        return Ok(());
+    };
+    for name in row.segments {
+        match params.get(*name) {
+            None | Some(Value::Null) => {}
+            Some(Value::String(value)) if is_one_segment(value) => {}
+            Some(Value::String(value)) => {
+                return Err(format!(
+                    "{kind}: `{name}` {value:?} is not one path segment — it must be non-empty, \
+not `.` or `..`, and hold no slash, backslash or control character"
+                ));
+            }
+            Some(other) => {
+                return Err(format!(
+                    "{kind}: `{name}` must be a string that is one path segment, not {other}"
+                ));
+            }
+        }
     }
+    Ok(())
+}
+
+/// `sleep`'s `seconds`, when given: a number from 0 to the bound.
+fn check_sleep(params: &Value) -> Result<(), String> {
+    match params.get("seconds") {
+        None | Some(Value::Null) => Ok(()),
+        Some(seconds) => match seconds.as_f64() {
+            Some(s) if s.is_finite() && (0.0..=SLEEP_MAX_SECONDS).contains(&s) => Ok(()),
+            _ => Err(format!(
+                "sleep: `seconds` must be a number from 0 to {SLEEP_MAX_SECONDS}, not {seconds}"
+            )),
+        },
+    }
+}
+
+/// C127 — Admission at the client's door (`Request::Submit`, in
+/// `server.rs`), before account resolution and before an id exists: the
+/// kind is a row of `KINDS` a client may name in this provider mode, and
+/// its params pass the row's checks. A daemon-only kind is one the daemon
+/// submits for itself: `probe`, whose route and URL are the daemon's to
+/// choose (`ensure_probe`, one HEAD per route, N16); a client's pair would
+/// carry the bearer to any host and install that host's policy on the
+/// route. The daemon's own submissions call `submit` directly and never
+/// pass this door; `submit` still judges an `apply`'s tuples.
+pub(super) fn admit_client(kind: &str, params: &Value, real: bool) -> Result<(), Refusal> {
+    let refused = |message: String| Refusal::new(ErrorKind::Refused, message);
+    let Some(row) = KINDS.iter().find(|row| row.kind == kind) else {
+        return Err(refused(format!(
+            "unknown job kind {kind:?}; a client may submit: {}",
+            client_kinds()
+        )));
+    };
+    match row.door {
+        Door::DaemonOnly => {
+            return Err(refused(format!(
+                "a {kind} is queued by the daemon itself before a route's first use; \
+a client cannot submit one"
+            )));
+        }
+        Door::MockOnly if real => {
+            return Err(refused(format!(
+                "{kind} is a mock-only kind and is refused in real mode"
+            )));
+        }
+        Door::MockOnly | Door::Client => {}
+    }
+    admit_segments(kind, params).map_err(refused)?;
+    if let Some(check) = row.check {
+        check(params).map_err(refused)?;
+    }
+    Ok(())
 }
 
 /// A child submission's parent is no longer there to take it.

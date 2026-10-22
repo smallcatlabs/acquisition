@@ -20,8 +20,10 @@ impl Daemon {
     /// probe before its first counted send, and whether it shares the pc
     /// policy is learned from its headers (same-name policies already
     /// share state, N6). pc adds nothing to either, so every pc URL and
-    /// journal route is byte-identical to the pre-realm ones. `fetch` is a
-    /// fake data endpoint that exists only on the mock.
+    /// journal route is byte-identical to the pre-realm ones. A param on
+    /// the URL is one percent-encoded segment, or there is no URL (C127,
+    /// `with_segments`). `fetch` is a fake data endpoint that exists only
+    /// on the mock.
     pub(super) fn route_for(&self, kind: &str, params: &Value) -> Option<(String, String)> {
         let base = &self.provider.api_base;
         // Admission (`admit_realm`) refused anything a family does not
@@ -39,7 +41,7 @@ impl Daemon {
                 let name = params.get("name").and_then(Value::as_str)?;
                 Some((
                     format!("character{r}"),
-                    format!("{base}/character{r}/{name}"),
+                    with_segments(&format!("{base}/character{r}"), &[name])?,
                 ))
             }
             // The account's leagues: `GET /account/leagues` (account:leagues).
@@ -58,7 +60,7 @@ impl Daemon {
                     .unwrap_or("Standard");
                 Some((
                     format!("stash-list{r}"),
-                    format!("{base}/stash{r}/{league}"),
+                    with_segments(&format!("{base}/stash{r}"), &[league])?,
                 ))
             }
             // One tab, or one substash of a map/unique tab: same route, same
@@ -70,9 +72,10 @@ impl Daemon {
                     .and_then(Value::as_str)
                     .unwrap_or("Standard");
                 let id = params.get("id").and_then(Value::as_str)?;
+                let prefix = format!("{base}/stash{r}");
                 let url = match params.get("sub").and_then(Value::as_str) {
-                    Some(sub) => format!("{base}/stash{r}/{league}/{id}/{sub}"),
-                    None => format!("{base}/stash{r}/{league}/{id}"),
+                    Some(sub) => with_segments(&prefix, &[league, id, sub])?,
+                    None => with_segments(&prefix, &[league, id])?,
                 };
                 Some((format!("stash{r}"), url))
             }
@@ -168,4 +171,17 @@ impl Daemon {
             }
         }
     }
+}
+
+/// C127 — `prefix` with each param appended as one percent-encoded path
+/// segment (`%`, `/`, `?` and `#` among the encoded), so a param can
+/// neither leave its segment nor start a query. A param that is not one
+/// segment (`is_one_segment`) renders no URL: the job sends nothing.
+fn with_segments(prefix: &str, segments: &[&str]) -> Option<String> {
+    if !segments.iter().all(|segment| is_one_segment(segment)) {
+        return None;
+    }
+    let mut url = url::Url::parse(prefix).ok()?;
+    url.path_segments_mut().ok()?.extend(segments);
+    Some(url.into())
 }

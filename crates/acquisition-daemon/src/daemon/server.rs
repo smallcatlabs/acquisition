@@ -222,7 +222,7 @@ impl Daemon {
                 priority,
                 submitted_by,
                 account,
-            } => match admit_client_kind(&kind)
+            } => match admit_client(&kind, &params, self.provider.is_real())
                 .and_then(|()| self.resolve_account(&kind, account.as_deref()))
                 .and_then(|account| self.submit(kind, params, priority, submitted_by, account))
             {
