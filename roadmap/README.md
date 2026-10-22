@@ -155,9 +155,11 @@ commits from `35e0b03c` (the rulings C125, the tables name their
 export, and C126, a league the list lacks is a note; the game-diff
 tool and the drift line; the mock's three leagues; the league named in
 every line about its work; the rehearsal; the documents and the
-driver). Codex reviews `35e0b03c^` to this step's last build commit;
-its findings are saved under `reviews/` and read by the owner before
-any fix. The design brief, `briefs/2e-design.md`, is at `08c0907a`
+driver). Codex's review of them (`reviews/2e-4e543dd0.md`, whole at
+`1491c4b8`) found six faults; the owner took all six and ruled on the
+worker's three raised items, and the fix round is two commits from
+`252e8c9e`, its own review pending under `reviews/`, read by the owner
+before the close. The design brief, `briefs/2e-design.md`, is at `08c0907a`
 with the owner's word at `e9b8bc78` and its review taken at
 `cb7db91c`. The owner reassesses the `AGENTS.md` budget when he
 chooses. `AGENTS.md` governs; the gate is its ten lines, under

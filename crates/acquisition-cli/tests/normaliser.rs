@@ -3,7 +3,7 @@
 //! negatives each rule must leave alone, and that normalising every
 //! committed golden under `tests/goldens/` changes nothing, which guards
 //! each later rule against rewriting what an earlier one wrote
-//! (`<scratch>`, `<age>`, `<jN>`, `<pid>`). A module of `tests/main`,
+//! (`<scratch>`, `<world>`, `<age>`, `<jN>`, `<pid>`). A module of `tests/main`,
 //! never of the adapter: `watch_recovery.rs`'s binary takes the adapter
 //! too and would run these twice.
 
@@ -71,6 +71,35 @@ fn the_progress_rule_keeps_each_jobs_last_stderr_line() {
     // stdout's `job` lines are the command's answer, never progress
     let answer = "--- stdout\njob 2: running\njob 2: done\n";
     assert_eq!(n(answer), "--- stdout\njob <j1>: running\njob <j1>: done\n");
+}
+
+#[test]
+fn the_log_rule_names_the_world_in_a_log_path_under_the_scratch() {
+    assert_eq!(
+        n("daemon log: <scratch>/logs/f323bd59fa67/mock/daemon.log\n"),
+        "daemon log: <scratch>/logs/<world>/mock/daemon.log\n"
+    );
+    // the scratch rule runs first: a test's own base becomes `<scratch>`
+    let base = Path::new("/tmp/acq-test-base");
+    assert_eq!(
+        normalise(
+            "daemon log: /tmp/acq-test-base/logs/9fc87288b973/mock/daemon.log\n",
+            base
+        ),
+        "daemon log: <scratch>/logs/<world>/mock/daemon.log\n"
+    );
+    for text in [
+        // not under the scratch: the owner's log directory is never a test's
+        "daemon log: /Users/x/Library/Logs/acq/9fc87288b973/mock/daemon.log\n",
+        // not twelve hex digits, or not a directory
+        "<scratch>/logs/9fc87288b97/mock/daemon.log\n",
+        "<scratch>/logs/9fc87288b973x/mock/daemon.log\n",
+        "<scratch>/logs/9FC87288B973/mock/daemon.log\n",
+        "<scratch>/logs/9fc87288b973\n",
+        "<scratch>/store/9fc87288b973/mock\n",
+    ] {
+        assert_eq!(n(text), text);
+    }
 }
 
 #[test]

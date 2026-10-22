@@ -710,7 +710,11 @@ impl SyncPolicy {
 /// when no list was ever fetched, so every league is unread against it.
 /// Nothing refuses on it: the list is stale on launch morning before the
 /// user fetches it, and the note is what keeps a typo from spending a
-/// request on a league that does not exist.
+/// request on a league that does not exist. The policy receipt says it
+/// in both cases, once, when the policy is written; a plan says it only
+/// when a fetched list lacks its league, and is silent when no list was
+/// ever fetched, so a user who never asks for the list meets the note
+/// once, not on every plan.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct LeagueNote {
     pub league: String,
@@ -756,7 +760,8 @@ impl SyncPolicy {
 /// (as the quote's note does) and never in it.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 pub struct PlanNotes {
-    /// C126: the plan's league, when the fetched league list lacks it.
+    /// C126: the plan's league, when a fetched league list lacks it; none
+    /// when no list was ever fetched (the receipt said so).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub league: Option<LeagueNote>,
     /// The policy covers this league's characters, the realm's character
@@ -791,7 +796,9 @@ pub fn plan_notes(snapshot: &RefreshSnapshot) -> PlanNotes {
         return PlanNotes::default();
     };
     PlanNotes {
-        league: league_notes([snapshot.league.as_str()], snapshot.league_list.as_ref()).pop(),
+        league: league_notes([snapshot.league.as_str()], snapshot.league_list.as_ref())
+            .pop()
+            .filter(|note| note.list_fetched_at.is_some()),
         no_characters_listed: characters_covered
             && snapshot.character_listing.is_some()
             && snapshot.characters.is_empty(),

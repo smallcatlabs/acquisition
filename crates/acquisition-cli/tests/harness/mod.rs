@@ -226,8 +226,8 @@ impl Transcript {
     }
 }
 
-/// The normaliser's nine named rules, in order: CRLF to LF, `scratch`,
-/// `age`, `basis`, `token` and the version line by line, then `job`,
+/// The normaliser's ten named rules, in order: CRLF to LF, `scratch`,
+/// `log`, `age`, `basis`, `token` and the version line by line, then `job`,
 /// `pid` and `progress` over the whole text, since a job's ordinal is
 /// counted across the transcript and a job's progress lines are read
 /// together. A `# holds` line is the fact as checked and is kept as
@@ -242,6 +242,7 @@ pub fn normalise(text: &str, base: &Path) -> String {
                 return line.to_string();
             }
             let mut line = scratch_rule(line, base);
+            line = log_rule(&line);
             line = age_rule(&line);
             line = basis_rule(&line);
             line = token_rule(&line);
@@ -458,6 +459,41 @@ fn scratch_rule(text: &str, base: &Path) -> String {
         text = text.replace(&spelling, "<scratch>");
     }
     text
+}
+
+/// The rule `log`: the world's id in a log path under the scratch,
+/// `<scratch>/logs/` and twelve hex digits before the next separator, is
+/// `<world>`. The id is a hash of the world's root (`World::id`), and a
+/// test's root is a fresh scratch directory, so it differs run to run;
+/// the provider and the file after it stay, so a log path that moves
+/// still fails the golden.
+fn log_rule(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(at) = rest.find("<scratch>") {
+        let after = &rest[at + "<scratch>".len()..];
+        let id = ["/logs/", "\\logs\\", "\\\\logs\\\\"]
+            .iter()
+            .find(|sep| after.starts_with(**sep))
+            .map(|sep| (sep.len(), &after[sep.len()..]))
+            .filter(|(_, tail)| {
+                tail.len() > 12
+                    && tail.as_bytes()[..12]
+                        .iter()
+                        .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(b))
+                    && matches!(tail.as_bytes()[12], b'/' | b'\\')
+            });
+        let Some((sep, _)) = id else {
+            out.push_str(&rest[..at + "<scratch>".len()]);
+            rest = after;
+            continue;
+        };
+        out.push_str(&rest[..at + "<scratch>".len() + sep]);
+        out.push_str("<world>");
+        rest = &after[sep + 12..];
+    }
+    out.push_str(rest);
+    out
 }
 
 /// The rule `age`: `<n>s ago`, `<n>m ago`, `<n>h ago` and `<n>d ago` are

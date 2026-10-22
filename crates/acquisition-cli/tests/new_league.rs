@@ -160,6 +160,17 @@ fn a_new_league_starts_empty_beside_standard_and_a_typo_is_named() {
                 "1 request:".into(),
             ],
         ),
+        // the apply over the typo fails naming it, on the mock's 404
+        Step {
+            exit: 1,
+            ..step(
+                &["refresh", "--apply", typo[0], typo[1]],
+                1,
+                &[format!(
+                    "stashes {TYPO}  GET /stash/{TYPO} returned 404 Not Found"
+                )],
+            )
+        },
     ]);
 
     let mut t = Transcript::new(&base);
@@ -183,21 +194,6 @@ fn a_new_league_starts_empty_beside_standard_and_a_typo_is_named() {
         "{receipt}"
     );
 
-    // The apply over the typo fails naming it, on the mock's 404. Asserted
-    // by field and kept out of the golden: its failure prints the daemon
-    // log's path, whose directory is a hash of the test's scratch world
-    // and differs run to run, and no normaliser rule is added for it.
-    let apply = acq(&base, &["refresh", "--apply", typo[0], typo[1]]);
-    assert_eq!(apply.status.code(), Some(1), "{apply:?}");
-    let failed = harness::text(&apply);
-    assert!(
-        failed.contains(&format!(
-            "stashes {TYPO}  GET /stash/{TYPO} returned 404 Not Found"
-        )),
-        "{failed}"
-    );
-    let typo_path = vec!["refresh".to_string()];
-
     let stop = step(&["daemon", "stop"], 2, &["daemon stopped (pid".into()]);
     let args: Vec<&str> = stop.args.iter().map(String::as_str).collect();
     let facts: Vec<&str> = stop.facts.iter().map(String::as_str).collect();
@@ -214,12 +210,7 @@ fn a_new_league_starts_empty_beside_standard_and_a_typo_is_named() {
         .flat_map(|line| readme_tour::parse(line))
         .map(|(path, _)| path)
         .collect();
-    for path in steps
-        .iter()
-        .chain([&stop])
-        .map(|s| &s.args[..s.verbs])
-        .chain([typo_path.as_slice()])
-    {
+    for path in steps.iter().chain([&stop]).map(|s| &s.args[..s.verbs]) {
         assert!(
             toured.iter().any(|p| p == path),
             "`acq {}` is in the rehearsal and in no tour line of README.md",
