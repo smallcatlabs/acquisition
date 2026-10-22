@@ -47,7 +47,8 @@ CLONES = Path(os.environ.get("ACQ_CLONES") or ROOT.parent)
 
 # Each sibling clone at the commit its manifest pins (search/repoe/MANIFEST.md;
 # awakened-poe-trade: search/prior-art/MANIFEST.md at 40b55e79). A pull is a
-# new manifest row and a new commit here, then a reviewed regeneration.
+# new manifest row and a new commit here, then a reviewed regeneration, poe1's
+# in the order tools/game-diff.py prints.
 PINS = {
     "poe1": "e2bd511a0133bbe6c1ab548ef1285cb99f3cf0e9",
     "PathOfBuilding": "16de4b82d57f1c0de6eb40f37143c32d4da36a02",

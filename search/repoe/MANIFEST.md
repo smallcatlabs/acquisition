@@ -1,6 +1,6 @@
 # Evidence manifest — repoe
 
-Every input this track reads, and how it was obtained (index rule 4). Nothing here is fetched by tooling: the owner cloned three repositories beside this one on 2026-09-13 (`SURFACES.md`, the RePoE and Path of Building rows; the owner, verbatim: "Instead of doing a fetch, I can clone both repos locally" … "I have cloned both projects into directories parallel with acquisition." … "I have cloned poe1 as well."). Tooling reads the checkouts at the commits below; every script refuses to run against another commit — a pull is a new row here first. Whole data files are never committed; extracts under `data/` cite the commit on their first line.
+Every input this track reads, and how it was obtained (index rule 4). Nothing here is fetched by tooling: the owner cloned three repositories beside this one on 2026-09-13 (`SURFACES.md`, the RePoE and Path of Building rows; the owner, verbatim: "Instead of doing a fetch, I can clone both repos locally" … "I have cloned both projects into directories parallel with acquisition." … "I have cloned poe1 as well."). Tooling reads the checkouts at the commits below; every script refuses to run against another commit — a pull is a new row here first, in the order `tools/game-diff.py` prints. Whole data files are never committed; extracts under `data/` cite the commit on their first line.
 
 ## The clones (`../../../<name>` from this directory, beside this repository; `ACQ_CLONES` names another directory)
 
@@ -10,7 +10,7 @@ Every input this track reads, and how it was obtained (index rule 4). Nothing he
 | `poe1/` | `https://github.com/repoe-fork/poe1.git` | `e2bd511a0133bbe6c1ab548ef1285cb99f3cf0e9` | 2026-09-09 | `e2bd511a` | the PoE1 export with per-patch history |
 | `PathOfBuilding/` | `https://github.com/PathOfBuildingCommunity/PathOfBuilding.git` | `16de4b82d57f1c0de6eb40f37143c32d4da36a02` | 2026-09-08 | `v2.67.2-75-g16de4b82d` | Path of Building Community, dev branch |
 
-`poe1/version.txt` = `3.29.3.3`; `exported-version.txt` = `634a70498bc75676f9c938a3d590c18ee75cae8d refs/heads/main` (the game-data commit the export was generated from). Its history: 590 commits since 2025-06-07, one `Version <v>` commit when the fork's poll sees a new game version and one `Export <v>` when the export runs (README F6 measures the lag from these).
+`poe1/version.txt` = `3.29.3.3`; `exported-version.txt` = `3.29.3.3` (the game version last exported, the fork's own lag marker: its workflow exports only when `version.txt` differs from it; the file exists since `poe1@3e1570f5`); `schema.txt` = `634a70498bc75676f9c938a3d590c18ee75cae8d refs/heads/main` (the schema commit the export was generated against). Its history: 590 commits since 2025-06-07, one `Version <v>` commit when the fork's poll sees a new game version and one `Export <v>` when the export runs (README F6 measures the lag from these).
 
 ## The PoE1 export's files read (`poe1/data/`)
 

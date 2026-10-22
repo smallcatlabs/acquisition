@@ -9,7 +9,7 @@ into the reviewed file the search crate ships.
 
 Inputs (read-only; the clone must sit at its pin in tools/sources.py or this refuses to run —
 a pull is a new commit there and a reviewed diff of the table, never a silent
-regeneration):
+regeneration; tools/game-diff.py reads what moved and prints the order):
   ../poe1/data/base_items.json     every base: name, item class, release state
   ../poe1/data/item_classes.json   the classes: their display names
   ../poe1/data/gems.json           every gem, its base item, and a transfigured

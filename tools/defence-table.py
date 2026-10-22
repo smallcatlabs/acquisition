@@ -11,7 +11,7 @@ file the search crate ships.
 
 Inputs (read-only; nothing is fetched; the clone must sit at its pin in tools/sources.py or
 this refuses to run — a pull is a new commit there and a reviewed diff of the
-table, never a silent regeneration):
+table, never a silent regeneration, in the order tools/game-diff.py prints):
   ../poe1/data/base_items.json            every base: its name and `properties.armour`, `.evasion`,
                                           `.energy_shield`, `.ward` as `{min, max}` or null, `.block`
   search/repoe/data/trade-stat-map.csv    the trade site's stat texts joined to the export's stats

@@ -38,7 +38,8 @@ fail=0
 for check in "sheet tools/trade-sheet.py --verify" "split tools/trade-split.py --self-test" \
              "category tools/category-table.py --check" "sources tools/sources.py --self-test" \
              "capture tools/trade_query.py --self-test" \
-             "expected search/category/scripts/expected.py --self-test"; do
+             "expected search/category/scripts/expected.py --self-test" \
+             "gamediff tools/game-diff.py --self-test" "drift tools/game-diff.py --check"; do
   read -r name tool flag <<<"$check"
   if said=$(python3 -I "$tool" "$flag" 2>&1); then
     printf 'ok      %-13s %s\n' "$name" "$(tail -1 <<<"$said" | sed 's/^ok *//')"
