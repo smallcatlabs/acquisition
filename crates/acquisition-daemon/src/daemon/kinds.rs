@@ -108,7 +108,12 @@ impl Daemon {
         };
         Index::load(dir)
             .and_then(|mut index| f(&mut index))
-            .map_err(|e| format!("accounts index: {e:#}"))
+            .map_err(|e| {
+                format!(
+                    "accounts index: {}",
+                    bounded_message(&format_args!("{e:#}"), "")
+                )
+            })
     }
 
     /// Apply one change to the account index, logging (never failing) on

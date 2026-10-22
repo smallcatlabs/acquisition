@@ -380,8 +380,17 @@ impl Daemon {
                 "no account index in this daemon",
             ));
         };
-        let index = Index::load(dir)
-            .map_err(|e| Refusal::new(ErrorKind::Internal, format!("accounts index: {e:#}")))?;
+        // A malformed index's parse error can quote a stored value whole
+        // (C127: no refusal quotes a value whole).
+        let index = Index::load(dir).map_err(|e| {
+            Refusal::new(
+                ErrorKind::Internal,
+                format!(
+                    "accounts index: {}",
+                    bounded_message(&format_args!("{e:#}"), "")
+                ),
+            )
+        })?;
         let entry = index
             .resolve(Some(selector))
             .map_err(|e| match e {
