@@ -421,27 +421,35 @@ impl Daemon {
     /// on. Pinned by `tests/daemon_stop_checkpoint.rs` (acquisition-cli).
     fn exit_process(&self, why: &str) -> ! {
         self.log(why);
-        {
-            let guard = self.store.lock().unwrap();
-            if let Some((account, store)) = guard.as_ref() {
-                match store.checkpoint() {
-                    Ok(c) => self.log(&format!(
-                        "store: {account}'s facts checkpointed on exit ({} of {} WAL pages{})",
-                        c.checkpointed,
-                        c.wal_pages,
-                        if c.busy {
-                            "; a reader kept it from finishing"
-                        } else {
-                            ""
-                        }
-                    )),
-                    Err(e) => self.note_error(&format!(
-                        "store: checkpoint of {account}'s facts on exit failed: {e:#}"
-                    )),
-                }
+        // Each checkpoint's result is bound before it is reported, so its
+        // guard is dropped first: `note_error` takes `shared`, which comes
+        // before `jobs_db` in the lock order (`struct Daemon`), and a
+        // `match` keeps its scrutinee's guard alive through every arm.
+        let store_checkpoint = self
+            .store
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|(account, store)| (account.clone(), store.checkpoint()));
+        if let Some((account, checkpoint)) = store_checkpoint {
+            match checkpoint {
+                Ok(c) => self.log(&format!(
+                    "store: {account}'s facts checkpointed on exit ({} of {} WAL pages{})",
+                    c.checkpointed,
+                    c.wal_pages,
+                    if c.busy {
+                        "; a reader kept it from finishing"
+                    } else {
+                        ""
+                    }
+                )),
+                Err(e) => self.note_error(&format!(
+                    "store: checkpoint of {account}'s facts on exit failed: {e:#}"
+                )),
             }
         }
-        match self.jobs_db.lock().unwrap().checkpoint() {
+        let jobs_checkpoint = self.jobs_db.lock().unwrap().checkpoint();
+        match jobs_checkpoint {
             Ok(c) => self.log(&format!(
                 "jobs: queue checkpointed on exit ({} of {} WAL pages{})",
                 c.checkpointed,

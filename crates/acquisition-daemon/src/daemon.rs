@@ -669,6 +669,15 @@ impl Shared {
     }
 }
 
+/// The lock order. A thread that holds one of these takes only those
+/// after it: `store` → `shared` → `jobs_db` → `queue_failure` → `log`.
+/// Under `shared`, the choke point's `limiter` (and under it the gate's
+/// `state`), the gate's `state`, the choke point's `sends` and the rails'
+/// `state` are leaves: none takes a daemon lock. `log` is innermost. No
+/// std guard is held across an `.await` (clippy's `await_holding_lock`,
+/// denied by the gate). A guard in a `match` scrutinee lives through
+/// every arm, so a result that is reported is bound to a local first
+/// (`exit_process`).
 pub struct Daemon {
     shared: Mutex<Shared>,
     /// On `Daemon`, not `Shared`, so `log`'s uptime prefix needs no lock:
@@ -762,7 +771,8 @@ impl Daemon {
             .as_secs()
     }
 
-    // Takes the shared lock for the uptime stamp — never call while holding it.
+    /// Takes only `log`, the innermost lock: the uptime stamp reads the
+    /// clock, not `shared`, so it may be called under any other lock.
     fn log(&self, msg: &str) {
         let uptime = self.uptime_seconds();
         let mut f = self.log.lock().unwrap();
