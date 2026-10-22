@@ -99,7 +99,7 @@ async fn transient_refresh_failures_do_not_mark_the_session() {
     // The tripwire did trip on the 503 (Cloudflare shape); clear it so
     // the retry can show the refresh path itself is untouched.
     assert!(rails.halted().unwrap().contains("503"));
-    rails.reset_tripwire();
+    rails.reset_tripwire().unwrap();
 
     let (token, user) = daemon.valid_access_token(None, false, None).await.unwrap();
     assert_eq!((token.as_str(), user.as_str()), ("at-new", "test-user"));

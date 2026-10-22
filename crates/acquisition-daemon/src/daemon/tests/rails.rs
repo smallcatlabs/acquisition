@@ -77,7 +77,7 @@ async fn tripped_daemon_leaves_queued_jobs_waiting_until_reset() {
 
     // The reset wakes the queue; the limiter's own hold from the 429
     // still applies.
-    daemon.reset_rails();
+    daemon.reset_rails().unwrap();
     let (info, _) = wait_terminal(&daemon, first).await;
     assert_eq!(info.state, JobState::Done);
     let (info, _) = wait_terminal(&daemon, second).await;
@@ -430,7 +430,7 @@ async fn a_head_522_halts_this_lifetime() {
         "Cloudflare's 5xx teaches the route nothing"
     );
 
-    daemon.reset_rails();
+    daemon.reset_rails().unwrap();
     let (info, _) = wait_terminal(&daemon, id).await;
     assert_eq!(info.state, JobState::Done, "{info:?}");
     assert_eq!(info.retries, 0, "{info:?}");
@@ -665,4 +665,59 @@ async fn a_parked_whoami_is_not_picked_again_while_halted() {
     assert_journal_matches_wire(&log_path, &wire_methods(&sent_log));
     finish_harness(None, &log_path);
     remove_db(&db);
+}
+
+/// A rails write that fails is never silent: the block mark this daemon
+/// holds but could not write is logged as the daemon's error (a restart
+/// would not keep it), and a reset it could not write is refused, the
+/// halt standing in memory as on disk.
+#[tokio::test]
+async fn a_rails_write_that_fails_is_logged_and_its_reset_refused() {
+    let responses = vec![
+        ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+        ScriptedResponse::cloudflare_403_challenge(),
+    ];
+    let (base, requests, server) = scripted_server(responses).await;
+    // Under a regular file, which no platform opens as a directory.
+    let blocker = std::env::temp_dir().join(format!(
+        "acq-rails-unwritable-{}-{}",
+        std::process::id(),
+        TEST_LOG_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
+    std::fs::write(&blocker, b"").unwrap();
+    let clock = Arc::new(ManualClock::new());
+    let (daemon, log_path) = test_daemon_with(
+        Provider::mock(&base),
+        clock,
+        RailsConfig {
+            state_path: Some(blocker.join("rails.json")),
+            ..RailsConfig::default()
+        },
+    );
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    let id = daemon
+        .submit("fetch".into(), json!({}), 0, "test".into(), None)
+        .unwrap();
+    let (info, _) = wait_terminal(&daemon, id).await;
+    assert_eq!(info.state, JobState::Failed);
+    let errors = format!("{:?}", daemon.shared.lock().unwrap().errors);
+    assert!(
+        errors.contains("could not be written"),
+        "the unwritten mark is logged: {errors}"
+    );
+
+    let reply = daemon
+        .handle_request(Request::ResetTripwire, &mut None)
+        .await;
+    let Response::Error { message, .. } = &reply else {
+        panic!("a reset that did not reach disk is not reported done: {reply:?}")
+    };
+    assert!(message.contains("could not be written"), "{message}");
+    assert!(
+        daemon.choke.rails().halted().is_some(),
+        "the halt stands in memory as on disk"
+    );
+    server.await.unwrap();
+    finish_harness_wire(dispatcher, &log_path, &requests);
+    let _ = std::fs::remove_file(&blocker);
 }

@@ -378,10 +378,10 @@ impl Daemon {
                     log: self.log_path.clone(),
                 }
             }
-            Request::ResetTripwire => {
-                self.reset_rails();
-                Response::Ack
-            }
+            Request::ResetTripwire => match self.reset_rails() {
+                Ok(()) => Response::Ack,
+                Err(refusal) => refusal.into(),
+            },
             Request::Dashboard => {
                 let now = self.choke.now();
                 let s = self.shared.lock().unwrap();
@@ -428,13 +428,19 @@ impl Daemon {
 
     /// Clear the rails halt, the Cloudflare block mark and the lifetime's
     /// unreachable-origin halt (C129), and wake the jobs that were waiting
-    /// on them.
-    pub(super) fn reset_rails(&self) {
-        self.rails().reset_tripwire();
+    /// on them. A reset the rails could not write is refused, every halt
+    /// standing.
+    pub(super) fn reset_rails(&self) -> Result<(), Refusal> {
+        if let Err(error) = self.rails().reset_tripwire() {
+            let message = format!("the halt stands, for the reset did not reach disk: {error}");
+            self.note_error(&message);
+            return Err(Refusal::new(ErrorKind::Internal, message));
+        }
         self.log(
             "halt reset by request: the tripwire's trip, any Cloudflare block mark and any halt for an origin Cloudflare could not reach cleared",
         );
         self.work.notify_one();
+        Ok(())
     }
 
     /// The one way out. The daemon leaves by `process::exit`, so nothing

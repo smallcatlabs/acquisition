@@ -266,6 +266,8 @@ impl Daemon {
                             "AUTH: {username}: {cause}; further refreshes disabled until `acq auth` ({error})"
                         ));
                     }
+                    // The mark's write, if it failed, is logged.
+                    self.announce_trip();
                 }
                 // A rejected grant is a dead session (`not_logged_in`: the
                 // remedy is login); anything else — transport, a 5xx,

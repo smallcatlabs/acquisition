@@ -268,6 +268,7 @@ impl Daemon {
                 // Only a completed login clears the dead-grant mark: until
                 // here the keyring still held the rejected token.
                 self.rails().clear_refresh_failed(username);
+                self.announce_trip();
                 // A probe that failed for lack of a session would succeed
                 // now; don't make the user sit out the cooldown.
                 self.choke.forget_degraded();
@@ -366,6 +367,7 @@ impl Daemon {
             (username, clear)
         };
         self.rails().clear_refresh_failed(&username);
+        self.announce_trip();
         self.with_index(|index| index.set_persisted(&username, false));
         self.log(&format!("logged out {username}"));
         clear.map_err(|e| Refusal::new(ErrorKind::Internal, e))

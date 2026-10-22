@@ -1086,7 +1086,7 @@ async fn a_cloudflare_5xx_halts_this_lifetime_and_leaves_no_mark() {
         assert_eq!(rebuilt.halted(), None, "{name}: no mark was left");
         drop(rebuilt);
 
-        daemon.reset_rails();
+        daemon.reset_rails().unwrap();
         let (_, outcome) = wait_terminal(&daemon, second).await;
         assert_eq!(fetch_payload_marker(&outcome), "after", "{name}");
         assert_eq!(
@@ -1454,7 +1454,7 @@ async fn a_blocked_probe_is_no_probe_failure() {
         }
 
         // The manual clock advances through the probe's own wait.
-        daemon.reset_rails();
+        daemon.reset_rails().unwrap();
         let (info, _) = wait_terminal(&daemon, id).await;
         assert_eq!(info.state, JobState::Done, "{name}");
         assert_eq!(

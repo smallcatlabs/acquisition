@@ -849,8 +849,12 @@ impl Daemon {
         self.choke.rails()
     }
 
-    /// Log a rails trip once, the first time any send path notices it.
+    /// Log a rails trip once, the first time any send path notices it,
+    /// and every write of the rails state that failed.
     fn announce_trip(&self) {
+        for error in self.rails().take_unwritten() {
+            self.note_error(&format!("RAILS STATE NOT WRITTEN: {error}"));
+        }
         if let Some(cause) = self.rails().take_unannounced_trip() {
             if cause.starts_with("Cloudflare answered") {
                 self.note_error(&format!(

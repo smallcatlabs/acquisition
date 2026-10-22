@@ -227,6 +227,9 @@ struct State {
     sends: u64,
     /// A trip nobody has logged yet; drained by the daemon's `announce_trip`.
     unannounced: Option<String>,
+    /// Writes of the persisted state that failed, nobody has logged yet;
+    /// drained by the daemon's `announce_trip` as the trip is.
+    unwritten: Vec<String>,
 }
 
 /// What a 403/503 body looked like. Both shapes are treated the same way
@@ -547,7 +550,7 @@ impl Rails {
                 iso_utc(self.clock.wall())
             );
             s.blocked = Some(cause.clone());
-            self.persist_locked(&s);
+            self.persist_locked(&mut s);
             newly = Some(cause);
         }
         if report.unreachable && s.unreachable.is_none() {
@@ -607,7 +610,7 @@ impl Rails {
             if let Some(cause) = cause {
                 s.tripped = Some(cause.clone());
                 newly.get_or_insert(cause);
-                self.persist_locked(&s);
+                self.persist_locked(&mut s);
             }
         }
         if let Some(max) = self.config.max_sends
@@ -636,20 +639,33 @@ impl Rails {
         self.state.lock().unwrap().unannounced.take()
     }
 
+    /// The failed writes of the persisted state not logged yet, once.
+    pub fn take_unwritten(&self) -> Vec<String> {
+        std::mem::take(&mut self.state.lock().unwrap().unwritten)
+    }
+
     /// Clear the violation trip (honoured or dormant), the block mark
     /// (C129: the explicit verb is `reset-tripwire`) and the lifetime's
     /// unreachable-origin halt; the persisted ones are what
     /// [`RailsState::reset`] clears offline. A met ceiling stands
     /// (`ceiling_met`): it is the lifetime's. The refresh-failed mark is
     /// not a trip; it clears on login or logout.
-    pub fn reset_tripwire(&self) {
+    ///
+    /// The reset is written before it is made: a write that fails leaves
+    /// every halt standing, in memory as on disk, and is the error.
+    pub fn reset_tripwire(&self) -> Result<(), String> {
         let mut s = self.state.lock().unwrap();
+        self.write(&Persisted {
+            tripped: None,
+            blocked: None,
+            ..Self::persisted(&s)
+        })?;
         s.tripped = None;
         s.dormant_trip = None;
         s.blocked = None;
         s.unreachable = None;
         s.ceiling_tripped = None;
-        self.persist_locked(&s);
+        Ok(())
     }
 
     /// Active only with the tripwire. Returns whether the mark was set.
@@ -665,7 +681,7 @@ impl Rails {
         }
         s.refresh_failed
             .insert(account.to_string(), cause.to_string());
-        self.persist_locked(&s);
+        self.persist_locked(&mut s);
         true
     }
 
@@ -681,7 +697,7 @@ impl Rails {
     pub fn clear_refresh_failed(&self, account: &str) {
         let mut s = self.state.lock().unwrap();
         if s.refresh_failed.remove(account).is_some() {
-            self.persist_locked(&s);
+            self.persist_locked(&mut s);
         }
     }
 
@@ -717,17 +733,36 @@ impl Rails {
         }
     }
 
-    fn persist_locked(&self, s: &State) {
-        let Some(path) = &self.config.state_path else {
-            return;
-        };
-        let persisted = Persisted {
+    /// Write what persists. A write that fails is held for the daemon's
+    /// error log (`take_unwritten`): this lifetime keeps what it marked,
+    /// and a restart would not.
+    fn persist_locked(&self, s: &mut State) {
+        if let Err(error) = self.write(&Self::persisted(s)) {
+            s.unwritten.push(format!(
+                "{error}; what a restart keeps differs from what this daemon holds"
+            ));
+        }
+    }
+
+    fn persisted(s: &State) -> Persisted {
+        Persisted {
             tripped: s.tripped.clone().or_else(|| s.dormant_trip.clone()),
             blocked: s.blocked.clone(),
             refresh_failed_by_account: s.refresh_failed.clone(),
             unknown: s.unknown.clone(),
+        }
+    }
+
+    fn write(&self, persisted: &Persisted) -> Result<(), String> {
+        let Some(path) = &self.config.state_path else {
+            return Ok(());
         };
-        let _ = persisted.write(path);
+        persisted.write(path).map_err(|error| {
+            format!(
+                "rails: the world's state {} could not be written ({error})",
+                path.display()
+            )
+        })
     }
 
     /// Write and flush one line. The daemon exits via `process::exit`, so
@@ -1041,7 +1076,7 @@ mod tests {
             assert!(halted.contains("403 on GET stash@A#1"), "{halted}");
             assert!(halted.contains("reset-tripwire"), "{halted}");
             assert!(!halted.contains("live-test rails"), "{halted}");
-            rails.reset_tripwire();
+            rails.reset_tripwire().unwrap();
             assert_eq!(rails.halted(), None);
         }
         let persisted: Persisted =
@@ -1078,7 +1113,7 @@ mod tests {
             cause,
             "503 on GET /character — origin error page, not Cloudflare-shaped"
         );
-        rails.reset_tripwire();
+        rails.reset_tripwire().unwrap();
         let cause = rails.record(&report(Some(403))).expect("trips");
         assert!(
             cause.ends_with("unclassified body, possibly a Cloudflare block"),
@@ -1159,10 +1194,10 @@ mod tests {
         // A second violation does not replace the recorded cause.
         assert!(rails.record(&report(Some(403))).is_none());
         assert!(rails.halted().unwrap().contains("429"));
-        rails.reset_tripwire();
+        rails.reset_tripwire().unwrap();
         assert_eq!(rails.halted(), None);
         assert!(rails.record(&report(Some(503))).is_some());
-        rails.reset_tripwire();
+        rails.reset_tripwire().unwrap();
         assert!(rails.record(&report(Some(401))).unwrap().contains("401"));
     }
 
@@ -1190,7 +1225,7 @@ mod tests {
         assert_eq!(rails.status().sends, 2);
         // A reset does not reopen it: one more send per reset was the
         // fault (2026-10-15).
-        rails.reset_tripwire();
+        rails.reset_tripwire().unwrap();
         assert!(rails.halted().unwrap().contains("ceiling: 2 of 2"));
         assert!(rails.status().halted.unwrap().contains("ceiling"));
     }
@@ -1222,7 +1257,7 @@ mod tests {
                 Some("400 invalid_grant")
             );
             assert_eq!(rails.status().sends, 0);
-            rails.reset_tripwire();
+            rails.reset_tripwire().unwrap();
             rails.clear_refresh_failed("A#1");
         }
         {
@@ -1460,7 +1495,7 @@ mod tests {
         });
         assert!(rails.mark_refresh_failed("A#1", "400"));
         assert_eq!(later(&path), json!({ "cause": "a later halt" }));
-        rails.reset_tripwire();
+        rails.reset_tripwire().unwrap();
         assert_eq!(later(&path), json!({ "cause": "a later halt" }));
         rails.clear_refresh_failed("A#1");
         assert_eq!(
@@ -1554,13 +1589,13 @@ mod tests {
             tripwire: true,
             ..config.clone()
         });
-        armed.reset_tripwire();
+        armed.reset_tripwire().unwrap();
         assert_eq!(armed.halted(), None);
         assert!(!path.exists(), "a reset clears the trip and the mark");
         drop(armed);
         // A reset by the unarmed daemon clears the trip it holds dormant.
         std::fs::write(&path, r#"{"tripped":"429 on GET /x"}"#).unwrap();
-        Rails::with_config(config).reset_tripwire();
+        Rails::with_config(config).reset_tripwire().unwrap();
         assert!(!path.exists(), "the reset cleared the dormant trip");
     }
 

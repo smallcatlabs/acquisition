@@ -1585,6 +1585,11 @@ async fn run(cli: Cli) -> Result<()> {
                 match Client::observe().await? {
                     Observed::Compatible(mut client) => {
                         let resp = client.request(&Request::ResetTripwire).await?;
+                        // A reset the daemon could not write is refused,
+                        // the halt standing; never reported done.
+                        if let Response::Error { kind, message } = resp {
+                            return Err(DaemonError { kind, message }.into());
+                        }
                         if cli.json {
                             println!("{}", serde_json::to_string_pretty(&resp)?);
                         } else {
