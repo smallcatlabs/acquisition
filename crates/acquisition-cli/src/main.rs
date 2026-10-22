@@ -724,9 +724,11 @@ A league entry names tabs, characters or both. Nothing is fetched by setting a p
         value: String,
         /// Only write if the stored policy is at exactly this revision
         /// (what `acq policy show` printed when you reviewed it); refused
-        /// with the current revision otherwise. Without it the write
-        /// replaces whatever revision is currently stored — though a write
-        /// racing in between still conflicts rather than being clobbered.
+        /// with the current revision otherwise. 0 writes only where no
+        /// policy is stored yet, and is refused with the stored revision
+        /// where one is. Without it the write replaces whatever revision is
+        /// currently stored — though a write racing in between still
+        /// conflicts rather than being clobbered.
         #[arg(long)]
         if_revision: Option<i64>,
         /// Replace the whole policy: every realm the value does not name

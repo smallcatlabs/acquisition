@@ -88,6 +88,37 @@ fn the_log_rule_names_the_world_in_a_log_path_under_the_scratch() {
         ),
         "daemon log: <scratch>/logs/<world>/mock/daemon.log\n"
     );
+    // Windows: one backslash, or two as JSON writes them, read as the
+    // same path and written with forward slashes, so one golden serves
+    // both platforms
+    for windows in [
+        "daemon log: <scratch>\\logs\\f323bd59fa67\\mock\\daemon.log\n",
+        "\"log\": \"<scratch>\\\\logs\\\\f323bd59fa67\\\\mock\\\\daemon.log\"\n",
+    ] {
+        assert_eq!(
+            n(windows),
+            windows
+                .replace("\\\\", "/")
+                .replace('\\', "/")
+                .replace("f323bd59fa67", "<world>"),
+            "{windows}"
+        );
+    }
+    assert_eq!(
+        n("daemon log: <scratch>\\logs\\f323bd59fa67\\mock\\daemon.log\n"),
+        "daemon log: <scratch>/logs/<world>/mock/daemon.log\n"
+    );
+    // a scratch base spelled with backslashes, as Windows gives one: the
+    // scratch rule names it (its doubled JSON spelling is added on
+    // Windows alone), and the log rule takes the path from there
+    let windows_base = Path::new("C:\\Users\\t\\AppData\\Local\\Temp\\acq-test-base");
+    assert_eq!(
+        normalise(
+            "daemon log: C:\\Users\\t\\AppData\\Local\\Temp\\acq-test-base\\logs\\9fc87288b973\\mock\\daemon.log\n",
+            windows_base
+        ),
+        "daemon log: <scratch>/logs/<world>/mock/daemon.log\n"
+    );
     for text in [
         // not under the scratch: the owner's log directory is never a test's
         "daemon log: /Users/x/Library/Logs/acq/9fc87288b973/mock/daemon.log\n",
@@ -97,6 +128,7 @@ fn the_log_rule_names_the_world_in_a_log_path_under_the_scratch() {
         "<scratch>/logs/9FC87288B973/mock/daemon.log\n",
         "<scratch>/logs/9fc87288b973\n",
         "<scratch>/store/9fc87288b973/mock\n",
+        "<scratch>\\store\\9fc87288b973\\mock\n",
     ] {
         assert_eq!(n(text), text);
     }

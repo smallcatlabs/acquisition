@@ -61,6 +61,47 @@ fn seed_store(base: &Path) -> PathBuf {
     mock
 }
 
+/// `--if-revision 0` writes only where no policy stands (revisions start
+/// at 1), so a driver that read none writes under compare-and-swap too:
+/// on an empty world it writes revision 1, and a second write under 0 is
+/// refused naming the stored revision, as a wrong revision is, leaving
+/// revision 1 standing.
+#[test]
+fn a_policy_written_under_revision_0_is_created_only_where_none_stands() {
+    let scratch = harness::scratch("create0");
+    let base = scratch.0.clone();
+    seed_store(&base);
+    let first = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","max_age_seconds":3600}}}}}"#;
+    let out = acq(
+        &base,
+        &["policy", "set", first, "--if-revision", "0", "--json"],
+    );
+    assert!(out.status.success(), "{out:?}");
+    assert_eq!(sole_json(&out)["revision"], json!(1));
+
+    let second = r#"{"version":3,"realms":{"pc":{"leagues":{"Hardcore":{"tabs":"all","max_age_seconds":3600}}}}}"#;
+    let out = acq(
+        &base,
+        &["policy", "set", second, "--if-revision", "0", "--json"],
+    );
+    assert_eq!(out.status.code(), Some(1), "{out:?}");
+    let refused = sole_json(&out);
+    assert_eq!(refused["kind"], json!("refused"), "{refused}");
+    assert!(
+        refused["error"]
+            .as_str()
+            .unwrap()
+            .contains("is at revision 1"),
+        "{refused}"
+    );
+    let shown = sole_json(&acq(&base, &["policy", "show", "--json"]));
+    assert_eq!(shown["revision"], json!(1));
+    assert_eq!(
+        shown["value"],
+        serde_json::from_str::<Value>(first).unwrap()
+    );
+}
+
 #[test]
 fn json_stdout_is_the_contract_surface() {
     let scratch = harness::scratch("e2e");

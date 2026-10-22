@@ -189,9 +189,9 @@ pub fn policy_set(
     } else {
         PolicyWrite::Merge
     };
-    let written =
-        cx.account()?
-            .set_policy(&value, Expect::or(if_revision, Expect::Current), write)?;
+    let written = cx
+        .account()?
+        .set_policy(&value, policy_expect(if_revision), write)?;
     if json {
         println!("{}", serde_json::to_string_pretty(&written)?);
     } else {
@@ -254,6 +254,17 @@ fn plan_note_lines(plan: &RefreshPlan, notes: &PlanNotes, now: i64) -> String {
         ));
     }
     out
+}
+
+/// The CLI's `--if-revision` for a policy write: `0` is "only where no
+/// policy stands" (revisions start at 1), the create-only write the MCP
+/// takes by default; another number is that exact revision; none is the
+/// revision read just before the write.
+fn policy_expect(if_revision: Option<i64>) -> Expect {
+    match if_revision {
+        Some(0) => Expect::Create,
+        revision => Expect::or(revision, Expect::Current),
+    }
 }
 
 /// Read a plan envelope from a path or stdin (`-`) through the planner's

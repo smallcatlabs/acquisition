@@ -158,8 +158,10 @@ every line about its work; the rehearsal; the documents and the
 driver). Codex's review of them (`reviews/2e-4e543dd0.md`, whole at
 `1491c4b8`) found six faults; the owner took all six and ruled on the
 worker's three raised items, and the fix round is two commits from
-`252e8c9e`, its own review pending under `reviews/`, read by the owner
-before the close. The design brief, `briefs/2e-design.md`, is at `08c0907a`
+`252e8c9e`. Its review (`reviews/2e-fixes-bb319873.md`, whole at
+`2a9fe34a`) found three faults, all taken by the owner in a second
+fix round of one commit, unreviewed (nothing is reviewed a third
+time). The close is next. The design brief, `briefs/2e-design.md`, is at `08c0907a`
 with the owner's word at `e9b8bc78` and its review taken at
 `cb7db91c`. The owner reassesses the `AGENTS.md` budget when he
 chooses. `AGENTS.md` governs; the gate is its ten lines, under

@@ -461,36 +461,51 @@ fn scratch_rule(text: &str, base: &Path) -> String {
     text
 }
 
-/// The rule `log`: the world's id in a log path under the scratch,
-/// `<scratch>/logs/` and twelve hex digits before the next separator, is
-/// `<world>`. The id is a hash of the world's root (`World::id`), and a
-/// test's root is a fresh scratch directory, so it differs run to run;
-/// the provider and the file after it stay, so a log path that moves
-/// still fails the golden.
+/// The rule `log`: a log path under the scratch, `<scratch>`, a
+/// separator, `logs`, a separator and the world's id (twelve hex digits)
+/// before the next separator, is `<scratch>/logs/<world>/` and the rest
+/// of the path to its end, written with forward slashes whatever
+/// separator it was read with (one backslash, or two as JSON writes
+/// them), so a golden reads the same on Windows. The id is a hash of the
+/// world's root (`World::id`), and a test's root is a fresh scratch
+/// directory, so it differs run to run; the provider and the file after
+/// it stay, so a log path that moves still fails the golden, and a path
+/// not under the scratch is never touched.
 fn log_rule(text: &str) -> String {
+    const SEPARATORS: [&str; 3] = ["\\\\", "\\", "/"];
+    let separator = |s: &str| {
+        SEPARATORS
+            .iter()
+            .find(|sep| s.starts_with(**sep))
+            .map(|sep| sep.len())
+    };
     let mut out = String::with_capacity(text.len());
     let mut rest = text;
     while let Some(at) = rest.find("<scratch>") {
+        out.push_str(&rest[..at + "<scratch>".len()]);
         let after = &rest[at + "<scratch>".len()..];
-        let id = ["/logs/", "\\logs\\", "\\\\logs\\\\"]
-            .iter()
-            .find(|sep| after.starts_with(**sep))
-            .map(|sep| (sep.len(), &after[sep.len()..]))
-            .filter(|(_, tail)| {
-                tail.len() > 12
-                    && tail.as_bytes()[..12]
-                        .iter()
-                        .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(b))
-                    && matches!(tail.as_bytes()[12], b'/' | b'\\')
-            });
-        let Some((sep, _)) = id else {
-            out.push_str(&rest[..at + "<scratch>".len()]);
+        let recognised = separator(after).and_then(|one| {
+            let logs = after[one..].strip_prefix("logs")?;
+            let two = separator(logs)?;
+            let id = logs[two..].get(..12)?;
+            let hex = id
+                .bytes()
+                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b));
+            let three = separator(&logs[two + 12..])?;
+            hex.then_some(after.len() - logs.len() + two + 12 + three)
+        });
+        let Some(consumed) = recognised else {
             rest = after;
             continue;
         };
-        out.push_str(&rest[..at + "<scratch>".len() + sep]);
-        out.push_str("<world>");
-        rest = &after[sep + 12..];
+        out.push_str("/logs/<world>/");
+        // the rest of the path, to its end, with forward slashes
+        let tail = &after[consumed..];
+        let end = tail
+            .find(|c: char| c.is_whitespace() || matches!(c, '"' | '\'' | ')' | ',' | ';'))
+            .unwrap_or(tail.len());
+        out.push_str(&tail[..end].replace("\\\\", "/").replace('\\', "/"));
+        rest = &tail[end..];
     }
     out.push_str(rest);
     out

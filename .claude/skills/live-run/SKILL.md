@@ -60,10 +60,13 @@ could not teach is declared route knowledge (C32; N38, N39).
 A new league is a new string on routes already contacted, so it is no
 first contact (C59, an unobserved URL shape is never sent: the shape
 is observed): a daemon that has already contacted a route probes it
-no further for the new league, while a fresh daemon probes each route
-on its first send as always, and its ceiling counts that probe. Run `acq leagues` first,
-under its own ceiling (its HEAD counts too, N39), and check the name
-it lists before any policy names it: a policy naming a league the list
+no further for the new league, while a fresh daemon probes the stash
+and character routes with a HEAD on their first use, and its ceiling
+counts those probes. The league and profile routes are never probed
+(`NO_PROBE_ROUTES` in `daemon/routes.rs`), so `acq leagues` costs one
+GET, and a token refresh if the access token has expired, and no HEAD.
+Run it first, under a ceiling of that count, and check the name it
+lists before any policy names it: a policy naming a league the list
 does not hold is noted, never refused, and an apply over a typo sends
 a stash list for a league that does not exist (N27, the
 invalid-request budget). Write the realm back with every league it
