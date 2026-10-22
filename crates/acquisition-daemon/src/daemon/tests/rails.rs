@@ -670,7 +670,9 @@ async fn a_parked_whoami_is_not_picked_again_while_halted() {
 /// A rails write that fails is never silent: the block mark this daemon
 /// holds but could not write is logged as the daemon's error (a restart
 /// would not keep it), and a reset it could not write is refused, the
-/// halt standing in memory as on disk.
+/// halt standing in memory. (Here the mark never reached disk; that a
+/// failed reset leaves a written mark standing rests on the store's
+/// atomic write, unpinned.)
 #[tokio::test]
 async fn a_rails_write_that_fails_is_logged_and_its_reset_refused() {
     let responses = vec![
@@ -715,7 +717,7 @@ async fn a_rails_write_that_fails_is_logged_and_its_reset_refused() {
     assert!(message.contains("could not be written"), "{message}");
     assert!(
         daemon.choke.rails().halted().is_some(),
-        "the halt stands in memory as on disk"
+        "the halt stands in memory"
     );
     server.await.unwrap();
     finish_harness_wire(dispatcher, &log_path, &requests);
