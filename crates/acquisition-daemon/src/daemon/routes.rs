@@ -144,6 +144,13 @@ impl Daemon {
     /// `declare_route_knowledge`).
     pub(super) const NO_PROBE_ROUTES: &'static [&'static str] = &["profile", "league"];
 
+    /// The kinds that have no route of their own and may still send: a
+    /// probe (its HEAD) and the mock's `whoami` (a refresh when its token
+    /// is due). A halt holds them as it holds the network kinds (C25).
+    pub(super) fn sends_unrouted(kind: &str) -> bool {
+        matches!(kind, "probe" | "whoami")
+    }
+
     /// Whether a route's first use is preceded by a HEAD probe. `route` is
     /// the endpoint key (`profile@user`).
     pub(super) fn route_probes(route: &str) -> bool {

@@ -11,7 +11,7 @@ use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
 use crate::provider::{Provider, SCOPES};
-use crate::ratelimit::ChokePoint;
+use crate::ratelimit::{ChokePoint, SendError};
 
 pub fn random_token(prefix: &str) -> String {
     let mut bytes = [0u8; 24];
@@ -43,6 +43,9 @@ pub struct TokenError {
     /// C129: the answer was a block, Cloudflare's and not GGG's. Its
     /// status says nothing about the grant.
     pub blocked: bool,
+    /// C25: the choke point refused the request under a halt; nothing
+    /// was sent.
+    pub halted: bool,
     pub message: String,
 }
 
@@ -57,8 +60,15 @@ impl TokenError {
         TokenError {
             status: None,
             blocked: false,
+            halted: false,
             message,
         }
+    }
+
+    /// C25: GGG never saw the request, for a halt refused it or the block
+    /// that sets one answered it. The job that asked waits for the reset.
+    pub fn met_a_halt(&self) -> bool {
+        self.halted || self.blocked
     }
 
     /// A grant the provider rejected outright: 4xx other than 429 that is
@@ -134,7 +144,13 @@ async fn token_request(
     let response = choke
         .post_form("oauth-token", &provider.token_url, params, choke.now())
         .await
-        .map_err(|error| TokenError::transport(error.to_string()))?;
+        .map_err(|error| match error {
+            SendError::Halted(_) => TokenError {
+                halted: true,
+                ..TokenError::transport(error.to_string())
+            },
+            _ => TokenError::transport(error.to_string()),
+        })?;
     let status = response.status;
     if response.verdict.is_some_and(|verdict| verdict.block) {
         // C129: the choke point has set the block mark. Cloudflare's page
@@ -143,6 +159,7 @@ async fn token_request(
         return Err(TokenError {
             status: Some(status.as_u16()),
             blocked: true,
+            halted: false,
             message: format!(
                 "Cloudflare answered in GGG's place at the token endpoint ({status}), so the daemon has stopped sending: {}",
                 crate::rails::BLOCK_REMEDY
@@ -158,6 +175,7 @@ async fn token_request(
         return Err(TokenError {
             status: Some(status.as_u16()),
             blocked: false,
+            halted: false,
             message: format!("token endpoint returned {status} (rate headers {rate}): {body}"),
         });
     }
@@ -167,6 +185,7 @@ async fn token_request(
     serde_json::from_str::<TokenResponse>(&body).map_err(|e| TokenError {
         status: Some(status.as_u16()),
         blocked: false,
+        halted: false,
         message: e.to_string(),
     })
 }

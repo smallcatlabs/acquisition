@@ -177,3 +177,196 @@ async fn halted_daemon_refuses_refresh_before_any_send() {
     assert_journal_matches_wire(&log_path, &["HEAD".to_string()]);
     finish_harness(None, &log_path);
 }
+
+/// A `daemon.db` for one test, beside the harness's logs.
+fn test_db_path() -> PathBuf {
+    std::env::temp_dir().join(format!(
+        "acquisition-rails-jobs-{}-{}.db",
+        std::process::id(),
+        TEST_LOG_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ))
+}
+
+fn remove_db(path: &std::path::Path) {
+    for suffix in ["", "-wal", "-shm"] {
+        let _ = std::fs::remove_file(format!("{}{suffix}", path.display()));
+    }
+}
+
+/// A harness daemon on the ceiling, logged in as `test-user` with its
+/// refresh due, its queue on a file-backed `daemon.db`.
+fn ceiling_daemon(base: &str, max_sends: u64, db: &std::path::Path) -> (Arc<Daemon>, PathBuf) {
+    remove_db(db);
+    let (mut daemon, log_path) = test_daemon_with(
+        Provider::mock(base),
+        Arc::new(ManualClock::new()),
+        RailsConfig {
+            max_sends: Some(max_sends),
+            ..RailsConfig::default()
+        },
+    );
+    logged_in(&mut daemon);
+    Arc::get_mut(&mut daemon).unwrap().jobs_db = Mutex::new(JobDb::open(db).unwrap());
+    (daemon, log_path)
+}
+
+/// Poll until the daemon is halted and no job in `ids` is running: the
+/// halt lands while a job runs, and the job settles after, waiting or
+/// concluded (`assert_parked` says which).
+async fn wait_halted_and_settled(daemon: &Daemon, ids: &[JobId]) {
+    tokio::time::timeout(Duration::from_secs(3), async {
+        loop {
+            let settled = {
+                let s = daemon.shared.lock().unwrap();
+                ids.iter()
+                    .all(|id| s.jobs[id].info.state != JobState::Running)
+            };
+            if settled && daemon.choke.rails().halted().is_some() {
+                return;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("halted, and the jobs settled");
+}
+
+/// The job is waiting with no retry spent, in memory and in `daemon.db`
+/// read through a connection of its own.
+fn assert_parked(daemon: &Daemon, db: &std::path::Path, id: JobId) {
+    let (info, outcome) = {
+        let s = daemon.shared.lock().unwrap();
+        (s.jobs[&id].info.clone(), s.jobs[&id].outcome.clone())
+    };
+    assert_eq!(
+        info.state,
+        JobState::Waiting,
+        "job {id} in memory: {outcome:?}"
+    );
+    assert_eq!(info.retries, 0, "job {id}: a halt spends no retry");
+    let row = JobDb::open(db).unwrap().get(id).unwrap().expect("the row");
+    assert_eq!(row.state, JobState::Waiting.to_string(), "job {id} on disk");
+    assert_eq!(row.retries, 0, "job {id} on disk");
+    assert_eq!(row.outcome, None, "job {id} on disk");
+}
+
+/// C25: a halt that lands after the pick turns the job away; nothing
+/// fails for want of a send. The ceiling of one is met by the job's own
+/// refresh POST; its GET is then refused by the halt, and the job is
+/// back to waiting with no retry spent, in memory and on disk. Nothing
+/// else is sent, and the pick passes the job over until the reset: a
+/// turned-away job is not picked again at once.
+#[tokio::test]
+async fn a_halt_after_the_pick_leaves_the_job_waiting() {
+    let db = test_db_path();
+    let (base, requests, server) = token_server_answering(vec!["200 OK"]).await;
+    let (daemon, log_path) = ceiling_daemon(&base, 1, &db);
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    let id = daemon
+        .submit(
+            "profile".into(),
+            json!({}),
+            0,
+            "test".into(),
+            Some("test-user".into()),
+        )
+        .unwrap();
+    wait_halted_and_settled(&daemon, &[id]).await;
+    // Long enough for a failure, a second send or a re-pick to show.
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    assert_parked(&daemon, &db, id);
+    assert!(
+        daemon
+            .choke
+            .rails()
+            .halted()
+            .unwrap()
+            .contains("ceiling: 1 of 1"),
+        "{:?}",
+        daemon.choke.rails().halted()
+    );
+    assert!(daemon.pick_runnable().is_empty(), "the pick passes it over");
+    server.await.unwrap();
+    assert_eq!(wire_posts(&requests), ["POST"]);
+    assert_journal_matches_wire(&log_path, &wire_posts(&requests));
+    finish_harness(dispatcher, &log_path);
+    remove_db(&db);
+}
+
+/// C25, the refresh itself refused: two accounts, each with a refresh
+/// due, picked together. The token route admits one POST at a time; the
+/// first meets the ceiling of one, and the second account's refresh,
+/// already running, is refused by the halt. That job is turned away as
+/// the first is (its GET refused): both wait, no retry spent, and the
+/// wire holds the one POST.
+#[tokio::test]
+async fn a_halt_after_the_pick_leaves_a_refreshing_job_waiting() {
+    let db = test_db_path();
+    let (base, requests, server) = token_server_answering(vec!["200 OK"]).await;
+    let (daemon, log_path) = ceiling_daemon(&base, 1, &db);
+    daemon.shared.lock().unwrap().auth.by_account.insert(
+        "other".into(),
+        AuthSession {
+            username: Some("other".into()),
+            refresh_token: Some("rt-other".into()),
+            ..Default::default()
+        },
+    );
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    let ids: Vec<JobId> = ["test-user", "other"]
+        .into_iter()
+        .map(|account| {
+            daemon
+                .submit(
+                    "profile".into(),
+                    json!({}),
+                    0,
+                    "test".into(),
+                    Some(account.into()),
+                )
+                .unwrap()
+        })
+        .collect();
+    wait_halted_and_settled(&daemon, &ids).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    for &id in &ids {
+        assert_parked(&daemon, &db, id);
+    }
+    assert!(
+        daemon.pick_runnable().is_empty(),
+        "the pick passes both over"
+    );
+    server.await.unwrap();
+    assert_eq!(wire_posts(&requests), ["POST"]);
+    assert_journal_matches_wire(&log_path, &wire_posts(&requests));
+    finish_harness(dispatcher, &log_path);
+    remove_db(&db);
+}
+
+/// C25 at a ceiling of none: the daemon is halted from its start, the
+/// pick passes the job over, and it waits with nothing sent. (It never
+/// runs, so this holds the pick's arm, not the turn-away after it.)
+#[tokio::test]
+async fn a_ceiling_of_none_leaves_the_job_waiting() {
+    let db = test_db_path();
+    let (base, requests, server) = token_server_answering(vec![]).await;
+    let (daemon, log_path) = ceiling_daemon(&base, 0, &db);
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    let id = daemon
+        .submit(
+            "profile".into(),
+            json!({}),
+            0,
+            "test".into(),
+            Some("test-user".into()),
+        )
+        .unwrap();
+    wait_halted_and_settled(&daemon, &[id]).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    assert_parked(&daemon, &db, id);
+    server.await.unwrap();
+    assert!(requests.lock().unwrap().is_empty());
+    assert_journal_matches_wire(&log_path, &[]);
+    finish_harness(dispatcher, &log_path);
+    remove_db(&db);
+}

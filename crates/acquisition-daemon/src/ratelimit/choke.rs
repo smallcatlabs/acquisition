@@ -35,8 +35,13 @@ pub enum ProbeError {
     /// The status the probe landed with (`None` when it never landed —
     /// refused by a halt, or lost in transport) and the limiter's reason.
     /// The status is what lets the daemon act on a 401 (C87) without
-    /// parsing the reason.
-    Failed { status: Option<u16>, reason: String },
+    /// parsing the reason. `halted`: a halt refused the probe, or the
+    /// block that sets one answered it; its job waits for the reset (C25).
+    Failed {
+        status: Option<u16>,
+        reason: String,
+        halted: bool,
+    },
     /// The probe was to carry a bearer to a URL off the provider's API
     /// origin (C128): nothing was sent, and the route is closed for a
     /// cooldown so its waiting job does not ask again at once.
@@ -481,6 +486,7 @@ impl ChokePoint {
             .await
             .map_err(|error| ProbeError::Failed {
                 status: None,
+                halted: matches!(error, SendError::Halted(_)),
                 reason: error.to_string(),
             })?;
         // Read after admission (C87): the exclusive permit may have waited
@@ -613,6 +619,7 @@ impl ChokePoint {
             // rejection of the bearer either.
             return Err(ProbeError::Failed {
                 status,
+                halted: true,
                 reason: self
                     .rails
                     .halted()
@@ -642,10 +649,12 @@ impl ChokePoint {
             }
             EndpointState::Degraded { reason, .. } => Err(ProbeError::Failed {
                 status,
+                halted: false,
                 reason: format!("{reason}; endpoint closed for a cooldown"),
             }),
             other => Err(ProbeError::Failed {
                 status,
+                halted: false,
                 reason: format!("unexpected endpoint state after probe: {other:?}"),
             }),
         }

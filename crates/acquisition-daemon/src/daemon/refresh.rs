@@ -240,14 +240,19 @@ impl Daemon {
                 // exhausted 429s, a rails halt, a Cloudflare block (C129:
                 // no rejected grant, and no dead-grant mark above) — is the
                 // provider not answering (`upstream`), with the session
-                // still standing.
+                // still standing. A halt's refusal, or the block that set
+                // one, carries the mark that turns a job away (C25): the
+                // job and every waiter on this flight return to waiting.
                 let refresh = refresh.map_err(|e| {
                     let kind = if e.is_rejected_grant() {
                         ErrorKind::NotLoggedIn
                     } else {
                         ErrorKind::Upstream
                     };
-                    Refusal::new(kind, format!("token refresh failed: {e}"))
+                    Refusal {
+                        halted: e.met_a_halt(),
+                        ..Refusal::new(kind, format!("token refresh failed: {e}"))
+                    }
                 });
                 owner.finish(refresh)
             }

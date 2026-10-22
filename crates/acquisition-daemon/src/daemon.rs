@@ -297,11 +297,17 @@ impl Entry {
 /// send waits, and `quote` names the halt in its body. The one request it
 /// reaches the wire through is `auth_check`, whose forced refresh the
 /// choke point refuses under the halt: that is `upstream`, the provider
-/// not answered, with the session still standing.
+/// not answered, with the session still standing. To a job, the same
+/// refusal carries `halted`: the job is turned away, not failed (C25).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Refusal {
     pub kind: ErrorKind,
     pub message: String,
+    /// C25: the refresh was refused by a halt, or answered by the block
+    /// that sets one; GGG saw nothing. Never on the wire (the kind is
+    /// `upstream`); a job that meets it returns to waiting and spends no
+    /// retry.
+    pub halted: bool,
 }
 
 impl Refusal {
@@ -309,6 +315,7 @@ impl Refusal {
         Refusal {
             kind,
             message: message.into(),
+            halted: false,
         }
     }
 

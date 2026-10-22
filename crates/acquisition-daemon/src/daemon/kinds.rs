@@ -19,6 +19,20 @@ pub(super) enum ApiError {
     RateLimited(String),
     Protocol(String),
     Other(String),
+    /// C25: a halt refused a send this job needed, after the pick (its
+    /// own, its refresh's, or its probe's), or the block that sets one
+    /// answered it. GGG saw nothing of the job: it returns to waiting.
+    Halted(String),
+}
+
+/// C25: a token refusal reaching its job. A halt's turns the job away to
+/// wait for the reset; any other fails it in the refusal's words.
+fn refused(refusal: Refusal) -> Result<Outcome, ApiError> {
+    if refusal.halted {
+        Err(ApiError::Halted(refusal.message))
+    } else {
+        Ok(Outcome::failure(refusal.message))
+    }
 }
 
 /// How a GET authenticates (C87): through the account's session, whose
@@ -214,15 +228,16 @@ impl Daemon {
     /// place of its own. A profile job during a login runs on the staged
     /// tokens (`staged_profile_token`): the account may have no
     /// registered session yet, or a dead one being replaced — the new
-    /// tokens are the ones being proven.
+    /// tokens are the ones being proven. What stops the job is what
+    /// `execute_inner` returns: a failure, or a halt's refusal (C25).
     async fn render_then_authenticate(
         &self,
         kind: &str,
         params: &Value,
         account: Option<&str>,
-    ) -> Result<(String, Auth, String), Outcome> {
+    ) -> Result<(String, Auth, String), Result<Outcome, ApiError>> {
         let Some((_, url)) = self.route_for(kind, params) else {
-            return Err(Outcome::failure(why_no_url(kind, params)));
+            return Err(Ok(Outcome::failure(why_no_url(kind, params))));
         };
         let staged = (kind == "profile")
             .then(|| self.staged_profile_token(account))
@@ -233,7 +248,7 @@ impl Daemon {
                 let (token, username) = self
                     .valid_access_token(account, false)
                     .await
-                    .map_err(|error| Outcome::failure(error.to_string()))?;
+                    .map_err(refused)?;
                 (
                     Auth::Session {
                         token,
@@ -265,7 +280,7 @@ impl Daemon {
                 let (url, auth, username) =
                     match self.render_then_authenticate(kind, &params, account).await {
                         Ok(rendered) => rendered,
-                        Err(failure) => return Ok(failure),
+                        Err(stop) => return stop,
                     };
                 let route = route.as_deref().expect("characters is a network kind");
                 let (v, rate) = self.api_get(route, &url, auth, ready).await?;
@@ -295,7 +310,7 @@ impl Daemon {
                 let (url, auth, username) =
                     match self.render_then_authenticate(kind, &params, account).await {
                         Ok(rendered) => rendered,
-                        Err(failure) => return Ok(failure),
+                        Err(stop) => return stop,
                     };
                 let route = route.as_deref().expect("network kind");
                 let (v, rate) = self.api_get(route, &url, auth, ready).await?;
@@ -335,7 +350,7 @@ impl Daemon {
                 let (url, auth, username) =
                     match self.render_then_authenticate(kind, &params, account).await {
                         Ok(rendered) => rendered,
-                        Err(failure) => return Ok(failure),
+                        Err(stop) => return stop,
                     };
                 let league = params
                     .get("league")
@@ -371,7 +386,7 @@ impl Daemon {
                 let (url, auth, _) =
                     match self.render_then_authenticate(kind, &params, account).await {
                         Ok(rendered) => rendered,
-                        Err(failure) => return Ok(failure),
+                        Err(stop) => return stop,
                     };
                 let route = route.as_deref().expect("stash is a network kind");
                 let (v, rate) = self.api_get(route, &url, auth, ready).await?;
@@ -445,7 +460,7 @@ impl Daemon {
                 let (url, auth, _) =
                     match self.render_then_authenticate(kind, &params, account).await {
                         Ok(rendered) => rendered,
-                        Err(failure) => return Ok(failure),
+                        Err(stop) => return stop,
                     };
                 let route = route.as_deref().expect("refresh is a network kind");
                 let (v, rate) = self.api_get(route, &url, auth, ready).await?;
@@ -625,9 +640,7 @@ impl Daemon {
                 }
                 let (token, username) = match self.valid_access_token(account, false).await {
                     Ok(pair) => pair,
-                    Err(error) => {
-                        return Ok(Outcome::failure(error.to_string()));
-                    }
+                    Err(error) => return refused(error),
                 };
                 tokio::time::sleep(Duration::from_millis(300)).await;
                 if self.cancelled(id) {
@@ -666,6 +679,8 @@ impl Daemon {
                 let mut session = if self.needs_auth(&route) {
                     match self.valid_access_token(account, false).await {
                         Ok(pair) => Some(pair),
+                        // C25: a halt closes nothing; the probe waits too.
+                        Err(error) if error.halted => return Err(ApiError::Halted(error.message)),
                         Err(error) => {
                             // Close the endpoint too, or the waiting job would
                             // just ask for another probe; login reopens it.
@@ -705,6 +720,9 @@ impl Daemon {
                                 .expect("only a session's bearer can go stale");
                             match self.valid_access_token(Some(username), false).await {
                                 Ok(pair) => session = Some(pair),
+                                Err(error) if error.halted => {
+                                    return Err(ApiError::Halted(error.message));
+                                }
                                 Err(error) => {
                                     self.choke.degrade(&route, &error.message);
                                     return Ok(Outcome::failure(error.message));
@@ -731,6 +749,15 @@ impl Daemon {
                                 "rate_limit": headers,
                             }),
                         }
+                    }
+                    // C25: a probe a halt refused, or Cloudflare answered,
+                    // waits like any job. Failed, it would fail every job
+                    // waiting on its route.
+                    Err(error @ ProbeError::Failed { halted: true, .. }) => {
+                        return Err(ApiError::Halted(format!(
+                            "HEAD {}: {error}",
+                            url_path(&url)
+                        )));
                     }
                     Err(error) => {
                         let mut message = format!("HEAD {}: {error}", url_path(&url));
@@ -800,11 +827,12 @@ impl Daemon {
                             continue;
                         }
                         Err(refusal) => {
-                            return Err(ApiError::Other(format!(
-                                "GET {}: {}",
-                                url_path(url),
-                                refusal.message
-                            )));
+                            let message = format!("GET {}: {}", url_path(url), refusal.message);
+                            return Err(if refusal.halted {
+                                ApiError::Halted(message)
+                            } else {
+                                ApiError::Other(message)
+                            });
                         }
                     }
                 }
@@ -825,7 +853,7 @@ impl Daemon {
                     return Err(ApiError::Other(format!("GET {url} failed: {error}")));
                 }
                 Err(SendError::Halted(cause)) => {
-                    return Err(ApiError::Other(format!(
+                    return Err(ApiError::Halted(format!(
                         "GET {} refused: {cause}",
                         url_path(url)
                     )));

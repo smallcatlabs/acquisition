@@ -1309,11 +1309,13 @@ async fn whoami_is_refused_in_real_mode_without_a_token_request() {
 /// carrying `cf-mitigated`. Either sets the block mark; the route learns
 /// no policy and is not degraded; the job that asked for the probe stays
 /// waiting under the halt rather than failing as "route degraded"; and no
-/// second HEAD follows. The 1015 still holds the route for its
-/// `Retry-After` (C19), as a blocked GET's 429 does. Once
-/// `reset-tripwire` clears the mark, the route is probed afresh, behind
-/// that hold for the 1015 and at once for the challenge, and the job
-/// goes out.
+/// second HEAD follows. The probe job itself waits too (C25: a failed
+/// probe would fail every job waiting on its route), with no retry
+/// spent, and the pick passes it over while halted. The 1015 still holds
+/// the route for its `Retry-After` (C19), as a blocked GET's 429 does.
+/// Once `reset-tripwire` clears the mark, the same probe goes out afresh,
+/// behind that hold for the 1015 and at once for the challenge, and the
+/// job goes out.
 #[tokio::test]
 async fn a_blocked_probe_is_no_probe_failure() {
     let head_1015 = ScriptedResponse {
@@ -1341,24 +1343,30 @@ async fn a_blocked_probe_is_no_probe_failure() {
         let id = daemon
             .submit("fetch".into(), json!({}), 0, "test".into(), None)
             .unwrap();
+        // The block lands while the probe runs; the probe is then turned
+        // away, back to waiting (C25), where it was a failure before.
         let probe = tokio::time::timeout(Duration::from_secs(3), async {
             loop {
-                let done = daemon
+                let parked = daemon
                     .shared
                     .lock()
                     .unwrap()
                     .jobs
                     .values()
-                    .find(|entry| entry.info.kind == "probe" && entry.info.state.is_terminal())
+                    .find(|entry| {
+                        entry.info.kind == "probe" && entry.info.state == JobState::Waiting
+                    })
                     .map(|entry| entry.info.id);
-                if let Some(probe) = done {
+                if let Some(probe) = parked
+                    && daemon.choke.rails().halted().is_some()
+                {
                     return probe;
                 }
                 tokio::task::yield_now().await;
             }
         })
         .await
-        .expect("the probe concluded");
+        .expect("the probe was turned away");
         // Long enough for a degraded route to fail its job, or a re-probe.
         tokio::time::sleep(Duration::from_millis(100)).await;
 
@@ -1385,6 +1393,31 @@ async fn a_blocked_probe_is_no_probe_failure() {
             "{name}: the job waits on the halt"
         );
         assert_ne!(probe, id);
+        let (state, retries) = {
+            let s = daemon.shared.lock().unwrap();
+            (s.jobs[&probe].info.state, s.jobs[&probe].info.retries)
+        };
+        assert_eq!(
+            (state, retries),
+            (JobState::Waiting, 0),
+            "{name}: the probe waits on the halt"
+        );
+        // No spin: with the dispatcher stopped and no task left running,
+        // the pick passes the turned-away probe over while halted. Then
+        // a fresh dispatcher takes the queue on.
+        dispatcher.abort();
+        tokio::time::timeout(Duration::from_secs(3), async {
+            while !daemon.shared.lock().unwrap().active_jobs.is_empty() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("no job task left running");
+        assert!(
+            daemon.pick_runnable().is_empty(),
+            "{name}: the pick passes the probe over while halted"
+        );
+        let dispatcher = tokio::spawn(daemon.clone().dispatcher());
         assert_eq!(requests.lock().unwrap().as_slice(), ["HEAD"], "{name}");
 
         let held = daemon.choke.check("fetch").err();

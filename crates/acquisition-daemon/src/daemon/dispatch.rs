@@ -16,6 +16,9 @@ use super::*;
 pub(super) enum Exec {
     Done(Outcome),
     RateLimited(String),
+    /// C25: a halt turned the job away after the pick; nothing of it
+    /// reached GGG. It returns to waiting with no retry spent.
+    Parked(String),
 }
 
 pub(super) fn may_requeue_429(retries: u32, cancel_requested: bool) -> bool {
@@ -55,24 +58,27 @@ impl Daemon {
         let mut probing: HashMap<String, bool> = HashMap::new();
         for id in s.queue_order() {
             let entry = &s.jobs[&id];
-            if let Some((route, _)) = self.keyed_route_for(
+            let route = self.keyed_route_for(
                 &entry.info.kind,
                 &entry.params,
                 entry.info.account.as_deref(),
-            ) {
-                // A halted daemon (the rails, `rails.rs`) sends nothing:
-                // network jobs wait, on disk, for `reset-tripwire`.
-                if halted {
-                    continue;
-                }
-                // A job whose route is still being probed has nothing to do yet.
-                if self.choke.endpoint_state(&route) == EndpointState::Unknown
-                    && *probing
-                        .entry(route)
-                        .or_insert_with_key(|route| Self::probe_pending(&s, route))
-                {
-                    continue;
-                }
+            );
+            // A halted daemon (the rails, `rails.rs`) sends nothing:
+            // network jobs wait, on disk, for `reset-tripwire`, and so do
+            // the kinds with no route that may still send (a probe's HEAD,
+            // `whoami`'s refresh). A job a halt turned away after its pick
+            // (C25) is so not picked again at once.
+            if halted && (route.is_some() || Self::sends_unrouted(&entry.info.kind)) {
+                continue;
+            }
+            // A job whose route is still being probed has nothing to do yet.
+            if let Some((route, _)) = route
+                && self.choke.endpoint_state(&route) == EndpointState::Unknown
+                && *probing
+                    .entry(route)
+                    .or_insert_with_key(|route| Self::probe_pending(&s, route))
+            {
+                continue;
             }
             let key = self.serial_key(entry);
             if busy.contains(&key) {
@@ -95,12 +101,13 @@ impl Daemon {
 
     async fn process(&self, id: JobId) {
         let ready = self.choke.now();
-        let (route, account) = {
+        let (route, account, kind) = {
             let s = self.shared.lock().unwrap();
             match s.jobs.get(&id) {
                 Some(e) => (
                     self.keyed_route_for(&e.info.kind, &e.params, e.info.account.as_deref()),
                     e.info.account.clone(),
+                    e.info.kind.clone(),
                 ),
                 None => return,
             }
@@ -108,8 +115,9 @@ impl Daemon {
 
         // L0 rail 1: a halted daemon sends nothing — no probe, no pacing
         // wait, no permit. The job stays waiting (the dispatcher will not
-        // pick it again until the reset); its key is given back.
-        if route.is_some() && self.rails().halted().is_some() {
+        // pick it again until the reset); its key is given back. A probe
+        // and `whoami` (`sends_unrouted`) are held the same way.
+        if self.rails().halted().is_some() && (route.is_some() || Self::sends_unrouted(&kind)) {
             return;
         }
 
@@ -185,7 +193,6 @@ impl Daemon {
             (entry.info.clone(), entry.params.clone())
         };
         let (info, params) = job;
-        let kind = info.kind.clone();
         self.emit(info);
 
         let route = route.map(|(route, _)| route);
@@ -226,6 +233,36 @@ impl Daemon {
                     None => Outcome::failure(format!(
                         "rate limited (429) {MAX_429_RETRIES} times; giving up: {evidence}"
                     )),
+                }
+            }
+            // C25: turned away by a halt after the pick. Back to waiting,
+            // persisted, no retry spent; the key is given back on return,
+            // and the pick passes it over until the reset. A cancel that
+            // landed while it ran is honoured here, under the lock `cancel`
+            // takes: the job concludes cancelled instead.
+            Exec::Parked(cause) => {
+                let parked = {
+                    let mut s = self.shared.lock().unwrap();
+                    let Some(entry) = s.jobs.get_mut(&id) else {
+                        return;
+                    };
+                    if entry.cancel_requested {
+                        None
+                    } else {
+                        entry.info.state = JobState::Waiting;
+                        self.persist(entry);
+                        Some(entry.info.clone())
+                    }
+                };
+                match parked {
+                    Some(info) => {
+                        self.log(&format!(
+                            "job {id} ({kind}): turned away by a halt, back to waiting with no retry spent: {cause}"
+                        ));
+                        self.emit(info);
+                        return;
+                    }
+                    None => Outcome::Cancelled,
                 }
             }
         };
@@ -424,6 +461,7 @@ impl Daemon {
             Err(ApiError::RateLimited(evidence)) => Exec::RateLimited(evidence),
             Err(ApiError::Protocol(error)) => Exec::Done(Outcome::failure(error)),
             Err(ApiError::Other(error)) => Exec::Done(Outcome::failure(error)),
+            Err(ApiError::Halted(cause)) => Exec::Parked(cause),
         }
     }
 }
