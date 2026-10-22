@@ -345,8 +345,9 @@ async fn c127_a_path_param_longer_than_the_bound_is_refused() {
             &[
                 "one path segment",
                 &format!("at most {SEGMENT_MAX_BYTES} bytes"),
-                // Named by its length, never echoed whole.
-                "bytes is not one path segment",
+                // Described by its head, type and size, never echoed whole.
+                "… (a string of",
+                "bytes) is not one path segment",
             ],
         );
         assert_nothing_admitted(&daemon, &what);
@@ -650,28 +651,194 @@ async fn c127_a_sleep_with_bad_seconds_is_refused_at_submit() {
 
 /// C127 (the kind table): a kind the daemon does not run is refused at
 /// the door, before a job id exists, naming only the kinds a client may
-/// submit: never the daemon's own `probe`.
+/// submit in this provider mode: never the daemon's own `probe`, and in
+/// real mode none of the mock-only kinds the door would refuse there.
 #[tokio::test]
 async fn c127_an_unknown_kind_is_refused_naming_only_client_kinds() {
+    for real in [false, true] {
+        let provider = if real {
+            Provider {
+                name: acquisition_protocol::provider::GGG,
+                ..Provider::mock("http://127.0.0.1:1")
+            }
+        } else {
+            Provider::mock("http://127.0.0.1:1")
+        };
+        assert_eq!(provider.is_real(), real);
+        let (daemon, log_path) = test_daemon_with(
+            provider,
+            Arc::new(ManualClock::new()),
+            RailsConfig::default(),
+        );
+        let what = if real {
+            "bogus in real mode"
+        } else {
+            "bogus in mock mode"
+        };
+        let response = client_submit(&daemon, "bogus", json!({}), None).await;
+        let message = match &response {
+            Response::Error { message, .. } => message.clone(),
+            other => panic!("{what}: an unknown kind was admitted: {other:?}"),
+        };
+        let (named, unnamed): (&[&str], &[&str]) = if real {
+            (
+                &["profile", "stash", "apply"],
+                &["probe", "sleep", "fetch", "whoami"],
+            )
+        } else {
+            (
+                &["profile", "stash", "apply", "sleep", "fetch", "whoami"],
+                &["probe"],
+            )
+        };
+        assert_refused(response, what, &["unknown job kind \"bogus\""]);
+        for kind in named {
+            assert!(message.contains(kind), "{what}: names {kind}: {message}");
+        }
+        for kind in unnamed {
+            assert!(!message.contains(kind), "{what}: names {kind}: {message}");
+        }
+        assert_nothing_admitted(&daemon, what);
+        finish_harness(None, &log_path);
+    }
+}
+
+/// C127 (one bound on `sleep`): a row that never passed the door (a
+/// restored row) whose `seconds` the door would refuse fails when run, in
+/// the door's own words, rather than run a default: a string `seconds`
+/// once slept 3 s.
+#[tokio::test]
+async fn c127_a_restored_sleep_the_door_would_refuse_fails_in_its_words() {
     let (daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
-    let response = client_submit(&daemon, "bogus", json!({}), None).await;
-    let message = match &response {
-        Response::Error { message, .. } => message.clone(),
-        other => panic!("an unknown kind was admitted: {other:?}"),
+    for seconds in [json!("1"), json!(true), json!(-1), json!(3601)] {
+        let what = format!("sleep {seconds}");
+        let params = json!({ "seconds": seconds });
+        let door = match client_submit(&daemon, "sleep", params.clone(), None).await {
+            Response::Error { message, .. } => message,
+            other => panic!("{what}: the door admitted it: {other:?}"),
+        };
+        let outcome = daemon
+            .execute_inner(9, "sleep", params, None, None, daemon.choke.now())
+            .await
+            .unwrap();
+        match &outcome {
+            Outcome::Failure { error, .. } => assert_eq!(error, &door, "{what}"),
+            other => panic!("{what}: the runner did not fail: {other:?}"),
+        }
+    }
+    finish_harness(None, &log_path);
+}
+
+/// C127 (a refused value is described, never echoed whole): a client's
+/// value the door refuses is quoted by its head, its JSON type and its
+/// size, so the refusal fits the response bound whatever the request
+/// held. Each value here fits a request frame, and each is 20 MiB of
+/// backslashes, which every escape doubles: quoted whole, its refusal
+/// would exceed the response frame and be lost.
+#[tokio::test]
+async fn c127_a_refused_value_is_described_by_its_type_and_size_within_the_response_bound() {
+    let (daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
+    let huge = "\\".repeat(20 << 20);
+    let huge_len = huge.len().to_string();
+    let submit = |kind: &str, params: Value, account: Option<&str>| Request::Submit {
+        kind: kind.into(),
+        params,
+        priority: 0,
+        submitted_by: "client".into(),
+        account: account.map(str::to_string),
     };
-    assert_refused(
-        response,
-        "bogus",
-        &[
-            "unknown job kind \"bogus\"",
-            "profile",
-            "stash",
-            "sleep",
-            "whoami",
-        ],
-    );
-    assert!(!message.contains("probe"), "{message}");
-    assert_nothing_admitted(&daemon, "bogus");
+    let cases = [
+        (
+            "a league array",
+            submit("stashes", json!({ "league": [huge] }), None),
+            ErrorKind::Refused,
+            vec![
+                "`league` must be a string",
+                "(an array of",
+                "bytes as JSON)",
+            ],
+        ),
+        (
+            "a sleep's array seconds",
+            submit("sleep", json!({ "seconds": [huge] }), None),
+            ErrorKind::Refused,
+            vec![
+                "`seconds` must be a number",
+                "(an array of",
+                "bytes as JSON)",
+            ],
+        ),
+        (
+            "a substash id that is no segment",
+            submit("stash", json!({ "id": "t1", "sub": huge }), None),
+            ErrorKind::Refused,
+            vec!["not one path segment", "(a string of", &huge_len],
+        ),
+        (
+            "an unknown kind",
+            submit(&huge, json!({}), None),
+            ErrorKind::Refused,
+            vec!["unknown job kind", "(a string of", &huge_len],
+        ),
+        (
+            "an apply's budget",
+            submit(
+                "apply",
+                json!({ "jobs": [{ "kind": "stashes", "params": {} }], "max_requests": [huge] }),
+                None,
+            ),
+            ErrorKind::Refused,
+            vec!["max_requests must be", "(an array of", "bytes as JSON)"],
+        ),
+        (
+            "an apply's kind",
+            submit(
+                "apply",
+                json!({ "jobs": [{ "kind": huge, "params": {} }] }),
+                None,
+            ),
+            ErrorKind::Refused,
+            vec!["not in the plan vocabulary", "(a string of", &huge_len],
+        ),
+        (
+            "a realm",
+            submit("stashes", json!({ "realm": huge }), None),
+            ErrorKind::Refused,
+            vec!["realm must be a string", "(a string of", &huge_len],
+        ),
+        (
+            "an account selector",
+            submit("profile", json!({}), Some(&huge)),
+            ErrorKind::NotLoggedIn,
+            vec!["account", "not logged in", "(a string of", &huge_len],
+        ),
+    ];
+    for (what, request, kind, said) in cases {
+        let request_bytes = serde_json::to_vec(&request).unwrap().len() + 1;
+        assert!(
+            request_bytes <= MAX_FRAME_BYTES,
+            "{what}: the request fits its frame ({request_bytes} bytes)"
+        );
+        let response = daemon.handle_request(request, &mut None).await;
+        let response_bytes = serde_json::to_vec(&response).unwrap().len() + 1;
+        assert!(
+            response_bytes <= MAX_FRAME_BYTES,
+            "{what}: the refusal fits the response frame ({response_bytes} bytes)"
+        );
+        let Response::Error { kind: got, message } = response else {
+            panic!("{what} was admitted: {response:?}")
+        };
+        assert_eq!(got, kind, "{what}: {message}");
+        assert!(
+            message.len() <= 1024,
+            "{what}: the refusal quotes a bounded preview, not {} bytes",
+            message.len()
+        );
+        for words in said {
+            assert!(message.contains(words), "{what}: says {words:?}: {message}");
+        }
+        assert_nothing_admitted(&daemon, what);
+    }
     finish_harness(None, &log_path);
 }
 

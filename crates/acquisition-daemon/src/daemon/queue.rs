@@ -390,13 +390,29 @@ resubmit if still wanted",
 /// every kind and per tuple inside `validate_apply`, so a job that would
 /// render a stash URL under `poe2` never gets an id (C59: no code path
 /// renders an unobserved URL shape). Kinds outside the families ignore
-/// the param.
+/// the param. A realm that is not a string of at most `PREVIEW_BYTES` is
+/// refused here first, by `describe`, so the protocol's realm refusal,
+/// which quotes the value whole, only ever quotes a short one.
 pub(super) fn admit_realm(kind: &str, params: &Value) -> Result<(), Refusal> {
     let family = match kind {
         "characters" | "character" => Family::Characters,
         "stashes" | "stash" | "refresh" => Family::Stashes,
         _ => return Ok(()),
     };
+    match params.get("realm") {
+        None | Some(Value::Null) => {}
+        Some(Value::String(realm)) if realm.len() <= PREVIEW_BYTES => {}
+        Some(other) => {
+            return Err(Refusal::new(
+                ErrorKind::Refused,
+                format!(
+                    "realm must be a string naming one of {}, not {}",
+                    Realm::ALL.map(Realm::as_str).join(", "),
+                    describe(other)
+                ),
+            ));
+        }
+    }
     family
         .realm_of(params)
         .map(|_| ())
@@ -526,11 +542,17 @@ pub(super) const KINDS: &[KindRow] = &[
     },
 ];
 
-/// The kinds a client may name, comma-separated, for the refusal texts.
-pub(super) fn client_kinds() -> String {
+/// The kinds a client may name in this provider mode, comma-separated,
+/// for the refusal texts: never a daemon-only kind, and in real mode no
+/// mock-only one, since the door would refuse each of them.
+pub(super) fn client_kinds(real: bool) -> String {
     KINDS
         .iter()
-        .filter(|row| row.door != Door::DaemonOnly)
+        .filter(|row| match row.door {
+            Door::Client => true,
+            Door::MockOnly => !real,
+            Door::DaemonOnly => false,
+        })
         .map(|row| row.kind)
         .collect::<Vec<_>>()
         .join(", ")
@@ -583,21 +605,17 @@ pub(super) fn admit_segments(kind: &str, params: &Value) -> Result<(), String> {
             None | Some(Value::Null) => {}
             Some(Value::String(value)) if is_one_segment(value) => {}
             Some(Value::String(value)) => {
-                // A value over the bound is named by its length, not echoed.
-                let value = if value.len() <= SEGMENT_MAX_BYTES {
-                    format!("{value:?}")
-                } else {
-                    format!("of {} bytes", value.len())
-                };
                 return Err(format!(
-                    "{kind}: `{name}` {value} is not one path segment — it must name something \
+                    "{kind}: `{name}` {} is not one path segment — it must name something \
 other than dots and spaces before any `;`, be at most {SEGMENT_MAX_BYTES} bytes, and hold no \
-slash, backslash or control character"
+slash, backslash or control character",
+                    describe_str(value)
                 ));
             }
             Some(other) => {
                 return Err(format!(
-                    "{kind}: `{name}` must be a string that is one path segment, not {other}"
+                    "{kind}: `{name}` must be a string that is one path segment, not {}",
+                    describe(other)
                 ));
             }
         }
@@ -605,16 +623,95 @@ slash, backslash or control character"
     Ok(())
 }
 
-/// `sleep`'s `seconds`, when given: a number from 0 to the bound.
-fn check_sleep(params: &Value) -> Result<(), String> {
+/// C127 — `sleep`'s `seconds`, when given: a number from 0 to the bound.
+/// The door runs it at submit and the runner again before its timer, so a
+/// row that never passed the door fails in the same words.
+pub(super) fn check_sleep(params: &Value) -> Result<(), String> {
     match params.get("seconds") {
         None | Some(Value::Null) => Ok(()),
         Some(seconds) => match seconds.as_f64() {
             Some(s) if s.is_finite() && (0.0..=SLEEP_MAX_SECONDS).contains(&s) => Ok(()),
             _ => Err(format!(
-                "sleep: `seconds` must be a number from 0 to {SLEEP_MAX_SECONDS}, not {seconds}"
+                "sleep: `seconds` must be a number from 0 to {SLEEP_MAX_SECONDS}, not {}",
+                describe(seconds)
             )),
         },
+    }
+}
+
+/// The longest JSON text of a client's value a refusal quotes whole, and
+/// the length of the head it quotes of a longer one, in bytes.
+pub(super) const PREVIEW_BYTES: usize = 48;
+
+/// A client's refused value in words: its JSON text whole when that is at
+/// most `PREVIEW_BYTES`; otherwise the head of its JSON text, then its
+/// JSON type and its size. A refusal never echoes a client's value whole:
+/// a response frame has the request's bound (`MAX_FRAME_BYTES`), and each
+/// escape grows the text, so a value that fits a request may not fit
+/// the refusal that quotes it, and the refusal would be lost. A string's
+/// size is its UTF-8 bytes, the measure a segment's bound uses; any other
+/// value's is the bytes of its JSON text.
+pub(super) fn describe(value: &Value) -> String {
+    if let Value::String(text) = value {
+        return describe_str(text);
+    }
+    let what = match value {
+        Value::Null => "null",
+        Value::Bool(_) => "a boolean",
+        Value::Number(_) => "a number",
+        Value::String(_) => "a string",
+        Value::Array(_) => "an array",
+        Value::Object(_) => "an object",
+    };
+    preview(value, |json_bytes| {
+        format!("{what} of {json_bytes} bytes as JSON")
+    })
+}
+
+/// `describe` for a value that is a string already (a kind, an account
+/// selector), without building a `Value` of it.
+pub(super) fn describe_str(text: &str) -> String {
+    preview(text, |_| format!("a string of {} bytes", text.len()))
+}
+
+/// The JSON text of `value` whole if it is short; else its head, then
+/// `size` given the text's whole length. One pass that keeps only the
+/// head, so a large value is never copied to describe it.
+fn preview<T: serde::Serialize + ?Sized>(value: &T, size: impl FnOnce(usize) -> String) -> String {
+    /// A writer that counts everything and keeps the first bytes.
+    struct Head {
+        kept: Vec<u8>,
+        total: usize,
+    }
+    impl std::io::Write for Head {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            let room = (PREVIEW_BYTES + 1).saturating_sub(self.kept.len());
+            self.kept.extend_from_slice(&buf[..room.min(buf.len())]);
+            self.total += buf.len();
+            Ok(buf.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    let mut head = Head {
+        kept: Vec::new(),
+        total: 0,
+    };
+    // Serializing a `Value` or a `str` fails only on the writer, which
+    // never does.
+    let _ = serde_json::to_writer(&mut head, value);
+    let end = head.kept.len().min(PREVIEW_BYTES);
+    let kept = &head.kept[..end];
+    let text = match std::str::from_utf8(kept) {
+        Ok(text) => text,
+        // Cut inside a character: keep what precedes it.
+        Err(e) => std::str::from_utf8(&kept[..e.valid_up_to()]).unwrap_or(""),
+    };
+    if head.total <= PREVIEW_BYTES {
+        text.to_string()
+    } else {
+        format!("{text}… ({})", size(head.total))
     }
 }
 
@@ -631,8 +728,9 @@ pub(super) fn admit_client(kind: &str, params: &Value, real: bool) -> Result<(),
     let refused = |message: String| Refusal::new(ErrorKind::Refused, message);
     let Some(row) = KINDS.iter().find(|row| row.kind == kind) else {
         return Err(refused(format!(
-            "unknown job kind {kind:?}; a client may submit: {}",
-            client_kinds()
+            "unknown job kind {}; a client may submit: {}",
+            describe_str(kind),
+            client_kinds(real)
         )));
     };
     match row.door {

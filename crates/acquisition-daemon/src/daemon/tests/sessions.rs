@@ -944,7 +944,7 @@ async fn a_token_is_refused_once_the_session_no_longer_matches_the_job() {
         .valid_access_token(Some("old-user"), false)
         .await
         .unwrap_err();
-    assert!(err.message.contains("no session for old-user"), "{err}");
+    assert!(err.message.contains("no session for \"old-user\""), "{err}");
     // The other session is untouched, and is now the sole one.
     assert!(daemon.valid_access_token(None, false).await.is_ok());
     remove_test_log(&log_path);

@@ -167,7 +167,7 @@ pub use start::{DIAGNOSTIC_CAP_BYTES, rotate_if_over, run};
 use endpoint::{BoundSocket, Listener, Stream};
 use kinds::{ApiError, validate_apply};
 use queue::{
-    SLEEP_MAX_SECONDS, admit_client, admit_realm, admit_segments, client_kinds, is_one_segment,
+    admit_client, admit_realm, admit_segments, check_sleep, client_kinds, describe, describe_str,
 };
 use refresh::AccessTokenResult;
 use routes::why_no_url;
@@ -422,7 +422,7 @@ struct Sessions {
 fn no_session(selector: &str) -> Refusal {
     Refusal::new(
         ErrorKind::NotLoggedIn,
-        format!("no session for {selector} — run `acq auth`"),
+        format!("no session for {} — run `acq auth`", describe_str(selector)),
     )
 }
 
@@ -830,12 +830,16 @@ impl Daemon {
                 Some(session) => Ok(session.username.clone()),
                 None if s.auth.by_account.is_empty() => Err(Refusal::new(
                     ErrorKind::NotLoggedIn,
-                    format!("account {req:?}: not logged in — run `acq auth`"),
+                    format!(
+                        "account {}: not logged in — run `acq auth`",
+                        describe_str(req)
+                    ),
                 )),
                 None => Err(Refusal::new(
                     ErrorKind::NotLoggedIn,
                     format!(
-                        "account {req:?} is not logged in (live: {}); log in as it first",
+                        "account {} is not logged in (live: {}); log in as it first",
+                        describe_str(req),
                         s.auth.usernames().join(", ")
                     ),
                 )),

@@ -177,12 +177,10 @@ impl Daemon {
 
 /// C127 — `prefix` with each param appended as one percent-encoded path
 /// segment (`%`, `/`, `?` and `#` among the encoded), so a param can
-/// neither leave its segment nor start a query. A param that is not one
-/// segment (`is_one_segment`) renders no URL: the job sends nothing.
+/// neither leave its segment nor start a query. It only encodes: the one
+/// gate is `admit_segments`, which `route_for` runs on the same params
+/// first, so a param that is not one segment never reaches here.
 fn with_segments(prefix: &str, segments: &[&str]) -> Option<String> {
-    if !segments.iter().all(|segment| is_one_segment(segment)) {
-        return None;
-    }
     let mut url = url::Url::parse(prefix).ok()?;
     url.path_segments_mut().ok()?.extend(segments);
     Some(url.into())

@@ -590,14 +590,13 @@ impl Daemon {
             "sleep" => {
                 // Real seconds by design, not the daemon's clock: the mock's
                 // demo and the watch tests want a job that visibly takes time.
-                // The door bounds `seconds` (C127); a row that never
-                // passed it fails here rather than panic in the timer.
-                let seconds = params.get("seconds").and_then(Value::as_f64).unwrap_or(3.0);
-                if !(0.0..=SLEEP_MAX_SECONDS).contains(&seconds) {
-                    return Ok(Outcome::failure(format!(
-                        "sleep: `seconds` must be a number from 0 to {SLEEP_MAX_SECONDS}, not {seconds}"
-                    )));
+                // The door's check of `seconds` (C127), again: a row that
+                // never passed the door fails in its words rather than
+                // panic in the timer or run a default it would refuse.
+                if let Err(words) = check_sleep(&params) {
+                    return Ok(Outcome::failure(words));
                 }
+                let seconds = params.get("seconds").and_then(Value::as_f64).unwrap_or(3.0);
                 let deadline = Instant::now() + Duration::from_secs_f64(seconds);
                 while Instant::now() < deadline {
                     if self.cancelled(id) {
@@ -767,8 +766,9 @@ impl Daemon {
             // The door refuses a kind outside the table (C127); this is a
             // restored row from a build with another table.
             other => Outcome::failure(format!(
-                "unknown job kind {other:?}; a client may submit: {}",
-                client_kinds()
+                "unknown job kind {}; a client may submit: {}",
+                describe_str(other),
+                client_kinds(self.provider.is_real())
             )),
         })
     }
@@ -914,8 +914,9 @@ pub(super) fn validate_apply(params: &Value) -> Result<(), Refusal> {
             "characters" | "character" => {}
             other => {
                 return Err(refused(format!(
-                    "action {i}: kind {other:?} is not in the plan vocabulary \
-                     (stashes, stash, characters, character)"
+                    "action {i}: kind {} is not in the plan vocabulary \
+                     (stashes, stash, characters, character)",
+                    describe_str(other)
                 )));
             }
         }
@@ -923,7 +924,8 @@ pub(super) fn validate_apply(params: &Value) -> Result<(), Refusal> {
     if let Some(max) = params.get("max_requests") {
         let Some(max) = max.as_u64() else {
             return Err(refused(format!(
-                "max_requests must be a non-negative integer, not {max}"
+                "max_requests must be a non-negative integer, not {}",
+                describe(max)
             )));
         };
         if jobs.len() as u64 > max {
