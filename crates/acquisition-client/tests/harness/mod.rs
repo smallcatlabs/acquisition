@@ -138,9 +138,12 @@ pub fn scratch_tmp(base: &Path) -> PathBuf {
 // ---- the isolation list -------------------------------------------------
 
 /// Every knob a test process sets, once: each `ACQ_*` the process holds
-/// removed (`None`), then the eight values. `world` is the store root
+/// removed (`None`), then the ten values. `world` is the store root
 /// (its socket derives from it, C83); the runtime and log directories sit
-/// under `base`.
+/// under `base`: the temp directory is named for each platform's reader,
+/// `TMPDIR` on macOS, `XDG_RUNTIME_DIR` on Linux, and `TEMP` and `TMP`,
+/// which `std::env::temp_dir` reads on Windows, so no two tests' daemons
+/// share the runner's own temp directory there.
 pub fn isolation(world: &Path, base: &Path) -> Vec<(OsString, Option<OsString>)> {
     let mut list: Vec<(OsString, Option<OsString>)> = std::env::vars_os()
         .filter(|(key, _)| key.to_str().is_some_and(|k| k.starts_with("ACQ_")))
@@ -150,6 +153,8 @@ pub fn isolation(world: &Path, base: &Path) -> Vec<(OsString, Option<OsString>)>
     for (key, value) in [
         ("ACQ_STORE_DIR", world.as_os_str().to_owned()),
         ("TMPDIR", tmp.clone().into_os_string()),
+        ("TEMP", tmp.clone().into_os_string()),
+        ("TMP", tmp.clone().into_os_string()),
         ("XDG_RUNTIME_DIR", tmp.into_os_string()),
         ("ACQ_LOG_DIR", base.join("logs").into_os_string()),
         ("ACQ_NO_KEYRING", "1".into()),
