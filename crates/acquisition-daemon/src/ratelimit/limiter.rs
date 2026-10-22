@@ -19,6 +19,8 @@
 //! ## C19 — A counted send whose response carries no usable policy headers is paced as if the serve…
 //!
 //! **A counted send whose response carries no usable policy headers is paced as if the server counted it — the same treatment as a send lost in transport.** One predicted hit in every window as of that response; the definition and the last real observation are untouched; the next response with headers replaces the prediction (invariant 2). The job still fails and is never retried. Rationale: rung 10's origin 503 (2026-08-24, N35) was an HTML page with no `X-Rate-Limit-*`; before this, such a response left pacing reading a state that predated it, so a run of 503s went out unpaced. This bounds an outage at the policy's own rate (30 per 300 s on stash) with no new policy; backing off harder than that waits for evidence. Decided 2026-08-24.
+//!
+//! Amended 2026-10-22: a landed 429 holds its route for its `Retry-After`, clamped to the cap, plus the retry bucket, whatever the header carried. A missing, malformed or negative value counts as zero and an over-cap one as the cap; before this, a 429 whose `Retry-After` was any of those installed no hold at all (`install_retry_hold`).
 
 use super::*;
 
@@ -128,8 +130,8 @@ pub(super) struct PolicyState {
     last_response: Instant,
     /// The raw headers, for the dashboard.
     pub(super) raw: serde_json::Value,
-    /// A 429 hold is independent of policy validity. It is installed from an
-    /// acceptable Retry-After even when the landed policy set is malformed.
+    /// A 429 hold is independent of policy validity. It is installed from
+    /// every landed 429 (C19) even when the landed policy set is malformed.
     retry_hold_until: Option<Instant>,
     last_retry_after_secs: Option<u64>,
 }
@@ -178,9 +180,9 @@ pub struct Limiter {
     /// Every landed 429, including setup failures and stopped/malformed
     /// responses. Bookkeeping happens before caller classification.
     violations: u64,
-    /// Route-local fallback holds. A 429 can carry an acceptable Retry-After
-    /// while its policy headers are malformed or the route is not established
-    /// yet; that must still prevent the requeued job from sending early.
+    /// Route-local fallback holds. A 429 holds its route (C19) while its
+    /// policy headers are malformed or the route is not established yet;
+    /// that must still prevent the requeued job from sending early.
     retry_holds: HashMap<String, (Instant, u64)>,
     /// Bare routes that may answer without any rate-limit header. Every
     /// other route's headerless 2xx stays a protocol failure.
@@ -201,8 +203,7 @@ impl Limiter {
     }
 
     /// How long to wait before sending to `endpoint`. An unknown endpoint is
-    /// normally ready, except when a malformed-policy 429 installed its
-    /// route-local Retry-After hold.
+    /// normally ready, except when a 429 installed its route-local hold.
     pub fn wait_for(&self, endpoint: &str, now: Instant) -> Duration {
         let policy = self.policy_for(endpoint).and_then(next_safe_send);
         let route = self.retry_holds.get(endpoint).map(|(until, _)| *until);
@@ -402,8 +403,8 @@ impl Limiter {
 
     /// Record and reconcile one landed ordinary response. Counted history
     /// and 429 violations are recorded before policy parsing/classification;
-    /// an acceptable Retry-After then installs its hold regardless of whether
-    /// reconciliation succeeds.
+    /// every 429 then installs its hold (C19, whatever its Retry-After
+    /// carried) regardless of whether reconciliation succeeds.
     pub(super) fn observe_landed(
         &mut self,
         endpoint: &str,
@@ -526,9 +527,15 @@ impl Limiter {
         Ok(())
     }
 
+    /// C19: a landed 429 holds its route for its `Retry-After`, clamped to
+    /// the cap, plus the retry bucket and the buffer, whatever the header
+    /// carried. A missing, malformed or negative value counts as zero (the
+    /// hold is the bucket alone); an over-cap one counts as the cap.
     fn install_retry_hold(&mut self, endpoint: &str, retry_after: &RetryAfter, now: Instant) {
-        let Some(seconds) = retry_after.seconds() else {
-            return;
+        let seconds = match retry_after {
+            RetryAfter::Acceptable { seconds } => (*seconds).min(RETRY_AFTER_CAP_SECS),
+            RetryAfter::OverCap { .. } => RETRY_AFTER_CAP_SECS,
+            RetryAfter::Missing | RetryAfter::Malformed { .. } | RetryAfter::Negative { .. } => 0,
         };
         let Some(until) = checked_deadline(
             now,
@@ -829,9 +836,9 @@ fn window_frees_at_seeded(
 ///   (other tools on the account, N23; residue from before this daemon
 ///   started, N24) are accounted for;
 ///
-/// - an independently parsed acceptable Retry-After (N19): response time,
-///   plus Retry-After, the unconditional 60s pad and buffer. This hold does
-///   not depend on a usable policy observation.
+/// - a landed 429 (N19, C19): response time, plus its Retry-After clamped
+///   to the cap (zero when unusable), the unconditional 60s pad and buffer.
+///   This hold does not depend on a usable policy observation.
 ///
 /// The result is the max over everything that applies.
 fn next_safe_send(s: &PolicyState) -> Option<Instant> {

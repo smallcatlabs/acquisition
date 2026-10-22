@@ -1220,15 +1220,23 @@ fn token_policy_uses_the_frozen_conservative_single_window_bucket() {
     assert_eq!(limiter.statuses(now)[0].rules[0].windows[0].bucket_secs, 60);
 }
 
+/// C19: a landed 429 holds its route for its `Retry-After`, clamped to the
+/// cap, plus the retry bucket, whatever the header carried. A missing,
+/// malformed or negative value counts as zero; an over-cap one as the cap.
+/// The classification is untouched: these stay terminal.
 #[test]
-fn unacceptable_retry_after_vectors_are_terminal_and_install_no_hold() {
+fn every_landed_429_holds_at_least_the_retry_bucket() {
+    let floor = RETRY_BUCKET_PAD + BUFFER;
+    let capped = Duration::from_secs(RETRY_AFTER_CAP_SECS) + floor;
+    assert_eq!(floor, Duration::from_secs(61));
+    assert_eq!(capped, Duration::from_secs(961));
     let cases = [
-        retry(None),
-        retry(Some("soon")),
-        retry(Some("-1")),
-        retry(Some("901")),
+        (retry(None), floor),
+        (retry(Some("soon")), floor),
+        (retry(Some("-1")), floor),
+        (retry(Some("901")), capped),
     ];
-    for retry_after in cases {
+    for (retry_after, hold) in cases {
         let now = far_future();
         let mut limiter = Limiter::new();
         limiter
@@ -1257,7 +1265,11 @@ fn unacceptable_retry_after_vectors_are_terminal_and_install_no_hold() {
             ResponseClassification::RateLimited(retry_after.clone())
         );
         assert!(!retry_after.is_acceptable());
-        assert_eq!(limiter.wait_for("/character", now), Duration::ZERO);
+        assert_eq!(
+            limiter.wait_for("/character", now),
+            hold,
+            "the hold for {retry_after}"
+        );
         assert_eq!(limiter.statuses(now)[0].history_len, 1);
         assert_eq!(limiter.violation_count(), 1);
     }
