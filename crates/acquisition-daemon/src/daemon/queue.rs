@@ -784,15 +784,19 @@ pub(super) const PARAMS_MAX_BYTES: usize = 8 << 20;
 
 /// The most actions one `apply` may carry. Each becomes a child job, so
 /// the count, not the bytes, is what grows the queue: tiny tuples under
-/// `PARAMS_MAX_BYTES` reached about 381,000 children, past the roughly
-/// 220,000 (about 304 bytes each) that `list`'s frame holds. The bound
-/// guards that frame, not a plan's size: the planner has no size limit
+/// `PARAMS_MAX_BYTES` reached about 381,000 children, enough to put
+/// `list` past its frame. Measured at this bound, one apply's `list` is
+/// about 9 MiB with tiny tuples, 15 MiB with realistic ones, and 28 MiB
+/// (44% of the frame) at worst: a 128-byte submitter and params just
+/// under `PARAMS_MAX_BYTES`, which the parent's own entry carries whole.
+/// Several applies together can still outgrow the frame (issue #56).
+/// The bound guards the frame, not a plan's size: the planner has no size limit
 /// of its own, and a plan is one (realm, league), the largest observed,
 /// the owner's Standard, at most 3,408 actions (two listings, 3,347 tabs
 /// by N47, the realm's 59 characters by the sample of 2026-09-02 in
 /// `RUN-LEDGER.md`). A heavy account, with a remove-only map tab from
 /// each of some 35 leagues, is estimated at 10,000 to 12,000; 50,000 is
-/// four to five times that, and about a quarter of what the frame holds.
+/// four to five times that.
 pub(super) const APPLY_MAX_ACTIONS: usize = 50_000;
 
 /// C127 — A submit's `params` are at most `PARAMS_MAX_BYTES` as JSON,
