@@ -324,3 +324,54 @@ async fn a_superseded_login_cannot_complete_and_leaves_no_zombie() {
     );
     let _ = std::fs::remove_file(&log_path);
 }
+
+/// C129 over C24, the login arm: Cloudflare's challenge on the code
+/// exchange is no rejected grant. Driven from the browser's callback:
+/// the flow fails with words that say Cloudflare answered and the daemon
+/// stopped, not with Cloudflare's page or a word to log in again; the
+/// block mark is set, and wire == journal == one POST.
+#[tokio::test]
+async fn a_cloudflare_block_on_the_code_exchange_is_no_rejected_grant() {
+    let challenge = ScriptedResponse {
+        method: "POST",
+        path: "/token",
+        ..ScriptedResponse::cloudflare_403_challenge()
+    };
+    let (base, requests, server) = scripted_server(vec![challenge]).await;
+    let clock = Arc::new(ManualClock::new());
+    let (daemon, log_path) = test_daemon_with(Provider::mock(&base), clock, RailsConfig::default());
+    daemon.shared.lock().unwrap().auth.by_account.clear();
+
+    let authorize = url::Url::parse(&daemon.auth_start().await.unwrap()).unwrap();
+    let query: HashMap<String, String> = authorize.query_pairs().into_owned().collect();
+    let callback = format!(
+        "{}?code=code-x&state={}",
+        query["redirect_uri"], query["state"]
+    );
+    let answered = reqwest::get(&callback).await.unwrap();
+    assert!(answered.status().is_success());
+    let error = loop {
+        if let (_, _, Some(error)) = login_result(&daemon) {
+            break error;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    };
+
+    assert!(
+        error.contains("Cloudflare answered in GGG's place"),
+        "{error}"
+    );
+    assert!(error.contains("reset-tripwire"), "{error}");
+    assert!(!error.contains("acq auth"), "{error}");
+    assert!(!error.contains("Just a moment"), "{error}");
+    let rails = daemon.choke.rails();
+    let halt = rails.halted().expect("the block mark is set");
+    assert!(
+        halt.contains("Cloudflare answered in GGG's place: 403 on POST oauth-token"),
+        "{halt}"
+    );
+    server.await.unwrap();
+    assert_eq!(requests.lock().unwrap().as_slice(), ["POST"]);
+    assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
+    finish_harness(None, &log_path);
+}

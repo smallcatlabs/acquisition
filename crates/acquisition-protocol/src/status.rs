@@ -10,12 +10,14 @@
 
 use serde::{Deserialize, Serialize};
 
-/// The live-test rails, for `daemon status` and the dashboard
-/// (the live-run skill, "The rails").
+/// The live-test rails and the Cloudflare block mark (C129), for
+/// `daemon status` and the dashboard (the live-run skill, "The rails").
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RailsStatus {
     pub tripwire_enabled: bool,
-    /// Why sends are refused, if they are.
+    /// Why sends are refused, if they are: a Cloudflare block's mark
+    /// first (held by every daemon, tripwire or not), then the rails'
+    /// trip or ceiling.
     pub halted: Option<String>,
     pub refresh_failed: Option<String>,
     pub sends: u64,

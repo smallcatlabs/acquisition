@@ -237,8 +237,10 @@ impl Daemon {
                 }
                 // A rejected grant is a dead session (`not_logged_in`: the
                 // remedy is login); anything else — transport, a 5xx,
-                // exhausted 429s, a rails halt — is the provider not
-                // answering (`upstream`), with the session still standing.
+                // exhausted 429s, a rails halt, a Cloudflare block (C129:
+                // no rejected grant, and no dead-grant mark above) — is the
+                // provider not answering (`upstream`), with the session
+                // still standing.
                 let refresh = refresh.map_err(|e| {
                     let kind = if e.is_rejected_grant() {
                         ErrorKind::NotLoggedIn

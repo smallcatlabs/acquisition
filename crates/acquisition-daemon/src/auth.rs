@@ -34,10 +34,15 @@ pub fn pkce_pair() -> (String, String) {
 }
 
 /// A failed token request, keeping the HTTP status (when one landed) so
-/// the daemon can tell a rejected grant from a network blip (L0 rail 2).
+/// the daemon can tell a rejected grant from a network blip (L0 rail 2),
+/// and the choke point's verdict that Cloudflare answered in GGG's place
+/// (C129), which no status alone can tell.
 #[derive(Debug, Clone)]
 pub struct TokenError {
     pub status: Option<u16>,
+    /// C129: the answer was a block, Cloudflare's and not GGG's. Its
+    /// status says nothing about the grant.
+    pub blocked: bool,
     pub message: String,
 }
 
@@ -51,15 +56,21 @@ impl TokenError {
     fn transport(message: String) -> TokenError {
         TokenError {
             status: None,
+            blocked: false,
             message,
         }
     }
 
-    /// A grant the provider rejected outright: 4xx other than 429. 5xx,
-    /// 429, and transport failures are not (they may be transient).
+    /// A grant the provider rejected outright: 4xx other than 429 that is
+    /// not a block (C24). 5xx, 429, and transport failures are not (they
+    /// may be transient); a block is not, for GGG never saw the grant
+    /// (C129): marking it dead would send the user to `acq auth`, whose
+    /// code exchange goes into the same block.
     pub fn is_rejected_grant(&self) -> bool {
-        self.status
-            .is_some_and(|status| (400..500).contains(&status) && status != 429)
+        !self.blocked
+            && self
+                .status
+                .is_some_and(|status| (400..500).contains(&status) && status != 429)
     }
 }
 
@@ -125,6 +136,19 @@ async fn token_request(
         .await
         .map_err(|error| TokenError::transport(error.to_string()))?;
     let status = response.status;
+    if response.verdict.is_some_and(|verdict| verdict.block) {
+        // C129: the choke point has set the block mark. Cloudflare's page
+        // is not GGG's word on the grant, so it is not shown; the words
+        // say what stopped and what clears it.
+        return Err(TokenError {
+            status: Some(status.as_u16()),
+            blocked: true,
+            message: format!(
+                "Cloudflare answered in GGG's place at the token endpoint ({status}), so the daemon has stopped sending: {}",
+                crate::rails::BLOCK_REMEDY
+            ),
+        });
+    }
     if !status.is_success() {
         let rate = response.rate;
         let body = response
@@ -133,6 +157,7 @@ async fn token_request(
         let body: String = body.chars().take(300).collect();
         return Err(TokenError {
             status: Some(status.as_u16()),
+            blocked: false,
             message: format!("token endpoint returned {status} (rate headers {rate}): {body}"),
         });
     }
@@ -141,6 +166,7 @@ async fn token_request(
         .expect("clean 2xx responses have a completed body");
     serde_json::from_str::<TokenResponse>(&body).map_err(|e| TokenError {
         status: Some(status.as_u16()),
+        blocked: false,
         message: e.to_string(),
     })
 }

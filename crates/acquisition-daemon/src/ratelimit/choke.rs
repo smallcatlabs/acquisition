@@ -444,7 +444,10 @@ impl ChokePoint {
     }
 
     /// The HEAD probe (N16). Not counted by the server (N24); teaches the
-    /// limiter the endpoint's policy, or degrades the endpoint (N20).
+    /// limiter the endpoint's policy, or degrades the endpoint (N20). A
+    /// block (C129) does neither: it sets the mark and fails the probe
+    /// with the halt's words, leaving the route unknown; a blocked 429
+    /// installs only the route's retry hold.
     /// Returns the raw rate headers on success for the probe job's payload;
     /// a failure carries the status the probe landed with, if it landed,
     /// so the caller can tell a rejected bearer (401, C87) from a closed
@@ -537,8 +540,32 @@ impl ChokePoint {
             )),
             Err(error) => Err(format!("HEAD failed: {error}")),
         };
+        // C129: a HEAD has no body, so no page marker counts here; only
+        // `cf-mitigated`, or a 429 with no policy header, makes a block.
+        // A 403 without `cf-mitigated` (`/profile`'s HEAD, N38) is no
+        // block and degrades the route as any failed probe does.
+        let verdict = completed.as_ref().ok().and_then(|(status, _)| {
+            (!status.is_success()).then(|| Verdict::of(status.as_u16(), &headers, None))
+        });
+        let blocked = verdict.is_some_and(|verdict| verdict.block);
         let now = self.now();
-        if completed
+        if blocked {
+            // No probe failure: the route learns no policy and is not
+            // degraded from an answer that was not GGG's, so the jobs
+            // waiting on it stay waiting under the mark, and after
+            // `reset-tripwire` the route is probed afresh. A blocked 429
+            // still holds the route for its `Retry-After`, as a blocked
+            // GET's does.
+            if completed
+                .as_ref()
+                .is_ok_and(|(status, _)| status.as_u16() == 429)
+            {
+                self.limiter
+                    .lock()
+                    .unwrap()
+                    .observe_blocked_head_429(route, &retry_after, now);
+            }
+        } else if completed
             .as_ref()
             .is_ok_and(|(status, _)| status.as_u16() == 429)
         {
@@ -559,7 +586,6 @@ impl ChokePoint {
             (Ok((status, Ok(_))), Err(error)) if status.is_success() => Some(error.as_str()),
             _ => None,
         };
-        let verdict = verdict_of(&completed, &headers);
         self.record_completed(
             route,
             "HEAD",
@@ -573,6 +599,17 @@ impl ChokePoint {
             wait,
         );
         let status = completed.as_ref().ok().map(|(status, _)| status.as_u16());
+        if blocked {
+            // The mark is set (`record_completed` above); a block is no
+            // rejection of the bearer either.
+            return Err(ProbeError::Failed {
+                status,
+                reason: self
+                    .rails
+                    .halted()
+                    .unwrap_or_else(|| "Cloudflare answered in GGG's place".to_string()),
+            });
+        }
         // A rejection is published while this permit is still held (C87),
         // so no waiter admitted after it can read the rejected token.
         if status == Some(401)

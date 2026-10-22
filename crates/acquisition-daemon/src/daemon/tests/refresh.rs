@@ -165,3 +165,72 @@ async fn a_token_3xx_is_refused_with_the_target_redacted_and_no_body() {
     assert_journal_matches_wire(&log_path, &wire_posts(&requests));
     finish_harness(None, &log_path);
 }
+
+/// C129 over C24: Cloudflare's challenge on the token endpoint is no
+/// rejected grant. The refresh sets the block mark and no dead-grant
+/// mark; the refusal says Cloudflare answered and the daemon stopped,
+/// and never sends the user to `acq auth`, whose code exchange would go
+/// into the same block. The next ask sends nothing: the halt refuses it.
+#[tokio::test]
+async fn a_cloudflare_block_on_the_token_route_is_no_rejected_grant() {
+    let challenge = ScriptedResponse {
+        method: "POST",
+        path: "/token",
+        ..ScriptedResponse::cloudflare_403_challenge()
+    };
+    let (base, requests, server) = scripted_server(vec![challenge]).await;
+    let clock = Arc::new(ManualClock::new());
+    let (mut daemon, log_path) =
+        test_daemon_with(Provider::mock(&base), clock, RailsConfig::default());
+    let rails = daemon.choke.rails().clone();
+    logged_in(&mut daemon);
+
+    let refusal = daemon.valid_access_token(None, false).await.unwrap_err();
+    assert_eq!(
+        refusal.kind,
+        ErrorKind::Upstream,
+        "a block is not a dead session: {refusal}"
+    );
+    assert!(
+        refusal
+            .message
+            .contains("Cloudflare answered in GGG's place"),
+        "{refusal}"
+    );
+    assert!(refusal.message.contains("reset-tripwire"), "{refusal}");
+    assert!(!refusal.message.contains("acq auth"), "{refusal}");
+    assert!(
+        !refusal.message.contains("Just a moment"),
+        "Cloudflare's page is no message of GGG's: {refusal}"
+    );
+    assert_eq!(
+        rails.refresh_failed("test-user"),
+        None,
+        "a block is no rejected grant"
+    );
+    let halt = rails.halted().expect("the block mark is set");
+    assert!(
+        halt.contains("Cloudflare answered in GGG's place: 403 on POST oauth-token"),
+        "{halt}"
+    );
+    assert_eq!(
+        daemon
+            .shared
+            .lock()
+            .unwrap()
+            .auth
+            .one()
+            .refresh_token
+            .as_deref(),
+        Some("rt-old"),
+        "the session stands"
+    );
+
+    let second = daemon.valid_access_token(None, false).await.unwrap_err();
+    assert_eq!(second.kind, ErrorKind::Upstream, "{second}");
+    assert!(!second.message.contains("acq auth"), "{second}");
+    server.await.unwrap();
+    assert_eq!(requests.lock().unwrap().as_slice(), ["POST"]);
+    assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
+    finish_harness(None, &log_path);
+}

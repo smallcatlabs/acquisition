@@ -821,6 +821,15 @@ async fn a_cloudflare_block_admits_nothing_and_survives_a_restart() {
             daemon.choke.rails().halted().is_some(),
             "{name}: this daemon is halted"
         );
+        // A blocked 429 still holds its route for its `Retry-After` (C19),
+        // as a blocked HEAD's does (`a_blocked_probe_is_no_probe_failure`).
+        if name == "1015" {
+            let held = daemon.choke.check("fetch").err();
+            assert!(
+                held.is_some_and(|wait| wait >= Duration::from_secs(30)),
+                "{name}: {held:?}"
+            );
+        }
         assert_eq!(
             requests.lock().unwrap().as_slice(),
             ["HEAD", "GET"],
@@ -1125,4 +1134,158 @@ async fn whoami_is_refused_in_real_mode_without_a_token_request() {
     assert_journal_matches_wire(&log_path, &wire_posts(&requests));
     assert!(journal_sends(&log_path).is_empty());
     finish_harness(None, &log_path);
+}
+
+/// C129 on HEAD: a probe Cloudflare answers is no probe failure. Two
+/// shapes, each with no GGG header (a HEAD has no body, so no page marker
+/// counts): the 1015's 429 with `Retry-After: 30` (N48), and a 403
+/// carrying `cf-mitigated`. Either sets the block mark; the route learns
+/// no policy and is not degraded; the job that asked for the probe stays
+/// waiting under the halt rather than failing as "route degraded"; and no
+/// second HEAD follows. The 1015 still holds the route for its
+/// `Retry-After` (C19), as a blocked GET's 429 does. Once
+/// `reset-tripwire` clears the mark, the route is probed afresh, behind
+/// that hold for the 1015 and at once for the challenge, and the job
+/// goes out.
+#[tokio::test]
+async fn a_blocked_probe_is_no_probe_failure() {
+    let head_1015 = ScriptedResponse {
+        method: "HEAD",
+        path: "/fetch",
+        status: "429 Too Many Requests",
+        headers: "Retry-After: 30\r\n".into(),
+        body: String::new(),
+    };
+    let head_challenge = ScriptedResponse {
+        method: "HEAD",
+        body: String::new(),
+        ..ScriptedResponse::cloudflare_403_challenge()
+    };
+    for (name, head, status) in [("1015", head_1015, 429), ("challenge", head_challenge, 403)] {
+        let (base, requests, server) = scripted_server(vec![
+            head,
+            ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+            ScriptedResponse::full("GET", "200 OK", None, r#"{"items":["after"]}"#),
+        ])
+        .await;
+        let clock = Arc::new(ManualClock::new());
+        let (daemon, log_path) = test_daemon(&base, clock);
+        let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+        let id = daemon
+            .submit("fetch".into(), json!({}), 0, "test".into(), None)
+            .unwrap();
+        let probe = tokio::time::timeout(Duration::from_secs(3), async {
+            loop {
+                let done = daemon
+                    .shared
+                    .lock()
+                    .unwrap()
+                    .jobs
+                    .values()
+                    .find(|entry| entry.info.kind == "probe" && entry.info.state.is_terminal())
+                    .map(|entry| entry.info.id);
+                if let Some(probe) = done {
+                    return probe;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("the probe concluded");
+        // Long enough for a degraded route to fail its job, or a re-probe.
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        let halt = daemon
+            .choke
+            .rails()
+            .halted()
+            .expect("the block mark is set");
+        assert!(
+            halt.contains(&format!(
+                "Cloudflare answered in GGG's place: {status} on HEAD fetch"
+            )),
+            "{name}: {halt}"
+        );
+        assert_eq!(
+            daemon.choke.endpoint_state("fetch"),
+            EndpointState::Unknown,
+            "{name}: a block teaches the route nothing"
+        );
+        let state = daemon.shared.lock().unwrap().jobs[&id].info.state;
+        assert_eq!(
+            state,
+            JobState::Waiting,
+            "{name}: the job waits on the halt"
+        );
+        assert_ne!(probe, id);
+        assert_eq!(requests.lock().unwrap().as_slice(), ["HEAD"], "{name}");
+
+        let held = daemon.choke.check("fetch").err();
+        if status == 429 {
+            assert!(
+                held.is_some_and(|wait| wait >= Duration::from_secs(30)),
+                "{name}: the route is held for Cloudflare's Retry-After: {held:?}"
+            );
+        } else {
+            assert_eq!(held, None, "{name}: a 403 installs no hold");
+        }
+
+        // The manual clock advances through the probe's own wait.
+        daemon.reset_rails();
+        let (info, _) = wait_terminal(&daemon, id).await;
+        assert_eq!(info.state, JobState::Done, "{name}");
+        assert_eq!(
+            requests.lock().unwrap().as_slice(),
+            ["HEAD", "HEAD", "GET"],
+            "{name}"
+        );
+        let hold = if status == 429 {
+            30_000 + full_hold_ms()
+        } else {
+            0
+        };
+        assert_eq!(
+            journal_waits(&log_path),
+            [0, hold, 0],
+            "{name}: the fresh probe waits out the hold, and only it"
+        );
+        server.await.unwrap();
+        finish_harness_wire(dispatcher, &log_path, &requests);
+    }
+}
+
+/// The narrow HEAD rule (C129, the owner's choice): a HEAD 403 with no
+/// `cf-mitigated` is no block, even with no GGG header (`/profile`'s HEAD
+/// is answered so, N38). It degrades the route as before, its job fails
+/// as "route degraded", and nothing is halted.
+#[tokio::test]
+async fn a_head_403_without_cf_mitigated_still_degrades() {
+    let head_403 = ScriptedResponse {
+        method: "HEAD",
+        path: "/fetch",
+        status: "403 Forbidden",
+        headers: String::new(),
+        body: String::new(),
+    };
+    let (base, requests, server) = scripted_server(vec![head_403]).await;
+    let clock = Arc::new(ManualClock::new());
+    let (daemon, log_path) = test_daemon(&base, clock);
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    let id = daemon
+        .submit("fetch".into(), json!({}), 0, "test".into(), None)
+        .unwrap();
+    let (info, outcome) = wait_terminal(&daemon, id).await;
+    assert_eq!(info.state, JobState::Failed);
+    let Outcome::Failure { error, .. } = outcome else {
+        panic!("the job did not fail")
+    };
+    assert!(error.contains("degraded"), "{error}");
+    assert!(matches!(
+        daemon.choke.endpoint_state("fetch"),
+        EndpointState::Degraded { .. }
+    ));
+    assert_eq!(daemon.choke.rails().halted(), None);
+    assert_eq!(requests.lock().unwrap().as_slice(), ["HEAD"]);
+    server.await.unwrap();
+    finish_harness_wire(dispatcher, &log_path, &requests);
 }

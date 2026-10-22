@@ -372,6 +372,22 @@ impl Limiter {
         }
     }
 
+    /// C129: a HEAD 429 that was a block (Cloudflare's, not GGG's) is no
+    /// probe outcome: the route's probe and policy state are untouched and
+    /// it is not degraded. It still counts as a violation and installs the
+    /// route's retry hold (C19), as a blocked GET's 429 does through
+    /// `observe_landed`, so a send after `reset-tripwire` inside Cloudflare's
+    /// `Retry-After` is still held.
+    pub fn observe_blocked_head_429(
+        &mut self,
+        endpoint: &str,
+        retry_after: &RetryAfter,
+        now: Instant,
+    ) {
+        self.violations = self.violations.saturating_add(1);
+        self.install_retry_hold(endpoint, retry_after, now);
+    }
+
     fn degrade_for(&mut self, endpoint: &str, reason: String, cooldown: Duration, now: Instant) {
         self.endpoints.insert(
             endpoint.to_string(),

@@ -287,8 +287,10 @@ pub enum ErrorKind {
     /// failure is sticky (C6): the daemon refuses new work until restart.
     QueueFailed,
     /// The provider did not answer as the request needed — a token refresh
-    /// that failed on transport, a 5xx, or exhausted 429 retries — with
-    /// the session itself still standing. Try again later.
+    /// that failed on transport, a 5xx, exhausted 429 retries, or a halt
+    /// (Cloudflare answered in GGG's place, or the live-test rails) — with
+    /// the session itself still standing. Try again later; a halt says
+    /// what clears it.
     Upstream,
     /// The daemon's own failure to do its part — a local resource it
     /// needed (a loopback listener, the accounts index) refused. Never an
@@ -360,8 +362,10 @@ pub struct Quote {
     /// The canonical account the work was keyed under, when any of it
     /// resolved to one (the same selector rules as `Submit`).
     pub account: Option<String>,
-    /// The live-test rails halt in force, if any: nothing sends until
-    /// `reset-tripwire`, so every estimate below is a floor.
+    /// The halt in force, if any: a Cloudflare block's mark (C129, kept
+    /// whatever the tripwire says) or the live-test rails' trip or
+    /// ceiling. Nothing sends until `reset-tripwire` (a met ceiling, until
+    /// the next daemon), so every estimate below is a floor.
     pub halted: Option<String>,
     /// The work this quote projects: the request's job tuples echoed
     /// verbatim, in order. This is the quote's verifiable basis — a
@@ -496,8 +500,10 @@ pub enum Request {
         account: Option<String>,
     },
     DaemonStatus,
-    /// Clear the live-test rails' tripwire and ceiling halt: after a trip,
-    /// wait 360 s before clearing; a trip is evidence to read.
+    /// Clear a halt: a Cloudflare block's mark (C129) and the live-test
+    /// rails' trip. A met ceiling stands for the daemon's lifetime. After
+    /// a trip, wait 360 s before clearing; a trip or a block is evidence
+    /// to read.
     ResetTripwire,
     /// Everything the live dashboard renders, in one round-trip: daemon
     /// vitals, auth state, limiter policies, jobs, HTTP sends, recent errors.
