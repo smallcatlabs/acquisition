@@ -344,8 +344,9 @@ impl World {
         self.root.join("daemon.lock")
     }
 
-    /// `<root>/<provider>/rails.json`: the tripwire and refresh-failed
-    /// marks, durable in the world (`rails.rs` reads and writes it).
+    /// `<root>/<provider>/rails.json`: the tripwire's trip, the block
+    /// mark and the refresh-failed marks, durable in the world, in the
+    /// format [`RailsState`] owns (`rails.rs` reads and writes it).
     pub fn rails_state_path(&self, provider: &str) -> PathBuf {
         self.provider_dir(provider).join("rails.json")
     }
@@ -792,6 +793,64 @@ impl Lock {
 
     pub fn path(&self) -> &Path {
         &self.path
+    }
+}
+
+/// The world's rails state, as [`World::rails_state_path`] holds it: the
+/// file's one format, read and written by the daemon's rails and by the
+/// offline `reset-tripwire`, which links no daemon (C1). It has three
+/// owners, and each one's state survives every other's writes:
+///
+/// - `tripped`, the live-test tripwire's ladder trip, honoured only by a
+///   daemon started with the tripwire, and written back unchanged by one
+///   without it;
+/// - `blocked`, the Cloudflare block mark (C129), honoured by every
+///   daemon;
+/// - `refresh_failed_by_account`, the dead-grant marks (C24), which
+///   persist across restarts and clear on login or logout, never on a
+///   reset.
+#[derive(Debug, Default, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct RailsState {
+    #[serde(default)]
+    pub tripped: Option<String>,
+    /// C129: the block mark's cause (status, method, route and time).
+    #[serde(default)]
+    pub blocked: Option<String>,
+    /// Per account (username → cause). The pre-multi-account file had one
+    /// `refresh_failed` string; it is ignored on load (one re-login).
+    #[serde(default)]
+    pub refresh_failed_by_account: std::collections::HashMap<String, String>,
+}
+
+impl RailsState {
+    /// No owner holds anything: the file is removed rather than written.
+    pub fn holds_nothing(&self) -> bool {
+        self.tripped.is_none()
+            && self.blocked.is_none()
+            && self.refresh_failed_by_account.is_empty()
+    }
+
+    /// What `reset-tripwire` clears, on either path: the trip and the
+    /// block mark. The dead-grant marks are kept (C24). Returns whether
+    /// anything was cleared.
+    pub fn reset(&mut self) -> bool {
+        let held = self.tripped.is_some() || self.blocked.is_some();
+        self.tripped = None;
+        self.blocked = None;
+        held
+    }
+
+    /// Write the state to `path`, or remove the file when it holds
+    /// nothing.
+    pub fn write(&self, path: &Path) -> std::io::Result<()> {
+        if self.holds_nothing() {
+            return match std::fs::remove_file(path) {
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+                other => other,
+            };
+        }
+        let text = serde_json::to_string(self).map_err(std::io::Error::other)?;
+        std::fs::write(path, text)
     }
 }
 

@@ -21,7 +21,7 @@ use acquisition_protocol::job::{JobInfo, JobState, Outcome};
 use acquisition_protocol::protocol::{ErrorKind, Request, Response};
 use acquisition_protocol::provider::GGG;
 use acquisition_protocol::realm::Realm;
-use acquisition_store::world::World;
+use acquisition_store::world::{RailsState, World};
 use acquisition_verbs::jobs::{job_info, result_live};
 use acquisition_verbs::{
     Account, ChildTally, DaemonReport, FailedChild, Fault, Frontend, Job, JobResult, Jobs, Progress,
@@ -791,9 +791,10 @@ enum DaemonCmd {
     /// the mark a Cloudflare answer in GGG's place leaves, which holds
     /// every daemon until cleared. After a trip, wait 360 s before
     /// clearing; a trip or a mark is evidence to read, and the next send
-    /// goes to GGG. With no daemon running, clears the persisted state in
+    /// goes to GGG. With no daemon running, clears the halt persisted in
     /// this shell's world (`<store root>/<provider>/rails.json`) so the
-    /// next daemon starts clear.
+    /// next daemon starts clear; a rejected sign-in's mark stays until
+    /// `acq auth`.
     ResetTripwire,
 }
 
@@ -1594,20 +1595,38 @@ async fn run(cli: Cli) -> Result<()> {
                     Observed::Absent => {
                         // The trip lives on disk, in the world (C83); clear
                         // it so the next spawned daemon is not still
-                        // halted. No world, nothing persisted.
+                        // halted. No world, nothing persisted. The file
+                        // has other owners: a readable one is edited, its
+                        // trip and block mark cleared and its dead-grant
+                        // marks kept (C24), in the store's one format
+                        // (`RailsState`; C1, no frontend links the daemon).
                         let provider = acquisition_protocol::provider::wanted();
                         let candidates: Vec<std::path::PathBuf> = World::observe()
                             .map(|world| vec![world.rails_state_path(provider)])
                             .unwrap_or_default();
-                        // A file, or an empty directory in a file's place
-                        // (the daemon refuses to start over either shape
-                        // it cannot read, and names this verb as the
-                        // remedy); anything else is named for the hand.
+                        // A file it cannot read, or an empty directory in a
+                        // file's place, is removed (the daemon refuses to
+                        // start over either shape, and names this verb as
+                        // the remedy); anything else is named for the hand.
                         let mut cleared = Vec::new();
                         for state in &candidates {
                             let removed = match std::fs::symlink_metadata(state) {
                                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
                                 Err(e) => Err(e),
+                                Ok(meta) if meta.is_file() => match std::fs::read_to_string(state)
+                                    .ok()
+                                    .and_then(|text| serde_json::from_str::<RailsState>(&text).ok())
+                                {
+                                    Some(mut held) => {
+                                        // Nothing a reset clears: the
+                                        // dead-grant marks stay.
+                                        if !held.reset() {
+                                            continue;
+                                        }
+                                        held.write(state)
+                                    }
+                                    None => std::fs::remove_file(state),
+                                },
                                 Ok(meta) if meta.is_dir() => std::fs::remove_dir(state).map_err(|e| {
                                     std::io::Error::new(
                                         e.kind(),
@@ -1630,11 +1649,11 @@ async fn run(cli: Cli) -> Result<()> {
                                 json!({ "cleared": !cleared.is_empty(), "state": cleared.first() })
                             );
                         } else if cleared.is_empty() {
-                            println!("daemon is not running and no rails state is persisted");
+                            println!("daemon is not running and no rails halt is persisted");
                         } else {
                             for state in cleared {
                                 println!(
-                                    "daemon is not running; cleared persisted rails state {} (the next daemon's next send goes to GGG)",
+                                    "daemon is not running; cleared the rails halt persisted in {} (the next daemon's next send goes to GGG)",
                                     state.display()
                                 );
                             }

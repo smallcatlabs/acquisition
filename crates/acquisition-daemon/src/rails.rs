@@ -13,10 +13,11 @@
 //!   (`<root>/<provider>/rails.json`, C83), where a reboot cannot clear
 //!   it; the daemon reads it strictly before the rails are built
 //!   ([`verify_state`]) and refuses to start over a state it cannot carry.
-//! - **Dead-token stop** (with the tripwire): a 4xx other than 429 on a
-//!   `refresh_token` grant marks the session refresh-failed; later refreshes
-//!   fail fast without sending until login or logout. Persisted with the
-//!   tripwire.
+//! - **Dead-token stop** (C24, every daemon, tripwire on or off): a 4xx
+//!   other than 429 that is not a block on a `refresh_token` grant marks
+//!   the account refresh-failed; later refreshes fail fast without
+//!   sending until login or logout. The mark persists across restarts in
+//!   the same file, and no reset clears it.
 //! - **Cloudflare block mark** (C129, every daemon, tripwire on or off):
 //!   a landed 4xx that is not GGG's ([`Verdict::of`]) refuses every later
 //!   send until `reset_tripwire`. The mark carries the status, method,
@@ -78,7 +79,7 @@ use acquisition_protocol::status::RailsStatus;
 
 use crate::ratelimit::{Clock, SystemClock};
 
-use serde::{Deserialize, Serialize};
+use acquisition_store::world::RailsState;
 use serde_json::{Value, json};
 
 /// How the rails are configured for one daemon lifetime.
@@ -147,19 +148,9 @@ impl RailsConfig {
 
 /// What persists across daemon restarts. Only violation-class trips, the
 /// Cloudflare block mark and the refresh-failed mark; the ceiling is per
-/// lifetime by decision.
-#[derive(Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
-struct Persisted {
-    #[serde(default)]
-    tripped: Option<String>,
-    /// C129: the block mark's cause (status, method, route and time).
-    #[serde(default)]
-    blocked: Option<String>,
-    /// Per account (username → cause). The pre-multi-account file had one
-    /// `refresh_failed` string; it is ignored on load (one re-login).
-    #[serde(default)]
-    refresh_failed_by_account: HashMap<String, String>,
-}
+/// lifetime by decision. The format is the store's, shared with the
+/// offline reset, which links no daemon (C1).
+type Persisted = RailsState;
 
 /// Why the world's rails state could not be carried into this lifetime.
 /// The daemon refuses to start on it (fail closed: a persisted trip must
@@ -208,6 +199,11 @@ pub fn verify_state(path: &Path) -> Result<Option<()>, StateError> {
 struct State {
     /// Violation/Cloudflare trip cause (persisted).
     tripped: Option<String>,
+    /// A persisted ladder trip this daemon does not honour (it runs
+    /// without the tripwire): held only to be written back unchanged, so
+    /// its own writes never erase the ladder's state (H3-F3). A reset
+    /// clears it with the trip.
+    dormant_trip: Option<String>,
     /// C129: Cloudflare answered in GGG's place (persisted, honoured with
     /// the tripwire on or off).
     blocked: Option<String>,
@@ -372,11 +368,13 @@ impl Rails {
         {
             // A persisted trip belongs to the tripwire: a daemon started
             // without it (the post-baseline default) neither honors nor
-            // deletes it. The refresh-failed mark is product behavior
-            // (C24: a rejected grant is terminal) and is honored by
-            // every daemon.
+            // deletes it, and writes it back unchanged with its own marks.
+            // The refresh-failed mark is product behavior (C24: a
+            // rejected grant is terminal) and is honored by every daemon.
             if config.tripwire {
                 state.tripped = persisted.tripped;
+            } else {
+                state.dormant_trip = persisted.tripped;
             }
             // The block mark is product behaviour (C129): every daemon
             // honours it.
@@ -577,13 +575,15 @@ impl Rails {
         self.state.lock().unwrap().unannounced.take()
     }
 
-    /// Clear the violation trip and the block mark (C129: the explicit
-    /// verb is `reset-tripwire`). A met ceiling stands (`ceiling_met`): it
-    /// is the lifetime's. The refresh-failed mark is not a trip; it
-    /// clears on login or logout.
+    /// Clear the violation trip (honoured or dormant) and the block mark
+    /// (C129: the explicit verb is `reset-tripwire`), what
+    /// [`RailsState::reset`] clears offline. A met ceiling stands
+    /// (`ceiling_met`): it is the lifetime's. The refresh-failed mark is
+    /// not a trip; it clears on login or logout.
     pub fn reset_tripwire(&self) {
         let mut s = self.state.lock().unwrap();
         s.tripped = None;
+        s.dormant_trip = None;
         s.blocked = None;
         s.ceiling_tripped = None;
         self.persist_locked(&s);
@@ -655,20 +655,11 @@ impl Rails {
             return;
         };
         let persisted = Persisted {
-            tripped: s.tripped.clone(),
+            tripped: s.tripped.clone().or_else(|| s.dormant_trip.clone()),
             blocked: s.blocked.clone(),
             refresh_failed_by_account: s.refresh_failed.clone(),
         };
-        if persisted.tripped.is_none()
-            && persisted.blocked.is_none()
-            && persisted.refresh_failed_by_account.is_empty()
-        {
-            let _ = std::fs::remove_file(path);
-            return;
-        }
-        if let Ok(text) = serde_json::to_string(&persisted) {
-            let _ = std::fs::write(path, text);
-        }
+        let _ = persisted.write(path);
     }
 
     /// Write and flush one line. The daemon exits via `process::exit`, so
@@ -1292,6 +1283,67 @@ mod tests {
         });
         assert!(armed.halted().is_some());
         let _ = std::fs::remove_file(&path);
+    }
+
+    /// H3-F3: each owner's state survives every other owner's writes. A
+    /// tripwire-off daemon that records a dead grant (C24) and a block
+    /// (C129) writes the file; the ladder's trip in it is not its own,
+    /// so it neither honours it nor erases it. A reset, armed or not,
+    /// clears the trip and the mark.
+    #[test]
+    fn a_tripwire_off_daemon_keeps_the_ladders_trip_through_its_own_writes() {
+        let path =
+            std::env::temp_dir().join(format!("acq-rails-owners-{}.json", std::process::id()));
+        std::fs::write(&path, r#"{"tripped":"429 on GET /x (the ladder's)"}"#).unwrap();
+        let config = RailsConfig {
+            state_path: Some(path.clone()),
+            ..RailsConfig::default()
+        };
+        let read = || -> Persisted {
+            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap()
+        };
+        let rails = Rails::with_config(config.clone());
+        assert!(rails.mark_refresh_failed("A#1", "400"));
+        assert_eq!(rails.halted(), None, "an unarmed daemon honours no trip");
+        assert_eq!(
+            read().tripped.as_deref(),
+            Some("429 on GET /x (the ladder's)")
+        );
+        rails.clear_refresh_failed("A#1");
+        assert!(path.exists(), "the ladder's trip keeps the file");
+        assert_eq!(
+            read().tripped.as_deref(),
+            Some("429 on GET /x (the ladder's)")
+        );
+        let headers = json!({ "cf-mitigated": "challenge" });
+        rails.record(&SendReport {
+            headers: &headers,
+            block: true,
+            ..report(Some(403))
+        });
+        let held = read();
+        assert_eq!(
+            held.tripped.as_deref(),
+            Some("429 on GET /x (the ladder's)")
+        );
+        assert!(held.blocked.is_some(), "{held:?}");
+        assert!(
+            !rails.halted().unwrap().contains("live-test rails"),
+            "the block halts, the dormant trip does not"
+        );
+        drop(rails);
+        let armed = Rails::with_config(RailsConfig {
+            tripwire: true,
+            ..config.clone()
+        });
+        armed.reset_tripwire();
+        assert_eq!(armed.halted(), None);
+        assert!(!path.exists(), "a reset clears the trip and the mark");
+        drop(armed);
+        // A reset by the unarmed daemon clears the trip it holds dormant.
+        std::fs::write(&path, r#"{"tripped":"429 on GET /x"}"#).unwrap();
+        Rails::with_config(config).reset_tripwire();
+        assert!(!path.exists(), "the reset cleared the dormant trip");
     }
 
     #[test]

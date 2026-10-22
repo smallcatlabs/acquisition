@@ -504,6 +504,44 @@ fn c83_the_rails_state_lives_in_the_world_and_reset_tripwire_clears_it() {
     std::fs::remove_dir_all(&current).unwrap();
 }
 
+/// C24, C129: the offline reset clears what a reset clears, the trip and
+/// the block mark, and keeps the dead-grant marks, which persist across
+/// restarts until `acq auth` or logout; only the halt goes.
+#[test]
+fn c24_the_offline_reset_clears_the_halt_and_keeps_the_dead_grant_marks() {
+    let scratch = scratch("rails-owners");
+    let base = &scratch.0;
+    let current = base.join("store").join("mock").join("rails.json");
+    std::fs::create_dir_all(current.parent().unwrap()).unwrap();
+    std::fs::write(
+        &current,
+        r#"{"tripped":"429 on GET /stash/Standard","blocked":"Cloudflare answered in GGG's place: 403 on GET stash@A#1 at 2026-10-22T00:00:00.000Z","refresh_failed_by_account":{"A#1":"400 invalid_grant"}}"#,
+    )
+    .unwrap();
+    let out = acq_in(base, "store", &["daemon", "reset-tripwire", "--json"], &[]);
+    assert!(out.status.success(), "{out:?}");
+    assert_eq!(sole_json(&out)["cleared"], true);
+    let held: Value = serde_json::from_str(&std::fs::read_to_string(&current).unwrap()).unwrap();
+    assert!(held.get("blocked").is_none_or(|b| b.is_null()), "{held}");
+    assert!(held.get("tripped").is_none_or(|t| t.is_null()), "{held}");
+    assert_eq!(
+        held["refresh_failed_by_account"]["A#1"], "400 invalid_grant",
+        "the dead-grant mark was lost: {held}"
+    );
+    // Nothing left to clear: the marks stay, and the verb says so.
+    let out = acq_in(base, "store", &["daemon", "reset-tripwire", "--json"], &[]);
+    assert!(out.status.success(), "{out:?}");
+    assert_eq!(sole_json(&out)["cleared"], false);
+    assert!(current.exists(), "the dead-grant marks keep the file");
+    // A file nobody can read is still the verb's to remove: the daemon
+    // refuses to start over it, naming this verb.
+    std::fs::write(&current, "{corrupt").unwrap();
+    let out = acq_in(base, "store", &["daemon", "reset-tripwire", "--json"], &[]);
+    assert!(out.status.success(), "{out:?}");
+    assert_eq!(sole_json(&out)["cleared"], true);
+    assert!(!current.exists(), "the unreadable state was not removed");
+}
+
 /// The halt's advice follows its kind: a tripwire's persists in the world
 /// and waits out the post-violation time before `reset-tripwire`; a
 /// ceiling is the lifetime's alone, so `daemon status` sends the reader to
