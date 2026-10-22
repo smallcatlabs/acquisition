@@ -467,6 +467,69 @@ async fn c127_a_row_that_renders_no_url_fails_naming_the_cause() {
     finish_harness_wire(dispatcher, &log_path, &requests);
 }
 
+/// C127 (a row that renders no URL spends no token): a row whose params
+/// render no URL fails in the door's words before the job authenticates,
+/// so a session whose refresh is due sends no refresh for it. Every kind
+/// whose path params can render no URL past the daemon's own submit is in
+/// the table, so a handler that authenticates first is caught. Not here:
+/// `leagues` and `profile` always render, and `characters` renders none
+/// only for a realm the daemon's own submit refuses.
+#[tokio::test]
+async fn c127_a_row_that_renders_no_url_fails_before_any_refresh() {
+    let (base, requests, server) = token_server_answering(vec![]).await;
+    let (mut daemon, log_path) = test_daemon(&base, Arc::new(ManualClock::new()));
+    logged_in(&mut daemon);
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    for (kind, params, said) in [
+        (
+            "stash",
+            json!({ "league": "Standard", "id": "t1", "sub": ".." }),
+            "`sub` \"..\" is not one path segment",
+        ),
+        (
+            "character",
+            json!({ "name": "a/b" }),
+            "`name` \"a/b\" is not one path segment",
+        ),
+        (
+            "stashes",
+            json!({ "league": 7 }),
+            "`league` must be a string that is one path segment",
+        ),
+        (
+            "refresh",
+            json!({ "league": "..", "all": true }),
+            "`league` \"..\" is not one path segment",
+        ),
+    ] {
+        let what = format!("{kind} {params}");
+        let id = daemon
+            .submit(
+                kind.into(),
+                params,
+                0,
+                "daemon".into(),
+                Some("test-user".into()),
+            )
+            .unwrap_or_else(|e| panic!("{what}: the daemon's own submit was refused: {e}"));
+        let (info, outcome) = wait_terminal(&daemon, id).await;
+        assert_eq!(info.state, JobState::Failed, "{what}: {outcome:?}");
+        let Outcome::Failure { error, .. } = &outcome else {
+            panic!("{what}: {outcome:?}")
+        };
+        assert!(
+            error.contains(said),
+            "{what}: the failure says {said:?}: {error}"
+        );
+    }
+    server.abort();
+    assert!(
+        requests.lock().unwrap().is_empty(),
+        "the token server saw no request"
+    );
+    finish_harness_wire(dispatcher, &log_path, &requests);
+}
+
 /// C127 (no legitimate value is refused or changed): realistic league,
 /// character, stash and substash values on every realm a family takes,
 /// each run through `route_for` and then `url::Url::parse` (what reqwest

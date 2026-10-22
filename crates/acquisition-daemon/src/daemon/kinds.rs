@@ -207,6 +207,45 @@ impl Daemon {
         }
     }
 
+    /// C127 — render, then authenticate: the URL a session's job sends
+    /// on, its bearer, and the username it runs as. A row whose params
+    /// render no URL fails in the door's words before any token is taken,
+    /// so it never spends a refresh nor reports a session failure in
+    /// place of its own. A profile job during a login runs on the staged
+    /// tokens (`staged_profile_token`): the account may have no
+    /// registered session yet, or a dead one being replaced — the new
+    /// tokens are the ones being proven.
+    async fn render_then_authenticate(
+        &self,
+        kind: &str,
+        params: &Value,
+        account: Option<&str>,
+    ) -> Result<(String, Auth, String), Outcome> {
+        let Some((_, url)) = self.route_for(kind, params) else {
+            return Err(Outcome::failure(why_no_url(kind, params)));
+        };
+        let staged = (kind == "profile")
+            .then(|| self.staged_profile_token(account))
+            .flatten();
+        let (auth, username) = match staged {
+            Some((token, username)) => (Auth::Staged(token), username),
+            None => {
+                let (token, username) = self
+                    .valid_access_token(account, false)
+                    .await
+                    .map_err(|error| Outcome::failure(error.to_string()))?;
+                (
+                    Auth::Session {
+                        token,
+                        username: username.clone(),
+                    },
+                    username,
+                )
+            }
+        };
+        Ok((url, auth, username))
+    }
+
     pub(super) async fn execute_inner(
         &self,
         id: JobId,
@@ -223,20 +262,12 @@ impl Daemon {
             // requeues only acceptable 429s, while Cloudflare-shaped blocks
             // are never retried.
             "characters" => {
-                let (token, username) = match self.valid_access_token(account, false).await {
-                    Ok(pair) => pair,
-                    Err(error) => {
-                        return Ok(Outcome::failure(error.to_string()));
-                    }
-                };
-                let Some((_, url)) = self.route_for(kind, &params) else {
-                    return Ok(Outcome::failure(why_no_url(kind, &params)));
-                };
+                let (url, auth, username) =
+                    match self.render_then_authenticate(kind, &params, account).await {
+                        Ok(rendered) => rendered,
+                        Err(failure) => return Ok(failure),
+                    };
                 let route = route.as_deref().expect("characters is a network kind");
-                let auth = Auth::Session {
-                    token: token.clone(),
-                    username: username.clone(),
-                };
                 let (v, rate) = self.api_get(route, &url, auth, ready).await?;
                 // A 2xx without the `characters` array is a malformed
                 // response, not an empty account: the job fails and
@@ -261,31 +292,11 @@ impl Daemon {
                 }
             }
             "character" | "leagues" | "profile" => {
-                // A profile job during a login runs on the staged tokens
-                // (`staged_profile_token`): the account may have no
-                // registered session yet, or a dead one being replaced —
-                // the new tokens are the ones being proven.
-                let staged = (kind == "profile")
-                    .then(|| self.staged_profile_token(account))
-                    .flatten();
-                let (auth, username) = match staged {
-                    Some((token, username)) => (Auth::Staged(token), username),
-                    None => match self.valid_access_token(account, false).await {
-                        Ok((token, username)) => (
-                            Auth::Session {
-                                token,
-                                username: username.clone(),
-                            },
-                            username,
-                        ),
-                        Err(error) => {
-                            return Ok(Outcome::failure(error.to_string()));
-                        }
-                    },
-                };
-                let Some((_, url)) = self.route_for(kind, &params) else {
-                    return Ok(Outcome::failure(why_no_url(kind, &params)));
-                };
+                let (url, auth, username) =
+                    match self.render_then_authenticate(kind, &params, account).await {
+                        Ok(rendered) => rendered,
+                        Err(failure) => return Ok(failure),
+                    };
                 let route = route.as_deref().expect("network kind");
                 let (v, rate) = self.api_get(route, &url, auth, ready).await?;
                 if let Err(failure) = self.record(account, kind, &params, &v) {
@@ -321,25 +332,17 @@ impl Daemon {
             // The stash list: one request under stash-list-request-limit, the
             // second real policy. Tab contents are a later step.
             "stashes" => {
-                let (token, username) = match self.valid_access_token(account, false).await {
-                    Ok(pair) => pair,
-                    Err(error) => {
-                        return Ok(Outcome::failure(error.to_string()));
-                    }
-                };
+                let (url, auth, username) =
+                    match self.render_then_authenticate(kind, &params, account).await {
+                        Ok(rendered) => rendered,
+                        Err(failure) => return Ok(failure),
+                    };
                 let league = params
                     .get("league")
                     .and_then(Value::as_str)
                     .unwrap_or("Standard")
                     .to_string();
-                let Some((_, url)) = self.route_for(kind, &params) else {
-                    return Ok(Outcome::failure(why_no_url(kind, &params)));
-                };
                 let route = route.as_deref().expect("stashes is a network kind");
-                let auth = Auth::Session {
-                    token: token.clone(),
-                    username: username.clone(),
-                };
                 let (v, rate) = self.api_get(route, &url, auth, ready).await?;
                 // A 2xx without the `stashes` array is a malformed
                 // response, not an empty account: the job fails and
@@ -365,20 +368,12 @@ impl Daemon {
                 }
             }
             "stash" => {
-                let (token, username) = match self.valid_access_token(account, false).await {
-                    Ok(pair) => pair,
-                    Err(error) => {
-                        return Ok(Outcome::failure(error.to_string()));
-                    }
-                };
-                let Some((_, url)) = self.route_for("stash", &params) else {
-                    return Ok(Outcome::failure(why_no_url("stash", &params)));
-                };
+                let (url, auth, _) =
+                    match self.render_then_authenticate(kind, &params, account).await {
+                        Ok(rendered) => rendered,
+                        Err(failure) => return Ok(failure),
+                    };
                 let route = route.as_deref().expect("stash is a network kind");
-                let auth = Auth::Session {
-                    token: token.clone(),
-                    username: username.clone(),
-                };
                 let (v, rate) = self.api_get(route, &url, auth, ready).await?;
                 if let Err(failure) = self.record(account, kind, &params, &v) {
                     return Ok(failure);
@@ -433,12 +428,6 @@ impl Daemon {
             // (folders themselves are never fetched); map/unique substashes
             // only if `deep`. Selection is explicit — there is no default.
             "refresh" => {
-                let (token, username) = match self.valid_access_token(account, false).await {
-                    Ok(pair) => pair,
-                    Err(error) => {
-                        return Ok(Outcome::failure(error.to_string()));
-                    }
-                };
                 let league = params
                     .get("league")
                     .and_then(Value::as_str)
@@ -460,14 +449,12 @@ impl Daemon {
                     return Ok(Outcome::failure("refresh needs --all or --tabs <id,...>"));
                 }
                 let realm = Realm::from_params(&params).unwrap_or(Realm::DEFAULT);
-                let Some((_, url)) = self.route_for(kind, &params) else {
-                    return Ok(Outcome::failure(why_no_url(kind, &params)));
-                };
+                let (url, auth, _) =
+                    match self.render_then_authenticate(kind, &params, account).await {
+                        Ok(rendered) => rendered,
+                        Err(failure) => return Ok(failure),
+                    };
                 let route = route.as_deref().expect("refresh is a network kind");
-                let auth = Auth::Session {
-                    token: token.clone(),
-                    username: username.clone(),
-                };
                 let (v, rate) = self.api_get(route, &url, auth, ready).await?;
                 // A malformed listing fails the refresh whole, before the
                 // store sees it: converted to an empty list it would
