@@ -24,8 +24,9 @@
 //! settings, so each test here takes the harness's `session`: the one
 //! lock, and the one isolation list applied to this process (a scratch
 //! world, temp, runtime and log directory, every other `ACQ_*` removed),
-//! so the sockets these daemons bind and the real-mode lock never touch
-//! the user's own. The store root is created with the session (a
+//! so the sockets these daemons bind never touch the user's own (the
+//! real-mode lock is not moved by it, C132, and these daemons are mock,
+//! which never takes it). The store root is created with the session (a
 //! scripted peer has no daemon to create it, and the world it claims must
 //! exist to be this process's). The raw frame client and the scripted
 //! peers below stay here: they are this file's subject (C85). Nothing

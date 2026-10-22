@@ -13,10 +13,14 @@
 //! an empty scratch store, so nothing to restore), nothing is submitted
 //! to them, and belt and braces, `ACQ_TRIPWIRE=1 ACQ_MAX_SENDS=0` halts
 //! every send before it could happen. The real-mode lock is per OS user
-//! at a fixed path, so this test contends with a live daemon of the
-//! owner's if one is running while the gate runs — which the standing
-//! rule forbids anyway (never run the gate under a live daemon); the
-//! failure names the holder's pid.
+//! at a fixed path in the user's own data directory (C132), which no
+//! variable the harness moves can relocate, so this test takes the
+//! owner's real lock: it contends with any real-mode daemon of his — a
+//! live driver's, or the one a bare `acq` spawns and leaves idling — and
+//! with this test in a second gate, which is why `AGENTS.md` forbids a
+//! bare `acq` or a second gate while the gate runs; the failure names the
+//! holder's pid. Both of its daemons are killed when it ends, however it
+//! ends, so it never leaves the lock held.
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
@@ -246,10 +250,15 @@ fn c83_a_second_daemon_on_the_same_world_refuses_naming_the_holder() {
     assert!(out.status.success(), "{out:?}");
 }
 
-/// C83, C31: a second real-mode daemon for this OS user refuses to start
-/// whatever its world, naming the holder and the real-mode lock; a mock
-/// daemon on that other world starts, since the lock is real mode's.
-/// Nothing reaches GGG (module doc).
+/// C83, C31, C132: a second real-mode daemon for this OS user refuses to
+/// start whatever its world and whatever its temp, runtime and home
+/// variables — `TMPDIR`, `TEMP`, `TMP`, `XDG_RUNTIME_DIR`, `HOME`,
+/// `XDG_DATA_HOME`, `USERPROFILE` and `LOCALAPPDATA` all moved from the
+/// first's, so a lock derived from any of them would be a second lock —
+/// naming the holder and the real-mode lock; a mock daemon on
+/// that other world starts, since the lock is real mode's. Nothing reaches
+/// GGG (module doc), and the first daemon has sent nothing after the
+/// refusal.
 #[test]
 fn c83_c31_a_second_real_mode_daemon_for_this_user_refuses_naming_the_holder() {
     let scratch = scratch("real");
@@ -274,11 +283,31 @@ fn c83_c31_a_second_real_mode_daemon_for_this_user_refuses_naming_the_holder() {
     assert_eq!(status["rails"]["tripwire_enabled"], true, "{status}");
     assert_eq!(status["rails"]["sends"], 0, "{status}");
 
-    // Another world, another socket, real mode: refused on the
-    // real-mode lock, and the refusal names it.
+    // Another world, another socket, real mode, and every variable a temp,
+    // runtime, home or data directory is read from moved elsewhere (C132):
+    // refused on the real-mode lock all the same, and the refusal names
+    // it. The moved home exists, so a lock read from it would be made
+    // there and the contender would start.
+    // No longer than the harness's own `tmp`, so the socket a contender
+    // would bind there stays under the cap (`harness::socket_fits_under`).
+    let elsewhere = base.join("t2");
+    std::fs::create_dir_all(&elsewhere).unwrap();
+    assert_ne!(elsewhere, scratch_tmp(base));
     let mut second = daemon_command(base, "two");
     for (k, v) in &real {
         second.env(k, v);
+    }
+    for k in [
+        "TMPDIR",
+        "TEMP",
+        "TMP",
+        "XDG_RUNTIME_DIR",
+        "HOME",
+        "XDG_DATA_HOME",
+        "USERPROFILE",
+        "LOCALAPPDATA",
+    ] {
+        second.env(k, &elsewhere);
     }
     let (status, stderr) = refused_daemon(second);
     eprintln!("the real-mode lock's refusal, verbatim:\n{stderr}");
@@ -293,6 +322,20 @@ fn c83_c31_a_second_real_mode_daemon_for_this_user_refuses_naming_the_holder() {
             && stderr.contains("one real-mode daemon per OS user"),
         "{stderr}"
     );
+    // The lock it met is not under its own moved directories: the path
+    // derives from the OS user's recorded home, not from them.
+    assert!(
+        !stderr.contains(&elsewhere.display().to_string()),
+        "the refusal named a lock under the moved directories: {stderr}"
+    );
+    // No send: the first daemon's count is still zero.
+    let out = command(base, "one", &["daemon", "status", "--json"])
+        .env("ACQ_PROVIDER", "ggg")
+        .output()
+        .unwrap();
+    let status = sole_json(&out);
+    assert_eq!(status["pid"], pid, "{status}");
+    assert_eq!(status["rails"]["sends"], 0, "{status}");
     // The refused contender held no lock, so it made nothing in its
     // world's log directory (review 2026-09-11): its refusal is on stderr
     // alone — there was no log to append to yet.

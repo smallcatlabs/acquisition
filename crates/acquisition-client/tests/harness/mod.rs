@@ -127,8 +127,11 @@ fn scratch_tmp_path(base: &Path) -> PathBuf {
 /// `TMPDIR` (macOS's runtime fallback) and `XDG_RUNTIME_DIR` (Linux's
 /// runtime directory) both point here, so the sockets the daemons bind,
 /// and those a killed daemon leaves, never touch the user's own runtime
-/// directory (C83). Created here, since the runtime directory is made
-/// under an existing parent.
+/// directory (C83). The real-mode lock is not here and no variable moves
+/// it: it lives in the OS user's own data directory, from the home the
+/// system records (C132), so a test that starts a real-mode daemon takes
+/// the user's real lock. Created here, since the runtime directory is
+/// made under an existing parent.
 pub fn scratch_tmp(base: &Path) -> PathBuf {
     let tmp = scratch_tmp_path(base);
     let _ = std::fs::create_dir_all(&tmp);
@@ -143,7 +146,8 @@ pub fn scratch_tmp(base: &Path) -> PathBuf {
 /// under `base`: the temp directory is named for each platform's reader,
 /// `TMPDIR` on macOS, `XDG_RUNTIME_DIR` on Linux, and `TEMP` and `TMP`,
 /// which `std::env::temp_dir` reads on Windows, so no two tests' daemons
-/// share the runner's own temp directory there.
+/// share the runner's own temp directory there. None of them moves the
+/// real-mode lock (C132, [`scratch_tmp`]).
 pub fn isolation(world: &Path, base: &Path) -> Vec<(OsString, Option<OsString>)> {
     let mut list: Vec<(OsString, Option<OsString>)> = std::env::vars_os()
         .filter(|(key, _)| key.to_str().is_some_and(|k| k.starts_with("ACQ_")))
@@ -870,8 +874,12 @@ pub fn session(tag: &str) -> Session {
         }
     }
     // The daemon's step, so a socket path resolves in this process too:
-    // a client never creates the runtime directory (C83).
-    acquisition_store::world::app_runtime_dir().expect("the scratch runtime directory");
+    // a client never creates the runtime directory (C83). Unix only, as
+    // the daemon's is: on Windows the endpoint is a pipe and the daemon
+    // makes no runtime directory (C112, C132).
+    if cfg!(unix) {
+        acquisition_store::world::app_runtime_dir().expect("the scratch runtime directory");
+    }
     Session {
         base,
         _scratch: scratch,

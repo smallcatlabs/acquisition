@@ -44,6 +44,19 @@
 //! named pipe under a user-only ACL whose server's process user a client
 //! checks, is step 0 of `PLATFORMS-SLICE.md` at `b6197a82`.
 //!
+//! ## C132 — The real-mode lock's path
+//!
+//! **C132 — The real-mode lock's path derives from the OS user alone, in
+//! the user's own data directory.** The home comes from the password
+//! database (on Windows, the profile directory from the process token),
+//! never from a variable; the lock sits in a private `run` directory
+//! beside the default store; the socket stays in the runtime directory
+//! (C112, the derived endpoint). Another user or mount namespace stays
+//! external concurrency (C31, one daemon, many sessions); a home that
+//! cannot hold the lock means no real-mode daemon, refused by name.
+//! *Why:* every temp directory is moved by a variable or age-cleaned
+//! under a held lock, and two locks are two gates.
+//!
 //! ## C83 — as built (the daemon split's steps 5 and 6)
 //!
 //! - **The root.** [`intended_root`] is the path the environment names:
@@ -75,24 +88,27 @@
 //!   makes C6's "one daemon per store directory" structure rather than a
 //!   sentence: two daemons on one `daemon.db` would each restore and run
 //!   the same queue.
-//! - **The real-mode lock.** [`real_mode_lock_path`] is
-//!   `<runtime>/ggg.lock`, in the private per-user runtime directory
-//!   ([`app_runtime_dir`]: `$XDG_RUNTIME_DIR/acq` where the platform sets
-//!   it, else `<temp dir>/acq-<uid>` — `/tmp` is shared on Linux, so the
-//!   fallback carries the uid; either way the directory is created with
-//!   mode 0700 in the creating call — never made loose and tightened
-//!   after —, must not be a symlink, must be owned by this user and must
-//!   be exactly 0700, restored if it drifted or refused, — the
-//!   pre-creation attack on a shared temp directory, review 2026-09-11).
-//!   Every real-mode daemon takes it whatever its root, so two live-test
-//!   roots cannot make two GGG gates (C31's Cloudflare bound is
-//!   per-process state). Per user, not per machine: another OS user, the
-//!   C++ Acquisition and other machines behind the same address are
-//!   outside it — C31 names them as external concurrency the tripwire
-//!   exists for. Per runtime directory, too: a relocated `TMPDIR`
-//!   (macOS) or `XDG_RUNTIME_DIR` (Linux) is a second lock — an `ACQ_*`
-//!   override was refused as a door to exactly that, and the tripwire
-//!   bounds what a local lock cannot. The mock never takes it.
+//! - **The real-mode lock** (C132, below). [`real_mode_lock_path`] is
+//!   `ggg.lock` in a private `run` directory of the user's own data
+//!   directory, under the home the system records for this OS user —
+//!   `pw_dir` from the password database on Unix, the process token's
+//!   profile directory on Windows — and never a variable:
+//!   `~/Library/Application Support/com.smallcatlabs.acq/run` on macOS,
+//!   `~/.local/share/acq/run` on Linux,
+//!   `<profile>\AppData\Local\smallcatlabs\acq\run` on Windows. `run` is
+//!   held to [`private_dir`]'s checks (made 0700 in the creating call, no
+//!   symlink, this user's, exactly 0700 or restored or refused). Every
+//!   real-mode daemon takes it whatever its root and whatever its
+//!   environment, so two live-test roots, or a terminal and a cron job
+//!   with different `TMPDIR` or `XDG_RUNTIME_DIR`, cannot make two GGG
+//!   gates (C31's Cloudflare bound is per-process state). Per user, not
+//!   per machine: another OS user, another mount namespace or sandbox
+//!   (each its own home), the C++ Acquisition and other machines behind
+//!   the same address are outside it — C31 names them as external
+//!   concurrency the tripwire exists for. A home that cannot hold it (no
+//!   entry, no directory, a `run` refused, a lock the filesystem refuses)
+//!   is no real-mode daemon, refused by name; there is no fallback. The
+//!   mock never takes it.
 //! - **Durable state in the world.** `daemon.db` (`jobs::daemon_db_path`)
 //!   and the rails state ([`World::rails_state_path`]:
 //!   `<root>/<provider>/rails.json`) live beside the account files, where
@@ -136,8 +152,11 @@
 //! - **The endpoint** is a named pipe, not a socket (C112;
 //!   [`World::socket_path`], `world_windows`).
 //! - **The runtime directory** is `%TEMP%\acq` — per user, under the
-//!   profile — and holds only the real-mode lock; the owner and mode
-//!   checks of [`private_dir`] are Unix-only.
+//!   profile — and is not made by the daemon: the endpoint is a pipe and the
+//!   real-mode lock is in the profile's `AppData\Local` (C132), its
+//!   profile directory read from the process token
+//!   (`world_windows::profile_dir`); the owner and mode checks of
+//!   [`private_dir`] are Unix-only.
 //! - **The locks** are `std`'s file locks, which on Windows are mandatory:
 //!   the holder's pid is written to `<lock>.pid` beside each lock as well,
 //!   where [`Lock::holder`] reads it.
@@ -455,8 +474,9 @@ fn runtime_dir_path() -> PathBuf {
     match BaseDirs::new().and_then(|b| b.runtime_dir().map(Path::to_path_buf)) {
         Some(runtime) => runtime.join("acq"),
         // Windows: `%TEMP%` is under the user's profile, per user by
-        // construction; it holds only the real-mode lock (C112 puts the
-        // endpoint in the pipe namespace).
+        // construction; it holds nothing the daemon makes — C112 puts the
+        // endpoint in the pipe namespace, and C132 the real-mode lock in
+        // the profile's `AppData\Local`.
         None if cfg!(windows) => std::env::temp_dir().join("acq"),
         None => std::env::temp_dir().join(format!("acq-{}", current_uid())),
     }
@@ -517,7 +537,9 @@ pub fn file_id(file: &File) -> std::io::Result<(u64, u64)> {
 
 /// This application's private per-user runtime directory
 /// (`runtime_dir_path`), created on demand and verified on every use.
-/// Holds the real-mode lock and every world's socket. [`private_dir`]
+/// Holds every world's socket on Unix (C112); the daemon does not make
+/// it on Windows, where the endpoint is a pipe; never the real-mode lock, which lives in
+/// the user's data directory ([`real_mode_lock_path`], C132). [`private_dir`]
 /// does the creating and the checking; the daemon calls this before it
 /// binds, a client never creates it ([`World::socket_path`]).
 pub fn app_runtime_dir() -> std::io::Result<PathBuf> {
@@ -552,7 +574,8 @@ fn current_uid() -> u32 {
 
 /// A directory private to this user at `path`: created with mode 0700
 /// in the creating call if missing (its parent must exist: the runtime
-/// or temp directory); refused if it is a symlink or not a directory,
+/// or temp directory, or the data directory the real-mode lock's `run`
+/// sits in); refused if it is a symlink or not a directory,
 /// if another user owns it, or if its mode is not exactly 0700 and
 /// cannot be made so — the pre-creation attack on a shared temp
 /// directory, where a path the attacker made first, or made loose
@@ -605,7 +628,7 @@ pub fn existing_private_dir(path: &Path) -> std::io::Result<PathBuf> {
             return Err(Error::new(
                 ErrorKind::InvalidInput,
                 format!(
-                    "{} is a symlink; the runtime directory must be a plain directory this user made",
+                    "{} is a symlink; a private directory must be a plain directory this user made",
                     path.display()
                 ),
             ));
@@ -651,10 +674,187 @@ pub fn existing_private_dir(path: &Path) -> std::io::Result<PathBuf> {
     Ok(path.to_path_buf())
 }
 
-/// `<runtime>/ggg.lock`: the real-mode lock's file, per OS user,
-/// whatever the root (C31, C83).
+/// How a user's data directory sits under the home, per platform: the
+/// fixed shape the platform's convention gives with no variable set
+/// (C132). The default store's directory ([`intended_root`]) has the same
+/// shape on macOS and Linux, so a user who moved nothing finds the lock's
+/// `run` beside `store`; on Windows the lock takes the local, never
+/// roaming, application data.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum HomeLayout {
+    /// `<home>/Library/Application Support/com.smallcatlabs.acq`
+    MacOs,
+    /// `<home>/.local/share/acq`, the XDG default (Linux and every other
+    /// Unix)
+    Xdg,
+    /// `<profile>\AppData\Local\smallcatlabs\acq`
+    Windows,
+}
+
+impl HomeLayout {
+    const HERE: HomeLayout = if cfg!(target_os = "macos") {
+        HomeLayout::MacOs
+    } else if cfg!(windows) {
+        HomeLayout::Windows
+    } else {
+        HomeLayout::Xdg
+    };
+}
+
+/// C132: the real-mode lock's private `run` directory under `home`, a
+/// pure function of the home and the platform's layout — nothing here
+/// reads the environment, so nothing a process sets can move it.
+fn real_mode_run_dir_in(home: &Path, layout: HomeLayout) -> PathBuf {
+    let data = match layout {
+        HomeLayout::MacOs => home
+            .join("Library")
+            .join("Application Support")
+            .join(format!("{QUALIFIER}.{ORGANIZATION}.{APPLICATION}")),
+        HomeLayout::Xdg => home.join(".local").join("share").join(APPLICATION),
+        HomeLayout::Windows => home
+            .join("AppData")
+            .join("Local")
+            .join(ORGANIZATION)
+            .join(APPLICATION),
+    };
+    data.join("run")
+}
+
+/// C132: this OS user's home as the system records it, never as a
+/// variable names it — on Unix `pw_dir` of the password database's entry
+/// for the real uid (`getpwuid_r`), never `HOME`; on Windows the profile
+/// directory of the process token's user (`GetUserProfileDirectoryW`),
+/// never `%USERPROFILE%` or `%LOCALAPPDATA%`.
+fn user_home() -> std::io::Result<PathBuf> {
+    #[cfg(unix)]
+    {
+        password_database_home()
+    }
+    #[cfg(windows)]
+    {
+        crate::world_windows::profile_dir()
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Unsupported,
+            "this platform has no home directory the real-mode lock can be derived from",
+        ))
+    }
+}
+
+/// `pw_dir` of this real uid's password database entry (`getpwuid_r`):
+/// no entry, or an empty home, is an error naming the uid.
+#[cfg(unix)]
+fn password_database_home() -> std::io::Result<PathBuf> {
+    use std::ffi::{CStr, OsStr};
+    use std::io::{Error, ErrorKind};
+    use std::os::unix::ffi::OsStrExt;
+    let uid = current_uid();
+    // SAFETY: sysconf has no preconditions; -1 (no limit) falls back below.
+    let hint = unsafe { libc::sysconf(libc::_SC_GETPW_R_SIZE_MAX) };
+    let mut size = usize::try_from(hint)
+        .ok()
+        .filter(|n| *n > 0)
+        .unwrap_or(1024);
+    loop {
+        let mut buf: Vec<libc::c_char> = vec![0; size];
+        // SAFETY: an all-zero passwd is a valid value (null pointers,
+        // zero ids); getpwuid_r fills it on success.
+        let mut entry: libc::passwd = unsafe { std::mem::zeroed() };
+        let mut found: *mut libc::passwd = std::ptr::null_mut();
+        // SAFETY: `entry`, `buf` (of `buf.len()` bytes) and `found` live
+        // across the call; the strings `entry` points to are in `buf`.
+        let rc =
+            unsafe { libc::getpwuid_r(uid, &mut entry, buf.as_mut_ptr(), buf.len(), &mut found) };
+        if rc == libc::ERANGE && size < 1 << 20 {
+            size *= 2;
+            continue;
+        }
+        if rc != 0 {
+            let e = Error::from_raw_os_error(rc);
+            return Err(Error::new(
+                e.kind(),
+                format!("could not read the password database entry for uid {uid}: {e}"),
+            ));
+        }
+        if found.is_null() || entry.pw_dir.is_null() {
+            return Err(Error::new(
+                ErrorKind::NotFound,
+                format!("the password database has no home directory for uid {uid}"),
+            ));
+        }
+        // SAFETY: a non-null `pw_dir` from a successful call is a
+        // NUL-terminated string in `buf`, which is still alive.
+        let dir = unsafe { CStr::from_ptr(entry.pw_dir) }.to_bytes();
+        if dir.is_empty() {
+            return Err(Error::new(
+                ErrorKind::NotFound,
+                format!("the password database's home directory for uid {uid} is empty"),
+            ));
+        }
+        return Ok(PathBuf::from(OsStr::from_bytes(dir)));
+    }
+}
+
+/// C132: the real-mode lock under `home`: `ggg.lock` in the private
+/// `run` directory of the user's own data directory — pure, as
+/// [`real_mode_run_dir_in`] is, and the one derivation both the lock and
+/// its test use.
+fn real_mode_lock_in(home: &Path) -> PathBuf {
+    real_mode_run_dir_in(home, HomeLayout::HERE).join("ggg.lock")
+}
+
+/// Where the real-mode lock is for this OS user, computed and not
+/// touched: [`real_mode_lock_in`] the home the system records
+/// ([`user_home`]). No variable moves it, so every real-mode daemon of
+/// this user meets the same file, whatever its environment. The tests'
+/// view of [`real_mode_lock_path`], which creates nothing in the home.
+#[cfg(test)]
+fn real_mode_lock_location() -> std::io::Result<PathBuf> {
+    Ok(real_mode_lock_in(&user_home()?))
+}
+
+/// The real-mode lock's file, per OS user, whatever the root and whatever
+/// the environment (C31, C83, C132): `real_mode_lock_in` the home the
+/// system records (`user_home`), its
+/// `run` directory made private ([`private_dir`]: 0700, no symlink, this
+/// user's) and its data directory created if missing. A home that is not
+/// a directory is never created; it, and a data directory or `run` that
+/// cannot be made, is an error naming the path — the daemon refuses real
+/// mode on it rather than lock anywhere else.
 pub fn real_mode_lock_path() -> std::io::Result<PathBuf> {
-    Ok(app_runtime_dir()?.join("ggg.lock"))
+    real_mode_lock_made_under(&user_home()?)
+}
+
+/// [`real_mode_lock_path`]'s making and refusals for a given `home`, the
+/// seam its tests drive with a scratch home, never the user's own.
+fn real_mode_lock_made_under(home: &Path) -> std::io::Result<PathBuf> {
+    use std::io::{Error, ErrorKind};
+    if !home.is_dir() {
+        return Err(Error::new(
+            ErrorKind::NotFound,
+            format!(
+                "this OS user's home directory {} is missing or not a directory; the real-mode lock lives under it",
+                home.display()
+            ),
+        ));
+    }
+    let lock = real_mode_lock_in(home);
+    let run = lock.parent().unwrap_or(home);
+    if let Some(data) = run.parent() {
+        std::fs::create_dir_all(data).map_err(|e| {
+            Error::new(
+                e.kind(),
+                format!(
+                    "could not create the data directory {} for the real-mode lock: {e}",
+                    data.display()
+                ),
+            )
+        })?;
+    }
+    private_dir(run)?;
+    Ok(lock)
 }
 
 /// Where the daemon log and the default journal live: `ACQ_LOG_DIR`
@@ -1012,10 +1212,165 @@ mod tests {
         assert!(err.to_string().contains("not a directory"), "{err}");
         let runtime = app_runtime_dir().unwrap();
         assert_eq!(std::fs::metadata(&runtime).unwrap().mode() & 0o077, 0);
-        assert_eq!(
-            real_mode_lock_path().unwrap().parent(),
+        // C132: the real-mode lock is no longer in the runtime directory
+        // (`c83_the_lock_path_reads_no_environment` holds where it is).
+        assert_ne!(
+            real_mode_lock_location().unwrap().parent(),
             Some(runtime.as_path())
         );
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// C132: the real-mode lock's path is a pure function of the home the
+    /// system records and the platform's layout, so no variable moves it:
+    /// the shape for a sample home on each platform, the home read from
+    /// the password database (the process token on Windows) and nothing
+    /// else, and the lock out of the runtime directory, where the socket
+    /// stays (C112). Nothing here
+    /// sets or reads a variable; the process test in
+    /// `acquisition-cli/tests/world.rs` (`c83_c31_`) moves the variables
+    /// under two real daemons. The real path is computed, not created, so
+    /// the store's tests make nothing in the user's home.
+    #[test]
+    fn c83_the_lock_path_reads_no_environment() {
+        assert_eq!(
+            real_mode_run_dir_in(Path::new("/Users/someone"), HomeLayout::MacOs),
+            Path::new("/Users/someone/Library/Application Support/com.smallcatlabs.acq/run")
+        );
+        assert_eq!(
+            real_mode_run_dir_in(Path::new("/home/someone"), HomeLayout::Xdg),
+            Path::new("/home/someone/.local/share/acq/run")
+        );
+        let windows = real_mode_run_dir_in(Path::new("C:/Users/someone"), HomeLayout::Windows);
+        assert_eq!(
+            windows.components().collect::<Vec<_>>(),
+            Path::new("C:/Users/someone/AppData/Local/smallcatlabs/acq/run")
+                .components()
+                .collect::<Vec<_>>()
+        );
+        // The real derivation is the pure one over the system's home.
+        let home = user_home().unwrap();
+        assert!(home.is_absolute(), "{}", home.display());
+        let lock = real_mode_lock_location().unwrap();
+        assert_eq!(lock, real_mode_lock_in(&home));
+        assert_eq!(
+            lock.parent(),
+            Some(real_mode_run_dir_in(&home, HomeLayout::HERE).as_path())
+        );
+        // Out of the runtime directory; the socket is still in it.
+        let runtime = runtime_dir_path();
+        assert_ne!(lock.parent(), Some(runtime.as_path()));
+        assert!(!lock.starts_with(&runtime), "{}", lock.display());
+        #[cfg(unix)]
+        {
+            let base = scratch("lock-home");
+            std::fs::create_dir_all(base.join("real")).unwrap();
+            let world = World::at(&base.join("real")).unwrap();
+            if let Ok(socket) = world.socket_path_under(&runtime) {
+                assert_eq!(socket.parent(), Some(runtime.as_path()));
+            }
+            let _ = std::fs::remove_dir_all(&base);
+        }
+    }
+
+    /// C132: a home that cannot hold the real-mode lock is refused by
+    /// name, never worked around: a home that is a file, a data directory
+    /// that cannot be made (a file where its first component under the
+    /// home should be), and a `run` that fails [`private_dir`] (a symlink
+    /// to a directory, a file) — each error names the path it met. A loose
+    /// `run` is made 0700, not refused (private_dir's restore). Every home
+    /// here is a scratch directory; the user's own is never touched.
+    #[test]
+    fn c132_a_home_that_cannot_hold_the_lock_is_refused_by_name() {
+        let base = scratch("lock-refusals");
+        std::fs::create_dir_all(&base).unwrap();
+
+        // The home is a file.
+        let file_home = base.join("home-file");
+        std::fs::write(&file_home, b"").unwrap();
+        let err = real_mode_lock_made_under(&file_home).unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains(&file_home.display().to_string())
+                && msg.contains("home directory")
+                && msg.contains("not a directory"),
+            "{msg}"
+        );
+        // A missing home is the same refusal, and nothing is created.
+        let missing = base.join("home-missing");
+        let msg = real_mode_lock_made_under(&missing).unwrap_err().to_string();
+        assert!(msg.contains(&missing.display().to_string()), "{msg}");
+        assert!(!missing.exists());
+
+        // The data directory cannot be made: its first component under
+        // the home is a file.
+        let home = base.join("home-blocked");
+        std::fs::create_dir_all(&home).unwrap();
+        let run = real_mode_run_dir_in(&home, HomeLayout::HERE);
+        let data = run.parent().unwrap();
+        let first = home.join(
+            data.strip_prefix(&home)
+                .unwrap()
+                .components()
+                .next()
+                .unwrap(),
+        );
+        std::fs::write(&first, b"").unwrap();
+        let msg = real_mode_lock_made_under(&home).unwrap_err().to_string();
+        assert!(
+            msg.contains("could not create the data directory")
+                && msg.contains(&data.display().to_string())
+                && msg.contains("real-mode lock"),
+            "{msg}"
+        );
+
+        // `run` is a file.
+        let home = base.join("home-run-file");
+        let run = real_mode_run_dir_in(&home, HomeLayout::HERE);
+        std::fs::create_dir_all(run.parent().unwrap()).unwrap();
+        std::fs::write(&run, b"").unwrap();
+        let msg = real_mode_lock_made_under(&home).unwrap_err().to_string();
+        assert!(
+            msg.contains(&run.display().to_string()) && msg.contains("not a directory"),
+            "{msg}"
+        );
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            // `run` is a symlink to a private directory of this user's.
+            let home = base.join("home-run-link");
+            let run = real_mode_run_dir_in(&home, HomeLayout::HERE);
+            std::fs::create_dir_all(run.parent().unwrap()).unwrap();
+            let target = base.join("elsewhere");
+            private_dir(&target).unwrap();
+            std::os::unix::fs::symlink(&target, &run).unwrap();
+            let msg = real_mode_lock_made_under(&home).unwrap_err().to_string();
+            assert!(
+                msg.contains(&run.display().to_string()) && msg.contains("is a symlink"),
+                "{msg}"
+            );
+
+            // A loose `run` is restored to 0700, and the lock is in it.
+            let home = base.join("home-run-loose");
+            let run = real_mode_run_dir_in(&home, HomeLayout::HERE);
+            std::fs::create_dir_all(&run).unwrap();
+            std::fs::set_permissions(&run, std::fs::Permissions::from_mode(0o755)).unwrap();
+            let lock = real_mode_lock_made_under(&home).unwrap();
+            assert_eq!(lock, real_mode_lock_in(&home));
+            let mode = std::fs::symlink_metadata(&run)
+                .unwrap()
+                .permissions()
+                .mode();
+            assert_eq!(mode & 0o7777, 0o700);
+        }
+
+        // A fresh home gets its data directory and a private `run`.
+        let home = base.join("home-fresh");
+        std::fs::create_dir_all(&home).unwrap();
+        let lock = real_mode_lock_made_under(&home).unwrap();
+        assert_eq!(lock, real_mode_lock_in(&home));
+        assert!(lock.parent().unwrap().is_dir());
         let _ = std::fs::remove_dir_all(&base);
     }
 

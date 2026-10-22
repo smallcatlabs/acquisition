@@ -23,16 +23,20 @@
 //!   is refused before a byte is written. The pipe's owner is not used:
 //!   an elevated server's objects are owned by the Administrators group.
 //!
-//! Beside them, a file's id for C84's artifact identity ([`file_id`]),
+//! Beside them, this user's profile directory from the process token,
+//! where the real-mode lock lives (C132, [`profile_dir`]), a file's id
+//! for C84's artifact identity ([`file_id`]),
 //! and the spawn's guard on this process's std handles
 //! ([`disinherit_std_handles`]): the same FFI, kept in one module.
 //!
 //! Every call here is FFI over `windows-sys`; each unsafe block names the
 //! handle or buffer whose lifetime it relies on.
 
-use std::ffi::c_void;
+use std::ffi::{OsString, c_void};
 use std::io;
+use std::os::windows::ffi::OsStringExt as _;
 use std::os::windows::io::RawHandle;
+use std::path::PathBuf;
 
 use windows_sys::Win32::Foundation::{
     CloseHandle, HANDLE, HANDLE_FLAG_INHERIT, LocalFree, SetHandleInformation,
@@ -51,6 +55,7 @@ use windows_sys::Win32::System::Pipes::GetNamedPipeServerProcessId;
 use windows_sys::Win32::System::Threading::{
     GetCurrentProcess, OpenProcess, OpenProcessToken, PROCESS_QUERY_LIMITED_INFORMATION,
 };
+use windows_sys::Win32::UI::Shell::GetUserProfileDirectoryW;
 
 /// A process's `TOKEN_USER`, owned: the SID it carries points into this
 /// buffer, so the buffer outlives every use of [`TokenUserBuf::sid`].
@@ -125,6 +130,48 @@ pub fn current_user_sid() -> io::Result<String> {
     // SAFETY: allocated by ConvertSidToStringSidW, freed once.
     unsafe { LocalFree(text.cast()) };
     Ok(s)
+}
+
+/// C132: the profile directory of this process token's user
+/// (`GetUserProfileDirectoryW`), which the system reads from the token
+/// and the registry — never `%USERPROFILE%` or `%LOCALAPPDATA%`, so no
+/// variable a process sets moves the real-mode lock.
+pub fn profile_dir() -> io::Result<PathBuf> {
+    let mut token: HANDLE = std::ptr::null_mut();
+    // SAFETY: the pseudo-handle needs no closing and is always valid;
+    // `token` is written on success and closed below.
+    if unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token) } == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    let mut len = 0u32;
+    // SAFETY: a null buffer asks for the size, in wide characters with
+    // the terminator; `token` is open.
+    unsafe { GetUserProfileDirectoryW(token, std::ptr::null_mut(), &mut len) };
+    let mut buf = vec![0u16; len as usize];
+    let ok = if buf.is_empty() {
+        0
+    } else {
+        // SAFETY: `buf` is `len` wide characters, as the size query
+        // asked for; `token` is open.
+        unsafe { GetUserProfileDirectoryW(token, buf.as_mut_ptr(), &mut len) }
+    };
+    let err = io::Error::last_os_error();
+    // SAFETY: `token` was opened above and is closed once.
+    unsafe { CloseHandle(token) };
+    if ok == 0 {
+        return Err(io::Error::new(
+            err.kind(),
+            format!("could not read this user's profile directory from the process token: {err}"),
+        ));
+    }
+    let end = buf.iter().position(|&c| c == 0).unwrap_or(buf.len());
+    if end == 0 {
+        return Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            "the process token's user has an empty profile directory",
+        ));
+    }
+    Ok(PathBuf::from(OsString::from_wide(&buf[..end])))
 }
 
 /// Run `create` with a `SECURITY_ATTRIBUTES` whose protected DACL grants

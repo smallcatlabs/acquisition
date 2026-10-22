@@ -409,9 +409,12 @@ async fn run_with_log(
     // The rendezvous (C112): the world's endpoint, derived from the world
     // and the user. On Unix a socket in the private per-user runtime
     // directory, made here — the daemon is the one side that creates it;
-    // a client only verifies it. On Windows the directory holds only the
-    // real-mode lock and the endpoint is a pipe.
-    app_runtime_dir().map_err(|e| anyhow::anyhow!("the runtime directory: {e}"))?;
+    // a client only verifies it. On Windows the endpoint is a pipe and the
+    // runtime directory would hold nothing (the real-mode lock is in the
+    // user's data directory, C132), so it is not made.
+    if cfg!(unix) {
+        app_runtime_dir().map_err(|e| anyhow::anyhow!("the runtime directory: {e}"))?;
+    }
     let path = world
         .socket_path()
         .map_err(|e| anyhow::anyhow!("this world's socket: {e}"))?;
