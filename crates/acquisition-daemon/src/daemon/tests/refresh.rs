@@ -432,3 +432,55 @@ async fn a_token_2xx_with_malformed_rate_headers_installs_its_tokens_without_a_h
     assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
     finish_harness(None, &log_path);
 }
+
+/// C47 with C134: an `expires_in` no clock can add is GGG's input, not a
+/// broken invariant. The refresh fails upstream before anything is
+/// installed or saved, the session stands, and `shared` is not poisoned:
+/// the next grant installs as usual. Before, the sum panicked under
+/// `shared`, and the refresh owner's drop met the poisoned lock and
+/// aborted the process with the rotated token already in the keyring.
+#[tokio::test]
+async fn an_out_of_range_expires_in_is_a_token_error() {
+    let huge = json!({
+        "access_token": "at-huge",
+        "refresh_token": "rt-huge",
+        "expires_in": u64::MAX,
+        "username": "test-user",
+    })
+    .to_string();
+    let (daemon, credentials, _clock, log_path, requests, server) = token_daemon(vec![
+        token_answer("200 OK", TOKEN_HEADERS, Some(&huge)),
+        token_answer("200 OK", TOKEN_HEADERS, None),
+    ])
+    .await;
+
+    let refusal = daemon
+        .valid_access_token(None, false, None)
+        .await
+        .unwrap_err();
+    assert_eq!(refusal.kind, ErrorKind::Upstream, "{refusal}");
+    assert!(refusal.message.contains("lifetime"), "{refusal}");
+    assert!(!refusal.message.contains("at-huge"), "{refusal}");
+    assert!(!refusal.message.contains("rt-huge"), "{refusal}");
+    assert!(!daemon.shared.is_poisoned());
+    assert_eq!(
+        session_refresh_token(&daemon).as_deref(),
+        Some("rt-old"),
+        "the session stands"
+    );
+    assert!(
+        credentials.saves.lock().unwrap().is_empty(),
+        "nothing saved"
+    );
+    assert_eq!(daemon.choke.rails().refresh_failed("test-user"), None);
+
+    let (token, _) = daemon.valid_access_token(None, false, None).await.unwrap();
+    assert_eq!(token, "at-new", "a later grant installs");
+    assert_eq!(
+        session_refresh_token(&daemon).as_deref(),
+        Some("rt-rotated")
+    );
+    server.await.unwrap();
+    assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
+    finish_harness(None, &log_path);
+}

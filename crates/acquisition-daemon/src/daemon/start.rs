@@ -231,6 +231,56 @@ fn end_at_once(daemon: &Arc<Daemon>, log: std::fs::File) -> EndAtOnce {
     })
 }
 
+/// C134: a panic is a broken internal invariant (C47), so it ends the
+/// process instead of leaving a task dead and the daemon half alive. The
+/// hook writes, in order: the fault marker naming the job the panic ran
+/// in ([`RUNNING_JOB`]), when one is known and `marker` is given (a
+/// daemon with a world); one line to the log through `log`, a clone of
+/// the log's file; then the default hook's report to stderr; then
+/// `end`, `std::process::abort` in `run`. It takes no daemon lock and
+/// holds no `Daemon`: the panicking thread may hold any of them, and a
+/// hook that waited on one would wedge the process instead of ending
+/// it. The marker carries the job id alone, never a panic's words,
+/// which may quote a body. A panic outside a job writes no marker: only
+/// a job is replayed (C6), so only a job can bring the fault back.
+pub(super) fn install_panic_hook(
+    log: std::fs::File,
+    marker: Option<PathBuf>,
+    started: Instant,
+    end: fn() -> !,
+) {
+    let previous = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let job = RUNNING_JOB.try_with(|id| *id).ok();
+        let marked = match (job, &marker) {
+            (Some(id), Some(path)) => match std::fs::write(path, format!("{{\"job\":{id}}}\n")) {
+                Ok(()) => format!("; the fault marker {} names it", path.display()),
+                Err(e) => format!(
+                    "; the fault marker {} could not be written: {e}",
+                    path.display()
+                ),
+            },
+            _ => String::new(),
+        };
+        let place = info.location().map_or_else(
+            || "an unknown place".to_string(),
+            |at| format!("{}:{}", at.file(), at.line()),
+        );
+        let words = info.payload_as_str().unwrap_or("a panic with no message");
+        let within = job.map_or_else(
+            || "outside any job".to_string(),
+            |id| format!("in job {id}"),
+        );
+        let uptime = started.elapsed().as_secs();
+        let _ = writeln!(
+            &log,
+            "[{uptime:>5}s] PANIC {within} at {place}: {words}{marked}; the daemon aborts"
+        );
+        previous(info);
+        end()
+    }));
+}
+
 /// Run the daemon until stopped or idle-timed-out. Never returns Ok while the
 /// socket is healthy; returns Err early if another daemon already owns the
 /// world, the real-mode lock or the socket.
@@ -466,6 +516,7 @@ async fn run_with_log(
         }
     };
     let signal_log = log.try_clone()?;
+    let log_for_panics = log.try_clone()?;
     let daemon = Arc::new(Daemon {
         shared: Mutex::new(Shared {
             jobs: HashMap::new(),
@@ -497,6 +548,14 @@ async fn run_with_log(
     // on runs the exit, before restore or any lock is taken.
     let _ = daemon.exit.end.set(end_at_once(&daemon, signal_log));
     signals.attach(&daemon);
+    // C134: a panic from here on is logged, marks its job and aborts,
+    // before restore reads the last lifetime's marker or anything sends.
+    install_panic_hook(
+        log_for_panics,
+        daemon.fault_marker_path(),
+        daemon.started,
+        std::process::abort,
+    );
 
     {
         let artifact = daemon.artifact.as_ref().expect("run sets the artifact");

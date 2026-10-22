@@ -12,6 +12,13 @@
 
 use super::*;
 
+/// C134: the fault marker's file name, in the provider's directory.
+pub(super) const FAULT_MARKER: &str = "fault.json";
+
+/// C134: what the job a panic ran in concludes with in the next lifetime.
+const FAULT_WORDS: &str = "interrupted by a fault in the daemon while it ran (the daemon log has the \
+panic), and not replayed, so whatever broke the daemon is not sent again; resubmit if still wanted";
+
 impl Daemon {
     /// Mirror one job to `daemon.db`. Called with the `Shared` lock held,
     /// so the table sees changes in memory's order. A failed write trips
@@ -38,6 +45,41 @@ impl Daemon {
                 false
             }
         }
+    }
+
+    /// C134: where a panic leaves its fault marker, beside `daemon.db` in
+    /// the provider's directory. `None` for a daemon that serves no world
+    /// (the in-process harness): it neither writes nor reads one.
+    pub(super) fn fault_marker_path(&self) -> Option<PathBuf> {
+        self.world.as_ref()?;
+        Some(self.store_dir.as_ref()?.join(FAULT_MARKER))
+    }
+
+    /// C134: the job the last lifetime's panic ran in, from its marker:
+    /// `Some(None)` for a marker that names none or cannot be read (it is
+    /// removed all the same), `None` for no marker at all.
+    fn read_fault_marker(&self, path: &std::path::Path) -> Option<Option<JobId>> {
+        let text = match std::fs::read_to_string(path) {
+            Ok(text) => text,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return None,
+            Err(e) => {
+                self.log(&format!(
+                    "FAULT: the marker {} could not be read ({e}); no job is failed for it",
+                    path.display()
+                ));
+                return Some(None);
+            }
+        };
+        let job = serde_json::from_str::<Value>(&text)
+            .ok()
+            .and_then(|marker| marker.get("job").and_then(Value::as_u64));
+        if job.is_none() {
+            self.log(&format!(
+                "FAULT: the marker {} names no job; no job is failed for it",
+                path.display()
+            ));
+        }
+        Some(job)
     }
 
     /// The sticky queue-write failure, if one has happened.
@@ -77,9 +119,16 @@ impl Daemon {
                 }
             }
         };
+        // C134: the job the last lifetime's panic ran in fails instead of
+        // replaying, so what broke the daemon is sent once.
+        let marker = self.fault_marker_path();
+        let faulted = marker
+            .as_deref()
+            .and_then(|path| self.read_fault_marker(path))
+            .flatten();
         let entries: Vec<Entry> = rows.into_iter().filter_map(Entry::from_row).collect();
         let has_children: HashSet<JobId> = entries.iter().filter_map(|e| e.info.parent).collect();
-        let (mut requeued, mut held, mut not_replayed, mut dropped) = (0, 0, 0, 0);
+        let (mut requeued, mut held, mut not_replayed, mut dropped, mut fault) = (0, 0, 0, 0, 0);
         let mut finish_parents = Vec::new();
         let mut restored = Vec::new();
         {
@@ -91,7 +140,21 @@ impl Daemon {
                     let _ = db.lock().unwrap().delete(entry.info.id);
                     continue;
                 }
-                if entry.info.state == JobState::Running {
+                // C134: the marker's job, open and neither cancelling
+                // nor a parent (a parent's held or mid-fan-out finish is
+                // never a replay), fails whether its task had set it
+                // running or was still at the limiter.
+                if faulted == Some(entry.info.id)
+                    && matches!(entry.info.state, JobState::Running | JobState::Waiting)
+                    && !entry.cancel_requested
+                    && entry.deferred.is_none()
+                    && !has_children.contains(&entry.info.id)
+                {
+                    fault += 1;
+                    entry.info.state = JobState::Failed;
+                    entry.outcome = Some(Outcome::failure(FAULT_WORDS));
+                    self.persist(&entry);
+                } else if entry.info.state == JobState::Running {
                     let no_probe_route = self
                         .keyed_route_for(
                             &entry.info.kind,
@@ -144,9 +207,21 @@ resubmit if still wanted",
                 s.jobs.insert(entry.info.id, entry);
             }
         }
+        // C134: removed once its job's failure is on disk, so a second
+        // restore finds the job terminal and the marker gone.
+        if let Some(path) = &marker {
+            match std::fs::remove_file(path) {
+                Ok(()) => {}
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(e) => self.log(&format!(
+                    "FAULT: the marker {} could not be removed: {e}",
+                    path.display()
+                )),
+            }
+        }
         if !restored.is_empty() || dropped > 0 {
             self.log(&format!(
-                "JOBS: restored {} from {} ({requeued} re-queued from running, {held} parents held mid-fan-out, {not_replayed} not replayed on no-probe routes, {dropped} probes dropped, {pruned} old rows pruned); next id {next_id}",
+                "JOBS: restored {} from {} ({requeued} re-queued from running, {held} parents held mid-fan-out, {not_replayed} not replayed on no-probe routes, {fault} failed by a fault, {dropped} probes dropped, {pruned} old rows pruned); next id {next_id}",
                 restored.len(),
                 db.lock().unwrap().path().display()
             ));

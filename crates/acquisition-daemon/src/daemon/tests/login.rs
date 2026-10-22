@@ -545,3 +545,68 @@ async fn a_headerless_code_exchange_2xx_installs_its_tokens() {
     finish_harness(dispatcher, &log_path);
     let _ = std::fs::remove_dir_all(&store_dir);
 }
+
+/// C47 with C134, the login arm: a code exchange whose `expires_in` no
+/// clock can add fails the login as the provider's error, stages and
+/// saves nothing, gives back its count for the exit's drain, and leaves
+/// `shared` unpoisoned, so the daemon still answers. Before, the sum
+/// panicked under `shared` in the exchange's task and wedged the daemon.
+#[tokio::test]
+async fn an_out_of_range_expires_in_is_a_token_error() {
+    let grant = ScriptedResponse {
+        method: "POST",
+        path: "/token",
+        status: "200 OK",
+        headers: "X-Rate-Limit-Policy: token-request-limit\r\nX-Rate-Limit-Rules: Ip\r\nX-Rate-Limit-Ip: 60:30:30\r\nX-Rate-Limit-Ip-State: 1:30:0\r\n".into(),
+        body: json!({
+            "access_token": "at-huge",
+            "refresh_token": "rt-huge",
+            "expires_in": u64::MAX,
+            "username": "test-user",
+        })
+        .to_string(),
+    };
+    let (base, requests, server) = scripted_server(vec![grant]).await;
+    let (daemon, credentials, store_dir, log_path) = login_daemon(&base);
+
+    let authorize = url::Url::parse(&daemon.auth_start().await.unwrap()).unwrap();
+    let query: HashMap<String, String> = authorize.query_pairs().into_owned().collect();
+    let callback = format!(
+        "{}?code=code-x&state={}",
+        query["redirect_uri"], query["state"]
+    );
+    assert!(reqwest::get(&callback).await.unwrap().status().is_success());
+    let (logged_in, ok, error) = tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            let result = login_result(&daemon);
+            if result.1.is_some() || result.2.is_some() {
+                break result;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("the login finished");
+    assert_eq!((logged_in, ok.as_deref()), (false, None));
+    let error = error.expect("the login failed");
+    assert!(error.contains("token exchange failed"), "{error}");
+    assert!(error.contains("lifetime"), "{error}");
+    assert!(
+        !error.contains("at-huge") && !error.contains("rt-huge"),
+        "{error}"
+    );
+    assert!(!daemon.shared.is_poisoned());
+    {
+        let s = daemon.shared.lock().unwrap();
+        assert!(s.auth.staging.is_none(), "nothing staged");
+        assert_eq!(s.auth.exchanges, 0, "the exchange gave its count back");
+    }
+    assert!(
+        credentials.saves.lock().unwrap().is_empty(),
+        "nothing saved"
+    );
+    server.await.unwrap();
+    assert_eq!(requests.lock().unwrap().as_slice(), ["POST"], "one POST");
+    finish_harness(None, &log_path);
+    let _ = std::fs::remove_dir_all(&store_dir);
+}

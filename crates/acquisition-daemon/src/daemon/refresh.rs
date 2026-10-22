@@ -84,6 +84,8 @@ impl Daemon {
             }
         };
         session.access_token = Some(tokens.access_token);
+        // C47: `expires_in` is bounded where the response is read
+        // (`auth::MAX_ACCESS_TOKEN_LIFETIME_SECS`), so the sum is safe.
         session.access_expires_at =
             Some(self.choke.wall() + Duration::from_secs(tokens.expires_in));
         session.refresh_token = Some(tokens.refresh_token);

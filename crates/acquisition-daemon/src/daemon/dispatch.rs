@@ -21,6 +21,16 @@ pub(super) enum Exec {
     Parked(String),
 }
 
+tokio::task_local! {
+    /// C134: the job whose task is being polled, set by `run_active` for
+    /// the whole of `process`. A panic happens inside a poll, on the
+    /// polling thread, so the panic hook reads it there (`try_with`)
+    /// and its fault marker names the job; outside a job's task it is
+    /// unset and the hook writes no marker. No job spawns a task of its
+    /// own, so every send a job makes is polled under it.
+    pub(super) static RUNNING_JOB: JobId;
+}
+
 pub(super) fn may_requeue_429(retries: u32, cancel_requested: bool) -> bool {
     retries < MAX_429_RETRIES && !cancel_requested
 }
@@ -103,7 +113,7 @@ impl Daemon {
     }
 
     async fn run_active(self: Arc<Self>, id: JobId) {
-        self.process(id).await;
+        RUNNING_JOB.scope(id, self.process(id)).await;
         self.shared.lock().unwrap().active_jobs.remove(&id);
         self.work.notify_one();
     }

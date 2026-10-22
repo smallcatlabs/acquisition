@@ -92,9 +92,19 @@ impl TokenError {
 pub struct TokenResponse {
     pub access_token: String,
     pub refresh_token: String,
+    /// Seconds, at most [`MAX_ACCESS_TOKEN_LIFETIME_SECS`] in any response
+    /// [`exchange_code`] or [`refresh`] returns, so the daemon may add it
+    /// to its wall clock unchecked.
     pub expires_in: u64,
     pub username: String,
 }
+
+/// C47: the longest access-token lifetime a token response is taken to
+/// carry. GGG's is ten hours (ground truth N33); a year is far past any
+/// grant and far inside every platform's `SystemTime`, so the sum the
+/// daemon makes of it cannot overflow. A larger value is the provider's
+/// malformed input, refused like a body that is no token response.
+pub const MAX_ACCESS_TOKEN_LIFETIME_SECS: u64 = 366 * 24 * 60 * 60;
 
 pub async fn exchange_code(
     choke: &ChokePoint,
@@ -228,18 +238,30 @@ async fn token_request(
     // tokens are installed; the choke point has journaled the send as
     // the protocol failure it is. Only a whole token response counts:
     // all four fields, so a portal or Cloudflare page installs nothing.
-    serde_json::from_str::<TokenResponse>(&body).map_err(|e| TokenError {
+    // C47: an `expires_in` past the bound is refused here, before any
+    // token is installed or saved; the sum it would make panicked under
+    // `shared` (C134 turns a panic into an abort).
+    let refused = |words: String| TokenError {
         status: Some(status.as_u16()),
         blocked: false,
         halted: false,
         cancelled: false,
         message: match &response.protocol {
             Some(protocol) => {
-                format!("{e}; and the answer's rate-limit headers were unusable: {protocol}")
+                format!("{words}; and the answer's rate-limit headers were unusable: {protocol}")
             }
-            None => e.to_string(),
+            None => words,
         },
-    })
+    };
+    let tokens =
+        serde_json::from_str::<TokenResponse>(&body).map_err(|e| refused(e.to_string()))?;
+    if tokens.expires_in > MAX_ACCESS_TOKEN_LIFETIME_SECS {
+        return Err(refused(format!(
+            "the token endpoint gave the access token a lifetime of {} seconds, past the {MAX_ACCESS_TOKEN_LIFETIME_SECS} any grant is taken to carry; nothing was installed",
+            tokens.expires_in
+        )));
+    }
+    Ok(tokens)
 }
 
 // ---- keyring ------------------------------------------------------------

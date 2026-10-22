@@ -116,6 +116,8 @@ impl Daemon {
             flow: generation,
             username: username.clone(),
             access_token: tokens.access_token,
+            // C47: bounded where the response is read
+            // (`auth::MAX_ACCESS_TOKEN_LIFETIME_SECS`), so the sum is safe.
             access_expires_at: self.choke.wall() + Duration::from_secs(tokens.expires_in),
             refresh_token: tokens.refresh_token,
         });

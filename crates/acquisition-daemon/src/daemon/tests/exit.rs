@@ -1,7 +1,9 @@
 //! C133, the one exit: what the drain waits for, what it turns away, what
 //! the bound cuts, and the refusal and the idle verdict around it. Each
 //! test runs a harness daemon with a short bound on tokio time and never
-//! calls `leave`, which ends the process.
+//! calls `leave`, which ends the process. C134, the panic's end: the hook
+//! that writes the log line and the fault marker, and the restore that
+//! fails the marker's job once.
 //!
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
@@ -579,4 +581,225 @@ async fn exit_waits_for_a_login_code_exchange() {
     assert_journal_matches_wire(&log_path, &["POST".to_string()]);
     finish_harness(None, &log_path);
     remove_db(&db);
+}
+
+// ---- C134: a panic ends the process, and its job is sent once ----------
+
+/// A harness daemon serving a world (C134: only a daemon with a world
+/// reads or writes a fault marker), its queue on `<dir>/daemon.db` in the
+/// provider directory beside the marker, restored from it as `run` does.
+fn world_daemon(dir: &std::path::Path) -> (Arc<Daemon>, PathBuf) {
+    let (mut daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
+    {
+        let d = Arc::get_mut(&mut daemon).unwrap();
+        d.world = Some(dir.display().to_string());
+        d.store_dir = Some(dir.to_path_buf());
+        d.jobs_db = Mutex::new(JobDb::open(&acquisition_store::jobs::daemon_db_path(dir)).unwrap());
+    }
+    daemon.restore_jobs(Retention::default()).unwrap();
+    (daemon, log_path)
+}
+
+fn sleep_row(id: JobId, state: &str) -> acquisition_store::jobs::JobRow {
+    acquisition_store::jobs::JobRow {
+        id,
+        kind: "sleep".into(),
+        state: state.into(),
+        priority: 0,
+        submitted_by: "t".into(),
+        parent: None,
+        retries: 0,
+        account: None,
+        params: json!({ "seconds": 0.01 }),
+        outcome: None,
+        deferred: None,
+        cancel_requested: false,
+        submitted_at: 0,
+        updated_at: 0,
+    }
+}
+
+/// C134: a panic's marker names the job it ran in, and the next lifetime
+/// fails that job, in words that say a fault in the daemon interrupted
+/// it, instead of replaying it (C6); the marker is gone after. Another
+/// running job is replayed as C6 says and a waiting one is untouched. A
+/// second restore changes nothing: the failed job stays failed.
+#[tokio::test]
+async fn a_fault_marker_fails_its_job_once() {
+    let dir = std::env::temp_dir().join(format!(
+        "acquisition-fault-{}-{}",
+        std::process::id(),
+        TEST_LOG_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let db = acquisition_store::jobs::daemon_db_path(&dir);
+    {
+        let db = JobDb::open(&db).unwrap();
+        db.upsert(&sleep_row(1, "running")).unwrap();
+        db.upsert(&sleep_row(2, "running")).unwrap();
+        db.upsert(&sleep_row(3, "waiting")).unwrap();
+    }
+    let marker = dir.join("fault.json");
+    std::fs::write(&marker, "{\"job\":1}\n").unwrap();
+
+    let (daemon, log1) = world_daemon(&dir);
+    let states = |daemon: &Daemon| -> Vec<(JobId, JobState)> {
+        daemon
+            .shared
+            .lock()
+            .unwrap()
+            .list(daemon)
+            .iter()
+            .map(|j| (j.id, j.state))
+            .collect()
+    };
+    assert_eq!(
+        states(&daemon),
+        [
+            (1, JobState::Failed),
+            (2, JobState::Waiting),
+            (3, JobState::Waiting)
+        ],
+        "the marker's job fails; the rest restore as C6 says"
+    );
+    let failed = |row: acquisition_store::jobs::JobRow| -> String {
+        assert_eq!(row.state, "failed");
+        row.outcome.expect("a failed row has its outcome")["error"]
+            .as_str()
+            .expect("the failure's words")
+            .to_string()
+    };
+    let error = failed(row_of(&db, 1));
+    assert!(
+        error.contains("interrupted by a fault in the daemon"),
+        "{error}"
+    );
+    assert!(error.contains("not replayed"), "{error}");
+    assert!(!marker.exists(), "the marker is removed once read");
+    drop(daemon);
+
+    let (daemon, log2) = world_daemon(&dir);
+    assert_eq!(
+        states(&daemon),
+        [(2, JobState::Waiting), (3, JobState::Waiting)],
+        "a second restore changes nothing"
+    );
+    assert_eq!(
+        failed(row_of(&db, 1)),
+        error,
+        "the failure stands as written"
+    );
+    drop(daemon);
+    for log in [log1, log2] {
+        finish_harness(None, &log);
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The child's exit status: the hook reached its end. `run` passes
+/// `std::process::abort`; the test passes this, so a passing run leaves
+/// no crash report behind.
+const HOOK_ENDED: i32 = 86;
+
+/// Set in the child to the directory it writes in, and to where it
+/// panics: `job` inside a job's task, `free` outside any.
+const HOOK_CHILD_DIR: &str = "ACQ_TEST_PANIC_HOOK_DIR";
+const HOOK_CHILD_WHERE: &str = "ACQ_TEST_PANIC_HOOK_WHERE";
+
+fn hook_ended() -> ! {
+    std::process::exit(HOOK_ENDED)
+}
+
+/// The child: the hook installed as `run` installs it, then a panic on a
+/// tokio worker, inside job 7's task or outside any. (The hook holds no
+/// `Daemon`, so it can take no daemon lock; that is by construction, not
+/// by this test.)
+fn panic_hook_child(dir: &std::path::Path) -> ! {
+    let log = std::fs::File::create(dir.join("daemon.log")).unwrap();
+    super::super::start::install_panic_hook(
+        log,
+        Some(dir.join("fault.json")),
+        std::time::Instant::now(),
+        hook_ended,
+    );
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()
+        .unwrap();
+    let in_job = std::env::var(HOOK_CHILD_WHERE).as_deref() == Ok("job");
+    runtime.block_on(async move {
+        let task = async move {
+            panic!("a broken invariant, for the hook");
+        };
+        let _ = if in_job {
+            tokio::spawn(RUNNING_JOB.scope(7, task)).await
+        } else {
+            tokio::spawn(task).await
+        };
+    });
+    // A task's panic that tokio caught: the hook did not end the process.
+    std::process::exit(1)
+}
+
+/// Run this test's own binary as the child, panicking `at`.
+fn run_panic_hook_child(at: &str) -> (PathBuf, std::process::ExitStatus) {
+    let dir = std::env::temp_dir().join(format!(
+        "acquisition-panic-hook-{}-{}",
+        std::process::id(),
+        TEST_LOG_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let module = module_path!()
+        .split_once("::")
+        .map_or(module_path!(), |(_, rest)| rest);
+    let status = std::process::Command::new(std::env::current_exe().unwrap())
+        .args([
+            format!("{module}::a_panic_is_logged_marks_its_job_and_ends_the_process"),
+            "--exact".into(),
+            "--nocapture".into(),
+            "--test-threads=1".into(),
+        ])
+        .env(HOOK_CHILD_DIR, &dir)
+        .env(HOOK_CHILD_WHERE, at)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .unwrap();
+    (dir, status)
+}
+
+/// C134: a panic in a job's task writes one log line naming the job, the
+/// place and the words, writes the marker naming the job (and nothing
+/// else), and ends the process: tokio's catch of a task's panic never
+/// runs. A panic outside any job is logged the same and leaves no marker.
+#[test]
+fn a_panic_is_logged_marks_its_job_and_ends_the_process() {
+    if let Some(dir) = std::env::var_os(HOOK_CHILD_DIR) {
+        panic_hook_child(std::path::Path::new(&dir));
+    }
+
+    let (dir, status) = run_panic_hook_child("job");
+    assert_eq!(status.code(), Some(HOOK_ENDED), "{status}");
+    let log = std::fs::read_to_string(dir.join("daemon.log")).unwrap();
+    assert_eq!(log.lines().count(), 1, "{log}");
+    assert!(log.contains("PANIC in job 7 at "), "{log}");
+    assert!(log.contains("exit.rs:"), "the place: {log}");
+    assert!(log.contains("a broken invariant, for the hook"), "{log}");
+    assert!(log.contains("the fault marker"), "{log}");
+    assert_eq!(
+        std::fs::read_to_string(dir.join("fault.json")).unwrap(),
+        "{\"job\":7}\n",
+        "the marker names the job and carries nothing else"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+
+    let (dir, status) = run_panic_hook_child("free");
+    assert_eq!(status.code(), Some(HOOK_ENDED), "{status}");
+    let log = std::fs::read_to_string(dir.join("daemon.log")).unwrap();
+    assert!(log.contains("PANIC outside any job at "), "{log}");
+    assert!(!dir.join("fault.json").exists(), "no job, no marker");
+    let _ = std::fs::remove_dir_all(&dir);
 }
