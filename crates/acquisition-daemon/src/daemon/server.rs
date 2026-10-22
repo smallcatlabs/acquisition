@@ -471,26 +471,36 @@ impl Daemon {
         self.leave()
     }
 
+    /// C133: the exit for a cause that armed it itself, taking no lock (a
+    /// signal, on its own thread): the rest of the begin, the drain, the
+    /// leave.
+    pub(super) async fn exit_armed(&self, why: &str) -> ! {
+        self.stop_admitting(why);
+        self.drain().await;
+        self.leave()
+    }
+
     /// C133: begin the exit, once; `false` if it had begun already. The
-    /// bound is armed first, on tokio time, before any lock is taken, so
+    /// bound is armed first ([`Exit::arm`]), before any lock is taken, so
     /// a cause can never wait behind one (a keyring save holds `shared`
-    /// and may be a prompt no one answers). Then the lifetime's halt is
-    /// set in the rails: the choke point admits nothing more, and a job
-    /// parked before its send is turned away to waiting (C25). The
-    /// dispatcher is woken so the parked jobs see it, and from here a
-    /// submit is refused as stopping; `hello` is still answered.
+    /// and may be a prompt no one answers).
     pub(super) fn begin_exit(&self, why: &str) -> bool {
-        if self.exit.begun.swap(true, Ordering::SeqCst) {
+        if !self.exit.arm(why) {
             return false;
         }
-        let _ = self
-            .exit
-            .deadline
-            .set(tokio::time::Instant::now() + self.exit.bound);
+        self.stop_admitting(why);
+        true
+    }
+
+    /// C133: the lifetime's halt is set in the rails: the choke point
+    /// admits nothing more, and a job parked before its send is turned
+    /// away to waiting (C25). The dispatcher is woken so the parked jobs
+    /// see it, and from here a submit is refused as stopping; `hello` is
+    /// still answered.
+    fn stop_admitting(&self, why: &str) {
         self.rails().begin_stopping();
         self.log(why);
         self.work.notify_one();
-        true
     }
 
     /// C133: wait until no job task is past admission, no session's
@@ -643,8 +653,11 @@ impl Daemon {
 /// C133: what the exit's drain waits for, as one look saw it.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub(super) struct InFlight {
-    /// Jobs whose task is past admission, by id.
+    /// Jobs Running past admission, by id.
     pub(super) jobs: Vec<JobId>,
+    /// Jobs picked but still waiting (at the limiter, before their send):
+    /// waited for until their task gives the key back.
+    pub(super) held: Vec<JobId>,
     /// Accounts whose token refresh is in flight.
     pub(super) refreshes: Vec<String>,
     /// Login code exchanges in flight.
@@ -653,8 +666,14 @@ pub(super) struct InFlight {
 
 impl InFlight {
     fn of(s: &Shared) -> InFlight {
-        let mut jobs: Vec<JobId> = s.active_jobs.keys().copied().collect();
+        let (mut jobs, mut held): (Vec<JobId>, Vec<JobId>) =
+            s.active_jobs.keys().copied().partition(|id| {
+                s.jobs
+                    .get(id)
+                    .is_some_and(|e| e.info.state == JobState::Running)
+            });
         jobs.sort_unstable();
+        held.sort_unstable();
         let mut refreshes: Vec<String> = s
             .auth
             .by_account
@@ -665,13 +684,17 @@ impl InFlight {
         refreshes.sort();
         InFlight {
             jobs,
+            held,
             refreshes,
             exchanges: s.auth.exchanges,
         }
     }
 
     fn is_empty(&self) -> bool {
-        self.jobs.is_empty() && self.refreshes.is_empty() && self.exchanges == 0
+        self.jobs.is_empty()
+            && self.held.is_empty()
+            && self.refreshes.is_empty()
+            && self.exchanges == 0
     }
 
     fn describe(&self) -> String {
@@ -685,6 +708,10 @@ impl InFlight {
                 "job {} (left running on disk for the next daemon)",
                 ids.join(", ")
             ));
+        }
+        if !self.held.is_empty() {
+            let ids: Vec<String> = self.held.iter().map(JobId::to_string).collect();
+            parts.push(format!("job {} (still waiting on disk)", ids.join(", ")));
         }
         if !self.refreshes.is_empty() {
             parts.push(format!(

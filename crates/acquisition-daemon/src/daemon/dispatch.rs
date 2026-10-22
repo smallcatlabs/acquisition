@@ -43,17 +43,19 @@ impl Daemon {
 
     /// Waiting jobs, in dispatch order, that can start a task right now.
     pub(super) fn pick_runnable(&self) -> Vec<JobId> {
+        // C133: an exiting daemon starts nothing, of any kind, and a job
+        // its halt turned away is not picked again at once (the drain
+        // would spin, a queue write per pass). The queue is the next
+        // daemon's. Asked before the lock: the exit wakes the dispatcher,
+        // and a wake must not park a worker behind a keyring prompt
+        // holding `shared`.
+        if self.exit.begun() {
+            return Vec::new();
+        }
         let mut s = self.shared.lock().unwrap();
         // A failed queue means no new dispatch at all: every transition
         // a job makes from here would widen the memory/disk divergence.
         if self.queue_failed().is_some() {
-            return Vec::new();
-        }
-        // C133: an exiting daemon starts nothing, of any kind, and a job
-        // its halt turned away is not picked again at once (the drain
-        // would spin, a queue write per pass). The queue is the next
-        // daemon's.
-        if self.exit.begun() {
             return Vec::new();
         }
         let mut busy: HashSet<String> = s.active_jobs.values().cloned().collect();
@@ -155,6 +157,22 @@ impl Daemon {
         // repeats the final limiter check under the actual-send permit.
         if let Some((route, _)) = &route {
             loop {
+                // C133 with C25: the exit, or a halt, turns a job held here
+                // away. It is still waiting, in memory and on disk, and no
+                // retry is spent; returning gives its key back, so the
+                // drain does not wait out the limiter's hold for it.
+                if self.exit.begun() {
+                    self.log(&format!(
+                        "job {id} ({kind}): turned away before its send by the exit; still waiting, no retry spent"
+                    ));
+                    return;
+                }
+                if let Some(cause) = self.rails().halted() {
+                    self.log(&format!(
+                        "job {id} ({kind}): turned away before its send by a halt; still waiting, no retry spent: {cause}"
+                    ));
+                    return;
+                }
                 let step = {
                     let s = self.shared.lock().unwrap();
                     let Some(me) = s.jobs.get(&id) else { return };

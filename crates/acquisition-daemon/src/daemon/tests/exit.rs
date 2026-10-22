@@ -30,9 +30,18 @@ fn remove_db(path: &std::path::Path) {
 /// A logged-in harness daemon on the manual clock, its queue on a
 /// file-backed `daemon.db`, its exit bounded by `bound`.
 fn exit_daemon(base: &str, bound: Duration) -> (Arc<Daemon>, PathBuf, PathBuf) {
+    exit_daemon_on(base, bound, Arc::new(ManualClock::new()))
+}
+
+/// [`exit_daemon`] on `clock`.
+fn exit_daemon_on(
+    base: &str,
+    bound: Duration,
+    clock: Arc<dyn crate::ratelimit::Clock>,
+) -> (Arc<Daemon>, PathBuf, PathBuf) {
     let db = test_db_path();
     remove_db(&db);
-    let (mut daemon, log_path) = test_daemon(base, Arc::new(ManualClock::new()));
+    let (mut daemon, log_path) = test_daemon(base, clock);
     logged_in(&mut daemon);
     let d = Arc::get_mut(&mut daemon).unwrap();
     d.jobs_db = Mutex::new(JobDb::open(&db).unwrap());
@@ -383,6 +392,191 @@ async fn a_second_begin_exit_returns_at_once() {
         !log.contains("the second cause"),
         "the second cause began nothing:\n{log}"
     );
+    finish_harness(None, &log_path);
+    remove_db(&db);
+}
+
+/// C133: the bound is hard. A keyring prompt holds `shared`, and tasks
+/// that take it (here the idle verdict, twice) block both workers of the
+/// runtime, so no tokio timer runs and the drain cannot reach its bound.
+/// The bound's own thread still ends the exit at the bound and its grace,
+/// with the lock still held.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn the_bound_ends_the_exit_though_every_worker_is_blocked() {
+    let bound = Duration::from_millis(300);
+    let grace = Duration::from_millis(200);
+    let (mut daemon, log_path, db) = exit_daemon("http://127.0.0.1:1", bound);
+    let (ended_tx, ended_rx) = std::sync::mpsc::channel();
+    {
+        let d = Arc::get_mut(&mut daemon).unwrap();
+        d.exit.grace = grace;
+        let ended_tx = Mutex::new(ended_tx);
+        let end: EndAtOnce = Arc::new(move |why: &str, code: i32| {
+            let _ = ended_tx.lock().unwrap().send((why.to_string(), code));
+        });
+        let _ = d.exit.end.set(end);
+    }
+    // The prompt: `shared` held on a thread of its own.
+    let (held_tx, held_rx) = std::sync::mpsc::channel();
+    let holder = {
+        let daemon = daemon.clone();
+        std::thread::spawn(move || {
+            let _shared = daemon.shared.lock().unwrap();
+            held_tx.send(()).unwrap();
+            std::thread::sleep(Duration::from_millis(2500));
+        })
+    };
+    held_rx.recv().unwrap();
+    let blocked: Vec<_> = (0..2)
+        .map(|_| {
+            let daemon = daemon.clone();
+            tokio::spawn(async move { daemon.is_idle(Duration::from_secs(60)) })
+        })
+        .collect();
+    let drain = spawn_drain(&daemon);
+    std::thread::sleep(Duration::from_millis(100));
+
+    let began = std::time::Instant::now();
+    assert!(daemon.begin_exit("test: exit"));
+    let (why, code) = ended_rx
+        .recv_timeout(Duration::from_secs(2))
+        .expect("the bound ended the exit with every worker blocked");
+    let waited = began.elapsed();
+    assert!(
+        waited >= bound + grace && waited < Duration::from_millis(1500),
+        "the end came at the bound and its grace: {waited:?}"
+    );
+    assert!(
+        daemon.shared.try_lock().is_err(),
+        "the prompt still held the lock"
+    );
+    assert_eq!(code, 1);
+    assert!(why.contains("had not left"), "{why}");
+    assert!(why.contains("with no checkpoint"), "{why}");
+
+    holder.join().unwrap();
+    for task in blocked {
+        task.await.unwrap();
+    }
+    let _ = drain.await;
+    finish_harness(None, &log_path);
+    remove_db(&db);
+}
+
+/// C133 with C25: a job picked before the exit and held at the limiter
+/// before its send (here behind a 429's hold, on the system clock, where
+/// the dispatcher's pacing loop really waits) is turned away: the drain
+/// does not wait out the hold, cuts nothing, and the job is waiting in
+/// memory and on disk with only the 429's retry spent.
+#[tokio::test]
+async fn exit_turns_away_a_job_held_at_the_limiter() {
+    let responses = vec![
+        ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+        ScriptedResponse::full("GET", "429 Too Many Requests", Some(30), "{}"),
+    ];
+    let (base, requests, server) = scripted_server(responses).await;
+    let (daemon, log_path, db) =
+        exit_daemon_on(&base, BOUND, Arc::new(crate::ratelimit::SystemClock));
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    let id = submit_for(&daemon, "fetch", json!({}), None);
+    tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            {
+                let s = daemon.shared.lock().unwrap();
+                let info = &s.jobs[&id].info;
+                if info.retries == 1
+                    && info.state == JobState::Waiting
+                    && s.active_jobs.contains_key(&id)
+                {
+                    break;
+                }
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .expect("the job is held at the limiter after its 429");
+    server.await.unwrap();
+
+    let began = std::time::Instant::now();
+    assert!(daemon.begin_exit("test: exit"));
+    let cut = tokio::time::timeout(BOUND + Duration::from_secs(1), daemon.drain())
+        .await
+        .expect("the drain ends");
+    let waited = began.elapsed();
+    assert_eq!(cut, None, "nothing was cut");
+    assert!(
+        waited < Duration::from_secs(2),
+        "the drain did not wait out the hold: {waited:?}"
+    );
+    let info = daemon.shared.lock().unwrap().jobs[&id].info.clone();
+    assert_eq!(info.state, JobState::Waiting);
+    assert_eq!(info.retries, 1, "the exit spent no retry");
+    let row = row_of(&db, id);
+    assert_eq!(row.state, JobState::Waiting.to_string());
+    assert_eq!(row.retries, 1);
+    assert_eq!(requests.lock().unwrap().as_slice(), ["HEAD", "GET"]);
+    finish_harness(dispatcher, &log_path);
+    remove_db(&db);
+}
+
+/// C133: a login's code exchange on the wire when the exit begins is
+/// waited for: the token server answers only after the drain has begun,
+/// and the drain returns, with nothing cut, once the exchange has landed.
+#[tokio::test]
+async fn exit_waits_for_a_login_code_exchange() {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let (arrived_tx, arrived) = tokio::sync::oneshot::channel();
+    let (release, release_rx) = tokio::sync::oneshot::channel::<()>();
+    let server = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.unwrap();
+        let request = mockggg::read_request(&mut stream).await.unwrap();
+        assert_eq!(
+            (request.method.as_str(), request.path.as_str()),
+            ("POST", "/token")
+        );
+        assert!(request.body.contains("grant_type=authorization_code"));
+        arrived_tx.send(()).unwrap();
+        release_rx.await.unwrap();
+        let body = json!({
+            "access_token": "at-new",
+            "refresh_token": "rt-new",
+            "expires_in": 3600,
+            "username": "test-user",
+        })
+        .to_string();
+        let headers = concat!(
+            "X-Rate-Limit-Policy: token-request-limit\r\n",
+            "X-Rate-Limit-Rules: Ip\r\n",
+            "X-Rate-Limit-Ip: 60:30:30\r\n",
+            "X-Rate-Limit-Ip-State: 1:30:0\r\n",
+        );
+        mockggg::respond_with(&mut stream, "200 OK", "application/json", headers, &body).await;
+    });
+    let (daemon, log_path, db) = exit_daemon(&base, BOUND);
+
+    let authorize = url::Url::parse(&daemon.auth_start().await.unwrap()).unwrap();
+    let query: HashMap<String, String> = authorize.query_pairs().into_owned().collect();
+    let callback = format!(
+        "{}?code=code-x&state={}",
+        query["redirect_uri"], query["state"]
+    );
+    assert!(reqwest::get(&callback).await.unwrap().status().is_success());
+    arrived.await.unwrap();
+
+    assert!(daemon.begin_exit("test: exit"));
+    let drain = spawn_drain(&daemon);
+    settle().await;
+    assert!(
+        !drain.is_finished(),
+        "the drain waits for the code exchange"
+    );
+    release.send(()).unwrap();
+    assert_eq!(drain.await.unwrap(), None, "nothing was cut");
+    assert_eq!(daemon.shared.lock().unwrap().auth.exchanges, 0);
+    server.await.unwrap();
+    assert_journal_matches_wire(&log_path, &["POST".to_string()]);
     finish_harness(None, &log_path);
     remove_db(&db);
 }

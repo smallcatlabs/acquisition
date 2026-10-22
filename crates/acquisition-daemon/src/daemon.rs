@@ -188,15 +188,31 @@ const EXIT_BOUND: Duration = Duration::from_secs(15);
 /// How often the exit's drain looks again at what is still in flight.
 const DRAIN_POLL: Duration = Duration::from_millis(10);
 
+/// C133: how long past the bound the exit may take to leave (the
+/// checkpoints, the socket) before the bound's own thread ends the
+/// process at once. Under the five seconds a client's stop waits past the
+/// bound.
+const LEAVE_GRACE: Duration = Duration::from_secs(3);
+
+/// C133: what ends the process at once, with no lock and no checkpoint:
+/// a line for the log and the exit code. `run` installs one that writes
+/// through a clone of the log's file, removes the socket and exits; a
+/// harness daemon has none, or a test's recorder.
+pub(super) type EndAtOnce = Arc<dyn Fn(&str, i32) + Send + Sync>;
+
 /// C133: the exit's own state, outside every lock, so a cause that
 /// begins the exit (a stop, the idle verdict, a signal) arms its bound
-/// before it can wait on one. The bound runs on tokio time, never the
-/// daemon's `Clock`: the harness's `ManualClock` advances on every
-/// sleep, and a drain bounded on it would cut at once.
+/// before it can wait on one. The drain's bound runs on tokio time, never
+/// the daemon's `Clock`: the harness's `ManualClock` advances on every
+/// sleep, and a drain bounded on it would cut at once. The bound is hard
+/// on a plain OS thread of its own: a keyring prompt under `shared` can
+/// block every tokio worker, and then no tokio timer runs.
 struct Exit {
     begun: AtomicBool,
     deadline: OnceLock<tokio::time::Instant>,
     bound: Duration,
+    grace: Duration,
+    end: OnceLock<EndAtOnce>,
 }
 
 impl Exit {
@@ -205,11 +221,48 @@ impl Exit {
             begun: AtomicBool::new(false),
             deadline: OnceLock::new(),
             bound,
+            grace: LEAVE_GRACE,
+            end: OnceLock::new(),
         }
     }
 
     fn begun(&self) -> bool {
         self.begun.load(Ordering::SeqCst)
+    }
+
+    /// Begin the exit, once, taking no lock; `false` if it had begun
+    /// already. Arms the drain's deadline and, when an end is installed,
+    /// the thread that ends the process at once if the exit has not left
+    /// by the bound and its grace, whatever holds a lock or a worker.
+    fn arm(&self, why: &str) -> bool {
+        if self.begun.swap(true, Ordering::SeqCst) {
+            return false;
+        }
+        let _ = self.deadline.set(tokio::time::Instant::now() + self.bound);
+        if let Some(end) = self.end.get() {
+            let end = end.clone();
+            let at = std::time::Instant::now() + self.bound + self.grace;
+            let line = format!(
+                "the exit ({why}) had not left {}s past its {}s bound: exiting at once, with no checkpoint",
+                self.grace.as_secs_f64(),
+                self.bound.as_secs_f64()
+            );
+            let _ = std::thread::Builder::new()
+                .name("acqd-exit-bound".into())
+                .spawn(move || {
+                    std::thread::sleep(at.saturating_duration_since(std::time::Instant::now()));
+                    end(&line, 1);
+                });
+        }
+        true
+    }
+
+    /// End the process at once: the installed end, or a bare exit.
+    fn end_at_once(&self, why: &str, code: i32) -> ! {
+        if let Some(end) = self.end.get() {
+            end(why, code);
+        }
+        std::process::exit(code)
     }
 }
 

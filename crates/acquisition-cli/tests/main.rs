@@ -10,6 +10,7 @@ mod apply_loop;
 mod characters_wire;
 mod cli_reference;
 mod daemon_observe;
+mod daemon_signal_exit;
 mod daemon_stop_checkpoint;
 mod error_kind;
 mod journey;

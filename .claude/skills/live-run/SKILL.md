@@ -139,7 +139,10 @@ binary, working-tree changes to its own files, leftover env, and a
 running daemon. Rehearse first with `--mock` (evidence goes to
 `runs/mock/`). Expect holds: none while a cycle stays under 15 stash
 GETs, about 15 s before the 16th, about 343 s at most above 30: the
-limiter working, not a hang. macOS has no `timeout`.
+limiter working, not a hang. macOS has no `timeout`. A Ctrl-C at a driver
+now reaches its `acqd` (before, the shell ignored it there and the
+daemon kept sending): it drains (sends in flight have 15 s to land, then
+it exits), and a second Ctrl-C exits at once (C133).
 
 ## A first contact on a new endpoint
 

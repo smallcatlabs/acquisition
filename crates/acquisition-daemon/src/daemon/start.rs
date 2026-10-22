@@ -94,10 +94,150 @@ fn retention_from_env() -> (Retention, Vec<String>) {
     (r, problems)
 }
 
+/// C133: the terminating signals, SIGINT, SIGTERM and SIGHUP, run the
+/// exit `daemon stop` runs; a second one ends the process at once, and
+/// the bound's own thread ([`Exit::arm`]) ends it if the exit overruns.
+/// Armed at the top of `run`, before the world, a lock or a keyring read
+/// is taken: once a handler is registered the signal no longer kills the
+/// process, so the path that ends it at once must exist before anything
+/// can block. The watcher runs on a thread and a runtime of its own and
+/// takes no daemon lock: a keyring prompt under `shared` can block every
+/// worker of the daemon's runtime, and a watcher there would never run.
+/// It arms the exit itself, without a lock, and hands the rest to the
+/// daemon's runtime. The daemon is attached when it is built, before
+/// restore; a signal before that ends the process at once, as it did
+/// before the handlers, since nothing has run that a drain would wait
+/// for. Registering replaces a disposition the parent set to ignored: a
+/// script's background child, as the live drivers start `acqd`, inherits
+/// SIGINT ignored, and `nohup` SIGHUP; each now runs the exit.
+///
+/// Windows: nothing is armed. A daemon spawned detached from its
+/// frontend's console receives no console control event, and
+/// `TerminateProcess`, how a host ends it there, cannot be caught.
+pub(super) struct Signals {
+    #[cfg(unix)]
+    attached: Arc<OnceLock<Arc<Daemon>>>,
+}
+
+impl Signals {
+    #[cfg(unix)]
+    pub(super) fn arm() -> Result<Signals> {
+        use tokio::signal::unix::{SignalKind, signal};
+        let main = tokio::runtime::Handle::current();
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()?;
+        // Registered here, on the watcher's runtime, so the handlers are
+        // in place before `arm` returns.
+        let streams = {
+            let _watcher = runtime.enter();
+            Streams {
+                int: signal(SignalKind::interrupt())?,
+                term: signal(SignalKind::terminate())?,
+                hup: signal(SignalKind::hangup())?,
+            }
+        };
+        let attached = Arc::new(OnceLock::new());
+        let watched = attached.clone();
+        std::thread::Builder::new()
+            .name("acqd-signals".into())
+            .spawn(move || runtime.block_on(watch(streams, watched, main)))?;
+        Ok(Signals { attached })
+    }
+
+    #[cfg(not(unix))]
+    pub(super) fn arm() -> Result<Signals> {
+        Ok(Signals {})
+    }
+
+    /// Hand the watcher the daemon.
+    pub(super) fn attach(&self, daemon: &Arc<Daemon>) {
+        #[cfg(unix)]
+        let _ = self.attached.set(daemon.clone());
+        #[cfg(not(unix))]
+        let _ = daemon;
+    }
+}
+
+#[cfg(unix)]
+struct Streams {
+    int: tokio::signal::unix::Signal,
+    term: tokio::signal::unix::Signal,
+    hup: tokio::signal::unix::Signal,
+}
+
+#[cfg(unix)]
+impl Streams {
+    /// The next signal: its name, and its number (POSIX fixes these three).
+    async fn next(&mut self) -> (&'static str, i32) {
+        tokio::select! {
+            Some(()) = self.int.recv() => ("SIGINT", 2),
+            Some(()) = self.term.recv() => ("SIGTERM", 15),
+            Some(()) = self.hup.recv() => ("SIGHUP", 1),
+            else => std::future::pending().await,
+        }
+    }
+}
+
+/// C133: the first signal arms the exit, without a lock, and runs the
+/// rest of it on the daemon's runtime; the second ends the process at
+/// once.
+#[cfg(unix)]
+async fn watch(
+    mut streams: Streams,
+    attached: Arc<OnceLock<Arc<Daemon>>>,
+    main: tokio::runtime::Handle,
+) {
+    let (first, number) = streams.next().await;
+    let Some(daemon) = attached.get() else {
+        eprintln!("acqd: {first} before the daemon was built; exiting at once");
+        std::process::exit(128 + number);
+    };
+    let why = format!("{first} received; exiting");
+    let exiting = daemon.clone();
+    if daemon.exit.arm(&why) {
+        main.spawn(async move {
+            exiting.exit_armed(&why).await;
+        });
+    } else {
+        main.spawn(async move {
+            exiting.log(&format!("{first} received; the exit is already under way"));
+        });
+    }
+    let (second, number) = streams.next().await;
+    daemon.exit.end_at_once(
+        &format!(
+            "{second} received during the exit, a second signal: exiting at once, with no checkpoint"
+        ),
+        128 + number,
+    )
+}
+
+/// C133: what ends the process at once, installed on the exit: one line
+/// through a clone of the log's file (never the log's mutex), the socket
+/// removed, the exit code. What it cuts is left running on disk for the
+/// persisted queue (C6).
+fn end_at_once(daemon: &Arc<Daemon>, log: std::fs::File) -> EndAtOnce {
+    let daemon = Arc::downgrade(daemon);
+    Arc::new(move |why: &str, code: i32| {
+        if let Some(daemon) = daemon.upgrade() {
+            let uptime = daemon.uptime_seconds();
+            let _ = writeln!(&log, "[{uptime:>5}s] {why}");
+            if let Some(socket) = &daemon.socket_path {
+                socket.remove_if_still_ours();
+            }
+        }
+        std::process::exit(code);
+    })
+}
+
 /// Run the daemon until stopped or idle-timed-out. Never returns Ok while the
 /// socket is healthy; returns Err early if another daemon already owns the
 /// world, the real-mode lock or the socket.
 pub async fn run() -> Result<()> {
+    // C133: the signals first, before the world, a lock or a keyring
+    // read ([`Signals`]).
+    let signals = Signals::arm()?;
     // The world first (C83): the use path creates the root and
     // canonicalises it — the frontend that spawned this daemon did the
     // same a moment ago, so this is the second look at an existing
@@ -166,7 +306,7 @@ pub async fn run() -> Result<()> {
     if let Some(what) = rotated {
         writeln!(&log, "log: {what}").ok();
     }
-    let result = run_with_log(world, locks, log_name, log.try_clone()?).await;
+    let result = run_with_log(world, locks, log_name, log.try_clone()?, signals).await;
     if let Err(e) = &result {
         writeln!(&log, "STARTUP: {e:#}").ok();
     }
@@ -206,6 +346,7 @@ async fn run_with_log(
     locks: (Lock, Option<Lock>),
     log_path: String,
     log: std::fs::File,
+    signals: Signals,
 ) -> Result<()> {
     // The locks live here, as long as the daemon does.
     let (_world_lock, real_mode_lock) = locks;
@@ -324,6 +465,7 @@ async fn run_with_log(
             );
         }
     };
+    let signal_log = log.try_clone()?;
     let daemon = Arc::new(Daemon {
         shared: Mutex::new(Shared {
             jobs: HashMap::new(),
@@ -351,6 +493,10 @@ async fn run_with_log(
         queue_failure: Mutex::new(None),
         exit: Exit::default(),
     });
+    // C133: the exit's at-once end, then the signals: a signal from here
+    // on runs the exit, before restore or any lock is taken.
+    let _ = daemon.exit.end.set(end_at_once(&daemon, signal_log));
+    signals.attach(&daemon);
 
     {
         let artifact = daemon.artifact.as_ref().expect("run sets the artifact");
