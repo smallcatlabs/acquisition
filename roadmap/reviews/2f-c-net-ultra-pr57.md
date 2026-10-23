@@ -1,9 +1,0 @@
-# Ultrareview of PR #57 (round C, network half), 2026-10-22: free run 2 of 3
-
-Five findings: one pre-existing, four nits. Each was verified by the review itself. The wording below is from the cloud review's output.
-
-1. **`ratelimit/choke.rs` ~1022-1026 (pre-existing).** `get_bearer` still treats a 401 that the choke point judged a Cloudflare block (`cf-mitigated`, or a Cloudflare page with no `www-authenticate`) as GGG rejecting the bearer, and calls `bearer.rejected`. That clears a still-valid access token, so after a reset the account spends a refresh POST, which rotates the refresh token, on a Cloudflare-fronted endpoint. The probe path in the same diff explicitly skips this. Fix: guard the rejection with `completed.verdict.is_none_or(|v| !v.block)`.
-2. **`rails.rs` ~720-730 (nit).** `persist_locked` drops `RailsState::write`'s result. The C129 block mark, a halt every daemon must keep across restarts, can fail to reach disk with nothing logged. Likewise, a failed `reset_tripwire` write leaves the mark on disk while the daemon reports the rails as reset. Fix: return the `io::Result` and report a failure.
-3. **`rails.rs` ~645-653 (nit).** `reset_tripwire` does not clear `unannounced`. A block met on the `acq auth` code exchange is never announced (login.rs never calls `announce_trip`), so after a reset the stale cause is logged as current, and it hides the next real block's announcement. Fix: clear `unannounced` in the reset, and announce after the code exchange.
-4. **`daemon/kinds.rs` (nit).** The Refusal→ApiError mapping (cancelled, halted, otherwise a failure) is written out by hand in `refused()`, in api_get's stale-bearer arm, and twice in the probe arm. A missed site would fail a job C25 says should wait. Fix: one helper.
-5. **`rails.rs` `record` (nit).** The block-mark and unreachable-halt branches repeat the cause-building `format!`. The CLI and `announce_trip` parse its prefix. Fix: one helper.
