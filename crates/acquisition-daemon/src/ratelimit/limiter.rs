@@ -20,7 +20,7 @@
 //!
 //! **A counted send whose response carries no usable policy headers is paced as if the server counted it — the same treatment as a send lost in transport.** One predicted hit in every window as of that response; the definition and the last real observation are untouched; the next response with headers replaces the prediction (invariant 2). The job still fails and is never retried. Rationale: rung 10's origin 503 (2026-08-24, N35) was an HTML page with no `X-Rate-Limit-*`; before this, such a response left pacing reading a state that predated it, so a run of 503s went out unpaced. This bounds an outage at the policy's own rate (30 per 300 s on stash) with no new policy; backing off harder than that waits for evidence. Decided 2026-08-24.
 //!
-//! Amended 2026-10-22: a landed 429 holds its route for its `Retry-After`, clamped to the cap, plus the retry bucket, whatever the header carried. A missing, malformed or negative value counts as zero and an over-cap one as the cap; before this, a 429 whose `Retry-After` was any of those installed no hold at all (`install_retry_hold`).
+//! Amended 2026-10-22: a landed 429 holds its route for its `Retry-After`, clamped to the cap, plus the retry bucket, whatever the header carried. A missing, malformed or negative value counts as zero and an over-cap one as the cap; before this, a 429 whose `Retry-After` was any of those installed no hold at all (`install_retry_hold`). A probe's 429 is held the same way whatever its policy headers carried, beside the setup failure's degrade (`observe_probe_429`).
 
 use super::*;
 
@@ -402,9 +402,13 @@ impl Limiter {
     }
 
     /// Frozen D4 behavior for a setup probe that lands as 429. Only a Full
-    /// policy plus acceptable Retry-After establishes the endpoint. The HEAD
-    /// itself consumes no job retry, but it is a counted violation and the
-    /// first ordinary send is held past Retry-After + 60s + 1s.
+    /// policy plus acceptable Retry-After establishes the endpoint; any
+    /// other 429 is a setup failure that degrades it. The HEAD itself
+    /// consumes no job retry, but it is a counted violation, and whatever
+    /// its headers carried it installs the route's retry hold (C19), as a
+    /// GET's 429 does: the next send on the route, probe or GET, waits its
+    /// clamped `Retry-After` plus the retry bucket. The degrade is a
+    /// separate effect, and a login that clears it leaves the hold.
     pub fn observe_probe_429(
         &mut self,
         endpoint: &str,
@@ -414,13 +418,27 @@ impl Limiter {
         now: Instant,
     ) -> Result<(), String> {
         self.violations = self.violations.saturating_add(1);
+        let outcome = self.setup_after_probe_429(endpoint, observation, retry_after, raw, now);
+        // After the setup outcome, so an established route's policy state
+        // carries the hold for its status as well.
+        self.install_retry_hold(endpoint, retry_after, now);
+        outcome
+    }
+
+    /// `observe_probe_429`'s setup outcome: establish the endpoint or
+    /// degrade it. The hold is not this function's.
+    fn setup_after_probe_429(
+        &mut self,
+        endpoint: &str,
+        observation: Result<Policy, PolicyParseError>,
+        retry_after: &RetryAfter,
+        raw: serde_json::Value,
+        now: Instant,
+    ) -> Result<(), String> {
         match (observation, retry_after) {
-            (Ok(policy), RetryAfter::Acceptable { .. }) => {
-                self.observe_impl(endpoint, Ok(policy), raw, true, now)
-                    .map_err(|error| error.to_string())?;
-                self.install_retry_hold(endpoint, retry_after, now);
-                Ok(())
-            }
+            (Ok(policy), RetryAfter::Acceptable { .. }) => self
+                .observe_impl(endpoint, Ok(policy), raw, true, now)
+                .map_err(|error| error.to_string()),
             (Ok(_), retry_after) => {
                 let reason = format!("HEAD returned 429 with {retry_after}");
                 self.degrade_for(endpoint, reason.clone(), PROBE_COOLDOWN, now);

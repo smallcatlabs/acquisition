@@ -1678,6 +1678,77 @@ fn non_full_head_429_is_setup_failure_even_with_acceptable_retry_after() {
     assert_eq!(limiter.violation_count(), 1);
 }
 
+/// C19 for a HEAD: a probe's 429 holds its route as a GET's does, its
+/// `Retry-After` clamped to the cap plus the retry bucket, whatever its
+/// policy headers or `Retry-After` carried. The setup failure's cooldown
+/// is a separate effect: the hold outlasts it, and a login that clears
+/// the cooldown leaves the hold standing.
+#[test]
+fn every_head_429_holds_its_route_at_least_the_retry_bucket() {
+    let floor = (RETRY_BUCKET_PAD + BUFFER).as_secs();
+    let capped = RETRY_AFTER_CAP_SECS + floor;
+    let full = || parse(&with_state(CHAR_LIST, "0:10:0,0:300:0"));
+    let non_full = || parse(&[("x-rate-limit-policy", "character-list-request-limit")]);
+    let cases = [
+        ("Full, missing", full(), retry(None), floor),
+        ("Full, garbled", full(), retry(Some("soon")), floor),
+        ("Full, negative", full(), retry(Some("-1")), floor),
+        ("Full, over the cap", full(), retry(Some("901")), capped),
+        ("non-Full, missing", non_full(), retry(None), floor),
+        (
+            "non-Full, acceptable",
+            non_full(),
+            retry(Some("120")),
+            120 + floor,
+        ),
+        (
+            "non-Full, over the cap",
+            non_full(),
+            retry(Some("901")),
+            capped,
+        ),
+    ];
+    for (name, policy, retry_after, hold) in cases {
+        let now = far_future();
+        let mut limiter = Limiter::new();
+        assert!(
+            limiter
+                .observe_probe_429(
+                    "/character",
+                    policy,
+                    &retry_after,
+                    serde_json::Value::Null,
+                    now
+                )
+                .is_err(),
+            "{name}: unexpectedly established"
+        );
+        assert!(
+            matches!(
+                limiter.endpoint_state("/character", now),
+                EndpointState::Degraded { .. }
+            ),
+            "{name}: the setup failure still degrades the route"
+        );
+        assert_eq!(
+            limiter.wait_for("/character", now),
+            Duration::from_secs(hold),
+            "{name}: the next send on the route waits the clamped Retry-After plus the bucket"
+        );
+        limiter.forget_degraded();
+        assert_eq!(
+            limiter.endpoint_state("/character", now),
+            EndpointState::Unknown,
+            "{name}"
+        );
+        assert_eq!(
+            limiter.wait_for("/character", now),
+            Duration::from_secs(hold),
+            "{name}: clearing the cooldown leaves the hold"
+        );
+    }
+}
+
 #[test]
 fn response_classification_precedence_is_status_network_then_protocol() {
     // GGG's headers name the policy and lack the rest: the observation

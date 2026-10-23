@@ -568,16 +568,15 @@ fn assert_wire_contract(sends: &[Value]) {
 /// The pacing invariant, derived from N19 and C19 rather than from the
 /// code: a send on a route is held only because the previous landed
 /// response on that route was a 429, or was counted and came back
-/// without rate headers (rung 10's origin 503). After a counted 429 the
-/// hold is at least C19's: its `Retry-After` clamped to the cap (a
-/// missing, malformed or negative value counting as zero) plus
+/// without rate headers (rung 10's origin 503). After a 429, a GET's or
+/// a HEAD's, the hold is at least C19's: its `Retry-After` clamped to the
+/// cap (a missing, malformed or negative value counting as zero) plus
 /// `RETRY_BUCKET_PAD + BUFFER`, whatever the header carried, and at most
-/// that, unless the 429 was also headerless and the longer hold below
-/// applies. After a headerless counted response the hit is assumed
-/// counted and the hold may reach the longest window period of the
-/// route's last known policy plus the same pad. A HEAD's 429 (not a
-/// counted send, so outside C19) is held at least its raw `Retry-After`
-/// and at most that plus the pad. Everything else goes out at once.
+/// that, unless the 429 was also headerless and counted and the longer
+/// hold below applies. After a headerless counted response the hit is
+/// assumed counted and the hold may reach the longest window period of
+/// the route's last known policy plus the same pad. Everything else goes
+/// out at once.
 /// Runs over every journal a scripted server's or a serverless daemon
 /// writes (`finish_harness`), so a rewrite that paces slower (or stops
 /// pacing) fails here without any test naming the numbers.
@@ -601,13 +600,14 @@ fn assert_pacing_follows_responses(sends: &[Value]) {
             .filter(|prev| headerless(prev))
             .map(|_| longest_period_ms.get(&route).copied().unwrap_or(0) + pad);
         match prev {
-            Some(prev) if prev["status"] == 429 && prev["counted"] == true => {
+            Some(prev) if prev["status"] == 429 => {
                 let floor = c19_retry_secs(raw_retry_after) * 1000 + pad;
                 let ceiling = floor.max(headerless_ceiling.unwrap_or(0));
                 assert!(
                     (floor..=ceiling).contains(&wait),
-                    "after a 429 with Retry-After {raw_retry_after:?} the next send on \
-                         {route} waited {wait} ms; allowed {floor}..={ceiling}: {send}"
+                    "after a {} 429 with Retry-After {raw_retry_after:?} the next send on \
+                         {route} waited {wait} ms; allowed {floor}..={ceiling}: {send}",
+                    prev["method"].as_str().unwrap_or("?")
                 );
             }
             Some(_) if headerless_ceiling.is_some() => {
@@ -616,18 +616,6 @@ fn assert_pacing_follows_responses(sends: &[Value]) {
                     wait <= ceiling,
                     "after a headerless counted response the next send on {route} \
                          waited {wait} ms; allowed at most {ceiling}: {send}"
-                );
-            }
-            Some(prev) if prev["status"] == 429 => {
-                let floor = raw_retry_after
-                    .and_then(|s| s.parse::<u64>().ok())
-                    .unwrap_or(0)
-                    * 1000;
-                assert!(
-                    (floor..=floor + pad).contains(&wait),
-                    "after a HEAD 429 with Retry-After {raw_retry_after:?} the next send \
-                         on {route} waited {wait} ms; allowed {floor}..={}: {send}",
-                    floor + pad
                 );
             }
             _ => assert_eq!(

@@ -1292,6 +1292,62 @@ async fn malformed_or_unacceptable_head_429_fails_under_cooldown() {
     }
 }
 
+/// C19 for a probe: a HEAD's 429 that fails setup still holds its route
+/// for its clamped `Retry-After` plus the retry bucket. A login clears the
+/// setup failure's cooldown at once (`forget_degraded`, as `login` does),
+/// so the next job's probe is held by the hold alone.
+#[tokio::test]
+async fn a_head_429_that_fails_setup_holds_the_next_probe() {
+    let full_missing = || ScriptedResponse::full("HEAD", "429 Too Many Requests", None, "");
+    let cases = [
+        ("Full, missing", full_missing(), full_hold_ms()),
+        (
+            "Full, over the cap",
+            full_missing().with_raw_retry_after("901"),
+            crate::ratelimit::RETRY_AFTER_CAP_SECS * 1000 + full_hold_ms(),
+        ),
+        (
+            "non-Full",
+            ScriptedResponse::malformed_head_429(),
+            full_hold_ms(),
+        ),
+    ];
+    for (name, rejected, hold) in cases {
+        let responses = vec![
+            rejected,
+            ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+            ScriptedResponse::full("GET", "200 OK", None, r#"{"items":["after"]}"#),
+        ];
+        let (base, requests, server) = scripted_server(responses).await;
+        let clock = Arc::new(ManualClock::new());
+        let (daemon, log_path) = test_daemon(&base, clock);
+        let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+        let first = daemon
+            .submit("fetch".into(), json!({}), 0, "test".into(), None)
+            .unwrap();
+        let (info, _) = wait_terminal(&daemon, first).await;
+        assert_eq!(info.state, JobState::Failed, "{name}");
+        daemon.choke.forget_degraded();
+        let second = daemon
+            .submit("fetch".into(), json!({}), 0, "test".into(), None)
+            .unwrap();
+        let (_, outcome) = wait_terminal(&daemon, second).await;
+        assert_eq!(fetch_payload_marker(&outcome), "after", "{name}");
+        assert_eq!(
+            requests.lock().unwrap().as_slice(),
+            ["HEAD", "HEAD", "GET"],
+            "{name}"
+        );
+        assert_eq!(
+            journal_waits(&log_path),
+            [0, hold, 0],
+            "{name}: the next probe waits the clamped Retry-After plus the bucket"
+        );
+        server.await.unwrap();
+        finish_harness_wire(dispatcher, &log_path, &requests);
+    }
+}
+
 #[tokio::test]
 async fn whoami_is_refused_in_real_mode_without_a_token_request() {
     // Real in name only: every URL is the local token server's, so
