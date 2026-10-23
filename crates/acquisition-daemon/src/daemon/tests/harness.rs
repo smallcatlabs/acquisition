@@ -101,6 +101,15 @@ impl CredentialStore for RecordingCredentialStore {
     }
 }
 
+/// The recording store a harness daemon from `test_daemon_with` saves
+/// into. Panics if the daemon holds any other store.
+pub(super) fn harness_credentials(daemon: &Daemon) -> &RecordingCredentialStore {
+    let store: &dyn std::any::Any = &*daemon.credential_store;
+    store
+        .downcast_ref()
+        .expect("the harness daemon's credential store is the test's recorder")
+}
+
 pub(super) struct ScriptedResponse {
     pub(super) method: &'static str,
     /// The request path this response answers; the server asserts it.
@@ -302,7 +311,10 @@ pub(super) fn journal_of(log_path: &std::path::Path) -> PathBuf {
 /// Every harness daemon journals, on the test's clock, so that
 /// `assert_journal_matches_wire` can hold the daemon's own account of
 /// what it sent against what the server received. The rails handle
-/// comes back through `daemon.choke.rails()`.
+/// comes back through `daemon.choke.rails()`. Its credential store is a
+/// `RecordingCredentialStore` (`harness_credentials` reads it): a harness
+/// daemon never writes the developer's keychain unless its test names
+/// the OS store.
 pub(super) fn test_daemon_with(
     provider: Provider,
     clock: Arc<dyn Clock>,
@@ -321,7 +333,7 @@ pub(super) fn test_daemon_with(
         provider,
         clock,
         rails,
-        Arc::new(OsCredentialStore),
+        Arc::new(RecordingCredentialStore::default()),
         log_path,
     )
 }
@@ -745,8 +757,9 @@ pub(super) async fn token_server_answering(
     (base, requests, task)
 }
 
-/// Session in memory and the OS keyring swapped out: these tests must
-/// never touch the real keychain (slow, and may prompt).
+/// Session in memory, and a fresh recording store in place of whatever
+/// the test's daemon held: these tests must never touch the real keychain
+/// (slow, and may prompt).
 pub(super) fn logged_in(daemon: &mut Arc<Daemon>) {
     Arc::get_mut(daemon).unwrap().credential_store = Arc::new(RecordingCredentialStore::default());
     let mut s = daemon.shared.lock().unwrap();

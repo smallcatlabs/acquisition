@@ -297,6 +297,42 @@ async fn token_daemon(
     (daemon, credentials, clock, log_path, requests, server)
 }
 
+/// Invariant 5's test side: a harness daemon whose test names no store
+/// saves a refresh's rotated token into the harness's recorder, never the
+/// developer's keychain. The store is read before anything is sent, so a
+/// harness that defaulted to the OS store fails there, with nothing saved.
+#[tokio::test]
+async fn a_bare_harness_daemon_saves_a_rotated_token_into_the_test_store() {
+    let (base, requests, server) =
+        scripted_server(vec![token_answer("200 OK", TOKEN_HEADERS, None)]).await;
+    let (daemon, log_path) = test_daemon_with(
+        Provider::mock(&base),
+        Arc::new(ManualClock::new()),
+        RailsConfig::default(),
+    );
+    let credentials = harness_credentials(&daemon);
+    {
+        let mut s = daemon.shared.lock().unwrap();
+        s.auth.one_mut().refresh_token = Some("rt-old".into());
+        s.auth.rename("", "test-user");
+    }
+
+    let (token, _) = daemon.valid_access_token(None, false, None).await.unwrap();
+    assert_eq!(token, "at-new");
+    assert_eq!(
+        credentials.saves.lock().unwrap().as_slice(),
+        [(
+            daemon.provider.keyring_service.to_string(),
+            "rt-rotated".to_string(),
+            "test-user".to_string()
+        )],
+        "the rotated refresh token is saved into the test store"
+    );
+    server.await.unwrap();
+    assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
+    finish_harness(None, &log_path);
+}
+
 fn session_refresh_token(daemon: &Daemon) -> Option<String> {
     daemon
         .shared

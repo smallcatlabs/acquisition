@@ -886,7 +886,10 @@ pub struct Daemon {
     queue_failure: Mutex<Option<String>>,
 }
 
-trait CredentialStore: Send + Sync {
+/// Where a refresh token is kept (invariant 5): the OS keyring in a
+/// running daemon. `Any` lets the in-process harness name the test store
+/// its daemons default to.
+trait CredentialStore: Send + Sync + std::any::Any {
     fn save(&self, service: &str, refresh_token: &str, username: &str) -> Result<(), String>;
     fn clear(&self, service: &str, username: &str) -> Result<(), String>;
 }
