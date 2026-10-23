@@ -25,6 +25,11 @@ const PROBE_FAULT_WORDS: &str = "a probe on this route broke the daemon the last
 so the route is closed for its cooldown and nothing is sent on it; resubmit after the cooldown if \
 still wanted";
 
+/// C50: what a login's profile fetch left open by the last lifetime
+/// concludes with in this one.
+const LOST_LOGIN_WORDS: &str = "this profile fetch was a login's, and the login was lost when \
+the daemon that ran it ended, so nothing is sent for it; log in again (`acq auth`)";
+
 impl Daemon {
     /// Mirror one job to `daemon.db`. Called with the `Shared` lock held,
     /// so the table sees changes in memory's order. A failed write trips
@@ -93,23 +98,27 @@ impl Daemon {
         self.queue_failure.lock().unwrap().clone()
     }
 
-    /// Take the previous lifetime's open jobs from `daemon.db` (C6):
-    /// waiting jobs resume; a running one is re-queued only where the
-    /// replay premise holds — a probe will read GGG's current counters
-    /// before the send. Two exceptions: a running job on a declared
-    /// no-probe route would send blind, so it fails as interrupted
-    /// instead; and a running parent whose children exist is mid-fan-out
-    /// (its held result was not yet written) — re-running it would submit
-    /// a duplicate child set, so it
-    /// is held for its existing children with a synthetic result. A parent
-    /// whose held result was written keeps holding it; probes are per
-    /// lifetime and dropped; the one a fault marker names closes its route
-    /// (C134): the jobs open on it fail here, before the dispatcher starts,
-    /// and the route is degraded for the cooldown, so neither they nor a
-    /// job submitted on it then recreate the probe. An open parent's finished children come back
-    /// with it (its summary counts them). Ids continue from the table's
-    /// sequence. Other terminal rows stay in the table for `result`,
-    /// pruned by age first.
+    /// Take the previous lifetime's open jobs from `daemon.db` (C6), in
+    /// this order, before the dispatcher starts. Probes are per lifetime
+    /// and dropped. The job a fault marker names, and the jobs open on the
+    /// route of a probe it names, fail unless cancelling or a parent
+    /// (C134); that route is degraded for the cooldown, so neither they
+    /// nor a job submitted on it then recreate the probe. A login's
+    /// profile fetch (kind `profile` under the daemon's own submitter,
+    /// C136), waiting or running and not cancelling, fails: its login was
+    /// lost with the lifetime that ran it, and nothing is sent for it
+    /// (C50). Of the other running jobs, one asked to cancel ends
+    /// cancelled; a parent whose held result was written keeps holding
+    /// it; a parent whose children exist is mid-fan-out (its held result
+    /// was not yet written) — re-running it would submit a duplicate child
+    /// set, so it is held for its existing children with a synthetic
+    /// result; a job on a declared no-probe route would send blind, so it
+    /// fails as interrupted; the rest are re-queued as waiting, where a
+    /// probe will read GGG's current counters before the send. Every other
+    /// waiting job resumes as it was. An open parent's finished children
+    /// come back with it (its summary counts them). Ids continue from the
+    /// table's sequence. Other terminal rows stay in the table for
+    /// `result`, pruned by age first.
     /// A read failure is fatal to startup, like an unopenable file: a
     /// daemon that cannot see the previous lifetime's rows would reissue
     /// ids from 1 against them.
@@ -152,7 +161,8 @@ impl Daemon {
                 "FAULT: a probe on route {route} broke the daemon the last time it ran; the route is closed for its cooldown, and the jobs open on it fail"
             ));
         }
-        let (mut requeued, mut held, mut not_replayed, mut dropped, mut fault) = (0, 0, 0, 0, 0);
+        let (mut requeued, mut held, mut not_replayed, mut dropped, mut fault, mut lost_login) =
+            (0, 0, 0, 0, 0, 0);
         let mut fault_on_disk = true;
         let mut finish_parents = Vec::new();
         let mut restored = Vec::new();
@@ -193,6 +203,19 @@ impl Daemon {
                         _ => FAULT_WORDS.to_string(),
                     }));
                     fault_on_disk &= self.persist(&entry);
+                } else if entry.info.kind == "profile"
+                    && entry.info.submitted_by == DAEMON_SUBMITTER
+                    && matches!(entry.info.state, JobState::Running | JobState::Waiting)
+                    && !entry.cancel_requested
+                {
+                    // C50: the fetch belongs to its login's lifetime. The
+                    // login's staged tokens died with that lifetime, so a
+                    // replay would send on the restored session with no
+                    // one waiting for the uuid.
+                    lost_login += 1;
+                    entry.info.state = JobState::Failed;
+                    entry.outcome = Some(Outcome::failure(LOST_LOGIN_WORDS));
+                    self.persist(&entry);
                 } else if entry.info.state == JobState::Running {
                     let no_probe_route = self
                         .keyed_route_for(
@@ -269,7 +292,7 @@ resubmit if still wanted",
         }
         if !restored.is_empty() || dropped > 0 {
             self.log(&format!(
-                "JOBS: restored {} from {} ({requeued} re-queued from running, {held} parents held mid-fan-out, {not_replayed} not replayed on no-probe routes, {fault} failed by a fault, {dropped} probes dropped, {pruned} old rows pruned); next id {next_id}",
+                "JOBS: restored {} from {} ({requeued} re-queued from running, {held} parents held mid-fan-out, {not_replayed} not replayed on no-probe routes, {fault} failed by a fault, {lost_login} lost logins' profile fetches failed, {dropped} probes dropped, {pruned} old rows pruned); next id {next_id}",
                 restored.len(),
                 db.lock().unwrap().path().display()
             ));

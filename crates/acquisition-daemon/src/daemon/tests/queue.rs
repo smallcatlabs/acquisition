@@ -1328,6 +1328,76 @@ async fn the_queue_and_results_survive_a_daemon_restart() {
     remove_db(&db);
 }
 
+/// C50 (the fetch belongs to its login's lifetime): a login's profile
+/// fetch the last lifetime left waiting (a stop that landed after GGG
+/// answered the code exchange, #59) fails at restore, in words that name
+/// the lost login and send the user to log in again, and nothing is sent
+/// for it. The account's session restores with a refresh token and no
+/// access token, so a replay would cost a token POST and a GET with no
+/// one waiting. The same fetch a frontend submitted, waiting beside it,
+/// still replays: one POST and one GET reach the wire, the account
+/// server's, and the journal matches them.
+#[tokio::test]
+async fn c50_a_lost_logins_profile_fetch_fails_at_restore_and_sends_nothing() {
+    let (base, sent_log, _arrived, _release) = account_server(("GET", "/never", 0)).await;
+    let db = test_db_path();
+    remove_db(&db);
+    {
+        let db = JobDb::open(&db).unwrap();
+        let waiting_profile = |id: JobId, submitted_by: &str| acquisition_store::jobs::JobRow {
+            id,
+            kind: "profile".into(),
+            state: "waiting".into(),
+            priority: 0,
+            submitted_by: submitted_by.into(),
+            parent: None,
+            retries: 0,
+            account: Some("test-user".into()),
+            params: json!({}),
+            outcome: None,
+            deferred: None,
+            cancel_requested: false,
+            submitted_at: 0,
+            updated_at: 0,
+        };
+        db.upsert(&waiting_profile(1, "daemon")).unwrap();
+        db.upsert(&waiting_profile(2, "cli:1")).unwrap();
+    }
+    let (mut daemon, log_path) = persisting_daemon(&base, &db);
+    logged_in(&mut daemon);
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+
+    let (login, outcome) = wait_terminal(&daemon, 1).await;
+    assert_eq!(login.state, JobState::Failed, "{outcome:?}");
+    let Outcome::Failure { error, .. } = &outcome else {
+        panic!("{outcome:?}")
+    };
+    assert!(
+        error.contains("login") && error.contains("log in again") && !error.contains('1'),
+        "the failure names the lost login and the remedy, no id: {error}"
+    );
+    let (client, outcome) = wait_terminal(&daemon, 2).await;
+    assert_eq!(client.state, JobState::Done, "{outcome:?}");
+    assert_eq!(
+        sent_log.lock().unwrap().as_slice(),
+        [sent("test-user", "POST"), sent("test-user", "GET")],
+        "the frontend's fetch replays; the lost login's sends nothing"
+    );
+    assert_eq!(
+        JobDb::open(&db).unwrap().get(1).unwrap().unwrap().state,
+        JobState::Failed.to_string(),
+        "the failure is on disk"
+    );
+    assert_eq!(
+        JobDb::open(&db).unwrap().get(2).unwrap().unwrap().state,
+        JobState::Done.to_string(),
+        "the wire's two sends are the frontend's fetch"
+    );
+    assert_journal_matches_wire(&log_path, &wire_methods(&sent_log));
+    finish_harness(dispatcher, &log_path);
+    remove_db(&db);
+}
+
 #[tokio::test]
 async fn restore_drops_probes_and_finishes_a_parent_whose_children_are_done() {
     let db = test_db_path();
