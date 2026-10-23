@@ -3,7 +3,8 @@
 //! test runs a harness daemon with a short bound on tokio time and never
 //! calls `leave`, which ends the process. C134, the panic's end: the hook
 //! that writes the log line and the fault marker, and the restore that
-//! fails the marker's job once. C134, the listener: an accept error is
+//! fails the marker's job once, or closes its probe's route for the
+//! cooldown. C134, the listener: an accept error is
 //! served through, logged with a backoff.
 //!
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
@@ -590,7 +591,12 @@ async fn exit_waits_for_a_login_code_exchange() {
 /// reads or writes a fault marker), its queue on `<dir>/daemon.db` in the
 /// provider directory beside the marker, restored from it as `run` does.
 fn world_daemon(dir: &std::path::Path) -> (Arc<Daemon>, PathBuf) {
-    let (mut daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
+    world_daemon_at(dir, "http://127.0.0.1:1")
+}
+
+/// [`world_daemon`] facing the server at `base`.
+fn world_daemon_at(dir: &std::path::Path, base: &str) -> (Arc<Daemon>, PathBuf) {
+    let (mut daemon, log_path) = test_daemon(base, Arc::new(ManualClock::new()));
     {
         let d = Arc::get_mut(&mut daemon).unwrap();
         d.world = Some(dir.display().to_string());
@@ -695,6 +701,70 @@ async fn a_fault_marker_fails_its_job_once() {
     for log in [log1, log2] {
         finish_harness(None, &log);
     }
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// C134: a marker naming a probe closes that probe's route for its
+/// cooldown, so the job waiting on the route fails instead of recreating
+/// the probe, and nothing is sent in the lifetime after the fault: no
+/// HEAD, no GET. The job's failure names the closed route, and the
+/// marker is gone. The server would answer the probe and the GET, so a
+/// restore that let the job recreate its probe sends both.
+#[tokio::test]
+async fn a_faulted_probe_closes_its_route() {
+    let dir = std::env::temp_dir().join(format!(
+        "acquisition-fault-probe-{}-{}",
+        std::process::id(),
+        TEST_LOG_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let (base, wire, server) = scripted_server(vec![
+        ScriptedResponse::full("HEAD", "200 OK", None, ""),
+        ScriptedResponse::full("GET", "200 OK", None, "{}"),
+    ])
+    .await;
+    let db = acquisition_store::jobs::daemon_db_path(&dir);
+    {
+        let db = JobDb::open(&db).unwrap();
+        db.upsert(&acquisition_store::jobs::JobRow {
+            kind: "probe".into(),
+            params: json!({ "route": "fetch", "url": format!("{base}/fetch") }),
+            ..sleep_row(1, "running")
+        })
+        .unwrap();
+        db.upsert(&acquisition_store::jobs::JobRow {
+            kind: "fetch".into(),
+            params: json!({}),
+            ..sleep_row(2, "waiting")
+        })
+        .unwrap();
+    }
+    let marker = dir.join("fault.json");
+    std::fs::write(&marker, "{\"job\":1}\n").unwrap();
+
+    let (daemon, log_path) = world_daemon_at(&dir, &base);
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    let (info, outcome) = wait_terminal(&daemon, 2).await;
+    assert_eq!(info.state, JobState::Failed, "{outcome:?}");
+    let error = match &outcome {
+        Outcome::Failure { error, .. } => error.clone(),
+        other => panic!("the waiting job failed: {other:?}"),
+    };
+    assert!(error.contains("route fetch"), "{error}");
+    assert!(
+        error.contains("a probe on this route broke the daemon"),
+        "{error}"
+    );
+    assert!(!marker.exists(), "the marker is removed once read");
+    assert!(
+        journal_sends(&log_path).is_empty(),
+        "the lifetime after the fault sent: {:?}",
+        journal_sends(&log_path)
+    );
+    assert!(wire.lock().unwrap().is_empty(), "the server was reached");
+    server.abort();
+    finish_harness(dispatcher, &log_path);
     let _ = std::fs::remove_dir_all(&dir);
 }
 

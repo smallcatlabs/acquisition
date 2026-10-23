@@ -19,6 +19,12 @@ pub(super) const FAULT_MARKER: &str = "fault.json";
 const FAULT_WORDS: &str = "interrupted by a fault in the daemon while it ran (the daemon log has the \
 panic), and not replayed, so whatever broke the daemon is not sent again; resubmit if still wanted";
 
+/// C134: why a route whose probe a panic ran in is closed, in the words a
+/// job waiting on it fails with.
+const PROBE_FAULT_WORDS: &str = "a probe on this route broke the daemon the last time it ran, \
+so the route is closed for its cooldown and nothing is sent on it; resubmit after the cooldown if \
+still wanted";
+
 impl Daemon {
     /// Mirror one job to `daemon.db`. Called with the `Shared` lock held,
     /// so the table sees changes in memory's order. A failed write trips
@@ -97,7 +103,9 @@ impl Daemon {
     /// a duplicate child set, so it
     /// is held for its existing children with a synthetic result. A parent
     /// whose held result was written keeps holding it; probes are per
-    /// lifetime and dropped. An open parent's finished children come back
+    /// lifetime and dropped, and the one a fault marker names first closes
+    /// its route for the cooldown (C134), before the dispatcher starts, so
+    /// the jobs waiting on it fail instead of recreating it. An open parent's finished children come back
     /// with it (its summary counts them). Ids continue from the table's
     /// sequence. Other terminal rows stay in the table for `result`,
     /// pruned by age first.
@@ -137,6 +145,18 @@ impl Daemon {
             s.next_id = next_id;
             for mut entry in entries {
                 if entry.info.kind == "probe" {
+                    // C134: a probe's marker closes its route for the
+                    // cooldown, so the jobs waiting on it fail at dispatch
+                    // (a degraded route) instead of recreating the probe.
+                    if faulted == Some(entry.info.id)
+                        && let Some(route) = entry.params.get("route").and_then(Value::as_str)
+                    {
+                        self.choke.degrade(route, PROBE_FAULT_WORDS);
+                        self.log(&format!(
+                            "FAULT: job {}, a probe on route {route}, broke the daemon the last time it ran; the route is closed for its cooldown",
+                            entry.info.id
+                        ));
+                    }
                     dropped += 1;
                     let _ = db.lock().unwrap().delete(entry.info.id);
                     continue;
