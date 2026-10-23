@@ -169,8 +169,9 @@ use dispatch::RUNNING_JOB;
 use endpoint::{Accept, BoundSocket, Listener, Stream};
 use kinds::{ApiError, validate_apply};
 use queue::{
-    APPLY_MAX_ACTIONS, admit_client, admit_realm, admit_segments, bounded_message, check_sleep,
-    client_kinds, describe, describe_str, refresh_selection,
+    APPLY_MAX_ACTIONS, DAEMON_SUBMITTER, admit_client, admit_client_submitter, admit_realm,
+    admit_segments, bounded_message, check_sleep, client_kinds, describe, describe_str,
+    refresh_selection,
 };
 use refresh::AccessTokenResult;
 use routes::why_no_url;
@@ -376,6 +377,7 @@ impl Entry {
 /// | `resolve_account`: a selector with no session | `account …: not logged in` / `… is not logged in (live: …)` | `not_logged_in` |
 /// | `refuse_while_stopping` (submit, once the exit has begun, C133) | `the daemon is stopping; try again in a moment` | `refused` |
 /// | `validate_apply`, `admit_realm`, `admit_params_size`, `admit_submitter` (submit) | `apply needs a jobs array …`, `action i: …`, `max_requests must be …`, `plan exceeds the budget …`, a realm refusal, `params of N bytes as JSON exceed …`, `submitted_by must be at most …` | `refused` |
+/// | `admit_client_submitter` (a client's submit, C136) | `this submitted_by is reserved for the daemon's own work …` | `refused` |
 /// | `submit_with_parent`: parent gone or cancelled (children only; becomes the parent's outcome) | `parent job N is gone` / `was cancelled` | `refused` |
 /// | `submit_with_parent`: the sticky queue failure, or the insert failing | `the persisted queue failed (…)` | `queue_failed` |
 /// | `Status`, `Result`, `cancel`, `set_priority`: no such id | `no job N` | `unknown_job` |

@@ -983,6 +983,27 @@ pub(super) fn admit_submitter(submitted_by: &str) -> Result<(), Refusal> {
     ))
 }
 
+/// C136 — The submitter the daemon's own work carries: the login's
+/// profile fetch (`login.rs`) and a route's probe (`routes.rs`). Both
+/// call `submit` directly and never pass the client's door.
+pub(super) const DAEMON_SUBMITTER: &str = "daemon";
+
+/// C136 — A client's submit may not carry the daemon's own submitter, so
+/// a rule keyed on it (C50's lost login, at restore) rests on a mark no
+/// client can forge. Judged at the client's door (`server.rs`), before an
+/// id exists; the refusal says the rule, never the value.
+pub(super) fn admit_client_submitter(submitted_by: &str) -> Result<(), Refusal> {
+    if submitted_by != DAEMON_SUBMITTER {
+        return Ok(());
+    }
+    Err(Refusal::new(
+        ErrorKind::Refused,
+        "this submitted_by is reserved for the daemon's own work and a client cannot \
+submit under it; name the frontend instead"
+            .to_string(),
+    ))
+}
+
 /// C127 — A refresh's selection, the one rule the door and the run-time
 /// arm (`kinds.rs`) both read: `all` true, or the tab ids `tabs` lists
 /// (its string elements). There is no default, so a refresh that selects

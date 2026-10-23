@@ -1082,6 +1082,56 @@ async fn c127_params_over_their_bound_are_refused_and_a_large_plan_is_admitted()
     finish_harness(None, &log_path);
 }
 
+/// C136 (the submitter `daemon` is the daemon's own): a client's submit
+/// that names it is refused at the door with the refused-work kind,
+/// before an id exists, in words that say the rule, and nothing reaches
+/// the wire. The daemon holds a live session, so the
+/// profile fetch, admitted, would send at once: the same submit under a
+/// frontend's name is then admitted as job 1 and sends its one GET.
+#[tokio::test]
+async fn c136_a_client_submit_as_the_daemon_is_refused_and_sends_nothing() {
+    let (base, sent_log, _arrived, _release) = account_server(("GET", "/never", 0)).await;
+    let (daemon, log_path) = live_daemon(&base);
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    let submit_as = |submitted_by: &str| Request::Submit {
+        kind: "profile".into(),
+        params: json!({}),
+        priority: 0,
+        submitted_by: submitted_by.into(),
+        account: None,
+    };
+
+    let response = daemon.handle_request(submit_as("daemon"), &mut None).await;
+    assert_refused(
+        response,
+        "a client submit as the daemon",
+        &["reserved for the daemon's own work", "a client cannot"],
+    );
+    assert_nothing_admitted(&daemon, "a client submit as the daemon");
+    for _ in 0..50 {
+        tokio::task::yield_now().await;
+    }
+    assert!(
+        sent_log.lock().unwrap().is_empty(),
+        "nothing reached the wire"
+    );
+
+    let response = daemon.handle_request(submit_as("cli:1"), &mut None).await;
+    assert!(
+        matches!(response, Response::Submitted { id: 1 }),
+        "a frontend's submit is admitted as job 1: {response:?}"
+    );
+    let (info, _) = wait_terminal(&daemon, 1).await;
+    assert_eq!(info.state, JobState::Done);
+    assert_eq!(
+        wire_methods(&sent_log),
+        ["GET"],
+        "the admitted fetch sends once"
+    );
+    assert_journal_matches_wire(&log_path, &wire_methods(&sent_log));
+    finish_harness(Some(dispatcher), &log_path);
+}
+
 /// C127 (an apply's actions have a bound): an `apply` of one action over
 /// `APPLY_MAX_ACTIONS` is refused at submit, naming its count and the
 /// bound and pointing to a narrower selection, and spends no id, though

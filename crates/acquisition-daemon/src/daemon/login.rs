@@ -157,7 +157,7 @@ impl Daemon {
             "profile".into(),
             json!({}),
             LOGIN_PRIORITY,
-            "daemon".into(),
+            DAEMON_SUBMITTER.into(),
             Some(username.clone()),
         ) {
             Err(e) => Err(format!("could not queue the profile fetch: {e}")),

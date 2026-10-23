@@ -171,7 +171,7 @@ impl Daemon {
                 "probe".into(),
                 json!({ "route": route, "url": url }),
                 PROBE_PRIORITY,
-                "daemon".into(),
+                DAEMON_SUBMITTER.into(),
                 account,
             ) {
                 // Queue failed: the dispatcher has stopped picking, so the

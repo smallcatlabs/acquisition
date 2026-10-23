@@ -247,6 +247,7 @@ impl Daemon {
             } => match self
                 .refuse_while_stopping()
                 .and_then(|()| admit_client(&kind, &params, self.provider.is_real()))
+                .and_then(|()| admit_client_submitter(&submitted_by))
                 .and_then(|()| self.resolve_account(&kind, account.as_deref()))
                 .and_then(|account| self.submit(kind, params, priority, submitted_by, account))
             {
