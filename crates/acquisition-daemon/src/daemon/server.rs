@@ -473,7 +473,8 @@ impl Daemon {
 
     /// C133: the exit for a cause that armed it itself, taking no lock (a
     /// signal, on its own thread): the rest of the begin, the drain, the
-    /// leave.
+    /// leave. The signal watcher is its one caller, so it is Unix's alone.
+    #[cfg(unix)]
     pub(super) async fn exit_armed(&self, why: &str) -> ! {
         self.stop_admitting(why);
         self.drain().await;

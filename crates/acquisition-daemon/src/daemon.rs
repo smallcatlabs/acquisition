@@ -258,7 +258,9 @@ impl Exit {
         true
     }
 
-    /// End the process at once: the installed end, or a bare exit.
+    /// End the process at once: the installed end, or a bare exit. A
+    /// second signal is its one caller, so it is Unix's alone.
+    #[cfg(unix)]
     fn end_at_once(&self, why: &str, code: i32) -> ! {
         if let Some(end) = self.end.get() {
             end(why, code);
