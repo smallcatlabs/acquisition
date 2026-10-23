@@ -790,10 +790,12 @@ enum DaemonCmd {
     /// jobs are never cancelled by its leaving. `--json`:
     /// `stopped`, `pid`, `version`, `provider`, `compatible`, `socket`.
     Stop,
-    /// Clear the rails halt: the live-test tripwire's or ceiling's, and
-    /// the mark a Cloudflare answer in GGG's place leaves, which holds
-    /// every daemon until cleared, and the halt this daemon keeps after
-    /// Cloudflare could not reach GGG. After a trip, wait 360 s before
+    /// Clear the rails halt: the live-test tripwire's, and the mark a
+    /// Cloudflare answer in GGG's place leaves, which holds every daemon
+    /// until cleared, and the halt this daemon keeps after Cloudflare
+    /// could not reach GGG. A met send ceiling is not cleared: it belongs
+    /// to the daemon's lifetime, and only a new daemon counts from zero
+    /// again. After a trip, wait 360 s before
     /// clearing; a trip or a mark is evidence to read, and the next send
     /// goes to GGG. With no daemon running, clears the halt persisted in
     /// this shell's world (`<store root>/<provider>/rails.json`) so the
