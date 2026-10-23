@@ -795,9 +795,9 @@ enum DaemonCmd {
     /// until cleared, and the halt this daemon keeps after Cloudflare
     /// could not reach GGG. A met send ceiling is not cleared: it belongs
     /// to the daemon's lifetime, and only a new daemon counts from zero
-    /// again. After a trip, wait 360 s before
-    /// clearing; a trip or a mark is evidence to read, and the next send
-    /// goes to GGG. With no daemon running, clears the halt persisted in
+    /// again. After a trip, wait 360 s before clearing; a trip or a mark
+    /// is evidence to read, and the next send goes to GGG unless the
+    /// ceiling is met. With no daemon running, clears the halt persisted in
     /// this shell's world (`<store root>/<provider>/rails.json`) so the
     /// next daemon starts clear; a rejected sign-in's mark stays until
     /// `acq auth`.
@@ -1618,7 +1618,9 @@ async fn run(cli: Cli) -> Result<()> {
                         if cli.json {
                             println!("{}", serde_json::to_string_pretty(&resp)?);
                         } else {
-                            println!("rails reset; the next send goes to GGG");
+                            println!(
+                                "rails reset; the next send goes to GGG unless this daemon's send ceiling is met, which only a new daemon lifts"
+                            );
                         }
                     }
                     // Another daemon holds its rails in memory; clearing the
