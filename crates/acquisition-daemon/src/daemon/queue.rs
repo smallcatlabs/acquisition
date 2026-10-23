@@ -103,9 +103,10 @@ impl Daemon {
     /// a duplicate child set, so it
     /// is held for its existing children with a synthetic result. A parent
     /// whose held result was written keeps holding it; probes are per
-    /// lifetime and dropped, and the one a fault marker names first closes
-    /// its route for the cooldown (C134), before the dispatcher starts, so
-    /// the jobs waiting on it fail instead of recreating it. An open parent's finished children come back
+    /// lifetime and dropped; the one a fault marker names closes its route
+    /// (C134): the jobs open on it fail here, before the dispatcher starts,
+    /// and the route is degraded for the cooldown, so neither they nor a
+    /// job submitted on it then recreate the probe. An open parent's finished children come back
     /// with it (its summary counts them). Ids continue from the table's
     /// sequence. Other terminal rows stay in the table for `result`,
     /// pruned by age first.
@@ -136,6 +137,21 @@ impl Daemon {
             .flatten();
         let entries: Vec<Entry> = rows.into_iter().filter_map(Entry::from_row).collect();
         let has_children: HashSet<JobId> = entries.iter().filter_map(|e| e.info.parent).collect();
+        // C134: a marker naming a probe closes the probe's route. The jobs
+        // open on it now fail below, whenever they would have dispatched
+        // (a halt can hold them past any cooldown); the degrade covers a
+        // job submitted on the route during the cooldown.
+        let closed_route = entries
+            .iter()
+            .find(|e| faulted == Some(e.info.id) && e.info.kind == "probe")
+            .and_then(|e| e.params.get("route").and_then(Value::as_str))
+            .map(str::to_string);
+        if let Some(route) = &closed_route {
+            self.choke.degrade(route, PROBE_FAULT_WORDS);
+            self.log(&format!(
+                "FAULT: a probe on route {route} broke the daemon the last time it ran; the route is closed for its cooldown, and the jobs open on it fail"
+            ));
+        }
         let (mut requeued, mut held, mut not_replayed, mut dropped, mut fault) = (0, 0, 0, 0, 0);
         let mut fault_on_disk = true;
         let mut finish_parents = Vec::new();
@@ -145,27 +161,24 @@ impl Daemon {
             s.next_id = next_id;
             for mut entry in entries {
                 if entry.info.kind == "probe" {
-                    // C134: a probe's marker closes its route for the
-                    // cooldown, so the jobs waiting on it fail at dispatch
-                    // (a degraded route) instead of recreating the probe.
-                    if faulted == Some(entry.info.id)
-                        && let Some(route) = entry.params.get("route").and_then(Value::as_str)
-                    {
-                        self.choke.degrade(route, PROBE_FAULT_WORDS);
-                        self.log(&format!(
-                            "FAULT: job {}, a probe on route {route}, broke the daemon the last time it ran; the route is closed for its cooldown",
-                            entry.info.id
-                        ));
-                    }
                     dropped += 1;
                     let _ = db.lock().unwrap().delete(entry.info.id);
                     continue;
                 }
-                // C134: the marker's job, open and neither cancelling
-                // nor a parent (a parent's held or mid-fan-out finish is
-                // never a replay), fails whether its task had set it
-                // running or was still at the limiter.
-                if faulted == Some(entry.info.id)
+                // C134: the marker's job, or a job on its probe's closed
+                // route, open and neither cancelling nor a parent (a
+                // parent's held or mid-fan-out finish is never a replay),
+                // fails whether its task had set it running or was still
+                // at the limiter.
+                let on_closed_route = closed_route.as_deref().is_some_and(|closed| {
+                    self.keyed_route_for(
+                        &entry.info.kind,
+                        &entry.params,
+                        entry.info.account.as_deref(),
+                    )
+                    .is_some_and(|(route, _)| route == closed)
+                });
+                if (faulted == Some(entry.info.id) || on_closed_route)
                     && matches!(entry.info.state, JobState::Running | JobState::Waiting)
                     && !entry.cancel_requested
                     && entry.deferred.is_none()
@@ -173,8 +186,13 @@ impl Daemon {
                 {
                     fault += 1;
                     entry.info.state = JobState::Failed;
-                    entry.outcome = Some(Outcome::failure(FAULT_WORDS));
-                    fault_on_disk = self.persist(&entry);
+                    entry.outcome = Some(Outcome::failure(match &closed_route {
+                        Some(route) if on_closed_route => {
+                            format!("not sent on route {route}: {PROBE_FAULT_WORDS}")
+                        }
+                        _ => FAULT_WORDS.to_string(),
+                    }));
+                    fault_on_disk &= self.persist(&entry);
                 } else if entry.info.state == JobState::Running {
                     let no_probe_route = self
                         .keyed_route_for(
