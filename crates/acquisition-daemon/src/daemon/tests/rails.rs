@@ -670,9 +670,11 @@ async fn a_parked_whoami_is_not_picked_again_while_halted() {
 /// A rails write that fails is never silent: the block mark this daemon
 /// holds but could not write is logged as the daemon's error (a restart
 /// would not keep it), and a reset it could not write is refused, the
-/// halt standing in memory. (Here the mark never reached disk; that a
-/// failed reset leaves a written mark standing rests on the store's
-/// atomic write, unpinned.)
+/// halt standing in memory. The reset has a dead grant to keep (C24),
+/// so it must write, not only remove: removing a file that cannot exist
+/// succeeds on some platforms, but writing one fails on all. (Here the
+/// mark never reached disk; that a failed reset leaves a written mark
+/// standing rests on the store's atomic write, unpinned.)
 #[tokio::test]
 async fn a_rails_write_that_fails_is_logged_and_its_reset_refused() {
     let responses = vec![
@@ -707,6 +709,7 @@ async fn a_rails_write_that_fails_is_logged_and_its_reset_refused() {
         errors.contains("could not be written"),
         "the unwritten mark is logged: {errors}"
     );
+    assert!(daemon.choke.rails().mark_refresh_failed("A#1", "HTTP 400"));
 
     let reply = daemon
         .handle_request(Request::ResetTripwire, &mut None)
