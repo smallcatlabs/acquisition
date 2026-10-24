@@ -1091,11 +1091,12 @@ pub fn terms(q: &Q) -> Vec<(String, TermKind)> {
 }
 
 /// How many cases a generated property runs: `local` in a gate run on
-/// a session's machine, `full` where `ACQ_CASES=full` is set, which the
-/// workflow sets. The cases are fresh on every run (see [`config`]), so
-/// the local count is a share of the full one drawn each time and never
-/// the same few cases. `PROPTEST_CASES=N` is proptest's own and replaces
-/// either, in every property of the workspace, for a long run by hand.
+/// a session's machine and on the Windows gate, `full` where
+/// `ACQ_CASES=full` is set, which the Linux gate's workflow sets. The
+/// cases are fresh on every run (see [`config`]), so the local count is
+/// a share of the full one drawn each time and never the same few cases.
+/// `PROPTEST_CASES=N` is proptest's own and replaces either, in every
+/// property of the workspace, for a long run by hand.
 pub fn cases(local: u32, full: u32) -> u32 {
     match std::env::var("ACQ_CASES").as_deref() {
         Ok("full") => full,

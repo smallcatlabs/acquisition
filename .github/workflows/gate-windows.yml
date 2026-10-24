@@ -50,15 +50,21 @@ jobs:
       - name: Build
         run: cargo build --workspace --locked
 
-      # ACQ_CASES=full: the generated search properties at their full
-      # counts, as on Linux. ACQ_KEYRING_ROUNDTRIP=1: the round trip
-      # against the runner user's Credential Manager. Every failure is
-      # reported (the `ci` profile's fail-fast = false): a platform's
-      # failures come in kinds, and one test's must not hide the next's.
+      # The Windows gate tests what Windows changes: the named pipes
+      # (C112), Credential Manager, spawn and handle semantics, and the
+      # `cfg(windows)` code. The generated search properties are blind to
+      # the platform, so they run the share tier here, a share of their
+      # counts fresh each run (acquisition-search/tests/common/
+      # generated.rs, `cases`), and their full volume stays with the Linux
+      # gate: under full counts a starved runner met the `ci` profile's
+      # termination on healthy code (#70). ACQ_KEYRING_ROUNDTRIP=1: the
+      # round trip against the runner user's Credential Manager. Every
+      # failure is reported (the `ci` profile's fail-fast = false): a
+      # platform's failures come in kinds, and one test's must not hide
+      # the next's.
       - name: Test, with the keyring round trip against Credential Manager
         env:
           ACQ_KEYRING_ROUNDTRIP: "1"
-          ACQ_CASES: full
         run: cargo nextest run --workspace --all-targets --locked --profile ci
 
       - name: Clippy
