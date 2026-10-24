@@ -241,6 +241,8 @@ them.
 | `ACQ_NO_KEYRING=1` | off | logins in memory only, never plaintext on disk | [auth.rs][auth] |
 | `ACQ_NO_SPAWN=1` | off | never start or replace a daemon; for cron, ssh and headless shells | [client.rs][client]; keyring context: [auth.rs][auth] |
 | `ACQ_IDLE_SHUTDOWN=<s>` | 60 | idle exit, held while the limiter's history is live | [start.rs][daemon] |
+| `ACQ_HELLO_WITHIN=<s>` | 5 | how long a daemon has to answer the handshake before it is reported unresponsive | [client.rs][client] |
+| `ACQ_ANNOTATION_WAIT=<s>` | 5 | how long a write waits for another writer's lock on the annotation file before it is refused as busy | [annotations.rs][annotations] |
 | `ACQ_JOB_RETENTION_DAYS`, `ACQ_FAILED_JOB_RETENTION_DAYS` | 7, 30 | finished-job retention for `acq result`; invalid values keep defaults | [start.rs][daemon] |
 | `ACQ_TRIPWIRE=1` | off | rail 1: halt on 429/401/403/503 until reset, persisted | [rails.rs][rails] |
 | `ACQ_MAX_SENDS=<n>` | off | rail 5: halt after `n` real sends this lifetime, not persisted | [rails.rs][rails] |
@@ -250,6 +252,7 @@ them.
 [provider]: crates/acquisition-protocol/src/provider.rs
 [cli]: crates/acquisition-cli/src/main.rs
 [world]: crates/acquisition-store/src/world.rs
+[annotations]: crates/acquisition-store/src/annotations.rs
 [auth]: crates/acquisition-daemon/src/auth.rs
 [client]: crates/acquisition-client/src/client.rs
 [daemon]: crates/acquisition-daemon/src/daemon/start.rs

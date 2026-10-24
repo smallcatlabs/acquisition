@@ -302,14 +302,19 @@ fn silent_peer() -> tokio::task::JoinHandle<()> {
 }
 
 /// C86: a peer that accepts and never answers `hello` is reported as
-/// unresponsive within the deadline, as its own verdict on every door —
+/// unresponsive at the deadline, as its own verdict on every door —
 /// observation, the use door (which neither spawns nor replaces over it:
 /// the peer still holds the socket afterwards) and stop — naming the
 /// pid the world lock's file records. The three doors run together, so
-/// the test costs one deadline, not three.
+/// the test costs one deadline, not three. The deadline is the default
+/// (the isolation list's wider one removed), so the words are the
+/// default's; the doors are held to no upper bound, which a starved
+/// runner can miss (C137, the deadline's contract is its expiry
+/// behaviour).
 #[tokio::test]
 async fn c86_a_peer_that_never_answers_hello_is_unresponsive_on_every_door_and_never_replaced() {
     let s = session("silent");
+    s.set_knob("ACQ_HELLO_WITHIN", None);
     let peer = silent_peer();
     // The lock a wedged daemon would still hold, with its pid in it.
     let world = World::observe().expect("the session's world");
@@ -327,8 +332,8 @@ async fn c86_a_peer_that_never_answers_hello_is_unresponsive_on_every_door_and_n
     );
     let elapsed = started.elapsed();
     assert!(
-        elapsed >= Duration::from_secs(5) && elapsed < Duration::from_secs(20),
-        "the deadline is 5s; the doors took {elapsed:?}"
+        elapsed >= Duration::from_secs(5),
+        "the deadline is 5s; the doors gave up after {elapsed:?}"
     );
 
     let found = match observed {
@@ -379,6 +384,70 @@ async fn c86_a_peer_that_never_answers_hello_is_unresponsive_on_every_door_and_n
     peer.abort();
     let _ = peer.await;
     drop(s);
+}
+
+/// C137: the handshake's deadline at zero (`ACQ_HELLO_WITHIN=0`) expires
+/// at once against a peer that answers `hello` as a healthy daemon does:
+/// every door gives the unresponsive verdict naming zero seconds, with
+/// no real waiting, because a reply is in time only before the deadline.
+/// The same peer under a deadline is identified, so the verdict was the
+/// deadline's and not the peer's. No wall-clock bound is asserted.
+#[tokio::test]
+async fn c137_the_handshake_deadline_at_zero_is_unresponsive_against_a_peer_that_answers() {
+    let s = session("hello-zero");
+    let hello = json!({
+        "resp": "hello",
+        "version": VERSION,
+        "contract": CONTRACT_REVISION,
+        "artifact": { "rev": "abc" },
+        "pid": 4242,
+        "provider": "mock",
+        "world": World::observe().expect("the session's world").name(),
+    });
+    let peer = foreign_daemon(hello, json!({ "resp": "stopping" })).await;
+
+    s.set_knob("ACQ_HELLO_WITHIN", Some("0"));
+    let (observed, connected, stopped) = tokio::join!(
+        Client::observe(),
+        Client::connect(ConnectOptions::interactive(true)),
+        Client::stop_any(),
+    );
+    let found = match observed {
+        Ok(Observed::Unresponsive(found)) => found,
+        Ok(Observed::Absent) => panic!("observed absence over a listening peer"),
+        Ok(Observed::Compatible(_)) => panic!("the deadline at zero let a reply through"),
+        Ok(Observed::Incompatible(found)) => panic!("the deadline at zero let {found} through"),
+        Err(e) => panic!("observation failed instead of reporting: {e:#}"),
+    };
+    assert_eq!(found.within, Duration::ZERO);
+    let sentence = found.to_string();
+    assert!(
+        sentence.contains("did not answer hello within 0s"),
+        "the effective deadline, not the default: {sentence}"
+    );
+    match connected {
+        Err(ConnectError::Unresponsive(found)) => assert_eq!(found.within, Duration::ZERO),
+        Err(other) => panic!("the use door reported {other} instead"),
+        Ok(_) => panic!("the use door opened under a deadline of zero"),
+    }
+    let err = stopped.expect_err("a stop under a deadline of zero is unresponsive");
+    assert!(
+        format!("{err:#}").contains("did not answer hello within 0s"),
+        "{err:#}"
+    );
+
+    // The same peer, the deadline the isolation list sets: identified.
+    s.set_knob("ACQ_HELLO_WITHIN", Some("60"));
+    match Client::observe().await {
+        Ok(Observed::Incompatible(found)) => assert_eq!(found.pid(), 4242),
+        Ok(Observed::Unresponsive(found)) => panic!("a peer that answers: {found}"),
+        Ok(Observed::Absent) => panic!("absent"),
+        Ok(Observed::Compatible(_)) => panic!("a scripted peer is never this client's"),
+        Err(e) => panic!("{e:#}"),
+    }
+    peer.abort();
+    let _ = peer.await;
+    let _ = std::fs::remove_file(session_socket());
 }
 
 /// The client side: a daemon whose frames carry fields this build has

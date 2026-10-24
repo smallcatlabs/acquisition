@@ -50,8 +50,9 @@
 //! build.
 //!
 //! The handshake over the world's socket has a deadline (C86,
-//! [`HELLO_WITHIN`]): a peer that accepts and does not answer `hello` in
-//! time is [`Unresponsive`] — its own verdict on every door, never
+//! [`HELLO_WITHIN`], widened by `ACQ_HELLO_WITHIN`, [`hello_within`]): a
+//! peer that accepts and does not answer `hello` in time is
+//! [`Unresponsive`] — its own verdict on every door, never
 //! absence, so nothing spawns or replaces over it — and the report names
 //! the world lock's holder for the hand that stops it.
 //!
@@ -311,7 +312,7 @@ pub enum ConnectError {
     /// after the spawn when there was a daemon to say it.
     SpawnFailed { acqd: Option<PathBuf>, log: String },
     /// The socket accepted the connection and nothing answered `hello`
-    /// within [`HELLO_WITHIN`] (C86): a wedged daemon, or one on its way
+    /// within [`hello_within`] (C86): a wedged daemon, or one on its way
     /// out. Not absence — this door neither spawns nor replaces over it.
     Unresponsive(Unresponsive),
     /// The socket answered, and the conversation failed: a connect error
@@ -319,13 +320,25 @@ pub enum ConnectError {
     Transport(anyhow::Error),
 }
 
-/// How long a peer on the world's socket has to answer `hello` (C86).
-/// A healthy daemon answers from a per-connection task in milliseconds
-/// whatever the limiter holds — its shared lock never spans an await —
-/// so five seconds, the spawn wait's and the quote's bound, is generous;
-/// what trips it is a wedged daemon, or one exiting under a long
-/// checkpoint with its listener still open.
+/// How long a peer on the world's socket has to answer `hello` (C86),
+/// by default. A healthy daemon answers from a per-connection task in
+/// milliseconds whatever the limiter holds — its shared lock never spans
+/// an await — so five seconds, the spawn wait's and the quote's bound, is
+/// generous; what trips it is a wedged daemon, or one exiting under a
+/// long checkpoint with its listener still open.
 pub const HELLO_WITHIN: Duration = Duration::from_secs(5);
+
+/// C137, the deadline's contract is its expiry behaviour:
+/// `ACQ_HELLO_WITHIN=<secs>` overrides [`HELLO_WITHIN`], read at each
+/// handshake. The test isolation list widens it, so a starved runner
+/// cannot read a healthy daemon as wedged; zero forces the expiry, since
+/// a reply is in time only if it arrives before the deadline.
+pub fn hello_within() -> Duration {
+    std::env::var("ACQ_HELLO_WITHIN")
+        .ok()
+        .and_then(|v| v.trim().parse::<u64>().ok())
+        .map_or(HELLO_WITHIN, Duration::from_secs)
+}
 
 /// How long `daemon stop` waits, after the daemon's `stopping`, for the
 /// daemon to be gone (C133): its exit waits up to 15 s for what it has
@@ -336,13 +349,15 @@ pub const HELLO_WITHIN: Duration = Duration::from_secs(5);
 pub const STOPPED_WITHIN: Duration = Duration::from_secs(20);
 
 /// A peer that accepted a connection on the world's socket and did not
-/// answer `hello` within [`HELLO_WITHIN`] (C86). `holder` is the pid the
+/// answer `hello` within [`hello_within`] (C86). `holder` is the pid the
 /// world lock's file records — the daemon that took the world, if the
 /// file could be read — so the sentence names what to stop by hand.
 #[derive(Debug, Clone)]
 pub struct Unresponsive {
     /// The socket the connection was accepted on.
     pub at: Endpoint,
+    /// The deadline the handshake ran under, the effective one (C137).
+    pub within: Duration,
     /// The world lock's recorded holder, when there is one.
     pub holder: Option<u32>,
 }
@@ -373,7 +388,7 @@ impl fmt::Display for Unresponsive {
             f,
             "a daemon is listening at {} but did not answer hello within {}s{KEYCHAIN}",
             self.at.socket,
-            HELLO_WITHIN.as_secs()
+            self.within.as_secs()
         )?;
         match self.holder {
             Some(pid) => write!(
@@ -390,7 +405,8 @@ impl std::error::Error for Unresponsive {}
 /// Why a handshake did not identify a peer: the deadline, or a failure
 /// with its context.
 enum Handshake {
-    Unresponsive(Endpoint),
+    /// No answer in time: where, and the deadline it ran under.
+    Unresponsive(Endpoint, Duration),
     Failed(anyhow::Error),
 }
 
@@ -398,7 +414,9 @@ impl Handshake {
     /// As one error, for a door whose failures are all errors (`stop_any`).
     fn into_error(self, holder: Option<u32>) -> anyhow::Error {
         match self {
-            Handshake::Unresponsive(at) => anyhow::Error::new(Unresponsive { at, holder }),
+            Handshake::Unresponsive(at, within) => {
+                anyhow::Error::new(Unresponsive { at, within, holder })
+            }
             Handshake::Failed(e) => e,
         }
     }
@@ -1094,9 +1112,10 @@ impl Client {
                         Ok(client) => client,
                         // Unresponsive is never absence (C86): no spawn,
                         // no replacement — the report is the door's answer.
-                        Err(Handshake::Unresponsive(at)) => {
+                        Err(Handshake::Unresponsive(at, within)) => {
                             return Err(ConnectError::Unresponsive(Unresponsive {
                                 at,
+                                within,
                                 holder: lock_holder(&own),
                             }));
                         }
@@ -1224,10 +1243,13 @@ impl Client {
                 Ok(match Client::handshake(stream, at, own_name).await {
                     Ok(client) if client.daemon.is_ours() => Observed::Compatible(client),
                     Ok(client) => Observed::Incompatible(client.daemon),
-                    Err(Handshake::Unresponsive(at)) => Observed::Unresponsive(Unresponsive {
-                        at,
-                        holder: lock_holder(&own),
-                    }),
+                    Err(Handshake::Unresponsive(at, within)) => {
+                        Observed::Unresponsive(Unresponsive {
+                            at,
+                            within,
+                            holder: lock_holder(&own),
+                        })
+                    }
                     Err(Handshake::Failed(e)) => return Err(e),
                 })
             }
@@ -1313,9 +1335,12 @@ impl Client {
     /// end, over the bootstrap plane (C85) so any revision answers,
     /// judged once against `own_world` — the world the door resolved.
     /// Decides nothing — the caller reads `daemon` and applies its
-    /// policy. The one exchange runs under [`HELLO_WITHIN`] (C86): a peer
+    /// policy. The one exchange runs under [`hello_within`] (C86): a peer
     /// that accepts and never answers is [`Handshake::Unresponsive`],
-    /// which every door reports as its own verdict.
+    /// which every door reports as its own verdict. A reply is in time
+    /// only if it arrives before the deadline (C137): one the timer had
+    /// not yet fired over is late all the same, so a deadline of zero
+    /// expires whatever the peer does.
     async fn handshake(
         stream: Stream,
         at: Endpoint,
@@ -1335,14 +1360,18 @@ impl Client {
             contract: CONTRACT_REVISION.to_string(),
             world,
         };
-        let bytes =
-            match tokio::time::timeout(HELLO_WITHIN, exchange(&mut reader, &mut write, &hello))
-                .await
-            {
-                Ok(Ok(bytes)) => bytes,
-                Ok(Err(e)) => return Err(Handshake::Failed(e)),
-                Err(_elapsed) => return Err(Handshake::Unresponsive(at)),
-            };
+        let within = hello_within();
+        let deadline = tokio::time::Instant::now() + within;
+        let bytes = match tokio::time::timeout_at(
+            deadline,
+            exchange(&mut reader, &mut write, &hello),
+        )
+        .await
+        {
+            Ok(Err(e)) => return Err(Handshake::Failed(e)),
+            Ok(Ok(bytes)) if tokio::time::Instant::now() < deadline => bytes,
+            Ok(Ok(_)) | Err(_) => return Err(Handshake::Unresponsive(at, within)),
+        };
         let Some(BootstrapReply::Hello {
             version,
             contract,

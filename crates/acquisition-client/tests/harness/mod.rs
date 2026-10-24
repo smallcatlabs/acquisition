@@ -141,13 +141,17 @@ pub fn scratch_tmp(base: &Path) -> PathBuf {
 // ---- the isolation list -------------------------------------------------
 
 /// Every knob a test process sets, once: each `ACQ_*` the process holds
-/// removed (`None`), then the ten values. `world` is the store root
+/// removed (`None`), then the twelve values. `world` is the store root
 /// (its socket derives from it, C83); the runtime and log directories sit
 /// under `base`: the temp directory is named for each platform's reader,
 /// `TMPDIR` on macOS, `XDG_RUNTIME_DIR` on Linux, and `TEMP` and `TMP`,
 /// which `std::env::temp_dir` reads on Windows, so no two tests' daemons
 /// share the runner's own temp directory there. None of them moves the
-/// real-mode lock (C132, [`scratch_tmp`]).
+/// real-mode lock (C132, [`scratch_tmp`]). The two liveness deadlines a
+/// frontend runs under, the handshake's and the annotation file's wait,
+/// are widened to 60 s, so a starved runner cannot fail a healthy path
+/// (C137, the deadline's contract is its expiry behaviour); a test that
+/// pins one sets its own value after this list.
 pub fn isolation(world: &Path, base: &Path) -> Vec<(OsString, Option<OsString>)> {
     let mut list: Vec<(OsString, Option<OsString>)> = std::env::vars_os()
         .filter(|(key, _)| key.to_str().is_some_and(|k| k.starts_with("ACQ_")))
@@ -165,6 +169,8 @@ pub fn isolation(world: &Path, base: &Path) -> Vec<(OsString, Option<OsString>)>
         ("ACQ_JOURNAL", "0".into()),
         ("ACQ_IDLE_SHUTDOWN", "30".into()),
         ("ACQ_PROVIDER", "mock".into()),
+        ("ACQ_HELLO_WITHIN", "60".into()),
+        ("ACQ_ANNOTATION_WAIT", "60".into()),
     ] {
         list.push((key.into(), Some(value)));
     }
@@ -893,6 +899,19 @@ impl Session {
         // SAFETY: the session's lock is held (`session`).
         unsafe {
             std::env::set_var("ACQ_STORE_DIR", root);
+        }
+    }
+
+    /// Set one knob of this process over the isolation list's value, or
+    /// remove it (`None`) so the code's default applies (the lock is
+    /// held): a deadline's pin sets its own (C137).
+    pub fn set_knob(&self, key: &str, value: Option<&str>) {
+        // SAFETY: the session's lock is held (`session`).
+        unsafe {
+            match value {
+                Some(value) => std::env::set_var(key, value),
+                None => std::env::remove_var(key),
+            }
         }
     }
 }

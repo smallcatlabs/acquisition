@@ -150,8 +150,20 @@ CREATE TABLE IF NOT EXISTS meta (
 const META_UUID: &str = "account_uuid";
 
 /// How long a writer waits for another connection's write lock before
-/// giving up as [`AnnotationError::Busy`].
+/// giving up as [`AnnotationError::Busy`], by default.
 const BUSY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+
+/// C137, the deadline's contract is its expiry behaviour:
+/// `ACQ_ANNOTATION_WAIT=<secs>` overrides [`BUSY_TIMEOUT`], read at each
+/// open and by the busy refusal's words. The test isolation list widens
+/// it, so a starved runner cannot fail a healthy writer; zero refuses a
+/// held file at once.
+fn annotation_wait() -> std::time::Duration {
+    std::env::var("ACQ_ANNOTATION_WAIT")
+        .ok()
+        .and_then(|v| v.trim().parse::<u64>().ok())
+        .map_or(BUSY_TIMEOUT, std::time::Duration::from_secs)
+}
 
 /// `<dir>/<uuid>.annotations.db` — beside the username-named fact files,
 /// but keyed by the identity that survives a rename.
@@ -491,7 +503,7 @@ impl std::fmt::Display for AnnotationError {
             AnnotationError::Busy => write!(
                 f,
                 "annotation file is busy: another writer held it past {} s (retry later)",
-                BUSY_TIMEOUT.as_secs()
+                annotation_wait().as_secs()
             ),
             AnnotationError::Db(e) => write!(f, "annotation store: {e}"),
             AnnotationError::Io(e) => write!(f, "annotation store: {e}"),
@@ -587,7 +599,7 @@ impl Annotations {
             &path,
             OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
         )?;
-        conn.busy_timeout(BUSY_TIMEOUT)?;
+        conn.busy_timeout(annotation_wait())?;
         let found: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
         if found != SCHEMA_VERSION {
             return Err(AnnotationError::NotCurrent(crate::SchemaNotCurrent {
@@ -682,7 +694,7 @@ impl Annotations {
         // makes the lock below a wait rather than a refusal; FULL, not the
         // fact store's NORMAL, because this is the one file with no server
         // to refetch from (C35) and a batch is one human-paced commit.
-        conn.busy_timeout(BUSY_TIMEOUT)?;
+        conn.busy_timeout(annotation_wait())?;
         conn.pragma_update(None, "synchronous", "FULL")?;
         // The version gate, read-only, before any pragma that writes: a
         // file this build refuses is left exactly as it was found. A stamp
@@ -1527,6 +1539,62 @@ mod tests {
                 .revision,
             1
         );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// C137: the annotation wait at zero (`ACQ_ANNOTATION_WAIT=0`) refuses
+    /// a writer the file's lock is held from at once, as busy, naming
+    /// zero seconds: the expiry forced, no real waiting, and no
+    /// wall-clock bound asserted. The knob is the process's, so the test
+    /// runs itself again as a child with it set, and no other test of
+    /// this binary reads it changed.
+    #[test]
+    fn c137_the_annotation_wait_at_zero_refuses_a_held_writer_at_once() {
+        if std::env::var("ACQ_ANNOTATION_WAIT").as_deref() != Ok("0") {
+            let module = module_path!()
+                .split_once("::")
+                .map_or(module_path!(), |(_, rest)| rest);
+            let out = std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    format!(
+                        "{module}::c137_the_annotation_wait_at_zero_refuses_a_held_writer_at_once"
+                    ),
+                    "--exact".into(),
+                    "--nocapture".into(),
+                    "--test-threads=1".into(),
+                ])
+                .env("ACQ_ANNOTATION_WAIT", "0")
+                .output()
+                .unwrap();
+            let said = String::from_utf8_lossy(&out.stdout);
+            assert!(
+                out.status.success() && said.contains("1 passed"),
+                "the child with the wait at zero: {}\n{said}\n{}",
+                out.status,
+                String::from_utf8_lossy(&out.stderr)
+            );
+            return;
+        }
+        let dir = std::env::temp_dir().join(format!(
+            "acq-ann-wait-{}-{}",
+            std::process::id(),
+            crate::now()
+        ));
+        let path = annotations_path(&dir, "u-wait");
+        let mut a = Annotations::open(&path).unwrap();
+        let b = Annotations::open(&path).unwrap();
+        // `b` holds the write lock in an open transaction the whole time.
+        b.conn.execute_batch("BEGIN IMMEDIATE").unwrap();
+        let err = a
+            .put::<Buyout>("item", "i1", &price("1c"), None, &via_test())
+            .unwrap_err();
+        assert!(matches!(err, AnnotationError::Busy), "{err}");
+        assert!(
+            err.to_string()
+                .contains("another writer held it past 0 s (retry later)"),
+            "the effective wait, not the default: {err}"
+        );
+        b.conn.execute_batch("ROLLBACK").unwrap();
         let _ = std::fs::remove_dir_all(&dir);
     }
 
