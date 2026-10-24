@@ -68,6 +68,11 @@ instead.
   owner has read it.
 - A draft the brief names is taken verbatim unless the tree disproves
   a sentence of it; each correction is named in the report.
+- No test asserts a wall-clock bound a slow machine can miss: a
+  deadline's behaviour is pinned by forcing its expiry, and a lifecycle
+  that waits across processes is designed as a state machine over an
+  injected clock before it is built (C137, the deadline's contract is
+  its expiry behaviour).
 - An id names its rule in words the first time a brief, a report, a
   commit message or a ledger line uses it ("C84, the artifact
   mismatch"): the reader outside the area has no registry open. The
