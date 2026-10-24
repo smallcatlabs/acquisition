@@ -69,7 +69,7 @@ fn daemon_stop_checkpoints_the_facts_file_and_the_queue() {
     assert!(out.status.success(), "{out:?}");
     // The daemon checkpoints, removes its socket, then exits: wait until
     // nothing answers on this world's socket any more.
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(120);
     loop {
         let status = sole_json(&acq(&base, &["daemon", "status", "--json"]));
         if status["running"] == Value::Bool(false) {

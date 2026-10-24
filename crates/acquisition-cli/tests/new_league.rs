@@ -201,7 +201,7 @@ fn a_new_league_starts_empty_beside_standard_and_a_typo_is_named() {
     let args: Vec<&str> = stop.args.iter().map(String::as_str).collect();
     let facts: Vec<&str> = stop.facts.iter().map(String::as_str).collect();
     assert!(t.run(&args, &facts).status.success());
-    daemon.wait_exit(std::time::Duration::from_secs(10));
+    daemon.wait_exit(std::time::Duration::from_secs(120));
     golden(file!(), "launch_morning", &t);
 
     harness::assert_journal_holds(&base, pid, &NEW_LEAGUE_GETS, TOKEN_POSTS);

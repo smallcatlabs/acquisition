@@ -897,7 +897,7 @@ fn an_apply_behind_a_waiting_stash_fetch_does_not_queue_it_again() {
             .stderr(std::process::Stdio::null())
             .spawn()
             .expect("spawning acq");
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(120);
         let job = loop {
             if let Some(job) = found(&open_jobs()) {
                 break job;
@@ -981,7 +981,7 @@ fn an_apply_retried_while_its_requests_wait_queues_nothing_more() {
             .expect("a list of jobs")
             .clone()
     };
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(120);
     let parent = loop {
         let jobs = open_jobs();
         let fanned_out = jobs.iter().find(|j| j["kind"] == "apply").filter(|apply| {

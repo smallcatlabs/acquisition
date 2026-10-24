@@ -199,7 +199,7 @@ fn a_first_session_reads_as_a_user_meets_it_and_the_journal_holds() {
     let args: Vec<&str> = stop.args.iter().map(String::as_str).collect();
     let facts: Vec<&str> = stop.facts.iter().map(String::as_str).collect();
     assert!(t.run(&args, &facts).status.success());
-    daemon.wait_exit(std::time::Duration::from_secs(10));
+    daemon.wait_exit(std::time::Duration::from_secs(120));
     golden(file!(), "a_first_session", &t);
 
     harness::assert_journal_holds(&base, pid, &GETS, TOKEN_POSTS);

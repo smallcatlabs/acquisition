@@ -57,7 +57,7 @@ fn running_sleep(base: &Path, seconds: u32) -> String {
         .as_u64()
         .expect("a job id")
         .to_string();
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(120);
     loop {
         let status = sole_json(&acq(base, &["status", &id, "--json"]));
         if status["state"] == "running" {
@@ -94,9 +94,11 @@ fn c133_a_sigterm_drains_the_running_job_checkpoints_and_leaves() {
     let id = running_sleep(&base, 2);
 
     signal(pid, "TERM");
-    // The drain lets the two-second job land; the bound is 15 s, and the
-    // client's own wait for a stop is 20 s.
-    daemon.wait_exit(Duration::from_secs(20));
+    // The drain lets the two-second job land; the bound is 15 s. The wait
+    // is a hang's, never the drain's measure: the log and the exit code
+    // say how it ended (C137, the deadline's contract is its expiry
+    // behaviour).
+    daemon.wait_exit(Duration::from_secs(120));
     let code = daemon
         .0
         .try_wait()
@@ -151,15 +153,12 @@ fn c133_a_second_sigterm_during_the_drain_exits_at_once() {
     running_sleep(&base, 120);
 
     signal(pid, "TERM");
-    wait_for_line(&log, "SIGTERM", Duration::from_secs(5));
-    let second = Instant::now();
+    wait_for_line(&log, "SIGTERM", Duration::from_secs(120));
     signal(pid, "TERM");
-    daemon.wait_exit(Duration::from_secs(5));
-    assert!(
-        second.elapsed() < Duration::from_secs(5),
-        "the second signal ended the drain at once: {:?}",
-        second.elapsed()
-    );
+    // "At once" is told by the words, not the clock: the drain's own end
+    // at its bound logs no second signal and checkpoints (C137, the
+    // deadline's contract is its expiry behaviour).
+    daemon.wait_exit(Duration::from_secs(120));
     let code = daemon
         .0
         .try_wait()

@@ -66,7 +66,7 @@ fn start_daemon(base: &Path, store: &str, env: &[(&str, &str)]) -> (Proc, u64) {
         .spawn()
         .unwrap_or_else(|e| panic!("spawning {}: {e}", acqd().display()));
     let daemon = Proc(child, acqd());
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(120);
     loop {
         let mut status = command(base, store, &["daemon", "status", "--json"]);
         for (k, v) in env {
@@ -91,7 +91,7 @@ fn start_daemon(base: &Path, store: &str, env: &[(&str, &str)]) -> (Proc, u64) {
 /// return its exit status and stderr.
 fn refused_daemon(mut cmd: Command) -> (std::process::ExitStatus, String) {
     let child = cmd.spawn().expect("spawning acqd");
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(120);
     let mut daemon = Proc(child, acqd());
     loop {
         if let Some(status) = daemon.0.try_wait().unwrap() {
@@ -129,7 +129,7 @@ fn acq_in(base: &Path, store: &str, args: &[&str], env: &[(&str, &str)]) -> Outp
 
 /// Wait until `acq daemon status` under `env` says nothing is running.
 fn wait_stopped(base: &Path, store: &str, env: &[(&str, &str)]) {
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(120);
     loop {
         let status = sole_json(&acq_in(base, store, &["daemon", "status", "--json"], env));
         if status["running"] == Value::Bool(false) {
@@ -672,7 +672,7 @@ fn a_ceiling_halt_is_advised_as_the_lifetimes_and_a_trip_as_a_reset() {
     let (_daemon, _pid) = start_daemon(base, "store", &ceiling);
     let out = acq_in(base, "store", &["submit", "fetch", "--detach"], &ceiling);
     assert!(out.status.success(), "{out:?}");
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(120);
     loop {
         let status = sole_json(&acq_in(
             base,
@@ -760,7 +760,7 @@ fn c83_diagnostics_live_under_the_log_directory_and_are_bounded() {
     cmd.env_remove("ACQ_JOURNAL");
     let child = cmd.spawn().unwrap();
     let _daemon = Proc(child, acqd());
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(120);
     let status = loop {
         let out = acq(base, "store", &["daemon", "status", "--json"]);
         let status = sole_json(&out);

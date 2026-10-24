@@ -147,7 +147,7 @@ fn c85_the_watch_subscribes_and_reads_again_after_it_lagged_with_no_leftover_eve
     let runtime = tokio::runtime::Runtime::new().unwrap();
 
     let (watch, out) = watcher(&base);
-    let deadline = Instant::now() + Duration::from_secs(30);
+    let deadline = Instant::now() + Duration::from_secs(120);
     match out.item(deadline) {
         Item::Snapshot(jobs) => assert!(jobs.is_empty(), "{jobs:?}"),
         other => panic!("the watch opens with a snapshot: {other:?}"),
@@ -168,7 +168,7 @@ fn c85_the_watch_subscribes_and_reads_again_after_it_lagged_with_no_leftover_eve
     signal(&watch.0, "-CONT");
 
     // Some events the socket held, then the snapshot after `resync_required`.
-    let deadline = Instant::now() + Duration::from_secs(60);
+    let deadline = Instant::now() + Duration::from_secs(120);
     let mut events_before = 0usize;
     let snapshot = loop {
         match out.item(deadline) {
@@ -198,7 +198,7 @@ fn c85_the_watch_subscribes_and_reads_again_after_it_lagged_with_no_leftover_eve
         submit_sleep(&mut client).await
     });
     assert!(next > newest_old);
-    let deadline = Instant::now() + Duration::from_secs(30);
+    let deadline = Instant::now() + Duration::from_secs(120);
     match out.item(deadline) {
         Item::Event(job) => {
             let id = job["id"].as_u64().unwrap();

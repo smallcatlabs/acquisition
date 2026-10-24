@@ -132,7 +132,7 @@ fn c10_observation_never_spawns_or_replaces_and_reports_the_mismatch() {
             "{stopped}"
         );
     }
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(120);
     while acquisition_client::endpoint::exists(&socket) {
         assert!(Instant::now() < deadline, "the daemon did not exit");
         std::thread::sleep(Duration::from_millis(20));

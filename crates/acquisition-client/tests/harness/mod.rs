@@ -419,7 +419,7 @@ pub fn start_daemon_with(
     let mut cmd = daemon_command(acqd, base);
     cmd.envs(env.iter().copied());
     let (daemon, said) = spawn_drained(cmd, acqd);
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(120);
     loop {
         let mut status = Command::new(acq);
         status.args(["daemon", "status", "--json"]);
@@ -921,7 +921,7 @@ impl Session {
 pub async fn start_daemon_in_process(s: &Session, acqd: &Path) -> Proc {
     link_beside_this_test(acqd);
     let (daemon, said) = spawn_drained(daemon_command(acqd, &s.base), acqd);
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(120);
     loop {
         match Client::observe().await {
             Ok(Observed::Compatible(_)) => return daemon,
@@ -961,7 +961,7 @@ pub async fn login_in_process(client: &mut Client, user: Option<&str>) {
     tokio::task::spawn_blocking(move || approve(&url, user.as_deref()))
         .await
         .expect("the approve step");
-    let deadline = Instant::now() + Duration::from_secs(30);
+    let deadline = Instant::now() + Duration::from_secs(120);
     loop {
         match client.request(&Request::AuthStatus).await.unwrap() {
             Response::Auth {

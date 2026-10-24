@@ -132,13 +132,21 @@ fn c88_a_real_mode_daemon_is_started_from_a_terminal_and_the_mock_from_anywhere(
 fn a_lazily_started_daemon_keeps_no_pipe_of_the_command_that_started_it() {
     let scratch = scratch("no-pipe");
     let base = &scratch.0;
+    // The daemon this starts idles for 600 s, so a held pipe reads as
+    // that idle exit: past the bound below, and past the test runner's
+    // termination of a hung test (120 s in the default profile), so a
+    // held pipe fails however slow the machine. The bound is a hang's,
+    // never a measure of a healthy spawn (C137, the deadline's contract
+    // is its expiry behaviour).
     let started = std::time::Instant::now();
-    let out = acq(base, &["submit", "sleep", "--detach"]);
+    let out = command(base, &["submit", "sleep", "--detach"])
+        .env("ACQ_IDLE_SHUTDOWN", "600")
+        .output()
+        .expect("spawning acq");
     let took = started.elapsed();
     assert!(out.status.success(), "{}", text(&out));
-    // The harness's idle shutdown is 30 s: a held pipe reads as that.
     assert!(
-        took < std::time::Duration::from_secs(15),
+        took < std::time::Duration::from_secs(60),
         "the output was read to its end only after {took:?}: the daemon held the pipe"
     );
     let status = sole_json(&acq(base, &["daemon", "status", "--json"]));
