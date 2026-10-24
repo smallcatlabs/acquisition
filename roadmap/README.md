@@ -159,7 +159,10 @@ list when a step's close commit or an issue takes it.
 ## Current step
 
 Step 2f is closed; its ledger line is below, and its close commit's
-message checks `briefs/2f-review.md`'s done-when line by line. Next is
+message checks `briefs/2f-review.md`'s done-when line by line. First,
+by the owner's word of 2026-10-24, #70: GitHub's Windows gate fails a
+deadline test on a starved runner on most first runs, so most merges
+cost a re-run and a real Windows failure hides among them. Then
 2g, the read economy and the MCP refusal and receipt bundle (#9, #10),
 one bound at the shared layer under C53's three output levels; its
 brief comes first, from `briefs/TEMPLATE.md`. `AGENTS.md` governs; the
