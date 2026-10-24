@@ -155,13 +155,30 @@ const BUSY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 
 /// C137, the deadline's contract is its expiry behaviour:
 /// `ACQ_ANNOTATION_WAIT=<secs>` overrides [`BUSY_TIMEOUT`], read at each
-/// open and by the busy refusal's words. The test isolation list widens
-/// it, so a starved runner cannot fail a healthy writer; zero refuses a
-/// held file at once.
+/// open ([`parse_annotation_wait`]). The test isolation list widens it,
+/// so a starved runner cannot fail a healthy writer; zero refuses a held
+/// file at once.
 fn annotation_wait() -> std::time::Duration {
     std::env::var("ACQ_ANNOTATION_WAIT")
         .ok()
-        .and_then(|v| v.trim().parse::<u64>().ok())
+        .map_or(BUSY_TIMEOUT, |v| parse_annotation_wait(&v))
+}
+
+/// The largest wait a knob may name, in seconds: the largest whose
+/// milliseconds fit SQLite's signed 32-bit busy timeout, and far below
+/// any `Instant` addition.
+const MAX_WAIT_SECS: u64 = 2_147_483;
+
+/// C137: the knob's value as the wait it names. A value the consumer
+/// cannot represent — over [`MAX_WAIT_SECS`], or not a whole number of
+/// seconds — is unsupported and the default stands; zero is valid and
+/// forces the expiry.
+fn parse_annotation_wait(value: &str) -> std::time::Duration {
+    value
+        .trim()
+        .parse::<u64>()
+        .ok()
+        .filter(|secs| *secs <= MAX_WAIT_SECS)
         .map_or(BUSY_TIMEOUT, std::time::Duration::from_secs)
 }
 
@@ -1596,6 +1613,34 @@ mod tests {
         );
         b.conn.execute_batch("ROLLBACK").unwrap();
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// C137: the knob names only a wait SQLite can enforce. Over the
+    /// bound (whose milliseconds overflow SQLite's signed 32-bit timeout),
+    /// `u64::MAX` and garbage keep the default; zero stays zero, the
+    /// forced expiry; the bound itself is honoured.
+    #[test]
+    fn c137_the_annotation_wait_keeps_the_default_for_a_value_sqlite_cannot_hold() {
+        use std::time::Duration;
+        assert_eq!(parse_annotation_wait("2147484"), BUSY_TIMEOUT);
+        assert_eq!(parse_annotation_wait(&u64::MAX.to_string()), BUSY_TIMEOUT);
+        assert_eq!(parse_annotation_wait("0"), Duration::ZERO);
+        assert_eq!(parse_annotation_wait("five"), BUSY_TIMEOUT);
+        assert_eq!(parse_annotation_wait("-1"), BUSY_TIMEOUT);
+        assert_eq!(
+            parse_annotation_wait(" 2147483 "),
+            Duration::from_secs(MAX_WAIT_SECS)
+        );
+        // The bound is one SQLite holds: set and read back, unchanged.
+        let a = Annotations::open_memory().unwrap();
+        a.conn
+            .busy_timeout(Duration::from_secs(MAX_WAIT_SECS))
+            .unwrap();
+        let ms: i64 = a
+            .conn
+            .query_row("PRAGMA busy_timeout", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(ms, 2_147_483_000);
     }
 
     #[test]

@@ -330,13 +330,32 @@ pub const HELLO_WITHIN: Duration = Duration::from_secs(5);
 
 /// C137, the deadline's contract is its expiry behaviour:
 /// `ACQ_HELLO_WITHIN=<secs>` overrides [`HELLO_WITHIN`], read at each
-/// handshake. The test isolation list widens it, so a starved runner
-/// cannot read a healthy daemon as wedged; zero forces the expiry, since
-/// a reply is in time only if it arrives before the deadline.
+/// handshake (`parse_hello_within`). The test isolation list widens it,
+/// so a starved runner cannot read a healthy daemon as wedged; zero
+/// forces the expiry, since a reply is in time only if it arrives before
+/// the deadline.
 pub fn hello_within() -> Duration {
     std::env::var("ACQ_HELLO_WITHIN")
         .ok()
-        .and_then(|v| v.trim().parse::<u64>().ok())
+        .map_or(HELLO_WITHIN, |v| parse_hello_within(&v))
+}
+
+/// The largest deadline a knob may name, in seconds: the largest whose
+/// milliseconds fit SQLite's signed 32-bit busy timeout (the annotation
+/// wait's one rule, kept alike here), and far below any `Instant`
+/// addition.
+const MAX_WITHIN_SECS: u64 = 2_147_483;
+
+/// C137: the knob's value as the deadline it names. A value the
+/// handshake cannot represent — over [`MAX_WITHIN_SECS`], or not a whole
+/// number of seconds — is unsupported and the default stands; zero is
+/// valid and forces the expiry.
+fn parse_hello_within(value: &str) -> Duration {
+    value
+        .trim()
+        .parse::<u64>()
+        .ok()
+        .filter(|secs| *secs <= MAX_WITHIN_SECS)
         .map_or(HELLO_WITHIN, Duration::from_secs)
 }
 
@@ -1622,6 +1641,29 @@ fn startup_log_excerpt(spawned: &Spawned) -> String {
 
 #[cfg(test)]
 mod tests {
+    /// C137: the knob names only a deadline the handshake can hold. Over
+    /// the bound, `u64::MAX` (which overflowed the deadline's `Instant`
+    /// addition) and garbage keep the default; zero stays zero, the
+    /// forced expiry; the bound itself is honoured.
+    #[test]
+    fn c137_the_hello_deadline_keeps_the_default_for_a_value_it_cannot_hold() {
+        assert_eq!(parse_hello_within("2147484"), HELLO_WITHIN);
+        assert_eq!(parse_hello_within(&u64::MAX.to_string()), HELLO_WITHIN);
+        assert_eq!(parse_hello_within("0"), Duration::ZERO);
+        assert_eq!(parse_hello_within("five"), HELLO_WITHIN);
+        assert_eq!(parse_hello_within("-1"), HELLO_WITHIN);
+        assert_eq!(
+            parse_hello_within(" 2147483 "),
+            Duration::from_secs(MAX_WITHIN_SECS)
+        );
+        // The bound's deadline is one an `Instant` can carry.
+        assert!(
+            tokio::time::Instant::now()
+                .checked_add(Duration::from_secs(MAX_WITHIN_SECS))
+                .is_some()
+        );
+    }
+
     use super::*;
 
     /// The tests that read or set the process environment take this
