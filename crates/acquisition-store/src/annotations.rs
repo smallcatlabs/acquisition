@@ -182,6 +182,28 @@ fn parse_annotation_wait(value: &str) -> std::time::Duration {
         .map_or(BUSY_TIMEOUT, std::time::Duration::from_secs)
 }
 
+/// The busy wait SQLite enforces on `conn`, read back from it
+/// (`PRAGMA busy_timeout`, milliseconds): what a busy refusal reports,
+/// so its words are the connection's fact and not the knob's (C137).
+fn enforced_wait(conn: &Connection) -> Option<std::time::Duration> {
+    conn.query_row("PRAGMA busy_timeout", [], |r| r.get::<_, i64>(0))
+        .ok()
+        .and_then(|ms| u64::try_from(ms).ok())
+        .map(std::time::Duration::from_millis)
+}
+
+/// A result of work on `conn`, its busy refusal given the wait the
+/// connection enforced. Every door that takes the write lock reports
+/// through here.
+fn reported<T>(conn: &Connection, r: Result<T, AnnotationError>) -> Result<T, AnnotationError> {
+    match r {
+        Err(AnnotationError::Busy { waited: None }) => Err(AnnotationError::Busy {
+            waited: enforced_wait(conn),
+        }),
+        other => other,
+    }
+}
+
 /// `<dir>/<uuid>.annotations.db` — beside the username-named fact files,
 /// but keyed by the identity that survives a rename.
 pub fn annotations_path(dir: &Path, uuid: &str) -> PathBuf {
@@ -477,7 +499,11 @@ pub enum AnnotationError {
     /// Another connection held the write lock past the busy timeout. The
     /// row is untouched and unread: retry later — distinct from
     /// [`AnnotationError::Conflict`], whose remedy is re-read and retry.
-    Busy,
+    /// `waited` is the wait the connection enforced, read back from it;
+    /// `None` only where no door that takes the write lock met it.
+    Busy {
+        waited: Option<std::time::Duration>,
+    },
     Db(rusqlite::Error),
     Io(std::io::Error),
     Json(serde_json::Error),
@@ -517,10 +543,16 @@ impl std::fmt::Display for AnnotationError {
             ),
             AnnotationError::Invalid(e) => write!(f, "{e}"),
             AnnotationError::Provenance { detail } => write!(f, "annotation write: {detail}"),
-            AnnotationError::Busy => write!(
+            AnnotationError::Busy {
+                waited: Some(waited),
+            } => write!(
                 f,
                 "annotation file is busy: another writer held it past {} s (retry later)",
-                annotation_wait().as_secs()
+                waited.as_secs()
+            ),
+            AnnotationError::Busy { waited: None } => write!(
+                f,
+                "annotation file is busy: another writer held it (retry later)"
             ),
             AnnotationError::Db(e) => write!(f, "annotation store: {e}"),
             AnnotationError::Io(e) => write!(f, "annotation store: {e}"),
@@ -537,7 +569,7 @@ impl From<rusqlite::Error> for AnnotationError {
             rusqlite::Error::SqliteFailure(f, _)
                 if matches!(f.code, ErrorCode::DatabaseBusy | ErrorCode::DatabaseLocked) =>
             {
-                AnnotationError::Busy
+                AnnotationError::Busy { waited: None }
             }
             _ => AnnotationError::Db(e),
         }
@@ -584,7 +616,8 @@ impl Annotations {
     /// [`crate::Store::refresh_snapshot`] refuses.
     pub fn open_for(dir: &Path, uuid: &str) -> Result<Annotations, AnnotationError> {
         let mut a = Self::open(&annotations_path(dir, uuid))?;
-        a.bind(uuid)?;
+        let bound = a.bind(uuid);
+        reported(&a.conn, bound)?;
         Ok(a)
     }
 
@@ -653,7 +686,8 @@ impl Annotations {
     /// An in-memory file bound to `uuid`, for tests and ephemeral use.
     pub fn open_memory_for(uuid: &str) -> Result<Annotations, AnnotationError> {
         let mut a = Self::open_memory()?;
-        a.bind(uuid)?;
+        let bound = a.bind(uuid);
+        reported(&a.conn, bound)?;
         Ok(a)
     }
 
@@ -707,6 +741,15 @@ impl Annotations {
     /// inside one deferred transaction — one snapshot, still no write —
     /// so a stamp and its tables are always seen from the same moment.
     fn init(mut conn: Connection, path: PathBuf) -> Result<Annotations, AnnotationError> {
+        let prepared = Self::prepare(&mut conn, &path);
+        let uuid = reported(&conn, prepared)?;
+        Ok(Annotations { conn, path, uuid })
+    }
+
+    /// [`Annotations::init`]'s work on the connection: the settings, the
+    /// version gate, the create under the lock, the switch to WAL, and
+    /// the stored uuid.
+    fn prepare(conn: &mut Connection, path: &Path) -> Result<Option<String>, AnnotationError> {
         // Connection settings, not file writes: the busy timeout is what
         // makes the lock below a wait rather than a refusal; FULL, not the
         // fact store's NORMAL, because this is the one file with no server
@@ -738,7 +781,7 @@ impl Annotations {
             return Err(AnnotationError::SchemaTooOld {
                 found,
                 floor: SCHEMA_FLOOR,
-                path,
+                path: path.to_path_buf(),
             });
         }
         // Creation (and, from the floor up, migration) serializes under
@@ -757,7 +800,7 @@ impl Annotations {
                 return Err(AnnotationError::SchemaTooOld {
                     found: 0,
                     floor: SCHEMA_FLOOR,
-                    path,
+                    path: path.to_path_buf(),
                 });
             }
             0 => {
@@ -769,7 +812,7 @@ impl Annotations {
                 return Err(AnnotationError::SchemaTooOld {
                     found: v,
                     floor: SCHEMA_FLOOR,
-                    path,
+                    path: path.to_path_buf(),
                 });
             }
             v => {
@@ -784,13 +827,12 @@ impl Annotations {
         // at a time, any number of readers — under `crate::ensure_wal`'s
         // retry, since the two openers above may reach this switch
         // together.
-        crate::ensure_wal(&conn)?;
-        let uuid: Option<String> = conn
+        crate::ensure_wal(conn)?;
+        Ok(conn
             .query_row("SELECT value FROM meta WHERE key = ?1", [META_UUID], |r| {
                 r.get(0)
             })
-            .optional()?;
-        Ok(Annotations { conn, path, uuid })
+            .optional()?)
     }
 
     /// Bind this handle to `uuid`: stamp it into a file that has none, or
@@ -865,6 +907,20 @@ impl Annotations {
     /// under [`AnnotationError::Invalid`], so no frontend can write past
     /// them: the rule is the door's, not each caller's discipline.
     pub fn put<K: IntentValue>(
+        &mut self,
+        scope: &str,
+        key: &str,
+        value: &Value,
+        expected_revision: Option<i64>,
+        provenance: &Provenance,
+    ) -> Result<AnnotationRow, AnnotationError> {
+        let r = self.put_unreported::<K>(scope, key, value, expected_revision, provenance);
+        reported(&self.conn, r)
+    }
+
+    /// The work of the public door above it, before its busy refusal is
+    /// reported ([`reported`]).
+    fn put_unreported<K: IntentValue>(
         &mut self,
         scope: &str,
         key: &str,
@@ -948,6 +1004,20 @@ impl Annotations {
     /// whose revision keeps counting, so no later writer can slip a stale
     /// value past the delete; the tombstone records who cleared it (C65).
     pub fn delete(
+        &mut self,
+        scope: &str,
+        key: &str,
+        kind: &str,
+        expected_revision: i64,
+        provenance: &Provenance,
+    ) -> Result<(), AnnotationError> {
+        let r = self.delete_unreported(scope, key, kind, expected_revision, provenance);
+        reported(&self.conn, r)
+    }
+
+    /// The work of the public door above it, before its busy refusal is
+    /// reported ([`reported`]).
+    fn delete_unreported(
         &mut self,
         scope: &str,
         key: &str,
@@ -1546,7 +1616,7 @@ mod tests {
         let err = a
             .put::<Buyout>("item", "i1", &price("1c"), None, &via_test())
             .unwrap_err();
-        assert!(matches!(err, AnnotationError::Busy), "{err}");
+        assert!(matches!(err, AnnotationError::Busy { .. }), "{err}");
         assert!(err.to_string().contains("retry later"), "{err}");
         b.conn.execute_batch("ROLLBACK").unwrap();
         // The row is untouched: the same create succeeds once the lock is free.
@@ -1562,9 +1632,11 @@ mod tests {
     /// C137: the annotation wait at zero (`ACQ_ANNOTATION_WAIT=0`) refuses
     /// a writer the file's lock is held from at once, as busy, naming
     /// zero seconds: the expiry forced, no real waiting, and no
-    /// wall-clock bound asserted. The knob is the process's, so the test
-    /// runs itself again as a child with it set, and no other test of
-    /// this binary reads it changed.
+    /// wall-clock bound asserted. The seconds named are the wait SQLite
+    /// enforced, read back from the connection, so a knob unwired from
+    /// the busy timeout leaves the default's five and fails here. The
+    /// knob is the process's, so the test runs itself again as a child
+    /// with it set, and no other test of this binary reads it changed.
     #[test]
     fn c137_the_annotation_wait_at_zero_refuses_a_held_writer_at_once() {
         if std::env::var("ACQ_ANNOTATION_WAIT").as_deref() != Ok("0") {
@@ -1605,11 +1677,18 @@ mod tests {
         let err = a
             .put::<Buyout>("item", "i1", &price("1c"), None, &via_test())
             .unwrap_err();
-        assert!(matches!(err, AnnotationError::Busy), "{err}");
         assert!(
-            err.to_string()
-                .contains("another writer held it past 0 s (retry later)"),
-            "the effective wait, not the default: {err}"
+            matches!(
+                err,
+                AnnotationError::Busy {
+                    waited: Some(std::time::Duration::ZERO)
+                }
+            ),
+            "the wait the connection enforced, not the default: {err:?}"
+        );
+        assert_eq!(
+            err.to_string(),
+            "annotation file is busy: another writer held it past 0 s (retry later)"
         );
         b.conn.execute_batch("ROLLBACK").unwrap();
         let _ = std::fs::remove_dir_all(&dir);
@@ -1636,11 +1715,10 @@ mod tests {
         a.conn
             .busy_timeout(Duration::from_secs(MAX_WAIT_SECS))
             .unwrap();
-        let ms: i64 = a
-            .conn
-            .query_row("PRAGMA busy_timeout", [], |r| r.get(0))
-            .unwrap();
-        assert_eq!(ms, 2_147_483_000);
+        assert_eq!(
+            enforced_wait(&a.conn),
+            Some(Duration::from_secs(MAX_WAIT_SECS))
+        );
     }
 
     #[test]
