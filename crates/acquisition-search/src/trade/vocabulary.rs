@@ -120,6 +120,7 @@ fn statuses(
         realm: None,
         league: None,
         query: json!({ "stats": [{ "type": "and", "filters": filters }] }),
+        defences: Default::default(),
         sort: None,
         beside: serde_json::Map::new(),
     };

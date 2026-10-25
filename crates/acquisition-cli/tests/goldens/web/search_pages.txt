@@ -11,6 +11,7 @@ GET <the form>
 # holds "fate fate-exact"
 # holds "Find a stat"
 # holds "<summary>Type Filters</summary>"
+# holds "name=\"defences\" value=\"displayed\""
 # holds "<summary>Stat Filters</summary>"
 # holds "placeholder=\"Search items\""
 # holds "class=\"search-btn\""
@@ -50,6 +51,7 @@ GET <the form>
 <div class="filter"><span class="filter-title" title="Includes base value, local modifiers, and maximum quality">Ward</span> <input type="number" step="any" name="query.filters.armour_filters.filters.ward.min" placeholder="min"> <input type="number" step="any" name="query.filters.armour_filters.filters.ward.max" placeholder="max"> <span class="fate fate-ambiguous" title="Ward at 20% quality, as the site figures it: within one of the site&#39;s own figure, which the display&#39;s rounding can move.">ambiguous</span></div>
 <div class="filter"><span class="filter-title" title="Includes base value and local modifiers">Block</span> <input type="number" step="any" name="query.filters.armour_filters.filters.block.min" placeholder="min"> <input type="number" step="any" name="query.filters.armour_filters.filters.block.max" placeholder="max"> <span class="fate fate-exact" title="Chance to block as displayed.">exact</span></div>
 <div class="filter"><span class="filter-title" title="The percentile of all base defence rolls, averaged (0-100%)">Base Percentile</span> <input type="number" step="any" name="query.filters.armour_filters.filters.base_defence_percentile.min" placeholder="min"> <input type="number" step="any" name="query.filters.armour_filters.filters.base_defence_percentile.max" placeholder="max"> <span class="fate fate-exact" title="The base&#39;s defence percentile, by the site&#39;s own rule.">exact</span></div>
+<div class="filter"><label><input type="checkbox" name="defences" value="displayed"> read these as the item stands, at its own quality, not the site's 20 %</label></div>
 </div>
 </details>
 <details class="panel"><summary>Socket Filters</summary>

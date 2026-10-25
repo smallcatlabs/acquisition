@@ -46,6 +46,14 @@
 //!   spelling). The realm stands in the scope as before, never in the
 //!   envelope, and any other envelope key is still reported unsupported
 //!   by name. An envelope's `realm` is such a key.
+//! - **C142, the defences' reading beside the query** (verbatim): A trade
+//!   envelope may name the reading of the site's four defence filters:
+//!   `defences: "displayed"` lands Armour, Evasion, Energy Shield and Ward
+//!   on the displayed fields; absent, or `"q20"`, lands them on the site's
+//!   normalised ones (C114, the property bridge). Each clause's label and
+//!   the translated text name the field used; the option is read beside
+//!   `league` (C141, the league beside the JSON) and nothing else of the
+//!   envelope changes.
 //! - Nothing here reads the vocabulary or writes a word of the language:
 //!   that is the translation, [`translate`] (step 4), which consumes a
 //!   [`Decoded`] and reads the stat table, [`stats`] (step 2), for the
@@ -90,6 +98,10 @@ pub struct Decoded {
     pub league: Option<String>,
     /// The site's query object, as posted: an object, read no further here.
     pub query: Json,
+    /// The envelope's reading of the site's four defence filters (C142):
+    /// the site's own at 20 % quality, or as the item stands.
+    #[serde(skip_serializing_if = "Defences::is_q20")]
+    pub defences: Defences,
     /// The envelope's sort, when the JSON carried one; a URL carries none.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sort: Option<Json>,
@@ -97,6 +109,24 @@ pub struct Decoded {
     /// translation reports unsupported by name (K6).
     #[serde(skip_serializing_if = "Map::is_empty")]
     pub beside: Map<String, Json>,
+}
+
+/// How the site's four defence filters — Armour, Evasion, Energy Shield,
+/// Ward — are read (C142): on the site's normalised fields at 20 %
+/// quality, its own reading and the default, or on the displayed fields
+/// as the item stands, which an envelope asks with `defences: "displayed"`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Defences {
+    #[default]
+    Q20,
+    Displayed,
+}
+
+impl Defences {
+    fn is_q20(&self) -> bool {
+        *self == Defences::Q20
+    }
 }
 
 /// The longest id decoded: 64 KiB of text, where the longest captured id
@@ -130,6 +160,7 @@ pub fn decode(input: &str) -> Result<Decoded, LanguageError> {
         realm: None,
         league: None,
         query,
+        defences: Defences::Q20,
         sort: None,
         beside: Map::new(),
     })
@@ -144,14 +175,15 @@ pub fn decode_json(value: &Json) -> Result<Decoded, LanguageError> {
             json_kind(value)
         )));
     };
-    let (query, league, sort, beside) = match object.get("query") {
+    let (query, league, defences, sort, beside) = match object.get("query") {
         Some(Json::Object(inner)) => (
             Json::Object(inner.clone()),
             envelope_league(object.get("league"))?,
+            envelope_defences(object.get("defences"))?,
             object.get("sort").cloned(),
             object
                 .iter()
-                .filter(|(k, _)| !matches!(k.as_str(), "query" | "league" | "sort"))
+                .filter(|(k, _)| !matches!(k.as_str(), "query" | "league" | "defences" | "sort"))
                 .map(|(k, v)| (k.clone(), v.clone()))
                 .collect(),
         ),
@@ -161,12 +193,13 @@ pub fn decode_json(value: &Json) -> Result<Decoded, LanguageError> {
                 json_kind(other)
             )));
         }
-        None => (value.clone(), None, None, Map::new()),
+        None => (value.clone(), None, Defences::Q20, None, Map::new()),
     };
     Ok(Decoded {
         source: Source::Json,
         realm: None,
         league,
+        defences,
         query,
         sort,
         beside,
@@ -185,6 +218,20 @@ fn envelope_league(value: Option<&Json>) -> Result<Option<String>, LanguageError
         Some(other) => Err(trade(format!(
             "the envelope's `league` is {}, not a league's name",
             json_kind(other)
+        ))),
+    }
+}
+
+/// An envelope's `defences` (C142): `displayed` or `q20`, and sent null
+/// or left out the site's own, `q20`; any other value is refused by name
+/// rather than read as either.
+fn envelope_defences(value: Option<&Json>) -> Result<Defences, LanguageError> {
+    match value {
+        None | Some(Json::Null) => Ok(Defences::Q20),
+        Some(Json::String(word)) if word == "q20" => Ok(Defences::Q20),
+        Some(Json::String(word)) if word == "displayed" => Ok(Defences::Displayed),
+        Some(other) => Err(trade(format!(
+            "the envelope's `defences` is {other}: \"displayed\", the defences as the item stands, or \"q20\", the site's own at 20 % quality"
         ))),
     }
 }
@@ -256,6 +303,7 @@ fn decode_url(input: &str) -> Result<Decoded, LanguageError> {
         realm: Some(realm.to_string()),
         league: Some(league),
         query,
+        defences: Defences::Q20,
         sort: None,
         beside: Map::new(),
     })

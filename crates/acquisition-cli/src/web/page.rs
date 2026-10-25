@@ -155,6 +155,11 @@ pub(crate) fn search_form(form: &Form, realm: &str, leagues: Option<&[(String, b
             let key = format!("{}.{}", group.id, filter.id);
             out.push_str(&control(form, filter, &path, &key));
         }
+        // C142: the defences' reading beside the query, the panel's one
+        // convenience the site's form has no control for
+        if group.id == "armour_filters" {
+            out.push_str("<div class=\"filter\"><label><input type=\"checkbox\" name=\"defences\" value=\"displayed\"> read these as the item stands, at its own quality, not the site's 20 %</label></div>\n");
+        }
         out.push_str("</div>\n</details>\n");
     }
     out.push_str("</div>\n<div class=\"pane\">\n<details class=\"panel\" open><summary>Stat Filters</summary>\n<div class=\"panel-body\">\n<div class=\"filter\"><span class=\"filter-title\">Group</span> <select name=\"query.stats[0].type\">");

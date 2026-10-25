@@ -905,3 +905,59 @@ fn a_trade_reports_exact_clause_is_where_it_stands_and_its_term_alone() {
         "{row}"
     );
 }
+
+/// C142: the site's Armour filter lands `armour.q20`, the site's reading
+/// at 20 % quality, ambiguous as the catalogue measured it; under the
+/// envelope's `defences: displayed` it lands `armour`, as the item stands,
+/// exact, its note naming the field. Asked of a piece displaying 300
+/// Armour at no quality — 360 at 20 % — a minimum of 330 holds of one
+/// reading and not the other.
+#[test]
+fn c142_the_defences_reading_lands_the_field_it_names() {
+    let mut s = store();
+    list_tabs(&mut s, "pc", "Standard", json!([tab("a1", "A")]), 10);
+    fetch_tab(
+        &mut s,
+        "pc",
+        "Standard",
+        "a1",
+        "A",
+        vec![item(
+            "plate",
+            "Plate",
+            "Plate Vest",
+            "Rare",
+            json!({ "properties": [{ "name": "Armour", "values": [["300", 0]], "displayMode": 0 }] }),
+        )],
+        20,
+    );
+    let query = json!({ "filters": { "armour_filters": { "filters": { "ar": { "min": 330 } } } } });
+    for (defences, field, status, matched) in [
+        (Value::Null, "armour.q20>=330", Status::Ambiguous, 1),
+        (json!("displayed"), "armour>=330", Status::Exact, 0),
+    ] {
+        let envelope = json!({ "defences": defences, "query": query });
+        let t = translate(&decode(&envelope.to_string()).unwrap()).unwrap();
+        assert_eq!(t.text, field, "{defences}");
+        let clause = t
+            .clauses
+            .iter()
+            .find(|c| c.at == "armour_filters.ar")
+            .unwrap();
+        assert_eq!(clause.status, status, "{defences}");
+        if status == Status::Exact {
+            assert!(
+                clause.notes.iter().any(|n| n.contains("`armour`")),
+                "{:?}",
+                clause.notes
+            );
+        }
+        let request: acquisition_search::Request = serde_json::from_value(json!({
+            "scope": { "realm": "pc" },
+            "query": { "trade": envelope },
+        }))
+        .unwrap();
+        let a = as_json(&answer(&load(&s, Some("pc")), &request).unwrap());
+        assert_eq!(a["total"]["matched"], matched, "{defences}");
+    }
+}

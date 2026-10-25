@@ -413,5 +413,5 @@ pub use properties::{PROPERTY_TABLE_VERSION, PropertyTable, PropertyTableError};
 pub use show::show;
 pub use totals::{TOTALS_TABLE_VERSION, TotalGap, TotalsTable, TotalsTableError};
 pub use trade::translate::{Fidelity, Translation, translate};
-pub use trade::{Decoded, Source, decode, decode_json};
+pub use trade::{Decoded, Defences, Source, decode, decode_json};
 pub use tree::{Collection, Member, Node, Number, Op, Probe, Value, ValueRef, check};

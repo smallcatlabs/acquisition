@@ -18,8 +18,9 @@
 //! - **A name is a path**: dot-separated keys, `[n]` an array's element —
 //!   `query.filters.type_filters.filters.category.option`,
 //!   `query.stats[0].filters[1].value.min`. Three names are no path and
-//!   go elsewhere: `realm` to the request's scope, `league` beside the
-//!   query (C141, the league beside the trade JSON), and `view.limit`,
+//!   go elsewhere: `realm` to the request's scope, `league` and
+//!   `defences` beside the query (C141, the league beside the trade JSON;
+//!   C142, the defences' reading beside it), and `view.limit`,
 //!   `view.sort`, `view.desc` to the rows view — or `view.count`, a key,
 //!   to the counts view in its place (the review of 4b, its sixth
 //!   finding), whose tables the answer page prints as the CLI does. And
@@ -201,6 +202,7 @@ fn emitted(groups: &[Group]) -> BTreeSet<String> {
         "view.desc",
         "view.count",
         "text",
+        "defences",
     ]
     .iter()
     .map(|n| n.to_string())
@@ -310,6 +312,7 @@ pub(crate) fn fold(form: &Form, fields: &[(String, String)]) -> Result<Folded, S
         text: None,
     };
     let mut league = None;
+    let mut defences = None;
     for (name, value) in fields {
         let value = value.trim();
         if value.is_empty() {
@@ -327,6 +330,7 @@ pub(crate) fn fold(form: &Form, fields: &[(String, String)]) -> Result<Folded, S
             }
             "view.sort" => folded.sort = Some(value.to_string()),
             "text" => folded.text = Some(value.to_string()),
+            "defences" => defences = Some(value.to_string()),
             "view.desc" => folded.desc = true,
             "view.count" => folded.count = Some(acquisition_search::counts::count_keys(value)?),
             _ => {
@@ -347,6 +351,10 @@ pub(crate) fn fold(form: &Form, fields: &[(String, String)]) -> Result<Folded, S
     let mut envelope = Map::new();
     if let Some(league) = league {
         envelope.insert("league".into(), Value::String(league));
+    }
+    // C142: the defences' reading beside the query, as the box names it
+    if let Some(defences) = defences {
+        envelope.insert("defences".into(), Value::String(defences));
     }
     envelope.insert(
         "query".into(),
@@ -547,6 +555,17 @@ mod tests {
         )
         .unwrap();
         assert_eq!(folded.envelope, json!({ "query": {} }));
+        // the armour panel's checkbox: the defences' reading beside the
+        // query (C142)
+        let folded = fold(
+            &form,
+            &fields(&[
+                ("defences", "displayed"),
+                ("query.filters.armour_filters.filters.ar.min", "300"),
+            ]),
+        )
+        .unwrap();
+        assert_eq!(folded.envelope["defences"], "displayed");
         assert!(fold(&form, &fields(&[("scope.realm", "pc")])).is_err());
         assert!(fold(&form, &fields(&[("query.stats[x].id", "a")])).is_err());
         let past = fold(&form, &fields(&[("query.stats[1000000000].type", "and")])).unwrap_err();

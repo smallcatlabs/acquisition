@@ -226,8 +226,9 @@ fn c114_every_field_the_catalogue_names_binds() {
         .map(|f| f.name())
         .collect();
     table.extend(["pseudo.edps", "pseudo.dps_q20", "pseudo.pdps_q20"]);
-    // the displayed defences, which no row lands until the trade JSON
-    // names its defences' reading (C142; the 4b sitting round)
+    // the displayed defences, which no row names: the four defence rows
+    // land them in place of their `.q20` fields where the trade JSON names
+    // its defences' reading (C142; the 4b sitting round)
     for displayed in ["armour", "evasion_rating", "energy_shield", "ward"] {
         table.remove(displayed);
     }

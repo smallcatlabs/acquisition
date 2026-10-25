@@ -188,7 +188,7 @@ use serde_json::{Map, Value as Json};
 use super::catalogue::{self, Catalogue, Disposition, Row};
 use super::forms::{self, FormsTable, Kind};
 use super::stats::{self, StatTable};
-use super::{Decoded, Source};
+use super::{Decoded, Defences, Source};
 use crate::error::{ErrorKind, LanguageError};
 use crate::exact::{self, Exact, Ratio};
 use crate::totals::{self, TotalsTable};
@@ -355,6 +355,7 @@ pub fn translate(decoded: &Decoded) -> Result<Translation, LanguageError> {
         own: Vec::new(),
         pieces: Vec::new(),
         pending: Vec::new(),
+        defences: decoded.defences,
     };
     if let Some(league) = &decoded.league {
         t.input("url.league", "url.league", &Json::String(league.clone()))?;
@@ -525,7 +526,19 @@ struct Translator<'a> {
     pieces: Vec<Piece>,
     /// Each clause's other reading, as its row reads it (C119).
     pending: Vec<Option<Pending>>,
+    /// The envelope's reading of the four defence filters (C142).
+    defences: Defences,
 }
+
+/// The site's four defence filters, whose reading the envelope names
+/// (C142): each lands its `.q20` field, or under `displayed` the field of
+/// the same name without it.
+const DEFENCE_ROWS: [&str; 4] = [
+    "armour_filters.ar",
+    "armour_filters.ev",
+    "armour_filters.es",
+    "armour_filters.ward",
+];
 
 /// What fills a placeholder (the catalogue's header).
 enum Fill {
@@ -931,18 +944,35 @@ impl Translator<'_> {
         let Some(lands) = &row.lands else {
             return Ok(landed);
         };
-        let text = fill(lands, get).unwrap_or_else(|| "true()".to_string());
+        // C142: under `defences: displayed` a defence filter lands the
+        // displayed field, exact, its note naming the field it read
+        let displayed = self.defences == Defences::Displayed && DEFENCE_ROWS.contains(&key);
+        let lands = if displayed {
+            let field = lands.trim_end_matches("{bounds}").trim_end_matches(".q20");
+            landed.status = Status::Exact;
+            landed.notes = vec![format!(
+                "`{field}` as the item stands, at its own quality: the envelope asks the displayed defences, not the site's reading at 20 %"
+            )];
+            lands.replace(".q20", "")
+        } else {
+            lands.clone()
+        };
+        let text = fill(&lands, get).unwrap_or_else(|| "true()".to_string());
         // the row's other reading, its placeholders the clause fills as
         // it fills `lands`'s; `{term}` waits for the clause's node (C119)
-        landed.reading = row.other.as_ref().and_then(|template| {
-            Pending::of(
-                row,
-                catalogue::PLACEHOLDERS
-                    .iter()
-                    .filter(|name| template.contains(&format!("{{{name}}}")))
-                    .filter_map(|name| get(name).map(|f| (*name, f.written()))),
-            )
-        });
+        landed.reading = row
+            .other
+            .as_ref()
+            .filter(|_| !displayed)
+            .and_then(|template| {
+                Pending::of(
+                    row,
+                    catalogue::PLACEHOLDERS
+                        .iter()
+                        .filter(|name| template.contains(&format!("{{{name}}}")))
+                        .filter_map(|name| get(name).map(|f| (*name, f.written()))),
+                )
+            });
         match bind::parse_query(&text) {
             Ok(q) => landed.node = Some(q.tree().clone()),
             Err(e) => {

@@ -438,3 +438,31 @@ fn c47_the_reviews_faults_a_doubled_slash_a_bad_escape_a_second_member_an_unboun
     let longest = fixture().iter().map(|s| s.id.len()).max().unwrap();
     assert!(longest <= 368 && 368 < acquisition_search::trade::MAX_ID);
 }
+
+/// C142, the defences' reading beside the query: `defences` is read
+/// beside `league` — `displayed`, or `q20` and left out or null the
+/// site's own — and any other value is refused by name; it is no key the
+/// query object holds, so a bare query's `defences` is the query's.
+#[test]
+fn c142_an_envelope_names_the_defences_reading() {
+    use acquisition_search::Defences;
+    let query = json!({ "filters": { "armour_filters": { "filters": { "ar": { "min": 300 } } } } });
+    for (given, read) in [
+        (json!("displayed"), Defences::Displayed),
+        (json!("q20"), Defences::Q20),
+        (Value::Null, Defences::Q20),
+    ] {
+        let d = decode_json(&json!({ "defences": given, "query": query })).unwrap();
+        assert_eq!(d.defences, read, "{given}");
+        assert!(d.beside.is_empty(), "{:?}", d.beside);
+    }
+    assert_eq!(
+        decode_json(&json!({ "query": query })).unwrap().defences,
+        Defences::Q20
+    );
+    for bad in [json!("shown"), json!(true), json!(["displayed"])] {
+        let e = decode_json(&json!({ "defences": bad, "query": query })).unwrap_err();
+        assert_eq!(e.kind, ErrorKind::Trade, "{bad}");
+        assert!(e.message.contains("`defences`"), "{bad}: {}", e.message);
+    }
+}

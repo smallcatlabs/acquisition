@@ -381,6 +381,7 @@ fn every_search_page_is_a_wording_golden() {
             "fate fate-exact",
             "Find a stat",
             "<summary>Type Filters</summary>",
+            "name=\"defences\" value=\"displayed\"",
             "<summary>Stat Filters</summary>",
             "placeholder=\"Search items\"",
             "class=\"search-btn\"",
