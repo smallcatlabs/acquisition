@@ -192,7 +192,7 @@ fn json_stdout_is_the_contract_surface() {
     assert_eq!(plan.account_uuid, UUID);
     assert_eq!(plan.account_name.as_deref(), Some(USER));
     assert_eq!(plan.provider, "mock");
-    assert_eq!(plan.basis.policy_revision, 1);
+    assert_eq!(plan.basis.policy_revision, Some(1));
     // The seeded facts: one listed, never-fetched tab (the listing itself
     // is fresh at plan time, so the fetch is the single action).
     assert_eq!(plan.logical_requests, 1, "{:?}", plan.actions);

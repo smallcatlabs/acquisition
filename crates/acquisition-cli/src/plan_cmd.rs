@@ -587,6 +587,45 @@ fn columns(rows: &[(usize, String, String)]) -> String {
 
 /// The audit header keeps every basis handle. The decision view keeps only
 /// context that can change whether the reader applies the plan.
+/// What authorizes the plan (C44 as amended): the stored policy at a
+/// revision, or the selection itself.
+fn authority(plan: &RefreshPlan) -> String {
+    match (&plan.basis.policy_revision, &plan.basis.selection) {
+        (Some(revision), _) => format!("policy {revision}"),
+        (None, Some(selection)) if selection.deep => {
+            "a selection, with its map and unique tabs' pages".to_string()
+        }
+        _ => "a selection".to_string(),
+    }
+}
+
+/// Under a deep selection, the map and unique tabs with no page to fetch
+/// on record: pages not known yet arrive with the tab's fetch, so the plan
+/// says to apply and select again for them.
+fn pages_awaiting(plan: &RefreshPlan) -> String {
+    if !plan.basis.selection.as_ref().is_some_and(|s| s.deep) {
+        return String::new();
+    }
+    let mut out = String::new();
+    for action in &plan.actions {
+        if let RefreshAction::FetchTab {
+            id, name, tab_type, ..
+        } = action
+            && matches!(tab_type.as_str(), "MapStash" | "UniqueStash")
+            && !plan
+                .actions
+                .iter()
+                .any(|a| matches!(a, RefreshAction::FetchSubstash { parent, .. } if parent == id))
+        {
+            out.push_str(&format!(
+                "pages of {}: none to fetch on record — pages not known yet arrive with its fetch; apply, then select it again for them\n",
+                label(name)
+            ));
+        }
+    }
+    out
+}
+
 fn render_header(plan: &RefreshPlan, now: i64, audit: bool) -> String {
     let account = plan.account_name.as_deref().unwrap_or(&plan.account_uuid);
     if !audit {
@@ -597,12 +636,12 @@ fn render_header(plan: &RefreshPlan, now: i64, audit: bool) -> String {
             format!(" (plan {} old)", dur(plan_age))
         };
         let mut out = format!(
-            "refresh {}{} on {} as {} — policy {}{age}\n",
+            "refresh {}{} on {} as {} — {}{age}\n",
             store_cmd::realm_prefix(plan.realm),
             plan.league,
             plan.provider,
             account,
-            plan.basis.policy_revision,
+            authority(plan),
         );
         let has_tabs = plan.actions.iter().any(|a| {
             matches!(
@@ -649,12 +688,15 @@ fn render_header(plan: &RefreshPlan, now: i64, audit: bool) -> String {
         return out;
     }
     let mut out = format!(
-        "refresh plan: {}{} on {} as {} — policy revision {}\n",
+        "refresh plan: {}{} on {} as {} — {}\n",
         store_cmd::realm_prefix(plan.realm),
         plan.league,
         plan.provider,
         account,
-        plan.basis.policy_revision,
+        match plan.basis.policy_revision {
+            Some(revision) => format!("policy revision {revision}"),
+            None => authority(plan),
+        },
     );
     // Both bases are the facts as of the read; which facets the policy
     // covers shows in the actions and skips, not here.
@@ -733,6 +775,7 @@ pub(crate) fn render_plan(
         return out;
     }
     out.push_str(&plan_note_lines(plan, notes, now));
+    out.push_str(&pages_awaiting(plan));
     let common_reason = if expand {
         None
     } else {
@@ -767,13 +810,14 @@ pub(crate) fn render_plan(
     if !expand {
         out.push_str(&render_wire(plan));
     }
-    {
-        let mut apply = String::from("acq refresh --apply");
-        match source {
-            Some(path) => apply.push_str(&format!("={path}")),
-            None => apply.push_str(&scope_flags(plan)),
+    // a selection compiled here is applied by the command that compiled
+    // it, or by the page's Apply: no command to name but a reviewed file's
+    match (source, plan.basis.policy_revision) {
+        (Some(path), _) => out.push_str(&format!("next: acq refresh --apply={path}\n")),
+        (None, Some(_)) => {
+            out.push_str(&format!("next: acq refresh --apply{}\n", scope_flags(plan)))
         }
-        out.push_str(&format!("next: {apply}\n"));
+        (None, None) => {}
     }
     out
 }
@@ -1237,6 +1281,7 @@ fn reason_breakdown<'a>(reasons: impl Iterator<Item = &'a FetchReason>) -> Strin
     for r in reasons {
         let (label, age) = match r {
             FetchReason::NeverFetched => ("never fetched", None),
+            FetchReason::Selected => ("selected", None),
             FetchReason::Stale { age_seconds } => ("stale", Some(*age_seconds)),
             FetchReason::ListedCountDisagrees { .. } => ("listing disagrees", None),
             FetchReason::ListedExperienceDisagrees { .. } => ("played since listed", None),
@@ -1369,6 +1414,7 @@ fn stale(age_seconds: i64) -> String {
 fn fetch_why(reason: &FetchReason) -> String {
     match reason {
         FetchReason::NeverFetched => "never fetched".into(),
+        FetchReason::Selected => "selected".into(),
         FetchReason::Stale { age_seconds } => stale(*age_seconds),
         FetchReason::ListedCountDisagrees { listed, held } => {
             format!("listing says {listed} item(s), store holds {held}")

@@ -953,6 +953,9 @@ pub enum ListingReason {
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum FetchReason {
     NeverFetched,
+    /// A selection plan names it (C44 as amended): fetched however fresh,
+    /// since it was asked for by name.
+    Selected,
     Stale {
         age_seconds: i64,
     },
@@ -1166,11 +1169,32 @@ pub struct PlanBasis {
     /// The realm's character listing the character set derives from;
     /// `None` when the realm was never listed. Same carrying rule.
     pub character_listing: Option<ListingBasis>,
-    /// The sync-policy annotation revision compiled from. Plans always
-    /// derive from stored intent — there is no ad-hoc path — so apply can
-    /// always check this against the current row (the step-7 staleness
-    /// ruling needs the comparison to be possible).
-    pub policy_revision: i64,
+    /// The sync-policy annotation revision a policy plan was compiled
+    /// from, which apply checks against the current row (C44); none for a
+    /// selection plan.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub policy_revision: Option<i64>,
+    /// The explicit selection a selection plan was compiled from: its
+    /// authorization, in place of a policy revision (C44 as amended); none
+    /// for a policy plan. Exactly one of the two is present.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub selection: Option<PlanSelection>,
+}
+
+/// An explicit selection, as a person ticks it or names it on a command
+/// line: tabs by id, or every tab the listing names; characters by id;
+/// and whether a ticked map or unique tab's pages are fetched with it.
+/// Freshness never skips what a selection names: it is asked for by name
+/// (C111).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PlanSelection {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tabs: Option<Selection>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub characters: Vec<String>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub deep: bool,
 }
 
 /// The coarse wire projection. The range covers the authorized requests
@@ -1439,19 +1463,20 @@ impl RefreshPlan {
                 selected_uuid: selected_uuid.map(String::from),
             });
         }
+        // C44 as amended: a selection plan's authorization is the
+        // selection itself, and no policy revision is checked
+        let Some(plan_revision) = self.basis.policy_revision else {
+            return Ok(());
+        };
         match annotations
             .get(SYNC_POLICY_SCOPE, SYNC_POLICY_KEY, SYNC_POLICY_KIND)
             .map_err(SpendError::Annotations)?
         {
-            None => Err(SpendError::PolicyGone {
-                plan_revision: self.basis.policy_revision,
+            None => Err(SpendError::PolicyGone { plan_revision }),
+            Some(row) if row.revision != plan_revision => Err(SpendError::PolicyMoved {
+                plan_revision,
+                stored_revision: row.revision,
             }),
-            Some(row) if row.revision != self.basis.policy_revision => {
-                Err(SpendError::PolicyMoved {
-                    plan_revision: self.basis.policy_revision,
-                    stored_revision: row.revision,
-                })
-            }
             Some(_) => Ok(()),
         }
     }
@@ -1701,6 +1726,21 @@ impl TryFrom<RefreshPlanWire> for RefreshPlan {
                 wire.operation
             ));
         }
+        // C44 as amended: a plan is authorized by a policy revision or by
+        // an explicit selection, exactly one
+        match (&wire.basis.policy_revision, &wire.basis.selection) {
+            (Some(_), None) | (None, Some(_)) => {}
+            (Some(_), Some(_)) => {
+                return Err(
+                    "a plan's basis names a policy revision or a selection, never both".into(),
+                );
+            }
+            (None, None) => {
+                return Err(
+                    "a plan's basis names neither a policy revision nor a selection".into(),
+                );
+            }
+        }
         // Every action is on the envelope's realm, and every league-bearing
         // action on its league; a realm-wide action (the character list)
         // carries no league and is in-envelope for any league of its realm.
@@ -1790,6 +1830,177 @@ pub fn plan_refresh(
     compile(provider, snapshot, &policy, row.revision, now)
 }
 
+/// C44 as amended: a plan compiled from an explicit selection over the
+/// same snapshot a policy plan reads, with no stored policy. Each named
+/// tab and character is fetched however fresh it is, since it is asked
+/// for by name; under `deep`, the pages on record of each named map or
+/// unique tab are fetched with it (a never-fetched one has none on record
+/// yet: they arrive with its fetch, for the next plan). The listing rules
+/// stand: a facet never listed is listed first and its fetches wait, a
+/// folder and an empty page stub are skipped, and an id the facts lack is
+/// unknown. The basis carries the selection in place of a revision.
+pub fn plan_selection(
+    provider: &str,
+    snapshot: &RefreshSnapshot,
+    selection: &PlanSelection,
+    now: i64,
+) -> Result<RefreshPlan, PlanError> {
+    let realm = Realm::parse(&snapshot.realm).ok_or_else(|| PlanError::UnknownRealm {
+        realm: snapshot.realm.clone(),
+    })?;
+    let tabs = match &selection.tabs {
+        Some(tabs) => select_tabs(realm, snapshot, tabs, selection.deep),
+        None => Facet::empty(),
+    };
+    let characters = if selection.characters.is_empty() {
+        Facet::empty()
+    } else {
+        select_characters(realm, snapshot, &selection.characters)
+    };
+    let actions: Vec<RefreshAction> = tabs.actions.into_iter().chain(characters.actions).collect();
+    let logical_requests = actions.len() as u64;
+    let wire_sends = wire_estimate(logical_requests);
+    Ok(RefreshPlan {
+        plan_schema: REFRESH_PLAN_SCHEMA,
+        operation: "refresh".into(),
+        provider: provider.into(),
+        account_uuid: snapshot.account_uuid.clone(),
+        account_name: snapshot.account_name.clone(),
+        realm,
+        league: snapshot.league.clone(),
+        generated_at: now,
+        basis: PlanBasis {
+            snapshot_taken_at: snapshot.taken_at,
+            stash_listing: snapshot.stash_listing,
+            character_listing: snapshot.character_listing,
+            policy_revision: None,
+            selection: Some(selection.clone()),
+        },
+        max_age_seconds: 0,
+        actions,
+        skipped_tabs: tabs.skipped,
+        unknown_tabs: tabs.unknown,
+        skipped_characters: characters.skipped,
+        unknown_characters: characters.unknown,
+        logical_requests,
+        wire_sends,
+        quote: None,
+    })
+}
+
+/// The tab facet of a selection plan: each tab the selection names, and
+/// under `deep` each page on record of a named map or unique tab.
+fn select_tabs(
+    realm: Realm,
+    snapshot: &RefreshSnapshot,
+    selection: &Selection,
+    deep: bool,
+) -> Facet<SkippedTab> {
+    let mut facet = Facet::empty();
+    let listing_alone = snapshot.stash_listing.is_none();
+    if listing_alone {
+        facet.actions.push(RefreshAction::ListStashes {
+            realm,
+            league: snapshot.league.clone(),
+            reason: ListingReason::NeverListed,
+        });
+    }
+    let container = |id: &str| {
+        snapshot
+            .tabs
+            .iter()
+            .any(|t| t.id == id && matches!(t.r#type.as_str(), "MapStash" | "UniqueStash"))
+    };
+    for tab in &snapshot.tabs {
+        let page_of = tab.parent.as_deref().filter(|p| container(p));
+        let named = match page_of {
+            // a page is named by its tab, under deep
+            Some(parent) => deep && selection.covers_id(parent),
+            None => selection.covers_id(&tab.id),
+        };
+        if !named {
+            continue;
+        }
+        let verdict = if listing_alone {
+            Err(SkipReason::AwaitingListing)
+        } else if tab.r#type == "Folder" {
+            Err(SkipReason::Folder)
+        } else if is_empty_substash(snapshot, tab) {
+            Err(SkipReason::EmptyStub)
+        } else {
+            fetch_action(realm, snapshot, tab, FetchReason::Selected)
+        };
+        match verdict {
+            Ok(action) => facet.actions.push(action),
+            Err(reason) => facet.skipped.push(SkippedTab {
+                id: tab.id.clone(),
+                name: tab.name.clone(),
+                reason,
+            }),
+        }
+    }
+    if let Selection::Ids(ids) = selection {
+        facet.unknown = ids
+            .iter()
+            .filter(|w| !snapshot.tabs.iter().any(|t| &t.id == *w))
+            .cloned()
+            .collect();
+    }
+    facet
+}
+
+/// The character facet of a selection plan: each character named by id.
+fn select_characters(
+    realm: Realm,
+    snapshot: &RefreshSnapshot,
+    ids: &[String],
+) -> Facet<SkippedCharacter> {
+    let mut facet = Facet::empty();
+    let listing_alone = snapshot.character_listing.is_none();
+    if listing_alone {
+        facet.actions.push(RefreshAction::ListCharacters {
+            realm,
+            reason: ListingReason::NeverListed,
+        });
+    }
+    for c in &snapshot.characters {
+        if !ids.contains(&c.id) {
+            continue;
+        }
+        let verdict = if listing_alone {
+            Err(CharacterSkipReason::AwaitingListing)
+        } else if c.league.is_none() {
+            Err(CharacterSkipReason::NoLeague)
+        } else if listed_flag(c, "deleted") {
+            Err(CharacterSkipReason::Deleted)
+        } else if listed_flag(c, "expired") {
+            Err(CharacterSkipReason::Expired)
+        } else {
+            Ok(RefreshAction::FetchCharacter {
+                realm,
+                league: snapshot.league.clone(),
+                id: c.id.clone(),
+                name: c.name.clone(),
+                reason: FetchReason::Selected,
+            })
+        };
+        match verdict {
+            Ok(action) => facet.actions.push(action),
+            Err(reason) => facet.skipped.push(SkippedCharacter {
+                id: c.id.clone(),
+                name: c.name.clone(),
+                reason,
+            }),
+        }
+    }
+    facet.unknown = ids
+        .iter()
+        .filter(|w| !snapshot.characters.iter().any(|c| &c.id == *w))
+        .cloned()
+        .collect();
+    facet
+}
+
 fn compile(
     provider: &str,
     snapshot: &RefreshSnapshot,
@@ -1836,7 +2047,8 @@ fn compile(
             snapshot_taken_at: snapshot.taken_at,
             stash_listing: snapshot.stash_listing,
             character_listing: snapshot.character_listing,
-            policy_revision,
+            policy_revision: Some(policy_revision),
+            selection: None,
         },
         max_age_seconds: league_policy.max_age_seconds,
         actions,
@@ -2525,7 +2737,7 @@ mod tests {
         assert_eq!(plan.account_uuid, "u-1");
         assert_eq!(plan.provider, "mock");
         assert_eq!(plan.basis.stash_listing, snap.stash_listing);
-        assert_eq!(plan.basis.policy_revision, row.revision);
+        assert_eq!(plan.basis.policy_revision, Some(row.revision));
         assert_eq!(plan.basis.snapshot_taken_at, snap.taken_at);
         assert_eq!(plan.plan_schema, REFRESH_PLAN_SCHEMA);
         assert_eq!(plan.operation, "refresh");
@@ -3469,7 +3681,7 @@ mod tests {
     fn check_spendable_is_the_shared_staleness_and_identity_gate() {
         // The plan derives from a rev-1 policy for account u-1 on mock.
         let plan = plan(&store(), &all_policy_value(3600), 2_000);
-        assert_eq!(plan.basis.policy_revision, 1);
+        assert_eq!(plan.basis.policy_revision, Some(1));
         let mut a = Annotations::open_memory_for("u-1").unwrap();
         // Intent gone since the plan: refused, citing the derivation.
         let err = plan.check_spendable("mock", Some("u-1"), &a).unwrap_err();
@@ -3511,6 +3723,159 @@ mod tests {
         assert!(err.to_string().contains("unmapped"), "{err}");
         let err = plan.check_spendable("ggg", Some("u-1"), &a).unwrap_err();
         assert!(matches!(err, SpendError::WrongProvider { .. }), "{err}");
+    }
+
+    /// C44 as amended — a plan compiled from an explicit selection
+    /// carries no policy revision and the apply checks none: it applies
+    /// with no policy row at all, while a policy plan whose row moved is
+    /// still refused; each named tab is fetched however fresh, under deep
+    /// a named map tab's pages with it; the envelope round-trips, and
+    /// naming both authorities, or neither, is refused.
+    #[test]
+    fn c44_a_selection_plan_is_authorized_by_its_selection() {
+        let mut s = store();
+        list(
+            &mut s,
+            json!([
+                { "id": "m1", "name": "Maps", "type": "MapStash", "index": 0 },
+                { "id": "t1", "name": "Other", "type": "PremiumStash", "index": 1 },
+            ]),
+            1000,
+        );
+        fetch(
+            &mut s,
+            json!({ "id": "m1", "name": "Maps", "type": "MapStash", "items": [], "children": [
+                { "id": "s1", "name": "", "type": "MapStash", "parent": "m1",
+                  "metadata": { "items": 2, "map": { "name": "Tier 16" } } } ] }),
+            1100,
+        );
+        fetch(
+            &mut s,
+            json!({ "id": "t1", "name": "Other", "type": "PremiumStash", "items": [] }),
+            1100,
+        );
+        let a = Annotations::open_memory_for("u-1").unwrap();
+        let snap = s.refresh_snapshot("pc", "Standard", &a).unwrap();
+        // both tabs fresh a second ago, and named: fetched all the same
+        let selection = PlanSelection {
+            tabs: Some(Selection::Ids(vec!["m1".into(), "t1".into()])),
+            characters: Vec::new(),
+            deep: false,
+        };
+        let plan = plan_selection("mock", &snap, &selection, 1101).unwrap();
+        let fetched: Vec<&str> = plan
+            .actions
+            .iter()
+            .map(|a| match a {
+                RefreshAction::FetchTab { id, reason, .. } => {
+                    assert_eq!(*reason, FetchReason::Selected);
+                    id.as_str()
+                }
+                other => panic!("{other:?}"),
+            })
+            .collect();
+        assert_eq!(fetched, ["m1", "t1"]);
+        assert_eq!(plan.basis.policy_revision, None);
+        assert_eq!(plan.basis.selection.as_ref(), Some(&selection));
+        // no policy row: spendable all the same
+        plan.check_spendable("mock", Some("u-1"), &a).unwrap();
+        // under deep, the named map tab's page on record comes with it
+        let deep = PlanSelection {
+            deep: true,
+            ..selection.clone()
+        };
+        let plan = plan_selection("mock", &snap, &deep, 1101).unwrap();
+        assert!(
+            plan.actions.iter().any(|a| matches!(
+                a,
+                RefreshAction::FetchSubstash { parent, id, .. } if parent == "m1" && id == "s1"
+            )),
+            "{:?}",
+            plan.actions
+        );
+        // the envelope round-trips; both authorities, or neither, refused
+        let value = serde_json::to_value(&plan).unwrap();
+        assert_eq!(RefreshPlan::from_value(&value).unwrap(), plan);
+        let mut both = value.clone();
+        both["basis"]["policy_revision"] = json!(1);
+        assert!(RefreshPlan::from_value(&both).is_err());
+        let mut neither = value;
+        neither["basis"]
+            .as_object_mut()
+            .unwrap()
+            .remove("selection");
+        assert!(RefreshPlan::from_value(&neither).is_err());
+        // a policy plan whose row moved is still refused
+        let mut a = a;
+        put_sync_policy(
+            &mut a,
+            &all_policy_value(3600),
+            None,
+            PolicyWrite::Replace,
+            &via_test(),
+        )
+        .unwrap();
+        let policy_plan = plan_refresh(
+            "mock",
+            &s.refresh_snapshot("pc", "Standard", &a).unwrap(),
+            1200,
+        )
+        .unwrap();
+        put_sync_policy(
+            &mut a,
+            &all_policy_value(60),
+            Some(1),
+            PolicyWrite::Replace,
+            &via_test(),
+        )
+        .unwrap();
+        let err = policy_plan
+            .check_spendable("mock", Some("u-1"), &a)
+            .unwrap_err();
+        assert!(matches!(err, SpendError::PolicyMoved { .. }), "{err}");
+    }
+
+    /// C111 over a selection plan: once its fetches land, the same
+    /// envelope applied again sends nothing.
+    #[test]
+    fn c111_a_selection_envelope_applied_twice_sends_nothing() {
+        let mut s = store();
+        list(
+            &mut s,
+            json!([{ "id": "t1", "name": "One", "type": "PremiumStash", "index": 0 }]),
+            1000,
+        );
+        let a = Annotations::open_memory_for("u-1").unwrap();
+        let selection = PlanSelection {
+            tabs: Some(Selection::Ids(vec!["t1".into()])),
+            characters: Vec::new(),
+            deep: false,
+        };
+        let plan = plan_selection(
+            "mock",
+            &s.refresh_snapshot("pc", "Standard", &a).unwrap(),
+            &selection,
+            1100,
+        )
+        .unwrap();
+        let (unspent, spent) = plan.unspent(
+            &s.refresh_snapshot("pc", "Standard", &a).unwrap(),
+            &[],
+            "tom",
+        );
+        assert_eq!((unspent.len(), spent.len()), (1, 0));
+        fetch(
+            &mut s,
+            json!({ "id": "t1", "name": "One", "type": "PremiumStash", "items": [] }),
+            // the fetch the first apply sent, landing after the snapshot
+            plan.basis.snapshot_taken_at,
+        );
+        let (unspent, spent) = plan.unspent(
+            &s.refresh_snapshot("pc", "Standard", &a).unwrap(),
+            &[],
+            "tom",
+        );
+        assert_eq!((unspent.len(), spent.len()), (0, 1));
     }
 
     /// C44 — **fact drift does not refuse**: the authorization is the
