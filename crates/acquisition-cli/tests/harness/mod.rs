@@ -972,7 +972,7 @@ pub fn page_golden(file: &str, name: &str, pages: &Pages) {
         "# golden {stem}/{name}: acq web's pages, each page's <main>, normalised (C122). Each \
          `# holds` line is a fact checked in that page as served; regenerate under \
          ACQ_UPDATE_FIXTURES=1 and read the diff.\n\n{}",
-        normalise(&pid_words(&pages.text), &pages.base)
+        normalise(&job_tables(&pid_words(&pages.text)), &pages.base)
     );
     if std::env::var_os("ACQ_UPDATE_FIXTURES").is_some() {
         std::fs::create_dir_all(path.parent().expect("a parent")).expect("the goldens directory");
@@ -986,6 +986,39 @@ pub fn page_golden(file: &str, name: &str, pages: &Pages) {
         &shown,
         &format!("ACQ_UPDATE_FIXTURES=1 cargo test -p acquisition-cli --test main {stem}"),
     );
+}
+
+/// A job table's columns, each gap one of two spaces: a column is as
+/// wide as its widest cell, and the submitter's cell holds a process id
+/// whose digits the system picks.
+fn job_tables(text: &str) -> String {
+    let mut inside = false;
+    let mut out = String::with_capacity(text.len());
+    for line in text.split_inclusive('\n') {
+        if line.starts_with("id  parent") {
+            inside = true;
+        } else if inside {
+            // the table ends at its summary line, or at a line no row starts
+            let row = line.starts_with(' ') || line.starts_with(|c: char| c.is_ascii_digit());
+            let summary = line
+                .split_whitespace()
+                .nth(1)
+                .is_some_and(|w| w == "jobs:" || w == "job:");
+            inside = row && !summary;
+        }
+        if inside {
+            let words: Vec<&str> = line
+                .split("  ")
+                .map(str::trim)
+                .filter(|w| !w.is_empty())
+                .collect();
+            out.push_str(&words.join("  "));
+            out.push('\n');
+        } else {
+            out.push_str(line);
+        }
+    }
+    out
 }
 
 /// A submitter's process id as a job table prints it, `web:4113` or
