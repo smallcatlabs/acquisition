@@ -22,7 +22,9 @@
 //!   query (C141, the league beside the trade JSON), and `view.limit`,
 //!   `view.sort`, `view.desc` to the rows view — or `view.count`, a key,
 //!   to the counts view in its place (the review of 4b, its sixth
-//!   finding), whose tables the answer page prints as the CLI does.
+//!   finding), whose tables the answer page prints as the CLI does. And
+//!   `text`, the query box: a query in the language, run as the user's
+//!   own in place of the trade input (the 4b sitting round, Do 6).
 //! - **A name is one the form emitted**: the fold refuses any other as
 //!   a usage error before it builds anything (C47, malformed external
 //!   input is a structured error), so no index past the form's stat rows
@@ -198,6 +200,7 @@ fn emitted(groups: &[Group]) -> BTreeSet<String> {
         "view.sort",
         "view.desc",
         "view.count",
+        "text",
     ]
     .iter()
     .map(|n| n.to_string())
@@ -242,6 +245,11 @@ pub(crate) struct Folded {
     /// A count by these keys in place of the rows: the counts view, the
     /// keys read as the CLI's `--count` reads its list (`count_keys`).
     pub count: Option<Vec<String>>,
+    /// The query box's text (the 4b sitting round, Do 6): where given,
+    /// the search is that text, the user's own query, and the trade
+    /// input is dropped — the rule the request already has for an edited
+    /// text.
+    pub text: Option<String>,
 }
 
 impl Folded {
@@ -273,7 +281,10 @@ impl Folded {
         let view = serde_json::to_value(View::from(shape)).unwrap_or_default();
         Ok(serde_json::json!({
             "scope": scope,
-            "query": { "trade": self.envelope },
+            "query": match &self.text {
+                Some(text) => serde_json::json!({ "text": text }),
+                None => serde_json::json!({ "trade": self.envelope }),
+            },
             "view": view,
         }))
     }
@@ -296,6 +307,7 @@ pub(crate) fn fold(form: &Form, fields: &[(String, String)]) -> Result<Folded, S
         sort: None,
         desc: false,
         count: None,
+        text: None,
     };
     let mut league = None;
     for (name, value) in fields {
@@ -314,6 +326,7 @@ pub(crate) fn fold(form: &Form, fields: &[(String, String)]) -> Result<Folded, S
                 )
             }
             "view.sort" => folded.sort = Some(value.to_string()),
+            "text" => folded.text = Some(value.to_string()),
             "view.desc" => folded.desc = true,
             "view.count" => folded.count = Some(acquisition_search::counts::count_keys(value)?),
             _ => {

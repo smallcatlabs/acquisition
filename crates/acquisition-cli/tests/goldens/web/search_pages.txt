@@ -183,6 +183,7 @@ GET <the form>
 <div class="controls-center"><button type="submit" class="search-btn">Search</button></div>
 </div>
 </form>
+<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3"></textarea><button type="submit">Run this query</button></form>
 <form method="post" action="leagues"><button type="submit">Fetch the league list</button></form>
 
 </main>
@@ -195,6 +196,7 @@ GET search?<the ring search>
 # holds "alt=\"Doom Loop Two-Stone Ring\""
 # holds "class=\"name rarity-rare\""
 # holds "<p class=\"count\">2 matches</p>"
+# holds "name=\"text\" rows=\"3\">league=Standard category=&quot;accessory.ring&quot;"
 # holds "+95 to maximum Life"
 <main>
 <h1>Answer</h1>
@@ -222,6 +224,41 @@ routes  each returns exactly the members counted (5 more: --routes)
     acq search --account &#39;Alice#1234&#39; --realm pc &#39;undecided(category=&quot;accessory.ring&quot;)&#39;
 basis   store <store> · build <build> · snapshot 7 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </pre>
+<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">league=Standard category=&quot;accessory.ring&quot; sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</textarea><button type="submit">Run this query</button></form>
+
+</main>
+
+GET search?<an edited text>
+# holds "query   class:rings line(&quot;# to maximum Life&quot; arg1&gt;=90)"
+# holds "total   1 match"
+# holds "Doom Loop"
+# holds "The query, in the language"
+<main>
+<h1>Answer</h1>
+<p class="count">1 match</p>
+<pre>
+query   class:rings line(&quot;# to maximum Life&quot; arg1&gt;=90)
+scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (oldest <age> ago, newest <age> ago)
+        0 locations never fetched · location list seen <age> ago
+total   1 match
+</pre>
+<table class="results">
+<tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
+<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td>class Rings<br>+95 to maximum Life (explicit)</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
+</table>
+<pre>
+terms   each term counted alone over all live pc items in all leagues, never over the matches
+  0    class:rings                         3 matched · 1 failed · 1 undecided
+       → Rings (3)
+  1    line(&quot;# to maximum Life&quot; arg1&gt;=90)  2 matched · 2 failed · 1 lacked · 1 reaches 90 only together
+routes  each returns exactly the members counted (5 more: --routes)
+  term 0 undecided (1), over the scope:
+    acq search --account &#39;Alice#1234&#39; --realm pc &#39;undecided(class:rings)&#39;
+  term 1 only together (1), over the scope:
+    acq search --account &#39;Alice#1234&#39; --realm pc &#39;line(&quot;# to maximum Life&quot;) -line(&quot;# to maximum Life&quot; arg1&gt;=90) sum(line(&quot;# to maximum Life&quot;).arg1)&gt;=90&#39;
+basis   store <store> · build <build> · snapshot 7 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+</pre>
+<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">class:rings line(&quot;# to maximum Life&quot; arg1&gt;=90)</textarea><button type="submit">Run this query</button></form>
 
 </main>
 
@@ -249,6 +286,7 @@ terms   each term counted alone over all live pc items in all leagues, never ove
 routes  each returns exactly the members counted (3 more: --routes)
 basis   store <store> · build <build> · snapshot 7 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </pre>
+<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">league=Standard</textarea><button type="submit">Run this query</button></form>
 
 </main>
 

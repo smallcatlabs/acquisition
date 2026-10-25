@@ -398,7 +398,30 @@ fn every_search_page_is_a_wording_golden() {
             "alt=\"Doom Loop Two-Stone Ring\"",
             "class=\"name rarity-rare\"",
             "<p class=\"count\">2 matches</p>",
+            "name=\"text\" rows=\"3\">league=Standard category=&quot;accessory.ring&quot;",
             "+95 to maximum Life",
+        ],
+    );
+    // the query box: the answer holds the text it ran, to edit; an edited
+    // text runs as the user's own query, the trade input dropped
+    assert!(answer.body.contains("name=\"text\""), "{}", answer.body);
+    let edited = web.get(&format!(
+        "search?{}",
+        query_string(&[
+            ("realm", "pc"),
+            ("text", "class:rings \"# to maximum Life\">=90")
+        ])
+    ));
+    assert_eq!(edited.status, 200, "{}", edited.body);
+    assert!(!edited.body.contains("trade   from"), "{}", edited.body);
+    pages.page(
+        "GET search?<an edited text>",
+        &edited,
+        &[
+            "query   class:rings line(&quot;# to maximum Life&quot; arg1&gt;=90)",
+            "total   1 match",
+            "Doom Loop",
+            "The query, in the language",
         ],
     );
     let counted = web.get(&format!(

@@ -79,6 +79,7 @@ total   5 matches
 <pre>
 basis   store <store> · build <build> · snapshot 7 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </pre>
+<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3"></textarea><button type="submit">Run this query</button></form>
 
 </main>
 
@@ -115,5 +116,6 @@ routes  each returns exactly the members counted (2 more: --routes)
     acq search --account &#39;Alice#1234&#39; --realm pc &#39;undecided(category=&quot;accessory.ring&quot;)&#39;
 basis   store <store> · build <build> · snapshot 7 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </pre>
+<form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">category=&quot;accessory.ring&quot;</textarea><button type="submit">Run this query</button></form>
 
 </main>

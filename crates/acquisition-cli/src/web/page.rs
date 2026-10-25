@@ -181,8 +181,23 @@ pub(crate) fn search_form(form: &Form, realm: &str, leagues: Option<&[(String, b
         out.push_str(&format!("<option value=\"{limit}\">{limit}</option>"));
     }
     out.push_str("</select></label> <label class=\"control\">Sort by <input name=\"view.sort\" placeholder=\"ilvl\"></label> <label class=\"control\"><input type=\"checkbox\" name=\"view.desc\" value=\"true\"> highest first</label> <label class=\"control\">Or count by <input name=\"view.count\" placeholder=\"rarity\"></label> <span class=\"fate\">keys as the CLI's count takes them: rarity, league, tab, class, category, line:resist,life</span></div>\n<div class=\"controls-center\"><button type=\"submit\" class=\"search-btn\">Search</button></div>\n</div>\n</form>\n");
+    out.push_str(&query_box(realm, ""));
     out.push_str(&fetch_leagues());
     out
+}
+
+/// The query box (the 4b sitting round, Do 6): a query in the language,
+/// run as the user's own — the one place every field the language has is
+/// reachable from a page, so what the site's form cannot say is typed
+/// here. On an answer it holds the text the answer ran, the translation's
+/// where the search was the site's form, to edit; an edited text drops the
+/// trade input, as the request's own rule has it.
+pub(crate) fn query_box(realm: &str, text: &str) -> String {
+    format!(
+        "<form class=\"query-box\" method=\"get\" action=\"search\"><input type=\"hidden\" name=\"realm\" value=\"{}\"><label class=\"filter-title\" for=\"query-text\">The query, in the language</label><textarea id=\"query-text\" name=\"text\" rows=\"3\">{}</textarea><button type=\"submit\">Run this query</button></form>\n",
+        esc(realm),
+        esc(text)
+    )
 }
 
 /// One filter's control, named by its path, its fate beside it; a
@@ -318,6 +333,7 @@ pub(crate) fn answer(a: &Answer) -> String {
         });
     }
     out.push_str(&pre(&search_cmd::answer_tail(a, None)));
+    out.push_str(&query_box(a.scope.realm.as_str(), &a.query.text));
     out
 }
 

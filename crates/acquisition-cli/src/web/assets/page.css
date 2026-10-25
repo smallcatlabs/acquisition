@@ -52,6 +52,11 @@ input.socket { width: 2.6rem; }
 #stat-list { list-style: none; padding: 0; max-height: 18rem; overflow: auto; }
 #stat-list button { all: unset; cursor: pointer; text-decoration: underline; }
 
+/* the query box: the language, typed */
+.query-box { display: flex; flex-direction: column; gap: .35rem; background: var(--panel); border: 1px solid var(--rule); padding: .6rem; margin: .75rem 0; }
+.query-box textarea { background: var(--page); color: var(--text); border: 1px solid var(--rule); font: 12.5px/1.35 ui-monospace, monospace; padding: .35rem; }
+.query-box button { align-self: flex-start; }
+
 /* the answer */
 .count { font-size: 1.05rem; font-weight: 600; margin: .75rem 0 .25rem; }
 table { border-collapse: collapse; width: 100%; }
