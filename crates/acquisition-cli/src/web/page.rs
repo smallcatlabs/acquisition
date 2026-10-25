@@ -110,7 +110,7 @@ fn fate_span(fate: Option<&Fate>) -> String {
 /// counts, so the realm is chosen by a form of its own that renders the
 /// page again (the review of 4b, its fourth finding), and the search
 /// carries the realm shown.
-pub(crate) fn search_form(form: &Form, realm: &str, leagues: &[(String, usize)]) -> String {
+pub(crate) fn search_form(form: &Form, realm: &str, leagues: Option<&[(String, bool)]>) -> String {
     let mut out = String::from(
         "<form method=\"get\" action=\".\"><label class=\"control\">Realm <select name=\"realm\">",
     );
@@ -123,20 +123,13 @@ pub(crate) fn search_form(form: &Form, realm: &str, leagues: &[(String, usize)])
     out.push_str(
         "</select></label> <button type=\"submit\">Show this realm's leagues</button></form>\n",
     );
+    out.push_str(&fetch_leagues());
     out.push_str(&format!(
         "<form method=\"get\" action=\"search\">\n<fieldset><legend>Scope</legend>\n<input type=\"hidden\" name=\"realm\" value=\"{}\"><span class=\"control\">Realm {}</span>\n",
         esc(realm),
         esc(realm)
     ));
-    out.push_str("<label class=\"control\">League <select name=\"league\"><option value=\"\">every league</option>");
-    for (league, items) in leagues {
-        out.push_str(&format!(
-            "<option value=\"{}\">{} ({items})</option>",
-            esc(league),
-            esc(league)
-        ));
-    }
-    out.push_str("</select></label>");
+    out.push_str(&league_select(leagues, None, true));
     out.push_str(&fate_span(form.fate("url.league")));
     out.push_str("\n</fieldset>\n");
     for group in &form.groups {
@@ -400,4 +393,48 @@ pub(crate) fn item_badges(shown: &Shown) -> String {
 
 fn plural(n: usize, one: &str, many: &str) -> String {
     format!("{n} {}", if n == 1 { one } else { many })
+}
+
+/// The league control both pages carry (the 4b sitting round, Do 3): a
+/// select over the store's league list, each league marked with whether
+/// tabs of it are on disk in the realm shown; with no list on disk, no
+/// select — the fetch button is then the only control. `any` adds the
+/// search's "every league", which names no league term.
+pub(crate) fn league_select(
+    leagues: Option<&[(String, bool)]>,
+    selected: Option<&str>,
+    any: bool,
+) -> String {
+    let Some(leagues) = leagues else {
+        return String::new();
+    };
+    let mut out = String::from("<label class=\"control\">League <select name=\"league\">");
+    if any {
+        out.push_str("<option value=\"\">every league</option>");
+    }
+    for (league, on_disk) in leagues {
+        out.push_str(&format!(
+            "<option value=\"{}\"{}>{} ({})</option>",
+            esc(league),
+            if selected == Some(league.as_str()) {
+                " selected"
+            } else {
+                ""
+            },
+            esc(league),
+            if *on_disk {
+                "tabs on disk"
+            } else {
+                "no tabs on disk"
+            }
+        ));
+    }
+    out.push_str("</select></label> ");
+    out
+}
+
+/// The button that fetches the league list: the `leagues` job, one
+/// request, answered on the jobs page.
+pub(crate) fn fetch_leagues() -> String {
+    "<form method=\"post\" action=\"leagues\"><button type=\"submit\">Fetch the league list</button></form>\n".to_string()
 }

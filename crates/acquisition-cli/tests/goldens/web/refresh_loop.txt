@@ -26,12 +26,14 @@ next: acq refresh --apply
 </main>
 
 GET jobs <every job done>
+# holds "rails:  tripwire"
 # holds "apply"
 # holds "done"
 # holds "web:"
 <main>
 <h1>Jobs</h1>
 <pre>
+rails:  tripwire off · sends 6 · journal off
 id  parent  kind  target  state  prio  account  by  eta
 1  profile  done  254  ExileTester  daemon
 2  apply  plan (2 requests)  done  0  ExileTester  web:<pid>
@@ -56,6 +58,7 @@ nothing to do: every request of this plan is spent — 2 fetched after it was co
 
 GET refresh?realm=pc&league=Standard
 # holds "tabs in Standard"
+# holds "<option value=\"Standard\" selected>Standard (tabs on disk)</option>"
 # holds "name=\"tab\" value=\"dump\""
 # holds "name=\"character\""
 # holds "name=\"tab\" value=\"old1\""
@@ -65,7 +68,8 @@ GET refresh?realm=pc&league=Standard
 # holds "Plan under the policy"
 <main>
 <h1>Refresh</h1>
-<form method="get" action="refresh"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <label class="control">League <input name="league" value="Standard"></label> <button type="submit">Show</button></form>
+<form method="get" action="refresh"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <label class="control">League <select name="league"><option value="Standard" selected>Standard (tabs on disk)</option><option value="Hardcore">Hardcore (no tabs on disk)</option><option value="Rehearsal">Rehearsal (no tabs on disk)</option></select></label> <button type="submit">Show</button></form>
+<form method="post" action="leagues"><button type="submit">Fetch the league list</button></form>
 <form method="get" action="plan">
 <input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard">
 <pre>

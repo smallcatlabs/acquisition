@@ -3,7 +3,9 @@
 GET <the form>
 # holds "Item Category"
 # holds "name=\"query.filters.type_filters.filters.category.option\""
-# holds "Standard (5)"
+# holds "Standard (tabs on disk)"
+# holds "Settlers (no tabs on disk)"
+# holds "Fetch the league list"
 # holds "disabled"
 # holds "The seller&#39;s account is the listing&#39;s"
 # holds "fate fate-exact"
@@ -11,10 +13,11 @@ GET <the form>
 <main>
 <h1>Search</h1>
 <form method="get" action="."><label class="control">Realm <select name="realm"><option value="pc" selected>pc</option><option value="xbox">xbox</option><option value="sony">sony</option></select></label> <button type="submit">Show this realm's leagues</button></form>
+<form method="post" action="leagues"><button type="submit">Fetch the league list</button></form>
 <form method="get" action="search">
 <fieldset><legend>Scope</legend>
 <input type="hidden" name="realm" value="pc"><span class="control">Realm pc</span>
-<label class="control">League <select name="league"><option value="">every league</option><option value="Standard">Standard (5)</option></select></label> <span class="fate fate-exact" title="The league the URL names, or the query JSON carries beside its query, becomes a term of the search, like any other.">exact</span>
+<label class="control">League <select name="league"><option value="">every league</option><option value="Standard">Standard (tabs on disk)</option><option value="Hardcore">Hardcore (no tabs on disk)</option><option value="Settlers">Settlers (no tabs on disk)</option></select></label>  <span class="fate fate-exact" title="The league the URL names, or the query JSON carries beside its query, becomes a term of the search, like any other.">exact</span>
 </fieldset>
 <fieldset><legend>Status</legend>
 <span class="control" title="Online, available or securable is the seller&#39;s state, not the item&#39;s, so it means nothing in your stash."><span>Status</span> <select name="query.status.option" disabled><option value="available">Instant Buyout and In Person</option><option value="securable">Instant Buyout</option><option value="onlineleague">In Person (Online in League)</option><option value="online">In Person (Online)</option><option value="any">Any</option></select> <span class="fate fate-listing_only" title="Online, available or securable is the seller&#39;s state, not the item&#39;s, so it means nothing in your stash.">listing only</span></span>
@@ -194,7 +197,7 @@ terms   each term counted alone over all live pc items in all leagues, never ove
 routes  each returns exactly the members counted (5 more: --routes)
   term 1 undecided (1), over the scope:
     acq search --account &#39;Alice#1234&#39; --realm pc &#39;undecided(category=&quot;accessory.ring&quot;)&#39;
-basis   store <store> · build <build> · snapshot 6 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 7 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </pre>
 
 </main>
@@ -220,7 +223,7 @@ count   rarity · 2 values
 terms   each term counted alone over all live pc items in all leagues, never over the matches
   0    league=Standard  5 matched
 routes  each returns exactly the members counted (3 more: --routes)
-basis   store <store> · build <build> · snapshot 6 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 7 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </pre>
 
 </main>
@@ -258,7 +261,7 @@ shown   Item Level: 84
 lines   explicit              +95 to maximum Life
                               &quot;# to maximum Life&quot;   arg1 95
 unread  nothing
-basis   store <store> · build <build> · snapshot 6 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 7 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </pre>
 
 </main>

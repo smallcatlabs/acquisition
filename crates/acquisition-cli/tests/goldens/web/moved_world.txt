@@ -21,7 +21,7 @@ shown   Item Level: 84
 lines   explicit              +40 to maximum Life
                               &quot;# to maximum Life&quot;   arg1 40
 unread  nothing
-basis   store <store> · build <build> · snapshot 6 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 7 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </pre>
 
 </main>
@@ -46,7 +46,7 @@ shown   Item Level: 84
 lines   wombgift              Grants 3 Echoes of the Brood
                               &quot;Grants # Echoes of the Brood&quot;   arg1 3
 unread  `wombgiftMods[0]`: `flags.echoing` is a string, not yes or no
-basis   store <store> · build <build> · snapshot 6 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 7 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </pre>
 
 </main>
@@ -76,7 +76,7 @@ total   5 matches
 <tr><td class="icon"></td><td><a href="item/new">Brood Lure Wombgift Chalice</a></td><td>Wombgift Chalice</td><td>Rare</td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td><td></td></tr>
 </table>
 <pre>
-basis   store <store> · build <build> · snapshot 6 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 7 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </pre>
 
 </main>
@@ -111,7 +111,7 @@ routes  each returns exactly the members counted (2 more: --routes)
     acq search --account &#39;Alice#1234&#39; --realm pc &#39;undecided(category=&quot;accessory.ring&quot;)&#39;
   term 0 undecided (1), over the scope:
     acq search --account &#39;Alice#1234&#39; --realm pc &#39;undecided(category=&quot;accessory.ring&quot;)&#39;
-basis   store <store> · build <build> · snapshot 6 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 7 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </pre>
 
 </main>

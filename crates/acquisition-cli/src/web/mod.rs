@@ -202,6 +202,7 @@ pub(crate) async fn web(account: Option<String>, no_browser: bool, json: bool) -
         .route(&at("/refresh"), get(tabs))
         .route(&at("/plan"), get(plan))
         .route(&at("/apply"), post(apply))
+        .route(&at("/leagues"), post(fetch_leagues))
         .route(&at("/jobs"), get(jobs))
         .route(&at("/assets/page.css"), get(css))
         .route(&at("/assets/picker.js"), get(picker))
@@ -372,30 +373,20 @@ impl Web {
         }
     }
 
-    /// The leagues the corpus of a realm holds, each with its items: the
-    /// counts-by-league answer, as `acq search --count league` asks it.
-    fn leagues(&self, realm: &str) -> Result<Vec<(String, usize)>, Failure> {
-        let asked = Asked::read(&json!({
-            "scope": { "realm": realm },
-            "view": { "counts": { "keys": ["league"] } },
-        }))?;
-        let answer =
-            serde_json::to_value(self.answer(&asked.request)?).map_err(anyhow::Error::from)?;
-        let buckets = answer["view"]["counts"]["tables"][0]["buckets"]
-            .as_array()
-            .cloned()
-            .unwrap_or_default();
-        Ok(buckets
-            .iter()
-            .filter(|b| b["bucket"] == "value")
-            .filter_map(|b| {
-                let count = b["count"].as_u64().or_else(|| b["count"]["count"].as_u64());
-                Some((
-                    b["value"].as_str()?.to_string(),
-                    count.unwrap_or(0) as usize,
-                ))
-            })
-            .collect())
+    /// The store's league list (the `leagues` job's latest answer), each
+    /// league marked with whether this realm has tabs of it on disk: what
+    /// both pages' league control lists. None where no list was fetched.
+    fn leagues(&self, realm: &str) -> Result<Option<Vec<(String, bool)>>, Failure> {
+        let facts = self.account.facts()?;
+        let Some(list) = facts.league_list()? else {
+            return Ok(None);
+        };
+        let mut out = Vec::with_capacity(list.ids.len());
+        for id in list.ids {
+            let on_disk = !facts.tabs(realm, &id)?.is_empty();
+            out.push((id, on_disk));
+        }
+        Ok(Some(out))
     }
 }
 
@@ -440,10 +431,13 @@ async fn home(
     let shown = realm.clone();
     let (leagues, said) = blocking(&web, move |web| match web.leagues(&realm) {
         Ok(leagues) => (leagues, String::new()),
-        Err(failure) => (Vec::new(), refusal(&failure.words())),
+        Err(failure) => (None, refusal(&failure.words())),
     })
     .await;
-    let body = format!("{said}{}", page::search_form(&web.form, &shown, &leagues));
+    let body = format!(
+        "{said}{}",
+        page::search_form(&web.form, &shown, leagues.as_deref())
+    );
     web.page(
         "Search",
         Head {
@@ -546,10 +540,11 @@ async fn tabs(
         );
         let characters = facts.characters(Some(realm.as_str()), Some(&league))?;
         let empty = (listed.tabs == 0).then(|| store_cmd::no_tabs_text(realm, &league, &facts));
-        Ok((league, listed, characters, empty))
+        let leagues = web.leagues(realm.as_str())?;
+        Ok((league, listed, characters, empty, leagues))
     })
     .await;
-    let (league, listed, characters, empty) = match read {
+    let (league, listed, characters, empty, leagues) = match read {
         Ok(read) => read,
         Err(failure) => return web.failed("Refresh", &failure, &headers),
     };
@@ -558,7 +553,7 @@ async fn tabs(
     }
     let now = acquisition_store::now();
     let mut body = format!(
-        "<form method=\"get\" action=\"refresh\"><label class=\"control\">Realm <select name=\"realm\">{}</select></label> <label class=\"control\">League <input name=\"league\" value=\"{}\"></label> <button type=\"submit\">Show</button></form>\n",
+        "<form method=\"get\" action=\"refresh\"><label class=\"control\">Realm <select name=\"realm\">{}</select></label> {}<button type=\"submit\">Show</button></form>\n{}",
         ["pc", "xbox", "sony", "poe2"]
             .iter()
             .map(|r| format!(
@@ -570,7 +565,8 @@ async fn tabs(
                 }
             ))
             .collect::<String>(),
-        esc(&league)
+        page::league_select(leagues.as_deref(), Some(&league), false),
+        page::fetch_leagues(),
     );
     body.push_str(&format!(
         "<form method=\"get\" action=\"plan\">\n<input type=\"hidden\" name=\"realm\" value=\"{}\"><input type=\"hidden\" name=\"league\" value=\"{}\">\n",
@@ -640,6 +636,30 @@ fn unticked(tab: &acquisition_store::TabRow, rows: &[acquisition_store::TabRow])
             parent.name, parent.name
         )
     })
+}
+
+/// "Fetch the league list" (the 4b sitting round, Do 3): the `leagues`
+/// job, as `acq leagues` submits it — one request, no probe — through the
+/// human door and as the served account, landing on the jobs page.
+async fn fetch_leagues(State(web): State<Arc<Web>>, headers: HeaderMap) -> Response {
+    let submitted = async {
+        let mut client = crate::connect(&web.cx).await?;
+        acquisition_verbs::jobs::submit(
+            &web.cx.frontend,
+            &mut client,
+            "leagues",
+            json!({}),
+            0,
+            Some(web.account.entry.username.as_str()),
+        )
+        .await?;
+        anyhow::Ok(())
+    }
+    .await;
+    match submitted {
+        Ok(()) => to_jobs(&web),
+        Err(e) => web.failed("Leagues", &Failure::Other(e), &headers),
+    }
 }
 
 fn to_jobs(web: &Web) -> Response {
@@ -779,7 +799,22 @@ async fn jobs(State(web): State<Arc<Web>>, headers: HeaderMap) -> Response {
                 refresh: running.then_some(JOBS_REFRESH),
                 ..Head::default()
             };
-            web.page("Jobs", head, &pre(&crate::jobs_text(&jobs, false)))
+            // the daemon's rails and their halt first, as `daemon status`
+            // prints them, so a queue that stands still says why
+            let rails = match web.cx.frontend.daemon().await {
+                Ok(acquisition_verbs::DaemonReport::Running { status, .. }) => match *status {
+                    acquisition_protocol::protocol::Response::DaemonStatus { rails, .. } => {
+                        crate::rails_text(&rails)
+                    }
+                    _ => String::new(),
+                },
+                _ => String::new(),
+            };
+            web.page(
+                "Jobs",
+                head,
+                &pre(&format!("{rails}{}", crate::jobs_text(&jobs, false))),
+            )
         }
         absent => {
             if wants_json(&headers) {

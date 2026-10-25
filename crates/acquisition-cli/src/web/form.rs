@@ -575,7 +575,8 @@ mod tests {
     #[test]
     fn the_fold_accepts_exactly_the_names_the_rendered_form_carries() {
         let form = Form::load().unwrap();
-        let page = crate::web::page::search_form(&form, "pc", &[]);
+        let page =
+            crate::web::page::search_form(&form, "pc", Some(&[("Standard".to_string(), true)]));
         let mut rendered = BTreeSet::new();
         for part in page.split("name=\"").skip(1) {
             rendered.insert(part[..part.find('"').unwrap()].to_string());

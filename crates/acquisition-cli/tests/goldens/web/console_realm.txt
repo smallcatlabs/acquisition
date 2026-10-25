@@ -4,14 +4,15 @@ GET ?realm=xbox
 # holds "<option value=\"xbox\" selected>"
 # holds "Show this realm's leagues"
 # holds "name=\"realm\" value=\"xbox\""
-# holds "Hardcore (1)"
+# holds "Hardcore (tabs on disk)"
 <main>
 <h1>Search</h1>
 <form method="get" action="."><label class="control">Realm <select name="realm"><option value="pc">pc</option><option value="xbox" selected>xbox</option><option value="sony">sony</option></select></label> <button type="submit">Show this realm's leagues</button></form>
+<form method="post" action="leagues"><button type="submit">Fetch the league list</button></form>
 <form method="get" action="search">
 <fieldset><legend>Scope</legend>
 <input type="hidden" name="realm" value="xbox"><span class="control">Realm xbox</span>
-<label class="control">League <select name="league"><option value="">every league</option><option value="Hardcore">Hardcore (1)</option></select></label> <span class="fate fate-exact" title="The league the URL names, or the query JSON carries beside its query, becomes a term of the search, like any other.">exact</span>
+<label class="control">League <select name="league"><option value="">every league</option><option value="Standard">Standard (no tabs on disk)</option><option value="Hardcore">Hardcore (tabs on disk)</option><option value="Settlers">Settlers (no tabs on disk)</option></select></label>  <span class="fate fate-exact" title="The league the URL names, or the query JSON carries beside its query, becomes a term of the search, like any other.">exact</span>
 </fieldset>
 <fieldset><legend>Status</legend>
 <span class="control" title="Online, available or securable is the seller&#39;s state, not the item&#39;s, so it means nothing in your stash."><span>Status</span> <select name="query.status.option" disabled><option value="available">Instant Buyout and In Person</option><option value="securable">Instant Buyout</option><option value="onlineleague">In Person (Online in League)</option><option value="online">In Person (Online)</option><option value="any">Any</option></select> <span class="fate fate-listing_only" title="Online, available or securable is the seller&#39;s state, not the item&#39;s, so it means nothing in your stash.">listing only</span></span>

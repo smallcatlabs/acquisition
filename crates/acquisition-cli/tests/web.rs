@@ -22,7 +22,8 @@ use harness::{Pages, WebUi, offline_acq, offline_command, page_golden, sole_json
 const USER: &str = "Alice#1234";
 const ART: &str = "https://web.poecdn.com/gen/image/ring.png";
 
-/// One league of two tabs: `Rings` with two life rings and Kaom's Heart,
+/// The league list (Standard, Hardcore, and Settlers with no tab on
+/// disk), and one league of two tabs: `Rings` with two life rings and Kaom's Heart,
 /// each with its art; `Launch` with what a new league brings first — a
 /// base the class table does not hold, and a mechanic's item whose line
 /// carries a flag that is no yes or no.
@@ -47,6 +48,11 @@ fn seed(world: &Path) {
         Endpoint::Profile,
         json!({ "uuid": "u-web", "name": USER }),
         1,
+    );
+    record(
+        Endpoint::Leagues,
+        json!({ "leagues": [{ "id": "Standard" }, { "id": "Hardcore" }, { "id": "Settlers" }] }),
+        2,
     );
     record(
         Endpoint::Stashes {
@@ -367,7 +373,9 @@ fn every_search_page_is_a_wording_golden() {
         &[
             "Item Category",
             "name=\"query.filters.type_filters.filters.category.option\"",
-            "Standard (5)",
+            "Standard (tabs on disk)",
+            "Settlers (no tabs on disk)",
+            "Fetch the league list",
             "disabled",
             "The seller&#39;s account is the listing&#39;s",
             "fate fate-exact",
@@ -437,7 +445,13 @@ fn the_form_renders_the_realm_it_is_asked_for() {
     let (scratch, web) = offline_web("webrealm");
     let mut pages = Pages::new(&scratch.0, &web);
     let form = web.get("?realm=xbox");
-    assert!(!form.body.contains("Standard ("), "{}", form.body);
+    // the league list is the account's, across realms; whether a league
+    // has tabs on disk is the realm's
+    assert!(
+        form.body.contains("Standard (no tabs on disk)"),
+        "{}",
+        form.body
+    );
     pages.page(
         "GET ?realm=xbox",
         &form,
@@ -445,7 +459,7 @@ fn the_form_renders_the_realm_it_is_asked_for() {
             "<option value=\"xbox\" selected>",
             "Show this realm's leagues",
             "name=\"realm\" value=\"xbox\"",
-            "Hardcore (1)",
+            "Hardcore (tabs on disk)",
         ],
     );
     page_golden(file!(), "console_realm", &pages);
@@ -550,7 +564,7 @@ fn the_refresh_loop_runs_through_the_pages() {
     pages.page(
         "GET jobs <every job done>",
         &jobs,
-        &["apply", "done", "web:"],
+        &["rails:  tripwire", "apply", "done", "web:"],
     );
     let replay = web.post("apply", &[("plan", &envelope)]);
     assert_eq!(replay.status, 200, "{}", replay.body);
@@ -564,12 +578,29 @@ fn the_refresh_loop_runs_through_the_pages() {
     // lands the map and unique tabs' pages: the tabs page lists them
     let out = harness::acq(&base, &["refresh", "--apply"]);
     assert!(out.status.success(), "{out:?}");
+    // no league list on disk yet: no select, the fetch button alone; the
+    // button fetches it, and the select lists it
+    let unlisted = web.get("refresh?realm=pc&league=Standard");
+    assert!(
+        !unlisted.body.contains("<select name=\"league\">"),
+        "{}",
+        unlisted.body
+    );
+    assert!(
+        unlisted.body.contains("Fetch the league list"),
+        "{}",
+        unlisted.body
+    );
+    let fetched = web.post("leagues", &[]);
+    assert_eq!(fetched.status, 303, "{}", fetched.body);
+    until_done(&web);
     let tabs = web.get("refresh?realm=pc&league=Standard");
     pages.page(
         "GET refresh?realm=pc&league=Standard",
         &tabs,
         &[
             "tabs in Standard",
+            "<option value=\"Standard\" selected>Standard (tabs on disk)</option>",
             "name=\"tab\" value=\"dump\"",
             "name=\"character\"",
             "name=\"tab\" value=\"old1\"",

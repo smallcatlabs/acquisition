@@ -1568,56 +1568,7 @@ async fn run(cli: Cli) -> Result<()> {
                             );
                             println!("socket: {}", found.socket());
                             println!("log:    {}", log.as_deref().unwrap_or("not reported"));
-                            println!(
-                                "rails:  tripwire {} · sends {}{} · journal {}",
-                                if rails.tripwire_enabled { "ON" } else { "off" },
-                                rails.sends,
-                                rails.max_sends.map_or(String::new(), |m| format!("/{m}")),
-                                rails.journal.as_deref().unwrap_or("off"),
-                            );
-                            if let Some(cause) = &rails.halted {
-                                println!("HALTED: {cause}");
-                                // A ceiling is this lifetime's and never persisted
-                                // (rails.rs): no violation, nothing to reset — the
-                                // next daemon starts under a fresh one. Met beside
-                                // another halt, the reset lifts that one only, so
-                                // the advice names the ceiling too.
-                                let ceiling_too = !cause.starts_with("ceiling:")
-                                    && rails.max_sends.is_some_and(|max| rails.sends >= max);
-                                if cause.starts_with("Cloudflare answered") {
-                                    println!(
-                                        "        every daemon holds until `acq daemon reset-tripwire`; read the cause first{}",
-                                        if ceiling_too {
-                                            ""
-                                        } else {
-                                            ": the next send goes to GGG"
-                                        }
-                                    );
-                                } else if cause.starts_with("Cloudflare could not reach GGG") {
-                                    if ceiling_too {
-                                        println!(
-                                            "        this daemon's alone, never persisted: a restart clears it"
-                                        );
-                                    } else {
-                                        println!(
-                                            "        this daemon's alone, never persisted: `acq daemon reset-tripwire` or a restart clears it; the next send goes to GGG"
-                                        );
-                                    }
-                                } else if cause.starts_with("ceiling:") {
-                                    println!(
-                                        "        the ceiling is this daemon's alone: `acq daemon stop`, and the next one starts fresh (`acq jobs` first: queued jobs resume under it)"
-                                    );
-                                } else {
-                                    println!(
-                                        "        clear with `acq daemon reset-tripwire` after the post-violation wait"
-                                    );
-                                }
-                                if ceiling_too {
-                                    println!(
-                                        "        the ceiling is met too, and a reset does not lift it: only the next daemon starts under a fresh one (`acq daemon stop`; `acq jobs` first: queued jobs resume under it)"
-                                    );
-                                }
-                            }
+                            print!("{}", rails_text(&rails));
                             if keyring != "ok" {
                                 println!(
                                     "KEYRING: {keyring} — a rotated refresh token may be memory-only"
@@ -1945,6 +1896,64 @@ pub(crate) fn open_browser(url: &str) -> bool {
 /// The `character` job's params, as `acq character` submits them.
 pub(crate) fn character_params(realm: Realm, name: &str) -> serde_json::Value {
     json!({ "realm": realm, "name": name })
+}
+
+/// The daemon's rails as `daemon status` prints them: the tripwire, the
+/// sends against their ceiling and the journal, then a halt with its
+/// cause and what clears it — the web UI's jobs page opens with it, so a
+/// queue that stands still says why.
+pub(crate) fn rails_text(rails: &acquisition_protocol::status::RailsStatus) -> String {
+    let mut out = format!(
+        "rails:  tripwire {} · sends {}{} · journal {}\n",
+        if rails.tripwire_enabled { "ON" } else { "off" },
+        rails.sends,
+        rails.max_sends.map_or(String::new(), |m| format!("/{m}")),
+        rails.journal.as_deref().unwrap_or("off"),
+    );
+    let Some(cause) = &rails.halted else {
+        return out;
+    };
+    let mut line = |text: &str| {
+        out.push_str(text);
+        out.push('\n');
+    };
+    line(&format!("HALTED: {cause}"));
+    // A ceiling is this lifetime's and never persisted (rails.rs): no
+    // violation, nothing to reset — the next daemon starts under a fresh
+    // one. Met beside another halt, the reset lifts that one only, so the
+    // advice names the ceiling too.
+    let ceiling_too =
+        !cause.starts_with("ceiling:") && rails.max_sends.is_some_and(|max| rails.sends >= max);
+    if cause.starts_with("Cloudflare answered") {
+        line(&format!(
+            "        every daemon holds until `acq daemon reset-tripwire`; read the cause first{}",
+            if ceiling_too {
+                ""
+            } else {
+                ": the next send goes to GGG"
+            }
+        ));
+    } else if cause.starts_with("Cloudflare could not reach GGG") {
+        if ceiling_too {
+            line("        this daemon's alone, never persisted: a restart clears it");
+        } else {
+            line(
+                "        this daemon's alone, never persisted: `acq daemon reset-tripwire` or a restart clears it; the next send goes to GGG",
+            );
+        }
+    } else if cause.starts_with("ceiling:") {
+        line(
+            "        the ceiling is this daemon's alone: `acq daemon stop`, and the next one starts fresh (`acq jobs` first: queued jobs resume under it)",
+        );
+    } else {
+        line("        clear with `acq daemon reset-tripwire` after the post-violation wait");
+    }
+    if ceiling_too {
+        line(
+            "        the ceiling is met too, and a reset does not lift it: only the next daemon starts under a fresh one (`acq daemon stop`; `acq jobs` first: queued jobs resume under it)",
+        );
+    }
+    out
 }
 
 /// C3 and C4: submit a job as this process, the account flag passed to
