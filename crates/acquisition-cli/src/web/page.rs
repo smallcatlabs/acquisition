@@ -159,7 +159,7 @@ pub(crate) fn search_form(form: &Form, realm: &str, leagues: &[(String, usize)])
             "<div><label class=\"control\">Stat <input class=\"stat-id\" id=\"{id}\" name=\"query.stats[0].filters[{n}].id\" size=\"28\"></label> <span id=\"{id}-text\" class=\"fate\"></span>\n<label class=\"control\">min <input type=\"number\" step=\"any\" name=\"query.stats[0].filters[{n}].value.min\"></label>\n<label class=\"control\">max <input type=\"number\" step=\"any\" name=\"query.stats[0].filters[{n}].value.max\"></label></div>\n"
         ));
     }
-    out.push_str("<label class=\"control\">Find a stat <input type=\"search\" id=\"stat-find\" autocomplete=\"off\"></label>\n<ul id=\"stat-list\"></ul>\n</fieldset>\n");
+    out.push_str("<label class=\"control\">Find a stat <input type=\"search\" id=\"stat-find\" autocomplete=\"off\"></label>\n<span id=\"stat-said\" class=\"fate\"></span>\n<ul id=\"stat-list\"></ul>\n</fieldset>\n");
     out.push_str("<fieldset><legend>Rows</legend>\n<label class=\"control\">Show <select name=\"view.limit\">");
     for limit in LIMITS {
         out.push_str(&format!("<option value=\"{limit}\">{limit}</option>"));

@@ -149,6 +149,7 @@ GET <the form>
 <label class="control">min <input type="number" step="any" name="query.stats[0].filters[3].value.min"></label>
 <label class="control">max <input type="number" step="any" name="query.stats[0].filters[3].value.max"></label></div>
 <label class="control">Find a stat <input type="search" id="stat-find" autocomplete="off"></label>
+<span id="stat-said" class="fate"></span>
 <ul id="stat-list"></ul>
 </fieldset>
 <fieldset><legend>Rows</legend>

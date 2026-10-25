@@ -1,7 +1,8 @@
 // The stat picker (`acq web`): asks the server's stat vocabulary for the
 // words typed and writes a chosen stat's id into the first empty stat
-// row. It evaluates nothing: which stats match and each one's fate are
-// the server's answer, listed as given.
+// row, and into none when every row is taken: a pick never replaces a
+// condition the reader wrote. It evaluates nothing: which stats match
+// and each one's fate are the server's answer, listed as given.
 (function () {
   const find = document.getElementById('stat-find');
   const list = document.getElementById('stat-list');
@@ -29,8 +30,12 @@
     pick.textContent = e.texts.join(' / ');
     pick.addEventListener('click', () => {
       const slots = Array.from(document.querySelectorAll('input.stat-id'));
-      const slot = slots.find((s) => !s.value) || slots[0];
-      if (!slot) return;
+      const slot = slots.find((s) => !s.value);
+      if (!slot) {
+        const said = document.getElementById('stat-said');
+        if (said) said.textContent = 'Every stat row is taken: clear one first.';
+        return;
+      }
       slot.value = e.id;
       const said = document.getElementById(slot.id + '-text');
       if (said) said.textContent = e.texts.join(' / ');
