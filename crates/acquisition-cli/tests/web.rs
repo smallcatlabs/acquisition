@@ -383,6 +383,7 @@ fn every_search_page_is_a_wording_golden() {
             "<summary>Type Filters</summary>",
             "name=\"defences\" value=\"displayed\"",
             "name=\"query.filters.armour_filters.disabled\" value=\"true\"",
+            "name=\"query.stats[0].disabled\" value=\"true\"",
             "<summary>Stat Filters</summary>",
             "placeholder=\"Search items\"",
             "class=\"search-btn\"",

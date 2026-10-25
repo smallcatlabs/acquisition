@@ -166,7 +166,7 @@ pub(crate) fn search_form(form: &Form, realm: &str, leagues: Option<&[(String, b
         }
         out.push_str("</div>\n</details>\n");
     }
-    out.push_str("</div>\n<div class=\"pane\">\n<details class=\"panel\" open><summary>Stat Filters</summary>\n<div class=\"panel-body\">\n<div class=\"filter\"><span class=\"filter-title\">Group</span> <select name=\"query.stats[0].type\">");
+    out.push_str("</div>\n<div class=\"pane\">\n<details class=\"panel\" open><summary>Stat Filters</summary>\n<div class=\"panel-body\">\n<div class=\"filter\"><label><input type=\"checkbox\" name=\"query.stats[0].disabled\" value=\"true\"> this group off, its values kept</label></div>\n<div class=\"filter\"><span class=\"filter-title\">Group</span> <select name=\"query.stats[0].type\">");
     for (kind, text, fate) in &form.stat_types {
         out.push_str(&format!(
             "<option value=\"{}\"{}>{} ({})</option>",

@@ -227,7 +227,7 @@ fn emitted(groups: &[Group]) -> BTreeSet<String> {
             }
         }
     }
-    for name in ["type", "value.min", "value.max"] {
+    for name in ["type", "value.min", "value.max", "disabled"] {
         names.insert(format!("query.stats[0].{name}"));
     }
     for n in 0..STAT_ROWS {
@@ -592,6 +592,24 @@ mod tests {
         assert_eq!(
             folded.envelope["query"]["filters"]["misc_filters"],
             json!({ "disabled": true, "filters": { "ilvl": { "min": 75 } } })
+        );
+        // the stat group's the same: off, its rows stand (the fix round's
+        // review, its first finding)
+        let folded = fold(
+            &form,
+            &fields(&[
+                ("query.stats[0].disabled", "true"),
+                ("query.stats[0].type", "and"),
+                ("query.stats[0].filters[0].id", "explicit.stat_3299347043"),
+                ("query.stats[0].filters[0].value.min", "40"),
+            ]),
+        )
+        .unwrap();
+        assert_eq!(
+            folded.envelope["query"]["stats"],
+            json!([{ "disabled": true, "type": "and", "filters": [
+                { "id": "explicit.stat_3299347043", "value": { "min": 40 } }
+            ] }])
         );
         assert!(fold(&form, &fields(&[("scope.realm", "pc")])).is_err());
         assert!(fold(&form, &fields(&[("query.stats[x].id", "a")])).is_err());

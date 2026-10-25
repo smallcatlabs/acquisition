@@ -13,6 +13,7 @@ GET <the form>
 # holds "<summary>Type Filters</summary>"
 # holds "name=\"defences\" value=\"displayed\""
 # holds "name=\"query.filters.armour_filters.disabled\" value=\"true\""
+# holds "name=\"query.stats[0].disabled\" value=\"true\""
 # holds "<summary>Stat Filters</summary>"
 # holds "placeholder=\"Search items\""
 # holds "class=\"search-btn\""
@@ -180,6 +181,7 @@ GET <the form>
 <div class="pane">
 <details class="panel" open><summary>Stat Filters</summary>
 <div class="panel-body">
+<div class="filter"><label><input type="checkbox" name="query.stats[0].disabled" value="true"> this group off, its values kept</label></div>
 <div class="filter"><span class="filter-title">Group</span> <select name="query.stats[0].type"><option value="and" selected>And (exact)</option><option value="not">Not (exact)</option><option value="if">If (exact)</option><option value="count">Count (exact)</option><option value="weight">Weighted Sum (exact)</option><option value="weight2">Weighted Sum v2 (exact)</option><option value="crucible">Crucible Passive Tree Path (unsupported)</option><option value="mercenary">Mercenary Skill Group (unsupported)</option></select> <input type="number" step="any" name="query.stats[0].value.min" placeholder="min" aria-label="group min"> <input type="number" step="any" name="query.stats[0].value.max" placeholder="max" aria-label="group max"></div>
 <div class="filter"><input class="stat-id" id="stat-0" name="query.stats[0].filters[0].id" size="28" placeholder="stat" aria-label="stat 1"> <input type="number" step="any" name="query.stats[0].filters[0].value.min" placeholder="min" aria-label="min"> <input type="number" step="any" name="query.stats[0].filters[0].value.max" placeholder="max" aria-label="max"> <span id="stat-0-text" class="fate"></span></div>
 <div class="filter"><input class="stat-id" id="stat-1" name="query.stats[0].filters[1].id" size="28" placeholder="stat" aria-label="stat 2"> <input type="number" step="any" name="query.stats[0].filters[1].value.min" placeholder="min" aria-label="min"> <input type="number" step="any" name="query.stats[0].filters[1].value.max" placeholder="max" aria-label="max"> <span id="stat-1-text" class="fate"></span></div>
