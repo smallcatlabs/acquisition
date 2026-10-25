@@ -80,9 +80,7 @@ pub async fn wait(
         let job = client.status(id).await.map_err(Fault::from_client)?;
         let terminal = job.state.is_terminal();
         if let Some(report) = progress.as_deref_mut() {
-            let children = if matches!(job.kind.as_str(), "apply" | "refresh")
-                && job.state != JobState::Waiting
-            {
+            let children = if job.kind == "apply" && job.state != JobState::Waiting {
                 Some(tally(client, job.id).await?)
             } else {
                 None
