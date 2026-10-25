@@ -66,7 +66,7 @@ GET refresh?realm=pc&league=Standard
 <main>
 <h1>Refresh</h1>
 <form method="get" action="refresh"><label class="control">Realm <select name="realm"><option selected>pc</option><option>xbox</option><option>sony</option><option>poe2</option></select></label> <label class="control">League <input name="league" value="Standard"></label> <button type="submit">Show</button></form>
-<form method="post" action="refresh/selected">
+<form method="get" action="plan">
 <input type="hidden" name="realm" value="pc"><input type="hidden" name="league" value="Standard">
 <pre>
 15 tabs in Standard: 7 fetched, 7 never fetched, 1 folder (never fetched); 18 items
@@ -92,11 +92,34 @@ GET refresh?realm=pc&league=Standard
 <label class="control"><input type="checkbox" name="deep" value="true"> the substashes box: also fetch a ticked map or unique tab's pages</label>
 <table>
 <tr><th></th><th>Character</th><th>Level</th><th>Items</th><th>Fetched</th></tr>
-<tr><td><input type="checkbox" name="character" value="StashHoarder"></td><td>StashHoarder</td><td>97</td><td>7</td><td><age> ago</td></tr>
-<tr><td><input type="checkbox" name="character" value="MuleQuadTab"></td><td>MuleQuadTab</td><td>12</td><td>5</td><td><age> ago</td></tr>
+<tr><td><input type="checkbox" name="character" value="fake0001"></td><td>StashHoarder</td><td>97</td><td>7</td><td><age> ago</td></tr>
+<tr><td><input type="checkbox" name="character" value="fake0002"></td><td>MuleQuadTab</td><td>12</td><td>5</td><td><age> ago</td></tr>
 </table>
-<button type="submit">Refresh selected</button> <button type="submit" formmethod="get" formaction="plan">Plan under the policy</button>
+<button type="submit" name="selected" value="yes">Refresh selected</button> <button type="submit">Plan under the policy</button>
 </form>
+
+</main>
+
+GET plan?<two tabs selected>
+# holds "a selection"
+# holds "fetch 2 tabs"
+# holds ">Apply</button>"
+<main>
+<h1>Plan</h1>
+<pre>
+refresh Standard on mock as ExileTester — a selection
+facts: stash listed <age> ago
+
+2 requests:
+  fetch 2 tabs      2 selected
+    cur1  Currency  selected
+    dump  Dump      selected
+
+quote (<age> ago):
+  stash-request-limit  2 requests — ready
+wire: 2–6 sends; plus first-contact probes and token refresh if needed
+</pre>
+<form method="post" action="apply"><input type="hidden" name="plan" value="<the plan envelope>"><button type="submit">Apply</button></form>
 
 </main>
 

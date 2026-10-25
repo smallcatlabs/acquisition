@@ -23,7 +23,7 @@ Commands:
   store         The shared store itself (what the daemon writes; every frontend reads)
   stashes       List stash tabs for a league: a second rate-limit policy, paced in parallel with the character routes
   stash         Fetch one stash tab (or one substash of a map/unique tab)
-  refresh       Refresh tabs: one stash-list request, then one `stash` child job per selected tab. Selection is explicit — there is no default. (The ad-hoc `--tabs`/`--all` kind and the plan path are two doors to one task; `acq web`'s ticked selection submits the ad-hoc kind too, so it stays while either submits it.) Keeping a league up to date is the plan path: `acq policy set` once, then `--plan` and `--apply` until the plan says nothing to do — a map or unique tab's substashes are known only once the tab is fetched, so a first sync takes two rounds, and each apply ends by saying what is left
+  refresh       Refresh tabs. `--tabs` and `--all` name a selection, compiled into a plan, printed and applied at once: each named tab fetched however fresh, under `--deep` a map or unique tab's pages on record with it. Selection is explicit — there is no default. Keeping a league up to date is the plan path: `acq policy set` once, then `--plan` and `--apply` until the plan says nothing to do — a map or unique tab's substashes are known only once the tab is fetched, so a first sync takes two rounds, and each apply ends by saying what is left
   policy        The per-account sync policy: the declared coverage and freshness that `acq refresh --plan` compiles into requests
   submit        Submit any job kind by hand
   demo          Submit a burst of fetch jobs against the mock's 5-per-10 s policy and watch the rate limiter queue them (the ETAs are the limiter's prediction, corrected by headers)
@@ -370,7 +370,7 @@ Options:
 ## `acq refresh`
 
 ```text
-Refresh tabs: one stash-list request, then one `stash` child job per selected tab. Selection is explicit — there is no default. (The ad-hoc `--tabs`/`--all` kind and the plan path are two doors to one task; `acq web`'s ticked selection submits the ad-hoc kind too, so it stays while either submits it.) Keeping a league up to date is the plan path: `acq policy set` once, then `--plan` and `--apply` until the plan says nothing to do — a map or unique tab's substashes are known only once the tab is fetched, so a first sync takes two rounds, and each apply ends by saying what is left
+Refresh tabs. `--tabs` and `--all` name a selection, compiled into a plan, printed and applied at once: each named tab fetched however fresh, under `--deep` a map or unique tab's pages on record with it. Selection is explicit — there is no default. Keeping a league up to date is the plan path: `acq policy set` once, then `--plan` and `--apply` until the plan says nothing to do — a map or unique tab's substashes are known only once the tab is fetched, so a first sync takes two rounds, and each apply ends by saying what is left
 
 Usage: acq refresh [OPTIONS]
 
@@ -382,7 +382,7 @@ Options:
           Comma-separated tab ids
 
       --deep
-          Also follow map/unique substashes (per tab, as child jobs)
+          With --tabs or --all: a named map or unique tab's pages on record are fetched with it
 
       --plan[=<FILE>]
           Compile the stored sync policy (`acq policy`) into the explicit action set and print it — nothing is submitted or sent. A running daemon adds its read-only quote. With --json, prints the serializable plan envelope. `--plan=FILE` (or `=-` for stdin) renders a reviewed envelope instead, through the same renderer, with the quote it carries

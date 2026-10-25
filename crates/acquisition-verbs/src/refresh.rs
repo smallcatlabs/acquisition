@@ -10,7 +10,8 @@ use std::time::Duration;
 
 use acquisition_client::client::{Client, Observed};
 use acquisition_plan::{
-    PlanNotes, RefreshPlan, Spent, SpentBy, apply_params_of, plan_notes, plan_refresh,
+    PlanNotes, PlanSelection, RefreshPlan, Spent, SpentBy, apply_params_of, plan_notes,
+    plan_refresh, plan_selection,
 };
 use acquisition_protocol::job::{JobInfo, Outcome};
 use acquisition_protocol::protocol::{QuoteJob, Request, Response};
@@ -401,9 +402,42 @@ impl Opened {
         Ok(planned)
     }
 
+    /// C44 as amended: an explicit selection compiled into a plan for one
+    /// (realm, league) over the same snapshot, with no stored policy.
+    pub fn compile_selection(
+        &self,
+        realm: Realm,
+        league: &str,
+        selection: &PlanSelection,
+        now: i64,
+    ) -> Result<RefreshPlan, Fault> {
+        let snapshot = self.snapshot(realm, league)?;
+        plan_selection(self.account.frontend.provider, &snapshot, selection, now)
+            .map_err(Fault::from)
+    }
+
+    /// The selection compiled, then a running daemon's quote, as
+    /// [`Opened::plan`] is for the policy: the page's "Refresh selected"
+    /// and the CLI's `refresh --tabs` land here.
+    pub async fn plan_selection(
+        &mut self,
+        realm: Realm,
+        league: &str,
+        selection: &PlanSelection,
+    ) -> Result<Planned, Fault> {
+        let plan = self.compile_selection(realm, league, selection, acquisition_store::now())?;
+        self.account.frontend.same_world();
+        Ok(quote(plan).await)
+    }
+
     /// What a plan compiled now over the facts would fetch: `None` when
-    /// the compile fails, the apply's own answer standing without it.
+    /// the compile fails, the apply's own answer standing without it, and
+    /// for a selection plan, whose own selection would fetch it all again
+    /// by name, so no count of it says what is left.
     fn remaining(&self, plan: &RefreshPlan) -> Option<u64> {
+        if plan.basis.selection.is_some() {
+            return None;
+        }
         self.snapshot(plan.realm, &plan.league)
             .ok()
             .and_then(|snapshot| {

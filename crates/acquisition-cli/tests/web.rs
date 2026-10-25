@@ -204,13 +204,8 @@ fn c138_the_listener_answers_its_own_pages_alone() {
             403,
         ),
         ("GET", &format!("/{token}/apply"), None, vec![], 405),
-        (
-            "GET",
-            &format!("/{token}/refresh/selected"),
-            None,
-            vec![],
-            405,
-        ),
+        // a page route takes no post
+        ("POST", &format!("/{token}/plan"), None, vec![], 405),
     ];
     for (method, path, host, headers, status) in &cases {
         let reply = web.raw(method, path, *host, headers, "");
@@ -516,8 +511,8 @@ fn the_moved_world_renders_with_a_badge() {
 /// The refresh loop through the pages, over the mock: the plan page with
 /// its quote, apply posting the envelope whole, the jobs page until every
 /// job is done, the same envelope posted again sending nothing (C111), a
-/// ticked selection submitting what `refresh --tabs` submits, and a plan
-/// whose policy moved refused (C44).
+/// ticked selection compiled into the plan `refresh --tabs` applies, and
+/// a plan whose policy moved refused (C44).
 #[test]
 fn the_refresh_loop_runs_through_the_pages() {
     let scratch = harness::scratch("webloop");
@@ -591,40 +586,50 @@ fn the_refresh_loop_runs_through_the_pages() {
             "{unticked} carries a checkbox"
         );
     }
-    let selected = web.post(
-        "refresh/selected",
-        &[
-            ("realm", "pc"),
-            ("league", "Standard"),
-            ("tab", "dump"),
-            ("tab", "cur1"),
-        ],
+    // a ticked selection is a plan (C44 as amended): its page, then the
+    // one apply route; `refresh --tabs` compiles and applies the same
+    // a fetch landing in the second a plan's snapshot is taken spends its
+    // action (C111, whole-second stamps): each selection is compiled in a
+    // second after the last fetch of its tabs
+    next_second();
+    let selected = web.get("plan?realm=pc&league=Standard&selected=yes&tab=dump&tab=cur1");
+    assert_eq!(selected.status, 200, "{}", selected.body);
+    pages.page(
+        "GET plan?<two tabs selected>",
+        &selected,
+        &["a selection", "fetch 2 tabs", ">Apply</button>"],
     );
-    assert_eq!(selected.status, 303, "{}", selected.body);
+    let applied = web.post("apply", &[("plan", &hidden_plan(&selected.body))]);
+    assert_eq!(applied.status, 303, "{}", applied.body);
     until_done(&web);
+    next_second();
     let out = harness::acq(&base, &["refresh", "--tabs", "dump,cur1"]);
     assert!(out.status.success(), "{out:?}");
     let listed = sole_json(&harness::acq(&base, &["jobs", "--all", "--json"]));
-    let refreshes: Vec<&Value> = listed
+    let applies: Vec<&Value> = listed
         .as_array()
         .unwrap()
         .iter()
-        .filter(|j| j["kind"] == "refresh")
+        .filter(|j| j["kind"] == "apply")
         .collect();
-    assert_eq!(refreshes.len(), 2, "{refreshes:?}");
+    let (page, cli) = (&applies[applies.len() - 2], &applies[applies.len() - 1]);
     assert!(
-        refreshes[0]["submitted_by"]
-            .as_str()
-            .unwrap()
-            .starts_with("web:")
+        page["submitted_by"].as_str().unwrap().starts_with("web:"),
+        "{page}"
     );
     assert!(
-        refreshes[1]["submitted_by"]
-            .as_str()
-            .unwrap()
-            .starts_with("cli:")
+        cli["submitted_by"].as_str().unwrap().starts_with("cli:"),
+        "{cli}"
     );
-    assert_eq!(refreshes[0]["params"], refreshes[1]["params"]);
+    assert_eq!(page["params"]["jobs"], cli["params"]["jobs"]);
+    assert!(
+        listed
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|j| j["kind"] != "refresh"),
+        "no ad-hoc refresh job"
+    );
 
     let moved = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":["dump"],"max_age_seconds":3600}}}}}"#;
     assert!(
@@ -697,10 +702,10 @@ fn probes_in_order(mut jobs: harness::Reply) -> harness::Reply {
 
 /// The served account, named on every submit (the review of 4b, its
 /// first finding): a server started over Alice, the sole account on disk,
-/// keeps submitting as Alice after Alice logs out and Bob logs in — the
-/// daemon's sole live session — so the submit is refused for Alice and
-/// no job runs as Bob; with both logged in, where a submit naming no
-/// account would be ambiguous, the job is Alice's.
+/// keeps applying as Alice after Alice logs out and Bob logs in — the
+/// daemon's sole live session — so the apply of a selection's plan is
+/// refused for Alice and no job runs as Bob; with both logged in, where a
+/// submit naming no account would be ambiguous, the job is Alice's.
 #[test]
 fn a_selection_submits_as_the_served_account_whatever_the_daemon_holds() {
     let scratch = harness::scratch("webacct");
@@ -710,8 +715,10 @@ fn a_selection_submits_as_the_served_account_whatever_the_daemon_holds() {
     let out = harness::acq(&base, &["auth", "logout", "--account", "Alice"]);
     assert!(out.status.success(), "{out:?}");
     harness::login(&base, "Bob");
-    let selection = [("realm", "pc"), ("league", "Standard"), ("tab", "dump")];
-    let refused = web.post("refresh/selected", &selection);
+    let plan = web.get("plan?realm=pc&league=Standard&selected=yes&tab=dump");
+    assert_eq!(plan.status, 200, "{}", plan.body);
+    let envelope = hidden_plan(&plan.body);
+    let refused = web.post("apply", &[("plan", &envelope)]);
     assert_eq!(refused.status, 400, "{}", refused.body);
     assert!(refused.body.contains("Alice"), "{}", refused.body);
     let jobs = |base: &Path| -> Vec<Value> {
@@ -719,17 +726,33 @@ fn a_selection_submits_as_the_served_account_whatever_the_daemon_holds() {
             .as_array()
             .unwrap()
             .iter()
-            .filter(|j| j["kind"] == "refresh")
+            .filter(|j| j["kind"] == "apply")
             .cloned()
             .collect()
     };
     assert!(jobs(&base).is_empty(), "{:?}", jobs(&base));
     harness::login(&base, "Alice");
-    let submitted = web.post("refresh/selected", &selection);
+    let submitted = web.post("apply", &[("plan", &envelope)]);
     assert_eq!(submitted.status, 303, "{}", submitted.body);
-    let refreshes = jobs(&base);
-    assert_eq!(refreshes.len(), 1, "{refreshes:?}");
-    assert_eq!(refreshes[0]["account"], "Alice", "{}", refreshes[0]);
+    let applies = jobs(&base);
+    assert_eq!(applies.len(), 1, "{applies:?}");
+    assert_eq!(applies[0]["account"], "Alice", "{}", applies[0]);
     drop(web);
     assert!(harness::acq(&base, &["daemon", "stop"]).status.success());
+}
+
+/// Wait for the clock's next whole second: what a plan's snapshot is
+/// compared in (C111). No bound is asserted; the wait ends when the
+/// second turns (C137).
+fn next_second() {
+    let second = || {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs()
+    };
+    let now = second();
+    while second() == now {
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
 }

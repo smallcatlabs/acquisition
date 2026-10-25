@@ -16,8 +16,8 @@
 //!   Here: the token is every route's first path segment, so a request
 //!   without it meets no route; the guard compares the Host header with
 //!   the bound address and an Origin, where one is sent, with the
-//!   server's own, before any route runs; the two mutating routes are
-//!   POST routes alone, so a GET on one is refused by its method; no
+//!   server's own, before any route runs; the one mutating route, apply,
+//!   is a POST route alone, so a GET on it is refused by its method; no
 //!   response carries an `Access-Control-*` header. Every response says
 //!   `Referrer-Policy: same-origin`: the browser's fetch of an item's art
 //!   (C140) carries no referrer, so the token never reaches the image
@@ -200,7 +200,6 @@ pub(crate) async fn web(account: Option<String>, no_browser: bool, json: bool) -
         .route(&at("/item/{id}"), get(item))
         .route(&at("/stats"), get(stats))
         .route(&at("/refresh"), get(tabs))
-        .route(&at("/refresh/selected"), post(selected))
         .route(&at("/plan"), get(plan))
         .route(&at("/apply"), post(apply))
         .route(&at("/jobs"), get(jobs))
@@ -574,7 +573,7 @@ async fn tabs(
         esc(&league)
     );
     body.push_str(&format!(
-        "<form method=\"post\" action=\"refresh/selected\">\n<input type=\"hidden\" name=\"realm\" value=\"{}\"><input type=\"hidden\" name=\"league\" value=\"{}\">\n",
+        "<form method=\"get\" action=\"plan\">\n<input type=\"hidden\" name=\"realm\" value=\"{}\"><input type=\"hidden\" name=\"league\" value=\"{}\">\n",
         esc(realm.as_str()),
         esc(&league)
     ));
@@ -612,7 +611,7 @@ async fn tabs(
         for c in &characters {
             body.push_str(&format!(
                 "<tr><td><input type=\"checkbox\" name=\"character\" value=\"{}\"></td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>\n",
-                esc(&c.name),
+                esc(&c.id),
                 esc(&c.name),
                 c.level.map(|l| l.to_string()).unwrap_or_default(),
                 esc(&store_cmd::items_cell(c.fetched_at, c.item_count)),
@@ -621,12 +620,12 @@ async fn tabs(
         }
         body.push_str("</table>\n");
     }
-    body.push_str("<button type=\"submit\">Refresh selected</button> <button type=\"submit\" formmethod=\"get\" formaction=\"plan\">Plan under the policy</button>\n</form>\n");
+    body.push_str("<button type=\"submit\" name=\"selected\" value=\"yes\">Refresh selected</button> <button type=\"submit\">Plan under the policy</button>\n</form>\n");
     web.page("Refresh", Head::default(), &body)
 }
 
 /// Why a tab row carries no checkbox, where it carries none: a checkbox
-/// stands only where the ad-hoc refresh can act, on a tab its stash
+/// stands only where a selection names a tab to fetch, a tab its stash
 /// listing names (a folder's children among them). A folder holds tabs
 /// and no items, and a map or unique tab's page is fetched under its tab
 /// with the substashes box (the review of 4b, its second finding).
@@ -643,71 +642,6 @@ fn unticked(tab: &acquisition_store::TabRow, rows: &[acquisition_store::TabRow])
     })
 }
 
-/// "Refresh selected" (Do 7): the ad-hoc `refresh` kind with the ticked
-/// tabs, as `refresh --tabs` submits it, and a `character` job per
-/// ticked character, as `acq character` does, through the human door.
-async fn selected(
-    State(web): State<Arc<Web>>,
-    headers: HeaderMap,
-    Form(fields): Form<Vec<(String, String)>>,
-) -> Response {
-    let realm = match realm_of(&fields) {
-        Ok(realm) => realm,
-        Err(failure) => return web.failed("Refresh", &failure, &headers),
-    };
-    let league = pick(&fields, "league").unwrap_or(acquisition_plan::DEFAULT_LEAGUE);
-    let named = |name: &str| -> Vec<String> {
-        fields
-            .iter()
-            .filter(|(k, v)| k == name && !v.is_empty())
-            .map(|(_, v)| v.clone())
-            .collect()
-    };
-    let (tabs, characters) = (named("tab"), named("character"));
-    if tabs.is_empty() && characters.is_empty() {
-        let failure = Failure::Other(anyhow::anyhow!(
-            "nothing is selected: tick a tab or a character to refresh it"
-        ));
-        return web.failed("Refresh", &failure, &headers);
-    }
-    let deep = pick(&fields, "deep").is_some();
-    let submitted = async {
-        let mut client = crate::connect(&web.cx).await?;
-        // the account the pages show, named on every submit: never the
-        // daemon's own pick, which can differ from the served one once a
-        // login comes or goes while the server runs
-        let account = Some(web.account.entry.username.as_str());
-        if !tabs.is_empty() {
-            acquisition_verbs::jobs::submit(
-                &web.cx.frontend,
-                &mut client,
-                "refresh",
-                crate::refresh_params(realm, league, false, &tabs, deep),
-                0,
-                account,
-            )
-            .await?;
-        }
-        for name in &characters {
-            acquisition_verbs::jobs::submit(
-                &web.cx.frontend,
-                &mut client,
-                "character",
-                crate::character_params(realm, name),
-                0,
-                account,
-            )
-            .await?;
-        }
-        anyhow::Ok(())
-    }
-    .await;
-    match submitted {
-        Ok(()) => to_jobs(&web),
-        Err(e) => web.failed("Refresh", &Failure::Other(e), &headers),
-    }
-}
-
 fn to_jobs(web: &Web) -> Response {
     let mut response = StatusCode::SEE_OTHER.into_response();
     if let Ok(location) = HeaderValue::from_str(&format!("/{}/jobs", web.token)) {
@@ -716,8 +650,9 @@ fn to_jobs(web: &Web) -> Response {
     response
 }
 
-/// "Plan under the policy" (Do 7): `Opened::plan` rendered as `--plan`
-/// renders it, the envelope whole in a hidden field beside "Apply".
+/// The plan page (Do 7): a selection's plan or the stored policy's,
+/// rendered as `--plan` renders one, the envelope whole in a hidden field
+/// beside "Apply".
 async fn plan(
     State(web): State<Arc<Web>>,
     headers: HeaderMap,
@@ -730,9 +665,39 @@ async fn plan(
     let league = pick(&fields, "league")
         .unwrap_or(acquisition_plan::DEFAULT_LEAGUE)
         .to_string();
+    // "Refresh selected" (C44 as amended): the ticked tabs and characters
+    // compiled into a selection plan; "Plan under the policy": the stored
+    // policy's. Either lands here, and apply is the one apply route.
+    let selection = pick(&fields, "selected").map(|_| {
+        let named = |name: &str| -> Vec<String> {
+            fields
+                .iter()
+                .filter(|(k, v)| k == name && !v.is_empty())
+                .map(|(_, v)| v.clone())
+                .collect()
+        };
+        acquisition_plan::PlanSelection {
+            tabs: Some(acquisition_plan::Selection::Ids(named("tab")))
+                .filter(|t| !matches!(t, acquisition_plan::Selection::Ids(ids) if ids.is_empty())),
+            characters: named("character"),
+            deep: pick(&fields, "deep").is_some(),
+        }
+    });
+    if let Some(selection) = &selection
+        && selection.tabs.is_none()
+        && selection.characters.is_empty()
+    {
+        let failure = Failure::Other(anyhow::anyhow!(
+            "nothing is selected: tick a tab or a character to refresh it"
+        ));
+        return web.failed("Plan", &failure, &headers);
+    }
     let planned = async {
         let mut opened = web.account.open()?;
-        opened.plan(realm, &league).await
+        match &selection {
+            Some(selection) => opened.plan_selection(realm, &league, selection).await,
+            None => opened.plan(realm, &league).await,
+        }
     }
     .await;
     let planned = match planned {

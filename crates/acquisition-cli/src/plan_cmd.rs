@@ -354,6 +354,58 @@ pub async fn refresh_apply(
         )?,
     };
     check_flags(&plan, realm_flag, league_flag)?;
+    apply_plan(&mut opened, &plan, max_requests, json).await
+}
+
+/// `acq refresh --tabs` and `--all` (C44 as amended): the selection
+/// compiled into a plan — quoted by a running daemon, printed as `--plan`
+/// prints one — and applied through the one apply road `--apply` takes.
+/// `--json` prints the apply's document alone, as `--apply --json` does.
+pub async fn refresh_selection(
+    cx: &Ctx,
+    realm: Realm,
+    league: &str,
+    tabs: acquisition_plan::Selection,
+    deep: bool,
+    json: bool,
+) -> Result<()> {
+    let mut opened = cx.account()?.open()?;
+    let selection = acquisition_plan::PlanSelection {
+        tabs: Some(tabs),
+        characters: Vec::new(),
+        deep,
+    };
+    let Planned {
+        plan,
+        quote_note,
+        notes,
+    } = opened.plan_selection(realm, league, &selection).await?;
+    if !json {
+        print!(
+            "{}",
+            render_plan(
+                &plan,
+                quote_note.as_ref(),
+                &notes,
+                acquisition_store::now(),
+                false,
+                None
+            )
+        );
+    }
+    apply_plan(&mut opened, &plan, None, json).await
+}
+
+/// A plan applied through the layer (C38, C44, C111) and what landed
+/// said: the one road every apply takes, a reviewed file's, the stored
+/// policy's compiled now, and a selection's.
+async fn apply_plan(
+    opened: &mut acquisition_verbs::Opened,
+    plan: &RefreshPlan,
+    max_requests: Option<u64>,
+    json: bool,
+) -> Result<()> {
+    let plan = plan.clone();
     let mut slot = None;
     let applied = opened.apply(&plan, max_requests, &mut slot).await;
     if let Some(client) = &slot {

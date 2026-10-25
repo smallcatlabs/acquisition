@@ -321,11 +321,10 @@ enum Cmd {
         #[arg(long, default_value = "pc", value_parser = acquisition_verbs::realm)]
         realm: Realm,
     },
-    /// Refresh tabs: one stash-list request, then one `stash` child job per
-    /// selected tab. Selection is explicit — there is no default. (The
-    /// ad-hoc `--tabs`/`--all` kind and the plan path are two doors to one
-    /// task; `acq web`'s ticked selection submits the ad-hoc kind too, so
-    /// it stays while either submits it.) Keeping a league up to date is the
+    /// Refresh tabs. `--tabs` and `--all` name a selection, compiled into
+    /// a plan, printed and applied at once: each named tab fetched however
+    /// fresh, under `--deep` a map or unique tab's pages on record with it.
+    /// Selection is explicit — there is no default. Keeping a league up to date is the
     /// plan path: `acq policy set` once, then `--plan` and `--apply` until
     /// the plan says nothing to do — a map or unique tab's substashes are
     /// known only once the tab is fetched, so a first sync takes two
@@ -346,7 +345,8 @@ is the per-location summary.")]
         /// Comma-separated tab ids.
         #[arg(long, value_delimiter = ',')]
         tabs: Vec<String>,
-        /// Also follow map/unique substashes (per tab, as child jobs).
+        /// With --tabs or --all: a named map or unique tab's pages on record
+        /// are fetched with it.
         #[arg(long)]
         deep: bool,
         /// Compile the stored sync policy (`acq policy`) into the explicit
@@ -1217,20 +1217,21 @@ async fn run(cli: Cli) -> Result<()> {
             if !all && tabs.is_empty() {
                 bail!("refresh needs --all, --tabs <id,...>, --plan, or --apply");
             }
-            let league = league
-                .as_deref()
-                .unwrap_or(acquisition_plan::DEFAULT_LEAGUE);
-            let realm = realm.unwrap_or(Realm::DEFAULT);
-            let mut client = connect(cx).await?;
-            let id = submit(
+            plan_cmd::refresh_selection(
                 cx,
-                &mut client,
-                "refresh".into(),
-                refresh_params(realm, league, all, &tabs, deep),
-                0,
+                realm.unwrap_or(Realm::DEFAULT),
+                league
+                    .as_deref()
+                    .unwrap_or(acquisition_plan::DEFAULT_LEAGUE),
+                if all {
+                    acquisition_plan::Selection::All
+                } else {
+                    acquisition_plan::Selection::Ids(tabs)
+                },
+                deep,
+                cli.json,
             )
-            .await?;
-            block_on_job(&mut client, id, cli.json).await
+            .await
         }
         Cmd::Price { cmd } => match cmd.unwrap_or(PriceCmd::Status {
             league: acquisition_plan::pricing::DEFAULT_LEAGUE.into(),
@@ -1941,21 +1942,7 @@ pub(crate) fn open_browser(url: &str) -> bool {
         .is_ok()
 }
 
-/// The ad-hoc `refresh` job's params, as `refresh --tabs` and `--all`
-/// submit them and the web UI's selection does (C139): one maker, so the
-/// two submitters cannot drift.
-pub(crate) fn refresh_params(
-    realm: Realm,
-    league: &str,
-    all: bool,
-    tabs: &[String],
-    deep: bool,
-) -> serde_json::Value {
-    json!({ "realm": realm, "league": league, "all": all, "tabs": tabs, "deep": deep })
-}
-
-/// The `character` job's params, as `acq character` submits them and the
-/// web UI's selection does.
+/// The `character` job's params, as `acq character` submits them.
 pub(crate) fn character_params(realm: Realm, name: &str) -> serde_json::Value {
     json!({ "realm": realm, "name": name })
 }
@@ -2490,8 +2477,8 @@ mod tests {
 
     #[test]
     fn refresh_plan_conflicts_with_the_execute_selectors() {
-        // `--plan` compiles the stored policy; --all/--tabs/--deep are the
-        // ad-hoc execution path. Mixing them must be a parse error, not a
+        // `--plan` compiles the stored policy; --all/--tabs/--deep name a
+        // selection, compiled and applied at once. Mixing them must be a parse error, not a
         // silently ignored flag.
         for bad in [
             vec!["acq", "refresh", "--plan", "--all"],
@@ -2538,7 +2525,7 @@ mod tests {
 
     #[test]
     fn refresh_apply_conflicts_with_every_other_mode_and_owns_max_requests() {
-        // `--apply` executes a plan; the ad-hoc selectors and `--plan`
+        // `--apply` executes a plan; the selection's flags and `--plan`
         // are different modes, and `--max-requests` is meaningless
         // without an apply to budget.
         for bad in [
