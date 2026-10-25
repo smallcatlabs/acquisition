@@ -181,3 +181,83 @@ fn a_selection_narrows_the_rows_under_the_leagues_counts() {
     assert_eq!(unfetched.words(), "never-fetched tabs");
     assert_eq!(never.words(), "never-fetched UniqueStash tabs");
 }
+
+/// The document's groups (the 4b sitting round's review, its fourth
+/// finding): asked, each listed tab is a group in the rows' order, a map
+/// tab's pages nested under it, a folder's children tabs of their own;
+/// unasked, no `groups` key, the flat answer unchanged.
+#[test]
+fn a_map_tabs_pages_are_grouped_under_it_when_asked() {
+    use acquisition_store::Endpoint;
+    let mut s = store();
+    list_tabs(
+        &mut s,
+        "pc",
+        "Standard",
+        json!([
+            { "id": "m1", "name": "Maps", "type": "MapStash" },
+            { "id": "f1", "name": "Old", "type": "Folder", "children": [
+                { "id": "c1", "name": "Old 1", "type": "PremiumStash" } ] },
+            tab("t1", "Rings"),
+        ]),
+        10,
+    );
+    s.record(
+        &Endpoint::Stash {
+            realm: "pc".into(),
+            league: "Standard".into(),
+            id: "m1".into(),
+            sub: None,
+        },
+        &json!({ "realm": "pc", "league": "Standard" }),
+        200,
+        &json!({ "stash": { "id": "m1", "name": "Maps", "type": "MapStash", "items": [], "children": [
+            { "id": "s1", "name": "", "type": "MapStash", "parent": "m1", "metadata": { "items": 2 } },
+            { "id": "s2", "name": "", "type": "MapStash", "parent": "m1", "metadata": { "items": 1 } } ] } }),
+        20,
+    )
+    .unwrap();
+    let rows = s.tabs("pc", "Standard").unwrap();
+    let flat = serde_json::to_value(Tabs::of(
+        "pc",
+        "Standard",
+        rows.clone(),
+        &Selection::default(),
+        true,
+    ))
+    .unwrap();
+    assert!(flat.get("groups").is_none(), "{flat}");
+    let grouped = serde_json::to_value(
+        Tabs::of("pc", "Standard", rows, &Selection::default(), true).grouped(),
+    )
+    .unwrap();
+    assert_eq!(grouped["rows"], flat["rows"], "the flat rows stand");
+    let groups: Vec<(String, Vec<String>)> = grouped["groups"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|g| {
+            (
+                g["tab"]["id"].as_str().unwrap().to_string(),
+                g.get("pages")
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+                    .map(|p| p["id"].as_str().unwrap().to_string())
+                    .collect(),
+            )
+        })
+        .collect();
+    let id = |s: &str| s.to_string();
+    assert!(
+        groups.contains(&(id("m1"), vec![id("s1"), id("s2")])),
+        "{groups:?}"
+    );
+    for alone in ["f1", "c1", "t1"] {
+        assert!(
+            groups.contains(&(id(alone), Vec::new())),
+            "{alone}: {groups:?}"
+        );
+    }
+    assert_eq!(groups.len(), 4, "{groups:?}");
+}

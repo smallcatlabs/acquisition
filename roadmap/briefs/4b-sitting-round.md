@@ -161,8 +161,12 @@ In this order; one commit per concern; the gate before each commit.
    - On the refresh page the stash list and the character list are
      each a `details` group with a summary carrying the count, open by
      default; inside the stash list each map or unique tab is a
-     `details` group holding its substash rows, closed by default.
-     No script. Golden.
+     `details` group holding its substash rows, closed by default. The
+     `tabs` document groups (each map or unique tab's pages nested under
+     it, made where the document is made and pinned there); the page
+     renders the groups it is given and computes no membership
+     (corrected after the round's review, its fourth finding). No
+     script. Golden.
 5. **A shared answer speaks the request's words, and shared parsing
    lives in the shared crate** (stops 1 and 2; C143).
    - Every refusal in the search crate that names a flag is reworded

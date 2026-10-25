@@ -537,7 +537,8 @@ async fn tabs(
             facts.tabs(realm.as_str(), &league)?,
             &acquisition_search::tabs::Selection::default(),
             true,
-        );
+        )
+        .grouped();
         let characters = facts.characters(Some(realm.as_str()), Some(&league))?;
         let empty = (listed.tabs == 0).then(|| store_cmd::no_tabs_text(realm, &league, &facts));
         let leagues = web.leagues(realm.as_str())?;
@@ -584,14 +585,9 @@ async fn tabs(
                 "<details class=\"list\" open><summary>Stash tabs ({})</summary>\n<table>\n<tr><th></th><th>Tab</th><th>Type</th><th>Items</th><th>Fetched</th></tr>\n",
                 listed.rows.len()
             ));
-            let row = |tab: &acquisition_store::TabRow| {
-                let tick = match unticked(tab, &listed.rows) {
-                    None => format!(
-                        "<input type=\"checkbox\" name=\"tab\" value=\"{}\">",
-                        esc(&tab.id)
-                    ),
-                    Some(said) => format!("<span class=\"fate\">{}</span>", esc(&said)),
-                };
+            // the document's groups, rendered as given (the sitting round's
+            // review, its fourth finding): a tab and, nested, its pages
+            let row = |tab: &acquisition_store::TabRow, tick: String| {
                 format!(
                     "<tr><td>{tick}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>\n",
                     esc(&tab.name),
@@ -600,28 +596,32 @@ async fn tabs(
                     esc(&store_cmd::ago(now, tab.fetched_at))
                 )
             };
-            let page_of = |tab: &acquisition_store::TabRow| {
-                tab.parent.as_ref().is_some_and(|p| {
-                    listed.rows.iter().any(|r| {
-                        &r.id == p && matches!(r.r#type.as_str(), "MapStash" | "UniqueStash")
-                    })
-                })
-            };
-            for tab in listed.rows.iter().filter(|t| !page_of(t)) {
-                body.push_str(&row(tab));
-                let pages: Vec<&acquisition_store::TabRow> = listed
-                    .rows
-                    .iter()
-                    .filter(|p| p.parent.as_ref() == Some(&tab.id) && page_of(p))
-                    .collect();
-                if !pages.is_empty() {
+            let said = |words: &str| format!("<span class=\"fate\">{}</span>", esc(words));
+            for group in &listed.groups {
+                let tab = &group.tab;
+                // a checkbox stands only where a selection can name the
+                // tab: never on a folder, which holds tabs and no items
+                let tick = if tab.r#type == "Folder" {
+                    said("a folder holds tabs, not items: tick the tabs in it")
+                } else {
+                    format!(
+                        "<input type=\"checkbox\" name=\"tab\" value=\"{}\">",
+                        esc(&tab.id)
+                    )
+                };
+                body.push_str(&row(tab, tick));
+                if !group.pages.is_empty() {
                     body.push_str(&format!(
                         "<tr><td></td><td colspan=\"4\"><details class=\"pages\"><summary>{} pages of {}</summary>\n<table>\n",
-                        pages.len(),
+                        group.pages.len(),
                         esc(&tab.name)
                     ));
-                    for page in pages {
-                        body.push_str(&row(page));
+                    let page_said = said(&format!(
+                        "a page of {}: tick {} with the substashes box",
+                        tab.name, tab.name
+                    ));
+                    for page in &group.pages {
+                        body.push_str(&row(page, page_said.clone()));
                     }
                     body.push_str("</table>\n</details></td></tr>\n");
                 }
@@ -653,24 +653,6 @@ async fn tabs(
     }
     body.push_str("<button type=\"submit\" name=\"selected\" value=\"yes\">Refresh selected</button> <button type=\"submit\">Plan under the policy</button>\n</form>\n");
     web.page("Refresh", Head::default(), &body)
-}
-
-/// Why a tab row carries no checkbox, where it carries none: a checkbox
-/// stands only where a selection names a tab to fetch, a tab its stash
-/// listing names (a folder's children among them). A folder holds tabs
-/// and no items, and a map or unique tab's page is fetched under its tab
-/// with the substashes box (the review of 4b, its second finding).
-fn unticked(tab: &acquisition_store::TabRow, rows: &[acquisition_store::TabRow]) -> Option<String> {
-    if tab.r#type == "Folder" {
-        return Some("a folder holds tabs, not items: tick the tabs in it".to_string());
-    }
-    let parent = rows.iter().find(|r| Some(&r.id) == tab.parent.as_ref())?;
-    (parent.r#type != "Folder").then(|| {
-        format!(
-            "a page of {}: tick {} with the substashes box",
-            parent.name, parent.name
-        )
-    })
 }
 
 /// "Fetch the league list" (the 4b sitting round, Do 3): the `leagues`

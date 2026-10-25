@@ -68,6 +68,22 @@ pub struct Tabs {
     /// What lists them: the request's `expand`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub left_out_needs: Option<&'static str>,
+    /// `rows` grouped, where a reader asks for groups ([`Tabs::grouped`]):
+    /// each listed tab in order with the pages of it that are listed
+    /// nested under it, a page in no listed tab a group of its own. Empty,
+    /// and left out, unless asked, so the flat answer is the same.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub groups: Vec<TabGroup>,
+}
+
+/// One listed tab and its pages (the 4b sitting round): a map or unique
+/// tab with the pages of it the listing names, in their order; any other
+/// tab with none.
+#[derive(Debug, Clone, Serialize)]
+pub struct TabGroup {
+    pub tab: TabRow,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub pages: Vec<TabRow>,
 }
 
 /// Which of a league's tabs `rows` may hold: of one type (GGG's,
@@ -168,7 +184,46 @@ impl Tabs {
             rows,
             left_out,
             left_out_needs: (left_out > 0).then_some("expand"),
+            groups: Vec::new(),
         }
+    }
+
+    /// The document with its rows grouped (`groups`): a page — a row
+    /// whose parent is a map or unique tab among the rows — is nested
+    /// under that tab, and every other row is a group in the rows' order.
+    /// A folder's children are tabs of their own, never its pages. The
+    /// web UI's refresh page renders these groups and computes none
+    /// (the sitting round's review, its fourth finding).
+    pub fn grouped(mut self) -> Tabs {
+        let container = |id: &str| {
+            self.rows
+                .iter()
+                .any(|r| r.id == id && matches!(r.r#type.as_str(), "MapStash" | "UniqueStash"))
+        };
+        let page_of = |row: &TabRow| {
+            row.parent
+                .as_deref()
+                .filter(|p| container(p))
+                .map(str::to_string)
+        };
+        let mut groups: Vec<TabGroup> = Vec::new();
+        let mut pages: Vec<(String, TabRow)> = Vec::new();
+        for row in &self.rows {
+            match page_of(row) {
+                Some(parent) => pages.push((parent, row.clone())),
+                None => groups.push(TabGroup {
+                    tab: row.clone(),
+                    pages: Vec::new(),
+                }),
+            }
+        }
+        for (parent, page) in pages {
+            if let Some(group) = groups.iter_mut().find(|g| g.tab.id == parent) {
+                group.pages.push(page);
+            }
+        }
+        self.groups = groups;
+        self
     }
 }
 
