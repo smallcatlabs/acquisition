@@ -322,7 +322,7 @@ fn explain_beside_a_count_a_cross_or_a_sort_is_an_authoring_error() {
             "view",
             "{count:?} {cross:?} {sort:?}: {e}"
         );
-        assert!(e.message.contains("--explain"), "{e}");
+        assert!(e.message.contains("`explain`"), "{e}");
     }
     // alone it is the view, whatever limit an adapter always sends
     let view = Shape::of(None, None, None, path(), Rows::default()).unwrap();
@@ -755,7 +755,7 @@ fn explain_beside_a_sum_is_an_authoring_error() {
     )
     .unwrap_err();
     assert_eq!(serde_json::to_value(e.kind).unwrap(), "view");
-    assert!(e.message.contains("--explain"), "{e}");
+    assert!(e.message.contains("`explain`"), "{e}");
 }
 
 /// An explained answer has no zero block: explain is asked of a zero
@@ -801,8 +801,45 @@ fn explain_beside_the_corpus_context_is_an_authoring_error_naming_both() {
     assert_eq!(e["kind"], "view", "{e}");
     let message = e["error"].as_str().unwrap();
     assert!(
-        message.contains("--explain") && message.contains("--context corpus"),
+        message.contains("`explain`") && message.contains("`corpus` context"),
         "{e}"
     );
     assert!(request.check().is_err());
+}
+
+/// C143, a shared refusal speaks the request's words: every refusal the
+/// view selection gives names the view's fields — `sort`, `count`,
+/// `cross`, `sum`, `explain` — never a frontend's flag, so one wording
+/// holds on a page, in an MCP result and at a terminal.
+#[test]
+fn c143_the_view_selections_refusals_name_the_requests_fields() {
+    use acquisition_search::answer::{Rows, Shape};
+    let keys = || Some(vec!["tab".to_string()]);
+    let path = || Some("0".to_string());
+    let sorted = Rows {
+        sort: Some("ilvl".to_string()),
+        ..Rows::default()
+    };
+    for (refused, field) in [
+        (
+            Shape::of(keys(), None, None, None, sorted.clone()),
+            "`sort`",
+        ),
+        (
+            Shape::of(keys(), keys(), None, None, Rows::default()),
+            "`count`",
+        ),
+        (
+            Shape::of(None, None, Some("ilvl".into()), None, Rows::default()),
+            "`sum`",
+        ),
+        (
+            Shape::of(keys(), None, None, path(), Rows::default()),
+            "`explain`",
+        ),
+    ] {
+        let e = refused.unwrap_err();
+        assert!(e.message.contains(field), "{}", e.message);
+        assert!(!e.message.contains("--"), "a flag in: {}", e.message);
+    }
 }

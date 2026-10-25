@@ -634,10 +634,7 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
             let near = bind::near(name, &words);
             return Err(LanguageError::new(
                 ErrorKind::UnknownName,
-                format!(
-                    "`{name}` is nothing `--describe` knows: {}",
-                    words.join(", ")
-                ),
+                format!("`{name}` is nothing describe knows: {}", words.join(", ")),
             )
             .with_readings(near.into_iter().map(str::to_string).collect()));
         }

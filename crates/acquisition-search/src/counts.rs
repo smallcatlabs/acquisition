@@ -1311,3 +1311,94 @@ fn vocabulary(
         computed_left_out,
     }
 }
+
+/// A count's keys as a list spells them, the one parse of it (the 4b
+/// sitting round, Do 5): the CLI's `--count` and `--cross`, and the web
+/// UI's count control, call it; the MCP's `keys` array takes each key
+/// whole and has no list to read. A comma list, where `line:` takes the
+/// rest of the list as its texts — `line:resist,life` is the vocabulary
+/// narrowed twice, a table each (`line[:text,…]`) — and a text is a
+/// pattern after `~`. A text
+/// with a comma, or a `~` of its own, is quoted, `"…"`, with the
+/// language's three escapes (`\"`, `\\`, `\n`) and no other; what is
+/// quoted is the text as written, never syntax, and a quote that does not
+/// close is an error, as it is in a query (outside audit, 2026-09-22).
+pub fn count_keys(raw: &str) -> Result<Vec<String>, String> {
+    // each part as characters, each marked quoted or not: what was quoted
+    // is text as written, and only an unquoted character is syntax
+    let mut parts: Vec<Vec<(char, bool)>> = vec![Vec::new()];
+    let (mut quoted, mut escaped) = (false, false);
+    for c in raw.chars() {
+        let Some(part) = parts.last_mut() else {
+            continue;
+        };
+        match c {
+            _ if escaped => {
+                part.push((
+                    match c {
+                        '"' | '\\' => c,
+                        'n' => '\n',
+                        other => {
+                            return Err(format!(
+                                "`\\{other}` is no escape a quoted text takes: \\\" \\\\ and \\n are the only ones"
+                            ));
+                        }
+                    },
+                    true,
+                ));
+                escaped = false;
+            }
+            '\\' if quoted => escaped = true,
+            '"' => quoted = !quoted,
+            ',' if !quoted => parts.push(Vec::new()),
+            _ => part.push((c, quoted)),
+        }
+    }
+    if quoted || escaped {
+        return Err(format!(
+            "a quoted text in `{raw}` never closes: a text with a comma or a ~ of its own is written \"…\", the language's escapes inside"
+        ));
+    }
+    let mut narrowing = false;
+    Ok(parts
+        .into_iter()
+        .map(|mut part| {
+            // unquoted whitespace at the ends is none of the text
+            while part.first().is_some_and(|(c, q)| !q && c.is_whitespace()) {
+                part.remove(0);
+            }
+            while part.last().is_some_and(|(c, q)| !q && c.is_whitespace()) {
+                part.pop();
+            }
+            let text = |part: &[(char, bool)]| part.iter().map(|(c, _)| *c).collect::<String>();
+            let unquoted_prefix = |part: &[(char, bool)], word: &str| {
+                part.len() >= word.len()
+                    && part[..word.len()]
+                        .iter()
+                        .zip(word.chars())
+                        .all(|((c, q), w)| !q && c.eq_ignore_ascii_case(&w))
+            };
+            let pattern_marked = |part: &[(char, bool)]| part.first() == Some(&('~', false));
+            if unquoted_prefix(&part, "line:") || unquoted_prefix(&part, "line~") {
+                narrowing = true;
+                let pattern = part[4].0 == '~';
+                let rest = &part[5..];
+                // `line:~pattern` is `line~pattern`
+                return if pattern {
+                    format!("line~{}", text(rest))
+                } else if pattern_marked(rest) {
+                    format!("line~{}", text(&rest[1..]))
+                } else {
+                    format!("line:{}", text(rest))
+                };
+            }
+            if !narrowing {
+                text(&part)
+            } else if pattern_marked(&part) {
+                format!("line~{}", text(&part[1..]))
+            } else {
+                format!("line:{}", text(&part))
+            }
+        })
+        .collect())
+}

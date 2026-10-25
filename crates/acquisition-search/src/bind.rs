@@ -897,7 +897,7 @@ pub(crate) fn exact_pattern(text: &str) -> String {
 
 /// Bind what `--sort` takes.
 pub(crate) fn bind_sort(value: &ValueRef) -> Result<SortKey, LanguageError> {
-    bind_value("--sort", value)
+    bind_value("sort", value)
 }
 
 /// Bind what `--sum` takes (C95): one number of an item, added over a
@@ -908,17 +908,17 @@ pub(crate) fn bind_sum(value: &ValueRef) -> Result<SortKey, LanguageError> {
     if let ValueRef::Projection { lines, slot } = value {
         return Err(LanguageError::new(
             ErrorKind::View,
-            "`--sum` adds one number for each item, and a line's slot is one occurrence's: the item's sum of it is",
+            "`sum` adds one number for each item, and a line's slot is one occurrence's: the item's sum of it is",
         )
         .with_readings(vec![print::print_value(&ValueRef::Sum {
             lines: lines.clone(),
             slot: slot.clone(),
         })]));
     }
-    bind_value("--sum", value)
+    bind_value("sum", value)
 }
 
-fn bind_value(flag: &str, value: &ValueRef) -> Result<SortKey, LanguageError> {
+fn bind_value(field: &str, value: &ValueRef) -> Result<SortKey, LanguageError> {
     match value {
         ValueRef::Pseudo { name, slot } => {
             let (named, slot) = bind_pseudo(name, slot.as_deref())?;
@@ -931,9 +931,9 @@ fn bind_value(flag: &str, value: &ValueRef) -> Result<SortKey, LanguageError> {
                 _ => Err(LanguageError::new(
                     ErrorKind::OperatorMismatch,
                     format!(
-                        "`{flag}` takes a number: `{}` is not one — ilvl, stack, {}",
+                        "`{field}` takes a number: `{}` is not one — ilvl, stack, {}",
                         def.name,
-                        if flag == "--sum" {
+                        if field == "sum" {
                             "or the item's sum( … )"
                         } else {
                             "a line's slot or a sum"
@@ -1122,7 +1122,7 @@ impl Binder {
                 // reaches it, so the message names the membership
                 None if name.eq_ignore_ascii_case("removed") => Err(LanguageError::new(
                     ErrorKind::UnknownName,
-                    "`is:removed` is no flag: what has left the stash is a membership of the scope, never a term — --membership removed searches the removed alone, --membership all the removed beside the live",
+                    "`is:removed` is no flag: what has left the stash is a membership of the scope, never a term — membership `removed` searches the removed alone, membership `all` the removed beside the live",
                 )),
                 None => Err(unknown_among(
                     "is:",
@@ -1258,7 +1258,7 @@ pub(crate) fn unknown_among(
             known.join(", ")
         ),
         Some(entry) => format!(
-            "`{name}` is no {what} the language knows — --describe {entry} lists all {}; near it:",
+            "`{name}` is no {what} the language knows — describe `{entry}` lists all {}; near it:",
             known.len()
         ),
         None => format!("`{name}` is no {what} the language knows; near it:"),
@@ -1469,7 +1469,7 @@ pub(crate) fn closed(
     } else {
         (
             format!(
-                "`{word}` is no `{name}`, and no name is near it: --describe {name} lists the {}",
+                "`{word}` is no `{name}`, and no name is near it: describe `{name}` lists the {}",
                 list.len()
             ),
             Vec::new(),

@@ -738,7 +738,7 @@ impl Request {
         if self.context == Context::Corpus && matches!(self.view.shape, Shape::Explain(_)) {
             return Err(LanguageError::new(
                 crate::error::ErrorKind::View,
-                "`--explain` is of the query typed, and `--context corpus` sets it aside: ask one or the other",
+                "`explain` is of the query typed, and the `corpus` context sets it aside: ask one or the other",
             ));
         }
         let Read {
@@ -795,7 +795,7 @@ impl Request {
         let no_token = || {
             LanguageError::new(
                 crate::error::ErrorKind::Token,
-                "this is no token an answer printed: `--next` takes one whole, as the answer's `more` line gives it",
+                "this is no token an answer printed: a continuation takes one whole, as an answer's `next` gives it",
             )
         };
         let encoded = token
@@ -1042,14 +1042,14 @@ impl Shape {
             |message: &str| Err(LanguageError::new(crate::error::ErrorKind::View, message));
         if let Some(path) = explain {
             let beside = [
-                ("--count", count.is_some()),
-                ("--cross", cross.is_some()),
-                ("--sum", sum.is_some()),
-                ("--sort", rows.sort.is_some()),
+                ("count", count.is_some()),
+                ("cross", cross.is_some()),
+                ("sum", sum.is_some()),
+                ("sort", rows.sort.is_some()),
             ];
             if let Some((flag, _)) = beside.iter().find(|(_, typed)| *typed) {
                 return view_error(&format!(
-                    "`--explain` shows the root's counts with one node forced true and forced false, and no rows: `{flag}` has nothing to stand beside — an answer has one view"
+                    "`explain` shows the root's counts with one node forced true and forced false, and no rows: `{flag}` has nothing to stand beside — an answer has one view"
                 ));
             }
             return Ok(Shape::Explain(Explain { path }));
@@ -1058,12 +1058,12 @@ impl Shape {
         let keys = match (count, cross) {
             (Some(_), Some(_)) => {
                 return view_error(
-                    "`--count` is a table for each key and `--cross` one table of two: an answer has one view",
+                    "`count` is a table for each key and `cross` one table of two: an answer has one view",
                 );
             }
             (None, None) if sum.is_some() => {
                 return view_error(
-                    "`--sum` stands beside a count: name what to count by, `--count <key>` or `--cross <key>,<key>`",
+                    "`sum` stands beside a count: name what to count by, a `count` key or two `cross` keys",
                 );
             }
             (None, None) => return Ok(Shape::Rows(rows)),
@@ -1072,7 +1072,7 @@ impl Shape {
         };
         if rows.sort.is_some() {
             return view_error(
-                "`--sort` orders rows, and a count shows none: a table is ranked by its counts",
+                "`sort` orders rows, and a count shows none: a table is ranked by its counts",
             );
         }
         let counts = Counts {
@@ -1574,7 +1574,7 @@ pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError>
         return Err(SearchError::scope(
             "account_mismatch",
             format!(
-                "this request is bound to account `{account}` and the store selected is {}'s: rebinding is deliberate (--rebind, not built: it waits for a consumer that asks)",
+                "this request is bound to account `{account}` and the store selected is {}'s: rebinding is deliberate (not built: it waits for a consumer that asks)",
                 corpus
                     .account_name
                     .as_deref()

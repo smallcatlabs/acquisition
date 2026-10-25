@@ -239,8 +239,9 @@ pub(crate) struct Folded {
     pub limit: Option<usize>,
     pub sort: Option<String>,
     pub desc: bool,
-    /// A count by this key in place of the rows: the counts view.
-    pub count: Option<String>,
+    /// A count by these keys in place of the rows: the counts view, the
+    /// keys read as the CLI's `--count` reads its list (`count_keys`).
+    pub count: Option<Vec<String>>,
 }
 
 impl Folded {
@@ -256,7 +257,7 @@ impl Folded {
             scope.insert("realm".into(), Value::String(realm.clone()));
         }
         let shape = Shape::of(
-            self.count.as_ref().map(|key| vec![key.clone()]),
+            self.count.clone(),
             None,
             None,
             None,
@@ -314,7 +315,7 @@ pub(crate) fn fold(form: &Form, fields: &[(String, String)]) -> Result<Folded, S
             }
             "view.sort" => folded.sort = Some(value.to_string()),
             "view.desc" => folded.desc = true,
-            "view.count" => folded.count = Some(value.to_string()),
+            "view.count" => folded.count = Some(acquisition_search::counts::count_keys(value)?),
             _ => {
                 let path = name
                     .strip_prefix("query.")

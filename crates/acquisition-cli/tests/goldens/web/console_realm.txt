@@ -170,7 +170,7 @@ GET ?realm=xbox
 </div>
 </div>
 <div class="controls">
-<div class="controls-left"><label class="control">Show <select name="view.limit"><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <label class="control">Or count by <input name="view.count" placeholder="rarity"></label> <span class="fate">one key: rarity, league, tab, class, category, line</span></div>
+<div class="controls-left"><label class="control">Show <select name="view.limit"><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label> <label class="control">Sort by <input name="view.sort" placeholder="ilvl"></label> <label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label> <label class="control">Or count by <input name="view.count" placeholder="rarity"></label> <span class="fate">keys as the CLI's count takes them: rarity, league, tab, class, category, line:resist,life</span></div>
 <div class="controls-center"><button type="submit" class="search-btn">Search</button></div>
 </div>
 </form>

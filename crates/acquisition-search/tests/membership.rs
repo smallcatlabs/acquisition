@@ -869,7 +869,7 @@ fn is_removed_is_refused_toward_the_membership() {
         .to_json();
     assert_eq!(e["kind"], "unknown_name", "{e}");
     let said = e["error"].as_str().unwrap();
-    assert!(said.contains("--membership removed"), "{e}");
+    assert!(said.contains("membership `removed`"), "{e}");
     assert!(said.contains("never a term"), "{e}");
 }
 

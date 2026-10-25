@@ -8,6 +8,8 @@ use crate::common;
 
 use std::collections::BTreeSet;
 
+use acquisition_search::answer::Counts as CountsView;
+use acquisition_search::counts::count_keys;
 use acquisition_search::{Request, describe};
 use acquisition_store::{Endpoint, Store};
 use common::answer;
@@ -829,7 +831,7 @@ fn a_view_that_cannot_be_is_an_authoring_error() {
         (
             json!({ "counts": { "keys": ["tab"], "sum": "name" } }),
             "operator_mismatch",
-            "`--sum` takes a number",
+            "`sum` takes a number",
         ),
         // a derived field takes no slot word (`pseudo.defence_pct` alone
         // was refused as not built until step 9d-A, and is summed since)
@@ -1358,7 +1360,7 @@ fn a_refused_count_key_says_where_every_key_is_listed() {
         e["error"]
             .as_str()
             .unwrap()
-            .contains("--describe counts lists all"),
+            .contains("describe `counts` lists all"),
         "{e}"
     );
     assert!(!e["readings"].as_array().unwrap().is_empty(), "{e}");
@@ -1366,5 +1368,144 @@ fn a_refused_count_key_says_where_every_key_is_listed() {
     let keys = listed["counts"][0]["values"].as_array().unwrap();
     for key in ["class", "category", "frame", "tab.type"] {
         assert!(keys.iter().any(|k| k == key), "{key}: {listed}");
+    }
+}
+
+// ---- the count keys' list, its one parse (the 4b sitting round) ------------
+
+/// The count list's grammar, both ways: every spelling a continuation
+/// prints (`answer::listed_text`) reads back as the key it encodes,
+/// and what `--count`'s help shows reads as it says.
+#[test]
+fn a_count_list_reads_back_what_a_continuation_prints() {
+    for (typed, read) in [
+        ("tab,league,rarity", vec!["tab", "league", "rarity"]),
+        ("line:resist,life", vec!["line:resist", "line:life"]),
+        (
+            "tab,line:resist,~^adds",
+            vec!["tab", "line:resist", "line~^adds"],
+        ),
+        ("line:~Life", vec!["line~Life"]),
+        // unquoted, the comma is the list's: the review's case
+        ("line~[a-z]{1,2}", vec!["line~[a-z]{1", "line:2}"]),
+        (r#"line~"[a-z]{1,2}""#, vec!["line~[a-z]{1,2}"]),
+        (r#"line:", half""#, vec!["line:, half"]),
+        (r#"line:"a\"b""#, vec![r#"line:a"b"#]),
+        (r#"line:"a\\b""#, vec![r"line:a\b"]),
+        (r#"line:"~x""#, vec!["line:~x"]),
+        (r#"line:"Life ""#, vec!["line:Life "]),
+        (
+            r#"line:life , "two words" "#,
+            vec!["line:life", "line:two words"],
+        ),
+        (r#"line:"a\nb""#, vec!["line:a\nb"]),
+    ] {
+        assert_eq!(count_keys(typed).unwrap(), read, "{typed}");
+    }
+    for bad in [r#"line:"Life"#, r#"line:"Life\q""#, r#"line:"Life\"#] {
+        assert!(count_keys(bad).is_err(), "{bad}");
+    }
+}
+
+/// The printer and this parser are two crates' and one grammar: what
+/// `Counts::lists` spells for a view, read back list by list, is the
+/// view's keys as the binder names them — for every pair of keys from
+/// an alphabet of awkward ones, and every triple from a part of it. A
+/// prefix in any case, a text that begins like a key or a pattern, a
+/// comma, a quote, a backslash, a row break, whitespace at an end; a
+/// field or `line` alone before, between and after narrowings. Two
+/// rounds of an outside audit (2026-10-10) each found a case the
+/// printer's own case list had not: this asks the grammar, not a list.
+#[test]
+fn every_count_view_reads_back_as_the_keys_it_was_printed_for() {
+    let texts = [
+        "life",
+        "~x",
+        "~",
+        "line:foo",
+        "LINE~bar",
+        "line",
+        "a,b",
+        ",",
+        "\"q\"",
+        "back\\slash",
+        " lead",
+        "trail ",
+        "two words",
+        "a\nb",
+        "it's",
+        "x:y",
+        "x~y",
+    ];
+    // each key, and what the binder calls it: a name in its own case,
+    // the text after it as written
+    let mut alphabet: Vec<(String, String)> = [
+        ("tab", "tab"),
+        ("Rarity", "rarity"),
+        ("LINE", "line"),
+        ("line", "line"),
+        ("tab.type", "tab.type"),
+    ]
+    .iter()
+    .map(|(typed, named)| (typed.to_string(), named.to_string()))
+    .collect();
+    for text in texts {
+        for (prefix, canonical) in [
+            ("line:", "line:"),
+            ("line~", "line~"),
+            ("LINE:", "line:"),
+            ("Line~", "line~"),
+        ] {
+            alphabet.push((format!("{prefix}{text}"), format!("{canonical}{text}")));
+        }
+    }
+    let check = |picked: &[&(String, String)]| {
+        let view = CountsView {
+            keys: picked.iter().map(|(typed, _)| typed.clone()).collect(),
+            sum: None,
+            limit: None,
+        };
+        let lists = view.lists();
+        let mut read = Vec::new();
+        for list in &lists {
+            read.extend(count_keys(list).unwrap_or_else(|e| panic!("{lists:?}: {e}")));
+        }
+        let named: Vec<&str> = picked.iter().map(|(_, named)| named.as_str()).collect();
+        assert_eq!(read, named, "{:?} printed as {lists:?}", view.keys);
+    };
+    for a in &alphabet {
+        check(&[a]);
+        for b in &alphabet {
+            check(&[a, b]);
+        }
+    }
+    // every triple over a part of it: each kind of key, and the texts
+    // that read as syntax
+    let part: Vec<&(String, String)> = alphabet
+        .iter()
+        .filter(|(typed, _)| {
+            [
+                "tab",
+                "LINE",
+                "line:life",
+                "LINE:life",
+                "line~~x",
+                "line:line:foo",
+                "Line~LINE~bar",
+                "line:a,b",
+                "line:~",
+                "line: lead",
+                "line:line",
+            ]
+            .contains(&typed.as_str())
+        })
+        .collect();
+    assert_eq!(part.len(), 11);
+    for a in &part {
+        for b in &part {
+            for c in &part {
+                check(&[a, b, c]);
+            }
+        }
     }
 }

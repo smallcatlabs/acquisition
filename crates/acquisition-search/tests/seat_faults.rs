@@ -734,12 +734,12 @@ fn f5_a_closed_sets_refusal_offers_the_near_names_and_not_the_list() {
     let e = ask(&corpus, "class=ring").unwrap_err().to_json();
     assert_eq!(e["readings"][0], "class=Rings");
     assert!(!e["error"].as_str().unwrap().contains("Abyss Jewels"));
-    // nothing near: the list is behind --describe, never inline
+    // nothing near: the list is behind describe, never inline
     let e = ask(&corpus, "class:zzzz").unwrap_err().to_json();
     assert_eq!(e["kind"], "unknown_value");
     assert!(e.get("readings").is_none(), "{e}");
     let message = e["error"].as_str().unwrap();
-    assert!(message.contains("--describe class"), "{message}");
+    assert!(message.contains("describe `class`"), "{message}");
     assert!(!message.contains("Abyss Jewels"), "{message}");
     // a short list is printed whole, as before
     let e = ask(&corpus, "rarity=zz").unwrap_err().to_json();
