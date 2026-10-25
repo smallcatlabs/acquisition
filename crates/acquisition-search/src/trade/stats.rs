@@ -94,6 +94,8 @@ pub struct StatTable {
     version: String,
     source: String,
     by_id: HashMap<String, Stat>,
+    /// The ids in the file's order, which is the capture's.
+    order: Vec<String>,
     /// The ids each text names, by category: (category bit, the text's
     /// template, its written digits `#` as well) to ids, in the file's
     /// order.
@@ -221,6 +223,7 @@ impl StatTable {
         let mut by_id: HashMap<String, Stat> = HashMap::with_capacity(file.stats.len());
         let mut by_text: HashMap<(u8, String), Vec<String>> = HashMap::new();
         let mut carried = 0u8;
+        let mut order = Vec::with_capacity(file.stats.len());
         for row in file.stats {
             if !is_id(&row.id) {
                 return Err(StatTableError::BadId(row.id));
@@ -276,6 +279,7 @@ impl StatTable {
                     }
                 }
             }
+            order.push(row.id.clone());
             by_id.insert(
                 row.id,
                 Stat {
@@ -291,6 +295,7 @@ impl StatTable {
             version: file.version,
             source: file.source,
             by_id,
+            order,
             by_text,
         })
     }
@@ -346,6 +351,26 @@ impl StatTable {
         self.by_id
             .values()
             .flat_map(|s| s.texts.iter().map(String::as_str))
+    }
+
+    /// Every stat as a query names it, category by category in
+    /// [`HASH_CATEGORIES`]' order and the ids of each in the file's: the
+    /// category, the id, and its texts. What a picker lists
+    /// (`trade/vocabulary.rs`).
+    pub fn entries(&self) -> impl Iterator<Item = (&'static str, &str, &[String])> {
+        HASH_CATEGORIES
+            .iter()
+            .enumerate()
+            .flat_map(move |(at, category)| {
+                self.order.iter().filter_map(move |id| {
+                    let found = &self.by_id[id];
+                    (found.categories & (1 << at) != 0).then_some((
+                        *category,
+                        id.as_str(),
+                        found.texts.as_slice(),
+                    ))
+                })
+            })
     }
 
     /// The hash categories that carry an id, in the capture's order.

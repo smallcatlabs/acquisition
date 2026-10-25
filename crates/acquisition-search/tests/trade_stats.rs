@@ -254,3 +254,63 @@ fn c113_the_stat_table_loader_refuses_what_a_reviewer_would() {
         );
     }
 }
+
+/// The picker's listing (`trade/vocabulary.rs`; step 4b, Do 3): the
+/// table's entries whose texts hold every word asked, case aside, in the
+/// table's order, the first `limit` with what the translation makes of
+/// each alone and with a bound, the rest counted; an empty ask is every
+/// entry of the table, and a stat of two texts is listed under both and
+/// unsupported, as the translation reports it.
+#[test]
+fn the_picker_lists_the_stat_vocabulary_with_each_fate() {
+    use acquisition_search::trade::translate::Status;
+    use acquisition_search::trade::vocabulary::{MAX_LISTED, vocabulary};
+    let life = vocabulary("Maximum  LIFE", 2).unwrap();
+    assert_eq!(life.stats, STAT_TABLE_VERSION);
+    let listed: Vec<(&str, &str, Status, Status)> = life
+        .entries
+        .iter()
+        .map(|e| (e.id.as_str(), e.group, e.alone, e.bounded))
+        .collect();
+    assert_eq!(
+        listed,
+        [
+            (
+                "explicit.stat_3299347043",
+                "explicit",
+                Status::Exact,
+                Status::Exact
+            ),
+            (
+                "explicit.stat_983749596",
+                "explicit",
+                Status::Exact,
+                Status::Ambiguous
+            ),
+        ]
+    );
+    assert_eq!(life.entries[0].texts, ["+# to maximum Life"]);
+    assert_eq!(
+        life.left_out, 132,
+        "every category's maximum Life past the two"
+    );
+    // an empty ask is the whole table, the limit capped
+    let every = vocabulary("", usize::MAX).unwrap();
+    assert_eq!(every.entries.len(), MAX_LISTED);
+    assert_eq!(every.entries.len() + every.left_out, 14_068);
+    // a stat of two texts: either text finds it, and its fate is the report's
+    let grove = vocabulary("Sacred Grove", 10).unwrap();
+    let two = grove
+        .entries
+        .iter()
+        .find(|e| e.id == "explicit.stat_1145451936")
+        .unwrap();
+    assert_eq!(two.texts.len(), 2);
+    assert_eq!(
+        (two.alone, two.bounded),
+        (Status::Unsupported, Status::Unsupported)
+    );
+    // nothing held is nothing listed and nothing counted
+    let none = vocabulary("zzzz qqqq", 10).unwrap();
+    assert!(none.entries.is_empty() && none.left_out == 0);
+}

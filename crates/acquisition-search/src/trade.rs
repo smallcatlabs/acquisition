@@ -64,6 +64,7 @@ pub mod catalogue;
 pub mod forms;
 pub mod stats;
 pub mod translate;
+pub mod vocabulary;
 
 /// What the input was, for the report.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
