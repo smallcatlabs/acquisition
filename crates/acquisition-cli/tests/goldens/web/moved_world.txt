@@ -1,0 +1,117 @@
+# golden web/moved_world: acq web's pages, each page's <main>, normalised (C122). Each `# holds` line is a fact checked in that page as served; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+GET item/new
+# holds "class undecided"
+# holds "Wombgift Chalice"
+# holds "+40 to maximum Life"
+<main>
+<h1>Item</h1>
+<p><span class="badge">class undecided — `Wombgift Chalice` is not in the class table (classes v1)</span></p>
+<pre>
+Brood Lure Wombgift Chalice · rare · frame rare
+id      new
+place   pc · Standard / Launch · x 0, y 0 · fetched <age> ago
+base    Wombgift Chalice
+class   undecided: `Wombgift Chalice` is not in the class table (classes v1)
+category undecided
+         open 79 ids: `Wombgift Chalice` is not in the class table (classes v1)
+price   none (nothing applies) · why: acq price show --account u-web --realm pc item/new
+is      identified
+shown   Item Level: 84
+lines   explicit              +40 to maximum Life
+                              &quot;# to maximum Life&quot;   arg1 40
+unread  nothing
+basis   store <store> · build <build> · snapshot 4 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+</pre>
+
+</main>
+
+GET item/mech
+# holds "flags unknown"
+# holds "echoing"
+# holds "Grants 3 Echoes of the Brood"
+<main>
+<h1>Item</h1>
+<p><span class="badge">unread — `wombgiftMods[0]`: `flags.echoing` is a string, not yes or no</span> <span class="badge">flags unknown: echoing — Grants 3 Echoes of the Brood</span></p>
+<pre>
+Echo Seed Two-Stone Ring · rare · frame rare
+id      mech
+place   pc · Standard / Launch · x 0, y 0 · fetched <age> ago
+base    Two-Stone Ring
+class   Rings
+category accessory.ring
+price   none (nothing applies) · why: acq price show --account u-web --realm pc item/mech
+is      identified
+shown   Item Level: 84
+lines   wombgift              Grants 3 Echoes of the Brood
+                              &quot;Grants # Echoes of the Brood&quot;   arg1 3
+unread  `wombgiftMods[0]`: `flags.echoing` is a string, not yes or no
+basis   store <store> · build <build> · snapshot 4 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+</pre>
+
+</main>
+
+GET search?<a stat the table lacks>
+# holds "not the site&#39;s search"
+# holds "PARTIAL"
+# holds "stats.0.0"
+<main>
+<h1>Answer</h1>
+<p><span class="badge">not the site&#39;s search: 1 clause not run</span></p>
+<pre>
+trade   from the query JSON: PARTIAL — 1 clause not run, so this is not the site&#39;s search
+        over      the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours
+        NOT RUN   stats.0.0  no row of the stat table is `explicit.stat_9999999999`
+query   (every item in scope)
+scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (oldest <age> ago, newest <age> ago)
+        0 locations never fetched · location list seen <age> ago
+total   5 matches
+</pre>
+<table>
+<tr><th></th><th>Name</th><th>Base</th><th>Rarity</th><th>Place</th><th>Lines</th></tr>
+<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Kaom&#39;s Heart Glorious Plate"></td><td><a href="item/kaom">Kaom&#39;s Heart Glorious Plate</a></td><td>Glorious Plate</td><td>Unique</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td><td></td></tr>
+<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></td><td><a href="item/r1">Doom Loop Two-Stone Ring</a></td><td>Two-Stone Ring</td><td>Rare</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td><td></td></tr>
+<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring"></td><td><a href="item/r2">Rune Coil Two-Stone Ring</a></td><td>Two-Stone Ring</td><td>Rare</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td><td></td></tr>
+<tr><td class="icon"></td><td><a href="item/mech">Echo Seed Two-Stone Ring</a></td><td>Two-Stone Ring</td><td>Rare</td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td><td></td></tr>
+<tr><td class="icon"></td><td><a href="item/new">Brood Lure Wombgift Chalice</a></td><td>Wombgift Chalice</td><td>Rare</td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td><td></td></tr>
+</table>
+<pre>
+basis   store <store> · build <build> · snapshot 4 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+</pre>
+
+</main>
+
+GET search?<every ring>
+# holds "undecided"
+# holds "Wombgift Chalice"
+<main>
+<h1>Answer</h1>
+<p><span class="badge">1 undecided</span> <span class="badge">the class: base not in the table unread — e.g. Brood Lure Wombgift Chalice</span></p>
+<pre>
+trade   from the query JSON: exact — every clause with a stash meaning ran as the site reads it
+        over      the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours
+query   category=&quot;accessory.ring&quot;
+scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (oldest <age> ago, newest <age> ago)
+        0 locations never fetched · location list seen <age> ago
+total   3 matches · 1 undecided
+</pre>
+<table>
+<tr><th></th><th>Name</th><th>Base</th><th>Rarity</th><th>Place</th><th>Lines</th></tr>
+<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></td><td><a href="item/r1">Doom Loop Two-Stone Ring</a></td><td>Two-Stone Ring</td><td>Rare</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td><td>category accessory.ring</td></tr>
+<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring"></td><td><a href="item/r2">Rune Coil Two-Stone Ring</a></td><td>Two-Stone Ring</td><td>Rare</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td><td>category accessory.ring</td></tr>
+<tr><td class="icon"></td><td><a href="item/mech">Echo Seed Two-Stone Ring</a></td><td>Two-Stone Ring</td><td>Rare</td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td><td>category accessory.ring</td></tr>
+</table>
+<pre>
+undecided the class: base not in the table unread — e.g. Brood Lure Wombgift Chalice · id new
+            `Wombgift Chalice` is not in the class table (classes v1); a refresh will not help; a reference update may
+terms   each term counted alone over all live pc items in all leagues, never over the matches
+  0    category=&quot;accessory.ring&quot;  3 matched · 1 failed · 1 undecided
+routes  each returns exactly the members counted (2 more: --routes)
+  undecided at the root (1), over the scope:
+    acq search --account &#39;Alice#1234&#39; --realm pc &#39;undecided(category=&quot;accessory.ring&quot;)&#39;
+  term 0 undecided (1), over the scope:
+    acq search --account &#39;Alice#1234&#39; --realm pc &#39;undecided(category=&quot;accessory.ring&quot;)&#39;
+basis   store <store> · build <build> · snapshot 4 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+</pre>
+
+</main>

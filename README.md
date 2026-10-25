@@ -176,6 +176,7 @@ acq search ['<query>'] --count KEY,… | --cross KEY,KEY [--sum V]   # the match
 acq search --describe [name,…|all]   # the query language: an index, or entries whole
 acq search --trade <URL|ID> | --trade-file <FILE|->   # a trade site search (PoE1) translated to a query, no network
 acq show <id> [--body]   # one item as the search derives it; the stored body on request
+acq web [--no-browser]   # the search as a page shaped like the trade site's, with item art, and the refresh loop to tick, plan and apply; loopback only, until Ctrl-C
 acq store status | events [--hours N] | refused [id]   # path and counts; ingest events; malformed bodies
 acq store import <snapshot.json> | rebuild   # replay a snapshot from the retired `acq pull`; re-extract columns
 

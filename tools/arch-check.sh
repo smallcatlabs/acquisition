@@ -304,6 +304,8 @@ fi
 # source, so a frontend that answers for itself is refused here, not
 # found by a review. `Client::observe` is not a door: `auth status`,
 # `daemon stop` and `reset-tripwire` observe with no semantics to move.
+# The grep reads every file under the two source trees, the web UI's
+# module (`acquisition-cli/src/web`, C139) among them.
 doors='Index::load|Store::open|Annotations::open_for|plan_refresh|check_spendable|apply_params_of|\.quote\(|Persisted::observe|Client::connect'
 if grep -rqE "$doors" crates/acquisition-cli/src crates/acquisition-mcp/src; then
   echo 'EDGE    crates/acquisition-{cli,mcp}/src    opens a door only the verbs crate opens — an index, a store, a plan, a quote, the ledger or the use door is the shared layer'"'"'s (C46)'

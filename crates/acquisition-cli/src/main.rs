@@ -12,6 +12,7 @@ mod reference_cmd;
 mod search_cmd;
 mod shop_cmd;
 mod store_cmd;
+mod web;
 
 use std::io::{IsTerminal as _, Write as _};
 use std::time::{Duration, Instant};
@@ -202,6 +203,22 @@ enum Cmd {
         #[arg(long)]
         no_browser: bool,
     },
+    /// The web UI: a page over loopback that renders what these verbs
+    /// print — the search as a form shaped like the trade site's, its
+    /// answer as a table with each item's art, one item, and the refresh
+    /// loop (a league's tabs and characters to tick, the plan with its
+    /// quote, apply, the jobs). The pages read the store as `search`,
+    /// `show` and `tabs` do; a refresh or an apply reaches the daemon as
+    /// `refresh` does. Binds 127.0.0.1 on a random port; the URL it
+    /// prints carries a key no other page knows, and the server answers
+    /// nothing without it. Runs until Ctrl-C. The item art is fetched by
+    /// your browser from GGG's image host; a page reads whole without it.
+    Web {
+        /// Print the URL alone and open no browser. With --json the URL
+        /// is `{"url"}`, one line, either way.
+        #[arg(long)]
+        no_browser: bool,
+    },
     /// The account profile (account:profile).
     Profile,
     /// List characters on the logged-in account. A route's first use
@@ -307,7 +324,8 @@ enum Cmd {
     /// Refresh tabs: one stash-list request, then one `stash` child job per
     /// selected tab. Selection is explicit — there is no default. (The
     /// ad-hoc `--tabs`/`--all` kind and the plan path are two doors to one
-    /// task; the ad-hoc kind retires once nothing submits it.) Keeping a league up to date is the
+    /// task; `acq web`'s ticked selection submits the ad-hoc kind too, so
+    /// it stays while either submits it.) Keeping a league up to date is the
     /// plan path: `acq policy set` once, then `--plan` and `--apply` until
     /// the plan says nothing to do — a map or unique tab's substashes are
     /// known only once the tab is fetched, so a first sync takes two
@@ -1044,6 +1062,7 @@ async fn run(cli: Cli) -> Result<()> {
                 Ok(())
             }
         },
+        Cmd::Web { no_browser } => web::web(cli.account.clone(), no_browser, cli.json).await,
         Cmd::Profile => {
             let mut client = connect(cx).await?;
             let id = submit(cx, &mut client, "profile".into(), json!({}), 0).await?;

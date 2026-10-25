@@ -690,3 +690,324 @@ pub fn golden(file: &str, name: &str, transcript: &Transcript) {
         &format!("ACQ_UPDATE_FIXTURES=1 cargo test -p acquisition-cli --test main {stem}"),
     );
 }
+
+// ---- the web UI (C138, C139) ----------------------------------------------
+
+/// One HTTP response, as a test reads it: the status, the headers with
+/// their names lowercased, and the body.
+pub struct Reply {
+    pub status: u16,
+    pub headers: Vec<(String, String)>,
+    pub body: String,
+}
+
+impl Reply {
+    pub fn header(&self, name: &str) -> Option<&str> {
+        self.headers
+            .iter()
+            .find(|(k, _)| k == name)
+            .map(|(_, v)| v.as_str())
+    }
+}
+
+/// `acq web` running, the test owning its process: the address and the
+/// token read from the URL it printed first on stdout.
+pub struct WebUi {
+    pub proc: Proc,
+    pub addr: String,
+    pub token: String,
+    pub url: String,
+    _stdout: std::io::BufReader<std::process::ChildStdout>,
+}
+
+/// Start `acq web` from `cmd` (a [`command`] or [`offline_command`] with
+/// its arguments) and read the URL it prints: no wait but the hang
+/// ceiling (C137), since the line comes or the test is ended by it.
+pub fn start_web(mut cmd: Command) -> WebUi {
+    use std::io::BufRead as _;
+    let child = cmd
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::inherit())
+        .spawn()
+        .expect("spawning acq web");
+    let mut proc = Proc(child, acq_exe().to_path_buf());
+    let mut stdout = std::io::BufReader::new(proc.0.stdout.take().expect("piped stdout"));
+    let mut first = String::new();
+    stdout.read_line(&mut first).expect("acq web's first line");
+    let url = match serde_json::from_str::<serde_json::Value>(first.trim()) {
+        Ok(doc) => doc["url"].as_str().unwrap_or_default().to_string(),
+        Err(_) => first.trim().to_string(),
+    };
+    let rest = url
+        .strip_prefix("http://")
+        .unwrap_or_else(|| panic!("acq web printed no URL first: {first:?}"));
+    let (addr, path) = rest.split_once('/').expect("a path after the address");
+    WebUi {
+        addr: addr.to_string(),
+        token: path.trim_end_matches('/').to_string(),
+        url: url.clone(),
+        proc,
+        _stdout: stdout,
+    }
+}
+
+impl WebUi {
+    /// A request written by hand: the method, the whole path, the headers
+    /// beside `Host` (which `host` sets, the server's own when `None`),
+    /// and a body.
+    pub fn raw(
+        &self,
+        method: &str,
+        path: &str,
+        host: Option<&str>,
+        headers: &[(&str, &str)],
+        body: &str,
+    ) -> Reply {
+        use std::io::{Read as _, Write as _};
+        let mut stream = std::net::TcpStream::connect(&self.addr).expect("connecting to acq web");
+        let mut request = format!(
+            "{method} {path} HTTP/1.1\r\nHost: {}\r\nConnection: close\r\n",
+            host.unwrap_or(&self.addr)
+        );
+        for (k, v) in headers {
+            request.push_str(&format!("{k}: {v}\r\n"));
+        }
+        if !body.is_empty() || method == "POST" {
+            request.push_str(&format!("Content-Length: {}\r\n", body.len()));
+        }
+        request.push_str("\r\n");
+        request.push_str(body);
+        stream
+            .write_all(request.as_bytes())
+            .expect("writing the request");
+        let mut response = Vec::new();
+        stream
+            .read_to_end(&mut response)
+            .expect("reading the response");
+        let response = String::from_utf8_lossy(&response).into_owned();
+        let (head, body) = response
+            .split_once("\r\n\r\n")
+            .unwrap_or((response.as_str(), ""));
+        let mut lines = head.lines();
+        let status = lines
+            .next()
+            .and_then(|l| l.split_whitespace().nth(1))
+            .and_then(|s| s.parse().ok())
+            .unwrap_or_else(|| panic!("an unparseable response:\n{response}"));
+        let headers: Vec<(String, String)> = lines
+            .filter_map(|l| l.split_once(": "))
+            .map(|(k, v)| (k.to_ascii_lowercase(), v.to_string()))
+            .collect();
+        let chunked = headers
+            .iter()
+            .any(|(k, v)| k == "transfer-encoding" && v.contains("chunked"));
+        let body = if chunked {
+            unchunk(body)
+        } else {
+            body.to_string()
+        };
+        Reply {
+            status,
+            headers,
+            body,
+        }
+    }
+
+    /// GET a page by its path under the token (`""` the form, `"jobs"`).
+    pub fn get(&self, path: &str) -> Reply {
+        self.raw("GET", &format!("/{}/{path}", self.token), None, &[], "")
+    }
+
+    /// The document a page renders, as the server serves it to a request
+    /// that accepts JSON.
+    pub fn get_json(&self, path: &str) -> serde_json::Value {
+        let reply = self.raw(
+            "GET",
+            &format!("/{}/{path}", self.token),
+            None,
+            &[("Accept", "application/json")],
+            "",
+        );
+        assert_eq!(reply.status, 200, "GET {path}: {}", reply.body);
+        serde_json::from_str(&reply.body).unwrap_or_else(|e| panic!("{path}: {e}: {}", reply.body))
+    }
+
+    /// POST a form to a path under the token, from the server's own page
+    /// (its Origin), as a browser posts one.
+    pub fn post(&self, path: &str, form: &[(&str, &str)]) -> Reply {
+        let body = form
+            .iter()
+            .map(|(k, v)| format!("{}={}", form_encoded(k), form_encoded(v)))
+            .collect::<Vec<_>>()
+            .join("&");
+        let origin = format!("http://{}", self.addr);
+        self.raw(
+            "POST",
+            &format!("/{}/{path}", self.token),
+            None,
+            &[
+                ("Origin", origin.as_str()),
+                ("Content-Type", "application/x-www-form-urlencoded"),
+            ],
+            &body,
+        )
+    }
+}
+
+fn unchunk(body: &str) -> String {
+    let mut out = String::new();
+    let mut rest = body;
+    while let Some((size, after)) = rest.split_once("\r\n") {
+        let n = usize::from_str_radix(size.trim(), 16).unwrap_or(0);
+        if n == 0 || after.len() < n {
+            break;
+        }
+        out.push_str(&after[..n]);
+        rest = after[n..].trim_start_matches("\r\n");
+    }
+    out
+}
+
+/// A form field's value as a browser encodes it.
+pub fn form_encoded(text: &str) -> String {
+    let mut out = String::new();
+    for b in text.bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'*' => {
+                out.push(b as char)
+            }
+            b' ' => out.push('+'),
+            b => out.push_str(&format!("%{b:02X}")),
+        }
+    }
+    out
+}
+
+/// The pages of a golden (C122): each page as `GET <path>` or `POST
+/// <path>`, the facts it must hold as `# holds` lines — checked against
+/// the page's own body as it is recorded — then its status where it is
+/// not 200 and its `<main>`, the token, the address and a plan page's
+/// envelope masked and the transcript's rules applied.
+pub struct Pages {
+    base: PathBuf,
+    web_token: String,
+    web_addr: String,
+    text: String,
+    facts: usize,
+}
+
+impl Pages {
+    pub fn new(base: &Path, web: &WebUi) -> Pages {
+        Pages {
+            base: base.to_path_buf(),
+            web_token: web.token.clone(),
+            web_addr: web.addr.clone(),
+            text: String::new(),
+            facts: 0,
+        }
+    }
+
+    /// Record a page under `label` (`GET search?…`), checking each fact
+    /// stands in its body.
+    pub fn page(&mut self, label: &str, reply: &Reply, facts: &[&str]) {
+        for fact in facts {
+            assert!(
+                reply.body.contains(fact),
+                "{label}: the fact {fact:?} is not on the page:\n{}",
+                reply.body
+            );
+        }
+        self.facts += facts.len();
+        let main = match (reply.body.find("<main>"), reply.body.find("</main>")) {
+            (Some(open), Some(close)) => &reply.body[open..close + "</main>".len()],
+            _ => reply.body.as_str(),
+        };
+        if !self.text.is_empty() {
+            self.text.push('\n');
+        }
+        self.text.push_str(&format!("{label}\n"));
+        for fact in facts {
+            self.text.push_str(&format!("# holds {fact:?}\n"));
+        }
+        if reply.status != 200 {
+            self.text
+                .push_str(&format!("--- status {}\n", reply.status));
+        }
+        let mut masked = main
+            .replace(&self.web_token, "<token>")
+            .replace(&self.web_addr, "<addr>");
+        // a plan page's envelope is the plan document whole, its times
+        // the clock's: `refresh --plan --json` is where it is asserted
+        let field = "name=\"plan\" value=\"";
+        if let Some(at) = masked.find(field) {
+            let from = at + field.len();
+            if let Some(len) = masked[from..].find('"') {
+                masked.replace_range(from..from + len, "<the plan envelope>");
+            }
+        }
+        self.text.push_str(&masked);
+        self.text.push('\n');
+    }
+}
+
+/// Compare `pages` with the golden `<stem>/<name>.txt` under
+/// `tests/goldens/` (`file` the calling test file's `file!()`), or write
+/// it under `ACQ_UPDATE_FIXTURES=1`; as [`golden`], a recording with no
+/// fact is refused.
+pub fn page_golden(file: &str, name: &str, pages: &Pages) {
+    assert!(
+        pages.facts > 0,
+        "page golden {name}: no page carries a fact; name the words a reader must find (C122)"
+    );
+    let stem = Path::new(file)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .expect("a test file's stem");
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/goldens")
+        .join(stem)
+        .join(format!("{name}.txt"));
+    let shown = format!("crates/acquisition-cli/tests/goldens/{stem}/{name}.txt");
+    let actual = format!(
+        "# golden {stem}/{name}: acq web's pages, each page's <main>, normalised (C122). Each \
+         `# holds` line is a fact checked in that page as served; regenerate under \
+         ACQ_UPDATE_FIXTURES=1 and read the diff.\n\n{}",
+        normalise(&pid_words(&pages.text), &pages.base)
+    );
+    if std::env::var_os("ACQ_UPDATE_FIXTURES").is_some() {
+        std::fs::create_dir_all(path.parent().expect("a parent")).expect("the goldens directory");
+        std::fs::write(&path, &actual).expect("writing the golden");
+        return;
+    }
+    let expected = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{shown}: {e}"));
+    same_text(
+        &expected,
+        &actual,
+        &shown,
+        &format!("ACQ_UPDATE_FIXTURES=1 cargo test -p acquisition-cli --test main {stem}"),
+    );
+}
+
+/// A submitter's process id as a job table prints it, `web:4113` or
+/// `cli:4090`, masked: a process id is the system's.
+fn pid_words(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    loop {
+        let next = ["web:", "cli:"]
+            .iter()
+            .filter_map(|w| rest.find(w).map(|at| (at, w.len())))
+            .min();
+        let Some((at, len)) = next else {
+            out.push_str(rest);
+            return out;
+        };
+        out.push_str(&rest[..at + len]);
+        let after = &rest[at + len..];
+        let digits = after.bytes().take_while(u8::is_ascii_digit).count();
+        if digits > 0 {
+            out.push_str("<pid>");
+        }
+        rest = &after[digits..];
+    }
+}

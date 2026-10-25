@@ -202,7 +202,8 @@ fn sources(dir: &Path, out: &mut Vec<PathBuf>) {
 /// of every verb (`CLI-REFERENCE.md`, which `cli_reference.rs` keeps
 /// equal to the binary), the MCP server's instructions and tool listing
 /// (`MCP-REFERENCE.md`, kept so by `mcp_reference.rs`), the README,
-/// the first page a person reads, `describe` whole
+/// the first page a person reads, the web UI's pages (their goldens and
+/// the assets they are built from), `describe` whole
 /// with the trade catalogue and the category rows — the reference
 /// tables' own words, a field's definition among them — and every string
 /// literal of every crate's `src`, which is where every refusal, reason,
@@ -233,6 +234,32 @@ fn c116_no_user_facing_text_cites_a_record_id() {
         found.extend(searches(&described));
         if !found.is_empty() {
             met.push(format!("describe {asked:?}: {found:?}"));
+        }
+    }
+    // the web UI's pages as served — every page's golden — and the page
+    // template, stylesheet and script they are built from, which no Rust
+    // literal holds
+    let web = root.join("crates/acquisition-cli");
+    let mut pages: Vec<PathBuf> = ["tests/goldens/web", "src/web/assets"]
+        .iter()
+        .flat_map(|dir| std::fs::read_dir(web.join(dir)).unwrap())
+        .map(|entry| entry.unwrap().path())
+        .collect();
+    pages.sort();
+    assert!(pages.len() >= 6, "the web sweep found {pages:?}");
+    for page in &pages {
+        let text = std::fs::read_to_string(page).unwrap();
+        // a golden's first line is the harness's, naming its rule
+        for (n, line) in text.lines().enumerate() {
+            let found = if line.starts_with("# golden ") {
+                Vec::new()
+            } else {
+                ids(line)
+            };
+            if !found.is_empty() {
+                let at = page.strip_prefix(root).unwrap_or(page).display();
+                met.push(format!("{at}:{}: {found:?}", n + 1));
+            }
         }
     }
     let mut files = Vec::new();

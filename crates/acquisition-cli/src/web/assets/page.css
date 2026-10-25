@@ -1,0 +1,19 @@
+/* The web UI's one stylesheet (`acq web`): presentation only. */
+:root { color-scheme: light dark; --rule: #8884; --muted: #888; }
+body { font: 15px/1.4 system-ui, sans-serif; margin: 0 auto; max-width: 72rem; padding: 0 1rem 3rem; }
+nav { display: flex; gap: 1.25rem; padding: .75rem 0; border-bottom: 1px solid var(--rule); }
+h1 { font-size: 1.3rem; margin: 1rem 0 .5rem; }
+pre { white-space: pre-wrap; font: 13px/1.35 ui-monospace, monospace; }
+fieldset { border: 1px solid var(--rule); margin: .5rem 0; }
+legend { font-weight: 600; }
+.control { display: inline-flex; gap: .3rem; align-items: center; margin: .2rem 1rem .2rem 0; }
+.control input[type=number] { width: 5rem; }
+.fate { color: var(--muted); font-size: 12px; }
+.fate-unsupported, .fate-listing_only { text-decoration: line-through; }
+.badge { display: inline-block; border: 1px solid currentColor; border-radius: .6rem; padding: 0 .45rem; font-size: 12px; margin: .1rem .3rem .1rem 0; }
+table { border-collapse: collapse; width: 100%; }
+th, td { text-align: left; vertical-align: top; padding: .3rem .5rem; border-bottom: 1px solid var(--rule); }
+td.icon img { max-width: 47px; max-height: 94px; }
+.refusal { border-left: 3px solid #c33; padding-left: .75rem; }
+#stat-list { list-style: none; padding: 0; max-height: 18rem; overflow: auto; }
+#stat-list button { all: unset; cursor: pointer; text-decoration: underline; }

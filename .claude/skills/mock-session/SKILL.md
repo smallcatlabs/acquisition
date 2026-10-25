@@ -40,6 +40,10 @@ without following it the login never completes (the login's own
 profile job must land the account uuid). Any username is accepted;
 policies count per username, so two accounts are one login apart.
 
+## Open the web UI
+
+`acq web --no-browser &` serves this world's pages on loopback and prints their URL, which a browser opens; `kill %1` (or Ctrl-C in the foreground) stops it.
+
 ## Rehearse a rung
 
 `tools/tracer-rung.sh --mock ...` and `tools/persist-check.sh --mock ...`

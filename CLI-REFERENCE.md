@@ -11,6 +11,7 @@ Usage: acq [OPTIONS] <COMMAND>
 
 Commands:
   auth          Log in via OAuth (real GGG, or the mock under ACQ_PROVIDER=mock). The login completes only once its own profile job lands the account uuid; the mock's page accepts any username, so a second account is one login apart
+  web           The web UI: a page over loopback that renders what these verbs print — the search as a form shaped like the trade site's, its answer as a table with each item's art, one item, and the refresh loop (a league's tabs and characters to tick, the plan with its quote, apply, the jobs). The pages read the store as `search`, `show` and `tabs` do; a refresh or an apply reaches the daemon as `refresh` does. Binds 127.0.0.1 on a random port; the URL it prints carries a key no other page knows, and the server answers nothing without it. Runs until Ctrl-C. The item art is fetched by your browser from GGG's image host; a page reads whole without it
   profile       The account profile (account:profile)
   characters    List characters on the logged-in account. A route's first use queues a visible `probe` job — one HEAD that learns the policy and the account's current counters before anything real is sent
   character     Fetch one character with its equipment and inventory
@@ -22,7 +23,7 @@ Commands:
   store         The shared store itself (what the daemon writes; every frontend reads)
   stashes       List stash tabs for a league: a second rate-limit policy, paced in parallel with the character routes
   stash         Fetch one stash tab (or one substash of a map/unique tab)
-  refresh       Refresh tabs: one stash-list request, then one `stash` child job per selected tab. Selection is explicit — there is no default. (The ad-hoc `--tabs`/`--all` kind and the plan path are two doors to one task; the ad-hoc kind retires once nothing submits it.) Keeping a league up to date is the plan path: `acq policy set` once, then `--plan` and `--apply` until the plan says nothing to do — a map or unique tab's substashes are known only once the tab is fetched, so a first sync takes two rounds, and each apply ends by saying what is left
+  refresh       Refresh tabs: one stash-list request, then one `stash` child job per selected tab. Selection is explicit — there is no default. (The ad-hoc `--tabs`/`--all` kind and the plan path are two doors to one task; `acq web`'s ticked selection submits the ad-hoc kind too, so it stays while either submits it.) Keeping a league up to date is the plan path: `acq policy set` once, then `--plan` and `--apply` until the plan says nothing to do — a map or unique tab's substashes are known only once the tab is fetched, so a first sync takes two rounds, and each apply ends by saying what is left
   policy        The per-account sync policy: the declared coverage and freshness that `acq refresh --plan` compiles into requests
   submit        Submit any job kind by hand
   demo          Submit a burst of fetch jobs against the mock's 5-per-10 s policy and watch the rate limiter queue them (the ETAs are the limiter's prediction, corrected by headers)
@@ -94,6 +95,18 @@ Drop the session and clear the keyring entry. With --account naming another know
 Usage: acq auth logout [OPTIONS]
 
 Options:
+  -h, --help               Print help
+```
+
+## `acq web`
+
+```text
+The web UI: a page over loopback that renders what these verbs print — the search as a form shaped like the trade site's, its answer as a table with each item's art, one item, and the refresh loop (a league's tabs and characters to tick, the plan with its quote, apply, the jobs). The pages read the store as `search`, `show` and `tabs` do; a refresh or an apply reaches the daemon as `refresh` does. Binds 127.0.0.1 on a random port; the URL it prints carries a key no other page knows, and the server answers nothing without it. Runs until Ctrl-C. The item art is fetched by your browser from GGG's image host; a page reads whole without it
+
+Usage: acq web [OPTIONS]
+
+Options:
+      --no-browser         Print the URL alone and open no browser. With --json the URL is `{"url"}`, one line, either way
   -h, --help               Print help
 ```
 
@@ -357,7 +370,7 @@ Options:
 ## `acq refresh`
 
 ```text
-Refresh tabs: one stash-list request, then one `stash` child job per selected tab. Selection is explicit — there is no default. (The ad-hoc `--tabs`/`--all` kind and the plan path are two doors to one task; the ad-hoc kind retires once nothing submits it.) Keeping a league up to date is the plan path: `acq policy set` once, then `--plan` and `--apply` until the plan says nothing to do — a map or unique tab's substashes are known only once the tab is fetched, so a first sync takes two rounds, and each apply ends by saying what is left
+Refresh tabs: one stash-list request, then one `stash` child job per selected tab. Selection is explicit — there is no default. (The ad-hoc `--tabs`/`--all` kind and the plan path are two doors to one task; `acq web`'s ticked selection submits the ad-hoc kind too, so it stays while either submits it.) Keeping a league up to date is the plan path: `acq policy set` once, then `--plan` and `--apply` until the plan says nothing to do — a map or unique tab's substashes are known only once the tab is fetched, so a first sync takes two rounds, and each apply ends by saying what is left
 
 Usage: acq refresh [OPTIONS]
 

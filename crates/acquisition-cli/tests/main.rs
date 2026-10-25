@@ -28,4 +28,5 @@ mod reference_currency;
 mod search_json;
 mod seat_faults;
 mod shop_json;
+mod web;
 mod world;
