@@ -1081,18 +1081,24 @@ key = "trade_filters.account"
 text = "Seller Account"
 shape = "input"
 disposition = "listing_only"
+note = "the seller's account names a listing's owner; every item a store holds is its account's own"
+says = "The seller's account is the listing's; every item here is your own."
 
 [[row]]
 key = "trade_filters.collapse"
 text = "Collapse Listings by Account"
 shape = "option"
 disposition = "listing_only"
+note = "a display choice over listings, one row per seller; a store is one account's"
+says = "Collapsing listings by seller is the site's display; your items are one account's."
 
 [[row]]
 key = "trade_filters.indexed"
 text = "Listed"
 shape = "option"
 disposition = "listing_only"
+note = "when the listing was indexed, which the API never gives an item"
+says = "When an item was listed is the listing's, not the item's."
 
 [[row]]
 key = "trade_filters.sale_type"
@@ -1107,6 +1113,8 @@ key = "trade_filters.fee"
 text = "Gold Fee"
 shape = "minmax"
 disposition = "listing_only"
+note = "the gold fee a listing costs its buyer, which the API never gives an item"
+says = "The gold fee is the listing's, not the item's."
 
 [[row]]
 key = "trade_filters.price"
