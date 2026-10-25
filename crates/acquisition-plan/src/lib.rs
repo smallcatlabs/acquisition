@@ -62,11 +62,18 @@
 //! the listing gave no league is outside every league's coverage and
 //! reported as such), policy ids the facts lack reported rather than
 //! invented into actions, the bases it cites (both listing response ids,
-//! policy revision, account uuid, snapshot time), exact
+//! policy revision or selection, account uuid, snapshot time and the
+//! response the snapshot was read under), exact
 //! `logical_requests`, and a coarse `wire_sends` range with named
 //! prerequisites (probe, OAuth refresh) — never a precise wire
-//! accounting. Plans always derive from the stored policy
-//! row and carry its revision (no ad-hoc path), and a serialized plan
+//! accounting. A plan is authorized on one of two bases, exactly one,
+//! which its basis names: the stored policy at a revision (`plan_refresh`;
+//! apply refuses it once the row moves, C44), or an explicit selection
+//! (`plan_selection`; its authorization the selection itself, no revision
+//! checked, C44 as amended, and its listing refreshed on every run,
+//! C76). An action is spent once a fetch of its target lands in a
+//! response after the snapshot's, or the daemon holds the same request
+//! (C111, by response and never the clock). A serialized plan
 //! re-validates on parse — unknown fields at any depth (the derived
 //! envelope must re-serialize to exactly what was read, which closes the
 //! one hole serde leaves: extra fields beside a unit reason's `kind`), a
