@@ -63,6 +63,9 @@ GET refresh?realm=pc&league=Standard
 # holds "name=\"character\""
 # holds "name=\"tab\" value=\"old1\""
 # holds "a folder holds tabs, not items: tick the tabs in it"
+# holds "<summary>Stash tabs ("
+# holds "pages of Uniques</summary>"
+# holds "<summary>Characters (2)</summary>"
 # holds "a page of Uniques: tick Uniques with the substashes box"
 # holds "Refresh selected"
 # holds "Plan under the policy"
@@ -75,6 +78,7 @@ GET refresh?realm=pc&league=Standard
 <pre>
 15 tabs in Standard: 7 fetched, 7 never fetched, 1 folder (never fetched); 18 items
 </pre>
+<details class="list" open><summary>Stash tabs (15)</summary>
 <table>
 <tr><th></th><th>Tab</th><th>Type</th><th>Items</th><th>Fetched</th></tr>
 <tr><td><input type="checkbox" name="tab" value="cur1"></td><td>Currency</td><td>CurrencyStash</td><td>3</td><td><age> ago</td></tr>
@@ -83,22 +87,33 @@ GET refresh?realm=pc&league=Standard
 <tr><td><input type="checkbox" name="tab" value="old1"></td><td>Old 1</td><td>PremiumStash</td><td>2</td><td><age> ago</td></tr>
 <tr><td><input type="checkbox" name="tab" value="old2"></td><td>Old 2</td><td>QuadStash</td><td>2</td><td><age> ago</td></tr>
 <tr><td><input type="checkbox" name="tab" value="uniq"></td><td>Uniques</td><td>UniqueStash</td><td>0</td><td><age> ago</td></tr>
+<tr><td></td><td colspan="4"><details class="pages"><summary>3 pages of Uniques</summary>
+<table>
 <tr><td><span class="fate">a page of Uniques: tick Uniques with the substashes box</span></td><td></td><td>UniqueStash</td><td>-</td><td>never</td></tr>
 <tr><td><span class="fate">a page of Uniques: tick Uniques with the substashes box</span></td><td></td><td>UniqueStash</td><td>-</td><td>never</td></tr>
 <tr><td><span class="fate">a page of Uniques: tick Uniques with the substashes box</span></td><td></td><td>UniqueStash</td><td>-</td><td>never</td></tr>
+</table>
+</details></td></tr>
 <tr><td><input type="checkbox" name="tab" value="maps"></td><td>Maps</td><td>MapStash</td><td>0</td><td><age> ago</td></tr>
+<tr><td></td><td colspan="4"><details class="pages"><summary>4 pages of Maps</summary>
+<table>
 <tr><td><span class="fate">a page of Maps: tick Maps with the substashes box</span></td><td></td><td>MapStash</td><td>-</td><td>never</td></tr>
 <tr><td><span class="fate">a page of Maps: tick Maps with the substashes box</span></td><td></td><td>MapStash</td><td>-</td><td>never</td></tr>
 <tr><td><span class="fate">a page of Maps: tick Maps with the substashes box</span></td><td></td><td>MapStash</td><td>-</td><td>never</td></tr>
 <tr><td><span class="fate">a page of Maps: tick Maps with the substashes box</span></td><td></td><td>MapStash</td><td>-</td><td>never</td></tr>
+</table>
+</details></td></tr>
 <tr><td><input type="checkbox" name="tab" value="mape"></td><td>Maps (empty)</td><td>MapStash</td><td>0</td><td><age> ago</td></tr>
 </table>
+</details>
 <label class="control"><input type="checkbox" name="deep" value="true"> the substashes box: also fetch a ticked map or unique tab's pages</label>
+<details class="list" open><summary>Characters (2)</summary>
 <table>
 <tr><th></th><th>Character</th><th>Level</th><th>Items</th><th>Fetched</th></tr>
 <tr><td><input type="checkbox" name="character" value="fake0001"></td><td>StashHoarder</td><td>97</td><td>7</td><td><age> ago</td></tr>
 <tr><td><input type="checkbox" name="character" value="fake0002"></td><td>MuleQuadTab</td><td>12</td><td>5</td><td><age> ago</td></tr>
 </table>
+</details>
 <button type="submit" name="selected" value="yes">Refresh selected</button> <button type="submit">Plan under the policy</button>
 </form>
 

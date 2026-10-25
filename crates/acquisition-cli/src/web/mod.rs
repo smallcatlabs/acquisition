@@ -577,8 +577,14 @@ async fn tabs(
         Some(said) => body.push_str(&pre(&said)),
         None => {
             body.push_str(&pre(&store_cmd::tabs_head(&listed, realm, &league)));
-            body.push_str("<table>\n<tr><th></th><th>Tab</th><th>Type</th><th>Items</th><th>Fetched</th></tr>\n");
-            for tab in &listed.rows {
+            // the stash list one group, open; each map or unique tab's
+            // pages a group of their own under it, closed (the 4b sitting
+            // round, Do 4); no script
+            body.push_str(&format!(
+                "<details class=\"list\" open><summary>Stash tabs ({})</summary>\n<table>\n<tr><th></th><th>Tab</th><th>Type</th><th>Items</th><th>Fetched</th></tr>\n",
+                listed.rows.len()
+            ));
+            let row = |tab: &acquisition_store::TabRow| {
                 let tick = match unticked(tab, &listed.rows) {
                     None => format!(
                         "<input type=\"checkbox\" name=\"tab\" value=\"{}\">",
@@ -586,15 +592,41 @@ async fn tabs(
                     ),
                     Some(said) => format!("<span class=\"fate\">{}</span>", esc(&said)),
                 };
-                body.push_str(&format!(
+                format!(
                     "<tr><td>{tick}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>\n",
                     esc(&tab.name),
                     esc(&tab.r#type),
                     esc(&store_cmd::items_cell(tab.fetched_at, tab.item_count)),
                     esc(&store_cmd::ago(now, tab.fetched_at))
-                ));
+                )
+            };
+            let page_of = |tab: &acquisition_store::TabRow| {
+                tab.parent.as_ref().is_some_and(|p| {
+                    listed.rows.iter().any(|r| {
+                        &r.id == p && matches!(r.r#type.as_str(), "MapStash" | "UniqueStash")
+                    })
+                })
+            };
+            for tab in listed.rows.iter().filter(|t| !page_of(t)) {
+                body.push_str(&row(tab));
+                let pages: Vec<&acquisition_store::TabRow> = listed
+                    .rows
+                    .iter()
+                    .filter(|p| p.parent.as_ref() == Some(&tab.id) && page_of(p))
+                    .collect();
+                if !pages.is_empty() {
+                    body.push_str(&format!(
+                        "<tr><td></td><td colspan=\"4\"><details class=\"pages\"><summary>{} pages of {}</summary>\n<table>\n",
+                        pages.len(),
+                        esc(&tab.name)
+                    ));
+                    for page in pages {
+                        body.push_str(&row(page));
+                    }
+                    body.push_str("</table>\n</details></td></tr>\n");
+                }
             }
-            body.push_str("</table>\n<label class=\"control\"><input type=\"checkbox\" name=\"deep\" value=\"true\"> the substashes box: also fetch a ticked map or unique tab's pages</label>\n");
+            body.push_str("</table>\n</details>\n<label class=\"control\"><input type=\"checkbox\" name=\"deep\" value=\"true\"> the substashes box: also fetch a ticked map or unique tab's pages</label>\n");
         }
     }
     if characters.is_empty() {
@@ -603,7 +635,10 @@ async fn tabs(
             store_cmd::realm_prefix(realm)
         )));
     } else {
-        body.push_str("<table>\n<tr><th></th><th>Character</th><th>Level</th><th>Items</th><th>Fetched</th></tr>\n");
+        body.push_str(&format!(
+            "<details class=\"list\" open><summary>Characters ({})</summary>\n<table>\n<tr><th></th><th>Character</th><th>Level</th><th>Items</th><th>Fetched</th></tr>\n",
+            characters.len()
+        ));
         for c in &characters {
             body.push_str(&format!(
                 "<tr><td><input type=\"checkbox\" name=\"character\" value=\"{}\"></td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>\n",
@@ -614,7 +649,7 @@ async fn tabs(
                 esc(&store_cmd::ago(now, c.fetched_at))
             ));
         }
-        body.push_str("</table>\n");
+        body.push_str("</table>\n</details>\n");
     }
     body.push_str("<button type=\"submit\" name=\"selected\" value=\"yes\">Refresh selected</button> <button type=\"submit\">Plan under the policy</button>\n</form>\n");
     web.page("Refresh", Head::default(), &body)

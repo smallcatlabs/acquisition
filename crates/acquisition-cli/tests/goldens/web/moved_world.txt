@@ -57,6 +57,7 @@ GET search?<a stat the table lacks>
 # holds "stats.0.0"
 <main>
 <h1>Answer</h1>
+<p class="count">5 matches</p>
 <p><span class="badge">not the site&#39;s search: 1 clause not run</span></p>
 <pre>
 trade   from the query JSON: PARTIAL — 1 clause not run, so this is not the site&#39;s search
@@ -67,13 +68,13 @@ scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (olde
         0 locations never fetched · location list seen <age> ago
 total   5 matches
 </pre>
-<table>
-<tr><th></th><th>Name</th><th>Base</th><th>Rarity</th><th>Place</th><th>Lines</th></tr>
-<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Kaom&#39;s Heart Glorious Plate"></td><td><a href="item/kaom">Kaom&#39;s Heart Glorious Plate</a></td><td>Glorious Plate</td><td>Unique</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td><td></td></tr>
-<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></td><td><a href="item/r1">Doom Loop Two-Stone Ring</a></td><td>Two-Stone Ring</td><td>Rare</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td><td></td></tr>
-<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring"></td><td><a href="item/r2">Rune Coil Two-Stone Ring</a></td><td>Two-Stone Ring</td><td>Rare</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td><td></td></tr>
-<tr><td class="icon"></td><td><a href="item/mech">Echo Seed Two-Stone Ring</a></td><td>Two-Stone Ring</td><td>Rare</td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td><td></td></tr>
-<tr><td class="icon"></td><td><a href="item/new">Brood Lure Wombgift Chalice</a></td><td>Wombgift Chalice</td><td>Rare</td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td><td></td></tr>
+<table class="results">
+<tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
+<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Kaom&#39;s Heart Glorious Plate"></td><td><a class="name rarity-unique" href="item/kaom">Kaom&#39;s Heart Glorious Plate</a><br><span class="base">Glorious Plate</span> <span class="fate">unique</span></td><td></td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
+<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
+<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
+<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td></td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
+<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/new">Brood Lure Wombgift Chalice</a><br><span class="base">Wombgift Chalice</span> <span class="fate">rare</span></td><td></td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
 </table>
 <pre>
 basis   store <store> · build <build> · snapshot 7 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
@@ -86,6 +87,7 @@ GET search?<every ring>
 # holds "Wombgift Chalice"
 <main>
 <h1>Answer</h1>
+<p class="count">3 matches</p>
 <p><span class="badge">1 undecided</span> <span class="badge">the class: base not in the table unread — e.g. Brood Lure Wombgift Chalice</span></p>
 <pre>
 trade   from the query JSON: exact — every clause with a stash meaning ran as the site reads it
@@ -95,11 +97,11 @@ scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (olde
         0 locations never fetched · location list seen <age> ago
 total   3 matches · 1 undecided
 </pre>
-<table>
-<tr><th></th><th>Name</th><th>Base</th><th>Rarity</th><th>Place</th><th>Lines</th></tr>
-<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></td><td><a href="item/r1">Doom Loop Two-Stone Ring</a></td><td>Two-Stone Ring</td><td>Rare</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td><td>category accessory.ring</td></tr>
-<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring"></td><td><a href="item/r2">Rune Coil Two-Stone Ring</a></td><td>Two-Stone Ring</td><td>Rare</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td><td>category accessory.ring</td></tr>
-<tr><td class="icon"></td><td><a href="item/mech">Echo Seed Two-Stone Ring</a></td><td>Two-Stone Ring</td><td>Rare</td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td><td>category accessory.ring</td></tr>
+<table class="results">
+<tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>
+<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Doom Loop Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r1">Doom Loop Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td>category accessory.ring</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
+<tr><td class="icon"><img src="https://web.poecdn.com/gen/image/ring.png" alt="Rune Coil Two-Stone Ring"></td><td><a class="name rarity-rare" href="item/r2">Rune Coil Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td>category accessory.ring</td><td>Standard / Rings · x 0, y 0 · fetched <age> ago</td></tr>
+<tr><td class="icon"></td><td><a class="name rarity-rare" href="item/mech">Echo Seed Two-Stone Ring</a><br><span class="base">Two-Stone Ring</span> <span class="fate">rare</span></td><td>category accessory.ring</td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
 </table>
 <pre>
 undecided the class: base not in the table unread — e.g. Brood Lure Wombgift Chalice · id new

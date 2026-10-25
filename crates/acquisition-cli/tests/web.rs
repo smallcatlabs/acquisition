@@ -380,6 +380,10 @@ fn every_search_page_is_a_wording_golden() {
             "The seller&#39;s account is the listing&#39;s",
             "fate fate-exact",
             "Find a stat",
+            "<summary>Type Filters</summary>",
+            "<summary>Stat Filters</summary>",
+            "placeholder=\"Search items\"",
+            "class=\"search-btn\"",
         ],
     );
     let answer = web.get(&format!("search?{}", query_string(&ring_search())));
@@ -392,6 +396,8 @@ fn every_search_page_is_a_wording_golden() {
             "Doom Loop",
             "Rune Coil",
             "alt=\"Doom Loop Two-Stone Ring\"",
+            "class=\"name rarity-rare\"",
+            "<p class=\"count\">2 matches</p>",
             "+95 to maximum Life",
         ],
     );
@@ -605,6 +611,9 @@ fn the_refresh_loop_runs_through_the_pages() {
             "name=\"character\"",
             "name=\"tab\" value=\"old1\"",
             "a folder holds tabs, not items: tick the tabs in it",
+            "<summary>Stash tabs (",
+            "pages of Uniques</summary>",
+            "<summary>Characters (2)</summary>",
             "a page of Uniques: tick Uniques with the substashes box",
             "Refresh selected",
             "Plan under the policy",

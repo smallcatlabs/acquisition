@@ -76,6 +76,8 @@ pub(crate) struct Form {
 pub(crate) struct Group {
     pub id: String,
     pub title: Option<String>,
+    /// The dump's `hidden`: a group the site shows closed until opened.
+    pub hidden: bool,
     pub filters: Vec<Filter>,
 }
 
@@ -130,6 +132,7 @@ impl Form {
             groups.push(Group {
                 id: g["id"].as_str().unwrap_or_default().to_string(),
                 title: g["title"].as_str().map(str::to_string),
+                hidden: g["hidden"].as_bool().unwrap_or(false),
                 filters,
             });
         }
@@ -190,6 +193,7 @@ fn emitted(groups: &[Group]) -> BTreeSet<String> {
     let mut names: BTreeSet<String> = [
         "realm",
         "league",
+        "query.term",
         "view.limit",
         "view.sort",
         "view.desc",

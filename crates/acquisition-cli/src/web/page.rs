@@ -103,50 +103,61 @@ fn fate_span(fate: Option<&Fate>) -> String {
     }
 }
 
-/// The search form (Do 6): the realm and the league, every filter of the
-/// dump with its fate, the stat rows with the picker, the view.
+/// The search form (Do 6), in the trade site's organization (the 4b
+/// sitting round, Do 4; the owner's page save read for its order alone,
+/// nothing of GGG's copied): the search bar across the top — the item
+/// search on the left; the realm, the league and the status on the right
+/// — then two panes, the filter groups as panels in the dump's order on
+/// the left and the stat filters with the picker on the right, then the
+/// controls with Search at the centre. A panel is a `details` group, open
+/// where the site shows the group open.
 ///
-/// The form is one realm's render: its league list is that realm's
-/// counts, so the realm is chosen by a form of its own that renders the
-/// page again (the review of 4b, its fourth finding), and the search
-/// carries the realm shown.
+/// The form is one realm's render: its league list is that realm's, so
+/// the realm is chosen by a form of its own that renders the page again
+/// (the review of 4b, its fourth finding), and the search carries the
+/// realm shown.
 pub(crate) fn search_form(form: &Form, realm: &str, leagues: Option<&[(String, bool)]>) -> String {
     let mut out = String::from(
-        "<form method=\"get\" action=\".\"><label class=\"control\">Realm <select name=\"realm\">",
+        "<form id=\"realm-form\" method=\"get\" action=\".\"></form>\n<form method=\"get\" action=\"search\">\n<div class=\"search-bar\">\n<div class=\"search-left\">",
     );
+    out.push_str(&format!(
+        "<input class=\"item-search\" name=\"query.term\" placeholder=\"Search items\" aria-label=\"Search items\">{}</div>\n<div class=\"search-right\">",
+        fate_span(form.fate("query.term"))
+    ));
+    out.push_str("<label class=\"control\">Realm <select name=\"realm\" form=\"realm-form\">");
     for r in ["pc", "xbox", "sony"] {
         out.push_str(&format!(
             "<option value=\"{r}\"{}>{r}</option>",
             if r == realm { " selected" } else { "" }
         ));
     }
-    out.push_str(
-        "</select></label> <button type=\"submit\">Show this realm's leagues</button></form>\n",
-    );
-    out.push_str(&fetch_leagues());
     out.push_str(&format!(
-        "<form method=\"get\" action=\"search\">\n<fieldset><legend>Scope</legend>\n<input type=\"hidden\" name=\"realm\" value=\"{}\"><span class=\"control\">Realm {}</span>\n",
-        esc(realm),
+        "</select></label> <button type=\"submit\" form=\"realm-form\">Show this realm's leagues</button>\n<input type=\"hidden\" name=\"realm\" value=\"{}\">",
         esc(realm)
     ));
     out.push_str(&league_select(leagues, None, true));
     out.push_str(&fate_span(form.fate("url.league")));
-    out.push_str("\n</fieldset>\n");
-    for group in &form.groups {
-        let legend = group.title.as_deref().unwrap_or("Status");
-        out.push_str(&format!("<fieldset><legend>{}</legend>\n", esc(legend)));
+    for group in form.groups.iter().filter(|g| g.id == "status_filters") {
+        for filter in &group.filters {
+            out.push_str(&control(form, filter, "query.status", "query.status"));
+        }
+    }
+    out.push_str("</div>\n</div>\n<div class=\"panes\">\n<div class=\"pane\">\n");
+    for group in form.groups.iter().filter(|g| g.id != "status_filters") {
+        let title = group.title.as_deref().unwrap_or(&group.id);
+        out.push_str(&format!(
+            "<details class=\"panel\"{}><summary>{}</summary>\n<div class=\"panel-body\">\n",
+            if group.hidden { "" } else { " open" },
+            esc(title)
+        ));
         for filter in &group.filters {
             let path = super::form::filter_path(&group.id, &filter.id);
-            let key = if group.id == "status_filters" {
-                "query.status".to_string()
-            } else {
-                format!("{}.{}", group.id, filter.id)
-            };
+            let key = format!("{}.{}", group.id, filter.id);
             out.push_str(&control(form, filter, &path, &key));
         }
-        out.push_str("</fieldset>\n");
+        out.push_str("</div>\n</details>\n");
     }
-    out.push_str("<fieldset><legend>Stats</legend>\n<label class=\"control\">Group <select name=\"query.stats[0].type\">");
+    out.push_str("</div>\n<div class=\"pane\">\n<details class=\"panel\" open><summary>Stat Filters</summary>\n<div class=\"panel-body\">\n<div class=\"filter\"><span class=\"filter-title\">Group</span> <select name=\"query.stats[0].type\">");
     for (kind, text, fate) in &form.stat_types {
         out.push_str(&format!(
             "<option value=\"{}\"{}>{} ({})</option>",
@@ -156,19 +167,21 @@ pub(crate) fn search_form(form: &Form, realm: &str, leagues: Option<&[(String, b
             esc(&fate.status.replace('_', " "))
         ));
     }
-    out.push_str("</select></label>\n<label class=\"control\">Group min <input type=\"number\" step=\"any\" name=\"query.stats[0].value.min\"></label>\n<label class=\"control\">Group max <input type=\"number\" step=\"any\" name=\"query.stats[0].value.max\"></label><br>\n");
+    out.push_str("</select> <input type=\"number\" step=\"any\" name=\"query.stats[0].value.min\" placeholder=\"min\" aria-label=\"group min\"> <input type=\"number\" step=\"any\" name=\"query.stats[0].value.max\" placeholder=\"max\" aria-label=\"group max\"></div>\n");
     for n in 0..STAT_ROWS {
         let id = format!("stat-{n}");
         out.push_str(&format!(
-            "<div><label class=\"control\">Stat <input class=\"stat-id\" id=\"{id}\" name=\"query.stats[0].filters[{n}].id\" size=\"28\"></label> <span id=\"{id}-text\" class=\"fate\"></span>\n<label class=\"control\">min <input type=\"number\" step=\"any\" name=\"query.stats[0].filters[{n}].value.min\"></label>\n<label class=\"control\">max <input type=\"number\" step=\"any\" name=\"query.stats[0].filters[{n}].value.max\"></label></div>\n"
+            "<div class=\"filter\"><input class=\"stat-id\" id=\"{id}\" name=\"query.stats[0].filters[{n}].id\" size=\"28\" placeholder=\"stat\" aria-label=\"stat {}\"> <input type=\"number\" step=\"any\" name=\"query.stats[0].filters[{n}].value.min\" placeholder=\"min\" aria-label=\"min\"> <input type=\"number\" step=\"any\" name=\"query.stats[0].filters[{n}].value.max\" placeholder=\"max\" aria-label=\"max\"> <span id=\"{id}-text\" class=\"fate\"></span></div>\n",
+            n + 1
         ));
     }
-    out.push_str("<label class=\"control\">Find a stat <input type=\"search\" id=\"stat-find\" autocomplete=\"off\"></label>\n<span id=\"stat-said\" class=\"fate\"></span>\n<ul id=\"stat-list\"></ul>\n</fieldset>\n");
-    out.push_str("<fieldset><legend>Answer</legend>\n<label class=\"control\">Show <select name=\"view.limit\">");
+    out.push_str("<div class=\"filter\"><span class=\"filter-title\">Find a stat</span> <input type=\"search\" id=\"stat-find\" autocomplete=\"off\"></div>\n<span id=\"stat-said\" class=\"fate\"></span>\n<ul id=\"stat-list\"></ul>\n</div>\n</details>\n</div>\n</div>\n");
+    out.push_str("<div class=\"controls\">\n<div class=\"controls-left\"><label class=\"control\">Show <select name=\"view.limit\">");
     for limit in LIMITS {
         out.push_str(&format!("<option value=\"{limit}\">{limit}</option>"));
     }
-    out.push_str("</select></label>\n<label class=\"control\">Sort by <input name=\"view.sort\" placeholder=\"ilvl\"></label>\n<label class=\"control\"><input type=\"checkbox\" name=\"view.desc\" value=\"true\"> highest first</label><br>\n<label class=\"control\">Or count the matches by <input name=\"view.count\" placeholder=\"rarity\"></label> <span class=\"fate\">one key: rarity, league, tab, class, category, line</span>\n</fieldset>\n<button type=\"submit\">Search</button>\n</form>\n");
+    out.push_str("</select></label> <label class=\"control\">Sort by <input name=\"view.sort\" placeholder=\"ilvl\"></label> <label class=\"control\"><input type=\"checkbox\" name=\"view.desc\" value=\"true\"> highest first</label> <label class=\"control\">Or count by <input name=\"view.count\" placeholder=\"rarity\"></label> <span class=\"fate\">one key: rarity, league, tab, class, category, line</span></div>\n<div class=\"controls-center\"><button type=\"submit\" class=\"search-btn\">Search</button></div>\n</div>\n</form>\n");
+    out.push_str(&fetch_leagues());
     out
 }
 
@@ -194,7 +207,8 @@ fn control(form: &Form, filter: &Filter, path: &str, key: &str) -> String {
         .as_ref()
         .map(|t| format!(" title=\"{}\"", esc(t)))
         .unwrap_or_default();
-    let mut out = format!("<span class=\"control\"{title}><span{tip}>{label}</span> ");
+    let mut out =
+        format!("<div class=\"filter\"{title}><span class=\"filter-title\"{tip}>{label}</span> ");
     if let Some(options) = &filter.options {
         out.push_str(&format!("<select name=\"{path}.option\"{disabled}>"));
         for (id, text) in options {
@@ -225,13 +239,13 @@ fn control(form: &Form, filter: &Filter, path: &str, key: &str) -> String {
     if filter.sockets {
         for c in ["r", "g", "b", "w"] {
             out.push_str(&format!(
-                " <input type=\"number\" name=\"{path}.{c}\" placeholder=\"{}\" style=\"width:3rem\"{disabled}>",
+                " <input class=\"socket\" type=\"number\" name=\"{path}.{c}\" placeholder=\"{}\"{disabled}>",
                 c.to_uppercase()
             ));
         }
     }
     out.push_str(&fate_span(fate));
-    out.push_str("</span>\n");
+    out.push_str("</div>\n");
     out
 }
 
@@ -240,10 +254,14 @@ fn control(form: &Form, filter: &Filter, path: &str, key: &str) -> String {
 /// the routes and the basis as the CLI prints them.
 pub(crate) fn answer(a: &Answer) -> String {
     let now = acquisition_store::now();
-    let mut out = answer_badges(a);
+    let mut out = format!(
+        "<p class=\"count\">{}</p>\n",
+        plural(a.total.matched, "match", "matches")
+    );
+    out.push_str(&answer_badges(a));
     out.push_str(&pre(&search_cmd::answer_head(a)));
     if !a.rows.is_empty() {
-        out.push_str("<table>\n<tr><th></th><th>Name</th><th>Base</th><th>Rarity</th><th>Place</th><th>Lines</th></tr>\n");
+        out.push_str("<table class=\"results\">\n<tr><th></th><th>Item</th><th>Lines</th><th>Place</th></tr>\n");
         for row in &a.rows {
             let name = search_cmd::title(row.name.as_deref(), row.typeline.as_deref());
             let icon = match &row.icon {
@@ -258,19 +276,23 @@ pub(crate) fn answer(a: &Answer) -> String {
                     crate::store_cmd::ago(now, Some(removed_at))
                 ));
             }
+            // the card's order: the name in its rarity's colour and the
+            // base under it, then the lines, then where it lies
+            let rarity = row.rarity.as_deref().unwrap_or("");
             out.push_str(&format!(
-                "<tr><td class=\"icon\">{icon}</td><td><a href=\"item/{}\">{}</a></td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>\n",
+                "<tr><td class=\"icon\">{icon}</td><td><a class=\"name rarity-{}\" href=\"item/{}\">{}</a><br><span class=\"base\">{}</span> <span class=\"fate\">{}</span></td><td>{}</td><td>{}</td></tr>\n",
+                esc(&rarity.to_lowercase()),
                 enc(&row.id),
                 esc(&name),
                 esc(row.base.as_deref().unwrap_or("")),
-                esc(row.rarity.as_deref().unwrap_or("")),
-                esc(&place),
+                esc(&rarity.to_lowercase()),
                 shows
                     .iter()
                     .chain(&more)
                     .map(|s| esc(s))
                     .collect::<Vec<_>>()
-                    .join("<br>")
+                    .join("<br>"),
+                esc(&place)
             ));
         }
         out.push_str("</table>\n");
