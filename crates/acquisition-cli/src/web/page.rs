@@ -143,13 +143,11 @@ pub(crate) fn search_form(form: &Form, realm: &str, leagues: &[(String, usize)])
         let legend = group.title.as_deref().unwrap_or("Status");
         out.push_str(&format!("<fieldset><legend>{}</legend>\n", esc(legend)));
         for filter in &group.filters {
-            let (path, key) = if group.id == "status_filters" {
-                ("query.status".to_string(), "query.status".to_string())
+            let path = super::form::filter_path(&group.id, &filter.id);
+            let key = if group.id == "status_filters" {
+                "query.status".to_string()
             } else {
-                (
-                    format!("query.filters.{}.filters.{}", group.id, filter.id),
-                    format!("{}.{}", group.id, filter.id),
-                )
+                format!("{}.{}", group.id, filter.id)
             };
             out.push_str(&control(form, filter, &path, &key));
         }

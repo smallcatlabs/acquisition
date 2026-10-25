@@ -108,6 +108,8 @@ struct Held {
 /// search's words, anything else in the CLI's.
 enum Failure {
     Search(SearchError),
+    /// A request the pages never make: a usage error (C11's `usage`).
+    Usage(String),
     Other(anyhow::Error),
 }
 
@@ -139,6 +141,7 @@ impl Failure {
     fn words(&self) -> String {
         match self {
             Failure::Search(e) => search_cmd::search_error_text(e),
+            Failure::Usage(words) => words.clone(),
             Failure::Other(e) => crate::failure_words(e),
         }
     }
@@ -325,7 +328,11 @@ impl Web {
             return (
                 StatusCode::BAD_REQUEST,
                 [(header::CONTENT_TYPE, "application/json")],
-                json!({ "error": words }).to_string(),
+                match failure {
+                    Failure::Usage(_) => json!({ "error": words, "kind": "usage" }),
+                    _ => json!({ "error": words }),
+                }
+                .to_string(),
             )
                 .into_response();
         }
@@ -456,7 +463,7 @@ async fn search(
         let request = match pick(&fields, "next") {
             Some(token) => Request::from_token(token)?,
             None => {
-                let folded = form::fold(&fields).map_err(|e| Failure::Other(anyhow::anyhow!(e)))?;
+                let folded = form::fold(&web.form, &fields).map_err(Failure::Usage)?;
                 Asked::read(&folded.request())?.request
             }
         };

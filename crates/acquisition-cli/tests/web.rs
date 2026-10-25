@@ -241,6 +241,20 @@ fn c138_the_listener_answers_its_own_pages_alone() {
         "plan=%7B%7D",
     );
     assert_eq!(forged.status, 403, "{}", forged.body);
+    // a field name the form never emits — an index past its stat rows
+    // among them — is a usage error before anything is built
+    let past = web.get("search?query.stats%5B1000000000%5D.type=and");
+    assert_eq!(past.status, 400, "{}", past.body);
+    assert!(past.body.contains("no field of this form"), "{}", past.body);
+    let past = web.raw(
+        "GET",
+        &format!("/{token}/search?query.stats%5B1000000000%5D.type=and"),
+        None,
+        &[("Accept", "application/json")],
+        "",
+    );
+    let refusal: Value = serde_json::from_str(&past.body).unwrap();
+    assert_eq!(refusal["kind"], "usage", "{refusal}");
     // `--json` prints the URL as one document, as `auth` prints its own
     let scratch = harness::scratch("webjson");
     seed(&scratch.0);
