@@ -247,21 +247,28 @@ fn fail(e: SearchError, json: bool) -> anyhow::Error {
     if json {
         println!("{}", e.to_json());
     } else {
-        match &e {
-            SearchError::Language(e) => {
-                eprintln!("Error: {}", e.message);
-                e.readings.iter().for_each(|r| eprintln!("    {r}"));
-            }
-            SearchError::Scope {
-                message, offers, ..
-            } => {
-                eprintln!("Error: {message}");
-                offers.iter().for_each(|o| eprintln!("    {}", o.reading));
-            }
-            SearchError::Store(e) => eprintln!("Error: {e:#}"),
-        }
+        eprintln!("Error: {}", search_error_text(&e));
     }
     crate::AlreadyReported.into()
+}
+
+/// A search refusal's words: its message, then each reading on a line of
+/// its own — what a terminal prints after `Error:` and the web UI's
+/// refusal page states.
+pub(crate) fn search_error_text(e: &SearchError) -> String {
+    match e {
+        SearchError::Language(e) => std::iter::once(e.message.clone())
+            .chain(e.readings.iter().map(|r| format!("    {r}")))
+            .collect::<Vec<_>>()
+            .join("\n"),
+        SearchError::Scope {
+            message, offers, ..
+        } => std::iter::once(message.clone())
+            .chain(offers.iter().map(|o| format!("    {}", o.reading)))
+            .collect::<Vec<_>>()
+            .join("\n"),
+        SearchError::Store(e) => format!("{e:#}"),
+    }
 }
 
 fn emit<T: Serialize>(value: &T, json: bool, text: impl FnOnce(&T) -> String) -> Result<()> {
@@ -715,7 +722,7 @@ fn slot_number(n: Option<f64>) -> String {
 
 /// A name and a type line as the game shows them together; a rendering,
 /// never a field (`derive.rs`).
-fn title(name: Option<&str>, typeline: Option<&str>) -> String {
+pub(crate) fn title(name: Option<&str>, typeline: Option<&str>) -> String {
     match (name, typeline) {
         (Some(name), Some(typeline)) => format!("{name} {typeline}"),
         (name, typeline) => name.or(typeline).unwrap_or("(no name)").to_string(),
@@ -748,7 +755,7 @@ fn never_fetched_text(by_type: &[acquisition_search::tabs::TabType]) -> String {
     format!(" never fetched: {}", named.join(", "))
 }
 
-fn place_text(place: &acquisition_search::corpus::Place, now: i64) -> String {
+pub(crate) fn place_text(place: &acquisition_search::corpus::Place, now: i64) -> String {
     let mut out = place
         .league
         .clone()
@@ -824,7 +831,7 @@ fn evidence_text(evidence: &acquisition_search::answer::Evidence) -> String {
 /// the catalogue holds, what that reading adds and drops (C119), its
 /// routes where the answer's routes are. The whole is the JSON's
 /// `query.trade`.
-fn trade_text(t: &TradeOut) -> Vec<String> {
+pub(crate) fn trade_text(t: &TradeOut) -> Vec<String> {
     let from = match t.source {
         Source::Url => "a URL",
         Source::Id => "a search id",
@@ -914,6 +921,22 @@ fn answer_text(a: &Answer) -> String {
 /// count got a table and no word why (the trade seat: cli-sonnet, both
 /// rounds; cli-sonnet-2 call 7, its fault 5).
 fn answer_text_of(a: &Answer, limit_beside_count: Option<usize>) -> String {
+    let now = acquisition_store::now();
+    let mut out = answer_head(a);
+    for (i, row) in a.rows.iter().enumerate() {
+        out.push_str(&row_text(a, row, i == 0, now));
+    }
+    if let Some(more) = answer_more(a) {
+        out.push_str(&more);
+    }
+    out.push_str(&answer_tail(a, limit_beside_count));
+    out
+}
+
+/// The answer's opening (C53, the answer first): a site search's
+/// translation, the query, the scope and the total — what the web UI's
+/// answer page states above its table, word for word.
+pub(crate) fn answer_head(a: &Answer) -> String {
     let now = acquisition_store::now();
     let mut out = String::new();
     let mut line = |s: String| {
@@ -1032,111 +1055,144 @@ fn answer_text_of(a: &Answer, limit_beside_count: Option<usize>) -> String {
         });
     }
 
-    for (i, row) in a.rows.iter().enumerate() {
-        let mut head = title(row.name.as_deref(), row.typeline.as_deref());
-        if let Some(rarity) = &row.rarity {
-            head.push_str(&format!(" · {}", rarity.to_lowercase()));
-        }
-        // a scope that spans realms says which one each item is in, as
-        // `show` does; under one realm the scope line has said it
-        if a.scope.realm == Realm::All {
-            head.push_str(&format!(" · {}", row.place.realm));
-        }
-        head.push_str(&format!(" · {}", place_text(&row.place, now)));
-        if let Some(removed_at) = row.removed_at {
-            head.push_str(&format!(" · removed {}", ago(now, Some(removed_at))));
-        }
-        line(format!(
-            "{}{head}",
-            if i == 0 { "rows    " } else { "        " }
-        ));
-        // each part of the row — the sort, each term — shows a set of the
-        // item's occurrences, so a line printed twice by one part is two
-        // occurrences: the row prints each line as many times as the part
-        // that shows it most, in the order the parts show it, whichever
-        // order the terms were written in (the review of 9b, 2026-09-26,
-        // twice: a total of 40 showed contributors of 10 and 20 alone)
-        let mut parts: Vec<Vec<String>> = Vec::new();
-        if let Some(sorted) = &row.sort {
-            // what sorted the row (F6): a field's name before its number,
-            // a line or a sum's contributors after — and the sort's own
-            // value before its number where no field names it, since
-            // `sorts by 78` beside a term's sum of 70 was read as the
-            // filter's number (the trade seat: cli-opus call 21, cli-sonnet
-            // call 15)
-            // a row that sorts last says by what (the review of 9b: `sorts
-            // last: incomplete` named no field)
-            let key = match &a.view {
-                ViewOut::Rows(rows) => rows.sort.as_deref().unwrap_or_default(),
-                ViewOut::Counts(_) | ViewOut::Cross(_) | ViewOut::Explain(_) => "",
-            };
-            let by = match (&sorted.value, sorted.status) {
-                (Some(value), None) => format!("by {}", number(value)),
-                (Some(value), Some(status)) => {
-                    format!("last: {status} at {} ({key})", number(value))
-                }
-                (None, status) => format!("last: {} ({key})", status.unwrap_or("no value")),
-            };
-            let mut rest = sorted.shows.iter();
-            let named = match sorted.shows.first() {
-                Some(acquisition_search::answer::Evidence::Value { name, .. }) => {
-                    rest.next();
-                    by.replacen("by ", &format!("by {name} "), 1)
-                }
-                _ if !key.is_empty() => by.replacen("by ", &format!("by {key} "), 1),
-                _ => by,
-            };
-            let mut by_sort = vec![format!("sorts {named}")];
-            by_sort.extend(rest.map(evidence_text));
-            if sorted.left_out > 0 {
-                by_sort.push(format!(
-                    "{} more sorted: {}",
-                    sorted.left_out,
-                    a.show_command(&row.id)
-                ));
+    out
+}
+
+/// One row as the text prints it: the title, the place, what each part
+/// showed and the id.
+fn row_text(a: &Answer, row: &acquisition_search::answer::Row, first: bool, now: i64) -> String {
+    let mut out = String::new();
+    let mut line = |s: String| {
+        out.push_str(s.trim_end());
+        out.push('\n');
+    };
+    let mut head = title(row.name.as_deref(), row.typeline.as_deref());
+    if let Some(rarity) = &row.rarity {
+        head.push_str(&format!(" · {}", rarity.to_lowercase()));
+    }
+    // a scope that spans realms says which one each item is in, as
+    // `show` does; under one realm the scope line has said it
+    if a.scope.realm == Realm::All {
+        head.push_str(&format!(" · {}", row.place.realm));
+    }
+    head.push_str(&format!(" · {}", place_text(&row.place, now)));
+    if let Some(removed_at) = row.removed_at {
+        head.push_str(&format!(" · removed {}", ago(now, Some(removed_at))));
+    }
+    line(format!(
+        "{}{head}",
+        if first { "rows    " } else { "        " }
+    ));
+    let (shows, more) = row_shows(a, row);
+    if !shows.is_empty() {
+        line(format!("            {}", shows.join(" · ")));
+    }
+    for more in more {
+        line(format!("            {more}"));
+    }
+    line(format!("            id {}", row.id));
+    out
+}
+
+/// What a row shows of its matched terms and its sort, each line once
+/// for each occurrence the part showing it most shows, and the lines
+/// saying what each term touched past them: the touched lines the web
+/// UI's table carries in a cell.
+pub(crate) fn row_shows(
+    a: &Answer,
+    row: &acquisition_search::answer::Row,
+) -> (Vec<String>, Vec<String>) {
+    // each part of the row — the sort, each term — shows a set of the
+    // item's occurrences, so a line printed twice by one part is two
+    // occurrences: the row prints each line as many times as the part
+    // that shows it most, in the order the parts show it, whichever
+    // order the terms were written in (the review of 9b, 2026-09-26,
+    // twice: a total of 40 showed contributors of 10 and 20 alone)
+    let mut parts: Vec<Vec<String>> = Vec::new();
+    if let Some(sorted) = &row.sort {
+        // what sorted the row (F6): a field's name before its number,
+        // a line or a sum's contributors after — and the sort's own
+        // value before its number where no field names it, since
+        // `sorts by 78` beside a term's sum of 70 was read as the
+        // filter's number (the trade seat: cli-opus call 21, cli-sonnet
+        // call 15)
+        // a row that sorts last says by what (the review of 9b: `sorts
+        // last: incomplete` named no field)
+        let key = match &a.view {
+            ViewOut::Rows(rows) => rows.sort.as_deref().unwrap_or_default(),
+            ViewOut::Counts(_) | ViewOut::Cross(_) | ViewOut::Explain(_) => "",
+        };
+        let by = match (&sorted.value, sorted.status) {
+            (Some(value), None) => format!("by {}", number(value)),
+            (Some(value), Some(status)) => {
+                format!("last: {status} at {} ({key})", number(value))
             }
-            parts.push(by_sort);
-        }
-        for touched in &row.matched {
-            parts.push(touched.shows.iter().map(evidence_text).collect());
-        }
-        let mut need: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
-        for part in &parts {
-            let mut in_part: std::collections::HashMap<&str, usize> =
-                std::collections::HashMap::new();
-            for s in part {
-                *in_part.entry(s.as_str()).or_default() += 1;
+            (None, status) => format!("last: {} ({key})", status.unwrap_or("no value")),
+        };
+        let mut rest = sorted.shows.iter();
+        let named = match sorted.shows.first() {
+            Some(acquisition_search::answer::Evidence::Value { name, .. }) => {
+                rest.next();
+                by.replacen("by ", &format!("by {name} "), 1)
             }
-            for (s, n) in in_part {
-                let most = need.entry(s).or_default();
-                *most = (*most).max(n);
-            }
-        }
-        let mut printed: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
-        let mut shows: Vec<String> = Vec::new();
-        for s in parts.iter().flatten() {
-            let done = printed.entry(s.as_str()).or_default();
-            if *done < need[s.as_str()] {
-                *done += 1;
-                shows.push(s.clone());
-            }
-        }
-        if !shows.is_empty() {
-            line(format!("            {}", shows.join(" · ")));
-        }
-        for touched in row.matched.iter().filter(|t| t.left_out > 0) {
-            line(format!(
-                "            {} more of term {}: {}",
-                touched.left_out,
-                touched.path,
+            _ if !key.is_empty() => by.replacen("by ", &format!("by {key} "), 1),
+            _ => by,
+        };
+        let mut by_sort = vec![format!("sorts {named}")];
+        by_sort.extend(rest.map(evidence_text));
+        if sorted.left_out > 0 {
+            by_sort.push(format!(
+                "{} more sorted: {}",
+                sorted.left_out,
                 a.show_command(&row.id)
             ));
         }
-        line(format!("            id {}", row.id));
+        parts.push(by_sort);
     }
+    for touched in &row.matched {
+        parts.push(touched.shows.iter().map(evidence_text).collect());
+    }
+    let mut need: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+    for part in &parts {
+        let mut in_part: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+        for s in part {
+            *in_part.entry(s.as_str()).or_default() += 1;
+        }
+        for (s, n) in in_part {
+            let most = need.entry(s).or_default();
+            *most = (*most).max(n);
+        }
+    }
+    let mut printed: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+    let mut shows: Vec<String> = Vec::new();
+    for s in parts.iter().flatten() {
+        let done = printed.entry(s.as_str()).or_default();
+        if *done < need[s.as_str()] {
+            *done += 1;
+            shows.push(s.clone());
+        }
+    }
+    let more = row
+        .matched
+        .iter()
+        .filter(|t| t.left_out > 0)
+        .map(|touched| {
+            format!(
+                "{} more of term {}: {}",
+                touched.left_out,
+                touched.path,
+                a.show_command(&row.id)
+            )
+        })
+        .collect();
+    (shows, more)
+}
+
+/// The rows' continuation as the text says it, where rows are left out.
+pub(crate) fn answer_more(a: &Answer) -> Option<String> {
     match &a.view {
-        ViewOut::Rows(rows) if rows.left_out > 0 => line(format!(
-            "more    {} of {} shown: {}",
+        ViewOut::Rows(rows) if rows.left_out > 0 => Some(format!(
+            "more    {} of {} shown: {}\n",
             if rows.returned == 0 {
                 "none".to_string()
             } else {
@@ -1148,6 +1204,23 @@ fn answer_text_of(a: &Answer, limit_beside_count: Option<usize>) -> String {
                 None => "a larger --limit returns the rest".to_string(),
             }
         )),
+        _ => None,
+    }
+}
+
+/// Everything after the rows: a count's tables, an explain, what a zero
+/// answer offers, why items are undecided, the terms, the routes and the
+/// basis last — what the web UI's answer page states under its table.
+pub(crate) fn answer_tail(a: &Answer, limit_beside_count: Option<usize>) -> String {
+    let now = acquisition_store::now();
+    let mut out = String::new();
+    let mut line = |s: String| {
+        out.push_str(s.trim_end());
+        out.push('\n');
+    };
+    let typed = a.set_aside.as_ref().unwrap_or(&a.query);
+    let scope = &a.scope;
+    match &a.view {
         ViewOut::Rows(_) => {}
         ViewOut::Counts(counts) => {
             if let Some(limit) = limit_beside_count {
@@ -1837,7 +1910,7 @@ fn describe_text(d: &Describe, index: bool) -> String {
     out
 }
 
-fn shown_text(s: &Shown) -> String {
+pub(crate) fn shown_text(s: &Shown) -> String {
     let item = &s.item;
     let mut out = String::new();
     let mut head = title(item.name.as_deref(), item.typeline.as_deref());

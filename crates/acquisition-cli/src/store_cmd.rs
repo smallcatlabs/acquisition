@@ -151,6 +151,42 @@ pub(crate) fn realm_prefix(realm: Realm) -> String {
     }
 }
 
+/// A league with no tab known, and what lists its tabs: what `tabs` says
+/// and the web UI's tabs page with it.
+pub(crate) fn no_tabs_text(realm: Realm, league: &str, store: &Store) -> String {
+    format!(
+        "no tabs known for {}{league} in {} (run `acq stashes` or `acq refresh --all`)",
+        realm_prefix(realm),
+        store.path().display()
+    )
+}
+
+/// `tabs`' first line: the league's counts, the answer first (C53).
+pub(crate) fn tabs_head(
+    listed: &acquisition_search::tabs::Tabs,
+    realm: Realm,
+    league: &str,
+) -> String {
+    let mut parts = vec![format!("{} fetched", listed.fetched)];
+    if listed.never_fetched > 0 {
+        parts.push(format!("{} never fetched", listed.never_fetched));
+    }
+    if listed.folders > 0 {
+        parts.push(format!(
+            "{} folder{} (never fetched)",
+            listed.folders,
+            if listed.folders == 1 { "" } else { "s" }
+        ));
+    }
+    format!(
+        "{} tabs in {}{league}: {}; {} items",
+        listed.tabs,
+        realm_prefix(realm),
+        parts.join(", "),
+        listed.items
+    )
+}
+
 /// Cut a label to `max` characters with a marker, never silently.
 pub(crate) fn clip(s: &str, max: usize) -> String {
     if s.chars().count() <= max {
@@ -165,7 +201,7 @@ pub(crate) fn clip(s: &str, max: usize) -> String {
 /// The items column: `-` when never fetched (nothing is known), the live
 /// count otherwise — a fetched-empty body reads `0`, never the same as
 /// unfetched (legibility ruling, 2026-09-02).
-fn items_cell(fetched_at: Option<i64>, item_count: i64) -> String {
+pub(crate) fn items_cell(fetched_at: Option<i64>, item_count: i64) -> String {
     match fetched_at {
         None => "-".into(),
         Some(_) => item_count.to_string(),
@@ -242,33 +278,12 @@ pub fn tabs(
         return Ok(());
     }
     if listed.tabs == 0 {
-        println!(
-            "no tabs known for {}{league} in {} (run `acq stashes` or `acq refresh --all`)",
-            realm_prefix(realm),
-            store.path().display()
-        );
+        println!("{}", no_tabs_text(realm, league, &store));
         return Ok(());
     }
     let now = acquisition_store::now();
-    let mut parts = vec![format!("{} fetched", listed.fetched)];
-    if listed.never_fetched > 0 {
-        parts.push(format!("{} never fetched", listed.never_fetched));
-    }
-    if listed.folders > 0 {
-        parts.push(format!(
-            "{} folder{} (never fetched)",
-            listed.folders,
-            if listed.folders == 1 { "" } else { "s" }
-        ));
-    }
     // The answer first (C53), so it is never under a screen of rows.
-    println!(
-        "{} tabs in {}{league}: {}; {} items",
-        listed.tabs,
-        realm_prefix(realm),
-        parts.join(", "),
-        listed.items
-    );
+    println!("{}", tabs_head(&listed, realm, league));
     // a selection is the answer under the league's counts: its rows,
     // whole or the ten, and the command that lists the rest (the re-sit:
     // every run asked which never-fetched tabs of a type to refresh)

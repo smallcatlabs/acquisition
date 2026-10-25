@@ -79,33 +79,39 @@ fn print_persisted_queue(jobs: &Jobs, json: bool) -> Result<()> {
         println!("{}", serde_json::to_string_pretty(jobs)?);
         return Ok(());
     }
+    print!("{}", persisted_queue_text(jobs)?);
+    Ok(())
+}
+
+/// The persisted queue as text (C45): what `jobs` says with no daemon,
+/// and the web UI's jobs page with it.
+pub(crate) fn persisted_queue_text(jobs: &Jobs) -> Result<String> {
     let Jobs::Absent { persisted } = jobs else {
-        return Ok(());
+        return Ok(String::new());
     };
     let spawns = "a job command or `acq auth` starts one";
-    match persisted {
-        None => println!("daemon is not running; no queue on disk ({spawns})"),
+    Ok(match persisted {
+        None => format!("daemon is not running; no queue on disk ({spawns})\n"),
         Some(p) if p.jobs.is_empty() => {
-            println!("daemon is not running; nothing waits on disk ({spawns})")
+            format!("daemon is not running; nothing waits on disk ({spawns})\n")
         }
         Some(p) => {
-            println!(
-                "daemon is not running; on disk: {} waiting, {} recorded running, written {} — \
-                 a job command spawns a successor that restores them, and `acq cancel <id>` \
-                 then acts on them",
-                p.waiting(),
-                p.recorded_running(),
-                store_cmd::ago(acquisition_store::now(), p.written_at),
-            );
             let jobs = p
                 .jobs
                 .iter()
                 .map(job_info)
                 .collect::<Result<Vec<_>, Fault>>()?;
-            print_table(&jobs);
+            format!(
+                "daemon is not running; on disk: {} waiting, {} recorded running, written {} — \
+                 a job command spawns a successor that restores them, and `acq cancel <id>` \
+                 then acts on them\n{}",
+                p.waiting(),
+                p.recorded_running(),
+                store_cmd::ago(acquisition_store::now(), p.written_at),
+                table_text(&jobs)
+            )
         }
-    }
-    Ok(())
+    })
 }
 
 /// `status <id>` with no daemon: the row as recorded, in `jobs`' absent
@@ -897,7 +903,7 @@ fn fault_words(fault: &Fault) -> String {
 
 /// The failure's words: its chain as anyhow prints it, a layer fault in
 /// the CLI's words where the chain holds one.
-fn failure_words(e: &anyhow::Error) -> String {
+pub(crate) fn failure_words(e: &anyhow::Error) -> String {
     let mut parts = Vec::new();
     for link in e.chain() {
         if let Some(fault) = link.downcast_ref::<Fault>() {
@@ -1061,7 +1067,7 @@ async fn run(cli: Cli) -> Result<()> {
                 cx,
                 &mut client,
                 "character".into(),
-                json!({ "realm": realm, "name": name }),
+                character_params(realm, &name),
                 0,
             )
             .await?;
@@ -1201,7 +1207,7 @@ async fn run(cli: Cli) -> Result<()> {
                 cx,
                 &mut client,
                 "refresh".into(),
-                json!({ "realm": realm, "league": league, "all": all, "tabs": tabs, "deep": deep }),
+                refresh_params(realm, league, all, &tabs, deep),
                 0,
             )
             .await?;
@@ -1902,7 +1908,7 @@ fn print_auth(status: &Response, json: bool) -> Result<()> {
     Ok(())
 }
 
-fn open_browser(url: &str) -> bool {
+pub(crate) fn open_browser(url: &str) -> bool {
     let opener = if cfg!(target_os = "macos") {
         "open"
     } else {
@@ -1914,6 +1920,25 @@ fn open_browser(url: &str) -> bool {
         .stderr(std::process::Stdio::null())
         .spawn()
         .is_ok()
+}
+
+/// The ad-hoc `refresh` job's params, as `refresh --tabs` and `--all`
+/// submit them and the web UI's selection does (C139): one maker, so the
+/// two submitters cannot drift.
+pub(crate) fn refresh_params(
+    realm: Realm,
+    league: &str,
+    all: bool,
+    tabs: &[String],
+    deep: bool,
+) -> serde_json::Value {
+    json!({ "realm": realm, "league": league, "all": all, "tabs": tabs, "deep": deep })
+}
+
+/// The `character` job's params, as `acq character` submits them and the
+/// web UI's selection does.
+pub(crate) fn character_params(realm: Realm, name: &str) -> serde_json::Value {
+    json!({ "realm": realm, "name": name })
 }
 
 /// C3 and C4: submit a job as this process, the account flag passed to
@@ -2251,6 +2276,14 @@ const FINISHED_LISTED: usize = 10;
 /// summary over all of them — the answer to "what is running, what
 /// waits, when is it done" is never below a screen of history.
 fn print_jobs(jobs: &[JobInfo], all: bool) {
+    print!("{}", jobs_text(jobs, all));
+}
+
+/// `jobs` as text: the rows, the earliest finished past the listed ones
+/// left out unless `all`, and the counts by state — the web UI's jobs
+/// page states it word for word.
+pub(crate) fn jobs_text(jobs: &[JobInfo], all: bool) -> String {
+    let mut out = String::new();
     let finished = jobs.iter().filter(|j| j.state.is_terminal()).count();
     let hidden = if all {
         0
@@ -2271,24 +2304,29 @@ fn print_jobs(jobs: &[JobInfo], all: bool) {
         .cloned()
         .collect();
     if !jobs.is_empty() {
-        print_rows(&shown);
+        out.push_str(&rows_text(&shown));
     }
-    print_summary(jobs);
+    out.push_str(&summary_text(jobs));
     if hidden > 0 {
-        println!("{hidden} earlier finished jobs not listed (`acq jobs --all`)");
+        out.push_str(&format!(
+            "{hidden} earlier finished jobs not listed (`acq jobs --all`)\n"
+        ));
     }
+    out
 }
 
 fn print_table(jobs: &[JobInfo]) {
-    if jobs.is_empty() {
-        println!("no jobs");
-        return;
-    }
-    print_rows(jobs);
-    print_summary(jobs);
+    print!("{}", table_text(jobs));
 }
 
-fn print_rows(jobs: &[JobInfo]) {
+fn table_text(jobs: &[JobInfo]) -> String {
+    if jobs.is_empty() {
+        return "no jobs\n".to_string();
+    }
+    rows_text(jobs) + &summary_text(jobs)
+}
+
+fn rows_text(jobs: &[JobInfo]) -> String {
     // Widths from the data: a route label or an account name must never
     // push the columns out of line or be cut.
     let rows: Vec<[String; 9]> = jobs
@@ -2347,25 +2385,25 @@ fn print_rows(jobs: &[JobInfo]) {
             w7 = w[7],
         )
     };
-    println!("{}", line(heads).trim_end());
+    let mut out = format!("{}\n", line(heads).trim_end());
     for r in &rows {
-        println!(
-            "{}",
+        out.push_str(&format!(
+            "{}\n",
             line([
                 &r[0], &r[1], &r[2], &r[3], &r[4], &r[5], &r[6], &r[7], &r[8]
             ])
             .trim_end()
-        );
+        ));
     }
+    out
 }
 
 /// The last line of a job table: the counts by state, and for what waits
 /// when the next starts and when the last does — a start, never an end:
 /// how long a request then takes is not predicted.
-fn print_summary(jobs: &[JobInfo]) {
+fn summary_text(jobs: &[JobInfo]) -> String {
     if jobs.is_empty() {
-        println!("no jobs");
-        return;
+        return "no jobs\n".to_string();
     }
     let count = |s: JobState| jobs.iter().filter(|j| j.state == s).count();
     let mut parts = vec![format!("{} running", count(JobState::Running))];
@@ -2392,12 +2430,12 @@ fn print_summary(jobs: &[JobInfo]) {
     if cancelled > 0 {
         parts.push(format!("{cancelled} cancelled"));
     }
-    println!(
-        "{} job{}: {}",
+    format!(
+        "{} job{}: {}\n",
         jobs.len(),
         if jobs.len() == 1 { "" } else { "s" },
         parts.join(", ")
-    );
+    )
 }
 
 /// Re-render the job table once a second until every listed job is terminal.
