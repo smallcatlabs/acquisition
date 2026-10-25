@@ -388,6 +388,15 @@ fn every_search_page_is_a_wording_golden() {
         &counted,
         &["count   rarity · 2 values", "4  rare", "1  unique"],
     );
+    // a sort beside a count is the shared view selection's refusal, as
+    // the CLI's `--count` beside `--sort` is
+    let both = web.get("search?realm=pc&view.count=rarity&view.sort=ilvl");
+    assert_eq!(both.status, 400, "{}", both.body);
+    pages.page(
+        "GET search?realm=pc&view.count=rarity&view.sort=ilvl",
+        &both,
+        &["orders rows, and a count shows none"],
+    );
     let item = web.get("item/r1");
     pages.page(
         "GET item/r1",

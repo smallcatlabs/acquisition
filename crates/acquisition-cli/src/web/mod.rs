@@ -464,7 +464,7 @@ async fn search(
             Some(token) => Request::from_token(token)?,
             None => {
                 let folded = form::fold(&web.form, &fields).map_err(Failure::Usage)?;
-                Asked::read(&folded.request())?.request
+                Asked::read(&folded.request()?)?.request
             }
         };
         web.answer(&request)

@@ -225,6 +225,18 @@ basis   store <store> · build <build> · snapshot 6 · facts v9 · intent 0 · 
 
 </main>
 
+GET search?realm=pc&view.count=rarity&view.sort=ilvl
+# holds "orders rows, and a count shows none"
+--- status 400
+<main>
+<h1>Answer</h1>
+<div class="refusal"><pre>
+`--sort` orders rows, and a count shows none: a table is ranked by its counts
+</pre>
+</div>
+
+</main>
+
 GET item/r1
 # holds "Doom Loop Two-Stone Ring"
 # holds "class   Rings"

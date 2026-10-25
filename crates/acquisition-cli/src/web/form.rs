@@ -38,6 +38,8 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use acquisition_search::LanguageError;
+use acquisition_search::answer::{RowField, Rows, Shape, View};
 use serde_json::{Map, Value};
 
 /// The dump this build's form is generated from.
@@ -239,42 +241,36 @@ pub(crate) struct Folded {
 
 impl Folded {
     /// The request the MCP's `search` reads, as the page asks it: the
-    /// envelope as the trade input, each row with its icon (C140).
-    pub(crate) fn request(&self) -> Value {
+    /// envelope as the trade input, each row with its icon (C140). The
+    /// view is built by the shared view selection, `Shape::of`, as the
+    /// CLI builds its own, so the page inherits its refusals — a sort
+    /// beside a count among them — and builds no view itself (C46; the
+    /// fix round's review, its one finding).
+    pub(crate) fn request(&self) -> Result<Value, LanguageError> {
         let mut scope = Map::new();
         if let Some(realm) = &self.realm {
             scope.insert("realm".into(), Value::String(realm.clone()));
         }
-        let mut rows = Map::new();
-        if let Some(limit) = self.limit {
-            rows.insert("limit".into(), limit.into());
-        }
-        if let Some(sort) = &self.sort {
-            rows.insert("sort".into(), Value::String(sort.clone()));
-        }
-        if self.desc {
-            rows.insert("desc".into(), true.into());
-        }
-        rows.insert("fields".into(), serde_json::json!(["icon"]));
-        // a count is the counts view, the matches counted by one key, as
-        // `search --count` asks it; its tables list as many values as the
-        // rows view would rows
-        let view = match &self.count {
-            Some(key) => {
-                let mut counts = Map::new();
-                counts.insert("keys".into(), serde_json::json!([key]));
-                if let Some(limit) = self.limit {
-                    counts.insert("limit".into(), limit.into());
-                }
-                serde_json::json!({ "counts": counts })
-            }
-            None => serde_json::json!({ "rows": rows }),
-        };
-        serde_json::json!({
+        let shape = Shape::of(
+            self.count.as_ref().map(|key| vec![key.clone()]),
+            None,
+            None,
+            None,
+            Rows {
+                limit: self.limit,
+                sort: self.sort.clone(),
+                desc: self.desc,
+                after: None,
+                fields: vec![RowField::Icon],
+            },
+        )?;
+        // a view serialises whole; a null would be refused by the read
+        let view = serde_json::to_value(View::from(shape)).unwrap_or_default();
+        Ok(serde_json::json!({
             "scope": scope,
             "query": { "trade": self.envelope },
             "view": view,
-        })
+        }))
     }
 }
 
