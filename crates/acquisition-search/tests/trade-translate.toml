@@ -522,11 +522,15 @@ fails = [
 [[case]]
 name = "a vaal gem, and not"
 query = '{"filters": {"misc_filters": {"filters": {"gem_vaal": {"option": "true"}, "corrupted": {"option": "false"}}}}}'
-text = 'typeline~"^Vaal " -is:corrupted'
-fidelity = "ambiguous"
-statuses = { "misc_filters.gem_vaal" = "ambiguous", "misc_filters.corrupted" = "exact" }
-matches = ['{"typeLine": "Vaal Grace", "baseType": "Vaal Grace"}']
-fails = ['{"typeLine": "Grace", "baseType": "Grace"}', '{"typeLine": "Vaal Grace", "baseType": "Vaal Grace", "corrupted": true}']
+text = 'is:vaal -is:corrupted'
+fidelity = "exact"
+statuses = { "misc_filters.gem_vaal" = "exact", "misc_filters.corrupted" = "exact" }
+matches = ['{"typeLine": "Vaal Grace", "baseType": "Vaal Grace", "hybrid": {"isVaalGem": true, "baseTypeName": "Grace"}}']
+fails = [
+  '{"typeLine": "Grace", "baseType": "Grace"}',
+  '{"typeLine": "Vaal Regalia", "baseType": "Vaal Regalia"}',
+  '{"typeLine": "Vaal Grace", "baseType": "Vaal Grace", "hybrid": {"isVaalGem": true}, "corrupted": true}',
+]
 
 [[case]]
 name = "the item's marks: true is the mark, false its not"

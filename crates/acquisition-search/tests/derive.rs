@@ -505,8 +505,10 @@ fn a_vaal_gems_base_skill_is_the_source_hybrid() {
         gem.unread[0].problem,
         "`hybrid.explicitMods[1]` is a number, not a line"
     );
-    // a flag inside `hybrid` is the base skill's, never the item's
-    assert!(gem.flags.is_empty());
+    // a flag inside `hybrid` is the base skill's, never the item's — but
+    // `isVaalGem`, the item's own vaal mark, lifted as `vaal` (the 4b
+    // sitting round)
+    assert_eq!(gem.flags, ["vaal"]);
 }
 
 /// Every `*Mods` array is a source, string elements as object ones —

@@ -388,6 +388,14 @@ fn a_blight_ravaged_map_is_not_a_blighted_one() {
     sat("not a Blight-ravaged map");
 }
 
+/// The site's Vaal filter is GGG's own mark, `is:vaal` (the 4b sitting
+/// round): a Vaal gem matches and a Vaal Regalia, whose name only begins
+/// so, does not, nor a corrupted Vaal gem under the `false` beside it.
+#[test]
+fn the_vaal_filter_is_the_vaal_mark_not_the_name() {
+    sat("a vaal gem, and not");
+}
+
 /// One fixture: its text, scope, statuses and fidelity, the guard, and
 /// its items asked the text.
 fn worked_by_hand(case: &Case) {

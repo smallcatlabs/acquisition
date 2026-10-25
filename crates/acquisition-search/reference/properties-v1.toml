@@ -139,6 +139,44 @@ property = ["Ward"]
 reads = "q20"
 definition = "the displayed `Ward` at 20 % quality, by `armour.q20`'s rule"
 
+# The displayed defences, as the item stands (the 4b sitting round,
+# 2026-10-25): the same four properties the `.q20` rows read, at the
+# item's own quality, beside the site's normalised reading, never in its
+# place (C114, the property bridge; C142, the defences' reading beside
+# the trade JSON).
+
+[[field]]
+name = "armour"
+array = "properties"
+property = ["Armour"]
+reads = "number"
+whole = true
+definition = "the displayed `Armour`, as the item stands at its own quality; `armour.q20` is the trade site's reading at 20 %"
+
+[[field]]
+name = "evasion_rating"
+array = "properties"
+property = ["Evasion Rating"]
+reads = "number"
+whole = true
+definition = "the displayed `Evasion Rating`, as the item stands at its own quality; `evasion_rating.q20` is the trade site's reading at 20 %"
+
+[[field]]
+name = "energy_shield"
+array = "properties"
+property = ["Energy Shield"]
+reads = "number"
+whole = true
+definition = "the displayed `Energy Shield`, as the item stands at its own quality; `energy_shield.q20` is the trade site's reading at 20 %"
+
+[[field]]
+name = "ward"
+array = "properties"
+property = ["Ward"]
+reads = "number"
+whole = true
+definition = "the displayed `Ward`, as the item stands at its own quality; `ward.q20` is the trade site's reading at 20 %"
+
 # ---- requirements -------------------------------------------------------
 
 [[field]]

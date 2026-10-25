@@ -465,8 +465,10 @@ pub enum Shown<'a> {
 
 /// Every yes an item's body is known to say: the top-level booleans and
 /// the keys of `influences`, as GGG spells them, as the census of
-/// 2026-09-13 met them (22,721 items). The language's `is:` words
-/// (`bind`), and the keys whose value must be a boolean to be read.
+/// 2026-09-13 met them (22,721 items), and `vaal`, the mark GGG gives a
+/// vaal gem as `hybrid.isVaalGem`, lifted as the others are (the 4b
+/// sitting round). The language's `is:` words (`bind`), and the keys
+/// whose value must be a boolean to be read.
 pub const ITEM_FLAGS: &[&str] = &[
     "abyssJewel",
     "corrupted",
@@ -490,6 +492,7 @@ pub const ITEM_FLAGS: &[&str] = &[
     "tangled",
     "unmodifiable",
     "unmodifiableExceptChaos",
+    "vaal",
     "veiled",
     "vestigial",
     "warlord",
@@ -588,6 +591,21 @@ pub fn derive(facts: Facts, body: &str) -> Item {
     match body.get("hybrid") {
         None | Some(Value::Null) => {}
         Some(Value::Object(hybrid)) => {
+            // the vaal gem's mark, lifted into the flags as every body
+            // mark is: `is:vaal`
+            match hybrid.get("isVaalGem") {
+                None | Some(Value::Null | Value::Bool(false)) => {}
+                Some(Value::Bool(true)) => {
+                    item.flags.push("vaal".to_string());
+                    item.flags.sort();
+                    item.flags.dedup();
+                }
+                Some(other) => {
+                    let problem =
+                        format!("`hybrid.isVaalGem` is {}, not yes or no", json_kind(other));
+                    item.unread(Part::Field("hybrid.isVaalGem".to_string()), problem);
+                }
+            }
             item.read_properties(hybrid, "properties", "hybrid.properties");
             if let Some(lines) = hybrid.get("explicitMods") {
                 sources.push(("hybrid", "hybrid.explicitMods".to_string(), lines));

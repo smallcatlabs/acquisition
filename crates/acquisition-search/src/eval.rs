@@ -909,6 +909,9 @@ fn unread_flag<'a>(held: &'a Held, flag: &str) -> Vec<&'a Unread> {
             Part::Body => true,
             Part::Field(key) => {
                 key.eq_ignore_ascii_case(flag)
+                    // the vaal mark is read from the hybrid object
+                    || (flag.eq_ignore_ascii_case("vaal")
+                        && (key == "hybrid" || key == "hybrid.isVaalGem"))
                     || (crate::derive::INFLUENCES.contains(&flag)
                         && (key == "influences"
                             || key

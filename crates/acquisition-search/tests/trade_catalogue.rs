@@ -33,7 +33,7 @@ fn c113_the_shipped_catalogue_loads_and_is_its_headers_count() {
             count(Disposition::Unsupported),
             count(Disposition::ListingOnly)
         ],
-        [86, 19, 35, 9]
+        [87, 18, 35, 9]
     );
     // the four defence filters ambiguous since step 3 measured the q20
     // rule against the site (`tests/properties.rs`), and since step 6 an eldritch form
@@ -226,6 +226,11 @@ fn c114_every_field_the_catalogue_names_binds() {
         .map(|f| f.name())
         .collect();
     table.extend(["pseudo.edps", "pseudo.dps_q20", "pseudo.pdps_q20"]);
+    // the displayed defences, which no row lands until the trade JSON
+    // names its defences' reading (C142; the 4b sitting round)
+    for displayed in ["armour", "evasion_rating", "energy_shield", "ward"] {
+        table.remove(displayed);
+    }
     assert_eq!(built, table);
 }
 

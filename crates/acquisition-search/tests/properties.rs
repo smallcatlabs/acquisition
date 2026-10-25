@@ -19,7 +19,8 @@ use serde_json::{Value, json};
 // ---- the table -------------------------------------------------------------------------------
 
 /// C114: the shipped table loads at the version a basis cites, holds the
-/// 39 fields the catalogue names over a property or the base — every one
+/// 39 fields the catalogue names over a property or the base and the four
+/// displayed defences beside their `.q20` twins — every one
 /// of them printed by `--describe fields` with its definition and the
 /// table's version — and a basis cites it.
 #[test]
@@ -28,13 +29,13 @@ fn c114_the_shipped_property_table_is_every_field_the_catalogue_names() {
     assert_eq!(t.version(), PROPERTY_TABLE_VERSION);
     assert_eq!(PROPERTY_TABLE_VERSION, 1);
     let names: Vec<&str> = t.fields().iter().map(|f| f.name()).collect();
-    assert_eq!(names.len(), 39);
+    assert_eq!(names.len(), 43);
     assert_eq!(
         PropertyTable::parse(properties::PROPERTY_TABLE_TOML)
             .unwrap()
             .fields()
             .len(),
-        39
+        43
     );
     let d = serde_json::to_value(describe(&["fields".to_string()]).unwrap()).unwrap();
     for name in &names {
@@ -401,6 +402,47 @@ const SPECS: &[Spec] = &[
             })
         },
     },
+    // the displayed defences, as the item stands: the display itself,
+    // whatever the quality (the 4b sitting round)
+    Spec {
+        field: "armour",
+        shows: || {
+            props(vec![
+                prop("Quality", &["+10%"], 0),
+                prop("Armour", &["383"], 0),
+            ])
+        },
+        value: 383.0,
+        opens: || props(vec![prop("Armour", &["383.5"], 0)]),
+    },
+    Spec {
+        field: "evasion_rating",
+        shows: || props(vec![prop("Evasion Rating", &["100"], 0)]),
+        value: 100.0,
+        opens: || props(vec![prop("Evasion Rating", &["1e3"], 0)]),
+    },
+    Spec {
+        field: "energy_shield",
+        shows: || {
+            props(vec![
+                prop("Quality", &["+28%"], 0),
+                prop("Energy Shield", &["146"], 0),
+            ])
+        },
+        value: 146.0,
+        opens: || {
+            props(vec![
+                prop("Energy Shield", &["146"], 0),
+                prop("Energy Shield", &["146"], 0),
+            ])
+        },
+    },
+    Spec {
+        field: "ward",
+        shows: || props(vec![prop("Ward", &["100"], 0)]),
+        value: 100.0,
+        opens: || props(vec![prop("Ward", &["one hundred"], 0)]),
+    },
     Spec {
         field: "str",
         shows: || reqs(vec![prop("Str", &["155"], 1)]),
@@ -673,7 +715,7 @@ fn number(n: f64) -> Value {
 /// `odd` left open with a reason — each count routed where the term's is.
 #[test]
 fn c114_every_field_is_asked_every_way_a_number_is() {
-    assert_eq!(SPECS.len(), 39);
+    assert_eq!(SPECS.len(), 43);
     let table: Vec<&str> = properties::table()
         .unwrap()
         .fields()
@@ -766,6 +808,34 @@ fn c114_every_field_is_asked_every_way_a_number_is() {
 }
 
 // ---- the q20 rule, map_tier, edps ---------------------------------------------------------------
+
+/// The displayed defences beside the site's reading (the 4b sitting
+/// round): at 0 %, 12 % and 20 % quality the displayed field is the
+/// display itself, and the `.q20` twin is the display moved to 20 %.
+#[test]
+fn the_displayed_defences_stand_beside_their_q20_twins() {
+    for (quality, display, q20) in [
+        (None, 300, 360),
+        (Some("+12%"), 336, 360),
+        (Some("+20%"), 360, 360),
+    ] {
+        let mut list = vec![prop("Armour", &[&display.to_string()], 0)];
+        if let Some(q) = quality {
+            list.insert(0, prop("Quality", &[q], 0));
+        }
+        let body = props(list);
+        assert_eq!(
+            sort_of("armour", body.clone()),
+            json!({ "value": display }),
+            "{quality:?}"
+        );
+        assert_eq!(
+            sort_of("armour.q20", body),
+            json!({ "value": q20 }),
+            "{quality:?}"
+        );
+    }
+}
 
 /// One armour item's `armour.q20`, as the sort reads it.
 fn q20_of(more: Value) -> Value {

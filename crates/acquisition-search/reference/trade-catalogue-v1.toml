@@ -91,7 +91,7 @@
 # 149 rows — 4 for the URL, 10 for the query object's keys, the JSON and
 # what no row names, 92 filters and 6 option rows, 10 for the stat groups
 # (8 types, the disabled and the option-valued filter), 27 for the stats
-# (14 categories and 13 line rules); 86 exact, 19 ambiguous, 35
+# (14 categories and 13 line rules); 87 exact, 18 ambiguous, 35
 # unsupported, 9 listing-only — the four defence filters ambiguous since
 # step 3 measured them, and from step 4 to round x `stat.text.numbers`,
 # by the owner's verdict until a sitting asked it; `stat.text.two`,
@@ -109,6 +109,8 @@
 # stand, `query.type.map` and `stat.scourge.summed`. Round x (2026-10-18)
 # `map_blighted` exact again, a Blight-ravaged map no blighted one,
 # `map_uberblighted` exact in its shape, and `stat.text.numbers` exact.
+# The 4b sitting round (2026-10-25): `misc_filters.gem_vaal` exact, on
+# GGG's own mark, `is:vaal`, where it read the type line's prefix.
 # Every one of the capture's 93 filters, 14 categories and 8 group types
 # has a row (tests/trade_catalogue.rs). 58 fields named. Every one of the
 # stat table's 14,068 category and id pairs translates, alone and with a
@@ -877,10 +879,10 @@ says = "Which gems are transfigured is not known here; not run."
 key = "misc_filters.gem_vaal"
 text = "Vaal Gem"
 shape = "option"
-disposition = "ambiguous"
-lands = 'typeline~"^Vaal "'
-note = "the type line's prefix; a `false` option is the not of it"
-says = "A gem whose type line begins Vaal; the site may read the mark another way."
+disposition = "exact"
+lands = "is:vaal"
+note = "GGG's own mark, `hybrid.isVaalGem`, lifted as `is:vaal` (the 4b sitting round); a `false` option is the not of it; a Vaal base such as Vaal Regalia is no vaal gem"
+says = "A gem GGG marks as a Vaal gem."
 
 [[row]]
 key = "misc_filters.fractured_item"
