@@ -240,6 +240,10 @@ the moved-world line).
 - Every page is user-facing text under C116: no id, no store name.
 - The server never opens a store, picks an account or compiles a plan
   itself; it calls the verbs (the arch-check door grep).
+- A long-lived frontend resolves its account once, at its start, and
+  names it on every call, reads and submissions alike: a submit never
+  leaves the account to a fresh resolution by the daemon (corrected
+  after the review of `fba1b03e`, its first finding).
 - Nothing the build runs touches the real provider; the owner's
   sitting (Do 10) is his, from his terminal.
 

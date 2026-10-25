@@ -30,6 +30,12 @@
 //! - **The door is the human's** (`Frontend::human("web")`, C88): a
 //!   submit from a page reaches the daemon as every CLI verb does, and
 //!   its jobs say `web` as their channel (C65).
+//! - **One account, named on every call**: the server resolves the
+//!   account it serves once, at its start (C121), and every read and
+//!   every submit names it — a selection's jobs, an apply's — so a
+//!   login that comes or goes while the server runs never moves a page's
+//!   submit to another account than the one the page shows (the review
+//!   of 4b, its first finding).
 //! - **One corpus, held** (C98, the consumer holds the corpus and checks
 //!   currency before every answer): the server holds the last corpus it
 //!   loaded for the account it serves and checks `is_current` before
@@ -633,7 +639,10 @@ async fn selected(
     let deep = pick(&fields, "deep").is_some();
     let submitted = async {
         let mut client = crate::connect(&web.cx).await?;
-        let account = web.cx.account.as_deref();
+        // the account the pages show, named on every submit: never the
+        // daemon's own pick, which can differ from the served one once a
+        // login comes or goes while the server runs
+        let account = Some(web.account.entry.username.as_str());
         if !tabs.is_empty() {
             acquisition_verbs::jobs::submit(
                 &web.cx.frontend,

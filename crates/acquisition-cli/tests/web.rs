@@ -568,3 +568,42 @@ fn probes_in_order(mut jobs: harness::Reply) -> harness::Reply {
     jobs.body = out.join("\n");
     jobs
 }
+
+/// The served account, named on every submit (the review of 4b, its
+/// first finding): a server started over Alice, the sole account on disk,
+/// keeps submitting as Alice after Alice logs out and Bob logs in — the
+/// daemon's sole live session — so the submit is refused for Alice and
+/// no job runs as Bob; with both logged in, where a submit naming no
+/// account would be ambiguous, the job is Alice's.
+#[test]
+fn a_selection_submits_as_the_served_account_whatever_the_daemon_holds() {
+    let scratch = harness::scratch("webacct");
+    let base = scratch.0.clone();
+    harness::login(&base, "Alice");
+    let web = start_web(harness::command(&base, &["web", "--no-browser"]));
+    let out = harness::acq(&base, &["auth", "logout", "--account", "Alice"]);
+    assert!(out.status.success(), "{out:?}");
+    harness::login(&base, "Bob");
+    let selection = [("realm", "pc"), ("league", "Standard"), ("tab", "dump")];
+    let refused = web.post("refresh/selected", &selection);
+    assert_eq!(refused.status, 400, "{}", refused.body);
+    assert!(refused.body.contains("Alice"), "{}", refused.body);
+    let jobs = |base: &Path| -> Vec<Value> {
+        sole_json(&harness::acq(base, &["jobs", "--all", "--json"]))
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|j| j["kind"] == "refresh")
+            .cloned()
+            .collect()
+    };
+    assert!(jobs(&base).is_empty(), "{:?}", jobs(&base));
+    harness::login(&base, "Alice");
+    let submitted = web.post("refresh/selected", &selection);
+    assert_eq!(submitted.status, 303, "{}", submitted.body);
+    let refreshes = jobs(&base);
+    assert_eq!(refreshes.len(), 1, "{refreshes:?}");
+    assert_eq!(refreshes[0]["account"], "Alice", "{}", refreshes[0]);
+    drop(web);
+    assert!(harness::acq(&base, &["daemon", "stop"]).status.success());
+}
