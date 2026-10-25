@@ -167,6 +167,8 @@ async fn a_wedged_daemon_cannot_block_the_offline_plan() {
             written_via: "test".into(),
             actor: None,
         }),
+        response_watermark: 0,
+        fetches: Default::default(),
     };
     let plan = acquisition_verbs::refresh::compile("mock", &snapshot, "Alice#1234", 2_000).unwrap();
     // The outer watchdog outlives the tested bound: if the production

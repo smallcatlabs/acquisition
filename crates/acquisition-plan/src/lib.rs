@@ -943,7 +943,12 @@ pub fn put_sync_policy(
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ListingReason {
     NeverListed,
-    Stale { age_seconds: i64 },
+    Stale {
+        age_seconds: i64,
+    },
+    /// A selection plan's listing (C76): the selection is read from the
+    /// listing, which every run refreshes, so a tab added since is seen.
+    Selected,
 }
 
 /// Why the plan fetches a tab or a character. The first two arms are
@@ -1161,6 +1166,10 @@ impl RefreshAction {
 pub struct PlanBasis {
     /// When the snapshot was taken (facts as of this read).
     pub snapshot_taken_at: i64,
+    /// The highest response the snapshot was read under (C111): an action
+    /// is spent by a fetch that landed in a later response, never by the
+    /// clock.
+    pub snapshot_response: i64,
     /// The stash listing the tab set derives from; `None` when the league
     /// was never listed (then the listing is the tab facet's only action).
     /// Carried whenever the snapshot had one, whether or not the policy
@@ -1511,42 +1520,61 @@ impl RefreshPlan {
         live: &[JobInfo],
         account: &str,
     ) -> (Vec<RefreshAction>, Vec<Spent>) {
-        let since = self.basis.snapshot_taken_at;
-        let after = |fetched_at: Option<i64>| fetched_at.filter(|at| *at >= since);
+        // C111: spent by a fetch that landed in a response after the one
+        // the plan's snapshot was read under — by response, never the
+        // clock; the fetch's time is kept for the words alone
+        let since = self.basis.snapshot_response;
         let mut unspent = Vec::new();
         let mut spent = Vec::new();
         for action in &self.actions {
-            let fetched = match action {
-                RefreshAction::ListStashes { .. } => {
-                    after(snapshot.stash_listing.as_ref().map(|l| l.fetched_at))
+            let (landed, fetched_at) = match action {
+                RefreshAction::ListStashes { .. } => snapshot
+                    .stash_listing
+                    .as_ref()
+                    .map_or((None, None), |l| (Some(l.response_id), Some(l.fetched_at))),
+                RefreshAction::ListCharacters { .. } => snapshot
+                    .character_listing
+                    .as_ref()
+                    .map_or((None, None), |l| (Some(l.response_id), Some(l.fetched_at))),
+                RefreshAction::FetchTab { id, .. } => {
+                    let (kind, params) = action.job();
+                    (
+                        Endpoint::from_job(kind, &params).and_then(|e| snapshot.fetched_in(&e)),
+                        snapshot
+                            .tabs
+                            .iter()
+                            // A folder's child is a `FetchTab` too, so the
+                            // parent says nothing here; the id is the tab's.
+                            .find(|t| t.id == *id)
+                            .and_then(|t| t.fetched_at),
+                    )
                 }
-                RefreshAction::ListCharacters { .. } => {
-                    after(snapshot.character_listing.as_ref().map(|l| l.fetched_at))
+                RefreshAction::FetchSubstash { parent, id, .. } => {
+                    let (kind, params) = action.job();
+                    (
+                        Endpoint::from_job(kind, &params).and_then(|e| snapshot.fetched_in(&e)),
+                        snapshot
+                            .tabs
+                            .iter()
+                            .find(|t| t.id == *id && t.parent.as_deref() == Some(parent.as_str()))
+                            .and_then(|t| t.fetched_at),
+                    )
                 }
-                RefreshAction::FetchTab { id, .. } => after(
-                    snapshot
-                        .tabs
-                        .iter()
-                        // A folder's child is a `FetchTab` too, so the
-                        // parent says nothing here; the id is the tab's.
-                        .find(|t| t.id == *id)
-                        .and_then(|t| t.fetched_at),
-                ),
-                RefreshAction::FetchSubstash { parent, id, .. } => after(
-                    snapshot
-                        .tabs
-                        .iter()
-                        .find(|t| t.id == *id && t.parent.as_deref() == Some(parent.as_str()))
-                        .and_then(|t| t.fetched_at),
-                ),
-                RefreshAction::FetchCharacter { id, .. } => after(
-                    snapshot
-                        .characters
-                        .iter()
-                        .find(|c| c.id == *id)
-                        .and_then(|c| c.fetched_at),
-                ),
+                RefreshAction::FetchCharacter { id, .. } => {
+                    let (kind, params) = action.job();
+                    (
+                        Endpoint::from_job(kind, &params).and_then(|e| snapshot.fetched_in(&e)),
+                        snapshot
+                            .characters
+                            .iter()
+                            .find(|c| c.id == *id)
+                            .and_then(|c| c.fetched_at),
+                    )
+                }
             };
+            let fetched = landed
+                .filter(|response| *response > since)
+                .map(|_| fetched_at.unwrap_or_default());
             let (kind, params) = action.job();
             let request = Endpoint::from_job(kind, &params);
             let open = || {
@@ -1835,10 +1863,12 @@ pub fn plan_refresh(
 /// tab and character is fetched however fresh it is, since it is asked
 /// for by name; under `deep`, the pages on record of each named map or
 /// unique tab are fetched with it (a never-fetched one has none on record
-/// yet: they arrive with its fetch, for the next plan). The listing rules
-/// stand: a facet never listed is listed first and its fetches wait, a
-/// folder and an empty page stub are skipped, and an id the facts lack is
-/// unknown. The basis carries the selection in place of a revision.
+/// yet: they arrive with its fetch, for the next plan). The listing a
+/// selection is read from is refreshed on every run (C76): never listed,
+/// it is listed first and the fetches wait; listed, it is fetched beside
+/// them, and a tab it newly lists takes the next plan. A folder and an
+/// empty page stub are skipped, and an id the facts lack is unknown. The
+/// basis carries the selection in place of a revision.
 pub fn plan_selection(
     provider: &str,
     snapshot: &RefreshSnapshot,
@@ -1871,6 +1901,7 @@ pub fn plan_selection(
         generated_at: now,
         basis: PlanBasis {
             snapshot_taken_at: snapshot.taken_at,
+            snapshot_response: snapshot.response_watermark,
             stash_listing: snapshot.stash_listing,
             character_listing: snapshot.character_listing,
             policy_revision: None,
@@ -1897,14 +1928,19 @@ fn select_tabs(
     deep: bool,
 ) -> Facet<SkippedTab> {
     let mut facet = Facet::empty();
+    // C76: the listing the selection is read from is refreshed on every
+    // run; never listed, the tabs wait for it, and listed, they are fetched
+    // beside it, a tab it newly lists taking the next plan
     let listing_alone = snapshot.stash_listing.is_none();
-    if listing_alone {
-        facet.actions.push(RefreshAction::ListStashes {
-            realm,
-            league: snapshot.league.clone(),
-            reason: ListingReason::NeverListed,
-        });
-    }
+    facet.actions.push(RefreshAction::ListStashes {
+        realm,
+        league: snapshot.league.clone(),
+        reason: if listing_alone {
+            ListingReason::NeverListed
+        } else {
+            ListingReason::Selected
+        },
+    });
     let container = |id: &str| {
         snapshot
             .tabs
@@ -1956,13 +1992,16 @@ fn select_characters(
     ids: &[String],
 ) -> Facet<SkippedCharacter> {
     let mut facet = Facet::empty();
+    // C76, as the tabs' listing: refreshed on every run
     let listing_alone = snapshot.character_listing.is_none();
-    if listing_alone {
-        facet.actions.push(RefreshAction::ListCharacters {
-            realm,
-            reason: ListingReason::NeverListed,
-        });
-    }
+    facet.actions.push(RefreshAction::ListCharacters {
+        realm,
+        reason: if listing_alone {
+            ListingReason::NeverListed
+        } else {
+            ListingReason::Selected
+        },
+    });
     for c in &snapshot.characters {
         if !ids.contains(&c.id) {
             continue;
@@ -2045,6 +2084,7 @@ fn compile(
         generated_at: now,
         basis: PlanBasis {
             snapshot_taken_at: snapshot.taken_at,
+            snapshot_response: snapshot.response_watermark,
             stash_listing: snapshot.stash_listing,
             character_listing: snapshot.character_listing,
             policy_revision: Some(policy_revision),
@@ -3763,8 +3803,17 @@ mod tests {
             deep: false,
         };
         let plan = plan_selection("mock", &snap, &selection, 1101).unwrap();
-        let fetched: Vec<&str> = plan
-            .actions
+        // C76: over a listed league the listing it selects from comes first,
+        // refreshed on every run, the named tabs fetched beside it
+        assert_eq!(
+            plan.actions[0],
+            RefreshAction::ListStashes {
+                realm: Realm::Pc,
+                league: "Standard".into(),
+                reason: ListingReason::Selected,
+            }
+        );
+        let fetched: Vec<&str> = plan.actions[1..]
             .iter()
             .map(|a| match a {
                 RefreshAction::FetchTab { id, reason, .. } => {
@@ -3835,10 +3884,13 @@ mod tests {
         assert!(matches!(err, SpendError::PolicyMoved { .. }), "{err}");
     }
 
-    /// C111 over a selection plan: once its fetches land, the same
-    /// envelope applied again sends nothing.
+    /// C111 as amended over a selection plan, by response and never the
+    /// clock: a tab fetched, then a selection compiled in that same second,
+    /// still sends it — the fetch landed in the response the snapshot was
+    /// read under, not after it; once the apply's own fetches land, in
+    /// later responses, the same envelope applied again sends nothing.
     #[test]
-    fn c111_a_selection_envelope_applied_twice_sends_nothing() {
+    fn c111_a_selection_sends_what_was_fetched_in_its_own_second_and_once() {
         let mut s = store();
         list(
             &mut s,
@@ -3846,6 +3898,12 @@ mod tests {
             1000,
         );
         let a = Annotations::open_memory_for("u-1").unwrap();
+        let now = acquisition_store::now();
+        fetch(
+            &mut s,
+            json!({ "id": "t1", "name": "One", "type": "PremiumStash", "items": [] }),
+            now,
+        );
         let selection = PlanSelection {
             tabs: Some(Selection::Ids(vec!["t1".into()])),
             characters: Vec::new(),
@@ -3855,27 +3913,33 @@ mod tests {
             "mock",
             &s.refresh_snapshot("pc", "Standard", &a).unwrap(),
             &selection,
-            1100,
+            now,
         )
         .unwrap();
+        assert!(plan.basis.snapshot_taken_at <= now + 1);
         let (unspent, spent) = plan.unspent(
             &s.refresh_snapshot("pc", "Standard", &a).unwrap(),
             &[],
             "tom",
         );
-        assert_eq!((unspent.len(), spent.len()), (1, 0));
+        assert_eq!((unspent.len(), spent.len()), (2, 0), "{spent:?}");
+        // the apply's fetches land, in later responses, in the same second
+        list(
+            &mut s,
+            json!([{ "id": "t1", "name": "One", "type": "PremiumStash", "index": 0 }]),
+            now,
+        );
         fetch(
             &mut s,
             json!({ "id": "t1", "name": "One", "type": "PremiumStash", "items": [] }),
-            // the fetch the first apply sent, landing after the snapshot
-            plan.basis.snapshot_taken_at,
+            now,
         );
         let (unspent, spent) = plan.unspent(
             &s.refresh_snapshot("pc", "Standard", &a).unwrap(),
             &[],
             "tom",
         );
-        assert_eq!((unspent.len(), spent.len()), (0, 1));
+        assert_eq!((unspent.len(), spent.len()), (0, 2));
     }
 
     /// C44 — **fact drift does not refuse**: the authorization is the
@@ -4078,10 +4142,16 @@ mod tests {
         let (unspent, spent) = plan.unspent(&facts, &[], "tom");
         assert_eq!((unspent.len(), spent.len()), (3, 0));
 
-        // t1 fetched in the snapshot's own second, t2 a second before it.
+        // C111 as amended, by response and never the clock: t1's fetch
+        // landed in a response after the snapshot's; t2's in the snapshot's
+        // own response, in the snapshot's own second — not after it
         let mut facts = facts;
+        let key = |id: &str| format!("stash/pc/Standard/{id}/");
+        let read_under = plan.basis.snapshot_response;
         facts.tabs[0].fetched_at = Some(taken);
-        facts.tabs[1].fetched_at = Some(taken - 1);
+        facts.fetches.insert(key("t1"), read_under + 1);
+        facts.tabs[1].fetched_at = Some(taken);
+        facts.fetches.insert(key("t2"), read_under);
         let job = |id, account: &str, state| JobInfo {
             id,
             kind: "stash".into(),

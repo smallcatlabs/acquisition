@@ -147,6 +147,28 @@ pub struct RefreshSnapshot {
     /// annotations handle is required, so absent intent is never
     /// conflated with not having looked.
     pub policy: Option<AnnotationRow>,
+    /// The highest response id the read saw (C111, spent by response): a
+    /// fetch that lands in a later response is after the snapshot, told
+    /// by the response and never the clock, whose whole seconds cannot
+    /// order two events in one second.
+    #[serde(default)]
+    pub response_watermark: i64,
+    /// For each fetch target of this (realm, league) — each tab and page
+    /// by its coordinate, each character of the realm by name
+    /// (`Endpoint::fetch_key`) — the response its latest successful fetch
+    /// landed in.
+    #[serde(default)]
+    pub fetches: std::collections::BTreeMap<String, i64>,
+}
+
+impl RefreshSnapshot {
+    /// The response a target's latest successful fetch landed in, as the
+    /// snapshot read it; none where it was never fetched.
+    pub fn fetched_in(&self, target: &crate::Endpoint) -> Option<i64> {
+        target
+            .fetch_key()
+            .and_then(|key| self.fetches.get(&key).copied())
+    }
 }
 
 /// One live item as the pricing reader sees it (the listing state,
@@ -251,6 +273,7 @@ impl Store {
         let tabs = read_tabs(&tx, realm, league)?;
         let characters = read_characters(&tx, realm, league)?;
         let league_list = crate::league_list_in(&tx)?;
+        let (response_watermark, fetches) = read_fetches(&tx, realm, league)?;
         tx.finish()?;
         let policy = annotations.get(SYNC_POLICY_SCOPE, SYNC_POLICY_KEY, SYNC_POLICY_KIND)?;
         Ok(RefreshSnapshot {
@@ -265,6 +288,8 @@ impl Store {
             characters,
             league_list,
             policy,
+            response_watermark,
+            fetches,
         })
     }
 
@@ -401,6 +426,54 @@ fn character_basis(tx: &rusqlite::Transaction, realm: &str) -> Result<Option<Lis
             basis_row,
         )
         .optional()?)
+}
+
+/// The highest response id, and the response each fetch target of this
+/// (realm, league) last landed in — its tabs' and pages' fetches, its
+/// realm's characters' — read from the response rows themselves, in the
+/// snapshot's transaction (C111, spent by response).
+fn read_fetches(
+    tx: &rusqlite::Transaction,
+    realm: &str,
+    league: &str,
+) -> Result<(i64, std::collections::BTreeMap<String, i64>)> {
+    let watermark: i64 = tx.query_row("SELECT COALESCE(MAX(id), 0) FROM responses", [], |r| {
+        r.get(0)
+    })?;
+    let mut fetches = std::collections::BTreeMap::new();
+    let mut stmt = tx.prepare(
+        "SELECT id, endpoint, params FROM responses
+          WHERE endpoint IN ('stash', 'character') AND status BETWEEN 200 AND 299
+          ORDER BY id",
+    )?;
+    let rows = stmt.query_map([], |r| {
+        Ok((
+            r.get::<_, i64>(0)?,
+            r.get::<_, String>(1)?,
+            r.get::<_, String>(2)?,
+        ))
+    })?;
+    for row in rows {
+        let (id, endpoint, params) = row?;
+        // a row whose params do not read names no target
+        let Ok(params) = serde_json::from_str::<Value>(&params) else {
+            continue;
+        };
+        let target = crate::Endpoint::from_job(&endpoint, &params);
+        let ours = match &target {
+            Some(crate::Endpoint::Stash {
+                realm: r,
+                league: l,
+                ..
+            }) => r == realm && l == league,
+            Some(crate::Endpoint::Character { realm: r, .. }) => r == realm,
+            _ => false,
+        };
+        if let Some(key) = target.filter(|_| ours).and_then(|t| t.fetch_key()) {
+            fetches.insert(key, id);
+        }
+    }
+    Ok((watermark, fetches))
 }
 
 fn read_tabs(tx: &rusqlite::Transaction, realm: &str, league: &str) -> Result<Vec<TabSnapshot>> {

@@ -652,10 +652,6 @@ fn the_refresh_loop_runs_through_the_pages() {
     }
     // a ticked selection is a plan (C44 as amended): its page, then the
     // one apply route; `refresh --tabs` compiles and applies the same
-    // a fetch landing in the second a plan's snapshot is taken spends its
-    // action (C111, whole-second stamps): each selection is compiled in a
-    // second after the last fetch of its tabs
-    next_second();
     let selected = web.get("plan?realm=pc&league=Standard&selected=yes&tab=dump&tab=cur1");
     assert_eq!(selected.status, 200, "{}", selected.body);
     pages.page(
@@ -666,7 +662,6 @@ fn the_refresh_loop_runs_through_the_pages() {
     let applied = web.post("apply", &[("plan", &hidden_plan(&selected.body))]);
     assert_eq!(applied.status, 303, "{}", applied.body);
     until_done(&web);
-    next_second();
     let out = harness::acq(&base, &["refresh", "--tabs", "dump,cur1"]);
     assert!(out.status.success(), "{out:?}");
     let listed = sole_json(&harness::acq(&base, &["jobs", "--all", "--json"]));
@@ -803,20 +798,4 @@ fn a_selection_submits_as_the_served_account_whatever_the_daemon_holds() {
     assert_eq!(applies[0]["account"], "Alice", "{}", applies[0]);
     drop(web);
     assert!(harness::acq(&base, &["daemon", "stop"]).status.success());
-}
-
-/// Wait for the clock's next whole second: what a plan's snapshot is
-/// compared in (C111). No bound is asserted; the wait ends when the
-/// second turns (C137).
-fn next_second() {
-    let second = || {
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs()
-    };
-    let now = second();
-    while second() == now {
-        std::thread::sleep(std::time::Duration::from_millis(20));
-    }
 }

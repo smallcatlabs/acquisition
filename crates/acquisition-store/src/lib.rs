@@ -593,6 +593,60 @@ impl Endpoint {
         })
     }
 
+    /// The key a fetch target is known by across responses (C111, spent by
+    /// response): a tab's or page's coordinate, a character's realm and
+    /// name; none for a listing, which its basis's response id tells.
+    pub fn fetch_key(&self) -> Option<String> {
+        match self {
+            Endpoint::Stash {
+                realm,
+                league,
+                id,
+                sub,
+            } => Some(format!(
+                "stash/{realm}/{league}/{id}/{}",
+                sub.as_deref().unwrap_or("")
+            )),
+            Endpoint::Character { realm, name } => Some(format!("character/{realm}/{name}")),
+            _ => None,
+        }
+    }
+
+    /// The params a response row keeps: the request's as given, with the
+    /// endpoint's own coordinate filled in where they leave it out, so a
+    /// row always says which target it fetched (C111, spent by response).
+    fn identified(&self, params: &Value) -> Value {
+        let mut out = params.clone();
+        let Some(o) = out.as_object_mut() else {
+            return out;
+        };
+        let mut fill = |k: &str, v: &str| {
+            o.entry(k.to_string())
+                .or_insert_with(|| Value::String(v.to_string()));
+        };
+        match self {
+            Endpoint::Stash {
+                realm,
+                league,
+                id,
+                sub,
+            } => {
+                fill("realm", realm);
+                fill("league", league);
+                fill("id", id);
+                if let Some(sub) = sub {
+                    fill("sub", sub);
+                }
+            }
+            Endpoint::Character { realm, name } => {
+                fill("realm", realm);
+                fill("name", name);
+            }
+            _ => {}
+        }
+        out
+    }
+
     fn name(&self) -> &'static str {
         match self {
             Endpoint::Leagues => "leagues",
@@ -1577,7 +1631,7 @@ impl Store {
         let item_count: usize = seams.iter().map(|s| s.items.len()).sum();
         tx.execute(
             "INSERT INTO responses (endpoint, params, fetched_at, status, envelope, item_count, withheld) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            params![endpoint.name(), params.to_string(), at, status, envelope.to_string(), item_count as i64, withheld.map(|n| n as i64)],
+            params![endpoint.name(), endpoint.identified(params).to_string(), at, status, envelope.to_string(), item_count as i64, withheld.map(|n| n as i64)],
         )?;
         let response_id = tx.last_insert_rowid();
         ingest.withheld = withheld;

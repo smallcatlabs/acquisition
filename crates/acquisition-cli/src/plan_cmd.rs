@@ -655,10 +655,26 @@ fn authority(plan: &RefreshPlan) -> String {
 /// on record: pages not known yet arrive with the tab's fetch, so the plan
 /// says to apply and select again for them.
 fn pages_awaiting(plan: &RefreshPlan) -> String {
-    if !plan.basis.selection.as_ref().is_some_and(|s| s.deep) {
-        return String::new();
-    }
     let mut out = String::new();
+    // C76: the selection's listing is refreshed beside its fetches, and a
+    // tab or character it newly lists takes the next plan
+    if plan.actions.iter().any(|a| {
+        matches!(
+            a,
+            RefreshAction::ListStashes {
+                reason: ListingReason::Selected,
+                ..
+            } | RefreshAction::ListCharacters {
+                reason: ListingReason::Selected,
+                ..
+            }
+        )
+    }) {
+        out.push_str("the listing is fetched beside the selection: what it newly lists takes the next plan\n");
+    }
+    if !plan.basis.selection.as_ref().is_some_and(|s| s.deep) {
+        return out;
+    }
     for action in &plan.actions {
         if let RefreshAction::FetchTab {
             id, name, tab_type, ..
@@ -1372,6 +1388,7 @@ fn listing_why(reason: &ListingReason) -> String {
     match reason {
         ListingReason::NeverListed => "never listed".into(),
         ListingReason::Stale { age_seconds } => stale(*age_seconds),
+        ListingReason::Selected => "the selection is read from it".into(),
     }
 }
 
@@ -1785,6 +1802,8 @@ mod tests {
                 written_via: "test".into(),
                 actor: None,
             }),
+            response_watermark: 0,
+            fetches: Default::default(),
         };
         acquisition_verbs::refresh::compile("mock", &snapshot, "Alice#1234", 2_000).unwrap()
     }

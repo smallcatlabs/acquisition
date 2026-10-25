@@ -129,14 +129,17 @@ GET plan?<two tabs selected>
 refresh Standard on mock as ExileTester — a selection
 facts: stash listed <age> ago
 
-2 requests:
+the listing is fetched beside the selection: what it newly lists takes the next plan
+3 requests:
+  list stashes      the selection is read from it
   fetch 2 tabs      2 selected
     cur1  Currency  selected
     dump  Dump      selected
 
 quote (<age> ago):
-  stash-request-limit  2 requests — ready
-wire: 2–6 sends; plus first-contact probes and token refresh if needed
+  stash-list-request-limit  1 request — ready
+  stash-request-limit       2 requests — ready
+wire: 3–9 sends; plus first-contact probes and token refresh if needed
 </pre>
 <form method="post" action="apply"><input type="hidden" name="plan" value="<the plan envelope>"><button type="submit">Apply</button></form>
 
