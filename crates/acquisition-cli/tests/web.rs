@@ -156,7 +156,10 @@ type Case<'a> = (
 /// Host, or sent from another site's page it refuses; a GET on a
 /// mutating route is refused by its method; and no response, refusals
 /// among them, carries a CORS header. The art's host never learns the
-/// token: every page says no referrer.
+/// token, and the server alone gets a real Origin: every page's referrer
+/// policy is `same-origin`. A POST carrying the server's own Origin, as
+/// a browser sends it from the page, reaches its route; one carrying
+/// `null`, what a browser sends under a `no-referrer` policy, is refused.
 #[test]
 fn c138_the_listener_answers_its_own_pages_alone() {
     let (_scratch, web) = offline_web("webguard");
@@ -164,7 +167,7 @@ fn c138_the_listener_answers_its_own_pages_alone() {
     let form = web.get("");
     assert_eq!(form.status, 200, "{}", form.body);
     assert!(form.body.contains("Item Category"), "{}", form.body);
-    assert_eq!(form.header("referrer-policy"), Some("no-referrer"));
+    assert_eq!(form.header("referrer-policy"), Some("same-origin"));
     no_cors(&form, "the form");
     let cases: [Case; 8] = [
         ("GET", "/", None, vec![], 404),
@@ -241,6 +244,23 @@ fn c138_the_listener_answers_its_own_pages_alone() {
         "plan=%7B%7D",
     );
     assert_eq!(forged.status, 403, "{}", forged.body);
+    // the guard's two edges: the page's own Origin passes to the route,
+    // which refuses the empty post in its own words; `null` never does
+    let own = web.post("apply", &[]);
+    assert_eq!(own.status, 400, "{}", own.body);
+    assert!(own.body.contains("no plan was posted"), "{}", own.body);
+    let null = web.raw(
+        "POST",
+        &format!("/{token}/apply"),
+        None,
+        &[
+            ("Origin", "null"),
+            ("Content-Type", "application/x-www-form-urlencoded"),
+        ],
+        "",
+    );
+    assert_eq!(null.status, 403, "{}", null.body);
+    assert!(null.body.contains("another site"), "{}", null.body);
     // a field name the form never emits — an index past its stat rows
     // among them — is a usage error before anything is built
     let past = web.get("search?query.stats%5B1000000000%5D.type=and");

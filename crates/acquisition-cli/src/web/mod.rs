@@ -19,10 +19,13 @@
 //!   server's own, before any route runs; the two mutating routes are
 //!   POST routes alone, so a GET on one is refused by its method; no
 //!   response carries an `Access-Control-*` header. Every response says
-//!   `Referrer-Policy: no-referrer`, so the browser's fetch of an item's
-//!   art (C140) never carries the token to the image host, and a
-//!   content policy admits images from that host alone and scripts and
-//!   styles from the server alone.
+//!   `Referrer-Policy: same-origin`: the browser's fetch of an item's art
+//!   (C140) carries no referrer, so the token never reaches the image
+//!   host, while a form posted to the server itself carries its real
+//!   Origin — under `no-referrer` the Fetch standard serialises a POST's
+//!   Origin as `null`, which the guard refuses (the owner's sitting, its
+//!   first stop). A content policy admits images from that host alone
+//!   and scripts and styles from the server alone.
 //! - **The lifecycle is Ctrl-C** (the brief, Do 4): no lock, no reopen,
 //!   no idle exit — a server launched from a terminal is a dev server.
 //!   The URL is the first line on stdout (`--json`: `{"url": …}`, as
@@ -260,7 +263,7 @@ async fn guard(
     let headers = response.headers_mut();
     headers.insert(
         header::REFERRER_POLICY,
-        HeaderValue::from_static("no-referrer"),
+        HeaderValue::from_static("same-origin"),
     );
     headers.insert(
         header::CONTENT_SECURITY_POLICY,
