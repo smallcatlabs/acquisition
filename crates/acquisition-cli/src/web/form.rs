@@ -207,6 +207,9 @@ fn emitted(groups: &[Group]) -> BTreeSet<String> {
     .iter()
     .map(|n| n.to_string())
     .collect();
+    for group in groups.iter().filter(|g| g.id != "status_filters") {
+        names.insert(format!("query.filters.{}.disabled", group.id));
+    }
     for group in groups {
         for f in &group.filters {
             let path = filter_path(&group.id, &f.id);
@@ -399,8 +402,17 @@ fn steps(path: &str) -> Option<Vec<Step>> {
 }
 
 /// A field's value as the site's JSON spells it: a number where the key
-/// takes one and the text reads as one, else the text.
+/// takes one and the text reads as one, a group's `disabled` a boolean,
+/// else the text.
 fn typed(key: &str, value: &str) -> Value {
+    // the site's own `disabled` is a boolean
+    if key == "disabled" {
+        match value {
+            "true" => return Value::Bool(true),
+            "false" => return Value::Bool(false),
+            _ => {}
+        }
+    }
     let numeric = matches!(key, "min" | "max" | "weight" | "r" | "g" | "b" | "w");
     if numeric {
         if let Ok(n) = value.parse::<i64>() {
@@ -566,6 +578,21 @@ mod tests {
         )
         .unwrap();
         assert_eq!(folded.envelope["defences"], "displayed");
+        // a group turned off is sent as the site sends it, its values
+        // standing beside its `disabled` (the sitting round's review, its
+        // third finding)
+        let folded = fold(
+            &form,
+            &fields(&[
+                ("query.filters.misc_filters.disabled", "true"),
+                ("query.filters.misc_filters.filters.ilvl.min", "75"),
+            ]),
+        )
+        .unwrap();
+        assert_eq!(
+            folded.envelope["query"]["filters"]["misc_filters"],
+            json!({ "disabled": true, "filters": { "ilvl": { "min": 75 } } })
+        );
         assert!(fold(&form, &fields(&[("scope.realm", "pc")])).is_err());
         assert!(fold(&form, &fields(&[("query.stats[x].id", "a")])).is_err());
         let past = fold(&form, &fields(&[("query.stats[1000000000].type", "and")])).unwrap_err();

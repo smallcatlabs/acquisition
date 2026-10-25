@@ -145,10 +145,14 @@ pub(crate) fn search_form(form: &Form, realm: &str, leagues: Option<&[(String, b
     out.push_str("</div>\n</div>\n<div class=\"panes\">\n<div class=\"pane\">\n");
     for group in form.groups.iter().filter(|g| g.id != "status_filters") {
         let title = group.title.as_deref().unwrap_or(&group.id);
+        // the group's enable control, as the site's: off, the group is
+        // sent with its `disabled` field and its values stand; the panel's
+        // own toggle is open and close alone
         out.push_str(&format!(
-            "<details class=\"panel\"{}><summary>{}</summary>\n<div class=\"panel-body\">\n",
+            "<details class=\"panel\"{}><summary>{}</summary>\n<div class=\"panel-body\">\n<div class=\"filter\"><label><input type=\"checkbox\" name=\"query.filters.{}.disabled\" value=\"true\"> this group off, its values kept</label></div>\n",
             if group.hidden { "" } else { " open" },
-            esc(title)
+            esc(title),
+            esc(&group.id)
         ));
         for filter in &group.filters {
             let path = super::form::filter_path(&group.id, &filter.id);
