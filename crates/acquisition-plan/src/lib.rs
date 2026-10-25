@@ -1499,28 +1499,23 @@ impl RefreshPlan {
 
     /// C111: the actions an apply may still send, and the ones already
     /// spent — in the plan's order. An action is spent when its target's
-    /// `fetched_at` in `snapshot` (the plan's realm and league, read now)
-    /// is not earlier than the snapshot the plan was compiled from, or when
-    /// `live` holds a waiting or running job of `account` for the same
-    /// request: the same `Endpoint`, as the store decodes a job, so a
-    /// door that spells the request differently (`acq stash` sends
-    /// `"sub": null`, a deep fetch `"deep": true`) still spends it. A
-    /// waiting or running apply of `account` holds the requests its
-    /// `params.jobs` lists, before its fan-out has submitted them: a
-    /// retry after an apply was accepted sends nothing it holds. A child
-    /// is named before an apply that lists the same request — the job
-    /// that fetches it.
-    /// "Not earlier", since the stamps are whole
-    /// seconds: a fetch that lands in the second the plan's snapshot was
-    /// taken spends its action, or a plan applied and replayed within one
-    /// second would send twice. The planner cannot have planned a target
-    /// already fetched in that second — a window's `Stale` is `age >
-    /// max_age` and a disagreement needs a listing strictly newer than
-    /// the fetch — except under `max_age_seconds: 0` across a second's
-    /// boundary, where the action is named as spent and the next plan
-    /// fetches it.
-    /// A target the snapshot no longer holds is unspent, as before: its
-    /// fetch fails its own child honestly (C44).
+    /// latest fetch in `snapshot` (the plan's realm and league, read now)
+    /// landed in a response after the one the plan's snapshot was read
+    /// under (`basis.snapshot_response`, the response watermark) — by
+    /// response, never the clock, so a fetch in the snapshot's own second
+    /// but before it leaves the action unspent, and a replay within one
+    /// second sends nothing; or when `live` holds a waiting or running job
+    /// of `account` for the same request: the same `Endpoint`, as the
+    /// store decodes a job, so a door that spells the request differently
+    /// (`acq stash` sends `"sub": null`, a deep fetch `"deep": true`)
+    /// still spends it. A waiting or running apply of `account` holds the
+    /// requests its `params.jobs` lists, before its fan-out has submitted
+    /// them: a retry after an apply was accepted sends nothing it holds. A
+    /// child is named before an apply that lists the same request — the
+    /// job that fetches it. A spent entry names the time of the response
+    /// it was spent by. A target never fetched since the snapshot is
+    /// unspent, whether or not the snapshot still holds it: its fetch
+    /// fails its own child honestly (C44).
     pub fn unspent(
         &self,
         snapshot: &RefreshSnapshot,
@@ -4096,10 +4091,11 @@ mod tests {
         );
     }
 
-    /// C111 — an action is spent by its target's fetch at or after the
-    /// plan's snapshot, or by an open job of the same account holding the
-    /// same request; an earlier fetch, a finished job and another
-    /// account's job spend nothing.
+    /// C111 — an action is spent by its target's fetch in a response after
+    /// the one the plan's snapshot was read under, or by an open job of
+    /// the same account holding the same request; a fetch in the
+    /// snapshot's own response (whatever its second), a finished job and
+    /// another account's job spend nothing.
     #[test]
     fn an_action_is_spent_by_a_later_fetch_or_an_open_job_and_by_nothing_else() {
         use acquisition_protocol::job::JobState;
