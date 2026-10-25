@@ -84,7 +84,7 @@ As few as possible, each a property, never a mechanism.
 | `acquisition-plan` | offline refresh planning and pricing | `decisions/plans.md`, `decisions/pricing.md` |
 | `acquisition-search` | item search over the store's read API: the query language, the item derived from its stored body, the answer; its working directory is `search/` (read its README first) | `decisions/search.md`, `decisions/trade.md` |
 | `acquisition-verbs` | the verbs that need the daemon and the store together, and every frontend's account, world and door | `decisions/frontends.md` |
-| `acquisition-cli` (`acq`) | clap and rendering; generated help `CLI-REFERENCE.md` | `decisions/frontends.md` |
+| `acquisition-cli` (`acq`) | clap, rendering and `acq web`; generated help `CLI-REFERENCE.md` | `decisions/frontends.md` |
 | `acquisition-mcp` (`acq-mcp`) | the stdio MCP frontend, sharing semantics through plan and search; generated tools `MCP-REFERENCE.md` | `decisions/frontends.md` |
 
 Before touching an area, read its rulings file, its section of
