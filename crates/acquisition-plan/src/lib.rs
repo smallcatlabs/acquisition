@@ -280,7 +280,7 @@ use acquisition_protocol::job::{JobId, JobInfo, MAX_429_RETRIES};
 use acquisition_protocol::protocol::Quote;
 use acquisition_protocol::realm::{Family, Realm};
 use acquisition_store::{
-    AnnotationError, AnnotationRow, Annotations, CharacterSnapshot, Endpoint, IntentValue,
+    AnnotationError, AnnotationRow, Annotations, CharacterSnapshot, Endpoint, Fetched, IntentValue,
     LeagueList, ListingBasis, Provenance, RefreshSnapshot, SYNC_POLICY_KEY, SYNC_POLICY_KIND,
     SYNC_POLICY_SCOPE, TabSnapshot, ValueError, check_value,
 };
@@ -1534,54 +1534,33 @@ impl RefreshPlan {
         let mut unspent = Vec::new();
         let mut spent = Vec::new();
         for action in &self.actions {
-            let (landed, fetched_at) = match action {
-                RefreshAction::ListStashes { .. } => snapshot
-                    .stash_listing
-                    .as_ref()
-                    .map_or((None, None), |l| (Some(l.response_id), Some(l.fetched_at))),
-                RefreshAction::ListCharacters { .. } => snapshot
-                    .character_listing
-                    .as_ref()
-                    .map_or((None, None), |l| (Some(l.response_id), Some(l.fetched_at))),
-                RefreshAction::FetchTab { id, .. } => {
-                    let (kind, params) = action.job();
-                    (
-                        Endpoint::from_job(kind, &params).and_then(|e| snapshot.fetched_in(&e)),
-                        snapshot
-                            .tabs
-                            .iter()
-                            // A folder's child is a `FetchTab` too, so the
-                            // parent says nothing here; the id is the tab's.
-                            .find(|t| t.id == *id)
-                            .and_then(|t| t.fetched_at),
-                    )
+            // the response each target's fetch landed in, with that
+            // response's own time for the words: a listing's from its
+            // basis, a fetch's from the response rows, never the target's
+            // current location, which a retired row no longer carries
+            let landed = match action {
+                RefreshAction::ListStashes { .. } => {
+                    snapshot.stash_listing.as_ref().map(|l| Fetched {
+                        response_id: l.response_id,
+                        fetched_at: l.fetched_at,
+                    })
                 }
-                RefreshAction::FetchSubstash { parent, id, .. } => {
-                    let (kind, params) = action.job();
-                    (
-                        Endpoint::from_job(kind, &params).and_then(|e| snapshot.fetched_in(&e)),
-                        snapshot
-                            .tabs
-                            .iter()
-                            .find(|t| t.id == *id && t.parent.as_deref() == Some(parent.as_str()))
-                            .and_then(|t| t.fetched_at),
-                    )
+                RefreshAction::ListCharacters { .. } => {
+                    snapshot.character_listing.as_ref().map(|l| Fetched {
+                        response_id: l.response_id,
+                        fetched_at: l.fetched_at,
+                    })
                 }
-                RefreshAction::FetchCharacter { id, .. } => {
+                RefreshAction::FetchTab { .. }
+                | RefreshAction::FetchSubstash { .. }
+                | RefreshAction::FetchCharacter { .. } => {
                     let (kind, params) = action.job();
-                    (
-                        Endpoint::from_job(kind, &params).and_then(|e| snapshot.fetched_in(&e)),
-                        snapshot
-                            .characters
-                            .iter()
-                            .find(|c| c.id == *id)
-                            .and_then(|c| c.fetched_at),
-                    )
+                    Endpoint::from_job(kind, &params).and_then(|e| snapshot.fetched_in(&e))
                 }
             };
             let fetched = landed
-                .filter(|response| *response > since)
-                .map(|_| fetched_at.unwrap_or_default());
+                .filter(|f| f.response_id > since)
+                .map(|f| f.fetched_at);
             let (kind, params) = action.job();
             let request = Endpoint::from_job(kind, &params);
             let open = || {
@@ -4149,10 +4128,12 @@ mod tests {
         let mut facts = facts;
         let key = |id: &str| format!("stash/pc/Standard/{id}/");
         let read_under = plan.basis.snapshot_response;
-        facts.tabs[0].fetched_at = Some(taken);
-        facts.fetches.insert(key("t1"), read_under + 1);
-        facts.tabs[1].fetched_at = Some(taken);
-        facts.fetches.insert(key("t2"), read_under);
+        let landed = |response_id| Fetched {
+            response_id,
+            fetched_at: taken,
+        };
+        facts.fetches.insert(key("t1"), landed(read_under + 1));
+        facts.fetches.insert(key("t2"), landed(read_under));
         let job = |id, account: &str, state| JobInfo {
             id,
             kind: "stash".into(),
@@ -4192,6 +4173,41 @@ mod tests {
         assert_eq!(
             serde_json::to_value(&spent[1]).unwrap(),
             json!({ "action": plan.actions[2], "job_id": 10, "parent": 7 })
+        );
+    }
+
+    /// C111 — a spent entry names the time of the response it was spent
+    /// by, never its target's current location's: a tab fetched after the
+    /// plan, then retired by a listing, is spent by that fetch, at the
+    /// fetch's own time (the fix round's review, its third finding).
+    #[test]
+    fn a_retired_tab_is_spent_at_its_real_fetch_time() {
+        let mut s = store();
+        list(
+            &mut s,
+            json!([{ "id": "t1", "name": "One", "type": "PremiumStash", "index": 0 }]),
+            1000,
+        );
+        let policy = all_policy_value(3600);
+        let plan = plan(&s, &policy, 1400);
+        assert_eq!(plan.actions.len(), 1, "{:?}", plan.actions);
+        fetch(
+            &mut s,
+            json!({ "id": "t1", "name": "One", "type": "PremiumStash", "items": [] }),
+            1500,
+        );
+        list(&mut s, json!([]), 1600);
+        let facts = snapshot_with(&s, &policy);
+        // the case staged: the retired tab is in no location to read
+        assert!(facts.tabs.iter().all(|t| t.id != "t1"), "{:?}", facts.tabs);
+        let (unspent, spent) = plan.unspent(&facts, &[], "tom");
+        assert!(unspent.is_empty(), "{unspent:?}");
+        assert_eq!(
+            spent,
+            vec![Spent {
+                action: plan.actions[0].clone(),
+                by: SpentBy::Fetched { fetched_at: 1500 },
+            }]
         );
     }
 

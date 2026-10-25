@@ -102,6 +102,16 @@ pub struct CharacterSnapshot {
     pub fetched: Value,
 }
 
+/// A target's latest successful fetch, as a snapshot reads it from the
+/// response rows (C111, spent by response): the response it landed in,
+/// and that response's own time — never the target's current location's,
+/// which a retired or revived row no longer carries.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Fetched {
+    pub response_id: i64,
+    pub fetched_at: i64,
+}
+
 /// A named snapshot of one (realm, league)'s refresh facts — the stash
 /// listing and its tabs, the realm's character listing and this league's
 /// characters — plus the account's sync policy, taken with no daemon
@@ -155,16 +165,15 @@ pub struct RefreshSnapshot {
     pub response_watermark: i64,
     /// For each fetch target of this (realm, league) — each tab and page
     /// by its coordinate, each character of the realm by name
-    /// (`Endpoint::fetch_key`) — the response its latest successful fetch
-    /// landed in.
+    /// (`Endpoint::fetch_key`) — its latest successful fetch.
     #[serde(default)]
-    pub fetches: std::collections::BTreeMap<String, i64>,
+    pub fetches: std::collections::BTreeMap<String, Fetched>,
 }
 
 impl RefreshSnapshot {
-    /// The response a target's latest successful fetch landed in, as the
-    /// snapshot read it; none where it was never fetched.
-    pub fn fetched_in(&self, target: &crate::Endpoint) -> Option<i64> {
+    /// A target's latest successful fetch, as the snapshot read it; none
+    /// where it was never fetched.
+    pub fn fetched_in(&self, target: &crate::Endpoint) -> Option<Fetched> {
         target
             .fetch_key()
             .and_then(|key| self.fetches.get(&key).copied())
@@ -428,21 +437,21 @@ fn character_basis(tx: &rusqlite::Transaction, realm: &str) -> Result<Option<Lis
         .optional()?)
 }
 
-/// The highest response id, and the response each fetch target of this
-/// (realm, league) last landed in — its tabs' and pages' fetches, its
+/// The highest response id, and the response (with its time) each fetch
+/// target of this (realm, league) last landed in — its tabs' and pages' fetches, its
 /// realm's characters' — read from the response rows themselves, in the
 /// snapshot's transaction (C111, spent by response).
 fn read_fetches(
     tx: &rusqlite::Transaction,
     realm: &str,
     league: &str,
-) -> Result<(i64, std::collections::BTreeMap<String, i64>)> {
+) -> Result<(i64, std::collections::BTreeMap<String, Fetched>)> {
     let watermark: i64 = tx.query_row("SELECT COALESCE(MAX(id), 0) FROM responses", [], |r| {
         r.get(0)
     })?;
     let mut fetches = std::collections::BTreeMap::new();
     let mut stmt = tx.prepare(
-        "SELECT id, endpoint, params FROM responses
+        "SELECT id, endpoint, params, fetched_at FROM responses
           WHERE endpoint IN ('stash', 'character') AND status BETWEEN 200 AND 299
           ORDER BY id",
     )?;
@@ -451,10 +460,11 @@ fn read_fetches(
             r.get::<_, i64>(0)?,
             r.get::<_, String>(1)?,
             r.get::<_, String>(2)?,
+            r.get::<_, i64>(3)?,
         ))
     })?;
     for row in rows {
-        let (id, endpoint, params) = row?;
+        let (id, endpoint, params, fetched_at) = row?;
         // a row whose params do not read names no target
         let Ok(params) = serde_json::from_str::<Value>(&params) else {
             continue;
@@ -470,7 +480,13 @@ fn read_fetches(
             _ => false,
         };
         if let Some(key) = target.filter(|_| ours).and_then(|t| t.fetch_key()) {
-            fetches.insert(key, id);
+            fetches.insert(
+                key,
+                Fetched {
+                    response_id: id,
+                    fetched_at,
+                },
+            );
         }
     }
     Ok((watermark, fetches))

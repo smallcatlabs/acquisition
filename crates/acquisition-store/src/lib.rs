@@ -872,8 +872,8 @@ pub use corpus::{
 };
 pub use index::{AccountEntry, Index, Resolve, account_matches, account_path, index_path};
 pub use snapshot::{
-    BUYOUT_KIND, CharacterSnapshot, ItemSnapshot, ListingBasis, PricingSnapshot, RefreshSnapshot,
-    SYNC_POLICY_KEY, SYNC_POLICY_KIND, SYNC_POLICY_SCOPE, TabSnapshot,
+    BUYOUT_KIND, CharacterSnapshot, Fetched, ItemSnapshot, ListingBasis, PricingSnapshot,
+    RefreshSnapshot, SYNC_POLICY_KEY, SYNC_POLICY_KIND, SYNC_POLICY_SCOPE, TabSnapshot,
 };
 pub use world::store_dir;
 
