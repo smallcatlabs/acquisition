@@ -28,6 +28,12 @@ simpler, better Acquisition that is agent-friendly and agent-forward.
   in users' hands before the league; 2g and 2h slide after phase 3 and
   `alpha.2`; the time seam (4-0) lands before 4-full, which carries
   the GUI's live loop.
+- 2026-10-25, reviewing the 4a brief before its session: 4-lite is a
+  renderer, not an app — every page renders one verb document; the
+  refresh pages join 4-lite over the plan loop; the live loop stays
+  4-full's. The packet answered the same day: C16 amended, C138 to
+  C140 ("Accept as drafted", "acq web, as drafted", "In, via the
+  browser").
 
 ## Roles
 
@@ -103,7 +109,7 @@ plan or the tools, and the close answers every item.
 | 2. The keystone | closed: 2a the shared function layer · 2b the tests · 2c the journey test and real-shaped mock items · 2d the daemon and limiter file splits · 2d-oracle the journal oracles over every journaling daemon · 2e the game-diff tool, a new-league rehearsal and the README line · 2f the review of daemon, store and network: a static scan, the owner's rulings and three fix rounds over four PRs, each round reviewed by Codex. Ahead, slid after phase 3 and `alpha.2` by the owner's word of 2026-10-24: 2g the read economy and the MCP refusal and receipt bundle (#9, #10), one bound at the shared layer under C53's three output levels · 2h the queued search and trade issues (#38, #46, #47; #37 once the owner has sat the site), which slips before 2g does | mixed | phase 1 | 2026-12-05 |
 | 3. League 3.30 | the owner runs the league under the rails · count the undecided classes and untranslated mods · the prune verb (#43) at the league end | owner, Opus | 2e | 2026-11-20 |
 | 3b. `alpha.2` | regenerate the tables when the named inputs exist: a post-launch `poe1` pin (RePoE lags launch by 0 to 13 days), the owner's four site captures (C79: nobody else may fetch them), the pins and manifests bumped, every generator's `--check` green · then the release | owner captures, Opus | 3 | when the inputs arrive, 2026-11-26 at the latest |
-| 4. The GUI | 4a the 4-lite design (`briefs/4a-design.md`: the ruling packet of `GUI-NOTES.md` scoped read-only — C16's amendment, the listener's security, the spawn policy, images out) · 4b 4-lite, the read-only loopback trade view — the form, the table, the counts, no subscriber — before the league · after `alpha.2`: 4-0 the time seam (`TIME-SEAM.md`) · 4-full on it: the keeper bundle (#1) if 4a rules it in, the corpus held in `acq-mcp`, the subscriber with reconnect, the live loop, hardening | Fable, then Opus | 2a, 2b | 4-lite before phase 3; 4-full 2026-12-19 |
+| 4. The GUI | closed: 4a the 4-lite design (C16 amended, C138 to C141, `briefs/4b-build.md`) · ahead: 4b 4-lite, `acq web`, a loopback renderer over the verbs — the search pages (the form, the table, the counts, one item) and the refresh pages (the selection, the plan, the jobs), no subscriber — before the league · after `alpha.2`: 4-0 the time seam (`TIME-SEAM.md`) · 4-full on it: the keeper bundle (#1), the corpus held in `acq-mcp`, the subscriber with reconnect, the live loop, the dense table and the card, hardening | Fable, then Opus | 2a, 2b | 4-lite before phase 3; 4-full 2026-12-19 |
 | 5. PoE2 | the route flip and first-contact checklist prepared unmerged · PoE2 currency rows · launch day as the assessment's report 6, section 3: a first contact only if GGG ships the stash endpoint | Opus, owner live | 0b | 2026-12-11 |
 
 ## Open
@@ -174,9 +180,10 @@ ruling and the brief; `04001a27` to `90db890a` the knobs, the widened
 waits and the share-tier Windows gate; `6697afc3` and `32769f72` the
 fixes from the owner-read review, whole at `493ff5d4`); the fix
 round's own Codex review is pending, and the issue closes when a week
-of pushes needs no re-run (under "Open"). Next, 4a,
-the 4-lite design (`briefs/4a-design.md`), run with the owner; then
-4b, the 4-lite build, in users' hands before the league. 2g and 2h
+of pushes needs no re-run (under "Open"). 4a, the 4-lite design,
+closed 2026-10-25 (the ledger). Next, 4b, the 4-lite build
+(`briefs/4b-build.md`): an Opus worker in its own worktree, `acq web`
+in users' hands before the league. 2g and 2h
 follow phase 3 and `alpha.2`; then 4-0, the time seam
 (`TIME-SEAM.md`); then 4-full. `AGENTS.md` governs; the gate is its
 ten lines, under nextest.
@@ -198,6 +205,7 @@ messages.
 | 2d-oracle the journal oracles over every journaling daemon | `e59ee842`; closed `1f524d15` | 2026-10-21 | the login daemons journal nothing (2f) |
 | 2e the game-diff tool, a new-league rehearsal and the README line | design `08c0907a`, `e9b8bc78`, `cb7db91c`, `53ec784f`; build `35e0b03c` to `4e543dd0`; fixes `252e8c9e`, `bb319873`, `fb8371e0`; closed `64a6240c` | 2026-10-21 | #53 for 3b; the two claims for phase 3's live run (the live-run skill); the CLI-only `--if-revision 0`, under "Open"; the six remote-gate fixes after the close, `82199010` to `7b4793fe`, before 2f |
 | 2f the review of daemon, store and network, and its fix rounds | the scan and its working notes outside the repository; round A `718f1cde` to `12395d33` (#54); round C `76be73d6` to `2fa31fc6` (#57) and `0c4a0829` to `b1d9cf3c` (#58), the owner's rulings at `76be73d6`, `f86c9b7e` and `1d72cf4f`; round D `26160d48` to `cf2137ef` (#60); the reviews whole at `b1588df3`; the brief written after, `briefs/2f-review.md`; closed by the commit carrying this line | 2026-10-23 | #51, #55, #56, #59 (its first part), #61 to #72; the architecture rows and the keyring under `shared`, and the proxy environment, under "Open" |
+| 4a the 4-lite design | the brief re-cut `cbd7caf2`; the owner's rulings `00e440d1`; C141 under delegation `eeb72437`; the build brief `f1deb782`; closed by the commit carrying this line | 2026-10-25 | a selection compiled as a plan (the spend check refuses a plan with no stored policy), in `4b-build.md`'s "Not in scope" with its trigger, the owner's sitting; C141 listed for the owner's review at the close; the AGENTS budget at 15,235 of 15,277 bytes, under "Open" |
 | #70 the Windows gate's deadline flakes | ruling and brief `dd9b7859`; build `04001a27` to `90db890a`; the reorder and the review `54d9f957`, `493ff5d4`; fixes `6697afc3`, `32769f72` (the review deleted there, whole at `493ff5d4`) | fix-round review pending; the issue closes on a week of pushes without a re-run | the watch and what it holds, under "Open" |
 
 ## Housekeeping
