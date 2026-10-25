@@ -372,6 +372,22 @@ fn every_search_page_is_a_wording_golden() {
             "+95 to maximum Life",
         ],
     );
+    let counted = web.get(&format!(
+        "search?{}",
+        query_string(&[
+            ("realm", "pc"),
+            ("league", "Standard"),
+            ("view.count", "rarity"),
+            ("view.limit", "20"),
+        ])
+    ));
+    assert_eq!(counted.status, 200, "{}", counted.body);
+    assert!(!counted.body.contains("<table>"), "a count shows no rows");
+    pages.page(
+        "GET search?<the league counted by rarity>",
+        &counted,
+        &["count   rarity · 2 values", "4  rare", "1  unique"],
+    );
     let item = web.get("item/r1");
     pages.page(
         "GET item/r1",

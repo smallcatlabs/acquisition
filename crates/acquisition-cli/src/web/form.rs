@@ -20,7 +20,9 @@
 //!   `query.stats[0].filters[1].value.min`. Three names are no path and
 //!   go elsewhere: `realm` to the request's scope, `league` beside the
 //!   query (C141, the league beside the trade JSON), and `view.limit`,
-//!   `view.sort`, `view.desc` to the rows view.
+//!   `view.sort`, `view.desc` to the rows view — or `view.count`, a key,
+//!   to the counts view in its place (the review of 4b, its sixth
+//!   finding), whose tables the answer page prints as the CLI does.
 //! - **A name is one the form emitted**: the fold refuses any other as
 //!   a usage error before it builds anything (C47, malformed external
 //!   input is a structured error), so no index past the form's stat rows
@@ -183,10 +185,17 @@ pub(crate) fn filter_path(group: &str, filter: &str) -> String {
 /// Every name the form emits: the scope and the view's, each filter's
 /// by its kind, and the stat rows'.
 fn emitted(groups: &[Group]) -> BTreeSet<String> {
-    let mut names: BTreeSet<String> = ["realm", "league", "view.limit", "view.sort", "view.desc"]
-        .iter()
-        .map(|n| n.to_string())
-        .collect();
+    let mut names: BTreeSet<String> = [
+        "realm",
+        "league",
+        "view.limit",
+        "view.sort",
+        "view.desc",
+        "view.count",
+    ]
+    .iter()
+    .map(|n| n.to_string())
+    .collect();
     for group in groups {
         for f in &group.filters {
             let path = filter_path(&group.id, &f.id);
@@ -224,6 +233,8 @@ pub(crate) struct Folded {
     pub limit: Option<usize>,
     pub sort: Option<String>,
     pub desc: bool,
+    /// A count by this key in place of the rows: the counts view.
+    pub count: Option<String>,
 }
 
 impl Folded {
@@ -245,10 +256,24 @@ impl Folded {
             rows.insert("desc".into(), true.into());
         }
         rows.insert("fields".into(), serde_json::json!(["icon"]));
+        // a count is the counts view, the matches counted by one key, as
+        // `search --count` asks it; its tables list as many values as the
+        // rows view would rows
+        let view = match &self.count {
+            Some(key) => {
+                let mut counts = Map::new();
+                counts.insert("keys".into(), serde_json::json!([key]));
+                if let Some(limit) = self.limit {
+                    counts.insert("limit".into(), limit.into());
+                }
+                serde_json::json!({ "counts": counts })
+            }
+            None => serde_json::json!({ "rows": rows }),
+        };
         serde_json::json!({
             "scope": scope,
             "query": { "trade": self.envelope },
-            "view": { "rows": rows },
+            "view": view,
         })
     }
 }
@@ -269,6 +294,7 @@ pub(crate) fn fold(form: &Form, fields: &[(String, String)]) -> Result<Folded, S
         limit: None,
         sort: None,
         desc: false,
+        count: None,
     };
     let mut league = None;
     for (name, value) in fields {
@@ -288,6 +314,7 @@ pub(crate) fn fold(form: &Form, fields: &[(String, String)]) -> Result<Folded, S
             }
             "view.sort" => folded.sort = Some(value.to_string()),
             "view.desc" => folded.desc = true,
+            "view.count" => folded.count = Some(value.to_string()),
             _ => {
                 let path = name
                     .strip_prefix("query.")

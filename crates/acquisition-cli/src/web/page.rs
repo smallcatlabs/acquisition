@@ -171,11 +171,11 @@ pub(crate) fn search_form(form: &Form, realm: &str, leagues: &[(String, usize)])
         ));
     }
     out.push_str("<label class=\"control\">Find a stat <input type=\"search\" id=\"stat-find\" autocomplete=\"off\"></label>\n<span id=\"stat-said\" class=\"fate\"></span>\n<ul id=\"stat-list\"></ul>\n</fieldset>\n");
-    out.push_str("<fieldset><legend>Rows</legend>\n<label class=\"control\">Show <select name=\"view.limit\">");
+    out.push_str("<fieldset><legend>Answer</legend>\n<label class=\"control\">Show <select name=\"view.limit\">");
     for limit in LIMITS {
         out.push_str(&format!("<option value=\"{limit}\">{limit}</option>"));
     }
-    out.push_str("</select></label>\n<label class=\"control\">Sort by <input name=\"view.sort\" placeholder=\"ilvl\"></label>\n<label class=\"control\"><input type=\"checkbox\" name=\"view.desc\" value=\"true\"> highest first</label>\n</fieldset>\n<button type=\"submit\">Search</button>\n</form>\n");
+    out.push_str("</select></label>\n<label class=\"control\">Sort by <input name=\"view.sort\" placeholder=\"ilvl\"></label>\n<label class=\"control\"><input type=\"checkbox\" name=\"view.desc\" value=\"true\"> highest first</label><br>\n<label class=\"control\">Or count the matches by <input name=\"view.count\" placeholder=\"rarity\"></label> <span class=\"fate\">one key: rarity, league, tab, class, category, line</span>\n</fieldset>\n<button type=\"submit\">Search</button>\n</form>\n");
     out
 }
 

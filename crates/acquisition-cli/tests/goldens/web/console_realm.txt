@@ -150,10 +150,11 @@ GET ?realm=xbox
 <span id="stat-said" class="fate"></span>
 <ul id="stat-list"></ul>
 </fieldset>
-<fieldset><legend>Rows</legend>
+<fieldset><legend>Answer</legend>
 <label class="control">Show <select name="view.limit"><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label>
 <label class="control">Sort by <input name="view.sort" placeholder="ilvl"></label>
-<label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label>
+<label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label><br>
+<label class="control">Or count the matches by <input name="view.count" placeholder="rarity"></label> <span class="fate">one key: rarity, league, tab, class, category, line</span>
 </fieldset>
 <button type="submit">Search</button>
 </form>

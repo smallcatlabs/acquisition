@@ -153,10 +153,11 @@ GET <the form>
 <span id="stat-said" class="fate"></span>
 <ul id="stat-list"></ul>
 </fieldset>
-<fieldset><legend>Rows</legend>
+<fieldset><legend>Answer</legend>
 <label class="control">Show <select name="view.limit"><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></label>
 <label class="control">Sort by <input name="view.sort" placeholder="ilvl"></label>
-<label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label>
+<label class="control"><input type="checkbox" name="view.desc" value="true"> highest first</label><br>
+<label class="control">Or count the matches by <input name="view.count" placeholder="rarity"></label> <span class="fate">one key: rarity, league, tab, class, category, line</span>
 </fieldset>
 <button type="submit">Search</button>
 </form>
@@ -193,6 +194,32 @@ terms   each term counted alone over all live pc items in all leagues, never ove
 routes  each returns exactly the members counted (5 more: --routes)
   term 1 undecided (1), over the scope:
     acq search --account &#39;Alice#1234&#39; --realm pc &#39;undecided(category=&quot;accessory.ring&quot;)&#39;
+basis   store <store> · build <build> · snapshot 6 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+</pre>
+
+</main>
+
+GET search?<the league counted by rarity>
+# holds "count   rarity · 2 values"
+# holds "4  rare"
+# holds "1  unique"
+<main>
+<h1>Answer</h1>
+<pre>
+trade   from the query JSON: exact — every clause with a stash meaning ran as the site reads it
+        over      the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours
+query   league=Standard
+scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (oldest <age> ago, newest <age> ago)
+        0 locations never fetched · location list seen <age> ago
+total   5 matches
+</pre>
+<pre>
+count   rarity · 2 values
+        4  rare
+        1  unique
+terms   each term counted alone over all live pc items in all leagues, never over the matches
+  0    league=Standard  5 matched
+routes  each returns exactly the members counted (3 more: --routes)
 basis   store <store> · build <build> · snapshot 6 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </pre>
 

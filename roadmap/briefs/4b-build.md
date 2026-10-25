@@ -135,6 +135,11 @@ the moved-world line).
      total, the rows as a table (icon per C140 with `alt` text, name,
      base, rarity, place, the touched lines) and a "more" link
      carrying `next`; then the terms block and the basis;
+   - the counts: the same answer with a count by one key in place of
+     the rows (the request's `view.counts`, as `acq search --count`
+     asks it), its tables as the CLI prints them (corrected after the
+     review of `fba1b03e`, its sixth finding: the Goal names the counts
+     and no item reached them);
    - one item: a row's name links to the `show` document rendered as
      a page, text and the icon, the lines in the order `show` gives.
 7. **The refresh pages**:
