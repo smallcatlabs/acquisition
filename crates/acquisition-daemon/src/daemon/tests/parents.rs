@@ -125,8 +125,9 @@ async fn apply_admission_refuses_bad_vocabulary_and_blown_budgets_whole() {
         // The tuple list itself is required and non-empty.
         (json!({}), "needs a `jobs` array"),
         (json!({ "jobs": [] }), "empty"),
-        // Only single-request kinds: a nested parent (refresh, apply)
-        // or any other kind would expand or sidestep the reviewed set.
+        // Only single-request kinds: a nested parent (apply), the retired
+        // ad-hoc refresh, or any other kind would expand or sidestep the
+        // reviewed set.
         (
             json!({ "jobs": [{ "kind": "refresh", "params": { "all": true } }] }),
             "not in the plan vocabulary",
@@ -203,7 +204,13 @@ async fn a_cancelled_parent_cannot_gain_children() {
     // cancel takes.
     let (daemon, log) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
     let parent = daemon
-        .submit("refresh".into(), json!({}), 0, "t".into(), None)
+        .submit(
+            "stash".into(),
+            json!({ "league": "Standard", "id": "t1", "deep": true }),
+            0,
+            "t".into(),
+            None,
+        )
         .unwrap();
     {
         let mut s = daemon.shared.lock().unwrap();
@@ -219,7 +226,13 @@ async fn a_cancelled_parent_cannot_gain_children() {
 async fn a_parent_cancelled_after_its_last_child_is_not_a_success() {
     let (daemon, log) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
     let parent = daemon
-        .submit("refresh".into(), json!({}), 0, "t".into(), None)
+        .submit(
+            "stash".into(),
+            json!({ "league": "Standard", "id": "t1", "deep": true }),
+            0,
+            "t".into(),
+            None,
+        )
         .unwrap();
     {
         let mut s = daemon.shared.lock().unwrap();
@@ -249,7 +262,13 @@ async fn a_parent_cancelled_after_its_last_child_is_not_a_success() {
 async fn cancelled_children_do_not_make_a_parent_successful() {
     let (daemon, log) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
     let parent = daemon
-        .submit("refresh".into(), json!({}), 0, "t".into(), None)
+        .submit(
+            "stash".into(),
+            json!({ "league": "Standard", "id": "t1", "deep": true }),
+            0,
+            "t".into(),
+            None,
+        )
         .unwrap();
     {
         let mut s = daemon.shared.lock().unwrap();

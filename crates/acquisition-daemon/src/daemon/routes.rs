@@ -54,7 +54,7 @@ impl Daemon {
             "leagues" => Some(("league".into(), format!("{base}/account/leagues"))),
             // The account profile (account:profile).
             "profile" => Some(("profile".into(), format!("{base}/profile"))),
-            "stashes" | "refresh" => {
+            "stashes" => {
                 let r = realm(Family::Stashes)?;
                 let league = params
                     .get("league")

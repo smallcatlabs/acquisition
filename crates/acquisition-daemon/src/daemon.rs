@@ -171,7 +171,6 @@ use kinds::{ApiError, validate_apply};
 use queue::{
     APPLY_MAX_ACTIONS, DAEMON_SUBMITTER, admit_client, admit_client_submitter, admit_realm,
     admit_segments, bounded_message, check_sleep, client_kinds, describe, describe_str,
-    refresh_selection,
 };
 use refresh::AccessTokenResult;
 use routes::why_no_url;

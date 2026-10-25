@@ -7,7 +7,7 @@
 //!
 //! ## C43 — Apply is its own pure fan-out parent job kind (`apply`), never the `refresh` parent.
 //!
-//! **Apply is its own pure fan-out parent job kind (`apply`), never the `refresh` parent.** The refresh parent re-lists by construction — it fans out from the listing it just fetched — which contradicts "executes exactly the listed actions": a plan's listing is an optional action and its fetches derive from reviewed facts. So `apply`'s params carry the plan's actions as explicit `(kind, params)` child tuples; the parent performs no send of its own, submits exactly one child per tuple, and holds for them. "Never expands" is structural, not disciplinary: the daemon stays plan-blind (it cannot link the plan crate, and it reads no intent — C34; the store it links only to write facts and keep its queue), so what it admits is **vocabulary, not meaning** — only single-request kinds (`stashes`, or `stash` with `deep` false), each of which submits no children. Admission is at submit, before a job id exists: a malformed tuple list, an empty one, one longer than `APPLY_MAX_ACTIONS`, or a logical bound over the caller's `max_requests` refuses the submit whole — the mid-fan-out terminalization path is never the budget's normal mechanism (D8). Plan validation, the staleness check, and rendering actions to tuples are the frontend's (`acq refresh --apply`, through the planner's validating parse). The ad-hoc `refresh` kind (`--all`/`--tabs`) stays untouched as the explicit client-stated-selection surface; whether it retires rides on step 9's friction notes. Decided 2026-09-01.
+//! **Apply is its own pure fan-out parent job kind (`apply`), never the `refresh` parent.** The refresh parent re-lists by construction — it fans out from the listing it just fetched — which contradicts "executes exactly the listed actions": a plan's listing is an optional action and its fetches derive from reviewed facts. So `apply`'s params carry the plan's actions as explicit `(kind, params)` child tuples; the parent performs no send of its own, submits exactly one child per tuple, and holds for them. "Never expands" is structural, not disciplinary: the daemon stays plan-blind (it cannot link the plan crate, and it reads no intent — C34; the store it links only to write facts and keep its queue), so what it admits is **vocabulary, not meaning** — only single-request kinds (`stashes`, or `stash` with `deep` false), each of which submits no children. Admission is at submit, before a job id exists: a malformed tuple list, an empty one, one longer than `APPLY_MAX_ACTIONS`, or a logical bound over the caller's `max_requests` refuses the submit whole — the mid-fan-out terminalization path is never the budget's normal mechanism (D8). Plan validation, the staleness check, and rendering actions to tuples are the frontend's (`acq refresh --apply`, through the planner's validating parse). The ad-hoc `refresh` kind (`--all`/`--tabs`) stood beside it as the explicit client-stated-selection surface until the 4b sitting round retired it (C44 as amended: a selection is a plan too, applied here). Decided 2026-09-01.
 //!
 
 use super::*;
@@ -462,118 +462,6 @@ impl Daemon {
                         "stash": stash,
                         "substashes_listed": children.len(),
                         "substash_jobs": submitted,
-                        "rate_limit": rate,
-                    }),
-                }
-            }
-            // A refresh: one stash-list request, then one `stash` child per
-            // selected tab. Folder children come straight from the list
-            // (folders themselves are never fetched); map/unique substashes
-            // only if `deep`. Selection is explicit — there is no default.
-            "refresh" => {
-                let league = params
-                    .get("league")
-                    .and_then(Value::as_str)
-                    .unwrap_or("Standard")
-                    .to_string();
-                let deep = params.get("deep").and_then(Value::as_bool).unwrap_or(false);
-                // The door refused a refresh that selects nothing (C127);
-                // a restored row from an older build fails here in its
-                // words, before it renders or authenticates.
-                let (all, wanted) = match refresh_selection(&params) {
-                    Ok(selection) => selection,
-                    Err(words) => return Ok(Outcome::failure(words)),
-                };
-                let realm = Realm::from_params(&params).unwrap_or(Realm::DEFAULT);
-                let (url, auth, _) = match self
-                    .render_then_authenticate(id, kind, &params, account)
-                    .await
-                {
-                    Ok(rendered) => rendered,
-                    Err(stop) => return stop,
-                };
-                let route = route.as_deref().expect("refresh is a network kind");
-                let (v, rate) = self.api_get(id, route, &url, auth, ready).await?;
-                // A malformed listing fails the refresh whole, before the
-                // store sees it: converted to an empty list it would
-                // "succeed" with zero children over a retired tab set.
-                let Some(listed) = v.get("stashes").and_then(Value::as_array).cloned() else {
-                    return Ok(Outcome::failure(
-                        "stashes response without a `stashes` array",
-                    ));
-                };
-                // The list a refresh fetches is the same response `stashes`
-                // records; the store wants it under that endpoint.
-                if let Err(failure) = self.record(
-                    account,
-                    "stashes",
-                    &json!({ "realm": realm, "league": params.get("league").cloned().unwrap_or(json!("Standard")) }),
-                    &v,
-                ) {
-                    return Ok(failure);
-                }
-                // Flatten: top-level tabs plus folder children; skip folders.
-                let mut tabs: Vec<(String, String, String)> = Vec::new();
-                for t in &listed {
-                    let ty = t.get("type").and_then(Value::as_str).unwrap_or("");
-                    if ty == "Folder" {
-                        for c in t
-                            .get("children")
-                            .and_then(Value::as_array)
-                            .into_iter()
-                            .flatten()
-                        {
-                            if let Some(cid) = c.get("id").and_then(Value::as_str) {
-                                tabs.push((
-                                    cid.into(),
-                                    c.get("name").and_then(Value::as_str).unwrap_or("").into(),
-                                    c.get("type").and_then(Value::as_str).unwrap_or("").into(),
-                                ));
-                            }
-                        }
-                    } else if let Some(tid) = t.get("id").and_then(Value::as_str) {
-                        tabs.push((
-                            tid.into(),
-                            t.get("name").and_then(Value::as_str).unwrap_or("").into(),
-                            ty.into(),
-                        ));
-                    }
-                }
-                let selected: Vec<&(String, String, String)> = tabs
-                    .iter()
-                    .filter(|(tid, _, _)| all || wanted.contains(tid))
-                    .collect();
-                let unknown: Vec<&String> = wanted
-                    .iter()
-                    .filter(|w| !tabs.iter().any(|(tid, _, _)| tid == *w))
-                    .collect();
-                let mut submitted = Vec::new();
-                for (tid, _, ty) in &selected {
-                    let follow = deep && matches!(ty.as_str(), "MapStash" | "UniqueStash");
-                    match self.submit_child(
-                        id,
-                        "stash",
-                        json!({ "realm": realm, "league": league, "id": tid, "deep": follow }),
-                    ) {
-                        Ok(cid) => submitted.push(cid),
-                        Err(e) => {
-                            return Ok(fan_out_stopped(
-                                self.cancelled(id),
-                                submitted.len(),
-                                &e.message,
-                            ));
-                        }
-                    }
-                }
-                Outcome::Success {
-                    payload: json!({
-                        "provider": self.provider.name,
-                        "league": league,
-                        "tabs_listed": tabs.len(),
-                        "tabs_selected": selected.iter().map(|(i, n, t)| json!({ "id": i, "name": n, "type": t })).collect::<Vec<_>>(),
-                        "unknown_tab_ids": unknown,
-                        "deep": deep,
-                        "tab_jobs": submitted,
                         "rate_limit": rate,
                     }),
                 }

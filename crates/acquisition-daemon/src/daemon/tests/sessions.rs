@@ -287,11 +287,6 @@ fn realm_is_a_segment_before_league_or_name_and_pc_is_silent() {
             json!({ "league": "Standard", "id": "t1", "sub": "s1" }),
             json!({ "realm": "pc", "league": "Standard", "id": "t1", "sub": "s1" }),
         ),
-        (
-            "refresh",
-            json!({ "league": "Standard", "all": true }),
-            json!({ "realm": "pc", "league": "Standard", "all": true }),
-        ),
     ] {
         let a = route(kind, absent).unwrap();
         assert_eq!(

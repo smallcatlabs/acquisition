@@ -553,7 +553,7 @@ resubmit if still wanted",
 pub(super) fn admit_realm(kind: &str, params: &Value) -> Result<(), Refusal> {
     let family = match kind {
         "characters" | "character" => Family::Characters,
-        "stashes" | "stash" | "refresh" => Family::Stashes,
+        "stashes" | "stash" => Family::Stashes,
         _ => return Ok(()),
     };
     match params.get("realm") {
@@ -654,13 +654,6 @@ pub(super) const KINDS: &[KindRow] = &[
         segments: &["league", "id", "sub"],
         required: &["id"],
         check: None,
-    },
-    KindRow {
-        kind: "refresh",
-        door: Door::Client,
-        segments: &["league"],
-        required: &[],
-        check: Some(check_refresh),
     },
     KindRow {
         kind: "apply",
@@ -1025,41 +1018,6 @@ pub(super) fn admit_client_submitter(submitted_by: &str) -> Result<(), Refusal> 
 submit under it; name the frontend instead"
             .to_string(),
     ))
-}
-
-/// C127 — A refresh's selection, the one rule the door and the run-time
-/// arm (`kinds.rs`) both read: `all` true, or the tab ids `tabs` lists
-/// (its string elements). There is no default, so a refresh that selects
-/// nothing is refused at submit: it would still render a URL, and on a
-/// route not yet probed its probe would spend a token before the job
-/// failed. A restored row from an older build meets the same words when
-/// it runs.
-pub(super) fn refresh_selection(params: &Value) -> Result<(bool, Vec<String>), String> {
-    let all = params.get("all").and_then(Value::as_bool).unwrap_or(false);
-    let tabs: Vec<String> = params
-        .get("tabs")
-        .and_then(Value::as_array)
-        .map(|a| {
-            a.iter()
-                .filter_map(Value::as_str)
-                .filter(|tab| !tab.is_empty())
-                .map(str::to_string)
-                .collect()
-        })
-        .unwrap_or_default();
-    if !all && tabs.is_empty() {
-        return Err(
-            "refresh needs a selection, and there is no default: `all` true, or `tabs` \
-listing at least one tab id"
-                .into(),
-        );
-    }
-    Ok((all, tabs))
-}
-
-/// `refresh`'s selection, judged at submit.
-fn check_refresh(params: &Value) -> Result<(), String> {
-    refresh_selection(params).map(|_| ())
 }
 
 /// C127 — Admission at the client's door (`Request::Submit`, in

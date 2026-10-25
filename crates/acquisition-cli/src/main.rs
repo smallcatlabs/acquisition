@@ -401,18 +401,17 @@ is the per-location summary.")]
     /// Submit any job kind by hand.
     Submit {
         /// A network kind — profile, characters, character, leagues,
-        /// stashes, stash, refresh, apply — or a mock-only one, refused in
+        /// stashes, stash, apply — or a mock-only one, refused in
         /// real mode: sleep, which never sends, fetch, whoami.
         kind: String,
         /// JSON params, as the verb of the same name sends them:
         /// characters `{"realm"}`, character `{"name", "realm"}`, stashes
         /// `{"league", "realm"}`, stash `{"id", "sub", "deep", "league",
-        /// "realm"}`, refresh `{"tabs": […] or "all": true, "deep",
-        /// "league", "realm"}`, sleep `{"seconds"}` (0 to 3600); realm defaults to pc
+        /// "realm"}`, sleep `{"seconds"}` (0 to 3600); realm defaults to pc
         /// and league to Standard. A name, league or id is one path segment of at most
         /// 255 bytes: a slash, a control character, or only dots and spaces before any
-        /// `;` is refused; a stash needs its id, and a refresh `"all": true` or at least one
-        /// tab id. `acq status <id> --json` shows a job's params.
+        /// `;` is refused; a stash needs its id. `acq status <id> --json` shows a job's
+        /// params.
         #[arg(long, default_value = "{}")]
         params: String,
         /// Higher runs sooner. Default 0.

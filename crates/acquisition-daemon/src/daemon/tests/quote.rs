@@ -141,13 +141,13 @@ async fn quote_counts_queued_jobs_ahead_and_keys_scopes_per_account() {
             .submit("fetch".into(), json!({}), 0, "test".into(), None)
             .unwrap();
     }
-    // A refresh parent that already made its listing request and now
-    // holds its deferred result while waiting for children: on the
-    // stash-list scope, but no longer a future send.
+    // A deep stash parent that already made its own request and now
+    // holds its deferred result while waiting for its pages: on the stash
+    // scope, but no longer a future send.
     let parent = daemon
         .submit(
-            "refresh".into(),
-            json!({ "league": "Standard" }),
+            "stash".into(),
+            json!({ "league": "Standard", "id": "t1", "deep": true }),
             0,
             "test".into(),
             Some("Alice#1234".into()),
@@ -168,8 +168,8 @@ async fn quote_counts_queued_jobs_ahead_and_keys_scopes_per_account() {
                         params: json!({}),
                     },
                     QuoteJob {
-                        kind: "stashes".into(),
-                        params: json!({ "league": "Standard" }),
+                        kind: "stash".into(),
+                        params: json!({ "league": "Standard", "id": "t2" }),
                     },
                 ],
                 account: None,
@@ -195,7 +195,7 @@ async fn quote_counts_queued_jobs_ahead_and_keys_scopes_per_account() {
     let listing = quote
         .scopes
         .iter()
-        .find(|s| s.key == "stash-list@Alice#1234")
+        .find(|s| s.key == "stash@Alice#1234")
         .unwrap_or_else(|| panic!("{:?}", quote.scopes));
     assert_eq!(listing.queued_ahead, 0);
     assert_eq!(quote.account.as_deref(), Some("Alice#1234"));

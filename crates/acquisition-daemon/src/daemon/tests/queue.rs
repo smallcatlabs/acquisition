@@ -154,11 +154,6 @@ async fn c127_a_path_param_that_is_not_one_segment_is_refused_and_sends_nothing(
         ("stashes", json!({ "league": "a\\b" }), "`league`"),
         ("stashes", json!({ "league": 7 }), "`league`"),
         (
-            "refresh",
-            json!({ "league": "../x", "all": true }),
-            "`league`",
-        ),
-        (
             "stash",
             json!({ "league": "Standard", "id": "../../profile" }),
             "`id`",
@@ -427,11 +422,6 @@ async fn c127_a_row_that_renders_no_url_fails_naming_the_cause() {
             json!({ "league": 7 }),
             "`league` must be a string that is one path segment",
         ),
-        (
-            "refresh",
-            json!({ "league": "..", "all": true }),
-            "`league` \"..\" is not one path segment",
-        ),
     ] {
         let what = format!("{kind} {params}");
         let id = daemon
@@ -496,11 +486,6 @@ async fn c127_a_row_that_renders_no_url_fails_before_any_refresh() {
             json!({ "league": 7 }),
             "`league` must be a string that is one path segment",
         ),
-        (
-            "refresh",
-            json!({ "league": "..", "all": true }),
-            "`league` \"..\" is not one path segment",
-        ),
     ] {
         let what = format!("{kind} {params}");
         let id = daemon
@@ -530,38 +515,23 @@ async fn c127_a_row_that_renders_no_url_fails_before_any_refresh() {
     finish_harness_wire(dispatcher, &log_path, &requests);
 }
 
-/// C127 (the door judges every param that shapes a send): a client's
-/// `refresh` that selects nothing (no `all` true, no tab id in `tabs`) is
-/// refused at submit, before a job id exists. It would still render a
-/// URL, so on a route never probed, with the session's refresh due, an
-/// admitted one queued a HEAD probe that spent a token before the job
-/// failed. The journal equals the wire, both empty.
+/// C127 and the 4b sitting round: the ad-hoc `refresh` kind is retired
+/// (a selection is a plan, applied as `apply`), so a client naming it is
+/// refused at the door as any kind the table does not list, before an id
+/// exists, and nothing is admitted or sent.
 #[tokio::test]
-async fn c127_a_refresh_that_selects_nothing_is_refused_at_submit() {
+async fn c127_the_retired_refresh_kind_is_refused_at_submit() {
     let (base, requests, server) = token_server_answering(vec![]).await;
     let (mut daemon, log_path) = test_daemon(&base, Arc::new(ManualClock::new()));
     logged_in(&mut daemon);
     let dispatcher = tokio::spawn(daemon.clone().dispatcher());
     for params in [
-        json!({ "league": "Standard" }),
-        json!({ "league": "Standard", "all": false, "tabs": [] }),
-        json!({ "league": "Standard", "all": "true" }),
-        json!({ "league": "Standard", "tabs": [1, 2] }),
-        json!({ "league": "Standard", "tabs": "t1" }),
-        json!({ "league": "Standard", "tabs": [""] }),
+        json!({ "league": "Standard", "all": true }),
+        json!({ "league": "Standard", "tabs": ["t1"] }),
     ] {
         let what = format!("refresh {params}");
         let response = client_submit(&daemon, "refresh", params, Some("test-user")).await;
-        assert_refused(
-            response,
-            &what,
-            &[
-                "refresh needs a selection",
-                "`all` true",
-                "`tabs`",
-                "tab id",
-            ],
-        );
+        assert_refused(response, &what, &["unknown job kind"]);
         assert_nothing_admitted(&daemon, &what);
     }
     for _ in 0..50 {
@@ -652,11 +622,6 @@ fn c127_legitimate_values_render_to_these_wire_paths() {
             "stashes",
             json!({ "league": "My League (PL12345)" }),
             "/stash/My%20League%20(PL12345)",
-        ),
-        (
-            "refresh",
-            json!({ "league": "Ruthless Hardcore SSF Mercenaries (PL55)", "all": true }),
-            "/stash/Ruthless%20Hardcore%20SSF%20Mercenaries%20(PL55)",
         ),
         (
             "stashes",
@@ -1422,9 +1387,9 @@ async fn restore_drops_probes_and_finishes_a_parent_whose_children_are_done() {
                 updated_at: 0,
             }
         };
-        // A refresh whose last child finished just before the daemon
+        // An apply whose last child finished just before the daemon
         // died: its own result is held, deferred.
-        let mut parent = row(1, "refresh", "running", None);
+        let mut parent = row(1, "apply", "running", None);
         parent.deferred = Some(json!({ "outcome": "success", "payload": { "tabs_listed": 1 } }));
         db.upsert(&parent).unwrap();
         db.upsert(&row(2, "stash", "done", Some(1))).unwrap();
@@ -1439,7 +1404,7 @@ async fn restore_drops_probes_and_finishes_a_parent_whose_children_are_done() {
         db.upsert(&row(5, "leagues", "running", None)).unwrap();
         // Mid-fan-out: children submitted, held result not yet
         // written. Re-running would duplicate the children.
-        db.upsert(&row(6, "refresh", "running", None)).unwrap();
+        db.upsert(&row(6, "apply", "running", None)).unwrap();
         db.upsert(&row(7, "stash", "waiting", Some(6))).unwrap();
     }
     let (daemon, log) = persisting_daemon("http://127.0.0.1:1", &db);

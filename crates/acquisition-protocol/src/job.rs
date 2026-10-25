@@ -106,17 +106,6 @@ pub fn target_of(kind: &str, p: &Value) -> String {
             "stashes" => format!("{r}{}", s("league").unwrap_or("")),
             "characters" => r.trim_end_matches('/').to_string(),
             "character" => format!("{r}{}", s("name").unwrap_or("")),
-            "refresh" => {
-                let l = s("league").unwrap_or("");
-                if p.get("all").and_then(Value::as_bool).unwrap_or(false) {
-                    format!("{r}{l} (all)")
-                } else {
-                    format!(
-                        "{r}{l} ({} tabs)",
-                        p.get("tabs").and_then(Value::as_array).map_or(0, Vec::len)
-                    )
-                }
-            }
             "apply" => format!(
                 "plan ({} requests)",
                 p.get("jobs").and_then(Value::as_array).map_or(0, Vec::len)
@@ -207,13 +196,6 @@ mod tests {
         assert_eq!(
             target_of("character", &json!({ "realm": "poe2", "name": "Exile" })),
             "poe2/Exile"
-        );
-        assert_eq!(
-            target_of(
-                "refresh",
-                &json!({ "realm": "xbox", "league": "Standard", "all": true })
-            ),
-            "xbox/Standard (all)"
         );
     }
 }
