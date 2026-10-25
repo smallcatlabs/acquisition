@@ -175,12 +175,14 @@ list when a step's close commit or an issue takes it.
 
 ## Current step
 
-4b, the 4-lite build (`briefs/4b-build.md`), is built: `acq web` in the
-CLI crate, a loopback renderer over the verbs, with the search pages
-and the refresh pages (the ledger). Its Codex review is pending, then
-the owner's reading of it; the owner's sitting at the pages in his own
-store (the brief's Do 10, his, from a terminal) is ahead, and the close
-answers what it finds. The #70 step's fix-round review is pending too,
+4b, the 4-lite build (`briefs/4b-build.md`), is built and its review's
+fix round is in: `acq web` in the CLI crate, a loopback renderer over
+the verbs, with the search pages and the refresh pages; the review's
+six findings fixed by one rule each (the ledger). The fix round's own
+Codex review is pending, launched when the owner says, then his
+reading of it; the owner's sitting at the pages in his own store (the
+brief's Do 10, his, from a terminal) is ahead, and the close answers
+what it finds. The #70 step's fix-round review is pending too,
 and its issue closes when a week of pushes needs no re-run (under
 "Open"). 2g and 2h follow phase 3 and `alpha.2`; then 4-0, the time
 seam (`TIME-SEAM.md`); then 4-full. `AGENTS.md` governs; the gate is
@@ -204,7 +206,7 @@ messages.
 | 2e the game-diff tool, a new-league rehearsal and the README line | design `08c0907a`, `e9b8bc78`, `cb7db91c`, `53ec784f`; build `35e0b03c` to `4e543dd0`; fixes `252e8c9e`, `bb319873`, `fb8371e0`; closed `64a6240c` | 2026-10-21 | #53 for 3b; the two claims for phase 3's live run (the live-run skill); the CLI-only `--if-revision 0`, under "Open"; the six remote-gate fixes after the close, `82199010` to `7b4793fe`, before 2f |
 | 2f the review of daemon, store and network, and its fix rounds | the scan and its working notes outside the repository; round A `718f1cde` to `12395d33` (#54); round C `76be73d6` to `2fa31fc6` (#57) and `0c4a0829` to `b1d9cf3c` (#58), the owner's rulings at `76be73d6`, `f86c9b7e` and `1d72cf4f`; round D `26160d48` to `cf2137ef` (#60); the reviews whole at `b1588df3`; the brief written after, `briefs/2f-review.md`; closed by the commit carrying this line | 2026-10-23 | #51, #55, #56, #59 (its first part), #61 to #72; the architecture rows and the keyring under `shared`, and the proxy environment, under "Open" |
 | 4a the 4-lite design | the brief re-cut `cbd7caf2`; the owner's rulings `00e440d1`; C141 under delegation `eeb72437`; the build brief `f1deb782`; closed by the commit carrying this line | 2026-10-25 | a selection compiled as a plan (the spend check refuses a plan with no stored policy), in `4b-build.md`'s "Not in scope" with its trigger, the owner's sitting; C141 listed for the owner's review at the close; the AGENTS budget at 15,235 of 15,277 bytes, under "Open" |
-| 4b 4-lite, `acq web` | build `f29506bc` (C141) to the commit carrying this line: the icon field `00020cac`, the stat vocabulary `d4e7f2ce`, the catalogue's listing-only sentences `550cd616`, the moved-world pins `843b391c`, the CLI's renderers as text `3323a488`, then `acq web` | review pending; the owner's sitting (Do 10) ahead | the sitting's stops, answered at the close |
+| 4b 4-lite, `acq web` | build `f29506bc` (C141) to `fba1b03e`: the icon field `00020cac`, the stat vocabulary `d4e7f2ce`, the catalogue's listing-only sentences `550cd616`, the moved-world pins `843b391c`, the CLI's renderers as text `3323a488`, `acq web` `fba1b03e`; the review `548051f9`; fixes `0b1fc1ff` to the commit carrying this line (the review deleted there, whole at `548051f9`) | fix-round review pending; the owner's sitting (Do 10) ahead | the sitting's stops, answered at the close; the picker's no-fallback rule unpinned (no seam reaches a page's script) |
 | #70 the Windows gate's deadline flakes | ruling and brief `dd9b7859`; build `04001a27` to `90db890a`; the reorder and the review `54d9f957`, `493ff5d4`; fixes `6697afc3`, `32769f72` (the review deleted there, whole at `493ff5d4`) | fix-round review pending; the issue closes on a week of pushes without a re-run | the watch and what it holds, under "Open" |
 
 ## Housekeeping
