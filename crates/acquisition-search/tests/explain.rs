@@ -313,6 +313,7 @@ fn explain_beside_a_count_a_cross_or_a_sort_is_an_authoring_error() {
                 sort: sort.clone(),
                 desc: false,
                 after: None,
+                ..Rows::default()
             },
         )
         .unwrap_err();

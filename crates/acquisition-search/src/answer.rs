@@ -585,6 +585,19 @@ pub struct Rows {
     /// refused across a changed basis.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub after: Option<usize>,
+    /// What each row carries past its compact fields, by name (C100, a
+    /// caller may name fields): `icon` alone, the URL of the item's art.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fields: Vec<RowField>,
+}
+
+/// A field a rows view may ask of each row beyond the compact ones.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RowField {
+    /// The URL of the item's art on GGG's CDN, as its body gives it: a
+    /// page names it and the user's browser fetches it (C140).
+    Icon,
 }
 
 /// A query input read in a realm ([`QueryInput::read`]): the query, the
@@ -952,6 +965,7 @@ enum BoundView {
         sort: Option<(String, bind::SortKey)>,
         desc: bool,
         limit: usize,
+        fields: Vec<RowField>,
     },
     Counts(counts::BoundCounts),
     Cross(counts::BoundCounts),
@@ -1085,6 +1099,7 @@ impl Shape {
                 },
                 desc: rows.desc,
                 limit: rows.limit.unwrap_or(DEFAULT_LIMIT),
+                fields: rows.fields.clone(),
             },
             Shape::Counts(c) => {
                 BoundView::Counts(counts::bind(&c.keys, false, c.sum.as_deref(), c.limit)?)
@@ -1441,6 +1456,10 @@ pub struct Row {
     pub typeline: Option<String>,
     pub base: Option<String>,
     pub rarity: Option<String>,
+    /// The URL of the item's art, where the view asked for it: null where
+    /// the body gives none, absent where it was not asked.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub icon: Option<Option<String>>,
     pub place: Place,
     /// When the item left, under membership `all` or `removed`: a fetch
     /// of its place no longer had it, or the place was retired.
@@ -1824,11 +1843,19 @@ pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError>
         at: &at,
         router: &router,
     };
-    let (sort, desc, limit) = match &view {
-        BoundView::Rows { sort, desc, limit } => (sort.as_ref(), *desc, *limit),
+    let (sort, desc, limit, fields) = match &view {
+        BoundView::Rows {
+            sort,
+            desc,
+            limit,
+            fields,
+        } => (sort.as_ref(), *desc, *limit, fields.as_slice()),
         // a count shows no rows (AQ1), and explain none
-        BoundView::Counts(_) | BoundView::Cross(_) | BoundView::Explain(_) => (None, false, 0),
+        BoundView::Counts(_) | BoundView::Cross(_) | BoundView::Explain(_) => {
+            (None, false, 0, &[][..])
+        }
     };
+    let icon = fields.contains(&RowField::Icon);
     let scalars: Option<Vec<Scalar>> = sort.map(|(_, key)| {
         matches
             .iter()
@@ -1862,6 +1889,7 @@ pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError>
                 typeline: held.item.typeline.clone(),
                 base: held.item.base.clone(),
                 rarity: held.item.rarity.clone(),
+                icon: icon.then(|| held.item.icon.clone()),
                 place: held.place.clone(),
                 removed_at: held.item.facts.removed_at,
                 matched: touched
@@ -1948,6 +1976,7 @@ pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError>
                             sort: sort.map(|(text, _)| text.clone()),
                             desc,
                             after: Some(after + rows.len()),
+                            fields: fields.to_vec(),
                         }),
                         routes: request.view.routes,
                     },

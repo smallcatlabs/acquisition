@@ -237,6 +237,11 @@ pub struct Item {
     /// the stored body has it.
     #[serde(skip)]
     pub descr: Option<String>,
+    /// GGG's `icon`, the URL of the item's art on GGG's CDN, as given: the
+    /// one maker of it, which `show` prints and a rows view asked for
+    /// `fields: ["icon"]` copies (C140, item art is the browser's).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
     /// Every yes the body says: a top-level boolean that is true, and the
     /// true keys of `influences`, as GGG spells them, sorted.
     pub flags: Vec<String>,
@@ -518,6 +523,7 @@ pub fn derive(facts: Facts, body: &str) -> Item {
         reqlevel: None,
         note: None,
         descr: None,
+        icon: None,
         flags: Vec::new(),
         properties: Vec::new(),
         requirements: Vec::new(),
@@ -545,6 +551,7 @@ pub fn derive(facts: Facts, body: &str) -> Item {
     item.frame = item.text(&body, "frameTypeId");
     item.note = item.text(&body, "note");
     item.descr = item.text(&body, "descrText");
+    item.icon = item.text(&body, "icon");
     // GGG's 0 is an item the game shows no level for: known absence
     item.ilvl = item.int(&body, "ilvl").filter(|ilvl| *ilvl != 0);
     item.item_level = item.ilvl.map(|ilvl| format!("Item Level: {ilvl}"));

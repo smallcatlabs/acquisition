@@ -1233,3 +1233,75 @@ fn show_gives_a_mod_its_rows() {
     );
     assert_eq!(shown["lines"][1].get("rows"), None);
 }
+
+/// C140 and C100's named fields: a rows view asked for `fields: ["icon"]`
+/// puts on each row the URL of the item's art its body gives — the one
+/// `show` prints, from the one maker — and null where the body gives
+/// none; unasked, a row carries none; a continuation goes on asking it;
+/// a field no view knows is refused.
+#[test]
+fn c140_a_row_carries_the_icon_when_the_view_names_it() {
+    const ART: &str = "https://web.poecdn.com/gen/image/ring.png";
+    let mut s = store();
+    list_tabs(&mut s, "pc", "Standard", json!([tab("w1", "Art")]), 10);
+    fetch_tab(
+        &mut s,
+        "pc",
+        "Standard",
+        "w1",
+        "Art",
+        vec![
+            item(
+                "drawn",
+                "Drawn",
+                "Iron Ring",
+                "Rare",
+                json!({ "icon": ART }),
+            ),
+            item("bare", "Bare", "Iron Ring", "Rare", json!({})),
+        ],
+        20,
+    );
+    let rows = |v: &Value| v["rows"].as_array().unwrap().clone();
+    let asked = view(
+        &s,
+        "class:ring",
+        json!({ "rows": { "fields": ["icon"], "sort": "ilvl" } }),
+    );
+    let by_id = |id: &str| {
+        rows(&asked)
+            .into_iter()
+            .find(|r| r["id"] == id)
+            .unwrap_or_else(|| panic!("{id}: {asked}"))
+    };
+    assert_eq!(by_id("drawn")["icon"], ART);
+    assert_eq!(by_id("bare")["icon"], Value::Null);
+    assert!(by_id("bare").as_object().unwrap().contains_key("icon"));
+    // the one maker: show prints the same URL
+    let shown = serde_json::to_value(show(&s, "drawn", false).unwrap()).unwrap();
+    assert_eq!(shown["item"]["icon"], ART);
+    // unasked, a row is compact
+    let compact = view(&s, "class:ring", json!({ "rows": {} }));
+    assert!(
+        rows(&compact).iter().all(|r| r.get("icon").is_none()),
+        "{compact}"
+    );
+    // a continuation asks what its answer asked
+    let first = view(
+        &s,
+        "class:ring",
+        json!({ "rows": { "fields": ["icon"], "limit": 1 } }),
+    );
+    let next = &first["view"]["rows"]["next"]["request"];
+    assert_eq!(next["view"]["rows"]["fields"], json!(["icon"]), "{first}");
+    let request: Request = serde_json::from_value(next.clone()).unwrap();
+    let after = as_json(&answer(&load(&s, Some("pc")), &request).unwrap());
+    assert!(
+        rows(&after)[0].as_object().unwrap().contains_key("icon"),
+        "{after}"
+    );
+    // a field no view knows is refused
+    let unknown =
+        serde_json::from_value::<Request>(json!({ "view": { "rows": { "fields": ["price"] } } }));
+    assert!(unknown.is_err());
+}

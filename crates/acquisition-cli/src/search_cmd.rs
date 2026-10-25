@@ -461,6 +461,7 @@ pub fn search(cx: &Ctx, args: SearchArgs, json: bool) -> Result<()> {
             sort: args.sort.clone(),
             desc: args.desc,
             after: None,
+            fields: Vec::new(),
         },
     )
     .map_err(|e| fail(e.into(), json))?;
