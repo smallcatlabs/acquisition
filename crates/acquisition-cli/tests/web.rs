@@ -747,6 +747,46 @@ fn the_refresh_loop_runs_through_the_pages() {
     assert!(harness::acq(&base, &["daemon", "stop"]).status.success());
 }
 
+/// The jobs page under a halt: a trip staged in the mock world's rails, as
+/// the rails tests stage it, and the daemon started with the tripwire on.
+/// The page opens with the halt and its advice in the words `daemon
+/// status` gives them, the one maker both render. No deadline but the
+/// hang ceiling (C137).
+#[test]
+fn the_jobs_page_opens_with_the_halt() {
+    let scratch = harness::scratch("webhalt");
+    let base = scratch.0.clone();
+    harness::login_as_mock(&base, &[]);
+    assert!(harness::acq(&base, &["daemon", "stop"]).status.success());
+    while sole_json(&harness::acq(&base, &["daemon", "status", "--json"]))["running"] != false {
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    let rails = base.join("store").join("mock").join("rails.json");
+    std::fs::create_dir_all(rails.parent().unwrap()).unwrap();
+    std::fs::write(
+        &rails,
+        r#"{"tripped":"429 on GET /stash/Standard (staged trip)"}"#,
+    )
+    .unwrap();
+    let (_daemon, _pid) = harness::start_daemon_with(&base, &[("ACQ_TRIPWIRE", "1")]);
+    let web = start_web(harness::command(&base, &["web", "--no-browser"]));
+    let mut pages = Pages::new(&base, &web);
+    let jobs = web.get("jobs");
+    assert_eq!(jobs.status, 200, "{}", jobs.body);
+    pages.page(
+        "GET jobs <the daemon halted>",
+        &jobs,
+        &[
+            "rails:  tripwire ON",
+            "HALTED: 429 on GET /stash/Standard (staged trip)",
+            "acq daemon reset-tripwire",
+        ],
+    );
+    page_golden(file!(), "jobs_halted", &pages);
+    drop(web);
+    assert!(harness::acq(&base, &["daemon", "stop"]).status.success());
+}
+
 /// The envelope a plan page holds in its hidden field, unescaped.
 fn hidden_plan(body: &str) -> String {
     let at =

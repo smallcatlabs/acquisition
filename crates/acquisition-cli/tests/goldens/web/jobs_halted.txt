@@ -1,0 +1,16 @@
+# golden web/jobs_halted: acq web's pages, each page's <main>, normalised (C122). Each `# holds` line is a fact checked in that page as served; regenerate under ACQ_UPDATE_FIXTURES=1 and read the diff.
+
+GET jobs <the daemon halted>
+# holds "rails:  tripwire ON"
+# holds "HALTED: 429 on GET /stash/Standard (staged trip)"
+# holds "acq daemon reset-tripwire"
+<main>
+<h1>Jobs</h1>
+<pre>
+rails:  tripwire ON · sends 0 · journal off
+HALTED: 429 on GET /stash/Standard (staged trip)
+        clear with `acq daemon reset-tripwire` after the post-violation wait
+no jobs
+</pre>
+
+</main>
