@@ -109,7 +109,7 @@ plan or the tools, and the close answers every item.
 | 2. The keystone | closed: 2a the shared function layer · 2b the tests · 2c the journey test and real-shaped mock items · 2d the daemon and limiter file splits · 2d-oracle the journal oracles over every journaling daemon · 2e the game-diff tool, a new-league rehearsal and the README line · 2f the review of daemon, store and network: a static scan, the owner's rulings and three fix rounds over four PRs, each round reviewed by Codex. Ahead, slid after phase 3 and `alpha.2` by the owner's word of 2026-10-24: 2g the read economy and the MCP refusal and receipt bundle (#9, #10), one bound at the shared layer under C53's three output levels · 2h the queued search and trade issues (#38, #46, #47; #37 once the owner has sat the site), which slips before 2g does | mixed | phase 1 | 2026-12-05 |
 | 3. League 3.30 | the owner runs the league under the rails · count the undecided classes and untranslated mods · the prune verb (#43) at the league end | owner, Opus | 2e | 2026-11-20 |
 | 3b. `alpha.2` | regenerate the tables when the named inputs exist: a post-launch `poe1` pin (RePoE lags launch by 0 to 13 days), the owner's four site captures (C79: nobody else may fetch them), the pins and manifests bumped, every generator's `--check` green · then the release | owner captures, Opus | 3 | when the inputs arrive, 2026-11-26 at the latest |
-| 4. The GUI | closed: 4a the 4-lite design (C16 amended, C138 to C141, `briefs/4b-build.md`) · ahead: 4b 4-lite, `acq web`, a loopback renderer over the verbs — the search pages (the form, the table, the counts, one item) and the refresh pages (the selection, the plan, the jobs), no subscriber — before the league · after `alpha.2`: 4-0 the time seam (`TIME-SEAM.md`) · 4-full on it: the keeper bundle (#1), the corpus held in `acq-mcp`, the subscriber with reconnect, the live loop, the dense table and the card, hardening | Fable, then Opus | 2a, 2b | 4-lite before phase 3; 4-full 2026-12-19 |
+| 4. The GUI | closed: 4a the 4-lite design (C16 amended, C138 to C141) · 4b 4-lite, `acq web`, a loopback renderer over the verbs — the search pages (the form in the site's organization, the query box, the table with its art, the counts, one item) and the refresh pages (the selection as a plan, the plan page, the jobs with the rails), every list a group, no subscriber (C44 and C76 one door, C111 spent by response, C142, C143) · ahead, after `alpha.2`: 4-0 the time seam (`TIME-SEAM.md`) · 4-full on it: the keeper bundle (#1), the corpus held in `acq-mcp`, the subscriber with reconnect, the live loop, the results as site-style cards over rows carrying fields, the dense table, hardening | Fable, then Opus | 2a, 2b | 4-lite closed 2026-10-25, before phase 3; 4-full 2026-12-19 |
 | 5. PoE2 | the route flip and first-contact checklist prepared unmerged · PoE2 currency rows · launch day as the assessment's report 6, section 3: a first contact only if GGG ships the stash endpoint | Opus, owner live | 0b | 2026-12-11 |
 
 ## Open
@@ -156,6 +156,32 @@ list when a step's close commit or an issue takes it.
   (`TIME-SEAM.md`, section 3). The default profile's comment still
   says the longest in-test deadline is 60 s, written before the waits
   rose to 120 s; re-read both profiles' sizing at the close.
+- **For 4-full, from 4b**: the results as site-style cards, which need
+  rows carrying every field, one maker with `show` (`GUI-NOTES.md`
+  section 7; the owner, 2026-10-25: "just for form layout for now");
+  item counts beside the league select, if a document that carries
+  both on one basis is ever made; a web phrasing for the next actions
+  the pages print as CLI command lines beside their buttons, a verb
+  change; `acq web` starting with no account on disk and showing the
+  refusal as a page, where it refuses in the terminal today; the MCP's
+  `search` description naming `view.rows.fields`, which only the web
+  UI asks for.
+- **From 4b's worker, no step named**: no test seam reaches a page's
+  script, so the picker's no-fallback rule is unpinned, and a seam is
+  the day's work when a second script rule needs one; the search crate
+  still prints flags in text that is no refusal (route commands,
+  `describe` entries, the keys not built, readings), outside C143's
+  rule as worded; a doc-only commit runs the same gate as a schema
+  change; a whole-page golden is about 51 KB and two of them change on
+  a one-line form edit.
+- **The owner's, from 4b's reviews and worker**: for
+  `briefs/REVIEW-PROMPT.md`, telling committed test coverage apart from
+  evidence that the tests pass (both of the sitting round's reviews
+  asked), and a fix round's acceptance told apart from the build's
+  still-pending sitting; for "A step", that the committing session
+  launches a worker step's review (settled so in 4b) and polls until
+  `codex exec` exits before ending its turn, since an idle session
+  does not wake when a background process does.
 - **Tooling, no step named**: the document-path check reads no roadmap
   file, whose ledger and briefs tell deletions as story; the trade
   check has no breaker suite; `bothy pack --path README.md` returns
@@ -175,18 +201,17 @@ list when a step's close commit or an issue takes it.
 
 ## Current step
 
-4b, the 4-lite build (`briefs/4b-build.md`), is built, reviewed, sat at
-by the owner, and its sitting round (`briefs/4b-sitting-round.md`) is
-in: the sitting's eleven stops answered by five rules, a selection now a
-plan and the ad-hoc refresh kind retired (C44 as amended, C142, C143;
-the ledger). The round's review is in and its fix round done (a
-selection re-lists on every run, C76; an action is spent by response,
-C111 as amended), and that round's review and its four fixes too; 4b's
-close is the coordinating session's. The #70 step's fix-round review is
-pending too, and its issue closes when a week of pushes needs no re-run
-(under "Open"). 2g and 2h follow phase 3 and `alpha.2`; then 4-0, the
-time seam (`TIME-SEAM.md`); then 4-full. `AGENTS.md` governs; the gate
-is its ten lines, under nextest.
+4b, the 4-lite build, closed 2026-10-25 (the ledger): `acq web` is in
+the tree, and the GUI's first shape is in users' hands before the
+league. Next is phase 3, the owner's: league 3.30 run under the rails
+from a terminal (the live-run skill, "A new league on a contacted
+route"), counting the undecided classes and untranslated mods, and the
+prune verb (#43) at the league's end; then 3b, `alpha.2`, when its
+inputs arrive. The #70 step's fix-round review is pending, and its
+issue closes when a week of pushes needs no re-run (under "Open"). 2g
+and 2h follow phase 3 and `alpha.2`; then 4-0, the time seam
+(`TIME-SEAM.md`); then 4-full. `AGENTS.md` governs; the gate is its
+ten lines, under nextest.
 
 ## Ledger
 
@@ -206,7 +231,7 @@ messages.
 | 2e the game-diff tool, a new-league rehearsal and the README line | design `08c0907a`, `e9b8bc78`, `cb7db91c`, `53ec784f`; build `35e0b03c` to `4e543dd0`; fixes `252e8c9e`, `bb319873`, `fb8371e0`; closed `64a6240c` | 2026-10-21 | #53 for 3b; the two claims for phase 3's live run (the live-run skill); the CLI-only `--if-revision 0`, under "Open"; the six remote-gate fixes after the close, `82199010` to `7b4793fe`, before 2f |
 | 2f the review of daemon, store and network, and its fix rounds | the scan and its working notes outside the repository; round A `718f1cde` to `12395d33` (#54); round C `76be73d6` to `2fa31fc6` (#57) and `0c4a0829` to `b1d9cf3c` (#58), the owner's rulings at `76be73d6`, `f86c9b7e` and `1d72cf4f`; round D `26160d48` to `cf2137ef` (#60); the reviews whole at `b1588df3`; the brief written after, `briefs/2f-review.md`; closed by the commit carrying this line | 2026-10-23 | #51, #55, #56, #59 (its first part), #61 to #72; the architecture rows and the keyring under `shared`, and the proxy environment, under "Open" |
 | 4a the 4-lite design | the brief re-cut `cbd7caf2`; the owner's rulings `00e440d1`; C141 under delegation `eeb72437`; the build brief `f1deb782`; closed by the commit carrying this line | 2026-10-25 | a selection compiled as a plan (the spend check refuses a plan with no stored policy), in `4b-build.md`'s "Not in scope" with its trigger, the owner's sitting; C141 listed for the owner's review at the close; the AGENTS budget at 15,235 of 15,277 bytes, under "Open" |
-| 4b 4-lite, `acq web` | build `f29506bc` (C141) to `fba1b03e`: the icon field `00020cac`, the stat vocabulary `d4e7f2ce`, the catalogue's listing-only sentences `550cd616`, the moved-world pins `843b391c`, the CLI's renderers as text `3323a488`, `acq web` `fba1b03e`; the review `548051f9`; fixes `0b1fc1ff` to `c48b9f73` (the review deleted there, whole at `548051f9`); the fix round's review `a8d12d0a`; its one fix `13e725ff` (that review deleted there, whole at `a8d12d0a`); the owner's sitting, its first stop fixed at `c1ec1411` and its `RUN-LEDGER.md` row; the sitting round (`briefs/4b-sitting-round.md`, rulings `f2239aa6`), merged at `4c58d9e3`: `341bf94c`, `98ad588b`, `1dafc2d4`, `61b58ba1`, `4baf9a70`, `459c79ba`, `20c224b5`, `f55a43af`, `03e2bdc8`, `d1bca992`; the round's review `404e4fcd`; its fix round (rulings `eb9486ac`, C111 and C76), merged at `fadf0806`: `a88e318e`, `6ea0461a`, `9b0cd16b`, `5b4bc5b3`, `828875f8`, `9f561d8c`, `81e87042`, `bc7a715a` (that review deleted there, whole at `404e4fcd`); the fix round's review `25d98cef`; its four fixes `fb181ae0`, `03d37f17`, `7eb5fd1d`, `c38d9604` and the commit carrying this line (that review deleted there, whole at `25d98cef`) | 4b's close, the coordinating session's | the sitting's stops, answered at the close; the picker's no-fallback rule unpinned (no seam reaches a page's script); item counts beside the league select, declined (the league list and the counts are two documents on two bases) |
+| 4b 4-lite, `acq web` | build `f29506bc` (C141) to `fba1b03e`: the icon field `00020cac`, the stat vocabulary `d4e7f2ce`, the catalogue's listing-only sentences `550cd616`, the moved-world pins `843b391c`, the CLI's renderers as text `3323a488`, `acq web` `fba1b03e`; the review `548051f9`; fixes `0b1fc1ff` to `c48b9f73` (the review deleted there, whole at `548051f9`); the fix round's review `a8d12d0a`; its one fix `13e725ff` (that review deleted there, whole at `a8d12d0a`); the owner's sitting, its first stop fixed at `c1ec1411` and its `RUN-LEDGER.md` row; the sitting round (`briefs/4b-sitting-round.md`, rulings `f2239aa6`), merged at `4c58d9e3`: `341bf94c`, `98ad588b`, `1dafc2d4`, `61b58ba1`, `4baf9a70`, `459c79ba`, `20c224b5`, `f55a43af`, `03e2bdc8`, `d1bca992`; the round's review `404e4fcd`; its fix round (rulings `eb9486ac`, C111 and C76), merged at `fadf0806`: `a88e318e`, `6ea0461a`, `9b0cd16b`, `5b4bc5b3`, `828875f8`, `9f561d8c`, `81e87042`, `bc7a715a` (that review deleted there, whole at `404e4fcd`); the fix round's review `25d98cef`; its four fixes `fb181ae0`, `03d37f17`, `7eb5fd1d`, `c38d9604` and the commit carrying this line (that review deleted there, whole at `25d98cef`) | 2026-10-25 | the 4-full items and the worker's items, under "Open"; the picker's no-fallback rule unpinned (no seam reaches a page's script); item counts beside the league select, declined (the league list and the counts are two documents on two bases); C142 and C143 under delegation, listed for the owner's review |
 | #70 the Windows gate's deadline flakes | ruling and brief `dd9b7859`; build `04001a27` to `90db890a`; the reorder and the review `54d9f957`, `493ff5d4`; fixes `6697afc3`, `32769f72` (the review deleted there, whole at `493ff5d4`) | fix-round review pending; the issue closes on a week of pushes without a re-run | the watch and what it holds, under "Open" |
 
 ## Housekeeping
