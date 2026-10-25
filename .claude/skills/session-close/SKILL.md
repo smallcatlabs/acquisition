@@ -51,3 +51,7 @@ and the regenerated references. Nothing else needs a home.
 
 The step close and the phase close are `roadmap/README.md`, "A step",
 stated once there.
+
+At a phase close, `cargo clean` in each checkout whose work the phase
+folded, after its last gate: cargo never collects a target directory,
+and the main checkout's had grown to 124 GB by 2026-10-25.

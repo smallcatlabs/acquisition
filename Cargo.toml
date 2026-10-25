@@ -33,6 +33,15 @@ toml = "1"
 # deletes them: 600k files, 65 GB, on 2026-09-09 (note 16 at `decda84e`).
 # "packed" folds them into one .dSYM per executable at link time.
 split-debuginfo = "packed"
+# The workspace's own crates at opt-level 1: the search's derivation and
+# the listing loops are workspace code, so they ran unoptimised while
+# every dependency ran optimised (below). Incremental off: a fresh
+# worktree's build was 15 GB of which 9.3 GB was `incremental`, and the
+# main checkout's had grown to 124 GB by 2026-10-25, since cargo never
+# collects a target directory; the gate builds whole anyway. The
+# measurements are in the commit that made the change.
+opt-level = 1
+incremental = false
 
 # Dependencies optimised and without debug info, the workspace's own
 # crates as they were (roadmap 0e, measured from an empty target dir,
