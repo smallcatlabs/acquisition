@@ -139,8 +139,12 @@ the moved-world line).
      a page, text and the icon, the lines in the order `show` gives.
 7. **The refresh pages**:
    - the tabs page: the `tabs` document for the chosen league and the
-     characters listing, a checkbox per tab and per character, no
-     default selection; two buttons;
+     characters listing, a checkbox per regular tab (a folder's
+     children among them) and per character, no default selection; a
+     folder and a map or unique tab's page carry none, the ad-hoc kind
+     acting on neither, and say instead that a folder's tabs are ticked
+     and a page's parent is ticked with deep (corrected after the review
+     of `fba1b03e`, its second finding); two buttons;
    - "Refresh selected": the ad-hoc `refresh` kind with the ticked
      tabs (`{realm, league, all: false, tabs, deep}`) and a
      `character` job per ticked character, submitted through the

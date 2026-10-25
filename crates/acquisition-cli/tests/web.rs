@@ -452,6 +452,10 @@ fn the_refresh_loop_runs_through_the_pages() {
         &["nothing to do: every request of this plan is spent"],
     );
 
+    // a second plan and apply through the CLI fetch every tab, which
+    // lands the map and unique tabs' pages: the tabs page lists them
+    let out = harness::acq(&base, &["refresh", "--apply"]);
+    assert!(out.status.success(), "{out:?}");
     let tabs = web.get("refresh?realm=pc&league=Standard");
     pages.page(
         "GET refresh?realm=pc&league=Standard",
@@ -460,11 +464,20 @@ fn the_refresh_loop_runs_through_the_pages() {
             "tabs in Standard",
             "name=\"tab\" value=\"dump\"",
             "name=\"character\"",
+            "name=\"tab\" value=\"old1\"",
+            "a folder holds tabs, not items: tick the tabs in it",
+            "a page of Uniques: tick Uniques with the substashes box",
             "Refresh selected",
             "Plan under the policy",
         ],
     );
     assert!(!tabs.body.contains(" checked"), "no default selection");
+    for unticked in ["fold", "u001", "m001"] {
+        assert!(
+            !tabs.body.contains(&format!("value=\"{unticked}\"")),
+            "{unticked} carries a checkbox"
+        );
+    }
     let selected = web.post(
         "refresh/selected",
         &[

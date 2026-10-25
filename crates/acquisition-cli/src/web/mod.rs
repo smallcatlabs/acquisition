@@ -574,16 +574,22 @@ async fn tabs(
             body.push_str(&pre(&store_cmd::tabs_head(&listed, realm, &league)));
             body.push_str("<table>\n<tr><th></th><th>Tab</th><th>Type</th><th>Items</th><th>Fetched</th></tr>\n");
             for tab in &listed.rows {
+                let tick = match unticked(tab, &listed.rows) {
+                    None => format!(
+                        "<input type=\"checkbox\" name=\"tab\" value=\"{}\">",
+                        esc(&tab.id)
+                    ),
+                    Some(said) => format!("<span class=\"fate\">{}</span>", esc(&said)),
+                };
                 body.push_str(&format!(
-                    "<tr><td><input type=\"checkbox\" name=\"tab\" value=\"{}\"></td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>\n",
-                    esc(&tab.id),
+                    "<tr><td>{tick}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>\n",
                     esc(&tab.name),
                     esc(&tab.r#type),
                     esc(&store_cmd::items_cell(tab.fetched_at, tab.item_count)),
                     esc(&store_cmd::ago(now, tab.fetched_at))
                 ));
             }
-            body.push_str("</table>\n<label class=\"control\"><input type=\"checkbox\" name=\"deep\" value=\"true\"> also fetch a map or unique tab's substashes</label>\n");
+            body.push_str("</table>\n<label class=\"control\"><input type=\"checkbox\" name=\"deep\" value=\"true\"> the substashes box: also fetch a ticked map or unique tab's pages</label>\n");
         }
     }
     if characters.is_empty() {
@@ -607,6 +613,24 @@ async fn tabs(
     }
     body.push_str("<button type=\"submit\">Refresh selected</button> <button type=\"submit\" formmethod=\"get\" formaction=\"plan\">Plan under the policy</button>\n</form>\n");
     web.page("Refresh", Head::default(), &body)
+}
+
+/// Why a tab row carries no checkbox, where it carries none: a checkbox
+/// stands only where the ad-hoc refresh can act, on a tab its stash
+/// listing names (a folder's children among them). A folder holds tabs
+/// and no items, and a map or unique tab's page is fetched under its tab
+/// with the substashes box (the review of 4b, its second finding).
+fn unticked(tab: &acquisition_store::TabRow, rows: &[acquisition_store::TabRow]) -> Option<String> {
+    if tab.r#type == "Folder" {
+        return Some("a folder holds tabs, not items: tick the tabs in it".to_string());
+    }
+    let parent = rows.iter().find(|r| Some(&r.id) == tab.parent.as_ref())?;
+    (parent.r#type != "Folder").then(|| {
+        format!(
+            "a page of {}: tick {} with the substashes box",
+            parent.name, parent.name
+        )
+    })
 }
 
 /// "Refresh selected" (Do 7): the ad-hoc `refresh` kind with the ticked
