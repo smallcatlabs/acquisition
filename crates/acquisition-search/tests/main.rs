@@ -24,6 +24,7 @@ mod generated_routes;
 mod generated_rows;
 mod language;
 mod membership;
+mod moved_world;
 mod next;
 mod offers;
 mod percentile;
