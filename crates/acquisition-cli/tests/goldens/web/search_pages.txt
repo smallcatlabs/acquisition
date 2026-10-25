@@ -10,9 +10,10 @@ GET <the form>
 # holds "Find a stat"
 <main>
 <h1>Search</h1>
+<form method="get" action="."><label class="control">Realm <select name="realm"><option value="pc" selected>pc</option><option value="xbox">xbox</option><option value="sony">sony</option></select></label> <button type="submit">Show this realm's leagues</button></form>
 <form method="get" action="search">
 <fieldset><legend>Scope</legend>
-<label class="control">Realm <select name="realm"><option value="pc" selected>pc</option><option value="xbox">xbox</option><option value="sony">sony</option></select></label>
+<input type="hidden" name="realm" value="pc"><span class="control">Realm pc</span>
 <label class="control">League <select name="league"><option value="">every league</option><option value="Standard">Standard (5)</option></select></label> <span class="fate fate-exact" title="The league the URL names, or the query JSON carries beside its query, becomes a term of the search, like any other.">exact</span>
 </fieldset>
 <fieldset><legend>Status</legend>
@@ -192,7 +193,7 @@ terms   each term counted alone over all live pc items in all leagues, never ove
 routes  each returns exactly the members counted (5 more: --routes)
   term 1 undecided (1), over the scope:
     acq search --account &#39;Alice#1234&#39; --realm pc &#39;undecided(category=&quot;accessory.ring&quot;)&#39;
-basis   store <store> · build <build> · snapshot 4 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 6 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </pre>
 
 </main>
@@ -218,7 +219,7 @@ shown   Item Level: 84
 lines   explicit              +95 to maximum Life
                               &quot;# to maximum Life&quot;   arg1 95
 unread  nothing
-basis   store <store> · build <build> · snapshot 4 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 6 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </pre>
 
 </main>

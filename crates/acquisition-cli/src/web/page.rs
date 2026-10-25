@@ -105,17 +105,30 @@ fn fate_span(fate: Option<&Fate>) -> String {
 
 /// The search form (Do 6): the realm and the league, every filter of the
 /// dump with its fate, the stat rows with the picker, the view.
+///
+/// The form is one realm's render: its league list is that realm's
+/// counts, so the realm is chosen by a form of its own that renders the
+/// page again (the review of 4b, its fourth finding), and the search
+/// carries the realm shown.
 pub(crate) fn search_form(form: &Form, realm: &str, leagues: &[(String, usize)]) -> String {
-    let mut out =
-        String::from("<form method=\"get\" action=\"search\">\n<fieldset><legend>Scope</legend>\n");
-    out.push_str("<label class=\"control\">Realm <select name=\"realm\">");
+    let mut out = String::from(
+        "<form method=\"get\" action=\".\"><label class=\"control\">Realm <select name=\"realm\">",
+    );
     for r in ["pc", "xbox", "sony"] {
         out.push_str(&format!(
             "<option value=\"{r}\"{}>{r}</option>",
             if r == realm { " selected" } else { "" }
         ));
     }
-    out.push_str("</select></label>\n<label class=\"control\">League <select name=\"league\"><option value=\"\">every league</option>");
+    out.push_str(
+        "</select></label> <button type=\"submit\">Show this realm's leagues</button></form>\n",
+    );
+    out.push_str(&format!(
+        "<form method=\"get\" action=\"search\">\n<fieldset><legend>Scope</legend>\n<input type=\"hidden\" name=\"realm\" value=\"{}\"><span class=\"control\">Realm {}</span>\n",
+        esc(realm),
+        esc(realm)
+    ));
+    out.push_str("<label class=\"control\">League <select name=\"league\"><option value=\"\">every league</option>");
     for (league, items) in leagues {
         out.push_str(&format!(
             "<option value=\"{}\">{} ({items})</option>",

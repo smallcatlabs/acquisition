@@ -90,6 +90,38 @@ fn seed(world: &Path) {
         ] } }),
         30,
     );
+    // an Xbox league beside them, one ring in it
+    let mut console = |ep: Endpoint, body: Value, at: i64| {
+        store
+            .record(
+                &ep,
+                &json!({ "realm": "xbox", "league": "Hardcore" }),
+                200,
+                &body,
+                at,
+            )
+            .unwrap();
+    };
+    console(
+        Endpoint::Stashes {
+            realm: "xbox".into(),
+            league: "Hardcore".into(),
+        },
+        json!({ "stashes": [{ "id": "x1", "name": "Box", "type": "PremiumStash" }] }),
+        40,
+    );
+    console(
+        Endpoint::Stash {
+            realm: "xbox".into(),
+            league: "Hardcore".into(),
+            id: "x1".into(),
+            sub: None,
+        },
+        json!({ "stash": { "id": "x1", "name": "Box", "type": "PremiumStash", "items": [
+            item("x", "Iron Grip", "Iron Ring", "Rare", json!({ "explicitMods": ["+30 to maximum Life"] })),
+        ] } }),
+        50,
+    );
 }
 
 /// The offline world, seeded, and `acq web` over it.
@@ -341,6 +373,28 @@ fn every_search_page_is_a_wording_golden() {
     assert_eq!(refused.status, 400);
     pages.page("GET search?view.sort=no such value", &refused, &["refusal"]);
     page_golden(file!(), "search_pages", &pages);
+}
+
+/// The form is one realm's render (the review of 4b, its fourth
+/// finding): asked for the console realm, it lists that realm's league
+/// alone and its search carries that realm.
+#[test]
+fn the_form_renders_the_realm_it_is_asked_for() {
+    let (scratch, web) = offline_web("webrealm");
+    let mut pages = Pages::new(&scratch.0, &web);
+    let form = web.get("?realm=xbox");
+    assert!(!form.body.contains("Standard ("), "{}", form.body);
+    pages.page(
+        "GET ?realm=xbox",
+        &form,
+        &[
+            "<option value=\"xbox\" selected>",
+            "Show this realm's leagues",
+            "name=\"realm\" value=\"xbox\"",
+            "Hardcore (1)",
+        ],
+    );
+    page_golden(file!(), "console_realm", &pages);
 }
 
 /// The moved-world review (Do 9): what a new league brings first renders
