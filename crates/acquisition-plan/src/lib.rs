@@ -3892,12 +3892,16 @@ mod tests {
     }
 
     /// C111 as amended over a selection plan, by response and never the
-    /// clock: a tab fetched, then a selection compiled in that same second,
-    /// still sends it — the fetch landed in the response the snapshot was
-    /// read under, not after it; once the apply's own fetches land, in
-    /// later responses, the same envelope applied again sends nothing.
+    /// clock: a tab fetched, then a selection compiled from a snapshot
+    /// taken in that same second, still sends it — the fetch landed in the
+    /// response the snapshot was read under, not after it; once the apply's
+    /// own fetches land, in later responses of the same second, the same
+    /// envelope applied again sends nothing. The second is staged, the
+    /// snapshot's `taken_at` set to the fetch's: no clock is read, and the
+    /// responses keep their real order.
     #[test]
     fn c111_a_selection_sends_what_was_fetched_in_its_own_second_and_once() {
+        const SECOND: i64 = 2000;
         let mut s = store();
         list(
             &mut s,
@@ -3905,47 +3909,37 @@ mod tests {
             1000,
         );
         let a = Annotations::open_memory_for("u-1").unwrap();
-        let now = acquisition_store::now();
         fetch(
             &mut s,
             json!({ "id": "t1", "name": "One", "type": "PremiumStash", "items": [] }),
-            now,
+            SECOND,
         );
+        let in_its_second = |s: &Store| {
+            let mut snapshot = s.refresh_snapshot("pc", "Standard", &a).unwrap();
+            snapshot.taken_at = SECOND;
+            snapshot
+        };
         let selection = PlanSelection {
             tabs: Some(Selection::Ids(vec!["t1".into()])),
             characters: Vec::new(),
             deep: false,
         };
-        let plan = plan_selection(
-            "mock",
-            &s.refresh_snapshot("pc", "Standard", &a).unwrap(),
-            &selection,
-            now,
-        )
-        .unwrap();
-        assert!(plan.basis.snapshot_taken_at <= now + 1);
-        let (unspent, spent) = plan.unspent(
-            &s.refresh_snapshot("pc", "Standard", &a).unwrap(),
-            &[],
-            "tom",
-        );
+        let plan = plan_selection("mock", &in_its_second(&s), &selection, SECOND).unwrap();
+        assert_eq!(plan.basis.snapshot_taken_at, SECOND);
+        let (unspent, spent) = plan.unspent(&in_its_second(&s), &[], "tom");
         assert_eq!((unspent.len(), spent.len()), (2, 0), "{spent:?}");
         // the apply's fetches land, in later responses, in the same second
         list(
             &mut s,
             json!([{ "id": "t1", "name": "One", "type": "PremiumStash", "index": 0 }]),
-            now,
+            SECOND,
         );
         fetch(
             &mut s,
             json!({ "id": "t1", "name": "One", "type": "PremiumStash", "items": [] }),
-            now,
+            SECOND,
         );
-        let (unspent, spent) = plan.unspent(
-            &s.refresh_snapshot("pc", "Standard", &a).unwrap(),
-            &[],
-            "tom",
-        );
+        let (unspent, spent) = plan.unspent(&in_its_second(&s), &[], "tom");
         assert_eq!((unspent.len(), spent.len()), (0, 2));
     }
 
