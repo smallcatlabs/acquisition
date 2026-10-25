@@ -37,9 +37,15 @@
 //! - **The JSON is what the site posts**: the `{query, sort}` envelope, or
 //!   the query object alone. A sort is carried out for the report and
 //!   never applied (K6), and any other key of the envelope carried out
-//!   beside it, for the report to name. Neither an id nor JSON fills a scope: a
-//!   [`Decoded`] from either carries no realm and no league. The JSON
-//!   text is the caller's and is not bounded here.
+//!   beside it, for the report to name. Neither an id nor JSON fills a
+//!   scope: a [`Decoded`] from either carries no realm. The JSON text is
+//!   the caller's and is not bounded here.
+//! - **C141, a league beside the query** (verbatim): A trade query JSON
+//!   may carry the league beside its query object, `{league, query,
+//!   sort}`, read as a URL's league is: a term (C113, the third
+//!   spelling). The realm stands in the scope as before, never in the
+//!   envelope, and any other envelope key is still reported unsupported
+//!   by name. An envelope's `realm` is such a key.
 //! - Nothing here reads the vocabulary or writes a word of the language:
 //!   that is the translation, [`translate`] (step 4), which consumes a
 //!   [`Decoded`] and reads the stat table, [`stats`] (step 2), for the
@@ -77,7 +83,8 @@ pub struct Decoded {
     /// id or JSON, which fill no scope (K6).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub realm: Option<String>,
-    /// The league the URL names, percent-decoded; none for an id or JSON.
+    /// The league the URL names, percent-decoded, or the JSON envelope
+    /// carries beside its query (C141); none for an id.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub league: Option<String>,
     /// The site's query object, as posted: an object, read no further here.
@@ -136,13 +143,14 @@ pub fn decode_json(value: &Json) -> Result<Decoded, LanguageError> {
             json_kind(value)
         )));
     };
-    let (query, sort, beside) = match object.get("query") {
+    let (query, league, sort, beside) = match object.get("query") {
         Some(Json::Object(inner)) => (
             Json::Object(inner.clone()),
+            envelope_league(object.get("league"))?,
             object.get("sort").cloned(),
             object
                 .iter()
-                .filter(|(k, _)| !matches!(k.as_str(), "query" | "sort"))
+                .filter(|(k, _)| !matches!(k.as_str(), "query" | "league" | "sort"))
                 .map(|(k, v)| (k.clone(), v.clone()))
                 .collect(),
         ),
@@ -152,16 +160,32 @@ pub fn decode_json(value: &Json) -> Result<Decoded, LanguageError> {
                 json_kind(other)
             )));
         }
-        None => (value.clone(), None, Map::new()),
+        None => (value.clone(), None, None, Map::new()),
     };
     Ok(Decoded {
         source: Source::Json,
         realm: None,
-        league: None,
+        league,
         query,
         sort,
         beside,
     })
+}
+
+/// An envelope's `league` (C141): a URL's league spelled beside the query,
+/// a term as that one is. Sent null it is absent, as any key the site
+/// sends null; a league that is no text, or empty, is refused rather than
+/// altered, as a URL's league is.
+fn envelope_league(value: Option<&Json>) -> Result<Option<String>, LanguageError> {
+    match value {
+        None | Some(Json::Null) => Ok(None),
+        Some(Json::String(league)) if !league.trim().is_empty() => Ok(Some(league.clone())),
+        Some(Json::String(_)) => Err(trade("the envelope's `league` is empty")),
+        Some(other) => Err(trade(format!(
+            "the envelope's `league` is {}, not a league's name",
+            json_kind(other)
+        ))),
+    }
 }
 
 /// The path of a URL: what stands between the host and the first `?` or

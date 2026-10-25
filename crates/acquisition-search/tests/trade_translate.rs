@@ -892,7 +892,8 @@ fn a_trade_reports_exact_clause_is_where_it_stands_and_its_term_alone() {
         .unwrap()
         .clone();
     assert_eq!(
-        row["says"], "The league the URL names becomes a term of the search, like any other.",
+        row["says"],
+        "The league the URL names, or the query JSON carries beside its query, becomes a term of the search, like any other.",
         "{row}"
     );
 }

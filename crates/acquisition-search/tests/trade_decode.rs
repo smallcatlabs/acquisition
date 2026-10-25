@@ -234,6 +234,63 @@ fn c113_the_query_json_is_the_envelope_or_the_query_alone() {
     assert_eq!(decode(&format!("\n  {}\n", query)).unwrap().query, query);
 }
 
+/// C141, the league beside the query: an envelope's `league` is a URL's
+/// league spelled in the JSON, a term the translation lands as that one;
+/// the realm stays the scope's, so an envelope's `realm` is a key beside
+/// it like any other, reported unsupported by name; a league that is no
+/// text or is empty is refused, and one sent null is absent.
+#[test]
+fn c141_an_envelope_may_carry_its_league_beside_the_query() {
+    use acquisition_search::trade::translate::{Status, translate};
+    let q4 = &fixture()[5];
+    let query: Value = serde_json::from_str(&q4.query).unwrap();
+    let envelope =
+        json!({ "league": "Hardcore Standard", "query": query, "sort": { "price": "asc" } });
+    let decoded = decode(&envelope.to_string()).unwrap();
+    assert_eq!(decoded.source, Source::Json);
+    assert_eq!(decoded.league.as_deref(), Some("Hardcore Standard"));
+    assert_eq!(
+        decoded.realm, None,
+        "the realm is the scope's, never the envelope's"
+    );
+    assert_eq!(decoded.query, query);
+    assert!(decoded.beside.is_empty(), "{:?}", decoded.beside);
+    assert_eq!(decode_json(&envelope).unwrap(), decoded);
+    // translated, the league is the URL's clause and a term of the text
+    let t = translate(&decoded).unwrap();
+    let league = t.clauses.iter().find(|c| c.at == "url.league").unwrap();
+    assert_eq!(league.status, Status::Exact);
+    assert!(
+        t.text.contains(r#"league="Hardcore Standard""#),
+        "{}",
+        t.text
+    );
+    // the realm beside it is any other key: carried out and named
+    let with_realm = json!({ "league": "Standard", "realm": "pc", "query": query });
+    let decoded = decode_json(&with_realm).unwrap();
+    assert_eq!(decoded.realm, None);
+    assert_eq!(decoded.beside.get("realm"), Some(&json!("pc")));
+    let t = translate(&decoded).unwrap();
+    assert!(
+        t.remainder.contains(&"envelope.realm".to_string()),
+        "{:?}",
+        t.remainder
+    );
+    // null is absent; a league in a bare query object is the query's key
+    let null = json!({ "league": null, "query": query });
+    assert_eq!(decode_json(&null).unwrap().league, None);
+    let mut bare = query.clone();
+    bare["league"] = json!("Standard");
+    let decoded = decode_json(&bare).unwrap();
+    assert_eq!(decoded.league, None, "no envelope, no league beside it");
+    // no text, or empty text, is refused rather than altered
+    for bad in [json!(5), json!(["Standard"]), json!(""), json!("  ")] {
+        let e = decode_json(&json!({ "league": bad, "query": query })).unwrap_err();
+        assert_eq!(e.kind, ErrorKind::Trade, "{bad}");
+        assert!(e.message.contains("`league`"), "{bad}: {}", e.message);
+    }
+}
+
 /// One gzip member of `bytes`, raw.
 fn gzipped(bytes: &[u8]) -> Vec<u8> {
     let mut enc = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());

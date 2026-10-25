@@ -136,8 +136,8 @@ key = "url.league"
 disposition = "exact"
 lands = "league={value}"
 fields = ["league"]
-note = "the league the URL names, a term like any other (C96); a bare id or a JSON query names none"
-says = "The league the URL names becomes a term of the search, like any other."
+note = "the league the URL names, a term like any other (C96); a JSON envelope's `league` beside its query is read the same way (C141); a bare id names none"
+says = "The league the URL names, or the query JSON carries beside its query, becomes a term of the search, like any other."
 
 [[row]]
 key = "url.poe2"

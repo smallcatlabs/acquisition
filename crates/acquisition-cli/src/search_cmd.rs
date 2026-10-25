@@ -111,7 +111,8 @@ pub struct SearchArgs {
     pub trade: Option<String>,
     /// `--trade`, read from a file or from stdin with `-`: the query JSON
     /// as the site posts it, `{"query": …, "sort": …}` or the query
-    /// object alone, needs no shell quoting this way.
+    /// object alone, needs no shell quoting this way. A `"league"` beside
+    /// the query is the search's league, a term as a URL's league is.
     #[arg(long, value_name = "FILE|-", conflicts_with_all = ["query", "query_file", "trade"])]
     pub trade_file: Option<String>,
     /// Order the rows by a value: `ilvl`, `stack`, `'line("T").arg1'`,
