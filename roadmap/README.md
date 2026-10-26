@@ -46,6 +46,21 @@ simpler, better Acquisition that is agent-friendly and agent-forward.
   "Pull-forward" order below). This session was kept to analysis,
   synthesis and setup at the owner's word: the briefs are drafted here,
   the building is the next sessions'.
+- 2026-10-26, p0's packet of four process questions
+  (`briefs/p0-process.md`, Do 1): "I have reviewed the questions and
+  approve all 4 recommendations." (a) Reviews stay under
+  `roadmap/reviews/` for good; a ledger row is a commit range and a
+  close date; the save-alone, delete, cite-whole and hash-in-ledger
+  steps of "A step" go, and a phase close deletes nothing. (b) An
+  agent-facing design decision (a verb, a flag, a tool, a query word,
+  the words of an answer) is recorded in the commit that builds it and
+  listed in the close; it enters the registry only when the close finds
+  it a property another area must know; a boundary, an invariant and
+  anything touching the real store or the real API stay rulings first,
+  the owner's. (c) `AGENTS.md`'s budget and the 800-byte entry limit
+  print a note and never fail the gate; the history-marker refusal and
+  the cross-cutting count stay failures. (d) The glossary is
+  `GLOSSARY.md`, read on demand, named from the entry file in one line.
 
 ## Roles
 
