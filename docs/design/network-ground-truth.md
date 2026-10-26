@@ -969,6 +969,17 @@ which mentions neither `Retry-After`, 1015 nor `cf-mitigated`.
 `cf-mitigated: challenge` is the observed signal of a challenge (N28),
 not of a rate limit.
 
+**N50. A substash body's `stash.id` is the substash's own id, the one
+the request named, and `stash.parent` is its parent's id.** [OBSERVED
+— High, one account, two substash types; October 26, 2026]
+Read offline from the owner's store (`GERWARIC#7694`, pc; a read-only
+SQLite query over the `responses` table, no request made for this
+claim): of 638 substash fetches answered 200 (`MapStash` 488,
+`UniqueStash` 150), every one carries `stash.id` equal to the `sub`
+the request asked for and `stash.parent` equal to the parent `id`; in
+none is `stash.id` absent. So a store check that a substash body
+names the requested sub id (C145) refuses nothing GGG serves.
+
 ## Open questions
 
 - **Q1. HEAD sanction verbatim. RESOLVED July 18, 2026** — Tom

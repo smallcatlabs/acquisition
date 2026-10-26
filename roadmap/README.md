@@ -192,9 +192,9 @@ list when a step's close commit or an issue takes it.
   understood, which waited on 2a.
 - **From h1, the honesty group** (outside the phase order, the owner's
   word of 2026-10-25; `briefs/h1-build.md` and its rounds): the
-  substash `stash.id` check (C145) rests on the mock's shape, since no
-  committed capture holds a substash body; one read of the owner's
-  store settles it before a live substash fetch. #63's five hygiene
+  substash `stash.id` check (C145) was settled by a read of the owner's
+  store (N50: 638 of 638 substash bodies carry the requested sub id).
+  #63's five hygiene
   rows stay on the issue; #74 is the printed retry command after a
   rename under a failing index; #16 has its first instance fixed.
 - **From h2, the words** (`briefs/h2-build.md` and its rounds; C146):
