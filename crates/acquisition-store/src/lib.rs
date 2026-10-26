@@ -448,6 +448,11 @@ pub struct MalformedBody {
     /// The `refused` row that kept the body, once `record` has written it
     /// (`None` inside ingest, before the refusal is recorded).
     pub kept: Option<i64>,
+    /// C145 (a refusal stays a refusal): `record` tried to keep the body in
+    /// `refused` and could not. The body is still refused as malformed —
+    /// never reported as a raw storage error the daemon would not
+    /// recognise — and the words say the evidence is lost.
+    pub not_kept: bool,
 }
 
 /// The position of an item in a body: `array[index]`, or a gem socketed
@@ -482,6 +487,9 @@ impl std::fmt::Display for MalformedBody {
         if let Some(id) = self.kept {
             write!(f, " — body kept verbatim (`acq store refused {id}`)")?;
         }
+        if self.not_kept {
+            write!(f, " — the body could not be kept as evidence")?;
+        }
         Ok(())
     }
 }
@@ -495,7 +503,42 @@ impl MalformedBody {
             missing,
             at: None,
             kept: None,
+            not_kept: false,
         }
+    }
+}
+
+/// C145: what a refusal says is missing when an item array's key is
+/// present with a value that is not an array.
+fn array_missing(key: &str) -> &'static str {
+    match key {
+        "items" => "an `items` array",
+        "children" => "a `children` array",
+        "socketedItems" => "a `socketedItems` array",
+        "leagues" => "a `leagues` array",
+        "inventory" => "an `inventory` array",
+        "equipment" => "an `equipment` array",
+        "jewels" => "a `jewels` array",
+        "rucksack" => "a `rucksack` array",
+        "guardian" => "a `guardian` array",
+        "skills" => "a `skills` array",
+        _ => "an item array",
+    }
+}
+
+/// C145 (a present key of the wrong type is malformed; an absent key is
+/// empty): the array at `key`, the empty slice when the key is absent, a
+/// refusal when it is present as anything but an array — never an empty
+/// list that would retire every fact the key's location holds.
+fn present_array<'a>(
+    parent: &'a serde_json::Map<String, Value>,
+    key: &str,
+    endpoint: &'static str,
+) -> Result<&'a [Value]> {
+    match parent.get(key) {
+        None => Ok(&[]),
+        Some(Value::Array(values)) => Ok(values),
+        Some(_) => Err(MalformedBody::new(endpoint, array_missing(key)).into()),
     }
 }
 
@@ -1237,12 +1280,18 @@ impl Store {
                 match err.downcast::<MalformedBody>() {
                     Ok(malformed) => {
                         let reason = malformed.to_string();
-                        self.conn.execute(
-                            "INSERT INTO refused (endpoint, params, fetched_at, status, reason, body) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                            params![endpoint.name(), params.to_string(), at, status, reason, body.to_string()],
-                        )?;
+                        // C145: a refusal whose evidence cannot be kept is
+                        // still the refusal, never the storage error.
+                        let kept = self
+                            .conn
+                            .execute(
+                                "INSERT INTO refused (endpoint, params, fetched_at, status, reason, body) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                                params![endpoint.name(), params.to_string(), at, status, reason, body.to_string()],
+                            )
+                            .map(|_| self.conn.last_insert_rowid());
                         Err(MalformedBody {
-                            kept: Some(self.conn.last_insert_rowid()),
+                            kept: kept.as_ref().ok().copied(),
+                            not_kept: kept.is_err(),
                             ..malformed
                         }
                         .into())
@@ -1280,12 +1329,13 @@ impl Store {
 
         match endpoint {
             Endpoint::Leagues => {
-                for l in body
-                    .get("leagues")
-                    .and_then(Value::as_array)
-                    .into_iter()
-                    .flatten()
-                {
+                // C145: an absent `leagues` is the documented empty list; a
+                // present one that is not an array is malformed.
+                let leagues = match body.as_object() {
+                    Some(o) => present_array(o, "leagues", "leagues")?,
+                    None => &[],
+                };
+                for l in leagues {
                     if let Some(id) = l.get("id").and_then(Value::as_str) {
                         tx.execute(
                             "INSERT INTO leagues (id, json, seen_at) VALUES (?1, ?2, ?3)
@@ -1509,12 +1559,11 @@ impl Store {
                         at,
                         &mut listed_tabs,
                     )?;
-                    for child in tab
-                        .get("children")
-                        .and_then(Value::as_array)
-                        .into_iter()
-                        .flatten()
-                    {
+                    let children = match tab.as_object() {
+                        Some(o) => present_array(o, "children", "stashes")?,
+                        None => &[],
+                    };
+                    for child in children {
                         let folder = tab.get("id").and_then(Value::as_str).map(str::to_string);
                         upsert_listed_tab(
                             tx,
@@ -1545,12 +1594,21 @@ impl Store {
                 // an id-less item or substash stub is refused before the
                 // store decides whether the body lands or is withheld.
                 check_item_ids(stash.get("items"), "stash", "items")?;
-                for child in stash
-                    .get("children")
-                    .and_then(Value::as_array)
-                    .into_iter()
-                    .flatten()
-                {
+                // C145: the body's own id is the tab the params name — a
+                // body filed under another tab's location would retire
+                // that tab's items. An absent id is not checked.
+                match stash.get("id") {
+                    None => {}
+                    Some(Value::String(own)) if *own == location => {}
+                    Some(_) => {
+                        return Err(MalformedBody::new(
+                            "stash",
+                            "a `stash.id` naming the tab the request named",
+                        )
+                        .into());
+                    }
+                }
+                for child in present_array(stash, "children", "stash")? {
                     if child.get("id").and_then(Value::as_str).is_none() {
                         return Err(
                             MalformedBody::new("stash", "an `id` on a listed tab entry").into()
@@ -2299,14 +2357,14 @@ fn check_item_ids(
     endpoint: &'static str,
     array: &'static str,
 ) -> Result<()> {
-    let id_less = |item: &Value| item.get("id").and_then(Value::as_str).is_none();
-    for (index, item) in items
-        .and_then(Value::as_array)
-        .into_iter()
-        .flatten()
-        .enumerate()
-    {
-        let mut at = ItemAt {
+    let items = match items {
+        None => return Ok(()),
+        Some(Value::Array(items)) => items,
+        // C145: present and not an array is malformed, never empty.
+        Some(_) => return Err(MalformedBody::new(endpoint, array_missing(array)).into()),
+    };
+    for (index, item) in items.iter().enumerate() {
+        let at = ItemAt {
             array,
             index,
             socketed: None,
@@ -2321,24 +2379,51 @@ fn check_item_ids(
             }
             .into());
         }
-        for (gem, socketed) in item
-            .get("socketedItems")
-            .and_then(Value::as_array)
-            .into_iter()
-            .flatten()
-            .enumerate()
-        {
-            if id_less(socketed) && !is_granted_skill(socketed) {
-                at.socketed = Some(gem);
-                return Err(MalformedBody {
-                    at: Some(at),
-                    ..MalformedBody::new(endpoint, "an `id` on an item")
-                }
-                .into());
-            }
-        }
+        check_socketed_ids(item, endpoint, at)?;
     }
     Ok(())
+}
+
+/// C145: the id check recurses as the ingest does — every gem `ingest_item`
+/// lifts out of a `socketedItems`, at any depth, needs its id, and a
+/// `socketedItems` present as anything but an array is malformed. A
+/// granted skill is not lifted (`is_granted_skill`), so neither it nor its
+/// subtree is checked. The position names the top-level item and the
+/// first-level gem the fault is under.
+fn check_socketed_ids(item: &Value, endpoint: &'static str, at: ItemAt) -> Result<()> {
+    let gems = match item.get("socketedItems") {
+        None => return Ok(()),
+        Some(Value::Array(gems)) => gems,
+        Some(_) => {
+            return Err(MalformedBody {
+                at: Some(at),
+                ..MalformedBody::new(endpoint, array_missing("socketedItems"))
+            }
+            .into());
+        }
+    };
+    for (gem, socketed) in gems.iter().enumerate() {
+        if is_granted_skill(socketed) {
+            continue;
+        }
+        let at = ItemAt {
+            socketed: at.socketed.or(Some(gem)),
+            ..at
+        };
+        if id_less(socketed) {
+            return Err(MalformedBody {
+                at: Some(at),
+                ..MalformedBody::new(endpoint, "an `id` on an item")
+            }
+            .into());
+        }
+        check_socketed_ids(socketed, endpoint, at)?;
+    }
+    Ok(())
+}
+
+fn id_less(item: &Value) -> bool {
+    item.get("id").and_then(Value::as_str).is_none()
 }
 
 /// An item-granted skill (PoE2; owner ruling 2026-09-02): a gem-shaped
@@ -3032,6 +3117,173 @@ mod tests {
         assert_eq!(s.status().unwrap().refused_bodies, 3);
         assert!(s.characters(None, None).unwrap().is_empty());
         assert_eq!(s.refused(3).unwrap().unwrap().params["realm"], "poe2");
+    }
+
+    /// C145 (a present key of the wrong type is malformed; an absent key is
+    /// empty), issue #62: a body whose item-bearing key is present as
+    /// anything but an array is refused as `MalformedBody`, kept verbatim
+    /// in `refused` (C30, a refused body is evidence), and retires
+    /// nothing — where it used to read as an empty list that retired every
+    /// item, substash or league the key's location held.
+    #[test]
+    fn c145_a_present_key_of_the_wrong_type_is_malformed_and_retires_nothing() {
+        let mut s = Store::open_memory().unwrap();
+        let p = json!({});
+        let hero = Endpoint::Character {
+            realm: "pc".into(),
+            name: "Hero".into(),
+        };
+        let mut gem = item("g1", "Gem", 0);
+        gem["socketedItems"] = json!([item("g2", "Support", 0)]);
+        let mut bow = item("eq1", "Bow", 0);
+        bow["socketedItems"] = json!([gem]);
+        let maps = json!({ "stash": { "id": "m", "name": "Maps", "type": "MapStash",
+            "items": [], "children": [ { "id": "m-1", "name": "", "type": "MapStash" } ] } });
+        s.record(
+            &stash_ep("a"),
+            &p,
+            200,
+            &stash("a", vec![item("i1", "Foo", 0)]),
+            100,
+        )
+        .unwrap();
+        s.record(&stash_ep("m"), &p, 200, &maps, 100).unwrap();
+        s.record(
+            &hero,
+            &p,
+            200,
+            &json!({ "character": { "id": "c-hero", "name": "Hero", "equipment": [bow] } }),
+            100,
+        )
+        .unwrap();
+        s.record(&Endpoint::Leagues, &p, 200, &leagues(&["Standard"]), 100)
+            .unwrap();
+        let before = s.status().unwrap();
+        let list_before = s.league_list().unwrap();
+
+        let mut deep = item("eq1", "Bow", 0);
+        deep["socketedItems"] = json!([{ "id": "g1", "typeLine": "Gem", "socketedItems": 7 }]);
+        let cases: Vec<(Endpoint, Value, &str)> = vec![
+            (
+                stash_ep("a"),
+                json!({ "stash": { "id": "a", "name": "tab a", "type": "PremiumStash", "items": {} } }),
+                "malformed stash response: missing an `items` array",
+            ),
+            (
+                stash_ep("m"),
+                json!({ "stash": { "id": "m", "name": "Maps", "type": "MapStash", "items": [], "children": "m-1" } }),
+                "malformed stash response: missing a `children` array",
+            ),
+            (
+                hero.clone(),
+                json!({ "character": { "id": "c-hero", "name": "Hero", "equipment": [deep] } }),
+                "malformed character response: missing a `socketedItems` array at `equipment[0].socketedItems[0]`",
+            ),
+            (
+                Endpoint::Leagues,
+                json!({ "leagues": { "id": "Standard" } }),
+                "malformed leagues response: missing a `leagues` array",
+            ),
+            (
+                stash_ep("a"),
+                json!({ "stash": { "id": "b", "name": "tab b", "type": "PremiumStash", "items": [] } }),
+                "malformed stash response: missing a `stash.id` naming the tab the request named",
+            ),
+        ];
+        for (n, (ep, body, words)) in cases.into_iter().enumerate() {
+            let err = s.record(&ep, &p, 200, &body, 200).unwrap_err();
+            let malformed = err
+                .downcast_ref::<MalformedBody>()
+                .unwrap_or_else(|| panic!("{err:#}"));
+            let row = n as i64 + 1;
+            assert_eq!(malformed.kept, Some(row), "{err}");
+            assert!(err.to_string().starts_with(words), "{err}");
+            assert_eq!(s.refused(row).unwrap().unwrap().body, Some(body));
+        }
+        let after = s.status().unwrap();
+        assert_eq!(after.responses, before.responses, "no response row landed");
+        assert_eq!(after.items, before.items, "no item was retired");
+        assert_eq!(after.refused_bodies, 5);
+        for live in ["i1", "eq1", "g1", "g2"] {
+            assert!(
+                s.item(live).unwrap().unwrap().removed_at.is_none(),
+                "{live}"
+            );
+        }
+        let substash: Option<i64> = s
+            .conn
+            .query_row("SELECT removed_at FROM tabs WHERE id = 'm-1'", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert_eq!(substash, None, "the substash stands");
+        assert_eq!(
+            s.league_list().unwrap(),
+            list_before,
+            "the league list stands"
+        );
+    }
+
+    /// C145: an absent key is the documented empty — a tab fetched with no
+    /// `children` lists no substash, and a body with no `items` holds none.
+    #[test]
+    fn c145_an_absent_key_is_the_documented_empty() {
+        let mut s = Store::open_memory().unwrap();
+        let body = json!({ "stash": { "id": "f", "name": "Folder", "type": "Folder" } });
+        let ing = s.record(&stash_ep("f"), &json!({}), 200, &body, 1).unwrap();
+        assert_eq!(ing.items, 0);
+    }
+
+    /// C145: the id check recurses as the ingest does: a gem two levels
+    /// down without an id is refused before anything lands, at the
+    /// position of the item and the first-level gem it is under.
+    #[test]
+    fn c145_the_id_check_recurses_as_the_ingest_does() {
+        let mut s = Store::open_memory().unwrap();
+        let mut bow = item("bow", "Bow", 0);
+        bow["socketedItems"] = json!([{ "id": "g1", "typeLine": "Gem",
+            "socketedItems": [ { "typeLine": "Nameless" } ] }]);
+        let err = s
+            .record(&stash_ep("a"), &json!({}), 200, &stash("a", vec![bow]), 1)
+            .unwrap_err();
+        let malformed = err
+            .downcast_ref::<MalformedBody>()
+            .unwrap_or_else(|| panic!("{err:#}"));
+        assert_eq!(malformed.missing, "an `id` on an item");
+        assert_eq!(
+            malformed.at,
+            Some(ItemAt {
+                array: "items",
+                index: 0,
+                socketed: Some(0)
+            })
+        );
+        assert!(s.item("bow").unwrap().is_none(), "nothing landed");
+    }
+
+    /// C145: a refusal whose evidence cannot be kept — the `refused` insert
+    /// fails — is still `MalformedBody`, saying the body is lost, never
+    /// the raw storage error the daemon would not recognise as a refusal.
+    #[test]
+    fn c145_a_refusal_whose_evidence_cannot_be_kept_stays_malformed() {
+        let mut s = Store::open_memory().unwrap();
+        s.conn
+            .execute_batch(
+                "CREATE TRIGGER no_evidence BEFORE INSERT ON refused BEGIN SELECT RAISE(ABORT, 'disk full'); END",
+            )
+            .unwrap();
+        let body = json!({ "stash": { "id": "a", "items": {} } });
+        let err = s
+            .record(&stash_ep("a"), &json!({}), 200, &body, 1)
+            .unwrap_err();
+        let malformed = err
+            .downcast_ref::<MalformedBody>()
+            .unwrap_or_else(|| panic!("a refusal, not the storage error: {err:#}"));
+        assert_eq!((malformed.kept, malformed.not_kept), (None, true));
+        assert_eq!(
+            err.to_string(),
+            "malformed stash response: missing an `items` array — the body could not be kept as evidence"
+        );
     }
 
     #[test]
