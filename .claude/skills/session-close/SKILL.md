@@ -8,9 +8,10 @@ description: End a working session on the Acquisition workspace — run the gate
 ## 1. Gate
 
 Run `tools/gate.sh` and gate the commit on its exit status, never on a
-filtered grep of its output; `--docs` serves a change no test reads,
-which is any but the crates, the manifests, the lock, `README.md` and
-the two references.
+filtered grep of its output. `--docs` serves a change that no test and
+no build reads, which the session establishes before using it (tests
+read `README.md`, the two references and `.gitattributes`, among
+others); when unsure, the full gate.
 
 ### Why build order matters
 

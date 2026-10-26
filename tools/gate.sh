@@ -2,16 +2,17 @@
 # gate.sh — the quality gate (`AGENTS.md`, "Quality gate") as one command.
 #
 #   tools/gate.sh                 every stage, in the gate's order
-#   tools/gate.sh --docs          the five stages that read no Rust, for a
-#                                 change no test reads: not the crates, the
-#                                 manifests, the lock, README.md or the two
-#                                 references
+#   tools/gate.sh --docs          the five stages that build no Rust, for a
+#                                 change no test or build reads, which the
+#                                 session establishes; when unsure, the
+#                                 full gate
 #   tools/gate.sh --only <stage>  one stage, by the name in the table
 #
 # Each stage runs bare, its output unfiltered, and its exit status is
 # captured into its own slot: a stage piped through a filter reports the
 # filter's exit, and BSD `grep -qv` once read "all green" over a failing
-# line. A failing stage does not stop the others. The table at the end,
+# line. A failing stage does not stop the others, and a stage name the
+# script does not know fails rather than passing as a stage that ran. The table at the end,
 # `stage  rc  seconds`, is the verdict, and the script exits 1 when any
 # stage failed, so a commit is gated on this script's exit alone.
 #
@@ -38,6 +39,7 @@ run_stage() {
     trade) tools/trade-check.sh ;;
     bothy) python3 -I tools/bothy.py check ;;
     doc) RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps ;;
+    *) echo "gate.sh: no stage named '$1'" >&2; return 2 ;;
   esac
 }
 
@@ -47,10 +49,10 @@ case ${1:-} in
   '') selected=("${names[@]}") ;;
   --docs) selected=("${DOCS[@]}") ;;
   --only)
-    if [[ -z ${2:-} || " ${names[*]} " != *" $2 "* ]]; then
+    for name in "${names[@]}"; do [[ ${2:-} == "$name" ]] && selected=("$2"); done
+    if [[ -z ${selected+x} ]]; then
       echo "gate.sh: --only takes one of: ${names[*]}" >&2; exit 2
-    fi
-    selected=("$2") ;;
+    fi ;;
   -h | --help) usage; exit 0 ;;
   *) usage >&2; exit 2 ;;
 esac

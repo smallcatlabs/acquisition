@@ -157,7 +157,7 @@ RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
 ```
 
 `tools/gate.sh` runs these, then the build again, with a table of exit
-statuses; `--docs` runs the five that read no Rust.
+statuses; `--docs` runs the five that build no Rust.
 
 Once per clone: `git config core.hooksPath .githooks` (the commit-msg
 hook writes Claude's trailer as `Assisted-by:`) and `cargo install

@@ -35,9 +35,12 @@ new text uses that word rather than "door".
 
 ## The rest
 
-- **basis**: the label every search answer and every quote carries,
-  naming the store, the account, the snapshot, the intent revision and
-  the build it was derived from.
+- **basis** (of a search answer): the label every search answer
+  carries, naming the store, the account, the snapshot, the intent
+  revision and the build it was derived from.
+- **basis** (of a quote): what a daemon quote names as its ground, the
+  work it prices echoed back, with its observation time, provider and
+  account.
 - **breaker**: a deliberately broken copy of a document or a tool,
   run to prove a check refuses it by name; the breaker scripts under
   `tools/` hold them.

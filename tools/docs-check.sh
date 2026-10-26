@@ -64,7 +64,7 @@ budget AGENTS.md 15277
 # a test, a doc or a tool naming the decision. Two kinds of roadmap file
 # are read by neither this scan nor 2b's, being text no session may
 # correct: a saved review (`roadmap/reviews/`, an outside model's answer
-# verbatim, deleted at its phase's close) and the dated assessment
+# verbatim, kept there for good) and the dated assessment
 # (`roadmap/STATE-*.md`, corrected only when an outside review shows a
 # sentence wrong).
 SKIP_ROADMAP=(--exclude-dir=reviews --exclude='STATE-*.md')
