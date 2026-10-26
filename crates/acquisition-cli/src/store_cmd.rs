@@ -485,6 +485,10 @@ pub fn status(cx: &Ctx, json: bool) -> Result<()> {
     Ok(())
 }
 
+/// What a granted-skill count counts: entries, not skills (the h2
+/// review: one skill shown twice counted two, under the word "skills").
+const SKILL_ENTRIES: &str = "GGG shows a granted skill once in each place it appears, the item's sockets and the character's skills, so one skill can be two entries";
+
 fn counted(n: i64, one: &str, many: &str) -> String {
     format!("{n} {}", if n == 1 { one } else { many })
 }
@@ -530,8 +534,8 @@ fn status_text(st: &acquisition_store::Status) -> String {
     }
     if st.granted_skills > 0 {
         out.push_str(&format!(
-            "granted: {} that PoE2 characters' items grant, kept with their characters and not counted as items (they have no id of their own); nothing to do\n",
-            counted(st.granted_skills, "skill", "skills"),
+            "granted: {} that PoE2 characters' items grant ({SKILL_ENTRIES}), kept with their characters and not counted as items (they have no id of their own); nothing to do\n",
+            counted(st.granted_skills, "skill entry", "skill entries"),
         ));
     }
     if st.refused_bodies > 0 {
@@ -942,7 +946,7 @@ mod tests {
         for line in [
             "withheld: 1 fetch of tabs or characters the latest list no longer named, carrying 4 items: kept as evidence, in no search or count; nothing to do unless a list names the place again\n",
             "drift: 2 item-shaped objects in characters' data under a key this build does not read as items, so no search counts them: GGG added a kind of item list, which a newer acq reads (kept as `_unlifted` in the stored responses)\n",
-            "granted: 8 skills that PoE2 characters' items grant, kept with their characters and not counted as items (they have no id of their own); nothing to do\n",
+            "granted: 8 skill entries that PoE2 characters' items grant (GGG shows a granted skill once in each place it appears, the item's sockets and the character's skills, so one skill can be two entries), kept with their characters and not counted as items (they have no id of their own); nothing to do\n",
             "refused: 1 body the store would not ingest, kept verbatim as evidence (`acq store refused`)\n",
         ] {
             assert!(text.contains(line), "{text}");

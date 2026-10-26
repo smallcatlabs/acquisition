@@ -887,9 +887,13 @@ pub struct Status {
     /// Bodies `record` refused as malformed and kept verbatim in
     /// `refused` — evidence, never facts (`acq store refused`).
     pub refused_bodies: i64,
-    /// The skills PoE2 characters' items grant (`_granted`), as of each
-    /// live character's latest fetch: entries with no id of their own,
-    /// kept with their character and never counted as items.
+    /// Entries of the skills PoE2 characters' items grant (`_granted`),
+    /// as of each live character's latest fetch: GGG shows a granted
+    /// skill once in each place it appears, the item's sockets and the
+    /// character's skills, so one skill can be two entries. Entries with
+    /// no id of their own, kept with their character and never counted
+    /// as items; the field's name is the contract (C53), its words these
+    /// (C146).
     pub granted_skills: i64,
     /// The greatest `item_events.id`, 0 for none: a watermark, so a
     /// later read asks for the events committed after this status was
@@ -4356,6 +4360,8 @@ mod tests {
         assert_eq!(c["_granted"], json!({ "equipment": 1, "skills": 1 }));
         assert!(c.get("_unlifted").is_none());
         let st = s.status().unwrap();
+        // One skill shown in two places is two entries: the count is of
+        // entries, and every surface says so (C146; the h2 review).
         assert_eq!((st.items, st.granted_skills, st.refused_bodies), (5, 2, 0));
         // A support swapped inside the granted skill is a change on the
         // host — the only row that records it.
