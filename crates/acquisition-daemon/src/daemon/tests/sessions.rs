@@ -73,6 +73,10 @@ impl CredentialStore for MemoryCredentialStore {
         Ok(())
     }
 
+    fn load(&self, _service: &str, _username: &str) -> Result<Option<String>, String> {
+        Ok(None)
+    }
+
     fn clear(&self, _service: &str, _username: &str) -> Result<(), String> {
         self.cleared.store(true, Ordering::SeqCst);
         Ok(())

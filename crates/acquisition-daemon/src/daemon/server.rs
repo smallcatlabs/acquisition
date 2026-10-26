@@ -338,12 +338,11 @@ impl Daemon {
                     }
                 };
                 match (live, &account) {
-                    (Ok(username), _) => {
-                        if let Err(e) = self.logout(Some(&username)) {
-                            self.log(&format!("keyring clear failed: {e}"));
-                        }
-                        Response::Ack
-                    }
+                    // C144: a clear that failed is the answer.
+                    (Ok(username), _) => match self.logout(Some(&username)) {
+                        Ok(()) => Response::Ack,
+                        Err(refusal) => refusal.into(),
+                    },
                     (Err(_), Some(req)) => match self.forget_account(req) {
                         Ok(()) => Response::Ack,
                         Err(refusal) => refusal.into(),

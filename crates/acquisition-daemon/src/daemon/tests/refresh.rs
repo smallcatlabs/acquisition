@@ -520,3 +520,138 @@ async fn an_out_of_range_expires_in_is_a_token_error() {
     assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
     finish_harness(None, &log_path);
 }
+
+/// A logged-in daemon facing `answers`, its credential store `store`, the
+/// account's current entry in it.
+async fn token_daemon_with_store(
+    answers: Vec<ScriptedResponse>,
+    store: RecordingCredentialStore,
+) -> (
+    Arc<Daemon>,
+    Arc<RecordingCredentialStore>,
+    PathBuf,
+    Arc<Mutex<Vec<String>>>,
+    tokio::task::JoinHandle<()>,
+) {
+    let (base, requests, server) = scripted_server(answers).await;
+    let (mut daemon, log_path) = test_daemon_with(
+        Provider::mock(&base),
+        Arc::new(ManualClock::new()),
+        RailsConfig::default(),
+    );
+    logged_in(&mut daemon);
+    store
+        .entries
+        .lock()
+        .unwrap()
+        .insert("test-user".into(), "rt-old".into());
+    let store = Arc::new(store);
+    Arc::get_mut(&mut daemon).unwrap().credential_store = store.clone();
+    (daemon, store, log_path, requests, server)
+}
+
+/// C144 (a rename clears the entry it leaves behind), issue #61: a
+/// refresh whose answer names the account differently saves under the
+/// new name and clears the old name's entry, which nothing could reach
+/// again: restore reads the index, and the index follows the new name.
+#[tokio::test]
+async fn c144_a_refresh_that_renames_clears_the_old_names_entry() {
+    let renamed = json!({
+        "access_token": "at-new",
+        "refresh_token": "rt-rotated",
+        "expires_in": 3600,
+        "username": "NewName#2",
+    })
+    .to_string();
+    let (daemon, store, log_path, requests, server) = token_daemon_with_store(
+        vec![token_answer("200 OK", TOKEN_HEADERS, Some(&renamed))],
+        RecordingCredentialStore::default(),
+    )
+    .await;
+
+    let (_, username) = daemon.valid_access_token(None, false, None).await.unwrap();
+    assert_eq!(username, "NewName#2");
+    let entries = store.entries.lock().unwrap().clone();
+    assert_eq!(
+        entries,
+        HashMap::from([("NewName#2".to_string(), "rt-rotated".to_string())]),
+        "one entry, under the new name; the old name's is cleared"
+    );
+    assert_eq!(store.cleared.lock().unwrap().as_slice(), ["test-user"]);
+    server.await.unwrap();
+    assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
+    finish_harness(None, &log_path);
+}
+
+/// C144 (a failed save clears the entry it would have replaced), issue
+/// #61: the grant rotated the refresh token, so the entry the save would
+/// have overwritten holds a token GGG no longer honours; it is cleared,
+/// the session runs in memory, and the keyring status and the error
+/// list say why. A rename whose save fails clears the old name too.
+#[tokio::test]
+async fn c144_a_failed_save_clears_the_entry_it_would_have_replaced() {
+    let (daemon, store, log_path, requests, server) = token_daemon_with_store(
+        vec![token_answer("200 OK", TOKEN_HEADERS, None)],
+        RecordingCredentialStore::failing("save", "keychain locked"),
+    )
+    .await;
+
+    let (token, _) = daemon.valid_access_token(None, false, None).await.unwrap();
+    assert_eq!(token, "at-new", "the session runs on, in memory");
+    assert!(
+        store.entries.lock().unwrap().is_empty(),
+        "no stale entry stays"
+    );
+    assert_eq!(store.cleared.lock().unwrap().as_slice(), ["test-user"]);
+    {
+        let s = daemon.shared.lock().unwrap();
+        assert_eq!(
+            s.auth.find("test-user").unwrap().keyring,
+            "unavailable: keychain locked"
+        );
+        assert!(
+            s.errors
+                .iter()
+                .any(|(_, m)| m.contains("keyring save failed: keychain locked")),
+            "the failure is reported"
+        );
+    }
+    server.await.unwrap();
+    assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
+    finish_harness(None, &log_path);
+}
+
+/// C144: a clear that fails beside a rename reaches the error list in
+/// words that name the old entry; the save itself stood, so the account
+/// stays persisted under its new name.
+#[tokio::test]
+async fn c144_a_rename_whose_old_entry_cannot_be_cleared_says_so() {
+    let renamed = json!({
+        "access_token": "at-new",
+        "refresh_token": "rt-rotated",
+        "expires_in": 3600,
+        "username": "NewName#2",
+    })
+    .to_string();
+    let (daemon, store, log_path, requests, server) = token_daemon_with_store(
+        vec![token_answer("200 OK", TOKEN_HEADERS, Some(&renamed))],
+        RecordingCredentialStore::failing("clear", "keychain locked"),
+    )
+    .await;
+
+    daemon.valid_access_token(None, false, None).await.unwrap();
+    {
+        let s = daemon.shared.lock().unwrap();
+        assert_eq!(s.auth.find("NewName#2").unwrap().keyring, "ok");
+        assert!(
+            s.errors.iter().any(|(_, m)| m
+                .contains("the keyring entry under the old name test-user could not be cleared: keychain locked")),
+            "{:?}",
+            s.errors
+        );
+    }
+    assert!(store.entries.lock().unwrap().contains_key("NewName#2"));
+    server.await.unwrap();
+    assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
+    finish_harness(None, &log_path);
+}

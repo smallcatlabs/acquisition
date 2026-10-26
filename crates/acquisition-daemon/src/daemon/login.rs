@@ -400,9 +400,14 @@ impl Daemon {
     }
 
     /// Drop a session (the named account's, or the sole one), its keyring
-    /// entry, and its dead-grant mark. Other sessions are untouched.
+    /// entry, and its dead-grant mark. Other sessions are untouched. C144:
+    /// the clear's result reaches the caller — a clear that failed is the
+    /// answer, `internal`, in words that say the session was dropped and
+    /// the entry was not, and how to try the clear again. The index marks
+    /// the account not persisted either way, so no later start restores a
+    /// session the user logged out of.
     pub(super) fn logout(&self, account: Option<&str>) -> Result<(), Refusal> {
-        let (username, clear) = {
+        let (username, clear, indexed) = {
             let mut s = self.shared.lock().unwrap();
             let username = s.auth.get(account)?.username.clone().unwrap_or_default();
             s.auth
@@ -414,17 +419,37 @@ impl Daemon {
             let clear = self
                 .credential_store
                 .clear(self.provider.keyring_service, &username);
-            (username, clear)
+            // C144: the index is written under the lock, as login writes it.
+            let indexed = self.index_apply(|index| index.set_persisted(&username, false));
+            (username, clear, indexed)
         };
         self.rails().clear_refresh_failed(&username);
         self.announce_trip();
-        self.with_index(|index| index.set_persisted(&username, false));
-        self.log(&format!("logged out {username}"));
-        clear.map_err(|e| Refusal::new(ErrorKind::Internal, e))
+        if let Err(e) = indexed {
+            self.note_error(&e);
+        }
+        match clear {
+            Ok(()) => {
+                self.log(&format!("logged out {username} (keyring entry cleared)"));
+                Ok(())
+            }
+            Err(e) => {
+                let message = keyring_not_cleared(
+                    &format!("logged out {username} (session dropped)"),
+                    &username,
+                    &e,
+                );
+                self.note_error(&message);
+                Err(Refusal::new(ErrorKind::Internal, message))
+            }
+        }
     }
 
     /// Drop a *non-live* account's keyring entry and mark it not persisted.
-    /// Nothing about the live session changes.
+    /// Nothing about the live session changes. C144: the entry is cleared
+    /// whether or not the index marks it persisted (a failed save, or a
+    /// logout whose clear failed, leaves an entry the mark does not
+    /// show), and the log and the answer say what the clear did.
     pub(super) fn forget_account(&self, selector: &str) -> Result<(), Refusal> {
         let Some(dir) = &self.store_dir else {
             return Err(Refusal::new(
@@ -462,20 +487,38 @@ impl Daemon {
                 }
             })?
             .clone();
-        // Nothing to clear for a session that was never in the keyring.
-        let cleared = if entry.persisted {
-            self.credential_store
-                .clear(self.provider.keyring_service, &entry.username)
-        } else {
-            Ok(())
-        };
+        let cleared = self
+            .credential_store
+            .clear(self.provider.keyring_service, &entry.username);
         self.with_index(|index| index.set_persisted(&entry.username, false));
-        self.log(&format!(
-            "forgot account {} (keyring entry cleared)",
-            entry.username
-        ));
-        cleared.map_err(|e| Refusal::new(ErrorKind::Internal, e))
+        match cleared {
+            Ok(()) => {
+                self.log(&format!(
+                    "forgot account {} (keyring entry cleared)",
+                    entry.username
+                ));
+                Ok(())
+            }
+            Err(e) => {
+                let message = keyring_not_cleared(
+                    &format!("forgot account {} (not restored at start)", entry.username),
+                    &entry.username,
+                    &e,
+                );
+                self.note_error(&message);
+                Err(Refusal::new(ErrorKind::Internal, message))
+            }
+        }
     }
+}
+
+/// C144: the words of a logout or a forget whose keyring clear failed —
+/// what was done, what was not, and the request that tries the clear
+/// again (a logout of a known account that is not live is a forget).
+fn keyring_not_cleared(done: &str, username: &str, error: &str) -> String {
+    format!(
+        "{done}, but its keyring entry could not be cleared: {error}; `acq auth logout --account {username}` tries again"
+    )
 }
 
 /// Wait for the browser to hit the loopback redirect with an auth code.

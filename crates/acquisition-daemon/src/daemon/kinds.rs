@@ -149,11 +149,17 @@ impl Daemon {
             })
     }
 
-    /// Apply one change to the account index, logging (never failing) on
-    /// error. Not for callers holding the shared lock (`note_error` takes
-    /// it) — those use `index_apply`.
+    /// Apply one change to the account index under the shared lock (C144:
+    /// every index write is serialised there, as login's is, so two
+    /// accounts' load-modify-save never interleave), logging (never
+    /// failing) on error. Not for callers holding the shared lock — those
+    /// use `index_apply`.
     pub(super) fn with_index(&self, f: impl FnOnce(&mut Index) -> anyhow::Result<()>) {
-        if let Err(e) = self.index_apply(f) {
+        let applied = {
+            let _serialised = self.shared.lock().unwrap();
+            self.index_apply(f)
+        };
+        if let Err(e) = applied {
             self.note_error(&e);
         }
     }

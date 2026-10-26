@@ -66,23 +66,48 @@ impl Daemon {
     /// the auth-state lock so keyring mutation is ordered with logout and
     /// re-authentication — and updates the account index *after* releasing
     /// it (`with_index` reports errors through `note_error`, which takes
-    /// the same lock).
+    /// the same lock). C144: no entry is left behind that nothing could
+    /// reach — a refresh that renames the account clears the old name's
+    /// entry, and a failed save clears the entry it would have replaced,
+    /// which holds a token the grant just rotated away. Every clear that
+    /// fails joins the warning the caller reports.
     pub(super) fn install_tokens_locked(
         &self,
         session: &mut AuthSession,
         tokens: auth::TokenResponse,
     ) -> Option<String> {
-        let (keyring, warning) = match self.credential_store.save(
-            self.provider.keyring_service,
-            &tokens.refresh_token,
-            &tokens.username,
-        ) {
-            Ok(()) => ("ok".to_string(), None),
+        let service = self.provider.keyring_service;
+        let old_name = session
+            .username
+            .clone()
+            .filter(|old| !old.is_empty() && *old != tokens.username);
+        let saved = self
+            .credential_store
+            .save(service, &tokens.refresh_token, &tokens.username);
+        let mut warnings = Vec::new();
+        let keyring = match &saved {
+            Ok(()) => "ok".to_string(),
             Err(e) => {
-                let warning = format!("keyring save failed: {e} (session is in-memory only)");
-                (format!("unavailable: {e}"), Some(warning))
+                warnings.push(format!(
+                    "keyring save failed: {e} (session is in-memory only)"
+                ));
+                if let Err(clear) = self.credential_store.clear(service, &tokens.username) {
+                    warnings.push(format!(
+                        "the entry the save would have replaced, for {}, could not be cleared: {clear}",
+                        tokens.username
+                    ));
+                }
+                format!("unavailable: {e}")
             }
         };
+        if let Some(old) = &old_name
+            && let Err(clear) = self.credential_store.clear(service, old)
+        {
+            warnings.push(format!(
+                "the keyring entry under the old name {old} could not be cleared: {clear}"
+            ));
+        }
+        let warning = (!warnings.is_empty()).then(|| warnings.join("; "));
         session.access_token = Some(tokens.access_token);
         // C47: `expires_in` is bounded where the response is read
         // (`auth::MAX_ACCESS_TOKEN_LIFETIME_SECS`), so the sum is safe.
@@ -336,7 +361,11 @@ impl Daemon {
                         let result = (tokens.access_token.clone(), tokens.username.clone());
                         let username = tokens.username.clone();
                         warning = self.install_tokens_locked(session, tokens);
-                        index_update = Some((username, session.uuid.clone(), warning.is_none()));
+                        // Persisted is the save's result alone: a clear that
+                        // failed beside a good save warns, and the entry
+                        // the index points at is the one just saved.
+                        let persisted = session.keyring == "ok";
+                        index_update = Some((username, session.uuid.clone(), persisted));
                         Ok(result)
                     }
                     Err(error) => Err(error),

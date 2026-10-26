@@ -91,7 +91,9 @@ impl TokenError {
     }
 }
 
-#[derive(Debug, Deserialize)]
+/// Holds both tokens, so its `Debug` names neither (C144: no secret is
+/// formatted where a log or a panic could carry it).
+#[derive(Deserialize)]
 pub struct TokenResponse {
     pub access_token: String,
     pub refresh_token: String,
@@ -100,6 +102,17 @@ pub struct TokenResponse {
     /// to its wall clock unchecked.
     pub expires_in: u64,
     pub username: String,
+}
+
+impl std::fmt::Debug for TokenResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TokenResponse")
+            .field("access_token", &"<redacted>")
+            .field("refresh_token", &"<redacted>")
+            .field("expires_in", &self.expires_in)
+            .field("username", &self.username)
+            .finish()
+    }
 }
 
 /// C47: the longest access-token lifetime a token response is taken to
@@ -355,7 +368,14 @@ pub fn keyring_load(service: &str, username: &str) -> Result<Option<String>, Str
     }
 }
 
+/// Remove one account's entry; an entry already gone is cleared. With the
+/// keyring disabled (`ACQ_NO_KEYRING`) there is nothing this daemon could
+/// have put there, so there is nothing for it to clear: `Ok`, where a save
+/// or a load is an error that says the keyring is off.
 pub fn keyring_clear(service: &str, username: &str) -> Result<(), String> {
+    if keyring_disabled().is_some() {
+        return Ok(());
+    }
     match entry(service, username)?.delete_credential() {
         Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
         Err(e) => Err(e.to_string()),
@@ -365,6 +385,23 @@ pub fn keyring_clear(service: &str, username: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// C144: a token response's `Debug` names neither token.
+    #[test]
+    fn a_token_responses_debug_names_no_token() {
+        let tokens = TokenResponse {
+            access_token: "at-secret".into(),
+            refresh_token: "rt-secret".into(),
+            expires_in: 3600,
+            username: "test-user".into(),
+        };
+        let shown = format!("{tokens:?}");
+        assert!(!shown.contains("secret"), "{shown}");
+        assert!(
+            shown.contains("test-user") && shown.contains("<redacted>"),
+            "{shown}"
+        );
+    }
     use crate::ratelimit::{ALWAYS_WANTED, EndpointState};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpListener;

@@ -48,3 +48,34 @@ fn c85_a_refusal_carries_its_kind_in_json_and_only_its_message_in_text() {
         "{report}"
     );
 }
+
+/// C144 (every keyring result reaches the words), issue #61: `auth
+/// logout --json` says what the keyring did — `cleared` beside an
+/// acknowledged logout, `not cleared` on the refusal's own document,
+/// whatever refused it — and the text says the same. The mock world runs
+/// without a keyring, where a clear has nothing of this daemon's to clear;
+/// the failed clear itself is pinned in the daemon's tests.
+#[test]
+fn c144_logout_json_says_what_the_keyring_did() {
+    let scratch = harness::scratch("logout");
+    let base = scratch.0.clone();
+    harness::login(&base, "Alice");
+
+    let report = sole_json(&acq(&base, &["auth", "logout", "--json"]));
+    assert_eq!(report["logged_out"], true, "{report}");
+    assert_eq!(report["keyring"], "cleared", "{report}");
+
+    let out = acq(&base, &["auth", "logout", "--json"]);
+    assert_eq!(out.status.code(), Some(1), "{out:?}");
+    let report = sole_json(&out);
+    assert_eq!(report["kind"], "not_logged_in", "{report}");
+    assert_eq!(report["keyring"], "not cleared", "{report}");
+
+    harness::login(&base, "Alice");
+    let out = acq(&base, &["auth", "logout"]);
+    assert_eq!(out.status.code(), Some(0), "{out:?}");
+    assert_eq!(
+        String::from_utf8_lossy(&out.stdout).trim(),
+        "logged out (session dropped, keyring cleared)"
+    );
+}

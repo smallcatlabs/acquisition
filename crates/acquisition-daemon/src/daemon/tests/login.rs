@@ -762,3 +762,205 @@ async fn c144_a_client_profile_job_in_the_staging_window_never_gets_the_staged_t
     );
     finish_harness(dispatcher, &log_path);
 }
+
+// ---- C144: every credential-store result reaches the caller ----------
+
+/// A logged-in harness daemon whose credential store is `store`, holding
+/// test-user's entry, with an account index in a scratch directory.
+fn keyring_daemon(
+    store: RecordingCredentialStore,
+) -> (Arc<Daemon>, Arc<RecordingCredentialStore>, PathBuf, PathBuf) {
+    let (mut daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
+    logged_in(&mut daemon);
+    store
+        .entries
+        .lock()
+        .unwrap()
+        .insert("test-user".into(), "rt-old".into());
+    let store = Arc::new(store);
+    let dir = std::env::temp_dir().join(format!(
+        "acq-keyring-{}-{}",
+        std::process::id(),
+        TEST_LOG_ID.fetch_add(1, Ordering::Relaxed)
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    Index::load(&dir)
+        .unwrap()
+        .record_login("test-user", "u-1", true, 1)
+        .unwrap();
+    let d = Arc::get_mut(&mut daemon).unwrap();
+    d.credential_store = store.clone();
+    d.store_dir = Some(dir.clone());
+    (daemon, store, dir, log_path)
+}
+
+async fn logout_answer(daemon: &Arc<Daemon>, account: Option<&str>) -> Response {
+    daemon
+        .handle_request(
+            Request::AuthLogout {
+                account: account.map(str::to_string),
+            },
+            &mut None,
+        )
+        .await
+}
+
+/// C144, issue #61: a logout whose keyring clear fails answers that on
+/// the wire — `internal`, in words that say the session was dropped and
+/// the entry was not, and the request that tries again — where it used to
+/// answer success. The index marks the account not persisted either way,
+/// so no later start restores the session; the retry, a logout of the
+/// now not-live account, clears the entry once the keyring works.
+#[tokio::test]
+async fn c144_a_logout_whose_keyring_clear_fails_says_so_on_the_wire() {
+    let (daemon, store, dir, log_path) = keyring_daemon(RecordingCredentialStore::failing(
+        "clear",
+        "keychain locked",
+    ));
+
+    let answer = logout_answer(&daemon, None).await;
+    let Response::Error { kind, message } = &answer else {
+        panic!("the failed clear is the answer: {answer:?}");
+    };
+    assert_eq!(*kind, ErrorKind::Internal);
+    for fact in [
+        "logged out test-user (session dropped)",
+        "its keyring entry could not be cleared: keychain locked",
+        "`acq auth logout --account test-user` tries again",
+    ] {
+        assert!(message.contains(fact), "{fact:?} in {message}");
+    }
+    assert!(
+        daemon
+            .shared
+            .lock()
+            .unwrap()
+            .auth
+            .find("test-user")
+            .is_none()
+    );
+    assert!(
+        !Index::load(&dir)
+            .unwrap()
+            .get("test-user")
+            .unwrap()
+            .persisted
+    );
+    assert!(store.entries.lock().unwrap().contains_key("test-user"));
+
+    // The keyring works again: the retry reaches the entry.
+    *store.fail_clear.lock().unwrap() = None;
+    assert!(matches!(
+        logout_answer(&daemon, Some("test-user")).await,
+        Response::Ack
+    ));
+    assert!(store.entries.lock().unwrap().is_empty());
+    let _ = std::fs::remove_dir_all(&dir);
+    finish_harness(None, &log_path);
+}
+
+/// C144: a logout whose clear works is acknowledged, and the entry is gone.
+#[tokio::test]
+async fn a_logout_clears_the_keyring_entry_and_acks() {
+    let (daemon, store, dir, log_path) = keyring_daemon(RecordingCredentialStore::default());
+    assert!(matches!(logout_answer(&daemon, None).await, Response::Ack));
+    assert!(store.entries.lock().unwrap().is_empty());
+    assert_eq!(store.cleared.lock().unwrap().as_slice(), ["test-user"]);
+    let _ = std::fs::remove_dir_all(&dir);
+    finish_harness(None, &log_path);
+}
+
+/// C144, issue #61: forget clears the entry whether or not the index
+/// marks it persisted — a failed save or a failed logout clear leaves an
+/// entry the mark does not show — and its log says what the clear did:
+/// a failed clear is the answer, never "cleared".
+#[tokio::test]
+async fn c144_forget_clears_an_unmarked_entry_and_reports_a_failed_clear() {
+    let (daemon, store, dir, log_path) = keyring_daemon(RecordingCredentialStore::default());
+    daemon.shared.lock().unwrap().auth.by_account.clear();
+    Index::load(&dir)
+        .unwrap()
+        .set_persisted("test-user", false)
+        .unwrap();
+
+    daemon.forget_account("test-user").unwrap();
+    assert!(
+        store.entries.lock().unwrap().is_empty(),
+        "an unmarked entry is cleared"
+    );
+
+    store
+        .entries
+        .lock()
+        .unwrap()
+        .insert("test-user".into(), "rt-old".into());
+    *store.fail_clear.lock().unwrap() = Some("keychain locked".into());
+    let refusal = daemon.forget_account("test-user").unwrap_err();
+    assert_eq!(refusal.kind, ErrorKind::Internal);
+    assert!(
+        refusal
+            .message
+            .contains("its keyring entry could not be cleared: keychain locked"),
+        "{refusal}"
+    );
+    let log = std::fs::read_to_string(&log_path).unwrap();
+    assert_eq!(
+        log.matches("forgot account test-user (keyring entry cleared)")
+            .count(),
+        1,
+        "only the clear that worked is logged as cleared:\n{log}"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+    finish_harness(None, &log_path);
+}
+
+/// C144, issue #61: restore reads through the credential store, so a load
+/// that fails reaches the keyring status `auth status` reports and the
+/// log, and the account is not restored; an entry the store holds comes
+/// back as a session; an entry it lacks is logged.
+#[test]
+fn c144_restore_reads_through_the_credential_store_and_reports_a_failed_load() {
+    let dir = std::env::temp_dir().join(format!(
+        "acq-restore-{}-{}",
+        std::process::id(),
+        TEST_LOG_ID.fetch_add(1, Ordering::Relaxed)
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    {
+        let mut index = Index::load(&dir).unwrap();
+        index.record_login("alice", "u-a", true, 2).unwrap();
+        index.record_login("bob", "u-b", true, 1).unwrap();
+    }
+
+    let store = RecordingCredentialStore::default();
+    store
+        .entries
+        .lock()
+        .unwrap()
+        .insert("alice".into(), "rt-a".into());
+    let mut log = Vec::new();
+    let sessions = start::restore_sessions(&store, "acq-mock", &dir, None, &mut log);
+    assert_eq!(sessions.keyring, "ok");
+    assert_eq!(
+        sessions.find("alice").unwrap().refresh_token.as_deref(),
+        Some("rt-a")
+    );
+    assert!(sessions.find("bob").is_none());
+    let log = String::from_utf8(log).unwrap();
+    assert!(
+        log.contains("index lists bob as persisted but the keyring has no entry"),
+        "{log}"
+    );
+
+    let failing = RecordingCredentialStore::failing("load", "keychain locked");
+    let mut log = Vec::new();
+    let sessions = start::restore_sessions(&failing, "acq-mock", &dir, None, &mut log);
+    assert!(sessions.by_account.is_empty());
+    assert_eq!(sessions.keyring, "unavailable: keychain locked");
+    let log = String::from_utf8(log).unwrap();
+    assert!(
+        log.contains("keyring read for alice failed: keychain locked"),
+        "{log}"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}

@@ -772,7 +772,11 @@ enum AuthCmd {
     /// the provider instead of trusting local state. Exit code 1 on failure.
     Check,
     /// Drop the session and clear the keyring entry. With --account naming
-    /// another known account, clear only that account's keyring entry.
+    /// another known account, clear only that account's keyring entry. A
+    /// clear the keyring refuses is a failure that says the session was
+    /// dropped and the entry was not; the same command tries again.
+    /// `--json`: `logged_out`, `account`, `keyring` (`cleared`); on a
+    /// failure, the error document with `keyring` `not cleared`.
     Logout,
 }
 
@@ -1048,17 +1052,38 @@ async fn run(cli: Cli) -> Result<()> {
             Some(AuthCmd::Logout) => {
                 let mut client = attach(cx).await?;
                 let account = cx.account.clone();
-                client
-                    .expect_ack(&Request::AuthLogout {
+                let answer = client
+                    .request(&Request::AuthLogout {
                         account: account.clone(),
                     })
                     .await?;
-                if cli.json {
-                    println!("{}", json!({ "logged_out": true, "account": account }));
-                } else {
-                    println!("logged out (session dropped, keyring cleared)");
+                match answer {
+                    Response::Ack => {
+                        if cli.json {
+                            println!(
+                                "{}",
+                                json!({ "logged_out": true, "account": account, "keyring": "cleared" })
+                            );
+                        } else {
+                            println!("logged out (session dropped, keyring cleared)");
+                        }
+                        Ok(())
+                    }
+                    // The daemon's sentence says what it did and what it
+                    // did not (a session dropped, an entry not cleared);
+                    // whatever failed, the keyring was not cleared.
+                    Response::Error { kind, message } => {
+                        let refused = anyhow::Error::from(DaemonError { kind, message });
+                        if cli.json {
+                            let mut report = error_report(&refused);
+                            report["keyring"] = json!("not cleared");
+                            println!("{report}");
+                            return Err(AlreadyReported.into());
+                        }
+                        Err(refused)
+                    }
+                    other => anyhow::bail!("unexpected response: {other:?}"),
                 }
-                Ok(())
             }
         },
         Cmd::Web { no_browser } => web::web(cli.account.clone(), no_browser, cli.json).await,

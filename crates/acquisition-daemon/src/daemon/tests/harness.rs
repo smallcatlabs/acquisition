@@ -74,15 +74,43 @@ impl CredentialStore for NoopCredentialStore {
         Ok(())
     }
 
+    fn load(&self, _service: &str, _username: &str) -> Result<Option<String>, String> {
+        Ok(None)
+    }
+
     fn clear(&self, _service: &str, _username: &str) -> Result<(), String> {
         Ok(())
     }
 }
 
+/// An in-memory keyring that records every call and can be told to fail
+/// any of the three (C144: every result reaches the caller). A save
+/// records its attempt and, when it succeeds, holds the entry; a clear
+/// records its attempt and, when it succeeds, removes it.
 #[derive(Default)]
 pub(super) struct RecordingCredentialStore {
     pub(super) saves: Mutex<Vec<(String, String, String)>>,
     pub(super) cleared: Mutex<Vec<String>>,
+    /// The entries a load reads, by username.
+    pub(super) entries: Mutex<HashMap<String, String>>,
+    pub(super) fail_save: Mutex<Option<String>>,
+    pub(super) fail_load: Mutex<Option<String>>,
+    pub(super) fail_clear: Mutex<Option<String>>,
+}
+
+impl RecordingCredentialStore {
+    /// A store whose every `op` (`save`, `load`, `clear`) fails with `why`.
+    pub(super) fn failing(op: &str, why: &str) -> Self {
+        let store = Self::default();
+        let slot = match op {
+            "save" => &store.fail_save,
+            "load" => &store.fail_load,
+            "clear" => &store.fail_clear,
+            other => panic!("no such credential-store call: {other}"),
+        };
+        *slot.lock().unwrap() = Some(why.to_string());
+        store
+    }
 }
 
 impl CredentialStore for RecordingCredentialStore {
@@ -92,11 +120,29 @@ impl CredentialStore for RecordingCredentialStore {
             refresh_token.to_string(),
             username.to_string(),
         ));
+        if let Some(why) = self.fail_save.lock().unwrap().clone() {
+            return Err(why);
+        }
+        self.entries
+            .lock()
+            .unwrap()
+            .insert(username.to_string(), refresh_token.to_string());
         Ok(())
+    }
+
+    fn load(&self, _service: &str, username: &str) -> Result<Option<String>, String> {
+        if let Some(why) = self.fail_load.lock().unwrap().clone() {
+            return Err(why);
+        }
+        Ok(self.entries.lock().unwrap().get(username).cloned())
     }
 
     fn clear(&self, _service: &str, username: &str) -> Result<(), String> {
         self.cleared.lock().unwrap().push(username.to_string());
+        if let Some(why) = self.fail_clear.lock().unwrap().clone() {
+            return Err(why);
+        }
+        self.entries.lock().unwrap().remove(username);
         Ok(())
     }
 }

@@ -457,58 +457,17 @@ async fn run_with_log(
     Daemon::declare_route_knowledge(&choke);
     let now = choke.now();
 
-    // Sessions survive daemon restarts through the keyring, one entry per
-    // account; the account index says which entries to look for, and every
-    // persisted account comes back as a live session (C31). One unreadable
-    // entry never blocks the rest.
+    // Sessions survive daemon restarts through the keyring (C144: read
+    // through the credential store, as every keyring call is).
     let dir = world.provider_dir(provider.name);
-    let mut sessions = Sessions {
-        keyring: match auth::keyring_disabled() {
-            Some(why) => format!("unavailable: {why}"),
-            None => "ok".into(),
-        },
-        ..Sessions::default()
-    };
-    match Index::load(&dir) {
-        Ok(index) => {
-            for entry in index.persisted() {
-                match auth::keyring_load(provider.keyring_service, &entry.username) {
-                    Ok(Some(refresh_token)) => {
-                        sessions.replace(AuthSession {
-                            refresh_token: Some(refresh_token),
-                            username: Some(entry.username.clone()),
-                            uuid: entry.uuid.clone(),
-                            keyring: "ok".into(),
-                            ..AuthSession::default()
-                        });
-                    }
-                    Ok(None) => {
-                        writeln!(
-                            &log,
-                            "ACCOUNTS: index lists {} as persisted but the keyring has no entry",
-                            entry.username
-                        )
-                        .ok();
-                    }
-                    Err(e) => {
-                        sessions.keyring = format!("unavailable: {e}");
-                        writeln!(
-                            &log,
-                            "ACCOUNTS: keyring read for {} failed: {e}",
-                            entry.username
-                        )
-                        .ok();
-                    }
-                }
-            }
-            // `persisted()` is newest first; `replace` marked the last one
-            // inserted as the most recent login, which is the oldest.
-            sessions.last_login = index.persisted().first().map(|e| e.username.clone());
-        }
-        Err(e) => {
-            writeln!(&log, "ACCOUNTS: could not read {}: {e:#}", dir.display()).ok();
-        }
-    }
+    let credential_store: Arc<dyn CredentialStore> = Arc::new(OsCredentialStore);
+    let sessions = restore_sessions(
+        credential_store.as_ref(),
+        provider.keyring_service,
+        &dir,
+        auth::keyring_disabled(),
+        &mut &log,
+    );
 
     // A daemon that cannot read its queue must not run: it would restart
     // ids at 1 and reuse them against the table's history the moment the
@@ -542,7 +501,7 @@ async fn run_with_log(
         choke,
         provider,
         artifact: Some(artifact),
-        credential_store: Arc::new(OsCredentialStore),
+        credential_store,
         world: Some(world.name()),
         log_path: Some(log_path.clone()),
         socket_path: Some(bound),
@@ -706,4 +665,67 @@ impl AcceptErrors {
             _ => None,
         }
     }
+}
+
+/// The sessions a start restores: every account the index marks
+/// persisted comes back as a live session from its credential-store entry
+/// (C31), and one unreadable entry never blocks the rest. Every result of
+/// a load reaches the words (C144): an entry the store does not hold, a
+/// load that fails (the keyring status then says so, as `auth status`
+/// reads it), an index that cannot be read, each a log line.
+pub(super) fn restore_sessions(
+    store: &dyn CredentialStore,
+    service: &str,
+    dir: &std::path::Path,
+    disabled: Option<&str>,
+    log: &mut dyn std::io::Write,
+) -> Sessions {
+    let mut sessions = Sessions {
+        keyring: match disabled {
+            Some(why) => format!("unavailable: {why}"),
+            None => "ok".into(),
+        },
+        ..Sessions::default()
+    };
+    match Index::load(dir) {
+        Ok(index) => {
+            for entry in index.persisted() {
+                match store.load(service, &entry.username) {
+                    Ok(Some(refresh_token)) => {
+                        sessions.replace(AuthSession {
+                            refresh_token: Some(refresh_token),
+                            username: Some(entry.username.clone()),
+                            uuid: entry.uuid.clone(),
+                            keyring: "ok".into(),
+                            ..AuthSession::default()
+                        });
+                    }
+                    Ok(None) => {
+                        writeln!(
+                            log,
+                            "ACCOUNTS: index lists {} as persisted but the keyring has no entry",
+                            entry.username
+                        )
+                        .ok();
+                    }
+                    Err(e) => {
+                        sessions.keyring = format!("unavailable: {e}");
+                        writeln!(
+                            log,
+                            "ACCOUNTS: keyring read for {} failed: {e}",
+                            entry.username
+                        )
+                        .ok();
+                    }
+                }
+            }
+            // `persisted()` is newest first; `replace` marked the last one
+            // inserted as the most recent login, which is the oldest.
+            sessions.last_login = index.persisted().first().map(|e| e.username.clone());
+        }
+        Err(e) => {
+            writeln!(log, "ACCOUNTS: could not read {}: {e:#}", dir.display()).ok();
+        }
+    }
+    sessions
 }

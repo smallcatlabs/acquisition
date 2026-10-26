@@ -388,9 +388,10 @@ impl Entry {
 /// | `valid_access_token`: the refresh failed on transport, a 5xx, exhausted 429s, or the rails halt | `token refresh failed: …` | `upstream` |
 /// | `valid_access_token`: the session changed under the refresh | `authentication session changed …` | `not_logged_in` |
 /// | `valid_access_token`: the refresh owner was dropped | `token refresh owner was abandoned …` | `internal` |
-/// | `forget_account`: no index (harness daemons), an unreadable index, a keyring clear that failed | `no account index …`, `accounts index: …`, the keyring's error | `internal` |
+/// | `forget_account`: no index (harness daemons), an unreadable index | `no account index …`, `accounts index: …` | `internal` |
+/// | `forget_account` (C144): the keyring clear failed, after the account was marked not persisted | `forgot account … (not restored at start), but its keyring entry could not be cleared: …; … tries again` | `internal` |
 /// | `forget_account`: the index knows no such account / several | `no account matches …` / the index's message | `not_logged_in` / `ambiguous_account` |
-/// | `logout`: the keyring clear failed (logged, never on the wire) | the keyring's error | `internal` |
+/// | `logout` (C144): the keyring clear failed, after the session was dropped and the account marked not persisted — the answer, never an `ack` | `logged out … (session dropped), but its keyring entry could not be cleared: …; … tries again` | `internal` |
 ///
 /// Not a kind of its own: a rails halt never refuses a submit — a halted
 /// send waits, and `quote` names the halt in its body. The one request it
@@ -899,8 +900,14 @@ pub struct Daemon {
 /// Where a refresh token is kept (invariant 5): the OS keyring in a
 /// running daemon. `Any` lets the in-process harness name the test store
 /// its daemons default to.
+/// C144: every call's result reaches its caller and the words the user
+/// reads; restore reads through `load`, so a test can stage a store that
+/// fails at any of the three.
 trait CredentialStore: Send + Sync + std::any::Any {
     fn save(&self, service: &str, refresh_token: &str, username: &str) -> Result<(), String>;
+    /// The stored refresh token; `Ok(None)` when the store works and holds
+    /// no entry for the account.
+    fn load(&self, service: &str, username: &str) -> Result<Option<String>, String>;
     fn clear(&self, service: &str, username: &str) -> Result<(), String>;
 }
 
@@ -909,6 +916,10 @@ struct OsCredentialStore;
 impl CredentialStore for OsCredentialStore {
     fn save(&self, service: &str, refresh_token: &str, username: &str) -> Result<(), String> {
         auth::keyring_save(service, refresh_token, username)
+    }
+
+    fn load(&self, service: &str, username: &str) -> Result<Option<String>, String> {
+        auth::keyring_load(service, username)
     }
 
     fn clear(&self, service: &str, username: &str) -> Result<(), String> {
