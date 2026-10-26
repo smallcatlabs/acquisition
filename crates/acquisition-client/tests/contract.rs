@@ -38,7 +38,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use acquisition_client::client::{
-    Client, ConnectError, ConnectOptions, Observed, Signal, Subscription,
+    Client, ConnectError, ConnectOptions, NotReplaced, Observed, Signal, Subscription,
 };
 use acquisition_client::endpoint::{self, Listener, Stream};
 use acquisition_client::frame::{Frame, read_frame};
@@ -637,6 +637,206 @@ async fn c83_a_daemon_on_another_world_is_refused_and_never_replaced() {
     peer.abort();
     let _ = peer.await;
     let _ = std::fs::remove_file(session_socket());
+}
+
+// ---- the child a door spawns (C147) ---------------------------------------
+
+/// The session's daemon log, created empty: a daemon that loses the
+/// world lock appends its refusal to a log that exists and creates none.
+fn session_log() -> PathBuf {
+    let log = World::observe()
+        .expect("the session's world")
+        .log_path("mock");
+    std::fs::create_dir_all(log.parent().expect("a log directory")).expect("the log directory");
+    std::fs::write(&log, "").expect("the log");
+    log
+}
+
+/// The daemons this test process started and has not reaped: its
+/// children named `acqd`, or any of its children left a zombie (`ps`
+/// itself excluded).
+#[cfg(unix)]
+fn unreaped_daemons() -> Vec<String> {
+    let ps = std::process::Command::new("ps")
+        .args(["-A", "-o", "pid=,ppid=,stat=,comm="])
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .expect("ps");
+    let own = ps.id().to_string();
+    let out = ps.wait_with_output().expect("ps");
+    let me = std::process::id().to_string();
+    String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .filter(|line| {
+            let cols: Vec<&str> = line.split_whitespace().collect();
+            cols.len() >= 4
+                && cols[1] == me
+                && cols[0] != own
+                && (cols[2].starts_with('Z') || cols[3].contains("acqd"))
+        })
+        .map(str::to_string)
+        .collect()
+}
+
+/// C147, a lost spawn race looks once more for the winner: the world
+/// lock is held (here by the test, standing in for a daemon between its
+/// lock and its bind), so the daemon the use door spawns exits on it.
+/// The winner is started only once the door has reaped that child — the
+/// door has seen it exit, and is looking — so the door's answer is the
+/// look's: it opens on the winner, a daemon it did not start, rather
+/// than reporting a failed spawn.
+#[cfg(unix)]
+#[tokio::test]
+async fn c147_a_spawn_that_lost_the_world_lock_waits_for_the_winner() {
+    let s = session("lost-race");
+    harness::link_beside_this_test(&acqd_built());
+    let world = World::observe().expect("the session's world");
+    let log = session_log();
+    let held = Lock::acquire(&world.lock_path()).expect("the world lock");
+    let winner = async {
+        // The loser's refusal in the log, then the loser reaped by the
+        // door: it saw the exit, and is looking for the winner.
+        let deadline = Instant::now() + Duration::from_secs(60);
+        while !std::fs::read_to_string(&log)
+            .unwrap_or_default()
+            .contains("another daemon holds this world")
+            || !unreaped_daemons().is_empty()
+        {
+            assert!(
+                Instant::now() < deadline,
+                "the spawned daemon never met the lock, or was never reaped: {:?}",
+                unreaped_daemons()
+            );
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        drop(held);
+        let (winner, _said) = harness::spawn_drained(
+            harness::daemon_command(&acqd_built(), &s.base),
+            &acqd_built(),
+        );
+        winner
+    };
+    let (connected, mut winner) =
+        tokio::join!(Client::connect(ConnectOptions::interactive(true)), winner);
+    let client = connected.unwrap_or_else(|e| panic!("the door reported {e} over the winner"));
+    assert_eq!(client.daemon().pid(), winner.id(), "the winner answered");
+    assert!(
+        !client.spawned(),
+        "the daemon the door found is not the one it started"
+    );
+    drop(client);
+    Client::stop_any().await.expect("stop").expect("a daemon");
+    winner.wait_exit(Duration::from_secs(60));
+}
+
+/// C147 at the deadline: a spawned daemon that exited on a world lock no
+/// daemon then binds for fails the spawn when the look's deadline — the
+/// handshake's knob, forced to zero (C137) — has passed, naming the
+/// lock's holder.
+#[tokio::test]
+async fn c147_a_spawn_that_lost_the_world_lock_and_finds_no_winner_fails_naming_the_holder() {
+    let s = session("lost-alone");
+    harness::link_beside_this_test(&acqd_built());
+    let world = World::observe().expect("the session's world");
+    let _log = session_log();
+    let _held = Lock::acquire(&world.lock_path()).expect("the world lock");
+    s.set_knob("ACQ_HELLO_WITHIN", Some("0"));
+    let err = match Client::connect(ConnectOptions::interactive(true)).await {
+        Err(e) => e,
+        Ok(client) => panic!("a door opened on {}", client.daemon()),
+    };
+    assert!(matches!(err, ConnectError::SpawnFailed { .. }), "{err:?}");
+    let text = err.to_string();
+    assert!(
+        text.contains(&format!(
+            "the world's lock names pid {}, and no daemon answered on its socket within 0s",
+            std::process::id()
+        )) && text.contains("another daemon holds this world"),
+        "{text}"
+    );
+}
+
+/// C147, a failed stop is reported: a daemon of another contract on this
+/// world refuses the stop the use door sends to replace it, and stays.
+/// The door's answer is that stop's error, not "still, after a respawn"
+/// — nothing was respawned.
+#[tokio::test]
+async fn c147_a_stop_that_fails_on_the_replace_path_is_reported() {
+    let _s = session("stop-fails");
+    let hello = json!({
+        "resp": "hello",
+        "version": "9.9.9",
+        "contract": "ffffffffffff",
+        "pid": 4242,
+        "provider": "mock",
+        "world": World::observe().expect("the session's world").name(),
+    });
+    let peer = foreign_daemon(
+        hello,
+        json!({ "resp": "error", "kind": "future_kind", "message": "not while a world lock is held" }),
+    )
+    .await;
+    let err = match Client::connect(ConnectOptions::interactive(true)).await {
+        Err(e) => e,
+        Ok(_) => panic!("a foreign daemon is never used"),
+    };
+    match &err {
+        ConnectError::Incompatible {
+            found,
+            because: NotReplaced::StopFailed(error),
+        } => {
+            assert_eq!(found.pid(), 4242);
+            assert!(
+                error.contains("refused to stop") && error.contains("world lock"),
+                "{error}"
+            );
+        }
+        other => panic!("the door reported {other:?}"),
+    }
+    assert!(
+        err.to_string()
+            .contains("the stop sent to replace it failed"),
+        "{err}"
+    );
+    peer.abort();
+    let _ = peer.await;
+    let _ = std::fs::remove_file(session_socket());
+}
+
+/// C147, a client reaps the child it spawns: the daemon a use door
+/// started, stopped after the client that started it is gone, does not
+/// stay behind as this process's zombie. The exit is forced by the stop;
+/// the wait after it bounds a hang, not the reaper's speed.
+#[cfg(unix)]
+#[tokio::test]
+async fn c147_a_daemon_the_door_spawned_is_reaped_when_it_exits() {
+    let _s = session("reaped");
+    harness::link_beside_this_test(&acqd_built());
+    let client = Client::connect(ConnectOptions::interactive(true))
+        .await
+        .unwrap_or_else(|e| panic!("{e}"));
+    assert!(client.spawned(), "the door started the daemon");
+    let pid = client.daemon().pid();
+    drop(client);
+    let stopped = Client::stop_any().await.expect("stop").expect("a daemon");
+    assert_eq!(stopped.pid(), pid);
+    // A zombie still answers `ps` (state Z); a reaped process does not.
+    let deadline = Instant::now() + Duration::from_secs(60);
+    loop {
+        let out = std::process::Command::new("ps")
+            .args(["-o", "stat=", "-p", &pid.to_string()])
+            .output()
+            .expect("ps");
+        let stat = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        if stat.is_empty() {
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "the spawned daemon (pid {pid}) is still this process's child, state {stat}"
+        );
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
 }
 
 // ---- frames ---------------------------------------------------------------

@@ -305,7 +305,7 @@ pub enum ConnectError {
     /// policy, or `ACQ_NO_SPAWN=1` over a caller that would have.
     Absent { because: NotSpawned },
     /// The daemon listening is not this client's (C10: contract, artifact
-    /// or provider), and this door may not replace it — or did, and the replacement is still not it. The
+    /// or provider), and this door may not replace it — or did, and the replacement is still not it, or the stop sent to replace it failed. The
     /// identity is boxed so the error stays small on the stack.
     Incompatible {
         found: Box<DaemonId>,
@@ -474,7 +474,7 @@ pub enum NotSpawned {
 }
 
 /// Why an incompatible daemon was left standing.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NotReplaced {
     /// `ACQ_NO_SPAWN=1` forbids replacing it.
     NoSpawn,
@@ -486,6 +486,11 @@ pub enum NotReplaced {
     /// This client replaced it, and the daemon it then found is still not
     /// its own — the sibling `acqd` is not this build's.
     StillAfterRespawn,
+    /// C147, a failed stop is reported: this client asked it to stop so
+    /// as to replace it, the stop failed (the daemon refused, or the
+    /// conversation did), and the daemon is still there. The stop's
+    /// error, as words.
+    StopFailed(String),
 }
 
 impl fmt::Display for ConnectError {
@@ -515,6 +520,10 @@ impl fmt::Display for ConnectError {
                     "{found}, and this client never replaces a daemon — resolve it with the CLI (`acq daemon stop`)"
                 ),
                 NotReplaced::StillAfterRespawn => write!(f, "{found}, still, after a respawn"),
+                NotReplaced::StopFailed(error) => write!(
+                    f,
+                    "{found}, and the stop sent to replace it failed: {error}"
+                ),
             },
             ConnectError::OtherWorld { found } => {
                 write!(
@@ -1143,9 +1152,16 @@ impl Client {
         let own = world_at_door(root, spawn)?;
         let own_name = world_name(&own);
         let mut respawned = false;
+        // C147: the error of a stop sent to replace a mismatch, reported
+        // if the next look finds that daemon still there.
+        let mut stop_failed: Option<String> = None;
+        // C147: whether this door has already given a child that exited
+        // on the world lock its one more look for the winner.
+        let mut looked_for_winner = false;
         // The spawned daemon, with where its log ended at spawn time: if it
         // exits instead of binding the socket, the lines after that offset
         // are its refusal (its stderr goes to null — the log is all there is).
+        // Dropped, it is reaped (C147, `Spawned`'s drop).
         let mut child: Option<Spawned> = None;
         for _attempt in 0..100 {
             let socket = world_socket(&own).map_err(ConnectError::Transport)?;
@@ -1167,7 +1183,10 @@ impl Client {
                     };
                     if client.daemon.is_ours() {
                         let mut client = client;
-                        client.spawned = child.is_some();
+                        // Started here only if the daemon answering is the
+                        // child this door spawned (C147): a spawn that lost
+                        // the world reaches the winner, started elsewhere.
+                        client.spawned = child.as_ref().is_some_and(|c| c.pid == client.daemon.pid);
                         return Ok(client);
                     }
                     // Another world is judged before anything else and
@@ -1179,9 +1198,13 @@ impl Client {
                         });
                     }
                     if respawned {
+                        let because = match stop_failed.take() {
+                            Some(error) => NotReplaced::StopFailed(error),
+                            None => NotReplaced::StillAfterRespawn,
+                        };
                         return Err(ConnectError::Incompatible {
                             found: Box::new(client.daemon),
-                            because: NotReplaced::StillAfterRespawn,
+                            because,
                         });
                     }
                     if !replace {
@@ -1199,8 +1222,12 @@ impl Client {
                     }
                     // Stale daemon (older build, or wrong mode): kill and
                     // respawn — over the bootstrap plane, which works across
-                    // the mismatch (C85).
-                    let _ = client.stop().await;
+                    // the mismatch (C85). A stop that fails is kept, not
+                    // dropped (C147): if the next look finds the daemon
+                    // still there, the report is the stop's error; if it
+                    // went all the same, the respawn goes ahead. A child
+                    // this door spawned is reaped after the stop.
+                    stop_failed = client.stop().await.err().map(|e| format!("{e:#}"));
                     respawned = true;
                     child = None;
                     tokio::time::sleep(Duration::from_millis(200)).await;
@@ -1209,6 +1236,9 @@ impl Client {
                 // even for a `spawn: false` caller — leaving nothing running
                 // would turn a read into a stop.
                 Ok(Reached::Nothing) if spawn || respawned => {
+                    // The stopped daemon is gone: its stop's error, if
+                    // any, is not the answer.
+                    stop_failed = None;
                     match child.as_mut() {
                         None => {
                             let Ok(world) = &own else {
@@ -1221,12 +1251,35 @@ impl Client {
                         }
                         Some(spawned) => {
                             // An exited daemon will never bind the socket:
-                            // report its refusal now, not after the timeout.
-                            if let Some(status) = spawned.child.try_wait().ok().flatten() {
+                            // report its refusal now, not after the timeout
+                            // — unless it exited on a world lock another
+                            // daemon holds (C147): that one won a spawn
+                            // race and may be between the lock and the
+                            // bind, so it gets one more look first.
+                            if let Some(status) = spawned.exited() {
+                                let holder = lock_holder(&own).filter(|pid| *pid != spawned.pid);
+                                let mut lost = String::new();
+                                if let Some(pid) = holder
+                                    && !looked_for_winner
+                                {
+                                    looked_for_winner = true;
+                                    let within = hello_within();
+                                    if winner_listens(&own, within).await? {
+                                        // Not this door's daemon: the one
+                                        // it finds is reported as found.
+                                        child = None;
+                                        continue;
+                                    }
+                                    lost = format!(
+                                        "; the world's lock names pid {pid}, and no daemon \
+                                         answered on its socket within {}s",
+                                        within.as_secs()
+                                    );
+                                }
                                 return Err(ConnectError::SpawnFailed {
                                     acqd: Some(spawned.acqd.clone()),
                                     log: format!(
-                                        "the daemon exited during startup ({status}){}",
+                                        "the daemon exited during startup ({status}){lost}{}",
                                         startup_log_excerpt(spawned)
                                     ),
                                 });
@@ -1265,7 +1318,7 @@ impl Client {
                     "it did not bind {socket} within 5s{}",
                     startup_log_excerpt(&spawned)
                 ),
-                acqd: Some(spawned.acqd),
+                acqd: Some(spawned.acqd.clone()),
             },
             None => ConnectError::Transport(anyhow::anyhow!(
                 "could not reach daemon at {socket} after 5s"
@@ -1564,13 +1617,77 @@ async fn exchange<T: Serialize>(
     }
 }
 
-/// A daemon this client started: the executable it ran, its log, and
-/// where that log ended at spawn time.
+/// C147, the look for the winner: after a child this door spawned exited
+/// on a world lock another daemon holds, look for a listener on the
+/// world's socket until `within` (the handshake's deadline, C86, through
+/// its knob) has passed. A look is in time only before the deadline, so
+/// at zero there is none (C137). True when something listens: the
+/// caller's next turn identifies it.
+async fn winner_listens(
+    own: &Result<World, AbsentWorld>,
+    within: Duration,
+) -> Result<bool, ConnectError> {
+    let deadline = tokio::time::Instant::now() + within;
+    while tokio::time::Instant::now() < deadline {
+        let socket = world_socket(own).map_err(ConnectError::Transport)?;
+        match reach(socket).await {
+            Ok(Reached::Listening { .. }) => return Ok(true),
+            Ok(Reached::Nothing) => tokio::time::sleep(Duration::from_millis(50)).await,
+            Err((socket, e)) => {
+                return Err(ConnectError::Transport(
+                    anyhow::Error::from(e).context(format!("connecting to {}", socket.display())),
+                ));
+            }
+        }
+    }
+    Ok(false)
+}
+
+/// A daemon this client started: the process, the executable it ran,
+/// its log, and where that log ended at spawn time.
+///
+/// C147, a client reaps the child it spawns: `child` is held until it is
+/// seen to exit ([`Spawned::exited`] waits it then) or the `Spawned` is
+/// dropped — a door that returns, with the daemon it started or with an
+/// error, or a replace after its stop — and the drop hands a child still
+/// running to [`reap`]. A daemon outlives the door and the client that
+/// started it (C3), so the wait cannot be the door's: the reaper, a
+/// thread per spawned daemon, waits it when it exits, and a long-lived
+/// frontend keeps no zombie.
 struct Spawned {
-    child: std::process::Child,
+    child: Option<std::process::Child>,
+    pid: u32,
     acqd: PathBuf,
     log: PathBuf,
     log_from: u64,
+}
+
+impl Spawned {
+    /// The child's exit status once it has exited, reaped by the look.
+    fn exited(&mut self) -> Option<std::process::ExitStatus> {
+        self.child.as_mut()?.try_wait().ok().flatten()
+    }
+}
+
+impl Drop for Spawned {
+    fn drop(&mut self) {
+        if let Some(child) = self.child.take() {
+            reap(child);
+        }
+    }
+}
+
+/// C147: wait `child` on a thread of its own — at once when it has
+/// exited, else when it does. A thread that cannot be started leaves the
+/// child to the OS at this process's exit, as before this rule.
+fn reap(mut child: std::process::Child) {
+    if matches!(child.try_wait(), Ok(None)) {
+        let _ = std::thread::Builder::new()
+            .name("acqd-reaper".into())
+            .spawn(move || {
+                let _ = child.wait();
+            });
+    }
 }
 
 /// Start the `acqd` beside this executable (C82) with no arguments — its
@@ -1637,7 +1754,8 @@ fn spawn_daemon(world: &World) -> Result<Spawned, ConnectError> {
         log: format!("failed to spawn it: {e}"),
     })?;
     Ok(Spawned {
-        child,
+        pid: child.id(),
+        child: Some(child),
         acqd,
         log,
         log_from,
