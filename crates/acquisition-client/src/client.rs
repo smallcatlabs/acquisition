@@ -1096,6 +1096,11 @@ fn world_socket(own: &Result<World, AbsentWorld>) -> Result<Option<PathBuf>> {
     }
 }
 
+/// The startup polling budget: how many times a door that spawned a
+/// daemon looks for its bind, 50 ms apart — the five seconds its
+/// failure names.
+const STARTUP_POLLS: u32 = 100;
+
 /// What connecting to a world's socket found.
 enum Reached {
     /// Something is listening.
@@ -1134,6 +1139,19 @@ impl Client {
     /// construction — rather than the one the environment names now. The
     /// daemon it spawns is told that root, whatever the environment says.
     pub async fn connect_at(root: &Path, opts: ConnectOptions) -> Result<Client, ConnectError> {
+        Client::open_door(root, opts, STARTUP_POLLS, None).await
+    }
+
+    /// [`Client::connect_at`]'s body, with its two seams: `polls`, the
+    /// startup polling budget, and `child`, a daemon this door already
+    /// spawned. The door passes [`STARTUP_POLLS`] and none; the pin of
+    /// the last poll passes one poll and a child that has exited.
+    async fn open_door(
+        root: &Path,
+        opts: ConnectOptions,
+        polls: u32,
+        mut child: Option<Spawned>,
+    ) -> Result<Client, ConnectError> {
         // `ACQ_NO_SPAWN=1`: never start or replace a daemon from this
         // process. A daemon spawned from a non-interactive parent (cron,
         // launchd) has no keychain access on macOS — it comes up with no
@@ -1162,10 +1180,20 @@ impl Client {
         // exits instead of binding the socket, the lines after that offset
         // are its refusal (its stderr goes to null — the log is all there is).
         // Dropped, it is reaped (C147, `Spawned`'s drop).
-        let mut child: Option<Spawned> = None;
-        for _attempt in 0..100 {
-            let socket = world_socket(&own).map_err(ConnectError::Transport)?;
-            match reach(socket).await {
+        // C147: a winner the look found, carried straight into the
+        // handshake on the next turn, spending no startup poll: a found
+        // winner is identified whatever the polling budget has left.
+        let mut found: Option<(PathBuf, Stream)> = None;
+        // The startup polls spent: a turn that found nothing listening
+        // while this door waits for its daemon to bind. Only that turn
+        // spends one; a handshake turn returns or replaces once.
+        let mut polled = 0;
+        loop {
+            let reached = match found.take() {
+                Some((socket, stream)) => Ok(Reached::Listening { socket, stream }),
+                None => reach(world_socket(&own).map_err(ConnectError::Transport)?).await,
+            };
+            match reached {
                 Ok(Reached::Listening { socket, stream }) => {
                     let at = Endpoint::world(&socket).map_err(ConnectError::Transport)?;
                     let mut client = match Client::handshake(stream, at, own_name.clone()).await {
@@ -1264,9 +1292,11 @@ impl Client {
                                 {
                                     looked_for_winner = true;
                                     let within = hello_within();
-                                    if winner_listens(&own, within).await? {
+                                    if let Some(winner) = winner_listens(&own, within).await? {
                                         // Not this door's daemon: the one
-                                        // it finds is reported as found.
+                                        // it finds is handshaken next
+                                        // turn and reported as found.
+                                        found = Some(winner);
                                         child = None;
                                         continue;
                                     }
@@ -1285,6 +1315,10 @@ impl Client {
                                 });
                             }
                         }
+                    }
+                    polled += 1;
+                    if polled >= polls {
+                        break;
                     }
                     tokio::time::sleep(Duration::from_millis(50)).await;
                 }
@@ -1620,26 +1654,27 @@ async fn exchange<T: Serialize>(
 /// C147, the look for the winner: after a child this door spawned exited
 /// on a world lock another daemon holds, look for a listener on the
 /// world's socket until `within` (the handshake's deadline, C86, through
-/// its knob) has passed. True when something listens in time: the
-/// caller's next turn identifies it. The bound is the look's whole, as
-/// [`look_until`] keeps it.
+/// its knob) has passed. The connection reached in time, with its
+/// socket, when something listens: the caller hands it to the handshake
+/// directly. The bound is the look's whole, as [`look_until`] keeps it.
 async fn winner_listens(
     own: &Result<World, AbsentWorld>,
     within: Duration,
-) -> Result<bool, ConnectError> {
+) -> Result<Option<(PathBuf, Stream)>, ConnectError> {
+    #[cfg(test)]
+    tests::LOOKING.notify_one();
     let deadline = tokio::time::Instant::now() + within;
-    let found = look_until(deadline, tokio::time::Instant::now, || async move {
+    look_until(deadline, tokio::time::Instant::now, || async move {
         let socket = world_socket(own).map_err(ConnectError::Transport)?;
         match reach(socket).await {
-            Ok(Reached::Listening { .. }) => Ok(Some(())),
+            Ok(Reached::Listening { socket, stream }) => Ok(Some((socket, stream))),
             Ok(Reached::Nothing) => Ok(None),
             Err((socket, e)) => Err(ConnectError::Transport(
                 anyhow::Error::from(e).context(format!("connecting to {}", socket.display())),
             )),
         }
     })
-    .await?;
-    Ok(found.is_some())
+    .await
 }
 
 /// C147 and C137, a look bounded whole: `reach` again and again, a
@@ -1877,6 +1912,87 @@ mod tests {
         .expect("no transport failure");
         assert_eq!(reaches.get(), 1, "the look reached in time");
         assert_eq!(found, None, "a connect that succeeded after the deadline");
+    }
+
+    /// The look's start, signalled to the pin that binds a winner only
+    /// once the look is under way.
+    pub(super) static LOOKING: tokio::sync::Notify = tokio::sync::Notify::const_new();
+
+    /// C147, a found winner reaches the handshake: a child this door
+    /// spawned has exited on the world lock another pid holds, and its
+    /// exit is seen on the door's last startup poll (the budget forced to
+    /// one). The look finds the winner — a scripted peer of another
+    /// contract, bound only once the look has begun — and the door
+    /// handshakes it rather than running out of polls: its answer names
+    /// the winner (an autonomous door never replaces it), not a transport
+    /// failure. Every step waits on a signal or a state, and the look's
+    /// and the handshake's deadline is the knob at its largest (C137).
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn c147_a_winner_found_on_the_last_poll_is_handshaken() {
+        use tokio::io::AsyncBufReadExt;
+        let _env = ENV.lock().await;
+        let dir = std::env::temp_dir().join(format!("acqlp-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        // SAFETY: `ENV` is held; the crate's other environment-reading
+        // tests take it too.
+        unsafe {
+            std::env::set_var("ACQ_PROVIDER", "mock");
+            std::env::set_var("XDG_RUNTIME_DIR", &dir);
+            std::env::set_var("TMPDIR", &dir);
+            std::env::set_var("ACQ_HELLO_WITHIN", MAX_WITHIN_SECS.to_string());
+            std::env::remove_var("ACQ_NO_SPAWN");
+        }
+        acquisition_store::world::app_runtime_dir().unwrap();
+        let root = dir.join("store");
+        let world = World::create_at(&root).unwrap();
+        let _held = Lock::acquire(&world.lock_path()).unwrap();
+        // The loser: a child of this door that has exited.
+        let mut loser = std::process::Command::new("true").spawn().unwrap();
+        loser.wait().unwrap();
+        let spawned = Spawned {
+            pid: loser.id(),
+            child: Some(loser),
+            acqd: PathBuf::from("true"),
+            log: dir.join("acqd.log"),
+            log_from: 0,
+        };
+        let socket = world.socket_path().unwrap();
+        let name = world.name();
+        let winner = async move {
+            LOOKING.notified().await;
+            let listener = tokio::net::UnixListener::bind(&socket).unwrap();
+            let (stream, _) = listener.accept().await.unwrap();
+            let (read, mut write) = stream.into_split();
+            let mut line = String::new();
+            // A door that dropped the connection is the door's answer to
+            // judge, not the peer's failure.
+            let _ = tokio::io::BufReader::new(read).read_line(&mut line).await;
+            let hello = json!({
+                "resp": "hello",
+                "version": "9.9.9",
+                "contract": "ffffffffffff",
+                "pid": 4242,
+                "provider": "mock",
+                "world": name,
+            });
+            let _ = write.write_all(format!("{hello}\n").as_bytes()).await;
+            (listener, write)
+        };
+        let (door, _winner) = tokio::join!(
+            Client::open_door(&root, ConnectOptions::autonomous(true), 1, Some(spawned)),
+            winner
+        );
+        match door {
+            Err(ConnectError::Incompatible {
+                found,
+                because: NotReplaced::NeverReplaces,
+            }) => assert_eq!(found.pid(), 4242, "the winner was handshaken"),
+            Err(other) => panic!("the door reported {other}, not the winner"),
+            Ok(client) => panic!("the door opened on {}", client.daemon()),
+        }
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// The tests that read or set the process environment take this
