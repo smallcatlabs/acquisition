@@ -504,24 +504,11 @@ fn sync_dir(dir: Option<&Path>) -> Result<()> {
 mod tests {
     use super::*;
 
-    fn tmp() -> PathBuf {
-        // A counter, not a clock: two parallel tests can share a
-        // nanosecond, and the loser's directory gets deleted under it by
-        // the winner's cleanup (seen intermittently 2026-09-01).
-        static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-        let dir = std::env::temp_dir().join(format!(
-            "acq-index-{}-{}",
-            std::process::id(),
-            N.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-        ));
-        std::fs::create_dir_all(&dir).unwrap();
-        dir
-    }
-
     #[test]
     fn round_trip_and_resolution() {
-        let dir = tmp();
-        let mut idx = Index::load(&dir).unwrap();
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path();
+        let mut idx = Index::load(dir).unwrap();
         assert_eq!(idx.resolve(None), Err(Resolve::Empty));
         idx.upsert("Alice#1234", true, 10, &[]).unwrap();
         assert_eq!(idx.resolve(None).unwrap().username, "Alice#1234");
@@ -539,7 +526,7 @@ mod tests {
         idx.set_uuid("Bob#0001", "u-bob").unwrap();
         assert_eq!(idx.resolve(Some("u-bob")).unwrap().username, "Bob#0001");
         // Reload from disk: same content; persisted order is by recency.
-        let idx = Index::load(&dir).unwrap();
+        let idx = Index::load(dir).unwrap();
         assert_eq!(idx.entries().len(), 2);
         assert_eq!(
             idx.persisted()
@@ -554,16 +541,16 @@ mod tests {
         idx.set_persisted("Bob#0001", false).unwrap();
         assert_eq!(idx.persisted().len(), 1);
         assert_eq!(
-            account_path(&dir, "Alice#1234").file_name().unwrap(),
+            account_path(dir, "Alice#1234").file_name().unwrap(),
             "Alice_1234.db"
         );
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
     fn record_login_requires_the_uuid_and_follows_renames() {
-        let dir = tmp();
-        let mut idx = Index::load(&dir).unwrap();
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path();
+        let mut idx = Index::load(dir).unwrap();
         idx.record_login("Alice#1234", "u-alice", true, 10, &[])
             .unwrap();
         let e = idx.get("Alice#1234").unwrap();
@@ -597,7 +584,6 @@ mod tests {
             .collect();
         assert_eq!(cleos.len(), 1);
         assert_eq!(cleos[0].uuid.as_deref(), Some("u-alice"));
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// C144 (no keyring entry out of the index's reach), the review of the
@@ -610,8 +596,9 @@ mod tests {
     /// reach.
     #[test]
     fn c144_a_stop_after_the_renames_write_leaves_the_old_name_in_reach() {
-        let dir = tmp();
-        let mut idx = Index::load(&dir).unwrap();
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path();
+        let mut idx = Index::load(dir).unwrap();
         idx.record_login("Alice#1", "u-a", true, 10, &["Alice#1".into()])
             .unwrap();
 
@@ -624,7 +611,7 @@ mod tests {
             20,
             &["Alice#1".into(), "Alicia#2".into()],
         );
-        let read = Index::load(&dir).unwrap();
+        let read = Index::load(dir).unwrap();
         let entry = read.find(Some("u-a"), "Alicia#2").unwrap();
         assert_eq!(entry.username, "Alicia#2");
         for name in ["Alice#1", "Alicia#2"] {
@@ -633,7 +620,6 @@ mod tests {
                 "{name} in reach of {entry:?}"
             );
         }
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// C144: a held name leaves only on a clear that succeeded, a failed
@@ -642,13 +628,14 @@ mod tests {
     /// with it again.
     #[test]
     fn c144_a_name_leaves_only_on_its_successful_clear() {
-        let dir = tmp();
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path();
         std::fs::write(
-            index_path(&dir),
+            index_path(dir),
             r#"{"accounts":[{"username":"C#3","last_login":1,"persisted":true,"uuid":"u-a","keyring_name":"A#1"}]}"#,
         )
         .unwrap();
-        let mut idx = Index::load(&dir).unwrap();
+        let mut idx = Index::load(dir).unwrap();
         assert_eq!(idx.find(Some("u-a"), "x").unwrap().keyring_names, ["A#1"]);
         idx.settle_keyring_names(
             Some("u-a"),
@@ -658,21 +645,20 @@ mod tests {
             Some(false),
         )
         .unwrap();
-        let text = std::fs::read_to_string(index_path(&dir)).unwrap();
+        let text = std::fs::read_to_string(index_path(dir)).unwrap();
         assert!(!text.contains("\"keyring_name\""), "{text}");
-        let read = Index::load(&dir).unwrap();
+        let read = Index::load(dir).unwrap();
         let entry = read.get("C#3").unwrap();
         assert_eq!(entry.keyring_names, ["B#2"]);
         assert!(!entry.persisted);
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
     fn corrupt_index_is_an_error_not_a_reset() {
-        let dir = tmp();
-        std::fs::write(index_path(&dir), "{nope").unwrap();
-        assert!(Index::load(&dir).is_err());
-        let _ = std::fs::remove_dir_all(&dir);
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path();
+        std::fs::write(index_path(dir), "{nope").unwrap();
+        assert!(Index::load(dir).is_err());
     }
 
     /// C144 (the index is written atomically), issue #63: a writer that
@@ -681,10 +667,11 @@ mod tests {
     /// index as it was, readable whole, and the next save replaces it.
     #[test]
     fn c144_a_crash_between_write_and_rename_leaves_the_index_whole() {
-        let dir = tmp();
-        let mut idx = Index::load(&dir).unwrap();
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path();
+        let mut idx = Index::load(dir).unwrap();
         idx.upsert("Alice#1234", true, 10, &[]).unwrap();
-        let before = std::fs::read_to_string(index_path(&dir)).unwrap();
+        let before = std::fs::read_to_string(index_path(dir)).unwrap();
 
         idx.entries.push(AccountEntry {
             username: "Bob#0001".into(),
@@ -695,13 +682,12 @@ mod tests {
         });
         let orphan = idx.write_temp().unwrap();
         assert!(orphan.exists());
-        assert_eq!(std::fs::read_to_string(index_path(&dir)).unwrap(), before);
-        let read = Index::load(&dir).unwrap();
+        assert_eq!(std::fs::read_to_string(index_path(dir)).unwrap(), before);
+        let read = Index::load(dir).unwrap();
         assert_eq!(read.entries().len(), 1, "the old index, whole");
 
         idx.save().unwrap();
-        assert_eq!(Index::load(&dir).unwrap().entries().len(), 2);
-        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(Index::load(dir).unwrap().entries().len(), 2);
     }
 
     /// C144, issue #63: two writers for two accounts saving at once — two
@@ -712,7 +698,8 @@ mod tests {
     /// `shared`.)
     #[test]
     fn c144_two_accounts_saving_at_once_never_tear_the_index() {
-        let dir = tmp();
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().to_path_buf();
         Index::load(&dir)
             .unwrap()
             .upsert("seed", false, 0, &[])
@@ -742,6 +729,5 @@ mod tests {
         }
         reader.join().unwrap();
         assert!(Index::load(&dir).is_ok());
-        let _ = std::fs::remove_dir_all(&dir);
     }
 }

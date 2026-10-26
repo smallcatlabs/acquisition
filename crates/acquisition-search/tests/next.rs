@@ -391,7 +391,8 @@ proptest! {
 /// responses at the same times are the same state, and it continues.
 #[test]
 fn a_file_deleted_and_refetched_to_the_same_revision_is_another_basis() {
-    let path = tmp();
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("facts.db");
     let build = |shift: i64, second: &str| {
         for suffix in ["", "-wal", "-shm"] {
             let _ = std::fs::remove_file(format!("{}{suffix}", path.display()));

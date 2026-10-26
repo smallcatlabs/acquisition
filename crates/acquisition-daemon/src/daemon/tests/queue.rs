@@ -8,7 +8,6 @@ use crate::daemon::queue::{
     APPLY_MAX_ACTIONS, PARAMS_MAX_BYTES, SEGMENT_MAX_BYTES, SUBMITTER_MAX_BYTES,
 };
 use crate::daemon::*;
-use std::sync::atomic::Ordering;
 
 // ---- admission (C127) ------------------------------------------------
 
@@ -107,7 +106,7 @@ fn assert_refused(response: Response, what: &str, said: &[&str]) {
 
 /// A harness daemon with one live session holding a fresh access
 /// token, so a network job it admitted would send at once.
-fn live_daemon(base: &str) -> (Arc<Daemon>, PathBuf) {
+fn live_daemon(base: &str) -> (Arc<Daemon>, TestPath) {
     let (daemon, log_path) = test_daemon(base, Arc::new(ManualClock::new()));
     {
         let mut s = daemon.shared.lock().unwrap();
@@ -1143,27 +1142,13 @@ async fn c127_an_apply_over_its_action_bound_is_refused_and_one_at_it_is_admitte
 
 // ---- persistence (C6) ------------------------------------------------
 
-fn test_db_path() -> PathBuf {
-    std::env::temp_dir().join(format!(
-        "acquisition-jobs-{}-{}.db",
-        std::process::id(),
-        TEST_LOG_ID.fetch_add(1, Ordering::Relaxed)
-    ))
-}
-
 /// A harness daemon on a file-backed `daemon.db` (test daemons default
 /// to a throwaway in-memory one), restored from it like `run` does.
-fn persisting_daemon(base: &str, db_path: &std::path::Path) -> (Arc<Daemon>, PathBuf) {
+fn persisting_daemon(base: &str, db_path: &std::path::Path) -> (Arc<Daemon>, TestPath) {
     let (mut daemon, log_path) = test_daemon(base, Arc::new(ManualClock::new()));
     Arc::get_mut(&mut daemon).unwrap().jobs_db = Mutex::new(JobDb::open(db_path).unwrap());
     daemon.restore_jobs(Retention::default()).unwrap();
     (daemon, log_path)
-}
-
-fn remove_db(path: &std::path::Path) {
-    for suffix in ["", "-wal", "-shm"] {
-        let _ = std::fs::remove_file(format!("{}{suffix}", path.display()));
-    }
 }
 
 /// Make every later statement on the daemon's queue fail: the table
@@ -1183,7 +1168,6 @@ fn break_queue(db: &std::path::Path) {
 #[tokio::test]
 async fn the_queue_and_results_survive_a_daemon_restart() {
     let db = test_db_path();
-    remove_db(&db);
     // Lifetime 1: one job finished, one running, one waiting. No
     // dispatcher runs — the running state is written the way
     // `process` writes it — so nothing of this lifetime survives the
@@ -1290,7 +1274,6 @@ async fn the_queue_and_results_survive_a_daemon_restart() {
     for p in [log1, log2, log3] {
         finish_harness(None, &p);
     }
-    remove_db(&db);
 }
 
 /// C50 (the fetch belongs to its login's lifetime): a login's profile
@@ -1306,7 +1289,6 @@ async fn the_queue_and_results_survive_a_daemon_restart() {
 async fn c50_a_lost_logins_profile_fetch_fails_at_restore_and_sends_nothing() {
     let (base, sent_log, _arrived, _release) = account_server(("GET", "/never", 0)).await;
     let db = test_db_path();
-    remove_db(&db);
     {
         let db = JobDb::open(&db).unwrap();
         let waiting_profile = |id: JobId, submitted_by: &str| acquisition_store::jobs::JobRow {
@@ -1360,13 +1342,11 @@ async fn c50_a_lost_logins_profile_fetch_fails_at_restore_and_sends_nothing() {
     );
     assert_journal_matches_wire(&log_path, &wire_methods(&sent_log));
     finish_harness(dispatcher, &log_path);
-    remove_db(&db);
 }
 
 #[tokio::test]
 async fn restore_drops_probes_and_finishes_a_parent_whose_children_are_done() {
     let db = test_db_path();
-    remove_db(&db);
     {
         let db = JobDb::open(&db).unwrap();
         let row = |id: u64, kind: &str, state: &str, parent: Option<u64>| {
@@ -1469,13 +1449,11 @@ async fn restore_drops_probes_and_finishes_a_parent_whose_children_are_done() {
     );
     assert_eq!(daemon.shared.lock().unwrap().next_id, 8);
     finish_harness(None, &log);
-    remove_db(&db);
 }
 
 #[tokio::test]
 async fn a_failed_queue_write_refuses_new_jobs_and_stops_dispatch() {
     let db = test_db_path();
-    remove_db(&db);
     let (daemon, log) = persisting_daemon("http://127.0.0.1:1", &db);
     daemon
         .submit("sleep".into(), json!({}), 0, "t".into(), None)
@@ -1500,19 +1478,16 @@ async fn a_failed_queue_write_refuses_new_jobs_and_stops_dispatch() {
         "the parked queue does not hold the daemon up"
     );
     finish_harness(None, &log);
-    remove_db(&db);
 }
 
 #[tokio::test]
 async fn a_broken_queue_is_fatal_to_restore() {
     let db = test_db_path();
-    remove_db(&db);
     let (daemon, log) = persisting_daemon("http://127.0.0.1:1", &db);
     break_queue(&db);
     let err = daemon.restore_jobs(Retention::default()).unwrap_err();
     assert!(err.to_string().contains("could not read"), "{err:#}");
     finish_harness(None, &log);
-    remove_db(&db);
 }
 
 #[tokio::test]
@@ -1521,7 +1496,6 @@ async fn a_transition_that_cannot_persist_does_not_run() {
     // write fails, disk still says waiting, and after a restart a
     // no-probe job would replay blind. The job must not run.
     let db = test_db_path();
-    remove_db(&db);
     let (daemon, log) = persisting_daemon("http://127.0.0.1:1", &db);
     let id = daemon
         .submit(
@@ -1546,13 +1520,11 @@ async fn a_transition_that_cannot_persist_does_not_run() {
         "the failed write tripped the queue"
     );
     finish_harness(dispatcher, &log);
-    remove_db(&db);
 }
 
 #[tokio::test]
 async fn cancel_and_reprioritize_report_a_failed_queue_write() {
     let db = test_db_path();
-    remove_db(&db);
     let (daemon, log) = persisting_daemon("http://127.0.0.1:1", &db);
     let id = daemon
         .submit("sleep".into(), json!({}), 3, "t".into(), None)
@@ -1571,13 +1543,11 @@ async fn cancel_and_reprioritize_report_a_failed_queue_write() {
         "the cancellation still holds for this lifetime"
     );
     finish_harness(None, &log);
-    remove_db(&db);
 }
 
 #[tokio::test]
 async fn a_result_read_failure_is_reported_not_no_job() {
     let db = test_db_path();
-    remove_db(&db);
     let (daemon, log) = persisting_daemon("http://127.0.0.1:1", &db);
     break_queue(&db);
     match daemon
@@ -1591,5 +1561,4 @@ async fn a_result_read_failure_is_reported_not_no_job() {
         other => panic!("{other:?}"),
     }
     finish_harness(None, &log);
-    remove_db(&db);
 }

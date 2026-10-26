@@ -6,7 +6,6 @@
 pub mod generated;
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
 
 use acquisition_search::show::Shown;
 use acquisition_search::{Answer, Corpus, Realm, Request, SearchError};
@@ -14,24 +13,22 @@ use acquisition_store::corpus::RealmScope;
 use acquisition_store::{Annotations, Endpoint, Store};
 use serde_json::{Value, json};
 
-/// A facts file of this test's own. The process id alone is not: ids come
-/// round again, and a directory an earlier run left behind would be opened
-/// as this one's store — an empty store seen holding twelve items, once.
-pub fn tmp() -> PathBuf {
-    static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-    let dir = std::env::temp_dir().join(format!(
-        "acq-search-{}-{}",
-        std::process::id(),
-        N.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-    ));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
-    dir.join("facts.db")
+/// A store that knows its account and nothing else, in memory: the search
+/// reads the store and never its file, so a test leaves nothing on disk
+/// and opens nothing an earlier run left.
+pub fn store() -> Store {
+    knows_its_account(Store::open_memory().unwrap())
 }
 
-/// A store that knows its account and nothing else.
-pub fn store() -> Store {
-    let mut s = Store::open(&tmp()).unwrap();
+/// [`store`] in a facts file under `dir`, for a test whose subject is the
+/// file: a second handle, its tables, the store it names. The test holds
+/// `dir`, a `tempfile::TempDir`, for its whole body, and the file goes
+/// with it.
+pub fn store_in(dir: &tempfile::TempDir) -> Store {
+    knows_its_account(Store::open(&dir.path().join("facts.db")).unwrap())
+}
+
+fn knows_its_account(mut s: Store) -> Store {
     s.record(
         &Endpoint::Profile,
         &json!({}),
@@ -254,7 +251,15 @@ pub fn lines(life: &[i64], res: i64) -> Vec<String> {
 /// r7 (no life line, 65); r4 a magic ring (95, 70); r5 rare, life 95, res
 /// 65, its base missing from the class table.
 pub fn worked() -> Store {
-    let mut s = store();
+    worked_from(store())
+}
+
+/// [`worked`] in a facts file under `dir` ([`store_in`]).
+pub fn worked_in(dir: &tempfile::TempDir) -> Store {
+    worked_from(store_in(dir))
+}
+
+fn worked_from(mut s: Store) -> Store {
     list_tabs(
         &mut s,
         "pc",

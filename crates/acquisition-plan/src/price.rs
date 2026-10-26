@@ -1231,12 +1231,8 @@ mod tests {
     /// the create has read and is waiting on the lock.
     #[test]
     fn a_create_after_a_racing_clear_reports_no_prior() {
-        let dir = std::env::temp_dir().join(format!(
-            "acq-price-race-{}-{}",
-            std::process::id(),
-            acquisition_store::now()
-        ));
-        let _ = std::fs::remove_dir_all(&dir);
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().to_path_buf();
         let mut a = Annotations::open_for(&dir, "u-race").unwrap();
         let via = Provenance::via("test");
         let target = PriceTarget::Item { id: "i1".into() };
@@ -1266,7 +1262,6 @@ mod tests {
             "the create landed over the clear's tombstone"
         );
         assert_eq!(receipt.prior, None, "a create replaced nothing");
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// C67 — whether a new price may name a retired tag is the writer's

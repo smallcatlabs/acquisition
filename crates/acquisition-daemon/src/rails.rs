@@ -1106,9 +1106,8 @@ mod tests {
     /// on `reset_tripwire`, which rewrites the file without it.
     #[test]
     fn a_block_mark_is_honoured_without_the_tripwire() {
-        let path =
-            std::env::temp_dir().join(format!("acq-rails-block-{}.json", std::process::id()));
-        let _ = std::fs::remove_file(&path);
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("rails-block.json");
         let config = RailsConfig {
             state_path: Some(path.clone()),
             ..RailsConfig::default()
@@ -1162,7 +1161,6 @@ mod tests {
         // Strict over the new field: a mark that is not a cause refuses.
         std::fs::write(&path, r#"{"blocked":7}"#).unwrap();
         assert!(verify_state(&path).is_err());
-        let _ = std::fs::remove_file(&path);
     }
 
     /// A reset forgets a halt nobody announced: its cause is no longer
@@ -1216,11 +1214,8 @@ mod tests {
     /// restart clears what holds; the next daemon is still halted on it.
     #[test]
     fn a_cloudflare_503_under_the_tripwire_is_named_by_its_trip() {
-        let path = std::env::temp_dir().join(format!(
-            "acq-rails-unreachable-trip-{}.json",
-            std::process::id()
-        ));
-        let _ = std::fs::remove_file(&path);
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("rails-unreachable-trip.json");
         let config = RailsConfig {
             tripwire: true,
             state_path: Some(path.clone()),
@@ -1252,7 +1247,6 @@ mod tests {
             next.halted()
         );
         drop(next);
-        let _ = std::fs::remove_file(&path);
     }
 
     #[test]
@@ -1321,9 +1315,8 @@ mod tests {
 
     #[test]
     fn violation_trip_and_refresh_mark_persist_but_ceiling_does_not() {
-        let dir = std::env::temp_dir();
-        let path = dir.join(format!("acq-rails-test-{}.json", std::process::id()));
-        let _ = std::fs::remove_file(&path);
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("rails.json");
         let config = RailsConfig {
             tripwire: true,
             max_sends: Some(1),
@@ -1359,7 +1352,6 @@ mod tests {
         }
         let rails = Rails::with_config(config);
         assert_eq!(rails.halted(), None, "ceiling trips never persist");
-        let _ = std::fs::remove_file(&path);
     }
 
     /// C83: the world's rails state is read strictly before a lifetime
@@ -1368,9 +1360,8 @@ mod tests {
     /// naming the remedy (fail closed, review 2026-09-11).
     #[test]
     fn c83_the_worlds_rails_state_is_verified_strictly_before_a_lifetime() {
-        let dir = std::env::temp_dir().join(format!("acq-rails-verify-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().to_path_buf();
         let current = dir.join("rails.json");
         assert_eq!(verify_state(&current), Ok(None), "no file is a clean start");
         std::fs::write(
@@ -1392,7 +1383,6 @@ mod tests {
         let err = verify_state(&current).unwrap_err();
         assert!(err.0.contains("not readable"), "{err}");
         assert!(err.to_string().contains("reset-tripwire"), "{err}");
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// The journal never carries a token or a body. Two things hold
@@ -1410,9 +1400,8 @@ mod tests {
         use crate::ratelimit::{rate_limit_snapshot, response_headers_snapshot, url_path};
         use reqwest::header::{HeaderMap, HeaderValue};
 
-        let path =
-            std::env::temp_dir().join(format!("acq-journal-test-{}.jsonl", std::process::id()));
-        let _ = std::fs::remove_file(&path);
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("journal-test.jsonl");
         let rails = Rails::with_config(RailsConfig {
             journal_path: Some(path.clone()),
             ..RailsConfig::default()
@@ -1559,7 +1548,6 @@ mod tests {
         ] {
             assert!(!lower.contains(key), "journal leaked {key}: {text}");
         }
-        let _ = std::fs::remove_file(&path);
     }
 
     /// A field of the state file this build does not know is a later
@@ -1567,8 +1555,8 @@ mod tests {
     /// as it carries the ladder's trip, and a reset keeps it.
     #[test]
     fn a_later_builds_field_survives_this_daemons_writes() {
-        let path =
-            std::env::temp_dir().join(format!("acq-rails-later-{}.json", std::process::id()));
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("rails-later.json");
         std::fs::write(
             &path,
             r#"{"blocked":"Cloudflare answered in GGG's place: 403 on GET x at t","later_build_mark":{"cause":"a later halt"}}"#,
@@ -1592,12 +1580,12 @@ mod tests {
             json!({ "cause": "a later halt" }),
             "the file holds the later field alone, and is kept"
         );
-        let _ = std::fs::remove_file(&path);
     }
 
     #[test]
     fn persisted_trip_is_ignored_without_the_tripwire() {
-        let path = std::env::temp_dir().join(format!("acq-rails-off-{}.json", std::process::id()));
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("rails-off.json");
         std::fs::write(
             &path,
             r#"{"tripped":"429 on GET /x","refresh_failed_by_account":{"A#1":"400"}}"#,
@@ -1623,7 +1611,6 @@ mod tests {
             ..RailsConfig::default()
         });
         assert!(armed.halted().is_some());
-        let _ = std::fs::remove_file(&path);
     }
 
     /// H3-F3: each owner's state survives every other owner's writes. A
@@ -1633,8 +1620,8 @@ mod tests {
     /// clears the trip and the mark.
     #[test]
     fn a_tripwire_off_daemon_keeps_the_ladders_trip_through_its_own_writes() {
-        let path =
-            std::env::temp_dir().join(format!("acq-rails-owners-{}.json", std::process::id()));
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("rails-owners.json");
         std::fs::write(&path, r#"{"tripped":"429 on GET /x (the ladder's)"}"#).unwrap();
         let config = RailsConfig {
             state_path: Some(path.clone()),
@@ -1692,7 +1679,8 @@ mod tests {
     fn unopenable_journal_is_reported_not_silent() {
         // Under a regular file, which no platform opens as a directory (a
         // missing root directory is one a Windows user may create).
-        let file = std::env::temp_dir().join(format!("acq-not-a-dir-{}", std::process::id()));
+        let temp = tempfile::tempdir().unwrap();
+        let file = temp.path().join("not-a-dir");
         std::fs::write(&file, b"").unwrap();
         let rails = Rails::with_config(RailsConfig {
             journal_path: Some(file.join("acq.jsonl")),
@@ -1700,7 +1688,6 @@ mod tests {
         });
         assert!(rails.status().journal.unwrap().starts_with("NOT WRITTEN"));
         assert_eq!(rails.startup_warnings().len(), 1);
-        let _ = std::fs::remove_file(&file);
     }
 
     #[test]

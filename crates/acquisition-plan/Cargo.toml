@@ -20,6 +20,8 @@ anyhow.workspace = true
 # sha2 for the fixture writer (`examples/redact-pricing.rs`)
 proptest = "1.11.0"
 sha2 = "0.10"
+# a test's own folder, removed on drop: never a name built from the pid
+tempfile.workspace = true
 # the write tests' second connection, holding the intent file's lock
 # across a racing write as the store's own lock tests do
 rusqlite = "0.32"

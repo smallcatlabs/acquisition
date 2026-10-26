@@ -124,8 +124,8 @@ mod tests {
     /// the executable, the path looked for, and the build step.
     #[test]
     fn c82_the_daemon_is_the_sibling_named_acqd_or_nothing() {
-        let dir = std::env::temp_dir().join(format!("acq-locator-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().to_path_buf();
         std::fs::create_dir_all(dir.join("bin")).unwrap();
         let exe = dir.join("bin").join("acq");
         std::fs::write(&exe, b"").unwrap();
@@ -150,6 +150,5 @@ mod tests {
         std::fs::remove_file(dir.join("bin").join(ACQD)).unwrap();
         std::fs::create_dir(dir.join("bin").join(ACQD)).unwrap();
         assert!(beside(&exe).is_err());
-        let _ = std::fs::remove_dir_all(&dir);
     }
 }

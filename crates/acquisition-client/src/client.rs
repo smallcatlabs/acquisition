@@ -1982,8 +1982,8 @@ mod tests {
     async fn c147_a_winner_found_on_the_last_poll_is_handshaken() {
         use tokio::io::AsyncBufReadExt;
         let env = ENV.lock().await;
-        let mut moved = Moved::new(&env, "acqlp");
-        let dir = moved.dir.clone();
+        let mut moved = Moved::new(&env);
+        let dir = moved.dir.path().to_path_buf();
         moved.set("ACQ_PROVIDER", "mock");
         moved.set("XDG_RUNTIME_DIR", &dir);
         moved.set("TMPDIR", &dir);
@@ -2081,8 +2081,8 @@ mod tests {
         }
         // The replacement is a real daemon, so it inherits a mock
         // world's knobs and nothing of the caller's.
-        let mut moved = Moved::new(&env, "acqrp");
-        let dir = moved.dir.clone();
+        let mut moved = Moved::new(&env);
+        let dir = moved.dir.path().to_path_buf();
         for (key, _) in std::env::vars_os() {
             if key.to_str().is_some_and(|k| k.starts_with("ACQ_")) {
                 moved.remove(key);
@@ -2168,23 +2168,20 @@ mod tests {
     /// A test's moved world: a scratch directory, and the environment
     /// variables the test set or removed, each with the value it had.
     /// Made only under the `ENV` guard it borrows, so it cannot outlive
-    /// the lock. Dropped, it restores every variable first and removes the
-    /// scratch only then, so nothing that reads the environment after it
-    /// is pointed at a directory that is gone.
+    /// the lock. Dropped, it restores every variable first and its
+    /// scratch, a field, goes only then, so nothing that reads the
+    /// environment after it is pointed at a directory that is gone.
     struct Moved<'a> {
-        dir: PathBuf,
+        dir: tempfile::TempDir,
         saved: Vec<(std::ffi::OsString, Option<std::ffi::OsString>)>,
         _env: &'a tokio::sync::MutexGuard<'static, ()>,
     }
 
     impl<'a> Moved<'a> {
-        /// A fresh scratch directory named `name` and this process.
-        fn new(env: &'a tokio::sync::MutexGuard<'static, ()>, name: &str) -> Moved<'a> {
-            let dir = std::env::temp_dir().join(format!("{name}-{}", std::process::id()));
-            let _ = std::fs::remove_dir_all(&dir);
-            std::fs::create_dir_all(&dir).unwrap();
+        /// A fresh scratch directory of its own.
+        fn new(env: &'a tokio::sync::MutexGuard<'static, ()>) -> Moved<'a> {
             Moved {
-                dir,
+                dir: tempfile::tempdir().unwrap(),
                 saved: Vec::new(),
                 _env: env,
             }
@@ -2223,7 +2220,6 @@ mod tests {
                     }
                 }
             }
-            let _ = std::fs::remove_dir_all(&self.dir);
         }
     }
 
@@ -2238,8 +2234,8 @@ mod tests {
         let env = ENV.lock().await;
         let before: Vec<_> = std::env::vars_os().collect();
         let scratch = {
-            let mut moved = Moved::new(&env, "acqmv");
-            let dir = moved.dir.clone();
+            let mut moved = Moved::new(&env);
+            let dir = moved.dir.path().to_path_buf();
             moved.set("TMPDIR", &dir);
             moved.set("XDG_RUNTIME_DIR", &dir);
             moved.set("ACQ_PROVIDER", "mock");
@@ -2266,9 +2262,6 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(stopped.pid(), 7);
-        let _ = std::fs::remove_dir_all(
-            std::env::temp_dir().join(format!("acq-stop-{}", std::process::id())),
-        );
     }
 
     /// This process's world as an observing door resolves it: the
@@ -2310,12 +2303,12 @@ mod tests {
     #[test]
     fn c84_a_daemon_of_another_contract_artifact_or_provider_is_not_this_clients() {
         let _env = ENV.blocking_lock();
-        let dir = std::env::temp_dir().join(format!("acq-verdict-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path();
         // SAFETY: `ENV` is held; the crate's other environment-reading
         // tests take it too.
         unsafe {
-            std::env::set_var("ACQ_STORE_DIR", &dir);
+            std::env::set_var("ACQ_STORE_DIR", dir);
             std::env::set_var("ACQ_PROVIDER", "mock");
         }
         assert_eq!(CONTRACT_REVISION.len(), 12);
@@ -2390,7 +2383,7 @@ mod tests {
         assert_eq!(report["socket"], "/run/acq/test.sock");
         assert_eq!(
             report["wanted"]["world"],
-            acquisition_store::world::canonical(&dir)
+            acquisition_store::world::canonical(dir)
                 .unwrap()
                 .display()
                 .to_string()
@@ -2408,7 +2401,7 @@ mod tests {
         // root removed after the handshake changes neither.
         let judged_before = id(CONTRACT_REVISION, "mock");
         assert!(judged_before.world_matches());
-        std::fs::remove_dir_all(&dir).unwrap();
+        std::fs::remove_dir_all(dir).unwrap();
         assert!(judged_before.world_matches(), "the verdict is captured");
         let report = judged_before.report();
         assert_eq!(report["world_matches"], true, "{report}");
@@ -2422,7 +2415,7 @@ mod tests {
             !judged_before.to_string().contains("another world"),
             "{judged_before}"
         );
-        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::create_dir_all(dir).unwrap();
         // An absent world of this process's own matches no daemon and
         // says why under `wanted`.
         unsafe {
@@ -2442,7 +2435,6 @@ mod tests {
         unsafe {
             std::env::remove_var("ACQ_STORE_DIR");
         }
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// The absence reason is the caller's policy before the knob, and the
@@ -2454,9 +2446,8 @@ mod tests {
     #[tokio::test]
     async fn an_absent_daemon_names_why_it_was_not_started() {
         let _env = ENV.lock().await;
-        let dir = std::env::temp_dir().join(format!("acq-absent-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path();
         // SAFETY: `ENV` is held; the crate's other environment-reading
         // tests take it too.
         unsafe {
@@ -2510,7 +2501,6 @@ mod tests {
             std::env::remove_var("ACQ_NO_SPAWN");
             std::env::remove_var("ACQ_STORE_DIR");
         }
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// A scripted peer on a scratch socket: answers the handshake as a
@@ -2519,16 +2509,15 @@ mod tests {
     async fn peer_that_answers_stop_with(reply: Option<serde_json::Value>) -> Stream {
         static N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
         let n = N.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        // The socket's folder goes with the peer, once it has answered.
+        let scratch = tempfile::tempdir().unwrap();
         let path = if cfg!(windows) {
             PathBuf::from(format!(r"\\.\pipe\acq-stop-{}-{n}", std::process::id()))
         } else {
-            let dir = std::env::temp_dir().join(format!("acq-stop-{}", std::process::id()));
-            std::fs::create_dir_all(&dir).unwrap();
-            dir.join(format!("{n}.sock"))
+            scratch.path().join("peer.sock")
         };
         let mut listener = crate::endpoint::Listener::bind(&path).unwrap();
         let accept = async move { listener.accept().await.unwrap() };
-        let peer_path = path.clone();
         tokio::spawn(async move {
             let stream = accept.await;
             let (read, mut write) = tokio::io::split(stream);
@@ -2552,7 +2541,7 @@ mod tests {
                 write.write_all(line.as_bytes()).await.unwrap();
             }
             // Dropping `write` hangs up either way.
-            let _ = std::fs::remove_file(&peer_path);
+            drop(scratch);
         });
         connect_endpoint(&path).await.unwrap()
     }
@@ -2615,11 +2604,5 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(stopped.pid(), 7);
-        // The peers' scratch directory goes with the test (each peer
-        // removed only its socket; 22 of these sat in the temp directory
-        // after a day's gate runs, 2026-09-11).
-        let _ = std::fs::remove_dir_all(
-            std::env::temp_dir().join(format!("acq-stop-{}", std::process::id())),
-        );
     }
 }

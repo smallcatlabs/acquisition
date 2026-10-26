@@ -3616,9 +3616,8 @@ mod tests {
 
     #[test]
     fn files_from_before_the_listing_columns_are_migrated_in_place() {
-        let dir =
-            std::env::temp_dir().join(format!("acq-store-mig-{}-{}", std::process::id(), now()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().to_path_buf();
         let path = dir.join("old.db");
         {
             // A tabs table as the schema had it before listed_json /
@@ -3742,7 +3741,6 @@ mod tests {
                 supported: FACT_SCHEMA_VERSION
             })
         );
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// Facts v8 (B4): a v7 file loses `items_names` and gains
@@ -3750,9 +3748,8 @@ mod tests {
     /// nothing, and a fresh file has the same two.
     #[test]
     fn v7_to_v8_swaps_the_index_and_moves_no_row() {
-        let dir =
-            std::env::temp_dir().join(format!("acq-store-v8-{}-{}", std::process::id(), now()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().to_path_buf();
         let path = dir.join("facts.db");
         let indexes = |s: &Store| -> Vec<String> {
             let mut stmt = s
@@ -3812,7 +3809,6 @@ mod tests {
             assert_eq!(rows(&s), before);
             assert_eq!(s.revision().unwrap().facts_version, FACT_SCHEMA_VERSION);
         }
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// Facts v9 (0a): a v8 file gains `items_live` and `items_live_at`,
@@ -3820,9 +3816,8 @@ mod tests {
     /// changes nothing.
     #[test]
     fn v8_to_v9_adds_the_live_indexes_and_moves_no_row() {
-        let dir =
-            std::env::temp_dir().join(format!("acq-store-v9-{}-{}", std::process::id(), now()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().to_path_buf();
         let path = dir.join("facts.db");
         let live_index = |s: &Store| -> Vec<String> {
             let mut stmt = s
@@ -3873,7 +3868,6 @@ mod tests {
             assert_eq!(rows(&s), before);
             assert_eq!(s.revision().unwrap().facts_version, 9);
         }
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// 0a: a reader's open of a current file takes no write lock, so it
@@ -3883,9 +3877,8 @@ mod tests {
     /// reads under it, never the one it read before.
     #[test]
     fn a_current_file_opens_while_a_writer_holds_the_lock() {
-        let dir =
-            std::env::temp_dir().join(format!("acq-store-reader-{}-{}", std::process::id(), now()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().to_path_buf();
         let path = dir.join("facts.db");
         drop(Store::open(&path).unwrap());
         let writer = Connection::open(&path).unwrap();
@@ -3927,7 +3920,6 @@ mod tests {
                 supported: FACT_SCHEMA_VERSION
             })
         );
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -4809,9 +4801,8 @@ mod tests {
     /// response (v5 could not tell an empty withheld fetch apart).
     #[test]
     fn a_v5_withheld_column_is_rebuilt_nullable() {
-        let dir =
-            std::env::temp_dir().join(format!("acq-store-v5-{}-{}", std::process::id(), now()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().to_path_buf();
         let path = dir.join("v5.db");
         {
             let conn = Connection::open(&path).unwrap();
@@ -4838,23 +4829,12 @@ mod tests {
         let st = s.status().unwrap();
         assert_eq!((st.withheld_responses, st.withheld_items), (1, 2));
         drop(s);
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// The bytes of a file, hashed: what "left as it was found" is judged by.
     fn file_hash(path: &Path) -> Vec<u8> {
         use sha2::Digest;
         sha2::Sha256::digest(std::fs::read(path).unwrap()).to_vec()
-    }
-
-    fn read_only_scratch(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!(
-            "acq-store-ro-{name}-{}-{}",
-            std::process::id(),
-            now()
-        ));
-        let _ = std::fs::remove_dir_all(&dir);
-        dir
     }
 
     /// C124 (a read never migrates): a file one version behind (a v8
@@ -4867,7 +4847,8 @@ mod tests {
     /// file is refused and not created.
     #[test]
     fn c124_a_read_only_open_refuses_another_version_and_leaves_the_file_unchanged() {
-        let dir = read_only_scratch("refuse");
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path();
         let missing = dir.join("missing.db");
         assert!(Store::open_read_only(&missing).is_err());
         assert!(!missing.exists(), "a read-only open created the file");
@@ -4943,7 +4924,6 @@ mod tests {
             std::fs::read(&empty).unwrap().is_empty(),
             "the empty file was written"
         );
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// C124: a file at this build's version opens through the read-only
@@ -4951,7 +4931,8 @@ mod tests {
     /// the file's bytes are the same after.
     #[test]
     fn c124_a_read_only_open_reads_a_current_file_and_writes_nothing() {
-        let dir = read_only_scratch("read");
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path();
         let path = dir.join("current.db");
         {
             let mut s = Store::open(&path).unwrap();
@@ -4980,7 +4961,6 @@ mod tests {
         );
         drop(ro);
         assert_eq!(file_hash(&path), before, "the current file changed");
-        let _ = std::fs::remove_dir_all(&dir);
     }
 }
 

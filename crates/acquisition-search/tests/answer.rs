@@ -278,7 +278,8 @@ fn invariant_6_a_search_writes_nothing() {
         }
         out
     }
-    let s = worked();
+    let dir = tempfile::tempdir().unwrap();
+    let s = worked_in(&dir);
     let path = s.path().to_path_buf();
     let before = dump(&path);
     assert!(before.len() > 10);
@@ -466,7 +467,8 @@ fn c96_the_realm_is_the_scope_and_is_always_resolved() {
 /// every answer sees the change, and the next load carries it.
 #[test]
 fn c98_a_held_corpus_answers_at_its_basis_and_the_check_sees_the_change() {
-    let s = worked();
+    let dir = tempfile::tempdir().unwrap();
+    let s = worked_in(&dir);
     let path = s.path().to_path_buf();
     let intent = intent(&s);
     let held = load_with(&s, &intent, Some("pc"));
@@ -505,7 +507,8 @@ fn c98_a_held_corpus_answers_at_its_basis_and_the_check_sees_the_change() {
 /// corpus read from one is not current against the other.
 #[test]
 fn c98_the_basis_names_the_store_and_the_check_tells_two_files_apart() {
-    let (a, b) = (worked(), worked());
+    let (dir_a, dir_b) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+    let (a, b) = (worked_in(&dir_a), worked_in(&dir_b));
     assert_eq!(a.revision().unwrap(), b.revision().unwrap());
     let intent = intent(&a);
     let (of_a, of_b) = (

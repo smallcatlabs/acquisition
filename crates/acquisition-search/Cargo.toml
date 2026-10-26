@@ -35,6 +35,8 @@ toml.workspace = true
 [dev-dependencies]
 # the tests' only: proptest generates the trees the round trip runs over
 proptest = "1.11.0"
+# a test's own folder, removed on drop: never a name built from the pid
+tempfile.workspace = true
 # invariant 6's dump of every table; the store's own version and features,
 # so the test build links the one SQLite the store does (C84)
 rusqlite = { version = "0.32", features = ["bundled", "hooks"] }

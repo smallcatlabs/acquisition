@@ -3669,12 +3669,8 @@ mod tests {
     /// refusal names the whole write that still replaces it.
     #[test]
     fn a_policy_this_build_cannot_read_is_replaced_whole_never_merged() {
-        let dir = std::env::temp_dir().join(format!(
-            "acq-policy-newer-{}-{}",
-            std::process::id(),
-            acquisition_store::now()
-        ));
-        let _ = std::fs::remove_dir_all(&dir);
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().to_path_buf();
         let mut a = Annotations::open_for(&dir, "u-newer").unwrap();
         let pc = all_policy_value(3600);
         put_sync_policy(&mut a, &pc, None, PolicyWrite::Merge, &via_test()).unwrap();
@@ -3694,7 +3690,6 @@ mod tests {
         assert!(err.to_string().contains("--replace"), "{err}");
         let row = put_sync_policy(&mut a, &pc, Some(1), PolicyWrite::Replace, &via_test()).unwrap();
         assert_eq!(row.revision, 2);
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// C44 — apply refuses a plan whose policy revision is no longer the stored one, checked against a fresh read; wrong uuid or provider never spends.

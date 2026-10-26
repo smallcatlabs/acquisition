@@ -504,9 +504,8 @@ mod tests {
 
     #[test]
     fn next_id_never_reuses_a_pruned_id() {
-        let dir = std::env::temp_dir().join(format!("acq-jobdb-{}", std::process::id()));
-        let path = dir.join("daemon.db");
-        let _ = std::fs::remove_file(&path);
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("daemon.db");
         {
             let db = JobDb::open(&path).unwrap();
             assert_eq!(db.next_id().unwrap(), 1, "an empty table starts at 1");
@@ -520,7 +519,6 @@ mod tests {
             8,
             "the sequence survives prune and reopen"
         );
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

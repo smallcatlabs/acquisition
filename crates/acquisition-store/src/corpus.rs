@@ -513,23 +513,6 @@ mod tests {
     use super::*;
     use crate::Endpoint;
     use serde_json::{Value, json};
-    use std::path::PathBuf;
-
-    fn tmp() -> PathBuf {
-        static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-        let dir = std::env::temp_dir().join(format!(
-            "acq-corpus-{}-{}",
-            std::process::id(),
-            N.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-        ));
-        // a process id comes round again, and nothing removes these
-        // directories: a facts file an earlier run left here seeded two
-        // tests with records they never wrote (gates of 2026-10-18 and
-        // 2026-10-19), so never open what an earlier run left
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-        dir.join("facts.db")
-    }
 
     fn profile(s: &mut Store) {
         s.record(
@@ -626,7 +609,7 @@ mod tests {
     /// out.
     #[test]
     fn all_hands_over_the_removed_with_when_each_left_and_live_is_unchanged() {
-        let mut s = Store::open(&tmp()).unwrap();
+        let mut s = Store::open_memory().unwrap();
         profile(&mut s);
         list_tabs(&mut s, "pc", "Standard", json!([tab("t1"), tab("t2")]), 10);
         fetch_tab(
@@ -695,7 +678,8 @@ mod tests {
     /// read carries a higher revision and the change.
     #[test]
     fn a_fetch_landing_mid_read_is_the_next_reads_and_never_this_ones() {
-        let path = tmp();
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("facts.db");
         let mut a = Store::open(&path).unwrap();
         profile(&mut a);
         list_tabs(&mut a, "pc", "Standard", json!([tab("t1"), tab("t2")]), 10);
@@ -1000,7 +984,8 @@ mod tests {
     /// rules for a prune).
     #[test]
     fn the_revision_moves_with_every_record_and_with_nothing_else() {
-        let path = tmp();
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("facts.db");
         let mut s = Store::open(&path).unwrap();
         let empty = s.revision().unwrap();
         assert_eq!((empty.response, empty.facts_version), (0, 9));

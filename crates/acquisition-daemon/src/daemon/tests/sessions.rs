@@ -3,6 +3,7 @@
 //!
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
+use super::harness::TestPath;
 use crate::daemon::refresh::{REFRESH_OWNER_ABANDONED, SESSION_CHANGED_DURING_REFRESH};
 use crate::daemon::*;
 
@@ -203,14 +204,8 @@ fn token_body(access_token: &str, refresh_token: &str, username: &str) -> String
     .to_string()
 }
 
-static AUTH_TEST_LOG_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
-
-fn test_daemon(base: &str) -> (Arc<Daemon>, Arc<MemoryCredentialStore>, PathBuf) {
-    let log_path = std::env::temp_dir().join(format!(
-        "acquisition-n2-auth-{}-{}.log",
-        std::process::id(),
-        AUTH_TEST_LOG_ID.fetch_add(1, Ordering::Relaxed)
-    ));
+fn test_daemon(base: &str) -> (Arc<Daemon>, Arc<MemoryCredentialStore>, TestPath) {
+    let log_path = TestPath::file("daemon.log");
     let log = std::fs::OpenOptions::new()
         .create(true)
         .truncate(true)
@@ -397,10 +392,6 @@ fn realm_is_a_segment_before_league_or_name_and_pc_is_silent() {
     );
 }
 
-fn remove_test_log(path: &PathBuf) {
-    let _ = std::fs::remove_file(path);
-}
-
 async fn wait_for_refresh_waiters(daemon: &Daemon, expected: usize) {
     tokio::time::timeout(Duration::from_secs(1), async {
         loop {
@@ -430,7 +421,7 @@ async fn concurrent_expiry_has_one_refresh_owner_and_shared_waiter_result() {
         token_body("at-rotated", "rt-rotated", "shared-user"),
     )
     .await;
-    let (daemon, store, log_path) = test_daemon(&delayed.base);
+    let (daemon, store, _log_path) = test_daemon(&delayed.base);
 
     let owner_daemon = daemon.clone();
     let owner =
@@ -448,7 +439,6 @@ async fn concurrent_expiry_has_one_refresh_owner_and_shared_waiter_result() {
     assert_eq!(waiter_result, owner_result);
     assert_eq!(store.saves.lock().unwrap().len(), 1);
     delayed.server.await.unwrap();
-    remove_test_log(&log_path);
 }
 
 #[tokio::test]
@@ -518,7 +508,7 @@ async fn authentication_completes_before_the_api_send_takes_a_gate_slot() {
         hold.write_all(b"{}").await.unwrap();
     });
 
-    let (daemon, _, log_path) = test_daemon(&base);
+    let (daemon, _, _log_path) = test_daemon(&base);
     let hold = {
         let daemon = daemon.clone();
         let url = format!("{base}/hold");
@@ -562,7 +552,6 @@ async fn authentication_completes_before_the_api_send_takes_a_gate_slot() {
     release_hold.send(()).unwrap();
     hold.await.unwrap().unwrap();
     server.await.unwrap();
-    remove_test_log(&log_path);
 }
 
 #[tokio::test]
@@ -570,7 +559,7 @@ async fn abandoned_refresh_owner_completes_all_waiters_and_allows_retry() {
     let responses =
         abandon_then_success_token_responses(token_body("at-retried", "rt-retried", "retry-user"))
             .await;
-    let (daemon, store, log_path) = test_daemon(&responses.base);
+    let (daemon, store, _log_path) = test_daemon(&responses.base);
     let before = daemon.shared.lock().unwrap().auth.one().generations;
 
     let owner_daemon = daemon.clone();
@@ -628,7 +617,6 @@ async fn abandoned_refresh_owner_completes_all_waiters_and_allows_retry() {
             .all(|body| body.contains("refresh_token=rt-old"))
     );
     assert_eq!(store.saves.lock().unwrap().len(), 1);
-    remove_test_log(&log_path);
 }
 
 #[tokio::test]
@@ -636,7 +624,7 @@ async fn abandoned_refresh_owner_without_waiters_allows_retry() {
     let responses =
         abandon_then_success_token_responses(token_body("at-retried", "rt-retried", "retry-user"))
             .await;
-    let (daemon, store, log_path) = test_daemon(&responses.base);
+    let (daemon, store, _log_path) = test_daemon(&responses.base);
     let before = daemon.shared.lock().unwrap().auth.one().generations;
 
     let owner_daemon = daemon.clone();
@@ -672,7 +660,6 @@ async fn abandoned_refresh_owner_without_waiters_allows_retry() {
             .all(|body| body.contains("refresh_token=rt-old"))
     );
     assert_eq!(store.saves.lock().unwrap().len(), 1);
-    remove_test_log(&log_path);
 }
 
 #[tokio::test]
@@ -682,7 +669,7 @@ async fn successful_refresh_rotation_advances_token_generations_and_persists_new
         token_body("at-rotated", "rt-rotated", "rotated-user"),
     )
     .await;
-    let (daemon, store, log_path) = test_daemon(&delayed.base);
+    let (daemon, store, _log_path) = test_daemon(&delayed.base);
     let before = daemon.shared.lock().unwrap().auth.one().generations;
 
     let refresh_daemon = daemon.clone();
@@ -712,14 +699,13 @@ async fn successful_refresh_rotation_advances_token_generations_and_persists_new
         )]
     );
     delayed.server.await.unwrap();
-    remove_test_log(&log_path);
 }
 
 #[tokio::test]
 async fn refresh_failure_is_shared_and_leaves_token_state_unchanged() {
     let delayed =
         delayed_token_response("400 Bad Request", r#"{"error":"invalid_grant"}"#.into()).await;
-    let (daemon, store, log_path) = test_daemon(&delayed.base);
+    let (daemon, store, _log_path) = test_daemon(&delayed.base);
     let before = daemon.shared.lock().unwrap().auth.one().generations;
 
     let owner_daemon = daemon.clone();
@@ -745,14 +731,13 @@ async fn refresh_failure_is_shared_and_leaves_token_state_unchanged() {
     }
     assert!(store.saves.lock().unwrap().is_empty());
     delayed.server.await.unwrap();
-    remove_test_log(&log_path);
 }
 
 #[tokio::test]
 async fn logout_during_refresh_rejects_stale_completion_in_memory_and_keyring() {
     let delayed =
         delayed_token_response("200 OK", token_body("at-stale", "rt-stale", "stale-user")).await;
-    let (daemon, store, log_path) = test_daemon(&delayed.base);
+    let (daemon, store, _log_path) = test_daemon(&delayed.base);
 
     let refresh_daemon = daemon.clone();
     let refresh =
@@ -772,7 +757,6 @@ async fn logout_during_refresh_rejects_stale_completion_in_memory_and_keyring() 
     assert!(store.cleared.load(Ordering::SeqCst));
     assert!(store.saves.lock().unwrap().is_empty());
     delayed.server.await.unwrap();
-    remove_test_log(&log_path);
 }
 
 #[tokio::test]
@@ -783,7 +767,7 @@ async fn reauthentication_during_refresh_keeps_new_session_and_rejects_old_compl
     // not touch this session at all (see the two-session tests).
     let delayed =
         delayed_token_response("200 OK", token_body("at-stale", "rt-stale", "old-user")).await;
-    let (daemon, store, log_path) = test_daemon(&delayed.base);
+    let (daemon, store, _log_path) = test_daemon(&delayed.base);
     let before = daemon.shared.lock().unwrap().auth.one().generations;
 
     let refresh_daemon = daemon.clone();
@@ -821,7 +805,6 @@ async fn reauthentication_during_refresh_keeps_new_session_and_rejects_old_compl
         [("acq-mock".into(), "rt-reauth".into(), "old-user".into())]
     );
     delayed.server.await.unwrap();
-    remove_test_log(&log_path);
 }
 
 /// A refresh that renames the account updates the existing index
@@ -832,13 +815,9 @@ async fn reauthentication_during_refresh_keeps_new_session_and_rejects_old_compl
 async fn a_refresh_rename_updates_the_index_mapping_in_place() {
     let delayed =
         delayed_token_response("200 OK", token_body("at-new", "rt-new", "NewName#2")).await;
-    let (mut daemon, _, log_path) = test_daemon(&delayed.base);
-    let dir = std::env::temp_dir().join(format!(
-        "acq-rename-{}-{}",
-        std::process::id(),
-        AUTH_TEST_LOG_ID.fetch_add(1, Ordering::Relaxed)
-    ));
-    let _ = std::fs::remove_dir_all(&dir);
+    let (mut daemon, _, _log_path) = test_daemon(&delayed.base);
+    let temp = tempfile::tempdir().unwrap();
+    let dir = temp.path().to_path_buf();
     Arc::get_mut(&mut daemon).unwrap().store_dir = Some(dir.clone());
     // As a completed login left things: indexed with the uuid, and the
     // session carrying it.
@@ -873,15 +852,13 @@ async fn a_refresh_rename_updates_the_index_mapping_in_place() {
         "the session moved with its uuid"
     );
     delayed.server.await.unwrap();
-    let _ = std::fs::remove_dir_all(&dir);
-    remove_test_log(&log_path);
 }
 
 // ---- multi-account step (2): the job's account is what runs ---------
 
 #[test]
 fn submit_resolves_the_account_against_the_live_session() {
-    let (daemon, _, log_path) = test_daemon("http://127.0.0.1:1");
+    let (daemon, _, _log_path) = test_daemon("http://127.0.0.1:1");
     // Session is "old-user" (test_daemon).
     assert_eq!(
         daemon.resolve_account("characters", None),
@@ -919,12 +896,11 @@ fn submit_resolves_the_account_against_the_live_session() {
         .resolve_account("characters", Some("Other#1"))
         .unwrap_err();
     assert!(err.message.contains("not logged in"), "{err}");
-    remove_test_log(&log_path);
 }
 
 #[tokio::test]
 async fn a_token_is_refused_once_the_session_no_longer_matches_the_job() {
-    let (daemon, _, log_path) = test_daemon("http://127.0.0.1:1");
+    let (daemon, _, _log_path) = test_daemon("http://127.0.0.1:1");
     {
         let mut s = daemon.shared.lock().unwrap();
         s.auth.one_mut().access_token = Some("at-live".into());
@@ -966,7 +942,6 @@ async fn a_token_is_refused_once_the_session_no_longer_matches_the_job() {
     assert!(err.message.contains("no session for \"old-user\""), "{err}");
     // The other session is untouched, and is now the sole one.
     assert!(daemon.valid_access_token(None, false, None).await.is_ok());
-    remove_test_log(&log_path);
 }
 
 #[test]
@@ -1000,9 +975,9 @@ fn session_keys_follow_renames_so_replace_finds_the_right_session() {
 
 #[test]
 fn a_response_is_filed_under_the_job_account_not_the_session() {
-    let (mut daemon, _, log_path) = test_daemon("http://127.0.0.1:1");
-    let dir = std::env::temp_dir().join(format!("acq-store-{}-{}", std::process::id(), line!()));
-    let _ = std::fs::remove_dir_all(&dir);
+    let (mut daemon, _, _log_path) = test_daemon("http://127.0.0.1:1");
+    let temp = tempfile::tempdir().unwrap();
+    let dir = temp.path().to_path_buf();
     Arc::get_mut(&mut daemon).unwrap().store_dir = Some(dir.clone());
     // Session is "old-user"; the job was submitted as "A#1" (a login
     // happened in between). The body lands in A#1's file.
@@ -1042,6 +1017,4 @@ fn a_response_is_filed_under_the_job_account_not_the_session() {
     );
     // The daemon holds the store open, and Windows removes no open file.
     drop(daemon);
-    std::fs::remove_dir_all(&dir).unwrap();
-    remove_test_log(&log_path);
 }

@@ -26,6 +26,9 @@ serde_json = "1"
 anyhow = "1"
 clap = { version = "4", features = ["derive", "env"] }
 toml = "1"
+# tests' own folders, removed when the test ends however it ends; already
+# in every test build through proptest, so declaring it adds no feature (C84)
+tempfile = "3"
 
 [profile.dev]
 # macOS defaults to split-debuginfo = "unpacked", which leaves every codegen

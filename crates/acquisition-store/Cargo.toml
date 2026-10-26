@@ -20,6 +20,10 @@ sha2 = "0.10"
 # the calling uid, for the private runtime directory (world.rs)
 libc = "0.2"
 
+[dev-dependencies]
+# a test's own folder, removed on drop: never a name built from the pid
+tempfile.workspace = true
+
 [target.'cfg(windows)'.dependencies]
 # `Win32_UI_Shell` is for `GetUserProfileDirectoryW` alone: the real-mode
 # lock's home from the process token, never a variable (C132)

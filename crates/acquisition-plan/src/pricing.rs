@@ -1031,12 +1031,8 @@ mod tests {
     /// before anything changes, so no write lands whose receipt was lost.
     #[test]
     fn a_set_whose_facts_cannot_be_read_refuses_before_the_write() {
-        let dir = std::env::temp_dir().join(format!(
-            "acq-pricing-facts-{}-{}",
-            std::process::id(),
-            acquisition_store::now()
-        ));
-        let _ = std::fs::remove_dir_all(&dir);
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().to_path_buf();
         let path = dir.join("facts.db");
         let store = Store::open(&path).unwrap();
         // The facts made unreadable under the open store: their item table
@@ -1079,7 +1075,6 @@ mod tests {
             let row = a.get("item", "i1", BUYOUT_KIND).unwrap().unwrap();
             assert_eq!(row.revision, 1, "{expect:?}: a replace landed");
         }
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// `set`'s value words are one grammar with the value's own: the

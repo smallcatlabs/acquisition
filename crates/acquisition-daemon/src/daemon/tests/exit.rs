@@ -17,23 +17,9 @@ use crate::daemon::*;
 /// own timeouts.
 const BOUND: Duration = Duration::from_secs(3);
 
-fn test_db_path() -> PathBuf {
-    std::env::temp_dir().join(format!(
-        "acquisition-exit-jobs-{}-{}.db",
-        std::process::id(),
-        TEST_LOG_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-    ))
-}
-
-fn remove_db(path: &std::path::Path) {
-    for suffix in ["", "-wal", "-shm"] {
-        let _ = std::fs::remove_file(format!("{}{suffix}", path.display()));
-    }
-}
-
 /// A logged-in harness daemon on the manual clock, its queue on a
 /// file-backed `daemon.db`, its exit bounded by `bound`.
-fn exit_daemon(base: &str, bound: Duration) -> (Arc<Daemon>, PathBuf, PathBuf) {
+fn exit_daemon(base: &str, bound: Duration) -> (Arc<Daemon>, TestPath, TestPath) {
     exit_daemon_on(base, bound, Arc::new(ManualClock::new()))
 }
 
@@ -42,9 +28,8 @@ fn exit_daemon_on(
     base: &str,
     bound: Duration,
     clock: Arc<dyn crate::ratelimit::Clock>,
-) -> (Arc<Daemon>, PathBuf, PathBuf) {
+) -> (Arc<Daemon>, TestPath, TestPath) {
     let db = test_db_path();
-    remove_db(&db);
     let (mut daemon, log_path) = test_daemon(base, clock);
     logged_in(&mut daemon);
     let d = Arc::get_mut(&mut daemon).unwrap();
@@ -125,7 +110,6 @@ async fn exit_waits_for_a_landed_body_to_persist() {
     );
     assert_journal_matches_wire(&log_path, &wire_methods(&sent_log));
     finish_harness(dispatcher, &log_path);
-    remove_db(&db);
 }
 
 /// C133: a token refresh on the wire when the exit begins is waited for.
@@ -135,7 +119,7 @@ async fn exit_waits_for_a_landed_body_to_persist() {
 #[tokio::test]
 async fn exit_waits_for_a_refresh_and_installs_the_token() {
     let (base, arrived, release, server) = delayed_token_server().await;
-    let (mut daemon, log_path, db) = exit_daemon(&base, BOUND);
+    let (mut daemon, log_path, _db) = exit_daemon(&base, BOUND);
     let store = Arc::new(RecordingCredentialStore::default());
     Arc::get_mut(&mut daemon).unwrap().credential_store = store.clone();
     let waiter = {
@@ -165,7 +149,6 @@ async fn exit_waits_for_a_refresh_and_installs_the_token() {
     server.await.unwrap();
     assert_journal_matches_wire(&log_path, &["POST".to_string()]);
     finish_harness(None, &log_path);
-    remove_db(&db);
 }
 
 /// Two accounts, with `other`'s refresh held on the wire and
@@ -174,8 +157,8 @@ async fn exit_waits_for_a_refresh_and_installs_the_token() {
 /// and what was sent before the park.
 struct Parked {
     daemon: Arc<Daemon>,
-    log_path: PathBuf,
-    db: PathBuf,
+    log_path: TestPath,
+    db: TestPath,
     dispatcher: tokio::task::JoinHandle<()>,
     sent_log: Arc<Mutex<Vec<Sent>>>,
     release: tokio::sync::oneshot::Sender<()>,
@@ -264,7 +247,6 @@ async fn exit_turns_away_a_job_parked_past_running() {
     );
     assert_journal_matches_wire(&p.log_path, &wire_methods(&p.sent_log));
     finish_harness(p.dispatcher, &p.log_path);
-    remove_db(&p.db);
 }
 
 /// C133: the dispatcher starts nothing while the daemon exits. A job the
@@ -294,7 +276,6 @@ async fn a_turned_away_job_is_not_picked_again_while_exiting() {
     }
     assert_journal_matches_wire(&p.log_path, &wire_methods(&p.sent_log));
     finish_harness(p.dispatcher, &p.log_path);
-    remove_db(&p.db);
 }
 
 /// C133: a job whose task does not end is cut at the bound, on tokio
@@ -332,7 +313,6 @@ async fn exit_cuts_a_stuck_job_at_the_bound() {
         "the log names the cut job:\n{log}"
     );
     finish_harness(dispatcher, &log_path);
-    remove_db(&db);
 }
 
 /// C133: once the exit has begun a client's submit is refused, as
@@ -340,7 +320,7 @@ async fn exit_cuts_a_stuck_job_at_the_bound() {
 /// accepted before.
 #[tokio::test]
 async fn a_submit_after_the_exit_begins_is_refused_as_stopping() {
-    let (daemon, log_path, db) = exit_daemon("http://127.0.0.1:1", BOUND);
+    let (daemon, log_path, _db) = exit_daemon("http://127.0.0.1:1", BOUND);
     let submit = || Request::Submit {
         kind: "sleep".into(),
         params: json!({ "seconds": 0 }),
@@ -361,7 +341,6 @@ async fn a_submit_after_the_exit_begins_is_refused_as_stopping() {
         other => panic!("expected the stopping refusal, got {other:?}"),
     }
     finish_harness(None, &log_path);
-    remove_db(&db);
 }
 
 /// C133: a login in progress holds the idle verdict. Its browser step and
@@ -385,7 +364,7 @@ fn the_idle_verdict_holds_while_a_login_is_pending() {
 /// the first's bound where it was.
 #[tokio::test]
 async fn a_second_begin_exit_returns_at_once() {
-    let (daemon, log_path, db) = exit_daemon("http://127.0.0.1:1", BOUND);
+    let (daemon, log_path, _db) = exit_daemon("http://127.0.0.1:1", BOUND);
     assert!(daemon.begin_exit("test: the first cause"));
     let deadline = *daemon.exit.deadline.get().expect("the bound is armed");
     tokio::time::sleep(Duration::from_millis(20)).await;
@@ -397,7 +376,6 @@ async fn a_second_begin_exit_returns_at_once() {
         "the second cause began nothing:\n{log}"
     );
     finish_harness(None, &log_path);
-    remove_db(&db);
 }
 
 /// C133: the bound is hard. A keyring prompt holds `shared`, and tasks
@@ -409,7 +387,7 @@ async fn a_second_begin_exit_returns_at_once() {
 async fn the_bound_ends_the_exit_though_every_worker_is_blocked() {
     let bound = Duration::from_millis(300);
     let grace = Duration::from_millis(200);
-    let (mut daemon, log_path, db) = exit_daemon("http://127.0.0.1:1", bound);
+    let (mut daemon, log_path, _db) = exit_daemon("http://127.0.0.1:1", bound);
     let (ended_tx, ended_rx) = std::sync::mpsc::channel();
     {
         let d = Arc::get_mut(&mut daemon).unwrap();
@@ -464,7 +442,6 @@ async fn the_bound_ends_the_exit_though_every_worker_is_blocked() {
     }
     let _ = drain.await;
     finish_harness(None, &log_path);
-    remove_db(&db);
 }
 
 /// C133 with C25: a job picked before the exit and held at the limiter
@@ -521,7 +498,6 @@ async fn exit_turns_away_a_job_held_at_the_limiter() {
     assert_eq!(row.retries, 1);
     assert_eq!(requests.lock().unwrap().as_slice(), ["HEAD", "GET"]);
     finish_harness(dispatcher, &log_path);
-    remove_db(&db);
 }
 
 /// C133: a login's code exchange on the wire when the exit begins is
@@ -558,7 +534,7 @@ async fn exit_waits_for_a_login_code_exchange() {
         );
         mockggg::respond_with(&mut stream, "200 OK", "application/json", headers, &body).await;
     });
-    let (daemon, log_path, db) = exit_daemon(&base, BOUND);
+    let (daemon, log_path, _db) = exit_daemon(&base, BOUND);
 
     let authorize = url::Url::parse(&daemon.auth_start().await.unwrap()).unwrap();
     let query: HashMap<String, String> = authorize.query_pairs().into_owned().collect();
@@ -582,7 +558,6 @@ async fn exit_waits_for_a_login_code_exchange() {
     server.await.unwrap();
     assert_journal_matches_wire(&log_path, &["POST".to_string()]);
     finish_harness(None, &log_path);
-    remove_db(&db);
 }
 
 /// C133 (a pending login has the bound to land), issue #59: a stop that
@@ -594,7 +569,7 @@ async fn exit_waits_for_a_login_code_exchange() {
 #[tokio::test]
 async fn c133_a_stop_between_the_profile_and_the_login_waits_for_the_login() {
     let (base, sent_log, _arrived, _release) = account_server(("GET", "/never", 0)).await;
-    let (daemon, log_path, db) = exit_daemon(&base, BOUND);
+    let (daemon, log_path, _db) = exit_daemon(&base, BOUND);
     let dispatcher = tokio::spawn(daemon.clone().dispatcher());
     let generation = daemon.begin_auth_flow();
     daemon
@@ -640,7 +615,6 @@ async fn c133_a_stop_between_the_profile_and_the_login_waits_for_the_login() {
         [sent("newcomer", "GET")]
     );
     finish_harness(dispatcher, &log_path);
-    remove_db(&db);
 }
 
 /// C133: a login whose profile job a stop turned away to waiting is not
@@ -671,12 +645,12 @@ fn a_login_whose_profile_job_waits_is_not_held_by_the_drain() {
 /// A harness daemon serving a world (C134: only a daemon with a world
 /// reads or writes a fault marker), its queue on `<dir>/daemon.db` in the
 /// provider directory beside the marker, restored from it as `run` does.
-fn world_daemon(dir: &std::path::Path) -> (Arc<Daemon>, PathBuf) {
+fn world_daemon(dir: &std::path::Path) -> (Arc<Daemon>, TestPath) {
     world_daemon_at(dir, "http://127.0.0.1:1")
 }
 
 /// [`world_daemon`] facing the server at `base`.
-fn world_daemon_at(dir: &std::path::Path, base: &str) -> (Arc<Daemon>, PathBuf) {
+fn world_daemon_at(dir: &std::path::Path, base: &str) -> (Arc<Daemon>, TestPath) {
     world_daemon_on(
         dir,
         base,
@@ -691,7 +665,7 @@ fn world_daemon_on(
     base: &str,
     clock: Arc<ManualClock>,
     config: RailsConfig,
-) -> (Arc<Daemon>, PathBuf) {
+) -> (Arc<Daemon>, TestPath) {
     let (mut daemon, log_path) = test_daemon_with(Provider::mock(base), clock, config);
     {
         let d = Arc::get_mut(&mut daemon).unwrap();
@@ -729,13 +703,8 @@ fn sleep_row(id: JobId, state: &str) -> acquisition_store::jobs::JobRow {
 /// second restore changes nothing: the failed job stays failed.
 #[tokio::test]
 async fn a_fault_marker_fails_its_job_once() {
-    let dir = std::env::temp_dir().join(format!(
-        "acquisition-fault-{}-{}",
-        std::process::id(),
-        TEST_LOG_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-    ));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let dir = temp.path().to_path_buf();
     let db = acquisition_store::jobs::daemon_db_path(&dir);
     {
         let db = JobDb::open(&db).unwrap();
@@ -797,7 +766,6 @@ async fn a_fault_marker_fails_its_job_once() {
     for log in [log1, log2] {
         finish_harness(None, &log);
     }
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// The queue a probe's panic leaves in `dir`: the probe on `fetch`,
@@ -831,13 +799,8 @@ fn seed_faulted_probe(dir: &std::path::Path, base: &str) -> PathBuf {
 /// so a restore that let the job recreate its probe sends both.
 #[tokio::test]
 async fn a_faulted_probe_closes_its_route() {
-    let dir = std::env::temp_dir().join(format!(
-        "acquisition-fault-probe-{}-{}",
-        std::process::id(),
-        TEST_LOG_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-    ));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let dir = temp.path().to_path_buf();
     let (base, wire, server) = scripted_server(vec![
         ScriptedResponse::full("HEAD", "200 OK", None, ""),
         ScriptedResponse::full("GET", "200 OK", None, "{}"),
@@ -878,7 +841,6 @@ async fn a_faulted_probe_closes_its_route() {
     assert!(wire.lock().unwrap().is_empty(), "the server was reached");
     server.abort();
     finish_harness(dispatcher, &log_path);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// C134: the jobs a faulted probe's route holds fail at the restore, not
@@ -889,13 +851,8 @@ async fn a_faulted_probe_closes_its_route() {
 /// already failed, in words naming the closed route, and nothing is sent.
 #[tokio::test]
 async fn a_faulted_probe_fails_its_route_jobs_even_when_halted() {
-    let dir = std::env::temp_dir().join(format!(
-        "acquisition-fault-probe-halted-{}-{}",
-        std::process::id(),
-        TEST_LOG_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-    ));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let dir = temp.path().to_path_buf();
     let (base, wire, server) = scripted_server(vec![
         ScriptedResponse::full("HEAD", "200 OK", None, ""),
         ScriptedResponse::full("GET", "200 OK", None, "{}"),
@@ -948,7 +905,6 @@ async fn a_faulted_probe_fails_its_route_jobs_even_when_halted() {
     assert!(wire.lock().unwrap().is_empty(), "the server was reached");
     server.abort();
     finish_harness(dispatcher, &log_path);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// C134: a fault whose failure the queue could not write keeps its
@@ -957,13 +913,8 @@ async fn a_faulted_probe_fails_its_route_jobs_even_when_halted() {
 /// removed. The write is refused by a trigger staged on the queue file.
 #[tokio::test]
 async fn a_fault_marker_outlives_a_failure_the_queue_could_not_write() {
-    let dir = std::env::temp_dir().join(format!(
-        "acquisition-fault-kept-{}-{}",
-        std::process::id(),
-        TEST_LOG_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-    ));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let dir = temp.path().to_path_buf();
     let db = acquisition_store::jobs::daemon_db_path(&dir);
     JobDb::open(&db)
         .unwrap()
@@ -998,7 +949,6 @@ async fn a_fault_marker_outlives_a_failure_the_queue_could_not_write() {
     for log in [log1, log2] {
         finish_harness(None, &log);
     }
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// The child's exit status: the hook reached its end. `run` passes
@@ -1048,14 +998,8 @@ fn panic_hook_child(dir: &std::path::Path) -> ! {
 }
 
 /// Run this test's own binary as the child, panicking `at`.
-fn run_panic_hook_child(at: &str) -> (PathBuf, std::process::ExitStatus) {
-    let dir = std::env::temp_dir().join(format!(
-        "acquisition-panic-hook-{}-{}",
-        std::process::id(),
-        TEST_LOG_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-    ));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+fn run_panic_hook_child(at: &str) -> (TestPath, std::process::ExitStatus) {
+    let dir = TestPath::dir();
     let module = module_path!()
         .split_once("::")
         .map_or(module_path!(), |(_, rest)| rest);
@@ -1066,7 +1010,7 @@ fn run_panic_hook_child(at: &str) -> (PathBuf, std::process::ExitStatus) {
             "--nocapture".into(),
             "--test-threads=1".into(),
         ])
-        .env(HOOK_CHILD_DIR, &dir)
+        .env(HOOK_CHILD_DIR, &*dir)
         .env(HOOK_CHILD_WHERE, at)
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
@@ -1098,14 +1042,12 @@ fn a_panic_is_logged_marks_its_job_and_ends_the_process() {
         "{\"job\":7}\n",
         "the marker names the job and carries nothing else"
     );
-    let _ = std::fs::remove_dir_all(&dir);
 
     let (dir, status) = run_panic_hook_child("free");
     assert_eq!(status.code(), Some(HOOK_ENDED), "{status}");
     let log = std::fs::read_to_string(dir.join("daemon.log")).unwrap();
     assert!(log.contains("PANIC outside any job at "), "{log}");
     assert!(!dir.join("fault.json").exists(), "no job, no marker");
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// C134's seam: errors put in front of a real listener, or of none (a
@@ -1150,12 +1092,8 @@ fn accept_failures(log_path: &std::path::Path) -> Vec<String> {
 async fn a_listener_error_is_served_through() {
     use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
     let (daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
-    let path = std::env::temp_dir().join(format!(
-        "acq-listener-{}-{}.sock",
-        std::process::id(),
-        TEST_LOG_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-    ));
-    let _ = std::fs::remove_file(&path);
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("listener.sock");
     let (listener, bound) = crate::daemon::endpoint::Listener::bind(&path)
         .await
         .unwrap();

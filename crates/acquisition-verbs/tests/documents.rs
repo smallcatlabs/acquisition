@@ -26,24 +26,18 @@ use serde_json::{Value, json};
 const USER: &str = "Alice#1234";
 const UUID: &str = "u-verbs";
 
-/// A scratch directory, removed on drop.
-/// A scratch world's mock provider directory, `<root>/mock`; the whole
-/// root goes on drop.
-struct Scratch(PathBuf);
-
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        if let Some(root) = self.0.parent() {
-            let _ = std::fs::remove_dir_all(root);
-        }
-    }
+/// A scratch world's mock provider directory, `<root>/mock`; the root is
+/// the test's own and goes when the test ends.
+struct Scratch {
+    mock: PathBuf,
+    _root: tempfile::TempDir,
 }
 
-fn scratch(tag: &str) -> Scratch {
-    let root = std::env::temp_dir().join(format!("acq-verbs-{tag}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&root);
-    std::fs::create_dir_all(root.join("mock")).unwrap();
-    Scratch(root.join("mock"))
+fn scratch() -> Scratch {
+    let root = tempfile::tempdir().unwrap();
+    let mock = root.path().join("mock");
+    std::fs::create_dir_all(&mock).unwrap();
+    Scratch { mock, _root: root }
 }
 
 /// A frontend over the world `dir` is the mock directory of, by hand: no
@@ -194,34 +188,34 @@ fn a_faults_kind_and_fields_are_the_protocols_words() {
 
 #[test]
 fn no_index_file_is_not_logged_in_with_an_empty_list() {
-    let s = scratch("no-index");
-    let fault = frontend(&s.0).account(None).unwrap_err();
+    let s = scratch();
+    let fault = frontend(&s.mock).account(None).unwrap_err();
     assert!(matches!(fault, Fault::NoAccounts { .. }), "{fault}");
     assert!(
-        fault.to_string().contains(&s.0.display().to_string()),
+        fault.to_string().contains(&s.mock.display().to_string()),
         "{fault}"
     );
-    assert_eq!(frontend(&s.0).accounts().unwrap().accounts.len(), 0);
+    assert_eq!(frontend(&s.mock).accounts().unwrap().accounts.len(), 0);
 }
 
 #[test]
 fn two_accounts_and_no_selector_is_ambiguous_with_both() {
-    let s = scratch("two");
-    login(&s.0, USER, UUID);
-    login(&s.0, "Bob#9", "u-bob");
-    let fault = frontend(&s.0).account(None).unwrap_err();
+    let s = scratch();
+    login(&s.mock, USER, UUID);
+    login(&s.mock, "Bob#9", "u-bob");
+    let fault = frontend(&s.mock).account(None).unwrap_err();
     assert_eq!(fault.kind(), "ambiguous_account", "{fault}");
     assert_eq!(fault.fields()["accounts"], json!([USER, "Bob#9"]));
     // and the listing names each with its store
-    let accounts = frontend(&s.0).accounts().unwrap();
-    assert_eq!(accounts.accounts[1].store, account_path(&s.0, "Bob#9"));
+    let accounts = frontend(&s.mock).accounts().unwrap();
+    assert_eq!(accounts.accounts[1].store, account_path(&s.mock, "Bob#9"));
 }
 
 #[test]
 fn a_selector_matching_none_is_not_logged_in_with_the_known() {
-    let s = scratch("none");
-    login(&s.0, USER, UUID);
-    let fault = frontend(&s.0).account(Some("carol")).unwrap_err();
+    let s = scratch();
+    login(&s.mock, USER, UUID);
+    let fault = frontend(&s.mock).account(Some("carol")).unwrap_err();
     assert!(matches!(fault, Fault::UnknownAccount { .. }), "{fault}");
     assert_eq!(
         Value::Object(fault.fields()),
@@ -231,23 +225,23 @@ fn a_selector_matching_none_is_not_logged_in_with_the_known() {
 
 #[test]
 fn a_bare_name_shared_by_two_discriminators_is_ambiguous_with_both() {
-    let s = scratch("shared");
-    login(&s.0, "Alice#1", "u-1");
-    login(&s.0, "Alice#2", "u-2");
-    let fault = frontend(&s.0).account(Some("alice")).unwrap_err();
+    let s = scratch();
+    login(&s.mock, "Alice#1", "u-1");
+    login(&s.mock, "Alice#2", "u-2");
+    let fault = frontend(&s.mock).account(Some("alice")).unwrap_err();
     assert_eq!(
         Value::Object(fault.fields()),
         json!({ "kind": "ambiguous_account", "accounts": ["Alice#1", "Alice#2"] })
     );
-    let picked = frontend(&s.0).account(Some("Alice#2")).unwrap();
+    let picked = frontend(&s.mock).account(Some("Alice#2")).unwrap();
     assert_eq!(picked.entry.uuid.as_deref(), Some("u-2"));
 }
 
 #[test]
 fn an_entry_without_a_uuid_asked_for_intent_is_refused() {
-    let s = scratch("no-uuid");
+    let s = scratch();
     let account = Account {
-        frontend: frontend(&s.0),
+        frontend: frontend(&s.mock),
         entry: AccountEntry {
             username: USER.into(),
             last_login: 1,
@@ -266,15 +260,15 @@ fn an_entry_without_a_uuid_asked_for_intent_is_refused() {
 
 #[test]
 fn a_blind_policy_write_over_a_stored_row_this_build_cannot_read_is_refused() {
-    let s = scratch("unreadable");
-    login(&s.0, USER, UUID);
-    let account = frontend(&s.0).account(None).unwrap();
+    let s = scratch();
+    login(&s.mock, USER, UUID);
+    let account = frontend(&s.mock).account(None).unwrap();
     account
         .set_policy(&policy(), Expect::Current, PolicyWrite::Merge)
         .unwrap();
     // The store's own door refuses a newer version at put, so the newer
     // build's value is planted under it, as that build would.
-    rusqlite::Connection::open(acquisition_store::annotations_path(&s.0, UUID))
+    rusqlite::Connection::open(acquisition_store::annotations_path(&s.mock, UUID))
         .unwrap()
         .execute(
             "UPDATE annotations SET value = '{\"version\":99,\"realms\":{}}' WHERE kind = ?1",
@@ -301,7 +295,7 @@ fn a_blind_policy_write_over_a_stored_row_this_build_cannot_read_is_refused() {
         .unwrap_err();
     assert!(matches!(fault, Fault::Policy(_)), "{fault}");
     assert_eq!(
-        Annotations::open_for(&s.0, UUID)
+        Annotations::open_for(&s.mock, UUID)
             .unwrap()
             .get("account", "", SYNC_POLICY_KIND)
             .unwrap()
@@ -316,9 +310,9 @@ fn a_blind_policy_write_over_a_stored_row_this_build_cannot_read_is_refused() {
 /// a conflict naming the current one, the stored value untouched.
 #[test]
 fn a_policy_write_is_validated_and_compares_its_revision() {
-    let s = scratch("policy-cas");
-    login(&s.0, USER, UUID);
-    let account = frontend(&s.0).account(None).unwrap();
+    let s = scratch();
+    login(&s.mock, USER, UUID);
+    let account = frontend(&s.mock).account(None).unwrap();
     let typo =
         json!({ "version": 1, "leagues": { "Standard": { "tabs": "all", "max_age_secs": 60 } } });
     let fault = account
@@ -355,8 +349,8 @@ fn a_policy_write_is_validated_and_compares_its_revision() {
 
 #[test]
 fn an_account_with_no_policy_compiles_to_no_sync_policy_naming_it() {
-    let s = scratch("no-policy");
-    let opened = profiled(&s.0).open().unwrap();
+    let s = scratch();
+    let opened = profiled(&s.mock).open().unwrap();
     let fault = opened.compile(Realm::Pc, "Standard", 2_000).unwrap_err();
     assert!(matches!(fault, Fault::NoSyncPolicy { .. }), "{fault}");
     assert!(fault.to_string().contains(USER), "{fault}");
@@ -364,8 +358,8 @@ fn an_account_with_no_policy_compiles_to_no_sync_policy_naming_it() {
 
 #[tokio::test]
 async fn a_plan_whose_policy_revision_moved_is_refused_before_any_daemon() {
-    let s = scratch("moved");
-    let opened = opened(&s.0);
+    let s = scratch();
+    let opened = opened(&s.mock);
     let plan = opened.compile(Realm::Pc, "Standard", 2_000).unwrap();
     opened
         .account
@@ -387,8 +381,8 @@ async fn a_plan_whose_policy_revision_moved_is_refused_before_any_daemon() {
 
 #[tokio::test]
 async fn an_empty_plan_is_nothing_with_its_skipped_and_no_daemon() {
-    let s = scratch("empty");
-    let mut opened = opened(&s.0);
+    let s = scratch();
+    let mut opened = opened(&s.mock);
     listing(&mut opened.facts, 1_900, json!([]));
     let plan = opened.compile(Realm::Pc, "Standard", 2_000).unwrap();
     assert!(plan.actions.is_empty(), "{plan:?}");
@@ -407,8 +401,8 @@ async fn an_empty_plan_is_nothing_with_its_skipped_and_no_daemon() {
 /// compiled now would fetch.
 #[tokio::test]
 async fn a_plan_the_facts_have_spent_is_spent_with_its_remaining_count() {
-    let s = scratch("spent");
-    let mut opened = opened(&s.0);
+    let s = scratch();
+    let mut opened = opened(&s.mock);
     let plan = opened
         .compile(Realm::Pc, "Standard", acquisition_store::now())
         .unwrap();
@@ -456,8 +450,8 @@ async fn a_plan_the_facts_have_spent_is_spent_with_its_remaining_count() {
 /// the first one's events again (9 of 20 journeys).
 #[test]
 fn two_applies_in_one_second_do_not_count_each_others_events() {
-    let s = scratch("watermark");
-    let mut opened = opened(&s.0);
+    let s = scratch();
+    let mut opened = opened(&s.mock);
     let at = 5_000;
     listing(
         &mut opened.facts,
@@ -535,8 +529,8 @@ fn the_spent_phrase_names_the_jobs_holding_a_request() {
 /// as: no daemon is asked.
 #[tokio::test]
 async fn a_plan_with_no_account_name_is_quoted_with_its_note() {
-    let s = scratch("no-name");
-    let opened = opened(&s.0);
+    let s = scratch();
+    let opened = opened(&s.mock);
     let mut snapshot = opened
         .facts
         .refresh_snapshot("pc", "Standard", &opened.intent)

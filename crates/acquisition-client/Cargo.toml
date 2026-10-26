@@ -24,3 +24,7 @@ serde.workspace = true
 serde_json.workspace = true
 anyhow.workspace = true
 sha2 = "0.10"
+
+[dev-dependencies]
+# a test's own folder, removed on drop: never a name built from the pid
+tempfile.workspace = true

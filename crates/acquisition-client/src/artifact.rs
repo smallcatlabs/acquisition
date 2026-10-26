@@ -204,9 +204,8 @@ mod tests {
     /// another artifact; a daemon that reported nothing matches nothing.
     #[test]
     fn c84_a_copy_is_the_same_artifact_and_other_bytes_are_another() {
-        let dir = std::env::temp_dir().join(format!("acq-artifact-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().to_path_buf();
         let original = dir.join("acqd");
         std::fs::write(&original, b"the daemon's bytes").unwrap();
         let copy = dir.join("copy");
@@ -246,7 +245,6 @@ mod tests {
         assert!(!v.matches() && v.relation() == "different", "{v:?}");
         let v = judge(&dir.join("missing"));
         assert!(!v.matches() && v.relation() == "no_sibling", "{v:?}");
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// The single-handle guarantee (review 2026-09-11): a sibling opened
@@ -256,9 +254,8 @@ mod tests {
     /// would see the replacement's bytes and fail here.
     #[test]
     fn c84_the_sibling_is_judged_from_the_handle_that_was_identified() {
-        let dir = std::env::temp_dir().join(format!("acq-handle-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().to_path_buf();
         let original = dir.join("acqd-original");
         std::fs::write(&original, b"the daemon's bytes").unwrap();
         let daemon = Artifact {
@@ -295,6 +292,5 @@ mod tests {
         replacement(&original);
         let v = ArtifactVerdict::judge_against(Some(&daemon), Ok(opened));
         assert!(v.relation() == "same_file", "{v:?}");
-        let _ = std::fs::remove_dir_all(&dir);
     }
 }

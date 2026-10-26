@@ -86,7 +86,6 @@ async fn rejected_access_token_scenario(
     let clock = Arc::new(ManualClock::new());
     let log_path = test_log_path();
     let journal = journal_of(&log_path);
-    let _ = std::fs::remove_file(&journal);
     let rails = Arc::new(Rails::with_config_and_clock(
         RailsConfig {
             journal_path: Some(journal.clone()),
@@ -311,7 +310,6 @@ async fn rejected_bearer_under_the_gate(
     let clock = Arc::new(ManualClock::new());
     let log_path = test_log_path();
     let journal = journal_of(&log_path);
-    let _ = std::fs::remove_file(&journal);
     let rails = Arc::new(Rails::with_config_and_clock(
         RailsConfig {
             journal_path: Some(journal.clone()),
@@ -538,7 +536,6 @@ async fn expired_token_after_laptop_sleep_is_refreshed_before_any_send() {
     let clock = Arc::new(ManualClock::new());
     let log_path = test_log_path();
     let journal = journal_of(&log_path);
-    let _ = std::fs::remove_file(&journal);
     let rails = Arc::new(Rails::with_config_and_clock(
         RailsConfig {
             journal_path: Some(journal.clone()),
@@ -676,7 +673,6 @@ async fn a_cloudflare_401_on_the_get_keeps_the_access_token() {
     let clock = Arc::new(ManualClock::new());
     let log_path = test_log_path();
     let journal = journal_of(&log_path);
-    let _ = std::fs::remove_file(&journal);
     let rails = Arc::new(Rails::with_config_and_clock(
         RailsConfig {
             journal_path: Some(journal.clone()),

@@ -32,6 +32,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "tempfile",
  "tokio",
 ]
 
@@ -50,6 +51,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "tempfile",
  "tokio",
  "url",
 ]
@@ -83,6 +85,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "tempfile",
  "toml",
 ]
 
@@ -111,6 +114,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "tempfile",
  "toml",
 ]
 
@@ -125,6 +129,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "tempfile",
  "windows-sys 0.61.2",
 ]
 
@@ -141,6 +146,7 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
+ "tempfile",
  "tokio",
 ]
 

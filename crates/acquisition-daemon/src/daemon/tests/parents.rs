@@ -5,7 +5,6 @@
 
 use super::harness::*;
 use crate::daemon::*;
-use std::sync::atomic::Ordering;
 
 /// The apply parent (tracer step 7): a plan's action set executed
 /// exactly — one child per admitted tuple, no send of its own, no
@@ -16,12 +15,8 @@ async fn apply_fans_out_exactly_its_tuples_and_records_through_the_store() {
     let base = mockggg::start().await.unwrap();
     let clock = Arc::new(ManualClock::new());
     let (mut daemon, log_path) = test_daemon(&base, clock);
-    let store_dir = std::env::temp_dir().join(format!(
-        "acq-apply-{}-{}",
-        std::process::id(),
-        TEST_LOG_ID.fetch_add(1, Ordering::Relaxed)
-    ));
-    let _ = std::fs::remove_dir_all(&store_dir);
+    let temp = tempfile::tempdir().unwrap();
+    let store_dir = temp.path().to_path_buf();
     Arc::get_mut(&mut daemon).expect("fresh daemon").store_dir = Some(store_dir.clone());
     {
         let mut s = daemon.shared.lock().unwrap();
@@ -102,7 +97,6 @@ async fn apply_fans_out_exactly_its_tuples_and_records_through_the_store() {
     assert_eq!(store.status().unwrap().responses, 2);
     drop(store);
     finish_harness_mock(dispatcher, &log_path);
-    let _ = std::fs::remove_dir_all(&store_dir);
 }
 
 /// C43 — admission is vocabulary, not meaning, at submit before a job id exists; C42 — a logical bound over `max_requests` refuses whole, nothing submitted.

@@ -1106,24 +1106,14 @@ impl RailsState {
 mod tests {
     use super::*;
 
-    fn scratch(tag: &str) -> PathBuf {
-        static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-        let dir = std::env::temp_dir().join(format!(
-            "acq-world-{tag}-{}-{}",
-            std::process::id(),
-            N.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-        ));
-        let _ = std::fs::remove_dir_all(&dir);
-        dir
-    }
-
     /// C83: a world is a canonical root — one id for two spellings of
     /// one directory — with its provider directories, lock file and
     /// rails state under it, and its diagnostics keyed by that id under
     /// the log base.
     #[test]
     fn c83_a_world_is_a_canonical_root_and_its_paths_derive_from_it() {
-        let base = scratch("paths");
+        let temp = tempfile::tempdir().unwrap();
+        let base = temp.path().join("base");
         std::fs::create_dir_all(base.join("real")).unwrap();
         let world = World::observe_at(&base.join("real")).unwrap();
         assert!(world.root().is_absolute());
@@ -1163,14 +1153,14 @@ mod tests {
         let err = World::observe_at(&base.join("missing")).unwrap_err();
         assert!(err.absent, "{err}");
         assert!(err.to_string().contains("missing"), "{err}");
-        let _ = std::fs::remove_dir_all(&base);
     }
 
     /// C83: the world lock is exclusive and names its holder; it is
     /// released when the `Lock` is dropped, however that happens.
     #[test]
     fn c83_the_lock_is_exclusive_and_names_its_holder() {
-        let base = scratch("lock");
+        let temp = tempfile::tempdir().unwrap();
+        let base = temp.path().join("base");
         std::fs::create_dir_all(&base).unwrap();
         let path = base.join("daemon.lock");
         let held = Lock::acquire(&path).unwrap();
@@ -1195,7 +1185,6 @@ mod tests {
         drop(held);
         let again = Lock::acquire(&path).expect("released on drop");
         drop(again);
-        let _ = std::fs::remove_dir_all(&base);
     }
 
     /// C83: the private runtime directory is this user's: made 0700,
@@ -1205,7 +1194,8 @@ mod tests {
     #[test]
     fn c83_the_private_dir_is_this_users() {
         use std::os::unix::fs::{MetadataExt, PermissionsExt};
-        let base = scratch("private");
+        let temp = tempfile::tempdir().unwrap();
+        let base = temp.path().join("base");
         std::fs::create_dir_all(&base).unwrap();
         let fresh = private_dir(&base.join("fresh")).unwrap();
         assert_eq!(std::fs::metadata(&fresh).unwrap().mode() & 0o777, 0o700);
@@ -1236,7 +1226,6 @@ mod tests {
             real_mode_lock_location().unwrap().parent(),
             Some(runtime.as_path())
         );
-        let _ = std::fs::remove_dir_all(&base);
     }
 
     /// C132: the real-mode lock's path is a pure function of the home the
@@ -1281,13 +1270,13 @@ mod tests {
         assert!(!lock.starts_with(&runtime), "{}", lock.display());
         #[cfg(unix)]
         {
-            let base = scratch("lock-home");
+            let temp = tempfile::tempdir().unwrap();
+            let base = temp.path().join("base");
             std::fs::create_dir_all(base.join("real")).unwrap();
             let world = World::observe_at(&base.join("real")).unwrap();
             if let Ok(socket) = world.socket_path_under(&runtime) {
                 assert_eq!(socket.parent(), Some(runtime.as_path()));
             }
-            let _ = std::fs::remove_dir_all(&base);
         }
     }
 
@@ -1300,7 +1289,8 @@ mod tests {
     /// here is a scratch directory; the user's own is never touched.
     #[test]
     fn c132_a_home_that_cannot_hold_the_lock_is_refused_by_name() {
-        let base = scratch("lock-refusals");
+        let temp = tempfile::tempdir().unwrap();
+        let base = temp.path().join("base");
         std::fs::create_dir_all(&base).unwrap();
 
         // The home is a file.
@@ -1389,7 +1379,6 @@ mod tests {
         let lock = real_mode_lock_made_under(&home).unwrap();
         assert_eq!(lock, real_mode_lock_in(&home));
         assert!(lock.parent().unwrap().is_dir());
-        let _ = std::fs::remove_dir_all(&base);
     }
 
     /// C83: two of our own starts making one fresh private directory at
@@ -1399,7 +1388,8 @@ mod tests {
     /// the race is met (a cold CI runner's first tests did, on Windows).
     #[test]
     fn two_starts_making_one_private_dir_at_once_both_succeed() {
-        let base = scratch("race");
+        let temp = tempfile::tempdir().unwrap();
+        let base = temp.path().join("base");
         std::fs::create_dir_all(&base).unwrap();
         let mut refused = Vec::new();
         for i in 0..200 {
@@ -1426,7 +1416,6 @@ mod tests {
             "{} of 400 calls refused: {refused:?}",
             refused.len()
         );
-        let _ = std::fs::remove_dir_all(&base);
     }
 
     /// C83: a non-UTF-8 root is refused as a world. Linux only: APFS
@@ -1436,13 +1425,13 @@ mod tests {
     #[test]
     fn c83_a_root_that_is_not_utf8_is_refused() {
         use std::os::unix::ffi::OsStrExt;
-        let base = scratch("odd-root");
+        let temp = tempfile::tempdir().unwrap();
+        let base = temp.path().join("base");
         std::fs::create_dir_all(&base).unwrap();
         let odd = base.join(std::ffi::OsStr::from_bytes(b"r\xff"));
         std::fs::create_dir(&odd).unwrap();
         let err = World::observe_at(&odd).unwrap_err();
         assert!(err.to_string().contains("UTF-8"), "{err}");
-        let _ = std::fs::remove_dir_all(&base);
     }
 
     /// C83: the socket derives from the world into the runtime directory
@@ -1455,7 +1444,8 @@ mod tests {
     /// environment's (review 2026-09-11).
     #[test]
     fn c83_the_socket_derives_from_the_world_into_the_runtime_directory() {
-        let base = scratch("socket");
+        let temp = tempfile::tempdir().unwrap();
+        let base = temp.path().join("base");
         std::fs::create_dir_all(base.join("real")).unwrap();
         std::fs::create_dir_all(base.join("other")).unwrap();
         // The derivation under a runtime directory this test names: the
@@ -1541,7 +1531,6 @@ mod tests {
                 "{err}"
             );
         }
-        let _ = std::fs::remove_dir_all(&base);
     }
 
     /// The rails state's fields are three owners'; a field this build
@@ -1550,7 +1539,8 @@ mod tests {
     /// write leaves nothing beside the file (its partial is renamed).
     #[test]
     fn the_rails_state_keeps_a_later_builds_fields() {
-        let base = scratch("rails-unknown");
+        let temp = tempfile::tempdir().unwrap();
+        let base = temp.path().join("base");
         std::fs::create_dir_all(&base).unwrap();
         let path = base.join("rails.json");
         let later = r#"{"since":"2027-01-01","cause":"a later halt"}"#;
@@ -1589,7 +1579,6 @@ mod tests {
             .map(|entry| entry.unwrap().file_name())
             .collect();
         assert_eq!(beside, ["rails.json"], "no partial left beside the file");
-        let _ = std::fs::remove_dir_all(&base);
     }
 
     /// A rewrite keeps the file's mode: a rails state its owner narrowed
@@ -1598,7 +1587,8 @@ mod tests {
     #[test]
     fn the_rails_state_rewrite_keeps_the_files_mode() {
         use std::os::unix::fs::PermissionsExt;
-        let base = scratch("rails-mode");
+        let temp = tempfile::tempdir().unwrap();
+        let base = temp.path().join("base");
         std::fs::create_dir_all(&base).unwrap();
         let path = base.join("rails.json");
         std::fs::write(&path, r#"{"tripped":"429 on GET /x"}"#).unwrap();
@@ -1610,6 +1600,5 @@ mod tests {
         state.write(&path).unwrap();
         let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
         assert_eq!(mode, 0o600, "the rewrite changed the mode to {mode:o}");
-        let _ = std::fs::remove_dir_all(&base);
     }
 }

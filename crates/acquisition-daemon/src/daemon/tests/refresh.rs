@@ -284,7 +284,7 @@ async fn token_daemon(
     Arc<Daemon>,
     Arc<RecordingCredentialStore>,
     Arc<ManualClock>,
-    PathBuf,
+    TestPath,
     Arc<Mutex<Vec<String>>>,
     tokio::task::JoinHandle<()>,
 ) {
@@ -530,7 +530,7 @@ async fn token_daemon_with_store(
 ) -> (
     Arc<Daemon>,
     Arc<RecordingCredentialStore>,
-    PathBuf,
+    TestPath,
     Arc<Mutex<Vec<String>>>,
     tokio::task::JoinHandle<()>,
 ) {
@@ -660,18 +660,13 @@ async fn c144_a_rename_whose_old_entry_cannot_be_cleared_says_so() {
 /// A scratch store directory whose index lists `test-user` (uuid `u-1`)
 /// as persisted, for a daemon from `token_daemon_with_store` whose
 /// session then carries that uuid.
-fn indexed_test_user(daemon: &mut Arc<Daemon>) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!(
-        "acq-refresh-index-{}-{}",
-        std::process::id(),
-        TEST_LOG_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-    ));
-    let _ = std::fs::remove_dir_all(&dir);
+fn indexed_test_user(daemon: &mut Arc<Daemon>) -> TestPath {
+    let dir = TestPath::dir();
     Index::load(&dir)
         .unwrap()
         .record_login("test-user", "u-1", true, 1, &[])
         .unwrap();
-    Arc::get_mut(daemon).unwrap().store_dir = Some(dir.clone());
+    Arc::get_mut(daemon).unwrap().store_dir = Some(dir.to_path_buf());
     daemon.shared.lock().unwrap().auth.one_mut().uuid = Some("u-1".into());
     dir
 }
@@ -742,7 +737,6 @@ async fn c144_a_logout_where_a_refresh_releases_the_lock_keeps_its_mark() {
         Some("rt-rotated"),
         "the refresh's save landed before the logout"
     );
-    let _ = std::fs::remove_dir_all(&dir);
     server.await.unwrap();
     assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
     finish_harness(None, &log_path);
@@ -800,7 +794,6 @@ async fn c144_a_rename_whose_old_clear_fails_stays_in_the_logouts_reach() {
         entry.keyring_names.is_empty(),
         "every held name is released: {entry:?}"
     );
-    let _ = std::fs::remove_dir_all(&dir);
     server.await.unwrap();
     assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
     finish_harness(None, &log_path);
@@ -867,7 +860,6 @@ async fn c144_a_logout_after_an_unindexed_rename_finds_the_account_by_its_uuid()
     let mut log = Vec::new();
     let sessions = start::restore_sessions(&*store, "acq-mock", &dir, None, &mut log);
     assert!(sessions.by_account.is_empty(), "a start restores nothing");
-    let _ = std::fs::remove_dir_all(&dir);
     server.await.unwrap();
     assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
     finish_harness(None, &log_path);
@@ -919,7 +911,6 @@ async fn c144_renames_under_an_unwritable_index_leave_no_credential_behind() {
     let left = store.entries.lock().unwrap().clone();
     assert!(left.is_empty(), "no credential under any name: {left:?}");
     assert_eq!(outcome, KeyringOutcome::Cleared);
-    let _ = std::fs::remove_dir_all(&dir);
     server.await.unwrap();
     assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
     finish_harness(None, &log_path);
@@ -966,7 +957,6 @@ async fn c144_two_renames_whose_clears_fail_keep_every_name_in_reach() {
     let entry = index.get("C#3").unwrap();
     assert!(!entry.persisted);
     assert!(entry.keyring_names.is_empty(), "{entry:?}");
-    let _ = std::fs::remove_dir_all(&dir);
     server.await.unwrap();
     assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
     finish_harness(None, &log_path);
@@ -977,12 +967,8 @@ async fn c144_two_renames_whose_clears_fail_keep_every_name_in_reach() {
 /// rename left behind is restored under the account's current name.
 #[test]
 fn c144_restore_reaches_a_token_under_a_held_name() {
-    let dir = std::env::temp_dir().join(format!(
-        "acq-restore-held-{}-{}",
-        std::process::id(),
-        TEST_LOG_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-    ));
-    let _ = std::fs::remove_dir_all(&dir);
+    let temp = tempfile::tempdir().unwrap();
+    let dir = temp.path().to_path_buf();
     Index::load(&dir)
         .unwrap()
         .record_login("New#2", "u-1", true, 1, &["Old#1".into()])
@@ -1004,7 +990,6 @@ fn c144_restore_reaches_a_token_under_a_held_name() {
         log.contains("New#2 restored from its keyring entry under the old name Old#1"),
         "{log}"
     );
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// C144 (every load result reaches the words), the review of the h1 tail
@@ -1016,12 +1001,8 @@ fn c144_restore_reaches_a_token_under_a_held_name() {
 /// the keyring healthy.
 #[test]
 fn c144_restore_reports_a_held_names_failed_load() {
-    let dir = std::env::temp_dir().join(format!(
-        "acq-restore-held-fail-{}-{}",
-        std::process::id(),
-        TEST_LOG_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-    ));
-    let _ = std::fs::remove_dir_all(&dir);
+    let temp = tempfile::tempdir().unwrap();
+    let dir = temp.path().to_path_buf();
     Index::load(&dir)
         .unwrap()
         .record_login("B#2", "u-1", true, 1, &["A#1".into()])
@@ -1042,5 +1023,4 @@ fn c144_restore_reports_a_held_names_failed_load() {
         "{log}"
     );
     assert!(!log.contains("has no entry"), "{log}");
-    let _ = std::fs::remove_dir_all(&dir);
 }

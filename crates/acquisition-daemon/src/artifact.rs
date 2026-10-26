@@ -88,12 +88,12 @@ mod tests {
         assert!(artifact.file.len > 0);
         // The digest is SHA-256, checked against the standard's own
         // vector and not against this module's function twice.
-        let known = std::env::temp_dir().join(format!("acq-artifact-abc-{}", std::process::id()));
+        let temp = tempfile::tempdir().unwrap();
+        let known = temp.path().join("abc");
         std::fs::write(&known, b"abc").unwrap();
         assert_eq!(
             sha256_of(&known).unwrap(),
             "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
         );
-        let _ = std::fs::remove_file(&known);
     }
 }

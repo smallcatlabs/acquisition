@@ -6,7 +6,6 @@
 use super::harness::*;
 use crate::daemon::*;
 use acquisition_protocol::protocol::KeyringOutcome;
-use std::sync::atomic::Ordering;
 
 // ---- tracer step 2: uuid-at-login (C50) ------------------------------
 
@@ -21,7 +20,14 @@ fn login_tokens(access: &str, user: &str) -> auth::TokenResponse {
 
 /// A daemon wired for login tests: a recording credential store, a
 /// scratch store directory, and no pre-existing session.
-fn login_daemon(base: &str) -> (Arc<Daemon>, Arc<RecordingCredentialStore>, PathBuf, PathBuf) {
+fn login_daemon(
+    base: &str,
+) -> (
+    Arc<Daemon>,
+    Arc<RecordingCredentialStore>,
+    TestPath,
+    TestPath,
+) {
     let clock = Arc::new(ManualClock::new());
     let rails = Arc::new(Rails::with_config_and_clock(
         RailsConfig::default(),
@@ -34,13 +40,8 @@ fn login_daemon(base: &str) -> (Arc<Daemon>, Arc<RecordingCredentialStore>, Path
         rails,
         credentials.clone() as Arc<dyn CredentialStore>,
     );
-    let store_dir = std::env::temp_dir().join(format!(
-        "acq-login-{}-{}",
-        std::process::id(),
-        TEST_LOG_ID.fetch_add(1, Ordering::Relaxed)
-    ));
-    let _ = std::fs::remove_dir_all(&store_dir);
-    Arc::get_mut(&mut daemon).expect("fresh daemon").store_dir = Some(store_dir.clone());
+    let store_dir = TestPath::dir();
+    Arc::get_mut(&mut daemon).expect("fresh daemon").store_dir = Some(store_dir.to_path_buf());
     // The harness pre-installs an empty legacy session; a login test
     // starts logged out.
     daemon.shared.lock().unwrap().auth.by_account.clear();
@@ -74,7 +75,7 @@ fn login_result(daemon: &Daemon) -> (bool, Option<String>, Option<String>) {
 #[tokio::test]
 async fn login_registers_the_session_only_when_the_profile_uuid_lands() {
     let base = mockggg::start().await.unwrap();
-    let (daemon, credentials, store_dir, log_path) = login_daemon(&base);
+    let (daemon, credentials, store_dir, _log_path) = login_daemon(&base);
     let dispatcher = tokio::spawn(daemon.clone().dispatcher());
 
     let generation = daemon.begin_auth_flow();
@@ -137,8 +138,6 @@ async fn login_registers_the_session_only_when_the_profile_uuid_lands() {
     );
 
     dispatcher.abort();
-    let _ = std::fs::remove_dir_all(&store_dir);
-    let _ = std::fs::remove_file(&log_path);
 }
 
 /// A login whose profile fetch fails fails whole: no provisional
@@ -148,7 +147,7 @@ async fn login_registers_the_session_only_when_the_profile_uuid_lands() {
 #[tokio::test]
 async fn a_login_whose_profile_fetch_fails_fails_whole() {
     // Nothing listens here: the profile GET dies in transport.
-    let (daemon, credentials, store_dir, log_path) = login_daemon("http://127.0.0.1:1");
+    let (daemon, credentials, store_dir, _log_path) = login_daemon("http://127.0.0.1:1");
     let dispatcher = tokio::spawn(daemon.clone().dispatcher());
 
     run_login(&daemon, "at-x.Alice#1234", "Alice#1234").await;
@@ -177,8 +176,6 @@ async fn a_login_whose_profile_fetch_fails_fails_whole() {
     assert!(!acquisition_store::index_path(&store_dir).exists());
 
     dispatcher.abort();
-    let _ = std::fs::remove_dir_all(&store_dir);
-    let _ = std::fs::remove_file(&log_path);
 }
 
 /// An aborted *re-login* leaves the previously registered session
@@ -190,7 +187,7 @@ async fn a_login_whose_profile_fetch_fails_fails_whole() {
 #[tokio::test]
 async fn an_aborted_relogin_keeps_the_old_session_and_reports_the_failure() {
     let base = mockggg::start().await.unwrap();
-    let (daemon, credentials, store_dir, log_path) = login_daemon(&base);
+    let (daemon, credentials, _store_dir, _log_path) = login_daemon(&base);
     let dispatcher = tokio::spawn(daemon.clone().dispatcher());
     run_login(&daemon, "at-x.Alice#1234", "Alice#1234").await;
     assert_eq!(login_result(&daemon).1.as_deref(), Some("Alice#1234"));
@@ -224,8 +221,6 @@ async fn an_aborted_relogin_keeps_the_old_session_and_reports_the_failure() {
     assert_eq!(credentials.saves.lock().unwrap().len(), 1);
 
     dispatcher.abort();
-    let _ = std::fs::remove_dir_all(&store_dir);
-    let _ = std::fs::remove_file(&log_path);
 }
 
 /// A rejected refresh grant marks the account so the dead token is
@@ -234,7 +229,7 @@ async fn an_aborted_relogin_keeps_the_old_session_and_reports_the_failure() {
 #[tokio::test]
 async fn a_completed_login_clears_the_dead_grant_mark() {
     let base = mockggg::start().await.unwrap();
-    let (daemon, _credentials, store_dir, log_path) = login_daemon(&base);
+    let (daemon, _credentials, _store_dir, _log_path) = login_daemon(&base);
     let dispatcher = tokio::spawn(daemon.clone().dispatcher());
     let rails = daemon.choke.rails().clone();
     assert!(rails.mark_refresh_failed("Alice#1234", "HTTP 400"));
@@ -245,8 +240,6 @@ async fn a_completed_login_clears_the_dead_grant_mark() {
     assert_eq!(rails.refresh_failed("Alice#1234"), None);
 
     dispatcher.abort();
-    let _ = std::fs::remove_dir_all(&store_dir);
-    let _ = std::fs::remove_file(&log_path);
 }
 
 /// A login the account index cannot record fails whole: the session
@@ -256,7 +249,7 @@ async fn a_completed_login_clears_the_dead_grant_mark() {
 #[tokio::test]
 async fn a_login_the_index_cannot_record_fails_whole_and_leaves_no_keyring_entry() {
     let base = mockggg::start().await.unwrap();
-    let (daemon, credentials, store_dir, log_path) = login_daemon(&base);
+    let (daemon, credentials, store_dir, _log_path) = login_daemon(&base);
     // A directory where the index file should be: every index read and
     // write fails, while the profile's facts file opens and records (a
     // store that cannot record fails the profile job first, C144).
@@ -285,15 +278,13 @@ async fn a_login_the_index_cannot_record_fails_whole_and_leaves_no_keyring_entry
 
     dispatcher.abort();
     drop(daemon);
-    let _ = std::fs::remove_dir_all(&store_dir);
-    let _ = std::fs::remove_file(&log_path);
 }
 
 /// A superseded flow can neither stage nor complete, and its staged
 /// tokens do not linger.
 #[tokio::test]
 async fn a_superseded_login_cannot_complete_and_leaves_no_zombie() {
-    let (daemon, credentials, _store_dir, log_path) = login_daemon("http://127.0.0.1:1");
+    let (daemon, credentials, _store_dir, _log_path) = login_daemon("http://127.0.0.1:1");
 
     let g1 = daemon.begin_auth_flow();
     daemon
@@ -320,7 +311,6 @@ async fn a_superseded_login_cannot_complete_and_leaves_no_zombie() {
             .stage_auth_flow(g1, login_tokens("at-y.Alice#1234", "Alice#1234"))
             .is_none()
     );
-    let _ = std::fs::remove_file(&log_path);
 }
 
 /// C129 over C24, the login arm: Cloudflare's challenge on the code
@@ -542,13 +532,8 @@ async fn a_headerless_code_exchange_2xx_installs_its_tokens() {
         credentials.clone() as Arc<dyn CredentialStore>,
         log_path,
     );
-    let store_dir = std::env::temp_dir().join(format!(
-        "acq-login-{}-{}",
-        std::process::id(),
-        TEST_LOG_ID.fetch_add(1, Ordering::Relaxed)
-    ));
-    let _ = std::fs::remove_dir_all(&store_dir);
-    Arc::get_mut(&mut daemon).expect("fresh daemon").store_dir = Some(store_dir.clone());
+    let store_dir = TestPath::dir();
+    Arc::get_mut(&mut daemon).expect("fresh daemon").store_dir = Some(store_dir.to_path_buf());
     daemon.shared.lock().unwrap().auth.by_account.clear();
     let dispatcher = tokio::spawn(daemon.clone().dispatcher());
 
@@ -596,7 +581,6 @@ async fn a_headerless_code_exchange_2xx_installs_its_tokens() {
     server.await.unwrap();
     assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
     finish_harness(dispatcher, &log_path);
-    let _ = std::fs::remove_dir_all(&store_dir);
 }
 
 /// C47 with C134, the login arm: a code exchange whose `expires_in` no
@@ -620,7 +604,7 @@ async fn an_out_of_range_expires_in_is_a_token_error() {
         .to_string(),
     };
     let (base, requests, server) = scripted_server(vec![grant]).await;
-    let (daemon, credentials, store_dir, log_path) = login_daemon(&base);
+    let (daemon, credentials, _store_dir, log_path) = login_daemon(&base);
 
     let authorize = url::Url::parse(&daemon.auth_start().await.unwrap()).unwrap();
     let query: HashMap<String, String> = authorize.query_pairs().into_owned().collect();
@@ -661,7 +645,6 @@ async fn an_out_of_range_expires_in_is_a_token_error() {
     server.await.unwrap();
     assert_eq!(requests.lock().unwrap().as_slice(), ["POST"], "one POST");
     finish_harness(None, &log_path);
-    let _ = std::fs::remove_dir_all(&store_dir);
 }
 
 /// C144 (a staged login token serves the login's own profile job alone),
@@ -767,7 +750,12 @@ async fn c144_a_client_profile_job_in_the_staging_window_never_gets_the_staged_t
 /// test-user's entry, with an account index in a scratch directory.
 fn keyring_daemon(
     store: RecordingCredentialStore,
-) -> (Arc<Daemon>, Arc<RecordingCredentialStore>, PathBuf, PathBuf) {
+) -> (
+    Arc<Daemon>,
+    Arc<RecordingCredentialStore>,
+    TestPath,
+    TestPath,
+) {
     let (mut daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
     logged_in(&mut daemon);
     store
@@ -776,19 +764,14 @@ fn keyring_daemon(
         .unwrap()
         .insert("test-user".into(), "rt-old".into());
     let store = Arc::new(store);
-    let dir = std::env::temp_dir().join(format!(
-        "acq-keyring-{}-{}",
-        std::process::id(),
-        TEST_LOG_ID.fetch_add(1, Ordering::Relaxed)
-    ));
-    let _ = std::fs::remove_dir_all(&dir);
+    let dir = TestPath::dir();
     Index::load(&dir)
         .unwrap()
         .record_login("test-user", "u-1", true, 1, &[])
         .unwrap();
     let d = Arc::get_mut(&mut daemon).unwrap();
     d.credential_store = store.clone();
-    d.store_dir = Some(dir.clone());
+    d.store_dir = Some(dir.to_path_buf());
     (daemon, store, dir, log_path)
 }
 
@@ -855,7 +838,6 @@ async fn c144_a_logout_whose_keyring_clear_fails_says_so_on_the_wire() {
         }
     ));
     assert!(store.entries.lock().unwrap().is_empty());
-    let _ = std::fs::remove_dir_all(&dir);
     finish_harness(None, &log_path);
 }
 
@@ -864,7 +846,7 @@ async fn c144_a_logout_whose_keyring_clear_fails_says_so_on_the_wire() {
 /// frontend reads it from a sentence), and the entry is gone.
 #[tokio::test]
 async fn a_logout_clears_the_keyring_entry_and_acks() {
-    let (daemon, store, dir, log_path) = keyring_daemon(RecordingCredentialStore::default());
+    let (daemon, store, _dir, log_path) = keyring_daemon(RecordingCredentialStore::default());
     assert!(matches!(
         logout_answer(&daemon, None).await,
         Response::Ack {
@@ -873,7 +855,6 @@ async fn a_logout_clears_the_keyring_entry_and_acks() {
     ));
     assert!(store.entries.lock().unwrap().is_empty());
     assert_eq!(store.cleared.lock().unwrap().as_slice(), ["test-user"]);
-    let _ = std::fs::remove_dir_all(&dir);
     finish_harness(None, &log_path);
 }
 
@@ -917,7 +898,6 @@ async fn c144_forget_clears_an_unmarked_entry_and_reports_a_failed_clear() {
         1,
         "only the clear that worked is logged as cleared:\n{log}"
     );
-    let _ = std::fs::remove_dir_all(&dir);
     finish_harness(None, &log_path);
 }
 
@@ -927,12 +907,8 @@ async fn c144_forget_clears_an_unmarked_entry_and_reports_a_failed_clear() {
 /// back as a session; an entry it lacks is logged.
 #[test]
 fn c144_restore_reads_through_the_credential_store_and_reports_a_failed_load() {
-    let dir = std::env::temp_dir().join(format!(
-        "acq-restore-{}-{}",
-        std::process::id(),
-        TEST_LOG_ID.fetch_add(1, Ordering::Relaxed)
-    ));
-    let _ = std::fs::remove_dir_all(&dir);
+    let temp = tempfile::tempdir().unwrap();
+    let dir = temp.path().to_path_buf();
     {
         let mut index = Index::load(&dir).unwrap();
         index.record_login("alice", "u-a", true, 2, &[]).unwrap();
@@ -969,7 +945,6 @@ fn c144_restore_reads_through_the_credential_store_and_reports_a_failed_load() {
         log.contains("keyring read for alice failed: keychain locked"),
         "{log}"
     );
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// A login of `user` staged to the point its profile's uuid lands: the
@@ -989,7 +964,7 @@ fn staged_login(daemon: &Daemon, user: &str) -> u64 {
 /// account is not persisted.
 #[tokio::test]
 async fn c144_a_re_login_whose_save_fails_clears_the_previous_entry() {
-    let (daemon, credentials, store_dir, log_path) = login_daemon("http://127.0.0.1:1");
+    let (daemon, credentials, store_dir, _log_path) = login_daemon("http://127.0.0.1:1");
     Index::load(&store_dir)
         .unwrap()
         .record_login("Alice#1", "u-a", true, 1, &[])
@@ -1026,8 +1001,6 @@ async fn c144_a_re_login_whose_save_fails_clears_the_previous_entry() {
             .keyring,
         "unavailable: keychain locked"
     );
-    let _ = std::fs::remove_dir_all(&store_dir);
-    let _ = std::fs::remove_file(&log_path);
 }
 
 /// C144 (a rename clears the entry it leaves behind), the review of h1,
@@ -1036,7 +1009,7 @@ async fn c144_a_re_login_whose_save_fails_clears_the_previous_entry() {
 /// name the index mapped the uuid to, which nothing could reach again.
 #[tokio::test]
 async fn c144_a_re_login_under_a_renamed_username_clears_the_old_names_entry() {
-    let (daemon, credentials, store_dir, log_path) = login_daemon("http://127.0.0.1:1");
+    let (daemon, credentials, store_dir, _log_path) = login_daemon("http://127.0.0.1:1");
     Index::load(&store_dir)
         .unwrap()
         .record_login("Old#1", "u-a", true, 1, &[])
@@ -1060,8 +1033,6 @@ async fn c144_a_re_login_under_a_renamed_username_clears_the_old_names_entry() {
     let entry = index.get("New#1").unwrap();
     assert_eq!(entry.uuid.as_deref(), Some("u-a"));
     assert!(entry.persisted);
-    let _ = std::fs::remove_dir_all(&store_dir);
-    let _ = std::fs::remove_file(&log_path);
 }
 
 /// C144 (no success the daemon did not earn), the review of h1, its
@@ -1105,7 +1076,6 @@ async fn c144_a_logout_with_the_keyring_off_says_nothing_was_cleared() {
         store.entries.lock().unwrap().contains_key("test-user"),
         "the entry a run with the keyring on saved is still there"
     );
-    let _ = std::fs::remove_dir_all(&dir);
     finish_harness(None, &log_path);
 }
 
@@ -1162,7 +1132,6 @@ async fn c144_forget_and_logout_say_what_the_index_write_did() {
         ),
         "{message}"
     );
-    let _ = std::fs::remove_dir_all(&dir);
     finish_harness(None, &log_path);
 }
 
@@ -1180,7 +1149,7 @@ async fn c144_forget_and_logout_say_what_the_index_write_did() {
 /// and the forget had acknowledged a logout that did not hold.
 #[tokio::test]
 async fn c144_a_login_cannot_land_between_a_forgets_clear_and_its_mark() {
-    let (daemon, credentials, store_dir, log_path) = login_daemon("http://127.0.0.1:1");
+    let (daemon, credentials, store_dir, _log_path) = login_daemon("http://127.0.0.1:1");
     Index::load(&store_dir)
         .unwrap()
         .record_login("Alice#1", "u-a", true, 1, &[])
@@ -1235,8 +1204,6 @@ async fn c144_a_login_cannot_land_between_a_forgets_clear_and_its_mark() {
         Some("rt-Alice#1"),
         "the login's credential stands"
     );
-    let _ = std::fs::remove_dir_all(&store_dir);
-    let _ = std::fs::remove_file(&log_path);
 }
 
 /// `test-user`'s session back in the daemon, as `logged_in` installs it.

@@ -29,3 +29,5 @@ anyhow.workspace = true
 # The policy test plants a newer build's value under the store's door,
 # as the planner's own test does.
 rusqlite = "0.32"
+# a test's own folder, removed on drop: never a name built from the pid
+tempfile.workspace = true

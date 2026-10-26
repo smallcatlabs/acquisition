@@ -181,25 +181,9 @@ async fn halted_daemon_refuses_refresh_before_any_send() {
     finish_harness(None, &log_path);
 }
 
-/// A `daemon.db` for one test, beside the harness's logs.
-fn test_db_path() -> PathBuf {
-    std::env::temp_dir().join(format!(
-        "acquisition-rails-jobs-{}-{}.db",
-        std::process::id(),
-        TEST_LOG_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-    ))
-}
-
-fn remove_db(path: &std::path::Path) {
-    for suffix in ["", "-wal", "-shm"] {
-        let _ = std::fs::remove_file(format!("{}{suffix}", path.display()));
-    }
-}
-
 /// A harness daemon on the ceiling, logged in as `test-user` with its
 /// refresh due, its queue on a file-backed `daemon.db`.
-fn ceiling_daemon(base: &str, max_sends: u64, db: &std::path::Path) -> (Arc<Daemon>, PathBuf) {
-    remove_db(db);
+fn ceiling_daemon(base: &str, max_sends: u64, db: &std::path::Path) -> (Arc<Daemon>, TestPath) {
     let (mut daemon, log_path) = test_daemon_with(
         Provider::mock(base),
         Arc::new(ManualClock::new()),
@@ -293,7 +277,6 @@ async fn a_halt_after_the_pick_leaves_the_job_waiting() {
     assert_eq!(wire_posts(&requests), ["POST"]);
     assert_journal_matches_wire(&log_path, &wire_posts(&requests));
     finish_harness(dispatcher, &log_path);
-    remove_db(&db);
 }
 
 /// C25, the refresh itself refused: two accounts, each with a refresh
@@ -343,7 +326,6 @@ async fn a_halt_after_the_pick_leaves_a_refreshing_job_waiting() {
     assert_eq!(wire_posts(&requests), ["POST"]);
     assert_journal_matches_wire(&log_path, &wire_posts(&requests));
     finish_harness(dispatcher, &log_path);
-    remove_db(&db);
 }
 
 /// C25 at a ceiling of none: the daemon is halted from its start, the
@@ -371,7 +353,6 @@ async fn a_ceiling_of_none_leaves_the_job_waiting() {
     assert!(requests.lock().unwrap().is_empty());
     assert_journal_matches_wire(&log_path, &[]);
     finish_harness(dispatcher, &log_path);
-    remove_db(&db);
 }
 
 /// C129 on HEAD: a status only Cloudflare sends is the evidence, so a
@@ -570,7 +551,6 @@ async fn a_cancel_before_the_halt_parks_the_job_concludes_it_cancelled() {
     );
     assert_journal_matches_wire(&log_path, &wire_methods(&sent_log));
     finish_harness(dispatcher, &log_path);
-    remove_db(&db);
 }
 
 /// C25 with C129: a refresh answered by a Cloudflare block on the token
@@ -603,7 +583,6 @@ async fn a_blocked_token_post_leaves_the_job_waiting() {
     server.await.unwrap();
     assert_eq!(requests.lock().unwrap().as_slice(), ["POST"]);
     finish_harness_wire(dispatcher, &log_path, &requests);
-    remove_db(&db);
 }
 
 /// C25's pick-time hold on `whoami`, which has no route and may still
@@ -664,7 +643,6 @@ async fn a_parked_whoami_is_not_picked_again_while_halted() {
     assert_eq!(wire_methods(&sent_log), ["POST"], "no second refresh");
     assert_journal_matches_wire(&log_path, &wire_methods(&sent_log));
     finish_harness(None, &log_path);
-    remove_db(&db);
 }
 
 /// A rails write that fails is never silent: the block mark this daemon
@@ -683,11 +661,8 @@ async fn a_rails_write_that_fails_is_logged_and_its_reset_refused() {
     ];
     let (base, requests, server) = scripted_server(responses).await;
     // Under a regular file, which no platform opens as a directory.
-    let blocker = std::env::temp_dir().join(format!(
-        "acq-rails-unwritable-{}-{}",
-        std::process::id(),
-        TEST_LOG_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-    ));
+    let temp = tempfile::tempdir().unwrap();
+    let blocker = temp.path().join("blocker");
     std::fs::write(&blocker, b"").unwrap();
     let clock = Arc::new(ManualClock::new());
     let (daemon, log_path) = test_daemon_with(
@@ -724,5 +699,4 @@ async fn a_rails_write_that_fails_is_logged_and_its_reset_refused() {
     );
     server.await.unwrap();
     finish_harness_wire(dispatcher, &log_path, &requests);
-    let _ = std::fs::remove_file(&blocker);
 }

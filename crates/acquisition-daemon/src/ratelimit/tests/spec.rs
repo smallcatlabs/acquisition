@@ -2316,11 +2316,8 @@ async fn a_3xx_is_one_send_one_journal_line_and_no_second_request() {
             redirect_response(status_line, &format!("{base}/elsewhere?code={SECRET}"))
         })
         .await;
-        let journal = std::env::temp_dir().join(format!(
-            "acq-c130-journal-{}-{method}.jsonl",
-            std::process::id()
-        ));
-        let _ = std::fs::remove_file(&journal);
+        let temp = tempfile::tempdir().unwrap();
+        let journal = temp.path().join("c130-journal.jsonl");
         let rails = Arc::new(Rails::with_config(RailsConfig {
             journal_path: Some(journal.clone()),
             ..RailsConfig::default()
@@ -2374,7 +2371,6 @@ async fn a_3xx_is_one_send_one_journal_line_and_no_second_request() {
             "{text}"
         );
         assert!(!text.contains(SECRET), "the journal kept the query: {text}");
-        let _ = std::fs::remove_file(&journal);
         server.abort();
     }
 

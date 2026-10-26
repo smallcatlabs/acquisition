@@ -1550,11 +1550,8 @@ mod tests {
     /// C35 — two writers on one file serialize under BEGIN IMMEDIATE: one wins, the other gets a Conflict, never a clobber.
     #[test]
     fn two_connections_conflict_deterministically_never_clobber() {
-        let dir = std::env::temp_dir().join(format!(
-            "acq-ann-2c-{}-{}",
-            std::process::id(),
-            crate::now()
-        ));
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().to_path_buf();
         let path = annotations_path(&dir, "u-race");
         let mut a = Annotations::open(&path).unwrap();
         let mut b = Annotations::open(&path).unwrap();
@@ -1592,7 +1589,6 @@ mod tests {
             AnnotationError::Conflict { current: Some(row) } => assert_eq!(*row, winner),
             other => panic!("the loser must see a Conflict, got {other}"),
         }
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// A writer that cannot get the lock inside the busy timeout is told
@@ -1600,11 +1596,8 @@ mod tests {
     /// the remedy differs from a Conflict's "re-read and retry".
     #[test]
     fn a_writer_held_past_the_busy_timeout_is_busy_not_db() {
-        let dir = std::env::temp_dir().join(format!(
-            "acq-ann-busy-{}-{}",
-            std::process::id(),
-            crate::now()
-        ));
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().to_path_buf();
         let path = annotations_path(&dir, "u-busy");
         let mut a = Annotations::open(&path).unwrap();
         let b = Annotations::open(&path).unwrap();
@@ -1626,7 +1619,6 @@ mod tests {
                 .revision,
             1
         );
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// C137: the annotation wait at zero (`ACQ_ANNOTATION_WAIT=0`) refuses
@@ -1664,11 +1656,8 @@ mod tests {
             );
             return;
         }
-        let dir = std::env::temp_dir().join(format!(
-            "acq-ann-wait-{}-{}",
-            std::process::id(),
-            crate::now()
-        ));
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().to_path_buf();
         let path = annotations_path(&dir, "u-wait");
         let mut a = Annotations::open(&path).unwrap();
         let b = Annotations::open(&path).unwrap();
@@ -1691,7 +1680,6 @@ mod tests {
             "annotation file is busy: another writer held it past 0 s (retry later)"
         );
         b.conn.execute_batch("ROLLBACK").unwrap();
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// C137: the knob names only a wait SQLite can enforce. Over the
@@ -1964,8 +1952,8 @@ mod tests {
     /// writer through an export: a torn copy fails too rarely to pin.
     #[test]
     fn export_is_a_whole_standalone_file_and_never_overwrites() {
-        let dir =
-            std::env::temp_dir().join(format!("acq-ann-{}-{}", std::process::id(), crate::now()));
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().to_path_buf();
         let uuid = "00000000-0000-4000-8000-000000000001";
         let mut a = Annotations::open(&annotations_path(&dir, uuid)).unwrap();
         a.put::<Buyout>("item", "i1", &price("1c"), None, &via_test())
@@ -1987,7 +1975,6 @@ mod tests {
         // A second export to the same path is refused, not an overwrite —
         // and refused before anything is written.
         assert!(a.export(&backup).is_err());
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// C35 — two exports racing one destination: each writes its own
@@ -1995,11 +1982,8 @@ mod tests {
     /// AlreadyExists, and the published file is a whole backup.
     #[test]
     fn simultaneous_exports_to_one_destination_publish_exactly_one() {
-        let dir = std::env::temp_dir().join(format!(
-            "acq-ann-xrace-{}-{}",
-            std::process::id(),
-            crate::now()
-        ));
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().to_path_buf();
         let path = annotations_path(&dir, "u-x");
         let mut a = Annotations::open(&path).unwrap();
         a.put::<Buyout>("item", "i1", &price("1c"), None, &via_test())
@@ -2026,7 +2010,6 @@ mod tests {
             .filter(|e| e.file_name().to_string_lossy().contains(".partial"))
             .count();
         assert_eq!(leftovers, 0);
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// A file that exists with content but no schema stamp is refused and
@@ -2034,12 +2017,8 @@ mod tests {
     /// holds nothing and is created over.
     #[test]
     fn an_unstamped_file_with_content_is_refused_and_an_empty_one_is_created_over() {
-        let dir = std::env::temp_dir().join(format!(
-            "acq-ann-v0-{}-{}",
-            std::process::id(),
-            crate::now()
-        ));
-        std::fs::create_dir_all(&dir).unwrap();
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().to_path_buf();
         let path = annotations_path(&dir, "u-1");
         {
             let conn = Connection::open(&path).unwrap();
@@ -2070,7 +2049,6 @@ mod tests {
         std::fs::write(&empty, b"").unwrap();
         let a = Annotations::open_for(&dir, "u-2").unwrap();
         assert_eq!(a.uuid(), Some("u-2"));
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// C35 — the creation race's second window, held open by hand: the
@@ -2081,12 +2059,8 @@ mod tests {
     /// gate runs, 2026-09-09, before this pin).
     #[test]
     fn c35_a_losing_first_opener_waits_for_the_winners_stamp_and_proceeds() {
-        let dir = std::env::temp_dir().join(format!(
-            "acq-ann-race2-{}-{}",
-            std::process::id(),
-            crate::now()
-        ));
-        std::fs::create_dir_all(&dir).unwrap();
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().to_path_buf();
         let path = annotations_path(&dir, "u-w");
         let winner = Connection::open(&path).unwrap();
         // As a creator does: the journal-mode switch writes the file's
@@ -2122,7 +2096,6 @@ mod tests {
         // And the file is a v3 file both can use.
         let again = Annotations::open_for(&dir, "u-w").unwrap();
         assert_eq!(again.uuid(), Some("u-w"));
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// C35 — the other boundary under the same hold: a writer that lands
@@ -2132,12 +2105,8 @@ mod tests {
     /// no journal-mode switch, no schema, no stamp of ours.
     #[test]
     fn c35_a_foreign_writer_landing_under_the_lock_is_refused_and_left_untouched() {
-        let dir = std::env::temp_dir().join(format!(
-            "acq-ann-race3-{}-{}",
-            std::process::id(),
-            crate::now()
-        ));
-        std::fs::create_dir_all(&dir).unwrap();
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().to_path_buf();
         let path = annotations_path(&dir, "u-f");
         let foreign = Connection::open(&path).unwrap();
         foreign.execute_batch("BEGIN IMMEDIATE").unwrap();
@@ -2172,7 +2141,6 @@ mod tests {
                 && !dir.join("u-f.annotations.db-wal").exists(),
             "a journal-mode switch touched the foreign file"
         );
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// C35 — the intent file is fully synchronous: a commit that returned
@@ -2180,11 +2148,8 @@ mod tests {
     /// NORMAL is fine for refetchable facts, not here).
     #[test]
     fn c35_the_intent_file_is_fully_synchronous() {
-        let dir = std::env::temp_dir().join(format!(
-            "acq-ann-sync-{}-{}",
-            std::process::id(),
-            crate::now()
-        ));
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().to_path_buf();
         let a = Annotations::open_for(&dir, "u-1").unwrap();
         let sync: i64 = a
             .conn
@@ -2196,17 +2161,13 @@ mod tests {
             .query_row("PRAGMA journal_mode", [], |r| r.get(0))
             .unwrap();
         assert_eq!(mode, "wal");
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// C35 — the file is bound to the account uuid inside it; a copy under another account's name is refused.
     #[test]
     fn open_for_stamps_the_uuid_and_refuses_a_foreign_file() {
-        let dir = std::env::temp_dir().join(format!(
-            "acq-ann-uuid-{}-{}",
-            std::process::id(),
-            crate::now()
-        ));
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().to_path_buf();
         // First open stamps; reopening from the raw path still knows the
         // owner, because the uuid lives inside the file.
         {
@@ -2224,7 +2185,6 @@ mod tests {
             }
             other => panic!("expected WrongAccount, got {other:?}"),
         }
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// C65 — v3 is the floor: a file a development build wrote below it
@@ -2232,12 +2192,8 @@ mod tests {
     /// writer invented for its rows, and never touched.
     #[test]
     fn c65_a_file_below_the_floor_is_refused_never_migrated() {
-        let dir = std::env::temp_dir().join(format!(
-            "acq-ann-floor-{}-{}",
-            std::process::id(),
-            crate::now()
-        ));
-        std::fs::create_dir_all(&dir).unwrap();
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().to_path_buf();
         let path = annotations_path(&dir, "u-1");
         let v2_table = "CREATE TABLE annotations (
                 scope TEXT NOT NULL, key TEXT NOT NULL, kind TEXT NOT NULL,
@@ -2281,14 +2237,13 @@ mod tests {
             .query_row("PRAGMA user_version", [], |r| r.get(0))
             .unwrap();
         assert_eq!(v, SCHEMA_VERSION);
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// C35 — a file a newer build wrote is refused, never guessed at.
     #[test]
     fn a_newer_schema_is_refused_not_guessed_at() {
-        let dir =
-            std::env::temp_dir().join(format!("acq-ann-v-{}-{}", std::process::id(), crate::now()));
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().to_path_buf();
         let path = annotations_path(&dir, "u-1");
         {
             let a = Annotations::open(&path).unwrap();
@@ -2298,7 +2253,6 @@ mod tests {
             Some(AnnotationError::SchemaTooNew { found: 99, .. }) => {}
             other => panic!("expected SchemaTooNew, got {other:?}"),
         }
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     fn file_hash(path: &Path) -> Vec<u8> {
@@ -2317,12 +2271,8 @@ mod tests {
     /// empty; a missing file is refused, not created.
     #[test]
     fn c124_a_read_only_open_refuses_another_version_and_leaves_the_file_unchanged() {
-        let dir = std::env::temp_dir().join(format!(
-            "acq-ann-ro-refuse-{}-{}",
-            std::process::id(),
-            crate::now()
-        ));
-        let _ = std::fs::remove_dir_all(&dir);
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().to_path_buf();
         assert!(Annotations::open_read_only_for(&dir, "u-0").is_err());
         assert!(
             !annotations_path(&dir, "u-0").exists(),
@@ -2398,7 +2348,6 @@ mod tests {
             std::fs::read(&empty).unwrap().is_empty(),
             "the empty file was written"
         );
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// C124: a current file opens through the read-only door bound to
@@ -2407,12 +2356,8 @@ mod tests {
     /// `WrongAccount`, as `open_for` refuses it.
     #[test]
     fn c124_a_read_only_open_reads_a_current_file_and_writes_nothing() {
-        let dir = std::env::temp_dir().join(format!(
-            "acq-ann-ro-read-{}-{}",
-            std::process::id(),
-            crate::now()
-        ));
-        let _ = std::fs::remove_dir_all(&dir);
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().to_path_buf();
         {
             let mut a = Annotations::open_for(&dir, "u-1").unwrap();
             a.put::<Buyout>("item", "i1", &price("1 divine"), None, &via_test())
@@ -2437,7 +2382,6 @@ mod tests {
             }
             other => panic!("expected WrongAccount, got {other:?}"),
         }
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// C35 — named by the account uuid, never the username.
@@ -2473,9 +2417,8 @@ mod tests {
             Arc,
             atomic::{AtomicBool, AtomicU32, Ordering},
         };
-        let base = std::env::temp_dir().join(format!("acq-ann-gate-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&base);
-        std::fs::create_dir_all(&base).unwrap();
+        let temp = tempfile::tempdir().unwrap();
+        let base = temp.path().to_path_buf();
         let path = base.join("u-race.annotations.db");
         let loser = Connection::open(&path).unwrap();
         let fired = Arc::new(AtomicBool::new(false));
@@ -2527,6 +2470,5 @@ mod tests {
         if let Err(e) = Annotations::open(&path) {
             panic!("the file is not a well-formed store afterwards: {e}");
         }
-        let _ = std::fs::remove_dir_all(&base);
     }
 }

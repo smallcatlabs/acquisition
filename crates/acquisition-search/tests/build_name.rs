@@ -8,16 +8,17 @@
 #[path = "../build.rs"]
 mod build;
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-fn tree(name: &str) -> PathBuf {
-    let root = std::env::temp_dir().join(format!("acq-build-name-{}-{name}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&root);
+/// A tree of this test's own, removed when the test ends.
+fn tree() -> tempfile::TempDir {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
     std::fs::create_dir_all(root.join("src/deep")).unwrap();
     std::fs::write(root.join("Cargo.lock"), "lock").unwrap();
     std::fs::write(root.join("src/a.rs"), "fn a() {}").unwrap();
     std::fs::write(root.join("src/deep/t.toml"), "x = 1").unwrap();
-    root
+    dir
 }
 
 fn name(root: &Path) -> String {
@@ -29,10 +30,11 @@ fn name(root: &Path) -> String {
 /// a dotfile, at any depth — is no part of it.
 #[test]
 fn the_name_moves_on_a_source_and_never_on_a_dotfile() {
-    let root = tree("dotfile");
-    let first = name(&root);
+    let tree = tree();
+    let root = tree.path();
+    let first = name(root);
     assert_eq!(first.len(), 12);
-    assert_eq!(name(&root), first);
+    assert_eq!(name(root), first);
     for stray in [
         "src/.DS_Store",
         "src/deep/.DS_Store",
@@ -40,17 +42,16 @@ fn the_name_moves_on_a_source_and_never_on_a_dotfile() {
         "src/.#a.rs",
     ] {
         std::fs::write(root.join(stray), "anything").unwrap();
-        assert_eq!(name(&root), first, "{stray}");
+        assert_eq!(name(root), first, "{stray}");
     }
     std::fs::write(root.join("src/a.rs"), "fn a() { }").unwrap();
-    let edited = name(&root);
+    let edited = name(root);
     assert_ne!(edited, first);
     std::fs::write(root.join("src/deep/b.json"), "{}").unwrap();
-    let added = name(&root);
+    let added = name(root);
     assert_ne!(added, edited);
     std::fs::write(root.join("Cargo.lock"), "lock 2").unwrap();
-    assert_ne!(name(&root), added);
-    let _ = std::fs::remove_dir_all(&root);
+    assert_ne!(name(root), added);
 }
 
 /// A file of a kind the digest does not know stops the build and is
@@ -64,9 +65,10 @@ fn a_file_of_a_kind_the_digest_does_not_know_stops_the_build() {
         "src/README",
         "src/a.rs~",
     ] {
-        let root = tree("unknown");
+        let tree = tree();
+        let root = tree.path();
         std::fs::write(root.join(stray), "anything").unwrap();
-        let stopped = std::panic::catch_unwind(|| name(&root)).unwrap_err();
+        let stopped = std::panic::catch_unwind(|| name(root)).unwrap_err();
         let said = stopped
             .downcast_ref::<String>()
             .cloned()
@@ -74,7 +76,6 @@ fn a_file_of_a_kind_the_digest_does_not_know_stops_the_build() {
         let named = stray.replace('/', std::path::MAIN_SEPARATOR_STR);
         assert!(said.contains(&named), "{stray}: {said}");
         assert!(said.contains("add the kind or remove the file"), "{said}");
-        let _ = std::fs::remove_dir_all(&root);
     }
 }
 

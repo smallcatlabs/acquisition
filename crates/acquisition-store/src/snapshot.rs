@@ -1246,11 +1246,8 @@ mod tests {
         assert!(err.to_string().contains("no account identity"), "{err:#}");
         // The account's own file is accepted — including when reopened
         // from its raw path, because the uuid lives inside the file.
-        let dir = std::env::temp_dir().join(format!(
-            "acq-snap-bind-{}-{}",
-            std::process::id(),
-            crate::now()
-        ));
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().to_path_buf();
         drop(Annotations::open_for(&dir, "u-1").unwrap());
         let reopened = Annotations::open(&annotations_path(&dir, "u-1")).unwrap();
         assert_eq!(reopened.uuid(), Some("u-1"));
@@ -1270,7 +1267,6 @@ mod tests {
         assert_eq!(copied.uuid(), Some("u-2"));
         let err = s.refresh_snapshot("pc", "Standard", &copied).unwrap_err();
         assert!(err.to_string().contains("u-2"), "{err:#}");
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// The basis and the tab set are per (realm, league): a pre-realm

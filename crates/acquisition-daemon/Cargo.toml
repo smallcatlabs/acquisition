@@ -40,3 +40,5 @@ url = "2"
 # The queue-failure tests break `daemon.db` through a second connection
 # (`break_queue`); the store crate carries no test-only door.
 rusqlite = "0.32"
+# a test's own folder, removed on drop: never a name built from the pid
+tempfile.workspace = true

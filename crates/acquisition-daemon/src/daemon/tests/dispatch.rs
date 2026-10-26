@@ -401,12 +401,8 @@ async fn malformed_listings_fail_the_job_not_just_the_store() {
     let (base, requests, server) = scripted_server(responses).await;
     let clock = Arc::new(ManualClock::new());
     let (mut daemon, log_path) = test_daemon(&base, clock);
-    let store_dir = std::env::temp_dir().join(format!(
-        "acq-malformed-job-{}-{}",
-        std::process::id(),
-        TEST_LOG_ID.fetch_add(1, Ordering::Relaxed)
-    ));
-    let _ = std::fs::remove_dir_all(&store_dir);
+    let temp = tempfile::tempdir().unwrap();
+    let store_dir = temp.path().to_path_buf();
     Arc::get_mut(&mut daemon).expect("fresh daemon").store_dir = Some(store_dir.clone());
     {
         let mut s = daemon.shared.lock().unwrap();
@@ -448,7 +444,6 @@ async fn malformed_listings_fail_the_job_not_just_the_store() {
     drop(store);
     server.await.unwrap();
     finish_harness_wire(dispatcher, &log_path, &requests);
-    let _ = std::fs::remove_dir_all(&store_dir);
 }
 
 /// The route knowledge declared for `/profile` and `/account/leagues`
@@ -771,12 +766,8 @@ async fn a_cloudflare_block_admits_nothing_and_survives_a_restart() {
         ];
         let (base, requests, server) = scripted_server(responses).await;
         let clock = Arc::new(ManualClock::new());
-        let state_path = std::env::temp_dir().join(format!(
-            "acq-c129-rails-{}-{}.json",
-            std::process::id(),
-            TEST_LOG_ID.fetch_add(1, Ordering::Relaxed)
-        ));
-        let _ = std::fs::remove_file(&state_path);
+        let temp = tempfile::tempdir().unwrap();
+        let state_path = temp.path().join("c129-rails.json");
         let (mut daemon, log_path) = test_daemon_with(
             Provider::mock(&base),
             clock,
@@ -886,7 +877,6 @@ async fn a_cloudflare_block_admits_nothing_and_survives_a_restart() {
         }
         drop(rebuilt);
         finish_harness_wire(dispatcher, &log_path, &requests);
-        let _ = std::fs::remove_file(&state_path);
     }
 }
 
@@ -1018,12 +1008,8 @@ async fn a_cloudflare_5xx_halts_this_lifetime_and_leaves_no_mark() {
         ];
         let (base, requests, server) = scripted_server(responses).await;
         let clock = Arc::new(ManualClock::new());
-        let state_path = std::env::temp_dir().join(format!(
-            "acq-c129-lifetime-{}-{}.json",
-            std::process::id(),
-            TEST_LOG_ID.fetch_add(1, Ordering::Relaxed)
-        ));
-        let _ = std::fs::remove_file(&state_path);
+        let temp = tempfile::tempdir().unwrap();
+        let state_path = temp.path().join("c129-lifetime.json");
         let (daemon, log_path) = test_daemon_with(
             Provider::mock(&base),
             clock,
@@ -1105,7 +1091,6 @@ async fn a_cloudflare_5xx_halts_this_lifetime_and_leaves_no_mark() {
         );
         server.await.unwrap();
         finish_harness_wire(dispatcher, &log_path, &requests);
-        let _ = std::fs::remove_file(&state_path);
     }
 }
 
@@ -1582,7 +1567,7 @@ async fn a_head_403_without_cf_mitigated_still_degrades() {
 
 /// A harness daemon on the manual clock with two sessions, `test-user`
 /// and `other`, each with its refresh due.
-fn two_account_daemon(base: &str) -> (Arc<Daemon>, PathBuf) {
+fn two_account_daemon(base: &str) -> (Arc<Daemon>, TestPath) {
     let (mut daemon, log_path) = test_daemon(base, Arc::new(ManualClock::new()));
     logged_in(&mut daemon);
     daemon.shared.lock().unwrap().auth.by_account.insert(
@@ -1845,18 +1830,6 @@ async fn a_cancel_of_one_job_on_a_shared_refresh_keeps_it_for_the_other() {
 
 // ---- C144: a store that cannot record fails the job, keeping the body ---
 
-/// A scratch store directory for one test.
-fn record_dir(tag: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!(
-        "acq-record-{tag}-{}-{}",
-        std::process::id(),
-        TEST_LOG_ID.fetch_add(1, Ordering::Relaxed)
-    ));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
-    dir
-}
-
 /// A facts file a newer daemon wrote: its schema version past this one's.
 fn schema_too_new(dir: &std::path::Path, account: &str) {
     let conn = rusqlite::Connection::open(acquisition_store::account_path(dir, account)).unwrap();
@@ -1884,8 +1857,8 @@ fn kept_failure(outcome: &Outcome) -> (&str, &Value) {
 #[test]
 fn c144_a_store_that_cannot_record_fails_the_job_and_keeps_the_body() {
     let (mut daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
-    let dir = record_dir("fail");
-    Arc::get_mut(&mut daemon).unwrap().store_dir = Some(dir.clone());
+    let dir = TestPath::dir();
+    Arc::get_mut(&mut daemon).unwrap().store_dir = Some(dir.to_path_buf());
     let params = json!({ "league": "Standard" });
     let body = json!({ "stashes": [ { "id": "t1", "name": "T", "type": "PremiumStash" } ] });
 
@@ -1923,7 +1896,6 @@ fn c144_a_store_that_cannot_record_fails_the_job_and_keeps_the_body() {
         "{refused:?}"
     );
     drop(daemon);
-    let _ = std::fs::remove_dir_all(&dir);
     finish_harness(None, &log_path);
 }
 
@@ -1934,9 +1906,9 @@ async fn c144_a_job_whose_store_cannot_open_ends_failed_with_its_body() {
     let (base, sent_log, _arrived, _release) = account_server(("GET", "/never", 0)).await;
     let (mut daemon, log_path) = test_daemon(&base, Arc::new(ManualClock::new()));
     logged_in(&mut daemon);
-    let dir = record_dir("job");
+    let dir = TestPath::dir();
     schema_too_new(&dir, "test-user");
-    Arc::get_mut(&mut daemon).unwrap().store_dir = Some(dir.clone());
+    Arc::get_mut(&mut daemon).unwrap().store_dir = Some(dir.to_path_buf());
     let dispatcher = tokio::spawn(daemon.clone().dispatcher());
 
     let id = daemon
@@ -1958,5 +1930,4 @@ async fn c144_a_job_whose_store_cannot_open_ends_failed_with_its_body() {
     );
     finish_harness(dispatcher, &log_path);
     drop(daemon);
-    let _ = std::fs::remove_dir_all(&dir);
 }

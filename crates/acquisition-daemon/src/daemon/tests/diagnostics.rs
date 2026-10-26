@@ -13,9 +13,8 @@ use crate::daemon::*;
 #[test]
 fn c83_a_diagnostic_over_the_cap_is_rotated_or_truncated_never_kept() {
     use std::os::unix::fs::PermissionsExt;
-    let dir = std::env::temp_dir().join(format!("acq-rotate-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let dir = temp.path().to_path_buf();
     let log = dir.join("daemon.log");
     std::fs::write(&log, b"small").unwrap();
     assert_eq!(rotate_if_over(&log, 16), Ok(None));
@@ -53,5 +52,4 @@ fn c83_a_diagnostic_over_the_cap_is_rotated_or_truncated_never_kept() {
         "{err}"
     );
     assert_eq!(std::fs::metadata(&log).unwrap().len(), 32, "untouched");
-    let _ = std::fs::remove_dir_all(&dir);
 }

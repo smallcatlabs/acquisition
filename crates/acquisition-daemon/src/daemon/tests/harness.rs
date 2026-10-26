@@ -354,18 +354,61 @@ pub(super) async fn delayed_token_server() -> (
     (base, arrived_rx, release_tx, task)
 }
 
-pub(super) static TEST_LOG_ID: AtomicU64 = AtomicU64::new(1);
-
-pub(super) fn test_daemon(base: &str, clock: Arc<dyn Clock>) -> (Arc<Daemon>, PathBuf) {
+pub(super) fn test_daemon(base: &str, clock: Arc<dyn Clock>) -> (Arc<Daemon>, TestPath) {
     test_daemon_with(Provider::mock(base), clock, RailsConfig::default())
 }
 
-pub(super) fn test_log_path() -> PathBuf {
-    std::env::temp_dir().join(format!(
-        "acquisition-n1-dispatcher-{}-{}.log",
-        std::process::id(),
-        TEST_LOG_ID.fetch_add(1, Ordering::Relaxed)
-    ))
+/// A path in a folder of the test's own: the folder is a
+/// `tempfile::TempDir`, removed when this value drops, so a test that
+/// fails leaves nothing behind either. It derefs to the path. A helper
+/// that makes one returns it, never the bare path, which would outlive
+/// its folder.
+pub(super) struct TestPath {
+    path: PathBuf,
+    _dir: tempfile::TempDir,
+}
+
+impl TestPath {
+    /// The folder itself.
+    pub(super) fn dir() -> TestPath {
+        let dir = tempfile::tempdir().unwrap();
+        TestPath {
+            path: dir.path().to_path_buf(),
+            _dir: dir,
+        }
+    }
+
+    /// A file `name` in the folder, not yet written.
+    pub(super) fn file(name: &str) -> TestPath {
+        let dir = tempfile::tempdir().unwrap();
+        TestPath {
+            path: dir.path().join(name),
+            _dir: dir,
+        }
+    }
+}
+
+impl std::ops::Deref for TestPath {
+    type Target = std::path::Path;
+    fn deref(&self) -> &std::path::Path {
+        &self.path
+    }
+}
+
+impl AsRef<std::path::Path> for TestPath {
+    fn as_ref(&self) -> &std::path::Path {
+        &self.path
+    }
+}
+
+/// A harness daemon's log; its journal lands beside it ([`journal_of`]).
+pub(super) fn test_log_path() -> TestPath {
+    TestPath::file("daemon.log")
+}
+
+/// A `daemon.db` for one test.
+pub(super) fn test_db_path() -> TestPath {
+    TestPath::file("daemon.db")
 }
 
 /// The send journal every harness daemon writes, beside its log.
@@ -384,9 +427,8 @@ pub(super) fn test_daemon_with(
     provider: Provider,
     clock: Arc<dyn Clock>,
     config: RailsConfig,
-) -> (Arc<Daemon>, PathBuf) {
+) -> (Arc<Daemon>, TestPath) {
     let log_path = test_log_path();
-    let _ = std::fs::remove_file(journal_of(&log_path));
     let rails = Arc::new(Rails::with_config_and_clock(
         RailsConfig {
             journal_path: Some(journal_of(&log_path)),
@@ -408,7 +450,7 @@ pub(super) fn test_daemon_scenario(
     clock: Arc<dyn Clock>,
     rails: Arc<Rails>,
     credential_store: Arc<dyn CredentialStore>,
-) -> (Arc<Daemon>, PathBuf) {
+) -> (Arc<Daemon>, TestPath) {
     test_daemon_scenario_at(provider, clock, rails, credential_store, test_log_path())
 }
 
@@ -417,8 +459,8 @@ pub(super) fn test_daemon_scenario_at(
     clock: Arc<dyn Clock>,
     rails: Arc<Rails>,
     credential_store: Arc<dyn CredentialStore>,
-    log_path: PathBuf,
-) -> (Arc<Daemon>, PathBuf) {
+    log_path: TestPath,
+) -> (Arc<Daemon>, TestPath) {
     let log = std::fs::OpenOptions::new()
         .create(true)
         .truncate(true)
@@ -518,9 +560,9 @@ pub(super) fn finish_harness_mock(
 
 /// Abort the dispatcher, if the test started one and still holds it,
 /// so no task writes while the oracles read; read the journal and hold
-/// it to the contract oracle and the teardown's pacing oracle; remove
-/// the log and the journal. A daemon whose rails journal nothing has no
-/// file beside its log, and the read is skipped.
+/// it to the contract oracle and the teardown's pacing oracle. A daemon
+/// whose rails journal nothing has no file beside its log, and the read
+/// is skipped. The log and the journal go with the test's [`TestPath`].
 fn finish_with(
     dispatcher: impl Into<Option<tokio::task::JoinHandle<()>>>,
     log_path: &std::path::Path,
@@ -534,12 +576,6 @@ fn finish_with(
         assert_wire_contract(&sends);
         pacing(&sends);
     }
-    remove_harness_files(log_path);
-}
-
-fn remove_harness_files(log_path: &std::path::Path) {
-    let _ = std::fs::remove_file(log_path);
-    let _ = std::fs::remove_file(journal_of(log_path));
 }
 
 /// The token servers record bodies, not methods; every one was a POST.

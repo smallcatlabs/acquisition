@@ -1974,11 +1974,8 @@ fn the_locations_view_is_gone_since_tabs_is_the_list() {
 /// The line names the provider.
 #[test]
 fn the_version_line_names_the_provider() {
-    let base = std::env::temp_dir().join(format!("acq-version-provider-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&base);
-    std::fs::create_dir_all(&base).unwrap();
-    let out = acq(&base, &["version"]);
-    let _ = std::fs::remove_dir_all(&base);
+    let scratch = harness::scratch("version");
+    let out = acq(&scratch.0, &["version"]);
     // Stays a literal: no daemon backs the version line, and its build
     // and contract digests move with every edit.
     let first = text(&out).lines().next().unwrap_or_default().to_string();
