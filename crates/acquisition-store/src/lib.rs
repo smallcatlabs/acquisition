@@ -1457,6 +1457,16 @@ impl Store {
                     let mut granted = serde_json::Map::new();
                     let mut arrays: Vec<(&'static str, Vec<Value>)> = Vec::new();
                     for key in CHARACTER_ITEM_ARRAYS {
+                        // C145: an absent array is the documented empty.
+                        // Its seam is pushed with no items, so the fetch
+                        // reconciles the location as an explicit `[]`
+                        // does, even when every array is absent; the
+                        // envelope stays as GGG sent it (no `_split` for a
+                        // key that was not there). A present non-array was
+                        // refused above.
+                        if !character.contains_key(*key) {
+                            arrays.push((key, Vec::new()));
+                        }
                         if let Some(Value::Array(items)) = character.remove(*key) {
                             let n = count_granted(Some(&Value::Array(items.clone())));
                             if n > 0 {
@@ -3232,6 +3242,37 @@ mod tests {
         let body = json!({ "stash": { "id": "f", "name": "Folder", "type": "Folder" } });
         let ing = s.record(&stash_ep("f"), &json!({}), 200, &body, 1).unwrap();
         assert_eq!(ing.items, 0);
+    }
+
+    /// C145 (an absent key is the documented empty), the review of h1, its
+    /// sixth finding: a character fetch whose item arrays are all absent
+    /// reconciles its location as a fetch with empty arrays does, so the
+    /// items it no longer holds are retired. Before, no seam was pushed
+    /// and `i` stayed live after a fetch that showed the character empty,
+    /// where an explicit `equipment: []` retired it.
+    #[test]
+    fn c145_a_character_fetch_with_every_item_array_absent_retires_its_items() {
+        let mut s = Store::open_memory().unwrap();
+        let p = json!({});
+        let ep = Endpoint::Character {
+            realm: "pc".into(),
+            name: "Hero".into(),
+        };
+        s.record(
+            &ep,
+            &p,
+            200,
+            &json!({ "character": { "id": "c", "equipment": [ item("i", "Helm", 0) ] } }),
+            100,
+        )
+        .unwrap();
+        assert!(s.item("i").unwrap().unwrap().removed_at.is_none());
+
+        let ing = s
+            .record(&ep, &p, 200, &json!({ "character": { "id": "c" } }), 200)
+            .unwrap();
+        assert_eq!(ing.removed, 1, "{ing:?}");
+        assert_eq!(s.item("i").unwrap().unwrap().removed_at, Some(200));
     }
 
     /// C145: the id check recurses as the ingest does: a gem two levels
