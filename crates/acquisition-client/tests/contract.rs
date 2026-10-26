@@ -678,37 +678,46 @@ fn unreaped_daemons() -> Vec<String> {
         .collect()
 }
 
-/// C147, a lost spawn race looks once more for the winner: the world
-/// lock is held (here by the test, standing in for a daemon between its
-/// lock and its bind), so the daemon the use door spawns exits on it.
-/// The winner is started only once the door has reaped that child — the
-/// door has seen it exit, and is looking — so the door's answer is the
-/// look's: it opens on the winner, a daemon it did not start, rather
+/// C147, a lost spawn race looks once more for the winner, however late
+/// the winner starts: the world lock is held (here by the test, standing
+/// in for a daemon between its lock and its bind), so the daemon the use
+/// door spawns exits on it. The winner is started only once the door has
+/// reaped that child — the door has seen it exit, and is looking — and
+/// then only after a hold, so its start comes late. The door's answer is
+/// the look's: it opens on the winner, a daemon it did not start, rather
 /// than reporting a failed spawn.
+///
+/// No step waits on a clock (C137, a deadline's contract is its
+/// behaviour at expiry). The loser's exit is the lock's doing, seen in
+/// its refusal in the log; the reaper's wait is seen in the process
+/// table, the child gone from it; the winner's start is the test's own
+/// act after both. The look's bound is the handshake's knob at its
+/// largest, not the isolation list's sixty seconds, so however long a
+/// starved runner takes to start the winner, the look outlasts it; a
+/// door that never answers is ended by the runner's hang bound
+/// (nextest's profile), not by an assertion on time.
 #[cfg(unix)]
 #[tokio::test]
-async fn c147_a_spawn_that_lost_the_world_lock_waits_for_the_winner() {
+async fn c147_a_spawn_race_is_won_however_late_the_winner_starts() {
     let s = session("lost-race");
     harness::link_beside_this_test(&acqd_built());
+    s.set_knob("ACQ_HELLO_WITHIN", Some(LONGEST_WITHIN));
     let world = World::observe().expect("the session's world");
     let log = session_log();
     let held = Lock::acquire(&world.lock_path()).expect("the world lock");
     let winner = async {
         // The loser's refusal in the log, then the loser reaped by the
-        // door: it saw the exit, and is looking for the winner.
-        let deadline = Instant::now() + Duration::from_secs(60);
+        // door: it saw the exit, and is looking for the winner. A state
+        // waited on, not a time.
         while !std::fs::read_to_string(&log)
             .unwrap_or_default()
             .contains("another daemon holds this world")
             || !unreaped_daemons().is_empty()
         {
-            assert!(
-                Instant::now() < deadline,
-                "the spawned daemon never met the lock, or was never reaped: {:?}",
-                unreaped_daemons()
-            );
             tokio::time::sleep(Duration::from_millis(20)).await;
         }
+        // The winner's start, held: late, as a starved runner's is.
+        tokio::time::sleep(Duration::from_secs(2)).await;
         drop(held);
         let (winner, _said) = harness::spawn_drained(
             harness::daemon_command(&acqd_built(), &s.base),
@@ -726,8 +735,14 @@ async fn c147_a_spawn_that_lost_the_world_lock_waits_for_the_winner() {
     );
     drop(client);
     Client::stop_any().await.expect("stop").expect("a daemon");
-    winner.wait_exit(Duration::from_secs(60));
+    // The stop ends the winner; its exit is waited, not timed.
+    winner.0.wait().expect("the winner's exit");
 }
+
+/// The handshake's knob at its largest (C137): a look or a handshake
+/// under it outlasts any runner, so the hang bound is the runner's.
+#[cfg(unix)]
+const LONGEST_WITHIN: &str = "2147483";
 
 /// C147 at the deadline: a spawned daemon that exited on a world lock no
 /// daemon then binds for fails the spawn when the look's deadline — the
@@ -806,7 +821,10 @@ async fn c147_a_stop_that_fails_on_the_replace_path_is_reported() {
 /// C147, a client reaps the child it spawns: the daemon a use door
 /// started, stopped after the client that started it is gone, does not
 /// stay behind as this process's zombie. The exit is forced by the stop;
-/// the wait after it bounds a hang, not the reaper's speed.
+/// the test then waits on the reaper's wait, seen in the process table
+/// (the pid gone from it), and on no clock (C137): a reaper that never
+/// waits leaves the pid in state Z, and the runner's hang bound
+/// (nextest's profile) ends the test, the state it last saw printed.
 #[cfg(unix)]
 #[tokio::test]
 async fn c147_a_daemon_the_door_spawned_is_reaped_when_it_exits() {
@@ -821,7 +839,7 @@ async fn c147_a_daemon_the_door_spawned_is_reaped_when_it_exits() {
     let stopped = Client::stop_any().await.expect("stop").expect("a daemon");
     assert_eq!(stopped.pid(), pid);
     // A zombie still answers `ps` (state Z); a reaped process does not.
-    let deadline = Instant::now() + Duration::from_secs(60);
+    let mut seen = String::new();
     loop {
         let out = std::process::Command::new("ps")
             .args(["-o", "stat=", "-p", &pid.to_string()])
@@ -831,10 +849,10 @@ async fn c147_a_daemon_the_door_spawned_is_reaped_when_it_exits() {
         if stat.is_empty() {
             break;
         }
-        assert!(
-            Instant::now() < deadline,
-            "the spawned daemon (pid {pid}) is still this process's child, state {stat}"
-        );
+        if stat != seen {
+            eprintln!("the spawned daemon (pid {pid}) is still this process's child, state {stat}");
+            seen = stat;
+        }
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
 }
