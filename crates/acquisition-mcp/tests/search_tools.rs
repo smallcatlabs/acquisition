@@ -79,7 +79,7 @@ fn seed(base: &Path) {
     let dir = stores(base);
     std::fs::create_dir_all(&dir).unwrap();
     let mut index = Index::load(&dir).unwrap();
-    index.record_login(USER, "u-search", false, 1).unwrap();
+    index.record_login(USER, "u-search", false, 1, &[]).unwrap();
     let mut store = Store::open(&account_path(&dir, USER)).unwrap();
     record(
         &mut store,
@@ -129,7 +129,7 @@ fn seed(base: &Path) {
 fn seed_bob(base: &Path) {
     let dir = stores(base);
     let mut index = Index::load(&dir).unwrap();
-    index.record_login("Bob#9", "u-bob", false, 2).unwrap();
+    index.record_login("Bob#9", "u-bob", false, 2, &[]).unwrap();
     let mut store = Store::open(&account_path(&dir, "Bob#9")).unwrap();
     record(
         &mut store,

@@ -31,7 +31,7 @@ fn seed(world: &Path) {
     let mock = world.join("mock");
     std::fs::create_dir_all(&mock).unwrap();
     let mut index = Index::load(&mock).unwrap();
-    index.record_login(USER, "u-web", false, 1).unwrap();
+    index.record_login(USER, "u-web", false, 1, &[]).unwrap();
     let mut store = Store::open(&account_path(&mock, USER)).unwrap();
     let mut record = |ep: Endpoint, body: Value, at: i64| {
         store

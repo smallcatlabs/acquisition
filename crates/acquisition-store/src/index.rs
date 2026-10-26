@@ -11,6 +11,7 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(from = "StoredEntry")]
 pub struct AccountEntry {
     /// GGG username as the token response reports it: `name#discriminator`.
     pub username: String,
@@ -26,13 +27,74 @@ pub struct AccountEntry {
     /// one re-auth fixes that, no migration.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub uuid: Option<String>,
-    /// C144 (no keyring entry out of the index's reach): an old name the
-    /// account's keyring entry is still held under — a rename whose clear
-    /// of the old name failed. Logout and forget clear it beside the
-    /// username; it is released only once a clear under it succeeds.
-    /// Absent in the usual case and in files written before it.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub keyring_name: Option<String>,
+    /// C144 (no keyring entry out of the index's reach): every name a
+    /// keyring entry for this account may be held under. A name enters
+    /// when a credential is saved under it, in the same write that
+    /// records the username ([`Index::record_login`]), and leaves only
+    /// when a clear under it succeeds ([`Index::settle_keyring_names`]);
+    /// a failed clear never drops one. Logout and forget clear every name
+    /// here and the username; restore tries them when the username's
+    /// entry cannot be read. Absent when empty, so a file written before
+    /// it reads and writes unchanged.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub keyring_names: Vec<String>,
+}
+
+/// An entry as a file may hold it: files written by the fix round of h1
+/// carry the single `keyring_name`, read once into `keyring_names` and
+/// never written again.
+#[derive(Deserialize)]
+struct StoredEntry {
+    username: String,
+    last_login: i64,
+    persisted: bool,
+    #[serde(default)]
+    uuid: Option<String>,
+    #[serde(default)]
+    keyring_names: Vec<String>,
+    #[serde(default)]
+    keyring_name: Option<String>,
+}
+
+impl From<StoredEntry> for AccountEntry {
+    fn from(e: StoredEntry) -> AccountEntry {
+        let mut names = e.keyring_names;
+        if let Some(name) = e.keyring_name
+            && !names.contains(&name)
+        {
+            names.push(name);
+        }
+        AccountEntry {
+            username: e.username,
+            last_login: e.last_login,
+            persisted: e.persisted,
+            uuid: e.uuid,
+            keyring_names: names,
+        }
+    }
+}
+
+impl AccountEntry {
+    /// Add each of `names` the entry does not carry yet, in order.
+    fn hold(&mut self, names: &[String]) {
+        for name in names {
+            if !name.is_empty() && !self.keyring_names.contains(name) {
+                self.keyring_names.push(name.clone());
+            }
+        }
+    }
+
+    /// Every name a keyring entry for this account may be under: the
+    /// username first, then the held names.
+    pub fn keyring_reach(&self) -> Vec<String> {
+        let mut names = vec![self.username.clone()];
+        for name in &self.keyring_names {
+            if !names.contains(name) {
+                names.push(name.clone());
+            }
+        }
+        names
+    }
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -44,6 +106,10 @@ struct File {
 pub struct Index {
     path: PathBuf,
     entries: Vec<AccountEntry>,
+    /// A test's crash: the writes that still land; past them every save
+    /// fails, as a process stopped there writes nothing more.
+    #[cfg(test)]
+    saves_left: std::cell::Cell<Option<usize>>,
 }
 
 /// How a selector failed to pick exactly one account.
@@ -117,7 +183,12 @@ impl Index {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Vec::new(),
             Err(e) => return Err(e).with_context(|| format!("reading {}", path.display())),
         };
-        Ok(Index { path, entries })
+        Ok(Index {
+            path,
+            entries,
+            #[cfg(test)]
+            saves_left: std::cell::Cell::new(None),
+        })
     }
 
     pub fn entries(&self) -> &[AccountEntry] {
@@ -128,18 +199,40 @@ impl Index {
         self.entries.iter().find(|e| e.username == username)
     }
 
+    /// The account's entry by its stable key (C50): the entry carrying
+    /// `uuid` when there is one, otherwise the one named `username`. A
+    /// session's username can run ahead of the index (a rename whose
+    /// index write failed), its uuid cannot.
+    pub fn find(&self, uuid: Option<&str>, username: &str) -> Option<&AccountEntry> {
+        self.position(uuid, username).map(|i| &self.entries[i])
+    }
+
+    fn position(&self, uuid: Option<&str>, username: &str) -> Option<usize> {
+        uuid.and_then(|uuid| {
+            self.entries
+                .iter()
+                .position(|e| e.uuid.as_deref() == Some(uuid))
+        })
+        .or_else(|| self.entries.iter().position(|e| e.username == username))
+    }
+
     /// Record a completed login. The uuid is required at login (C50): a
     /// login only reaches the index once the profile fetch delivered it.
     /// If the uuid is already listed under a different username, the
     /// account was renamed — the entry follows the new name (a mapping
     /// update; the uuid-named annotation file is untouched, the old
-    /// username-named fact file is orphaned and refetchable).
+    /// username-named fact file is orphaned and refetchable). C144: `hold`
+    /// is every name a keyring entry for the account may now be under —
+    /// the name just saved and the old names not yet cleared — added to
+    /// the entry in this same write, so no stop between two writes leaves
+    /// a name the index does not reach.
     pub fn record_login(
         &mut self,
         username: &str,
         uuid: &str,
         persisted: bool,
         at: i64,
+        hold: &[String],
     ) -> Result<()> {
         // A rename would otherwise leave two entries for one uuid, which no
         // selector could tell apart.
@@ -151,6 +244,7 @@ impl Index {
             e.username = username.to_string();
             e.last_login = at;
             e.persisted = persisted;
+            e.hold(hold);
             // A uuid-less entry already wearing this name is a pre-uuid
             // leftover for the same account: drop it rather than leave an
             // ambiguous twin. Entries with another uuid keep their row —
@@ -164,33 +258,50 @@ impl Index {
                 e.last_login = at;
                 e.persisted = persisted;
                 e.uuid = Some(uuid.to_string());
+                e.hold(hold);
             }
-            None => self.entries.push(AccountEntry {
-                username: username.to_string(),
-                last_login: at,
-                persisted,
-                uuid: Some(uuid.to_string()),
-                keyring_name: None,
-            }),
+            None => {
+                let mut e = AccountEntry {
+                    username: username.to_string(),
+                    last_login: at,
+                    persisted,
+                    uuid: Some(uuid.to_string()),
+                    keyring_names: Vec::new(),
+                };
+                e.hold(hold);
+                self.entries.push(e);
+            }
         }
         self.save()
     }
 
     /// Refresh-path bookkeeping (last login / keyring state) for an entry a
-    /// completed login already created. Never invents a uuid.
-    pub fn upsert(&mut self, username: &str, persisted: bool, at: i64) -> Result<()> {
+    /// completed login already created. Never invents a uuid. `hold` as
+    /// [`Self::record_login`] takes it, in the same write.
+    pub fn upsert(
+        &mut self,
+        username: &str,
+        persisted: bool,
+        at: i64,
+        hold: &[String],
+    ) -> Result<()> {
         match self.entries.iter_mut().find(|e| e.username == username) {
             Some(e) => {
                 e.last_login = at;
                 e.persisted = persisted;
+                e.hold(hold);
             }
-            None => self.entries.push(AccountEntry {
-                username: username.to_string(),
-                last_login: at,
-                persisted,
-                uuid: None,
-                keyring_name: None,
-            }),
+            None => {
+                let mut e = AccountEntry {
+                    username: username.to_string(),
+                    last_login: at,
+                    persisted,
+                    uuid: None,
+                    keyring_names: Vec::new(),
+                };
+                e.hold(hold);
+                self.entries.push(e);
+            }
         }
         self.save()
     }
@@ -204,16 +315,31 @@ impl Index {
         Ok(())
     }
 
-    /// C144: hold `name` as the old name the account's keyring entry is
-    /// still under, or release it with `None`. The username itself is no
-    /// old name. Writes only on a change.
-    pub fn hold_keyring_name(&mut self, username: &str, name: Option<&str>) -> Result<()> {
-        if let Some(e) = self.entries.iter_mut().find(|e| e.username == username) {
-            let name = name.filter(|n| *n != username).map(str::to_string);
-            if e.keyring_name != name {
-                e.keyring_name = name;
-                self.save()?;
-            }
+    /// C144 — what a pass of keyring clears did, for the account's entry
+    /// found by [`Self::find`], in one write: each name whose clear
+    /// failed is held (it may still hold a credential), each whose clear
+    /// succeeded is released, and `persisted`, when given, is set. A name
+    /// never leaves on a failed clear. No entry, nothing to write.
+    pub fn settle_keyring_names(
+        &mut self,
+        uuid: Option<&str>,
+        username: &str,
+        failed: &[String],
+        cleared: &[String],
+        persisted: Option<bool>,
+    ) -> Result<()> {
+        let Some(i) = self.position(uuid, username) else {
+            return Ok(());
+        };
+        let e = &mut self.entries[i];
+        let before = e.clone();
+        e.hold(failed);
+        e.keyring_names.retain(|name| !cleared.contains(name));
+        if let Some(persisted) = persisted {
+            e.persisted = persisted;
+        }
+        if *e != before {
+            self.save()?;
         }
         Ok(())
     }
@@ -273,6 +399,11 @@ impl Index {
     /// lock; this is what keeps a crash, or a second process, from
     /// tearing the file.
     fn save(&self) -> Result<()> {
+        #[cfg(test)]
+        if let Some(left) = self.saves_left.get() {
+            anyhow::ensure!(left > 0, "the test's crash: no write lands past here");
+            self.saves_left.set(Some(left - 1));
+        }
         let tmp = self.write_temp()?;
         let renamed = std::fs::rename(&tmp, &self.path)
             .with_context(|| format!("replacing {}", self.path.display()));
@@ -351,9 +482,9 @@ mod tests {
         let dir = tmp();
         let mut idx = Index::load(&dir).unwrap();
         assert_eq!(idx.resolve(None), Err(Resolve::Empty));
-        idx.upsert("Alice#1234", true, 10).unwrap();
+        idx.upsert("Alice#1234", true, 10, &[]).unwrap();
         assert_eq!(idx.resolve(None).unwrap().username, "Alice#1234");
-        idx.upsert("Bob#0001", false, 20).unwrap();
+        idx.upsert("Bob#0001", false, 20, &[]).unwrap();
         assert!(matches!(idx.resolve(None), Err(Resolve::Ambiguous(ref v)) if v.len() == 2));
         assert_eq!(idx.resolve(Some("alice")).unwrap().username, "Alice#1234");
         assert_eq!(
@@ -377,7 +508,7 @@ mod tests {
             vec!["Alice#1234"]
         );
         let mut idx = idx;
-        idx.upsert("Bob#0001", true, 30).unwrap();
+        idx.upsert("Bob#0001", true, 30, &[]).unwrap();
         assert_eq!(idx.persisted()[0].username, "Bob#0001");
         idx.set_persisted("Bob#0001", false).unwrap();
         assert_eq!(idx.persisted().len(), 1);
@@ -392,13 +523,14 @@ mod tests {
     fn record_login_requires_the_uuid_and_follows_renames() {
         let dir = tmp();
         let mut idx = Index::load(&dir).unwrap();
-        idx.record_login("Alice#1234", "u-alice", true, 10).unwrap();
+        idx.record_login("Alice#1234", "u-alice", true, 10, &[])
+            .unwrap();
         let e = idx.get("Alice#1234").unwrap();
         assert_eq!((e.uuid.as_deref(), e.persisted), (Some("u-alice"), true));
         assert_eq!(idx.resolve(Some("u-alice")).unwrap().username, "Alice#1234");
         // A later login with the same uuid under a new name is a rename:
         // the mapping updates, no second entry appears.
-        idx.record_login("Alicia#9999", "u-alice", true, 20)
+        idx.record_login("Alicia#9999", "u-alice", true, 20, &[])
             .unwrap();
         assert_eq!(idx.entries().len(), 1);
         assert_eq!(
@@ -407,14 +539,16 @@ mod tests {
         );
         assert!(idx.get("Alice#1234").is_none());
         // A pre-uuid leftover entry gains its uuid in place.
-        idx.upsert("Bob#0001", true, 30).unwrap();
+        idx.upsert("Bob#0001", true, 30, &[]).unwrap();
         assert!(idx.get("Bob#0001").unwrap().uuid.is_none());
-        idx.record_login("Bob#0001", "u-bob", true, 40).unwrap();
+        idx.record_login("Bob#0001", "u-bob", true, 40, &[])
+            .unwrap();
         assert_eq!(idx.entries().len(), 2);
         assert_eq!(idx.get("Bob#0001").unwrap().uuid.as_deref(), Some("u-bob"));
         // A rename onto a name a uuid-less leftover holds drops the twin.
-        idx.upsert("Cleo#0002", false, 50).unwrap();
-        idx.record_login("Cleo#0002", "u-alice", true, 60).unwrap();
+        idx.upsert("Cleo#0002", false, 50, &[]).unwrap();
+        idx.record_login("Cleo#0002", "u-alice", true, 60, &[])
+            .unwrap();
         let cleos: Vec<_> = idx
             .entries()
             .iter()
@@ -422,6 +556,73 @@ mod tests {
             .collect();
         assert_eq!(cleos.len(), 1);
         assert_eq!(cleos[0].uuid.as_deref(), Some("u-alice"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// C144 (no keyring entry out of the index's reach), the review of the
+    /// h1 fix round, its second finding: a rename records the new username
+    /// and the old name its keyring entry may still be under in one
+    /// write, so a process that stops after that write — staged as a
+    /// crash that lets one write land — leaves an index that reaches
+    /// both. Before, the username and the held name were two writes, and
+    /// a stop between them left the old name's entry out of every verb's
+    /// reach.
+    #[test]
+    fn c144_a_stop_after_the_renames_write_leaves_the_old_name_in_reach() {
+        let dir = tmp();
+        let mut idx = Index::load(&dir).unwrap();
+        idx.record_login("Alice#1", "u-a", true, 10, &["Alice#1".into()])
+            .unwrap();
+
+        // The rename's persist: the new name saved, the old not cleared.
+        idx.saves_left.set(Some(1));
+        let _ = idx.record_login(
+            "Alicia#2",
+            "u-a",
+            true,
+            20,
+            &["Alice#1".into(), "Alicia#2".into()],
+        );
+        let read = Index::load(&dir).unwrap();
+        let entry = read.find(Some("u-a"), "Alicia#2").unwrap();
+        assert_eq!(entry.username, "Alicia#2");
+        for name in ["Alice#1", "Alicia#2"] {
+            assert!(
+                entry.keyring_reach().iter().any(|n| n == name),
+                "{name} in reach of {entry:?}"
+            );
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// C144: a held name leaves only on a clear that succeeded, a failed
+    /// clear holds its name, and an entry written with the fix round's
+    /// single `keyring_name` reads into the list and is never written
+    /// with it again.
+    #[test]
+    fn c144_a_name_leaves_only_on_its_successful_clear() {
+        let dir = tmp();
+        std::fs::write(
+            index_path(&dir),
+            r#"{"accounts":[{"username":"C#3","last_login":1,"persisted":true,"uuid":"u-a","keyring_name":"A#1"}]}"#,
+        )
+        .unwrap();
+        let mut idx = Index::load(&dir).unwrap();
+        assert_eq!(idx.find(Some("u-a"), "x").unwrap().keyring_names, ["A#1"]);
+        idx.settle_keyring_names(
+            Some("u-a"),
+            "x",
+            &["B#2".into()],
+            &["A#1".into(), "C#3".into()],
+            Some(false),
+        )
+        .unwrap();
+        let text = std::fs::read_to_string(index_path(&dir)).unwrap();
+        assert!(!text.contains("\"keyring_name\""), "{text}");
+        let read = Index::load(&dir).unwrap();
+        let entry = read.get("C#3").unwrap();
+        assert_eq!(entry.keyring_names, ["B#2"]);
+        assert!(!entry.persisted);
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -441,7 +642,7 @@ mod tests {
     fn c144_a_crash_between_write_and_rename_leaves_the_index_whole() {
         let dir = tmp();
         let mut idx = Index::load(&dir).unwrap();
-        idx.upsert("Alice#1234", true, 10).unwrap();
+        idx.upsert("Alice#1234", true, 10, &[]).unwrap();
         let before = std::fs::read_to_string(index_path(&dir)).unwrap();
 
         idx.entries.push(AccountEntry {
@@ -449,7 +650,7 @@ mod tests {
             last_login: 20,
             persisted: true,
             uuid: None,
-            keyring_name: None,
+            keyring_names: Vec::new(),
         });
         let orphan = idx.write_temp().unwrap();
         assert!(orphan.exists());
@@ -471,7 +672,10 @@ mod tests {
     #[test]
     fn c144_two_accounts_saving_at_once_never_tear_the_index() {
         let dir = tmp();
-        Index::load(&dir).unwrap().upsert("seed", false, 0).unwrap();
+        Index::load(&dir)
+            .unwrap()
+            .upsert("seed", false, 0, &[])
+            .unwrap();
         let writers: Vec<_> = ["Alice#1234", "Bob#0001"]
             .into_iter()
             .map(|name| {
@@ -479,7 +683,7 @@ mod tests {
                 std::thread::spawn(move || {
                     for at in 0..50 {
                         let mut idx = Index::load(&dir).unwrap();
-                        idx.upsert(name, at % 2 == 0, at).unwrap();
+                        idx.upsert(name, at % 2 == 0, at, &[]).unwrap();
                     }
                 })
             })

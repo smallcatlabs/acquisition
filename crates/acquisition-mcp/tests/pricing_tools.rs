@@ -34,7 +34,7 @@ fn seed(base: &Path) {
     std::fs::create_dir_all(&mock).unwrap();
     let at = acquisition_store::now();
     let mut index = Index::load(&mock).unwrap();
-    index.record_login(USER, UUID, false, at).unwrap();
+    index.record_login(USER, UUID, false, at, &[]).unwrap();
     let mut store = Store::open(&account_path(&mock, USER)).unwrap();
     let record = |store: &mut Store, ep: Endpoint, params: Value, body: Value| {
         store.record(&ep, &params, 200, &body, at).unwrap();

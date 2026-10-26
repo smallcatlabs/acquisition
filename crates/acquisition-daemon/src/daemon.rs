@@ -388,10 +388,10 @@ impl Entry {
 /// | `valid_access_token`: the refresh failed on transport, a 5xx, exhausted 429s, or the rails halt | `token refresh failed: …` | `upstream` |
 /// | `valid_access_token`: the session changed under the refresh | `authentication session changed …` | `not_logged_in` |
 /// | `valid_access_token`: the refresh owner was dropped | `token refresh owner was abandoned …` | `internal` |
-/// | `forget_account`: no index (harness daemons), an unreadable index | `no account index …`, `accounts index: …` | `internal` |
-/// | `forget_account` (C144): the keyring clear failed, the keyring is off (it cleared nothing), or the index could not mark the account not persisted — each said, never an `ack` | `forgot account … (not restored at start), but its keyring entry could not be cleared: …; … tries again`, `… but the keyring is off (…), so no keyring entry was cleared; …`, `… but the account index could not mark it not persisted (…), so a start may still try to restore it` | `internal` |
-/// | `forget_account`: the index knows no such account / several | `no account matches …` / the index's message | `not_logged_in` / `ambiguous_account` |
-/// | `logout` (C144): after the session was dropped, the keyring clear failed, the keyring is off (it cleared nothing), or the index could not mark the account not persisted — the answer, never an `ack` | `logged out … (session dropped, not restored at start), but …`, in `forget_account`'s words | `internal` |
+/// | `logout`, forgetting a known account that is not live: no index (harness daemons), an unreadable index | `no account index …`, `accounts index: …` | `internal` |
+/// | `logout`, forgetting (C144): the keyring clear failed, the keyring is off (it cleared nothing), or the index could not mark the account not persisted — each said, never an `ack` | `forgot account … (not restored at start), but its keyring entry could not be cleared: …; … tries again`, `… but the keyring is off (…), so no keyring entry was cleared; …`, `… but the account index could not mark it not persisted (…), so a start may still try to restore it` | `internal` |
+/// | `logout`, forgetting: the index knows no such account / several | `no account matches …` / the index's message | `not_logged_in` / `ambiguous_account` |
+/// | `logout` (C144): after the session was dropped, the keyring clear failed, the keyring is off (it cleared nothing), or the index could not mark the account not persisted — the answer, never an `ack` | `logged out … (session dropped, not restored at start), but …`, in the forget's words | `internal` |
 ///
 /// Not a kind of its own: a rails halt never refuses a submit — a halted
 /// send waits, and `quote` names the halt in its body. The one request it

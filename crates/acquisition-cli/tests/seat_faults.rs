@@ -24,7 +24,7 @@ fn seed_two_leagues(base: &Path) {
     let at = acquisition_store::now();
     Index::load(&mock)
         .unwrap()
-        .record_login(USER, UUID, false, at)
+        .record_login(USER, UUID, false, at, &[])
         .unwrap();
     let mut store = Store::open(&account_path(&mock, USER)).unwrap();
     let mut record = |ep: Endpoint, params: Value, body: Value| {
@@ -234,7 +234,7 @@ fn an_account_that_cannot_be_picked_says_which_failure_and_lists_the_accounts() 
     seed_two_leagues(&base);
     Index::load(&base.join("store").join("mock"))
         .unwrap()
-        .record_login("Bob#5678", "u-bob", false, acquisition_store::now())
+        .record_login("Bob#5678", "u-bob", false, acquisition_store::now(), &[])
         .unwrap();
 
     // One case through the binary: exit 1 and the fault's fields under
@@ -1620,7 +1620,7 @@ fn an_ambiguous_clauses_line_says_what_its_other_reading_adds_and_drops() {
     let at = acquisition_store::now();
     Index::load(&mock)
         .unwrap()
-        .record_login("Alice#1234", "u-seat", false, at)
+        .record_login("Alice#1234", "u-seat", false, at, &[])
         .unwrap();
     let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
     let mut record = |ep: Endpoint, params: Value, body: Value| {
@@ -1800,7 +1800,7 @@ fn show_prints_the_price_show_command_for_its_item() {
     // a second account, so no account is the default
     Index::load(&mock)
         .unwrap()
-        .record_login("Bob#5678", "u-bob", false, acquisition_store::now())
+        .record_login("Bob#5678", "u-bob", false, acquisition_store::now(), &[])
         .unwrap();
     // and an Xbox item of Alice's, whose realm is not the default
     let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
@@ -2028,7 +2028,7 @@ fn every_undo_a_price_receipt_prints_runs_as_printed_with_a_second_account_known
     seed_two_leagues(&base);
     Index::load(&base.join("store").join("mock"))
         .unwrap()
-        .record_login("Bob#9", "u-bob", false, acquisition_store::now())
+        .record_login("Bob#9", "u-bob", false, acquisition_store::now(), &[])
         .unwrap();
     let account = ["--account", "Alice#1234"];
     let price = |base: &Path| -> Value {
@@ -2156,7 +2156,7 @@ fn seed_one_account(base: &Path, user: &str, uuid: &str) -> PathBuf {
     std::fs::create_dir_all(&mock).unwrap();
     let mut index = Index::load(&mock).unwrap();
     index
-        .record_login(user, uuid, false, acquisition_store::now())
+        .record_login(user, uuid, false, acquisition_store::now(), &[])
         .unwrap();
     Store::open(&account_path(&mock, user)).unwrap();
     mock
@@ -2184,7 +2184,7 @@ fn an_undo_names_the_account_the_write_ran_as_even_when_implied() {
     // A second account arrives after the write, before the undo is pasted.
     Index::load(&mock)
         .unwrap()
-        .record_login("Bob#1", "u-bob", false, acquisition_store::now())
+        .record_login("Bob#1", "u-bob", false, acquisition_store::now(), &[])
         .unwrap();
     let run = run_as_printed(base, &undo);
     assert!(

@@ -33,7 +33,7 @@ fn seed_store(base: &Path) -> PathBuf {
     // never-fetched tab (an ancient listing would add a re-list).
     let at = acquisition_store::now();
     let mut index = Index::load(&mock).unwrap();
-    index.record_login(USER, UUID, false, at).unwrap();
+    index.record_login(USER, UUID, false, at, &[]).unwrap();
     let mut store = Store::open(&account_path(&mock, USER)).unwrap();
     store
         .record(

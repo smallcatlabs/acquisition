@@ -27,7 +27,7 @@ fn seed(base: &std::path::Path) {
     let at = acquisition_store::now();
     Index::load(&mock)
         .unwrap()
-        .record_login(USER, UUID, false, at)
+        .record_login(USER, UUID, false, at, &[])
         .unwrap();
     Store::open(&account_path(&mock, USER))
         .unwrap()

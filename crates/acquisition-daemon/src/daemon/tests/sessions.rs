@@ -844,7 +844,7 @@ async fn a_refresh_rename_updates_the_index_mapping_in_place() {
     // session carrying it.
     {
         let mut index = Index::load(&dir).unwrap();
-        index.record_login("old-user", "u-1", true, 1).unwrap();
+        index.record_login("old-user", "u-1", true, 1, &[]).unwrap();
     }
     daemon.shared.lock().unwrap().auth.one_mut().uuid = Some("u-1".into());
 

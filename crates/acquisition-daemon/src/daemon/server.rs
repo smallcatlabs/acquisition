@@ -320,36 +320,14 @@ impl Daemon {
                     }
                 },
             },
-            Request::AuthLogout { account } => {
-                // A live session (named, or the sole one) logs out; a known
-                // but not live account only loses its keyring entry.
-                let live = {
-                    let s = self.shared.lock().unwrap();
-                    match &account {
-                        None => s
-                            .auth
-                            .get(None)
-                            .map(|x| x.username.clone().unwrap_or_default()),
-                        Some(req) => s.auth.matching(req).and_then(|found| {
-                            found
-                                .map(|x| x.username.clone().unwrap_or_default())
-                                .ok_or_else(|| no_session(req))
-                        }),
-                    }
-                };
-                match (live, &account) {
-                    // C144: a clear that failed is the answer.
-                    (Ok(username), _) => match self.logout(Some(&username)) {
-                        Ok(()) => Response::Ack,
-                        Err(refusal) => refusal.into(),
-                    },
-                    (Err(_), Some(req)) => match self.forget_account(req) {
-                        Ok(()) => Response::Ack,
-                        Err(refusal) => refusal.into(),
-                    },
-                    (Err(refusal), None) => refusal.into(),
-                }
-            }
+            // A live session (named, or the sole one) logs out; a known
+            // but not live account only loses its keyring entries. C144:
+            // the decision is the logout's own, under its one lock, and a
+            // clear that failed is the answer.
+            Request::AuthLogout { account } => match self.logout(account.as_deref()) {
+                Ok(()) => Response::Ack,
+                Err(refusal) => refusal.into(),
+            },
             Request::Quote { jobs, account } => match self.quote(&jobs, account.as_deref()) {
                 Ok(quote) => Response::Quote { quote },
                 Err(refusal) => refusal.into(),

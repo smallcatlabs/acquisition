@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let name = name.unwrap_or_else(|| uuid.clone());
     let mock = std::path::Path::new(&dir).join("mock");
     std::fs::create_dir_all(&mock)?;
-    Index::load(&mock)?.record_login(&name, &uuid, false, acquisition_store::now())?;
+    Index::load(&mock)?.record_login(&name, &uuid, false, acquisition_store::now(), &[])?;
     let to = account_path(&mock, &name);
     std::fs::rename(&copy, &to)?;
     println!("{}", to.display());

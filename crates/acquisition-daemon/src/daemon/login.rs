@@ -4,6 +4,7 @@
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
 use super::*;
+use acquisition_store::AccountEntry;
 
 impl Daemon {
     // ---- auth -----------------------------------------------------------
@@ -395,58 +396,114 @@ impl Daemon {
         }
     }
 
-    /// Drop a session (the named account's, or the sole one), its keyring
-    /// entry, and its dead-grant mark. Other sessions are untouched. C144:
-    /// the clear's result and the index's reach the caller (`settle`) — a
-    /// clear that failed, a keyring turned off, or an index that could not
-    /// be written is the answer, `internal`, in words that say the session
-    /// was dropped and what was not done. The index marks the account not
-    /// persisted whatever the clear did, so no later start restores a
-    /// session the user logged out of.
+    /// `acq auth logout`: drop a live session (the named account's, or the
+    /// sole one), its keyring entries and its dead-grant mark; a selector
+    /// that names no live session but a known account forgets it — its
+    /// keyring entries cleared, its index entry marked not persisted, the
+    /// live sessions untouched. C144, one critical section: the
+    /// live-or-known decision, the index read, every clear and the index
+    /// write happen under one hold of `shared`, the lock a login persists
+    /// under, so no login lands between the decision and the mark. The
+    /// account's index entry is found by its uuid (the session's, or the
+    /// one the selector resolves to through the index), never by a
+    /// username a rename may have moved, and every name a keyring entry
+    /// may be under is cleared: the entry's username and held names, and
+    /// the session's own name. The index then holds each name whose clear
+    /// failed, releases each that succeeded and marks the account not
+    /// persisted, in one write. Every result reaches the caller
+    /// (`settle`).
     pub(super) fn logout(&self, account: Option<&str>) -> Result<(), Refusal> {
-        let (username, clear, indexed) = {
+        let (done, dropped) = {
             let mut s = self.shared.lock().unwrap();
-            let username = s.auth.get(account)?.username.clone().unwrap_or_default();
-            s.auth
-                .by_account
-                .retain(|_, x| x.username.as_deref() != Some(username.as_str()));
-            if s.auth.last_login.as_deref() == Some(username.as_str()) {
-                s.auth.last_login = None;
-            }
-            let held = self.store_dir.as_ref().and_then(|dir| {
-                Index::load(dir)
-                    .ok()?
-                    .get(&username)
-                    .and_then(|e| e.keyring_name.clone())
-            });
-            let (clear, released) = self.clear_account_entries(&username, held.as_deref());
-            // C144: the index is written under the lock, as login writes it.
-            let indexed = self.index_apply(|index| {
-                index.set_persisted(&username, false)?;
-                if released {
-                    index.hold_keyring_name(&username, None)?;
+            let named = |x: &AuthSession| (x.username.clone().unwrap_or_default(), x.uuid.clone());
+            let live = match account {
+                None => s.auth.get(None).map(named),
+                Some(req) => s
+                    .auth
+                    .matching(req)
+                    .and_then(|found| found.map(named).ok_or_else(|| no_session(req))),
+            };
+            let (username, uuid, dropped, entry) = match (live, account) {
+                (Ok((username, uuid)), _) => {
+                    let entry = self.store_dir.as_ref().and_then(|dir| {
+                        Index::load(dir)
+                            .ok()?
+                            .find(uuid.as_deref(), &username)
+                            .cloned()
+                    });
+                    (username, uuid, true, entry)
                 }
-                Ok(())
+                (Err(_), Some(selector)) => {
+                    let entry = self.known_account(selector)?;
+                    // A known account whose uuid a live session carries
+                    // under a newer name is that session's logout.
+                    let live = entry.uuid.as_ref().and_then(|uuid| {
+                        s.auth
+                            .by_account
+                            .values()
+                            .find(|x| x.uuid.as_ref() == Some(uuid))
+                            .map(named)
+                    });
+                    match live {
+                        Some((username, uuid)) => (username, uuid, true, Some(entry)),
+                        None => (
+                            entry.username.clone(),
+                            entry.uuid.clone(),
+                            false,
+                            Some(entry),
+                        ),
+                    }
+                }
+                (Err(refusal), None) => return Err(refusal),
+            };
+            if dropped {
+                s.auth
+                    .by_account
+                    .retain(|_, x| x.username.as_deref() != Some(username.as_str()));
+                if s.auth.last_login.as_deref() == Some(username.as_str()) {
+                    s.auth.last_login = None;
+                }
+            }
+            let mut names = vec![username.clone()];
+            for name in entry.iter().flat_map(AccountEntry::keyring_reach) {
+                if !names.contains(&name) {
+                    names.push(name);
+                }
+            }
+            let (cleared, released, failed) = self.clear_account_entries(&names);
+            let indexed = self.index_apply(|index| {
+                index.settle_keyring_names(
+                    uuid.as_deref(),
+                    &username,
+                    &failed,
+                    &released,
+                    Some(false),
+                )
             });
-            (username, clear, indexed)
+            (
+                Done {
+                    username,
+                    cleared,
+                    indexed,
+                },
+                dropped,
+            )
         };
-        self.rails().clear_refresh_failed(&username);
-        self.announce_trip();
+        if dropped {
+            self.rails().clear_refresh_failed(&done.username);
+            self.announce_trip();
+        }
         self.settle(Settled {
-            username: &username,
-            session_dropped: true,
-            cleared: clear,
-            indexed,
+            username: &done.username,
+            session_dropped: dropped,
+            cleared: done.cleared,
+            indexed: done.indexed,
         })
     }
 
-    /// Drop a *non-live* account's keyring entry and mark it not persisted.
-    /// Nothing about the live session changes. C144: the entry is cleared
-    /// whether or not the index marks it persisted (a failed save, or a
-    /// logout whose clear failed, leaves an entry the mark does not
-    /// show), and the log and the answer say what the clear and the
-    /// index's mark did (`settle`).
-    pub(super) fn forget_account(&self, selector: &str) -> Result<(), Refusal> {
+    /// The index entry a selector names, for a forget: the account known
+    /// to the index, or the refusal that says why there is none.
+    fn known_account(&self, selector: &str) -> Result<AccountEntry, Refusal> {
         let Some(dir) = &self.store_dir else {
             return Err(Refusal::new(
                 ErrorKind::Internal,
@@ -464,7 +521,7 @@ impl Daemon {
                 ),
             )
         })?;
-        let entry = index
+        index
             .resolve(Some(selector))
             .map_err(|e| match e {
                 acquisition_store::Resolve::Ambiguous(_) => {
@@ -481,28 +538,8 @@ impl Daemon {
                 acquisition_store::Resolve::Empty => {
                     Refusal::new(ErrorKind::NotLoggedIn, e.to_string())
                 }
-            })?
-            .clone();
-        let (cleared, released) =
-            self.clear_account_entries(&entry.username, entry.keyring_name.as_deref());
-        // C144: the index is written under the lock, as login writes it,
-        // and its result reaches the words.
-        let indexed = {
-            let _serialised = self.shared.lock().unwrap();
-            self.index_apply(|index| {
-                index.set_persisted(&entry.username, false)?;
-                if released {
-                    index.hold_keyring_name(&entry.username, None)?;
-                }
-                Ok(())
             })
-        };
-        self.settle(Settled {
-            username: &entry.username,
-            session_dropped: false,
-            cleared,
-            indexed,
-        })
+            .cloned()
     }
 
     /// C144 — the words of a logout (`session_dropped`) or a forget, from
@@ -575,33 +612,43 @@ struct Settled<'a> {
     indexed: Result<(), String>,
 }
 
+/// What a logout's critical section did, carried out of the lock.
+struct Done {
+    username: String,
+    cleared: Result<(), auth::NotCleared>,
+    indexed: Result<(), String>,
+}
+
 impl Daemon {
     /// C144 (no keyring entry out of the index's reach): clear the
-    /// account's keyring entry under its username and under the old name
-    /// the index holds for it (`AccountEntry::keyring_name`), if any.
-    /// Both clears run; the first failure is the result. The flag says
-    /// whether the held name may be released: there was none, or its
-    /// clear succeeded.
+    /// account's keyring entry under every name in `names`. Every clear
+    /// runs; the first failure is the result, beside the names whose
+    /// clear succeeded (released from the index) and those whose clear
+    /// failed (held by it). A keyring turned off clears nothing and
+    /// moves no name.
     fn clear_account_entries(
         &self,
-        username: &str,
-        held: Option<&str>,
-    ) -> (Result<(), auth::NotCleared>, bool) {
+        names: &[String],
+    ) -> (Result<(), auth::NotCleared>, Vec<String>, Vec<String>) {
         let service = self.provider.keyring_service;
-        let cleared = self.credential_store.clear(service, username);
-        let Some(held) = held.filter(|h| *h != username) else {
-            return (cleared, true);
-        };
-        match self.credential_store.clear(service, held) {
-            Ok(()) => (cleared, true),
-            Err(auth::NotCleared::Failed(e)) => (
-                cleared.and(Err(auth::NotCleared::Failed(format!(
-                    "under the old name {held}: {e}"
-                )))),
-                false,
-            ),
-            Err(off) => (cleared.and(Err(off)), false),
+        let mut result = Ok(());
+        let (mut released, mut failed) = (Vec::new(), Vec::new());
+        for (i, name) in names.iter().enumerate() {
+            match self.credential_store.clear(service, name) {
+                Ok(()) => released.push(name.clone()),
+                Err(auth::NotCleared::Failed(e)) => {
+                    failed.push(name.clone());
+                    let e = if i == 0 {
+                        e
+                    } else {
+                        format!("under the old name {name}: {e}")
+                    };
+                    result = result.and(Err(auth::NotCleared::Failed(e)));
+                }
+                Err(off) => result = result.and(Err(off)),
+            }
         }
+        (result, released, failed)
     }
 }
 

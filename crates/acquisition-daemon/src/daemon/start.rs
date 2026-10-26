@@ -669,6 +669,36 @@ impl AcceptErrors {
     }
 }
 
+/// C144 (no keyring entry out of the index's reach): an account's refresh
+/// token, read under its username and, when that read fails or finds
+/// nothing, under each name the index holds for it in turn, so a rotated
+/// token saved under a name a rename left behind is still reached. The
+/// username's own result is the answer when no held name has one; a
+/// token found under a held name is logged.
+fn load_reached(
+    store: &dyn CredentialStore,
+    service: &str,
+    entry: &acquisition_store::AccountEntry,
+    log: &mut dyn std::io::Write,
+) -> Result<Option<String>, String> {
+    let first = store.load(service, &entry.username);
+    if let Ok(Some(_)) = first {
+        return first;
+    }
+    for name in entry.keyring_names.iter().filter(|n| **n != entry.username) {
+        if let Ok(Some(token)) = store.load(service, name) {
+            writeln!(
+                log,
+                "ACCOUNTS: {} restored from its keyring entry under the old name {name}",
+                entry.username
+            )
+            .ok();
+            return Ok(Some(token));
+        }
+    }
+    first
+}
+
 /// The sessions a start restores: every account the index marks
 /// persisted comes back as a live session from its credential-store entry
 /// (C31), and one unreadable entry never blocks the rest. Every result of
@@ -692,7 +722,7 @@ pub(super) fn restore_sessions(
     match Index::load(dir) {
         Ok(index) => {
             for entry in index.persisted() {
-                match store.load(service, &entry.username) {
+                match load_reached(store, service, entry, log) {
                     Ok(Some(refresh_token)) => {
                         sessions.replace(AuthSession {
                             refresh_token: Some(refresh_token),

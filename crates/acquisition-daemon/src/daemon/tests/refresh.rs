@@ -668,7 +668,7 @@ fn indexed_test_user(daemon: &mut Arc<Daemon>) -> PathBuf {
     let _ = std::fs::remove_dir_all(&dir);
     Index::load(&dir)
         .unwrap()
-        .record_login("test-user", "u-1", true, 1)
+        .record_login("test-user", "u-1", true, 1, &[])
         .unwrap();
     Arc::get_mut(daemon).unwrap().store_dir = Some(dir.clone());
     daemon.shared.lock().unwrap().auth.one_mut().uuid = Some("u-1".into());
@@ -778,7 +778,10 @@ async fn c144_a_rename_whose_old_clear_fails_stays_in_the_logouts_reach() {
         );
         let entry = index.get("NewName#2").unwrap();
         assert!(entry.persisted);
-        assert_eq!(entry.keyring_name.as_deref(), Some("test-user"));
+        assert!(
+            entry.keyring_names.iter().any(|n| n == "test-user"),
+            "{entry:?}"
+        );
     }
     assert_eq!(store.entries.lock().unwrap().len(), 2);
 
@@ -792,9 +795,156 @@ async fn c144_a_rename_whose_old_clear_fails_stays_in_the_logouts_reach() {
     let index = Index::load(&dir).unwrap();
     let entry = index.get("NewName#2").unwrap();
     assert!(!entry.persisted);
-    assert_eq!(entry.keyring_name, None, "the held name is released");
+    assert!(
+        entry.keyring_names.is_empty(),
+        "every held name is released: {entry:?}"
+    );
     let _ = std::fs::remove_dir_all(&dir);
     server.await.unwrap();
     assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
     finish_harness(None, &log_path);
+}
+
+/// A token answer that renames the account to `username`, rotating the
+/// refresh token to `rt-<username>`.
+fn renamed_answer(username: &str) -> ScriptedResponse {
+    let body = json!({
+        "access_token": format!("at-{username}"),
+        "refresh_token": format!("rt-{username}"),
+        "expires_in": 3600,
+        "username": username,
+    })
+    .to_string();
+    token_answer("200 OK", TOKEN_HEADERS, Some(&body))
+}
+
+/// C144 (logout finds the account by its uuid), the review of the h1 fix
+/// round, its first finding: a refresh that renames test-user to B saves
+/// B's token but cannot write the index, which still lists the account
+/// as test-user, persisted, with test-user's entry uncleared. A logout of
+/// B, once the index is writable again, finds the entry by the session's
+/// uuid, clears both names and marks it not persisted, so a start
+/// restores nothing. Before, the logout looked the entry up by B, found
+/// none, marked nothing and acknowledged, and a restart restored
+/// test-user from its old entry.
+#[cfg(unix)]
+#[tokio::test]
+async fn c144_a_logout_after_an_unindexed_rename_finds_the_account_by_its_uuid() {
+    let (mut daemon, store, log_path, requests, server) = token_daemon_with_store(
+        vec![renamed_answer("B#2")],
+        RecordingCredentialStore::default(),
+    )
+    .await;
+    let dir = indexed_test_user(&mut daemon);
+
+    freeze(&dir, true);
+    daemon.valid_access_token(None, false, None).await.unwrap();
+    freeze(&dir, false);
+    assert_eq!(
+        Index::load(&dir)
+            .unwrap()
+            .get("test-user")
+            .map(|e| e.persisted),
+        Some(true),
+        "the rename's index write failed"
+    );
+    assert_eq!(store.entries.lock().unwrap().len(), 2);
+
+    daemon.logout(Some("B#2")).unwrap();
+    assert!(
+        store.entries.lock().unwrap().is_empty(),
+        "both names cleared: {:?}",
+        store.entries.lock().unwrap()
+    );
+    let index = Index::load(&dir).unwrap();
+    assert!(index.persisted().is_empty(), "{:?}", index.entries());
+    let mut log = Vec::new();
+    let sessions = start::restore_sessions(&*store, "acq-mock", &dir, None, &mut log);
+    assert!(sessions.by_account.is_empty(), "a start restores nothing");
+    let _ = std::fs::remove_dir_all(&dir);
+    server.await.unwrap();
+    assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
+    finish_harness(None, &log_path);
+}
+
+/// C144 (no keyring entry out of the index's reach), the review of the h1
+/// fix round, its fourth finding: two renames, test-user to B and B to C,
+/// each failing its old names' clears, leave the index holding every
+/// uncleared name, so a logout of C with the keyring working again clears
+/// all three. Before, the index held one old name, the second rename
+/// replaced test-user with B, and test-user's entry was out of every
+/// verb's reach.
+#[tokio::test]
+async fn c144_two_renames_whose_clears_fail_keep_every_name_in_reach() {
+    let (mut daemon, store, log_path, requests, server) = token_daemon_with_store(
+        vec![renamed_answer("B#2"), renamed_answer("C#3")],
+        RecordingCredentialStore::failing("clear", "keychain locked"),
+    )
+    .await;
+    let dir = indexed_test_user(&mut daemon);
+
+    daemon.valid_access_token(None, false, None).await.unwrap();
+    daemon.valid_access_token(None, true, None).await.unwrap();
+    assert_eq!(store.entries.lock().unwrap().len(), 3);
+    {
+        let index = Index::load(&dir).unwrap();
+        let entry = index.get("C#3").unwrap();
+        for name in ["test-user", "B#2", "C#3"] {
+            assert!(
+                entry.keyring_reach().iter().any(|n| n == name),
+                "{name} in reach of {entry:?}"
+            );
+        }
+    }
+
+    *store.fail_clear.lock().unwrap() = None;
+    daemon.logout(Some("C#3")).unwrap();
+    assert!(
+        store.entries.lock().unwrap().is_empty(),
+        "no entry is left behind: {:?}",
+        store.entries.lock().unwrap()
+    );
+    let index = Index::load(&dir).unwrap();
+    let entry = index.get("C#3").unwrap();
+    assert!(!entry.persisted);
+    assert!(entry.keyring_names.is_empty(), "{entry:?}");
+    let _ = std::fs::remove_dir_all(&dir);
+    server.await.unwrap();
+    assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
+    finish_harness(None, &log_path);
+}
+
+/// C144: a start whose username's keyring entry is missing reads the
+/// names the index holds, in order, so a token saved under a name a
+/// rename left behind is restored under the account's current name.
+#[test]
+fn c144_restore_reaches_a_token_under_a_held_name() {
+    let dir = std::env::temp_dir().join(format!(
+        "acq-restore-held-{}-{}",
+        std::process::id(),
+        TEST_LOG_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    Index::load(&dir)
+        .unwrap()
+        .record_login("New#2", "u-1", true, 1, &["Old#1".into()])
+        .unwrap();
+    let store = RecordingCredentialStore::default();
+    store
+        .entries
+        .lock()
+        .unwrap()
+        .insert("Old#1".into(), "rt-held".into());
+    let mut log = Vec::new();
+    let sessions = start::restore_sessions(&store, "acq-mock", &dir, None, &mut log);
+    assert_eq!(
+        sessions.find("New#2").unwrap().refresh_token.as_deref(),
+        Some("rt-held")
+    );
+    let log = String::from_utf8(log).unwrap();
+    assert!(
+        log.contains("New#2 restored from its keyring entry under the old name Old#1"),
+        "{log}"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
 }

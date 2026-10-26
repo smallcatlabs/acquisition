@@ -99,6 +99,9 @@ pub(super) struct RecordingCredentialStore {
     /// The keyring turned off, as `ACQ_NO_KEYRING` turns it off: a clear
     /// tries nothing and says why.
     pub(super) keyring_off: Mutex<Option<String>>,
+    /// Run once at the next clear, before it acts: a test's pause where
+    /// a clear is under way.
+    pub(super) on_clear: Mutex<Option<Box<dyn FnOnce() + Send>>>,
 }
 
 impl RecordingCredentialStore {
@@ -141,6 +144,10 @@ impl CredentialStore for RecordingCredentialStore {
     }
 
     fn clear(&self, _service: &str, username: &str) -> Result<(), auth::NotCleared> {
+        let hook = self.on_clear.lock().unwrap().take();
+        if let Some(hook) = hook {
+            hook();
+        }
         if let Some(why) = self.keyring_off.lock().unwrap().clone() {
             return Err(auth::NotCleared::Off(why));
         }
@@ -819,6 +826,15 @@ pub(super) fn logged_in(daemon: &mut Arc<Daemon>) {
     s.auth.one_mut().refresh_token = Some("rt-old".into());
     s.auth.rename("", "test-user");
     s.auth.keyring = "ok".into();
+}
+
+/// The index directory made read-only for the test's span, so the
+/// index's next write fails while its reads work.
+#[cfg(unix)]
+pub(super) fn freeze(dir: &std::path::Path, frozen: bool) {
+    use std::os::unix::fs::PermissionsExt;
+    let mode = if frozen { 0o555 } else { 0o755 };
+    std::fs::set_permissions(dir, std::fs::Permissions::from_mode(mode)).unwrap();
 }
 
 /// One send as the account server saw it: the method, and the account it

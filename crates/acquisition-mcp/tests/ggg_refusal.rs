@@ -34,7 +34,7 @@ fn seed_ggg_account(base: &Path) {
     std::fs::create_dir_all(&dir).unwrap();
     let at = acquisition_store::now();
     let mut index = Index::load(&dir).unwrap();
-    index.record_login(USER, UUID, false, at).unwrap();
+    index.record_login(USER, UUID, false, at, &[]).unwrap();
     let mut store = Store::open(&account_path(&dir, USER)).unwrap();
     store
         .record(

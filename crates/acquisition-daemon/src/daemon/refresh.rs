@@ -109,13 +109,14 @@ impl Daemon {
     /// would have replaced, which holds a token the grant rotated away or
     /// the previous login's. The account index then records the login at
     /// `at` (by the uuid when there is one, so a rename moves the entry)
-    /// and holds the first old name the account's entry may still be
-    /// under (`AccountEntry::keyring_name`): the session's old name
-    /// (`old_name`, a refresh that renamed), the name the index mapped
-    /// the uuid to (a re-login under a renamed username), and a name the
-    /// index already held. Only then is each old name cleared, and the
-    /// held name moves only after its clear succeeds: one whose clear
-    /// fails stays held, so logout and forget still reach it. An index
+    /// and, in that same write, every name a keyring entry for the
+    /// account may now be under (`AccountEntry::keyring_names`): the name
+    /// just saved, the session's old name (`old_name`, a refresh that
+    /// renamed), the name the index mapped the uuid to (a re-login under
+    /// a renamed username), and every name the index already held. Only
+    /// then is each old name cleared, and a name leaves the index only
+    /// once its clear succeeds: one whose clear fails stays held, however
+    /// many renames follow, so logout and forget still reach it. An index
     /// that cannot be written leaves the old names alone: the index still
     /// reaches them. Every clear that fails is a warning.
     pub(super) fn persist_credentials_locked(
@@ -137,9 +138,9 @@ impl Daemon {
                 None => e.username == username || Some(e.username.as_str()) == old_name,
             });
             for entry in known {
-                for name in std::iter::once(&entry.username).chain(&entry.keyring_name) {
-                    if !old_names.contains(name) {
-                        old_names.push(name.clone());
+                for name in entry.keyring_reach() {
+                    if !old_names.contains(&name) {
+                        old_names.push(name);
                     }
                 }
             }
@@ -147,6 +148,7 @@ impl Daemon {
         old_names.retain(|old| !old.is_empty() && old != username);
         let saved = self.credential_store.save(service, refresh_token, username);
         let mut warnings = Vec::new();
+        let mut released = Vec::new();
         let keyring = match &saved {
             Ok(()) => "ok".to_string(),
             Err(e) => {
@@ -155,12 +157,12 @@ impl Daemon {
                 ));
                 // A keyring turned off fails the save too, and its warning
                 // says so; only a clear the keyring refused adds one.
-                if let Err(auth::NotCleared::Failed(clear)) =
-                    self.credential_store.clear(service, username)
-                {
-                    warnings.push(format!(
+                match self.credential_store.clear(service, username) {
+                    Ok(()) => released.push(username.to_string()),
+                    Err(auth::NotCleared::Failed(clear)) => warnings.push(format!(
                         "the entry the save would have replaced, for {username}, could not be cleared: {clear}"
-                    ));
+                    )),
+                    Err(auth::NotCleared::Off(_)) => {}
                 }
                 format!("unavailable: {e}")
             }
@@ -169,31 +171,28 @@ impl Daemon {
         // a good save warns, and the entry the index points at is the one
         // just saved.
         let persisted = saved.is_ok();
-        let held = old_names.first().map(String::as_str);
-        let indexed = self.index_apply(|index| {
-            match uuid {
-                Some(uuid) => index.record_login(username, uuid, persisted, at)?,
-                None => index.upsert(username, persisted, at)?,
-            }
-            index.hold_keyring_name(username, held)
+        let mut hold = old_names.clone();
+        if persisted {
+            hold.push(username.to_string());
+        }
+        let indexed = self.index_apply(|index| match uuid {
+            Some(uuid) => index.record_login(username, uuid, persisted, at, &hold),
+            None => index.upsert(username, persisted, at, &hold),
         });
         if indexed.is_ok() {
-            let mut stuck = None;
             for old in &old_names {
                 match self.credential_store.clear(service, old) {
-                    Ok(()) => {}
-                    Err(clear) => {
-                        if let auth::NotCleared::Failed(clear) = clear {
-                            warnings.push(format!(
-                                "the keyring entry under the old name {old} could not be cleared: {clear}"
-                            ));
-                        }
-                        stuck.get_or_insert(old.as_str());
-                    }
+                    Ok(()) => released.push(old.clone()),
+                    Err(auth::NotCleared::Failed(clear)) => warnings.push(format!(
+                        "the keyring entry under the old name {old} could not be cleared: {clear}"
+                    )),
+                    Err(auth::NotCleared::Off(_)) => {}
                 }
             }
-            if stuck != held
-                && let Err(e) = self.index_apply(|index| index.hold_keyring_name(username, stuck))
+            if !released.is_empty()
+                && let Err(e) = self.index_apply(|index| {
+                    index.settle_keyring_names(uuid, username, &[], &released, None)
+                })
             {
                 warnings.push(e);
             }

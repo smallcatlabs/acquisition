@@ -32,7 +32,7 @@ fn seed(base: &Path) {
     let mock = base.join("mock");
     std::fs::create_dir_all(&mock).unwrap();
     let mut index = Index::load(&mock).unwrap();
-    index.record_login(USER, "u-search", false, 1).unwrap();
+    index.record_login(USER, "u-search", false, 1, &[]).unwrap();
     let mut store = Store::open(&account_path(&mock, USER)).unwrap();
     let mut record = |ep: Endpoint, body: Value, at: i64| {
         store
@@ -220,7 +220,9 @@ fn rule_5_every_command_printed_runs_with_a_second_account_known() {
     seed_more(&base);
     let mock = base.join("mock");
     let mut index = Index::load(&mock).unwrap();
-    index.record_login("Bob#5678", "u-other", false, 2).unwrap();
+    index
+        .record_login("Bob#5678", "u-other", false, 2, &[])
+        .unwrap();
     let mut other = Store::open(&account_path(&mock, "Bob#5678")).unwrap();
     other
         .record(
@@ -1298,7 +1300,7 @@ fn step_9c3_a_row_sorted_by_a_reading_says_so_by_its_own_name() {
     let mock = base.join("mock");
     std::fs::create_dir_all(&mock).unwrap();
     let mut index = Index::load(&mock).unwrap();
-    index.record_login(USER, "u-search", false, 1).unwrap();
+    index.record_login(USER, "u-search", false, 1, &[]).unwrap();
     let mut store = Store::open(&account_path(&mock, USER)).unwrap();
     let mut record = |ep: Endpoint, body: Value, at: i64| {
         store
@@ -1393,7 +1395,7 @@ fn step_9c4_a_mod_is_found_by_a_row_and_show_prints_its_rows() {
     let mock = base.join("mock");
     std::fs::create_dir_all(&mock).unwrap();
     let mut index = Index::load(&mock).unwrap();
-    index.record_login(USER, "u-search", false, 1).unwrap();
+    index.record_login(USER, "u-search", false, 1, &[]).unwrap();
     let mut store = Store::open(&account_path(&mock, USER)).unwrap();
     let mut record = |ep: Endpoint, body: Value, at: i64| {
         store

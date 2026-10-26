@@ -785,7 +785,7 @@ fn keyring_daemon(
     let _ = std::fs::remove_dir_all(&dir);
     Index::load(&dir)
         .unwrap()
-        .record_login("test-user", "u-1", true, 1)
+        .record_login("test-user", "u-1", true, 1, &[])
         .unwrap();
     let d = Arc::get_mut(&mut daemon).unwrap();
     d.credential_store = store.clone();
@@ -882,7 +882,7 @@ async fn c144_forget_clears_an_unmarked_entry_and_reports_a_failed_clear() {
         .set_persisted("test-user", false)
         .unwrap();
 
-    daemon.forget_account("test-user").unwrap();
+    daemon.logout(Some("test-user")).unwrap();
     assert!(
         store.entries.lock().unwrap().is_empty(),
         "an unmarked entry is cleared"
@@ -894,7 +894,7 @@ async fn c144_forget_clears_an_unmarked_entry_and_reports_a_failed_clear() {
         .unwrap()
         .insert("test-user".into(), "rt-old".into());
     *store.fail_clear.lock().unwrap() = Some("keychain locked".into());
-    let refusal = daemon.forget_account("test-user").unwrap_err();
+    let refusal = daemon.logout(Some("test-user")).unwrap_err();
     assert_eq!(refusal.kind, ErrorKind::Internal);
     assert!(
         refusal
@@ -927,8 +927,8 @@ fn c144_restore_reads_through_the_credential_store_and_reports_a_failed_load() {
     let _ = std::fs::remove_dir_all(&dir);
     {
         let mut index = Index::load(&dir).unwrap();
-        index.record_login("alice", "u-a", true, 2).unwrap();
-        index.record_login("bob", "u-b", true, 1).unwrap();
+        index.record_login("alice", "u-a", true, 2, &[]).unwrap();
+        index.record_login("bob", "u-b", true, 1, &[]).unwrap();
     }
 
     let store = RecordingCredentialStore::default();
@@ -984,7 +984,7 @@ async fn c144_a_re_login_whose_save_fails_clears_the_previous_entry() {
     let (daemon, credentials, store_dir, log_path) = login_daemon("http://127.0.0.1:1");
     Index::load(&store_dir)
         .unwrap()
-        .record_login("Alice#1", "u-a", true, 1)
+        .record_login("Alice#1", "u-a", true, 1, &[])
         .unwrap();
     credentials
         .entries
@@ -1031,7 +1031,7 @@ async fn c144_a_re_login_under_a_renamed_username_clears_the_old_names_entry() {
     let (daemon, credentials, store_dir, log_path) = login_daemon("http://127.0.0.1:1");
     Index::load(&store_dir)
         .unwrap()
-        .record_login("Old#1", "u-a", true, 1)
+        .record_login("Old#1", "u-a", true, 1, &[])
         .unwrap();
     credentials
         .entries
@@ -1101,15 +1101,6 @@ async fn c144_a_logout_with_the_keyring_off_says_nothing_was_cleared() {
     finish_harness(None, &log_path);
 }
 
-/// The index directory made read-only for the test's span, so the
-/// index's next write fails while its reads work.
-#[cfg(unix)]
-fn freeze(dir: &std::path::Path, frozen: bool) {
-    use std::os::unix::fs::PermissionsExt;
-    let mode = if frozen { 0o555 } else { 0o755 };
-    std::fs::set_permissions(dir, std::fs::Permissions::from_mode(mode)).unwrap();
-}
-
 /// C144 (every result reaches the words), the review of h1, its fifth
 /// finding: forget says "not restored at start" only when its index
 /// write marked the account not persisted. With the index directory
@@ -1127,7 +1118,7 @@ async fn c144_forget_and_logout_say_what_the_index_write_did() {
     ));
     daemon.shared.lock().unwrap().auth.by_account.clear();
     freeze(&dir, true);
-    let refusal = daemon.forget_account("test-user").unwrap_err();
+    let refusal = daemon.logout(Some("test-user")).unwrap_err();
     freeze(&dir, false);
     assert_eq!(refusal.kind, ErrorKind::Internal);
     let message = refusal.message;
@@ -1165,6 +1156,79 @@ async fn c144_forget_and_logout_say_what_the_index_write_did() {
     );
     let _ = std::fs::remove_dir_all(&dir);
     finish_harness(None, &log_path);
+}
+
+/// C144 (one critical section for a forget), the review of the h1 fix
+/// round, its third finding: a forget's live-or-known decision, its
+/// clears and its not-persisted mark are one hold of the lock a login
+/// persists under, so a login of the same account lands before the forget
+/// or after it, never between. The login is staged to land at the
+/// forget's clear as soon as the lock lets it: at once if the lock is
+/// free there, else once the forget has answered. Before, the forget
+/// cleared outside the lock, the login landed there — its credential
+/// saved, the account marked persisted, its session live — and the
+/// forget's late mark then said not persisted under a live session: a
+/// start would not restore the account the user had just logged in to,
+/// and the forget had acknowledged a logout that did not hold.
+#[tokio::test]
+async fn c144_a_login_cannot_land_between_a_forgets_clear_and_its_mark() {
+    let (daemon, credentials, store_dir, log_path) = login_daemon("http://127.0.0.1:1");
+    Index::load(&store_dir)
+        .unwrap()
+        .record_login("Alice#1", "u-a", true, 1, &[])
+        .unwrap();
+    credentials
+        .entries
+        .lock()
+        .unwrap()
+        .insert("Alice#1".into(), "rt-previous".into());
+    let generation = staged_login(&daemon, "Alice#1");
+    let deferred = Arc::new(Mutex::new(false));
+    {
+        let weak = Arc::downgrade(&daemon);
+        let deferred = deferred.clone();
+        *credentials.on_clear.lock().unwrap() = Some(Box::new(move || {
+            let daemon = weak.upgrade().expect("the daemon outlives the forget");
+            let free = daemon.shared.try_lock().is_ok();
+            if free {
+                assert!(daemon.complete_login(generation, "Alice#1", "u-a"));
+            } else {
+                *deferred.lock().unwrap() = true;
+            }
+        }));
+    }
+
+    let answer = logout_answer(&daemon, Some("Alice#1")).await;
+    if *deferred.lock().unwrap() {
+        assert!(daemon.complete_login(generation, "Alice#1", "u-a"));
+    }
+    assert!(
+        !matches!(answer, Response::Error { .. }),
+        "the forget held: {answer:?}"
+    );
+    let live = daemon.shared.lock().unwrap().auth.find("Alice#1").is_some();
+    assert!(live, "the login landed");
+    let entry = Index::load(&store_dir)
+        .unwrap()
+        .get("Alice#1")
+        .cloned()
+        .unwrap();
+    assert!(
+        entry.persisted,
+        "a live session's account is restored at start: {entry:?}"
+    );
+    assert_eq!(
+        credentials
+            .entries
+            .lock()
+            .unwrap()
+            .get("Alice#1")
+            .map(String::as_str),
+        Some("rt-Alice#1"),
+        "the login's credential stands"
+    );
+    let _ = std::fs::remove_dir_all(&store_dir);
+    let _ = std::fs::remove_file(&log_path);
 }
 
 /// `test-user`'s session back in the daemon, as `logged_in` installs it.

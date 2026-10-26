@@ -55,7 +55,7 @@ fn frontend(dir: &Path) -> Frontend {
 fn login(dir: &Path, username: &str, uuid: &str) {
     Index::load(dir)
         .unwrap()
-        .record_login(username, uuid, false, 1_000)
+        .record_login(username, uuid, false, 1_000, &[])
         .unwrap();
 }
 
@@ -245,7 +245,7 @@ fn an_entry_without_a_uuid_asked_for_intent_is_refused() {
             last_login: 1,
             persisted: false,
             uuid: None,
-            keyring_name: None,
+            keyring_names: Vec::new(),
         },
     };
     let fault = account.intent().err().expect("refused");

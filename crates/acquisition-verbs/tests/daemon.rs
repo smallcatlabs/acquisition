@@ -104,7 +104,7 @@ async fn a_quote_with_no_daemon_is_the_one_note() {
     // A plan to quote: the documents test's fixture, in the session's world.
     acquisition_store::Index::load(&dir)
         .unwrap()
-        .record_login("Alice#1234", "u-q", false, 1)
+        .record_login("Alice#1234", "u-q", false, 1, &[])
         .unwrap();
     acquisition_store::Store::open(&acquisition_store::account_path(&dir, "Alice#1234"))
         .unwrap()
