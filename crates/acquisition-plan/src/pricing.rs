@@ -204,24 +204,37 @@ pub fn realm_of(targets: &[&PriceTarget], given: Option<Realm>) -> Result<Realm>
 /// hold it, when they do, so it names the league that reads it, never
 /// only the one that does not. `own_row` is the revision of a row the
 /// target has of its own, which no listing carries: the refusal says so
-/// and names the command that prints the row, as typed — `status`
-/// expanded, as the account the frontend resolved, in the target's
-/// realm, since the bare verb counts rows and reads pc, and with a second
-/// account known a command naming none is refused as ambiguous (C121,
-/// an account that cannot be picked is refused). `account` is that
-/// account as one shell word, quoted by the frontend, which links the
-/// quoting (`acquisition_search::answer::shell_quoted`) where this crate
-/// does not (C1).
+/// and names the command that displays the row, as typed and as the
+/// account the frontend resolved (with a second account known a command
+/// naming none is refused as ambiguous: C121, an account that cannot be
+/// picked is refused). For a row the facts hold nowhere, an orphan, that
+/// is `status` expanded in the target's realm, since the bare verb counts
+/// rows and reads pc. For a row the facts hold in another league it is
+/// `show` in that league: that league's `status` counts the row under
+/// "other league" and never displays it (the h2 fix round's review),
+/// with `--realm` only for an address that carries none. `quote` makes
+/// one shell word of the account, a league and the target; the frontend
+/// supplies it (`acquisition_search::answer::shell_quoted`), since this
+/// crate does not link the search (C1).
 fn not_on_record(
     store: &Store,
     r: &ListingReport,
     target: &PriceTarget,
     own_row: Option<i64>,
     account: &str,
+    quote: fn(&str) -> String,
 ) -> anyhow::Error {
     let elsewhere = store
         .leagues_of(&FactAddress::from(target))
         .unwrap_or_default();
+    let realm = match r.header.realm.segment() {
+        Some(seg) => format!("{seg}/"),
+        None => String::new(),
+    };
+    let realm_flag = match r.header.realm.segment() {
+        Some(seg) => format!(" --realm {seg}"),
+        None => String::new(),
+    };
     let hint = match elsewhere.as_slice() {
         [] => "`acq search` finds an item's id, `acq tabs` a tab's".to_string(),
         leagues => format!(
@@ -229,22 +242,35 @@ fn not_on_record(
             leagues.join(", ")
         ),
     };
-    let realm = match r.header.realm.segment() {
-        Some(seg) => format!("{seg}/"),
-        None => String::new(),
-    };
-    let row = match own_row {
-        Some(revision) => {
-            let realm = match r.header.realm.segment() {
-                Some(seg) => format!(" --realm {seg}"),
-                None => String::new(),
+    let account = quote(account);
+    let row = match (own_row, elsewhere.as_slice()) {
+        (None, _) => String::new(),
+        (Some(revision), []) => format!(
+            "; it has a price row of its own at revision {revision}: \
+             `acq price status --expand --account {account}{realm_flag}` lists it"
+        ),
+        (Some(revision), leagues) => {
+            let realm_flag = match target {
+                PriceTarget::Tab { .. } | PriceTarget::Substash { .. } => "",
+                _ => realm_flag.as_str(),
             };
+            let shown = leagues
+                .iter()
+                .map(|league| {
+                    format!(
+                        "`acq price show {} --account {account}{realm_flag} --league {}`",
+                        quote(&target.to_string()),
+                        quote(league)
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(" or ");
             format!(
-                "; it has a price row of its own at revision {revision}: \
-                 `acq price status --expand --account {account}{realm}` lists it"
+                "; it has a price row of its own at revision {revision} in {}: \
+                 {shown} shows it",
+                leagues.join(", ")
             )
         }
-        None => String::new(),
     };
     anyhow::Error::new(Refused {
         kind: RefusedKind::NotFound,
@@ -256,8 +282,9 @@ fn not_on_record(
 }
 
 /// `price show <target>`: one target's view, in the league the facts hold
-/// it in unless one is named. `account` is the resolved account as one
-/// shell word, for the command a refusal names (`not_on_record`).
+/// it in unless one is named. `account` is the resolved account's name
+/// and `quote` the frontend's shell quoting, for the command a refusal
+/// names (`not_on_record`).
 pub fn show(
     store: &Store,
     annotations: &Annotations,
@@ -265,6 +292,7 @@ pub fn show(
     realm: Option<Realm>,
     league: Option<&str>,
     account: &str,
+    quote: fn(&str) -> String,
 ) -> Result<ShowView> {
     let target = read_target(target)?;
     let realm = realm_of(&[&target], realm)?;
@@ -281,6 +309,7 @@ pub fn show(
                 &target,
                 own.map(|row| row.revision),
                 account,
+                quote,
             ))
         }
     }
@@ -298,7 +327,7 @@ pub struct ListArgs {
     pub limit: Option<usize>,
 }
 
-/// `price list`. `account` as [`show`]'s.
+/// `price list`. `account` and `quote` as [`show`]'s.
 pub fn list(
     store: &Store,
     annotations: &Annotations,
@@ -306,6 +335,7 @@ pub fn list(
     league: Option<&str>,
     args: &ListArgs,
     account: &str,
+    quote: fn(&str) -> String,
 ) -> Result<ListView> {
     const SIDES: [&str; 4] = ["game", "manual", "none", "unresolved"];
     let effective = match args.effective.as_deref() {
@@ -368,6 +398,7 @@ pub fn list(
                 &missing,
                 own.map(|row| row.revision),
                 account,
+                quote,
             ))
         }
     }
@@ -733,6 +764,11 @@ pub fn currency_document(word: Option<&str>) -> Result<CurrencyDocument> {
 mod tests {
     use super::*;
 
+    /// The refusal's quoting, as a frontend without a shell would give it.
+    fn plain(word: &str) -> String {
+        word.to_string()
+    }
+
     /// One account's facts in memory: pc Standard's tab `t1` fetched with
     /// two unpriced items, `i1` and `i2`; and its intent file, empty.
     fn priced() -> (Store, Annotations) {
@@ -794,9 +830,9 @@ mod tests {
             limit,
             ..ListArgs::default()
         };
-        let whole = list(&store, &a, None, None, &args(None), "a").unwrap();
+        let whole = list(&store, &a, None, None, &args(None), "a", plain).unwrap();
         assert_eq!((whole.total, whole.listed, whole.items.len()), (2, 2, 2));
-        let limited = list(&store, &a, None, None, &args(Some(1)), "a").unwrap();
+        let limited = list(&store, &a, None, None, &args(Some(1)), "a", plain).unwrap();
         assert_eq!((limited.total, limited.listed), (2, 1));
         assert_eq!(limited.items, whole.items[..1].to_vec());
         assert_eq!(limited.filter.limit, Some(1));
@@ -895,7 +931,7 @@ mod tests {
             assert!(!r.message.contains(word), "{}", r.message);
         }
 
-        let e = show(&store, &a, "item/i-nowhere", None, None, "a").unwrap_err();
+        let e = show(&store, &a, "item/i-nowhere", None, None, "a", plain).unwrap_err();
         assert_eq!(refused(e).kind, RefusedKind::NotFound);
     }
 

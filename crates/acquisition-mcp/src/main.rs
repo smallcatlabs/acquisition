@@ -794,9 +794,9 @@ impl AcqMcp {
             .map_err(|e| CallToolResult::structured_error(refusal(&e.into(), named)))
     }
 
-    /// [`Self::open_search`] with the account's name as one shell word,
-    /// for a refusal that prints a command to run as that account (a
-    /// second account known, a command naming none is ambiguous).
+    /// [`Self::open_search`] with the account's name, for a refusal that
+    /// prints a command to run as that account (a second account known,
+    /// a command naming none is ambiguous).
     fn open_priced(
         &self,
         selector: Option<&str>,
@@ -804,10 +804,7 @@ impl AcqMcp {
     ) -> std::result::Result<(Store, Annotations, String), CallToolResult> {
         self.account(selector)
             .and_then(|account| account.open())
-            .map(|opened| {
-                let word = acquisition_search::answer::shell_quoted(&opened.account.entry.username);
-                (opened.facts, opened.intent, word)
-            })
+            .map(|opened| (opened.facts, opened.intent, opened.account.entry.username))
             .map_err(|e| CallToolResult::structured_error(refusal(&e.into(), named)))
     }
 
@@ -1099,11 +1096,12 @@ impl AcqMcp {
                 limit: p.limit,
             },
             &account,
+            acquisition_search::answer::shell_quoted,
         ))
     }
 
     #[tool(
-        description = "One target's listing (no daemon, no network): `listing`, both sides with their causes — the hand row that applies with its `revision` and the target it is on (`manual.from`; the target's own row when that is the target itself, a container's when `inherited`), the note and the tab name verbatim beside what each reads as — the relation, the effective price and why; `container`, the one an item sits in; for a tab, substash or character, `items_here` (physically in it) and `items_covered_below` (covered through its children). A bare id is refused with its two readings, `item/<id>` and `character/<id>`; a target the facts do not hold is refused (`kind: \"not_found\"`) naming the league that holds it, if any, and saying so when it has a row of its own, which price_status lists whole. The document `acq price show --json` prints. Read it before price_set or price_clear on a target that has a row of its own: they name the revision they replace."
+        description = "One target's listing (no daemon, no network): `listing`, both sides with their causes — the hand row that applies with its `revision` and the target it is on (`manual.from`; the target's own row when that is the target itself, a container's when `inherited`), the note and the tab name verbatim beside what each reads as — the relation, the effective price and why; `container`, the one an item sits in; for a tab, substash or character, `items_here` (physically in it) and `items_covered_below` (covered through its children). A bare id is refused with its two readings, `item/<id>` and `character/<id>`; a target the facts do not hold is refused (`kind: \"not_found\"`) naming the league that holds it, if any, and saying so when it has a row of its own and naming what displays it: price_status lists a row the facts hold nowhere whole, and price_show in the league that holds the target shows its row. The document `acq price show --json` prints. Read it before price_set or price_clear on a target that has a row of its own: they name the revision they replace."
     )]
     fn price_show(&self, Parameters(p): Parameters<Args<PriceShowParams>>) -> Told {
         let p = match p.read() {
@@ -1125,6 +1123,7 @@ impl AcqMcp {
             realm,
             p.league.as_deref(),
             &account,
+            acquisition_search::answer::shell_quoted,
         ))
     }
 

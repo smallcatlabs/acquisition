@@ -863,6 +863,92 @@ fn a_rows_refusal_names_the_account_it_ran_as_so_its_command_runs_with_two_known
     }
 }
 
+/// The h2 fix round's review: a row on a target another league's facts
+/// hold was refused with `status --expand` in the league asked, which
+/// counts the row under "other league" and never displays it. Both
+/// callers of the shared refusal now name that league and print a `show`
+/// there, as the account the verb ran as, and the command displays the
+/// row as printed (C146, a count says what it counts; C121, an account
+/// that cannot be picked is refused).
+#[test]
+fn a_rows_refusal_in_another_league_prints_the_show_that_displays_it() {
+    let scratch = harness::scratch("price-other-league");
+    let base = scratch.0.clone();
+    let mock = seed(&base);
+    Index::load(&mock)
+        .unwrap()
+        .record_login("Bob#5678", "u-bob", false, acquisition_store::now(), &[])
+        .unwrap();
+    let mut store = Store::open(&account_path(&mock, USER)).unwrap();
+    store
+        .record(
+            &Endpoint::Stashes {
+                realm: "xbox".into(),
+                league: "Allflame".into(),
+            },
+            &json!({ "league": "Allflame" }),
+            200,
+            &json!({ "stashes": [ { "id": "t", "name": "Box", "type": "PremiumStash", "index": 0 } ] }),
+            acquisition_store::now(),
+        )
+        .unwrap();
+    Annotations::open_for(&mock, UUID)
+        .unwrap()
+        .put::<Buyout>(
+            "tab",
+            "xbox/t",
+            &json!({ "version": 1, "type": "skip" }),
+            None,
+            &Provenance::via("test"),
+        )
+        .unwrap();
+
+    for args in [
+        &["price", "show", "tab/xbox/t"][..],
+        &["price", "list", "--in", "tab/xbox/t"][..],
+    ] {
+        let mut args = args.to_vec();
+        args.extend(["--account", "Alice", "--league", "Standard", "--json"]);
+        let out = acq(&base, &args);
+        assert!(!out.status.success());
+        let said = sole_json(&out)["error"]
+            .as_str()
+            .unwrap_or_default()
+            .to_string();
+        assert!(
+            said.contains("tab/xbox/t is not in the facts for xbox/Standard")
+                && said.contains(
+                    "the facts hold it in Allflame: `--league` reads it there; \
+                     it has a price row of its own at revision 1 in Allflame: "
+                )
+                && !said.contains("acq price status"),
+            "{args:?}: {said}"
+        );
+        let command = said
+            .split('`')
+            .find(|w| w.starts_with("acq price show"))
+            .unwrap_or_else(|| panic!("{args:?}: no `acq price show …` command in {said}"));
+        assert_eq!(
+            command, "acq price show tab/xbox/t --account 'Alice#1234' --league Allflame",
+            "{args:?}"
+        );
+        let words: Vec<&str> = command
+            .split_whitespace()
+            .skip(1)
+            .map(|w| w.trim_matches('\''))
+            .collect();
+        let out = acq(&base, &words);
+        let text = String::from_utf8_lossy(&out.stdout);
+        assert!(
+            out.status.success()
+                && text.starts_with("tab/xbox/t: Box (PremiumStash)\n")
+                && text.contains("by hand: skip (own row, revision 1, "),
+            "{args:?}: `{command}` printed:\n{text}{}",
+            stderr(&out)
+        );
+    }
+}
+
 /// Review 8 of the release (2026-10-19): `price list --limit 0` said
 /// "none listed by hand or in game" where the JSON said `total: 3,
 /// listed: 0`. The text says none of how many, and why.
