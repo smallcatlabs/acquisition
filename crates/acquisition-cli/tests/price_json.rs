@@ -758,7 +758,11 @@ fn a_row_on_a_target_the_facts_do_not_hold_is_listed_whole_and_show_says_where()
             .split('`')
             .find(|w| w.starts_with("acq price status"))
             .unwrap_or_else(|| panic!("no `acq price status …` command in {said}"));
-        let words: Vec<&str> = command.split_whitespace().skip(1).collect();
+        let words: Vec<&str> = command
+            .split_whitespace()
+            .skip(1)
+            .map(|w| w.trim_matches('\''))
+            .collect();
         let out = acq(&base, &words);
         let text = String::from_utf8_lossy(&out.stdout);
         assert!(
@@ -782,7 +786,7 @@ fn a_row_on_a_target_the_facts_do_not_hold_is_listed_whole_and_show_says_where()
     assert!(
         said.contains("tab/xbox/orphan is not in the facts for xbox/Standard")
             && said.contains(
-                "it has a price row of its own at revision 1: `acq price status --expand --realm xbox` lists it"
+                "it has a price row of its own at revision 1: `acq price status --expand --account 'Alice#1234' --realm xbox` lists it"
             ),
         "{said}"
     );
@@ -793,6 +797,70 @@ fn a_row_on_a_target_the_facts_do_not_hold_is_listed_whole_and_show_says_where()
         .unwrap_or_default()
         .to_string();
     assert!(!said.contains("price row of its own"), "{said}");
+}
+
+/// The h2 review's first finding: with two accounts known, the command
+/// a refusal names for a row of the target's own dropped the account the
+/// verb ran as, and so was itself refused as ambiguous. Both callers of
+/// the shared refusal, `show` and `list --in`, now name it, and the
+/// command runs as printed (C121, an account that cannot be picked is
+/// refused; C146, a count says what it counts).
+#[test]
+fn a_rows_refusal_names_the_account_it_ran_as_so_its_command_runs_with_two_known() {
+    let scratch = harness::scratch("price-two-accounts");
+    let base = scratch.0.clone();
+    let mock = seed(&base);
+    Index::load(&mock)
+        .unwrap()
+        .record_login("Bob#5678", "u-bob", false, acquisition_store::now(), &[])
+        .unwrap();
+    Annotations::open_for(&mock, UUID)
+        .unwrap()
+        .put::<Buyout>(
+            "tab",
+            "xbox/orphan",
+            &json!({ "version": 1, "type": "skip" }),
+            None,
+            &Provenance::via("test"),
+        )
+        .unwrap();
+    // Naming no account is ambiguous now, as the old command was.
+    let out = acq(&base, &["price", "status", "--expand", "--realm", "xbox"]);
+    assert!(!out.status.success(), "{}", stderr(&out));
+
+    for args in [
+        &["price", "show", "tab/xbox/orphan"][..],
+        &["price", "list", "--in", "tab/xbox/orphan"][..],
+    ] {
+        let mut args = args.to_vec();
+        args.extend(["--account", USER, "--json"]);
+        let out = acq(&base, &args);
+        assert!(!out.status.success());
+        let said = sole_json(&out)["error"]
+            .as_str()
+            .unwrap_or_default()
+            .to_string();
+        let command = said
+            .split('`')
+            .find(|w| w.starts_with("acq price status"))
+            .unwrap_or_else(|| panic!("{args:?}: no `acq price status …` command in {said}"));
+        assert_eq!(
+            command, "acq price status --expand --account 'Alice#1234' --realm xbox",
+            "{args:?}"
+        );
+        let words: Vec<&str> = command
+            .split_whitespace()
+            .skip(1)
+            .map(|w| w.trim_matches('\''))
+            .collect();
+        let out = acq(&base, &words);
+        let text = String::from_utf8_lossy(&out.stdout);
+        assert!(
+            out.status.success() && text.contains("  tab/xbox/orphan: skip, revision 1\n"),
+            "{args:?}: `{command}` printed:\n{text}{}",
+            stderr(&out)
+        );
+    }
 }
 
 /// Review 8 of the release (2026-10-19): `price list --limit 0` said

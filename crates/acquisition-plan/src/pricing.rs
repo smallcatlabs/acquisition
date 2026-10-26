@@ -205,13 +205,19 @@ pub fn realm_of(targets: &[&PriceTarget], given: Option<Realm>) -> Result<Realm>
 /// only the one that does not. `own_row` is the revision of a row the
 /// target has of its own, which no listing carries: the refusal says so
 /// and names the command that prints the row, as typed — `status`
-/// expanded, in the target's realm, since the bare verb counts rows and
-/// reads pc.
+/// expanded, as the account the frontend resolved, in the target's
+/// realm, since the bare verb counts rows and reads pc, and with a second
+/// account known a command naming none is refused as ambiguous (C121,
+/// an account that cannot be picked is refused). `account` is that
+/// account as one shell word, quoted by the frontend, which links the
+/// quoting (`acquisition_search::answer::shell_quoted`) where this crate
+/// does not (C1).
 fn not_on_record(
     store: &Store,
     r: &ListingReport,
     target: &PriceTarget,
     own_row: Option<i64>,
+    account: &str,
 ) -> anyhow::Error {
     let elsewhere = store
         .leagues_of(&FactAddress::from(target))
@@ -235,7 +241,7 @@ fn not_on_record(
             };
             format!(
                 "; it has a price row of its own at revision {revision}: \
-                 `acq price status --expand{realm}` lists it"
+                 `acq price status --expand --account {account}{realm}` lists it"
             )
         }
         None => String::new(),
@@ -250,13 +256,15 @@ fn not_on_record(
 }
 
 /// `price show <target>`: one target's view, in the league the facts hold
-/// it in unless one is named.
+/// it in unless one is named. `account` is the resolved account as one
+/// shell word, for the command a refusal names (`not_on_record`).
 pub fn show(
     store: &Store,
     annotations: &Annotations,
     target: &str,
     realm: Option<Realm>,
     league: Option<&str>,
+    account: &str,
 ) -> Result<ShowView> {
     let target = read_target(target)?;
     let realm = realm_of(&[&target], realm)?;
@@ -272,6 +280,7 @@ pub fn show(
                 &r,
                 &target,
                 own.map(|row| row.revision),
+                account,
             ))
         }
     }
@@ -289,13 +298,14 @@ pub struct ListArgs {
     pub limit: Option<usize>,
 }
 
-/// `price list`.
+/// `price list`. `account` as [`show`]'s.
 pub fn list(
     store: &Store,
     annotations: &Annotations,
     realm: Option<Realm>,
     league: Option<&str>,
     args: &ListArgs,
+    account: &str,
 ) -> Result<ListView> {
     const SIDES: [&str; 4] = ["game", "manual", "none", "unresolved"];
     let effective = match args.effective.as_deref() {
@@ -357,6 +367,7 @@ pub fn list(
                 &r,
                 &missing,
                 own.map(|row| row.revision),
+                account,
             ))
         }
     }
@@ -783,9 +794,9 @@ mod tests {
             limit,
             ..ListArgs::default()
         };
-        let whole = list(&store, &a, None, None, &args(None)).unwrap();
+        let whole = list(&store, &a, None, None, &args(None), "a").unwrap();
         assert_eq!((whole.total, whole.listed, whole.items.len()), (2, 2, 2));
-        let limited = list(&store, &a, None, None, &args(Some(1))).unwrap();
+        let limited = list(&store, &a, None, None, &args(Some(1)), "a").unwrap();
         assert_eq!((limited.total, limited.listed), (2, 1));
         assert_eq!(limited.items, whole.items[..1].to_vec());
         assert_eq!(limited.filter.limit, Some(1));
@@ -884,7 +895,7 @@ mod tests {
             assert!(!r.message.contains(word), "{}", r.message);
         }
 
-        let e = show(&store, &a, "item/i-nowhere", None, None).unwrap_err();
+        let e = show(&store, &a, "item/i-nowhere", None, None, "a").unwrap_err();
         assert_eq!(refused(e).kind, RefusedKind::NotFound);
     }
 

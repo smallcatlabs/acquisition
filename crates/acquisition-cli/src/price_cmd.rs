@@ -80,8 +80,9 @@ pub fn show(
     expand: bool,
     json: bool,
 ) -> Result<()> {
-    let (store, annotations, _) = opened(cx)?;
-    let view = pricing::show(&store, &annotations, target, realm, league)?;
+    let (store, annotations, username) = opened(cx)?;
+    let account = acquisition_search::answer::shell_quoted(&username);
+    let view = pricing::show(&store, &annotations, target, realm, league, &account)?;
     if json {
         println!("{}", serde_json::to_string_pretty(&view)?);
         return Ok(());
@@ -99,8 +100,9 @@ pub fn list(
     expand: bool,
     json: bool,
 ) -> Result<()> {
-    let (store, annotations, _) = opened(cx)?;
-    let view = pricing::list(&store, &annotations, realm, league, args)?;
+    let (store, annotations, username) = opened(cx)?;
+    let account = acquisition_search::answer::shell_quoted(&username);
+    let view = pricing::list(&store, &annotations, realm, league, args, &account)?;
     if json {
         println!("{}", serde_json::to_string_pretty(&view)?);
         return Ok(());

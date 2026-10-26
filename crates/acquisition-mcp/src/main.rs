@@ -794,6 +794,23 @@ impl AcqMcp {
             .map_err(|e| CallToolResult::structured_error(refusal(&e.into(), named)))
     }
 
+    /// [`Self::open_search`] with the account's name as one shell word,
+    /// for a refusal that prints a command to run as that account (a
+    /// second account known, a command naming none is ambiguous).
+    fn open_priced(
+        &self,
+        selector: Option<&str>,
+        named: &str,
+    ) -> std::result::Result<(Store, Annotations, String), CallToolResult> {
+        self.account(selector)
+            .and_then(|account| account.open())
+            .map(|opened| {
+                let word = acquisition_search::answer::shell_quoted(&opened.account.entry.username);
+                (opened.facts, opened.intent, word)
+            })
+            .map_err(|e| CallToolResult::structured_error(refusal(&e.into(), named)))
+    }
+
     /// The selected account's intent file alone, for a verb that reads
     /// and writes nothing else — the MCP opens for a verb what the CLI
     /// opens for it, so a facts file the CLI's verb never opens cannot
@@ -1065,7 +1082,7 @@ impl AcqMcp {
             Ok(realm) => realm,
             Err(refusal) => return Ok(refusal),
         };
-        let (store, intent) = match self.open_search(p.account.as_deref(), "account") {
+        let (store, intent, account) = match self.open_priced(p.account.as_deref(), "account") {
             Ok(opened) => opened,
             Err(refusal) => return Ok(refusal),
         };
@@ -1081,6 +1098,7 @@ impl AcqMcp {
                 covered_by: p.covered_by,
                 limit: p.limit,
             },
+            &account,
         ))
     }
 
@@ -1096,7 +1114,7 @@ impl AcqMcp {
             Ok(realm) => realm,
             Err(refusal) => return Ok(refusal),
         };
-        let (store, intent) = match self.open_search(p.account.as_deref(), "account") {
+        let (store, intent, account) = match self.open_priced(p.account.as_deref(), "account") {
             Ok(opened) => opened,
             Err(refusal) => return Ok(refusal),
         };
@@ -1106,6 +1124,7 @@ impl AcqMcp {
             &p.target,
             realm,
             p.league.as_deref(),
+            &account,
         ))
     }
 
