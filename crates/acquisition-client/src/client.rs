@@ -1981,19 +1981,14 @@ mod tests {
     #[tokio::test]
     async fn c147_a_winner_found_on_the_last_poll_is_handshaken() {
         use tokio::io::AsyncBufReadExt;
-        let _env = ENV.lock().await;
-        let dir = std::env::temp_dir().join(format!("acqlp-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-        // SAFETY: `ENV` is held; the crate's other environment-reading
-        // tests take it too.
-        unsafe {
-            std::env::set_var("ACQ_PROVIDER", "mock");
-            std::env::set_var("XDG_RUNTIME_DIR", &dir);
-            std::env::set_var("TMPDIR", &dir);
-            std::env::set_var("ACQ_HELLO_WITHIN", MAX_WITHIN_SECS.to_string());
-            std::env::remove_var("ACQ_NO_SPAWN");
-        }
+        let env = ENV.lock().await;
+        let mut moved = Moved::new(&env, "acqlp");
+        let dir = moved.dir.clone();
+        moved.set("ACQ_PROVIDER", "mock");
+        moved.set("XDG_RUNTIME_DIR", &dir);
+        moved.set("TMPDIR", &dir);
+        moved.set("ACQ_HELLO_WITHIN", MAX_WITHIN_SECS.to_string());
+        moved.remove("ACQ_NO_SPAWN");
         acquisition_store::world::app_runtime_dir().unwrap();
         let root = dir.join("store");
         let world = World::create_at(&root).unwrap();
@@ -2046,7 +2041,6 @@ mod tests {
             Err(other) => panic!("the door reported {other}, not the winner"),
             Ok(client) => panic!("the door opened on {}", client.daemon()),
         }
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// C147 and C137, a spawn begins with a fresh startup deadline: the
@@ -2064,7 +2058,7 @@ mod tests {
     #[tokio::test]
     async fn c147_a_replacement_spawned_after_the_budget_ran_out_gets_its_own() {
         use tokio::io::AsyncBufReadExt;
-        let _env = ENV.lock().await;
+        let env = ENV.lock().await;
         // The `acqd` the workspace build wrote, placed beside this test
         // as the harness places it for the process tests (C82, C84).
         let exe = std::env::current_exe().unwrap();
@@ -2085,28 +2079,24 @@ mod tests {
                 panic!("placing {}: {e}", link.display());
             }
         }
-        let dir = std::env::temp_dir().join(format!("acqrp-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-        // SAFETY: `ENV` is held; the crate's other environment-reading
-        // tests take it too. The replacement is a real daemon, so it
-        // inherits a mock world's knobs and nothing of the caller's.
-        unsafe {
-            for (key, _) in std::env::vars_os() {
-                if key.to_str().is_some_and(|k| k.starts_with("ACQ_")) {
-                    std::env::remove_var(key);
-                }
+        // The replacement is a real daemon, so it inherits a mock
+        // world's knobs and nothing of the caller's.
+        let mut moved = Moved::new(&env, "acqrp");
+        let dir = moved.dir.clone();
+        for (key, _) in std::env::vars_os() {
+            if key.to_str().is_some_and(|k| k.starts_with("ACQ_")) {
+                moved.remove(key);
             }
-            std::env::set_var("ACQ_PROVIDER", "mock");
-            std::env::set_var("XDG_RUNTIME_DIR", &dir);
-            std::env::set_var("TMPDIR", &dir);
-            std::env::set_var("ACQ_LOG_DIR", dir.join("logs"));
-            std::env::set_var("ACQ_NO_KEYRING", "1");
-            std::env::set_var("ACQ_JOURNAL", "0");
-            std::env::set_var("ACQ_IDLE_SHUTDOWN", "30");
-            std::env::set_var("ACQ_HELLO_WITHIN", MAX_WITHIN_SECS.to_string());
-            std::env::set_var("ACQ_STARTUP_WITHIN", MAX_WITHIN_SECS.to_string());
         }
+        moved.set("ACQ_PROVIDER", "mock");
+        moved.set("XDG_RUNTIME_DIR", &dir);
+        moved.set("TMPDIR", &dir);
+        moved.set("ACQ_LOG_DIR", dir.join("logs"));
+        moved.set("ACQ_NO_KEYRING", "1");
+        moved.set("ACQ_JOURNAL", "0");
+        moved.set("ACQ_IDLE_SHUTDOWN", "30");
+        moved.set("ACQ_HELLO_WITHIN", MAX_WITHIN_SECS.to_string());
+        moved.set("ACQ_STARTUP_WITHIN", MAX_WITHIN_SECS.to_string());
         acquisition_store::world::app_runtime_dir().unwrap();
         let root = dir.join("store");
         let world = World::create_at(&root).unwrap();
@@ -2167,13 +2157,119 @@ mod tests {
             "the door opened on the replacement it spawned"
         );
         client.stop().await.expect("the replacement stops");
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
-    /// The tests that read or set the process environment take this
-    /// first: `set_var` is unsafe beside a concurrent read. Tokio's, so
-    /// the async test can hold it across its awaits.
+    /// Every test in this module that reads or sets the process
+    /// environment takes this first and holds it for its whole run:
+    /// `set_var` is unsafe beside a concurrent read. Tokio's, so an async
+    /// test can hold it across its awaits.
     static ENV: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+    /// A test's moved world: a scratch directory, and the environment
+    /// variables the test set or removed, each with the value it had.
+    /// Made only under the `ENV` guard it borrows, so it cannot outlive
+    /// the lock. Dropped, it restores every variable first and removes the
+    /// scratch only then, so nothing that reads the environment after it
+    /// is pointed at a directory that is gone.
+    struct Moved<'a> {
+        dir: PathBuf,
+        saved: Vec<(std::ffi::OsString, Option<std::ffi::OsString>)>,
+        _env: &'a tokio::sync::MutexGuard<'static, ()>,
+    }
+
+    impl<'a> Moved<'a> {
+        /// A fresh scratch directory named `name` and this process.
+        fn new(env: &'a tokio::sync::MutexGuard<'static, ()>, name: &str) -> Moved<'a> {
+            let dir = std::env::temp_dir().join(format!("{name}-{}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&dir);
+            std::fs::create_dir_all(&dir).unwrap();
+            Moved {
+                dir,
+                saved: Vec::new(),
+                _env: env,
+            }
+        }
+
+        /// Keep `key`'s value from before this world first moved it.
+        fn save(&mut self, key: &std::ffi::OsStr) {
+            if !self.saved.iter().any(|(k, _)| k == key) {
+                self.saved.push((key.to_owned(), std::env::var_os(key)));
+            }
+        }
+
+        fn set(&mut self, key: impl AsRef<std::ffi::OsStr>, value: impl AsRef<std::ffi::OsStr>) {
+            self.save(key.as_ref());
+            // SAFETY: `ENV` is held for as long as this world lives, and
+            // every test in this module that reads or sets the
+            // environment holds it for its whole run.
+            unsafe { std::env::set_var(key, value) }
+        }
+
+        fn remove(&mut self, key: impl AsRef<std::ffi::OsStr>) {
+            self.save(key.as_ref());
+            // SAFETY: as `set`.
+            unsafe { std::env::remove_var(key) }
+        }
+    }
+
+    impl Drop for Moved<'_> {
+        fn drop(&mut self) {
+            for (key, value) in self.saved.drain(..).rev() {
+                // SAFETY: as `set`; the lock outlives this world.
+                unsafe {
+                    match value {
+                        Some(value) => std::env::set_var(key, value),
+                        None => std::env::remove_var(key),
+                    }
+                }
+            }
+            let _ = std::fs::remove_dir_all(&self.dir);
+        }
+    }
+
+    /// The review's third schedule, a test that moves the environment
+    /// beside one that reads it: the reader — a stop peer, its socket
+    /// beneath the temp directory — runs once the mover is done, as `ENV`
+    /// orders them, and finds the environment the mover found, the
+    /// mover's scratch gone and its own directory still there. Before the
+    /// rule, the mover left the temp directory naming its deleted scratch.
+    #[tokio::test]
+    async fn a_test_that_moves_the_environment_restores_it_before_its_scratch_goes() {
+        let env = ENV.lock().await;
+        let before: Vec<_> = std::env::vars_os().collect();
+        let scratch = {
+            let mut moved = Moved::new(&env, "acqmv");
+            let dir = moved.dir.clone();
+            moved.set("TMPDIR", &dir);
+            moved.set("XDG_RUNTIME_DIR", &dir);
+            moved.set("ACQ_PROVIDER", "mock");
+            moved.set("ACQ_HELLO_WITHIN", "0");
+            moved.remove("ACQ_NO_SPAWN");
+            assert_eq!(std::env::temp_dir(), dir, "the world moved");
+            dir
+        };
+        assert!(!scratch.exists(), "the scratch went with the world");
+        let after: Vec<_> = std::env::vars_os().collect();
+        let sorted = |mut v: Vec<(std::ffi::OsString, std::ffi::OsString)>| {
+            v.sort();
+            v
+        };
+        assert_eq!(sorted(after), sorted(before), "every variable restored");
+        // The reader after it: a stop peer under the temp directory.
+        let stream = peer_that_answers_stop_with(Some(json!({ "resp": "stopping" }))).await;
+        let stopped = Client::stop_over(
+            stream,
+            Endpoint::world(Path::new("/run/acq/peer.sock")).unwrap(),
+            own_world(),
+            None,
+        )
+        .await
+        .unwrap();
+        assert_eq!(stopped.pid(), 7);
+        let _ = std::fs::remove_dir_all(
+            std::env::temp_dir().join(format!("acq-stop-{}", std::process::id())),
+        );
+    }
 
     /// This process's world as an observing door resolves it: the
     /// canonical root, or the root it intended and why there is none.
@@ -2466,6 +2562,9 @@ mod tests {
     /// `Stopping` counts.
     #[tokio::test]
     async fn a_stop_the_daemon_did_not_acknowledge_is_not_a_stop() {
+        // Its peers' sockets sit beneath the temp directory and its
+        // verdicts read the world: the environment, read under `ENV`.
+        let _env = ENV.lock().await;
         let stream =
             peer_that_answers_stop_with(Some(json!({ "resp": "error", "message": "busy" }))).await;
         let err = Client::stop_over(
