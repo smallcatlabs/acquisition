@@ -1209,8 +1209,8 @@ fn the_tabs_pointer_names_the_league_its_never_fetched_tabs_are_in() {
     }
     drop(store);
     let mut t = Transcript::new(&base);
-    let mut pointer = |query: &str, fact: &str| {
-        let shown = stdout(&t.run(&["search", "--realm", "pc", query], &[fact]));
+    let mut pointer = |query: &str, facts: &[&str]| {
+        let shown = stdout(&t.run(&["search", "--realm", "pc", query], facts));
         let line = shown
             .lines()
             .find(|l| l.contains("never fetched:"))
@@ -1224,13 +1224,24 @@ fn the_tabs_pointer_names_the_league_its_never_fetched_tabs_are_in() {
     const ALLFLAME: &str =
         " · each tab: acq tabs --account 'Alice#1234' --realm pc --league Allflame --never-fetched";
     assert_eq!(
-        pointer("league=Allflame", "--league Allflame --never-fetched"),
+        // a query fixed to Allflame still counts Standard's never-fetched
+        // tab, and the line says why (the h2 review's third finding)
+        pointer(
+            "league=Allflame",
+            &[
+                "--league Allflame --never-fetched",
+                "PremiumStash 1 of 3, UniqueStash 1 of 1 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown)",
+            ]
+        ),
         ALLFLAME
     );
-    pointer("league=Standard", "--league Standard --never-fetched");
+    pointer("league=Standard", &["--league Standard --never-fetched"]);
     // no league fixed: the league holding the most, the others counted
     assert_eq!(
-        pointer("rarity=normal", "1 other league holds never-fetched tabs"),
+        pointer(
+            "rarity=normal",
+            &["1 other league holds never-fetched tabs"]
+        ),
         format!("{ALLFLAME} · 1 other league holds never-fetched tabs")
     );
     golden(file!(), "tabs_pointer_names_its_league", &t);

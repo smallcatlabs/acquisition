@@ -43,7 +43,7 @@ $ acq search --realm pc 'linked(red>=2)'
 --- stdout
 query   linked(red>=2)
 scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
-        1 location never fetched: PremiumStash 1 of 3 · location list seen <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
+        1 location never fetched: PremiumStash 1 of 3 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location list seen <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
 total   1 match
             1 location was never fetched: nothing here says what they hold
 rows    Kaom's Heart Glorious Plate · unique · Standard / Dump · x 0, y 0 · fetched <age> ago

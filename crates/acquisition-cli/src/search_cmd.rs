@@ -672,8 +672,17 @@ fn never_fetched_text(by_type: &[acquisition_search::tabs::TabType]) -> String {
             plural(rest.len(), "other type", "other types")
         ));
     }
-    format!(" never fetched: {}", named.join(", "))
+    // why a ring query lists map tabs: the count ignores the query, and
+    // the line says so as the MCP description does (C146; the h2 review)
+    format!(
+        " never fetched: {} ({NEVER_FETCHED_SPAN})",
+        named.join(", ")
+    )
 }
+
+/// What the never-fetched count spans, and why: said beside the count on
+/// every surface (the MCP's `never_fetched_by_type`, the field's doc).
+const NEVER_FETCHED_SPAN: &str = "counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown";
 
 pub(crate) fn place_text(place: &acquisition_search::corpus::Place, now: i64) -> String {
     let mut out = place

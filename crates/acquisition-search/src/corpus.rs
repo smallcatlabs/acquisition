@@ -366,7 +366,8 @@ pub struct Coverage {
     /// difference — and the live items in scope there (C118). A tab's
     /// type is GGG's, verbatim, as `tabs` gives it; a character's is
     /// `character`. Over the scope's realm in every league, never
-    /// narrowed by the query: the words are C146's.
+    /// narrowed by the query, since what a never-fetched location holds
+    /// is unknown: the words are C146's.
     pub never_fetched_by_type: Vec<crate::tabs::TabType>,
     /// The leagues holding a tab never fetched, the most first: names
     /// alone, so the league a `tabs` pointer names and how many others

@@ -2,10 +2,11 @@
 
 $ acq search --realm pc league=Allflame
 # holds "--league Allflame --never-fetched"
+# holds "PremiumStash 1 of 3, UniqueStash 1 of 1 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown)"
 --- stdout
 query   league=Allflame
 scope   account Alice#1234 · pc · live · 2 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
-        3 locations never fetched: MapStash 1 of 1, PremiumStash 1 of 3, UniqueStash 1 of 1 · location list seen <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Allflame --never-fetched
+        3 locations never fetched: MapStash 1 of 1, PremiumStash 1 of 3, UniqueStash 1 of 1 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location list seen <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Allflame --never-fetched
 total   1 match
             3 locations were never fetched: nothing here says what they hold
 rows    Chaos Orb · Allflame / Gear · x 0, y 0 · fetched <age> ago
@@ -20,7 +21,7 @@ $ acq search --realm pc league=Standard
 --- stdout
 query   league=Standard
 scope   account Alice#1234 · pc · live · 2 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
-        3 locations never fetched: MapStash 1 of 1, PremiumStash 1 of 3, UniqueStash 1 of 1 · location list seen <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
+        3 locations never fetched: MapStash 1 of 1, PremiumStash 1 of 3, UniqueStash 1 of 1 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location list seen <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
 total   1 match
             3 locations were never fetched: nothing here says what they hold
 rows    Chaos Orb · Standard / Gear · x 0, y 0 · fetched <age> ago
@@ -35,7 +36,7 @@ $ acq search --realm pc rarity=normal
 --- stdout
 query   rarity=normal
 scope   account Alice#1234 · pc · live · 2 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
-        3 locations never fetched: MapStash 1 of 1, PremiumStash 1 of 3, UniqueStash 1 of 1 · location list seen <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Allflame --never-fetched · 1 other league holds never-fetched tabs
+        3 locations never fetched: MapStash 1 of 1, PremiumStash 1 of 3, UniqueStash 1 of 1 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location list seen <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Allflame --never-fetched · 1 other league holds never-fetched tabs
 total   0 matches
             3 locations were never fetched: nothing here says what they hold
 offers  each part of the query forced true and forced false, the part fewest items match first
