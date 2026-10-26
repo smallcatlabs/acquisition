@@ -1620,27 +1620,58 @@ async fn exchange<T: Serialize>(
 /// C147, the look for the winner: after a child this door spawned exited
 /// on a world lock another daemon holds, look for a listener on the
 /// world's socket until `within` (the handshake's deadline, C86, through
-/// its knob) has passed. A look is in time only before the deadline, so
-/// at zero there is none (C137). True when something listens: the
-/// caller's next turn identifies it.
+/// its knob) has passed. True when something listens in time: the
+/// caller's next turn identifies it. The bound is the look's whole, as
+/// [`look_until`] keeps it.
 async fn winner_listens(
     own: &Result<World, AbsentWorld>,
     within: Duration,
 ) -> Result<bool, ConnectError> {
     let deadline = tokio::time::Instant::now() + within;
-    while tokio::time::Instant::now() < deadline {
+    let found = look_until(deadline, tokio::time::Instant::now, || async move {
         let socket = world_socket(own).map_err(ConnectError::Transport)?;
         match reach(socket).await {
-            Ok(Reached::Listening { .. }) => return Ok(true),
-            Ok(Reached::Nothing) => tokio::time::sleep(Duration::from_millis(50)).await,
-            Err((socket, e)) => {
-                return Err(ConnectError::Transport(
-                    anyhow::Error::from(e).context(format!("connecting to {}", socket.display())),
-                ));
+            Ok(Reached::Listening { .. }) => Ok(Some(())),
+            Ok(Reached::Nothing) => Ok(None),
+            Err((socket, e)) => Err(ConnectError::Transport(
+                anyhow::Error::from(e).context(format!("connecting to {}", socket.display())),
+            )),
+        }
+    })
+    .await?;
+    Ok(found.is_some())
+}
+
+/// C147 and C137, a look bounded whole: `reach` again and again, a
+/// pause between, until it finds something or `deadline` passes. Each
+/// reach runs under the deadline (`timeout_at`, as the handshake's
+/// exchange does), so a connect that hangs ends at it; and what a reach
+/// finds is in time only if `now` is still before the deadline when it
+/// comes back — a connect that began in time and succeeded after it
+/// (a Windows pipe retrying while busy) is late all the same, and a
+/// deadline of zero admits nothing. `now` is the clock the deadline is
+/// read on: the runtime's, and the test's own in the pin.
+async fn look_until<T, F, Fut>(
+    deadline: tokio::time::Instant,
+    now: impl Fn() -> tokio::time::Instant,
+    mut reach: F,
+) -> Result<Option<T>, ConnectError>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = Result<Option<T>, ConnectError>>,
+{
+    while now() < deadline {
+        match tokio::time::timeout_at(deadline, reach()).await {
+            Ok(Ok(Some(found))) => return Ok((now() < deadline).then_some(found)),
+            Ok(Ok(None)) => {
+                let pause = (tokio::time::Instant::now() + Duration::from_millis(50)).min(deadline);
+                tokio::time::sleep_until(pause).await;
             }
+            Ok(Err(e)) => return Err(e),
+            Err(_) => return Ok(None),
         }
     }
-    Ok(false)
+    Ok(None)
 }
 
 /// A daemon this client started: the process, the executable it ran,
@@ -1820,6 +1851,33 @@ mod tests {
     }
 
     use super::*;
+
+    /// C147 and C137, the look for the winner is bounded whole: a connect
+    /// that began before the look's deadline and succeeded after it is
+    /// late, and the look finds no winner. The deadline is read on a clock
+    /// the test holds (the injected instant), which the connect moves past
+    /// the deadline before it succeeds; nothing waits on a real one.
+    #[tokio::test]
+    async fn c147_a_look_whose_connect_succeeds_after_its_deadline_finds_no_winner() {
+        let start = tokio::time::Instant::now();
+        let deadline = start + Duration::from_secs(MAX_WITHIN_SECS);
+        let clock = std::cell::Cell::new(start);
+        let reaches = std::cell::Cell::new(0);
+        let (clock, reaches) = (&clock, &reaches);
+        let found = look_until(
+            deadline,
+            || clock.get(),
+            || async move {
+                reaches.set(reaches.get() + 1);
+                clock.set(deadline + Duration::from_millis(1));
+                Ok(Some(()))
+            },
+        )
+        .await
+        .expect("no transport failure");
+        assert_eq!(reaches.get(), 1, "the look reached in time");
+        assert_eq!(found, None, "a connect that succeeded after the deadline");
+    }
 
     /// The tests that read or set the process environment take this
     /// first: `set_var` is unsafe beside a concurrent read. Tokio's, so
