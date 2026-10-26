@@ -832,9 +832,9 @@ async fn c144_a_logout_after_an_unindexed_rename_finds_the_account_by_its_uuid()
     .await;
     let dir = indexed_test_user(&mut daemon);
 
-    freeze(&dir, true);
+    let frozen = freeze(&dir);
     daemon.valid_access_token(None, false, None).await.unwrap();
-    freeze(&dir, false);
+    drop(frozen);
     assert_eq!(
         Index::load(&dir)
             .unwrap()
@@ -885,10 +885,10 @@ async fn c144_renames_under_an_unwritable_index_leave_no_credential_behind() {
     .await;
     let dir = indexed_test_user(&mut daemon);
 
-    freeze(&dir, true);
+    let frozen = freeze(&dir);
     daemon.valid_access_token(None, false, None).await.unwrap();
     let (_, username) = daemon.valid_access_token(None, true, None).await.unwrap();
-    freeze(&dir, false);
+    drop(frozen);
     assert_eq!(username, "C#3", "the session runs on, in memory");
     {
         let s = daemon.shared.lock().unwrap();

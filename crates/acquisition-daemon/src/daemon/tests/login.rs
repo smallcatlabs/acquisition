@@ -1095,9 +1095,9 @@ async fn c144_forget_and_logout_say_what_the_index_write_did() {
         "keychain locked",
     ));
     daemon.shared.lock().unwrap().auth.by_account.clear();
-    freeze(&dir, true);
+    let frozen = freeze(&dir);
     let refusal = daemon.logout(Some("test-user")).unwrap_err();
-    freeze(&dir, false);
+    drop(frozen);
     assert_eq!(refusal.kind, ErrorKind::Internal);
     let message = refusal.message;
     assert!(!message.contains("not restored at start"), "{message}");
@@ -1119,9 +1119,9 @@ async fn c144_forget_and_logout_say_what_the_index_write_did() {
     // A live session whose clear works and whose mark cannot be written.
     *store.fail_clear.lock().unwrap() = None;
     logged_in_again(&daemon);
-    freeze(&dir, true);
+    let frozen = freeze(&dir);
     let answer = logout_answer(&daemon, None).await;
-    freeze(&dir, false);
+    drop(frozen);
     let Response::Error { kind, message } = &answer else {
         panic!("an unwritten mark is not an ack: {answer:?}");
     };

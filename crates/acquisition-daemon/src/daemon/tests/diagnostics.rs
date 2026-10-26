@@ -3,6 +3,8 @@
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
 #[cfg(unix)]
+use super::harness::with_mode;
+#[cfg(unix)]
 use crate::daemon::*;
 
 /// C83: a diagnostic over the cap is rotated to `<name>.1`; when it
@@ -12,7 +14,6 @@ use crate::daemon::*;
 #[cfg(unix)]
 #[test]
 fn c83_a_diagnostic_over_the_cap_is_rotated_or_truncated_never_kept() {
-    use std::os::unix::fs::PermissionsExt;
     let temp = tempfile::tempdir().unwrap();
     let dir = temp.path().to_path_buf();
     let log = dir.join("daemon.log");
@@ -26,9 +27,9 @@ fn c83_a_diagnostic_over_the_cap_is_rotated_or_truncated_never_kept() {
     // is truncated in place, and the message says the previous
     // generation is lost.
     std::fs::write(&log, vec![b'y'; 32]).unwrap();
-    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o500)).unwrap();
+    let read_only = with_mode(&dir, 0o500);
     let what = rotate_if_over(&log, 16).unwrap().expect("bounded");
-    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).unwrap();
+    drop(read_only);
     assert!(
         what.starts_with("truncated") && what.contains("previous generation is lost"),
         "{what}"
@@ -42,11 +43,11 @@ fn c83_a_diagnostic_over_the_cap_is_rotated_or_truncated_never_kept() {
     // Neither: the directory refuses the rename and the file refuses
     // the truncation — the refusal that stops the daemon's start.
     std::fs::write(&log, vec![b'z'; 32]).unwrap();
-    std::fs::set_permissions(&log, std::fs::Permissions::from_mode(0o400)).unwrap();
-    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o500)).unwrap();
+    let log_read_only = with_mode(&log, 0o400);
+    let dir_read_only = with_mode(&dir, 0o500);
     let err = rotate_if_over(&log, 16).unwrap_err();
-    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).unwrap();
-    std::fs::set_permissions(&log, std::fs::Permissions::from_mode(0o600)).unwrap();
+    drop(dir_read_only);
+    drop(log_read_only);
     assert!(
         err.contains("neither rotated") && err.contains("nor truncated"),
         "{err}"

@@ -704,30 +704,24 @@ mod tests {
             .unwrap()
             .upsert("seed", false, 0, &[])
             .unwrap();
-        let writers: Vec<_> = ["Alice#1234", "Bob#0001"]
-            .into_iter()
-            .map(|name| {
-                let dir = dir.clone();
-                std::thread::spawn(move || {
+        // Scoped: every thread has finished before the folder goes, a
+        // panicking one included.
+        std::thread::scope(|s| {
+            for name in ["Alice#1234", "Bob#0001"] {
+                let dir = &dir;
+                s.spawn(move || {
                     for at in 0..50 {
-                        let mut idx = Index::load(&dir).unwrap();
+                        let mut idx = Index::load(dir).unwrap();
                         idx.upsert(name, at % 2 == 0, at, &[]).unwrap();
                     }
-                })
-            })
-            .collect();
-        let reader = {
-            let dir = dir.clone();
-            std::thread::spawn(move || {
+                });
+            }
+            s.spawn(|| {
                 for _ in 0..100 {
                     Index::load(&dir).expect("never a torn index");
                 }
-            })
-        };
-        for w in writers {
-            w.join().unwrap();
-        }
-        reader.join().unwrap();
+            });
+        });
         assert!(Index::load(&dir).is_ok());
     }
 }

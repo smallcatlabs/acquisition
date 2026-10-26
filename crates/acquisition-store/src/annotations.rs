@@ -2062,33 +2062,38 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let dir = temp.path().to_path_buf();
         let path = annotations_path(&dir, "u-w");
-        let winner = Connection::open(&path).unwrap();
-        // As a creator does: the journal-mode switch writes the file's
-        // first page, so the file exists with content before the stamp.
-        winner.pragma_update(None, "journal_mode", "WAL").unwrap();
-        winner.execute_batch("BEGIN IMMEDIATE").unwrap();
-        winner.execute_batch(SCHEMA).unwrap();
-        // The file exists with the winner's uncommitted tables; no stamp.
-        let (tx, rx) = std::sync::mpsc::channel();
-        let dir2 = dir.clone();
-        let loser = std::thread::spawn(move || {
-            let opened = Annotations::open_for(&dir2, "u-w").map(|a| a.uuid().map(str::to_string));
-            tx.send(()).unwrap();
-            opened
+        // Scoped, the winner inside: a failing assertion drops the winner,
+        // so the loser gets the lock and finishes before the folder goes.
+        let opened = std::thread::scope(|s| {
+            let winner = Connection::open(&path).unwrap();
+            // As a creator does: the journal-mode switch writes the file's
+            // first page, so the file exists with content before the stamp.
+            winner.pragma_update(None, "journal_mode", "WAL").unwrap();
+            winner.execute_batch("BEGIN IMMEDIATE").unwrap();
+            winner.execute_batch(SCHEMA).unwrap();
+            // The file exists with the winner's uncommitted tables; no stamp.
+            let (tx, rx) = std::sync::mpsc::channel();
+            let dir = &dir;
+            let loser = s.spawn(move || {
+                let opened =
+                    Annotations::open_for(dir, "u-w").map(|a| a.uuid().map(str::to_string));
+                tx.send(()).unwrap();
+                opened
+            });
+            // The loser is on the lock, not refused: nothing arrives while
+            // the winner holds it.
+            assert!(
+                rx.recv_timeout(std::time::Duration::from_millis(400))
+                    .is_err(),
+                "the loser returned while the winner still held its create"
+            );
+            winner
+                .pragma_update(None, "user_version", SCHEMA_VERSION)
+                .unwrap();
+            winner.execute_batch("COMMIT").unwrap();
+            drop(winner);
+            loser.join().unwrap()
         });
-        // The loser is on the lock, not refused: nothing arrives while the
-        // winner holds it.
-        assert!(
-            rx.recv_timeout(std::time::Duration::from_millis(400))
-                .is_err(),
-            "the loser returned while the winner still held its create"
-        );
-        winner
-            .pragma_update(None, "user_version", SCHEMA_VERSION)
-            .unwrap();
-        winner.execute_batch("COMMIT").unwrap();
-        drop(winner);
-        let opened = loser.join().unwrap();
         match opened {
             Ok(uuid) => assert_eq!(uuid.as_deref(), Some("u-w")),
             Err(e) => panic!("the loser was refused: {e}"),
@@ -2108,32 +2113,34 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let dir = temp.path().to_path_buf();
         let path = annotations_path(&dir, "u-f");
-        let foreign = Connection::open(&path).unwrap();
-        foreign.execute_batch("BEGIN IMMEDIATE").unwrap();
-        foreign
-            .execute_batch("CREATE TABLE theirs (x INTEGER); INSERT INTO theirs VALUES (1);")
-            .unwrap();
-        let (tx, rx) = std::sync::mpsc::channel();
-        let path2 = path.clone();
-        let loser = std::thread::spawn(move || {
-            let r = Annotations::open(&path2)
-                .map(|_| ())
-                .map_err(|e| e.to_string());
-            tx.send(()).unwrap();
-            r
+        // Scoped, the foreign writer inside: a failing assertion drops it,
+        // so the loser gets the lock and finishes before the folder goes.
+        let (after_commit, loser) = std::thread::scope(|s| {
+            let foreign = Connection::open(&path).unwrap();
+            foreign.execute_batch("BEGIN IMMEDIATE").unwrap();
+            foreign
+                .execute_batch("CREATE TABLE theirs (x INTEGER); INSERT INTO theirs VALUES (1);")
+                .unwrap();
+            let (tx, rx) = std::sync::mpsc::channel();
+            let path = &path;
+            let loser = s.spawn(move || {
+                let r = Annotations::open(path)
+                    .map(|_| ())
+                    .map_err(|e| e.to_string());
+                tx.send(()).unwrap();
+                r
+            });
+            assert!(
+                rx.recv_timeout(std::time::Duration::from_millis(400))
+                    .is_err(),
+                "the loser returned while the foreign writer still held its lock"
+            );
+            foreign.execute_batch("COMMIT").unwrap();
+            drop(foreign);
+            let after_commit = std::fs::read(path).unwrap();
+            (after_commit, loser.join().unwrap())
         });
-        assert!(
-            rx.recv_timeout(std::time::Duration::from_millis(400))
-                .is_err(),
-            "the loser returned while the foreign writer still held its lock"
-        );
-        foreign.execute_batch("COMMIT").unwrap();
-        drop(foreign);
-        let after_commit = std::fs::read(&path).unwrap();
-        let err = loser
-            .join()
-            .unwrap()
-            .expect_err("a stampless file with tables opened");
+        let err = loser.expect_err("a stampless file with tables opened");
         assert!(err.contains("no schema stamp"), "{err}");
         assert_eq!(std::fs::read(&path).unwrap(), after_commit, "left as found");
         assert!(

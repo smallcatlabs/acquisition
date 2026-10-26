@@ -1394,18 +1394,21 @@ mod tests {
         let mut refused = Vec::new();
         for i in 0..200 {
             let path = base.join(format!("acq-{i}"));
-            let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
-            let racers: Vec<_> = (0..2)
-                .map(|_| {
-                    let (path, barrier) = (path.clone(), barrier.clone());
-                    std::thread::spawn(move || {
-                        barrier.wait();
-                        private_dir(&path)
+            let barrier = std::sync::Barrier::new(2);
+            // Scoped: both racers have finished before the folder goes.
+            let results: Vec<_> = std::thread::scope(|s| {
+                let racers: Vec<_> = (0..2)
+                    .map(|_| {
+                        s.spawn(|| {
+                            barrier.wait();
+                            private_dir(&path)
+                        })
                     })
-                })
-                .collect();
-            for racer in racers {
-                if let Err(e) = racer.join().unwrap() {
+                    .collect();
+                racers.into_iter().map(|r| r.join().unwrap()).collect()
+            });
+            for result in results {
+                if let Err(e) = result {
                     refused.push(format!("{i}: {e}"));
                 }
             }

@@ -362,7 +362,12 @@ pub(super) fn test_daemon(base: &str, clock: Arc<dyn Clock>) -> (Arc<Daemon>, Te
 /// `tempfile::TempDir`, removed when this value drops, so a test that
 /// fails leaves nothing behind either. It derefs to the path. A helper
 /// that makes one returns it, never the bare path, which would outlive
-/// its folder.
+/// its folder. Whatever writes into the folder (a thread, a permission
+/// taken away) ends before it drops; the one exception is the daemon
+/// itself. Its log, journal and `daemon.db` stay open while its tasks
+/// hold it, past the test body and so past this value, and Windows
+/// refuses to delete an open file: there the folder stays behind, as
+/// the hand-written removes it replaced did. Unix deletes it.
 pub(super) struct TestPath {
     path: PathBuf,
     _dir: tempfile::TempDir,
@@ -870,13 +875,37 @@ pub(super) fn logged_in(daemon: &mut Arc<Daemon>) {
     s.auth.keyring = "ok".into();
 }
 
-/// The index directory made read-only for the test's span, so the
+/// `path` at `mode` until this drops, then back at the mode it had. A
+/// test that takes write away from a folder holds one, declared after the
+/// folder's own guard: it drops first, so the folder can go however the
+/// test ends. Restoring by hand after the call ran only when the call
+/// returned.
+#[cfg(unix)]
+pub(super) struct WithMode<'a> {
+    path: &'a std::path::Path,
+    was: std::fs::Permissions,
+}
+
+#[cfg(unix)]
+pub(super) fn with_mode(path: &std::path::Path, mode: u32) -> WithMode<'_> {
+    use std::os::unix::fs::PermissionsExt;
+    let was = std::fs::metadata(path).unwrap().permissions();
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode)).unwrap();
+    WithMode { path, was }
+}
+
+#[cfg(unix)]
+impl Drop for WithMode<'_> {
+    fn drop(&mut self) {
+        let _ = std::fs::set_permissions(self.path, self.was.clone());
+    }
+}
+
+/// The index directory made read-only while the guard lives, so the
 /// index's next write fails while its reads work.
 #[cfg(unix)]
-pub(super) fn freeze(dir: &std::path::Path, frozen: bool) {
-    use std::os::unix::fs::PermissionsExt;
-    let mode = if frozen { 0o555 } else { 0o755 };
-    std::fs::set_permissions(dir, std::fs::Permissions::from_mode(mode)).unwrap();
+pub(super) fn freeze(dir: &std::path::Path) -> WithMode<'_> {
+    with_mode(dir, 0o555)
 }
 
 /// One send as the account server saw it: the method, and the account it
