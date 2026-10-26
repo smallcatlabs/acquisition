@@ -1006,3 +1006,41 @@ fn c144_restore_reaches_a_token_under_a_held_name() {
     );
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// C144 (every load result reaches the words), the review of the h1 tail
+/// round, its third finding: the index lists B persisted, holding the old
+/// name A; the keyring has no entry under B and refuses the read under A.
+/// The start reports A's failure as it reports a username's own, and the
+/// keyring status follows it. Before, the held name's failure was
+/// dropped: the start logged that the keyring had no entry and called
+/// the keyring healthy.
+#[test]
+fn c144_restore_reports_a_held_names_failed_load() {
+    let dir = std::env::temp_dir().join(format!(
+        "acq-restore-held-fail-{}-{}",
+        std::process::id(),
+        TEST_LOG_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    Index::load(&dir)
+        .unwrap()
+        .record_login("B#2", "u-1", true, 1, &["A#1".into()])
+        .unwrap();
+    let store = RecordingCredentialStore::default();
+    store
+        .fail_load_under
+        .lock()
+        .unwrap()
+        .insert("A#1".into(), "access denied".into());
+    let mut log = Vec::new();
+    let sessions = start::restore_sessions(&store, "acq-mock", &dir, None, &mut log);
+    assert!(sessions.by_account.is_empty());
+    assert_eq!(sessions.keyring, "unavailable: access denied");
+    let log = String::from_utf8(log).unwrap();
+    assert!(
+        log.contains("keyring read for B#2 under the old name A#1 failed: access denied"),
+        "{log}"
+    );
+    assert!(!log.contains("has no entry"), "{log}");
+    let _ = std::fs::remove_dir_all(&dir);
+}

@@ -672,31 +672,44 @@ impl AcceptErrors {
 /// C144 (no keyring entry out of the index's reach): an account's refresh
 /// token, read under its username and, when that read fails or finds
 /// nothing, under each name the index holds for it in turn, so a rotated
-/// token saved under a name a rename left behind is still reached. The
-/// username's own result is the answer when no held name has one; a
-/// token found under a held name is logged.
+/// token saved under a name a rename left behind is still reached. A
+/// token found under a held name is logged. When no name yields a token,
+/// every load result still reaches the words: the username's own failure
+/// is the answer, else the first held name's failure, as `(name, error)`,
+/// and only a username and held names that all read empty answer none.
 fn load_reached(
     store: &dyn CredentialStore,
     service: &str,
     entry: &acquisition_store::AccountEntry,
     log: &mut dyn std::io::Write,
-) -> Result<Option<String>, String> {
+) -> Result<Option<String>, (String, String)> {
     let first = store.load(service, &entry.username);
-    if let Ok(Some(_)) = first {
-        return first;
+    if let Ok(Some(token)) = first {
+        return Ok(Some(token));
     }
+    let mut held_failure = None;
     for name in entry.keyring_names.iter().filter(|n| **n != entry.username) {
-        if let Ok(Some(token)) = store.load(service, name) {
-            writeln!(
-                log,
-                "ACCOUNTS: {} restored from its keyring entry under the old name {name}",
-                entry.username
-            )
-            .ok();
-            return Ok(Some(token));
+        match store.load(service, name) {
+            Ok(Some(token)) => {
+                writeln!(
+                    log,
+                    "ACCOUNTS: {} restored from its keyring entry under the old name {name}",
+                    entry.username
+                )
+                .ok();
+                return Ok(Some(token));
+            }
+            Ok(None) => {}
+            Err(e) => {
+                held_failure.get_or_insert((name.clone(), e));
+            }
         }
     }
-    first
+    match (first, held_failure) {
+        (Err(e), _) => Err((entry.username.clone(), e)),
+        (Ok(_), Some(failure)) => Err(failure),
+        (Ok(_), None) => Ok(None),
+    }
 }
 
 /// The sessions a start restores: every account the index marks
@@ -740,11 +753,16 @@ pub(super) fn restore_sessions(
                         )
                         .ok();
                     }
-                    Err(e) => {
+                    Err((name, e)) => {
                         sessions.keyring = format!("unavailable: {e}");
+                        let under = if name == entry.username {
+                            String::new()
+                        } else {
+                            format!(" under the old name {name}")
+                        };
                         writeln!(
                             log,
-                            "ACCOUNTS: keyring read for {} failed: {e}",
+                            "ACCOUNTS: keyring read for {}{under} failed: {e}",
                             entry.username
                         )
                         .ok();

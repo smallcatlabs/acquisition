@@ -95,6 +95,9 @@ pub(super) struct RecordingCredentialStore {
     pub(super) entries: Mutex<HashMap<String, String>>,
     pub(super) fail_save: Mutex<Option<String>>,
     pub(super) fail_load: Mutex<Option<String>>,
+    /// A load under one of these names fails with its reason; a load
+    /// under any other name reads as usual.
+    pub(super) fail_load_under: Mutex<HashMap<String, String>>,
     pub(super) fail_clear: Mutex<Option<String>>,
     /// The keyring turned off, as `ACQ_NO_KEYRING` turns it off: a clear
     /// tries nothing and says why.
@@ -139,6 +142,9 @@ impl CredentialStore for RecordingCredentialStore {
     fn load(&self, _service: &str, username: &str) -> Result<Option<String>, String> {
         if let Some(why) = self.fail_load.lock().unwrap().clone() {
             return Err(why);
+        }
+        if let Some(why) = self.fail_load_under.lock().unwrap().get(username) {
+            return Err(why.clone());
         }
         Ok(self.entries.lock().unwrap().get(username).cloned())
     }
