@@ -1182,15 +1182,15 @@ impl Client {
 
     /// [`Client::connect_at`]'s body, with its seam: `child`, a daemon
     /// this door already spawned, with its startup deadline. The door
-    /// passes none; the pin of the last poll passes a child that has
-    /// exited and a deadline already past.
+    /// passes none; the pins of the last poll and of the replacement
+    /// pass a child that has exited and a deadline already past.
     async fn open_door(
         root: &Path,
         opts: ConnectOptions,
         child: Option<(Spawned, Startup)>,
     ) -> Result<Client, ConnectError> {
         // C137: the startup deadline of the child this door waits on,
-        // from `ACQ_STARTUP_WITHIN` read at the spawn.
+        // from `ACQ_STARTUP_WITHIN` read at its spawn: each child's own.
         let (mut child, mut startup) = match child {
             Some((spawned, startup)) => (Some(spawned), Some(startup)),
             None => (None, None),
@@ -1316,7 +1316,10 @@ impl Client {
                                 });
                             };
                             child = Some(spawn_daemon(world)?);
-                            startup.get_or_insert_with(|| Startup::begin(startup_within()));
+                            // A spawn begins fresh: a replacement is
+                            // given the whole deadline, whatever the
+                            // child before it spent.
+                            startup = Some(Startup::begin(startup_within()));
                         }
                         Some(spawned) => {
                             // An exited daemon will never bind the socket:
@@ -2043,6 +2046,127 @@ mod tests {
             Err(other) => panic!("the door reported {other}, not the winner"),
             Ok(client) => panic!("the door opened on {}", client.daemon()),
         }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// C147 and C137, a spawn begins with a fresh startup deadline: the
+    /// review's replacement schedule. A child this door spawned has
+    /// exited on the world lock another pid holds, seen with the door's
+    /// startup deadline already spent; the look finds the winner, a
+    /// scripted peer of another contract, and the interactive door stops
+    /// it — the peer lets the lock go, leaves the socket and acknowledges
+    /// — and spawns its replacement, the real `acqd` beside this test.
+    /// The replacement binds under a deadline of its own, the knob at its
+    /// largest, and the door opens on it: a budget spent on the loser
+    /// would have reported the spawn failed without a look. Every step
+    /// waits on a signal or a state; the hang bound is the runner's.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn c147_a_replacement_spawned_after_the_budget_ran_out_gets_its_own() {
+        use tokio::io::AsyncBufReadExt;
+        let _env = ENV.lock().await;
+        // The `acqd` the workspace build wrote, placed beside this test
+        // as the harness places it for the process tests (C82, C84).
+        let exe = std::env::current_exe().unwrap();
+        let deps = exe.parent().unwrap();
+        let built = deps.parent().unwrap().join(locator::ACQD);
+        assert!(
+            built.exists(),
+            "{} is missing: run `cargo build --workspace` first",
+            built.display()
+        );
+        let link = deps.join(locator::ACQD);
+        let target = Path::new("..").join(locator::ACQD);
+        if std::fs::read_link(&link).ok().as_deref() != Some(target.as_path()) {
+            let _ = std::fs::remove_file(&link);
+            if let Err(e) = std::os::unix::fs::symlink(&target, &link)
+                && std::fs::read_link(&link).ok().as_deref() != Some(target.as_path())
+            {
+                panic!("placing {}: {e}", link.display());
+            }
+        }
+        let dir = std::env::temp_dir().join(format!("acqrp-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        // SAFETY: `ENV` is held; the crate's other environment-reading
+        // tests take it too. The replacement is a real daemon, so it
+        // inherits a mock world's knobs and nothing of the caller's.
+        unsafe {
+            for (key, _) in std::env::vars_os() {
+                if key.to_str().is_some_and(|k| k.starts_with("ACQ_")) {
+                    std::env::remove_var(key);
+                }
+            }
+            std::env::set_var("ACQ_PROVIDER", "mock");
+            std::env::set_var("XDG_RUNTIME_DIR", &dir);
+            std::env::set_var("TMPDIR", &dir);
+            std::env::set_var("ACQ_LOG_DIR", dir.join("logs"));
+            std::env::set_var("ACQ_NO_KEYRING", "1");
+            std::env::set_var("ACQ_JOURNAL", "0");
+            std::env::set_var("ACQ_IDLE_SHUTDOWN", "30");
+            std::env::set_var("ACQ_HELLO_WITHIN", MAX_WITHIN_SECS.to_string());
+            std::env::set_var("ACQ_STARTUP_WITHIN", MAX_WITHIN_SECS.to_string());
+        }
+        acquisition_store::world::app_runtime_dir().unwrap();
+        let root = dir.join("store");
+        let world = World::create_at(&root).unwrap();
+        let held = Lock::acquire(&world.lock_path()).unwrap();
+        // The loser: a child of this door that has exited.
+        let mut loser = std::process::Command::new("true").spawn().unwrap();
+        loser.wait().unwrap();
+        let spawned = Spawned {
+            pid: loser.id(),
+            child: Some(loser),
+            acqd: PathBuf::from("true"),
+            log: dir.join("acqd.log"),
+            log_from: 0,
+        };
+        let socket = world.socket_path().unwrap();
+        let name = world.name();
+        let winner = async move {
+            LOOKING.notified().await;
+            let listener = tokio::net::UnixListener::bind(&socket).unwrap();
+            let (stream, _) = listener.accept().await.unwrap();
+            let (read, mut write) = stream.into_split();
+            let mut lines = tokio::io::BufReader::new(read).lines();
+            let _hello = lines.next_line().await;
+            let hello = json!({
+                "resp": "hello",
+                "version": "9.9.9",
+                "contract": "ffffffffffff",
+                "pid": 4242,
+                "provider": "mock",
+                "world": name,
+            });
+            let _ = write.write_all(format!("{hello}\n").as_bytes()).await;
+            // The stop: the winner goes — its lock, its socket — then
+            // acknowledges, and hangs up.
+            let _stop = lines.next_line().await;
+            drop(held);
+            drop(listener);
+            let _ = std::fs::remove_file(&socket);
+            let _ = write
+                .write_all(format!("{}\n", json!({ "resp": "stopping" })).as_bytes())
+                .await;
+        };
+        let (door, ()) = tokio::join!(
+            Client::open_door(
+                &root,
+                ConnectOptions::interactive(true),
+                Some((spawned, Startup::begin(Duration::ZERO)))
+            ),
+            winner
+        );
+        let mut client = match door {
+            Ok(client) => client,
+            Err(other) => panic!("the door reported {other}, not the replacement"),
+        };
+        assert_ne!(client.daemon.pid(), 4242, "the winner was stopped");
+        assert!(
+            client.spawned(),
+            "the door opened on the replacement it spawned"
+        );
+        client.stop().await.expect("the replacement stops");
         let _ = std::fs::remove_dir_all(&dir);
     }
 
