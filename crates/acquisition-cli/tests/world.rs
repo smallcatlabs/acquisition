@@ -111,7 +111,7 @@ fn refused_daemon(mut cmd: Command) -> (std::process::ExitStatus, String) {
 }
 
 fn daemon_log(base: &Path, store: &str, provider: &str) -> PathBuf {
-    let world = acquisition_store::world::World::at(&base.join(store)).expect("the world");
+    let world = acquisition_store::world::World::observe_at(&base.join(store)).expect("the world");
     base.join("logs")
         .join(world.id())
         .join(provider)
@@ -215,7 +215,7 @@ fn c83_a_second_daemon_on_the_same_world_refuses_naming_the_holder() {
     let other_logs = base.join("other-logs");
     let other_log = other_logs
         .join(
-            acquisition_store::world::World::at(&base.join("store"))
+            acquisition_store::world::World::observe_at(&base.join("store"))
                 .unwrap()
                 .id(),
         )
@@ -613,7 +613,7 @@ fn the_offline_reset_holds_the_world_lock() {
     std::fs::create_dir_all(current.parent().unwrap()).unwrap();
     let staged = r#"{"tripped":"429 on GET /stash/Standard"}"#;
     std::fs::write(&current, staged).unwrap();
-    let world = acquisition_store::world::World::at(&base.join("store")).unwrap();
+    let world = acquisition_store::world::World::observe_at(&base.join("store")).unwrap();
     let held = acquisition_store::world::Lock::acquire(&world.lock_path()).unwrap();
     let out = acq_in(base, "store", &["daemon", "reset-tripwire", "--json"], &[]);
     assert_eq!(out.status.code(), Some(1), "{out:?}");

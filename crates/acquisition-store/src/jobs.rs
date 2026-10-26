@@ -313,17 +313,33 @@ pub struct PersistedRecord {
     pub outcome: Option<Value>,
 }
 
+/// The world at `root` as an observer finds it (C83: creating nothing):
+/// `None` when the root does not exist, an error for one that cannot be
+/// resolved.
+fn observed_world(root: &Path) -> Result<Option<crate::world::World>> {
+    match crate::world::World::observe_at(root) {
+        Ok(world) => Ok(Some(world)),
+        Err(e) if e.absent => Ok(None),
+        Err(e) => Err(anyhow::anyhow!("{e}")),
+    }
+}
+
 impl Persisted {
     /// One job of the provider's ledger in this shell's world, or `None`
     /// when there is no ledger or it holds no such id. Same door and same
     /// errors as [`Persisted::observe`].
     pub fn observe_job(provider: &str, id: u64) -> Result<Option<PersistedRecord>> {
-        let world = match crate::world::World::observe() {
-            Ok(world) => world,
-            Err(e) if e.absent => return Ok(None),
-            Err(e) => return Err(anyhow::anyhow!("{e}")),
-        };
-        Self::read_job(&world.provider_dir(provider), id)
+        Self::observe_job_at(&crate::world::intended_root(), provider, id)
+    }
+
+    /// C147, a ledger read takes the world it acts on:
+    /// [`Persisted::observe_job`] in the world at `root`, the one a
+    /// frontend captured, not the one the environment names now.
+    pub fn observe_job_at(root: &Path, provider: &str, id: u64) -> Result<Option<PersistedRecord>> {
+        match observed_world(root)? {
+            Some(world) => Self::read_job(&world.provider_dir(provider), id),
+            None => Ok(None),
+        }
     }
 
     /// One job of the ledger under `dir`, read-only as [`Persisted::read`].
@@ -373,12 +389,17 @@ impl Persisted {
     /// — a root that is not a directory, a file that is not a database —
     /// is an error, never "no jobs" (C47).
     pub fn observe(provider: &str) -> Result<Option<Persisted>> {
-        let world = match crate::world::World::observe() {
-            Ok(world) => world,
-            Err(e) if e.absent => return Ok(None),
-            Err(e) => return Err(anyhow::anyhow!("{e}")),
-        };
-        Self::read(&world.provider_dir(provider))
+        Self::observe_at(&crate::world::intended_root(), provider)
+    }
+
+    /// C147, a ledger read takes the world it acts on:
+    /// [`Persisted::observe`] in the world at `root`, the one a frontend
+    /// captured, not the one the environment names now.
+    pub fn observe_at(root: &Path, provider: &str) -> Result<Option<Persisted>> {
+        match observed_world(root)? {
+            Some(world) => Self::read(&world.provider_dir(provider)),
+            None => Ok(None),
+        }
     }
 
     /// The ledger under `dir` (`daemon.db`, the daemon's store directory

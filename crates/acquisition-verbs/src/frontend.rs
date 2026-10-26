@@ -8,16 +8,26 @@
 //! Every field is public: a test builds a `Frontend` or an `Account` by
 //! hand over a fixture store with no environment; the environment-reading
 //! constructors are for the binaries.
+//!
+//! C147, a door and a ledger read take the world they act on: the
+//! environment is read once, when [`Frontend::human`] or
+//! [`Frontend::agent`] builds the frontend, and every door, ledger read
+//! and log path after that is given the frontend's [`Frontend::root`].
+//! A frontend over a chosen world — a long-lived server holding more
+//! than one — reads its facts, intent, ledger and daemon there, whatever
+//! the environment names.
 
 use std::path::PathBuf;
 
 use acquisition_client::client::{Client, ConnectError, ConnectOptions, Observed};
 use acquisition_plan::pricing::Expect;
 use acquisition_plan::{LeagueNote, PolicyWrite, SyncPolicy, league_notes, put_sync_policy};
+use acquisition_protocol::provider::GGG;
 use acquisition_protocol::realm::Realm;
+use acquisition_store::world::{default_root, intended_root};
 use acquisition_store::{
     AccountEntry, AnnotationRow, Annotations, Index, Provenance, Resolve, SYNC_POLICY_KEY,
-    SYNC_POLICY_KIND, SYNC_POLICY_SCOPE, Store, account_path, store_dir,
+    SYNC_POLICY_KIND, SYNC_POLICY_SCOPE, Store, account_path,
 };
 use serde::Serialize;
 use serde_json::Value;
@@ -47,14 +57,11 @@ pub struct Frontend {
     pub door: Door,
     /// The provider this process wants (C88), checked at construction.
     pub provider: &'static str,
-    /// The provider's store directory. It mirrors the environment the
-    /// constructors read ([`Frontend::human`], [`Frontend::agent`]): the
-    /// client's doors and the ledger's reads reread that environment
-    /// (C83), so in the binaries the two cannot diverge. A frontend built
-    /// by hand over another directory is for store reads alone — the
-    /// account, its facts and intent; a verb that reaches the daemon or
-    /// the ledger asserts the two agree (`same_world`).
-    pub dir: PathBuf,
+    /// The world's root as named at construction (C83, C147): the store
+    /// root above the provider directories, not yet canonicalised (a use
+    /// door creates it). Every door, ledger read and log path of this
+    /// frontend acts on it.
+    pub root: PathBuf,
 }
 
 /// The index listing, every account with its store file (C12: the
@@ -95,26 +102,19 @@ impl Frontend {
             via,
             door,
             provider,
-            dir: store_dir(provider),
+            root: intended_root(),
         })
     }
 
-    /// The world this frontend names is the one the environment names:
-    /// checked before every call that rereads the environment (a door,
-    /// the ledger, the log). Only a frontend built by hand can fail it,
-    /// a broken internal invariant (C47), never an input.
-    pub(crate) fn same_world(&self) {
-        debug_assert_eq!(
-            self.dir,
-            store_dir(self.provider),
-            "this frontend names a store directory the environment does not: the daemon's \
-             doors and the ledger read the environment's world, so a frontend over another \
-             directory is for store reads alone"
-        );
+    /// The provider's store directory in this frontend's world:
+    /// `<root>/<provider>`, where the index, the facts and the intent
+    /// live.
+    pub fn dir(&self) -> PathBuf {
+        self.root.join(self.provider)
     }
 
     fn index(&self) -> Result<Index, Fault> {
-        Index::load(&self.dir).map_err(Fault::Unopened)
+        Index::load(&self.dir()).map_err(Fault::Unopened)
     }
 
     /// C12: every account the index knows, each with its store path; an
@@ -131,7 +131,7 @@ impl Frontend {
                     last_login: e.last_login,
                     persisted: e.persisted,
                     uuid: e.uuid.clone(),
-                    store: account_path(&self.dir, &e.username),
+                    store: account_path(&self.dir(), &e.username),
                 })
                 .collect(),
         })
@@ -151,7 +151,7 @@ impl Frontend {
                 entry: entry.clone(),
             }),
             Err(Resolve::Empty) => Err(Fault::NoAccounts {
-                dir: self.dir.clone(),
+                dir: self.dir(),
                 provider: self.provider.to_string(),
             }),
             Err(Resolve::NotFound(selector)) => Err(Fault::UnknownAccount {
@@ -167,12 +167,11 @@ impl Frontend {
     /// in mock mode only. Absence this door may not fill is
     /// [`Fault::NoDaemon`]; the caller reads [`Client::spawned`].
     pub async fn connect(&self) -> Result<Client, Fault> {
-        self.same_world();
         let options = match self.door {
             Door::Human => ConnectOptions::interactive(true),
-            Door::Agent => ConnectOptions::autonomous(!acquisition_protocol::provider::ggg_mode()),
+            Door::Agent => ConnectOptions::autonomous(self.provider != GGG),
         };
-        match Client::connect(options).await {
+        match Client::connect_at(&self.root, options).await {
             Ok(client) => Ok(client),
             Err(ConnectError::Absent { because }) => Err(Fault::NoDaemon {
                 because: Some(because),
@@ -186,8 +185,10 @@ impl Frontend {
     /// it is this client's, `None` when nothing listens, and a fault for
     /// another daemon or an unresponsive peer.
     pub async fn observe(&self) -> Result<Option<Client>, Fault> {
-        self.same_world();
-        match Client::observe().await.map_err(Fault::Transport)? {
+        match Client::observe_at(&self.root)
+            .await
+            .map_err(Fault::Transport)?
+        {
             Observed::Compatible(client) => Ok(Some(client)),
             Observed::Absent => Ok(None),
             Observed::Incompatible(found) => Err(Fault::AnotherDaemon(Box::new(found))),
@@ -207,26 +208,22 @@ impl Frontend {
 
     /// C13 (a real-mode daemon is a human's act): the shell line that
     /// starts a daemon in this world, as printed — the
-    /// provider when it is not the default and the store root when one is
-    /// set, quoted for a shell, so it runs as printed beside this
-    /// frontend (the README, "Your agent").
+    /// provider when it is not the default and this frontend's store root
+    /// when it is not the default one, quoted for a shell, so it runs as
+    /// printed beside this frontend (the README, "Your agent").
     pub fn start_command(&self) -> String {
         let mut world = String::new();
-        if !acquisition_protocol::provider::ggg_mode() {
+        if self.provider != GGG {
             world.push_str(&format!(
                 "{}={} ",
                 acquisition_protocol::provider::KNOB,
                 self.provider
             ));
         }
-        if std::env::var_os("ACQ_STORE_DIR").is_some() {
+        if self.root != default_root() {
             world.push_str(&format!(
                 "ACQ_STORE_DIR={} ",
-                acquisition_search::answer::shell_quoted(
-                    &acquisition_store::world::intended_root()
-                        .display()
-                        .to_string()
-                )
+                acquisition_search::answer::shell_quoted(&self.root.display().to_string())
             ));
         }
         format!("{world}ACQ_IDLE_SHUTDOWN=3600 acq auth check")
@@ -264,7 +261,7 @@ pub struct Account {
 impl Account {
     /// C12: the account's facts, read through the store's own API.
     pub fn facts(&self) -> Result<Store, Fault> {
-        Store::open(&account_path(&self.frontend.dir, &self.entry.username))
+        Store::open(&account_path(&self.frontend.dir(), &self.entry.username))
             .map_err(Fault::Unopened)
     }
 
@@ -277,7 +274,7 @@ impl Account {
                 username: self.entry.username.clone(),
             });
         };
-        Annotations::open_for(&self.frontend.dir, uuid).map_err(|e| Fault::Unopened(e.into()))
+        Annotations::open_for(&self.frontend.dir(), uuid).map_err(|e| Fault::Unopened(e.into()))
     }
 
     /// C12: both, intent first (an entry without a uuid is refused before

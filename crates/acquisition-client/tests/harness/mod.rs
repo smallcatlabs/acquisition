@@ -489,7 +489,7 @@ pub fn sockets_under(dir: &Path) -> Vec<PathBuf> {
     dirs(base, 2, &mut roots);
     let mut found: Vec<PathBuf> = roots
         .iter()
-        .filter_map(|root| acquisition_store::world::World::at(root).ok())
+        .filter_map(|root| acquisition_store::world::World::observe_at(root).ok())
         .filter_map(|world| world.socket_path().ok())
         .filter(|pipe| acquisition_client::endpoint::exists(pipe))
         .collect();

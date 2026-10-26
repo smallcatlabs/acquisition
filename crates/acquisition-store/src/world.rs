@@ -190,13 +190,22 @@ fn project_dirs() -> Option<ProjectDirs> {
 /// provider directories under; the daemon and the frontends read the
 /// same value.
 pub fn intended_root() -> PathBuf {
-    let base = match std::env::var_os("ACQ_STORE_DIR") {
-        Some(d) => PathBuf::from(d),
-        None => project_dirs()
+    match std::env::var_os("ACQ_STORE_DIR") {
+        Some(d) => absolute(Path::new(&d)),
+        None => default_root(),
+    }
+}
+
+/// The root a world has when `ACQ_STORE_DIR` names none: the platform
+/// data directory's `store` (or `store` under the current directory with
+/// no home at all), made absolute. A frontend over another root names
+/// that root when it prints a command to run in its world.
+pub fn default_root() -> PathBuf {
+    absolute(
+        &project_dirs()
             .map(|p| p.data_dir().join("store"))
             .unwrap_or_else(|| PathBuf::from("store")),
-    };
-    absolute(&base)
+    )
 }
 
 /// `path` made absolute against the current directory, lexically —
@@ -269,7 +278,14 @@ impl World {
     /// then canonicalise it. A failure to create or to set the mode is a
     /// refusal, never ignored.
     pub fn create() -> Result<World, WorldError> {
-        let intended = intended_root();
+        Self::create_at(&intended_root())
+    }
+
+    /// C147, a door takes the world it acts on: [`World::create`] at a
+    /// root the caller names (made absolute against the current
+    /// directory) rather than the one the environment names.
+    pub fn create_at(root: &Path) -> Result<World, WorldError> {
+        let intended = absolute(root);
         let failed = |io: std::io::Error| WorldError {
             intended: intended.clone(),
             io: io.to_string(),
@@ -290,7 +306,15 @@ impl World {
     /// The observation path (C83): the world as it exists, or an error
     /// saying it does not — nothing is created.
     pub fn observe() -> Result<World, WorldError> {
-        let intended = intended_root();
+        Self::observe_at(&intended_root())
+    }
+
+    /// C147, a door takes the world it acts on: [`World::observe`] at a
+    /// root the caller names (made absolute against the current
+    /// directory) — a daemon, a frontend or a test that names its world
+    /// rather than reading the environment's. Creates nothing.
+    pub fn observe_at(root: &Path) -> Result<World, WorldError> {
+        let intended = absolute(root);
         if !intended.exists() {
             return Err(WorldError {
                 intended,
@@ -299,12 +323,6 @@ impl World {
             });
         }
         Self::canonical(intended)
-    }
-
-    /// A world at a root that exists, for a daemon or a test that names
-    /// one directly rather than through the environment.
-    pub fn at(root: &Path) -> Result<World, WorldError> {
-        Self::canonical(absolute(root))
     }
 
     fn canonical(intended: PathBuf) -> Result<World, WorldError> {
@@ -1108,10 +1126,11 @@ mod tests {
     fn c83_a_world_is_a_canonical_root_and_its_paths_derive_from_it() {
         let base = scratch("paths");
         std::fs::create_dir_all(base.join("real")).unwrap();
-        let world = World::at(&base.join("real")).unwrap();
+        let world = World::observe_at(&base.join("real")).unwrap();
         assert!(world.root().is_absolute());
         // A dotted spelling of the same directory is the same world.
-        let dotted = World::at(&base.join("real").join(".").join("..").join("real")).unwrap();
+        let dotted =
+            World::observe_at(&base.join("real").join(".").join("..").join("real")).unwrap();
         assert_eq!(world, dotted);
         assert_eq!(world.id(), dotted.id());
         assert_eq!(world.id().len(), 12);
@@ -1138,11 +1157,11 @@ mod tests {
         );
         // Another directory is another world.
         std::fs::create_dir_all(base.join("other")).unwrap();
-        let other = World::at(&base.join("other")).unwrap();
+        let other = World::observe_at(&base.join("other")).unwrap();
         assert_ne!(world, other);
         assert_ne!(world.id(), other.id());
         // A missing root is an error naming it, never a world.
-        let err = World::at(&base.join("missing")).unwrap_err();
+        let err = World::observe_at(&base.join("missing")).unwrap_err();
         assert!(err.absent, "{err}");
         assert!(err.to_string().contains("missing"), "{err}");
         let _ = std::fs::remove_dir_all(&base);
@@ -1265,7 +1284,7 @@ mod tests {
         {
             let base = scratch("lock-home");
             std::fs::create_dir_all(base.join("real")).unwrap();
-            let world = World::at(&base.join("real")).unwrap();
+            let world = World::observe_at(&base.join("real")).unwrap();
             if let Ok(socket) = world.socket_path_under(&runtime) {
                 assert_eq!(socket.parent(), Some(runtime.as_path()));
             }
@@ -1422,7 +1441,7 @@ mod tests {
         std::fs::create_dir_all(&base).unwrap();
         let odd = base.join(std::ffi::OsStr::from_bytes(b"r\xff"));
         std::fs::create_dir(&odd).unwrap();
-        let err = World::at(&odd).unwrap_err();
+        let err = World::observe_at(&odd).unwrap_err();
         assert!(err.to_string().contains("UTF-8"), "{err}");
         let _ = std::fs::remove_dir_all(&base);
     }
@@ -1444,13 +1463,14 @@ mod tests {
         // world's id names the socket, two spellings of one root reach
         // one socket, another root another, all in that directory.
         let named = Path::new("/run/user/1000/acq");
-        let world = World::at(&base.join("real")).unwrap();
+        let world = World::observe_at(&base.join("real")).unwrap();
         let socket = world.socket_path_under(named).unwrap();
         assert_eq!(socket, named.join(world.socket_name()));
         assert_eq!(world.socket_name(), format!("{}.sock", world.id()));
-        let dotted = World::at(&base.join("real").join(".").join("..").join("real")).unwrap();
+        let dotted =
+            World::observe_at(&base.join("real").join(".").join("..").join("real")).unwrap();
         assert_eq!(dotted.socket_path_under(named).unwrap(), socket);
-        let other = World::at(&base.join("other")).unwrap();
+        let other = World::observe_at(&base.join("other")).unwrap();
         assert_ne!(other.socket_path_under(named).unwrap(), socket);
         assert_eq!(
             other.socket_path_under(named).unwrap().parent(),

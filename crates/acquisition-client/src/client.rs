@@ -39,6 +39,16 @@
 //! spawn makes one, an observer reports absence. Nothing chooses the
 //! socket by hand.
 //!
+//! C147, a door takes the world it acts on: each door has a form that
+//! takes the world's root — [`Client::connect_at`],
+//! [`Client::observe_at`], [`Client::stop_any_at`],
+//! [`Subscription::observe_at`] — and the environment-reading form
+//! ([`Client::connect`] and the rest) is a thin caller of it,
+//! `ACQ_STORE_DIR` read once, at the call. A frontend passes the root it
+//! captured at its construction, so a frontend over a chosen world
+//! reaches that world's daemon whatever the environment names, and the
+//! daemon a door spawns is told the door's root.
+//!
 //! A daemon on another world (C83) is the one mismatch no door resolves:
 //! `hello` names the daemon's canonical root, the client compares it with
 //! its own before the other dimensions, and a use door answers
@@ -209,7 +219,7 @@ use acquisition_protocol::protocol::{
     Bootstrap, BootstrapReply, ErrorKind, MAX_FRAME_BYTES, Request, Response, error_message,
 };
 use acquisition_protocol::{CONTRACT_REVISION, VERSION};
-use acquisition_store::world::{Lock, World, WorldError};
+use acquisition_store::world::{Lock, World, WorldError, intended_root};
 use anyhow::{Context, Result, bail};
 use serde::Serialize;
 use serde_json::json;
@@ -981,7 +991,13 @@ impl Subscription {
     /// subscribe on a connection of its own. Never spawns or replaces:
     /// watching is observation.
     pub async fn observe() -> Result<Observed<Subscription>> {
-        match Client::observe().await? {
+        Subscription::observe_at(&intended_root()).await
+    }
+
+    /// C147, a door takes the world it acts on: [`Subscription::observe`]
+    /// on the world at `root` rather than the environment's.
+    pub async fn observe_at(root: &Path) -> Result<Observed<Subscription>> {
+        match Client::observe_at(root).await? {
             Observed::Absent => Ok(Observed::Absent),
             Observed::Incompatible(found) => Ok(Observed::Incompatible(found)),
             Observed::Unresponsive(found) => Ok(Observed::Unresponsive(found)),
@@ -1038,20 +1054,21 @@ fn is_absent(e: &std::io::Error) -> bool {
     )
 }
 
-/// This process's world, resolved once at a door (C83): created when
-/// the door may spawn — the daemon it starts must lock and report the
-/// same canonical directory — and observed otherwise, creating nothing.
-/// A root that cannot be created is a spawn that cannot happen.
-fn world_at_door(create: bool) -> Result<Result<World, AbsentWorld>, ConnectError> {
+/// The door's world, resolved once at the door (C83) from the root the
+/// caller names (C147): created when the door may spawn — the daemon it
+/// starts must lock and report the same canonical directory — and
+/// observed otherwise, creating nothing. A root that cannot be created
+/// is a spawn that cannot happen.
+fn world_at_door(root: &Path, create: bool) -> Result<Result<World, AbsentWorld>, ConnectError> {
     if create {
-        World::create()
+        World::create_at(root)
             .map(Ok)
             .map_err(|e| ConnectError::SpawnFailed {
                 acqd: None,
                 log: format!("could not create the world's root before starting the daemon: {e}"),
             })
     } else {
-        Ok(World::observe().map_err(absent_world))
+        Ok(World::observe_at(root).map_err(absent_world))
     }
 }
 
@@ -1100,6 +1117,14 @@ impl Client {
     /// can't serve a real-mode client, or vice versa), a spawn that
     /// failed, or a transport failure — each naming what it found.
     pub async fn connect(opts: ConnectOptions) -> Result<Client, ConnectError> {
+        Client::connect_at(&intended_root(), opts).await
+    }
+
+    /// C147, a door takes the world it acts on: [`Client::connect`] on
+    /// the world at `root` — the root a frontend captured at its
+    /// construction — rather than the one the environment names now. The
+    /// daemon it spawns is told that root, whatever the environment says.
+    pub async fn connect_at(root: &Path, opts: ConnectOptions) -> Result<Client, ConnectError> {
         // `ACQ_NO_SPAWN=1`: never start or replace a daemon from this
         // process. A daemon spawned from a non-interactive parent (cron,
         // launchd) has no keychain access on macOS — it comes up with no
@@ -1115,7 +1140,7 @@ impl Client {
         // The world first (C83): created if this door may spawn, else
         // observed; the socket derives from it, and the same look names
         // `wanted.world` in every report this door makes.
-        let own = world_at_door(spawn)?;
+        let own = world_at_door(root, spawn)?;
         let own_name = world_name(&own);
         let mut respawned = false;
         // The spawned daemon, with where its log ended at spawn time: if it
@@ -1254,7 +1279,14 @@ impl Client {
     /// daemon comes back connected; any other daemon is identified and
     /// reported, and the connection to it is dropped unused.
     pub async fn observe() -> Result<Observed> {
-        let own = World::observe().map_err(absent_world);
+        Client::observe_at(&intended_root()).await
+    }
+
+    /// C147, a door takes the world it acts on: [`Client::observe`] on
+    /// the world at `root` rather than the environment's. Creates
+    /// nothing.
+    pub async fn observe_at(root: &Path) -> Result<Observed> {
+        let own = World::observe_at(root).map_err(absent_world);
         let own_name = world_name(&own);
         match reach(world_socket(&own)?).await {
             Ok(Reached::Listening { socket, stream }) => {
@@ -1285,7 +1317,13 @@ impl Client {
     /// writes `Stopping` before it exits; anything else is an error, not
     /// a stop); `None` when nothing was listening.
     pub async fn stop_any() -> Result<Option<DaemonId>> {
-        let own = World::observe().map_err(absent_world);
+        Client::stop_any_at(&intended_root()).await
+    }
+
+    /// C147, a door takes the world it acts on: [`Client::stop_any`] on
+    /// the world at `root` rather than the environment's.
+    pub async fn stop_any_at(root: &Path) -> Result<Option<DaemonId>> {
+        let own = World::observe_at(root).map_err(absent_world);
         let own_name = world_name(&own);
         match reach(world_socket(&own)?).await {
             Ok(Reached::Listening { socket, stream }) => Client::stop_over(
@@ -1538,9 +1576,10 @@ struct Spawned {
 /// Start the `acqd` beside this executable (C82) with no arguments — its
 /// knobs are the environment this process passes on — and its stdio to
 /// null: the daemon log is where it speaks. `world` is the root the door
-/// created (C83), so the daemon locks, binds and reports the same
-/// canonical directory this process will compare; a relative
-/// `ACQ_STORE_DIR` crosses into the daemon made absolute.
+/// created (C83), passed as the daemon's `ACQ_STORE_DIR` whatever this
+/// process's environment names (C147, the door's world), so the daemon
+/// locks, binds and reports the same canonical directory this process
+/// will compare.
 fn spawn_daemon(world: &World) -> Result<Spawned, ConnectError> {
     let acqd = locator::acqd().map_err(|e| ConnectError::SpawnFailed {
         acqd: None,
@@ -1550,9 +1589,7 @@ fn spawn_daemon(world: &World) -> Result<Spawned, ConnectError> {
     // Where the log ends now; lines past this offset are the new daemon's.
     let log_from = std::fs::metadata(&log).map_or(0, |m| m.len());
     let mut command = std::process::Command::new(&acqd);
-    if std::env::var_os("ACQ_STORE_DIR").is_some() {
-        command.env("ACQ_STORE_DIR", acquisition_store::world::intended_root());
-    }
+    command.env("ACQ_STORE_DIR", world.root());
     // Windows: the daemon outlives the console that started it (C3) and
     // opens no window of its own when a host without a console (an MCP
     // host) spawns it — no console at all, and a process group of its

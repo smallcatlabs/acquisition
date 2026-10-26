@@ -1622,7 +1622,7 @@ async fn run(cli: Cli) -> Result<()> {
                 Ok(())
             }
             DaemonCmd::ResetTripwire => {
-                match Client::observe().await? {
+                match Client::observe_at(&cx.frontend.root).await? {
                     Observed::Compatible(mut client) => {
                         let resp = client.request(&Request::ResetTripwire).await?;
                         // A reset the daemon could not write is refused,
@@ -1652,8 +1652,8 @@ async fn run(cli: Cli) -> Result<()> {
                         // trip and block mark cleared and its dead-grant
                         // marks kept (C24), in the store's one format
                         // (`RailsState`; C1, no frontend links the daemon).
-                        let provider = acquisition_protocol::provider::wanted();
-                        let world = World::observe().ok();
+                        let provider = cx.frontend.provider;
+                        let world = World::observe_at(&cx.frontend.root).ok();
                         // The world lock (C83), held across the read and
                         // the write: no daemon can start between them,
                         // load the state and have its marks overwritten.
@@ -1755,7 +1755,8 @@ async fn run(cli: Cli) -> Result<()> {
                 // daemon before it goes, and said after. Best effort — a
                 // daemon that will not answer is stopped all the same.
                 let mut ended: Vec<String> = Vec::new();
-                if let Ok(Observed::Compatible(mut client)) = Client::observe().await
+                if let Ok(Observed::Compatible(mut client)) =
+                    Client::observe_at(&cx.frontend.root).await
                     && let Ok(Response::Auth { accounts, .. }) =
                         client.request(&Request::AuthStatus).await
                 {
@@ -1767,7 +1768,7 @@ async fn run(cli: Cli) -> Result<()> {
                 }
                 // Stops this build's daemon or any other (C10): stopping is
                 // how a mismatch is resolved by hand.
-                match Client::stop_any().await? {
+                match Client::stop_any_at(&cx.frontend.root).await? {
                     Some(found) => {
                         if cli.json {
                             println!(
@@ -2044,7 +2045,7 @@ async fn watch_jobs(cx: &Ctx, json: bool) -> Result<()> {
         Ok(())
     };
     loop {
-        let mut subscription = match Subscription::observe().await? {
+        let mut subscription = match Subscription::observe_at(&cx.frontend.root).await? {
             Observed::Compatible(subscription) => subscription,
             Observed::Absent => bail!("daemon stopped (it spawns on demand for job commands)"),
             Observed::Incompatible(found) => bail!("{found}"),

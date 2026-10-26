@@ -116,8 +116,7 @@ impl Frontend {
     /// identity, an unresponsive peer, or this client's daemon with its
     /// vitals. Never spawns or replaces.
     pub async fn daemon(&self) -> Result<DaemonReport, Fault> {
-        self.same_world();
-        let observed = acquisition_client::client::Client::observe()
+        let observed = acquisition_client::client::Client::observe_at(&self.root)
             .await
             .map_err(Fault::Transport)?;
         let mut client = match observed {
@@ -129,9 +128,9 @@ impl Frontend {
                     written_at: p.written_at,
                 });
                 // Where the last daemon of this world logged, when it left
-                // a log: the path this shell derives, which is the one a
-                // daemon it spawned used.
-                let log = World::observe()
+                // a log: the path this frontend's world derives, which is
+                // the one a daemon it spawned used.
+                let log = World::observe_at(&self.root)
                     .ok()
                     .map(|w| w.log_path(self.provider))
                     .filter(|p| p.exists());

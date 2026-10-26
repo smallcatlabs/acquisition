@@ -222,7 +222,7 @@ fn c84_the_artifact_dimension_is_the_sibling_acqd_this_client_would_start() {
     // The socket (C83): derived from the world into the runtime
     // directory — the one file bound there, named by the world's id —
     // the one this shell reached the daemon through.
-    let world = acquisition_store::world::World::at(&base.join("store")).unwrap();
+    let world = acquisition_store::world::World::observe_at(&base.join("store")).unwrap();
     assert_eq!(
         sockets_under(&scratch_tmp(&base)),
         vec![PathBuf::from(status["socket"].as_str().unwrap())],

@@ -18,7 +18,7 @@ mod harness;
 
 use std::time::{Duration, Instant};
 
-use acquisition_client::client::Client;
+use acquisition_client::client::{Client, Observed};
 use acquisition_plan::pricing::Expect;
 use acquisition_plan::{PolicyWrite, RefreshAction};
 use acquisition_protocol::job::Outcome;
@@ -100,7 +100,7 @@ fn ledger(s: &Session, rows: &[JobRow]) {
 async fn a_quote_with_no_daemon_is_the_one_note() {
     let _s = session("quote");
     let frontend = Frontend::agent("test").unwrap();
-    let dir = frontend.dir.clone();
+    let dir = frontend.dir();
     // A plan to quote: the documents test's fixture, in the session's world.
     acquisition_store::Index::load(&dir)
         .unwrap()
@@ -175,7 +175,11 @@ async fn a_wedged_daemon_cannot_block_the_offline_plan() {
     // timeout is ever removed, this fails instead of hanging the gate.
     let planned = tokio::time::timeout(
         Duration::from_secs(10),
-        quote_within(plan.clone(), Duration::from_millis(200)),
+        quote_within(
+            &s.base.join("store"),
+            plan.clone(),
+            Duration::from_millis(200),
+        ),
     )
     .await
     .expect("the bounded quote attempt itself never returned");
@@ -443,11 +447,11 @@ async fn a_parent_whose_child_failed_carries_its_childrens_tally() {
 #[tokio::test]
 async fn a_running_daemon_quotes_the_plan() {
     let s = session("quoted");
-    let (_daemon, _frontend, opened, _client) = world(&s).await;
+    let (_daemon, frontend, opened, _client) = world(&s).await;
     let plan = opened
         .compile(Realm::Pc, "Standard", acquisition_store::now())
         .unwrap();
-    let planned = quote(plan).await;
+    let planned = quote(&frontend.root, plan).await;
     assert_eq!(planned.quote_note, None, "{:?}", planned.quote_note);
     assert!(planned.plan.quote.is_some());
 }
@@ -533,4 +537,115 @@ async fn a_failed_child_the_daemon_does_not_know_is_no_result_live() {
         (987_654, NO_RESULT)
     );
     assert_eq!((rows[0].kind.as_str(), rows[0].target.as_str()), ("", ""));
+}
+
+// ---- the frontend's world ----------------------------------------------
+
+/// C147, a door and a ledger read take the world they act on: a
+/// frontend built over world B while the environment names world A
+/// spawns its daemon in B, and reads the facts, the intent, the quote,
+/// the daemon's report and the ledger there; A is never created, and the
+/// environment's own door finds no daemon in it.
+#[tokio::test]
+async fn c147_a_frontend_over_another_world_acts_in_its_world_not_the_environments() {
+    let s = session("two-worlds");
+    harness::link_beside_this_test(&acqd_built());
+    let a = s.base.join("store");
+    std::fs::remove_dir_all(&a).expect("the session's world, emptied of its root");
+    let b = s.base.join("b");
+    let frontend = Frontend {
+        via: "test",
+        door: acquisition_verbs::Door::Agent,
+        provider: "mock",
+        root: b.clone(),
+    };
+
+    // The door spawns the daemon in B, and the daemon serves B.
+    let mut client = frontend.connect().await.expect("the use door over B");
+    assert!(client.spawned(), "the door started the daemon");
+    let canonical_b = b.canonicalize().expect("the door created B");
+    assert_eq!(client.daemon().world(), canonical_b.to_str().unwrap());
+    login_in_process(&mut client, Some("alice")).await;
+    let id = submit(
+        &frontend,
+        &mut client,
+        "stashes",
+        json!({ "realm": "pc", "league": "Standard" }),
+        0,
+        None,
+    )
+    .await
+    .expect("a submit");
+    let listed = wait(&mut client, id, None).await.expect("the listing");
+    assert!(matches!(listed, Outcome::Success { .. }), "{listed:?}");
+
+    // Facts and intent in B.
+    let account = frontend.account(None).expect("alice, in B's index");
+    account
+        .set_policy(
+            &json!({ "version": 3, "realms": { "pc": { "leagues": { "Standard":
+                { "tabs": "all", "max_age_seconds": 3600 } } } } }),
+            Expect::Create,
+            PolicyWrite::Replace,
+        )
+        .expect("the policy, in B's intent");
+    let mut opened = account.open().expect("B's stores");
+    let snapshot = opened
+        .facts
+        .refresh_snapshot("pc", "Standard", &opened.intent)
+        .unwrap();
+    assert!(
+        snapshot.stash_listing.is_some(),
+        "the listing B's daemon fetched"
+    );
+    assert!(snapshot.policy.is_some(), "the policy written to B");
+    // The quote asks B's daemon.
+    let planned = opened.plan(Realm::Pc, "Standard").await.unwrap();
+    assert_eq!(planned.quote_note, None, "{:?}", planned.quote_note);
+    // The daemon's report is B's daemon.
+    match frontend.daemon().await.expect("the report") {
+        acquisition_verbs::DaemonReport::Running { identity, .. } => {
+            assert_eq!(identity.pid(), client.daemon().pid())
+        }
+        other => panic!("B's daemon is running: {other:?}"),
+    }
+    // The environment's world holds nothing: no daemon, no root.
+    assert!(
+        matches!(
+            Client::observe().await.expect("observe A"),
+            Observed::Absent
+        ),
+        "a daemon answered in the environment's world"
+    );
+    assert!(!a.exists(), "the environment's world was created");
+
+    // Stopped, B's ledger answers from disk, and B's log is named.
+    drop(client);
+    Client::stop_any_at(&b)
+        .await
+        .expect("a stop")
+        .expect("B's daemon acknowledged it");
+    let deadline = Instant::now() + Duration::from_secs(60);
+    while !matches!(frontend.observe().await, Ok(None)) {
+        assert!(Instant::now() < deadline, "the daemon did not stop");
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    let from_disk = frontend
+        .result_on_disk(id)
+        .expect("the listing, in B's ledger");
+    assert!(
+        matches!(from_disk.outcome, Outcome::Success { .. }),
+        "{from_disk:?}"
+    );
+    assert!(frontend.persisted().expect("B's ledger").is_some());
+    match frontend.daemon().await.expect("the report") {
+        acquisition_verbs::DaemonReport::Absent { persisted, log } => {
+            assert!(persisted.is_some(), "B's ledger counted");
+            let log = log.expect("B's daemon log");
+            let world = acquisition_store::world::World::observe_at(&b).unwrap();
+            assert_eq!(log, world.log_path("mock"));
+        }
+        other => panic!("nothing runs: {other:?}"),
+    }
+    assert!(!a.exists(), "the environment's world was created");
 }

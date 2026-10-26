@@ -6,6 +6,7 @@
 //! it, the MCP returns it, the CLI's text is a function of it.
 
 use std::collections::BTreeSet;
+use std::path::Path;
 use std::time::Duration;
 
 use acquisition_client::client::{Client, Observed};
@@ -184,16 +185,17 @@ pub fn compile(
     })
 }
 
-/// C10 (an observation never spawns) and C46: ask a running daemon to
-/// quote the plan, within [`QUOTE_TIMEOUT`]. Never fails: the plan is
-/// the deliverable, and `quote_note` says why a quote is absent.
-pub async fn quote(plan: RefreshPlan) -> Planned {
-    quote_within(plan, QUOTE_TIMEOUT).await
+/// C10 (an observation never spawns) and C46: ask the daemon running in
+/// the world at `world` (C147, the frontend's) to quote the plan, within
+/// [`QUOTE_TIMEOUT`]. Never fails: the plan is the deliverable, and
+/// `quote_note` says why a quote is absent.
+pub async fn quote(world: &Path, plan: RefreshPlan) -> Planned {
+    quote_within(world, plan, QUOTE_TIMEOUT).await
 }
 
 /// C10 (an observation never spawns): [`quote`] under another bound,
 /// for a test that stages a wedged peer.
-pub async fn quote_within(plan: RefreshPlan, limit: Duration) -> Planned {
+pub async fn quote_within(world: &Path, plan: RefreshPlan, limit: Duration) -> Planned {
     let Some(account) = plan.account_name.clone() else {
         // `with_quote` requires the quote to name exactly the plan's
         // account; with no name on record there is nothing to quote as.
@@ -215,7 +217,7 @@ pub async fn quote_within(plan: RefreshPlan, limit: Duration) -> Planned {
         })
         .collect();
     let attempt = async {
-        let mut client = match Client::observe().await {
+        let mut client = match Client::observe_at(world).await {
             Ok(Observed::Compatible(client)) => client,
             Ok(Observed::Absent) => return Err(QuoteNote::NoDaemon),
             Ok(Observed::Incompatible(found)) => return Err(QuoteNote::Other(found.to_string())),
@@ -395,9 +397,7 @@ impl Opened {
             &self.account.entry.username,
             acquisition_store::now(),
         )?;
-        // The quote observes the environment's world.
-        self.account.frontend.same_world();
-        let mut planned = quote(plan).await;
+        let mut planned = quote(&self.account.frontend.root, plan).await;
         planned.notes = plan_notes(&snapshot);
         Ok(planned)
     }
@@ -426,8 +426,7 @@ impl Opened {
         selection: &PlanSelection,
     ) -> Result<Planned, Fault> {
         let plan = self.compile_selection(realm, league, selection, acquisition_store::now())?;
-        self.account.frontend.same_world();
-        Ok(quote(plan).await)
+        Ok(quote(&self.account.frontend.root, plan).await)
     }
 
     /// What a plan compiled now over the facts would fetch: `None` when

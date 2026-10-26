@@ -27,28 +27,36 @@ const USER: &str = "Alice#1234";
 const UUID: &str = "u-verbs";
 
 /// A scratch directory, removed on drop.
+/// A scratch world's mock provider directory, `<root>/mock`; the whole
+/// root goes on drop.
 struct Scratch(PathBuf);
 
 impl Drop for Scratch {
     fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
+        if let Some(root) = self.0.parent() {
+            let _ = std::fs::remove_dir_all(root);
+        }
     }
 }
 
 fn scratch(tag: &str) -> Scratch {
-    let dir = std::env::temp_dir().join(format!("acq-verbs-{tag}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
-    Scratch(dir)
+    let root = std::env::temp_dir().join(format!("acq-verbs-{tag}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("mock")).unwrap();
+    Scratch(root.join("mock"))
 }
 
-/// A frontend over `dir`, by hand: no environment read.
+/// A frontend over the world `dir` is the mock directory of, by hand: no
+/// environment read.
 fn frontend(dir: &Path) -> Frontend {
     Frontend {
         via: "test",
         door: Door::Agent,
         provider: "mock",
-        dir: dir.to_path_buf(),
+        root: dir
+            .parent()
+            .expect("a provider directory's root")
+            .to_path_buf(),
     }
 }
 
@@ -536,7 +544,7 @@ async fn a_plan_with_no_account_name_is_quoted_with_its_note() {
     snapshot.account_name = None;
     let plan = compile("mock", &snapshot, USER, 2_000).unwrap();
     assert_eq!(plan.account_name, None);
-    let planned = quote(plan).await;
+    let planned = quote(&opened.account.frontend.root, plan).await;
     assert_eq!(planned.quote_note, Some(QuoteNote::NoAccountName));
     // The JSON note is the sentence, on every surface.
     assert_eq!(
