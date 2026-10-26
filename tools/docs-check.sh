@@ -7,14 +7,15 @@
 #   1. One byte budget, on the one file every session loads, `AGENTS.md`.
 #      Growth past it is the signal that a narrative landed where a
 #      ruling, a test or a commit message belongs (`AGENTS.md`, "Where
-#      things live"). Moving text to its home is compliance, not gaming.
-#      Past 90% the check says so without failing, so routing happens at
-#      a session close and never as a side quest in the middle of a step.
-#      Every other document is read on demand and has no budget.
-#   2. The decision registry: one bullet per decision under a length
-#      limit and with no history in it, a capped count of cross-cutting
-#      ones in `AGENTS.md`, every cited id real, the uncited ones
-#      reported.
+#      things live"). A note, never a failure (the owner's ruling of
+#      2026-10-26): a budget that failed had entries edited to the byte,
+#      so the check says where the file stands and routing happens at a
+#      session close. Every other document is read on demand and has no
+#      budget.
+#   2. The decision registry: one bullet per decision with no history in
+#      it, a capped count of cross-cutting ones in `AGENTS.md`, every
+#      cited id real, the uncited ones reported, and an entry over the
+#      length limit noted, never failed (the same ruling).
 #  2b. Cited commits: a hash in the governed files is a commit of this
 #      history, and a history citation, `<path>` at `<hash>`, names the
 #      path as it was at that commit.
@@ -44,10 +45,9 @@ budget() {
   local file=$1 limit=$2 size
   size=$(wc -c <"$file" | tr -d ' ')
   if ((size > limit)); then
-    printf 'BUDGET  %-18s %7d > %7d bytes\n' "$file" "$size" "$limit"
-    fail=1
+    printf 'note    %-18s %7d > %7d bytes — over its budget: route a narrative to its home at the close\n' "$file" "$size" "$limit"
   elif ((size * 10 > limit * 9)); then
-    printf 'near    %-18s %7d / %7d bytes — over 90%%: route at session close, before a slice trips it\n' "$file" "$size" "$limit"
+    printf 'near    %-18s %7d / %7d bytes — over 90%%: route a narrative to its home at the close\n' "$file" "$size" "$limit"
   else
     printf 'ok      %-18s %7d / %7d bytes\n' "$file" "$size" "$limit"
   fi
@@ -93,13 +93,13 @@ over=0
 while IFS= read -r line; do
   n=$(printf '%s' "$line" | wc -c | tr -d ' ')
   if ((n > ENTRY_LIMIT)); then
-    printf 'ENTRY   %-18s %5d > %d bytes  %s\n' registry "$n" "$ENTRY_LIMIT" "$(printf '%s' "$line" | cut -c1-40)"
+    printf 'note    %-18s %5d > %d bytes, over the entry limit: route the mechanism to the code  %s\n' registry "$n" "$ENTRY_LIMIT" "$(printf '%s' "$line" | cut -c1-40)"
     over=$((over+1))
   fi
 done <"$reg"
 ids=$(grep -oE '^- \*\*C[0-9]+' "$reg" | sed 's/^- \*\*//' | sort -u)
 count=$(printf '%s\n' "$ids" | grep -c .)
-if ((over > 0)); then fail=1; else printf 'ok      %-18s %5d decisions, every entry within %d bytes\n' registry "$count" "$ENTRY_LIMIT"; fi
+((over > 0)) || printf 'ok      %-18s %5d decisions, every entry within %d bytes\n' registry "$count" "$ENTRY_LIMIT"
 # An entry carries no history (the entry rule, `tools/bothy.py`'s
 # docstring): no date, no commit, no owner's quote, no "Amended",
 # "Decided" or "Ruled", no seat call number. `git log -S'C<n>'` and the

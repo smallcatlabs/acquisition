@@ -26,7 +26,7 @@ for f in roadmap/reviews/zz-breaker.md "$golden_breaker"; do
   if [[ -e $f ]]; then echo "refusing to start: $f exists, and the suite would delete it"; exit 2; fi
 done
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/acq-docs-breakers.XXXXXX")
-files=(decisions/plans.md REVIEW-CHECKLIST.md .claude/skills/seat/SKILL.md roadmap/README.md search/README.md)
+files=(AGENTS.md decisions/plans.md REVIEW-CHECKLIST.md .claude/skills/seat/SKILL.md roadmap/README.md search/README.md)
 for f in "${files[@]}"; do mkdir -p "$scratch/keep/$(dirname "$f")"; cp "$f" "$scratch/keep/$f"; done
 restore() {
   local f
@@ -82,6 +82,12 @@ run_case 'Decided'                                               refuse 'carries
 run_case 'Ruled'                                                 refuse 'carries "Ruled"'         entry "$W" 'at compile. Ruled at the harvest. *Why:*'
 run_case 'a seat call number'                                    refuse 'carries a call number'   entry "$W" 'at compile (cli-opus call 26). *Why:*'
 run_case 'a lowercase "ruled first" and a count are no history'  pass   'none carrying a history marker' entry "$W" 'at compile, ruled first over 3,347 tabs. *Why:*'
+
+echo '== the budget and the entry limit note and never fail (the owner'"'"'s ruling of 2026-10-26)'
+long_words=$(printf 'plain words %.0s' {1..70})
+run_case 'an entry over the length limit'                        pass   'over the entry limit'   entry "$W" "at compile, $long_words. *Why:*"
+pad_agents() { printf '\n%s\n' "$(printf 'x%.0s' {1..400})" >>AGENTS.md; }
+run_case 'AGENTS.md over its budget'                              pass   'over its budget'        pad_agents
 
 echo '== a commit written as history: one matcher for both scans (the outside review of 484fce3b, finding 2)'
 H7=fedcba; H7+=f     # a hash of letters, and one of nine, built here so the scans of tools/ never read them
