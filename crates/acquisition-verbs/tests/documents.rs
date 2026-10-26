@@ -245,6 +245,7 @@ fn an_entry_without_a_uuid_asked_for_intent_is_refused() {
             last_login: 1,
             persisted: false,
             uuid: None,
+            keyring_name: None,
         },
     };
     let fault = account.intent().err().expect("refused");

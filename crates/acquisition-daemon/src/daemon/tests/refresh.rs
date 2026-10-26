@@ -746,3 +746,55 @@ async fn c144_a_logout_where_a_refresh_releases_the_lock_keeps_its_mark() {
     assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
     finish_harness(None, &log_path);
 }
+
+/// C144 (no keyring entry out of the index's reach), the review of h1,
+/// its third finding: a rename whose clear of the old name fails leaves
+/// the index holding that name beside the new one, with the account
+/// still persisted under the new name, so a later logout of the account
+/// clears both. Before, the index followed the new name alone, and the
+/// old name's entry was out of every verb's reach.
+#[tokio::test]
+async fn c144_a_rename_whose_old_clear_fails_stays_in_the_logouts_reach() {
+    let renamed = json!({
+        "access_token": "at-new",
+        "refresh_token": "rt-rotated",
+        "expires_in": 3600,
+        "username": "NewName#2",
+    })
+    .to_string();
+    let (mut daemon, store, log_path, requests, server) = token_daemon_with_store(
+        vec![token_answer("200 OK", TOKEN_HEADERS, Some(&renamed))],
+        RecordingCredentialStore::failing("clear", "keychain locked"),
+    )
+    .await;
+    let dir = indexed_test_user(&mut daemon);
+
+    daemon.valid_access_token(None, false, None).await.unwrap();
+    {
+        let index = Index::load(&dir).unwrap();
+        assert!(
+            index.get("test-user").is_none(),
+            "the entry follows the uuid"
+        );
+        let entry = index.get("NewName#2").unwrap();
+        assert!(entry.persisted);
+        assert_eq!(entry.keyring_name.as_deref(), Some("test-user"));
+    }
+    assert_eq!(store.entries.lock().unwrap().len(), 2);
+
+    // The keyring works again: the logout reaches both names.
+    *store.fail_clear.lock().unwrap() = None;
+    daemon.logout(Some("NewName#2")).unwrap();
+    assert!(
+        store.entries.lock().unwrap().is_empty(),
+        "no entry is left behind"
+    );
+    let index = Index::load(&dir).unwrap();
+    let entry = index.get("NewName#2").unwrap();
+    assert!(!entry.persisted);
+    assert_eq!(entry.keyring_name, None, "the held name is released");
+    let _ = std::fs::remove_dir_all(&dir);
+    server.await.unwrap();
+    assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
+    finish_harness(None, &log_path);
+}

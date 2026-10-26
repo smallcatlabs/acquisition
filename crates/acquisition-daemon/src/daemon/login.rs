@@ -412,11 +412,21 @@ impl Daemon {
             if s.auth.last_login.as_deref() == Some(username.as_str()) {
                 s.auth.last_login = None;
             }
-            let clear = self
-                .credential_store
-                .clear(self.provider.keyring_service, &username);
+            let held = self.store_dir.as_ref().and_then(|dir| {
+                Index::load(dir)
+                    .ok()?
+                    .get(&username)
+                    .and_then(|e| e.keyring_name.clone())
+            });
+            let (clear, released) = self.clear_account_entries(&username, held.as_deref());
             // C144: the index is written under the lock, as login writes it.
-            let indexed = self.index_apply(|index| index.set_persisted(&username, false));
+            let indexed = self.index_apply(|index| {
+                index.set_persisted(&username, false)?;
+                if released {
+                    index.hold_keyring_name(&username, None)?;
+                }
+                Ok(())
+            });
             (username, clear, indexed)
         };
         self.rails().clear_refresh_failed(&username);
@@ -483,10 +493,15 @@ impl Daemon {
                 }
             })?
             .clone();
-        let cleared = self
-            .credential_store
-            .clear(self.provider.keyring_service, &entry.username);
-        self.with_index(|index| index.set_persisted(&entry.username, false));
+        let (cleared, released) =
+            self.clear_account_entries(&entry.username, entry.keyring_name.as_deref());
+        self.with_index(|index| {
+            index.set_persisted(&entry.username, false)?;
+            if released {
+                index.hold_keyring_name(&entry.username, None)?;
+            }
+            Ok(())
+        });
         match cleared {
             Ok(()) => {
                 self.log(&format!(
@@ -504,6 +519,33 @@ impl Daemon {
                 self.note_error(&message);
                 Err(Refusal::new(ErrorKind::Internal, message))
             }
+        }
+    }
+}
+
+impl Daemon {
+    /// C144 (no keyring entry out of the index's reach): clear the
+    /// account's keyring entry under its username and under the old name
+    /// the index holds for it (`AccountEntry::keyring_name`), if any.
+    /// Both clears run; the first failure is the result. The flag says
+    /// whether the held name may be released: there was none, or its
+    /// clear succeeded.
+    fn clear_account_entries(
+        &self,
+        username: &str,
+        held: Option<&str>,
+    ) -> (Result<(), String>, bool) {
+        let service = self.provider.keyring_service;
+        let cleared = self.credential_store.clear(service, username);
+        let Some(held) = held.filter(|h| *h != username) else {
+            return (cleared, true);
+        };
+        match self.credential_store.clear(service, held) {
+            Ok(()) => (cleared, true),
+            Err(e) => (
+                cleared.and(Err(format!("under the old name {held}: {e}"))),
+                false,
+            ),
         }
     }
 }

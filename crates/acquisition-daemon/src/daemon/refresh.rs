@@ -107,13 +107,16 @@ impl Daemon {
     /// and the index land together, ordered with logout and forget. The
     /// token is saved under `username`; a failed save clears the entry it
     /// would have replaced, which holds a token the grant rotated away or
-    /// the previous login's. The account index then records the login at `at`
-    /// (by the uuid when there is one, so a rename moves the entry), and
-    /// only once it follows the new name is every other name the
-    /// account's entry was held under cleared: the session's old name
-    /// (`old_name`, a refresh that renamed) and the name the index mapped
-    /// the uuid to (a re-login under a renamed username). An index that
-    /// cannot be written leaves the old names alone: the index still
+    /// the previous login's. The account index then records the login at
+    /// `at` (by the uuid when there is one, so a rename moves the entry)
+    /// and holds the first old name the account's entry may still be
+    /// under (`AccountEntry::keyring_name`): the session's old name
+    /// (`old_name`, a refresh that renamed), the name the index mapped
+    /// the uuid to (a re-login under a renamed username), and a name the
+    /// index already held. Only then is each old name cleared, and the
+    /// held name moves only after its clear succeeds: one whose clear
+    /// fails stays held, so logout and forget still reach it. An index
+    /// that cannot be written leaves the old names alone: the index still
     /// reaches them. Every clear that fails is a warning.
     pub(super) fn persist_credentials_locked(
         &self,
@@ -126,15 +129,20 @@ impl Daemon {
         let service = self.provider.keyring_service;
         let mut old_names: Vec<String> = old_name.map(str::to_string).into_iter().collect();
         // An index that cannot be read fails the write below, which says so.
-        if let (Some(dir), Some(uuid)) = (&self.store_dir, uuid)
+        if let Some(dir) = &self.store_dir
             && let Ok(index) = Index::load(dir)
-            && let Some(entry) = index
-                .entries()
-                .iter()
-                .find(|e| e.uuid.as_deref() == Some(uuid))
-            && !old_names.contains(&entry.username)
         {
-            old_names.push(entry.username.clone());
+            let known = index.entries().iter().filter(|e| match uuid {
+                Some(uuid) => e.uuid.as_deref() == Some(uuid),
+                None => e.username == username || Some(e.username.as_str()) == old_name,
+            });
+            for entry in known {
+                for name in std::iter::once(&entry.username).chain(&entry.keyring_name) {
+                    if !old_names.contains(name) {
+                        old_names.push(name.clone());
+                    }
+                }
+            }
         }
         old_names.retain(|old| !old.is_empty() && old != username);
         let saved = self.credential_store.save(service, refresh_token, username);
@@ -157,17 +165,28 @@ impl Daemon {
         // a good save warns, and the entry the index points at is the one
         // just saved.
         let persisted = saved.is_ok();
-        let indexed = self.index_apply(|index| match uuid {
-            Some(uuid) => index.record_login(username, uuid, persisted, at),
-            None => index.upsert(username, persisted, at),
+        let held = old_names.first().map(String::as_str);
+        let indexed = self.index_apply(|index| {
+            match uuid {
+                Some(uuid) => index.record_login(username, uuid, persisted, at)?,
+                None => index.upsert(username, persisted, at)?,
+            }
+            index.hold_keyring_name(username, held)
         });
         if indexed.is_ok() {
+            let mut stuck = None;
             for old in &old_names {
                 if let Err(clear) = self.credential_store.clear(service, old) {
                     warnings.push(format!(
                         "the keyring entry under the old name {old} could not be cleared: {clear}"
                     ));
+                    stuck.get_or_insert(old.as_str());
                 }
+            }
+            if stuck != held
+                && let Err(e) = self.index_apply(|index| index.hold_keyring_name(username, stuck))
+            {
+                warnings.push(e);
             }
         }
         Persisted {

@@ -26,6 +26,13 @@ pub struct AccountEntry {
     /// one re-auth fixes that, no migration.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub uuid: Option<String>,
+    /// C144 (no keyring entry out of the index's reach): an old name the
+    /// account's keyring entry is still held under — a rename whose clear
+    /// of the old name failed. Logout and forget clear it beside the
+    /// username; it is released only once a clear under it succeeds.
+    /// Absent in the usual case and in files written before it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub keyring_name: Option<String>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -163,6 +170,7 @@ impl Index {
                 last_login: at,
                 persisted,
                 uuid: Some(uuid.to_string()),
+                keyring_name: None,
             }),
         }
         self.save()
@@ -181,6 +189,7 @@ impl Index {
                 last_login: at,
                 persisted,
                 uuid: None,
+                keyring_name: None,
             }),
         }
         self.save()
@@ -191,6 +200,20 @@ impl Index {
         if let Some(e) = self.entries.iter_mut().find(|e| e.username == username) {
             e.persisted = persisted;
             self.save()?;
+        }
+        Ok(())
+    }
+
+    /// C144: hold `name` as the old name the account's keyring entry is
+    /// still under, or release it with `None`. The username itself is no
+    /// old name. Writes only on a change.
+    pub fn hold_keyring_name(&mut self, username: &str, name: Option<&str>) -> Result<()> {
+        if let Some(e) = self.entries.iter_mut().find(|e| e.username == username) {
+            let name = name.filter(|n| *n != username).map(str::to_string);
+            if e.keyring_name != name {
+                e.keyring_name = name;
+                self.save()?;
+            }
         }
         Ok(())
     }
@@ -426,6 +449,7 @@ mod tests {
             last_login: 20,
             persisted: true,
             uuid: None,
+            keyring_name: None,
         });
         let orphan = idx.write_temp().unwrap();
         assert!(orphan.exists());
