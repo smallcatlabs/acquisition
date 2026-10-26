@@ -823,7 +823,7 @@ async fn c144_a_logout_whose_keyring_clear_fails_says_so_on_the_wire() {
     };
     assert_eq!(*kind, ErrorKind::Internal);
     for fact in [
-        "logged out test-user (session dropped)",
+        "logged out test-user (session dropped, not restored at start), but",
         "its keyring entry could not be cleared: keychain locked",
         "`acq auth logout --account test-user` tries again",
     ] {
@@ -1054,4 +1054,126 @@ async fn c144_a_re_login_under_a_renamed_username_clears_the_old_names_entry() {
     assert!(entry.persisted);
     let _ = std::fs::remove_dir_all(&store_dir);
     let _ = std::fs::remove_file(&log_path);
+}
+
+/// C144 (no success the daemon did not earn), the review of h1, its
+/// second finding: with the keyring turned off (`ACQ_NO_KEYRING`) a clear
+/// tries nothing, so it is never reported as one. Logged in with the
+/// keyring on, then restarted with it off, a logout of the known account
+/// drops the session and marks it not persisted, and its answer says the
+/// keyring is off and nothing was cleared, where it used to acknowledge
+/// "keyring cleared" over the entry still there. Forget says the same.
+#[tokio::test]
+async fn c144_a_logout_with_the_keyring_off_says_nothing_was_cleared() {
+    let store = RecordingCredentialStore::default();
+    *store.keyring_off.lock().unwrap() = Some("disabled by ACQ_NO_KEYRING".into());
+    let (daemon, store, dir, log_path) = keyring_daemon(store);
+
+    for answer in [
+        logout_answer(&daemon, None).await,
+        logout_answer(&daemon, Some("test-user")).await,
+    ] {
+        let Response::Error { kind, message } = &answer else {
+            panic!("a clear that did not happen is not an ack: {answer:?}");
+        };
+        assert_eq!(*kind, ErrorKind::Internal);
+        assert!(
+            message.contains(
+                "the keyring is off (disabled by ACQ_NO_KEYRING), so no keyring entry was cleared"
+            ),
+            "{message}"
+        );
+        assert!(!message.contains("keyring entry cleared"), "{message}");
+    }
+    assert!(daemon.shared.lock().unwrap().auth.by_account.is_empty());
+    assert!(
+        !Index::load(&dir)
+            .unwrap()
+            .get("test-user")
+            .unwrap()
+            .persisted
+    );
+    assert!(
+        store.entries.lock().unwrap().contains_key("test-user"),
+        "the entry a run with the keyring on saved is still there"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+    finish_harness(None, &log_path);
+}
+
+/// The index directory made read-only for the test's span, so the
+/// index's next write fails while its reads work.
+#[cfg(unix)]
+fn freeze(dir: &std::path::Path, frozen: bool) {
+    use std::os::unix::fs::PermissionsExt;
+    let mode = if frozen { 0o555 } else { 0o755 };
+    std::fs::set_permissions(dir, std::fs::Permissions::from_mode(mode)).unwrap();
+}
+
+/// C144 (every result reaches the words), the review of h1, its fifth
+/// finding: forget says "not restored at start" only when its index
+/// write marked the account not persisted. With the index directory
+/// unwritable and the keyring clear failing, both restoration inputs
+/// stand, and the answer says so, where it used to claim the account
+/// would not be restored. Logout's index failure reaches its answer the
+/// same way: a logout whose clear worked but whose mark was not written
+/// is no `ack`.
+#[cfg(unix)]
+#[tokio::test]
+async fn c144_forget_and_logout_say_what_the_index_write_did() {
+    let (daemon, store, dir, log_path) = keyring_daemon(RecordingCredentialStore::failing(
+        "clear",
+        "keychain locked",
+    ));
+    daemon.shared.lock().unwrap().auth.by_account.clear();
+    freeze(&dir, true);
+    let refusal = daemon.forget_account("test-user").unwrap_err();
+    freeze(&dir, false);
+    assert_eq!(refusal.kind, ErrorKind::Internal);
+    let message = refusal.message;
+    assert!(!message.contains("not restored at start"), "{message}");
+    for fact in [
+        "forgot account test-user, but the account index could not mark it not persisted (",
+        "so a start may still try to restore it",
+        "its keyring entry could not be cleared: keychain locked",
+    ] {
+        assert!(message.contains(fact), "{fact:?} in {message}");
+    }
+    assert!(
+        Index::load(&dir)
+            .unwrap()
+            .get("test-user")
+            .unwrap()
+            .persisted
+    );
+
+    // A live session whose clear works and whose mark cannot be written.
+    *store.fail_clear.lock().unwrap() = None;
+    logged_in_again(&daemon);
+    freeze(&dir, true);
+    let answer = logout_answer(&daemon, None).await;
+    freeze(&dir, false);
+    let Response::Error { kind, message } = &answer else {
+        panic!("an unwritten mark is not an ack: {answer:?}");
+    };
+    assert_eq!(*kind, ErrorKind::Internal);
+    assert!(
+        message.contains(
+            "logged out test-user (session dropped, keyring entry cleared), but the account index could not mark it not persisted ("
+        ),
+        "{message}"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+    finish_harness(None, &log_path);
+}
+
+/// `test-user`'s session back in the daemon, as `logged_in` installs it.
+fn logged_in_again(daemon: &Daemon) {
+    let mut s = daemon.shared.lock().unwrap();
+    s.auth.replace(AuthSession {
+        username: Some("test-user".into()),
+        refresh_token: Some("rt-old".into()),
+        keyring: "ok".into(),
+        ..AuthSession::default()
+    });
 }

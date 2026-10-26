@@ -57,7 +57,7 @@ Usage: acq auth [OPTIONS] [COMMAND]
 Commands:
   status  Show session state (login, token expiry, keyring health)
   check   Verify the session actually works: forces a token round-trip through the provider instead of trusting local state. Exit code 1 on failure
-  logout  Drop the session and clear the keyring entry. With --account naming another known account, clear only that account's keyring entry. A clear the keyring refuses is a failure that says the session was dropped and the entry was not; the same command tries again. `--json`: `logged_out`, `account`, `keyring` (`cleared`); on a failure, the error document with `keyring` `not cleared`
+  logout  Drop the session and clear the keyring entry. With --account naming another known account, clear only that account's keyring entry. A clear the keyring refuses, a keyring turned off (`ACQ_NO_KEYRING`, which clears nothing), or an account index that cannot be written is a failure that says the session was dropped and what was not done, and the command that clears the entry. `--json`: `logged_out`, `account`, `keyring` (`cleared`); on a failure, the error document with `keyring` `not cleared`, or `cleared` when only the index's mark failed
   help    Print this message or the help of the given subcommand(s)
 
 Options:
@@ -90,7 +90,7 @@ Options:
 ## `acq auth logout`
 
 ```text
-Drop the session and clear the keyring entry. With --account naming another known account, clear only that account's keyring entry. A clear the keyring refuses is a failure that says the session was dropped and the entry was not; the same command tries again. `--json`: `logged_out`, `account`, `keyring` (`cleared`); on a failure, the error document with `keyring` `not cleared`
+Drop the session and clear the keyring entry. With --account naming another known account, clear only that account's keyring entry. A clear the keyring refuses, a keyring turned off (`ACQ_NO_KEYRING`, which clears nothing), or an account index that cannot be written is a failure that says the session was dropped and what was not done, and the command that clears the entry. `--json`: `logged_out`, `account`, `keyring` (`cleared`); on a failure, the error document with `keyring` `not cleared`, or `cleared` when only the index's mark failed
 
 Usage: acq auth logout [OPTIONS]
 

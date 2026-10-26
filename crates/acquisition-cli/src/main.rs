@@ -773,10 +773,13 @@ enum AuthCmd {
     Check,
     /// Drop the session and clear the keyring entry. With --account naming
     /// another known account, clear only that account's keyring entry. A
-    /// clear the keyring refuses is a failure that says the session was
-    /// dropped and the entry was not; the same command tries again.
+    /// clear the keyring refuses, a keyring turned off (`ACQ_NO_KEYRING`,
+    /// which clears nothing), or an account index that cannot be written
+    /// is a failure that says the session was dropped and what was not
+    /// done, and the command that clears the entry.
     /// `--json`: `logged_out`, `account`, `keyring` (`cleared`); on a
-    /// failure, the error document with `keyring` `not cleared`.
+    /// failure, the error document with `keyring` `not cleared`, or
+    /// `cleared` when only the index's mark failed.
     Logout,
 }
 
@@ -1070,13 +1073,22 @@ async fn run(cli: Cli) -> Result<()> {
                         Ok(())
                     }
                     // The daemon's sentence says what it did and what it
-                    // did not (a session dropped, an entry not cleared);
-                    // whatever failed, the keyring was not cleared.
+                    // did not (a session dropped, an entry not cleared, a
+                    // keyring turned off, an index mark not written).
+                    // An `ack` is the one answer without a sentence, so
+                    // `keyring` reads the sentence's own fact: a logout
+                    // whose clear worked and whose index mark failed says
+                    // "keyring entry cleared" in it.
                     Response::Error { kind, message } => {
+                        let keyring = if message.contains("keyring entry cleared") {
+                            "cleared"
+                        } else {
+                            "not cleared"
+                        };
                         let refused = anyhow::Error::from(DaemonError { kind, message });
                         if cli.json {
                             let mut report = error_report(&refused);
-                            report["keyring"] = json!("not cleared");
+                            report["keyring"] = json!(keyring);
                             println!("{report}");
                             return Err(AlreadyReported.into());
                         }

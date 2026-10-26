@@ -368,17 +368,40 @@ pub fn keyring_load(service: &str, username: &str) -> Result<Option<String>, Str
     }
 }
 
-/// Remove one account's entry; an entry already gone is cleared. With the
-/// keyring disabled (`ACQ_NO_KEYRING`) there is nothing this daemon could
-/// have put there, so there is nothing for it to clear: `Ok`, where a save
-/// or a load is an error that says the keyring is off.
-pub fn keyring_clear(service: &str, username: &str) -> Result<(), String> {
-    if keyring_disabled().is_some() {
-        return Ok(());
+/// Why a clear left a keyring entry where it was (C144: a clear that did
+/// not happen is never reported as one).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NotCleared {
+    /// The keyring is turned off (`ACQ_NO_KEYRING`): nothing was tried,
+    /// and an entry a run with the keyring on saved may still be there.
+    Off(String),
+    /// The keyring refused the delete.
+    Failed(String),
+}
+
+impl std::fmt::Display for NotCleared {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            NotCleared::Off(why) => write!(f, "the keyring is off ({why})"),
+            NotCleared::Failed(e) => f.write_str(e),
+        }
     }
-    match entry(service, username)?.delete_credential() {
+}
+
+/// Remove one account's entry; an entry already gone is cleared. With the
+/// keyring disabled (`ACQ_NO_KEYRING`) nothing is tried, and that is
+/// `NotCleared::Off`, never a clear: an entry a run with the keyring on
+/// saved is still there.
+pub fn keyring_clear(service: &str, username: &str) -> Result<(), NotCleared> {
+    if let Some(why) = keyring_disabled() {
+        return Err(NotCleared::Off(why.into()));
+    }
+    match entry(service, username)
+        .map_err(NotCleared::Failed)?
+        .delete_credential()
+    {
         Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-        Err(e) => Err(e.to_string()),
+        Err(e) => Err(NotCleared::Failed(e.to_string())),
     }
 }
 

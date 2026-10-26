@@ -153,7 +153,11 @@ impl Daemon {
                 warnings.push(format!(
                     "keyring save failed: {e} (session is in-memory only)"
                 ));
-                if let Err(clear) = self.credential_store.clear(service, username) {
+                // A keyring turned off fails the save too, and its warning
+                // says so; only a clear the keyring refused adds one.
+                if let Err(auth::NotCleared::Failed(clear)) =
+                    self.credential_store.clear(service, username)
+                {
                     warnings.push(format!(
                         "the entry the save would have replaced, for {username}, could not be cleared: {clear}"
                     ));
@@ -176,11 +180,16 @@ impl Daemon {
         if indexed.is_ok() {
             let mut stuck = None;
             for old in &old_names {
-                if let Err(clear) = self.credential_store.clear(service, old) {
-                    warnings.push(format!(
-                        "the keyring entry under the old name {old} could not be cleared: {clear}"
-                    ));
-                    stuck.get_or_insert(old.as_str());
+                match self.credential_store.clear(service, old) {
+                    Ok(()) => {}
+                    Err(clear) => {
+                        if let auth::NotCleared::Failed(clear) = clear {
+                            warnings.push(format!(
+                                "the keyring entry under the old name {old} could not be cleared: {clear}"
+                            ));
+                        }
+                        stuck.get_or_insert(old.as_str());
+                    }
                 }
             }
             if stuck != held

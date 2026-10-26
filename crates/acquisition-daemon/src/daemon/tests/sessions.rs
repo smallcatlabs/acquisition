@@ -77,7 +77,7 @@ impl CredentialStore for MemoryCredentialStore {
         Ok(None)
     }
 
-    fn clear(&self, _service: &str, _username: &str) -> Result<(), String> {
+    fn clear(&self, _service: &str, _username: &str) -> Result<(), auth::NotCleared> {
         self.cleared.store(true, Ordering::SeqCst);
         Ok(())
     }

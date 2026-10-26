@@ -851,8 +851,13 @@ fn a_selection_submits_as_the_served_account_whatever_the_daemon_holds() {
     let base = scratch.0.clone();
     harness::login(&base, "Alice");
     let web = start_web(harness::command(&base, &["web", "--no-browser"]));
+    // The mock world's keyring is off, so the logout says it cleared
+    // nothing (C144); the session is dropped all the same.
     let out = harness::acq(&base, &["auth", "logout", "--account", "Alice"]);
-    assert!(out.status.success(), "{out:?}");
+    assert!(
+        String::from_utf8_lossy(&out.stderr).contains("logged out Alice (session dropped"),
+        "{out:?}"
+    );
     harness::login(&base, "Bob");
     let plan = web.get("plan?realm=pc&league=Standard&selected=yes&tab=dump");
     assert_eq!(plan.status, 200, "{}", plan.body);

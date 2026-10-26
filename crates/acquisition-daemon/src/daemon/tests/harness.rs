@@ -78,7 +78,7 @@ impl CredentialStore for NoopCredentialStore {
         Ok(None)
     }
 
-    fn clear(&self, _service: &str, _username: &str) -> Result<(), String> {
+    fn clear(&self, _service: &str, _username: &str) -> Result<(), auth::NotCleared> {
         Ok(())
     }
 }
@@ -96,6 +96,9 @@ pub(super) struct RecordingCredentialStore {
     pub(super) fail_save: Mutex<Option<String>>,
     pub(super) fail_load: Mutex<Option<String>>,
     pub(super) fail_clear: Mutex<Option<String>>,
+    /// The keyring turned off, as `ACQ_NO_KEYRING` turns it off: a clear
+    /// tries nothing and says why.
+    pub(super) keyring_off: Mutex<Option<String>>,
 }
 
 impl RecordingCredentialStore {
@@ -137,10 +140,13 @@ impl CredentialStore for RecordingCredentialStore {
         Ok(self.entries.lock().unwrap().get(username).cloned())
     }
 
-    fn clear(&self, _service: &str, username: &str) -> Result<(), String> {
+    fn clear(&self, _service: &str, username: &str) -> Result<(), auth::NotCleared> {
+        if let Some(why) = self.keyring_off.lock().unwrap().clone() {
+            return Err(auth::NotCleared::Off(why));
+        }
         self.cleared.lock().unwrap().push(username.to_string());
         if let Some(why) = self.fail_clear.lock().unwrap().clone() {
-            return Err(why);
+            return Err(auth::NotCleared::Failed(why));
         }
         self.entries.lock().unwrap().remove(username);
         Ok(())
