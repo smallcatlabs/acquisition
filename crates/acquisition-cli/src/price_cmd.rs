@@ -284,13 +284,19 @@ fn render_status(r: &ListingReport, now: i64, expand: bool, account: &str) -> St
     // Each count says what it counts (C146, a count says what it counts):
     // the hand side is the sum of its three relations, written out, since
     // "89 by hand" beside "39 decided by hand" read as a contradiction (the
-    // release seat: cli-opus-2 call 55, mcp-opus-2 call 21).
-    out.push_str(&format!(
-        "sides: {by_hand} priced by hand ({} by hand alone, {} agree with the game's price, {} conflict with it); {game_priced} priced in game\n",
-        count_of(r, Relation::ManualOnly),
-        count_of(r, Relation::Agree),
-        count_of(r, Relation::Conflict),
-    ));
+    // release seat: cli-opus-2 call 55, mcp-opus-2 call 21). Zeros are
+    // not spelled out: nothing priced says so, and a hand side of none
+    // drops its parenthesis.
+    out.push_str(&match (by_hand, game_priced) {
+        (0, 0) => "sides: nothing priced\n".to_string(),
+        (0, _) => format!("sides: 0 priced by hand; {game_priced} priced in game\n"),
+        _ => format!(
+            "sides: {by_hand} priced by hand ({} by hand alone, {} agree with the game's price, {} conflict with it); {game_priced} priced in game\n",
+            count_of(r, Relation::ManualOnly),
+            count_of(r, Relation::Agree),
+            count_of(r, Relation::Conflict),
+        ),
+    });
     // `residue` named a mechanism; the line names the places and what
     // lets the text count (the release seat: cli-opus call 49, mcp-opus
     // call 19, mcp-sonnet call 20), each place with its own remedy: a
@@ -1170,6 +1176,23 @@ mod tests {
             text.contains("rows naming nothing in the facts:\n  item/i-gone: skip, revision 5\n"),
             "{text}"
         );
+
+        // Zeros collapse: no hand row drops the hand side's parenthesis,
+        // and nothing priced on either side says so (the h2 fix round).
+        let sides = |s: &PricingSnapshot| {
+            render_status(&resolve(s).unwrap(), 8_000, false, "a")
+                .lines()
+                .find(|l| l.starts_with("sides: "))
+                .map(str::to_string)
+        };
+        let mut no_rows = snapshot();
+        no_rows.buyouts.clear();
+        assert_eq!(
+            sides(&no_rows).as_deref(),
+            Some("sides: 0 priced by hand; 12 priced in game")
+        );
+        no_rows.items.retain(|i| i.location_id != "c1");
+        assert_eq!(sides(&no_rows).as_deref(), Some("sides: nothing priced"));
 
         let mut empty = snapshot();
         empty.items.clear();
