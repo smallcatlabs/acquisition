@@ -29,9 +29,10 @@ named concretely. A step with no fixed input says so.
 
 ## Do
 Numbered, concrete, in order. A ruling the step needs and does not have
-is the first item, brought to the owner before the code; a ruling
-drafted for it is measured against the entry rule's 800 bytes before
-it reaches the build brief (2e's first draft was 860).
+(a boundary, an invariant, anything touching the real store or the real
+API) is the first item, brought to the owner before the code. An
+agent-facing design decision is the step's own: recorded in the commit
+that builds it and listed at the close (`roadmap/README.md`, "A step").
 
 ## Done when
 Checkable sentences, each from the commit alone: its tree or its
@@ -65,7 +66,7 @@ instead.
   times for that.
 - A finding is a test named for the fault, or a line in the report;
   never a new document. A review's finding is not fixed before the
-  owner has read it.
+  owner has read it, and the saved review stays where it is.
 - A draft the brief names is taken verbatim unless the tree disproves
   a sentence of it; each correction is named in the report.
 - No test asserts a wall-clock bound a slow machine can miss: a

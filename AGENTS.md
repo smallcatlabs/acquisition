@@ -48,15 +48,15 @@ As few as possible, each a property, never a mechanism.
   (the mock-session skill). A bare `acq` opens the owner's store. Live
   runs are the owner's, from a terminal, under the live-run skill.
 - **Rulings first, findings after.** A ruling (an invariant, a
-  boundary, a registry entry) is recorded in `decisions/<area>.md`
-  before the code that depends on it. A finding (what building or
-  running taught) is recorded after, at its home below.
-- **Who decides.** Agent-facing design (a verb, a flag, an MCP tool, a
-  query word, the words of an answer) is the session's to decide and
-  build: the ruling is recorded "under the owner's delegation" and
-  listed for his review. A boundary, an invariant, process, scope,
-  anything touching the owner's real store or the real API, and a
-  commit or push he has not asked for are his first.
+  boundary, process, scope, anything touching the owner's real store
+  or the real API) is his, recorded in `decisions/<area>.md` before the
+  code that depends on it; a commit or push waits for his word.
+  Agent-facing design (a verb, a flag, an MCP tool, a query word, the
+  words of an answer) is the session's: recorded in the commit that
+  builds it, listed at the close for his review, and entered in the
+  registry only when the close finds it a property another area must
+  know. A finding (what building or running taught) is recorded
+  after, at its home below.
 - **Build order.** Run `cargo build --workspace` before anything that
   starts a daemon, and after any test run or edit to a contract input
   (the protocol and store sources, the manifests, the lock), since

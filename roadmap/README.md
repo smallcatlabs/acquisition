@@ -103,25 +103,27 @@ here rather than restate it.
 3. **The review** runs over each committed step and over each fix
    round that changes behaviour, over its commits as one range. The
    findings are saved verbatim at `roadmap/reviews/<step>-<sha>.md`
-   (a fix round's at `<step>-fixes-<sha>.md`) and committed alone, so
-   they survive a session's compaction; that commit needs
-   `git diff --check` alone, not the gate. A round that touches only
-   comments and documents gets no review, and nothing is reviewed a
-   third time unless the owner asks.
+   (a fix round's at `<step>-fixes-<sha>.md`), ride in the next commit,
+   and stay under `roadmap/reviews/` for good (the owner's ruling of
+   2026-10-26). A round that touches only comments and documents gets
+   no review, and nothing is reviewed a third time unless the owner
+   asks.
 4. **The owner reads** the findings and the proposed fixes before any
    fix is built. A finding is pinned as a test and fixed by one rule,
    never per case; a fault that came back joins `REVIEW-CHECKLIST.md`.
-   The commit that lands the fix round deletes the review file and
-   cites it whole at the commit that held it.
 5. **The close** is a commit whose message checks the brief's done-when
    line by line against the tree and answers each item the worker
-   raised: taken, filed as an issue, or not taken and why. It writes
-   the step's ledger line, puts what the step left open under "Open"
-   or in an issue, and sets "Current step". A step that has not
-   earned its close slips rather than ships.
-6. **A phase close** folds the phase's ledger lines into one, adds the
-   `HISTORY.md` line, and deletes the phase's briefs and review files,
-   cited whole at the commit before.
+   raised: taken, filed as an issue, or not taken and why. It lists the
+   agent-facing design decisions the step made (a verb, a flag, a tool,
+   a query word, the words of an answer), each recorded in the commit
+   that built it; one enters the registry only when the close finds it
+   a property another area must know (the owner's ruling of
+   2026-10-26). It writes the step's ledger line, a commit range and a
+   close date, puts what the step left open under "Open" or in an
+   issue, and sets "Current step". A step that has not earned its
+   close slips rather than ships.
+6. **A phase close** folds the phase's ledger lines into one and adds
+   the `HISTORY.md` line; it deletes nothing.
 
 The report a worker returns is `briefs/TEMPLATE.md`'s; its last section
 is the worker's own, anything it wants raised about the brief, the
@@ -296,7 +298,7 @@ under nextest, until p0 makes it a script.
 
 ## Ledger
 
-One line per step: its commits, when it closed, and what it left open,
+One line per step: its commit range, when it closed, and what it left open,
 each item's home under "Open" or an issue. The story is in the commits'
 messages.
 
