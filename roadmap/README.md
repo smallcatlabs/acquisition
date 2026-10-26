@@ -35,6 +35,18 @@ simpler, better Acquisition that is agent-friendly and agent-forward.
   C140 ("Accept as drafted", "acq web, as drafted", "In, via the
   browser").
 
+- 2026-10-26, from the blank-slate assessment (`STATE-2026-10-26.md`,
+  dated evidence): "I approve the 1 hour idle default" (C3 amended,
+  built by r3); "your proposed milestones make sense" (three GitHub
+  milestones hold every open issue: League 3.30 and alpha.2, PoE2
+  launch, 4-full); a readiness group of five steps runs before phase
+  3, after one process round; and "if the first milestone goes quickly,
+  I would love to be able to pull some of the work you've identified
+  forward rather than sticking to our calendar and idling" (the
+  "Pull-forward" order below). This session was kept to analysis,
+  synthesis and setup at the owner's word: the briefs are drafted here,
+  the building is the next sessions'.
+
 ## Roles
 
 - **The owner** rules on boundaries, runs anything live, captures the
@@ -107,16 +119,42 @@ plan or the tools, and the close answers every item.
 | 0. The week's fixes | 0a to 0e | Opus workers | — | closed 2026-10-20 |
 | 1. The governance reset | 1 design, 1b to 1e | Fable, then Opus | — | closed 2026-10-20 |
 | 2. The keystone | closed: 2a the shared function layer · 2b the tests · 2c the journey test and real-shaped mock items · 2d the daemon and limiter file splits · 2d-oracle the journal oracles over every journaling daemon · 2e the game-diff tool, a new-league rehearsal and the README line · 2f the review of daemon, store and network: a static scan, the owner's rulings and three fix rounds over four PRs, each round reviewed by Codex. Ahead, slid after phase 3 and `alpha.2` by the owner's word of 2026-10-24: 2g the read economy and the MCP refusal and receipt bundle (#9, #10), one bound at the shared layer under C53's three output levels · 2h the queued search and trade issues (#38, #46, #47; #37 once the owner has sat the site), which slips before 2g does | mixed | phase 1 | 2026-12-05 |
+| r. League readiness | one process round first, p0 (`briefs/p0-process.md`): the gate as a script, the review choreography and the delegated class ruled by the owner, budgets as notes, a glossary · then r1 the Windows gate decides again (#77; `briefs/r1-windows-gate.md`) · r2 the credential I/O off the shared lock, a design brief first (#81, then #55; `briefs/r2-keyring-design.md`) · r3 the hour idle default and finished trees out of memory (#80; `briefs/r3-idle-and-eviction.md`) · r4 `acq diagnose` (#79; `briefs/r4-diagnose.md`) · r5 the five surface sentences (#78; `briefs/r5-surface.md`) | Opus workers, the owner's rulings in p0 and r2 | 2f, h3 | before 3.30, about a week; what the second week holds is the pull-forward order |
 | 3. League 3.30 | the owner runs the league under the rails · count the undecided classes and untranslated mods · the prune verb (#43) at the league end | owner, Opus | 2e | 2026-11-20 |
 | 3b. `alpha.2` | regenerate the tables when the named inputs exist: a post-launch `poe1` pin (RePoE lags launch by 0 to 13 days), the owner's four site captures (C79: nobody else may fetch them), the pins and manifests bumped, every generator's `--check` green · then the release | owner captures, Opus | 3 | when the inputs arrive, 2026-11-26 at the latest |
 | 4. The GUI | closed: 4a the 4-lite design (C16 amended, C138 to C141) · 4b 4-lite, `acq web`, a loopback renderer over the verbs — the search pages (the form in the site's organization, the query box, the table with its art, the counts, one item) and the refresh pages (the selection as a plan, the plan page, the jobs with the rails), every list a group, no subscriber (C44 and C76 one door, C111 spent by response, C142, C143) · ahead, after `alpha.2`: 4-0 the time seam (`TIME-SEAM.md`) · 4-full on it: the keeper bundle (#1), the corpus held in `acq-mcp`, the subscriber with reconnect, the live loop, the results as site-style cards over rows carrying fields, the dense table, hardening | Fable, then Opus | 2a, 2b | 4-lite closed 2026-10-25, before phase 3; 4-full 2026-12-19 |
 | 5. PoE2 | the route flip and first-contact checklist prepared unmerged · PoE2 currency rows · launch day as the assessment's report 6, section 3: a first contact only if GGG ships the stash endpoint | Opus, owner live | 0b | 2026-12-11 |
+
+## Pull-forward
+
+The owner's word of 2026-10-26: when a milestone's steps close early,
+the next item starts from this list, in order, without a planning
+session; a step starts when the one before it closes. Each has an
+issue carrying its evidence and its done-when, and takes a brief from
+`briefs/TEMPLATE.md` written by the session that starts it. An item
+leaves the list when its step closes or the owner strikes it.
+
+1. #82, the held corpus in `acq-mcp` (`GUI-NOTES.md` section 8.2,
+   move 2; ruled 2026-10-19, unbuilt): every agent search drops to
+   the evaluation alone, and it is the first stone of 4-full's backend.
+2. #83, the MCP surface trimmed (short tool descriptions, the language
+   as resources), then a seat with the first row of the seat ledger
+   (#84), before `alpha.2`.
+3. #88, one feature graph for the plain and the test build: measured,
+   and if it holds, C84's build-order rule and the gate's final rebuild
+   retired (P6).
+4. 2g, the read economy and the refusal bundle (#9, #10).
+5. #85, #86, #87, #89: the standing automation and the hygiene from the
+   assessment's R5, each a short step on any idle day.
 
 ## Open
 
 What closed steps left behind, each with its home. An item leaves this
 list when a step's close commit or an issue takes it.
 
+- **Tooling issues carry no area label** (#84, #86, #88, #89): no
+  area file holds the tools or the workflows; the owner's, whether a
+  label or an area.
 - **Deferred past 2f, the daemon's architecture**, each a row of the
   assessment's architecture report: a typed `JobKind`, the generic
   reference-table loader, the `Thing` columns, the lock merge, sharing
@@ -229,18 +267,17 @@ list when a step's close commit or an issue takes it.
 
 ## Current step
 
-4b, the 4-lite build, closed 2026-10-25 (the ledger): `acq web` is in
-the tree, and the GUI's first shape is in users' hands before the
-league. Next is phase 3, the owner's: league 3.30 run under the rails
-from a terminal (the live-run skill, "A new league on a contacted
-route"), counting the undecided classes and untranslated mods, and the
-prune verb (#43) at the league's end; then 3b, `alpha.2`, when its
-inputs arrive. The #70 step's fix-round review found nothing
-(`roadmap/reviews/70-fixes-32769f72.md`, kept to the phase close), and
-its issue closes when a week of pushes needs no re-run (under "Open"). 2g
-and 2h follow phase 3 and `alpha.2`; then 4-0, the time seam
-(`TIME-SEAM.md`); then 4-full. `AGENTS.md` governs; the gate is its
-ten lines, under nextest.
+p0, the process round (`briefs/p0-process.md`), not started: its first
+item brings four process rulings to the owner (the review choreography,
+rulings-after for the delegated class, the budgets as notes, the
+glossary's home), and its build makes the gate one script. Then the
+readiness group r1 to r5 in order, each from its brief; r2 is a design
+brief whose output is the build brief and a drafted ruling for the
+owner. Phase 3, the owner's league run, follows; the second week before
+3.30, if the group closes early, draws from "Pull-forward". The
+assessment these rest on is `STATE-2026-10-26.md`; the issues carry
+the evidence per step. `AGENTS.md` governs; the gate is its ten lines,
+under nextest, until p0 makes it a script.
 
 ## Ledger
 
