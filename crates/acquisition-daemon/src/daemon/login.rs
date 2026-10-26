@@ -222,10 +222,12 @@ impl Daemon {
         }
     }
 
-    /// The uuid landed: register the login in dependency order — keyring,
-    /// then the index mapping (a login the index cannot record **fails
-    /// whole**, keyring rolled back: a session without its uuid mapping
-    /// could neither be restored nor find its annotation file), and only
+    /// The uuid landed: register the login in dependency order — the
+    /// index holding the name, the keyring, then the index mapping (a
+    /// login the index cannot record **fails whole**: no save when the
+    /// name cannot be held, the keyring rolled back when the mapping
+    /// cannot be written; a session without its uuid mapping could
+    /// neither be restored nor find its annotation file), and only
     /// then the visible session and the flow's terminal result. A stale
     /// flow registers nothing.
     pub(super) fn complete_login(&self, generation: u64, username: &str, uuid: &str) -> bool {

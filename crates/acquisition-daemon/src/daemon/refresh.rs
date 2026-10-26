@@ -105,7 +105,11 @@ impl Daemon {
     /// C144 — the one persist of a refresh token, login's and refresh's
     /// alike, called under the caller's hold of `shared` so the keyring
     /// and the index land together, ordered with logout and forget. The
-    /// token is saved under `username`; a failed save clears the entry it
+    /// index holds `username` before the token is saved under it
+    /// ([`Index::hold_keyring_name`]): an index that cannot be written
+    /// then means no save, the keyring status and a warning say so, and
+    /// no credential exists that the index does not know, however many
+    /// renames follow. The token is saved under `username`; a failed save clears the entry it
     /// would have replaced, which holds a token the grant rotated away or
     /// the previous login's. The account index then records the login at
     /// `at` (by the uuid when there is one, so a rename moves the entry)
@@ -146,6 +150,21 @@ impl Daemon {
             }
         }
         old_names.retain(|old| !old.is_empty() && old != username);
+        // The index knows the name before the keyring does: an index that
+        // cannot hold it means no save, so no credential lands where no
+        // verb can find it. The session keeps its tokens in memory.
+        if let Err(e) =
+            self.index_apply(|index| index.hold_keyring_name(uuid, username, old_name, at))
+        {
+            return Persisted {
+                keyring: format!("unavailable: not saved, the account index could not hold its name: {e}"),
+                warnings: vec![
+                    "keyring save skipped: the account index could not hold the name first (session is in-memory only)"
+                        .to_string(),
+                ],
+                indexed: Err(e),
+            };
+        }
         let saved = self.credential_store.save(service, refresh_token, username);
         let mut warnings = Vec::new();
         let mut released = Vec::new();

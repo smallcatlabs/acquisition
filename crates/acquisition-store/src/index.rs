@@ -275,6 +275,47 @@ impl Index {
         self.save()
     }
 
+    /// C144 — the index knows a name before the keyring does: `username`,
+    /// about to hold a credential for the account, joins the held names of
+    /// the account's entry (found by `uuid`, else by `username`, else by
+    /// `old_name`, the name a rename leaves) in one write, made before the
+    /// save; an account the index does not list yet gets a not-persisted
+    /// entry holding it. A name already in the entry's reach needs no
+    /// write. A failed write is the caller's cue not to save.
+    pub fn hold_keyring_name(
+        &mut self,
+        uuid: Option<&str>,
+        username: &str,
+        old_name: Option<&str>,
+        at: i64,
+    ) -> Result<()> {
+        let name = [username.to_string()];
+        let found = self.position(uuid, username).or_else(|| {
+            old_name.and_then(|old| self.entries.iter().position(|e| e.username == old))
+        });
+        match found {
+            Some(i) => {
+                let e = &mut self.entries[i];
+                if e.keyring_reach().iter().any(|n| n == username) {
+                    return Ok(());
+                }
+                e.hold(&name);
+            }
+            None => {
+                let mut e = AccountEntry {
+                    username: username.to_string(),
+                    last_login: at,
+                    persisted: false,
+                    uuid: uuid.map(str::to_string),
+                    keyring_names: Vec::new(),
+                };
+                e.hold(&name);
+                self.entries.push(e);
+            }
+        }
+        self.save()
+    }
+
     /// Refresh-path bookkeeping (last login / keyring state) for an entry a
     /// completed login already created. Never invents a uuid. `hold` as
     /// [`Self::record_login`] takes it, in the same write.

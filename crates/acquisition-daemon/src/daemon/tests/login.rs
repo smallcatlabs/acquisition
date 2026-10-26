@@ -250,11 +250,11 @@ async fn a_completed_login_clears_the_dead_grant_mark() {
 }
 
 /// A login the account index cannot record fails whole: the session
-/// never becomes visible and the keyring entry is rolled back — a
-/// session without its uuid mapping could neither be restored nor find
-/// its annotation file.
+/// never becomes visible and no keyring entry is left (the index cannot
+/// hold the name, so none is saved) — a session without its uuid
+/// mapping could neither be restored nor find its annotation file.
 #[tokio::test]
-async fn a_login_the_index_cannot_record_fails_whole_and_rolls_back_the_keyring() {
+async fn a_login_the_index_cannot_record_fails_whole_and_leaves_no_keyring_entry() {
     let base = mockggg::start().await.unwrap();
     let (daemon, credentials, store_dir, log_path) = login_daemon(&base);
     // A directory where the index file should be: every index read and
@@ -278,12 +278,10 @@ async fn a_login_the_index_cannot_record_fails_whole_and_rolls_back_the_keyring(
             .is_some_and(|e| e.contains("account index")),
         "{error:?}"
     );
-    // The keyring write happened and was rolled back.
-    assert_eq!(credentials.saves.lock().unwrap().len(), 1);
-    assert_eq!(
-        credentials.cleared.lock().unwrap().as_slice(),
-        ["Alice#1234"]
-    );
+    // C144: the index could not hold the name first, so no keyring write
+    // happened and there is nothing to roll back.
+    assert!(credentials.saves.lock().unwrap().is_empty());
+    assert!(credentials.entries.lock().unwrap().is_empty());
 
     dispatcher.abort();
     drop(daemon);

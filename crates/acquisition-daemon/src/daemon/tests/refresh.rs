@@ -5,6 +5,7 @@
 
 use super::harness::*;
 use crate::daemon::*;
+use acquisition_protocol::protocol::KeyringOutcome;
 
 /// The login arm is `a_completed_login_clears_the_dead_grant_mark`.
 #[tokio::test]
@@ -819,12 +820,13 @@ fn renamed_answer(username: &str) -> ScriptedResponse {
 }
 
 /// C144 (logout finds the account by its uuid), the review of the h1 fix
-/// round, its first finding: a refresh that renames test-user to B saves
-/// B's token but cannot write the index, which still lists the account
-/// as test-user, persisted, with test-user's entry uncleared. A logout of
-/// B, once the index is writable again, finds the entry by the session's
-/// uuid, clears both names and marks it not persisted, so a start
-/// restores nothing. Before, the logout looked the entry up by B, found
+/// round, its first finding: a refresh that renames test-user to B cannot
+/// write the index, which still lists the account as test-user,
+/// persisted, with test-user's entry uncleared (and, since the last
+/// round, B unsaved: the index could not hold its name first). A logout
+/// of B, once the index is writable again, finds the entry by the
+/// session's uuid, clears every name and marks it not persisted, so a
+/// start restores nothing. Before, the logout looked the entry up by B, found
 /// none, marked nothing and acknowledged, and a restart restored
 /// test-user from its old entry.
 #[cfg(unix)]
@@ -848,7 +850,11 @@ async fn c144_a_logout_after_an_unindexed_rename_finds_the_account_by_its_uuid()
         Some(true),
         "the rename's index write failed"
     );
-    assert_eq!(store.entries.lock().unwrap().len(), 2);
+    assert_eq!(
+        store.entries.lock().unwrap().len(),
+        1,
+        "the index could not hold B, so nothing was saved under it"
+    );
 
     daemon.logout(Some("B#2")).unwrap();
     assert!(
@@ -861,6 +867,58 @@ async fn c144_a_logout_after_an_unindexed_rename_finds_the_account_by_its_uuid()
     let mut log = Vec::new();
     let sessions = start::restore_sessions(&*store, "acq-mock", &dir, None, &mut log);
     assert!(sessions.by_account.is_empty(), "a start restores nothing");
+    let _ = std::fs::remove_dir_all(&dir);
+    server.await.unwrap();
+    assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
+    finish_harness(None, &log_path);
+}
+
+/// C144 (no keyring entry out of the index's reach), the review of the
+/// h1 tail round, its first finding: two renames, test-user to B and B
+/// to C, while the index directory cannot be written and the keyring
+/// saves work, then a logout of C with the index writable again. The
+/// index holds a name before a credential is saved under it, so neither
+/// rename saved anything: no credential is left under any of the three
+/// names and the logout's `cleared` is earned. Before, each rename saved
+/// under its new name and failed its index write, the index still named
+/// test-user, the logout cleared test-user and C, answered `cleared`, and
+/// B's credential stayed where no verb could reach it.
+#[cfg(unix)]
+#[tokio::test]
+async fn c144_renames_under_an_unwritable_index_leave_no_credential_behind() {
+    let (mut daemon, store, log_path, requests, server) = token_daemon_with_store(
+        vec![renamed_answer("B#2"), renamed_answer("C#3")],
+        RecordingCredentialStore::default(),
+    )
+    .await;
+    let dir = indexed_test_user(&mut daemon);
+
+    freeze(&dir, true);
+    daemon.valid_access_token(None, false, None).await.unwrap();
+    let (_, username) = daemon.valid_access_token(None, true, None).await.unwrap();
+    freeze(&dir, false);
+    assert_eq!(username, "C#3", "the session runs on, in memory");
+    {
+        let s = daemon.shared.lock().unwrap();
+        let session = s.auth.find("C#3").unwrap();
+        assert!(
+            session.keyring.starts_with("unavailable: not saved"),
+            "{}",
+            session.keyring
+        );
+        assert!(
+            s.errors
+                .iter()
+                .any(|(_, m)| m.contains("keyring save skipped")),
+            "{:?}",
+            s.errors
+        );
+    }
+
+    let outcome = daemon.logout(Some("C#3")).unwrap();
+    let left = store.entries.lock().unwrap().clone();
+    assert!(left.is_empty(), "no credential under any name: {left:?}");
+    assert_eq!(outcome, KeyringOutcome::Cleared);
     let _ = std::fs::remove_dir_all(&dir);
     server.await.unwrap();
     assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
