@@ -546,7 +546,7 @@ impl Daemon {
                 "the account index could not mark it not persisted ({e}), so a start may still try to restore it"
             ));
         }
-        let retry = format!("`acq auth logout --account {username}`");
+        let retry = format!("`acq auth logout --account {}`", posix_word(username));
         match &cleared {
             Ok(()) => {}
             Err(auth::NotCleared::Off(why)) => but.push(format!(
@@ -602,6 +602,23 @@ impl Daemon {
             ),
             Err(off) => (cleared.and(Err(off)), false),
         }
+    }
+}
+
+/// One argument of a printed command, quoted for a POSIX shell (issue
+/// #16's first instance): bare when every character is one no shell
+/// reads specially, otherwise single-quoted, a quote inside written
+/// `'\''`. `#` is quoted: a word that starts with it is a comment, and
+/// zsh's extended globbing reads it anywhere.
+fn posix_word(word: &str) -> String {
+    let plain = !word.is_empty()
+        && word
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || "-_.,/:@%+=".contains(c));
+    if plain {
+        word.to_string()
+    } else {
+        format!("'{}'", word.replace('\'', "'\\''"))
     }
 }
 

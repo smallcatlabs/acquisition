@@ -104,3 +104,41 @@ fn c144_logout_json_says_what_the_keyring_did() {
         assert!(said.contains(fact), "{fact:?} in {said}");
     }
 }
+
+/// C144's retry command runs as printed, the review of h1, its seventh
+/// finding (part of issue #16, printed commands quoted for the shell):
+/// the account the logout's words name is quoted for a POSIX shell, so
+/// the command `sh` reads back is one `--account` for `Alice Smith`,
+/// which clap parses and the daemon resolves; unquoted, `Smith` was a
+/// second positional argument and clap refused the line. The command is
+/// run by `sh` exactly as printed, with this build's `acq` first on the
+/// path, in the same mock world.
+#[cfg(unix)]
+#[test]
+fn c144_the_printed_logout_command_runs_as_printed() {
+    let scratch = harness::scratch("retry");
+    let base = scratch.0.clone();
+    harness::login(&base, "Alice+Smith");
+    let out = acq(&base, &["auth", "logout"]);
+    let said = String::from_utf8_lossy(&out.stderr).into_owned();
+    let printed = said
+        .split_once("with it on, `")
+        .and_then(|(_, rest)| rest.split_once('`'))
+        .map(|(command, _)| command.to_string())
+        .unwrap_or_else(|| panic!("no command in the words: {said}"));
+    assert_eq!(printed, "acq auth logout --account 'Alice Smith'");
+
+    let bin = harness::acq_exe().parent().unwrap();
+    let path = std::env::join_paths(std::iter::once(bin.to_path_buf()).chain(
+        std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()),
+    ))
+    .unwrap();
+    let mut sh = harness::command_of(std::path::Path::new("/bin/sh"), &base, &["-c", &printed]);
+    let out = sh.env("PATH", path).output().expect("running sh");
+    let said = String::from_utf8_lossy(&out.stderr);
+    assert_ne!(out.status.code(), Some(2), "clap refused the line: {said}");
+    assert!(
+        said.contains("forgot account Alice Smith (not restored at start)"),
+        "{said}"
+    );
+}
