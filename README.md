@@ -243,6 +243,7 @@ them.
 | `ACQ_NO_SPAWN=1` | off | never start or replace a daemon; for cron, ssh and headless shells | [client.rs][client]; keyring context: [auth.rs][auth] |
 | `ACQ_IDLE_SHUTDOWN=<s>` | 60 | idle exit, held while the limiter's history is live | [start.rs][daemon] |
 | `ACQ_HELLO_WITHIN=<s>` | 5 | how long a daemon has to answer the handshake before it is reported unresponsive | [client.rs][client] |
+| `ACQ_STARTUP_WITHIN=<s>` | 5 | how long a daemon a command started has to bind its socket before the start is reported failed | [client.rs][client] |
 | `ACQ_ANNOTATION_WAIT=<s>` | 5 | how long a write waits for another writer's lock on the annotation file before it is refused as busy | [annotations.rs][annotations] |
 | `ACQ_JOB_RETENTION_DAYS`, `ACQ_FAILED_JOB_RETENTION_DAYS` | 7, 30 | finished-job retention for `acq result`; invalid values keep defaults | [start.rs][daemon] |
 | `ACQ_TRIPWIRE=1` | off | rail 1: halt on 429/401/403/503 until reset, persisted | [rails.rs][rails] |

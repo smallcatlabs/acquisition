@@ -340,14 +340,14 @@ pub const HELLO_WITHIN: Duration = Duration::from_secs(5);
 
 /// C137, the deadline's contract is its expiry behaviour:
 /// `ACQ_HELLO_WITHIN=<secs>` overrides [`HELLO_WITHIN`], read at each
-/// handshake (`parse_hello_within`). The test isolation list widens it,
+/// handshake (`parse_within`). The test isolation list widens it,
 /// so a starved runner cannot read a healthy daemon as wedged; zero
 /// forces the expiry, since a reply is in time only if it arrives before
 /// the deadline.
 pub fn hello_within() -> Duration {
     std::env::var("ACQ_HELLO_WITHIN")
         .ok()
-        .map_or(HELLO_WITHIN, |v| parse_hello_within(&v))
+        .map_or(HELLO_WITHIN, |v| parse_within(&v, HELLO_WITHIN))
 }
 
 /// The largest deadline a knob may name, in seconds: the largest whose
@@ -356,17 +356,18 @@ pub fn hello_within() -> Duration {
 /// addition.
 const MAX_WITHIN_SECS: u64 = 2_147_483;
 
-/// C137: the knob's value as the deadline it names. A value the
-/// handshake cannot represent — over [`MAX_WITHIN_SECS`], or not a whole
-/// number of seconds — is unsupported and the default stands; zero is
-/// valid and forces the expiry.
-fn parse_hello_within(value: &str) -> Duration {
+/// C137: a deadline knob's value as the deadline it names, the one rule
+/// of the handshake's and the startup's. A value the deadline cannot
+/// represent — over [`MAX_WITHIN_SECS`], or not a whole number of
+/// seconds — is unsupported and `default` stands; zero is valid and
+/// forces the expiry.
+fn parse_within(value: &str, default: Duration) -> Duration {
     value
         .trim()
         .parse::<u64>()
         .ok()
         .filter(|secs| *secs <= MAX_WITHIN_SECS)
-        .map_or(HELLO_WITHIN, Duration::from_secs)
+        .map_or(default, Duration::from_secs)
 }
 
 /// How long `daemon stop` waits, after the daemon's `stopping`, for the
@@ -1096,10 +1097,47 @@ fn world_socket(own: &Result<World, AbsentWorld>) -> Result<Option<PathBuf>> {
     }
 }
 
-/// The startup polling budget: how many times a door that spawned a
-/// daemon looks for its bind, 50 ms apart — the five seconds its
-/// failure names.
-const STARTUP_POLLS: u32 = 100;
+/// How long a door that spawned a daemon waits for it to bind the
+/// world's socket, by default: a healthy daemon binds in well under a
+/// second, so five is generous; what trips it is a daemon that started
+/// and never bound.
+const STARTUP_WITHIN: Duration = Duration::from_secs(5);
+
+/// C137, the deadline's contract is its expiry behaviour:
+/// `ACQ_STARTUP_WITHIN=<secs>` overrides [`STARTUP_WITHIN`], read at
+/// each spawn, by the handshake knob's one rule (`parse_within`). The
+/// test isolation list widens it, so a starved runner cannot read a
+/// healthy daemon as one that never bound; zero forces the expiry, since
+/// a bind is in time only if it is seen before the deadline.
+fn startup_within() -> Duration {
+    std::env::var("ACQ_STARTUP_WITHIN")
+        .ok()
+        .map_or(STARTUP_WITHIN, |v| parse_within(&v, STARTUP_WITHIN))
+}
+
+/// C137: the startup deadline of a daemon a door spawned — how long it
+/// was given, and the instant that ends. Polling past `until` finds
+/// nothing in time.
+#[derive(Clone, Copy)]
+struct Startup {
+    within: Duration,
+    until: tokio::time::Instant,
+}
+
+impl Startup {
+    /// A deadline of `within`, from now.
+    fn begin(within: Duration) -> Startup {
+        Startup {
+            within,
+            until: tokio::time::Instant::now() + within,
+        }
+    }
+
+    /// Whether the deadline has passed: at zero, at once.
+    fn expired(&self) -> bool {
+        tokio::time::Instant::now() >= self.until
+    }
+}
 
 /// What connecting to a world's socket found.
 enum Reached {
@@ -1139,19 +1177,24 @@ impl Client {
     /// construction — rather than the one the environment names now. The
     /// daemon it spawns is told that root, whatever the environment says.
     pub async fn connect_at(root: &Path, opts: ConnectOptions) -> Result<Client, ConnectError> {
-        Client::open_door(root, opts, STARTUP_POLLS, None).await
+        Client::open_door(root, opts, None).await
     }
 
-    /// [`Client::connect_at`]'s body, with its two seams: `polls`, the
-    /// startup polling budget, and `child`, a daemon this door already
-    /// spawned. The door passes [`STARTUP_POLLS`] and none; the pin of
-    /// the last poll passes one poll and a child that has exited.
+    /// [`Client::connect_at`]'s body, with its seam: `child`, a daemon
+    /// this door already spawned, with its startup deadline. The door
+    /// passes none; the pin of the last poll passes a child that has
+    /// exited and a deadline already past.
     async fn open_door(
         root: &Path,
         opts: ConnectOptions,
-        polls: u32,
-        mut child: Option<Spawned>,
+        child: Option<(Spawned, Startup)>,
     ) -> Result<Client, ConnectError> {
+        // C137: the startup deadline of the child this door waits on,
+        // from `ACQ_STARTUP_WITHIN` read at the spawn.
+        let (mut child, mut startup) = match child {
+            Some((spawned, startup)) => (Some(spawned), Some(startup)),
+            None => (None, None),
+        };
         // `ACQ_NO_SPAWN=1`: never start or replace a daemon from this
         // process. A daemon spawned from a non-interactive parent (cron,
         // launchd) has no keychain access on macOS — it comes up with no
@@ -1181,13 +1224,10 @@ impl Client {
         // are its refusal (its stderr goes to null — the log is all there is).
         // Dropped, it is reaped (C147, `Spawned`'s drop).
         // C147: a winner the look found, carried straight into the
-        // handshake on the next turn, spending no startup poll: a found
-        // winner is identified whatever the polling budget has left.
+        // handshake on the next turn, never judged against the startup
+        // deadline: a found winner is identified whatever that deadline
+        // has left.
         let mut found: Option<(PathBuf, Stream)> = None;
-        // The startup polls spent: a turn that found nothing listening
-        // while this door waits for its daemon to bind. Only that turn
-        // spends one; a handshake turn returns or replaces once.
-        let mut polled = 0;
         loop {
             let reached = match found.take() {
                 Some((socket, stream)) => Ok(Reached::Listening { socket, stream }),
@@ -1276,6 +1316,7 @@ impl Client {
                                 });
                             };
                             child = Some(spawn_daemon(world)?);
+                            startup.get_or_insert_with(|| Startup::begin(startup_within()));
                         }
                         Some(spawned) => {
                             // An exited daemon will never bind the socket:
@@ -1316,8 +1357,10 @@ impl Client {
                             }
                         }
                     }
-                    polled += 1;
-                    if polled >= polls {
+                    // Only a turn that found nothing listening reads
+                    // the deadline; a handshake turn returns or
+                    // replaces once.
+                    if startup.is_none_or(|s| s.expired()) {
                         break;
                     }
                     tokio::time::sleep(Duration::from_millis(50)).await;
@@ -1346,16 +1389,17 @@ impl Client {
             .ok()
             .flatten()
             .map_or_else(|| "its socket".to_string(), |p| p.display().to_string());
+        let within = startup.map_or(STARTUP_WITHIN, |s| s.within).as_secs();
         Err(match child {
             Some(spawned) => ConnectError::SpawnFailed {
                 log: format!(
-                    "it did not bind {socket} within 5s{}",
+                    "it did not bind {socket} within {within}s{}",
                     startup_log_excerpt(&spawned)
                 ),
                 acqd: Some(spawned.acqd.clone()),
             },
             None => ConnectError::Transport(anyhow::anyhow!(
-                "could not reach daemon at {socket} after 5s"
+                "could not reach daemon at {socket} after {within}s"
             )),
         })
     }
@@ -1862,21 +1906,24 @@ fn startup_log_excerpt(spawned: &Spawned) -> String {
 
 #[cfg(test)]
 mod tests {
-    /// C137: the knob names only a deadline the handshake can hold. Over
-    /// the bound, `u64::MAX` (which overflowed the deadline's `Instant`
-    /// addition) and garbage keep the default; zero stays zero, the
-    /// forced expiry; the bound itself is honoured.
+    /// C137: a deadline knob names only a deadline it can hold — the
+    /// handshake's and the startup's, one rule. Over the bound, `u64::MAX`
+    /// (which overflowed the deadline's `Instant` addition) and garbage
+    /// keep the default; zero stays zero, the forced expiry; the bound
+    /// itself is honoured.
     #[test]
     fn c137_the_hello_deadline_keeps_the_default_for_a_value_it_cannot_hold() {
-        assert_eq!(parse_hello_within("2147484"), HELLO_WITHIN);
-        assert_eq!(parse_hello_within(&u64::MAX.to_string()), HELLO_WITHIN);
-        assert_eq!(parse_hello_within("0"), Duration::ZERO);
-        assert_eq!(parse_hello_within("five"), HELLO_WITHIN);
-        assert_eq!(parse_hello_within("-1"), HELLO_WITHIN);
-        assert_eq!(
-            parse_hello_within(" 2147483 "),
-            Duration::from_secs(MAX_WITHIN_SECS)
-        );
+        for default in [HELLO_WITHIN, STARTUP_WITHIN] {
+            assert_eq!(parse_within("2147484", default), default);
+            assert_eq!(parse_within(&u64::MAX.to_string(), default), default);
+            assert_eq!(parse_within("0", default), Duration::ZERO);
+            assert_eq!(parse_within("five", default), default);
+            assert_eq!(parse_within("-1", default), default);
+            assert_eq!(
+                parse_within(" 2147483 ", default),
+                Duration::from_secs(MAX_WITHIN_SECS)
+            );
+        }
         // The bound's deadline is one an `Instant` can carry.
         assert!(
             tokio::time::Instant::now()
@@ -1920,10 +1967,10 @@ mod tests {
 
     /// C147, a found winner reaches the handshake: a child this door
     /// spawned has exited on the world lock another pid holds, and its
-    /// exit is seen on the door's last startup poll (the budget forced to
-    /// one). The look finds the winner — a scripted peer of another
-    /// contract, bound only once the look has begun — and the door
-    /// handshakes it rather than running out of polls: its answer names
+    /// exit is seen on the door's last startup poll (its startup deadline
+    /// already past). The look finds the winner — a scripted peer of
+    /// another contract, bound only once the look has begun — and the
+    /// door handshakes it rather than running out of time: its answer names
     /// the winner (an autonomous door never replaces it), not a transport
     /// failure. Every step waits on a signal or a state, and the look's
     /// and the handshake's deadline is the knob at its largest (C137).
@@ -1981,7 +2028,11 @@ mod tests {
             (listener, write)
         };
         let (door, _winner) = tokio::join!(
-            Client::open_door(&root, ConnectOptions::autonomous(true), 1, Some(spawned)),
+            Client::open_door(
+                &root,
+                ConnectOptions::autonomous(true),
+                Some((spawned, Startup::begin(Duration::ZERO)))
+            ),
             winner
         );
         match door {

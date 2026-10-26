@@ -693,15 +693,18 @@ fn unreaped_daemons() -> Vec<String> {
 /// table, the child gone from it; the winner's start is the test's own
 /// act after both. The look's bound is the handshake's knob at its
 /// largest, not the isolation list's sixty seconds, so however long a
-/// starved runner takes to start the winner, the look outlasts it; a
-/// door that never answers is ended by the runner's hang bound
-/// (nextest's profile), not by an assertion on time.
+/// starved runner takes to start the winner, the look outlasts it; and
+/// the startup deadline is its knob at its largest too, so however long
+/// the loser takes to reach the lock and exit, the door is still
+/// waiting on it. A door that never answers is ended by the runner's
+/// hang bound (nextest's profile), not by an assertion on time.
 #[cfg(unix)]
 #[tokio::test]
 async fn c147_a_spawn_race_is_won_however_late_the_winner_starts() {
     let s = session("lost-race");
     harness::link_beside_this_test(&acqd_built());
     s.set_knob("ACQ_HELLO_WITHIN", Some(LONGEST_WITHIN));
+    s.set_knob("ACQ_STARTUP_WITHIN", Some(LONGEST_WITHIN));
     let world = World::observe().expect("the session's world");
     let log = session_log();
     let held = Lock::acquire(&world.lock_path()).expect("the world lock");
@@ -739,8 +742,9 @@ async fn c147_a_spawn_race_is_won_however_late_the_winner_starts() {
     winner.0.wait().expect("the winner's exit");
 }
 
-/// The handshake's knob at its largest (C137): a look or a handshake
-/// under it outlasts any runner, so the hang bound is the runner's.
+/// A deadline knob at its largest (C137): a look, a handshake or a
+/// startup under it outlasts any runner, so the hang bound is the
+/// runner's.
 #[cfg(unix)]
 const LONGEST_WITHIN: &str = "2147483";
 
@@ -769,6 +773,52 @@ async fn c147_a_spawn_that_lost_the_world_lock_and_finds_no_winner_fails_naming_
         )) && text.contains("another daemon holds this world"),
         "{text}"
     );
+}
+
+/// C137, the startup deadline at zero (`ACQ_STARTUP_WITHIN=0`): a use
+/// door that spawned a daemon reports the spawn failed, naming zero
+/// seconds, at its first look after the spawn, whatever the daemon is
+/// doing — a bind is in time only if it is seen before the deadline. The
+/// world lock is held, so the daemon the door spawned exits on it rather
+/// than running on, and the test waits for its refusal in the log, a
+/// state, before letting the lock go. The same door under the isolation
+/// list's deadline then opens on the daemon it spawns, so the failure
+/// was the deadline's. No wall-clock bound is asserted.
+#[tokio::test]
+async fn c137_the_startup_deadline_at_zero_fails_the_spawn_whatever_the_daemon_does() {
+    let s = session("startup-zero");
+    harness::link_beside_this_test(&acqd_built());
+    let world = World::observe().expect("the session's world");
+    let log = session_log();
+    let held = Lock::acquire(&world.lock_path()).expect("the world lock");
+    s.set_knob("ACQ_STARTUP_WITHIN", Some("0"));
+    let err = match Client::connect(ConnectOptions::interactive(true)).await {
+        Err(e) => e,
+        Ok(client) => panic!("a door opened on {}", client.daemon()),
+    };
+    assert!(matches!(err, ConnectError::SpawnFailed { .. }), "{err:?}");
+    let text = err.to_string();
+    assert!(
+        text.contains("did not bind") && text.contains("within 0s"),
+        "the effective deadline, not the default: {text}"
+    );
+    // The spawned daemon's exit on the lock, waited as a state.
+    while !std::fs::read_to_string(&log)
+        .unwrap_or_default()
+        .contains("another daemon holds this world")
+    {
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    drop(held);
+
+    // The same door, the deadline the isolation list sets: it opens.
+    s.set_knob("ACQ_STARTUP_WITHIN", Some("60"));
+    let client = Client::connect(ConnectOptions::interactive(true))
+        .await
+        .unwrap_or_else(|e| panic!("the door reported {e} under the list's deadline"));
+    assert!(client.spawned(), "the door started the daemon");
+    drop(client);
+    Client::stop_any().await.expect("stop").expect("a daemon");
 }
 
 /// C147, a failed stop is reported: a daemon of another contract on this
@@ -824,12 +874,17 @@ async fn c147_a_stop_that_fails_on_the_replace_path_is_reported() {
 /// the test then waits on the reaper's wait, seen in the process table
 /// (the pid gone from it), and on no clock (C137): a reaper that never
 /// waits leaves the pid in state Z, and the runner's hang bound
-/// (nextest's profile) ends the test, the state it last saw printed.
+/// (nextest's profile) ends the test, the state it last saw printed. The
+/// door's startup and handshake deadlines are their knobs at their
+/// largest, so a daemon slow to bind or to answer on a starved runner
+/// is waited for, not failed.
 #[cfg(unix)]
 #[tokio::test]
 async fn c147_a_daemon_the_door_spawned_is_reaped_when_it_exits() {
-    let _s = session("reaped");
+    let s = session("reaped");
     harness::link_beside_this_test(&acqd_built());
+    s.set_knob("ACQ_HELLO_WITHIN", Some(LONGEST_WITHIN));
+    s.set_knob("ACQ_STARTUP_WITHIN", Some(LONGEST_WITHIN));
     let client = Client::connect(ConnectOptions::interactive(true))
         .await
         .unwrap_or_else(|e| panic!("{e}"));
