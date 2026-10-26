@@ -338,15 +338,28 @@ pub fn list(
         covered_by: covered_by.clone(),
         limit: args.limit,
     };
-    r.list_view(filter).ok_or_else(|| {
-        let missing = [&location, &covered_by]
-            .into_iter()
-            .flatten()
-            .find(|t| r.find(t).is_none())
-            .cloned()
-            .unwrap_or(PriceTarget::Item { id: "?".into() });
-        not_on_record(store, &r, &missing, None)
-    })
+    match r.list_view(filter) {
+        Some(view) => Ok(view),
+        None => {
+            let missing = [&location, &covered_by]
+                .into_iter()
+                .flatten()
+                .find(|t| r.find(t).is_none())
+                .cloned()
+                .unwrap_or(PriceTarget::Item { id: "?".into() });
+            // a container with a row of its own is refused as `show`
+            // refuses it, naming the command that prints the row
+            // (`7571a570`; issue #11, C146)
+            let (scope, key) = missing.address()?;
+            let own = annotations.get(scope, &key, BUYOUT_KIND)?;
+            Err(not_on_record(
+                store,
+                &r,
+                &missing,
+                own.map(|row| row.revision),
+            ))
+        }
+    }
 }
 
 /// The value words `set` takes: the type word — or the game's own

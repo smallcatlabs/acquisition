@@ -53,7 +53,7 @@
 //! routes  (--routes prints all; one shown)
 //!   term 3 failed, over the scope:
 //!     acq search --account A --realm pc 'line("# to maximum Life") -line("# to maximum Life" arg1>=90)'
-//! basis   store 3f9a1c0be27d · snapshot 41 · intent 12 · totals v1 · classes v3
+//! basis   store 3f9a1c0be27d · snapshot 41 · prices and policy revision 12 · totals v1 · classes v3
 //! ```
 //!
 //! The two undecided items say why and what might help: r5 — *class: base

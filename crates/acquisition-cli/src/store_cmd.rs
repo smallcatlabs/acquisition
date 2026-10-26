@@ -480,51 +480,67 @@ pub fn status(cx: &Ctx, json: bool) -> Result<()> {
     if json {
         println!("{}", serde_json::to_string_pretty(&st)?);
     } else {
-        println!("{}  ({:.1} MB)", st.path, st.bytes as f64 / 1e6);
-        // the counts say what they count: `leagues 0` beside tabs in seven
-        // leagues, and 3,444 tabs beside `tabs`'s 3,347 in one, read as a
-        // contradiction (the trade seat: cli-opus calls 3, 5, its fault 7;
-        // mcp-opus call 5)
-        println!(
-            "responses {}  league list {}  characters {}  tabs {} (every realm and league)  items {} (+{} removed)  events {}",
-            st.responses,
-            match st.league_list.as_str() {
-                "never fetched" => "never fetched (`acq leagues`)".to_string(),
-                _ => format!("{} leagues", st.leagues),
-            },
-            st.characters,
-            st.tabs,
-            st.items,
-            st.items_removed,
-            st.events
-        );
-        if st.withheld_responses > 0 {
-            println!(
-                "withheld: {} response(s) fetched for locations a listing had retired, {} item fact(s) kept on their response rows and landed nowhere",
-                st.withheld_responses, st.withheld_items
-            );
-        }
-        if st.unlifted_items > 0 {
-            // The drift tripwire: an item array the store does not lift.
-            println!(
-                "drift: {} item-shaped object(s) in character arrays this build does not lift (see `_unlifted` in the responses)",
-                st.unlifted_items
-            );
-        }
-        if st.granted_skills > 0 {
-            println!(
-                "granted: {} item-granted skill(s) left in place on live characters (PoE2; `_granted` in the character json, never rows)",
-                st.granted_skills
-            );
-        }
-        if st.refused_bodies > 0 {
-            println!(
-                "refused: {} body(ies) the store would not ingest, kept verbatim as evidence (`acq store refused`)",
-                st.refused_bodies
-            );
-        }
+        print!("{}", status_text(&st));
     }
     Ok(())
+}
+
+fn counted(n: i64, one: &str, many: &str) -> String {
+    format!("{n} {}", if n == 1 { one } else { many })
+}
+
+/// `store status`'s text. Each count beyond the first line says what it
+/// counted, where it came from and what the reader can do next (C146, a
+/// count says what it counts): `withheld`, `unlifted` and `granted` named
+/// mechanisms that four seats never resolved (the release seat's
+/// debriefs, answer 8: cli-opus calls 3 and 78, cli-opus-2 call 75,
+/// mcp-opus and mcp-opus-2 call 3).
+fn status_text(st: &acquisition_store::Status) -> String {
+    let mut out = format!("{}  ({:.1} MB)\n", st.path, st.bytes as f64 / 1e6);
+    // the counts say what they count: `leagues 0` beside tabs in seven
+    // leagues, and 3,444 tabs beside `tabs`'s 3,347 in one, read as a
+    // contradiction (the trade seat: cli-opus calls 3, 5, its fault 7;
+    // mcp-opus call 5)
+    out.push_str(&format!(
+        "responses {}  league list {}  characters {}  tabs {} (every realm and league)  items {} (+{} removed)  events {}\n",
+        st.responses,
+        match st.league_list.as_str() {
+            "never fetched" => "never fetched (`acq leagues`)".to_string(),
+            _ => format!("{} leagues", st.leagues),
+        },
+        st.characters,
+        st.tabs,
+        st.items,
+        st.items_removed,
+        st.events
+    ));
+    if st.withheld_responses > 0 {
+        out.push_str(&format!(
+            "withheld: {} of tabs or characters the latest list no longer named, carrying {}: kept as evidence, in no search or count; nothing to do unless a list names the place again\n",
+            counted(st.withheld_responses, "fetch", "fetches"),
+            counted(st.withheld_items, "item", "items"),
+        ));
+    }
+    if st.unlifted_items > 0 {
+        // The drift tripwire: an item array the store does not lift.
+        out.push_str(&format!(
+            "drift: {} in characters' data under a key this build does not read as items, so no search counts them: GGG added a kind of item list, which a newer acq reads (kept as `_unlifted` in the stored responses)\n",
+            counted(st.unlifted_items, "item-shaped object", "item-shaped objects"),
+        ));
+    }
+    if st.granted_skills > 0 {
+        out.push_str(&format!(
+            "granted: {} that PoE2 characters' items grant, kept with their characters and not counted as items (they have no id of their own); nothing to do\n",
+            counted(st.granted_skills, "skill", "skills"),
+        ));
+    }
+    if st.refused_bodies > 0 {
+        out.push_str(&format!(
+            "refused: {} the store would not ingest, kept verbatim as evidence (`acq store refused`)\n",
+            counted(st.refused_bodies, "body", "bodies"),
+        ));
+    }
+    out
 }
 
 /// Bodies the store refused as malformed: the list, or one body in full.
@@ -896,6 +912,49 @@ mod tests {
             to_location: to.map(str::to_string),
             name: None,
             type_line: None,
+        }
+    }
+
+    /// C146 — a count says what it counts: each of `store status`'s
+    /// lines past the first names what it counted, where it came from and
+    /// what to do, in words; the JSON's field names stay the contract.
+    #[test]
+    fn c146_store_status_lines_say_what_they_count() {
+        let st = acquisition_store::Status {
+            path: "/s/a.db".into(),
+            bytes: 100_000,
+            responses: 5,
+            leagues: 0,
+            league_list: "never fetched".into(),
+            characters: 2,
+            tabs: 3,
+            items: 9,
+            items_removed: 0,
+            events: 9,
+            unlifted_items: 2,
+            withheld_responses: 1,
+            withheld_items: 4,
+            refused_bodies: 1,
+            granted_skills: 8,
+            last_event: 9,
+        };
+        let text = status_text(&st);
+        for line in [
+            "withheld: 1 fetch of tabs or characters the latest list no longer named, carrying 4 items: kept as evidence, in no search or count; nothing to do unless a list names the place again\n",
+            "drift: 2 item-shaped objects in characters' data under a key this build does not read as items, so no search counts them: GGG added a kind of item list, which a newer acq reads (kept as `_unlifted` in the stored responses)\n",
+            "granted: 8 skills that PoE2 characters' items grant, kept with their characters and not counted as items (they have no id of their own); nothing to do\n",
+            "refused: 1 body the store would not ingest, kept verbatim as evidence (`acq store refused`)\n",
+        ] {
+            assert!(text.contains(line), "{text}");
+        }
+        let json = serde_json::to_value(&st).unwrap();
+        for field in [
+            "unlifted_items",
+            "withheld_responses",
+            "withheld_items",
+            "granted_skills",
+        ] {
+            assert!(json.get(field).is_some(), "{field}: {json}");
         }
     }
 

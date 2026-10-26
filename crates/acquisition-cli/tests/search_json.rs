@@ -1151,7 +1151,10 @@ fn oq6_a_price_set_by_hand_is_found_shown_and_named_in_the_basis() {
     let mut t = Transcript::offline(&base);
     t.run(
         &["search", "--realm", "pc", "has:priced"],
-        &["price 12.5 chaos · price.side manual", "· intent 1 ·"],
+        &[
+            "price 12.5 chaos · price.side manual",
+            "· prices and policy revision 1 ·",
+        ],
     );
     t.run(
         &["show", "r1"],

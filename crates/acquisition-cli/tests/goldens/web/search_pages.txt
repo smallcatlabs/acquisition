@@ -221,7 +221,7 @@ GET search?<the ring search>
 trade   from the query JSON: exact — every clause with a stash meaning ran as the site reads it
         over      the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours
 query   league=Standard category=&quot;accessory.ring&quot; sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (oldest <age> ago, newest <age> ago)
+scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row&#39;s place says when its own was)
         0 locations never fetched · location list seen <age> ago
 total   2 matches
 </pre>
@@ -238,7 +238,7 @@ terms   each term counted alone over all live pc items in all leagues, never ove
 routes  each returns exactly the members counted (5 more: --routes)
   term 1 undecided (1), over the scope:
     acq search --account &#39;Alice#1234&#39; --realm pc &#39;undecided(category=&quot;accessory.ring&quot;)&#39;
-basis   store <store> · build <build> · snapshot 7 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </pre>
 <form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">league=Standard category=&quot;accessory.ring&quot; sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70</textarea><button type="submit">Run this query</button></form>
 
@@ -254,7 +254,7 @@ GET search?<an edited text>
 <p class="count">1 match</p>
 <pre>
 query   class:rings line(&quot;# to maximum Life&quot; arg1&gt;=90)
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (oldest <age> ago, newest <age> ago)
+scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row&#39;s place says when its own was)
         0 locations never fetched · location list seen <age> ago
 total   1 match
 </pre>
@@ -272,7 +272,7 @@ routes  each returns exactly the members counted (5 more: --routes)
     acq search --account &#39;Alice#1234&#39; --realm pc &#39;undecided(class:rings)&#39;
   term 1 only together (1), over the scope:
     acq search --account &#39;Alice#1234&#39; --realm pc &#39;line(&quot;# to maximum Life&quot;) -line(&quot;# to maximum Life&quot; arg1&gt;=90) sum(line(&quot;# to maximum Life&quot;).arg1)&gt;=90&#39;
-basis   store <store> · build <build> · snapshot 7 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </pre>
 <form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">class:rings line(&quot;# to maximum Life&quot; arg1&gt;=90)</textarea><button type="submit">Run this query</button></form>
 
@@ -289,7 +289,7 @@ GET search?<the league counted by rarity>
 trade   from the query JSON: exact — every clause with a stash meaning ran as the site reads it
         over      the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours
 query   league=Standard
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (oldest <age> ago, newest <age> ago)
+scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row&#39;s place says when its own was)
         0 locations never fetched · location list seen <age> ago
 total   5 matches
 </pre>
@@ -300,7 +300,7 @@ count   rarity · 2 values
 terms   each term counted alone over all live pc items in all leagues, never over the matches
   0    league=Standard  5 matched
 routes  each returns exactly the members counted (3 more: --routes)
-basis   store <store> · build <build> · snapshot 7 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </pre>
 <form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">league=Standard</textarea><button type="submit">Run this query</button></form>
 
@@ -339,7 +339,7 @@ shown   Item Level: 84
 lines   explicit              +95 to maximum Life
                               &quot;# to maximum Life&quot;   arg1 95
 unread  nothing
-basis   store <store> · build <build> · snapshot 7 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </pre>
 
 </main>

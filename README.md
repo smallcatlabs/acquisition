@@ -203,8 +203,8 @@ them.
   store; `auth`, `jobs`, `status`, `cancel` and `daemon` talk to it
   too. The store, search, pricing and shop verbs read the store without
   one and see only what was fetched. Your own writes are offline as
-  well: `price set` and `policy set` write intent beside the facts,
-  and `store import` replays a snapshot of facts.
+  well: `price set` and `policy set` write your prices and policy
+  beside the facts, and `store import` replays a snapshot of facts.
 - **Standard unless you name a league.** `stashes`, `stash`,
   `refresh --plan`, `refresh --apply`, `refresh --tabs`, `tabs`,
   `price status` and `shop render` read or fetch Standard without

@@ -279,22 +279,40 @@ fn render_status(r: &ListingReport, now: i64, expand: bool, account: &str) -> St
             String::new()
         }
     ));
+    // Each count says what it counts (C146, a count says what it counts):
+    // the hand side is the sum of its three relations, written out, since
+    // "89 by hand" beside "39 decided by hand" read as a contradiction (the
+    // release seat: cli-opus-2 call 55, mcp-opus-2 call 21).
     out.push_str(&format!(
-        "sides: {game_priced} priced in game, {by_hand} by hand; {} agree, {} conflict\n",
+        "sides: {by_hand} priced by hand ({} by hand alone, {} agree with the game's price, {} conflict with it); {game_priced} priced in game\n",
+        count_of(r, Relation::ManualOnly),
         count_of(r, Relation::Agree),
         count_of(r, Relation::Conflict),
     ));
+    // `residue` named a mechanism; the line names the places and what
+    // lets the text count (the release seat: cli-opus call 49, mcp-opus
+    // call 19, mcp-sonnet call 20)
     if c.residue > 0 {
         out.push_str(&format!(
-            "{} items carry price text the index cannot see (a note on a character, a name on a non-public tab): shown, not a side\n",
-            c.residue
+            "{}: a note on a character's item, or a note or tab name in a tab that is not public; it decides no price until the tab is made public in the game, and `acq price show item/<id>` shows one item's text\n",
+            plural(
+                c.residue,
+                "item carries price text the trade site cannot see",
+                "items carry price text the trade site cannot see"
+            )
         ));
     }
     let skipped = reading_count(r, "skip");
     let invalid = c.invalid_notes;
     if skipped + invalid > 0 {
         out.push_str(&format!(
-            "in game also: {skipped} skipped (~skip), {invalid} invalid notes (no effect; the tab applies)\n"
+            "in game also: {} (~skip), {} (no effect: the tab's name applies)\n",
+            plural(skipped, "item skipped", "items skipped"),
+            plural(
+                invalid,
+                "note starts like a price and does not read as one",
+                "notes start like a price and do not read as one"
+            ),
         ));
     }
     if c.league_unknown > 0 {
@@ -683,7 +701,7 @@ fn render_show(view: &ShowView, now: i64, expand: bool) -> String {
         None => "",
     };
     let residue = if g.residue {
-        " (price text the index cannot see: shown, not a side)"
+        " (price text the trade site cannot see, in a tab that is not public or on a character: it decides nothing)"
     } else {
         ""
     };
@@ -1115,11 +1133,11 @@ mod tests {
         );
         assert_eq!(
             lines[1],
-            "sides: 12 priced in game, 1 by hand; 0 agree, 1 conflict"
+            "sides: 1 priced by hand (0 by hand alone, 0 agree with the game's price, 1 conflict with it); 12 priced in game"
         );
         assert_eq!(
             lines[2],
-            "3 items carry price text the index cannot see (a note on a character, a name on a non-public tab): shown, not a side"
+            "3 items carry price text the trade site cannot see: a note on a character's item, or a note or tab name in a tab that is not public; it decides no price until the tab is made public in the game, and `acq price show item/<id>` shows one item's text"
         );
         assert_eq!(
             lines[3],
@@ -1304,7 +1322,7 @@ mod tests {
         let l = show(PriceTarget::Item { id: "i-sub".into() });
         let text = render_show(&l, 8_000, false);
         assert!(
-            text.contains("in game: none (price text the index cannot see: shown, not a side)\n  tab m1 \"~price 1 divine (Remove-only)\" reads 1 divine, not public\n  substash \"1 (Remove-only)\" (its parent's name and public are read)\n"),
+            text.contains("in game: none (price text the trade site cannot see, in a tab that is not public or on a character: it decides nothing)\n  tab m1 \"~price 1 divine (Remove-only)\" reads 1 divine, not public\n  substash \"1 (Remove-only)\" (its parent's name and public are read)\n"),
             "{text}"
         );
         assert!(

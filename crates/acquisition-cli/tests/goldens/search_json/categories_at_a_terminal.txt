@@ -5,7 +5,7 @@ $ acq search '(category=armour or category=accessory) (reqlevel=..30 or -has:req
 # holds "categories v1 · beast colours v1"
 --- stdout
 query   (category=armour or category=accessory) (reqlevel=..30 or -has:reqlevel) (line(template:resistance) or line(template:life) or line(template:damage))
-scope   account Alice#1234 · pc · live · 10 items · 3 locations fetched (oldest <age> ago, newest <age> ago)
+scope   account Alice#1234 · pc · live · 10 items · 3 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
         0 locations never fetched · location list seen <age> ago
 total   5 matches
 rows    Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
@@ -38,7 +38,7 @@ routes  each returns exactly the members counted (13 more: --routes)
     acq search --account 'Alice#1234' --realm pc 'undecided(line(template:resistance))'
   term 2.2 undecided (1), over the scope:
     acq search --account 'Alice#1234' --realm pc 'undecided(line(template:damage))'
-basis   store <store> · build <build> · snapshot 5 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 5 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq show crab
 # holds "open monster.yellowbeast, monster.redbeast:"
@@ -53,7 +53,7 @@ category monster.beast
 price   none (nothing applies) · why: acq price show --account u-search --realm pc item/crab
 is      identified
 unread  nothing
-basis   store <store> · build <build> · snapshot 5 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 5 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq show hellion
 # holds "category monster.yellowbeast"
@@ -67,7 +67,7 @@ category monster.yellowbeast
 price   none (nothing applies) · why: acq price show --account u-search --realm pc item/hellion
 is      identified
 unread  nothing
-basis   store <store> · build <build> · snapshot 5 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 5 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq show fire
 # holds "category gem.activegem"
@@ -83,13 +83,13 @@ is      identified
 lines   explicit              Deals 9 to 14 Fire Damage
                               "Deals # to # Fire Damage"   low 9 · high 14 · avg 11.5 · arg1 9 · arg2 14
 unread  nothing
-basis   store <store> · build <build> · snapshot 5 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 5 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq search --count category --routes
 # holds "count   category · 7 values"
 --- stdout
 query   (every item in scope)
-scope   account Alice#1234 · pc · live · 10 items · 3 locations fetched (oldest <age> ago, newest <age> ago)
+scope   account Alice#1234 · pc · live · 10 items · 3 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
         0 locations never fetched · location list seen <age> ago
 total   10 matches
 count   category · 7 values
@@ -115,4 +115,4 @@ routes  each returns exactly the members counted
     acq search --account 'Alice#1234' --realm pc 'category="monster.beast" (-category~"^(monster[.]yellowbeast|monster[.]redbeast)$" or undecided(category~"^(monster[.]yellowbeast|monster[.]redbeast)$"))'
   category monster.yellowbeast (1), over the scope:
     acq search --account 'Alice#1234' --realm pc 'category="monster.yellowbeast"'
-basis   store <store> · build <build> · snapshot 5 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 5 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2

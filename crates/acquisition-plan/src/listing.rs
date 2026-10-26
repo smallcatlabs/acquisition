@@ -509,7 +509,8 @@ pub struct Counts {
     /// `none`) — a statement exists only in a public tab (C81); a note's
     /// raw reading is `invalid_notes` and `residue`.
     pub by_game_statement: BTreeMap<String, usize>,
-    /// Items whose note reads `invalid` (no effect, shown).
+    /// Items whose note starts like a price (`~price`, `~b/o`, `~skip`)
+    /// and does not read as one: no effect, the tab's name applies.
     pub invalid_notes: usize,
     /// Items with a game-side price statement (exact or negotiable);
     /// public by construction.
@@ -525,7 +526,10 @@ pub struct Counts {
     /// Items by the effective price's side: `game`, `manual`, `none`,
     /// `unresolved` (a row that cannot be read could decide).
     pub by_effective: BTreeMap<String, usize>,
-    /// Items whose price text the index cannot see (C81).
+    /// Items carrying price text the trade site cannot see (C81): a note
+    /// on a character's item, or a note or tab name in a tab that is not
+    /// public. It decides no price until the tab is made public; the
+    /// field's name is the contract (C53), its words are these (C146).
     pub residue: usize,
 }
 

@@ -392,7 +392,28 @@ pub struct Page {
     /// Characters, the template included.
     pub chars: usize,
     pub items: usize,
+    /// The tabs the page's links name, each by the `Stash<n>` its links
+    /// write beside the tab's own name, in the order the page first
+    /// names them: a rank alone names no tab a person knows (C146, a
+    /// count says what it counts; the release seat counted links per
+    /// `Stash<n>` by hand: cli-opus call 68, cli-sonnet call 62,
+    /// cli-opus-2 call 68, mcp-opus-2 call 38). Additive to schema 5.
+    #[serde(default)]
+    pub tabs: Vec<PageTab>,
     pub text: String,
+}
+
+/// A tab one page links to.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PageTab {
+    /// As the page's links write it: `Stash57`, the tab's rank among the
+    /// tabs the website lists (T24).
+    pub stash: String,
+    pub tab: PriceTarget,
+    /// The tab's name as GGG gives it.
+    pub name: String,
+    /// The page's links into the tab.
+    pub items: usize,
 }
 
 /// What the render was told about the sync policy (C72): none is set,
@@ -559,6 +580,9 @@ struct Entry {
     /// amount; also the group — equal keys share a spoiler.
     group: (u8, String, Option<Amount>),
     link: String,
+    /// A stash item's `Stash<n>` and its tab's name, for the page's
+    /// tabs ([`PageTab`]); `None` for a character's item.
+    stash: Option<(String, String)>,
     /// The spoiler title; empty for no price.
     title: String,
     /// Basis, for the C72 report.
@@ -675,7 +699,7 @@ fn cell(
     let Some(location) = s.location.clone() else {
         return Err(Cell::NoPosition);
     };
-    let (cell, link, parent) = match &location {
+    let (cell, link, parent, stash) = match &location {
         PriceTarget::Substash { .. } => return Err(Cell::Substash),
         PriceTarget::Character { .. } => {
             let Some(character) = report.find(&location) else {
@@ -691,6 +715,7 @@ fn cell(
                     realm.as_str(),
                     character.subject.name
                 ),
+                None,
                 None,
             )
         }
@@ -721,6 +746,7 @@ fn cell(
                     report.header.league
                 ),
                 parent,
+                Some((format!("Stash{stash_n}"), tab.subject.name.clone())),
             )
         }
     };
@@ -738,6 +764,7 @@ fn cell(
         cell,
         group,
         link,
+        stash,
         title,
         seen_response: l.basis.response,
         seen_at: l.basis.at,
@@ -940,6 +967,17 @@ fn cut_pages(candidates: Vec<Entry>, template: &str, size: usize) -> Cut {
         }
         page.chars += link_chars;
         page.items += 1;
+        if let Some((stash, name)) = &entry.stash {
+            match page.tabs.iter_mut().find(|t| t.tab == entry.location) {
+                Some(t) => t.items += 1,
+                None => page.tabs.push(PageTab {
+                    stash: stash.clone(),
+                    tab: entry.location.clone(),
+                    name: name.clone(),
+                    items: 1,
+                }),
+            }
+        }
         posted.push(Posted {
             target: entry.target.clone(),
             label: entry.label.clone(),
@@ -973,6 +1011,7 @@ fn cut_pages(candidates: Vec<Entry>, template: &str, size: usize) -> Cut {
                 of,
                 chars: text.chars().count(),
                 items: page.items,
+                tabs: page.tabs,
                 text,
             }
         })
@@ -1029,6 +1068,7 @@ struct PageBuild {
     groups: Vec<GroupBuild>,
     chars: usize,
     items: usize,
+    tabs: Vec<PageTab>,
 }
 
 /// The C72 report over the posted entries (module doc).
@@ -1592,6 +1632,20 @@ mod tests {
         assert_eq!(page.chars, page.text.chars().count());
         assert_eq!(page.items, 6);
         assert!(r.posted.iter().all(|p| p.page == 1));
+        // C146 — the page names each `Stash<n>` its links write by the
+        // tab's own name, with its links counted; a character's link
+        // names its character already.
+        let report = report();
+        let tabs: Vec<(&str, usize)> = page
+            .tabs
+            .iter()
+            .map(|t| (t.stash.as_str(), t.items))
+            .collect();
+        assert_eq!(tabs, [("Stash1", 4), ("Stash2", 1)]);
+        for t in &page.tabs {
+            let named = report.find(&t.tab).map(|l| l.subject.name.as_str());
+            assert_eq!(Some(t.name.as_str()), named, "{}", t.stash);
+        }
     }
 
     /// C74 — pages are cut under the size with the template counted, a
@@ -2029,6 +2083,7 @@ mod tests {
                 },
                 group,
                 link: format!("[link #{i}# {text}]"),
+                stash: None,
                 title,
                 seen_response: None,
                 seen_at: None,

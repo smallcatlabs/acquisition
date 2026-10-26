@@ -695,7 +695,8 @@ fn price_set_and_clear_refuse_a_row_this_build_cannot_read_unless_the_revision_i
 /// facts, refuses the target saying it has a row of its own and naming
 /// the command that prints the row — run here as the refusal types it,
 /// with the realm the target carries, since `status` reads pc without
-/// one and counts an xbox row under `other_realm`.
+/// one and counts an xbox row under `other_realm`; `list --in` refuses
+/// such a container the same way.
 #[test]
 fn a_row_on_a_target_the_facts_do_not_hold_is_listed_whole_and_show_says_where() {
     let scratch = harness::scratch("price-orphan");
@@ -767,6 +768,24 @@ fn a_row_on_a_target_the_facts_do_not_hold_is_listed_whole_and_show_says_where()
             "`{command}` printed:\n{text}"
         );
     }
+    // `list` refuses a container with a row of its own as `show` does,
+    // naming the command that prints the row (C146; issue #11).
+    let out = acq(
+        &base,
+        &["price", "list", "--in", "tab/xbox/orphan", "--json"],
+    );
+    assert!(!out.status.success());
+    let said = sole_json(&out)["error"]
+        .as_str()
+        .unwrap_or_default()
+        .to_string();
+    assert!(
+        said.contains("tab/xbox/orphan is not in the facts for xbox/Standard")
+            && said.contains(
+                "it has a price row of its own at revision 1: `acq price status --expand --realm xbox` lists it"
+            ),
+        "{said}"
+    );
     // A target with no row of its own is refused as before.
     let out = acq(&base, &["price", "show", "item/i-nowhere", "--json"]);
     let said = sole_json(&out)["error"]

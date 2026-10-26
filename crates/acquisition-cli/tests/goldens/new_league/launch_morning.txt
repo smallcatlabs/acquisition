@@ -151,13 +151,13 @@ $ acq search --count league
 # holds "  Standard"
 --- stdout
 query   (every item in scope)
-scope   account ExileTester · pc · live · 49 items · 23 locations fetched (oldest <age> ago, newest <age> ago)
+scope   account ExileTester · pc · live · 49 items · 23 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
         0 locations never fetched · location list seen <age> ago
 total   49 matches
 count   league · 1 value
        49  Standard
 routes  each returns exactly the members counted (1 more: --routes)
-basis   store <store> · build <build> · snapshot 28 · facts v9 · intent 2 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 28 · facts v9 · prices and policy revision 2 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq price status --league Rehearsal
 # holds "no items on record for Rehearsal"

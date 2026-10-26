@@ -5,7 +5,7 @@ $ acq search --realm pc rarity=rare --membership all --routes
 # holds "each term counted alone over all live and removed pc items"
 --- stdout
 query   rarity=rare
-scope   account Alice#1234 · pc · all · 4 items live · 1 removed · 2 locations fetched (oldest <age> ago, newest <age> ago)
+scope   account Alice#1234 · pc · all · 4 items live · 1 removed · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
         1 location never fetched: PremiumStash 1 of 3 · location list seen <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
 total   4 matches
             1 location was never fetched: nothing here says what they hold
@@ -24,13 +24,13 @@ routes  each returns exactly the members counted
     acq search --account 'Alice#1234' --realm pc rarity=rare --membership all
   term 0 failed (1), over the scope:
     acq search --account 'Alice#1234' --realm pc 'has:rarity -rarity=rare' --membership all
-basis   store <store> · build <build> · snapshot 5 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 5 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq search --realm pc id:r2
 # holds "id:r2 — it left the scope, as its term says"
 --- stdout
 query   id:r2
-scope   account Alice#1234 · pc · live · 4 items · 2 locations fetched (oldest <age> ago, newest <age> ago)
+scope   account Alice#1234 · pc · live · 4 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
         1 location never fetched: PremiumStash 1 of 3 · location list seen <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
 total   0 matches
             1 location was never fetched: nothing here says what they hold
@@ -43,7 +43,7 @@ terms   each term counted alone over all live pc items in all leagues, never ove
   0    id:r2  0 matched · 4 failed
        this id is an item that left the scope <age> ago: acq search --account 'Alice#1234' --realm pc id:r2 --membership all
 routes  each returns exactly the members counted (1 more: --routes)
-basis   store <store> · build <build> · snapshot 5 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 5 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq show r2
 # holds "removed "
@@ -63,4 +63,4 @@ lines   explicit              +75 to maximum Life
         implicit              +20 to maximum Life
                               "# to maximum Life"   arg1 20
 unread  nothing
-basis   store <store> · build <build> · snapshot 5 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 5 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2

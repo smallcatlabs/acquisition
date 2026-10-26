@@ -499,7 +499,7 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
             ..named(
                 "--sum",
                 "value",
-                "beside each count, one number of each item added: an item lacking it adds nothing and is counted as lacking; one unread leaves a subtotal marked incomplete, never a total",
+                "beside each count, one number of each item added: an item lacking it adds nothing and is counted beside the sum as lacking it, so the sum is over the items that have it; one unread leaves a subtotal marked incomplete, never a total",
             )
         },
     ];

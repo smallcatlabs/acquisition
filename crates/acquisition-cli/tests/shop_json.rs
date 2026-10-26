@@ -199,6 +199,11 @@ fn shop_render_json_is_the_document_the_text_and_the_page_read() {
     assert_eq!(r.pages.len(), 1);
     assert_eq!(r.pages[0].text, page_text);
     assert_eq!(r.pages[0].items, 2);
+    // C146: the page names the tab its `Stash1` links write; the
+    // character's link names its character itself.
+    assert_eq!(r.pages[0].tabs.len(), 1);
+    assert_eq!(r.pages[0].tabs[0].stash, "Stash1");
+    assert_eq!(r.pages[0].tabs[0].name, "~price 3 chaos");
     // C72: the character is outside the policy (tabs only), the folder
     // covers c1; nothing is stale yet; the refresh's count is the plan's.
     assert_eq!(r.freshness.policy, "covers");
@@ -215,7 +220,8 @@ fn shop_render_json_is_the_document_the_text_and_the_page_read() {
     assert!(r.freshness.refresh_requests.is_some());
 
     // The text is a function of the document: the one line, the
-    // coverage line, the page under its label, the next action.
+    // coverage line, the page under its label with its tabs, the next
+    // action.
     let mut t = Transcript::offline(&base);
     let out = t.run(
         &["shop", "render"],
@@ -228,7 +234,7 @@ fn shop_render_json_is_the_document_the_text_and_the_page_read() {
     let text = String::from_utf8_lossy(&out.stdout);
     assert!(
         text.contains(&format!(
-            "page 1 of 1: {} characters, 2 items\n{page_text}\n",
+            "page 1 of 1: {} characters, 2 items\n  Stash1 is the tab \"~price 3 chaos\" (tab/pc/c1): 1 item\n{page_text}\n",
             page_text.chars().count()
         )),
         "{text}"

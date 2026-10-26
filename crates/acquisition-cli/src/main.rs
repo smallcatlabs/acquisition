@@ -638,7 +638,9 @@ enum ShopCmd {
     /// another: the forum has no link form for it); the sync policy's
     /// coverage and freshness are reported, never enforced. A link's
     /// `Stash<n>` is the tab's rank among the tabs the website lists,
-    /// folders and substashes left out, not the API's index.
+    /// folders and substashes left out, not the API's index; under each
+    /// page's label, each `Stash<n>` its links write is named by its
+    /// tab's name.
     Render {
         #[arg(long, default_value = acquisition_plan::DEFAULT_LEAGUE)]
         league: String,

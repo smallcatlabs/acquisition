@@ -21,7 +21,7 @@ shown   Item Level: 84
 lines   explicit              +40 to maximum Life
                               &quot;# to maximum Life&quot;   arg1 40
 unread  nothing
-basis   store <store> · build <build> · snapshot 7 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </pre>
 
 </main>
@@ -46,7 +46,7 @@ shown   Item Level: 84
 lines   wombgift              Grants 3 Echoes of the Brood
                               &quot;Grants # Echoes of the Brood&quot;   arg1 3
 unread  `wombgiftMods[0]`: `flags.echoing` is a string, not yes or no
-basis   store <store> · build <build> · snapshot 7 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </pre>
 
 </main>
@@ -64,7 +64,7 @@ trade   from the query JSON: PARTIAL — 1 clause not run, so this is not the si
         over      the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours
         NOT RUN   stats.0.0  no row of the stat table is `explicit.stat_9999999999`
 query   (every item in scope)
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (oldest <age> ago, newest <age> ago)
+scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row&#39;s place says when its own was)
         0 locations never fetched · location list seen <age> ago
 total   5 matches
 </pre>
@@ -77,7 +77,7 @@ total   5 matches
 <tr><td class="icon"></td><td><a class="name rarity-rare" href="item/new">Brood Lure Wombgift Chalice</a><br><span class="base">Wombgift Chalice</span> <span class="fate">rare</span></td><td></td><td>Standard / Launch · x 0, y 0 · fetched <age> ago</td></tr>
 </table>
 <pre>
-basis   store <store> · build <build> · snapshot 7 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </pre>
 <form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3"></textarea><button type="submit">Run this query</button></form>
 
@@ -94,7 +94,7 @@ GET search?<every ring>
 trade   from the query JSON: exact — every clause with a stash meaning ran as the site reads it
         over      the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours
 query   category=&quot;accessory.ring&quot;
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (oldest <age> ago, newest <age> ago)
+scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row&#39;s place says when its own was)
         0 locations never fetched · location list seen <age> ago
 total   3 matches · 1 undecided
 </pre>
@@ -114,7 +114,7 @@ routes  each returns exactly the members counted (2 more: --routes)
     acq search --account &#39;Alice#1234&#39; --realm pc &#39;undecided(category=&quot;accessory.ring&quot;)&#39;
   term 0 undecided (1), over the scope:
     acq search --account &#39;Alice#1234&#39; --realm pc &#39;undecided(category=&quot;accessory.ring&quot;)&#39;
-basis   store <store> · build <build> · snapshot 7 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 </pre>
 <form class="query-box" method="get" action="search"><input type="hidden" name="realm" value="pc"><label class="filter-title" for="query-text">The query, in the language</label><textarea id="query-text" name="text" rows="3">category=&quot;accessory.ring&quot;</textarea><button type="submit">Run this query</button></form>
 

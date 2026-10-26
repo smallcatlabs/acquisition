@@ -10,7 +10,7 @@ trade   from a URL: PARTIAL — 2 clauses not run, so this is not the site's sea
         NOT RUN   stats.1.0  its group `stats.1` translates whole or not at all, and is unsupported
         reported  status     Online, available or securable is the seller's state, not the item's, so it means nothing in your stash.
 query   league=Standard sum(line("# to maximum Life" source=explicit).arg1)>=70
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (oldest <age> ago, newest <age> ago)
+scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
         1 location never fetched: PremiumStash 1 of 3 · location list seen <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
 total   3 matches
             1 location was never fetched: nothing here says what they hold
@@ -27,4 +27,4 @@ terms   each term counted alone over all live pc items in all leagues, never ove
   0    league=Standard                                          5 matched
   1    sum(line("# to maximum Life" source=explicit).arg1)>=70  3 matched · 2 failed
 routes  each returns exactly the members counted (3 more: --routes)
-basis   store <store> · build <build> · snapshot 4 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 4 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2

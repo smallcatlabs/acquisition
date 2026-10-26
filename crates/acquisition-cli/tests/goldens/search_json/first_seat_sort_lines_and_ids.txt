@@ -4,7 +4,7 @@ $ acq search --realm all is:corrupted
 # holds "over all live items of every realm in all leagues"
 --- stdout
 query   is:corrupted
-scope   account Alice#1234 · all · live · 8 items · 4 locations fetched (oldest <age> ago, newest <age> ago)
+scope   account Alice#1234 · all · live · 8 items · 4 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
         0 locations never fetched · location list seen <age> ago
 total   0 matches
 offers  each part of the query forced true and forced false, the part fewest items match first
@@ -14,26 +14,26 @@ offers  each part of the query forced true and forced false, the part fewest ite
 terms   each term counted alone over all live items of every realm in all leagues, never over the matches
   0    is:corrupted  0 matched · 8 failed
 routes  each returns exactly the members counted (1 more: --routes)
-basis   store <store> · build <build> · snapshot 7 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq search --realm pc --sort ilvl --desc --limit 1
 # holds "sorts by ilvl 84"
 --- stdout
 query   (every item in scope)
-scope   account Alice#1234 · pc · live · 6 items · 3 locations fetched (oldest <age> ago, newest <age> ago)
+scope   account Alice#1234 · pc · live · 6 items · 3 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
         0 locations never fetched · location list seen <age> ago
 total   6 matches
 rows    Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
             sorts by ilvl 84
             id r1
 more    rows 1–1 of 6 shown: acq search --account 'Alice#1234' --next acq1.<token>
-basis   store <store> · build <build> · snapshot 7 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq search --realm pc rarity=rare --sort 'line("# to maximum Life").arg1' --desc --limit 1
 # holds "sorts by line(\"# to maximum Life\").arg1 95 · +95 to maximum Life (explicit)"
 --- stdout
 query   rarity=rare
-scope   account Alice#1234 · pc · live · 6 items · 3 locations fetched (oldest <age> ago, newest <age> ago)
+scope   account Alice#1234 · pc · live · 6 items · 3 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
         0 locations never fetched · location list seen <age> ago
 total   5 matches
 rows    Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
@@ -43,14 +43,14 @@ more    rows 1–1 of 5 shown: acq search --account 'Alice#1234' --next acq1.<to
 terms   each term counted alone over all live pc items in all leagues, never over the matches
   0    rarity=rare  5 matched · 1 failed
 routes  each returns exactly the members counted (2 more: --routes)
-basis   store <store> · build <build> · snapshot 7 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq search --realm pc rarity=rare --sort 'line("# to maximum Life").arg1'
 # holds "sorts last: incomplete at 40 (line(\"# to maximum Life\").arg1)"
 # holds "sorts last: no satisfying occurrence (line(\"# to maximum Life\").arg1)"
 --- stdout
 query   rarity=rare
-scope   account Alice#1234 · pc · live · 6 items · 3 locations fetched (oldest <age> ago, newest <age> ago)
+scope   account Alice#1234 · pc · live · 6 items · 3 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
         0 locations never fetched · location list seen <age> ago
 total   5 matches
 rows    Rune Coil Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
@@ -71,13 +71,13 @@ rows    Rune Coil Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetc
 terms   each term counted alone over all live pc items in all leagues, never over the matches
   0    rarity=rare  5 matched · 1 failed
 routes  each returns exactly the members counted (2 more: --routes)
-basis   store <store> · build <build> · snapshot 7 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq search --realm pc id:r
 # holds "an id is matched whole"
 --- stdout
 query   id:r
-scope   account Alice#1234 · pc · live · 6 items · 3 locations fetched (oldest <age> ago, newest <age> ago)
+scope   account Alice#1234 · pc · live · 6 items · 3 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
         0 locations never fetched · location list seen <age> ago
 total   0 matches
 nothing in scope carries the id of term 0: id:r — an id is matched whole, as an answer printed it: a part of one finds nothing
@@ -88,7 +88,7 @@ offers  each part of the query forced true and forced false, the part fewest ite
 terms   each term counted alone over all live pc items in all leagues, never over the matches
   0    id:r  0 matched · 6 failed
 routes  each returns exactly the members counted (1 more: --routes)
-basis   store <store> · build <build> · snapshot 7 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 7 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq search --realm pc class:staff
 # holds "near it"

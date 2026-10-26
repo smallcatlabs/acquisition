@@ -173,8 +173,9 @@ pub struct SearchArgs {
     pub cross: Option<String>,
     /// Beside each count, the sum of one number over its items: `stack`,
     /// `ilvl`, `'sum("T")'`, `pseudo.total_res`. An item lacking the thing
-    /// adds nothing and is counted as lacking; one unread leaves a
-    /// subtotal marked incomplete.
+    /// adds nothing and is counted beside the sum as lacking it, so the sum
+    /// is over the items that have it; one unread leaves a subtotal marked
+    /// incomplete.
     #[arg(long, value_name = "VALUE")]
     pub sum: Option<String>,
     /// Not built, waiting for a consumer that asks: the caller names a
@@ -597,10 +598,14 @@ fn open_store_and_intent(cx: &Ctx) -> Result<(Store, acquisition_store::Annotati
 
 // ---- text, a function of the JSON ---------------------------------------------------------------
 
-/// The basis line every answer and every `show` prints (C98).
+/// The basis line every answer and every `show` prints (C98). The intent
+/// file's revision is said as what it holds, the hand-written prices and
+/// the sync policy (C146, a count says what it counts), where `intent 33`
+/// read as a count nobody could name (the release seat: cli-opus-2 calls
+/// 34 and 96, mcp-opus call 19).
 fn basis_text(b: &acquisition_search::Basis) -> String {
     format!(
-        "basis   store {} · build {} · snapshot {} · facts v{} · intent {} · derivation {} · classes v{} · categories v{} · beast colours v{} · totals v{} · defences v{} · currency v{} · notes v{}",
+        "basis   store {} · build {} · snapshot {} · facts v{} · prices and policy revision {} · derivation {} · classes v{} · categories v{} · beast colours v{} · totals v{} · defences v{} · currency v{} · notes v{}",
         b.store,
         b.build,
         b.snapshot.response,
@@ -897,8 +902,11 @@ pub(crate) fn answer_head(a: &Answer) -> String {
     );
     if let (Some(oldest), Some(newest)) = (scope.coverage.oldest_fetch, scope.coverage.newest_fetch)
     {
+        // each age is one location's last fetch, and a row's place says
+        // its own (C146: "newest 4d ago" named no location, the release
+        // seat: cli-opus call 35, cli-sonnet call 25, cli-opus-2 call 34)
         first.push_str(&format!(
-            " (oldest {}, newest {})",
+            " (the oldest fetch {}, the newest {}; a row's place says when its own was)",
             ago(now, Some(oldest)),
             ago(now, Some(newest))
         ));
@@ -1497,10 +1505,18 @@ fn label_text(label: &Label, all_realms: bool) -> String {
     out
 }
 
+/// A sum says what it covers (C146, a count says what it counts): with
+/// items lacking the value, the sum is over the items that have it and
+/// the rest are counted beside it, where `sum 0 · 3 lacking` read as a
+/// measured zero over every item.
 fn summed_text(sum: &Summed) -> String {
     let mut out = number(&sum.value);
     if sum.lacking > 0 {
-        out.push_str(&format!(" · {} lacking", sum.lacking));
+        out.push_str(&format!(
+            " over the items that have it · {} {} it, adding nothing",
+            sum.lacking,
+            if sum.lacking == 1 { "lacks" } else { "lack" }
+        ));
     }
     if sum.incomplete {
         out.push_str(&format!(" · incomplete: {} unread", sum.unread));
@@ -2065,4 +2081,31 @@ pub(crate) fn shown_text(s: &Shown) -> String {
         out.push_str(&format!("body    {body}\n"));
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// C146 — a sum with items lacking the value says it is over the
+    /// items that have it and counts the rest beside it, where `sum 0 ·
+    /// 3 lacking` read as a measured zero.
+    #[test]
+    fn c146_a_sum_says_it_covers_the_items_that_have_the_value() {
+        let sum = |lacking| Summed {
+            value: serde_json::json!(0),
+            lacking,
+            incomplete: false,
+            unread: 0,
+        };
+        assert_eq!(summed_text(&sum(0)), "0");
+        assert_eq!(
+            summed_text(&sum(3)),
+            "0 over the items that have it · 3 lack it, adding nothing"
+        );
+        assert_eq!(
+            summed_text(&sum(1)),
+            "0 over the items that have it · 1 lacks it, adding nothing"
+        );
+    }
 }

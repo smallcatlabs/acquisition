@@ -11,4 +11,4 @@ class   Stackable Currency
 category currency
 price   none (nothing applies) · why: acq price show --account u-seat --realm pc item/i-std
 unread  nothing
-basis   store <store> · build <build> · snapshot 5 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 5 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2

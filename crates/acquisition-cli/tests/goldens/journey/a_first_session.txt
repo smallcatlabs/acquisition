@@ -113,7 +113,7 @@ $ acq search 'class=Rings rarity=rare'
 # holds "Empyrean Knot"
 --- stdout
 query   class=Rings rarity=rare
-scope   account ExileTester · pc · live · 49 items · 16 locations fetched (oldest <age> ago, newest <age> ago)
+scope   account ExileTester · pc · live · 49 items · 16 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
         0 locations never fetched · location list seen <age> ago
 total   1 match
 rows    Empyrean Knot Coral Ring · rare · Standard / Dump · x 0, y 0 · fetched <age> ago
@@ -125,7 +125,7 @@ terms   each term counted alone over all live pc items in all leagues, never ove
 routes  each returns exactly the members counted (5 more: --routes)
   term 0 undecided (34), over the scope:
     acq search --account ExileTester --realm pc 'undecided(class=Rings)'
-basis   store <store> · build <build> · snapshot 19 · facts v9 · intent 1 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 19 · facts v9 · prices and policy revision 1 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq search '"+# to maximum Life">=70' --sort pseudo.total_life
 # holds "total   2 matches"
@@ -134,7 +134,7 @@ $ acq search '"+# to maximum Life">=70' --sort pseudo.total_life
 # holds "sorts by pseudo.total_life 108"
 --- stdout
 query   line("# to maximum Life" arg1>=70)
-scope   account ExileTester · pc · live · 49 items · 16 locations fetched (oldest <age> ago, newest <age> ago)
+scope   account ExileTester · pc · live · 49 items · 16 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
         0 locations never fetched · location list seen <age> ago
 total   2 matches
 rows    Doryani's Prototype Saint's Hauberk · unique · Standard / Dump · x 1, y 0 · fetched <age> ago
@@ -146,7 +146,7 @@ rows    Doryani's Prototype Saint's Hauberk · unique · Standard / Dump · x 1,
 terms   each term counted alone over all live pc items in all leagues, never over the matches
   0    line("# to maximum Life" arg1>=70)  2 matched · 47 lacked
 routes  each returns exactly the members counted (2 more: --routes)
-basis   store <store> · build <build> · snapshot 19 · facts v9 · intent 1 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 19 · facts v9 · prices and policy revision 1 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq search 'class="Stackable Currency"' --count base --sum stack
 # holds "total   1 match"
@@ -154,7 +154,7 @@ $ acq search 'class="Stackable Currency"' --count base --sum stack
 # holds "Mirror Shard   sum 7"
 --- stdout
 query   class="Stackable Currency"
-scope   account ExileTester · pc · live · 49 items · 16 locations fetched (oldest <age> ago, newest <age> ago)
+scope   account ExileTester · pc · live · 49 items · 16 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
         0 locations never fetched · location list seen <age> ago
 total   1 match · 34 undecided
 sum     stack over every match: 7
@@ -169,7 +169,7 @@ routes  each returns exactly the members counted (3 more: --routes)
     acq search --account ExileTester --realm pc 'undecided(class="Stackable Currency")'
   term 0 undecided (34), over the scope:
     acq search --account ExileTester --realm pc 'undecided(class="Stackable Currency")'
-basis   store <store> · build <build> · snapshot 19 · facts v9 · intent 1 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 19 · facts v9 · prices and policy revision 1 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq show 51e6c1055b1d94f8c53921012d459ec5d2f4e353f674f4b03192c79375c4c682
 # holds "unread  nothing"
@@ -199,7 +199,7 @@ lines   explicit              +16 to Strength
         implicit              +22 to maximum Life
                               "# to maximum Life"   arg1 22
 unread  nothing
-basis   store <store> · build <build> · snapshot 19 · facts v9 · intent 1 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 19 · facts v9 · prices and policy revision 1 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq price set item/51e6c1055b1d94f8c53921012d459ec5d2f4e353f674f4b03192c79375c4c682 exact 5 chaos
 # holds "item/51e6c1055b1d94f8c53921012d459ec5d2f4e353f674f4b03192c79375c4c682: 5 chaos (revision 1), was unset"
@@ -234,7 +234,7 @@ lines   explicit              +16 to Strength
         implicit              +22 to maximum Life
                               "# to maximum Life"   arg1 22
 unread  nothing
-basis   store <store> · build <build> · snapshot 19 · facts v9 · intent 2 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 19 · facts v9 · prices and policy revision 2 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq shop render
 # holds "1 item to post on 1 page; 1 omitted (1 the game lists)"
@@ -242,6 +242,7 @@ $ acq shop render
 --- stdout
 49 items in Standard: 1 item to post on 1 page; 1 omitted (1 the game lists); 0 blocked; 47 nothing applies
 page 1 of 1: 156 characters, 1 item
+  Stash2 is the tab "Dump" (tab/pc/dump): 1 item
 [spoiler="Shop Post 1 of 1 (1 item)"]
 [spoiler=" ~price 5 chaos"][linkItem realm="pc" location="Stash2" league="Standard" x="0" y="0"][/spoiler]
 [/spoiler]

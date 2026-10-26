@@ -10,6 +10,7 @@ blocked:
   ratio              Chaos Orb                        tab/pc/p1                                item/i-ratio
   substash           Chaos Orb                        substash/pc/m1/s1                        item/i-map
 page 1 of 1: 270 characters, 2 items
+  Stash1 is the tab "~price 3 chaos" (tab/pc/c1): 1 item
 [spoiler="Shop Post 1 of 1 (2 items)"]
 [spoiler=" ~price 12.5 chaos"][linkItem realm="pc" location="Stash1" league="Standard" x="1" y="0"][/spoiler]
 [spoiler=" ~b/o 2 divine"][linkItem realm="pc" location="BodyArmour" character="Exile" x="0" y="0"][/spoiler]

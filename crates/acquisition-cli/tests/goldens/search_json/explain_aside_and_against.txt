@@ -5,7 +5,7 @@ $ acq search --realm pc '"+# to maximum Life">=90' --explain 0.1
 # holds "forced true   4 matches"
 --- stdout
 query   line("# to maximum Life" arg1>=90)
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (oldest <age> ago, newest <age> ago)
+scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
         1 location never fetched: PremiumStash 1 of 3 · location list seen <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
 total   2 matches · 1 undecided
             1 location was never fetched: nothing here says what they hold
@@ -28,14 +28,14 @@ routes  each returns exactly the members counted (3 more: --routes)
     acq search --account 'Alice#1234' --realm pc 'line("# to maximum Life") -line("# to maximum Life" arg1>=90) sum(line("# to maximum Life").arg1)>=90'
   forced true, matched (4), over the scope:
     acq search --account 'Alice#1234' --realm pc 'line("# to maximum Life" true())'
-basis   store <store> · build <build> · snapshot 4 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 4 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq search --realm pc '"+# to maximum Life">=90' --context corpus
 # holds "aside   line(\"# to maximum Life\" arg1>=90) — set aside under --context corpus, counted nowhere"
 --- stdout
 query   (every item in scope)
 aside   line("# to maximum Life" arg1>=90) — set aside under --context corpus, counted nowhere
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (oldest <age> ago, newest <age> ago)
+scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
         1 location never fetched: PremiumStash 1 of 3 · location list seen <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
 total   5 matches
             1 location was never fetched: nothing here says what they hold
@@ -49,7 +49,7 @@ rows    Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetc
             id plain
         Hex Band Two-Stone Ring · rare · Standard / Dump · x 0, y 0 · fetched <age> ago
             id r3
-basis   store <store> · build <build> · snapshot 4 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 4 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq show r2 --against '"+# to maximum Life">=90'
 # holds "0    line(\"# to maximum Life\" arg1>=90)  failed"
@@ -72,7 +72,7 @@ against line("# to maximum Life" arg1>=90)
         no match
   0    line("# to maximum Life" arg1>=90)  failed
             +75 to maximum Life (explicit) · +20 to maximum Life (implicit)
-basis   store <store> · build <build> · snapshot 4 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 4 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq show r3 --against '"+# to maximum Life">=90'
 # holds "implicit lines unread"
@@ -93,13 +93,13 @@ against line("# to maximum Life" arg1>=90)
         undecided
   0    line("# to maximum Life" arg1>=90)  undecided
             term 0 line("# to maximum Life" arg1>=90) is undecided: implicit lines unread — `implicitMods` is a string, not an array; a refresh may help; a body GGG really gives this way needs a build that reads it
-basis   store <store> · build <build> · snapshot 4 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 4 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq search --realm pc 'rarity=rare rarity=unique'
 # holds "--limit 20 --context corpus"
 --- stdout
 query   rarity=rare rarity=unique
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (oldest <age> ago, newest <age> ago)
+scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
         1 location never fetched: PremiumStash 1 of 3 · location list seen <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
 total   0 matches
             1 location was never fetched: nothing here says what they hold
@@ -116,4 +116,4 @@ routes  each returns exactly the members counted (2 more: --routes)
     acq search --account 'Alice#1234' --realm pc rarity=rare
   term 1 matched (1), over the scope:
     acq search --account 'Alice#1234' --realm pc rarity=unique
-basis   store <store> · build <build> · snapshot 4 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 4 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2

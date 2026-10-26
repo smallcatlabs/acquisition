@@ -870,23 +870,26 @@ pub struct Status {
     pub items: i64,
     pub items_removed: i64,
     pub events: i64,
-    /// The drift tripwire's count: item-shaped objects in arrays this
-    /// build does not lift, as of each live character's latest fetch (so
-    /// it clears once a build that lifts them has fetched). Non-zero
-    /// means GGG added an item array the store does not know — a code
-    /// change, not a fault.
+    /// The drift tripwire's count: item-shaped objects in characters'
+    /// data under a key this build does not read as items, as of each
+    /// live character's latest fetch (so it clears once a build that
+    /// reads them has fetched); no search counts them. Non-zero means GGG
+    /// added an item list the store does not know — a code change, not a
+    /// fault. Its words on every surface: C146, a count says what it
+    /// counts.
     pub unlifted_items: i64,
-    /// Responses withheld — fetches of locations a listing had retired,
-    /// their bodies kept on the response row and landed nowhere — and the
-    /// item facts they carried in total (`responses.withheld`).
+    /// Fetches withheld — of tabs or characters the latest list no longer
+    /// named (C29), their bodies kept on the response row as evidence and
+    /// in no search or count — and the items they carried in total
+    /// (`responses.withheld`).
     pub withheld_responses: i64,
     pub withheld_items: i64,
     /// Bodies `record` refused as malformed and kept verbatim in
     /// `refused` — evidence, never facts (`acq store refused`).
     pub refused_bodies: i64,
-    /// Item-granted skills left in place (`_granted`), as of each live
-    /// character's latest fetch — PoE2's id-less gem entries, a property
-    /// of their host, never rows.
+    /// The skills PoE2 characters' items grant (`_granted`), as of each
+    /// live character's latest fetch: entries with no id of their own,
+    /// kept with their character and never counted as items.
     pub granted_skills: i64,
     /// The greatest `item_events.id`, 0 for none: a watermark, so a
     /// later read asks for the events committed after this status was

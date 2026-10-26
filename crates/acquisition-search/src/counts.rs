@@ -276,7 +276,8 @@ pub struct SumOf {
 #[derive(Debug, Clone, Serialize)]
 pub struct Summed {
     pub value: Json,
-    /// Items that lack the thing: they add nothing.
+    /// Items that lack the thing: they add nothing, so `value` is the sum
+    /// over the items that have it (C146, a count says what it counts).
     pub lacking: usize,
     /// A subtotal, never a total: an item's number could not be read.
     #[serde(skip_serializing_if = "std::ops::Not::not")]

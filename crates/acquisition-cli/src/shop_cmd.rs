@@ -297,6 +297,16 @@ fn render_text(r: &ShopRender, now: i64, expand: bool) -> String {
             page.chars,
             plural(page.items, "item", "items")
         ));
+        // each `Stash<n>` the links write, by the tab's own name (C146)
+        for t in &page.tabs {
+            out.push_str(&format!(
+                "  {} is the tab {:?} ({}): {}\n",
+                t.stash,
+                t.name,
+                t.tab,
+                plural(t.items, "item", "items")
+            ));
+        }
         out.push_str(&page.text);
         if !page.text.ends_with('\n') {
             out.push('\n');
@@ -332,8 +342,8 @@ mod tests {
     use acquisition_plan::listing::{ReportHeader, resolve};
     use acquisition_plan::price::PriceTarget;
     use acquisition_plan::shop::{
-        DEFAULT_PAGE_SIZE, Freshness, ITEMS_TOKEN, LeftOut, Page, PolicyRow, PolicySource, Posted,
-        RenderOptions, ShopCounts, render,
+        DEFAULT_PAGE_SIZE, Freshness, ITEMS_TOKEN, LeftOut, Page, PageTab, PolicyRow, PolicySource,
+        Posted, RenderOptions, ShopCounts, render,
     };
     use serde_json::json;
     use std::collections::BTreeMap;
@@ -442,6 +452,12 @@ mod tests {
                     of: 2,
                     chars: 40,
                     items: 2,
+                    tabs: vec![PageTab {
+                        stash: "Stash1".into(),
+                        tab: tab("c1"),
+                        name: "Dump".into(),
+                        items: 2,
+                    }],
                     text: "page one body\n".into(),
                 },
                 Page {
@@ -449,6 +465,12 @@ mod tests {
                     of: 2,
                     chars: 20,
                     items: 1,
+                    tabs: vec![PageTab {
+                        stash: "Stash2".into(),
+                        tab: tab("t2"),
+                        name: "~price 1 chaos".into(),
+                        items: 1,
+                    }],
                     text: "page two body\n".into(),
                 },
             ],
@@ -509,17 +531,26 @@ mod tests {
             "{}",
             lines[6]
         );
+        // C146 — each page names the tabs its `Stash<n>` links write
         assert_eq!(lines[7], "page 1 of 2: 40 characters, 2 items");
-        assert_eq!(lines[8], "page one body");
-        assert_eq!(lines[9], "");
-        assert_eq!(lines[10], "page 2 of 2: 20 characters, 1 item");
-        assert_eq!(lines[11], "page two body");
-        assert_eq!(lines[12], "");
         assert_eq!(
-            lines[13],
+            lines[8],
+            "  Stash1 is the tab \"Dump\" (tab/pc/c1): 2 items"
+        );
+        assert_eq!(lines[9], "page one body");
+        assert_eq!(lines[10], "");
+        assert_eq!(lines[11], "page 2 of 2: 20 characters, 1 item");
+        assert_eq!(
+            lines[12],
+            "  Stash2 is the tab \"~price 1 chaos\" (tab/pc/t2): 1 item"
+        );
+        assert_eq!(lines[13], "page two body");
+        assert_eq!(lines[14], "");
+        assert_eq!(
+            lines[15],
             "next: paste page 1 of 2 into the shop thread and preview it before posting; `acq shop render --page N` prints one page alone"
         );
-        assert_eq!(lines.len(), 14, "{text}");
+        assert_eq!(lines.len(), 16, "{text}");
         assert!(!text.contains("policy table"), "{text}");
 
         let text = render_text(&r, 5000, true);
@@ -630,7 +661,7 @@ mod tests {
         );
         assert_eq!(
             text.matches("\n  ").count(),
-            r.policy.len() + r.left_out.len()
+            r.policy.len() + r.left_out.len() + r.pages.iter().map(|p| p.tabs.len()).sum::<usize>()
         );
         let left_off = text.split("left off the page:\n").nth(1).unwrap();
         assert_eq!(

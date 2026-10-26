@@ -280,6 +280,28 @@
       "items": 6,
       "number": 1,
       "of": 1,
+      "tabs": [
+        {
+          "items": 4,
+          "name": "~price 3 chaos",
+          "stash": "Stash1",
+          "tab": {
+            "id": "c1",
+            "realm": "pc",
+            "scope": "tab"
+          }
+        },
+        {
+          "items": 1,
+          "name": "~price 9 chaos (Remove-only)",
+          "stash": "Stash2",
+          "tab": {
+            "id": "t2",
+            "realm": "pc",
+            "scope": "tab"
+          }
+        }
+      ],
       "text": "[spoiler=\"Shop Post 1 of 1 (6 items)\"]\n[spoiler=\" ~price 5 chaos\"][linkItem realm=\"pc\" location=\"Stash1\" league=\"Standard\" x=\"1\" y=\"0\"][linkItem realm=\"pc\" location=\"Stash1\" league=\"Standard\" x=\"2\" y=\"0\"][/spoiler]\n[spoiler=\" ~price 10 divine\"][linkItem realm=\"pc\" location=\"BodyArmour\" character=\"Exile\" x=\"0\" y=\"0\"][/spoiler]\n[spoiler=\" ~b/o 1.5 divine\"][linkItem realm=\"pc\" location=\"Stash1\" league=\"Standard\" x=\"3\" y=\"0\"][/spoiler]\n[spoiler=\" ~b/o 2 divine\"][linkItem realm=\"pc\" location=\"Stash2\" league=\"Standard\" x=\"0\" y=\"1\"][/spoiler]\n[spoiler=\"\"][linkItem realm=\"pc\" location=\"Stash1\" league=\"Standard\" x=\"8\" y=\"0\"][/spoiler]\n[/spoiler]\n"
     }
   ],

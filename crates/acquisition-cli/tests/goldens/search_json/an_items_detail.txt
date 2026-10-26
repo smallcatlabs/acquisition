@@ -18,7 +18,7 @@ lines   explicit              +75 to maximum Life
         implicit              +20 to maximum Life
                               "# to maximum Life"   arg1 20
 unread  nothing
-basis   store <store> · build <build> · snapshot 4 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 4 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq show kaom
 # holds "sockets R-R-G B · links 3"
@@ -36,13 +36,13 @@ shown   Item Level: 84
 lines   explicit              +500 to maximum Life
                               "# to maximum Life"   arg1 500
 unread  nothing
-basis   store <store> · build <build> · snapshot 4 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 4 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq search --realm pc 'linked(red>=2)'
 # holds "R-R-G (link group)"
 --- stdout
 query   linked(red>=2)
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (oldest <age> ago, newest <age> ago)
+scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
         1 location never fetched: PremiumStash 1 of 3 · location list seen <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
 total   1 match
             1 location was never fetched: nothing here says what they hold
@@ -52,4 +52,4 @@ rows    Kaom's Heart Glorious Plate · unique · Standard / Dump · x 0, y 0 · 
 terms   each term counted alone over all live pc items in all leagues, never over the matches
   0    linked(red>=2)  1 matched · 4 lacked
 routes  each returns exactly the members counted (2 more: --routes)
-basis   store <store> · build <build> · snapshot 4 · facts v9 · intent 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
+basis   store <store> · build <build> · snapshot 4 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2

@@ -165,7 +165,9 @@ pub struct Basis {
     pub defences: u32,
     /// The property table's version (C114, C106; `properties.rs`).
     pub properties: u32,
-    /// The intent file's revision the prices were read at (C98, C81).
+    /// The intent file's revision the prices were read at (C98, C81): the
+    /// account's hand-written prices and sync policy, which every write to
+    /// either moves; the text says it in those words (C146).
     pub intent: i64,
     /// The currency table's version (C68).
     pub currency: u32,
@@ -220,7 +222,11 @@ impl Basis {
                 self.snapshot.facts_version.to_string(),
                 now.snapshot.facts_version.to_string(),
             ),
-            ("intent", self.intent.to_string(), now.intent.to_string()),
+            (
+                "prices and policy revision",
+                self.intent.to_string(),
+                now.intent.to_string(),
+            ),
             (
                 "derivation",
                 self.derivation.to_string(),
@@ -356,15 +362,19 @@ pub struct Coverage {
     pub never_fetched: usize,
     /// The types that have a location never fetched, the most never
     /// fetched first, each counted as `tabs` counts a type: its
-    /// locations, how many were fetched, and the live items in scope
-    /// there (C118). A tab's type is GGG's, verbatim, as `tabs` gives
-    /// it; a character's is `character`.
+    /// locations, how many were fetched — the never fetched are the
+    /// difference — and the live items in scope there (C118). A tab's
+    /// type is GGG's, verbatim, as `tabs` gives it; a character's is
+    /// `character`. Over the scope's realm in every league, never
+    /// narrowed by the query: the words are C146's.
     pub never_fetched_by_type: Vec<crate::tabs::TabType>,
     /// The leagues holding a tab never fetched, the most first: names
     /// alone, so the league a `tabs` pointer names and how many others
     /// there are follow from the answer (C118).
     pub never_fetched_leagues: Vec<String>,
     pub folders: usize,
+    /// The earliest and the latest of the fetched locations' last
+    /// fetches, each one location's; a row's place carries its own.
     pub oldest_fetch: Option<i64>,
     pub newest_fetch: Option<i64>,
     /// When the oldest of the location lists the scope reads was last
