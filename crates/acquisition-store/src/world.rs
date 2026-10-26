@@ -1187,13 +1187,37 @@ mod tests {
         drop(again);
     }
 
+    /// `path` at `mode` until this drops, then back at the mode it had, so
+    /// the folder can go however the test ends. The daemon harness's
+    /// `with_mode`, which this crate's tests cannot reach.
+    #[cfg(unix)]
+    struct WithMode<'a> {
+        path: &'a std::path::Path,
+        was: std::fs::Permissions,
+    }
+
+    #[cfg(unix)]
+    fn with_mode(path: &std::path::Path, mode: u32) -> WithMode<'_> {
+        use std::os::unix::fs::PermissionsExt;
+        let was = std::fs::metadata(path).unwrap().permissions();
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode)).unwrap();
+        WithMode { path, was }
+    }
+
+    #[cfg(unix)]
+    impl Drop for WithMode<'_> {
+        fn drop(&mut self) {
+            let _ = std::fs::set_permissions(self.path, self.was.clone());
+        }
+    }
+
     /// C83: the private runtime directory is this user's: made 0700,
     /// brought back to 0700 when it drifted, refused when it is a symlink
     /// or a file.
     #[cfg(unix)]
     #[test]
     fn c83_the_private_dir_is_this_users() {
-        use std::os::unix::fs::{MetadataExt, PermissionsExt};
+        use std::os::unix::fs::MetadataExt;
         let temp = tempfile::tempdir().unwrap();
         let base = temp.path().join("base");
         std::fs::create_dir_all(&base).unwrap();
@@ -1202,13 +1226,16 @@ mod tests {
         for (name, drifted) in [("loose", 0o755), ("tight", 0o500), ("shut", 0o000)] {
             let dir = base.join(name);
             std::fs::create_dir(&dir).unwrap();
-            std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(drifted)).unwrap();
+            // Held through the assertion, so the restore cannot hide a
+            // regression; a failing one still leaves the folder removable.
+            let drift = with_mode(&dir, drifted);
             private_dir(&dir).unwrap();
             assert_eq!(
                 std::fs::metadata(&dir).unwrap().mode() & 0o7777,
                 0o700,
                 "{name}: restored to exactly 0700"
             );
+            drop(drift);
         }
         let err = private_dir(&base.join("absent-parent").join("acq")).unwrap_err();
         assert!(err.to_string().contains("could not create"), "{err}");

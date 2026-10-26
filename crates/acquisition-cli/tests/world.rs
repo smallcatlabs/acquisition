@@ -627,13 +627,36 @@ fn the_offline_reset_holds_the_world_lock() {
     assert!(!current.exists());
 }
 
+/// `path` at `mode` until this drops, then back at the mode it had, so
+/// the folder can go however the test ends. The daemon harness's
+/// `with_mode`, which this crate's tests cannot reach.
+#[cfg(unix)]
+struct WithMode<'a> {
+    path: &'a std::path::Path,
+    was: std::fs::Permissions,
+}
+
+#[cfg(unix)]
+fn with_mode(path: &std::path::Path, mode: u32) -> WithMode<'_> {
+    use std::os::unix::fs::PermissionsExt;
+    let was = std::fs::metadata(path).unwrap().permissions();
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode)).unwrap();
+    WithMode { path, was }
+}
+
+#[cfg(unix)]
+impl Drop for WithMode<'_> {
+    fn drop(&mut self) {
+        let _ = std::fs::set_permissions(self.path, self.was.clone());
+    }
+}
+
 /// The offline reset names a lock it could not open for what failed,
 /// never as a daemon that took the world: a read-only world with no
 /// daemon in it fails to create its lock file, and the file is left.
 #[cfg(unix)]
 #[test]
 fn the_offline_reset_names_a_lock_it_could_not_open() {
-    use std::os::unix::fs::PermissionsExt;
     let scratch = scratch("rails-lock-io");
     let base = &scratch.0;
     let root = base.join("store");
@@ -641,9 +664,9 @@ fn the_offline_reset_names_a_lock_it_could_not_open() {
     std::fs::create_dir_all(current.parent().unwrap()).unwrap();
     let staged = r#"{"tripped":"429 on GET /stash/Standard"}"#;
     std::fs::write(&current, staged).unwrap();
-    std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o555)).unwrap();
+    let read_only = with_mode(&root, 0o555);
     let out = acq_in(base, "store", &["daemon", "reset-tripwire", "--json"], &[]);
-    std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o755)).unwrap();
+    drop(read_only);
     assert_eq!(out.status.code(), Some(1), "{out:?}");
     let msg = sole_json(&out)["error"].as_str().unwrap().to_string();
     assert!(
