@@ -190,6 +190,13 @@ list when a step's close commit or an issue takes it.
   must-read carries the memory index beside `AGENTS.md`.
 - **An issue ready for a step, none named**: #11, the words nobody
   understood, which waited on 2a.
+- **From h1, the honesty group** (outside the phase order, the owner's
+  word of 2026-10-25; `briefs/h1-build.md` and its rounds): the
+  substash `stash.id` check (C145) rests on the mock's shape, since no
+  committed capture holds a substash body; one read of the owner's
+  store settles it before a live substash fetch. #63's five hygiene
+  rows stay on the issue; #74 is the printed retry command after a
+  rename under a failing index; #16 has its first instance fixed.
 
 ## Starting a session
 
