@@ -3,7 +3,9 @@
 #
 #   tools/gate.sh                 every stage, in the gate's order
 #   tools/gate.sh --docs          the five stages that read no Rust, for a
-#                                 change to documents and scripts alone
+#                                 change no test reads: not the crates, the
+#                                 manifests, the lock, README.md or the two
+#                                 references
 #   tools/gate.sh --only <stage>  one stage, by the name in the table
 #
 # Each stage runs bare, its output unfiltered, and its exit status is
@@ -39,7 +41,7 @@ run_stage() {
   esac
 }
 
-usage() { sed -n '4,7p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '4,9p' "$0" | sed 's/^# \{0,1\}//'; }
 
 case ${1:-} in
   '') selected=("${names[@]}") ;;

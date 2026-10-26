@@ -58,15 +58,13 @@ As few as possible, each a property, never a mechanism.
   anything touching the owner's real store or the real API, and a
   commit or push he has not asked for are his first.
 - **Build order.** Run `cargo build --workspace` before anything that
-  starts a daemon, and again after any test run or any edit to a
-  contract input (the protocol and store sources, the manifests, the
-  lock). `cargo test --all-targets`, and `cargo nextest run`, rewrite
-  `acq-mcp` in another form and never write `acqd`, so a daemon
-  started after tests is an artifact mismatch (C84). Never run the
-  live drivers, a bare `acq` or a second gate while the gate runs. The
-  session-close skill explains the artifacts.
-- **The gate decides.** Every change keeps it green (below). A commit
-  is gated on each stage's own exit status, never on a filtered grep.
+  starts a daemon, and after any test run or edit to a contract input
+  (the protocol and store sources, the manifests, the lock), since
+  tests never write `acqd` (C84, the artifact mismatch); `tools/gate.sh`
+  ends with that build. Never run the live drivers, a bare `acq` or a
+  second gate while the gate runs.
+- **The gate decides.** Every change keeps `tools/gate.sh` green, and a
+  commit is gated on its exit status, never on a filtered grep.
 - **No id in user-facing text** (C116): help, refusals, reasons and
   notes say the rule in words.
 - **Tests pin behaviour at boundaries, never mechanisms.** The GGG-side
@@ -156,6 +154,9 @@ tools/trade-check.sh
 python3 -I tools/bothy.py check
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
 ```
+
+`tools/gate.sh` runs these in order, then the build again, and prints
+each stage's exit status; `--docs` runs the five that read no Rust.
 
 Once per clone: `git config core.hooksPath .githooks` (the commit-msg
 hook writes Claude's trailer as `Assisted-by:`) and `cargo install

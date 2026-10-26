@@ -7,32 +7,23 @@ description: End a working session on the Acquisition workspace — run the gate
 
 ## 1. Gate
 
-Run the quality gate in `AGENTS.md`, "Quality gate", each command bare,
-and read each exit status. A check piped through `grep` or `tail`
-reports the filter's exit, not the check's; gate the commit on each
-stage's own status variable, never on a `grep` of a summary (BSD
-`grep -qv` once read "all green" over a failing line).
+Run `tools/gate.sh` and gate the commit on its exit status, never on a
+filtered grep of its output; `--docs` serves a change no test reads,
+which is any but the crates, the manifests, the lock, `README.md` and
+the two references.
 
 ### Why build order matters
 
-`cargo test --all-targets`, and the gate's `cargo nextest run
---workspace --all-targets`, which builds the same way, never write
-`target/debug/acqd` (no test in the daemon crate asks for it) and
-rewrite `target/debug/acq-mcp` in its all-targets form, a different
-artifact: proptest, the plan crate's
-dev-dependency, unifies `num-traits/std` into the chrono that rmcp
-links; `acq` and `acqd` have one form each; `cargo clippy` rewrites
-none. So run the gate's `cargo build --workspace` before any smoke or
-live run, and never run the drivers while the gate runs: their
-preflight build replaces `acqd` under a live daemon, an artifact
-mismatch (C84). An edit or a `cargo fmt` to any input of the contract
-revision after the build leaves `acqd` on the old revision and every
-daemon test failing "another contract": build again first. `cargo
-build --workspace --release` and `cargo build --release -p
+The test and doc stages never write `target/debug/acqd` and rewrite
+`acq-mcp` in another form, and an edit to a
+[contract input](../../../crates/acquisition-protocol/build.rs) leaves
+`acqd` on the old revision, so `tools/gate.sh` ends with `cargo build
+--workspace` and a daemon is never started after a test run or such an
+edit without that build (C84, the artifact mismatch). Apart from that
+rule: `cargo build --workspace --release` and `cargo build --release -p
 acquisition-cli` uplift two forms of `target/release/acq` from one
-source, and a no-op build swaps them: a hash in a ledger names the form
-that built it. The contract's inputs are listed in
-[the revision build script](../../../crates/acquisition-protocol/build.rs).
+source, and a no-op build swaps them, so a hash in a ledger names the
+form that built it.
 
 ## 2. Commit
 

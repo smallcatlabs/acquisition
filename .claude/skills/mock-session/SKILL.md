@@ -14,7 +14,8 @@ nothing has to be named by hand.
 
 ## Set up
 
-Build before the session, including after tests; see
+Build before the session and after any test run (`tools/gate.sh` ends
+with that build); see
 [why build order matters](../session-close/SKILL.md#why-build-order-matters).
 
 ```sh

@@ -55,9 +55,9 @@ instead.
 - Your own worktree and your own scratch subdirectory, named in the
   brief's launch; never another worker's. Kill only the processes you
   started.
-- The gate (`AGENTS.md`, "Quality gate") before the commit; the commit
-  gated on each stage's own exit status, never on a filtered grep. Never
-  run the drivers while the gate runs.
+- `tools/gate.sh` before the commit, the commit gated on its exit
+  status, never on a filtered grep. Never run the drivers while the
+  gate runs.
 - One commit per concern; the story in the message, which names this
   brief's file; a size or a count stated in a message is measured after
   the last edit. A breaker case rides in the commit of the check it
