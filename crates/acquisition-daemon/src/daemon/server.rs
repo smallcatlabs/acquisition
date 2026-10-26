@@ -664,10 +664,14 @@ pub(super) struct InFlight {
     pub(super) refreshes: Vec<String>,
     /// Login code exchanges in flight.
     pub(super) exchanges: usize,
+    /// A login whose profile job has finished, or is about to be
+    /// submitted, while its staged tokens are not yet registered or
+    /// dropped: `complete_login` or `abort_login` is still to run.
+    pub(super) login: bool,
 }
 
 impl InFlight {
-    fn of(s: &Shared) -> InFlight {
+    pub(super) fn of(s: &Shared) -> InFlight {
         let (mut jobs, mut held): (Vec<JobId>, Vec<JobId>) =
             s.active_jobs.keys().copied().partition(|id| {
                 s.jobs
@@ -684,11 +688,28 @@ impl InFlight {
             .map(|(account, _)| account.clone())
             .collect();
         refreshes.sort();
+        // C133, issue #59: the exchange's count drops before the login's
+        // profile job is submitted, and the job's active slot is freed
+        // before `complete_login` takes the lock. Between, the staging
+        // slot is the login's only trace, and the drain counts it: while
+        // the profile job is unsubmitted (the login task runs on to its
+        // submit without a pause) or terminal (the task runs on to
+        // complete or abort). A profile job still waiting is not counted:
+        // the stop turned it away, and the login is lost and repeated.
+        let login = s
+            .auth
+            .staging
+            .as_ref()
+            .is_some_and(|st| match st.profile_job {
+                None => true,
+                Some(id) => s.jobs.get(&id).is_some_and(|e| e.info.state.is_terminal()),
+            });
         InFlight {
             jobs,
             held,
             refreshes,
             exchanges: s.auth.exchanges,
+            login,
         }
     }
 
@@ -697,6 +718,7 @@ impl InFlight {
             && self.held.is_empty()
             && self.refreshes.is_empty()
             && self.exchanges == 0
+            && !self.login
     }
 
     fn describe(&self) -> String {
@@ -723,6 +745,9 @@ impl InFlight {
         }
         if self.exchanges > 0 {
             parts.push("a login's code exchange".into());
+        }
+        if self.login {
+            parts.push("a login landing its profile".into());
         }
         parts.join("; ")
     }

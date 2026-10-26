@@ -665,3 +665,100 @@ async fn an_out_of_range_expires_in_is_a_token_error() {
     finish_harness(None, &log_path);
     let _ = std::fs::remove_dir_all(&store_dir);
 }
+
+/// C144 (a staged login token serves the login's own profile job alone),
+/// issue #71: in the window between the token exchange and the login's
+/// completion, a client's `profile` job for the account being logged in
+/// sends on the account's session — a refresh, then its GET with the
+/// session's token — never with the staged token, and writes nothing of
+/// the login's. A client's profile job for an account with no session
+/// fails `not_logged_in` and sends nothing. The login's own profile job,
+/// submitted after, carries the staged token.
+#[tokio::test]
+async fn c144_a_client_profile_job_in_the_staging_window_never_gets_the_staged_token() {
+    let (base, sent_log, _arrived, _release) = account_server(("GET", "/never", 0)).await;
+    let (mut daemon, log_path) = test_daemon(&base, Arc::new(ManualClock::new()));
+    logged_in(&mut daemon);
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+
+    let generation = daemon.begin_auth_flow();
+    daemon
+        .stage_auth_flow(generation, login_tokens("at-staged", "test-user"))
+        .expect("current flow stages");
+    let staged = |daemon: &Daemon| {
+        daemon
+            .shared
+            .lock()
+            .unwrap()
+            .auth
+            .staging
+            .as_ref()
+            .map(|st| st.username.clone())
+    };
+    assert_eq!(staged(&daemon).as_deref(), Some("test-user"));
+
+    let client = daemon
+        .submit(
+            "profile".into(),
+            json!({}),
+            0,
+            "cli:1".into(),
+            Some("test-user".into()),
+        )
+        .unwrap();
+    let (info, outcome) = wait_terminal(&daemon, client).await;
+    assert_eq!(info.state, JobState::Done, "{outcome:?}");
+    assert_eq!(
+        sent_log.lock().unwrap().as_slice(),
+        [sent("test-user", "POST"), sent("test-user", "GET")],
+        "the client's fetch ran on the session: its refresh, then its GET"
+    );
+    {
+        let s = daemon.shared.lock().unwrap();
+        let staging = s.auth.staging.as_ref().expect("the login is still staged");
+        assert_eq!(
+            staging.profile_job, None,
+            "the client's job was not the login's"
+        );
+        assert_eq!(
+            s.auth.pending,
+            Some(generation),
+            "the login is still pending"
+        );
+    }
+
+    // An account with no session: the staged slot is not its fallback.
+    let generation_carol = daemon.begin_auth_flow();
+    daemon
+        .stage_auth_flow(generation_carol, login_tokens("at-staged", "carol"))
+        .expect("current flow stages");
+    let carol = daemon
+        .submit(
+            "profile".into(),
+            json!({}),
+            0,
+            "cli:1".into(),
+            Some("carol".into()),
+        )
+        .unwrap();
+    let (info, outcome) = wait_terminal(&daemon, carol).await;
+    assert_eq!(info.state, JobState::Failed, "{outcome:?}");
+    assert_eq!(
+        sent_log.lock().unwrap().len(),
+        2,
+        "nothing was sent for carol"
+    );
+
+    // The login's own profile job carries the staged token.
+    let login = daemon
+        .submit_login_profile(generation_carol, "carol")
+        .unwrap();
+    let (info, outcome) = wait_terminal(&daemon, login).await;
+    assert_eq!(info.state, JobState::Done, "{outcome:?}");
+    assert_eq!(
+        sent_log.lock().unwrap().last(),
+        Some(&sent("staged", "GET")),
+        "the login's own fetch sent with the staged token"
+    );
+    finish_harness(dispatcher, &log_path);
+}

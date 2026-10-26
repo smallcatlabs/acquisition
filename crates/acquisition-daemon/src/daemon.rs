@@ -475,13 +475,22 @@ struct RefreshFlight {
 /// A login whose token exchange succeeded but whose profile fetch has not
 /// landed the uuid yet (C50). Held *outside* the
 /// session map: the previously live session for the same account keeps
-/// serving its jobs untouched, and no client lookup can reach these tokens
-/// — only the profile route hands them out (`staged_profile_token`). A
-/// login whose profile fetch fails drops this slot: it fails whole.
+/// serving its jobs untouched. C144 — the staged access token serves the
+/// login's own profile job alone, the one `profile_job` names
+/// (`staged_profile_token`): a client's profile job for the same account
+/// in the window runs on the account's session, or fails `not_logged_in`
+/// when there is none. A login whose profile fetch fails drops this
+/// slot: it fails whole.
 struct Staging {
     /// The flow that staged this; stale flows can neither complete nor
     /// abort it.
     flow: u64,
+    /// The login's own profile job, marked where it is inserted
+    /// (`submit_marked`), so no worker sees it unmarked. `None` only in
+    /// the instant between the stage and that submit. The exit's drain
+    /// counts the login while this job is terminal and the slot is not
+    /// yet cleared (C133: a pending login has the bound to land).
+    profile_job: Option<JobId>,
     username: String,
     access_token: String,
     access_expires_at: SystemTime,

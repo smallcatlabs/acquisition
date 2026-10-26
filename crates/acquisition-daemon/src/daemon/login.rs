@@ -123,6 +123,7 @@ impl Daemon {
         let username = tokens.username.clone();
         s.auth.staging = Some(Staging {
             flow: generation,
+            profile_job: None,
             username: username.clone(),
             access_token: tokens.access_token,
             // C47: bounded where the response is read
@@ -133,18 +134,54 @@ impl Daemon {
         Some(username)
     }
 
-    /// The staged login's access token, handed out only for the profile
-    /// route of the account being logged in: the login's own profile job
+    /// C144 — the staged login's access token, handed out to the login's
+    /// own profile job alone: the job `Staging::profile_job` names, which
+    /// the daemon submitted and marked where it was inserted. That job
     /// must use the *new* tokens (the account may have no registered
-    /// session yet, or a dead one being replaced), and no other work can
-    /// reach them.
-    pub(super) fn staged_profile_token(&self, account: Option<&str>) -> Option<(String, String)> {
+    /// session yet, or a dead one being replaced). Any other job, a
+    /// client's `profile` for the same account included, gets `None` and
+    /// runs on the account's session, or fails `not_logged_in` when there
+    /// is none.
+    pub(super) fn staged_profile_token(
+        &self,
+        job: JobId,
+        account: Option<&str>,
+    ) -> Option<(String, String)> {
         let s = self.shared.lock().unwrap();
         s.auth
             .staging
             .as_ref()
-            .filter(|st| Some(st.username.as_str()) == account)
+            .filter(|st| st.profile_job == Some(job) && Some(st.username.as_str()) == account)
             .map(|st| (st.access_token.clone(), st.username.clone()))
+    }
+
+    /// Submit the login's profile job as the daemon (C136, the daemon's own
+    /// submitter) and mark it on the staging slot of `generation` in the
+    /// same critical section that inserts it (C144). A slot a newer flow
+    /// replaced is not marked: its job then runs on the session like any
+    /// other, and the stale flow's completion is ignored.
+    pub(super) fn submit_login_profile(
+        &self,
+        generation: u64,
+        username: &str,
+    ) -> Result<JobId, Refusal> {
+        self.submit_and_mark(
+            "profile".into(),
+            json!({}),
+            LOGIN_PRIORITY,
+            DAEMON_SUBMITTER.into(),
+            Some(username.to_string()),
+            |s, id| {
+                if let Some(staging) = s
+                    .auth
+                    .staging
+                    .as_mut()
+                    .filter(|st| st.flow == generation && st.username == username)
+                {
+                    staging.profile_job = Some(id);
+                }
+            },
+        )
     }
 
     /// The second half of a login (C50): submit a
@@ -153,13 +190,7 @@ impl Daemon {
     /// Any failure fails the login whole: the staged tokens are dropped and
     /// nothing was written anywhere.
     pub(super) async fn login_with_profile(&self, generation: u64, username: String) {
-        let uuid = match self.submit(
-            "profile".into(),
-            json!({}),
-            LOGIN_PRIORITY,
-            DAEMON_SUBMITTER.into(),
-            Some(username.clone()),
-        ) {
+        let uuid = match self.submit_login_profile(generation, &username) {
             Err(e) => Err(format!("could not queue the profile fetch: {e}")),
             Ok(id) => match self.wait_job_terminal(id, LOGIN_PROFILE_TIMEOUT).await {
                 None => {

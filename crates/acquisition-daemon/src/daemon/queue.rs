@@ -330,6 +330,20 @@ resubmit if still wanted",
         submitted_by: String,
         account: Option<String>,
     ) -> Result<JobId, Refusal> {
+        self.submit_and_mark(kind, params, priority, submitted_by, account, |_, _| {})
+    }
+
+    /// [`Self::submit`], with `mark` run on the new id where the job is
+    /// inserted ([`Self::submit_marked`]).
+    pub(super) fn submit_and_mark(
+        &self,
+        kind: String,
+        params: Value,
+        priority: Priority,
+        submitted_by: String,
+        account: Option<String>,
+        mark: impl FnOnce(&mut Shared, JobId),
+    ) -> Result<JobId, Refusal> {
         // An `apply` is admitted or refused whole, before a job id exists
         // (C43): vocabulary and budget checked
         // here, so a refusal admits nothing. A realm a kind's family does
@@ -340,7 +354,7 @@ resubmit if still wanted",
         admit_realm(&kind, &params)?;
         admit_params_size(&params)?;
         admit_submitter(&submitted_by)?;
-        self.submit_with_parent(kind, params, priority, submitted_by, account, None)
+        self.submit_marked(kind, params, priority, submitted_by, account, None, mark)
     }
 
     /// A child inherits its parent's priority, submitter, and account.
@@ -375,6 +389,32 @@ resubmit if still wanted",
         submitted_by: String,
         account: Option<String>,
         parent: Option<JobId>,
+    ) -> Result<JobId, Refusal> {
+        self.submit_marked(
+            kind,
+            params,
+            priority,
+            submitted_by,
+            account,
+            parent,
+            |_, _| {},
+        )
+    }
+
+    /// [`Self::submit_with_parent`], with `mark` run on the new id inside
+    /// the critical section that inserts the job: no worker can pick the
+    /// job before the mark is made. The login's profile job is the one
+    /// caller with a mark (C144: its staged token serves that job alone).
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn submit_marked(
+        &self,
+        kind: String,
+        params: Value,
+        priority: Priority,
+        submitted_by: String,
+        account: Option<String>,
+        parent: Option<JobId>,
+        mark: impl FnOnce(&mut Shared, JobId),
     ) -> Result<JobId, Refusal> {
         if let Some(e) = self.queue_failed() {
             return Err(Refusal::queue_failed(&e));
@@ -424,6 +464,7 @@ resubmit if still wanted",
                 return Err(Refusal::queue_failed(&e));
             }
             s.jobs.insert(id, entry);
+            mark(&mut s, id);
             info
         };
         let id = info.id;

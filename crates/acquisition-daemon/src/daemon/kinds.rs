@@ -244,10 +244,11 @@ impl Daemon {
     /// on, its bearer, and the username it runs as. A row whose params
     /// render no URL fails in the door's words before any token is taken,
     /// so it never spends a refresh nor reports a session failure in
-    /// place of its own. A profile job during a login runs on the staged
-    /// tokens (`staged_profile_token`): the account may have no
+    /// place of its own. The login's own profile job runs on the staged
+    /// tokens (C144, `staged_profile_token`): the account may have no
     /// registered session yet, or a dead one being replaced — the new
-    /// tokens are the ones being proven. What stops the job is what
+    /// tokens are the ones being proven. Any other job, a client's profile
+    /// in the same window included, runs on the session. What stops the job is what
     /// `execute_inner` returns: a failure, or a halt's refusal (C25).
     async fn render_then_authenticate(
         &self,
@@ -260,7 +261,7 @@ impl Daemon {
             return Err(Ok(Outcome::failure(why_no_url(kind, params))));
         };
         let staged = (kind == "profile")
-            .then(|| self.staged_profile_token(account))
+            .then(|| self.staged_profile_token(id, account))
             .flatten();
         let (auth, username) = match staged {
             Some((token, username)) => (Auth::Staged(token), username),

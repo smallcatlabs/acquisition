@@ -585,6 +585,87 @@ async fn exit_waits_for_a_login_code_exchange() {
     remove_db(&db);
 }
 
+/// C133 (a pending login has the bound to land), issue #59: a stop that
+/// lands after the login's profile job finished and before the login
+/// registered waits for the login. The gap is forced: the profile job
+/// runs to done, and `complete_login` is not called until the drain has
+/// been seen waiting on the login; then the drain returns, with nothing
+/// cut, and the session is registered.
+#[tokio::test]
+async fn c133_a_stop_between_the_profile_and_the_login_waits_for_the_login() {
+    let (base, sent_log, _arrived, _release) = account_server(("GET", "/never", 0)).await;
+    let (daemon, log_path, db) = exit_daemon(&base, BOUND);
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    let generation = daemon.begin_auth_flow();
+    daemon
+        .stage_auth_flow(
+            generation,
+            auth::TokenResponse {
+                access_token: "at-newcomer".into(),
+                refresh_token: "rt-newcomer".into(),
+                expires_in: 3600,
+                username: "newcomer".into(),
+            },
+        )
+        .expect("current flow stages");
+    assert!(
+        InFlight::of(&daemon.shared.lock().unwrap()).login,
+        "a staged login not yet submitted is the drain's"
+    );
+    let profile = daemon.submit_login_profile(generation, "newcomer").unwrap();
+    wait_state(&daemon, profile, JobState::Done).await;
+
+    assert!(daemon.begin_exit("test: exit"));
+    let drain = spawn_drain(&daemon);
+    settle().await;
+    assert!(
+        !drain.is_finished(),
+        "the drain waits for the login whose profile landed"
+    );
+    assert!(InFlight::of(&daemon.shared.lock().unwrap()).login);
+    assert!(daemon.complete_login(generation, "newcomer", "uuid-newcomer"));
+    assert_eq!(drain.await.unwrap(), None, "nothing was cut");
+    assert!(
+        daemon
+            .shared
+            .lock()
+            .unwrap()
+            .auth
+            .find("newcomer")
+            .is_some(),
+        "the login registered"
+    );
+    assert_eq!(
+        sent_log.lock().unwrap().as_slice(),
+        [sent("newcomer", "GET")]
+    );
+    finish_harness(dispatcher, &log_path);
+    remove_db(&db);
+}
+
+/// C133: a login whose profile job a stop turned away to waiting is not
+/// the drain's: the job is on disk for the next lifetime, which fails it
+/// as a lost login's (C50), and the drain does not stall to its bound.
+#[test]
+fn a_login_whose_profile_job_waits_is_not_held_by_the_drain() {
+    let (daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
+    let generation = daemon.begin_auth_flow();
+    daemon
+        .stage_auth_flow(
+            generation,
+            auth::TokenResponse {
+                access_token: "at-newcomer".into(),
+                refresh_token: "rt-newcomer".into(),
+                expires_in: 3600,
+                username: "newcomer".into(),
+            },
+        )
+        .expect("current flow stages");
+    daemon.submit_login_profile(generation, "newcomer").unwrap();
+    assert!(!InFlight::of(&daemon.shared.lock().unwrap()).login);
+    finish_harness(None, &log_path);
+}
+
 // ---- C134: a panic ends the process, and its job is sent once ----------
 
 /// A harness daemon serving a world (C134: only a daemon with a world
