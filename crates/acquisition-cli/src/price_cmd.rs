@@ -293,10 +293,11 @@ fn render_status(r: &ListingReport, now: i64, expand: bool, account: &str) -> St
     ));
     // `residue` named a mechanism; the line names the places and what
     // lets the text count (the release seat: cli-opus call 49, mcp-opus
-    // call 19, mcp-sonnet call 20)
+    // call 19, mcp-sonnet call 20), each place with its own remedy: a
+    // character has no tab to publish (the h2 review)
     if c.residue > 0 {
         out.push_str(&format!(
-            "{}: a note on a character's item, or a note or tab name in a tab that is not public; it decides no price until the tab is made public in the game, and `acq price show item/<id>` shows one item's text\n",
+            "{}: a note on a character's item decides no price until the item is moved into a public stash tab, and a note or tab name in a tab that is not public decides none until the tab is made public in the game; `acq price show item/<id>` shows one item's text\n",
             plural(
                 c.residue,
                 "item carries price text the trade site cannot see",
@@ -1139,7 +1140,7 @@ mod tests {
         );
         assert_eq!(
             lines[2],
-            "3 items carry price text the trade site cannot see: a note on a character's item, or a note or tab name in a tab that is not public; it decides no price until the tab is made public in the game, and `acq price show item/<id>` shows one item's text"
+            "3 items carry price text the trade site cannot see: a note on a character's item decides no price until the item is moved into a public stash tab, and a note or tab name in a tab that is not public decides none until the tab is made public in the game; `acq price show item/<id>` shows one item's text"
         );
         assert_eq!(
             lines[3],
@@ -1184,6 +1185,27 @@ mod tests {
         assert!(
             text.starts_with(
                 "nothing on record for Standard: no stash listing, no character listing\n"
+            ),
+            "{text}"
+        );
+    }
+
+    /// C146 — the h2 review's fourth finding: a character's item carrying
+    /// `~price 5 chaos` counts among the price text the trade site cannot
+    /// see, and the line told it to wait "until the tab is made public",
+    /// where a character has no tab to publish. The line gives each place
+    /// its own remedy: the character's item moves into a public stash tab.
+    #[test]
+    fn c146_a_characters_priced_item_is_told_to_move_into_a_public_tab() {
+        let mut s = snapshot();
+        s.items.retain(|i| i.id == "i-worn");
+        s.items[0].note = Some("~price 5 chaos".into());
+        let r = resolve(&s).unwrap();
+        assert_eq!(r.counts.residue, 1);
+        let text = render_status(&r, 8_000, false, "a");
+        assert!(
+            text.contains(
+                "1 item carries price text the trade site cannot see: a note on a character's item decides no price until the item is moved into a public stash tab, and a note or tab name in a tab that is not public decides none until the tab is made public in the game; `acq price show item/<id>` shows one item's text\n"
             ),
             "{text}"
         );

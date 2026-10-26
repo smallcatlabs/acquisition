@@ -527,9 +527,11 @@ pub struct Counts {
     /// `unresolved` (a row that cannot be read could decide).
     pub by_effective: BTreeMap<String, usize>,
     /// Items carrying price text the trade site cannot see (C81): a note
-    /// on a character's item, or a note or tab name in a tab that is not
-    /// public. It decides no price until the tab is made public; the
-    /// field's name is the contract (C53), its words are these (C146).
+    /// on a character's item, which decides no price until the item is
+    /// moved into a public stash tab, or a note or tab name in a tab that
+    /// is not public, which decides none until the tab is made public;
+    /// the field's name is the contract (C53), its words are these
+    /// (C146).
     pub residue: usize,
 }
 
