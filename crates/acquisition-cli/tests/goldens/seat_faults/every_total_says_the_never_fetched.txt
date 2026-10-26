@@ -5,7 +5,7 @@ $ acq search --realm pc league=Standard
 # holds "1 location was never fetched: nothing here says what they hold"
 --- stdout
 query   league=Standard
-scope   account Alice#1234 · pc · live · 2 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
+scope   account Alice#1234 · pc · live · 2 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago)
         1 location never fetched: PremiumStash 1 of 3 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location list seen <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
 total   1 match
             1 location was never fetched: nothing here says what they hold
@@ -21,7 +21,7 @@ $ acq search --realm pc league=Nowhere
 # holds "1 location was never fetched: nothing here says what they hold"
 --- stdout
 query   league=Nowhere
-scope   account Alice#1234 · pc · live · 2 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
+scope   account Alice#1234 · pc · live · 2 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago)
         1 location never fetched: PremiumStash 1 of 3 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location list seen <age> ago
 total   0 matches
             1 location was never fetched: nothing here says what they hold

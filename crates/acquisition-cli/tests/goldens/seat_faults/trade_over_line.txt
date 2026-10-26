@@ -8,7 +8,7 @@ $ acq search --realm pc --trade '{"query": {"type": "Chaos Orb"}}'
 trade   from the query JSON: exact — every clause with a stash meaning ran as the site reads it
         over      the items the store has fetched, priced or not — what it never fetched is the scope's: the site shows public listings, a tab's being tab.public, so the search is the site's and the items are yours
 query   base="Chaos Orb"
-scope   account Alice#1234 · pc · live · 2 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
+scope   account Alice#1234 · pc · live · 2 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago)
         1 location never fetched: MapStash 1 of 1 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location list seen <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
 total   2 matches
             1 location was never fetched: nothing here says what they hold

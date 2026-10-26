@@ -1413,9 +1413,20 @@ fn a_rows_place_says_how_long_ago_its_location_was_fetched() {
         .unwrap();
     drop(store);
     let mut t = Transcript::new(&base);
-    t.run(
+    let shown = stdout(&t.run(
         &["search", "--realm", "pc", "league=Standard"],
         &["Standard / Gear · x 0, y 0 · fetched 3d ago"],
+    ));
+    // the scope line carries its counts and ends after the two ages: the
+    // row's place says its own age, and the line repeated that as an
+    // instruction (the h2 fix round)
+    let scope = shown
+        .lines()
+        .find(|l| l.starts_with("scope "))
+        .unwrap_or_else(|| panic!("{shown}"));
+    assert!(
+        scope.contains("(the oldest fetch 3d ago, the newest ") && scope.ends_with(" ago)"),
+        "{scope}"
     );
     t.run(
         &["show", "i-std"],

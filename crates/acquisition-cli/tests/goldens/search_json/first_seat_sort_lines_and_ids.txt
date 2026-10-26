@@ -4,7 +4,7 @@ $ acq search --realm all is:corrupted
 # holds "over all live items of every realm in all leagues"
 --- stdout
 query   is:corrupted
-scope   account Alice#1234 · all · live · 8 items · 4 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
+scope   account Alice#1234 · all · live · 8 items · 4 locations fetched (the oldest fetch <age> ago, the newest <age> ago)
         0 locations never fetched · location list seen <age> ago
 total   0 matches
 offers  each part of the query forced true and forced false, the part fewest items match first
@@ -20,7 +20,7 @@ $ acq search --realm pc --sort ilvl --desc --limit 1
 # holds "sorts by ilvl 84"
 --- stdout
 query   (every item in scope)
-scope   account Alice#1234 · pc · live · 6 items · 3 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
+scope   account Alice#1234 · pc · live · 6 items · 3 locations fetched (the oldest fetch <age> ago, the newest <age> ago)
         0 locations never fetched · location list seen <age> ago
 total   6 matches
 rows    Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
@@ -33,7 +33,7 @@ $ acq search --realm pc rarity=rare --sort 'line("# to maximum Life").arg1' --de
 # holds "sorts by line(\"# to maximum Life\").arg1 95 · +95 to maximum Life (explicit)"
 --- stdout
 query   rarity=rare
-scope   account Alice#1234 · pc · live · 6 items · 3 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
+scope   account Alice#1234 · pc · live · 6 items · 3 locations fetched (the oldest fetch <age> ago, the newest <age> ago)
         0 locations never fetched · location list seen <age> ago
 total   5 matches
 rows    Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
@@ -50,7 +50,7 @@ $ acq search --realm pc rarity=rare --sort 'line("# to maximum Life").arg1'
 # holds "sorts last: no satisfying occurrence (line(\"# to maximum Life\").arg1)"
 --- stdout
 query   rarity=rare
-scope   account Alice#1234 · pc · live · 6 items · 3 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
+scope   account Alice#1234 · pc · live · 6 items · 3 locations fetched (the oldest fetch <age> ago, the newest <age> ago)
         0 locations never fetched · location list seen <age> ago
 total   5 matches
 rows    Rune Coil Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
@@ -77,7 +77,7 @@ $ acq search --realm pc id:r
 # holds "an id is matched whole"
 --- stdout
 query   id:r
-scope   account Alice#1234 · pc · live · 6 items · 3 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
+scope   account Alice#1234 · pc · live · 6 items · 3 locations fetched (the oldest fetch <age> ago, the newest <age> ago)
         0 locations never fetched · location list seen <age> ago
 total   0 matches
 nothing in scope carries the id of term 0: id:r — an id is matched whole, as an answer printed it: a part of one finds nothing

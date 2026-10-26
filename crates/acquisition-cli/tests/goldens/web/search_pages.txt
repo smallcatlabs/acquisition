@@ -221,7 +221,7 @@ GET search?<the ring search>
 trade   from the query JSON: exact — every clause with a stash meaning ran as the site reads it
         over      the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours
 query   league=Standard category=&quot;accessory.ring&quot; sum(line(&quot;# to maximum Life&quot; source=explicit).arg1)&gt;=70
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row&#39;s place says when its own was)
+scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago)
         0 locations never fetched · location list seen <age> ago
 total   2 matches
 </pre>
@@ -254,7 +254,7 @@ GET search?<an edited text>
 <p class="count">1 match</p>
 <pre>
 query   class:rings line(&quot;# to maximum Life&quot; arg1&gt;=90)
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row&#39;s place says when its own was)
+scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago)
         0 locations never fetched · location list seen <age> ago
 total   1 match
 </pre>
@@ -289,7 +289,7 @@ GET search?<the league counted by rarity>
 trade   from the query JSON: exact — every clause with a stash meaning ran as the site reads it
         over      the items the store has fetched, priced or not — what it never fetched is the scope&#39;s: the site shows public listings, a tab&#39;s being tab.public, so the search is the site&#39;s and the items are yours
 query   league=Standard
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row&#39;s place says when its own was)
+scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago)
         0 locations never fetched · location list seen <age> ago
 total   5 matches
 </pre>

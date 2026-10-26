@@ -5,7 +5,7 @@ $ acq search '(category=armour or category=accessory) (reqlevel=..30 or -has:req
 # holds "categories v1 · beast colours v1"
 --- stdout
 query   (category=armour or category=accessory) (reqlevel=..30 or -has:reqlevel) (line(template:resistance) or line(template:life) or line(template:damage))
-scope   account Alice#1234 · pc · live · 10 items · 3 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
+scope   account Alice#1234 · pc · live · 10 items · 3 locations fetched (the oldest fetch <age> ago, the newest <age> ago)
         0 locations never fetched · location list seen <age> ago
 total   5 matches
 rows    Doom Loop Two-Stone Ring · rare · Standard / Rings · x 0, y 0 · fetched <age> ago
@@ -89,7 +89,7 @@ $ acq search --count category --routes
 # holds "count   category · 7 values"
 --- stdout
 query   (every item in scope)
-scope   account Alice#1234 · pc · live · 10 items · 3 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
+scope   account Alice#1234 · pc · live · 10 items · 3 locations fetched (the oldest fetch <age> ago, the newest <age> ago)
         0 locations never fetched · location list seen <age> ago
 total   10 matches
 count   category · 7 values

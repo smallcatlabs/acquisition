@@ -911,11 +911,13 @@ pub(crate) fn answer_head(a: &Answer) -> String {
     );
     if let (Some(oldest), Some(newest)) = (scope.coverage.oldest_fetch, scope.coverage.newest_fetch)
     {
-        // each age is one location's last fetch, and a row's place says
-        // its own (C146: "newest 4d ago" named no location, the release
-        // seat: cli-opus call 35, cli-sonnet call 25, cli-opus-2 call 34)
+        // each age is one location's last fetch (C146: "newest 4d ago"
+        // named no location, the release seat: cli-opus call 35,
+        // cli-sonnet call 25, cli-opus-2 call 34); a row's place carries
+        // its own age, which the line need not say again (the h2 fix
+        // round: a line carries its counts, not an instruction)
         first.push_str(&format!(
-            " (the oldest fetch {}, the newest {}; a row's place says when its own was)",
+            " (the oldest fetch {}, the newest {})",
             ago(now, Some(oldest)),
             ago(now, Some(newest))
         ));

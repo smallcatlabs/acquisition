@@ -5,7 +5,7 @@ $ acq search --realm pc '"+# to maximum Life">=90' --explain 0.1
 # holds "forced true   4 matches"
 --- stdout
 query   line("# to maximum Life" arg1>=90)
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
+scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago)
         1 location never fetched: PremiumStash 1 of 3 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location list seen <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
 total   2 matches · 1 undecided
             1 location was never fetched: nothing here says what they hold
@@ -35,7 +35,7 @@ $ acq search --realm pc '"+# to maximum Life">=90' --context corpus
 --- stdout
 query   (every item in scope)
 aside   line("# to maximum Life" arg1>=90) — set aside under --context corpus, counted nowhere
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
+scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago)
         1 location never fetched: PremiumStash 1 of 3 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location list seen <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
 total   5 matches
             1 location was never fetched: nothing here says what they hold
@@ -99,7 +99,7 @@ $ acq search --realm pc 'rarity=rare rarity=unique'
 # holds "--limit 20 --context corpus"
 --- stdout
 query   rarity=rare rarity=unique
-scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
+scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago)
         1 location never fetched: PremiumStash 1 of 3 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location list seen <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
 total   0 matches
             1 location was never fetched: nothing here says what they hold

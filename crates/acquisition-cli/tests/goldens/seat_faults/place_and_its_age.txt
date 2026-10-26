@@ -4,7 +4,7 @@ $ acq search --realm pc league=Standard
 # holds "Standard / Gear · x 0, y 0 · fetched 3d ago"
 --- stdout
 query   league=Standard
-scope   account Alice#1234 · pc · live · 2 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
+scope   account Alice#1234 · pc · live · 2 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago)
         0 locations never fetched · location list seen <age> ago
 total   1 match
 rows    Chaos Orb · Standard / Gear · x 0, y 0 · fetched <age> ago

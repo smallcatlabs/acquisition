@@ -151,7 +151,7 @@ $ acq search --count league
 # holds "  Standard"
 --- stdout
 query   (every item in scope)
-scope   account ExileTester · pc · live · 49 items · 23 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
+scope   account ExileTester · pc · live · 49 items · 23 locations fetched (the oldest fetch <age> ago, the newest <age> ago)
         0 locations never fetched · location list seen <age> ago
 total   49 matches
 count   league · 1 value

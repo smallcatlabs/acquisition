@@ -5,7 +5,7 @@ $ acq search --realm pc league=Standard
 # holds "2 more in 2 other types"
 --- stdout
 query   league=Standard
-scope   account Alice#1234 · pc · live · 2 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago; a row's place says when its own was)
+scope   account Alice#1234 · pc · live · 2 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago)
         8 locations never fetched: MapStash 3 of 3, UniqueStash 2 of 2, CurrencyStash 1 of 1, 2 more in 2 other types (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location list seen <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
 total   1 match
             8 locations were never fetched: nothing here says what they hold
