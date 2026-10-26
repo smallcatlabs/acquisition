@@ -131,6 +131,7 @@ tests and docs cite rulings by id.
 - **What a user meets** (a verb, a flag, a knob, an install step): clap help or the MCP tool text, regenerated into the references with `ACQ_UPDATE_FIXTURES=1`, and one README tour line or knob row; `readme_tour.rs` runs the tour.
 - **History**: `HISTORY.md`, one line per slice; the rest is `git log`. A deleted text is cited as `<path>` at `<commit>`.
 - **The road ahead**: `roadmap/README.md`, read first for any step of it.
+- **A working noun** (door, world, seat): `GLOSSARY.md`.
 
 ## Procedures
 
@@ -155,10 +156,9 @@ python3 -I tools/bothy.py check
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
 ```
 
-`tools/gate.sh` runs these in order, then the build again, and prints
-each stage's exit status; `--docs` runs the five that read no Rust.
+`tools/gate.sh` runs these, then the build again, with a table of exit
+statuses; `--docs` runs the five that read no Rust.
 
 Once per clone: `git config core.hooksPath .githooks` (the commit-msg
 hook writes Claude's trailer as `Assisted-by:`) and `cargo install
-cargo-nextest --locked` (the gate's runner; `cargo test` still runs the
-suite).
+cargo-nextest --locked` (the gate's runner).

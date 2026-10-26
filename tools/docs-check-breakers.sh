@@ -4,7 +4,7 @@
 # scan (§2) and the cited commits (§2b), which read a commit written as
 # history through one matcher, and the history citations (§2b), each
 # path as it was at its commit, the document paths (§6), and the stale
-# identifiers (§3) as they read the skills. The dependency guard's cases and the group rule's moved with
+# identifiers (§3) as they read the skills and the glossary. The dependency guard's cases and the group rule's moved with
 # their checks to `arch-check-breakers.sh` (step 1e of the roadmap); the
 # two suites do not cross.
 #
@@ -26,7 +26,7 @@ for f in roadmap/reviews/zz-breaker.md "$golden_breaker"; do
   if [[ -e $f ]]; then echo "refusing to start: $f exists, and the suite would delete it"; exit 2; fi
 done
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/acq-docs-breakers.XXXXXX")
-files=(AGENTS.md decisions/plans.md REVIEW-CHECKLIST.md .claude/skills/seat/SKILL.md roadmap/README.md search/README.md)
+files=(AGENTS.md GLOSSARY.md decisions/plans.md REVIEW-CHECKLIST.md .claude/skills/seat/SKILL.md roadmap/README.md search/README.md)
 for f in "${files[@]}"; do mkdir -p "$scratch/keep/$(dirname "$f")"; cp "$f" "$scratch/keep/$f"; done
 restore() {
   local f
@@ -135,6 +135,9 @@ PY
 N=flaws
 run_case 'a skill names a test that does not exist'              refuse 'STALE   .claude/skills/seat/SKILL.md' skill 'tests/seat_faults.rs`' "tests/seat_$N.rs\`"
 run_case 'a skill names a tool that does not exist'              refuse 'STALE   .claude/skills/seat/SKILL.md' skill '`seat-mcp.py`' "\`seat-mcp-$N.py\`"
+
+glossary() { printf '%s\n' "$1" >>GLOSSARY.md; }
+run_case 'the glossary names a tool that does not exist'         refuse 'STALE   GLOSSARY.md' glossary "- **x**: held by \`tools/gate-$N.sh\`."
 
 echo '== a golden is named by its test file (C122)'
 orphan() { printf '# an orphan\n' >"$golden_breaker"; }
