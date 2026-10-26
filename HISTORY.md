@@ -21,3 +21,4 @@ commit's message; a shape that came back is `REVIEW-CHECKLIST.md`'s.
 | The release, `v1.0.0-alpha.1`: pricing on the MCP, the README, the policies, the seat | `05e6c70c..d0ab421e` | 2026-10-19 | `e7f279b5` (the open record and the brief at `d0ab421e`) |
 | Roadmap phase 0: the week's fixes | `roadmap/README.md`'s ledger | 2026-10-20 | `cca73395` (the briefs and the review files) |
 | Roadmap phase 1: the governance reset | `roadmap/README.md`'s ledger | 2026-10-20 | `0704a8f7` (the briefs, the drafts and the review files) |
+| The honesty slice: the daemon reports no success it did not earn, a count says what it counts, the doors take the world (C144 to C147; #71, #59, #61, #62, #49, #69, #75 closed; #11, #63, #16 in part; #74 opened) | `efc6e745..0b199df3` | 2026-10-26 | the briefs under `roadmap/briefs/h1-*.md`, `h2-*.md`, `h3-*.md`; the reviews whole at `0e7ed91d`, `65b18c90`, `a519fb02`, `117c0aa6`, `e82fa488`, `684262bb`, `a0bb6ab1` |

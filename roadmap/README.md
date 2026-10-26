@@ -207,6 +207,17 @@ list when a step's close commit or an issue takes it.
   harness's isolation list (C122); the seat worlds' stores are gone,
   so the new words were judged on fixtures, and the next seat reads
   them at scale.
+- **From h3, the foundations** (`briefs/h3-build.md` and its rounds;
+  C147): the provider stays process-wide (`want_provider` reads the
+  knob at each judgement; no consumer holds two); the older
+  ten-second waits in `acquisition-client/tests/contract.rs` predate
+  h3 and still wait on a clock; the other environment-moving unit
+  tests in `client.rs` remove what they set instead of restoring it,
+  and `Moved` is there for them; the replacement pin spawns a real
+  `acqd`, so the client's unit tests need `cargo build --workspace`
+  first, or an injectable spawner; the race look costs up to one
+  handshake deadline on a child that dies before the lock when a stale
+  pid sits in the lock file.
 
 ## Starting a session
 
