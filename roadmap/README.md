@@ -197,6 +197,16 @@ list when a step's close commit or an issue takes it.
   store settles it before a live substash fetch. #63's five hygiene
   rows stay on the issue; #74 is the printed retry command after a
   rename under a failing index; #16 has its first instance fixed.
+- **From h2, the words** (`briefs/h2-build.md` and its rounds; C146):
+  #11's two remaining parts stay on the issue, a flag listing the
+  items behind the residue and invalid-note counts and a location on
+  the scope's oldest and newest fetch, each a design; the price
+  refusal's `leagues_of` ignores the realm for an item, so an item
+  asked for in the wrong realm can still print a remedy that shows
+  nothing; `price_json.rs`'s `run_printed` runs `sh` outside the
+  harness's isolation list (C122); the seat worlds' stores are gone,
+  so the new words were judged on fixtures, and the next seat reads
+  them at scale.
 
 ## Starting a session
 
