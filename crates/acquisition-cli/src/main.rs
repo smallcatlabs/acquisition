@@ -19,7 +19,7 @@ use std::time::{Duration, Instant};
 
 use acquisition_client::client::{Client, DaemonError, Observed, Signal, Subscription};
 use acquisition_protocol::job::{JobInfo, JobState, Outcome};
-use acquisition_protocol::protocol::{ErrorKind, Request, Response};
+use acquisition_protocol::protocol::{ErrorKind, KeyringOutcome, Request, Response};
 use acquisition_protocol::provider::GGG;
 use acquisition_protocol::realm::Realm;
 use acquisition_store::world::{Lock, RailsState, World};
@@ -773,13 +773,13 @@ enum AuthCmd {
     Check,
     /// Drop the session and clear the keyring entry. With --account naming
     /// another known account, clear only that account's keyring entry. A
-    /// clear the keyring refuses, a keyring turned off (`ACQ_NO_KEYRING`,
-    /// which clears nothing), or an account index that cannot be written
-    /// is a failure that says the session was dropped and what was not
-    /// done, and the command that clears the entry.
-    /// `--json`: `logged_out`, `account`, `keyring` (`cleared`); on a
-    /// failure, the error document with `keyring` `not cleared`, or
-    /// `cleared` when only the index's mark failed.
+    /// keyring turned off (`ACQ_NO_KEYRING`) clears nothing and says so;
+    /// the logout still succeeds. A clear the keyring refuses, or an
+    /// account index that cannot be written, is a failure that says the
+    /// session was dropped and what was not done, and the command that
+    /// clears the entry.
+    /// `--json`: `logged_out`, `account`, `keyring` (`cleared`, `off`, or
+    /// `unknown` from an older daemon); on a failure, the error document.
     Logout,
 }
 
@@ -1061,38 +1061,38 @@ async fn run(cli: Cli) -> Result<()> {
                     })
                     .await?;
                 match answer {
-                    Response::Ack => {
+                    // C144: what the keyring did is the answer's field,
+                    // never read from a sentence. An older daemon's bare
+                    // ack carries none: unknown, and said so.
+                    Response::Ack { keyring } => {
+                        let (word, said) = match keyring {
+                            Some(KeyringOutcome::Cleared) => ("cleared", "keyring entry cleared"),
+                            Some(KeyringOutcome::Off) => ("off", "keyring off, nothing cleared"),
+                            Some(KeyringOutcome::Failed) => {
+                                ("failed", "the keyring entry could not be cleared")
+                            }
+                            None => ("unknown", "the daemon did not say what the keyring did"),
+                        };
+                        let failed = keyring == Some(KeyringOutcome::Failed);
                         if cli.json {
                             println!(
                                 "{}",
-                                json!({ "logged_out": true, "account": account, "keyring": "cleared" })
+                                json!({ "logged_out": true, "account": account, "keyring": word })
                             );
+                        } else if failed {
+                            eprintln!("logged out, but {said}");
                         } else {
-                            println!("logged out (session dropped, keyring cleared)");
+                            println!("logged out ({said})");
+                        }
+                        if failed {
+                            return Err(AlreadyReported.into());
                         }
                         Ok(())
                     }
-                    // The daemon's sentence says what it did and what it
-                    // did not (a session dropped, an entry not cleared, a
-                    // keyring turned off, an index mark not written).
-                    // An `ack` is the one answer without a sentence, so
-                    // `keyring` reads the sentence's own fact: a logout
-                    // whose clear worked and whose index mark failed says
-                    // "keyring entry cleared" in it.
+                    // A failed clear or an index the daemon could not
+                    // write: its sentence says what was and was not done.
                     Response::Error { kind, message } => {
-                        let keyring = if message.contains("keyring entry cleared") {
-                            "cleared"
-                        } else {
-                            "not cleared"
-                        };
-                        let refused = anyhow::Error::from(DaemonError { kind, message });
-                        if cli.json {
-                            let mut report = error_report(&refused);
-                            report["keyring"] = json!(keyring);
-                            println!("{report}");
-                            return Err(AlreadyReported.into());
-                        }
-                        Err(refused)
+                        Err(anyhow::Error::from(DaemonError { kind, message }))
                     }
                     other => anyhow::bail!("unexpected response: {other:?}"),
                 }

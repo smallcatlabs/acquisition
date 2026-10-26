@@ -5,6 +5,7 @@
 
 use super::harness::*;
 use crate::daemon::*;
+use acquisition_protocol::protocol::KeyringOutcome;
 use std::sync::atomic::Ordering;
 
 // ---- tracer step 2: uuid-at-login (C50) ------------------------------
@@ -851,18 +852,27 @@ async fn c144_a_logout_whose_keyring_clear_fails_says_so_on_the_wire() {
     *store.fail_clear.lock().unwrap() = None;
     assert!(matches!(
         logout_answer(&daemon, Some("test-user")).await,
-        Response::Ack
+        Response::Ack {
+            keyring: Some(KeyringOutcome::Cleared)
+        }
     ));
     assert!(store.entries.lock().unwrap().is_empty());
     let _ = std::fs::remove_dir_all(&dir);
     finish_harness(None, &log_path);
 }
 
-/// C144: a logout whose clear works is acknowledged, and the entry is gone.
+/// C144: a logout whose clear works is acknowledged with the keyring's
+/// outcome as data (the review of the h1 fix round, its fifth finding: no
+/// frontend reads it from a sentence), and the entry is gone.
 #[tokio::test]
 async fn a_logout_clears_the_keyring_entry_and_acks() {
     let (daemon, store, dir, log_path) = keyring_daemon(RecordingCredentialStore::default());
-    assert!(matches!(logout_answer(&daemon, None).await, Response::Ack));
+    assert!(matches!(
+        logout_answer(&daemon, None).await,
+        Response::Ack {
+            keyring: Some(KeyringOutcome::Cleared)
+        }
+    ));
     assert!(store.entries.lock().unwrap().is_empty());
     assert_eq!(store.cleared.lock().unwrap().as_slice(), ["test-user"]);
     let _ = std::fs::remove_dir_all(&dir);
@@ -1057,12 +1067,14 @@ async fn c144_a_re_login_under_a_renamed_username_clears_the_old_names_entry() {
 }
 
 /// C144 (no success the daemon did not earn), the review of h1, its
-/// second finding: with the keyring turned off (`ACQ_NO_KEYRING`) a clear
-/// tries nothing, so it is never reported as one. Logged in with the
-/// keyring on, then restarted with it off, a logout of the known account
-/// drops the session and marks it not persisted, and its answer says the
-/// keyring is off and nothing was cleared, where it used to acknowledge
-/// "keyring cleared" over the entry still there. Forget says the same.
+/// second finding, and the owner's ruling on the tail round: with the
+/// keyring turned off (`ACQ_NO_KEYRING`) a clear tries nothing, so it is
+/// never reported as one. Logged in with the keyring on, then restarted
+/// with it off, a logout of the known account drops the session and
+/// marks it not persisted, and its answer is an `ack` whose `keyring` is
+/// `off` — a success that says nothing was cleared, where the fix round
+/// answered an error and the build before it acknowledged "keyring
+/// cleared" over the entry still there. Forget answers the same.
 #[tokio::test]
 async fn c144_a_logout_with_the_keyring_off_says_nothing_was_cleared() {
     let store = RecordingCredentialStore::default();
@@ -1073,17 +1085,15 @@ async fn c144_a_logout_with_the_keyring_off_says_nothing_was_cleared() {
         logout_answer(&daemon, None).await,
         logout_answer(&daemon, Some("test-user")).await,
     ] {
-        let Response::Error { kind, message } = &answer else {
-            panic!("a clear that did not happen is not an ack: {answer:?}");
-        };
-        assert_eq!(*kind, ErrorKind::Internal);
         assert!(
-            message.contains(
-                "the keyring is off (disabled by ACQ_NO_KEYRING), so no keyring entry was cleared"
+            matches!(
+                answer,
+                Response::Ack {
+                    keyring: Some(KeyringOutcome::Off)
+                }
             ),
-            "{message}"
+            "a clear that did not happen is said as data: {answer:?}"
         );
-        assert!(!message.contains("keyring entry cleared"), "{message}");
     }
     assert!(daemon.shared.lock().unwrap().auth.by_account.is_empty());
     assert!(

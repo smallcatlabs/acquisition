@@ -15,8 +15,8 @@ use std::path::{Path, PathBuf};
 use acquisition_protocol::artifact::{Artifact, FileIdentity};
 use acquisition_protocol::job::{Children, JobInfo, JobState, MAX_429_RETRIES, Outcome};
 use acquisition_protocol::protocol::{
-    Bootstrap, BootstrapReply, ErrorKind, ErrorRecord, MAX_FRAME_BYTES, Quote, QuoteJob,
-    QuoteScope, Request, Response, SessionStatus, UNKNOWN, error_message,
+    Bootstrap, BootstrapReply, ErrorKind, ErrorRecord, KeyringOutcome, MAX_FRAME_BYTES, Quote,
+    QuoteJob, QuoteScope, Request, Response, SessionStatus, UNKNOWN, error_message,
 };
 use acquisition_protocol::status::{
     DegradedEndpoint, PolicyStatus, RailsStatus, RuleStatus, SendRecord, WindowStatus,
@@ -296,7 +296,7 @@ fn response_name(r: &Response) -> &'static str {
         Response::Submitted { .. } => "submitted",
         Response::Status { .. } => "status",
         Response::Result { .. } => "result",
-        Response::Ack => "ack",
+        Response::Ack { .. } => "ack",
         Response::Jobs { .. } => "jobs",
         Response::Subscribed => "subscribed",
         Response::AuthUrl { .. } => "auth_url",
@@ -320,7 +320,7 @@ fn responses() -> Vec<Response> {
                 payload: json!({ "status": 200, "body": { "stash": { "id": "t1", "items": [] } } }),
             },
         },
-        Response::Ack,
+        Response::Ack { keyring: None },
         Response::Jobs { jobs: vec![job()] },
         Response::Subscribed,
         Response::AuthUrl {
@@ -753,4 +753,37 @@ fn c85_the_frame_bound_is_pinned() {
     if let Some(problem) = check("frame", &json!({ "max_frame_bytes": MAX_FRAME_BYTES })) {
         panic!("the frame bound changed:\n{problem}");
     }
+}
+
+/// C144 (the daemon reports no success it did not earn), the review of
+/// the h1 fix round, its fifth finding: a logout's answer carries what
+/// the keyring did as a field, so no frontend reads it from a sentence a
+/// username can forge. The field round-trips in each of its three words;
+/// every other ack, and an older daemon's logout, is the bare ack, read
+/// with no outcome (unknown).
+#[test]
+fn c144_the_logout_answer_carries_the_keyring_outcome_as_a_field() {
+    for (outcome, word) in [
+        (KeyringOutcome::Cleared, "cleared"),
+        (KeyringOutcome::Off, "off"),
+        (KeyringOutcome::Failed, "failed"),
+    ] {
+        let wire = serde_json::to_value(Response::Ack {
+            keyring: Some(outcome),
+        })
+        .unwrap();
+        assert_eq!(wire, json!({ "resp": "ack", "keyring": word }));
+        assert_eq!(outcome.as_str(), word);
+        let read: Response = serde_json::from_value(wire).unwrap();
+        assert!(
+            matches!(read, Response::Ack { keyring: Some(k) } if k == outcome),
+            "{read:?}"
+        );
+    }
+    assert_eq!(
+        serde_json::to_value(Response::Ack { keyring: None }).unwrap(),
+        json!({ "resp": "ack" })
+    );
+    let bare: Response = serde_json::from_str(r#"{"resp":"ack"}"#).unwrap();
+    assert!(matches!(bare, Response::Ack { keyring: None }), "{bare:?}");
 }

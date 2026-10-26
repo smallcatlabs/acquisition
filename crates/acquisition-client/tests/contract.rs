@@ -1016,7 +1016,7 @@ async fn c85_error_kinds_classify_the_domain_failures_a_client_can_stage() {
     assert!(message.contains("still"), "{message}");
     assert!(matches!(
         client.request(&Request::Cancel { id }).await.unwrap(),
-        Response::Ack
+        Response::Ack { .. }
     ));
     // A running job is cancelled at its next slice; until then a second
     // cancel is the same request again, not a wrong state.

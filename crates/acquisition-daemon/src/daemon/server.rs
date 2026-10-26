@@ -285,13 +285,13 @@ impl Daemon {
                 }
             }
             Request::Cancel { id } => match self.cancel(id) {
-                Ok(()) => Response::Ack,
+                Ok(()) => Response::Ack { keyring: None },
                 Err(refusal) => refusal.into(),
             },
             Request::SetPriority { id, priority } => match self.set_priority(id, priority) {
                 Ok(()) => {
                     self.work.notify_one();
-                    Response::Ack
+                    Response::Ack { keyring: None }
                 }
                 Err(refusal) => refusal.into(),
             },
@@ -325,7 +325,9 @@ impl Daemon {
             // the decision is the logout's own, under its one lock, and a
             // clear that failed is the answer.
             Request::AuthLogout { account } => match self.logout(account.as_deref()) {
-                Ok(()) => Response::Ack,
+                Ok(keyring) => Response::Ack {
+                    keyring: Some(keyring),
+                },
                 Err(refusal) => refusal.into(),
             },
             Request::Quote { jobs, account } => match self.quote(&jobs, account.as_deref()) {
@@ -362,7 +364,7 @@ impl Daemon {
                 }
             }
             Request::ResetTripwire => match self.reset_rails() {
-                Ok(()) => Response::Ack,
+                Ok(()) => Response::Ack { keyring: None },
                 Err(refusal) => refusal.into(),
             },
             Request::Dashboard => {

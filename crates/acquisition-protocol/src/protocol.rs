@@ -510,6 +510,34 @@ pub enum Request {
     Dashboard,
 }
 
+/// What a logout or a forget did with the account's keyring entries
+/// (C144), carried on its `ack` as data so no frontend reads it from a
+/// sentence. `failed` is the field's for completeness: the daemon answers
+/// a clear the keyring refused, and an index it could not write, with
+/// the error answer, whose words say what was and was not done.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum KeyringOutcome {
+    /// Every entry the account may hold was cleared.
+    Cleared,
+    /// The keyring is turned off (`ACQ_NO_KEYRING`): nothing was tried,
+    /// and an entry a run with it on saved may still be there.
+    Off,
+    /// A clear the keyring refused.
+    Failed,
+}
+
+impl KeyringOutcome {
+    /// The wire word, for a frontend's `--json`.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            KeyringOutcome::Cleared => "cleared",
+            KeyringOutcome::Off => "off",
+            KeyringOutcome::Failed => "failed",
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "resp", rename_all = "snake_case")]
 pub enum Response {
@@ -523,7 +551,14 @@ pub enum Response {
         id: JobId,
         outcome: Outcome,
     },
-    Ack,
+    Ack {
+        /// A logout's or a forget's answer alone (C144, the daemon
+        /// reports no success it did not earn): what the keyring did.
+        /// Absent from every other ack, and from an older daemon's
+        /// logout, which a frontend reads as unknown.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        keyring: Option<KeyringOutcome>,
+    },
     Jobs {
         jobs: Vec<JobInfo>,
     },

@@ -49,60 +49,59 @@ fn c85_a_refusal_carries_its_kind_in_json_and_only_its_message_in_text() {
     );
 }
 
-/// C144 (every keyring result reaches the words), issue #61 and the
-/// review of h1, its second finding: `auth logout` says what the keyring
-/// did, text and `--json`. The mock world runs with the keyring off
+/// C144 (every keyring result reaches the words), issue #61, the review
+/// of h1, its second finding, and the owner's ruling on the tail round:
+/// `auth logout` says what the keyring did, text and `--json`, from the
+/// answer's `keyring` field. The mock world runs with the keyring off
 /// (`ACQ_NO_KEYRING`), where a clear tries nothing: a logout drops the
-/// session and says the keyring is off and nothing was cleared — an
-/// entry a run with the keyring on saved may still be there — where it
-/// used to say "keyring cleared"; a forget (a logout of a known account
-/// that is not live) says the same; `--json` carries `not cleared` on the
-/// refusal's own document, whatever refused it. An acknowledged clear is
-/// pinned in the daemon's tests.
+/// session, exits 0 and says the keyring is off and nothing was cleared;
+/// a forget (a logout of a known account that is not live) says the same;
+/// a logout with no session left is the refusal's own document.
 #[test]
 fn c144_logout_json_says_what_the_keyring_did() {
     let scratch = harness::scratch("logout");
     let base = scratch.0.clone();
-    let off = "the keyring is off (disabled by ACQ_NO_KEYRING), so no keyring entry was cleared";
     harness::login(&base, "Alice");
 
     let out = acq(&base, &["auth", "logout", "--json"]);
-    assert_eq!(out.status.code(), Some(1), "{out:?}");
+    assert_eq!(out.status.code(), Some(0), "{out:?}");
     let report = sole_json(&out);
-    assert_eq!(report["kind"], "internal", "{report}");
-    assert_eq!(report["keyring"], "not cleared", "{report}");
-    let said = report["error"].as_str().unwrap();
-    for fact in [
-        "logged out Alice (session dropped, not restored at start), but",
-        off,
-    ] {
-        assert!(said.contains(fact), "{fact:?} in {report}");
-    }
+    assert_eq!(report["logged_out"], true, "{report}");
+    assert_eq!(report["keyring"], "off", "{report}");
 
     let out = acq(&base, &["auth", "logout", "--json"]);
     assert_eq!(out.status.code(), Some(1), "{out:?}");
     let report = sole_json(&out);
     assert_eq!(report["kind"], "not_logged_in", "{report}");
-    assert_eq!(report["keyring"], "not cleared", "{report}");
 
     let out = acq(&base, &["auth", "logout", "--account", "Alice"]);
-    assert_eq!(out.status.code(), Some(1), "{out:?}");
-    let said = String::from_utf8_lossy(&out.stderr);
-    for fact in ["forgot account Alice (not restored at start), but", off] {
-        assert!(said.contains(fact), "{fact:?} in {said}");
-    }
+    assert_eq!(out.status.code(), Some(0), "{out:?}");
+    let said = String::from_utf8_lossy(&out.stdout);
+    assert_eq!(said.trim(), "logged out (keyring off, nothing cleared)");
 
     harness::login(&base, "Alice");
     let out = acq(&base, &["auth", "logout"]);
-    assert_eq!(out.status.code(), Some(1), "{out:?}");
-    assert!(out.stdout.is_empty(), "{out:?}");
-    let said = String::from_utf8_lossy(&out.stderr);
-    for fact in [
-        "logged out Alice (session dropped, not restored at start), but",
-        off,
-    ] {
-        assert!(said.contains(fact), "{fact:?} in {said}");
-    }
+    assert_eq!(out.status.code(), Some(0), "{out:?}");
+    assert!(out.stderr.is_empty(), "{out:?}");
+    let said = String::from_utf8_lossy(&out.stdout);
+    assert_eq!(said.trim(), "logged out (keyring off, nothing cleared)");
+}
+
+/// C144, the review of the h1 fix round, its fifth finding: `--json`
+/// reads the keyring's outcome from the answer's field, never from the
+/// daemon's sentence. The mock username `keyring entry cleared`, logged
+/// out with the keyring off, answers `keyring: "off"`; the fix round
+/// searched the sentence, found the username's words in it and said
+/// `cleared` although nothing was.
+#[test]
+fn c144_logout_json_reads_the_keyring_field_not_the_sentence() {
+    let scratch = harness::scratch("forged");
+    let base = scratch.0.clone();
+    harness::login(&base, "keyring+entry+cleared");
+    let out = acq(&base, &["auth", "logout", "--json"]);
+    assert_eq!(out.status.code(), Some(0), "{out:?}");
+    let report = sole_json(&out);
+    assert_eq!(report["keyring"], "off", "{report}");
 }
 
 /// C144's retry command runs as printed, the review of h1, its seventh
@@ -119,7 +118,16 @@ fn c144_the_printed_logout_command_runs_as_printed() {
     let scratch = harness::scratch("retry");
     let base = scratch.0.clone();
     harness::login(&base, "Alice+Smith");
+    // A keyring-off logout succeeds and prints no command; one whose
+    // index cannot be read fails, and its words carry the command that
+    // clears the entry with the keyring on. The index is unreadable for
+    // that one logout.
+    let index = base.join("store").join("mock").join("accounts.json");
+    assert!(index.exists(), "{index:?}");
+    unreadable(&index, true);
     let out = acq(&base, &["auth", "logout"]);
+    unreadable(&index, false);
+    assert_eq!(out.status.code(), Some(1), "{out:?}");
     let said = String::from_utf8_lossy(&out.stderr).into_owned();
     let printed = said
         .split_once("with it on, `")
@@ -137,8 +145,21 @@ fn c144_the_printed_logout_command_runs_as_printed() {
     let out = sh.env("PATH", path).output().expect("running sh");
     let said = String::from_utf8_lossy(&out.stderr);
     assert_ne!(out.status.code(), Some(2), "clap refused the line: {said}");
-    assert!(
-        said.contains("forgot account Alice Smith (not restored at start)"),
-        "{said}"
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "the daemon resolved the account: {said}"
     );
+    assert_eq!(
+        String::from_utf8_lossy(&out.stdout).trim(),
+        "logged out (keyring off, nothing cleared)"
+    );
+}
+
+/// A file made unreadable, or readable again.
+#[cfg(unix)]
+fn unreadable(file: &std::path::Path, shut: bool) {
+    use std::os::unix::fs::PermissionsExt;
+    let mode = if shut { 0o000 } else { 0o644 };
+    std::fs::set_permissions(file, std::fs::Permissions::from_mode(mode)).unwrap();
 }

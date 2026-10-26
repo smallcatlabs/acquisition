@@ -61,7 +61,7 @@ async fn rejected_refresh_grant_disables_further_refreshes_until_logout() {
         assert!(s.auth.one().refresh_flight.is_none());
     }
 
-    daemon.logout(None).unwrap_or(());
+    let _ = daemon.logout(None);
     assert_eq!(
         rails.refresh_failed("test-user"),
         None,

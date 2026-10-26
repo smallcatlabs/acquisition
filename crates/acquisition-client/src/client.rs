@@ -1473,7 +1473,7 @@ impl Client {
     /// `request` variants that unwrap the expected response shape.
     pub async fn expect_ack(&mut self, req: &Request) -> Result<()> {
         match self.request(req).await? {
-            Response::Ack => Ok(()),
+            Response::Ack { .. } => Ok(()),
             Response::Error { kind, message } => Err(refused(kind, message)),
             other => bail!("unexpected response: {other:?}"),
         }

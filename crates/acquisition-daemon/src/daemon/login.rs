@@ -4,6 +4,7 @@
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
 use super::*;
+use acquisition_protocol::protocol::KeyringOutcome;
 use acquisition_store::AccountEntry;
 
 impl Daemon {
@@ -412,7 +413,7 @@ impl Daemon {
     /// failed, releases each that succeeded and marks the account not
     /// persisted, in one write. Every result reaches the caller
     /// (`settle`).
-    pub(super) fn logout(&self, account: Option<&str>) -> Result<(), Refusal> {
+    pub(super) fn logout(&self, account: Option<&str>) -> Result<KeyringOutcome, Refusal> {
         let (done, dropped) = {
             let mut s = self.shared.lock().unwrap();
             let named = |x: &AuthSession| (x.username.clone().unwrap_or_default(), x.uuid.clone());
@@ -542,16 +543,18 @@ impl Daemon {
             .cloned()
     }
 
-    /// C144 — the words of a logout (`session_dropped`) or a forget, from
-    /// what each step did. When the keyring entry was cleared and the
-    /// index marked the account not persisted, the log says so and the
-    /// answer is an `ack`. Otherwise the answer is `internal`, in a
-    /// sentence that says what was done and what was not: "not restored
-    /// at start" only when the index's mark was written; a keyring turned
-    /// off, which cleared nothing; a clear that failed, with the request
-    /// that tries it again (a logout of a known account that is not live
-    /// is a forget).
-    fn settle(&self, done: Settled<'_>) -> Result<(), Refusal> {
+    /// C144 — the answer of a logout (`session_dropped`) or a forget, from
+    /// what each step did. When the index marked the account not
+    /// persisted and every clear succeeded, or the keyring is off and
+    /// tried none, the answer is an `ack` carrying that outcome as data
+    /// (`KeyringOutcome`), and the log says it in words. Otherwise — a
+    /// clear that failed, or an index that could not be written — the
+    /// answer is `internal`, in a sentence that says what was done and
+    /// what was not: "not restored at start" only when the index's mark
+    /// was written; a keyring turned off, which cleared nothing; a clear
+    /// that failed, with the request that tries it again (a logout of a
+    /// known account that is not live is a forget).
+    fn settle(&self, done: Settled<'_>) -> Result<KeyringOutcome, Refusal> {
         let Settled {
             username,
             session_dropped,
@@ -563,9 +566,16 @@ impl Daemon {
         } else {
             format!("forgot account {username}")
         };
-        if let (Ok(()), Ok(())) = (&cleared, &indexed) {
-            self.log(&format!("{what} (keyring entry cleared)"));
-            return Ok(());
+        match (&cleared, &indexed) {
+            (Ok(()), Ok(())) => {
+                self.log(&format!("{what} (keyring entry cleared)"));
+                return Ok(KeyringOutcome::Cleared);
+            }
+            (Err(auth::NotCleared::Off(why)), Ok(())) => {
+                self.log(&format!("{what} (keyring off, nothing cleared: {why})"));
+                return Ok(KeyringOutcome::Off);
+            }
+            _ => {}
         }
         let mut facts = Vec::new();
         if session_dropped {

@@ -1262,7 +1262,7 @@ impl AcqMcp {
             async {
                 let mut client = self.frontend.attach().await?;
                 match ask(&mut client, &Request::Cancel { id: p.id }).await? {
-                    Response::Ack => Ok(json!({ "job_id": p.id, "cancel_requested": true })),
+                    Response::Ack { .. } => Ok(json!({ "job_id": p.id, "cancel_requested": true })),
                     other => Err(unexpected(other).into()),
                 }
             }
