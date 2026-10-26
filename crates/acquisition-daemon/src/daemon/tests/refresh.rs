@@ -655,3 +655,94 @@ async fn c144_a_rename_whose_old_entry_cannot_be_cleared_says_so() {
     assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
     finish_harness(None, &log_path);
 }
+
+/// A scratch store directory whose index lists `test-user` (uuid `u-1`)
+/// as persisted, for a daemon from `token_daemon_with_store` whose
+/// session then carries that uuid.
+fn indexed_test_user(daemon: &mut Arc<Daemon>) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!(
+        "acq-refresh-index-{}-{}",
+        std::process::id(),
+        TEST_LOG_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    Index::load(&dir)
+        .unwrap()
+        .record_login("test-user", "u-1", true, 1)
+        .unwrap();
+    Arc::get_mut(daemon).unwrap().store_dir = Some(dir.clone());
+    daemon.shared.lock().unwrap().auth.one_mut().uuid = Some("u-1".into());
+    dir
+}
+
+/// C144 (the daemon reports no success it did not earn), the review of
+/// h1, its first finding: a refresh's landing — the token install, the
+/// index write, the session's rename — is one critical section, as a
+/// login's is, so a logout that lands where the refresh releases the
+/// lock finds the landing whole, and its not-persisted mark stands.
+/// Before, the refresh saved its token and released the lock; the
+/// logout dropped the session, failed its clear and marked the account
+/// not persisted; then the refresh's index write marked it persisted
+/// again, and a restart restored the account the user had logged out
+/// of. The logout is run at the landing's test pause, never timed.
+#[tokio::test]
+async fn c144_a_logout_where_a_refresh_releases_the_lock_keeps_its_mark() {
+    let (mut daemon, store, log_path, requests, server) = token_daemon_with_store(
+        vec![token_answer("200 OK", TOKEN_HEADERS, None)],
+        RecordingCredentialStore::failing("clear", "keychain locked"),
+    )
+    .await;
+    let dir = indexed_test_user(&mut daemon);
+    let logout = Arc::new(Mutex::new(None));
+    {
+        let weak = Arc::downgrade(&daemon);
+        let logout = logout.clone();
+        *daemon.refresh_landed_hook.lock().unwrap() = Some(Box::new(move || {
+            let daemon = weak.upgrade().expect("the daemon outlives its refresh");
+            *logout.lock().unwrap() = Some(daemon.logout(Some("test-user")));
+        }));
+    }
+
+    daemon.valid_access_token(None, false, None).await.unwrap();
+    let refusal = logout
+        .lock()
+        .unwrap()
+        .take()
+        .expect("the logout ran at the pause")
+        .unwrap_err();
+    assert!(
+        refusal
+            .message
+            .contains("its keyring entry could not be cleared: keychain locked"),
+        "{refusal}"
+    );
+    assert!(
+        daemon
+            .shared
+            .lock()
+            .unwrap()
+            .auth
+            .find("test-user")
+            .is_none()
+    );
+    let index = Index::load(&dir).unwrap();
+    let entry = index.get("test-user").unwrap();
+    assert!(
+        !entry.persisted,
+        "the logout's mark stands: no start restores the account"
+    );
+    assert_eq!(
+        store
+            .entries
+            .lock()
+            .unwrap()
+            .get("test-user")
+            .map(String::as_str),
+        Some("rt-rotated"),
+        "the refresh's save landed before the logout"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+    server.await.unwrap();
+    assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
+    finish_harness(None, &log_path);
+}

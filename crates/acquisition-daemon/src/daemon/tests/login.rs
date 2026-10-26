@@ -963,3 +963,95 @@ fn c144_restore_reads_through_the_credential_store_and_reports_a_failed_load() {
     );
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// A login of `user` staged to the point its profile's uuid lands: the
+/// flow begun, the tokens in the staging slot. Returns the generation.
+fn staged_login(daemon: &Daemon, user: &str) -> u64 {
+    let generation = daemon.begin_auth_flow();
+    daemon
+        .stage_auth_flow(generation, login_tokens(&format!("at-x.{user}"), user))
+        .expect("current flow stages");
+    generation
+}
+
+/// C144 (a failed save clears the entry it would have replaced), the
+/// review of h1, its fourth finding: a re-login goes through the persist
+/// a refresh uses, so a re-login whose save fails clears the previous
+/// login's entry instead of leaving it behind while the index says the
+/// account is not persisted.
+#[tokio::test]
+async fn c144_a_re_login_whose_save_fails_clears_the_previous_entry() {
+    let (daemon, credentials, store_dir, log_path) = login_daemon("http://127.0.0.1:1");
+    Index::load(&store_dir)
+        .unwrap()
+        .record_login("Alice#1", "u-a", true, 1)
+        .unwrap();
+    credentials
+        .entries
+        .lock()
+        .unwrap()
+        .insert("Alice#1".into(), "rt-previous".into());
+    *credentials.fail_save.lock().unwrap() = Some("keychain locked".into());
+
+    let generation = staged_login(&daemon, "Alice#1");
+    assert!(daemon.complete_login(generation, "Alice#1", "u-a"));
+    assert!(
+        credentials.entries.lock().unwrap().is_empty(),
+        "the previous login's entry is cleared"
+    );
+    assert_eq!(credentials.cleared.lock().unwrap().as_slice(), ["Alice#1"]);
+    assert!(
+        !Index::load(&store_dir)
+            .unwrap()
+            .get("Alice#1")
+            .unwrap()
+            .persisted
+    );
+    assert_eq!(
+        daemon
+            .shared
+            .lock()
+            .unwrap()
+            .auth
+            .find("Alice#1")
+            .unwrap()
+            .keyring,
+        "unavailable: keychain locked"
+    );
+    let _ = std::fs::remove_dir_all(&store_dir);
+    let _ = std::fs::remove_file(&log_path);
+}
+
+/// C144 (a rename clears the entry it leaves behind), the review of h1,
+/// its fourth finding: a re-login under a renamed username moves the
+/// uuid's index entry to the new name and clears the entry under the
+/// name the index mapped the uuid to, which nothing could reach again.
+#[tokio::test]
+async fn c144_a_re_login_under_a_renamed_username_clears_the_old_names_entry() {
+    let (daemon, credentials, store_dir, log_path) = login_daemon("http://127.0.0.1:1");
+    Index::load(&store_dir)
+        .unwrap()
+        .record_login("Old#1", "u-a", true, 1)
+        .unwrap();
+    credentials
+        .entries
+        .lock()
+        .unwrap()
+        .insert("Old#1".into(), "rt-old".into());
+
+    let generation = staged_login(&daemon, "New#1");
+    assert!(daemon.complete_login(generation, "New#1", "u-a"));
+    assert_eq!(
+        credentials.entries.lock().unwrap().clone(),
+        HashMap::from([("New#1".to_string(), "rt-New#1".to_string())]),
+        "one entry, under the new name"
+    );
+    assert_eq!(credentials.cleared.lock().unwrap().as_slice(), ["Old#1"]);
+    let index = Index::load(&store_dir).unwrap();
+    assert!(index.get("Old#1").is_none());
+    let entry = index.get("New#1").unwrap();
+    assert_eq!(entry.uuid.as_deref(), Some("u-a"));
+    assert!(entry.persisted);
+    let _ = std::fs::remove_dir_all(&store_dir);
+    let _ = std::fs::remove_file(&log_path);
+}

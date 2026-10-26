@@ -242,30 +242,26 @@ impl Daemon {
                 .take_if(|st| st.flow == generation && st.username == username)
             {
                 // Keyring and index writes happen under the auth lock so
-                // they are ordered with logout and re-login.
-                let saved = self.credential_store.save(
-                    self.provider.keyring_service,
-                    &staging.refresh_token,
+                // they are ordered with logout and re-login, through the
+                // one persist a refresh uses (C144): a failed save clears
+                // the entry it would have replaced, and a re-login under
+                // a renamed username clears the name the index mapped
+                // the uuid to.
+                let persisted = self.persist_credentials_locked(
                     username,
+                    &staging.refresh_token,
+                    Some(uuid),
+                    None,
+                    acquisition_store::now(),
                 );
-                let (keyring, warning) = match &saved {
-                    Ok(()) => ("ok".to_string(), None),
-                    Err(e) => (
-                        format!("unavailable: {e}"),
-                        Some(format!(
-                            "keyring save failed: {e} (session is in-memory only)"
-                        )),
-                    ),
-                };
-                let persisted = saved.is_ok();
-                let indexed = self.index_apply(|index| {
-                    index.record_login(username, uuid, persisted, acquisition_store::now())
-                });
-                match indexed {
+                let keyring = persisted.keyring;
+                let warning =
+                    (!persisted.warnings.is_empty()).then(|| persisted.warnings.join("; "));
+                match persisted.indexed {
                     Err(e) => {
                         let mut error =
                             format!("could not record the login in the account index: {e}");
-                        if persisted
+                        if keyring == "ok"
                             && let Err(clear) = self
                                 .credential_store
                                 .clear(self.provider.keyring_service, username)

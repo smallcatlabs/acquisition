@@ -895,6 +895,10 @@ pub struct Daemon {
     /// Running jobs finish (their sends are committed); everything else
     /// refuses until a restart finds a working `daemon.db`.
     queue_failure: Mutex<Option<String>>,
+    /// A test's pause where a refresh's landing releases `shared`, run
+    /// once (C144: the landing is one critical section).
+    #[cfg(test)]
+    refresh_landed_hook: Mutex<Option<Box<dyn FnOnce() + Send>>>,
 }
 
 /// Where a refresh token is kept (invariant 5): the OS keyring in a

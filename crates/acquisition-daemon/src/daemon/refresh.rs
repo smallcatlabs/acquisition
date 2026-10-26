@@ -61,53 +61,33 @@ impl Drop for RefreshOwnerGuard<'_> {
 }
 
 impl Daemon {
-    /// Store fresh tokens in memory and mirror the refresh token (which the
-    /// provider rotates on every grant) into the keyring. The caller holds
-    /// the auth-state lock so keyring mutation is ordered with logout and
-    /// re-authentication — and updates the account index *after* releasing
-    /// it (`with_index` reports errors through `note_error`, which takes
-    /// the same lock). C144: no entry is left behind that nothing could
-    /// reach — a refresh that renames the account clears the old name's
-    /// entry, and a failed save clears the entry it would have replaced,
-    /// which holds a token the grant just rotated away. Every clear that
-    /// fails joins the warning the caller reports.
+    /// Store fresh tokens in memory and persist the refresh token (which
+    /// the provider rotates on every grant) through
+    /// [`Self::persist_credentials_locked`]: the keyring and the account
+    /// index, under the caller's hold of the auth-state lock, so keyring
+    /// and index move with the session and are ordered with logout and
+    /// re-authentication (C144). Returns every warning the persist met,
+    /// joined, for the caller to report once the lock is released.
     pub(super) fn install_tokens_locked(
         &self,
         session: &mut AuthSession,
         tokens: auth::TokenResponse,
     ) -> Option<String> {
-        let service = self.provider.keyring_service;
         let old_name = session
             .username
             .clone()
             .filter(|old| !old.is_empty() && *old != tokens.username);
-        let saved = self
-            .credential_store
-            .save(service, &tokens.refresh_token, &tokens.username);
-        let mut warnings = Vec::new();
-        let keyring = match &saved {
-            Ok(()) => "ok".to_string(),
-            Err(e) => {
-                warnings.push(format!(
-                    "keyring save failed: {e} (session is in-memory only)"
-                ));
-                if let Err(clear) = self.credential_store.clear(service, &tokens.username) {
-                    warnings.push(format!(
-                        "the entry the save would have replaced, for {}, could not be cleared: {clear}",
-                        tokens.username
-                    ));
-                }
-                format!("unavailable: {e}")
-            }
-        };
-        if let Some(old) = &old_name
-            && let Err(clear) = self.credential_store.clear(service, old)
-        {
-            warnings.push(format!(
-                "the keyring entry under the old name {old} could not be cleared: {clear}"
-            ));
+        let persisted = self.persist_credentials_locked(
+            &tokens.username,
+            &tokens.refresh_token,
+            session.uuid.as_deref(),
+            old_name.as_deref(),
+            self.unix_now(),
+        );
+        let mut warnings = persisted.warnings;
+        if let Err(e) = persisted.indexed {
+            warnings.push(e);
         }
-        let warning = (!warnings.is_empty()).then(|| warnings.join("; "));
         session.access_token = Some(tokens.access_token);
         // C47: `expires_in` is bounded where the response is read
         // (`auth::MAX_ACCESS_TOKEN_LIFETIME_SECS`), so the sum is safe.
@@ -115,11 +95,86 @@ impl Daemon {
             Some(self.choke.wall() + Duration::from_secs(tokens.expires_in));
         session.refresh_token = Some(tokens.refresh_token);
         session.username = Some(tokens.username);
-        session.keyring = keyring;
+        session.keyring = persisted.keyring;
         session.advance_access_token();
         session.advance_refresh_token();
         session.refresh_flight = None;
-        warning
+        (!warnings.is_empty()).then(|| warnings.join("; "))
+    }
+
+    /// C144 — the one persist of a refresh token, login's and refresh's
+    /// alike, called under the caller's hold of `shared` so the keyring
+    /// and the index land together, ordered with logout and forget. The
+    /// token is saved under `username`; a failed save clears the entry it
+    /// would have replaced, which holds a token the grant rotated away or
+    /// the previous login's. The account index then records the login at `at`
+    /// (by the uuid when there is one, so a rename moves the entry), and
+    /// only once it follows the new name is every other name the
+    /// account's entry was held under cleared: the session's old name
+    /// (`old_name`, a refresh that renamed) and the name the index mapped
+    /// the uuid to (a re-login under a renamed username). An index that
+    /// cannot be written leaves the old names alone: the index still
+    /// reaches them. Every clear that fails is a warning.
+    pub(super) fn persist_credentials_locked(
+        &self,
+        username: &str,
+        refresh_token: &str,
+        uuid: Option<&str>,
+        old_name: Option<&str>,
+        at: i64,
+    ) -> Persisted {
+        let service = self.provider.keyring_service;
+        let mut old_names: Vec<String> = old_name.map(str::to_string).into_iter().collect();
+        // An index that cannot be read fails the write below, which says so.
+        if let (Some(dir), Some(uuid)) = (&self.store_dir, uuid)
+            && let Ok(index) = Index::load(dir)
+            && let Some(entry) = index
+                .entries()
+                .iter()
+                .find(|e| e.uuid.as_deref() == Some(uuid))
+            && !old_names.contains(&entry.username)
+        {
+            old_names.push(entry.username.clone());
+        }
+        old_names.retain(|old| !old.is_empty() && old != username);
+        let saved = self.credential_store.save(service, refresh_token, username);
+        let mut warnings = Vec::new();
+        let keyring = match &saved {
+            Ok(()) => "ok".to_string(),
+            Err(e) => {
+                warnings.push(format!(
+                    "keyring save failed: {e} (session is in-memory only)"
+                ));
+                if let Err(clear) = self.credential_store.clear(service, username) {
+                    warnings.push(format!(
+                        "the entry the save would have replaced, for {username}, could not be cleared: {clear}"
+                    ));
+                }
+                format!("unavailable: {e}")
+            }
+        };
+        // Persisted is the save's result alone: a clear that fails beside
+        // a good save warns, and the entry the index points at is the one
+        // just saved.
+        let persisted = saved.is_ok();
+        let indexed = self.index_apply(|index| match uuid {
+            Some(uuid) => index.record_login(username, uuid, persisted, at),
+            None => index.upsert(username, persisted, at),
+        });
+        if indexed.is_ok() {
+            for old in &old_names {
+                if let Err(clear) = self.credential_store.clear(service, old) {
+                    warnings.push(format!(
+                        "the keyring entry under the old name {old} could not be cleared: {clear}"
+                    ));
+                }
+            }
+        }
+        Persisted {
+            keyring,
+            warnings,
+            indexed,
+        }
     }
 
     /// A 401 landed on a send that carried `token` (C87): the session
@@ -326,6 +381,11 @@ impl Daemon {
         }
     }
 
+    /// The refresh's landing (C144): the token install, the keyring and
+    /// the account index (`install_tokens_locked`) and the session's
+    /// rename happen under one hold of `shared`, as a login's do, so a
+    /// logout lands wholly before them (the refresh is stale) or wholly
+    /// after (its not-persisted mark stands).
     pub(super) fn finish_refresh(
         &self,
         account: &str,
@@ -336,7 +396,6 @@ impl Daemon {
     ) -> AccessTokenResult {
         let mut warning = None;
         let mut renamed = None;
-        let mut index_update = None;
         let outcome = {
             let mut s = self.shared.lock().unwrap();
             let Some(session) = s.auth.find_mut(account) else {
@@ -354,37 +413,27 @@ impl Daemon {
                     Ok(tokens) => {
                         // GGG returns the same account on a refresh; if the
                         // name ever differs (a rename), the session follows
-                        // it — lookups go by the session's username.
+                        // it — lookups go by the session's username — and
+                        // the index follows the session's uuid
+                        // (`record_login`) instead of minting a uuid-less
+                        // twin entry; a pre-uuid session falls back to
+                        // plain bookkeeping.
                         if tokens.username != account {
                             renamed = Some(tokens.username.clone());
                         }
                         let result = (tokens.access_token.clone(), tokens.username.clone());
-                        let username = tokens.username.clone();
                         warning = self.install_tokens_locked(session, tokens);
-                        // Persisted is the save's result alone: a clear that
-                        // failed beside a good save warns, and the entry
-                        // the index points at is the one just saved.
-                        let persisted = session.keyring == "ok";
-                        index_update = Some((username, session.uuid.clone(), persisted));
+                        if let Some(new_name) = &renamed {
+                            s.auth.rename(account, new_name);
+                        }
                         Ok(result)
                     }
                     Err(error) => Err(error),
                 }
             }
         };
-        // With the session's uuid, a refresh that renamed the account
-        // updates the existing index mapping in place (`record_login`
-        // follows the uuid) instead of minting a uuid-less twin entry; a
-        // pre-uuid session falls back to plain bookkeeping.
-        if let Some((username, uuid, persisted)) = index_update {
-            self.with_index(|index| match &uuid {
-                Some(uuid) => index.record_login(&username, uuid, persisted, self.unix_now()),
-                None => index.upsert(&username, persisted, self.unix_now()),
-            });
-        }
-        if let Some(new_name) = &renamed {
-            self.shared.lock().unwrap().auth.rename(account, new_name);
-        }
+        #[cfg(test)]
+        self.refresh_landed();
         sender.send_replace(Some(outcome.clone()));
         if outcome.is_ok() {
             self.log(&format!("access token refreshed for {account}"));
@@ -399,6 +448,25 @@ impl Daemon {
         }
         outcome
     }
+
+    /// The test's pause where a refresh's landing releases `shared`: the
+    /// review of h1 staged a logout here.
+    #[cfg(test)]
+    fn refresh_landed(&self) {
+        let hook = self.refresh_landed_hook.lock().unwrap().take();
+        if let Some(hook) = hook {
+            hook();
+        }
+    }
+}
+
+/// What [`Daemon::persist_credentials_locked`] did: the session's keyring
+/// status (`ok` or `unavailable: …`), every warning beside it, and the
+/// index write's result.
+pub(super) struct Persisted {
+    pub(super) keyring: String,
+    pub(super) warnings: Vec<String>,
+    pub(super) indexed: Result<(), String>,
 }
 
 /// A refresh whose session vanished (logged out) while it was in flight.

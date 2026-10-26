@@ -510,6 +510,8 @@ async fn run_with_log(
         jobs_db,
         queue_failure: Mutex::new(None),
         exit: Exit::default(),
+        #[cfg(test)]
+        refresh_landed_hook: Mutex::new(None),
     });
     // C133: the exit's at-once end, then the signals: a signal from here
     // on runs the exit, before restore or any lock is taken.
