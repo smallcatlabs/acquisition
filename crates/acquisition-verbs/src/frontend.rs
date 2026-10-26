@@ -24,7 +24,7 @@ use acquisition_plan::pricing::Expect;
 use acquisition_plan::{LeagueNote, PolicyWrite, SyncPolicy, league_notes, put_sync_policy};
 use acquisition_protocol::provider::GGG;
 use acquisition_protocol::realm::Realm;
-use acquisition_store::world::{default_root, intended_root};
+use acquisition_store::world::intended_root;
 use acquisition_store::{
     AccountEntry, AnnotationRow, Annotations, Index, Provenance, Resolve, SYNC_POLICY_KEY,
     SYNC_POLICY_KIND, SYNC_POLICY_SCOPE, Store, account_path,
@@ -207,10 +207,13 @@ impl Frontend {
     }
 
     /// C13 (a real-mode daemon is a human's act): the shell line that
-    /// starts a daemon in this world, as printed — the
-    /// provider when it is not the default and this frontend's store root
-    /// when it is not the default one, quoted for a shell, so it runs as
-    /// printed beside this frontend (the README, "Your agent").
+    /// starts a daemon in this world, as printed — the provider when it
+    /// is not the default, and always this frontend's store root (C147,
+    /// the world it acts on), quoted for a shell, so it runs as printed
+    /// beside this frontend whatever the shell's own `ACQ_STORE_DIR`
+    /// names (the README, "Your agent"). The default root is named too:
+    /// left out, the command would start a daemon in the world the
+    /// shell's environment names.
     pub fn start_command(&self) -> String {
         let mut world = String::new();
         if self.provider != GGG {
@@ -220,12 +223,10 @@ impl Frontend {
                 self.provider
             ));
         }
-        if self.root != default_root() {
-            world.push_str(&format!(
-                "ACQ_STORE_DIR={} ",
-                acquisition_search::answer::shell_quoted(&self.root.display().to_string())
-            ));
-        }
+        world.push_str(&format!(
+            "ACQ_STORE_DIR={} ",
+            acquisition_search::answer::shell_quoted(&self.root.display().to_string())
+        ));
         format!("{world}ACQ_IDLE_SHUTDOWN=3600 acq auth check")
     }
 

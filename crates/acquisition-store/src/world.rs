@@ -198,8 +198,7 @@ pub fn intended_root() -> PathBuf {
 
 /// The root a world has when `ACQ_STORE_DIR` names none: the platform
 /// data directory's `store` (or `store` under the current directory with
-/// no home at all), made absolute. A frontend over another root names
-/// that root when it prints a command to run in its world.
+/// no home at all), made absolute.
 pub fn default_root() -> PathBuf {
     absolute(
         &project_dirs()

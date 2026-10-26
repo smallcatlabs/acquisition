@@ -24,6 +24,7 @@ use acquisition_plan::{PolicyWrite, RefreshAction};
 use acquisition_protocol::job::Outcome;
 use acquisition_protocol::realm::Realm;
 use acquisition_store::jobs::{JobDb, JobRow, daemon_db_path};
+use acquisition_store::world::{default_root, intended_root};
 use acquisition_verbs::jobs::{NO_RESULT, submit, wait};
 use acquisition_verbs::refresh::{quote, quote_within};
 use acquisition_verbs::{Apply, Fault, Frontend, Job, Opened};
@@ -540,6 +541,35 @@ async fn a_failed_child_the_daemon_does_not_know_is_no_result_live() {
 }
 
 // ---- the frontend's world ----------------------------------------------
+
+/// C147, the printed start command names the frontend's world: a mock
+/// frontend over the default root, built while the environment names
+/// another world (the session's scratch world), prints a command that
+/// names the default root as `ACQ_STORE_DIR`. Copied into that
+/// environment it starts the daemon in the frontend's world, not the
+/// environment's.
+#[test]
+fn c147_the_printed_start_command_names_the_default_world_too() {
+    let s = session("printed-world");
+    let a = s.base.join("store");
+    assert_eq!(
+        intended_root(),
+        a,
+        "the environment names the scratch world"
+    );
+    let frontend = Frontend {
+        via: "test",
+        door: acquisition_verbs::Door::Agent,
+        provider: "mock",
+        root: default_root(),
+    };
+    let command = frontend.start_command();
+    let root = acquisition_search::answer::shell_quoted(&default_root().display().to_string());
+    assert!(
+        command.starts_with(&format!("ACQ_PROVIDER=mock ACQ_STORE_DIR={root} ")),
+        "the command does not name the frontend's world: {command}"
+    );
+}
 
 /// C147, a door and a ledger read take the world they act on: a
 /// frontend built over world B while the environment names world A
