@@ -352,9 +352,9 @@ pub(crate) fn of_item(prices: &mut HashMap<String, Joined>, id: &str) -> Joined 
 
 /// The intent file's revision, as the basis names it (C98).
 pub(crate) fn intent_revision(intent: &Annotations) -> Result<i64, SearchError> {
-    intent
-        .revision()
-        .map_err(|e| SearchError::store(anyhow::Error::new(e).context("reading the intent file")))
+    intent.revision().map_err(|e| {
+        SearchError::store(anyhow::Error::new(e).context("reading your prices and policy"))
+    })
 }
 
 fn listing_error(e: ListingError) -> SearchError {

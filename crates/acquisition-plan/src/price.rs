@@ -582,7 +582,7 @@ impl IntentValue for Buyout {
             None => match table.resolve(word) {
                 Some(row) => {
                     return Err(format!(
-                        "currency {word:?} is not a tag; it resolves to tag {:?} (currency table v{}) — intent cites the tag",
+                        "currency {word:?} is not a tag; it resolves to tag {:?} (currency table v{}) — a price row names the tag",
                         row.tag,
                         table.version()
                     ));

@@ -856,7 +856,7 @@ pub(crate) fn moved() -> SearchError {
     SearchError::scope(
         "basis_moved",
         format!(
-            "the facts or the intent file changed {REREADS} times while a corpus was being read: a refresh or a price write is under way — ask again"
+            "the facts or your prices and policy changed {REREADS} times while a corpus was being read: a refresh or a price write is under way — ask again"
         ),
     )
 }

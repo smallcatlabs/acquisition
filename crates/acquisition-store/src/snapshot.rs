@@ -361,11 +361,11 @@ impl Store {
             [one] => Ok(one.clone()),
             [] => bail!(
                 "facts file {} records no account identity (no profile response has landed); \
-                 a snapshot cannot bind intent to it — one login fixes this",
+                 a snapshot cannot pair your prices and policy with it — one login fixes this",
                 self.path.display()
             ),
             many => bail!(
-                "facts file {} records {} account identities; refusing to pair intent with it",
+                "facts file {} records {} account identities; refusing to pair your prices and policy with it",
                 self.path.display(),
                 many.len()
             ),

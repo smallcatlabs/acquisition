@@ -93,3 +93,34 @@ fn the_reference_matches_the_server() {
         "ACQ_UPDATE_FIXTURES=1 cargo test -p acquisition-mcp --test main mcp_reference",
     );
 }
+
+/// The h2 review's fifth finding: "Intent only" stood in `price_set` and
+/// `price_clear` after the server's instructions had dropped the word. The
+/// word names a mechanism a reader cannot parse (C146, a count says what
+/// it counts); it stands in what the server sends only as a JSON name,
+/// in backticks, found case-insensitively.
+#[test]
+fn the_old_word_intent_stands_only_as_a_json_name() {
+    let scratch = harness::scratch("mref-intent");
+    let base = scratch.0.clone();
+    let mut mcp = Mcp::start(&base, &[]);
+    let tools = mcp.list_tools();
+    let text = render(&mcp.instructions, &tools);
+    let _ = mcp.child.kill();
+    let lower = text.to_lowercase();
+    let stray: Vec<&str> = lower
+        .match_indices("intent")
+        .filter(|(at, _)| {
+            !(lower[..*at].ends_with('`') && lower[at + "intent".len()..].starts_with('`'))
+        })
+        .map(|(at, _)| {
+            lower
+                .get(at.saturating_sub(40)..(at + 46).min(lower.len()))
+                .unwrap_or("intent")
+        })
+        .collect();
+    assert!(
+        stray.is_empty(),
+        "the old word, outside a JSON name: {stray:#?}"
+    );
+}
