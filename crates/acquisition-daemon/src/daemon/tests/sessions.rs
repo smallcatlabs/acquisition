@@ -1015,11 +1015,21 @@ fn a_response_is_filed_under_the_job_account_not_the_session() {
         .unwrap();
     assert!(acquisition_store::account_path(&dir, "A#1").exists());
     assert!(!acquisition_store::account_path(&dir, "old-user").exists());
-    // No account at all: nothing recorded (absorbed, not a job
-    // failure), an error noted.
-    daemon
+    // No account at all: nothing recorded, and the job fails keeping its
+    // body (C144), an error noted.
+    let failed = daemon
         .record(None, "stashes", &json!({}), &json!({ "stashes": [] }))
-        .unwrap();
+        .unwrap_err();
+    assert!(
+        matches!(
+            &failed,
+            Outcome::Failure {
+                payload: Some(_),
+                ..
+            }
+        ),
+        "{failed:?}"
+    );
     assert!(
         daemon
             .shared

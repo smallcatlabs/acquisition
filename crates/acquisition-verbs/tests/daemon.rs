@@ -524,6 +524,7 @@ async fn a_failed_child_the_daemon_does_not_know_is_no_result_live() {
             cancelled: 0,
             failed_ids: vec![987_654],
         }),
+        payload: None,
     };
     let rows = acquisition_verbs::jobs::failed_children_live(&mut client, &outcome).await;
     assert_eq!(rows.len(), 1);

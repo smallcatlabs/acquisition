@@ -255,12 +255,11 @@ async fn a_completed_login_clears_the_dead_grant_mark() {
 #[tokio::test]
 async fn a_login_the_index_cannot_record_fails_whole_and_rolls_back_the_keyring() {
     let base = mockggg::start().await.unwrap();
-    let (mut daemon, credentials, store_dir, log_path) = login_daemon(&base);
-    // A regular file where the store directory should be: every index
-    // read and write fails.
-    let blocker = store_dir.with_extension("blocker");
-    std::fs::write(&blocker, "not a directory").unwrap();
-    Arc::get_mut(&mut daemon).expect("fresh daemon").store_dir = Some(blocker.clone());
+    let (daemon, credentials, store_dir, log_path) = login_daemon(&base);
+    // A directory where the index file should be: every index read and
+    // write fails, while the profile's facts file opens and records (a
+    // store that cannot record fails the profile job first, C144).
+    std::fs::create_dir_all(acquisition_store::index_path(&store_dir)).unwrap();
     let dispatcher = tokio::spawn(daemon.clone().dispatcher());
 
     run_login(&daemon, "at-x.Alice#1234", "Alice#1234").await;
@@ -286,7 +285,7 @@ async fn a_login_the_index_cannot_record_fails_whole_and_rolls_back_the_keyring(
     );
 
     dispatcher.abort();
-    let _ = std::fs::remove_file(&blocker);
+    drop(daemon);
     let _ = std::fs::remove_dir_all(&store_dir);
     let _ = std::fs::remove_file(&log_path);
 }

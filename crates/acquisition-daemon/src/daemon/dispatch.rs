@@ -397,6 +397,7 @@ impl Daemon {
                 Outcome::Success { .. } if failed == 0 => Outcome::Failure {
                     error: format!("{cancelled} of {total} child jobs were cancelled"),
                     children: Some(tally),
+                    payload: None,
                 },
                 // The counts in words; the ids ride in the tally alone,
                 // never as prose a client reads back (C23).
@@ -410,12 +411,14 @@ impl Daemon {
                         }
                     ),
                     children: Some(tally),
+                    payload: None,
                 },
                 // A held failure (the interrupted fan-out a restart
                 // installs, or the parent's own): its message stands.
                 Outcome::Failure { error, .. } => Outcome::Failure {
                     error,
                     children: Some(tally),
+                    payload: None,
                 },
                 Outcome::Cancelled => Outcome::Cancelled,
             }

@@ -1842,3 +1842,121 @@ async fn a_cancel_of_one_job_on_a_shared_refresh_keeps_it_for_the_other() {
         finish_harness(dispatcher, &log_path);
     }
 }
+
+// ---- C144: a store that cannot record fails the job, keeping the body ---
+
+/// A scratch store directory for one test.
+fn record_dir(tag: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!(
+        "acq-record-{tag}-{}-{}",
+        std::process::id(),
+        TEST_LOG_ID.fetch_add(1, Ordering::Relaxed)
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+/// A facts file a newer daemon wrote: its schema version past this one's.
+fn schema_too_new(dir: &std::path::Path, account: &str) {
+    let conn = rusqlite::Connection::open(acquisition_store::account_path(dir, account)).unwrap();
+    conn.pragma_update(None, "user_version", 9_999).unwrap();
+}
+
+fn kept_failure(outcome: &Outcome) -> (&str, &Value) {
+    let Outcome::Failure {
+        error,
+        payload: Some(payload),
+        ..
+    } = outcome
+    else {
+        panic!("a failure keeping its body: {outcome:?}")
+    };
+    (error, payload)
+}
+
+/// C144 (the daemon reports no success it did not earn), issue #63: a
+/// job whose response cannot be recorded after its send fails, where it
+/// used to be logged and reported done — a facts file with a schema newer
+/// than this daemon's, a store that refuses the write after it opened —
+/// and the failure names the store's fault and keeps the params and the
+/// fetched body as its payload, so the send is not wasted.
+#[test]
+fn c144_a_store_that_cannot_record_fails_the_job_and_keeps_the_body() {
+    let (mut daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
+    let dir = record_dir("fail");
+    Arc::get_mut(&mut daemon).unwrap().store_dir = Some(dir.clone());
+    let params = json!({ "league": "Standard" });
+    let body = json!({ "stashes": [ { "id": "t1", "name": "T", "type": "PremiumStash" } ] });
+
+    // Unopenable: a schema newer than this daemon's.
+    schema_too_new(&dir, "A#1");
+    let failed = daemon
+        .record(Some("A#1"), "stashes", &params, &body)
+        .unwrap_err();
+    let (error, payload) = kept_failure(&failed);
+    assert!(
+        error.contains("fetched, but the store could not record it")
+            && error.contains("could not open"),
+        "{error}"
+    );
+    assert_eq!(payload, &json!({ "params": params, "body": body }));
+
+    // Unwritable after the open: the account's store is open read-only.
+    let path = acquisition_store::account_path(&dir, "B#2");
+    drop(Store::open(&path).unwrap());
+    *daemon.store.lock().unwrap() = Some(("B#2".into(), Store::open_read_only(&path).unwrap()));
+    let failed = daemon
+        .record(Some("B#2"), "stashes", &params, &body)
+        .unwrap_err();
+    let (error, payload) = kept_failure(&failed);
+    assert!(error.contains("recording failed"), "{error}");
+    assert_eq!(payload["body"], body);
+
+    // A malformed body stays the store's refusal, its evidence in `refused`.
+    *daemon.store.lock().unwrap() = None;
+    let refused = daemon
+        .record(Some("B#2"), "stashes", &params, &json!({ "stashes": {} }))
+        .unwrap_err();
+    assert!(
+        matches!(&refused, Outcome::Failure { payload: None, error, .. } if error.contains("malformed")),
+        "{refused:?}"
+    );
+    drop(daemon);
+    let _ = std::fs::remove_dir_all(&dir);
+    finish_harness(None, &log_path);
+}
+
+/// C144 end to end: the job a store cannot record for ends failed, never
+/// done, its outcome carrying the body GGG answered.
+#[tokio::test]
+async fn c144_a_job_whose_store_cannot_open_ends_failed_with_its_body() {
+    let (base, sent_log, _arrived, _release) = account_server(("GET", "/never", 0)).await;
+    let (mut daemon, log_path) = test_daemon(&base, Arc::new(ManualClock::new()));
+    logged_in(&mut daemon);
+    let dir = record_dir("job");
+    schema_too_new(&dir, "test-user");
+    Arc::get_mut(&mut daemon).unwrap().store_dir = Some(dir.clone());
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+
+    let id = daemon
+        .submit(
+            "profile".into(),
+            json!({}),
+            0,
+            "test".into(),
+            Some("test-user".into()),
+        )
+        .unwrap();
+    let (info, outcome) = wait_terminal(&daemon, id).await;
+    assert_eq!(info.state, JobState::Failed, "{outcome:?}");
+    let (_, payload) = kept_failure(&outcome);
+    assert_eq!(payload["body"]["uuid"], "uuid-test-user");
+    assert_eq!(
+        sent_log.lock().unwrap().as_slice(),
+        [sent("test-user", "POST"), sent("test-user", "GET")]
+    );
+    finish_harness(dispatcher, &log_path);
+    drop(daemon);
+    let _ = std::fs::remove_dir_all(&dir);
+}

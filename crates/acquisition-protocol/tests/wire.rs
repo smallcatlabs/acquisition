@@ -438,6 +438,7 @@ fn outcomes() -> Vec<Outcome> {
                 cancelled: 0,
                 failed_ids: vec![44],
             }),
+            payload: None,
         },
         Outcome::Cancelled,
     ]
@@ -490,14 +491,46 @@ fn c85_every_outcome_variant_has_a_pinned_wire_shape() {
 fn c23_a_failure_without_children_reads_and_writes_without_the_field() {
     let plain: Outcome =
         serde_json::from_value(json!({ "outcome": "failure", "error": "boom" })).expect("reads");
-    let Outcome::Failure { error, children } = &plain else {
+    let Outcome::Failure {
+        error,
+        children,
+        payload,
+    } = &plain
+    else {
         panic!("{plain:?}")
     };
     assert_eq!((error.as_str(), children), ("boom", &None));
     assert_eq!(
+        payload, &None,
+        "a failure from before the payload reads without one"
+    );
+    assert_eq!(
         serde_json::to_value(&plain).expect("serializable"),
         json!({ "outcome": "failure", "error": "boom" })
     );
+}
+
+/// C144 (the daemon reports no success it did not earn): a failure that
+/// kept what its job fetched carries it as `payload` and round-trips
+/// whole; one without serialises as every failure before the field did
+/// (the test above).
+#[test]
+fn c144_a_failure_with_a_payload_round_trips() {
+    let kept = Outcome::failure_keeping(
+        "fetched, but the store could not record it: disk full",
+        json!({ "params": { "league": "Standard" }, "body": { "stashes": [] } }),
+    );
+    let wire = serde_json::to_value(&kept).expect("serializable");
+    assert_eq!(
+        wire,
+        json!({
+            "outcome": "failure",
+            "error": "fetched, but the store could not record it: disk full",
+            "payload": { "params": { "league": "Standard" }, "body": { "stashes": [] } },
+        })
+    );
+    let back: Outcome = serde_json::from_value(wire.clone()).expect("reads");
+    assert_eq!(serde_json::to_value(&back).expect("serializable"), wire);
 }
 
 /// The four bootstrap frames, and their lenient readers: a frame keyed

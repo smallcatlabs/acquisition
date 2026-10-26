@@ -242,20 +242,67 @@ impl Index {
         }
     }
 
+    /// C144 (the account index is written atomically, synced): the whole
+    /// file to a temporary name no other writer shares, synced, then
+    /// renamed over the index and the directory synced, so a reader finds
+    /// the old index or the new one, never a torn one, whatever stops the
+    /// writer between. The daemon serialises its writers under its one
+    /// lock; this is what keeps a crash, or a second process, from
+    /// tearing the file.
     fn save(&self) -> Result<()> {
-        if let Some(dir) = self.path.parent() {
-            std::fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
+        let tmp = self.write_temp()?;
+        let renamed = std::fs::rename(&tmp, &self.path)
+            .with_context(|| format!("replacing {}", self.path.display()));
+        if renamed.is_err() {
+            let _ = std::fs::remove_file(&tmp);
         }
+        renamed?;
+        sync_dir(self.path.parent())
+    }
+
+    /// The first half of [`Self::save`]: the whole file written and synced
+    /// under a name of its own beside the index. Returns that name.
+    fn write_temp(&self) -> Result<PathBuf> {
+        use std::io::Write;
+        static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let dir = self.path.parent().unwrap_or_else(|| Path::new("."));
+        std::fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
         let file = File {
             accounts: self.entries.clone(),
         };
-        let tmp = self.path.with_extension("json.tmp");
-        std::fs::write(&tmp, serde_json::to_string_pretty(&file)?)
-            .with_context(|| format!("writing {}", tmp.display()))?;
-        std::fs::rename(&tmp, &self.path)
-            .with_context(|| format!("replacing {}", self.path.display()))?;
-        Ok(())
+        let tmp = dir.join(format!(
+            ".accounts.json.{}.{}.tmp",
+            std::process::id(),
+            SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
+        let written = (|| -> Result<()> {
+            let mut f = std::fs::File::create(&tmp)?;
+            f.write_all(serde_json::to_string_pretty(&file)?.as_bytes())?;
+            f.sync_all()?;
+            Ok(())
+        })()
+        .with_context(|| format!("writing {}", tmp.display()));
+        if written.is_err() {
+            let _ = std::fs::remove_file(&tmp);
+        }
+        written.map(|()| tmp)
     }
+}
+
+/// Sync a directory, so a rename in it is durable. Windows cannot open a
+/// directory as a file through `std`, so there the rename goes unsynced:
+/// a crash may undo it, leaving the previous index whole, never a torn
+/// one.
+fn sync_dir(dir: Option<&Path>) -> Result<()> {
+    #[cfg(unix)]
+    if let Some(dir) = dir {
+        std::fs::File::open(dir)
+            .and_then(|d| d.sync_all())
+            .with_context(|| format!("syncing {}", dir.display()))?;
+    }
+    #[cfg(not(unix))]
+    let _ = dir;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -360,6 +407,72 @@ mod tests {
         let dir = tmp();
         std::fs::write(index_path(&dir), "{nope").unwrap();
         assert!(Index::load(&dir).is_err());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// C144 (the index is written atomically), issue #63: a writer that
+    /// stops between writing its temporary file and the rename — a crash
+    /// staged by writing the temporary and never renaming it — leaves the
+    /// index as it was, readable whole, and the next save replaces it.
+    #[test]
+    fn c144_a_crash_between_write_and_rename_leaves_the_index_whole() {
+        let dir = tmp();
+        let mut idx = Index::load(&dir).unwrap();
+        idx.upsert("Alice#1234", true, 10).unwrap();
+        let before = std::fs::read_to_string(index_path(&dir)).unwrap();
+
+        idx.entries.push(AccountEntry {
+            username: "Bob#0001".into(),
+            last_login: 20,
+            persisted: true,
+            uuid: None,
+        });
+        let orphan = idx.write_temp().unwrap();
+        assert!(orphan.exists());
+        assert_eq!(std::fs::read_to_string(index_path(&dir)).unwrap(), before);
+        let read = Index::load(&dir).unwrap();
+        assert_eq!(read.entries().len(), 1, "the old index, whole");
+
+        idx.save().unwrap();
+        assert_eq!(Index::load(&dir).unwrap().entries().len(), 2);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// C144, issue #63: two writers for two accounts saving at once — two
+    /// processes, or a daemon writer beside a stray one — never tear the
+    /// file: each save has a temporary of its own, so a reader always
+    /// parses an index one of them wrote whole. (That neither loses the
+    /// other's change is the daemon's lock, its every index write under
+    /// `shared`.)
+    #[test]
+    fn c144_two_accounts_saving_at_once_never_tear_the_index() {
+        let dir = tmp();
+        Index::load(&dir).unwrap().upsert("seed", false, 0).unwrap();
+        let writers: Vec<_> = ["Alice#1234", "Bob#0001"]
+            .into_iter()
+            .map(|name| {
+                let dir = dir.clone();
+                std::thread::spawn(move || {
+                    for at in 0..50 {
+                        let mut idx = Index::load(&dir).unwrap();
+                        idx.upsert(name, at % 2 == 0, at).unwrap();
+                    }
+                })
+            })
+            .collect();
+        let reader = {
+            let dir = dir.clone();
+            std::thread::spawn(move || {
+                for _ in 0..100 {
+                    Index::load(&dir).expect("never a torn index");
+                }
+            })
+        };
+        for w in writers {
+            w.join().unwrap();
+        }
+        reader.join().unwrap();
+        assert!(Index::load(&dir).is_ok());
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

@@ -1433,7 +1433,9 @@ async fn restore_drops_probes_and_finishes_a_parent_whose_children_are_done() {
     // The held parent finishes when its remaining child does — as
     // interrupted, never success: the full child set is unknown.
     daemon.cancel(7).unwrap();
-    let Outcome::Failure { error, children } = daemon.shared.lock().unwrap().jobs[&6]
+    let Outcome::Failure {
+        error, children, ..
+    } = daemon.shared.lock().unwrap().jobs[&6]
         .outcome
         .clone()
         .unwrap()

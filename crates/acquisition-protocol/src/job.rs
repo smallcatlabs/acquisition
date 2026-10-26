@@ -130,6 +130,13 @@ pub enum Outcome {
         error: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         children: Option<Children>,
+        /// C144 (the daemon reports no success it did not earn): what a
+        /// job fetched and could not record — the send was made and its
+        /// body is kept here, so it is not wasted, while the job reports
+        /// the failure it is. Absent on every other failure, so a failure
+        /// from before the field reads unchanged.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        payload: Option<Value>,
     },
     Cancelled,
 }
@@ -140,6 +147,16 @@ impl Outcome {
         Outcome::Failure {
             error: error.into(),
             children: None,
+            payload: None,
+        }
+    }
+
+    /// C144: a failure that keeps what the job fetched.
+    pub fn failure_keeping(error: impl Into<String>, payload: Value) -> Outcome {
+        Outcome::Failure {
+            error: error.into(),
+            children: None,
+            payload: Some(payload),
         }
     }
 }

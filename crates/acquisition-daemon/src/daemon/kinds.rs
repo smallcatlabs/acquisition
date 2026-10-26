@@ -172,12 +172,18 @@ impl Daemon {
     /// the job's `Outcome::Failure`, so the caller returns it instead of
     /// reporting success; the store keeps that body verbatim in its
     /// `refused` table and the failure names the row, so the finding is
-    /// readable without a re-fetch. Genuine persistence trouble (an unopenable file,
-    /// a write error) stays logged-and-absorbed — the send happened and
-    /// the payload still reaches the client that asked. The list-shaped
-    /// jobs also pre-check their top-level array (a nicer early failure,
-    /// and `refresh` needs the list anyway); entry-level judgment lives in
-    /// the store alone and propagates from here.
+    /// readable without a re-fetch. The list-shaped jobs also pre-check
+    /// their top-level array (a nicer early failure, and `refresh` needs
+    /// the list anyway); entry-level judgment lives in the store alone and
+    /// propagates from here.
+    ///
+    /// C144 — the daemon reports no success it did not earn: a store that
+    /// cannot be opened (a schema newer than this daemon's, a file that is
+    /// not a store) or written after the send, or a job with no account to
+    /// file it under, fails the job too, in a sentence that names the
+    /// store's fault. The send was made, so the failure keeps what it
+    /// fetched as its payload (`Outcome::failure_keeping`): the params and
+    /// the body, which reach the client that asked.
     pub(super) fn record(
         &self,
         account: Option<&str>,
@@ -191,14 +197,20 @@ impl Daemon {
         let Some(endpoint) = Endpoint::from_job(kind, params) else {
             return Ok(());
         };
+        let not_recorded = |fault: String| {
+            self.note_error(&format!("store: {kind} not recorded: {fault}"));
+            Outcome::failure_keeping(
+                format!("the response was fetched, but the store could not record it: {fault}"),
+                json!({ "params": params, "body": body }),
+            )
+        };
         // The job's account — fixed at submit — selects the file, never the
         // session at landing time: a login as B while A's refresh is still
         // landing must not file A's tabs under B.
         let Some(account) = account else {
-            self.note_error(&format!(
-                "store: {kind} landed with no account; not recorded"
-            ));
-            return Ok(());
+            return Err(not_recorded(format!(
+                "the job has no account to file the {kind} response under"
+            )));
         };
         let mut guard = self.store.lock().unwrap();
         if guard.as_ref().is_none_or(|(u, _)| u != account) {
@@ -209,13 +221,19 @@ impl Daemon {
                     *guard = Some((account.to_string(), store));
                 }
                 Err(e) => {
-                    self.note_error(&format!("store: could not open {}: {e:#}", path.display()));
-                    return Ok(());
+                    drop(guard);
+                    return Err(not_recorded(format!(
+                        "could not open {}: {e:#}",
+                        path.display()
+                    )));
                 }
             }
         }
-        let (_, store) = guard.as_mut().expect("store opened above");
+        let Some((_, store)) = guard.as_mut() else {
+            unreachable!("the store was opened above")
+        };
         let result = store.record(&endpoint, params, 200, body, acquisition_store::now());
+        drop(guard);
         match result {
             Ok(ingest) => {
                 self.log(&format!(
@@ -238,10 +256,7 @@ impl Daemon {
             }
             Err(e) => match e.downcast_ref::<acquisition_store::MalformedBody>() {
                 Some(malformed) => Err(Outcome::failure(malformed.to_string())),
-                None => {
-                    self.note_error(&format!("store: recording {kind} failed: {e:#}"));
-                    Ok(())
-                }
+                None => Err(not_recorded(format!("recording failed: {e:#}"))),
             },
         }
     }

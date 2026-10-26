@@ -120,8 +120,9 @@
 //! that writes no fact (the body is kept verbatim in `refused`, facts
 //! v7, and the error names the position) — and it fails the
 //! job: the daemon's `record` classifies the store's verdict, so a
-//! malformed response is `Outcome::Failure` while genuine persistence
-//! trouble stays logged-and-absorbed. `acq store import` keeps the
+//! malformed response is `Outcome::Failure`, and so is genuine
+//! persistence trouble, keeping the fetched body as the failure's payload
+//! (C144, the daemon reports no success it did not earn). `acq store import` keeps the
 //! legacy tolerance at its own boundary (id-less snapshot items are
 //! skipped and counted, never ingested silently). Both store files carry
 //! schema versions: a newer file is refused, and migrations run
@@ -1218,7 +1219,14 @@ impl Store {
         body: &Value,
         at: i64,
     ) -> Result<Ingest> {
-        let tx = self.conn.transaction()?;
+        // IMMEDIATE, as the annotations writer does: the write lock is
+        // taken before the ingest's first read, so a second writer on the
+        // file (`acq store rebuild` or `import` beside a daemon) waits
+        // under the busy timeout instead of failing this one's upgrade
+        // from read to write (issue #63).
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
         match Self::record_in(&tx, endpoint, params, status, body, at) {
             Ok(ingest) => {
                 tx.commit()?;
@@ -2136,7 +2144,10 @@ impl Store {
     /// Re-extract every derived column from each row's own `json`. The
     /// repair for a wrong extraction; never a refetch.
     pub fn rebuild(&mut self) -> Result<usize> {
-        let tx = self.conn.transaction()?;
+        // IMMEDIATE, as `record`: it reads every row before it writes.
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
         let rows: Vec<(String, String)> = {
             let mut stmt = tx.prepare("SELECT id, json FROM items")?;
             let rows = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?;

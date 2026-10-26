@@ -758,6 +758,7 @@ fn a_job_result_is_the_outcome_with_its_id_and_account() {
                 cancelled: 0,
                 failed_ids: vec![6],
             }),
+            payload: None,
         },
         failed_children: vec![acquisition_verbs::FailedChild {
             job_id: 6,

@@ -2232,8 +2232,18 @@ pub(crate) fn job_report(id: u64, outcome: &Outcome, failed: &[FailedChild]) -> 
                 if requests == 1 { "" } else { "s" }
             )
         }
-        Outcome::Failure { error, children } => {
+        Outcome::Failure {
+            error,
+            children,
+            payload,
+        } => {
             let mut out = format!("job {id} failed: {error}\n");
+            // C144: a failure that kept what its job fetched says where.
+            if payload.is_some() {
+                out.push_str(&format!(
+                    "  what it fetched is kept with the result: `acq result {id} --json` shows it\n"
+                ));
+            }
             let job = |r: &FailedChild| format!("job {}", r.job_id);
             let label = |r: &FailedChild| format!("{} {}", r.kind, r.target).trim().to_string();
             let w1 = failed.iter().map(|r| job(r).len()).max().unwrap_or(0);
@@ -2609,6 +2619,7 @@ mod tests {
                     cancelled: 0,
                     failed_ids: ids,
                 }),
+                payload: None,
             },
             failed_children: vec![FailedChild {
                 job_id: 7,
