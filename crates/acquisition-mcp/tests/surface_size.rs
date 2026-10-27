@@ -162,3 +162,42 @@ fn every_count_a_description_left_is_glossed_where_it_points() {
     }
     let _ = mcp.child.kill();
 }
+
+/// The build review's P2: a sentence over a group stated one tool's
+/// behaviour for all — "the job tools observe only" where `submit_job`
+/// starts a mock daemon, "the pricing tools … write" where five of them
+/// read. A group sentence names only the tools it is true of: the
+/// daemon section's observing sentence names the four observers and no
+/// submitter, and the instructions' writing line names the writers.
+#[test]
+fn a_group_sentence_names_only_the_tools_it_is_true_of() {
+    let scratch = harness::scratch("mcp-surface-groups");
+    let mut mcp = Mcp::start(&scratch.0, &[]);
+    let result = mcp.result("describe", serde_json::json!({ "names": ["daemon"] }));
+    let daemon: Value =
+        serde_json::from_str(result["content"][0]["text"].as_str().unwrap_or("null")).unwrap();
+    let observing = daemon["daemon"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find_map(|e| e["what"].as_str().filter(|w| w.contains("observe only")))
+        .expect("an entry says which tools observe only");
+    let (observers, _) = observing.split_once("observe only").unwrap();
+    for tool in ["list_jobs", "job_status", "job_result", "daemon_status"] {
+        assert!(observers.contains(tool), "{observing}");
+    }
+    for tool in ["submit_job", "apply_plan", "cancel_job"] {
+        assert!(!observers.contains(tool), "{observing}");
+    }
+    let writes = mcp
+        .instructions
+        .lines()
+        .find(|l| l.contains("write locally"))
+        .expect("the instructions say which tools write");
+    assert!(
+        writes.contains("price_set") && writes.contains("price_clear"),
+        "{writes}"
+    );
+    assert!(!writes.contains("pricing tools"), "{writes}");
+    let _ = mcp.child.kill();
+}

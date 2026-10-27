@@ -516,11 +516,11 @@ const DAEMON: [(&str, &str); 7] = [
     ),
     (
         "jobs",
-        "an API request is a job: submit_job and apply_plan return an id at once; poll job_status, then read job_result. A waiting job with a large ETA is the rate limiter holding, not a hang: holds can reach about 5 minutes",
+        "an API request is a job: submit_job returns its id at once, and apply_plan the parent's when it submits one (an empty or fully spent plan submits none, `applied: false`); poll job_status, then read job_result. A waiting job with a large ETA is the rate limiter holding, not a hang: holds can reach about 5 minutes",
     ),
     (
         "no daemon",
-        "the job tools observe only: with no daemon running none spawns one, and each answers from the ledger on disk with `running: false` — list_jobs `persisted`, the open rows as the last daemon left them (without ETAs), and `written_at`, how old that picture is; job_status the job's row and `next`, the command a person runs to start a daemon; daemon_status `persisted` (waiting, recorded_running, written_at) and `log`, the last daemon's log file in this world. `persisted` is null when this world has no queue yet",
+        "list_jobs, job_status, job_result and daemon_status observe only: with no daemon running none of them spawns one, and each answers from the ledger on disk with `running: false` — list_jobs `persisted`, the open rows as the last daemon left them (without ETAs), and `written_at`, how old that picture is; job_status the job's row and `next`, the command a person runs to start a daemon; daemon_status `persisted` (waiting, recorded_running, written_at) and `log`, the last daemon's log file in this world. `persisted` is null when this world has no queue yet",
     ),
     (
         "ledger",
@@ -1496,12 +1496,12 @@ impl ServerHandler for AcqMcp {
         info.capabilities = ServerCapabilities::builder().enable_tools().build();
         info.instructions = Some(format!(
             "Acquisition (provider: {}).\n\
-             - The store tools read the store, no daemon: search, show, describe, accounts, tabs, \
-             characters, store_status, item_events, sync_policy, refresh_plan.\n\
-             - The pricing tools and set_sync_policy write locally and send nothing.\n\
-             - The job tools talk to the daemon a human started (submit_job, apply_plan, \
-             list_jobs, job_status, job_result, cancel_job, daemon_status); in real mode this \
+             - price_set, price_clear and set_sync_policy write locally and send nothing.\n\
+             - The job tools talk to the daemon (submit_job, apply_plan, list_jobs, job_status, \
+             job_result, cancel_job, daemon_status); in real mode a human starts it and this \
              server never spawns one.\n\
+             - Every other tool reads locally, no daemon; refresh_plan adds a running daemon's \
+             quote, never starting one.\n\
              - Begin with search and no arguments; where the store holds several realms, name \
              scope.realm (the refusal offers each).\n\
              - describe with names explains the language and the answers: fields first, then \
