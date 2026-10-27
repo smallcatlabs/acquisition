@@ -1844,6 +1844,12 @@ fn print_auth(status: &Response, json: bool) -> Result<()> {
     Ok(())
 }
 
+/// What `auth status` and the dashboard say while the daemon's start
+/// restores its sessions from the keyring (its keyring word `restoring`):
+/// no session is live yet and none is lost.
+pub(crate) const RESTORING_SESSIONS: &str =
+    "restoring the sessions saved in the keyring — if a keychain prompt is open, answer it";
+
 /// `auth status`'s text. While the daemon's start restores its sessions
 /// from the keyring (its keyring word `restoring`), there is no session
 /// yet and none is lost: the text says the restore is under way and that
@@ -1867,10 +1873,7 @@ fn auth_text(status: &Response) -> Result<String> {
     }
     match (logged_in, pending) {
         (_, true) => writeln!(out, "login in progress (waiting on the browser)")?,
-        (false, _) if keyring == "restoring" => writeln!(
-            out,
-            "restoring the sessions saved in the keyring — if a keychain prompt is open, answer it"
-        )?,
+        (false, _) if keyring == "restoring" => writeln!(out, "{RESTORING_SESSIONS}")?,
         (false, _) => writeln!(out, "not logged in — run `acq auth`")?,
         (true, _) => {
             for a in accounts {

@@ -217,24 +217,12 @@ fn draw_header(f: &mut Frame, area: Rect, s: &Snap) {
     } else {
         Span::styled(s.provider.clone(), Style::new().cyan())
     };
-    let auth: Vec<Span> = if s.logged_in {
-        let expiry = match s.access_expires_in_seconds {
-            Some(sec) if sec > 0 => format!("token ~{}", fmt_secs(sec)),
-            _ => "token expired (refreshes on use)".to_string(),
-        };
-        vec![
-            Span::styled(
-                format!(
-                    "logged in as {}",
-                    s.username.as_deref().unwrap_or("<unknown>")
-                ),
-                Style::new().green(),
-            ),
-            Span::raw(format!(" · {expiry} · keyring {}", s.keyring)),
-        ]
-    } else {
-        vec![Span::styled("not logged in", Style::new().yellow())]
-    };
+    let auth = auth_spans(
+        s.logged_in,
+        s.username.as_deref(),
+        s.access_expires_in_seconds,
+        &s.keyring,
+    );
     let mut spans = vec![
         Span::raw(format!(
             "pid {} · v{} · contract {} · ",
@@ -251,6 +239,37 @@ fn draw_header(f: &mut Frame, area: Rect, s: &Snap) {
     spans.extend(auth);
     let block = Block::bordered().title(" acquisition daemon ");
     f.render_widget(Paragraph::new(Line::from(spans)).block(block), area);
+}
+
+/// The header's login state. While the daemon's start restores its
+/// sessions from the keyring (its keyring word `restoring`), it says so,
+/// as `auth status` does, never "not logged in".
+fn auth_spans(
+    logged_in: bool,
+    username: Option<&str>,
+    access_expires_in_seconds: Option<u64>,
+    keyring: &str,
+) -> Vec<Span<'static>> {
+    if logged_in {
+        let expiry = match access_expires_in_seconds {
+            Some(sec) if sec > 0 => format!("token ~{}", fmt_secs(sec)),
+            _ => "token expired (refreshes on use)".to_string(),
+        };
+        vec![
+            Span::styled(
+                format!("logged in as {}", username.unwrap_or("<unknown>")),
+                Style::new().green(),
+            ),
+            Span::raw(format!(" · {expiry} · keyring {keyring}")),
+        ]
+    } else if keyring == "restoring" {
+        vec![
+            Span::styled(crate::RESTORING_SESSIONS, Style::new().yellow()),
+            Span::raw(format!(" · keyring {keyring}")),
+        ]
+    } else {
+        vec![Span::styled("not logged in", Style::new().yellow())]
+    }
 }
 
 /// `hits/max·Ns` for one window, red when saturated, yellow when one away.
@@ -696,5 +715,25 @@ fn fmt_ago(s: f64) -> String {
         "<1s".to_string()
     } else {
         fmt_secs(s as u64)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The dashboard's header while the daemon's start restores its
+    /// sessions from the keyring: the restore's sentence and the keyring
+    /// word, never "not logged in".
+    #[test]
+    fn the_header_while_the_restore_reads_says_so() {
+        let text: String = auth_spans(false, None, None, "restoring")
+            .iter()
+            .map(|span| span.content.as_ref())
+            .collect();
+        assert_eq!(
+            text,
+            "restoring the sessions saved in the keyring — if a keychain prompt is open, answer it · keyring restoring"
+        );
     }
 }
