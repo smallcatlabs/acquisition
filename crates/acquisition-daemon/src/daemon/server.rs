@@ -227,8 +227,10 @@ impl Daemon {
             }
         }
 
-        self.connections.fetch_sub(1, Ordering::SeqCst);
+        // Stamped before the count drops, connect's mirror: the idle
+        // verdict never reads zero connections beside a stale stamp.
         self.mark_activity(self.choke.now());
+        self.connections.fetch_sub(1, Ordering::SeqCst);
     }
 
     pub(super) async fn handle_request(
