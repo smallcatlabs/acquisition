@@ -451,7 +451,9 @@ fn landing_hook_ended() -> ! {
 }
 
 /// The child: the hook installed as `run` installs it, then job 7's
-/// forced refresh, whose keyring save panics on its blocking thread.
+/// forced refresh, whose keyring save panics on its blocking thread. The
+/// hook ends the process by `exit`, which runs no `Drop`, so everything
+/// the child writes is under `dir`, the parent's to remove.
 fn landing_panic_child(dir: &std::path::Path) -> ! {
     let log = std::fs::File::create(dir.join("daemon.log")).unwrap();
     super::super::start::install_panic_hook(
@@ -467,7 +469,22 @@ fn landing_panic_child(dir: &std::path::Path) -> ! {
         .unwrap();
     runtime.block_on(async {
         let (base, _sent, _arrived, _release) = account_server(("GET", "/never", 0)).await;
-        let (mut daemon, _log_path) = test_daemon(&base, Arc::new(ManualClock::new()));
+        let clock = Arc::new(ManualClock::new());
+        let log_path = TestPath::file_in(dir, "daemon.log");
+        let rails = Arc::new(Rails::with_config_and_clock(
+            RailsConfig {
+                journal_path: Some(journal_of(&log_path)),
+                ..RailsConfig::default()
+            },
+            clock.clone(),
+        ));
+        let (mut daemon, _log_path) = test_daemon_scenario_at(
+            Provider::mock(&base),
+            clock,
+            rails,
+            Arc::new(RecordingCredentialStore::default()),
+            log_path,
+        );
         logged_in(&mut daemon);
         let store = RecordingCredentialStore::default();
         *store.on_save.lock().unwrap() = Some(Box::new(|| {
@@ -522,5 +539,17 @@ fn c148_a_panic_in_a_jobs_landing_marks_the_job() {
             .as_deref(),
         Some("{\"job\":7}\n"),
         "the marker names the job whose landing panicked"
+    );
+    // The review of r2's fix round: the child's harness log is under the
+    // parent's directory, which this test removes, not in a folder of its
+    // own that the child's `exit` left behind.
+    let harness_logs = std::fs::read_dir(&*dir)
+        .unwrap()
+        .filter_map(Result::ok)
+        .filter(|entry| entry.path().join("daemon.log").exists())
+        .count();
+    assert_eq!(
+        harness_logs, 1,
+        "the child's harness log is under the parent's directory"
     );
 }

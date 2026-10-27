@@ -390,6 +390,17 @@ impl TestPath {
         }
     }
 
+    /// A file `name` in a folder made inside `parent`, not yet written:
+    /// for a child process that ends by `exit`, which runs no `Drop`, so
+    /// the folder is removed with the parent's, never left behind.
+    pub(super) fn file_in(parent: &std::path::Path, name: &str) -> TestPath {
+        let dir = tempfile::tempdir_in(parent).unwrap();
+        TestPath {
+            path: dir.path().join(name),
+            _dir: dir,
+        }
+    }
+
     /// A file `name` in the folder, not yet written.
     pub(super) fn file(name: &str) -> TestPath {
         let dir = tempfile::tempdir().unwrap();
