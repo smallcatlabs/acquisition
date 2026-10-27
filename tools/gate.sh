@@ -110,9 +110,9 @@ for stage in "${selected[@]}"; do
 done
 
 failed=0
-printf '\n%-8s %3s %7s\n' stage rc seconds
+printf '\n%-9s %3s %7s\n' stage rc seconds
 for i in "${!selected[@]}"; do
-  printf '%-8s %3d %7d\n' "${selected[$i]}" "${rcs[$i]}" "${secs[$i]}"
+  printf '%-9s %3d %7d\n' "${selected[$i]}" "${rcs[$i]}" "${secs[$i]}"
   ((rcs[i] == 0)) || failed=1
 done
 if ((failed)); then echo 'gate: FAILED'; exit 1; fi

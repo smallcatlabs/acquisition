@@ -349,14 +349,14 @@ list when a step's close commit or an issue takes it.
 
 ## Current step
 
-The milestone's steps are closed (p0, r1 to r5, the C135 round);
-pull-forward 1 (#82) and 2 (#83 with its seat, #84) closed
-2026-10-27. Next from "Pull-forward": #88, one feature graph for the
-plain and the test build, its brief written by the session that
-starts it. Phase 3, the owner's league run, follows at his word; #70
-closes on a week of pushes without a re-run. The assessment these rest
-on is `STATE-2026-10-26.md`; the issues carry the evidence per step.
-`AGENTS.md` governs; the gate is `tools/gate.sh`.
+#88 (pull-forward 3) is built and measured, its review pending and the
+retirement of the build-order rule waiting on the owner's ruling (the
+brief's Do 6); next from "Pull-forward" after its close: 2g, the read
+economy and the refusal bundle (#9, #10). Phase 3, the owner's league
+run, follows at his word; #70 closes on a week of pushes without a
+re-run. The assessment these rest on is `STATE-2026-10-26.md`; the
+issues carry the evidence per step. `AGENTS.md` governs; the gate is
+`tools/gate.sh`.
 
 ## Ledger
 
@@ -388,6 +388,7 @@ messages.
 | #82 the held corpus in `acq-mcp` (pull-forward 1) | brief `500e4468`; build `551520fd` (the holder), `b439d30e` (the web on it), `bfd3a410` (the MCP on it, M8); review `reviews/p82-bfd3a410.md`; its one doc fix `9a1e8d0b` (unreviewed); closed by the commit carrying this line | 2026-10-27 | #95, the resident size per reload; `show` over the held corpus and a per-account slot, declined until a consumer asks |
 | #83 the MCP surface trimmed (pull-forward 2) | brief `1dd3dfdb`; build `81178cd0` (the answer section), `c9d6aec3` (the refusal's spelling), `c250b2c8` (`describe` by name), `d2a588bc` (the cut, the length test, the measurement); review `reviews/p83-d2a588bc.md`; the ruling `a4e4db41` (C146 amended); fixes `e26871c3` (the glosses move), `280f1075`, `fd564e33`; their review `reviews/p83-fixes-fd564e33.md`; its two wording fixes `e4231ecf` (unreviewed); closed by the commit carrying this line | 2026-10-27 | the schemas as the larger part of the first turn, and `characters`' two glosses, under "Open"; the seat (#84) next |
 | #84 the seat, the first row of the seat ledger (pull-forward 2, its seat) | brief `799c39d9`; the record, `SEAT-LEDGER.md` and its row, and the skill's ledger step `5df58a64`; fixes `64edb5d7` (the MCP's own words), `45ea27f7`, `67b30646`; their review `reviews/p84-fixes-67b30646.md`; fixes `acdda4dd`, `c62c0a7b`; their review `reviews/p84-fixes-c62c0a7b.md` (no findings), added by the commit carrying this line; closed by the commit carrying this line | 2026-10-27 | rule 6 (a typo'd account as `not_logged_in`, C121) and the seat skill's wording, the owner's, under "Open"; rules 2, 3, 7, 8 on #18, #11, #9, #10 |
+| #88 one feature graph for the plain and the test build (pull-forward 3) | brief `87dcb51a`; the measurement `b5721ccf`; build `9dfbb4fd` (num-traits `std` in the plain build), `053658df` (the daemon's integration test), `72e973fa` (the gate's `artifacts` stage); the words and this line, the commit carrying this line | measured and fixed, review pending; the retirement waits on the owner's ruling (the brief's Do 6) | the close's |
 
 ## Housekeeping
 

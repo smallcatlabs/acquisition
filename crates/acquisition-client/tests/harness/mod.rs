@@ -227,8 +227,8 @@ pub fn acqd_built() -> PathBuf {
     let acqd = profile_dir.join(acquisition_client::locator::ACQD);
     assert!(
         acqd.is_file(),
-        "no daemon at {}: run `cargo build --workspace` first (the gate builds before it \
-         tests; a `-p` test run does not build it)",
+        "no daemon at {}: run `cargo build --workspace` first (a `--workspace` test run \
+         writes it as that build does; a `-p` test run does not build it)",
         acqd.display()
     );
     acqd
