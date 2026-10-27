@@ -255,6 +255,18 @@ fn each_pricing_read_is_the_document_the_cli_prints() {
         ),
         (
             "price_show",
+            json!({ "target": "tab/pc/m1", "limit": 0 }),
+            &["price", "show", "tab/pc/m1", "--limit", "0"],
+            true,
+        ),
+        (
+            "price_show",
+            json!({ "target": "tab/pc/m1", "limit": 0, "expand": true }),
+            &["price", "show", "tab/pc/m1", "--limit", "0", "--expand"],
+            true,
+        ),
+        (
+            "price_show",
             json!({ "target": "i-plain" }),
             &["price", "show", "i-plain"],
             false,

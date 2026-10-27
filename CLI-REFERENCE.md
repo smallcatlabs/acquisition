@@ -619,7 +619,7 @@ Usage: acq price [OPTIONS] [COMMAND]
 
 Commands:
   status  One line on the league's listing state and the next action (the default); --expand adds the game side, the rows and the basis
-  show    One target's listing: `item/<id>`, `character/<id>`, `tab/<realm>/<id>` or `substash/<realm>/<parent>/<id>` — both sides with their causes, the raw note beside the parse; a container's items summarized under it (--expand lists them all)
+  show    One target's listing: `item/<id>`, `character/<id>`, `tab/<realm>/<id>` or `substash/<realm>/<parent>/<id>` — both sides with their causes, the raw note beside the parse; a container's items summarized under it, each set counted and listed when ten or fewer (--limit lists that many of each, --expand them all). `--json`: each set ten by default beside its counts
   list    Listed items grouped by container, ten or fewer listed per group and more counted (--expand lists every one with its texts). With neither --relation nor --effective, items whose relation is `none` are left out — except unresolved ones (a row that cannot be read could decide), which are always listed
   set     Set one target's price by hand — a row on an item, tab, substash or character; what it covers inherits it. Prints what it replaced, how to put that back, and a note when the facts hold no such target (a tab not fetched yet, or a typo — never a refusal). A clear takes a revision too, so the next write's revision continues from it
   clear   Remove one target's own price row; what it covered falls back to the next row up. Prints what it removed and the command that puts it back. A clear takes a revision too, so the next write's revision continues from it
@@ -646,7 +646,7 @@ Options:
 ## `acq price show`
 
 ```text
-One target's listing: `item/<id>`, `character/<id>`, `tab/<realm>/<id>` or `substash/<realm>/<parent>/<id>` — both sides with their causes, the raw note beside the parse; a container's items summarized under it (--expand lists them all)
+One target's listing: `item/<id>`, `character/<id>`, `tab/<realm>/<id>` or `substash/<realm>/<parent>/<id>` — both sides with their causes, the raw note beside the parse; a container's items summarized under it, each set counted and listed when ten or fewer (--limit lists that many of each, --expand them all). `--json`: each set ten by default beside its counts
 
 Usage: acq price show [OPTIONS] <TARGET>
 
@@ -656,6 +656,7 @@ Arguments:
 Options:
       --league <LEAGUE>    The league to read the target in. Without it, the league the facts hold the target in: an address reads back as printed
       --realm <REALM>      The realm of an item or character target; a tab or substash address carries its own
+      --limit <N>          List this many of each item set, the first in listing order
       --expand
   -h, --help               Print help
 ```

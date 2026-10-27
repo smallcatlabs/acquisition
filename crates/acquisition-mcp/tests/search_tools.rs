@@ -646,7 +646,18 @@ fn describe_is_as_large_as_its_text_says() {
     // 5,340 bytes when the anatomy left `search`'s text)
     assert!(size(&mut seat, json!(["answer"])) < 7_000);
     assert!(size(&mut seat, json!(["answer"])) > 4_000);
-    let large = ["computed", "trade", "fields", "categories", "answer"];
+    // some 5 KB since a show's counts joined it (step 2g, round 2: 4,541
+    // bytes of entries then)
+    assert!(size(&mut seat, json!(["pricing"])) < 7_000);
+    assert!(size(&mut seat, json!(["pricing"])) > 4_000);
+    let large = [
+        "computed",
+        "trade",
+        "fields",
+        "categories",
+        "answer",
+        "pricing",
+    ];
     // the pricing model and the daemon's entries are this tool's own
     // sections beside the language's (#83)
     for section in acquisition_search::describe::SECTIONS
@@ -670,7 +681,7 @@ fn describe_is_as_large_as_its_text_says() {
         "computed is some 80 KB",
         "fields and trade some 20 KB each",
         "categories some 10 KB",
-        "answer some 5 KB",
+        "answer and pricing some 5 KB each",
         "the rest each under 4 KB",
     ] {
         assert!(text.contains(stated), "{stated}: {text}");

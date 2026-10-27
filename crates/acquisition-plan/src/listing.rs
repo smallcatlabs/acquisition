@@ -174,6 +174,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 
 use acquisition_protocol::realm::Realm;
+use acquisition_store::bound::bounded;
 use acquisition_store::{
     AnnotationRow, CharacterSnapshot, ItemSnapshot, ListingBasis, PricingSnapshot, TabSnapshot,
     ValueError, check_value,
@@ -613,7 +614,9 @@ pub struct ListView {
 
 /// `show`'s contract: the listing, the container an item sits in, and
 /// for a container both item sets — physically here, and covered by a
-/// row on it (C70).
+/// row on it (C70) — each counted whole beside the rows it lists (C53,
+/// the read economy: ten by default, more on `limit`, all on `expand`;
+/// [`ShowView::bounded`]).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ShowView {
     #[serde(flatten)]
@@ -621,12 +624,85 @@ pub struct ShowView {
     pub listing: Listing,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub container: Option<Listing>,
-    /// A container's items; empty for an item.
+    /// A container's items, as many as the bound lists; empty for an
+    /// item.
     pub items_here: Vec<Listing>,
+    /// `items_here` counted whole, before the bound.
+    #[serde(default)]
+    pub items_here_counts: SetCounts,
     /// Items whose chain holds this target but that do not sit in it: a
     /// folder's, through its tabs; a parent tab's, through its substashes.
-    /// Empty for an item.
+    /// As many as the bound lists; empty for an item.
     pub items_covered_below: Vec<Listing>,
+    /// `items_covered_below` counted whole, before the bound.
+    #[serde(default)]
+    pub items_covered_below_counts: SetCounts,
+}
+
+/// C53 — one item set of a `show`, counted whole before it is cut, so a
+/// reader never takes the rows listed for the set (step 2g; the cold
+/// review of its brief, finding 6). The words are the search answer's
+/// (`returned`, `left_out`) and `price_list`'s (`total`); the field's
+/// name is the contract (C146).
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct SetCounts {
+    /// Every item the set holds.
+    pub total: usize,
+    /// How many of them the set lists.
+    pub returned: usize,
+    /// How many it does not list: `expand` lists them.
+    pub left_out: usize,
+    /// The whole set by relation word, zeros left out, an item whose
+    /// price is unresolved (a row that cannot be read could decide)
+    /// never counted as `none`.
+    pub by_relation: BTreeMap<String, usize>,
+    /// The whole set's items whose price is unresolved, whatever their
+    /// relation.
+    pub unresolved: usize,
+}
+
+impl SetCounts {
+    /// A whole set's counts, every item listed.
+    fn of(items: &[Listing]) -> SetCounts {
+        let unresolved = |l: &Listing| l.effective.kind == "unresolved";
+        let mut by_relation = BTreeMap::new();
+        for l in items {
+            if l.relation == Relation::None && unresolved(l) {
+                continue;
+            }
+            *by_relation
+                .entry(l.relation.as_str().to_string())
+                .or_insert(0) += 1;
+        }
+        SetCounts {
+            total: items.len(),
+            returned: items.len(),
+            left_out: 0,
+            by_relation,
+            unresolved: items.iter().filter(|l| unresolved(l)).count(),
+        }
+    }
+}
+
+impl ShowView {
+    /// The view under the read economy's one rule (C53): each set cut to
+    /// the request's `limit`, else ten, every item under `expand`, its
+    /// counts standing whole beside it.
+    pub fn bounded(mut self, limit: Option<usize>, expand: bool) -> ShowView {
+        for (set, counts) in [
+            (&mut self.items_here, &mut self.items_here_counts),
+            (
+                &mut self.items_covered_below,
+                &mut self.items_covered_below_counts,
+            ),
+        ] {
+            let (kept, left_out) = bounded(std::mem::take(set), limit, expand);
+            counts.returned = kept.len();
+            counts.left_out = left_out;
+            *set = kept;
+        }
+        self
+    }
 }
 
 impl ListingReport {
@@ -769,7 +845,9 @@ impl ListingReport {
             header: self.header.clone(),
             listing,
             container,
+            items_here_counts: SetCounts::of(&items_here),
             items_here,
+            items_covered_below_counts: SetCounts::of(&items_covered_below),
             items_covered_below,
         })
     }
@@ -2378,6 +2456,82 @@ mod tests {
             resolve(&snap),
             Err(ListingError::UnknownRealm { .. })
         ));
+    }
+
+    /// C53, the read economy (step 2g, round 2): a container's two sets
+    /// list ten each by default, counted whole beside the rows — the
+    /// total, how many listed and left out, and the relation breakdown
+    /// made before the cut — `limit` lists more, and `expand`, the audit
+    /// request, holds every item the default left out (the cold review
+    /// of the brief, findings 6 and 7). A parent map tab of thirteen
+    /// items of its own over a substash of fifteen.
+    #[test]
+    fn c53_a_containers_two_sets_list_ten_beside_their_whole_counts_and_expand_holds_every_omitted_item()
+     {
+        use acquisition_store::bound::LISTED;
+        let mut snap = snapshot();
+        snap.items
+            .extend((0..13).map(|i| item(&format!("i-m{i:02}"), "stash", "m1", None)));
+        snap.items.extend(
+            (0..14).map(|i| item(&format!("i-s{i:02}"), "stash", "s1", Some("~price 2 chaos"))),
+        );
+        let report = resolve(&snap).unwrap();
+        let m1 = tab_target("m1");
+        let whole = report.show_view(&m1).unwrap();
+        let ids = |set: &[Listing]| -> Vec<String> {
+            set.iter().map(|l| l.subject.target.to_string()).collect()
+        };
+        let view = whole.clone().bounded(None, false);
+        for (set, counts, all) in [
+            (&view.items_here, &view.items_here_counts, &whole.items_here),
+            (
+                &view.items_covered_below,
+                &view.items_covered_below_counts,
+                &whole.items_covered_below,
+            ),
+        ] {
+            assert!(all.len() > LISTED, "{}", all.len());
+            assert_eq!(set.len(), LISTED);
+            assert_eq!(
+                (counts.total, counts.returned, counts.left_out),
+                (all.len(), LISTED, all.len() - LISTED)
+            );
+            // the breakdown is the whole set's, never the sample's
+            let summed: usize = counts.by_relation.values().sum();
+            assert_eq!(summed + counts.unresolved, all.len(), "{counts:?}");
+            assert_eq!(ids(set), ids(&all[..LISTED]), "the head, in order");
+        }
+        assert_eq!(view.items_here_counts.total, 13);
+        assert_eq!(view.items_covered_below_counts.total, 15);
+        assert_eq!(
+            view.items_here_counts.by_relation,
+            whole.items_here_counts.by_relation
+        );
+
+        let more = whole.clone().bounded(Some(12), false);
+        assert_eq!(more.items_here.len(), 12);
+        assert_eq!(more.items_covered_below_counts.left_out, 3);
+
+        // the audit request: every item the default left out, in it
+        let audit = whole.clone().bounded(Some(2), true);
+        for (shown, all, listed) in [
+            (&view.items_here, &whole.items_here, &audit.items_here),
+            (
+                &view.items_covered_below,
+                &whole.items_covered_below,
+                &audit.items_covered_below,
+            ),
+        ] {
+            let listed = ids(listed);
+            let omitted: Vec<String> = ids(all)
+                .into_iter()
+                .filter(|id| !ids(shown).contains(id))
+                .collect();
+            assert!(!omitted.is_empty());
+            assert!(omitted.iter().all(|id| listed.contains(id)), "{omitted:?}");
+            assert_eq!(listed.len(), all.len());
+        }
+        assert_eq!(audit.items_here_counts.left_out, 0);
     }
 
     /// C70 — every listing carries its chain, so a target's coverage is

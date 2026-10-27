@@ -572,7 +572,10 @@ enum PriceCmd {
     /// One target's listing: `item/<id>`, `character/<id>`,
     /// `tab/<realm>/<id>` or `substash/<realm>/<parent>/<id>` — both
     /// sides with their causes, the raw note beside the parse; a
-    /// container's items summarized under it (--expand lists them all).
+    /// container's items summarized under it, each set counted and
+    /// listed when ten or fewer (--limit lists that many of each,
+    /// --expand them all). `--json`: each set ten by default beside its
+    /// counts.
     Show {
         target: String,
         /// The league to read the target in. Without it, the league the
@@ -583,6 +586,9 @@ enum PriceCmd {
         /// address carries its own.
         #[arg(long, value_parser = acquisition_verbs::realm)]
         realm: Option<Realm>,
+        /// List this many of each item set, the first in listing order.
+        #[arg(long, value_name = "N")]
+        limit: Option<usize>,
         #[arg(long)]
         expand: bool,
     },
@@ -1354,8 +1360,16 @@ async fn run(cli: Cli) -> Result<()> {
                 target,
                 league,
                 realm,
+                limit,
                 expand,
-            } => price_cmd::show(cx, &target, realm, league.as_deref(), expand, cli.json),
+            } => price_cmd::show(
+                cx,
+                &target,
+                realm,
+                league.as_deref(),
+                acquisition_plan::pricing::Bound { limit, expand },
+                cli.json,
+            ),
             PriceCmd::List {
                 league,
                 realm,

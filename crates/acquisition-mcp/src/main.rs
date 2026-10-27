@@ -799,6 +799,11 @@ struct PriceShowParams {
     /// or substash address carries its own, and a realm given beside it
     /// must agree.
     realm: Option<String>,
+    /// List this many of each item set in place of ten, the first in
+    /// listing order.
+    limit: Option<usize>,
+    /// List every item of both sets.
+    expand: Option<bool>,
     #[schemars(description = ACCOUNT)]
     account: Option<String>,
 }
@@ -1396,7 +1401,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "What the tools answer and the language `search` takes, read by name (no store read): answer, every key of a search answer; trade, what a site search becomes and its report; fields, what a query may ask; pricing, the listing model and its revision rule; daemon, what the job tools answer without one; store, what store_status and tabs count. The whole is over 100 KB: computed is some 80 KB, fields and trade some 20 KB each, categories some 10 KB, answer some 5 KB, and the rest each under 4 KB. A name it does not know is refused, and the refusal lists every name it knows."
+        description = "What the tools answer and the language `search` takes, read by name (no store read): answer, every key of a search answer; trade, what a site search becomes and its report; fields, what a query may ask; pricing, the listing model and its revision rule; daemon, what the job tools answer without one; store, what store_status and tabs count. The whole is over 100 KB: computed is some 80 KB, fields and trade some 20 KB each, categories some 10 KB, answer and pricing some 5 KB each, and the rest each under 4 KB. A name it does not know is refused, and the refusal lists every name it knows."
     )]
     fn describe(&self, Parameters(p): Parameters<Args<DescribeParams>>) -> Told {
         let p = match p.read() {
@@ -1648,7 +1653,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "One target's listing (no daemon): `listing`, both sides with their causes — the hand row that applies (`manual`, with its `revision` and the target it is on, `from`), the note and the tab name verbatim beside what each reads as — the relation, the effective price and why; `container`, the one an item sits in; for a tab, substash or character, `items_here` (physically in it) and `items_covered_below` (covered through its children). Read it before price_set or price_clear on a target with a row of its own: they name the revision they replace."
+        description = "One target's listing (no daemon): `listing`, both sides with their causes — the hand row that applies (`manual`, its `revision` and the target it is on, `from`), the note and the tab name verbatim beside what each reads as — the relation, the effective price and why; `container`, the one an item sits in; for a container, `items_here` (in it) and `items_covered_below` (through its children), ten each beside its counts, `limit` more, `expand` all (`describe` with names [\"pricing\"]). Read it before price_set or price_clear on a target with its own row: they name the revision they replace."
     )]
     fn price_show(&self, Parameters(p): Parameters<Args<PriceShowParams>>) -> Told {
         let p = match p.read() {
@@ -1669,6 +1674,10 @@ impl AcqMcp {
             &p.target,
             realm,
             p.league.as_deref(),
+            acquisition_plan::pricing::Bound {
+                limit: p.limit,
+                expand: p.expand.unwrap_or(false),
+            },
             &account,
             acquisition_search::answer::shell_quoted,
         ))

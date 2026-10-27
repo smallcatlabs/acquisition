@@ -281,16 +281,26 @@ fn not_on_record(
     })
 }
 
+/// How many of a set a view lists (C53, the read economy): `limit` names
+/// a number, `expand` the whole; neither, ten.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Bound {
+    pub limit: Option<usize>,
+    pub expand: bool,
+}
+
 /// `price show <target>`: one target's view, in the league the facts hold
-/// it in unless one is named. `account` is the resolved account's name
-/// and `quote` the frontend's shell quoting, for the command a refusal
-/// names (`not_on_record`).
+/// it in unless one is named, each item set under `bound`. `account` is
+/// the resolved account's name and `quote` the frontend's shell quoting,
+/// for the command a refusal names (`not_on_record`).
+#[allow(clippy::too_many_arguments)]
 pub fn show(
     store: &Store,
     annotations: &Annotations,
     target: &str,
     realm: Option<Realm>,
     league: Option<&str>,
+    bound: Bound,
     account: &str,
     quote: fn(&str) -> String,
 ) -> Result<ShowView> {
@@ -299,7 +309,7 @@ pub fn show(
     let league = league_of(store, &[&target], league)?;
     let r = report(store, annotations, realm, &league)?;
     match r.show_view(&target) {
-        Some(view) => Ok(view),
+        Some(view) => Ok(view.bounded(bound.limit, bound.expand)),
         None => {
             let (scope, key) = target.address()?;
             let own = annotations.get(scope, &key, BUYOUT_KIND)?;
@@ -807,6 +817,10 @@ pub fn described() -> Vec<Described> {
             "a league's listing state, counted: `counts.by_effective` says who decides each item's price (game, manual, none, unresolved — a row that cannot be read could decide), `counts.by_relation` how the two sides stand (none, manual_only, game_only, agree, conflict), so the items priced by hand are its manual_only, agree and conflict together; `counts.game_priced` the items the game prices; `counts.residue` the items carrying price text the trade site cannot see — a note on a character's item, which decides no price until the item is moved into a public stash tab, or a note or tab name in a tab that is not public, which decides none until the tab is made public in the game; `counts.invalid_notes` the notes that start like a price and do not read as one (no effect: the tab's name applies); `rows` accounts for every hand-written row: how many apply here, which name nothing in the facts (`unmatched`, each row whole — `value`, `from`, `revision`, `updated_at`, `written_via` — since no listing carries it), which cannot be read, which belong to other leagues or realms",
         ),
         entry(
+            "show counts",
+            "a container's show, counted: `items_here` (physically in it) and `items_covered_below` (covered through its children) each list ten by default, as many as `limit` names, every one under `expand`; beside each, `items_here_counts` and `items_covered_below_counts` count the whole set: `total`, every item it holds; `returned`, how many it lists; `left_out`, how many it does not; `by_relation`, the whole set by relation word, an item whose price is unresolved never counted as none; and `unresolved`, the set's items a row that cannot be read could decide",
+        ),
+        entry(
             "list counts",
             "a list of the priced items, counted: `items_on_record`, how many items the league holds, so an empty answer says which nothing; `total`, how many the selection holds, and `listed`, how many `items` lists — fewer only under `limit`, the first in listing order, `containers` then being theirs alone",
         ),
@@ -988,7 +1002,17 @@ mod tests {
             assert!(!r.message.contains(word), "{}", r.message);
         }
 
-        let e = show(&store, &a, "item/i-nowhere", None, None, "a", plain).unwrap_err();
+        let e = show(
+            &store,
+            &a,
+            "item/i-nowhere",
+            None,
+            None,
+            Bound::default(),
+            "a",
+            plain,
+        )
+        .unwrap_err();
         assert_eq!(refused(e).kind, RefusedKind::NotFound);
     }
 

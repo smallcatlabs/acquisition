@@ -44,7 +44,7 @@ No arguments.
 
 ### `describe`
 
-What the tools answer and the language `search` takes, read by name (no store read): answer, every key of a search answer; trade, what a site search becomes and its report; fields, what a query may ask; pricing, the listing model and its revision rule; daemon, what the job tools answer without one; store, what store_status and tabs count. The whole is over 100 KB: computed is some 80 KB, fields and trade some 20 KB each, categories some 10 KB, answer some 5 KB, and the rest each under 4 KB. A name it does not know is refused, and the refusal lists every name it knows.
+What the tools answer and the language `search` takes, read by name (no store read): answer, every key of a search answer; trade, what a site search becomes and its report; fields, what a query may ask; pricing, the listing model and its revision rule; daemon, what the job tools answer without one; store, what store_status and tabs count. The whole is over 100 KB: computed is some 80 KB, fields and trade some 20 KB each, categories some 10 KB, answer and pricing some 5 KB each, and the rest each under 4 KB. A name it does not know is refused, and the refusal lists every name it knows.
 
 - `names` (array | null) — Sections, each by the key it answers under: fields, line, linked, values, composition, operators, slots, computed, totals, counts, explain, answer, categories, trade, not_built, limits, pricing, daemon, store — or a name within one (league, total_res, revision). Omitted: everything, over 100 KB.
 
@@ -108,10 +108,12 @@ Set one target's price by hand: one row on an item, tab, substash or character, 
 
 ### `price_show`
 
-One target's listing (no daemon): `listing`, both sides with their causes — the hand row that applies (`manual`, with its `revision` and the target it is on, `from`), the note and the tab name verbatim beside what each reads as — the relation, the effective price and why; `container`, the one an item sits in; for a tab, substash or character, `items_here` (physically in it) and `items_covered_below` (covered through its children). Read it before price_set or price_clear on a target with a row of its own: they name the revision they replace.
+One target's listing (no daemon): `listing`, both sides with their causes — the hand row that applies (`manual`, its `revision` and the target it is on, `from`), the note and the tab name verbatim beside what each reads as — the relation, the effective price and why; `container`, the one an item sits in; for a container, `items_here` (in it) and `items_covered_below` (through its children), ten each beside its counts, `limit` more, `expand` all (`describe` with names ["pricing"]). Read it before price_set or price_clear on a target with its own row: they name the revision they replace.
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
+- `expand` (boolean | null) — List every item of both sets.
 - `league` (string | null) — The league to read the target in; omitted, the league the facts hold it in, so an address an answer printed reads back as printed.
+- `limit` (integer | null) — List this many of each item set in place of ten, the first in listing order.
 - `realm` (string | null) — The realm of an item or character target (pc when omitted); a tab or substash address carries its own, and a realm given beside it must agree.
 - `target` (string, required) — One address: `item/<id>`, `character/<id>`, `tab/<realm>/<id>` or `substash/<realm>/<parent>/<id>`. An answer holds a target as an object, `{scope, realm, parent, id}`: the address is its parts in that order joined by `/`, the absent ones left out.
 

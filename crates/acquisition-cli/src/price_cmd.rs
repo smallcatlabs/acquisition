@@ -77,7 +77,7 @@ pub fn show(
     target: &str,
     realm: Option<Realm>,
     league: Option<&str>,
-    expand: bool,
+    bound: pricing::Bound,
     json: bool,
 ) -> Result<()> {
     let (store, annotations, username) = opened(cx)?;
@@ -87,6 +87,7 @@ pub fn show(
         target,
         realm,
         league,
+        bound,
         &username,
         acquisition_search::answer::shell_quoted,
     )?;
@@ -94,7 +95,7 @@ pub fn show(
         println!("{}", serde_json::to_string_pretty(&view)?);
         return Ok(());
     }
-    print!("{}", render_show(&view, acquisition_store::now(), expand));
+    print!("{}", render_show(&view, acquisition_store::now(), bound));
     Ok(())
 }
 
@@ -159,6 +160,21 @@ fn breakdown(items: &[&Listing]) -> String {
     let n = items.iter().filter(|l| unresolved(l)).count();
     if n > 0 {
         parts.push(format!("{n} unresolved"));
+    }
+    parts.join(", ")
+}
+
+/// [`breakdown`] read from a set's whole counts in the document.
+fn set_breakdown(c: &acquisition_plan::listing::SetCounts) -> String {
+    let mut parts: Vec<String> = Relation::ALL
+        .into_iter()
+        .filter_map(|rel| {
+            let n = c.by_relation.get(rel.as_str()).copied().unwrap_or(0);
+            (n > 0).then(|| format!("{n} {}", relation_word(rel)))
+        })
+        .collect();
+    if c.unresolved > 0 {
+        parts.push(format!("{} unresolved", c.unresolved));
     }
     parts.join(", ")
 }
@@ -647,7 +663,8 @@ fn render_list(view: &ListView, expand: bool) -> String {
     out
 }
 
-fn render_show(view: &ShowView, now: i64, expand: bool) -> String {
+fn render_show(view: &ShowView, now: i64, bound: pricing::Bound) -> String {
+    let expand = bound.expand;
     let mut out = String::new();
     let h: &ReportHeader = &view.header;
     let l = &view.listing;
@@ -789,34 +806,39 @@ fn render_show(view: &ShowView, now: i64, expand: bool) -> String {
     }
 
     if !s.is_item() {
-        let here: Vec<&Listing> = view.items_here.iter().collect();
-        let below: Vec<&Listing> = view.items_covered_below.iter().collect();
-        // Two sets (C70): physically here, and covered through children.
-        if here.is_empty() {
+        let (here, here_counts) = (&view.items_here, &view.items_here_counts);
+        let (below, below_counts) = (&view.items_covered_below, &view.items_covered_below_counts);
+        // Two sets (C70): physically here, and covered through children,
+        // each counted from the document's whole-set counts, never from
+        // the rows it lists (C53).
+        if here_counts.total == 0 {
             out.push_str("items here: none on record\n");
         } else {
             out.push_str(&format!(
                 "items here: {} — {}\n",
-                plural(here.len(), "item", "items"),
-                breakdown(&here)
+                plural(here_counts.total, "item", "items"),
+                set_breakdown(here_counts)
             ));
         }
-        if !below.is_empty() {
+        if below_counts.total > 0 {
             out.push_str(&format!(
                 "items covered through children: {} — {}\n",
-                plural(below.len(), "item", "items"),
-                breakdown(&below)
+                plural(below_counts.total, "item", "items"),
+                set_breakdown(below_counts)
             ));
         }
-        // Each set listed under its own line (ten or fewer, or --expand);
-        // a set past the threshold defers to `list`.
+        // Each set listed under its own line when the document lists it
+        // whole (ten or fewer, or --expand) or as many as --limit asked;
+        // a set the document cut is counted, and the next line names the
+        // audit route.
         let mut deferred = false;
-        for (set, is_below) in [(&here, false), (&below, true)] {
-            if set.is_empty() {
+        for (set, counts, is_below) in [(here, here_counts, false), (below, below_counts, true)] {
+            if counts.total == 0 {
                 continue;
             }
-            if set.len() <= LIST_UP_TO || expand {
-                if is_below && !here.is_empty() {
+            deferred |= counts.left_out > 0;
+            if counts.left_out == 0 || bound.limit.is_some() {
+                if is_below && here_counts.total > 0 {
                     out.push_str("covered through children:\n");
                 }
                 for l in set {
@@ -825,14 +847,12 @@ fn render_show(view: &ShowView, now: i64, expand: bool) -> String {
                         out.push_str(&item_texts(l));
                     }
                 }
-            } else {
-                deferred = true;
             }
         }
         if deferred {
             out.push_str(&format!(
-                "next: `acq price list --in {}` lists them, `--covered-by` the covered set; `--expand` here lists every one\n",
-                s.target
+                "next: `acq price show {target} --expand` lists every item of both sets; `acq price list --in {target}` is the filtered route, the items physically here a price applies to (`--covered-by` the covered set)\n",
+                target = s.target
             ));
             return out;
         }
@@ -1357,7 +1377,11 @@ mod tests {
         let r = report();
         let show = |target: PriceTarget| r.show_view(&target).unwrap();
         let l = show(PriceTarget::Item { id: "i-01".into() });
-        let text = render_show(&l, 8_000, false);
+        let text = render_show(
+            &l.clone().bounded(None, false),
+            8_000,
+            pricing::Bound::default(),
+        );
         assert_eq!(
             text,
             "item/i-01: Chaos Orb x10  in \"~price 3 chaos (A)\" tab/pc/c1\n\
@@ -1369,7 +1393,14 @@ mod tests {
              \x20 tab c1 \"~price 3 chaos (A)\" reads 3 chaos, public\n\
              next: `acq price list --in tab/pc/c1` is its neighbours\n"
         );
-        let text = render_show(&l, 8_000, true);
+        let text = render_show(
+            &l,
+            8_000,
+            pricing::Bound {
+                limit: None,
+                expand: true,
+            },
+        );
         assert!(text.contains("set 1h ago via cli as tom)"), "{text}");
         assert!(text.contains("chain: item/i-01 > tab/pc/c1\n"), "{text}");
         assert!(
@@ -1381,7 +1412,11 @@ mod tests {
 
         // A substash item: its own name beside the parent's reading.
         let l = show(PriceTarget::Item { id: "i-sub".into() });
-        let text = render_show(&l, 8_000, false);
+        let text = render_show(
+            &l.clone().bounded(None, false),
+            8_000,
+            pricing::Bound::default(),
+        );
         assert!(
             text.contains("in game: none (price text the trade site cannot see, in a tab that is not public or on a character: it decides nothing)\n  tab m1 \"~price 1 divine (Remove-only)\" reads 1 divine, not public\n  substash \"1 (Remove-only)\" (its parent's name and public are read)\n"),
             "{text}"
@@ -1399,7 +1434,11 @@ mod tests {
         let l = show(PriceTarget::Item {
             id: "i-worn".into(),
         });
-        let text = render_show(&l, 8_000, false);
+        let text = render_show(
+            &l.clone().bounded(None, false),
+            8_000,
+            pricing::Bound::default(),
+        );
         assert!(
             text.contains("  no tab name read: no stash to publish\n"),
             "{text}"
@@ -1410,7 +1449,11 @@ mod tests {
             realm: Realm::Pc,
             id: "c1".into(),
         });
-        let text = render_show(&l, 8_000, false);
+        let text = render_show(
+            &l.clone().bounded(None, false),
+            8_000,
+            pricing::Bound::default(),
+        );
         assert!(
             text.starts_with("tab/pc/c1: ~price 3 chaos (A) (PremiumStash)\nrelation game_only: in game: 3 chaos; no row applies\neffective: 3 chaos — 3 chaos in game; no row applies\n"),
             "{text}"
@@ -1421,10 +1464,17 @@ mod tests {
         );
         assert!(!text.contains("covered through children"), "{text}");
         assert!(
-            text.ends_with("next: `acq price list --in tab/pc/c1` lists them, `--covered-by` the covered set; `--expand` here lists every one\n"),
+            text.ends_with("next: `acq price show tab/pc/c1 --expand` lists every item of both sets; `acq price list --in tab/pc/c1` is the filtered route, the items physically here a price applies to (`--covered-by` the covered set)\n"),
             "{text}"
         );
-        let text = render_show(&l, 8_000, true);
+        let text = render_show(
+            &l,
+            8_000,
+            pricing::Bound {
+                limit: None,
+                expand: true,
+            },
+        );
         assert_eq!(text.matches("\n  game_only ").count(), 11, "{text}");
         // A mixed parent tab: its own item here and its substash's covered
         // (C70), each set listed under its own line.
@@ -1432,7 +1482,11 @@ mod tests {
             realm: Realm::Pc,
             id: "m1".into(),
         });
-        let text = render_show(&l, 8_000, false);
+        let text = render_show(
+            &l.clone().bounded(None, false),
+            8_000,
+            pricing::Bound::default(),
+        );
         assert!(
             text.contains("items here: 1 item — 1 unlisted\nitems covered through children: 1 item — 1 unlisted\n"),
             "{text}"
@@ -1614,7 +1668,14 @@ mod tests {
             .unwrap();
         let list = render_list(&view, true);
         let show = r.show_view(&tab).unwrap();
-        let shown = render_show(&show, now, true);
+        let shown = render_show(
+            &show,
+            now,
+            pricing::Bound {
+                limit: None,
+                expand: true,
+            },
+        );
         let status = render_status(&r, now, true, "a");
         let took = t.elapsed();
         assert!(

@@ -1071,3 +1071,125 @@ fn a_named_limit_lists_the_items_it_bounds() {
     let lines = text.lines().filter(|l| l.contains("i-big-")).count();
     assert_eq!(lines, 12, "{text}");
 }
+
+/// The league Big beside the seed's Standard: a map tab `b1` of thirteen
+/// items of its own over a substash `s9` of fourteen, every item unpriced
+/// — two sets past the read economy's bound of ten (C53).
+fn big_league(mock: &Path) {
+    let at = acquisition_store::now();
+    let mut store = Store::open(&account_path(mock, USER)).unwrap();
+    let record = |store: &mut Store, ep: Endpoint, body: Value| {
+        store.record(&ep, &json!({}), 200, &body, at).unwrap();
+    };
+    let items = |prefix: &str, n: usize| -> Vec<Value> {
+        (0..n)
+            .map(|i| json!({ "id": format!("{prefix}{i:02}"), "name": "", "typeLine": "Chaos Orb", "baseType": "Chaos Orb", "x": i, "y": 0, "stackSize": 1 }))
+            .collect()
+    };
+    record(
+        &mut store,
+        Endpoint::Stashes {
+            realm: "pc".into(),
+            league: "Big".into(),
+        },
+        json!({ "stashes": [ { "id": "b1", "name": "Many", "type": "MapStash", "index": 0 } ] }),
+    );
+    let stash = |sub: Option<&str>| Endpoint::Stash {
+        realm: "pc".into(),
+        league: "Big".into(),
+        id: "b1".into(),
+        sub: sub.map(str::to_string),
+    };
+    record(
+        &mut store,
+        stash(None),
+        json!({ "stash": { "id": "b1", "name": "Many", "type": "MapStash", "items": items("i-b", 13),
+                            "children": [ { "id": "s9", "name": "9", "type": "MapStash", "metadata": { "items": 14 } } ] } }),
+    );
+    record(
+        &mut store,
+        stash(Some("s9")),
+        json!({ "stash": { "id": "s9", "name": "9", "type": "MapStash", "items": items("i-s", 14) } }),
+    );
+}
+
+/// C53, the read economy (step 2g, round 2): `price show` of a container
+/// whose two sets are past ten lists ten of each beside the sets' whole
+/// counts, `--limit` lists that many, and `--expand`, the route the text
+/// names first, lists every item the default left out; the text counts
+/// from the document's counts, never from the rows it lists (the cold
+/// review of the brief, findings 6 and 7).
+#[test]
+fn price_show_lists_ten_of_each_set_beside_the_whole_counts_and_expand_lists_every_one() {
+    use acquisition_store::bound::LISTED;
+    let scratch = harness::scratch("price-show-bound");
+    let base = scratch.0.clone();
+    let mock = seed(&base);
+    big_league(&mock);
+    let shown = |args: &[&str]| -> ShowView {
+        let out = acq(
+            &base,
+            &[&["price", "show", "tab/pc/b1", "--json"], args].concat(),
+        );
+        assert!(out.status.success(), "{}", stderr(&out));
+        serde_json::from_value(sole_json(&out)).unwrap()
+    };
+    let ids = |set: &[acquisition_plan::listing::Listing]| -> Vec<String> {
+        set.iter().map(|l| l.subject.target.to_string()).collect()
+    };
+    let view = shown(&[]);
+    assert_eq!(view.header.league, "Big");
+    assert_eq!(
+        (view.items_here.len(), view.items_covered_below.len()),
+        (LISTED, LISTED)
+    );
+    let (here, below) = (&view.items_here_counts, &view.items_covered_below_counts);
+    assert_eq!(
+        (here.total, here.returned, here.left_out),
+        (13, LISTED, 13 - LISTED)
+    );
+    assert_eq!(
+        (below.total, below.returned, below.left_out),
+        (14, LISTED, 14 - LISTED)
+    );
+    assert_eq!(here.by_relation.get("none"), Some(&13), "{here:?}");
+
+    let more = shown(&["--limit", "12"]);
+    assert_eq!(
+        (more.items_here.len(), more.items_covered_below.len()),
+        (12, 12)
+    );
+
+    let all = shown(&["--expand"]);
+    for (default, every) in [
+        (&view.items_here, &all.items_here),
+        (&view.items_covered_below, &all.items_covered_below),
+    ] {
+        let every = ids(every);
+        let omitted: Vec<String> = every
+            .iter()
+            .filter(|id| !ids(default).contains(id))
+            .cloned()
+            .collect();
+        assert!(!omitted.is_empty());
+        assert!(omitted.iter().all(|id| every.contains(id)));
+    }
+    assert_eq!(
+        (all.items_here.len(), all.items_covered_below.len()),
+        (13, 14)
+    );
+
+    // the text: the whole sets' counts, and the audit route first
+    let mut t = Transcript::offline(&base);
+    t.run(
+        &["price", "show", "tab/pc/b1"],
+        &[
+            "items here: 13 items — 13 unlisted",
+            "items covered through children: 14 items — 14 unlisted",
+            "next: `acq price show tab/pc/b1 --expand` lists every item of both sets; `acq price list --in tab/pc/b1` is the filtered route",
+        ],
+    );
+    let out = acq(&base, &["price", "show", "tab/pc/b1", "--expand"]);
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert_eq!(text.matches("Chaos Orb x1 ").count(), 27, "{text}");
+}
