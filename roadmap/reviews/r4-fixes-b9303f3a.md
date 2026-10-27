@@ -1,0 +1,11 @@
+bf3c4f25^..b9303f3a — r4’s done-when does not fully hold: redaction gaps remain; execution-dependent criteria are **not verified**.
+
+1. **P2 — [diagnose.rs:355](/Users/tom/Development/GitHub/smallcatlabs/acquisition/crates/acquisition-verbs/src/diagnose.rs:355), shapes 1 and 2:** The journal fix still exposes the failed journal’s directory when the diagnosing frontend has different settings. Start the daemon with an unwritable `ACQ_JOURNAL=/srv/private-runs/sends.jsonl`, outside its home, store and log directories, then diagnose from a shell with `ACQ_JOURNAL` unset: `/srv/private-runs` survives in both output forms. The new test shares the knob between processes, narrowing the saved review’s failing case; the commit acknowledges this remainder. Smallest sufficient fix: report the daemon’s configured journal path separately from its failure text, use its directory for redaction, and pin the differing-environment case.
+
+2. **P3 — [diagnose.rs:586](/Users/tom/Development/GitHub/smallcatlabs/acquisition/crates/acquisition-verbs/src/diagnose.rs:586), shape 1:** The numeric exemption still applies to every token key after a colon, rather than specifically to an error code. A planted log line `refresh_token: 123456` remains unchanged in text and JSON diagnosis output because log lines are strings. Smallest fix: restrict the exemption to numeric `code` representations and add this colon-separated token case beside the quoted and equals-separated cases.
+
+- **Not checked:** No builds, tests, Acquisition processes, gate stages or API calls were run, as instructed. Mock behavior, JSON totality, test success and gate exit statuses are **not verified**. README/tour/reference presence and the changed golden were checked statically; every golden change is explained by the added inputs. External issue #79 and the Fable synthesis were not checked.
+- **Nitpicks:** Finding 2 is defensive hardening for an unlikely all-numeric secret; I would call it a nitpick. Finding 1 is not.
+- **Brief:** Give fix rounds explicit acceptance criteria separate from the original execution-dependent done-when.
+- **Plan:** No separate plan was supplied; this did not impede review.
+- **Prompt:** No additional change suggested.

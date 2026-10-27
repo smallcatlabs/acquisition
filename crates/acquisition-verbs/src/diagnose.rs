@@ -503,8 +503,8 @@ impl Diagnosis {
 /// delimiter
 /// (`refresh_token=…`, `refresh_token="…"`, `{"code": "…"}`). The same
 /// list is the JSON keys whose string value is a token whatever it looks
-/// like. A number after `:`, unquoted, is no token (a GGG error's
-/// `"code": 2`),
+/// like. Digits under `code` after `:`, unquoted, are no token (a GGG
+/// error's `"code": 2`),
 /// nor a scheme word before its token (`Authorization: Bearer …`), nor a
 /// challenge's parameter (`is_parameter`).
 const TOKEN_KEYS: [&str; 10] = [
@@ -580,10 +580,11 @@ fn token_at(rest: &str) -> Option<(usize, usize)> {
         _ => (unquoted_len(&rest[head..]), false),
     };
     let next = rest[head + value..].chars().next();
-    // Digits alone stand only in a JSON number's shape, after `:` and
-    // unquoted: an error body's `"code": 2` (r4's fix-round review,
-    // finding 3: `refresh_token="123456"` is a token).
-    is_token(&rest[head..head + value], next, colon && !quoted).then_some((head, value))
+    // Digits alone stand only as an error body's code, under `code`,
+    // after `:` and unquoted: `"code": 2` (r4's fix-round reviews:
+    // `refresh_token="123456"` and `refresh_token: 123456` are tokens).
+    let number_kept = *key == "code" && colon && !quoted;
+    is_token(&rest[head..head + value], next, number_kept).then_some((head, value))
 }
 
 /// An unquoted value's length: to the first delimiter.
@@ -897,8 +898,10 @@ mod tests {
         // Digits are a token unless they are a JSON number after `:`
         // (the fix-round review, finding 3).
         assert_eq!(
-            redactor().redact(r#"refresh_token="123456" and code=7788 beside {"code": 2}"#),
-            r#"refresh_token="<token 1>" and code=<token 2> beside {"code": 2}"#
+            redactor().redact(
+                r#"refresh_token="123456" and code=7788 and refresh_token: 654321 beside {"code": 2}"#
+            ),
+            r#"refresh_token="<token 1>" and code=<token 2> and refresh_token: <token 3> beside {"code": 2}"#
         );
         // Their twins with tabs (r4's fix-round review, finding 1).
         assert_eq!(
