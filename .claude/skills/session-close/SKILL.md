@@ -11,7 +11,11 @@ Run `tools/gate.sh` and gate the commit on its exit status, never on a
 filtered grep of its output. `--docs` serves a change that no test and
 no build reads, which the session establishes before using it (tests
 read `README.md`, the two references and `.gitattributes`, among
-others); when unsure, the full gate.
+others); when unsure, the full gate. While it runs, edit nothing
+tracked: the search's build name digests crate sources at build time
+and again at test time, so an edit mid-run fails the run
+(`acquisition-search/tests/build_name.rs`); draft the next change in
+scratch.
 
 ### Why build order matters
 

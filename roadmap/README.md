@@ -241,15 +241,7 @@ list when a step's close commit or an issue takes it.
   check has no breaker suite; `bothy pack --path README.md` returns
   the search and trade rulings, since the basename matches intros that
   name `search/README.md` (`tools/bothy.py:284-305`); a session's
-  must-read carries the memory index beside `AGENTS.md`;
-  `tools/gate.sh` has no harness, so its refusal of an unknown stage
-  is held by its default branch and pinned by nothing (p0).
-- **From p0**: in all four full gates the final rebuild took about a
-  second, so the test stage left no artifact to replace on this
-  machine at those trees, an input to #88's measurement; the existing
-  texts still say "door" in its several senses, and the glossary asks
-  only new texts to use the new words, so a sweep is a step's when a
-  reader stops on one.
+  must-read carries the memory index beside `AGENTS.md`.
 - **An issue ready for a step, none named**: #11, the words nobody
   understood, which waited on 2a.
 - **From h1, the honesty group** (outside the phase order, the owner's
@@ -320,7 +312,7 @@ messages.
 | 4a the 4-lite design | the brief re-cut `cbd7caf2`; the owner's rulings `00e440d1`; C141 under delegation `eeb72437`; the build brief `f1deb782`; closed by the commit carrying this line | 2026-10-25 | a selection compiled as a plan (the spend check refuses a plan with no stored policy), in `4b-build.md`'s "Not in scope" with its trigger, the owner's sitting; C141 listed for the owner's review at the close; the AGENTS budget at 15,235 of 15,277 bytes, under "Open" |
 | 4b 4-lite, `acq web` | build `f29506bc` (C141) to `fba1b03e`: the icon field `00020cac`, the stat vocabulary `d4e7f2ce`, the catalogue's listing-only sentences `550cd616`, the moved-world pins `843b391c`, the CLI's renderers as text `3323a488`, `acq web` `fba1b03e`; the review `548051f9`; fixes `0b1fc1ff` to `c48b9f73` (the review deleted there, whole at `548051f9`); the fix round's review `a8d12d0a`; its one fix `13e725ff` (that review deleted there, whole at `a8d12d0a`); the owner's sitting, its first stop fixed at `c1ec1411` and its `RUN-LEDGER.md` row; the sitting round (`briefs/4b-sitting-round.md`, rulings `f2239aa6`), merged at `4c58d9e3`: `341bf94c`, `98ad588b`, `1dafc2d4`, `61b58ba1`, `4baf9a70`, `459c79ba`, `20c224b5`, `f55a43af`, `03e2bdc8`, `d1bca992`; the round's review `404e4fcd`; its fix round (rulings `eb9486ac`, C111 and C76), merged at `fadf0806`: `a88e318e`, `6ea0461a`, `9b0cd16b`, `5b4bc5b3`, `828875f8`, `9f561d8c`, `81e87042`, `bc7a715a` (that review deleted there, whole at `404e4fcd`); the fix round's review `25d98cef`; its four fixes `fb181ae0`, `03d37f17`, `7eb5fd1d`, `c38d9604` and the commit carrying this line (that review deleted there, whole at `25d98cef`) | 2026-10-25 | the 4-full items and the worker's items, under "Open"; the picker's no-fallback rule unpinned (no seam reaches a page's script); item counts beside the league select, declined (the league list and the counts are two documents on two bases); C142 and C143 under delegation, listed for the owner's review |
 | #70 the Windows gate's deadline flakes | ruling and brief `dd9b7859`; build `04001a27` to `90db890a`; the reorder and the review `54d9f957`, `493ff5d4`; fixes `6697afc3`, `32769f72` (the review deleted there, whole at `493ff5d4`) | the fix-round review found nothing (`reviews/70-fixes-32769f72.md`); the issue closes on a week of pushes without a re-run | the watch and what it holds, under "Open" |
-| p0 the process round | `f1a29952` to the commit carrying this line; reviews `reviews/p0-1523a776.md`, `reviews/p0-fixes-16ef9210.md` | 2026-10-26 | the gate script unpinned and the #88 input and the door sweep, under "Open"; four memory notes for the owner to retire |
+| p0 the process round | `f1a29952` to the commit carrying this line; reviews `reviews/p0-1523a776.md`, `reviews/p0-fixes-16ef9210.md` | 2026-10-26 | the gate script's breaker suite, on #87; the rebuild observation, on #88; the four memory notes, retired |
 
 ## Housekeeping
 
