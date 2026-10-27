@@ -488,7 +488,7 @@
   ],
   "posted_total": 6,
   "rendered_at": 5000,
-  "schema": 6,
+  "schema": 5,
   "size": 50000,
   "template": "[items]"
 }

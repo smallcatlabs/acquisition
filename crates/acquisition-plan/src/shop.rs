@@ -135,9 +135,10 @@ use crate::price::{Amount, Price, PriceTarget};
 use crate::{Selection, SyncPolicy};
 
 /// The render's JSON shape; changes are additive (C53) until they are
-/// not, and then this moves. The shape is pinned by
-/// `reference/shop-render-schema-6.json`
-/// (`the_render_json_matches_the_committed_fixture`). **6** since
+/// not, and then this moves — never for a default bound, a count beside
+/// a list or an added optional field (the owner's word of 2026-10-27).
+/// The shape is pinned by `reference/shop-render-schema-5.json`
+/// (`the_render_json_matches_the_committed_fixture`). Within 5, since
 /// 2026-10-27 (step 2g, C53's read economy): `posted`, `left_out` and
 /// each list of `freshness` hold the store's one bound of ten
 /// (`acquisition_store::bound::LISTED`) unless expanded, each counted
@@ -154,7 +155,7 @@ use crate::{Selection, SyncPolicy};
 /// page shape (spoilers) renamed `Posted.price` to `title`; 2 measured
 /// staleness over the stale set only; neither 1 nor 2 reached a
 /// consumer.
-pub const SHOP_SCHEMA: u32 = 6;
+pub const SHOP_SCHEMA: u32 = 5;
 
 /// The forum's hard post limit in characters (T23); the C++ app's
 /// constant (T15) had it right.
@@ -2069,7 +2070,7 @@ mod tests {
     fn the_render_json_matches_the_committed_fixture() {
         let path = concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/reference/shop-render-schema-6.json"
+            "/reference/shop-render-schema-5.json"
         );
         let policy = SyncPolicy::from_value(&json!({
             "version": 3,
