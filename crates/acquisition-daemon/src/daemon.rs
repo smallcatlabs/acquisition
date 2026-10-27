@@ -986,6 +986,8 @@ impl Daemon {
     /// counted in `landings` from before it is spawned until it returns,
     /// its `credentials` released by then, so the exit's drain waits for
     /// every keyring and index write in flight whichever path made it.
+    /// A landing spawned from a job's task runs under that job's mark
+    /// ([`RUNNING_JOB`]), so a panic in it names the job (C134).
     async fn spawn_landing<T: Send + 'static>(
         self: &Arc<Self>,
         landing: impl FnOnce(&Daemon) -> T + Send + 'static,
@@ -999,7 +1001,12 @@ impl Daemon {
         }
         self.shared.lock().unwrap().landings += 1;
         let counted = Counted(self.clone());
-        tokio::task::spawn_blocking(move || landing(&counted.0)).await
+        let job = RUNNING_JOB.try_with(|id| *id).ok();
+        tokio::task::spawn_blocking(move || match job {
+            Some(id) => RUNNING_JOB.sync_scope(id, || landing(&counted.0)),
+            None => landing(&counted.0),
+        })
+        .await
     }
 
     /// C148: mark activity at `now` on the daemon's clock, taking no lock.

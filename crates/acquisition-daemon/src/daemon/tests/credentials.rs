@@ -440,3 +440,87 @@ async fn c148_a_token_rejected_while_its_save_is_held_is_not_handed_out_again() 
     assert_journal_matches_wire(&log_path, &wire_methods(&sent_log));
     finish_harness(None, &log_path);
 }
+
+/// The panic hook's exit status in the child below, as `exit.rs`'s.
+const LANDING_HOOK_ENDED: i32 = 86;
+/// Set in the child's environment: the directory its hook writes to.
+const LANDING_CHILD_DIR: &str = "ACQ_TEST_LANDING_PANIC_DIR";
+
+fn landing_hook_ended() -> ! {
+    std::process::exit(LANDING_HOOK_ENDED)
+}
+
+/// The child: the hook installed as `run` installs it, then job 7's
+/// forced refresh, whose keyring save panics on its blocking thread.
+fn landing_panic_child(dir: &std::path::Path) -> ! {
+    let log = std::fs::File::create(dir.join("daemon.log")).unwrap();
+    super::super::start::install_panic_hook(
+        log,
+        Some(dir.join("fault.json")),
+        std::time::Instant::now(),
+        landing_hook_ended,
+    );
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()
+        .unwrap();
+    runtime.block_on(async {
+        let (base, _sent, _arrived, _release) = account_server(("GET", "/never", 0)).await;
+        let (mut daemon, _log_path) = test_daemon(&base, Arc::new(ManualClock::new()));
+        logged_in(&mut daemon);
+        let store = RecordingCredentialStore::default();
+        *store.on_save.lock().unwrap() = Some(Box::new(|| {
+            panic!("a broken invariant in a landing, for the hook");
+        }));
+        Arc::get_mut(&mut daemon).unwrap().credential_store = Arc::new(store);
+        let _ = RUNNING_JOB
+            .scope(7, daemon.valid_access_token(None, true, None))
+            .await;
+    });
+    // The landing's panic reached no hook that ended the process.
+    std::process::exit(1)
+}
+
+/// C148, the review of r2, its third finding: a panic in a landing that
+/// a job's task spawned names the job (C134: its fault marker fails the
+/// job once on the next start instead of replaying it). Before, the
+/// blocking thread ran outside the job's mark, the hook wrote no marker,
+/// and the job that met the fault was replayed. Run as `exit.rs` runs
+/// C134's: this test's own binary as a child process.
+#[test]
+fn c148_a_panic_in_a_jobs_landing_marks_the_job() {
+    if let Some(dir) = std::env::var_os(LANDING_CHILD_DIR) {
+        landing_panic_child(std::path::Path::new(&dir));
+    }
+    let dir = TestPath::dir();
+    let module = module_path!()
+        .split_once("::")
+        .map_or(module_path!(), |(_, rest)| rest);
+    let status = std::process::Command::new(std::env::current_exe().unwrap())
+        .args([
+            format!("{module}::c148_a_panic_in_a_jobs_landing_marks_the_job"),
+            "--exact".into(),
+            "--nocapture".into(),
+            "--test-threads=1".into(),
+        ])
+        .env(LANDING_CHILD_DIR, &*dir)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .unwrap();
+    assert_eq!(status.code(), Some(LANDING_HOOK_ENDED), "{status}");
+    let log = std::fs::read_to_string(dir.join("daemon.log")).unwrap();
+    assert!(log.contains("PANIC in job 7 at "), "{log}");
+    assert!(
+        log.contains("a broken invariant in a landing, for the hook"),
+        "{log}"
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.join("fault.json"))
+            .ok()
+            .as_deref(),
+        Some("{\"job\":7}\n"),
+        "the marker names the job whose landing panicked"
+    );
+}

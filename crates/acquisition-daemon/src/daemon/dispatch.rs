@@ -28,7 +28,8 @@ tokio::task_local! {
     /// and its fault marker names the job; outside a job's task it is
     /// unset and the hook writes no marker. No job spawns a task of its
     /// own, so the daemon's half of every send a job makes is polled
-    /// under it. The HTTP library's half is not: hyper-util spawns the
+    /// under it; the one thread a job hands work to, a landing's blocking
+    /// thread, runs under it too (`spawn_landing`, C148). The HTTP library's half is not: hyper-util spawns the
     /// connection tasks that read and parse GGG's bytes, and a panic in
     /// one of them writes no marker, so its job is replayed on the next
     /// start (one send for each start a client causes).
