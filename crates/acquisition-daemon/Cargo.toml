@@ -5,6 +5,10 @@ edition.workspace = true
 license.workspace = true
 publish.workspace = true
 repository.workspace = true
+# One test binary (`tests/main.rs`, C122), named below, never discovered.
+# Its existence also makes cargo build and write `acqd` on every
+# `--workspace` test run, as the plain build writes it (#88).
+autotests = false
 
 # The daemon as its own artifact (C1, C82; `DAEMON-SPLIT-SLICE.md` at `b6197a82` step 3):
 # this package holds the daemon implementation and the `acqd` binary, the
@@ -15,6 +19,10 @@ repository.workspace = true
 [[bin]]
 name = "acqd"
 path = "src/main.rs"
+
+[[test]]
+name = "main"
+path = "tests/main.rs"
 
 [dependencies]
 tokio.workspace = true
