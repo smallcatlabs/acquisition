@@ -16,20 +16,62 @@
 # `stage  rc  seconds`, is the verdict, and the script exits 1 when any
 # stage failed, so a commit is gated on this script's exit alone.
 #
-# The full gate ends with `cargo build --workspace` again. The test and
-# doc stages rewrite `target/debug/acq-mcp` in another form and never
-# write `acqd`, so a daemon started after them is the artifact mismatch
-# (C84); the last stage puts the plain artifacts back, and the rule holds
-# by order rather than by memory. CI runs the stages singly, for timing.
+# The full gate ends with `artifacts`: the three executables a frontend
+# spawns or a driver starts (`target/debug/acq`, `acqd`, `acq-mcp`) are
+# hashed, `cargo build --workspace` runs, and the stage fails if the
+# build compiled anything or any hash moved. A `--workspace` test run
+# writes them as the plain build does (#88: one feature graph for both,
+# and an integration test in every binary's crate, so cargo writes each
+# binary on a test run), and the stage holds that at the boundary, what
+# the test run leaves on disk. The doc stage writes none of them
+# (measured, #88). It still performs the build, so a failing gate leaves
+# the plain artifacts behind for any daemon started after it (C84, the
+# artifact mismatch). CI runs the stages singly, for timing.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
-names=(build test clippy fmt diff docs arch trade bothy doc rebuild)
+names=(build test clippy fmt diff docs arch trade bothy doc artifacts)
 DOCS=(diff docs arch trade bothy)
+
+# The `artifacts` stage (the header): what the stages before it left in
+# target/debug must be what the plain build writes.
+ARTIFACTS=(acq acqd acq-mcp)
+
+artifact_hash() {
+  if [[ -f target/debug/$1 ]]; then shasum -a 256 "target/debug/$1" | cut -d' ' -f1; else echo absent; fi
+}
+
+artifacts() {
+  local log before=() a i rc moved=0
+  log=$(mktemp) || return 2
+  for a in "${ARTIFACTS[@]}"; do before+=("$(artifact_hash "$a")"); done
+  cargo build --workspace 2>"$log"
+  rc=$?
+  cat "$log" >&2
+  if grep -E '^ *Compiling ' "$log" >/dev/null; then
+    echo "gate: artifacts: the build compiled what the stages before it left behind:" >&2
+    grep -E '^ *Compiling ' "$log" >&2
+    moved=1
+  fi
+  rm -f "${log:?}"
+  for i in "${!ARTIFACTS[@]}"; do
+    a=${ARTIFACTS[$i]}
+    if [[ $(artifact_hash "$a") != "${before[$i]}" ]]; then
+      echo "gate: artifacts: target/debug/$a changed under cargo build --workspace: a test run wrote another form of it, or never wrote it" >&2
+      moved=1
+    fi
+  done
+  if ((moved)); then
+    echo "gate: artifacts: a feature divergence shows in a diff of 'cargo tree --workspace -e no-dev,features --prefix none --format \"{p} {f}\"' and the same with '-e features'; a binary with no integration-test target is never written by a test run" >&2
+    ((rc)) || rc=1
+  fi
+  return "$rc"
+}
 
 run_stage() {
   case $1 in
-    build | rebuild) cargo build --workspace ;;
+    build) cargo build --workspace ;;
+    artifacts) artifacts ;;
     test) cargo nextest run --workspace --all-targets ;;
     clippy) cargo clippy --workspace --all-targets --all-features -- -D warnings ;;
     fmt) cargo fmt --all -- --check ;;
