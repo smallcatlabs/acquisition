@@ -107,9 +107,17 @@ skill (P6).
 10. Close: write `<AT>/README.md` — the runs, their call counts and
    trees, and one row per fault with its fate (a commit, an issue, or
    why it is no fault); `git rm <AT>/BRIEF.md`, citing its commit;
-   `seat.py <WORLD> <BIN> teardown` (stops its daemon, removes its
-   store). The report's "what the tour and the help did not say" is
-   input for the README, not a list of faults.
+   `seat.py <WORLD> <BIN> teardown` for each run's world (stops its
+   daemon, removes its store); the pristine stays, so a rerun reads
+   the same facts. The report's "what the tour and the help did not
+   say" is input for the README, not a list of faults.
+11. The ledger row, once per run, when its record is committed: a row
+   of `SEAT-LEDGER.md` in the form its head states — the date, the
+   build, the door and the pristine's path, the calls, the calls to
+   the first answer the runner held right per task beside the last
+   seat's on the same door, the stops, and the faults by fate as the
+   fate table holds them that day (a draft's fates as proposed). A
+   fate decided later is a new row, never an edit.
 
 ## Traps
 
@@ -147,10 +155,10 @@ skill (P6).
   a finding (`acq tabs` at 355 KB, `search --describe` at 117 KB).
 - **A report's counts are the runner's.** Numbers in the task sections
   were not recomputed by the session in either run; say so.
-- **A seat's close tears down every world's store, the pristine's too.**
-  The re-sit found the plan's pristine copy gone (`teardown` had
-  removed it at the trade seat's close) and made it again from the
-  owner's unchanged files; make the copy before the briefs, and check
-  it is there before a plan names it.
+- **A pristine torn down is gone.** The re-sit found the plan's
+  pristine copy gone (`teardown` had removed it at the trade seat's
+  close) and made it again from the owner's unchanged files; step 10
+  now keeps it, and the ledger row names it. Make the copy before the
+  briefs, and check it is there before a plan names it.
 - **The seat's fix round ends with the gate run bare.** A commit went
   through with `git diff --check` failing behind a `;`.

@@ -130,7 +130,7 @@ PY
 if [[ -n $history ]]; then printf '%s\n' "$history"; fail=1; else printf 'ok      %-18s %5d decisions, none carrying a history marker\n' registry "$count"; fi
 # AGENTS.md is read without its entry lines: it holds the cross-cutting
 # entries, and an entry is not a citation of itself.
-cited=$( { grep -rhoE '\bC[0-9]+\b' crates tools README.md GLOSSARY.md search/DIGEST.md RUN-LEDGER.md TESTING-NOTES.md SURFACES.md search/MEASUREMENTS.md search/LEDGER.md REVIEW-CHECKLIST.md HISTORY.md roadmap .claude/skills 2>/dev/null \
+cited=$( { grep -rhoE '\bC[0-9]+\b' crates tools README.md GLOSSARY.md search/DIGEST.md RUN-LEDGER.md SEAT-LEDGER.md TESTING-NOTES.md SURFACES.md search/MEASUREMENTS.md search/LEDGER.md REVIEW-CHECKLIST.md HISTORY.md roadmap .claude/skills 2>/dev/null \
   --include='*.rs' --include='*.sh' --include='*.py' --include='*.md' "${SKIP_ROADMAP[@]}"
   grep -vE '^- \*\*C[0-9]+ ' AGENTS.md | grep -oE '\bC[0-9]+\b' || true; } | sort -u)
 unknown=$(comm -13 <(printf '%s\n' "$ids") <(printf '%s\n' "$cited") | grep . || true)
@@ -156,7 +156,7 @@ rm -f "$reg"
 # history citations after them read the roadmap under SKIP_ROADMAP's two
 # exclusions alone (its saved reviews, its dated assessment), as the
 # registry's citations do; the document paths (6) read no roadmap file.
-governed=(crates tools README.md GLOSSARY.md search/DIGEST.md RUN-LEDGER.md TESTING-NOTES.md SURFACES.md search/MEASUREMENTS.md search/LEDGER.md AGENTS.md decisions .claude/skills REVIEW-CHECKLIST.md HISTORY.md roadmap)
+governed=(crates tools README.md GLOSSARY.md search/DIGEST.md RUN-LEDGER.md SEAT-LEDGER.md TESTING-NOTES.md SURFACES.md search/MEASUREMENTS.md search/LEDGER.md AGENTS.md decisions .claude/skills REVIEW-CHECKLIST.md HISTORY.md roadmap)
 revs=$(git rev-list HEAD)
 dead=0; checked=0
 while read -r h; do
