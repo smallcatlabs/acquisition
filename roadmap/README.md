@@ -151,11 +151,8 @@ issue carrying its evidence and its done-when, and takes a brief from
 `briefs/TEMPLATE.md` written by the session that starts it. An item
 leaves the list when its step closes or the owner strikes it.
 
-1. #88, one feature graph for the plain and the test build: measured,
-   and if it holds, C84's build-order rule and the gate's final rebuild
-   retired (P6).
-2. 2g, the read economy and the refusal bundle (#9, #10).
-3. #85, #86, #87, #89: the standing automation and the hygiene from the
+1. 2g, the read economy and the refusal bundle (#9, #10).
+2. #85, #86, #87, #89: the standing automation and the hygiene from the
    assessment's R5, each a short step on any idle day.
 
 ## Open
@@ -255,6 +252,30 @@ list when a step's close commit or an issue takes it.
   written to be read together and the name lookup reads each alone, so
   an entry never points at a sibling by position (pinned for
   `status counts`, checked by eye for the rest).
+- **The owner's, from #88** (`briefs/p88-one-feature-graph.md`, Do 6):
+  the measurement holds (`b5721ccf`, `72e973fa`): after one manifest
+  line and one daemon integration test, a `--workspace` test run
+  leaves `acqd`, `acq` and `acq-mcp` byte-identical to the plain
+  build's, held by the gate's `artifacts` stage, so the hard rule's
+  "and after any test run" guards nothing. His retirement under P6,
+  the text drawn: `AGENTS.md` "Build order" becomes "Run `cargo build
+  --workspace` before anything that starts a daemon. A `--workspace`
+  test run writes the same `acqd`, `acq` and `acq-mcp` as that build,
+  held by the gate's last stage, so no build is owed after a test run;
+  a `-p` run that leaves out the daemon's package writes no `acqd`.
+  Never run the live drivers, a bare `acq` or a second gate while the
+  gate runs."; C84 gains "One tree writes one artifact: the
+  workspace's plain build and its test build resolve one feature graph
+  and leave the same executables, so a test run never leaves a sibling
+  behind the frontend that would spawn it", pinned by `tools/gate.sh`
+  and `crates/acquisition-daemon/tests/main.rs`; the session-close and
+  mock-session skills and future briefs' Rules drop "after any test
+  run". The gain is the rule and its five repetitions, not seconds
+  (the rebuild cost 0 s inside the gate; a standalone build after a
+  test run fell from 2 to 7 s to under 0.3 s). The arch-check layout
+  rule counts only crates with a `tests/` directory, so a future
+  binary crate without an integration target brings the stale sibling
+  back, caught by the `artifacts` stage.
 - **The owner's, from the seat (#84)**: a typo'd account is refused as
   `not_logged_in` (C121's design: the index is read client-side and an
   unknown name is a name with no login); the runner asked for an
@@ -349,13 +370,15 @@ list when a step's close commit or an issue takes it.
 
 ## Current step
 
-#88 (pull-forward 3) is built and measured, its review pending and the
-retirement of the build-order rule waiting on the owner's ruling (the
-brief's Do 6); next from "Pull-forward" after its close: 2g, the read
-economy and the refusal bundle (#9, #10). Phase 3, the owner's league
-run, follows at his word; #70 closes on a week of pushes without a
-re-run. The assessment these rest on is `STATE-2026-10-26.md`; the
-issues carry the evidence per step. `AGENTS.md` governs; the gate is
+The milestone's steps are closed (p0, r1 to r5, the C135 round);
+pull-forward 1 to 3 (#82, #83 with its seat #84, #88) closed
+2026-10-27. Next from "Pull-forward": 2g, the read economy and the
+refusal bundle (#9, #10), a design brief first. The owner's rulings
+waiting: the build-order rule's retirement (#88, under "Open"), rule 6
+of the seat (C121), the C127 words. Phase 3, the owner's league run,
+follows at his word; #70 closes on a week of pushes without a re-run.
+The assessment these rest on is `STATE-2026-10-26.md`; the issues
+carry the evidence per step. `AGENTS.md` governs; the gate is
 `tools/gate.sh`.
 
 ## Ledger
@@ -388,7 +411,7 @@ messages.
 | #82 the held corpus in `acq-mcp` (pull-forward 1) | brief `500e4468`; build `551520fd` (the holder), `b439d30e` (the web on it), `bfd3a410` (the MCP on it, M8); review `reviews/p82-bfd3a410.md`; its one doc fix `9a1e8d0b` (unreviewed); closed by the commit carrying this line | 2026-10-27 | #95, the resident size per reload; `show` over the held corpus and a per-account slot, declined until a consumer asks |
 | #83 the MCP surface trimmed (pull-forward 2) | brief `1dd3dfdb`; build `81178cd0` (the answer section), `c9d6aec3` (the refusal's spelling), `c250b2c8` (`describe` by name), `d2a588bc` (the cut, the length test, the measurement); review `reviews/p83-d2a588bc.md`; the ruling `a4e4db41` (C146 amended); fixes `e26871c3` (the glosses move), `280f1075`, `fd564e33`; their review `reviews/p83-fixes-fd564e33.md`; its two wording fixes `e4231ecf` (unreviewed); closed by the commit carrying this line | 2026-10-27 | the schemas as the larger part of the first turn, and `characters`' two glosses, under "Open"; the seat (#84) next |
 | #84 the seat, the first row of the seat ledger (pull-forward 2, its seat) | brief `799c39d9`; the record, `SEAT-LEDGER.md` and its row, and the skill's ledger step `5df58a64`; fixes `64edb5d7` (the MCP's own words), `45ea27f7`, `67b30646`; their review `reviews/p84-fixes-67b30646.md`; fixes `acdda4dd`, `c62c0a7b`; their review `reviews/p84-fixes-c62c0a7b.md` (no findings), added by the commit carrying this line; closed by the commit carrying this line | 2026-10-27 | rule 6 (a typo'd account as `not_logged_in`, C121) and the seat skill's wording, the owner's, under "Open"; rules 2, 3, 7, 8 on #18, #11, #9, #10 |
-| #88 one feature graph for the plain and the test build (pull-forward 3) | brief `87dcb51a`; the measurement `b5721ccf`; build `9dfbb4fd` (num-traits `std` in the plain build), `053658df` (the daemon's integration test), `72e973fa` (the gate's `artifacts` stage); the words and this line, the commit carrying this line | measured and fixed, review pending; the retirement waits on the owner's ruling (the brief's Do 6) | the close's |
+| #88 one feature graph for the plain and the test build (pull-forward 3) | brief `87dcb51a`; the measurement `b5721ccf`; build `9dfbb4fd` (num-traits `std` in the plain build), `053658df` (the daemon's integration test), `72e973fa` (the gate's `artifacts` stage), `f264866e`; review `reviews/p88-f264866e.md`; fixes `e1e8fad7`, `d81d5ec7`, `8869753a`; their review `reviews/p88-fixes-8869753a.md`; its two fixes `4737a3c6` (unreviewed); closed by the commit carrying this line | 2026-10-27 | the retirement of the build-order rule's second half (the brief's Do 6), the owner's, under "Open" with its text; #96, the tour's leaked daemon |
 
 ## Housekeeping
 
