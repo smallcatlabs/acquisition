@@ -615,9 +615,11 @@ async fn keyring_words(daemon: &Arc<Daemon>) -> Vec<String> {
     words
 }
 
-/// Long enough for a request that does not wait to have answered.
-async fn settle() {
-    tokio::time::sleep(Duration::from_millis(100)).await;
+/// Poll `work` once, on this thread: `Pending` means it reached a wait
+/// and is parked there, with no scheduling assumed. Awaiting it later
+/// polls it on as any future.
+fn polled_once<F: std::future::Future>(work: std::pin::Pin<&mut F>) -> std::task::Poll<F::Output> {
+    work.poll(&mut std::task::Context::from_waker(std::task::Waker::noop()))
 }
 
 /// C148, the start's restore as the fifth landing: while the restore's
@@ -698,29 +700,23 @@ async fn c148_hello_and_the_status_documents_answer_while_the_restore_reads() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn c148_a_submit_that_needs_a_session_waits_for_the_restore() {
     let (daemon, held, _dir, log_path) = restoring_daemon().await;
-    let submit = {
-        let daemon = daemon.clone();
-        tokio::spawn(async move {
-            daemon
-                .handle_request(
-                    Request::Submit {
-                        kind: "characters".into(),
-                        params: json!({}),
-                        priority: 0,
-                        submitted_by: "client".into(),
-                        account: None,
-                    },
-                    &mut None,
-                )
-                .await
-        })
-    };
-    settle().await;
-    let answered_early = submit.is_finished();
+    let mut events = None;
+    let mut submit = std::pin::pin!(daemon.handle_request(
+        Request::Submit {
+            kind: "characters".into(),
+            params: json!({}),
+            priority: 0,
+            submitted_by: "client".into(),
+            account: None,
+        },
+        &mut events,
+    ));
+    let answered_early = polled_once(submit.as_mut()).is_ready();
     held.release.send(()).unwrap();
 
     assert!(!answered_early, "the submit waits while the restore reads");
-    let response = answered(async move { submit.await.unwrap() })
+    let response = tokio::time::timeout(ANSWERED_WITHIN, submit)
+        .await
         .expect("the submit answers once the restore lands");
     let Response::Submitted { id } = response else {
         panic!("submitted, not refused: {response:?}")
@@ -768,30 +764,21 @@ async fn c148_the_dispatcher_the_idle_verdict_and_the_drain_hold_for_the_restore
     let (daemon, held, _dir, log_path) = restoring_daemon().await;
     let idle_while_reading = daemon.is_idle(Duration::ZERO);
     assert!(daemon.begin_exit("test: exit"));
-    let drain = {
-        let daemon = daemon.clone();
-        tokio::spawn(async move { daemon.drain().await })
-    };
-    settle().await;
-    let drained_while_reading = drain.is_finished();
+    let mut drain = std::pin::pin!(daemon.drain());
+    let drained_while_reading = polled_once(drain.as_mut()).is_ready();
     held.release.send(()).unwrap();
 
     assert!(!idle_while_reading, "the restore holds the daemon");
     assert!(!drained_while_reading, "the drain waits for the restore");
-    let cut = answered(async move { drain.await.unwrap() }).expect("the drain returns");
+    let cut = tokio::time::timeout(ANSWERED_WITHIN, drain)
+        .await
+        .expect("the drain returns");
     assert_eq!(cut, None, "nothing was cut");
     assert!(
         daemon.is_idle(Duration::ZERO),
         "idle once the restore lands"
     );
     finish_harness(None, &log_path);
-}
-
-/// Poll `work` once, on this thread: `Pending` means it reached a wait
-/// and is parked there, with no scheduling assumed. Awaiting it later
-/// polls it on as any future.
-fn polled_once<F: std::future::Future>(work: std::pin::Pin<&mut F>) -> std::task::Poll<F::Output> {
-    work.poll(&mut std::task::Context::from_waker(std::task::Waker::noop()))
 }
 
 /// C148 with C133: a request that waits for the restore is refused as
