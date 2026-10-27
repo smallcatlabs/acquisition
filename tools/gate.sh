@@ -17,13 +17,13 @@
 # stage failed, so a commit is gated on this script's exit alone.
 #
 # The full gate ends with `artifacts`: the three executables a frontend
-# spawns or a driver starts (`target/debug/acq`, `acqd`, `acq-mcp`) are
-# hashed, `cargo build --workspace` runs, and the stage fails if the
-# build compiled anything or any hash moved. A `--workspace` test run
-# writes them as the plain build does (#88: one feature graph for both,
-# and an integration test in every binary's crate, so cargo writes each
-# binary on a test run), and the stage holds that at the boundary, what
-# the test run leaves on disk. The doc stage writes none of them
+# spawns or a driver starts (`acq`, `acqd`, `acq-mcp` in cargo's `debug`
+# directory) are hashed, `cargo build --workspace` runs, and the stage
+# fails if the build compiled anything or any hash moved. A
+# `--workspace` test run writes them as the plain build does (#88: one
+# feature graph for both, and an integration test in every binary's
+# crate, so cargo writes each binary on a test run), and the stage holds
+# that at the boundary, what the test run leaves on disk. The doc stage writes none of them
 # (measured, #88). It still performs the build, so a failing gate leaves
 # the plain artifacts behind for any daemon started after it (C84, the
 # artifact mismatch). CI runs the stages singly, for timing.
@@ -34,17 +34,44 @@ names=(build test clippy fmt diff docs arch trade bothy doc artifacts)
 DOCS=(diff docs arch trade bothy)
 
 # The `artifacts` stage (the header): what the stages before it left in
-# target/debug must be what the plain build writes.
+# cargo's output directory must be what the plain build writes. Equality
+# counts only between valid digests of the files cargo writes: the
+# directory is cargo's own (`cargo metadata`, so CARGO_TARGET_DIR and a
+# configured target-dir are followed), and a digest that is not 64 hex
+# characters, a file absent or a hash command that failed, fails the
+# stage rather than comparing equal (#88, the review's two findings).
 ARTIFACTS=(acq acqd acq-mcp)
 
+artifact_dir() {
+  if [[ -n ${CARGO_BUILD_TARGET:-} ]]; then
+    echo "gate: artifacts: CARGO_BUILD_TARGET is set, and a cross build writes under another directory than the one this stage reads; unset it" >&2
+    return 1
+  fi
+  cargo metadata --format-version 1 --no-deps |
+    python3 -I -c 'import json, sys; print(json.load(sys.stdin)["target_directory"])'
+}
+
+# The SHA-256 of `$1`, or the stage's failure naming it.
 artifact_hash() {
-  if [[ -f target/debug/$1 ]]; then shasum -a 256 "target/debug/$1" | cut -d' ' -f1; else echo absent; fi
+  local digest
+  digest=$(shasum -a 256 "$1" 2>/dev/null | cut -d' ' -f1)
+  if [[ ! $digest =~ ^[0-9a-f]{64}$ ]]; then
+    echo "gate: artifacts: no SHA-256 of $1 (absent, or the hash command failed)" >&2
+    return 1
+  fi
+  echo "$digest"
 }
 
 artifacts() {
-  local log before=() a i rc moved=0
+  local dir log before=() after a i rc moved=0
+  dir=$(artifact_dir) || return 1
+  [[ -n $dir ]] || { echo "gate: artifacts: cargo metadata named no target directory" >&2; return 1; }
+  dir=$dir/debug
+  for a in "${ARTIFACTS[@]}"; do
+    after=$(artifact_hash "$dir/$a") || return 1
+    before+=("$after")
+  done
   log=$(mktemp) || return 2
-  for a in "${ARTIFACTS[@]}"; do before+=("$(artifact_hash "$a")"); done
   cargo build --workspace 2>"$log"
   rc=$?
   cat "$log" >&2
@@ -56,8 +83,9 @@ artifacts() {
   rm -f "${log:?}"
   for i in "${!ARTIFACTS[@]}"; do
     a=${ARTIFACTS[$i]}
-    if [[ $(artifact_hash "$a") != "${before[$i]}" ]]; then
-      echo "gate: artifacts: target/debug/$a changed under cargo build --workspace: a test run wrote another form of it, or never wrote it" >&2
+    after=$(artifact_hash "$dir/$a") || return 1
+    if [[ $after != "${before[$i]}" ]]; then
+      echo "gate: artifacts: $dir/$a changed under cargo build --workspace: a test run wrote another form of it, or never wrote it" >&2
       moved=1
     fi
   done
