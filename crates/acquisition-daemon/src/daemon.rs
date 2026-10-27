@@ -139,7 +139,8 @@ use crate::ratelimit::{
 use crate::ratelimit::{endpoint_key, split_endpoint_key};
 use acquisition_protocol::artifact::Artifact;
 use acquisition_protocol::job::{
-    Children, JobId, JobInfo, JobState, MAX_429_RETRIES, Outcome, Priority, target_of,
+    CLIENT_KINDS, Children, JobId, JobInfo, JobState, MAX_429_RETRIES, MOCK_ONLY_KINDS, Outcome,
+    Priority, client_kinds, target_of,
 };
 use acquisition_protocol::protocol::{
     Bootstrap, BootstrapReply, ErrorKind, ErrorRecord, MAX_FRAME_BYTES, Quote, QuoteJob,
@@ -170,7 +171,7 @@ use endpoint::{Accept, BoundSocket, Listener, Stream};
 use kinds::{ApiError, validate_apply};
 use queue::{
     APPLY_MAX_ACTIONS, DAEMON_SUBMITTER, admit_client, admit_client_submitter, admit_realm,
-    admit_segments, bounded_message, check_sleep, client_kinds, describe, describe_str,
+    admit_segments, bounded_message, check_sleep, describe, describe_str,
 };
 use refresh::AccessTokenResult;
 use routes::why_no_url;

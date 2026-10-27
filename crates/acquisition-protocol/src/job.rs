@@ -47,6 +47,35 @@ pub type Priority = u8;
 /// request ceiling is `logical × (1 + MAX_429_RETRIES)`.
 pub const MAX_429_RETRIES: u32 = 2;
 
+/// C127 — The kinds a client may submit in either provider mode, in the
+/// order every surface lists them. The daemon's door and its refusal of
+/// an unknown kind, `acq submit`'s help and the MCP's `submit_job` read
+/// this list and [`MOCK_ONLY_KINDS`], so no surface names a kind the door
+/// refuses or leaves out one it admits. A kind in neither list is the
+/// daemon's own (`probe`).
+pub const CLIENT_KINDS: &[&str] = &[
+    "profile",
+    "characters",
+    "character",
+    "leagues",
+    "stashes",
+    "stash",
+    "apply",
+];
+
+/// C127 — The kinds a client may submit against the mock alone: `sleep`
+/// sends nothing, `fetch` and `whoami` only to the mock's own endpoints.
+/// The door refuses each in real mode.
+pub const MOCK_ONLY_KINDS: &[&str] = &["sleep", "fetch", "whoami"];
+
+/// The kinds a client may name in this provider mode, comma-separated:
+/// [`CLIENT_KINDS`], then in mock mode [`MOCK_ONLY_KINDS`]. The words the
+/// daemon's refusal lists and the frontends' descriptions print.
+pub fn client_kinds(real: bool) -> String {
+    let mock: &[&str] = if real { &[] } else { MOCK_ONLY_KINDS };
+    [CLIENT_KINDS, mock].concat().join(", ")
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct JobInfo {
     pub id: JobId,

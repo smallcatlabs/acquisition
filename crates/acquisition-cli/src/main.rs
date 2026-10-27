@@ -401,9 +401,7 @@ is the per-location summary.")]
     },
     /// Submit any job kind by hand.
     Submit {
-        /// A network kind — profile, characters, character, leagues,
-        /// stashes, stash, apply — or a mock-only one, refused in
-        /// real mode: sleep, which never sends, fetch, whoami.
+        #[arg(help = submit_kind_help())]
         kind: String,
         /// JSON params, as the verb of the same name sends them:
         /// characters `{"realm"}`, character `{"name", "realm"}`, stashes
@@ -789,6 +787,20 @@ A league entry names tabs, characters or both. Nothing is fetched by setting a p
         #[arg(long)]
         replace: bool,
     },
+}
+
+/// `acq submit`'s kind: the protocol's list, the words the daemon's
+/// refusal of an unknown kind prints (C127), and what `apply` takes.
+fn submit_kind_help() -> String {
+    use acquisition_protocol::job::{MOCK_ONLY_KINDS, client_kinds};
+    format!(
+        "One a client may submit: {}. {} run against the mock alone and are refused in real \
+mode. apply takes `{{\"jobs\": [{{\"kind\", \"params\"}}, …]}}`, the single requests a plan \
+authorizes (stashes, stash, characters, character); `acq refresh --apply` sends a reviewed \
+plan after the checks this skips",
+        client_kinds(false),
+        MOCK_ONLY_KINDS.join(", ")
+    )
 }
 
 #[derive(Subcommand)]

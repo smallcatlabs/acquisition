@@ -5,7 +5,7 @@
 
 use super::harness::*;
 use crate::daemon::queue::{
-    APPLY_MAX_ACTIONS, PARAMS_MAX_BYTES, SEGMENT_MAX_BYTES, SUBMITTER_MAX_BYTES,
+    APPLY_MAX_ACTIONS, Door, KINDS, PARAMS_MAX_BYTES, SEGMENT_MAX_BYTES, SUBMITTER_MAX_BYTES, door,
 };
 use crate::daemon::*;
 
@@ -813,6 +813,27 @@ async fn c127_an_unknown_kind_is_refused_naming_only_client_kinds() {
         assert_nothing_admitted(&daemon, what);
         finish_harness(None, &log_path);
     }
+}
+
+/// C127 (one list of the kinds a client may submit): every kind the
+/// protocol names, the list each frontend prints and the refusal above
+/// lists, is a row of the daemon's table, so none is refused as unknown
+/// in the words that name it; and the one row no list names is the
+/// daemon's own.
+#[test]
+fn c127_every_kind_the_protocol_names_is_a_row_of_the_table() {
+    for kind in CLIENT_KINDS.iter().chain(MOCK_ONLY_KINDS) {
+        assert!(
+            KINDS.iter().any(|row| row.kind == *kind),
+            "{kind} is listed and not run"
+        );
+    }
+    let own: Vec<&str> = KINDS
+        .iter()
+        .filter(|row| door(row.kind) == Door::DaemonOnly)
+        .map(|row| row.kind)
+        .collect();
+    assert_eq!(own, ["probe"]);
 }
 
 /// C127 (one bound on `sleep`): a row that never passed the door (a

@@ -125,6 +125,43 @@ fn a_tool_refusal_is_a_result_marked_is_error_with_its_kind() {
     assert_eq!(error["message"], "no job 999", "{error}");
 }
 
+/// C127 (one list of the kinds a client may submit): `submit_job`'s
+/// `kind` names the kinds the daemon's own refusal of an unknown kind
+/// lists, word for word, so the description cannot name a kind the door
+/// refuses (`refresh`, retired) or leave out one it admits (`apply`), as
+/// it once did both.
+#[test]
+fn submit_jobs_kind_names_the_kinds_the_daemons_refusal_lists() {
+    let scratch = harness::scratch("mcp-kinds");
+    let base = scratch.0.clone();
+    let mut mcp = Mcp::start(&base, &[]);
+    let _daemon = spawn_daemon(&base, &[]);
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while mcp.expect_ok("daemon_status", json!({}))["running"] != json!(true) {
+        assert!(Instant::now() < deadline, "the mock daemon did not come up");
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    let error = mcp.expect_rpc_error("submit_job", json!({ "kind": "refresh" }));
+    assert_eq!(error["data"]["kind"], "refused", "{error}");
+    let message = error["message"].as_str().unwrap_or_default();
+    let (_, listed) = message
+        .split_once("a client may submit: ")
+        .unwrap_or_else(|| panic!("the refusal lists no kinds: {message}"));
+    let tools = mcp.list_tools();
+    let submit = tools
+        .iter()
+        .find(|t| t["name"] == "submit_job")
+        .expect("submit_job is a tool");
+    let described = submit["inputSchema"]["properties"]["kind"]["description"]
+        .as_str()
+        .unwrap_or_default();
+    assert!(
+        described.contains(&format!("one a client may submit: {listed}.")),
+        "the description: {described}\nthe refusal: {message}"
+    );
+    assert!(!described.contains("refresh"), "{described}");
+}
+
 /// A request the server cannot read gets its own reply, and the server
 /// answers the next call: a query tree of 123 nots or 62 groups, or any
 /// message past 127 JSON levels, was dropped before any tool saw it,

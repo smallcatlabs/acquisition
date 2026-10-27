@@ -731,11 +731,11 @@ pub(super) enum Door {
 /// A kind's further check of its params: the refusal's words, or nothing.
 pub(super) type ParamCheck = fn(&Value) -> Result<(), String>;
 
-/// C127 — One row of the kind table: a kind, its door, the params that
-/// become path segments of its URL, and any further check of its params.
+/// C127 — One row of the kind table: a kind, the params that become path
+/// segments of its URL, and any further check of its params. Its door is
+/// the protocol's lists' ([`door`]).
 pub(super) struct KindRow {
     pub(super) kind: &'static str,
-    pub(super) door: Door,
     /// Params each rendered as exactly one path segment (`route_for`).
     pub(super) segments: &'static [&'static str],
     /// The segment params without which no URL renders.
@@ -749,103 +749,90 @@ pub(super) struct KindRow {
 pub(super) const SLEEP_MAX_SECONDS: f64 = 3600.0;
 
 /// C127 — The kind table: every kind the daemon runs, in one place. The
-/// client's door (`admit_client`), apply's tuples (`validate_apply`, by
-/// `admit_segments`), the unknown-kind failure and the refusal texts read
-/// it; a kind that is not a row is refused at the door.
+/// client's door (`admit_client`) and apply's tuples (`validate_apply`, by
+/// `admit_segments`) read it; a kind that is not a row is refused at the
+/// door, in words that list the protocol's client kinds.
 pub(super) const KINDS: &[KindRow] = &[
     KindRow {
         kind: "profile",
-        door: Door::Client,
         segments: &[],
         required: &[],
         check: None,
     },
     KindRow {
         kind: "characters",
-        door: Door::Client,
         segments: &[],
         required: &[],
         check: None,
     },
     KindRow {
         kind: "character",
-        door: Door::Client,
         segments: &["name"],
         required: &["name"],
         check: None,
     },
     KindRow {
         kind: "leagues",
-        door: Door::Client,
         segments: &[],
         required: &[],
         check: None,
     },
     KindRow {
         kind: "stashes",
-        door: Door::Client,
         segments: &["league"],
         required: &[],
         check: None,
     },
     KindRow {
         kind: "stash",
-        door: Door::Client,
         segments: &["league", "id", "sub"],
         required: &["id"],
         check: None,
     },
     KindRow {
         kind: "apply",
-        door: Door::Client,
         segments: &[],
         required: &[],
         check: None,
     },
     KindRow {
         kind: "sleep",
-        door: Door::MockOnly,
         segments: &[],
         required: &[],
         check: Some(check_sleep),
     },
     KindRow {
         kind: "fetch",
-        door: Door::MockOnly,
         segments: &[],
         required: &[],
         check: None,
     },
     KindRow {
         kind: "whoami",
-        door: Door::MockOnly,
         segments: &[],
         required: &[],
         check: None,
     },
     KindRow {
         kind: "probe",
-        door: Door::DaemonOnly,
         segments: &[],
         required: &[],
         check: None,
     },
 ];
 
-/// The kinds a client may name in this provider mode, comma-separated,
-/// for the refusal texts: never a daemon-only kind, and in real mode no
-/// mock-only one, since the door would refuse each of them.
-pub(super) fn client_kinds(real: bool) -> String {
-    KINDS
-        .iter()
-        .filter(|row| match row.door {
-            Door::Client => true,
-            Door::MockOnly => !real,
-            Door::DaemonOnly => false,
-        })
-        .map(|row| row.kind)
-        .collect::<Vec<_>>()
-        .join(", ")
+/// C127 — A kind's door, as the protocol names the kinds a client may
+/// submit (`acquisition_protocol::job::CLIENT_KINDS` and
+/// `MOCK_ONLY_KINDS`, the lists every frontend prints): a kind in neither
+/// is the daemon's own.
+pub(super) fn door(kind: &str) -> Door {
+    if CLIENT_KINDS.contains(&kind) {
+        Door::Client
+    } else if MOCK_ONLY_KINDS.contains(&kind) {
+        Door::MockOnly
+    } else {
+        Door::DaemonOnly
+    }
 }
 
 /// The longest path param a segment takes, in UTF-8 bytes. The longest
@@ -1178,7 +1165,7 @@ pub(super) fn admit_client(kind: &str, params: &Value, real: bool) -> Result<(),
             client_kinds(real)
         )));
     };
-    match row.door {
+    match door(row.kind) {
         Door::DaemonOnly => {
             return Err(refused(format!(
                 "a {kind} is queued by the daemon itself before a route's first use; \

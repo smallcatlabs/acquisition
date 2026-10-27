@@ -480,7 +480,7 @@ Submit any job kind by hand
 Usage: acq submit [OPTIONS] <KIND>
 
 Arguments:
-  <KIND>  A network kind — profile, characters, character, leagues, stashes, stash, apply — or a mock-only one, refused in real mode: sleep, which never sends, fetch, whoami
+  <KIND>  One a client may submit: profile, characters, character, leagues, stashes, stash, apply, sleep, fetch, whoami. sleep, fetch, whoami run against the mock alone and are refused in real mode. apply takes `{"jobs": [{"kind", "params"}, …]}`, the single requests a plan authorizes (stashes, stash, characters, character); `acq refresh --apply` sends a reviewed plan after the checks this skips
 
 Options:
       --params <PARAMS>      JSON params, as the verb of the same name sends them: characters `{"realm"}`, character `{"name", "realm"}`, stashes `{"league", "realm"}`, stash `{"id", "sub", "deep", "league", "realm"}`, sleep `{"seconds"}` (0 to 3600); realm defaults to pc and league to Standard. A name, league or id is one path segment of at most 255 bytes: a slash, a control character, or only dots and spaces before any `;` is refused; a stash needs its id. `acq status <id> --json` shows a job's params [default: {}]

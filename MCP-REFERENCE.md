@@ -191,7 +191,7 @@ Store file path, size, and row counts (no daemon, no network). `leagues` counts 
 Submit a job to the daemon and return its id immediately; poll job_status then fetch job_result. In real-GGG mode the daemon must already be running (a human starts it; this server never spawns one there).
 
 - `account` (string | null) — Account to run as; required when several sessions are live.
-- `kind` (string, required) — Job kind: profile, characters, character, leagues, stashes, stash, refresh (mock daemon also: sleep, fetch, whoami).
+- `kind` (string, required) — Job kind, one a client may submit: profile, characters, character, leagues, stashes, stash, apply, sleep, fetch, whoami. sleep, fetch, whoami run against the mock daemon alone and are refused in real mode. apply takes {"jobs": [{"kind", "params"}, …]}, the single requests a plan authorizes (stashes, stash, characters, character); apply_plan sends a reviewed plan after the checks this skips.
 - `params` (object) — Kind-specific params, e.g. {"league": "Standard", "id": "..."} for stash. Passed verbatim; visible to every connected client.
 - `priority` (integer | null) — Higher runs sooner (default 0).
 

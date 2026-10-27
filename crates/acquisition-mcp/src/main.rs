@@ -531,10 +531,23 @@ struct EventsParams {
     account: Option<String>,
 }
 
+/// `submit_job`'s kind: the protocol's list, the words the daemon's
+/// refusal of an unknown kind prints (C127), and what `apply` takes.
+fn submit_kind_doc() -> String {
+    use acquisition_protocol::job::{MOCK_ONLY_KINDS, client_kinds};
+    format!(
+        "Job kind, one a client may submit: {}. {} run against the mock daemon alone and are \
+refused in real mode. apply takes {{\"jobs\": [{{\"kind\", \"params\"}}, …]}}, the single \
+requests a plan authorizes (stashes, stash, characters, character); apply_plan sends a reviewed \
+plan after the checks this skips.",
+        client_kinds(false),
+        MOCK_ONLY_KINDS.join(", ")
+    )
+}
+
 #[derive(Deserialize, schemars::JsonSchema)]
 struct SubmitParams {
-    /// Job kind: profile, characters, character, leagues, stashes, stash,
-    /// refresh (mock daemon also: sleep, fetch, whoami).
+    #[schemars(description = submit_kind_doc())]
     kind: String,
     /// Kind-specific params, e.g. {"league": "Standard", "id": "..."} for
     /// stash. Passed verbatim; visible to every connected client.
