@@ -452,8 +452,231 @@ in the trailers are the first place a second round would look.
 
 ## 5.8 The prompting arc
 
-*Drawn from the per-session digests of the surviving transcripts.
-Written once the digests are in; see `METHOD.md`.*
+What the owner actually typed, and how it changed. This section rests
+on digests of the 114 surviving transcripts, one per session, each
+written from the transcript with verbatim quotes and timestamps, then
+five era narratives written from the digests. Every quotation below
+is the owner's, exact, with its date; the session ids are in the
+research files. The coverage is uneven: one day in August, then
+continuous from 2026-09-21.
+
+### One day in August: "plan, review, build, review, repeat"
+
+The three sessions of 2026-08-10 are the only window into the spike
+era, and they show the owner as an active co-designer. His opening
+request named what he cared about and no method: "I'm looking not
+only for bugs, but gaps, non-idiomatic or poorly design rust
+patterns, inconsistencies with documentation, and opportunities to
+simply what's been been". The audit found four real bugs and a
+flagship property test that asserted in about 3% of cases, behind
+green tests. His reaction was a question, not an order: "it seems
+like the implementation was a bit shoddy. Have you run across any
+clues as to how this might have happened?" And then he took the
+process failure on himself: "I will change my process to review each
+slice. I had thought they were simple enough to breeze through, but
+it looks like I was wrong."
+
+He described his own method that day in one sentence that holds for
+the whole record: "You've lived through how I build best with AI,
+plan, review, build, review, repeat. That's how I get things done."
+He brought in a second model the same night ("I'm having another
+frontier model review the repo in it's current state in case either
+of us missed something") and acted as courier between them. He asked
+for plain English when the jargon thickened ("i don't fully
+understand the planning terms being thrown around"). He challenged
+the design out of stated motive ("This is somewhat pride in the c++
+implementation ... but I'm open to pushback"). And by evening he was
+already questioning the weight of what he had built: "i'm dismayed
+with how complex this spike has grown due to the way we've been
+building it, but i'm committed to the process so we will see where it
+lands."
+
+The day's process births are the seeds of everything later: slices
+end at the owner's review, not at green; a written review guide; a
+findings register; an outside model at milestones; rulings
+attributed by name and date; and the pattern of having the outgoing
+session write the incoming session's brief ("summarize what's left in
+a concise bullet list ... then give me a brief prompt to kick that
+work off in a new session").
+
+### Late September to the root swap: shrinking the reading, widening the delegation
+
+The search slice opens with nine-word prompts ("Read and run step 5
+of search/BUILD-PLAN.md", 2026-09-21) and the owner ferrying an
+outside auditor's findings back and forth, with yields he recorded
+per step: 6, 3, 0. He did no code review himself. His questions were
+about process: fresh session or not, where findings go "without
+creating process cruft", session versus subagent.
+
+Two moves define the era. First, he loosened his own rules
+repeatedly: "The goal is not to blindly follow rules. The goal is to
+simplify documentation and process to make it easier for an agent to
+find only what's needed for its work" (2026-09-22); "You are the
+final arbiter, because you are the primary consumer and producer of
+documentation" (2026-09-24); "don't necessarily constrain yourself to
+the processes we have defined for ourselves if they are not serving
+us" (2026-09-27). Second, he named the real user: "In a sense, this
+is almost my seat, because the cli cumbersome to run by hand, so in
+normal use I will ask an agent to drive it for me" (2026-09-23), and
+later, "the MCP is meant as an agentic interface, not mine, so I
+would rather let you decide on how to handle the questions"
+(2026-10-10).
+
+The documentation tax was the recurring complaint. The mandated
+reading reached about 75,000 tokens; "I want to stop now and think
+about what we can do to minimize or even reverse this content growth,
+because we have about 4 more phases" (2026-09-24). He also protected
+the work from the budget when it mattered: "Spending time trimming
+text while we are still working on the code feels like wasted
+attention. Please ignore the budget until these items are confirmed
+resolved" (2026-09-25). By October he said plainly that the agents'
+briefs had become "agentic shorthand that I do not understand well"
+(2026-10-07).
+
+The shape of an opening prompt changed in this era. It stopped being
+"build step N" and became a gate template the model usually drafted
+at the end of the previous session: stop for my read; launch nothing
+before then; one blind look; the gate at the end. By 2026-10-10 the
+delegation was open: "Use subagents at your discretion", "your call",
+and "This seems like a long, complex plan. You have it in your head
+better than I. How do you want to proceed?" He kept domain rulings,
+reviewing the risky operation himself, pushing, and the wording of
+the registry.
+
+### The root swap to the alpha: opinion first, then a terse ruling
+
+From 2026-10-12 the pattern settled: the model brings one to three
+judgment calls, the owner rules in a word each ("1. confirmed 2. yes
+... 3. ok"), then pastes the outside review verbatim with one framing
+line, the model proposes a plan, "yes, go ahead". He asked for the
+model's opinion before ruling ("What is your perspective on making
+this a registry entry or not? I don't want to accumulate entries
+unless there's a clear need and future benefit"), and said where he
+had none: "i dont have a technical opinion on the plan question.
+that's another feature where i'd trust you or another model"
+(2026-10-14). He chose models for jobs by name: a Fable subagent for
+a design question, an Opus agent to study which property tests had
+earned their cost.
+
+His corrections in this era were rarely in his own voice. They
+arrived as pasted findings plus a design stance: "look for patterns
+behind the patterns"; "Be careful here. This is likely a situation
+where the quick fixes will add complexity and fragility"; "Do not
+just add edge cases or new if-then-else logic unless there is a
+coherent reason" (2026-10-16). When review rounds kept returning he
+added a brake: "keep in mind the practical limits of remediation"
+(2026-10-17). He was candid about his method: "I've gotten good
+results with very basic prompt engineering combined with developing
+my own judgement on how to direct my agents" (2026-10-18).
+
+The outside review moved from an occasional relay to a fixed stop
+after every commit, proposed by the model and adopted by him. He
+delegated orchestration itself ("You are the writer and then the
+orchestrator the plan describes; you never run a task yourself, and
+no brief you write says what you expect to be found", 2026-10-17)
+and, by the trade re-sit, the lead ("You are the person with the most
+coherent view of the situation, so you can thoughtfully lead us
+through this", 2026-10-18). What he never delegated: credentials
+("Never ask me for a secret's value"), pushes and publishing, and the
+calls that weigh schedule against design, such as choosing option A
+over the model's preferred B on schedule grounds, and alpha over
+beta: "since we don't have a gui yet, and the existing feature sets
+have not been tested in the wild, i'm reluctant to call this a beta,
+but i'd like to know what would have to change first" (2026-10-19).
+
+### The roadmap's first week: the owner becomes the baton
+
+The week after the alpha began with a long framing prompt
+("Ruminate deeply") and ended with the owner asleep through an
+unattended scan of over a hundred subagents ("I'm asleep: don't wait
+for me or ask me anything; record blockers and move on",
+2026-10-22). In between, his openers were one sentence, a document
+and a stop line: "stop after each step's review is saved; do not
+start a fix round" (2026-10-20); "Bring me the drafts and every
+deletion list before anything is deleted; build nothing."
+
+His approvals became ritual words that the models quoted back into
+commit messages as authority: "launch", "go ahead", "yes to all",
+"build it", "merge when green". He asked for simplification before
+ruling ("Please restate the six rulings needed in simple sentences"),
+and the models learned to end every report with numbered asks. He
+cast the agents as stakeholders: "you and all the agents who have
+built this system, which really isn't a sloppy mess at all, are
+primary stakeholders" (2026-10-20); "you and other agents such as
+Opus, Sonnect, and OpenAI models are the primary stakeholder for the
+CLI, so you are better suited to understand the right way to address
+the problem" (2026-10-21).
+
+He kept review depth and cost as his own dial: "no further review";
+a requested extra round; a waived one; and the late judgment that
+the cloud ultra-reviews "haven't added much value". He kept every
+irreversible act: the repository recreation, signing keys, pushes,
+the real-store migration after the harness refused the model. And he
+named his own limit without apology: "(i'm smart, but this work is
+very technical and i'm unfamiliar with its inner working compared to
+you)" (2026-10-23). The week's most consequential rule, the stopping
+rule for review, came from his question "are we in the weeds".
+
+### The second week: rulings in one sentence, work in the brief
+
+The last era's openers refuse to anchor the model: "Don't worry
+about a solution yet, focus on understanding the nature and scope of
+the issue first. We will brainstorm solutions later" (2026-10-24);
+"Could the design be simpler, more elegant, or more idiomatic with a
+reframing?" (2026-10-25); and for the blank-slate assessment, "I also
+don't know which aspects of this project might benefit from
+attention, so I won't even mention any so as not to lead you
+accidentally in any particular direction" (2026-10-26). He asked the
+model to choose the work: "Ignore me. Ignore the league start and
+the existing plan. Which issues or kinds of issues would you want to
+tackle next as both a developer and user and primary stakeholder of
+this repo?"
+
+Once decided, rulings were one templated sentence, and he began
+writing ruling text himself and asking for the model's view of it.
+His one correction of method in the week was scoping: "please do the
+work in series, not parallel. otherwise i like your approach
+completely" (2026-10-26). He vetoed a new enforcement check on a
+principle of his own: "if we set a clear pattern in the code, i
+suspect future agents will follow that pattern, so we may not need
+the technical creep of an enforcement check." He protected a
+session's context as a resource: "keep this session to
+brainstorming, analysis, synthesis, and setup, as the context is
+filling up". And he said what the project was for: "It may be a
+hobby project, but I want us both to be proud of how professionally
+acquisition is managed, and I want us both to enjoy the process of
+building as well as of using what we build."
+
+By the last surviving session, 2026-10-27, the whole exchange was
+one prompt pointing at a committed brief with a permission boundary
+and a proof criterion ("You may push to main once the gate is green;
+I want the Windows CI run as the proof"), forty-five minutes of
+silence, and "how do you advise starting r2?"
+
+### The arc in five lines
+
+- **August:** co-designer and courier; "plan, review, build, review,
+  repeat"; the review loop turned on itself the same day.
+- **Late September:** nine-word prompts and relayed audits; the owner
+  loosens his own rules and names the agent as the user.
+- **Early October:** opinion first, then a one-word ruling; outside
+  review after every commit; the model drafts the next prompt.
+- **The roadmap's first week:** ritual approvals as authority; the
+  owner as the baton between sessions; review depth his only dial.
+- **The second week:** framing questions that refuse to lead; the
+  model chooses the work; one sentence, a brief, and silence.
+
+What stayed constant across all five is shorter: credentials,
+pushes, the real store, schedule against design, and reading every
+review before a fix. Those were his on the first day and on the last.
+
+### Caveats
+
+The digests were written by a model from extracted dialogue with
+tool output removed, and a few extracts overlap or disagree on
+details (the research files mark each case). The quotations are
+copied from the transcripts and were not altered, including the
+owner's typing as he typed it.
 
 ## 5.8 The translation table
 
