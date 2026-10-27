@@ -189,6 +189,17 @@ fn a_group_sentence_names_only_the_tools_it_is_true_of() {
     for tool in ["submit_job", "apply_plan", "cancel_job"] {
         assert!(!observers.contains(tool), "{observing}");
     }
+    // the fix round's review, P2: `running: false` is promised only by
+    // the three tools whose answer carries it, never by job_result
+    let (_, after) = observing.split_once("observe only").unwrap();
+    let (says_running, _) = after
+        .split_once("`running: false`")
+        .expect("the sentence names the tools that say `running: false`");
+    let (_, says_running) = says_running.rsplit_once(';').unwrap_or(("", says_running));
+    for tool in ["list_jobs", "job_status", "daemon_status"] {
+        assert!(says_running.contains(tool), "{observing}");
+    }
+    assert!(!says_running.contains("job_result"), "{observing}");
     let writes = mcp
         .instructions
         .lines()

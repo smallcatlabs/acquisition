@@ -1116,3 +1116,20 @@ fn an_own_sections_entry_answers_to_its_name() {
         }
     }
 }
+
+/// The fix round's review, P3: an entry that answers alone never points
+/// at a sibling by position. `status counts` said `by_effective` and
+/// `by_relation` count "by the two words above", which an agent asking
+/// for it alone never saw; read alone, it says each count's words.
+#[test]
+fn the_status_counts_entry_reads_alone() {
+    let mut seat = Seat::over(scratch("mcp-search"));
+    let text = described(&mut seat, "status counts");
+    for said in [
+        "`counts.by_effective` says who decides each item's price (game, manual, none, unresolved",
+        "`counts.by_relation` how the two sides stand (none, manual_only, game_only, agree, conflict)",
+    ] {
+        assert!(text.contains(said), "{said}: {text}");
+    }
+    assert!(!text.contains("above"), "{text}");
+}
