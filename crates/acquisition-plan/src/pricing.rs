@@ -792,7 +792,7 @@ pub fn described() -> Vec<Described> {
         ),
         entry(
             "effective",
-            "who decides an item's price: game, manual, none, or unresolved — a row that cannot be read could decide",
+            "who decides an item's price: game, manual, none, or unresolved — a row that cannot be read could decide. The most specific statement decides, the game's on a tie: an item's note before a hand row on its tab, a hand row on the item before its tab's name",
         ),
         entry(
             "revision",

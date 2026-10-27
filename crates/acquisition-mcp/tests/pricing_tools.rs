@@ -683,6 +683,25 @@ fn the_price_write_tools_say_a_clear_takes_a_revision() {
     );
 }
 
+/// The readiness seat (`audits/readiness-2026-10/seat/`, calls 19 and
+/// 33): a game note on an item beat the hand row on its tab, which the
+/// item's `why` said and `describe`'s pricing model did not. The
+/// `effective` entry says who decides: the most specific statement, the
+/// game's on a tie (C69, C81).
+#[test]
+fn the_pricing_model_says_the_most_specific_statement_decides() {
+    let dir = scratch("mcp-price-decides");
+    let mut mcp = Mcp::start(&dir.0, &[]);
+    let (ok, doc) = tool(&mut mcp, "describe", json!({ "names": ["effective"] }));
+    assert!(ok, "{doc}");
+    let said = doc["pricing"][0]["what"].as_str().unwrap_or_default();
+    assert!(
+        said.contains("The most specific statement decides, the game's on a tie")
+            && said.contains("an item's note before a hand row on its tab"),
+        "{doc}"
+    );
+}
+
 /// The release seat's finding 9: a pricing refusal spoke the CLI's flags,
 /// and the tool texts carried the translation ("--league is `league`, --in
 /// is `in`"). The refusal says it: the shared words whole, then this
