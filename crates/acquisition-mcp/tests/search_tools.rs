@@ -397,12 +397,15 @@ fn describe_is_the_clis_and_reads_no_store() {
     assert_eq!(e["kind"], "unknown_name");
     // the CLI's refusal, every name this tool knows after its own
     let printed = cli(&seat.base, &["search", "--describe", "leauge"]).0;
-    assert_eq!(
-        e["error"],
-        json!(format!(
-            "{}, pricing, daemon, store",
-            printed["error"].as_str().unwrap()
-        ))
+    let said = e["error"].as_str().unwrap();
+    let own = format!(
+        "{}, pricing, daemon, store, ",
+        printed["error"].as_str().unwrap()
+    );
+    assert!(said.starts_with(&own), "{said}");
+    assert!(
+        said.ends_with(", wedged, store counts, tab counts"),
+        "{said}"
     );
     assert_eq!(e["readings"], printed["readings"]);
 }
@@ -442,7 +445,9 @@ fn describe_answers_the_pricing_model_and_the_daemon_by_name() {
     assert!(refused, "{e}");
     let said = e["error"].as_str().unwrap();
     assert!(
-        said.contains("answer") && said.ends_with(", pricing, daemon, store"),
+        said.contains("answer")
+            && said.contains(", pricing, daemon, store, ")
+            && said.contains("revision"),
         "{said}"
     );
 }
@@ -1068,4 +1073,46 @@ fn item_events_reads_back_its_hours_and_defaults_to_a_day() {
         .expect_ok("item_events", json!({ "hours": 1.0e9, "limit": 1 }));
     assert_eq!(one.as_array().unwrap().len(), 1, "{one}");
     assert_eq!(one[0], all[0]);
+}
+
+/// The build review's P3: `names` says a name within a section answers
+/// alone, and the own sections' entries did not — `revision`, an entry
+/// of `pricing`, was sent to the language and refused. An own entry
+/// answers to its name, alone in its section, as the language's do; and
+/// no own name is one the language knows, so a name has one reading.
+#[test]
+fn an_own_sections_entry_answers_to_its_name() {
+    let mut seat = Seat::over(scratch("mcp-search"));
+    for (name, section) in [
+        ("revision", "pricing"),
+        ("WEDGED", "daemon"),
+        ("tab counts", "store"),
+    ] {
+        let (one, refused) = seat.call("describe", &json!({ "names": [name] }));
+        assert!(!refused, "{name}: {one}");
+        let keys: Vec<&String> = one.as_object().unwrap().keys().collect();
+        assert_eq!(keys, [section], "{name}: {one}");
+        let entries = one[section].as_array().unwrap();
+        assert_eq!(entries.len(), 1, "{name}: {one}");
+        assert!(
+            entries[0]["name"]
+                .as_str()
+                .unwrap()
+                .eq_ignore_ascii_case(name)
+        );
+    }
+    let (whole, _) = seat.call("describe", &json!({}));
+    for section in ["pricing", "daemon", "store"] {
+        let names = std::iter::once(section).chain(
+            whole[section]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|e| e["name"].as_str().unwrap()),
+        );
+        for name in names {
+            let known = acquisition_search::describe(&[name.to_string()]);
+            assert!(known.is_err(), "the language knows `{name}` too");
+        }
+    }
 }

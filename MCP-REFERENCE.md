@@ -46,7 +46,7 @@ No arguments.
 
 What the tools answer and the language `search` takes, read by name (no store read): answer, every key of a search answer; trade, what a site search becomes and its report; fields, what a query may ask; pricing, the listing model and its revision rule; daemon, what the job tools answer without one; store, what store_status and tabs count. The whole is over 100 KB: computed is some 80 KB, fields and trade some 20 KB each, categories some 10 KB, answer some 5 KB, and the rest each under 4 KB. A name it does not know is refused, and the refusal lists every name it knows.
 
-- `names` (array | null) — Sections, each by the key it answers under: fields, line, linked, values, composition, operators, slots, computed, totals, counts, explain, answer, categories, trade, not_built, limits, pricing, daemon, store — or a name within one (league, total_res). Omitted: everything, over 100 KB.
+- `names` (array | null) — Sections, each by the key it answers under: fields, line, linked, values, composition, operators, slots, computed, totals, counts, explain, answer, categories, trade, not_built, limits, pricing, daemon, store — or a name within one (league, total_res, revision). Omitted: everything, over 100 KB.
 
 ### `item_events`
 

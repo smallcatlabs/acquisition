@@ -616,7 +616,7 @@ struct DescribeParams {
 fn describe_names_doc() -> String {
     format!(
         "Sections, each by the key it answers under: {}, {} — or a name within one (league, \
-total_res). Omitted: everything, over 100 KB.",
+total_res, revision). Omitted: everything, over 100 KB.",
         acquisition_search::describe::SECTIONS.join(", "),
         OWN_SECTIONS.join(", ")
     )
@@ -1073,15 +1073,22 @@ impl AcqMcp {
             Err(refusal) => return Ok(refusal),
         };
         let names = p.names.unwrap_or_default();
-        let own = |section: &str| {
-            names.is_empty() || names.iter().any(|n| n.eq_ignore_ascii_case(section))
+        let sections = own_sections();
+        // an own section answers to its name, and each of its entries to
+        // its own, as the language's entries do (C97: every word an entry
+        // is named by can be asked for alone)
+        let asked = |n: &str, section: usize, entry: &Entry| {
+            n.eq_ignore_ascii_case(OWN_SECTIONS[section]) || n.eq_ignore_ascii_case(entry.name)
         };
-        let language: Vec<String> = names
-            .iter()
-            .filter(|n| !OWN_SECTIONS.iter().any(|o| o.eq_ignore_ascii_case(n)))
-            .cloned()
-            .collect();
-        // the whole, or the language's names alone: an own section asked
+        let own_name = |n: &str| {
+            OWN_SECTIONS.iter().any(|o| o.eq_ignore_ascii_case(n))
+                || sections
+                    .iter()
+                    .flatten()
+                    .any(|e| e.name.eq_ignore_ascii_case(n))
+        };
+        let language: Vec<String> = names.iter().filter(|n| !own_name(n)).cloned().collect();
+        // the whole, or the language's names alone: an own name asked
         // alone is never the whole language
         let language = if names.is_empty() || !language.is_empty() {
             match acquisition_search::describe(&language) {
@@ -1089,8 +1096,12 @@ impl AcqMcp {
                 Err(mut e) => {
                     // every name this tool knows, its own among them
                     if e.kind == acquisition_search::error::ErrorKind::UnknownName {
-                        e.message
-                            .push_str(&format!(", {}", OWN_SECTIONS.join(", ")));
+                        let own: Vec<&str> = OWN_SECTIONS
+                            .iter()
+                            .copied()
+                            .chain(sections.iter().flatten().map(|e| e.name))
+                            .collect();
+                        e.message.push_str(&format!(", {}", own.join(", ")));
                     }
                     return Ok(refused(e));
                 }
@@ -1098,12 +1109,18 @@ impl AcqMcp {
         } else {
             None
         };
-        let [pricing, daemon, store] = own_sections();
+        let mut chosen = sections.into_iter().enumerate().map(|(section, entries)| {
+            let kept: Vec<Entry> = entries
+                .into_iter()
+                .filter(|e| names.is_empty() || names.iter().any(|n| asked(n, section, e)))
+                .collect();
+            (!kept.is_empty()).then_some(kept)
+        });
         told(&Described {
             language,
-            pricing: own("pricing").then_some(pricing),
-            daemon: own("daemon").then_some(daemon),
-            store: own("store").then_some(store),
+            pricing: chosen.next().flatten(),
+            daemon: chosen.next().flatten(),
+            store: chosen.next().flatten(),
         })
     }
 
