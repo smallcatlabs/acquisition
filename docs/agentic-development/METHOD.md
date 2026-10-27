@@ -57,6 +57,16 @@ prompting narrative rests on. Synthesis chapters were written from
 the research dossiers, with every claim that matters checked against
 the tree before it was written down.
 
+## Cost
+
+The Batch API work ran on Claude Opus 5.5 at batch rates: the 114
+digests took 3.5 million input tokens and 650,000 output tokens, the
+five era narratives about 1.4 million input and 45,000 output, roughly
+twenty dollars in all. The research agents and the writing ran in
+Claude Code sessions whose token spend is not itemised here.
+
 ## Status
 
-In progress. This file is updated as the method changes.
+First pass of all nine reports complete on 2026-10-27, one day of
+work. Open: the owner's interview answers, to be folded into the
+retrospective; and a possible second round over the cloud sessions.
