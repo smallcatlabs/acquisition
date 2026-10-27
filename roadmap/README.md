@@ -151,13 +151,11 @@ issue carrying its evidence and its done-when, and takes a brief from
 `briefs/TEMPLATE.md` written by the session that starts it. An item
 leaves the list when its step closes or the owner strikes it.
 
-1. #84, the seat with the first row of the seat ledger, over the
-   surface #83 trimmed, before `alpha.2`.
-2. #88, one feature graph for the plain and the test build: measured,
+1. #88, one feature graph for the plain and the test build: measured,
    and if it holds, C84's build-order rule and the gate's final rebuild
    retired (P6).
-3. 2g, the read economy and the refusal bundle (#9, #10).
-4. #85, #86, #87, #89: the standing automation and the hygiene from the
+2. 2g, the read economy and the refusal bundle (#9, #10).
+3. #85, #86, #87, #89: the standing automation and the hygiene from the
    assessment's R5, each a short step on any idle day.
 
 ## Open
@@ -257,6 +255,19 @@ list when a step's close commit or an issue takes it.
   written to be read together and the name lookup reads each alone, so
   an entry never points at a sibling by position (pinned for
   `status counts`, checked by eye for the rest).
+- **The owner's, from the seat (#84)**: a typo'd account is refused as
+  `not_logged_in` (C121's design: the index is read client-side and an
+  unknown name is a name with no login); the runner asked for an
+  `unknown_account` kind, kept as designed, his to reopen; the seat
+  skill's step 10 now keeps the pristine store (the issue's word) and
+  its step 11 writes the ledger row, process wording an agent changed;
+  `AGENTS.md`'s "Where things live" has no line for a seat
+  (`SEAT-LEDGER.md`), his file at its budget. From the fix round: the
+  `readings` of a scope refusal are prose (the offers' terminal
+  commands) and a language refusal's are payload, the one place the
+  prose-or-payload line depends on the error type rather than a key;
+  the `not_an_item` sweep shape was not seen to fail on the tree
+  before its flags were added.
 - **The Windows gate's watch (#70)**: the step landed 2026-10-24
   (`dd9b7859` to `90db890a`); the issue closes when a week of pushes
   needs no re-run, counted from r1's first green Windows run
@@ -339,13 +350,13 @@ list when a step's close commit or an issue takes it.
 ## Current step
 
 The milestone's steps are closed (p0, r1 to r5, the C135 round);
-pull-forward 1 (#82) and 2 (#83) closed 2026-10-27, and #84's seat has
-run with its record a draft and its fix round pending
-(`audits/readiness-2026-10/seat/README.md`). Phase 3, the owner's league run,
-follows at his word; #70 closes on a week of pushes without a re-run.
-The assessment these rest on is `STATE-2026-10-26.md`; the issues
-carry the evidence per step. `AGENTS.md` governs; the gate is
-`tools/gate.sh`.
+pull-forward 1 (#82) and 2 (#83 with its seat, #84) closed
+2026-10-27. Next from "Pull-forward": #88, one feature graph for the
+plain and the test build, its brief written by the session that
+starts it. Phase 3, the owner's league run, follows at his word; #70
+closes on a week of pushes without a re-run. The assessment these rest
+on is `STATE-2026-10-26.md`; the issues carry the evidence per step.
+`AGENTS.md` governs; the gate is `tools/gate.sh`.
 
 ## Ledger
 
@@ -376,7 +387,7 @@ messages.
 | the C135 round, the access token beside the refresh token and the start's restore off the socket's path | brief `9a6a3c63`; build `d21c79c5` (the entry), `b99675f7` (the landings and the restore), `38620e2e` (the registry), `f28e027e`; review `reviews/c135-f28e027e.md`; fixes `b3ab68f0` (a rejected token leaves the entry), `380fccb1`; their review `reviews/c135-fixes-380fccb1.md`; its wording fix `4ab6342a` (unreviewed); the rulings `0065e17d`; build `fb92f468` (the restore as the fifth landing), `b9bada44` (the `auth status` words), `7cb7bd7f`; review `reviews/c135-7cb7bd7f.md`; fixes `1bf30803`, `1e8879aa`, `9f222231`; their review `reviews/c135-fixes-9f222231.md`; its two fixes `355229d0` (unreviewed); closed by the commit carrying this line | 2026-10-27 | the index-unreadable 401 restart, on #63; `exit.rs`'s `settle()` and the refusal during any exit, under "Open" |
 | #82 the held corpus in `acq-mcp` (pull-forward 1) | brief `500e4468`; build `551520fd` (the holder), `b439d30e` (the web on it), `bfd3a410` (the MCP on it, M8); review `reviews/p82-bfd3a410.md`; its one doc fix `9a1e8d0b` (unreviewed); closed by the commit carrying this line | 2026-10-27 | #95, the resident size per reload; `show` over the held corpus and a per-account slot, declined until a consumer asks |
 | #83 the MCP surface trimmed (pull-forward 2) | brief `1dd3dfdb`; build `81178cd0` (the answer section), `c9d6aec3` (the refusal's spelling), `c250b2c8` (`describe` by name), `d2a588bc` (the cut, the length test, the measurement); review `reviews/p83-d2a588bc.md`; the ruling `a4e4db41` (C146 amended); fixes `e26871c3` (the glosses move), `280f1075`, `fd564e33`; their review `reviews/p83-fixes-fd564e33.md`; its two wording fixes `e4231ecf` (unreviewed); closed by the commit carrying this line | 2026-10-27 | the schemas as the larger part of the first turn, and `characters`' two glosses, under "Open"; the seat (#84) next |
-| #84 the seat, the first row of the seat ledger (pull-forward 3) | brief `799c39d9`; the record, `SEAT-LEDGER.md` and its row, and the skill's ledger step in the commit carrying this line | run done; the fix round pending | the close's |
+| #84 the seat, the first row of the seat ledger (pull-forward 2, its seat) | brief `799c39d9`; the record, `SEAT-LEDGER.md` and its row, and the skill's ledger step `5df58a64`; fixes `64edb5d7` (the MCP's own words), `45ea27f7`, `67b30646`; their review `reviews/p84-fixes-67b30646.md`; fixes `acdda4dd`, `c62c0a7b`; their review `reviews/p84-fixes-c62c0a7b.md` (no findings), added by the commit carrying this line; closed by the commit carrying this line | 2026-10-27 | rule 6 (a typo'd account as `not_logged_in`, C121) and the seat skill's wording, the owner's, under "Open"; rules 2, 3, 7, 8 on #18, #11, #9, #10 |
 
 ## Housekeeping
 
