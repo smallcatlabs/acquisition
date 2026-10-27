@@ -67,5 +67,9 @@ jobs:
           ACQ_KEYRING_ROUNDTRIP: "1"
         run: cargo nextest run --workspace --all-targets --locked --profile ci
 
+      # After a red test step too (`!cancelled()`): clippy is the only lint
+      # of the `cfg(windows)` code, and a failing test must not hide it
+      # (#77). The test step's failure still fails the job.
       - name: Clippy
+        if: ${{ !cancelled() }}
         run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings

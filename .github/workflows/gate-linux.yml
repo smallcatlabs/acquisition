@@ -81,10 +81,15 @@ jobs:
             cargo nextest run --workspace --all-targets --locked --profile ci
           '
 
+      # Every step after the test step runs after a red test step too
+      # (`!cancelled()`), so one failing test hides no lint or check
+      # (#77); the test step's failure still fails the job.
       - name: Clippy
+        if: ${{ !cancelled() }}
         run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 
       - name: Format
+        if: ${{ !cancelled() }}
         run: cargo fmt --all -- --check
 
       # The gate's four checks beyond cargo (AGENTS.md, "Quality gate"):
@@ -94,15 +99,19 @@ jobs:
       # cargo metadata and jq; the trade check runs the sitting tools'
       # self-tests.
       - name: The docs check
+        if: ${{ !cancelled() }}
         run: tools/docs-check.sh
 
       - name: The architecture check
+        if: ${{ !cancelled() }}
         run: tools/arch-check.sh
 
       - name: The trade check
+        if: ${{ !cancelled() }}
         run: tools/trade-check.sh
 
       - name: The registry check
+        if: ${{ !cancelled() }}
         run: python3 -I tools/bothy.py check
 
   # The checks' own breakers: each breaks what a check guards and requires
