@@ -32,6 +32,7 @@
 #![allow(dead_code)] // each test binary uses the slice it needs
 
 mod diff;
+mod temp;
 
 use std::collections::HashMap;
 use std::ffi::OsString;
@@ -48,6 +49,7 @@ use serde_json::Value;
 
 #[allow(unused_imports)] // the adapters re-export them for the goldens
 pub use diff::{same_text, unified};
+pub use temp::TEMP_VARS;
 
 // ---- scratch ------------------------------------------------------------
 
@@ -143,7 +145,8 @@ pub fn scratch_tmp(base: &Path) -> PathBuf {
 /// Every knob a test process sets, once: each `ACQ_*` the process holds
 /// removed (`None`), then the thirteen values. `world` is the store root
 /// (its socket derives from it, C83); the runtime and log directories sit
-/// under `base`: the temp directory is named for each platform's reader,
+/// under `base`: the temp directory is named for each platform's reader
+/// ([`TEMP_VARS`]),
 /// `TMPDIR` on macOS, `XDG_RUNTIME_DIR` on Linux, and `TEMP` and `TMP`,
 /// which `std::env::temp_dir` reads on Windows, so no two tests' daemons
 /// share the runner's own temp directory there. None of them moves the
@@ -159,12 +162,11 @@ pub fn isolation(world: &Path, base: &Path) -> Vec<(OsString, Option<OsString>)>
         .map(|(key, _)| (key, None))
         .collect();
     let tmp = scratch_tmp(base);
+    list.push(("ACQ_STORE_DIR".into(), Some(world.as_os_str().to_owned())));
+    for key in TEMP_VARS {
+        list.push((key.into(), Some(tmp.clone().into_os_string())));
+    }
     for (key, value) in [
-        ("ACQ_STORE_DIR", world.as_os_str().to_owned()),
-        ("TMPDIR", tmp.clone().into_os_string()),
-        ("TEMP", tmp.clone().into_os_string()),
-        ("TMP", tmp.clone().into_os_string()),
-        ("XDG_RUNTIME_DIR", tmp.into_os_string()),
         ("ACQ_LOG_DIR", base.join("logs").into_os_string()),
         ("ACQ_NO_KEYRING", "1".into()),
         ("ACQ_JOURNAL", "0".into()),

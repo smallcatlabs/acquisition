@@ -30,7 +30,7 @@ use serde_json::Value;
 
 use crate::harness;
 
-use harness::{Proc, acqd, scratch, scratch_tmp, sockets_under, sole_json, text};
+use harness::{Proc, TEMP_VARS, acqd, scratch, scratch_tmp, sockets_under, sole_json, text};
 
 /// `acq` under one isolation: a store root (the world, whose socket
 /// derives from it, C83) and a log directory the caller names under
@@ -297,16 +297,10 @@ fn c83_c31_a_second_real_mode_daemon_for_this_user_refuses_naming_the_holder() {
     for (k, v) in &real {
         second.env(k, v);
     }
-    for k in [
-        "TMPDIR",
-        "TEMP",
-        "TMP",
-        "XDG_RUNTIME_DIR",
-        "HOME",
-        "XDG_DATA_HOME",
-        "USERPROFILE",
-        "LOCALAPPDATA",
-    ] {
+    for k in TEMP_VARS
+        .into_iter()
+        .chain(["HOME", "XDG_DATA_HOME", "USERPROFILE", "LOCALAPPDATA"])
+    {
         second.env(k, &elsewhere);
     }
     let (status, stderr) = refused_daemon(second);

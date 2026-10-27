@@ -1907,6 +1907,12 @@ fn startup_log_excerpt(spawned: &Spawned) -> String {
     }
 }
 
+/// The harness's one list of the temp and runtime directory variables,
+/// which the tests' moved worlds point into their scratch.
+#[cfg(test)]
+#[path = "../tests/harness/temp.rs"]
+mod temp;
+
 #[cfg(test)]
 mod tests {
     /// C137: a deadline knob names only a deadline it can hold — the
@@ -1985,8 +1991,7 @@ mod tests {
         let mut moved = Moved::new(&env);
         let dir = moved.dir.path().to_path_buf();
         moved.set("ACQ_PROVIDER", "mock");
-        moved.set("XDG_RUNTIME_DIR", &dir);
-        moved.set("TMPDIR", &dir);
+        moved.temp_to(&dir);
         moved.set("ACQ_HELLO_WITHIN", MAX_WITHIN_SECS.to_string());
         moved.remove("ACQ_NO_SPAWN");
         acquisition_store::world::app_runtime_dir().unwrap();
@@ -2089,8 +2094,7 @@ mod tests {
             }
         }
         moved.set("ACQ_PROVIDER", "mock");
-        moved.set("XDG_RUNTIME_DIR", &dir);
-        moved.set("TMPDIR", &dir);
+        moved.temp_to(&dir);
         moved.set("ACQ_LOG_DIR", dir.join("logs"));
         moved.set("ACQ_NO_KEYRING", "1");
         moved.set("ACQ_JOURNAL", "0");
@@ -2202,6 +2206,15 @@ mod tests {
             unsafe { std::env::set_var(key, value) }
         }
 
+        /// Point every temp and runtime directory variable the harness's
+        /// isolation list moves at `dir`, so `std::env::temp_dir` and the
+        /// runtime directory name it on every platform.
+        fn temp_to(&mut self, dir: &Path) {
+            for key in super::temp::TEMP_VARS {
+                self.set(key, dir);
+            }
+        }
+
         fn remove(&mut self, key: impl AsRef<std::ffi::OsStr>) {
             self.save(key.as_ref());
             // SAFETY: as `set`.
@@ -2236,8 +2249,7 @@ mod tests {
         let scratch = {
             let mut moved = Moved::new(&env);
             let dir = moved.dir.path().to_path_buf();
-            moved.set("TMPDIR", &dir);
-            moved.set("XDG_RUNTIME_DIR", &dir);
+            moved.temp_to(&dir);
             moved.set("ACQ_PROVIDER", "mock");
             moved.set("ACQ_HELLO_WITHIN", "0");
             moved.remove("ACQ_NO_SPAWN");
