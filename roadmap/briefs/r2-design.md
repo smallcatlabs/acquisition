@@ -248,9 +248,7 @@ sessions arriving under `shared` with `auth status` saying
 verdict holding for it. The restore is the function C135 rewrites
 (two tokens read instead of one), so the recommendation is an issue
 now and the design in the C135 round, one change to the restore
-reviewed once; the owner may instead fold it into r2's build as a
-fourth site, at the cost of a lifecycle change in a step cut as a
-lock change.
+reviewed once. The owner ruled so on 2026-10-26: it is #92.
 
 ## 6. Where this meets the time seam
 
@@ -276,11 +274,11 @@ One new entry, not an amendment: C86 states the handshake's deadline
 and its verdict, C144 states what a credential result must reach;
 neither says where the I/O may run, and both are cited from the client
 and the store, which this rule does not touch. The id is the next free
-one (147 is the highest in the registry), written when the owner
-rules; `C<n>` below stands for it. Measured with a three-digit id in
-place: 780 bytes.
+one, C148, entered in `decisions/daemon.md` on the owner's ruling of
+2026-10-26 ("accept as drafted"), with an Unbuilt line until r2's
+build lands. Measured as entered: see the registry's check.
 
-- **C<n> — No credential-store or account-index I/O runs under the daemon's shared lock, and `hello` is answered under no lock such I/O can hold.** A refresh, a login, a logout and a forget change the session table under `shared` and do their keyring and index I/O under one credentials lock, on a blocking thread, publishing the result under `shared` after; a waiter on a refresh and a bearer read under a permit are served at the install, never the save; a login being recorded refuses a second; the exit's drain waits for a save in flight to its bound. *Why:* a keychain prompt under `shared` made every client report the daemon unresponsive and held jobs behind their token read (#81). *Pinned:* `acquisition-daemon/src/daemon/tests/credentials.rs`, the three `c<n>_` tests.
+- **C148 — No credential-store or account-index I/O runs under the daemon's shared lock, and `hello` is answered under no lock such I/O can hold.** A refresh, a login, a logout and a forget change the session table under `shared` and do their keyring and index I/O under one credentials lock, on a blocking thread, publishing the result under `shared` after; a waiter on a refresh and a bearer read under a permit are served at the install, never the save; a login being recorded refuses a second; the exit's drain waits for a save in flight to its bound. *Why:* a keychain prompt under `shared` made every client report the daemon unresponsive and held jobs behind their token read (#81). *Pinned:* `acquisition-daemon/src/daemon/tests/credentials.rs`, the three `c148_` tests.
 
 ## 8. The tests
 
@@ -292,9 +290,9 @@ clock (C137). Their names carry the ruled id.
 
 | Test | Stages | Expected after |
 | --- | --- | --- |
-| `c<n>_hello_is_answered_while_a_refresh_saves` | a refresh's landing blocked in `save`; a connection over a Unix socket (`exit.rs:1097` serves one in-process) sends `hello` | the `hello` reply arrives while the save is blocked; the save is then released and the session's keyring mark is `ok` |
-| `c<n>_a_permit_holder_reads_the_installed_token_while_the_save_blocks` | a refresh's landing blocked in `save`; a job past admission with a gate permit reads its bearer | the bearer read returns the token the refresh installed, before the save is released; the session's mark reads `saving` under the read |
-| `c<n>_status_answers_and_a_second_login_is_refused_while_a_login_lands` | a login's landing blocked in `save`; `daemon status` is asked and `auth_start` is called | the status answers with the login pending; the second start is refused in the words of section 3; the save is released and the first login registers its session |
+| `c148_hello_is_answered_while_a_refresh_saves` | a refresh's landing blocked in `save`; a connection over a Unix socket (`exit.rs:1097` serves one in-process) sends `hello` | the `hello` reply arrives while the save is blocked; the save is then released and the session's keyring mark is `ok` |
+| `c148_a_permit_holder_reads_the_installed_token_while_the_save_blocks` | a refresh's landing blocked in `save`; a job past admission with a gate permit reads its bearer | the bearer read returns the token the refresh installed, before the save is released; the session's mark reads `saving` under the read |
+| `c148_status_answers_and_a_second_login_is_refused_while_a_login_lands` | a login's landing blocked in `save`; `daemon status` is asked and `auth_start` is called | the status answers with the login pending; the second start is refused in the words of section 3; the save is released and the first login registers its session |
 
 Before the build, each of the three is run against the tree as it is
 and must fail there in the way section 1 describes (the `hello` and
@@ -338,9 +336,8 @@ Written from the tree, as the template asks:
 Left for the owner, beside the ruling:
 
 - The start's keyring read (section 5): the same symptom at start,
-  recorded in the tree, held by no lock. Recommended: an issue now,
-  designed in the C135 round; the alternative is a fourth site in
-  r2's build.
+  recorded in the tree, held by no lock: #92, designed in the C135
+  round (the owner's ruling of 2026-10-26).
 - The second login's refusal words (section 3) are agent-facing and
   the session's; listed here so the close can list them.
 - Whether the save cut at the bound is pinned now with paused time or
@@ -351,5 +348,4 @@ Left for the owner, beside the ruling:
 As the brief's: the lock merge whole, the typed `JobKind`, `frame.rs`
 shared; the time seam; the quote's simulation under the limiter lock
 and the outranked check; keyring 4 or any change to which store holds
-the token; and the start's keyring read, unless the owner folds it in
-(section 5).
+the token; and the start's keyring read (#92).
