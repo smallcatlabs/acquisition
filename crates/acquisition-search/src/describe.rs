@@ -41,10 +41,9 @@ pub struct Describe {
     /// derived fields (C94, C101; `pseudo.rs`).
     pub computed: Vec<Named>,
     /// The totals table's version and source (C106's clause (c)), or why
-    /// it does not load: in the whole answer, and in a narrowed one where
-    /// `totals` is named or a computed value is printed.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub totals: Option<String>,
+    /// it does not load: in every answer, narrowed or whole (C53: an
+    /// answer's keys only grow), and the section `totals` names.
+    pub totals: String,
     /// What `--count`, `--cross` and `--sum` take (C95, C97).
     pub counts: Vec<Named>,
     /// What says why an answer is what it is: `--explain`, `--context`
@@ -556,7 +555,7 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
         operators,
         slots,
         computed: crate::pseudo::described(),
-        totals: Some(crate::pseudo::provenance()),
+        totals: crate::pseudo::provenance(),
         counts,
         explain,
         categories: crate::category::tables()
@@ -670,10 +669,6 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
     out.counts.retain(|n| wants("counts", &n.name));
     out.explain.retain(|n| wants("explain", &n.name));
     let named = |block: &str| names.iter().any(|asked| asked.eq_ignore_ascii_case(block));
-    // the totals' table is named over the computed values it defines
-    if !named("totals") && out.computed.is_empty() {
-        out.totals = None;
-    }
     // the ids are the field's: printed where `category` is named
     if !named(crate::category::FIELD) && !named("categories") {
         out.categories.clear();

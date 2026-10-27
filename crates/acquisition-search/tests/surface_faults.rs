@@ -555,4 +555,9 @@ fn c97_the_sections_listed_are_the_answers_keys_and_each_answers_alone() {
         };
         assert!(filled, "{section} alone answers without it: {one}");
     }
+    // C53 (JSON is the contract): a narrowed answer keeps every key the
+    // whole answer always carried, `totals` among them
+    let fields =
+        serde_json::to_value(describe::describe(&["fields".to_string()]).unwrap()).unwrap();
+    assert_eq!(fields["totals"], whole["totals"], "{fields}");
 }

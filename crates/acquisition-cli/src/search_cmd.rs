@@ -386,7 +386,8 @@ pub fn search(cx: &Ctx, args: SearchArgs, json: bool) -> Result<()> {
         let index = names.is_empty();
         let asked: &[String] = if all { &[] } else { names };
         let described = describe(asked).map_err(|e| fail(e.into(), json))?;
-        return emit(&described, json, |d| describe_text(d, index));
+        let totals = asked.iter().any(|n| n.eq_ignore_ascii_case("totals"));
+        return emit(&described, json, |d| describe_text(d, index, totals));
     }
     let read = |path: &str, what: &str| -> Result<String> {
         if path == "-" {
@@ -1703,7 +1704,7 @@ fn definition_head(what: &str) -> &str {
 /// are counted, never listed whole): the computed values and the
 /// categories, nine tenths of the page, are one line each, and the last
 /// line says how to read one whole.
-fn describe_text(d: &Describe, index: bool) -> String {
+fn describe_text(d: &Describe, index: bool, totals: bool) -> String {
     let mut out = String::new();
     let mut block = |head: &str, entries: &[acquisition_search::describe::Named], brief: bool| {
         if entries.is_empty() {
@@ -1770,22 +1771,17 @@ fn describe_text(d: &Describe, index: bool) -> String {
         );
     } else {
         block(
-            &format!(
-                "computed values — {}",
-                d.totals.as_deref().unwrap_or_default()
-            ),
+            &format!("computed values — {}", d.totals),
             &d.computed,
             false,
         );
     }
     block("counts", &d.counts, false);
     block("why an answer is what it is", &d.explain, false);
-    // `--describe totals` alone: the table, with no value under it
-    if !index
-        && d.computed.is_empty()
-        && let Some(totals) = &d.totals
-    {
-        out.push_str(&format!("totals — {totals}\n"));
+    // `--describe totals`: the table, where no computed value's head
+    // already names it
+    if totals && d.computed.is_empty() {
+        out.push_str(&format!("totals — {}\n", d.totals));
     }
     // every category id with the site's text for it and what makes it
     // hold (C106)
