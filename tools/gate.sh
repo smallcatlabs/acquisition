@@ -45,12 +45,13 @@ run_stage() {
 
 usage() { sed -n '4,9p' "$0" | sed 's/^# \{0,1\}//'; }
 
+selected=()
 case ${1:-} in
   '') selected=("${names[@]}") ;;
   --docs) selected=("${DOCS[@]}") ;;
   --only)
     for name in "${names[@]}"; do [[ ${2:-} == "$name" ]] && selected=("$2"); done
-    if [[ -z ${selected+x} ]]; then
+    if ((${#selected[@]} == 0)); then
       echo "gate.sh: --only takes one of: ${names[*]}" >&2; exit 2
     fi ;;
   -h | --help) usage; exit 0 ;;
