@@ -1138,10 +1138,11 @@ async fn c144_forget_and_logout_say_what_the_index_write_did() {
 /// C144 (one critical section for a forget), the review of the h1 fix
 /// round, its third finding: a forget's live-or-known decision, its
 /// clears and its not-persisted mark are one hold of the lock a login
-/// persists under, so a login of the same account lands before the forget
-/// or after it, never between. The login is staged to land at the
-/// forget's clear as soon as the lock lets it: at once if the lock is
-/// free there, else once the forget has answered. Before, the forget
+/// persists under, `credentials` since C148, so a login of the same
+/// account lands before the forget or after it, never between. The
+/// login is staged to land at the forget's clear as soon as that lock
+/// lets it: at once if it is free there, else once the forget has
+/// answered. Before, the forget
 /// cleared outside the lock, the login landed there — its credential
 /// saved, the account marked persisted, its session live — and the
 /// forget's late mark then said not persisted under a live session: a
@@ -1166,7 +1167,7 @@ async fn c144_a_login_cannot_land_between_a_forgets_clear_and_its_mark() {
         let deferred = deferred.clone();
         *credentials.on_clear.lock().unwrap() = Some(Box::new(move || {
             let daemon = weak.upgrade().expect("the daemon outlives the forget");
-            let free = daemon.shared.try_lock().is_ok();
+            let free = daemon.credentials.try_lock().is_ok();
             if free {
                 assert!(daemon.complete_login(generation, "Alice#1", "u-a"));
             } else {

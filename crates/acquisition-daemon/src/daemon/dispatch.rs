@@ -122,7 +122,7 @@ impl Daemon {
         self.work.notify_one();
     }
 
-    async fn process(&self, id: JobId) {
+    async fn process(self: &Arc<Self>, id: JobId) {
         let ready = self.choke.now();
         let (route, account, kind) = {
             let s = self.shared.lock().unwrap();
@@ -485,7 +485,7 @@ impl Daemon {
     /// `ready` is when the dispatcher picked the job: every send it makes
     /// journals its wait from that instant.
     pub(super) async fn execute(
-        &self,
+        self: &Arc<Self>,
         id: JobId,
         kind: &str,
         params: Value,

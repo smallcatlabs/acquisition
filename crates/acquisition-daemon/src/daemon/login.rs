@@ -1,5 +1,8 @@
 //! The login flow and an account's end: the authorize URL and its callback,
-//! the staged tokens and the profile, logout and forget.
+//! the staged tokens and the profile, logout and forget. C148: a login's
+//! landing and a logout's or forget's run on a blocking thread, their
+//! session-table changes under `shared` and their keyring and index I/O
+//! under `credentials` alone; a login being recorded refuses a second.
 //!
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
@@ -35,7 +38,7 @@ impl Daemon {
             .append_pair("code_challenge_method", "S256")
             .append_pair("scope", &SCOPES.join(" "));
         let authorize_url = authorize_url.to_string();
-        let flow_generation = self.begin_auth_flow();
+        let flow_generation = self.start_auth_flow()?;
         self.log(&format!("auth flow started (callback on port {port})"));
 
         let daemon = self.clone();
@@ -95,8 +98,19 @@ impl Daemon {
 
     /// A login flow is daemon-wide (one browser at a time), not a session:
     /// it disturbs no live session until its tokens arrive and name one.
-    pub(super) fn begin_auth_flow(&self) -> u64 {
+    /// A flow waiting on the browser is superseded; a login being
+    /// recorded is not (C148): its credential may be saved already, and
+    /// a flow cleared then would register no session for it. The start
+    /// is refused instead, `refused`, as a stopping daemon refuses a
+    /// submit (C133), in the same hold that would have begun the flow.
+    pub(super) fn start_auth_flow(&self) -> Result<u64, Refusal> {
         let mut s = self.shared.lock().unwrap();
+        if s.auth.landing.is_some() {
+            return Err(Refusal::new(
+                ErrorKind::Refused,
+                "a login is being recorded; try again in a moment",
+            ));
+        }
         s.auth.next_flow = s.auth.next_flow.wrapping_add(1);
         let generation = s.auth.next_flow;
         s.auth.pending = Some(generation);
@@ -104,7 +118,13 @@ impl Daemon {
         // and result must not leak into it.
         s.auth.staging = None;
         s.auth.flow_result = None;
-        generation
+        Ok(generation)
+    }
+
+    /// Test helper: begin a flow where no login is being recorded.
+    #[cfg(test)]
+    pub(super) fn begin_auth_flow(&self) -> u64 {
+        self.start_auth_flow().expect("no login is being recorded")
     }
 
     /// Token exchange succeeded: hold the tokens in the staging slot —
@@ -191,7 +211,7 @@ impl Daemon {
     /// `acq auth` — and register the session only when the uuid lands.
     /// Any failure fails the login whole: the staged tokens are dropped and
     /// nothing was written anywhere.
-    pub(super) async fn login_with_profile(&self, generation: u64, username: String) {
+    pub(super) async fn login_with_profile(self: &Arc<Self>, generation: u64, username: String) {
         let uuid = match self.submit_login_profile(generation, &username) {
             Err(e) => Err(format!("could not queue the profile fetch: {e}")),
             Ok(id) => match self.wait_job_terminal(id, LOGIN_PROFILE_TIMEOUT).await {
@@ -215,8 +235,14 @@ impl Daemon {
             },
         };
         match uuid {
+            // C148: the landing's keyring and index I/O blocks, so it runs
+            // on a blocking thread, never on a runtime worker.
             Ok(uuid) => {
-                self.complete_login(generation, &username, &uuid);
+                let daemon = self.clone();
+                let _ = tokio::task::spawn_blocking(move || {
+                    daemon.complete_login(generation, &username, &uuid)
+                })
+                .await;
             }
             Err(error) => self.abort_login(generation, &username, &error),
         }
@@ -230,28 +256,47 @@ impl Daemon {
     /// neither be restored nor find its annotation file), and only
     /// then the visible session and the flow's terminal result. A stale
     /// flow registers nothing.
+    ///
+    /// C148, the landing: it holds `credentials` throughout, which orders
+    /// it with every other landing (C144), and takes `shared` twice,
+    /// never across the I/O. First the staging slot is taken and the
+    /// flow marked as landing, so a second start is refused and the drain
+    /// waits; then the keyring and the index, through the one persist a
+    /// refresh uses; then the session replaced, or the flow failed, and
+    /// the mark cleared. It blocks: an async caller runs it on a blocking
+    /// thread.
     pub(super) fn complete_login(&self, generation: u64, username: &str, uuid: &str) -> bool {
         enum Done {
             Stale,
             Failed(String),
             Registered { warning: Option<String> },
         }
-        let done = {
+        let credentials = self.credentials.lock().unwrap();
+        let staged = {
             let mut s = self.shared.lock().unwrap();
             if s.auth.pending != Some(generation) {
-                Done::Stale
+                Err(Done::Stale)
             } else if let Some(staging) = s
                 .auth
                 .staging
                 .take_if(|st| st.flow == generation && st.username == username)
             {
-                // Keyring and index writes happen under the auth lock so
-                // they are ordered with logout and re-login, through the
-                // one persist a refresh uses (C144): a failed save clears
-                // the entry it would have replaced, and a re-login under
-                // a renamed username clears the name the index mapped
-                // the uuid to.
-                let persisted = self.persist_credentials_locked(
+                s.auth.landing = Some(generation);
+                Ok(staging)
+            } else {
+                let error = "the staged tokens disappeared before the profile landed".to_string();
+                s.auth.pending = None;
+                s.auth.flow_result = Some(Err(error.clone()));
+                Err(Done::Failed(error))
+            }
+        };
+        let done = match staged {
+            Err(done) => done,
+            Ok(staging) => {
+                // A failed save clears the entry it would have replaced,
+                // and a re-login under a renamed username clears the name
+                // the index mapped the uuid to (C144).
+                let persisted = self.persist_credentials(
                     username,
                     &staging.refresh_token,
                     Some(uuid),
@@ -261,20 +306,24 @@ impl Daemon {
                 let keyring = persisted.keyring;
                 let warning =
                     (!persisted.warnings.is_empty()).then(|| persisted.warnings.join("; "));
-                match persisted.indexed {
-                    Err(e) => {
-                        let mut error =
-                            format!("could not record the login in the account index: {e}");
-                        if keyring == "ok"
-                            && let Err(clear) = self
-                                .credential_store
-                                .clear(self.provider.keyring_service, username)
-                        {
-                            error = format!(
-                                "{error}; the keyring entry could not be rolled back either: {clear}"
-                            );
-                        }
-                        s.auth.pending = None;
+                let indexed = persisted.indexed.map_err(|e| {
+                    let mut error = format!("could not record the login in the account index: {e}");
+                    if keyring == "ok"
+                        && let Err(clear) = self
+                            .credential_store
+                            .clear(self.provider.keyring_service, username)
+                    {
+                        error = format!(
+                            "{error}; the keyring entry could not be rolled back either: {clear}"
+                        );
+                    }
+                    error
+                });
+                let mut s = self.shared.lock().unwrap();
+                s.auth.landing = None;
+                s.auth.pending = None;
+                match indexed {
+                    Err(error) => {
                         s.auth.flow_result = Some(Err(error.clone()));
                         Done::Failed(error)
                     }
@@ -293,18 +342,13 @@ impl Daemon {
                         session.refresh_token = Some(staging.refresh_token);
                         session.advance_access_token();
                         session.advance_refresh_token();
-                        s.auth.pending = None;
                         s.auth.flow_result = Some(Ok(username.to_string()));
                         Done::Registered { warning }
                     }
                 }
-            } else {
-                let error = "the staged tokens disappeared before the profile landed".to_string();
-                s.auth.pending = None;
-                s.auth.flow_result = Some(Err(error.clone()));
-                Done::Failed(error)
             }
         };
+        drop(credentials);
         match done {
             Done::Stale => {
                 self.log("stale login completion ignored");
@@ -403,22 +447,27 @@ impl Daemon {
     /// sole one), its keyring entries and its dead-grant mark; a selector
     /// that names no live session but a known account forgets it — its
     /// keyring entries cleared, its index entry marked not persisted, the
-    /// live sessions untouched. C144, one critical section: the
-    /// live-or-known decision, the index read, every clear and the index
-    /// write happen under one hold of `shared`, the lock a login persists
-    /// under, so no login lands between the decision and the mark. The
-    /// account's index entry is found by its uuid (the session's, or the
-    /// one the selector resolves to through the index), never by a
-    /// username a rename may have moved, and every name a keyring entry
-    /// may be under is cleared: the entry's username and held names, and
-    /// the session's own name. The index then holds each name whose clear
-    /// failed, releases each that succeeded and marks the account not
-    /// persisted, in one write. Every result reaches the caller
-    /// (`settle`).
+    /// live sessions untouched. C144, one landing: the live-or-known
+    /// decision, the index read, every clear and the index write happen
+    /// under one hold of `credentials`, the lock a login persists under,
+    /// so no login lands between the decision and the mark. C148: the
+    /// session is dropped under `shared` in a hold that does no I/O; a
+    /// forget's index read comes before its second look at the live
+    /// sessions; the clears and the write run under `credentials` alone.
+    /// It blocks: the request handler runs it on a blocking thread
+    /// ([`Self::logout_blocking`]). The account's index entry is found by
+    /// its uuid (the session's, or the one the selector resolves to
+    /// through the index), never by a username a rename may have moved,
+    /// and every name a keyring entry may be under is cleared: the
+    /// entry's username and held names, and the session's own name. The
+    /// index then holds each name whose clear failed, releases each that
+    /// succeeded and marks the account not persisted, in one write. Every
+    /// result reaches the caller (`settle`).
     pub(super) fn logout(&self, account: Option<&str>) -> Result<KeyringOutcome, Refusal> {
-        let (done, dropped) = {
+        let credentials = self.credentials.lock().unwrap();
+        let named = |x: &AuthSession| (x.username.clone().unwrap_or_default(), x.uuid.clone());
+        let live = {
             let mut s = self.shared.lock().unwrap();
-            let named = |x: &AuthSession| (x.username.clone().unwrap_or_default(), x.uuid.clone());
             let live = match account {
                 None => s.auth.get(None).map(named),
                 Some(req) => s
@@ -426,20 +475,27 @@ impl Daemon {
                     .matching(req)
                     .and_then(|found| found.map(named).ok_or_else(|| no_session(req))),
             };
-            let (username, uuid, dropped, entry) = match (live, account) {
-                (Ok((username, uuid)), _) => {
-                    let entry = self.store_dir.as_ref().and_then(|dir| {
-                        Index::load(dir)
-                            .ok()?
-                            .find(uuid.as_deref(), &username)
-                            .cloned()
-                    });
-                    (username, uuid, true, entry)
-                }
-                (Err(_), Some(selector)) => {
-                    let entry = self.known_account(selector)?;
-                    // A known account whose uuid a live session carries
-                    // under a newer name is that session's logout.
+            if let Ok((username, _)) = &live {
+                s.auth.drop_session(username);
+            }
+            live
+        };
+        let (username, uuid, dropped, entry) = match (live, account) {
+            (Ok((username, uuid)), _) => {
+                let entry = self.store_dir.as_ref().and_then(|dir| {
+                    Index::load(dir)
+                        .ok()?
+                        .find(uuid.as_deref(), &username)
+                        .cloned()
+                });
+                (username, uuid, true, entry)
+            }
+            (Err(_), Some(selector)) => {
+                let entry = self.known_account(selector)?;
+                // A known account whose uuid a live session carries
+                // under a newer name is that session's logout.
+                let live = {
+                    let mut s = self.shared.lock().unwrap();
                     let live = entry.uuid.as_ref().and_then(|uuid| {
                         s.auth
                             .by_account
@@ -447,61 +503,61 @@ impl Daemon {
                             .find(|x| x.uuid.as_ref() == Some(uuid))
                             .map(named)
                     });
-                    match live {
-                        Some((username, uuid)) => (username, uuid, true, Some(entry)),
-                        None => (
-                            entry.username.clone(),
-                            entry.uuid.clone(),
-                            false,
-                            Some(entry),
-                        ),
+                    if let Some((username, _)) = &live {
+                        s.auth.drop_session(username);
                     }
-                }
-                (Err(refusal), None) => return Err(refusal),
-            };
-            if dropped {
-                s.auth
-                    .by_account
-                    .retain(|_, x| x.username.as_deref() != Some(username.as_str()));
-                if s.auth.last_login.as_deref() == Some(username.as_str()) {
-                    s.auth.last_login = None;
-                }
-            }
-            let mut names = vec![username.clone()];
-            for name in entry.iter().flat_map(AccountEntry::keyring_reach) {
-                if !names.contains(&name) {
-                    names.push(name);
+                    live
+                };
+                match live {
+                    Some((username, uuid)) => (username, uuid, true, Some(entry)),
+                    None => (
+                        entry.username.clone(),
+                        entry.uuid.clone(),
+                        false,
+                        Some(entry),
+                    ),
                 }
             }
-            let (cleared, released, failed) = self.clear_account_entries(&names);
-            let indexed = self.index_apply(|index| {
-                index.settle_keyring_names(
-                    uuid.as_deref(),
-                    &username,
-                    &failed,
-                    &released,
-                    Some(false),
-                )
-            });
-            (
-                Done {
-                    username,
-                    cleared,
-                    indexed,
-                },
-                dropped,
-            )
+            (Err(refusal), None) => return Err(refusal),
         };
+        let mut names = vec![username.clone()];
+        for name in entry.iter().flat_map(AccountEntry::keyring_reach) {
+            if !names.contains(&name) {
+                names.push(name);
+            }
+        }
+        let (cleared, released, failed) = self.clear_account_entries(&names);
+        let indexed = self.index_apply(|index| {
+            index.settle_keyring_names(uuid.as_deref(), &username, &failed, &released, Some(false))
+        });
+        drop(credentials);
         if dropped {
-            self.rails().clear_refresh_failed(&done.username);
+            self.rails().clear_refresh_failed(&username);
             self.announce_trip();
         }
         self.settle(Settled {
-            username: &done.username,
+            username: &username,
             session_dropped: dropped,
-            cleared: done.cleared,
-            indexed: done.indexed,
+            cleared,
+            indexed,
         })
+    }
+
+    /// [`Self::logout`] on a blocking thread (C148): its keyring and index
+    /// I/O never runs on a runtime worker.
+    pub(super) async fn logout_blocking(
+        self: &Arc<Self>,
+        account: Option<String>,
+    ) -> Result<KeyringOutcome, Refusal> {
+        let daemon = self.clone();
+        tokio::task::spawn_blocking(move || daemon.logout(account.as_deref()))
+            .await
+            .unwrap_or_else(|e| {
+                Err(Refusal::new(
+                    ErrorKind::Internal,
+                    format!("the logout did not finish: {e}"),
+                ))
+            })
     }
 
     /// The index entry a selector names, for a forget: the account known
@@ -620,13 +676,6 @@ impl Daemon {
 struct Settled<'a> {
     username: &'a str,
     session_dropped: bool,
-    cleared: Result<(), auth::NotCleared>,
-    indexed: Result<(), String>,
-}
-
-/// What a logout's critical section did, carried out of the lock.
-struct Done {
-    username: String,
     cleared: Result<(), auth::NotCleared>,
     indexed: Result<(), String>,
 }

@@ -101,8 +101,9 @@ fn retention_from_env() -> (Retention, Vec<String>) {
 /// is taken: once a handler is registered the signal no longer kills the
 /// process, so the path that ends it at once must exist before anything
 /// can block. The watcher runs on a thread and a runtime of its own and
-/// takes no daemon lock: a keyring prompt under `shared` can block every
-/// worker of the daemon's runtime, and a watcher there would never run.
+/// takes no daemon lock: a worker blocked on a lock (a keyring prompt
+/// under `shared`, before C148) can block every worker of the daemon's
+/// runtime, and a watcher there would never run.
 /// It arms the exit itself, without a lock, and hands the rest to the
 /// daemon's runtime. The daemon is attached when it is built, before
 /// restore; a signal before that ends the process at once, as it did
@@ -485,15 +486,16 @@ async fn run_with_log(
     let signal_log = log.try_clone()?;
     let log_for_panics = log.try_clone()?;
     let daemon = Arc::new(Daemon {
+        credentials: Mutex::new(()),
         shared: Mutex::new(Shared {
             jobs: HashMap::new(),
             next_id: 1,
             auth: sessions,
-            connections: 0,
-            last_activity: now,
             errors: VecDeque::new(),
             active_jobs: HashMap::new(),
         }),
+        connections: AtomicUsize::new(0),
+        last_activity: AtomicU64::new(0),
         started: now,
         events: broadcast::channel(256).0,
         work: Notify::new(),

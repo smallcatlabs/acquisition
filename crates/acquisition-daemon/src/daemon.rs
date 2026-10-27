@@ -114,7 +114,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant, SystemTime};
 
@@ -206,8 +206,9 @@ pub(super) type EndAtOnce = Arc<dyn Fn(&str, i32) + Send + Sync>;
 /// before it can wait on one. The drain's bound runs on tokio time, never
 /// the daemon's `Clock`: the harness's `ManualClock` advances on every
 /// sleep, and a drain bounded on it would cut at once. The bound is hard
-/// on a plain OS thread of its own: a keyring prompt under `shared` can
-/// block every tokio worker, and then no tokio timer runs.
+/// on a plain OS thread of its own: a worker blocked on a lock (a keyring
+/// prompt under `shared`, before C148) can block every tokio worker, and
+/// then no tokio timer runs.
 struct Exit {
     begun: AtomicBool,
     deadline: OnceLock<tokio::time::Instant>,
@@ -534,6 +535,10 @@ struct Sessions {
     next_flow: u64,
     /// A login past token exchange, waiting on its profile job's uuid.
     staging: Option<Staging>,
+    /// C148: the flow whose login is being recorded, from the staging
+    /// slot taken to the session registered or the flow failed. A second
+    /// login is refused while it is set, and the exit's drain waits for it.
+    landing: Option<u64>,
     /// How the most recent login flow ended: the username it registered, or
     /// the error it failed with. Cleared when a new flow starts; this is
     /// what `acq auth` reports, so a failed login is never mistaken for a
@@ -578,6 +583,16 @@ impl Sessions {
             if self.last_login.as_deref() == Some(from) {
                 self.last_login = Some(to.to_string());
             }
+        }
+    }
+
+    /// Drop the live session under `username`, and the most recent
+    /// login's name with it when it is that session's.
+    fn drop_session(&mut self, username: &str) {
+        self.by_account
+            .retain(|_, x| x.username.as_deref() != Some(username));
+        if self.last_login.as_deref() == Some(username) {
+            self.last_login = None;
         }
     }
 
@@ -727,8 +742,6 @@ struct Shared {
     jobs: HashMap<JobId, Entry>,
     next_id: JobId,
     auth: Sessions,
-    connections: usize,
-    last_activity: Instant,
     /// Recent errors for the dashboard, newest last (bounded ring). Every
     /// entry is also in the log; this is the structured, queryable subset.
     errors: VecDeque<(Instant, String)>,
@@ -831,7 +844,9 @@ impl Shared {
 }
 
 /// The lock order. A thread that holds one of these takes only those
-/// after it: `store` → `shared` → `jobs_db` → `queue_failure` → `log`.
+/// after it: `credentials` → `store` → `shared` → `jobs_db` →
+/// `queue_failure` → `log`. `credentials` is taken only on a blocking
+/// thread, and nothing holding `shared` takes it (C148).
 /// Under `shared`, the choke point's `limiter` (and under it the gate's
 /// `state`), the gate's `state`, the choke point's `sends` and the rails'
 /// `state` are leaves: none takes a daemon lock. `log` is innermost. No
@@ -840,7 +855,18 @@ impl Shared {
 /// every arm, so a result that is reported is bound to a local first
 /// (`leave`).
 pub struct Daemon {
+    /// C148 — the keyring and account-index I/O of a landing (a
+    /// refresh's, a login's, a logout's or forget's, the profile job's
+    /// uuid write) runs under this lock alone, on a blocking thread, so
+    /// the landings stay ordered with each other (C144) while no request,
+    /// bearer read, status document or `hello` waits on the I/O.
+    credentials: Mutex<()>,
     shared: Mutex<Shared>,
+    /// C148: open connections, outside every lock, so `hello` takes none.
+    connections: AtomicUsize,
+    /// C148: the last activity, in nanoseconds after `started` on the
+    /// daemon's clock, outside every lock as `connections` is.
+    last_activity: AtomicU64,
     /// On `Daemon`, not `Shared`, so `log`'s uptime prefix needs no lock:
     /// `persist` logs failures while holding `shared`.
     started: Instant,
@@ -895,8 +921,8 @@ pub struct Daemon {
     /// Running jobs finish (their sends are committed); everything else
     /// refuses until a restart finds a working `daemon.db`.
     queue_failure: Mutex<Option<String>>,
-    /// A test's pause where a refresh's landing releases `shared`, run
-    /// once (C144: the landing is one critical section).
+    /// A test's pause where a refresh's landing releases `credentials`,
+    /// run once (C144: the landings are ordered by that lock, C148).
     #[cfg(test)]
     refresh_landed_hook: Mutex<Option<Box<dyn FnOnce() + Send>>>,
 }
@@ -949,6 +975,20 @@ impl Daemon {
             .now()
             .saturating_duration_since(self.started)
             .as_secs()
+    }
+
+    /// C148: mark activity at `now` on the daemon's clock, taking no lock.
+    /// A stamp never moves back: an older `now` that lands late is kept
+    /// out by the maximum.
+    fn mark_activity(&self, now: Instant) {
+        let nanos = now.saturating_duration_since(self.started).as_nanos();
+        self.last_activity
+            .fetch_max(u64::try_from(nanos).unwrap_or(u64::MAX), Ordering::SeqCst);
+    }
+
+    /// The last activity [`Self::mark_activity`] stamped.
+    fn last_activity(&self) -> Instant {
+        self.started + Duration::from_nanos(self.last_activity.load(Ordering::SeqCst))
     }
 
     /// Takes only `log`, the innermost lock: the uptime stamp reads the

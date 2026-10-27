@@ -1,6 +1,9 @@
 //! The connection and the lifecycle: a connection's frames, each request,
 //! the status documents, the rails reset, the idle verdict and watchdog,
-//! and the exit.
+//! and the exit. C148: `hello` is read and answered under no lock, the
+//! connection count and the activity stamp being atomics; a logout's
+//! landing runs on a blocking thread; the drain counts a login being
+//! recorded and a refresh until its keyring mark lands.
 //!
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
@@ -82,13 +85,11 @@ impl Daemon {
     /// answered in order, one at a time; a subscribed connection also
     /// carries `event` frames, and `resync_required` when the event
     /// channel overran it.
+    /// C148: the count and the stamp are atomics, so `hello` is read
+    /// and answered under no lock.
     pub(super) async fn handle_conn(self: Arc<Self>, stream: Stream) {
-        {
-            let now = self.choke.now();
-            let mut s = self.shared.lock().unwrap();
-            s.connections += 1;
-            s.last_activity = now;
-        }
+        self.connections.fetch_add(1, Ordering::SeqCst);
+        self.mark_activity(self.choke.now());
 
         let (read, mut write) = tokio::io::split(stream);
         let mut reader = BufReader::new(read);
@@ -226,10 +227,8 @@ impl Daemon {
             }
         }
 
-        let now = self.choke.now();
-        let mut s = self.shared.lock().unwrap();
-        s.connections -= 1;
-        s.last_activity = now;
+        self.connections.fetch_sub(1, Ordering::SeqCst);
+        self.mark_activity(self.choke.now());
     }
 
     pub(super) async fn handle_request(
@@ -322,9 +321,10 @@ impl Daemon {
             },
             // A live session (named, or the sole one) logs out; a known
             // but not live account only loses its keyring entries. C144:
-            // the decision is the logout's own, under its one lock, and a
-            // clear that failed is the answer.
-            Request::AuthLogout { account } => match self.logout(account.as_deref()) {
+            // the decision is the logout's own, ordered with the other
+            // landings, and a clear that failed is the answer. C148: its
+            // keyring and index I/O runs on a blocking thread.
+            Request::AuthLogout { account } => match self.logout_blocking(account).await {
                 Ok(keyring) => Response::Ack {
                     keyring: Some(keyring),
                 },
@@ -352,7 +352,7 @@ impl Daemon {
                     provider: self.provider.name.to_string(),
                     uptime_seconds: self.uptime_seconds(),
                     idle_shutdown_seconds: idle_shutdown_from_env().as_secs(),
-                    connections: s.connections,
+                    connections: self.connections.load(Ordering::SeqCst),
                     jobs_waiting: waiting,
                     jobs_running: running,
                     policies_known: self.choke.policy_statuses().len(),
@@ -377,7 +377,7 @@ impl Daemon {
                     contract: acquisition_protocol::CONTRACT_REVISION.to_string(),
                     provider: self.provider.name.to_string(),
                     uptime_seconds: self.uptime_seconds(),
-                    connections: s.connections,
+                    connections: self.connections.load(Ordering::SeqCst),
                     logged_in: !s.auth.by_account.is_empty(),
                     username: self.headline_session(&s).and_then(|h| h.username.clone()),
                     access_expires_in_seconds: self
@@ -463,8 +463,8 @@ impl Daemon {
 
     /// C133: begin the exit, once; `false` if it had begun already. The
     /// bound is armed first ([`Exit::arm`]), before any lock is taken, so
-    /// a cause can never wait behind one (a keyring save holds `shared`
-    /// and may be a prompt no one answers).
+    /// a cause can never wait behind one (a keyring save holds
+    /// `credentials` and may be a prompt no one answers).
     pub(super) fn begin_exit(&self, why: &str) -> bool {
         if !self.exit.arm(why) {
             return false;
@@ -593,11 +593,12 @@ impl Daemon {
             let parked = self.rails().halted().is_some() || self.queue_failed().is_some();
             let live_jobs = Self::has_live_jobs(&s, parked);
             // A login holds the daemon (C133): its browser step and code
-            // exchange belong to no connection and no job.
-            s.connections == 0
+            // exchange belong to no connection and no job. The count and
+            // the stamp are read beside this hold, not under it (C148).
+            self.connections.load(Ordering::SeqCst) == 0
                 && !live_jobs
                 && s.auth.pending.is_none()
-                && now.saturating_duration_since(s.last_activity) >= idle_shutdown
+                && now.saturating_duration_since(self.last_activity()) >= idle_shutdown
         };
         idle && !self.choke.is_live()
     }
@@ -645,7 +646,9 @@ pub(super) struct InFlight {
     pub(super) exchanges: usize,
     /// A login whose profile job has finished, or is about to be
     /// submitted, while its staged tokens are not yet registered or
-    /// dropped: `complete_login` or `abort_login` is still to run.
+    /// dropped: `complete_login` or `abort_login` is still to run; or a
+    /// login being recorded, its keyring save and index write in flight
+    /// (C148).
     pub(super) login: bool,
 }
 
@@ -669,20 +672,21 @@ impl InFlight {
         refreshes.sort();
         // C133, issue #59: the exchange's count drops before the login's
         // profile job is submitted, and the job's active slot is freed
-        // before `complete_login` takes the lock. Between, the staging
+        // before `complete_login` takes the staging slot (from there its
+        // landing mark is counted, C148). Between, the staging
         // slot is the login's only trace, and the drain counts it: while
         // the profile job is unsubmitted (the login task runs on to its
         // submit without a pause) or terminal (the task runs on to
         // complete or abort). A profile job still waiting is not counted:
         // the stop turned it away, and the login is lost and repeated.
-        let login = s
-            .auth
-            .staging
-            .as_ref()
-            .is_some_and(|st| match st.profile_job {
-                None => true,
-                Some(id) => s.jobs.get(&id).is_some_and(|e| e.info.state.is_terminal()),
-            });
+        let login = s.auth.landing.is_some()
+            || s.auth
+                .staging
+                .as_ref()
+                .is_some_and(|st| match st.profile_job {
+                    None => true,
+                    Some(id) => s.jobs.get(&id).is_some_and(|e| e.info.state.is_terminal()),
+                });
         InFlight {
             jobs,
             held,

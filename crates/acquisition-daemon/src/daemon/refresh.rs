@@ -1,5 +1,8 @@
 //! The single-flight token refresh and the dead bearer: tokens installed, a
 //! rejected access token forgotten, and the refresh every waiter shares.
+//! C148: a refresh lands on a blocking thread, its tokens installed and
+//! published under `shared`, its keyring save and index writes under
+//! `credentials` alone, its keyring mark written under `shared` after.
 //!
 //! Rulings: `decisions/network.md`; the cross-cutting ones are `AGENTS.md`'s.
 
@@ -15,7 +18,7 @@ pub(super) const REFRESH_CALLED_OFF: &str =
     "token refresh called off before it was sent: the job that asked for it was cancelled";
 
 struct RefreshOwnerGuard<'a> {
-    daemon: &'a Daemon,
+    daemon: &'a Arc<Daemon>,
     account: String,
     id: u64,
     generations: AuthGenerations,
@@ -23,13 +26,25 @@ struct RefreshOwnerGuard<'a> {
 }
 
 impl RefreshOwnerGuard<'_> {
-    fn finish(mut self, refresh: Result<auth::TokenResponse, Refusal>) -> AccessTokenResult {
-        let result = self.result.as_ref().expect("refresh owner result exists");
-        let outcome =
-            self.daemon
-                .finish_refresh(&self.account, self.id, self.generations, refresh, result);
-        self.result = None;
-        outcome
+    /// Hand the flight's sender to its landing. A refresh that failed
+    /// lands where it is: it writes nothing but the session table. One
+    /// that brought tokens lands on a blocking thread (C148), which runs
+    /// to its end whether or not this owner is still awaiting it, so from
+    /// here the guard has nothing to publish on drop: the landing does.
+    async fn finish(mut self, refresh: Result<auth::TokenResponse, Refusal>) -> AccessTokenResult {
+        let sender = self.result.take().expect("refresh owner result exists");
+        let (account, id, generations) = (self.account.clone(), self.id, self.generations);
+        if refresh.is_err() {
+            return self
+                .daemon
+                .finish_refresh(&account, id, generations, refresh, &sender);
+        }
+        let daemon = self.daemon.clone();
+        tokio::task::spawn_blocking(move || {
+            daemon.finish_refresh(&account, id, generations, refresh, &sender)
+        })
+        .await
+        .unwrap_or_else(|_| Err(Refusal::new(ErrorKind::Internal, REFRESH_OWNER_ABANDONED)))
     }
 }
 
@@ -61,33 +76,16 @@ impl Drop for RefreshOwnerGuard<'_> {
 }
 
 impl Daemon {
-    /// Store fresh tokens in memory and persist the refresh token (which
-    /// the provider rotates on every grant) through
-    /// [`Self::persist_credentials_locked`]: the keyring and the account
-    /// index, under the caller's hold of the auth-state lock, so keyring
-    /// and index move with the session and are ordered with logout and
-    /// re-authentication (C144). Returns every warning the persist met,
-    /// joined, for the caller to report once the lock is released.
+    /// Install fresh tokens in a session, under the caller's hold of
+    /// `shared`: the access token and its expiry, the refresh token the
+    /// provider rotated, the username, the generations advanced. Nothing
+    /// is persisted here (C148): the landing saves the refresh token
+    /// under `credentials` alone ([`Self::persist_credentials`]).
     pub(super) fn install_tokens_locked(
         &self,
         session: &mut AuthSession,
         tokens: auth::TokenResponse,
-    ) -> Option<String> {
-        let old_name = session
-            .username
-            .clone()
-            .filter(|old| !old.is_empty() && *old != tokens.username);
-        let persisted = self.persist_credentials_locked(
-            &tokens.username,
-            &tokens.refresh_token,
-            session.uuid.as_deref(),
-            old_name.as_deref(),
-            self.unix_now(),
-        );
-        let mut warnings = persisted.warnings;
-        if let Err(e) = persisted.indexed {
-            warnings.push(e);
-        }
+    ) {
         session.access_token = Some(tokens.access_token);
         // C47: `expires_in` is bounded where the response is read
         // (`auth::MAX_ACCESS_TOKEN_LIFETIME_SECS`), so the sum is safe.
@@ -95,16 +93,14 @@ impl Daemon {
             Some(self.choke.wall() + Duration::from_secs(tokens.expires_in));
         session.refresh_token = Some(tokens.refresh_token);
         session.username = Some(tokens.username);
-        session.keyring = persisted.keyring;
         session.advance_access_token();
         session.advance_refresh_token();
-        session.refresh_flight = None;
-        (!warnings.is_empty()).then(|| warnings.join("; "))
     }
 
     /// C144 — the one persist of a refresh token, login's and refresh's
-    /// alike, called under the caller's hold of `shared` so the keyring
-    /// and the index land together, ordered with logout and forget. The
+    /// alike, called under the caller's hold of `credentials` and never
+    /// under `shared` (C148), so the keyring and the index land together,
+    /// ordered with logout and forget. The
     /// index holds `username` before the token is saved under it
     /// ([`Index::hold_keyring_name`]): an index that cannot be written
     /// then means no save, the keyring status and a warning say so, and
@@ -123,7 +119,7 @@ impl Daemon {
     /// many renames follow, so logout and forget still reach it. An index
     /// that cannot be written leaves the old names alone: the index still
     /// reaches them. Every clear that fails is a warning.
-    pub(super) fn persist_credentials_locked(
+    pub(super) fn persist_credentials(
         &self,
         username: &str,
         refresh_token: &str,
@@ -263,7 +259,7 @@ impl Daemon {
     /// again, the first as the owner of a fresh flight. No send is added;
     /// the one POST the flight would have made is made by the new owner.
     pub(super) async fn valid_access_token(
-        &self,
+        self: &Arc<Self>,
         account: Option<&str>,
         force_refresh: bool,
         party: Option<JobId>,
@@ -281,7 +277,7 @@ impl Daemon {
     }
 
     async fn valid_access_token_once(
-        &self,
+        self: &Arc<Self>,
         account: Option<&str>,
         force_refresh: bool,
         party: Option<JobId>,
@@ -422,16 +418,23 @@ impl Daemon {
                         ..Refusal::new(kind, format!("token refresh failed: {e}"))
                     }
                 });
-                owner.finish(refresh)
+                owner.finish(refresh).await
             }
         }
     }
 
-    /// The refresh's landing (C144): the token install, the keyring and
-    /// the account index (`install_tokens_locked`) and the session's
-    /// rename happen under one hold of `shared`, as a login's do, so a
-    /// logout lands wholly before them (the refresh is stale) or wholly
-    /// after (its not-persisted mark stands).
+    /// The refresh's landing (C144, C148). A refresh that failed only
+    /// closes its flight. One that brought tokens holds `credentials`
+    /// throughout, which orders it with logout, forget and login, and
+    /// takes `shared` twice, never across the I/O: first it checks its
+    /// flight is current, installs the tokens, follows a rename and marks
+    /// the session's keyring `saving`, and publishes the token to every
+    /// waiter, so a waiter and a bearer read are served at the install;
+    /// then the keyring and the index ([`Self::persist_credentials`]);
+    /// then the keyring mark, and the flight cleared, which the exit's
+    /// drain waits for. A logout lands wholly before it (the refresh is
+    /// stale) or wholly after (its not-persisted mark stands). It blocks
+    /// when it brings tokens: the owner runs it on a blocking thread.
     pub(super) fn finish_refresh(
         &self,
         account: &str,
@@ -440,8 +443,9 @@ impl Daemon {
         refresh: Result<auth::TokenResponse, Refusal>,
         sender: &watch::Sender<Option<AccessTokenResult>>,
     ) -> AccessTokenResult {
-        let mut warning = None;
+        let credentials = refresh.is_ok().then(|| self.credentials.lock().unwrap());
         let mut renamed = None;
+        let mut landing = None;
         let outcome = {
             let mut s = self.shared.lock().unwrap();
             let Some(session) = s.auth.find_mut(account) else {
@@ -454,7 +458,6 @@ impl Daemon {
             if !owns_current_flight || session.generations != generations {
                 Err(session_changed())
             } else {
-                session.refresh_flight = None;
                 match refresh {
                     Ok(tokens) => {
                         // GGG returns the same account on a refresh; if the
@@ -468,19 +471,69 @@ impl Daemon {
                             renamed = Some(tokens.username.clone());
                         }
                         let result = (tokens.access_token.clone(), tokens.username.clone());
-                        warning = self.install_tokens_locked(session, tokens);
+                        landing = Some(Landing {
+                            username: tokens.username.clone(),
+                            refresh_token: tokens.refresh_token.clone(),
+                            uuid: session.uuid.clone(),
+                            old_name: session
+                                .username
+                                .clone()
+                                .filter(|old| !old.is_empty() && *old != tokens.username),
+                        });
+                        self.install_tokens_locked(session, tokens);
+                        // C144: `auth status` says no `ok` for a save that
+                        // has not landed.
+                        session.keyring = "saving".into();
+                        // The flight stays set until the mark, its
+                        // generations the installed ones, so a forced
+                        // refresh joins it and reads the published token.
+                        let installed = session.generations;
+                        if let Some(flight) = &mut session.refresh_flight {
+                            flight.generations = installed;
+                        }
                         if let Some(new_name) = &renamed {
                             s.auth.rename(account, new_name);
                         }
                         Ok(result)
                     }
-                    Err(error) => Err(error),
+                    Err(error) => {
+                        session.refresh_flight = None;
+                        Err(error)
+                    }
                 }
             }
         };
+        sender.send_replace(Some(outcome.clone()));
+        let mut warning = None;
+        if let Some(landing) = landing {
+            let persisted = self.persist_credentials(
+                &landing.username,
+                &landing.refresh_token,
+                landing.uuid.as_deref(),
+                landing.old_name.as_deref(),
+                self.unix_now(),
+            );
+            let mut warnings = persisted.warnings;
+            if let Err(e) = persisted.indexed {
+                warnings.push(e);
+            }
+            warning = (!warnings.is_empty()).then(|| warnings.join("; "));
+            let mut s = self.shared.lock().unwrap();
+            // Only the session this landing installed: no other landing
+            // ran meanwhile (`credentials`), so it is still there.
+            if let Some(session) = s.auth.find_mut(&landing.username)
+                && session
+                    .refresh_flight
+                    .as_ref()
+                    .is_some_and(|flight| flight.id == id)
+            {
+                session.keyring = persisted.keyring;
+                session.refresh_flight = None;
+            }
+        }
+        drop(credentials);
         #[cfg(test)]
         self.refresh_landed();
-        sender.send_replace(Some(outcome.clone()));
         if outcome.is_ok() {
             self.log(&format!("access token refreshed for {account}"));
         }
@@ -495,8 +548,8 @@ impl Daemon {
         outcome
     }
 
-    /// The test's pause where a refresh's landing releases `shared`: the
-    /// review of h1 staged a logout here.
+    /// The test's pause where a refresh's landing releases `credentials`,
+    /// after its mark (C148): the review of h1 staged a logout here.
     #[cfg(test)]
     fn refresh_landed(&self) {
         let hook = self.refresh_landed_hook.lock().unwrap().take();
@@ -506,7 +559,15 @@ impl Daemon {
     }
 }
 
-/// What [`Daemon::persist_credentials_locked`] did: the session's keyring
+/// What a refresh's landing persists, taken at its install.
+struct Landing {
+    username: String,
+    refresh_token: String,
+    uuid: Option<String>,
+    old_name: Option<String>,
+}
+
+/// What [`Daemon::persist_credentials`] did: the session's keyring
 /// status (`ok` or `unavailable: …`), every warning beside it, and the
 /// index write's result.
 pub(super) struct Persisted {

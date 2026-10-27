@@ -435,7 +435,7 @@ resubmit if still wanted",
                     ));
                 }
             }
-            s.last_activity = now;
+            self.mark_activity(now);
             let id = s.next_id;
             s.next_id += 1;
             let info = JobInfo {

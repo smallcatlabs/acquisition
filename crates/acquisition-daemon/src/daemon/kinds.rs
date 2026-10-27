@@ -130,8 +130,8 @@ impl Bearer for StagedBearer {
 
 impl Daemon {
     /// Apply one change to the account index, reporting failure to the
-    /// caller. Safe under the shared lock (it never calls `note_error`).
-    /// No-op in tests (no store directory).
+    /// caller. Called under `credentials`, never under `shared` (C148);
+    /// it never calls `note_error`. No-op in tests (no store directory).
     pub(super) fn index_apply(
         &self,
         f: impl FnOnce(&mut Index) -> anyhow::Result<()>,
@@ -149,16 +149,23 @@ impl Daemon {
             })
     }
 
-    /// Apply one change to the account index under the shared lock (C144:
-    /// every index write is serialised there, as login's is, so two
-    /// accounts' load-modify-save never interleave), logging (never
-    /// failing) on error. Not for callers holding the shared lock — those
-    /// use `index_apply`.
-    pub(super) fn with_index(&self, f: impl FnOnce(&mut Index) -> anyhow::Result<()>) {
-        let applied = {
-            let _serialised = self.shared.lock().unwrap();
-            self.index_apply(f)
-        };
+    /// Apply one change to the account index under `credentials`, on a
+    /// blocking thread (C144: every index write is serialised there, as
+    /// login's is, so two accounts' load-modify-save never interleave;
+    /// C148: never under `shared`, never on a runtime worker), logging
+    /// (never failing) on error. Not for a landing, which holds
+    /// `credentials` already and uses `index_apply`.
+    pub(super) async fn with_index(
+        self: &Arc<Self>,
+        f: impl FnOnce(&mut Index) -> anyhow::Result<()> + Send + 'static,
+    ) {
+        let daemon = self.clone();
+        let applied = tokio::task::spawn_blocking(move || {
+            let _serialised = daemon.credentials.lock().unwrap();
+            daemon.index_apply(f)
+        })
+        .await
+        .unwrap_or_else(|e| Err(format!("accounts index: the write did not finish: {e}")));
         if let Err(e) = applied {
             self.note_error(&e);
         }
@@ -272,7 +279,7 @@ impl Daemon {
     /// in the same window included, runs on the session. What stops the job is what
     /// `execute_inner` returns: a failure, or a halt's refusal (C25).
     async fn render_then_authenticate(
-        &self,
+        self: &Arc<Self>,
         id: JobId,
         kind: &str,
         params: &Value,
@@ -304,7 +311,7 @@ impl Daemon {
     }
 
     pub(super) async fn execute_inner(
-        &self,
+        self: &Arc<Self>,
         id: JobId,
         kind: &str,
         params: Value,
@@ -378,7 +385,9 @@ impl Daemon {
                             session.uuid = Some(uuid.to_string());
                         }
                     }
-                    self.with_index(|index| index.set_uuid(account, uuid));
+                    let (account, uuid) = (account.to_string(), uuid.to_string());
+                    self.with_index(move |index| index.set_uuid(&account, &uuid))
+                        .await;
                 }
                 Outcome::Success {
                     payload: json!({
@@ -741,7 +750,7 @@ impl Daemon {
     /// caller can re-queue the job behind the limiter's hold (P-A); a
     /// Cloudflare-shaped 403/503 is never retried (invariant 3).
     async fn api_get(
-        &self,
+        self: &Arc<Self>,
         id: JobId,
         route: &str,
         url: &str,

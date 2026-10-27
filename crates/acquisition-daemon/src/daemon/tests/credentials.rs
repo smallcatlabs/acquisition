@@ -159,11 +159,12 @@ async fn c148_hello_is_answered_while_a_refresh_saves() {
     finish_harness(None, &log_path);
 }
 
-/// C148: a send past admission, holding its gate permit, reads its
-/// bearer from the session while a refresh's save is held, and carries
-/// the token that refresh installed, where it waited behind the lock the
-/// save ran under, its permit held. Under the read the session's mark
-/// says the save has not landed; released, it lands `ok`.
+/// C148: a send past admission (the route's first, its HEAD probe),
+/// holding its gate permit, reads its bearer from the session while a
+/// refresh's save is held, and carries the token that refresh installed,
+/// where it waited behind the lock the save ran under, its permit held.
+/// Under the read the session's mark says the save has not landed;
+/// released, it lands `ok`.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn c148_a_permit_holder_reads_the_installed_token_while_the_save_blocks() {
     let (daemon, _store, mut held, sent_log, base, log_path) = saving_daemon().await;
@@ -177,9 +178,13 @@ async fn c148_a_permit_holder_reads_the_installed_token_while_the_save_blocks() 
             let ready = daemon.choke.now();
             daemon
                 .choke
-                .get_bearer("c148-bearer", &url, &bearer, ready, ALWAYS_WANTED)
+                .head("c148-bearer", &url, Some(&bearer), ready, ALWAYS_WANTED)
                 .await
-                .map(|landed| landed.status.as_u16())
+                // The account server answers without rate headers, as
+                // GGG serves the profile, so the probe may not parse;
+                // what matters is that it went out, and with what.
+                .err()
+                .map(|e| e.to_string())
         })
     };
     let mark_under_the_read = daemon
@@ -189,14 +194,15 @@ async fn c148_a_permit_holder_reads_the_installed_token_while_the_save_blocks() 
         .and_then(|s| s.auth.find("test-user").map(|x| x.keyring.clone()));
     held.release.send(()).unwrap();
 
-    let status = carried
-        .expect("the bearer is read while the save is held")
-        .expect("the send went out");
-    assert_eq!(status, 200);
+    let refused = carried.expect("the bearer is read while the save is held");
+    assert!(
+        !matches!(refused.as_deref(), Some(e) if e.contains("rejected before it left the gate")),
+        "the send went out: {refused:?}"
+    );
     assert_eq!(
         sent_log.lock().unwrap().as_slice(),
-        [sent("test-user", "POST"), sent("test-user", "GET")],
-        "the GET carried the token the refresh installed"
+        [sent("test-user", "POST"), sent("test-user", "HEAD")],
+        "the probe carried the token the refresh installed"
     );
     assert_eq!(mark_under_the_read.as_deref(), Some("saving"));
     let (token, _) = refresh.await.unwrap().expect("the refresh lands");

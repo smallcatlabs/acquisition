@@ -481,15 +481,16 @@ pub(super) fn test_daemon_scenario_at(
         .unwrap();
     let now = clock.now();
     let daemon = Arc::new(Daemon {
+        credentials: Mutex::new(()),
         shared: Mutex::new(Shared {
             jobs: HashMap::new(),
             next_id: 1,
             auth: Sessions::with(AuthSession::default()),
-            connections: 0,
-            last_activity: now,
             errors: VecDeque::new(),
             active_jobs: HashMap::new(),
         }),
+        connections: AtomicUsize::new(0),
+        last_activity: AtomicU64::new(0),
         started: now,
         events: broadcast::channel(256).0,
         work: Notify::new(),

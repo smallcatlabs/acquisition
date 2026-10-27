@@ -217,6 +217,7 @@ fn test_daemon(base: &str) -> (Arc<Daemon>, Arc<MemoryCredentialStore>, TestPath
         ChokePoint::with_clock_and_rails(Arc::new(SystemClock), Arc::new(Rails::disabled()), base);
     let now = choke.now();
     let daemon = Arc::new(Daemon {
+        credentials: Mutex::new(()),
         shared: Mutex::new(Shared {
             jobs: HashMap::new(),
             next_id: 1,
@@ -234,11 +235,11 @@ fn test_daemon(base: &str) -> (Arc<Daemon>, Arc<MemoryCredentialStore>, TestPath
                 next_refresh_flight: 1,
                 ..AuthSession::default()
             }),
-            connections: 0,
-            last_activity: now,
             errors: VecDeque::new(),
             active_jobs: HashMap::new(),
         }),
+        connections: AtomicUsize::new(0),
+        last_activity: AtomicU64::new(0),
         started: now,
         events: broadcast::channel(16).0,
         work: Notify::new(),

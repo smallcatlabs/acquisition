@@ -58,9 +58,9 @@ fn idle_verdict_follows_the_clock_the_connections_and_the_queue() {
     clock.advance(Duration::from_secs(1));
     assert!(daemon.is_idle(knob), "the knob elapsed on the clock");
 
-    daemon.shared.lock().unwrap().connections = 1;
+    daemon.connections.store(1, Ordering::SeqCst);
     assert!(!daemon.is_idle(knob), "a connection holds the daemon");
-    daemon.shared.lock().unwrap().connections = 0;
+    daemon.connections.store(0, Ordering::SeqCst);
     assert!(daemon.is_idle(knob));
 
     let id = daemon
