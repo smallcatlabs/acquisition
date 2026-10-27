@@ -24,7 +24,7 @@ use acquisition_plan::{PolicyWrite, RefreshAction};
 use acquisition_protocol::job::Outcome;
 use acquisition_protocol::realm::Realm;
 use acquisition_store::jobs::{JobDb, JobRow, daemon_db_path};
-use acquisition_store::world::{default_root, intended_root};
+use acquisition_store::world::{World, default_root, intended_root};
 use acquisition_verbs::jobs::{NO_RESULT, submit, wait};
 use acquisition_verbs::refresh::{quote, quote_within};
 use acquisition_verbs::{Apply, Fault, Frontend, Job, Opened};
@@ -593,8 +593,10 @@ async fn c147_a_frontend_over_another_world_acts_in_its_world_not_the_environmen
     // The door spawns the daemon in B, and the daemon serves B.
     let mut client = frontend.connect().await.expect("the use door over B");
     assert!(client.spawned(), "the door started the daemon");
-    let canonical_b = b.canonicalize().expect("the door created B");
-    assert_eq!(client.daemon().world(), canonical_b.to_str().unwrap());
+    // B as `hello` carries it (C83): the store's canonical root, the
+    // verbatim prefix dropped on Windows, never a bare `canonicalize()`.
+    let world_b = World::observe_at(&b).expect("the door created B");
+    assert_eq!(client.daemon().world(), world_b.name());
     login_in_process(&mut client, Some("alice")).await;
     let id = submit(
         &frontend,
