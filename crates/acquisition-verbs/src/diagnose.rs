@@ -208,13 +208,19 @@ impl Frontend {
         let (rails, journal_path, log_path) = match running {
             Some((rails, log)) => (
                 Ok(Rails::Daemon(rails.clone())),
-                rails
-                    .journal
-                    .map(|path| (PathBuf::from(path), "daemon"))
-                    .ok_or_else(|| {
+                match rails.journal {
+                    None => Err(
                         "the daemon running keeps no journal: it was started with ACQ_JOURNAL=0"
-                            .to_string()
-                    }),
+                            .to_string(),
+                    ),
+                    // A journal the daemon could not open is reported in
+                    // its words, never opened as a path (r4's fix-round
+                    // review, finding 2).
+                    Some(words) if words.starts_with(JOURNAL_NOT_WRITTEN) => {
+                        Err(format!("the daemon running reports: {words}"))
+                    }
+                    Some(path) => Ok((PathBuf::from(path), "daemon")),
+                },
                 log.map(|path| (PathBuf::from(path), "daemon"))
                     .ok_or_else(|| "the daemon running reports no log file".to_string()),
             ),
@@ -341,6 +347,16 @@ impl Frontend {
             };
             paths.push((dir.to_path_buf(), placeholder));
         }
+        // The journal this frontend's own `ACQ_JOURNAL` names, by its
+        // directory, printed or not: a daemon that could not open it
+        // names it only inside its error's words (r4's fix-round review,
+        // finding 2). A daemon under another shell's knob is the gap the
+        // report's text alone carries (raised for the owner).
+        if let JournalKnob::At(path) = &self.journal
+            && let Some(dir) = path.parent()
+        {
+            paths.push((dir.to_path_buf(), "<journal>"));
+        }
         if let Some(home) = std::env::home_dir() {
             paths.push((home, "~"));
         }
@@ -356,6 +372,10 @@ impl Frontend {
         }
     }
 }
+
+/// How the daemon's rails report a journal it could not open (`rails.rs`,
+/// the status's `journal`): its words, not a path.
+const JOURNAL_NOT_WRITTEN: &str = "NOT WRITTEN";
 
 /// The world's rails file as the store's one format reads it (C1: the
 /// reset's own reader); none is nothing held.
