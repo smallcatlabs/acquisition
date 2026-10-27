@@ -43,12 +43,6 @@ use anyhow::Result;
 use crate::Ctx;
 use crate::store_cmd::{ago, clip, realm_prefix};
 
-/// Groups of this many items or fewer are listed one per line; larger
-/// groups are counted (C53; `--expand` lists every one, and so does a
-/// `--limit`, which is the person's own bound: the release seat asked
-/// for twelve and was shown a header alone).
-const LIST_UP_TO: usize = 10;
-
 /// The selected account's facts file, opened beside its intent (C121,
 /// C12), and the account's name.
 fn opened(cx: &Ctx) -> Result<(Store, Annotations, String)> {
@@ -613,22 +607,33 @@ fn render_list(view: &ListView, expand: bool) -> String {
         }
     }
     groups.retain(|(_, v)| !v.is_empty());
-    let listed = if view.listed < view.total {
-        format!("{} of {} items", view.listed, view.total)
+    // The first line counts the whole selection from the document's
+    // counts (C53): the items it lists are the planner's bound of them,
+    // ten by default, `--limit`'s number or every one under `--expand`.
+    let cut = view.listed < view.total;
+    let (listed, containers) = if cut {
+        (
+            format!("{} of {} items", view.listed, view.total),
+            format!(
+                "the {} listed in {}",
+                view.listed,
+                plural(groups.len(), "container", "containers")
+            ),
+        )
     } else {
-        plural(items.len(), "item", "items")
+        (
+            plural(view.total, "item", "items"),
+            format!("in {}", plural(groups.len(), "container", "containers")),
+        )
     };
     out.push_str(&format!(
-        "{listed} listed in {place}{scope}: {}; in {}\n",
-        breakdown(&items),
-        plural(groups.len(), "container", "containers")
+        "{listed} listed in {place}{scope}: {}; {containers}\n",
+        set_breakdown(&view.counts),
     ));
-    // A limit the person named is their bound: the items it keeps are
-    // listed whatever the group's size.
-    let bounded = view.filter.limit.is_some();
-    if expand || bounded || groups.iter().any(|(_, g)| g.len() <= LIST_UP_TO) {
-        out.push_str(&item_header());
-    }
+    // Every item the document holds is listed under its group: the
+    // document is already bounded (ten, or the person's own --limit: the
+    // release seat asked for twelve and was shown a header alone).
+    out.push_str(&item_header());
     for (loc, group) in &groups {
         let label = view
             .containers
@@ -641,21 +646,19 @@ fn render_list(view: &ListView, expand: bool) -> String {
             plural(group.len(), "item", "items"),
             breakdown(group)
         ));
-        if group.len() <= LIST_UP_TO || expand || bounded {
-            for l in group {
-                out.push_str(&item_line(l));
-                if expand {
-                    out.push_str(&item_texts(l));
-                }
+        for l in group {
+            out.push_str(&item_line(l));
+            if expand {
+                out.push_str(&item_texts(l));
             }
         }
     }
-    if view.listed < view.total {
+    if cut && view.filter.limit.is_some() {
         out.push_str(&format!(
             "next: `--limit {}` lists every one; `acq price show item/<id>` is one\n",
             view.total
         ));
-    } else if !expand && groups.iter().any(|(_, g)| g.len() > LIST_UP_TO) {
+    } else if cut {
         out.push_str("next: `--expand` lists every item; `acq price show item/<id>` is one\n");
     } else {
         out.push_str("next: `acq price show item/<id>` is one listing with its texts\n");
@@ -1269,31 +1272,49 @@ mod tests {
     }
 
     /// C53 — `list` groups by container with the shared context said
-    /// once, lists ten or fewer and counts more, `--expand` lists every
-    /// item with its texts, and a filter that matches nothing says so.
+    /// once; the document lists the first ten of the selection (the
+    /// store's bound) and counts the whole on the first line, the ten
+    /// grouped and listed, `--expand` every item with its texts; a
+    /// filter that matches nothing says so.
     #[test]
     fn c53_price_list_groups_by_container_and_lists_ten_or_fewer() {
         let r = report();
         let view = r.list_view(ListFilter::default()).unwrap();
+        assert_eq!(view.listed, acquisition_store::bound::LISTED);
         let text = render_list(&view, false);
         let lines: Vec<&str> = text.lines().collect();
         // The map-tab item and the character's are relation `none` now:
         // their price text is residue (C81), so the default leaves them out.
+        // Twelve is more than ten: the whole counted, ten listed.
         assert_eq!(
             lines[0],
-            "12 items listed in Standard: 11 in game only, 1 conflict; in 1 container"
+            "10 of 12 items listed in Standard: 11 in game only, 1 conflict; the 10 listed in 1 container"
+        );
+        assert!(
+            lines[2].starts_with("~price 3 chaos (A) (3 chaos, public)  10 items: ")
+                && lines[2].ends_with("  tab/pc/c1"),
+            "{text}"
         );
         assert_eq!(
-            lines[1],
-            "~price 3 chaos (A) (3 chaos, public)  12 items: 11 in game only, 1 conflict  tab/pc/c1"
+            text.matches("\n  game_only ").count() + text.matches("\n  conflict ").count(),
+            10,
+            "{text}"
         );
-        // Twelve is more than ten: counted, not listed.
         assert_eq!(
-            lines[2],
-            "next: `--expand` lists every item; `acq price show item/<id>` is one"
+            lines.last().copied(),
+            Some("next: `--expand` lists every item; `acq price show item/<id>` is one")
         );
-        assert_eq!(lines.len(), 3, "{text}");
 
+        let view = r
+            .list_view(ListFilter {
+                expand: true,
+                ..ListFilter::default()
+            })
+            .unwrap();
+        assert_eq!(
+            render_list(&view, false).lines().next(),
+            Some("12 items listed in Standard: 11 in game only, 1 conflict; in 1 container")
+        );
         let text = render_list(&view, true);
         assert!(
             text.contains(
@@ -1663,6 +1684,7 @@ mod tests {
         let view = r
             .list_view(ListFilter {
                 effective: Some("none".into()),
+                expand: true,
                 ..Default::default()
             })
             .unwrap();

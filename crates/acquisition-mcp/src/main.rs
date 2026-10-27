@@ -830,9 +830,11 @@ struct PriceListParams {
     /// Only items a row on this target would cover: a folder's tabs'
     /// items, a map or unique tab's substashes' items too.
     covered_by: Option<String>,
-    /// List at most this many items, the first in listing order (some
-    /// 1.3 KB an item); `total` says how many the selection holds.
+    /// List this many items in place of ten, the first in listing order;
+    /// `total` says how many the selection holds.
     limit: Option<usize>,
+    /// List every item of the selection.
+    expand: Option<bool>,
     #[schemars(description = ACCOUNT)]
     account: Option<String>,
 }
@@ -1620,7 +1622,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "The items of one league that are priced, each with both sides of its listing (no daemon): `items`, each with its `subject`, the hand row that applies (`manual`), the game's reading (`game`), the `relation` and the `effective` price; `containers`, the tabs, substashes and characters they sit under; and the counts `describe` with names [\"pricing\"] explains. With neither `relation` nor `effective`, items nothing prices are left out, except unresolved ones."
+        description = "The items of one league that are priced, each with both sides of its listing (no daemon): `items`, ten by default (`limit` more, `expand` all), each with its `subject`, the hand row that applies (`manual`), the game's reading (`game`), the `relation` and the `effective` price; `containers`, the tabs, substashes and characters they sit under; and the counts `describe` with names [\"pricing\"] explains. With neither `relation` nor `effective`, items nothing prices are left out, except unresolved ones."
     )]
     fn price_list(&self, Parameters(p): Parameters<Args<PriceListParams>>) -> Told {
         let p = match p.read() {
@@ -1646,6 +1648,7 @@ impl AcqMcp {
                 location: p.location,
                 covered_by: p.covered_by,
                 limit: p.limit,
+                expand: p.expand.unwrap_or(false),
             },
             &account,
             acquisition_search::answer::shell_quoted,

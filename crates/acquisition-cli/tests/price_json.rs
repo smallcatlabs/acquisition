@@ -459,6 +459,10 @@ fn price_list_is_bounded_by_a_limit_and_says_how_many_of_how_many() {
     ));
     let all = whole["items"].as_array().unwrap().len();
     assert!(all >= 2, "{whole}");
+    // the seed's selection is within the default, the store's bound (C53),
+    // so the unlimited answer is the whole of it
+    assert!(all <= acquisition_store::bound::LISTED, "{whole}");
+    assert_eq!(whole["total"], json!(all));
     let out = acq(
         &base,
         &[
@@ -1192,4 +1196,62 @@ fn price_show_lists_ten_of_each_set_beside_the_whole_counts_and_expand_lists_eve
     let out = acq(&base, &["price", "show", "tab/pc/b1", "--expand"]);
     let text = String::from_utf8_lossy(&out.stdout);
     assert_eq!(text.matches("Chaos Orb x1 ").count(), 27, "{text}");
+}
+
+/// C53, the read economy (step 2g, round 2; the second cold review of the
+/// brief, finding 10): `price list` lists ten of a selection past ten and
+/// counts the whole, and `--expand` reaches the planner, so `--json`
+/// returns every item, where it widened the text alone.
+#[test]
+fn price_list_lists_ten_and_expand_returns_every_item_of_a_selection_past_ten() {
+    use acquisition_store::bound::LISTED;
+    let scratch = harness::scratch("price-list-bound");
+    let base = scratch.0.clone();
+    let mock = seed(&base);
+    big_league(&mock);
+    let listed = |args: &[&str]| -> ListView {
+        let out = acq(
+            &base,
+            &[
+                &[
+                    "price",
+                    "list",
+                    "--league",
+                    "Big",
+                    "--effective",
+                    "none",
+                    "--json",
+                ],
+                args,
+            ]
+            .concat(),
+        );
+        assert!(out.status.success(), "{}", stderr(&out));
+        serde_json::from_value(sole_json(&out)).unwrap()
+    };
+    let view = listed(&[]);
+    assert_eq!(
+        (view.total, view.listed, view.items.len()),
+        (27, LISTED, LISTED)
+    );
+    assert_eq!((view.counts.total, view.counts.left_out), (27, 27 - LISTED));
+    assert_eq!(view.counts.by_relation.get("none"), Some(&27));
+    let all = listed(&["--expand"]);
+    assert_eq!((all.total, all.listed, all.items.len()), (27, 27, 27));
+    assert!(all.filter.expand);
+    assert_eq!(&all.items[..LISTED], &view.items[..]);
+
+    let out = acq(
+        &base,
+        &["price", "list", "--league", "Big", "--effective", "none"],
+    );
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        text.starts_with("10 of 27 items listed in Big decided by none: 27 unlisted; the 10 listed in 1 container\n"),
+        "{text}"
+    );
+    assert!(
+        text.ends_with("next: `--expand` lists every item; `acq price show item/<id>` is one\n"),
+        "{text}"
+    );
 }

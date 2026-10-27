@@ -84,14 +84,15 @@ Remove one target's own price row; what it covered falls back to the next row up
 
 ### `price_list`
 
-The items of one league that are priced, each with both sides of its listing (no daemon): `items`, each with its `subject`, the hand row that applies (`manual`), the game's reading (`game`), the `relation` and the `effective` price; `containers`, the tabs, substashes and characters they sit under; and the counts `describe` with names ["pricing"] explains. With neither `relation` nor `effective`, items nothing prices are left out, except unresolved ones.
+The items of one league that are priced, each with both sides of its listing (no daemon): `items`, ten by default (`limit` more, `expand` all), each with its `subject`, the hand row that applies (`manual`), the game's reading (`game`), the `relation` and the `effective` price; `containers`, the tabs, substashes and characters they sit under; and the counts `describe` with names ["pricing"] explains. With neither `relation` nor `effective`, items nothing prices are left out, except unresolved ones.
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
 - `covered_by` (string | null) — Only items a row on this target would cover: a folder's tabs' items, a map or unique tab's substashes' items too.
 - `effective` (string | null) — Only items whose price this side decides: game, manual, none or unresolved.
+- `expand` (boolean | null) — List every item of the selection.
 - `in` (string | null) — Only items physically in this container: a tab, substash or character address.
 - `league` (string | null) — The league; omitted, the league of the container `in` or `covered_by` names, else Standard.
-- `limit` (integer | null) — List at most this many items, the first in listing order (some 1.3 KB an item); `total` says how many the selection holds.
+- `limit` (integer | null) — List this many items in place of ten, the first in listing order; `total` says how many the selection holds.
 - `realm` (string | null) — pc (the default), xbox, sony or poe2; a tab or substash address given to `in` or `covered_by` carries its own.
 - `relation` (string | null) — Only items in this relation: none, manual_only, game_only, agree or conflict.
 

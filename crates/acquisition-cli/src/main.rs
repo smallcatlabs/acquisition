@@ -592,8 +592,9 @@ enum PriceCmd {
         #[arg(long)]
         expand: bool,
     },
-    /// Listed items grouped by container, ten or fewer listed per group
-    /// and more counted (--expand lists every one with its texts).
+    /// Listed items grouped by container: the first ten of the selection,
+    /// counted whole on the first line (--limit lists N, --expand every
+    /// one with its texts).
     /// With neither --relation nor --effective, items whose relation is
     /// `none` are left out — except unresolved ones (a row that cannot
     /// be read could decide), which are always listed.
@@ -1390,6 +1391,7 @@ async fn run(cli: Cli) -> Result<()> {
                     location,
                     covered_by,
                     limit,
+                    expand,
                 },
                 expand,
                 cli.json,

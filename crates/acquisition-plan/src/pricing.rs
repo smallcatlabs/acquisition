@@ -326,8 +326,8 @@ pub fn show(
 }
 
 /// `list`'s selection as typed: relation and effective-side words,
-/// container addresses, and how many to list at most — read here into a
-/// [`ListFilter`].
+/// container addresses, how many to list (ten by default, C53) and
+/// whether every one (`expand`) — read here into a [`ListFilter`].
 #[derive(Debug, Default)]
 pub struct ListArgs {
     pub relation: Option<String>,
@@ -335,6 +335,7 @@ pub struct ListArgs {
     pub location: Option<String>,
     pub covered_by: Option<String>,
     pub limit: Option<usize>,
+    pub expand: bool,
 }
 
 /// `price list`. `account` and `quote` as [`show`]'s.
@@ -387,6 +388,7 @@ pub fn list(
         r#in: location.clone(),
         covered_by: covered_by.clone(),
         limit: args.limit,
+        expand: args.expand,
     };
     match r.list_view(filter) {
         Some(view) => Ok(view),
@@ -822,7 +824,7 @@ pub fn described() -> Vec<Described> {
         ),
         entry(
             "list counts",
-            "a list of the priced items, counted: `items_on_record`, how many items the league holds, so an empty answer says which nothing; `total`, how many the selection holds, and `listed`, how many `items` lists — fewer only under `limit`, the first in listing order, `containers` then being theirs alone",
+            "a list of the priced items, counted: `items_on_record`, how many items the league holds, so an empty answer says which nothing; `total`, how many the selection holds, and `listed`, how many `items` lists — the first ten in listing order, as many as `limit` names, every one under `expand`, `containers` being theirs alone; `counts` counts the whole selection as a show counts a set: `total`, `returned`, `left_out`, `by_relation` and `unresolved`",
         ),
         entry(
             "shop counts",

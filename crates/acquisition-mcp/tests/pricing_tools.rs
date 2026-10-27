@@ -746,3 +746,110 @@ fn a_pricing_refusal_names_the_argument_after_each_flag_it_speaks() {
     let said = refusal["error"].as_str().unwrap_or_default();
     assert!(said.ends_with("— here, `--in` is `in`"), "{said}");
 }
+
+/// C53, the read economy (step 2g, round 2): past ten, `price_list` and
+/// `price_show` list ten beside the whole counts and `expand` returns
+/// every item, each the document `acq price … --json` prints for the same
+/// request — over a league Big of one map tab with thirteen unpriced
+/// items, which only `effective: "none"` selects. The listing rule is
+/// the planner's (`listing.rs`); here, the adapter's mapping of `limit`
+/// and `expand` past ten.
+#[test]
+fn price_list_and_price_show_list_ten_and_expand_returns_every_item_past_ten() {
+    let dir = scratch("mcp-price-bound");
+    let base = &dir.0;
+    seed(base);
+    let mock = base.join("store").join("mock");
+    let mut store = Store::open(&account_path(&mock, USER)).unwrap();
+    let at = acquisition_store::now();
+    store
+        .record(
+            &Endpoint::Stashes {
+                realm: "pc".into(),
+                league: "Big".into(),
+            },
+            &json!({ "league": "Big" }),
+            200,
+            &json!({ "stashes": [ { "id": "b1", "name": "Many", "type": "MapStash", "index": 0 } ] }),
+            at,
+        )
+        .unwrap();
+    let items: Vec<Value> = (0..13)
+        .map(|i| json!({ "id": format!("i-b{i:02}"), "name": "", "typeLine": "Chaos Orb", "baseType": "Chaos Orb", "x": i, "y": 0, "stackSize": 1 }))
+        .collect();
+    store
+        .record(
+            &Endpoint::Stash {
+                realm: "pc".into(),
+                league: "Big".into(),
+                id: "b1".into(),
+                sub: None,
+            },
+            &json!({ "league": "Big" }),
+            200,
+            &json!({ "stash": { "id": "b1", "name": "Many", "type": "MapStash", "items": items } }),
+            at,
+        )
+        .unwrap();
+    drop(store);
+    let mut mcp = Mcp::start(base, &[]);
+    let listed = |doc: &Value, key: &str| doc[key].as_array().unwrap().len();
+    for (args, verb, key, n) in [
+        (
+            json!({ "league": "Big", "effective": "none" }),
+            &["price", "list", "--league", "Big", "--effective", "none"][..],
+            "items",
+            10,
+        ),
+        (
+            json!({ "league": "Big", "effective": "none", "expand": true }),
+            &[
+                "price",
+                "list",
+                "--league",
+                "Big",
+                "--effective",
+                "none",
+                "--expand",
+            ][..],
+            "items",
+            13,
+        ),
+    ] {
+        let (ok, by_tool) = tool(&mut mcp, "price_list", args.clone());
+        assert!(ok, "{by_tool}");
+        assert_eq!(listed(&by_tool, key), n, "{args}");
+        assert_eq!(by_tool["total"], 13);
+        assert_eq!(by_tool["counts"]["left_out"], 13 - n);
+        let (_, by_cli) = cli(base, verb);
+        assert_spoken_as(
+            &steady(by_tool, CLOCK),
+            &steady(by_cli, CLOCK),
+            &format!("price_list {args} is not what acq {verb:?} --json prints"),
+        );
+    }
+    for (args, verb, n) in [
+        (
+            json!({ "target": "tab/pc/b1" }),
+            &["price", "show", "tab/pc/b1"][..],
+            10,
+        ),
+        (
+            json!({ "target": "tab/pc/b1", "expand": true }),
+            &["price", "show", "tab/pc/b1", "--expand"][..],
+            13,
+        ),
+    ] {
+        let (ok, by_tool) = tool(&mut mcp, "price_show", args.clone());
+        assert!(ok, "{by_tool}");
+        assert_eq!(listed(&by_tool, "items_here"), n, "{args}");
+        assert_eq!(by_tool["items_here_counts"]["total"], 13);
+        let (_, by_cli) = cli(base, verb);
+        assert_spoken_as(
+            &steady(by_tool, CLOCK),
+            &steady(by_cli, CLOCK),
+            &format!("price_show {args} is not what acq {verb:?} --json prints"),
+        );
+    }
+    assert!(no_daemon_appeared(base));
+}
