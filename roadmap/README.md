@@ -205,6 +205,20 @@ list when a step's close commit or an issue takes it.
   findings accepted as a fix round's done-when; for a round's plan,
   restart after a failed write and a login's finalisation among the
   recovery scenarios.
+- **From r3, the eviction** (`briefs/r3-idle-and-eviction.md` and its
+  rounds): `job_list` holds the queue lock for its whole range read, so
+  the dispatcher's persists wait on it, a cost that scales with the
+  lifetime's work; `ended_elsewhere` answers `no_job` for an open row
+  on disk and not in memory, leaving the orphan until the next restore
+  drops or replays it; the login wait's broken-queue pin calls
+  `wait_job_terminal` directly, since no seam stages a queue break
+  between the profile job's eviction and the read through a login; the
+  parent scan's O(n²) stands, over live work only now.
+- **The owner's, from r3's rounds**: for `briefs/REVIEW-PROMPT.md`,
+  Codex asked three times for the gate's stage table in the commit
+  message, where the rhythm keeps it in the report (not taken, his
+  call); and asked again, as 4b's reviews did, that a fix round's
+  acceptance be told apart from the brief's execution-dependent lines.
 - **The Windows gate's watch (#70)**: the step landed 2026-10-24
   (`dd9b7859` to `90db890a`); the issue closes when a week of pushes
   needs no re-run, counted from r1's first green Windows run
@@ -286,15 +300,13 @@ list when a step's close commit or an issue takes it.
 
 ## Current step
 
-r3, the hour idle default and finished trees out of memory (#80;
-`briefs/r3-idle-and-eviction.md`): built, its review pending, then the
-owner's reading and the close; then r4 and r5 in order, each from its
-brief. r2 closed 2026-10-27
-(C148 built); the C135 round (#55, with the start's keyring read,
-#92) is its own round after r2. Phase 3, the owner's league run,
-follows; the second week before 3.30, if the group closes early,
-draws from "Pull-forward". The assessment these rest on is
-`STATE-2026-10-26.md`; the issues carry the evidence per step.
+r4, `acq diagnose` (#79; `briefs/r4-diagnose.md`), an Opus session
+from its brief; then r5 from its brief. r3 closed 2026-10-27 (C3's
+hour and C6's eviction built). The C135 round (#55, with the start's
+keyring read, #92) is its own round after the group. Phase 3, the
+owner's league run, follows; the second week before 3.30, if the group
+closes early, draws from "Pull-forward". The assessment these rest on
+is `STATE-2026-10-26.md`; the issues carry the evidence per step.
 `AGENTS.md` governs; the gate is `tools/gate.sh`.
 
 ## Ledger
@@ -320,7 +332,7 @@ messages.
 | p0 the process round | `f1a29952` to the commit carrying this line; reviews `reviews/p0-1523a776.md`, `reviews/p0-fixes-16ef9210.md` | 2026-10-26 | the gate script's breaker suite, on #87; the rebuild observation, on #88; the four memory notes, retired |
 | r1 the Windows gate decides again | build `c2318752` to `de6ad867`; review `reviews/r1-de6ad867.md` (no findings); the Windows lint `ad216160`; closed by the commit carrying this line | 2026-10-27; Windows green at run 40428110668 | #70's week, counted from that run, under "Open" |
 | r2 the credential I/O off the shared lock | design `912206df`, `62eaeea0`; ruling `610286d1`; brief `193c2c21`; tests `81e80d3f` (committed failing); build `e4e2b9b7`, `19c8a759`; review `d2cfdf70` (`reviews/r2-19c8a759.md`); fixes `f354ede2` to `344da98f`; their review `c32c057e` (`reviews/r2-fixes-344da98f.md`); its fix `8393336a`; closed by the commit carrying this line | 2026-10-27 | the save cut at the exit's bound, left to the time seam (4-0); #92 and #55 for the C135 round; a brief's "commit the tests failing" beside the gate-per-commit rule, the owner's, under "Open" |
-| r3 the hour idle default and finished trees out of memory | ruling `e258a4c8`; build `61627c82`, `2e848e7d` and the commit carrying this line | review pending | the close's |
+| r3 the hour idle default and finished trees out of memory | ruling `e258a4c8`; build `61627c82`, `2e848e7d`, `0c04b6e3`; review `reviews/r3-0c04b6e3.md`; fixes `30c90878` to `719c86e9`; their review `reviews/r3-fixes-719c86e9.md`; fixes `5d434a27`, `068044f0`; their review `reviews/r3-fixes-068044f0.md`; the lost pin restored `79033fe5` (no review: no behaviour changed); closed by the commit carrying this line | 2026-10-27 | the list's count bound, on #56; the list's range read under the queue lock, the orphan open row `ended_elsewhere` leaves, and the login wait's missing seam, under "Open"; Do 3's "within retention" not built, on #56 |
 
 ## Housekeeping
 
