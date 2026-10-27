@@ -284,9 +284,12 @@ list when a step's close commit or an issue takes it.
 
 ## Current step
 
-r2, the credential I/O off the shared lock (#81, then #55;
-`briefs/r2-keyring-design.md`), not started: a design brief whose
-output is the build brief and a drafted ruling for the owner. Then r3
+r2, the credential I/O off the shared lock (#81; `briefs/r2-keyring-design.md`),
+designed and ruled: the design is `briefs/r2-design.md`, the ruling
+C148 (entered 2026-10-26, Unbuilt until the build lands), the start's
+keyring read filed as #92 for the C135 round (#55, after r2). The
+build runs next from `briefs/r2-build.md`, an Opus session alone in
+the main tree. Then r3
 to r5 in order, each from its brief. Phase 3, the owner's league run,
 follows; the second week before 3.30, if the group closes early, draws
 from "Pull-forward". The assessment these rest on is
