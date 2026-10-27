@@ -483,7 +483,8 @@ impl Diagnosis {
 /// delimiter
 /// (`refresh_token=…`, `refresh_token="…"`, `{"code": "…"}`). The same
 /// list is the JSON keys whose string value is a token whatever it looks
-/// like. A value of digits alone is no token (a GGG error's `"code": 2`),
+/// like. A number after `:`, unquoted, is no token (a GGG error's
+/// `"code": 2`),
 /// nor a scheme word before its token (`Authorization: Bearer …`), nor a
 /// challenge's parameter (`is_parameter`).
 const TOKEN_KEYS: [&str; 10] = [
@@ -527,7 +528,7 @@ fn token_at(rest: &str) -> Option<(usize, usize)> {
                 let head = scheme.len() + gap;
                 let value = unquoted_len(&rest[head..]);
                 let next = rest[head + value..].chars().next();
-                return is_token(&rest[head..head + value], next).then_some((head, value));
+                return is_token(&rest[head..head + value], next, false).then_some((head, value));
             }
         }
     }
@@ -545,20 +546,24 @@ fn token_at(rest: &str) -> Option<(usize, usize)> {
     })?;
     let mut head = rest.len() - body.len() + key.len() + quote.map_or(0, char::len_utf8);
     head += spaces(&rest[head..]);
-    if !rest[head..].starts_with(['=', ':']) {
+    let colon = rest[head..].starts_with(':');
+    if !colon && !rest[head..].starts_with('=') {
         return None;
     }
     head += 1;
     head += spaces(&rest[head..]);
-    let value = match rest[head..].chars().next() {
+    let (value, quoted) = match rest[head..].chars().next() {
         Some(q @ ('"' | '\'')) => {
             head += 1;
-            rest[head..].find(q).unwrap_or(rest.len() - head)
+            (rest[head..].find(q).unwrap_or(rest.len() - head), true)
         }
-        _ => unquoted_len(&rest[head..]),
+        _ => (unquoted_len(&rest[head..]), false),
     };
     let next = rest[head + value..].chars().next();
-    is_token(&rest[head..head + value], next).then_some((head, value))
+    // Digits alone stand only in a JSON number's shape, after `:` and
+    // unquoted: an error body's `"code": 2` (r4's fix-round review,
+    // finding 3: `refresh_token="123456"` is a token).
+    is_token(&rest[head..head + value], next, colon && !quoted).then_some((head, value))
 }
 
 /// An unquoted value's length: to the first delimiter.
@@ -569,11 +574,12 @@ fn unquoted_len(text: &str) -> usize {
         .sum()
 }
 
-/// Whether a value after a mark is a token: not empty, not digits alone,
-/// not a scheme word, not a challenge's parameter.
-fn is_token(value: &str, next: Option<char>) -> bool {
+/// Whether a value after a mark is a token: not empty, not digits alone
+/// where `digits_kept` (a JSON number's shape), not a scheme word, not a
+/// challenge's parameter.
+fn is_token(value: &str, next: Option<char>, digits_kept: bool) -> bool {
     !value.is_empty()
-        && !value.chars().all(|c| c.is_ascii_digit())
+        && !(digits_kept && value.chars().all(|c| c.is_ascii_digit()))
         && !TOKEN_SCHEMES.iter().any(|s| value.eq_ignore_ascii_case(s))
         && !is_parameter(value, next)
 }
@@ -867,6 +873,12 @@ mod tests {
         assert_eq!(
             r.redact(r#"refresh_token="q1" then {"code": "q2"} and {"error":{"code": 2}}"#),
             r#"refresh_token="<token 4>" then {"code": "<token 5>"} and {"error":{"code": 2}}"#
+        );
+        // Digits are a token unless they are a JSON number after `:`
+        // (the fix-round review, finding 3).
+        assert_eq!(
+            redactor().redact(r#"refresh_token="123456" and code=7788 beside {"code": 2}"#),
+            r#"refresh_token="<token 1>" and code=<token 2> beside {"code": 2}"#
         );
         // Their twins with tabs (r4's fix-round review, finding 1).
         assert_eq!(
