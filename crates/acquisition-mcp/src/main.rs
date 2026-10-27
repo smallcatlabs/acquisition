@@ -907,9 +907,13 @@ struct PriceClearParams {
 /// phrase is a person's command, which the words already give a person
 /// at a terminal, and which no tool here performs. Drawn from the words
 /// the readiness seat met (`audits/readiness-2026-10/seat/`: calls 5, 6,
-/// 12, 13, 35, 47) and a grep of the shared crates' texts for `acq ` and
-/// `--`.
-const SPOKEN: [(&str, &str); 52] = [
+/// 12, 13, 35, 47), a grep of the shared crates' texts for `acq ` and
+/// `--`, and every flag the search crate's command builder prints
+/// (`Request::command`, `Next::command`, `opening`: `--account`,
+/// `--realm`, `--membership`, `--trade`, `--next`, `--count`, `--cross`,
+/// `--sum`, `--limit`, `--sort`, `--desc`, `--explain`, `--routes`,
+/// `--context`, `--league`).
+const SPOKEN: [(&str, &str); 55] = [
     ("acq price show", "is `price_show`"),
     ("acq price status", "is `price_status`"),
     ("acq price list", "is `price_list`"),
@@ -966,6 +970,12 @@ const SPOKEN: [(&str, &str); 52] = [
     ("--routes", "is `view.routes`"),
     ("--against", "is `show`'s `against`"),
     ("--describe", "is `describe`"),
+    ("--membership", "is `scope.membership`"),
+    ("--trade", "is `query.trade`"),
+    (
+        "--next",
+        "is an answer's `next`, sent back to `search` as printed",
+    ),
     (
         "--dir",
         "has no spelling here: ACQ_STORE_DIR sets this server's store",

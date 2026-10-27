@@ -220,6 +220,9 @@ fn every_text_the_server_sends_spells_the_cli_it_speaks() {
             json!({ "target": "tab/pc/t-pc", "if_revision": 1 }),
             true,
         ),
+        // the review's: a tab no longer in the account, shown, is no
+        // item, and its reading is a search under `--membership all`
+        ("show", json!({ "id": "t-gone" }), true),
     ] {
         let result = mcp.result(tool, args.clone());
         assert_eq!(result["isError"], json!(refused), "{tool} {args}: {result}");
@@ -233,7 +236,7 @@ fn every_text_the_server_sends_spells_the_cli_it_speaks() {
         sweep(&doc, &format!("{tool} {args}"), &mut faults);
     }
     assert_eq!(
-        seen, 6,
+        seen, 7,
         "a shape no longer speaks the CLI: the sweep reads less"
     );
     assert!(faults.is_empty(), "{}", faults.join("\n"));
