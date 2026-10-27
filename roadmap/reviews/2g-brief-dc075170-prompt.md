@@ -1,0 +1,15 @@
+You are the outside reviewer of a BUILD BRIEF, not a code change, in the Acquisition Rust workspace: roadmap/briefs/2g-build.md as re-cut at dc075170 into eight rounds. Read it with `git show dc075170` and the file as it stands. It was re-cut from a first cold review of the earlier draft (3691766e), saved verbatim at roadmap/reviews/2g-brief-3691766e.md with its prompt beside it; the design it builds is roadmap/briefs/2g-design.md (e11768e2), ruled by the owner in full (the rulings in decisions/frontends.md: C53 as amended, C149 new, C146, C143; decisions/daemon.md: C121 kept; landed at ea0b0255). Read; do not build or run anything; the tree is read-only to you. The brief's form is roadmap/briefs/TEMPLATE.md; the rhythm is roadmap/README.md, "A step"; AGENTS.md names the invariants and the cross-cutting rulings.
+
+Your lens, in this order:
+1. Did the re-cut answer each of the first review's sixteen findings in substance, not in words? For each: answered, answered narrower than proposed (and whether the narrowing is sound against the tree), or not answered. Check the brief's "taken into the rounds" section against the rounds' actual Do items and done-when lines.
+2. Are the eight rounds truly independent in the order given: each one concern, gated, committed and reviewed on its own, no later round needed by an earlier one, the tree consistent after any round? Name any Do item that belongs to another round, any hidden dependency, any round that bundles two concerns, and any round that would leave a document in a half-migrated state (a consumer reading the old shape after its maker changed).
+3. Round 3, the compatibility break (C149): is the consumer inventory complete against the tree now? Grep for every reader of the characters, events, jobs and accounts JSON answers (tests, the web pages, the CLI's text, the live drivers under tools/, the seat doors under .claude/skills/seat/, scripts under search/ and audits/) and name any the table misses.
+4. Technical defects in the plan as it now stands: a citation that does not match the tree; a Do item that cannot be built as drawn (a crate edge C1 forbids, a type that does not carry what the brief says, a bound that would cut what C38 says is binding); a done-when no commit can show; a measurement unrepeatable as drawn; a ruling assumed that the registry does not hold; one fact read in two places; a test named that does not exist; a printed request that would not run as printed; a document left unbounded by default; a fixture regenerated blind.
+
+Report in this form, nothing else:
+- One line: the brief, and whether it is buildable as drawn, round by round.
+- The sixteen findings: one line each, answered / narrower (sound or not) / not answered.
+- Findings, most severe first, each: the round and Do number, what is wrong in one sentence, the concrete reading in the tree (file:line), and the smallest change to the brief sufficient. Where several share one cause, say so once.
+- What you did not check and why.
+- Which findings you would call nitpicks.
+- Whether round 1 may start as drawn, in one line.
