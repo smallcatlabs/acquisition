@@ -974,10 +974,12 @@ pub struct Daemon {
 /// C144: every call's result reaches its caller and the words the user
 /// reads; restore reads through `load`, so a test can stage a store that
 /// fails at any of the three.
+/// C135: what is saved and loaded is the entry's secret
+/// ([`auth::KeyringEntry`]), a string the store never parses.
 trait CredentialStore: Send + Sync + std::any::Any {
-    fn save(&self, service: &str, refresh_token: &str, username: &str) -> Result<(), String>;
-    /// The stored refresh token; `Ok(None)` when the store works and holds
-    /// no entry for the account.
+    fn save(&self, service: &str, secret: &str, username: &str) -> Result<(), String>;
+    /// The stored secret; `Ok(None)` when the store works and holds no
+    /// entry for the account.
     fn load(&self, service: &str, username: &str) -> Result<Option<String>, String>;
     fn clear(&self, service: &str, username: &str) -> Result<(), auth::NotCleared>;
 }
@@ -985,8 +987,8 @@ trait CredentialStore: Send + Sync + std::any::Any {
 struct OsCredentialStore;
 
 impl CredentialStore for OsCredentialStore {
-    fn save(&self, service: &str, refresh_token: &str, username: &str) -> Result<(), String> {
-        auth::keyring_save(service, refresh_token, username)
+    fn save(&self, service: &str, secret: &str, username: &str) -> Result<(), String> {
+        auth::keyring_save(service, secret, username)
     }
 
     fn load(&self, service: &str, username: &str) -> Result<Option<String>, String> {

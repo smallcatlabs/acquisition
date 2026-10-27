@@ -70,7 +70,7 @@ impl Clock for ManualClock {
 pub(super) struct NoopCredentialStore;
 
 impl CredentialStore for NoopCredentialStore {
-    fn save(&self, _service: &str, _refresh_token: &str, _username: &str) -> Result<(), String> {
+    fn save(&self, _service: &str, _secret: &str, _username: &str) -> Result<(), String> {
         Ok(())
     }
 
@@ -126,14 +126,14 @@ impl RecordingCredentialStore {
 }
 
 impl CredentialStore for RecordingCredentialStore {
-    fn save(&self, service: &str, refresh_token: &str, username: &str) -> Result<(), String> {
+    fn save(&self, service: &str, secret: &str, username: &str) -> Result<(), String> {
         let hook = self.on_save.lock().unwrap().take();
         if let Some(hook) = hook {
             hook();
         }
         self.saves.lock().unwrap().push((
             service.to_string(),
-            refresh_token.to_string(),
+            secret.to_string(),
             username.to_string(),
         ));
         if let Some(why) = self.fail_save.lock().unwrap().clone() {
@@ -142,7 +142,7 @@ impl CredentialStore for RecordingCredentialStore {
         self.entries
             .lock()
             .unwrap()
-            .insert(username.to_string(), refresh_token.to_string());
+            .insert(username.to_string(), secret.to_string());
         Ok(())
     }
 

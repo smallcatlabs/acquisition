@@ -65,10 +65,10 @@ struct MemoryCredentialStore {
 }
 
 impl CredentialStore for MemoryCredentialStore {
-    fn save(&self, service: &str, refresh_token: &str, username: &str) -> Result<(), String> {
+    fn save(&self, service: &str, secret: &str, username: &str) -> Result<(), String> {
         self.saves.lock().unwrap().push((
             service.to_string(),
-            refresh_token.to_string(),
+            secret.to_string(),
             username.to_string(),
         ));
         Ok(())

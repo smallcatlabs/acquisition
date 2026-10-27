@@ -7,8 +7,9 @@
 use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use rand::RngCore as _;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::time::{Duration, SystemTime};
 
 use crate::provider::{Provider, SCOPES};
 use crate::ratelimit::{ChokePoint, SendError, Wanted};
@@ -338,6 +339,103 @@ async fn token_request(
 // ad-hoc signature changes on every rebuild, so a debug `acqd` is asked
 // twice per login (the read at start, the modify on save) until
 // `tools/sign-acqd.sh` gives it a stable identity after the build.
+/// C135 — what one keyring entry holds: the refresh token, and beside it
+/// the access token and its expiry as unix seconds, so a restored session
+/// sends no token POST until that access token expires. The entry is one
+/// JSON object the daemon alone writes ([`Self::to_secret`]) and reads
+/// ([`Self::from_secret`]); a secret that is no such object is the bare
+/// refresh token an earlier daemon saved, which restores with no access
+/// token and is rewritten in this form at the first save. No version
+/// number: the object's shape is the version, a later field is optional,
+/// and the bare string is the form before it. Holds both tokens, so its
+/// `Debug` names neither (C144).
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct KeyringEntry {
+    pub refresh_token: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub access_token: Option<String>,
+    /// Unix seconds. Read back, at most the reader's clock plus
+    /// [`MAX_ACCESS_TOKEN_LIFETIME_SECS`] (C47), so [`Self::expires_at`]
+    /// adds it to the epoch unchecked.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub access_expires_at: Option<u64>,
+}
+
+impl KeyringEntry {
+    /// The entry for a session's tokens: the refresh token, and the
+    /// access token with its wall-clock expiry when the session holds one.
+    pub fn new(refresh_token: String, access: Option<(String, SystemTime)>) -> Self {
+        let (access_token, access_expires_at) = match access {
+            Some((token, expires)) => (
+                Some(token),
+                expires
+                    .duration_since(SystemTime::UNIX_EPOCH)
+                    .ok()
+                    .map(|d| d.as_secs()),
+            ),
+            None => (None, None),
+        };
+        KeyringEntry {
+            refresh_token,
+            access_token: access_expires_at.and(access_token),
+            access_expires_at,
+        }
+    }
+
+    /// The secret the keyring holds: the entry as one JSON object.
+    pub fn to_secret(&self) -> String {
+        serde_json::to_string(self).expect("an entry of strings and a number serializes")
+    }
+
+    /// The entry a secret holds, read at `now` on the daemon's wall
+    /// clock. A secret that is not the entry's object is a bare refresh
+    /// token. An access token without its expiry, or one whose expiry is
+    /// past `now` plus [`MAX_ACCESS_TOKEN_LIFETIME_SECS`], is malformed
+    /// input (C47) and restores no access token: the refresh token still
+    /// does, and the first use refreshes. An expiry already past is kept:
+    /// the daemon's one expiry check decides at the first use.
+    pub fn from_secret(secret: &str, now: SystemTime) -> Self {
+        let Ok(mut entry) = serde_json::from_str::<KeyringEntry>(secret) else {
+            return KeyringEntry {
+                refresh_token: secret.to_string(),
+                access_token: None,
+                access_expires_at: None,
+            };
+        };
+        let bound = now
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs())
+            .saturating_add(MAX_ACCESS_TOKEN_LIFETIME_SECS);
+        let usable =
+            entry.access_token.is_some() && entry.access_expires_at.is_some_and(|at| at <= bound);
+        if !usable {
+            entry.access_token = None;
+            entry.access_expires_at = None;
+        }
+        entry
+    }
+
+    /// The access token's expiry on the wall clock, when the entry holds
+    /// one.
+    pub fn expires_at(&self) -> Option<SystemTime> {
+        self.access_expires_at
+            .and_then(|secs| SystemTime::UNIX_EPOCH.checked_add(Duration::from_secs(secs)))
+    }
+}
+
+impl std::fmt::Debug for KeyringEntry {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("KeyringEntry")
+            .field("refresh_token", &"<redacted>")
+            .field(
+                "access_token",
+                &self.access_token.as_ref().map(|_| "<redacted>"),
+            )
+            .field("access_expires_at", &self.access_expires_at)
+            .finish()
+    }
+}
+
 /// Why the keyring is off before any entry is tried, if it is: the
 /// daemon's status starts from this, so a daemon with nothing to restore
 /// never reports a keyring it was told not to use as `ok`.
@@ -352,14 +450,16 @@ fn entry(service: &str, username: &str) -> Result<keyring::Entry, String> {
     keyring::Entry::new(service, username).map_err(|e| e.to_string())
 }
 
-pub fn keyring_save(service: &str, refresh_token: &str, username: &str) -> Result<(), String> {
+/// Save `secret` (a [`KeyringEntry`]'s, which this never parses) as one
+/// account's entry.
+pub fn keyring_save(service: &str, secret: &str, username: &str) -> Result<(), String> {
     entry(service, username)?
-        .set_password(refresh_token)
+        .set_password(secret)
         .map_err(|e| e.to_string())
 }
 
-/// The stored refresh token for one account; Ok(None) means the keyring
-/// works but holds no entry for it.
+/// The stored secret for one account, read by [`KeyringEntry::from_secret`];
+/// Ok(None) means the keyring works but holds no entry for it.
 pub fn keyring_load(service: &str, username: &str) -> Result<Option<String>, String> {
     match entry(service, username)?.get_password() {
         Ok(secret) => Ok(Some(secret)),
@@ -425,6 +525,53 @@ mod tests {
             "{shown}"
         );
     }
+
+    /// C135: an entry written is the entry read, both tokens and the
+    /// expiry, and its `Debug` names neither token.
+    #[test]
+    fn a_keyring_entry_round_trips_through_its_secret() {
+        let now = SystemTime::UNIX_EPOCH + Duration::from_secs(946_684_800);
+        let entry = KeyringEntry::new(
+            "rt-kept".into(),
+            Some(("at-kept".into(), now + Duration::from_secs(3600))),
+        );
+        let secret = entry.to_secret();
+        assert!(secret.starts_with('{'), "{secret}");
+        let read = KeyringEntry::from_secret(&secret, now);
+        assert_eq!(read, entry);
+        assert_eq!(read.access_token.as_deref(), Some("at-kept"));
+        assert_eq!(read.expires_at(), Some(now + Duration::from_secs(3600)));
+        let shown = format!("{read:?}");
+        assert!(!shown.contains("kept"), "{shown}");
+    }
+
+    /// C135: a secret an earlier daemon saved, the bare refresh token,
+    /// reads as that refresh token with no access token; so does an
+    /// expiry past the lifetime bound (C47), keeping its refresh token.
+    #[test]
+    fn a_bare_secret_reads_as_a_refresh_token() {
+        let now = SystemTime::UNIX_EPOCH + Duration::from_secs(946_684_800);
+        let read = KeyringEntry::from_secret("rt-old", now);
+        assert_eq!(read.refresh_token, "rt-old");
+        assert_eq!(
+            (read.access_token.as_deref(), read.expires_at()),
+            (None, None)
+        );
+
+        let far = serde_json::json!({
+            "refresh_token": "rt-far",
+            "access_token": "at-far",
+            "access_expires_at": u64::MAX,
+        })
+        .to_string();
+        let read = KeyringEntry::from_secret(&far, now);
+        assert_eq!(read.refresh_token, "rt-far");
+        assert_eq!(
+            (read.access_token.as_deref(), read.expires_at()),
+            (None, None)
+        );
+    }
+
     use crate::ratelimit::{ALWAYS_WANTED, EndpointState};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpListener;
