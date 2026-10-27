@@ -172,7 +172,14 @@ fn unread(out: &mut String, why: &str) {
 /// A tail's heading: how many lines it carries from where, and whether
 /// the file holds earlier ones (C146: the count says what it counts).
 fn heading<T>(out: &mut String, tail: &Tail<T>, empty: &str) {
-    let path = tail.path.display();
+    // Whose file it is (r4's review, finding 4): a stopped daemon's
+    // journal is the one this shell's ACQ_JOURNAL names, or the world's.
+    let whose = match tail.from {
+        "daemon" => "the running daemon's",
+        "override" => "the one ACQ_JOURNAL names in this shell",
+        _ => "the world's",
+    };
+    let path = format!("{} ({whose})", tail.path.display());
     if tail.lines.is_empty() {
         let _ = writeln!(
             out,

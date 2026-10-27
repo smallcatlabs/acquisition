@@ -35,7 +35,7 @@ use serde::Serialize;
 use serde_json::{Value, json};
 
 use crate::daemon::DaemonReport;
-use crate::frontend::Frontend;
+use crate::frontend::{Frontend, JournalKnob};
 
 /// How many lines of each file's end the document carries.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -63,6 +63,10 @@ impl Tails {
 #[derive(Clone, Debug, Serialize)]
 pub struct Tail<T> {
     pub path: PathBuf,
+    /// Whose file it is: `daemon`, the running daemon's report; `world`,
+    /// the world's default; `override`, the journal `ACQ_JOURNAL` names
+    /// in this frontend's environment.
+    pub from: &'static str,
     pub lines: Vec<T>,
     pub earlier_left_out: bool,
 }
@@ -204,23 +208,36 @@ impl Frontend {
         let (rails, journal_path, log_path) = match running {
             Some((rails, log)) => (
                 Ok(Rails::Daemon(rails.clone())),
-                rails.journal.map(PathBuf::from).ok_or_else(|| {
-                    "the daemon running keeps no journal: it was started with ACQ_JOURNAL=0"
-                        .to_string()
-                }),
-                log.map(PathBuf::from)
+                rails
+                    .journal
+                    .map(|path| (PathBuf::from(path), "daemon"))
+                    .ok_or_else(|| {
+                        "the daemon running keeps no journal: it was started with ACQ_JOURNAL=0"
+                            .to_string()
+                    }),
+                log.map(|path| (PathBuf::from(path), "daemon"))
                     .ok_or_else(|| "the daemon running reports no log file".to_string()),
             ),
             None => match &world {
                 Ok(world) => (
                     rails_on_disk(&world.rails_state_path(self.provider)),
-                    Ok(world.journal_path(self.provider)),
-                    Ok(world.log_path(self.provider)),
+                    // The journal a daemon started from this frontend's
+                    // environment writes (r4's review, finding 4): the
+                    // world's default, the override, or none.
+                    match &self.journal {
+                        JournalKnob::Default => Ok((world.journal_path(self.provider), "world")),
+                        JournalKnob::At(path) => Ok((path.clone(), "override")),
+                        JournalKnob::Off => Err(
+                            "this shell sets ACQ_JOURNAL=0, so journals are off here: a daemon started from it writes none, and none is read"
+                                .to_string(),
+                        ),
+                    },
+                    Ok((world.log_path(self.provider), "world")),
                 ),
                 Err(e) => (Err(no_world(e)), Err(no_world(e)), Err(no_world(e))),
             },
         };
-        let journal = journal_path.and_then(|path| {
+        let journal = journal_path.and_then(|(path, from)| {
             let (lines, earlier_left_out) = tail(&path, tails.journal)?;
             let lines = lines
                 .iter()
@@ -235,14 +252,16 @@ impl Frontend {
                 .collect();
             Ok(Tail {
                 path,
+                from,
                 lines,
                 earlier_left_out,
             })
         });
-        let log = log_path.and_then(|path| {
+        let log = log_path.and_then(|(path, from)| {
             let (lines, earlier_left_out) = tail(&path, tails.log)?;
             Ok(Tail {
                 path,
+                from,
                 lines,
                 earlier_left_out,
             })

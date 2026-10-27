@@ -90,7 +90,9 @@ fn a_diagnosis_with_no_daemon_prints_every_section_and_nothing_planted() {
     let base = scratch.0.clone();
     seed(&base);
 
-    let mut t = Transcript::new(&base);
+    // The isolation list turns journals off (`ACQ_JOURNAL=0`); unset,
+    // the command reads the world's default journal, where `seed` wrote.
+    let mut t = Transcript::new(&base).knob("ACQ_JOURNAL", None);
     let out = t.run(
         &["diagnose"],
         &[
@@ -99,7 +101,7 @@ fn a_diagnosis_with_no_daemon_prints_every_section_and_nothing_planted() {
             "== daemon\ndaemon is not running; no queue on disk\nlast log: <logs>",
             "responses 1",
             "holds\nnothing: no block mark, no trip, no account's refresh disabled",
-            "== journal: the last 3 lines of <logs>",
+            "== journal: the last 3 lines of <logs>/mock/sends.jsonl (the world's)",
             "\"route\":\"stash@<account 1>\"",
             "\"route\":\"stash@<account 2>\"",
             "(not read: line 3 of this tail is not JSON",
@@ -148,6 +150,14 @@ fn a_diagnosis_with_no_daemon_prints_every_section_and_nothing_planted() {
         ),
         (Some(2), json!(true)),
         "`--lines 2` bounds the log's tail: {document:#}"
+    );
+    // Under the isolation's `ACQ_JOURNAL=0`, journals are off in this
+    // shell, and the section says so rather than read the world's.
+    assert!(
+        document["journal"]["unread"]
+            .as_str()
+            .is_some_and(|why| why.contains("ACQ_JOURNAL=0")),
+        "{document:#}"
     );
     assert!(no_daemon_appeared(&base), "a diagnosis started a daemon");
     golden(file!(), "no_daemon", &t);

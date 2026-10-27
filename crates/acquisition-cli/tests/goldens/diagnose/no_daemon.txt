@@ -6,7 +6,7 @@ $ acq diagnose
 # holds "== daemon\ndaemon is not running; no queue on disk\nlast log: <logs>"
 # holds "responses 1"
 # holds "holds\nnothing: no block mark, no trip, no account's refresh disabled"
-# holds "== journal: the last 3 lines of <logs>"
+# holds "== journal: the last 3 lines of <logs>/mock/sends.jsonl (the world's)"
 # holds "\"route\":\"stash@<account 1>\""
 # holds "\"route\":\"stash@<account 2>\""
 # holds "(not read: line 3 of this tail is not JSON"
@@ -33,12 +33,12 @@ responses 1  league list never fetched (`acq leagues`)  characters 0  tabs 0 (ev
 no daemon of this client's runs; the world's rails file (<store>/mock/rails.json) holds
 nothing: no block mark, no trip, no account's refresh disabled
 
-== journal: the last 3 lines of <logs>/mock/sends.jsonl, the whole file
+== journal: the last 3 lines of <logs>/mock/sends.jsonl (the world's), the whole file
 {"counted":true,"method":"GET","path":"/stash/Standard/a1","route":"stash@<account 1>","status":200,"wait_ms":0}
 {"counted":true,"method":"GET","path":"/stash/Standard/a1","route":"stash@<account 2>","status":200,"wait_ms":0}
 (not read: line 3 of this tail is not JSON (EOF while parsing a string at line 1 column 26), so it is left out: a daemon that stopped mid-write leaves its last line torn)
 
-== log: the last 6 lines of <logs>/mock/daemon.log, the whole file
+== log: the last 6 lines of <logs>/mock/daemon.log (the world's), the whole file
 [    0s] world: <store>
 [    5s] store: <store>/mock/<account 1>.db opened for <account 1>
 [    5s] logged in as <account 1> (<account 1 uuid>)

@@ -563,6 +563,7 @@ fn c147_the_printed_start_command_names_the_default_world_too() {
         door: acquisition_verbs::Door::Agent,
         provider: "mock",
         root: default_root(),
+        journal: acquisition_verbs::frontend::JournalKnob::Default,
     };
     let command = frontend.start_command();
     let root = acquisition_search::answer::shell_quoted(&default_root().display().to_string());
@@ -589,6 +590,7 @@ async fn c147_a_frontend_over_another_world_acts_in_its_world_not_the_environmen
         door: acquisition_verbs::Door::Agent,
         provider: "mock",
         root: b.clone(),
+        journal: acquisition_verbs::frontend::JournalKnob::Default,
     };
 
     // The door spawns the daemon in B, and the daemon serves B.
@@ -709,6 +711,9 @@ const PLANTED_SPACED: &str = "sentinel-code-q2";
 #[tokio::test]
 async fn a_diagnosis_with_no_daemon_reads_every_section_and_holds_nothing_planted() {
     let s = session("diagnose-absent");
+    // The isolation list turns journals off; unset, the world's default
+    // journal is the one read.
+    s.set_knob("ACQ_JOURNAL", None);
     let frontend = Frontend::agent("test").unwrap();
     let mock = s.base.join("store").join("mock");
     acquisition_store::Index::load(&mock)
@@ -800,6 +805,7 @@ async fn a_diagnosis_with_no_daemon_reads_every_section_and_holds_nothing_plante
         (json!("disk"), json!(null)),
         "no rails file is nothing held: {document:#}"
     );
+    assert_eq!(document["journal"]["from"], json!("world"), "{document:#}");
     let journal = &document["journal"]["lines"];
     assert_eq!(
         (
@@ -989,5 +995,56 @@ async fn a_peer_that_answers_hello_and_not_its_status_leaves_the_rest_to_the_dis
             .as_array()
             .is_some_and(|lines| !lines.is_empty()),
         "the last daemon's log, read from disk: {document:#}"
+    );
+}
+
+/// r4's review, finding 4: with no daemon, the journal read is the one a
+/// daemon started from this frontend's environment writes — the path
+/// `ACQ_JOURNAL` names, or none when it is `0` — read once when the
+/// frontend is built (C147), never the world's default in their place.
+#[tokio::test]
+async fn with_no_daemon_the_journal_read_is_the_one_acq_journal_names() {
+    let s = session("diagnose-journal-knob");
+    let elsewhere = s.base.join("runs").join("sends.jsonl");
+    std::fs::create_dir_all(elsewhere.parent().unwrap()).unwrap();
+    std::fs::write(
+        &elsewhere,
+        "{\"method\":\"GET\",\"route\":\"leagues@Alice#1234\",\"status\":200}\n",
+    )
+    .unwrap();
+    let world = World::observe_at(&s.base.join("store")).unwrap();
+    std::fs::create_dir_all(world.log_dir("mock")).unwrap();
+    std::fs::write(
+        world.journal_path("mock"),
+        "{\"route\":\"stash@Other#1\"}\n",
+    )
+    .unwrap();
+
+    s.set_knob("ACQ_JOURNAL", Some(elsewhere.to_str().unwrap()));
+    let document = Frontend::agent("test")
+        .unwrap()
+        .diagnose(acquisition_verbs::Tails::DEFAULT)
+        .await
+        .document();
+    assert_eq!(
+        (
+            document["journal"]["from"].clone(),
+            document["journal"]["lines"][0]["route"].clone()
+        ),
+        (json!("override"), json!("leagues@<account 1>")),
+        "the journal ACQ_JOURNAL names, not the world's default: {document:#}"
+    );
+
+    s.set_knob("ACQ_JOURNAL", Some("0"));
+    let document = Frontend::agent("test")
+        .unwrap()
+        .diagnose(acquisition_verbs::Tails::DEFAULT)
+        .await
+        .document();
+    assert!(
+        document["journal"]["unread"]
+            .as_str()
+            .is_some_and(|why| why.contains("ACQ_JOURNAL=0") && why.contains("journals are off")),
+        "journals off in this shell, and the world's default left unread: {document:#}"
     );
 }

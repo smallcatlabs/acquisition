@@ -121,6 +121,9 @@ pub struct Transcript {
     offline: bool,
     text: String,
     facts: usize,
+    /// Knobs set over the isolation list on every command, `None`
+    /// removing one ([`Transcript::knob`]).
+    knobs: Vec<(String, Option<String>)>,
 }
 
 impl Transcript {
@@ -131,7 +134,17 @@ impl Transcript {
             offline: false,
             text: String::new(),
             facts: 0,
+            knobs: Vec::new(),
         }
+    }
+
+    /// Every command after this sets `key` to `value` over the isolation
+    /// list, or removes it with `None` (`ACQ_JOURNAL`, which the list
+    /// sets to `0`, unset so a command reads the world's default).
+    pub fn knob(mut self, key: &str, value: Option<&str>) -> Transcript {
+        self.knobs
+            .push((key.to_string(), value.map(str::to_string)));
+        self
     }
 
     /// Commands under [`offline_command`]'s, the world `world` itself.
@@ -160,6 +173,12 @@ impl Transcript {
         } else {
             command(&self.base, args)
         };
+        for (key, value) in &self.knobs {
+            match value {
+                Some(value) => cmd.env(key, value),
+                None => cmd.env_remove(key),
+            };
+        }
         let out = match stdin {
             None => cmd.output().expect("spawning acq"),
             Some(fed) => {

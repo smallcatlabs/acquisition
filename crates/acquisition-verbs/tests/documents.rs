@@ -51,6 +51,7 @@ fn frontend(dir: &Path) -> Frontend {
             .parent()
             .expect("a provider directory's root")
             .to_path_buf(),
+        journal: acquisition_verbs::frontend::JournalKnob::Default,
     }
 }
 
