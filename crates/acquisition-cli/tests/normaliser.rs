@@ -205,6 +205,35 @@ fn the_scratch_rule_writes_a_path_under_the_base_with_forward_slashes() {
     }
 }
 
+/// `acq diagnose` prints the store and log directories as `<store>` and
+/// `<logs>`; a path under either is written with forward slashes as one
+/// under the scratch is (the search's basis line, `store <store> ·`, is
+/// among the committed goldens the last test normalises unchanged).
+#[test]
+fn a_path_under_the_diagnosis_placeholders_is_written_with_forward_slashes() {
+    assert_eq!(
+        n("<store>\\mock\\<account 1>.db  (0.1 MB) and <logs>\\mock\\daemon.log\n"),
+        "<store>/mock/<account 1>.db  (0.1 MB) and <logs>/mock/daemon.log\n"
+    );
+}
+
+/// The build line moves with every contract edit and differs per runner:
+/// the version, the contract revision and the platform are named.
+#[test]
+fn the_build_rule_names_the_version_the_contract_and_the_platform() {
+    let line = format!(
+        "acq {} (contract {}), provider mock, {} {}\n",
+        env!("CARGO_PKG_VERSION"),
+        acquisition_protocol::CONTRACT_REVISION,
+        std::env::consts::OS,
+        std::env::consts::ARCH
+    );
+    assert_eq!(
+        n(&line),
+        "acq <version> (contract <contract>), provider mock, <platform>\n"
+    );
+}
+
 #[test]
 fn the_new_rules_leave_counts_names_and_ids_that_are_no_job_alone() {
     for text in [

@@ -499,7 +499,7 @@ fn counted(n: i64, one: &str, many: &str) -> String {
 /// mechanisms that four seats never resolved (the release seat's
 /// debriefs, answer 8: cli-opus calls 3 and 78, cli-opus-2 call 75,
 /// mcp-opus and mcp-opus-2 call 3).
-fn status_text(st: &acquisition_store::Status) -> String {
+pub(crate) fn status_text(st: &acquisition_store::Status) -> String {
     let mut out = format!("{}  ({:.1} MB)\n", st.path, st.bytes as f64 / 1e6);
     // the counts say what they count: `leagues 0` beside tabs in seven
     // leagues, and 3,444 tabs beside `tabs`'s 3,347 in one, read as a

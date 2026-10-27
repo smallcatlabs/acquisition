@@ -181,6 +181,7 @@ acq store import <snapshot.json> | rebuild   # replay a snapshot from the retire
 
 acq daemon status | stop | reset-tripwire   # inspect; stop (a login not in the keyring goes too); reset rails
 acq version [--json]   # build identity and sibling acqd
+acq diagnose [--lines N]   # what a bug report needs, account names, paths and tokens replaced: paste it into the issue
 ```
 
 Every command takes `--json`, and it is total: a failure is
@@ -292,7 +293,12 @@ updates.
 ## Reporting and contributing
 
 A security problem: `SECURITY.md`, which asks for GitHub's private
-reporting. A bug or a request: an issue on this repository. A change:
+reporting. A bug or a request: an issue on this repository. For a bug,
+paste the output of `acq diagnose` into the issue, between two lines of
+three backticks: the build, the daemon, the store's counts, the rails
+and the ends of the send journal and the daemon log. It replaces your
+account names, your paths and anything shaped like a token, and keeps
+character, league and tab names; read it before you post. A change:
 `CONTRIBUTING.md`.
 
 ## Licence

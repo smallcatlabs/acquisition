@@ -12,6 +12,7 @@ mod cli_reference;
 mod daemon_observe;
 mod daemon_signal_exit;
 mod daemon_stop_checkpoint;
+mod diagnose;
 mod error_kind;
 mod journey;
 mod new_league;

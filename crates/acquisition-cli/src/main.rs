@@ -4,6 +4,7 @@
 //! Rulings: `decisions/frontends.md`; the cross-cutting ones are `AGENTS.md`'s.
 
 mod dash;
+mod diagnose_cmd;
 mod plan_cmd;
 mod price_cmd;
 #[cfg(test)]
@@ -445,6 +446,25 @@ is the per-location summary.")]
     /// "acqd_absent" (why) when acqd is null; `--version` is the human
     /// form of the first two.
     Version,
+    /// Everything a bug report needs, in one document to paste into the
+    /// issue: the build and its platform, the daemon as `daemon status`
+    /// reports it (with none running, what the queue on disk holds), each
+    /// account's store counts as `store status` prints them, the rails,
+    /// then the last lines of the send journal and of the daemon log.
+    /// Account names and uuids, the store and log directories, the home
+    /// directory and anything shaped like a token are replaced by
+    /// placeholders that still tell two accounts apart (`<account 1>`,
+    /// `<store>`, `~`, `<token 1>`); character, league and tab names are
+    /// kept. Observes only: never starts a daemon or changes the store.
+    /// Exits 0 whatever it finds; a part it could not read says why in
+    /// its place. `--json` is the whole document, with `redactions`
+    /// counting what was replaced.
+    Diagnose {
+        /// How many of the journal's and the log's last lines to carry
+        /// (default 50 of the journal, 100 of the log).
+        #[arg(long, value_name = "N")]
+        lines: Option<usize>,
+    },
     /// The live jobs: id, parent, kind, target (from params), state
     /// (`↻n` counts 429 re-queues), priority, account, submitter, ETA.
     /// Every waiting and running job is listed, and the ten most recent
@@ -1416,26 +1436,14 @@ async fn run(cli: Cli) -> Result<()> {
             watch_table_until_done(&mut client, &ids).await
         }
         Cmd::Dash => dash::run(cx, cli.json).await,
+        Cmd::Diagnose { lines } => diagnose_cmd::run(cx, lines, cli.json).await,
         Cmd::Version => {
             // The candidate, not the daemon running (C84): the sibling
             // `acqd` as found, with no hash — the run record hashes it.
-            let sibling = acquisition_client::artifact::sibling();
             if cli.json {
-                let mut report = json!({
-                    "version": acquisition_protocol::VERSION,
-                    "contract": acquisition_protocol::CONTRACT_REVISION,
-                    "provider": acquisition_protocol::provider::wanted(),
-                    "acqd": sibling.as_ref().ok().map(|s| json!({
-                        "path": s.identity.path,
-                        "len": s.identity.len,
-                        "mtime_ns": s.identity.mtime_ns,
-                    })),
-                });
-                if let Err(e) = &sibling {
-                    report["acqd_absent"] = json!(e.to_string());
-                }
-                println!("{report}");
+                println!("{}", acquisition_verbs::diagnose::version_document());
             } else {
+                let sibling = acquisition_client::artifact::sibling();
                 println!(
                     "acq {}, provider {}",
                     acquisition_protocol::VERSION_WITH_CONTRACT,
@@ -1538,92 +1546,7 @@ async fn run(cli: Cli) -> Result<()> {
                     }
                     return Ok(());
                 }
-                match report {
-                    DaemonReport::Absent { persisted, log } => {
-                        match persisted {
-                            None => println!("daemon is not running; no queue on disk"),
-                            Some(p) => println!(
-                                "daemon is not running; on disk: {} waiting, {} recorded running, written {}",
-                                p.waiting,
-                                p.recorded_running,
-                                store_cmd::ago(acquisition_store::now(), p.written_at),
-                            ),
-                        }
-                        if let Some(log) = &log {
-                            println!("last log: {}", log.display());
-                        }
-                    }
-                    DaemonReport::Incompatible(found) => {
-                        println!("{found} — running, not this client's");
-                        println!("socket: {}", found.socket());
-                        println!("next:   {}", mismatch_remedy(&found));
-                    }
-                    // Something accepted and never answered (C86): a
-                    // state, like the others — not this verb's error.
-                    DaemonReport::Unresponsive(found) => println!("{found}"),
-                    DaemonReport::Running { status, identity } => {
-                        let found = *identity;
-                        if let Response::DaemonStatus {
-                            pid,
-                            version,
-                            contract,
-                            provider,
-                            uptime_seconds,
-                            idle_shutdown_seconds,
-                            connections,
-                            jobs_waiting,
-                            jobs_running,
-                            policies_known,
-                            in_flight,
-                            max_in_flight,
-                            rails,
-                            keyring,
-                            log,
-                        } = *status
-                        {
-                            println!(
-                                "daemon {version} (contract {contract}) pid {pid}, up {uptime_seconds}s, provider {provider}, idle exit after {idle_shutdown_seconds}s"
-                            );
-                            println!("world:  {}", found.world());
-                            match (found.artifact(), &found.verdict().artifact) {
-                                (
-                                    Some(a),
-                                    acquisition_client::artifact::ArtifactVerdict::SameBytes {
-                                        sibling,
-                                    },
-                                ) => {
-                                    println!(
-                                        "acqd:   {} (sha256 {}) — the same artifact as this client's sibling {}, another copy",
-                                        a.file.path,
-                                        a.short_hash(),
-                                        sibling.path
-                                    )
-                                }
-                                (Some(a), _) => println!(
-                                    "acqd:   {} (sha256 {}) — this client's sibling, the file a job command would start",
-                                    a.file.path,
-                                    a.short_hash()
-                                ),
-                                (None, _) => println!("acqd:   not reported"),
-                            }
-                            println!(
-                                "connections: {connections}  waiting: {jobs_waiting}  running: {jobs_running}  in flight: {in_flight}/{max_in_flight}  policies learned: {policies_known}"
-                            );
-                            println!("socket: {}", found.socket());
-                            println!("log:    {}", log.as_deref().unwrap_or("not reported"));
-                            print!("{}", rails_text(&rails));
-                            if keyring != "ok" {
-                                println!(
-                                    "KEYRING: {keyring} — a rotated refresh token may be memory-only"
-                                );
-                            }
-                            if let Some(cause) = &rails.refresh_failed {
-                                println!("REFRESH DISABLED: {cause}");
-                                println!("        re-login with `acq auth`");
-                            }
-                        }
-                    }
-                }
+                print!("{}", daemon_text(&report));
                 Ok(())
             }
             DaemonCmd::ResetTripwire => {
@@ -1940,6 +1863,101 @@ pub(crate) fn open_browser(url: &str) -> bool {
 /// The `character` job's params, as `acq character` submits them.
 pub(crate) fn character_params(realm: Realm, name: &str) -> serde_json::Value {
     json!({ "realm": realm, "name": name })
+}
+/// `daemon status`'s text: the daemon of this world in one of its four
+/// observed states (C10, C45, C84, C86), as `acq daemon status` prints it
+/// and as `acq diagnose` carries it.
+pub(crate) fn daemon_text(report: &DaemonReport) -> String {
+    let mut out = String::new();
+    macro_rules! line {
+        ($($arg:tt)*) => {{
+            out.push_str(&format!($($arg)*));
+            out.push('\n');
+        }};
+    }
+    match report {
+        DaemonReport::Absent { persisted, log } => {
+            match persisted {
+                None => line!("daemon is not running; no queue on disk"),
+                Some(p) => line!(
+                    "daemon is not running; on disk: {} waiting, {} recorded running, written {}",
+                    p.waiting,
+                    p.recorded_running,
+                    store_cmd::ago(acquisition_store::now(), p.written_at),
+                ),
+            }
+            if let Some(log) = log {
+                line!("last log: {}", log.display());
+            }
+        }
+        DaemonReport::Incompatible(found) => {
+            line!("{found} — running, not this client's");
+            line!("socket: {}", found.socket());
+            line!("next:   {}", mismatch_remedy(found));
+        }
+        // Something accepted and never answered (C86): a
+        // state, like the others — not this verb's error.
+        DaemonReport::Unresponsive(found) => line!("{found}"),
+        DaemonReport::Running { status, identity } => {
+            let found = identity;
+            if let Response::DaemonStatus {
+                pid,
+                version,
+                contract,
+                provider,
+                uptime_seconds,
+                idle_shutdown_seconds,
+                connections,
+                jobs_waiting,
+                jobs_running,
+                policies_known,
+                in_flight,
+                max_in_flight,
+                rails,
+                keyring,
+                log,
+            } = status.as_ref()
+            {
+                line!(
+                    "daemon {version} (contract {contract}) pid {pid}, up {uptime_seconds}s, provider {provider}, idle exit after {idle_shutdown_seconds}s"
+                );
+                line!("world:  {}", found.world());
+                match (found.artifact(), &found.verdict().artifact) {
+                    (
+                        Some(a),
+                        acquisition_client::artifact::ArtifactVerdict::SameBytes { sibling },
+                    ) => {
+                        line!(
+                            "acqd:   {} (sha256 {}) — the same artifact as this client's sibling {}, another copy",
+                            a.file.path,
+                            a.short_hash(),
+                            sibling.path
+                        )
+                    }
+                    (Some(a), _) => line!(
+                        "acqd:   {} (sha256 {}) — this client's sibling, the file a job command would start",
+                        a.file.path,
+                        a.short_hash()
+                    ),
+                    (None, _) => line!("acqd:   not reported"),
+                }
+                line!(
+                    "connections: {connections}  waiting: {jobs_waiting}  running: {jobs_running}  in flight: {in_flight}/{max_in_flight}  policies learned: {policies_known}"
+                );
+                line!("socket: {}", found.socket());
+                line!("log:    {}", log.as_deref().unwrap_or("not reported"));
+                out.push_str(&rails_text(rails));
+                if keyring != "ok" {
+                    line!("KEYRING: {keyring} — a rotated refresh token may be memory-only");
+                }
+                if let Some(cause) = &rails.refresh_failed {
+                    line!("REFRESH DISABLED: {cause}");
+                    line!("        re-login with `acq auth`");
+                }
+            }
+        }
+    }
+    out
 }
 
 /// The daemon's rails as `daemon status` prints them: the tripwire, the

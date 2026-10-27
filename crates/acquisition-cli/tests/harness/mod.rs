@@ -228,7 +228,7 @@ impl Transcript {
 
 /// The normaliser's eleven named rules, in order: CRLF to LF, `scratch`
 /// (which a command's words take before their quoting, [`shown_word`]),
-/// `log`, `age`, `eta`, `basis`, `token` and the version line by line, then `job`,
+/// `log`, `age`, `eta`, `basis`, `token` and `build` line by line, then `job`,
 /// `pid` and `progress` over the whole text, since a job's ordinal is
 /// counted across the transcript and a job's progress lines are read
 /// together. A `# holds` line is the fact as checked and is kept as
@@ -248,10 +248,22 @@ pub fn normalise(text: &str, base: &Path) -> String {
             line = eta_rule(&line);
             line = basis_rule(&line);
             line = token_rule(&line);
-            line.replace(env!("CARGO_PKG_VERSION"), "<version>")
+            build_rule(&line)
         })
         .collect();
     progress_rule(&pid_rule(&job_rule(&text)))
+}
+
+/// The rule `build`: this build's package version is `<version>`, its
+/// contract revision `<contract>` (a digest of the contract's sources,
+/// which moves with every edit to them) and the platform as `acq
+/// diagnose` names it, `<platform>` (the golden is one text on every
+/// runner).
+fn build_rule(line: &str) -> String {
+    let platform = format!("{} {}", std::env::consts::OS, std::env::consts::ARCH);
+    line.replace(env!("CARGO_PKG_VERSION"), "<version>")
+        .replace(acquisition_protocol::CONTRACT_REVISION, "<contract>")
+        .replace(&platform, "<platform>")
 }
 
 /// A `# holds` line: never normalised.
@@ -462,7 +474,9 @@ pub fn shown_word(word: &str, base: &Path) -> String {
 /// `<scratch>`; and a path under it is written with forward slashes to
 /// its end (whitespace, a quote, `)`, `,` or `;`), whatever separator it
 /// was read with (one backslash, or two as JSON writes them), so one
-/// golden reads the same on Windows.
+/// golden reads the same on Windows; so is a path under the placeholders
+/// `acq diagnose` prints in place of the store and log directories,
+/// `<store>` and `<logs>`.
 fn scratch_rule(text: &str, base: &Path) -> String {
     let mut spellings = vec![base.display().to_string()];
     if let Ok(canonical) = std::fs::canonicalize(base) {
@@ -478,17 +492,21 @@ fn scratch_rule(text: &str, base: &Path) -> String {
     for spelling in spellings {
         text = text.replace(&spelling, "<scratch>");
     }
-    forward_slashes_under_scratch(&text)
+    ["<scratch>", "<store>", "<logs>"]
+        .iter()
+        .fold(text, |text, placeholder| {
+            forward_slashes_under(&text, placeholder)
+        })
 }
 
-/// Each path that starts `<scratch>` and a separator, written with
-/// forward slashes to its end; any other `<scratch>` is left as it is.
-fn forward_slashes_under_scratch(text: &str) -> String {
+/// Each path that starts `placeholder` and a separator, written with
+/// forward slashes to its end; any other `placeholder` is left as it is.
+fn forward_slashes_under(text: &str, placeholder: &str) -> String {
     let mut out = String::with_capacity(text.len());
     let mut rest = text;
-    while let Some(at) = rest.find("<scratch>") {
-        out.push_str(&rest[..at + "<scratch>".len()]);
-        let tail = &rest[at + "<scratch>".len()..];
+    while let Some(at) = rest.find(placeholder) {
+        out.push_str(&rest[..at + placeholder.len()]);
+        let tail = &rest[at + placeholder.len()..];
         if !tail.starts_with(['\\', '/']) {
             rest = tail;
             continue;

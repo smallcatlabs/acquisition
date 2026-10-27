@@ -29,6 +29,7 @@ Commands:
   demo          Submit a burst of fetch jobs against the mock's 5-per-10 s policy and watch the rate limiter queue them (the ETAs are the limiter's prediction, corrected by headers)
   dash          Live dashboard (TUI): rate limiter state (enter expands a policy: bucket state, the observed X-Rate-Limit headers, per-endpoint sends), job queue, HTTP sends, recent errors, a rails halt in red. With --json, prints one snapshot and exits
   version       What this build is: the package version, the shared-contract revision the daemon handshake compares — a digest over the protocol and store crates' manifests and `src` trees, the root manifest and the lock, never a git commit — and the sibling `acqd` a job command would start, as found on disk (path, length, modification time; no hash — the run record hashes it). This reports the candidate; `acq daemon status` reports the daemon running. `--json`: {"version", "contract", "provider", "acqd": {path, len, mtime_ns} | null}, plus "acqd_absent" (why) when acqd is null; `--version` is the human form of the first two
+  diagnose      Everything a bug report needs, in one document to paste into the issue: the build and its platform, the daemon as `daemon status` reports it (with none running, what the queue on disk holds), each account's store counts as `store status` prints them, the rails, then the last lines of the send journal and of the daemon log. Account names and uuids, the store and log directories, the home directory and anything shaped like a token are replaced by placeholders that still tell two accounts apart (`<account 1>`, `<store>`, `~`, `<token 1>`); character, league and tab names are kept. Observes only: never starts a daemon or changes the store. Exits 0 whatever it finds; a part it could not read says why in its place. `--json` is the whole document, with `redactions` counting what was replaced
   jobs          The live jobs: id, parent, kind, target (from params), state (`↻n` counts 429 re-queues), priority, account, submitter, ETA. Every waiting and running job is listed, and the ten most recent finished ones; the last line counts them all, and says when the next waiting job starts and when the last one does. `--json` is every job the daemon lists: the open ones, and the finished ones of this daemon's work and of what it restored from the daemon before it, read from disk. Observes only: with no daemon running it never spawns one, and answers from the ledger on disk instead — the non-terminal rows as the last daemon left them, without ETAs, and how long ago they were written; `--json`: `running: false`, `persisted` (`jobs`, `written_at`; `null` when this shell's world has no queue yet). A job command spawns a successor that restores them; `cancel` then acts on them
   status        One job's state and ETA. A large ETA is the limiter holding, not a hang: holds can reach 300 s plus the timing bucket. A finished job is answered from disk while retention keeps it, whichever daemon ran it. With no daemon running, the job as the ledger on disk records it (never spawns)
   result        A finished job's payload or error. Kept on disk (7 days done, 30 failed, by default) and answered whether or not a daemon runs; a job still waiting or running is an error unless --wait. A failed or cancelled job exits 1. A failed fetch's refused body is in `acq store refused <id>`, not here
@@ -519,6 +520,18 @@ What this build is: the package version, the shared-contract revision the daemon
 Usage: acq version [OPTIONS]
 
 Options:
+  -h, --help               Print help
+```
+
+## `acq diagnose`
+
+```text
+Everything a bug report needs, in one document to paste into the issue: the build and its platform, the daemon as `daemon status` reports it (with none running, what the queue on disk holds), each account's store counts as `store status` prints them, the rails, then the last lines of the send journal and of the daemon log. Account names and uuids, the store and log directories, the home directory and anything shaped like a token are replaced by placeholders that still tell two accounts apart (`<account 1>`, `<store>`, `~`, `<token 1>`); character, league and tab names are kept. Observes only: never starts a daemon or changes the store. Exits 0 whatever it finds; a part it could not read says why in its place. `--json` is the whole document, with `redactions` counting what was replaced
+
+Usage: acq diagnose [OPTIONS]
+
+Options:
+      --lines <N>          How many of the journal's and the log's last lines to carry (default 50 of the journal, 100 of the log)
   -h, --help               Print help
 ```
 
