@@ -817,8 +817,13 @@ enum AuthCmd {
     /// account index that cannot be written, is a failure that says the
     /// session was dropped and what was not done, and the command that
     /// clears the entry.
-    /// `--json`: `logged_out`, `account`, `keyring` (`cleared`, `off`, or
-    /// `unknown` from an older daemon); on a failure, the error document.
+    /// `--json`: `logged_out`, `account`, `keyring` — `cleared`; `off`,
+    /// the keyring turned off and nothing cleared; `failed`, the session
+    /// dropped but the keyring refused the clear, so the entry may
+    /// remain, exit 1 (this build's daemon answers a refused clear with
+    /// the error document instead, in words that say the same); or
+    /// `unknown`, an older daemon that did not say. On a failure, the
+    /// error document.
     Logout,
 }
 

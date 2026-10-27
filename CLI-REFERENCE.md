@@ -58,7 +58,7 @@ Usage: acq auth [OPTIONS] [COMMAND]
 Commands:
   status  Show session state (login, token expiry, keyring health)
   check   Verify the session actually works: forces a token round-trip through the provider instead of trusting local state. Exit code 1 on failure
-  logout  Drop the session and clear the keyring entry. With --account naming another known account, clear only that account's keyring entry. A keyring turned off (`ACQ_NO_KEYRING`) clears nothing and says so; the logout still succeeds. A clear the keyring refuses, or an account index that cannot be written, is a failure that says the session was dropped and what was not done, and the command that clears the entry. `--json`: `logged_out`, `account`, `keyring` (`cleared`, `off`, or `unknown` from an older daemon); on a failure, the error document
+  logout  Drop the session and clear the keyring entry. With --account naming another known account, clear only that account's keyring entry. A keyring turned off (`ACQ_NO_KEYRING`) clears nothing and says so; the logout still succeeds. A clear the keyring refuses, or an account index that cannot be written, is a failure that says the session was dropped and what was not done, and the command that clears the entry. `--json`: `logged_out`, `account`, `keyring` — `cleared`; `off`, the keyring turned off and nothing cleared; `failed`, the session dropped but the keyring refused the clear, so the entry may remain, exit 1 (this build's daemon answers a refused clear with the error document instead, in words that say the same); or `unknown`, an older daemon that did not say. On a failure, the error document
   help    Print this message or the help of the given subcommand(s)
 
 Options:
@@ -91,7 +91,7 @@ Options:
 ## `acq auth logout`
 
 ```text
-Drop the session and clear the keyring entry. With --account naming another known account, clear only that account's keyring entry. A keyring turned off (`ACQ_NO_KEYRING`) clears nothing and says so; the logout still succeeds. A clear the keyring refuses, or an account index that cannot be written, is a failure that says the session was dropped and what was not done, and the command that clears the entry. `--json`: `logged_out`, `account`, `keyring` (`cleared`, `off`, or `unknown` from an older daemon); on a failure, the error document
+Drop the session and clear the keyring entry. With --account naming another known account, clear only that account's keyring entry. A keyring turned off (`ACQ_NO_KEYRING`) clears nothing and says so; the logout still succeeds. A clear the keyring refuses, or an account index that cannot be written, is a failure that says the session was dropped and what was not done, and the command that clears the entry. `--json`: `logged_out`, `account`, `keyring` — `cleared`; `off`, the keyring turned off and nothing cleared; `failed`, the session dropped but the keyring refused the clear, so the entry may remain, exit 1 (this build's daemon answers a refused clear with the error document instead, in words that say the same); or `unknown`, an older daemon that did not say. On a failure, the error document
 
 Usage: acq auth logout [OPTIONS]
 
