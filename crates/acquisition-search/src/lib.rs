@@ -398,7 +398,7 @@ pub use answer::{Answer, Request, answer};
 pub use bind::{NOT_BUILT, NotBuilt, Query, bind, not_built, parse_query};
 pub use category::{CATEGORY_TABLE_VERSION, COLOUR_TABLE_VERSION, Category, CategoryTableError};
 pub use class::{CLASS_TABLE_VERSION, ClassGap, ClassTable, ClassTableError, Classed};
-pub use corpus::{Basis, Corpus, Realm};
+pub use corpus::{Basis, Corpus, Holder, Realm};
 pub use defences::{DEFENCE_TABLE_VERSION, DefenceTable, DefenceTableError, PercentileGap};
 pub use derive::{
     Facts, Item, Line, Numbers, Part, Place, Property, Row, Shown, Slot, Socket, Unread, derive,

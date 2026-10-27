@@ -35,7 +35,8 @@
 //!   listing state was resolved under. [`Corpus::is_current`] is C98's
 //!   check before every answer: a consumer that holds a corpus across asks
 //!   compares, and reloads whole when it differs; an answer already given
-//!   stays what its basis says it was.
+//!   stays what its basis says it was. [`Holder`] is that consumer, one
+//!   shape for every resident frontend.
 //! - **Each item's price is the listing state's** (`price.rs`, C81, C100):
 //!   after the one read, one pricing snapshot and one `resolve` for each
 //!   (realm, league) the scope's locations name, joined by item id. Those
@@ -75,12 +76,13 @@
 //!   predicate supports a claim about (invariant 6 of the surface).
 
 use std::collections::{HashMap, HashSet};
+use std::sync::{Arc, Mutex, PoisonError};
 
 use acquisition_store::corpus::{CorpusHeader, CorpusItem, LocationRow, RealmScope, Revision};
 use acquisition_store::{Annotations, Store};
 use serde::{Deserialize, Serialize};
 
-use crate::answer::Membership;
+use crate::answer::{Membership, Request};
 use crate::category::{self, CATEGORY_TABLE_VERSION, COLOUR_TABLE_VERSION, Category};
 use crate::class::{self, CLASS_TABLE_VERSION, ClassTable, Classed};
 use crate::defences::{self, DEFENCE_TABLE_VERSION};
@@ -837,6 +839,73 @@ impl Corpus {
 
     pub fn items(&self) -> &[Held] {
         &self.items
+    }
+}
+
+/// One corpus held across asks by a process that answers many (C98, the
+/// consumer holds the corpus and checks before every answer): `acq web`
+/// and `acq-mcp` each hold one, and a GUI's server will.
+///
+/// One slot, keyed on what [`Request::corpus`] loads by — the realm the
+/// request resolves to, a site search's URL's where the scope names none
+/// (K6), and the membership — and checked by [`Corpus::is_current`]
+/// before it is handed out, so the store and the account (the basis's
+/// digest and uuid), the facts revision and the intent's are each
+/// compared on every ask; time is never a component. Another scope,
+/// another account or a moved basis loads anew and replaces: one corpus
+/// is resident, and the one replaced is let go before the load so two
+/// are never held by the slot at once. Nothing is kept across processes
+/// (C48, no cached search service).
+///
+/// The lock is held while the corpus is checked or loaded and released
+/// before it is answered over, so a concurrent ask waits for a load and
+/// never for another's evaluation. A lock poisoned by a panic elsewhere
+/// is taken as it stands (C47): the slot is either empty or a whole
+/// corpus with its scope, and the check runs before it is used.
+#[derive(Debug, Default)]
+pub struct Holder {
+    slot: Mutex<Option<Slot>>,
+}
+
+/// What the holder holds: the corpus and the scope it was loaded for.
+#[derive(Debug)]
+struct Slot {
+    realm: Option<Realm>,
+    membership: Membership,
+    corpus: Arc<Corpus>,
+}
+
+impl Holder {
+    pub fn new() -> Holder {
+        Holder::default()
+    }
+
+    /// The corpus `request` is answered over: the one held where it is of
+    /// the request's scope and current against `store` and `intent`, else
+    /// one loaded now and held in its place.
+    pub fn corpus(
+        &self,
+        request: &Request,
+        store: &Store,
+        intent: &Annotations,
+    ) -> Result<Arc<Corpus>, SearchError> {
+        let realm = request.realm()?;
+        let mut slot = self.slot.lock().unwrap_or_else(PoisonError::into_inner);
+        if let Some(held) = slot.as_ref()
+            && held.realm == realm
+            && held.membership == request.scope.membership
+            && held.corpus.is_current(store, intent)?
+        {
+            return Ok(Arc::clone(&held.corpus));
+        }
+        *slot = None;
+        let corpus = Arc::new(request.corpus(store, intent)?);
+        *slot = Some(Slot {
+            realm,
+            membership: request.scope.membership,
+            corpus: Arc::clone(&corpus),
+        });
+        Ok(corpus)
     }
 }
 

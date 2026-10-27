@@ -533,6 +533,100 @@ fn c98_the_basis_names_the_store_and_the_check_tells_two_files_apart() {
     );
 }
 
+/// C98 — one holder for every resident frontend (`Holder`, #82): two
+/// asks over an unchanged store are answered over one corpus; a tab
+/// recorded between them hands back another, at a higher snapshot,
+/// counting the new item; another membership loads anew and replaces;
+/// a realm is the one the load resolves, a site search's URL's where the
+/// scope names none, so a request naming no realm over a store of two is
+/// refused, never answered over the URL's corpus; and a second store is
+/// never answered from the first's corpus. No step reads a clock.
+#[test]
+fn c98_the_holder_reuses_one_corpus_while_its_basis_and_scope_hold() {
+    use acquisition_search::{Holder, Request};
+    use std::sync::Arc;
+    let asked = |request: Value| serde_json::from_value::<Request>(request).unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let s = worked_in(&dir);
+    let intent = intent(&s);
+    let holder = Holder::new();
+    let live = asked(json!({}));
+
+    let first = holder.corpus(&live, &s, &intent).unwrap();
+    let again = holder.corpus(&live, &s, &intent).unwrap();
+    assert!(Arc::ptr_eq(&first, &again), "an unchanged store loads once");
+
+    let mut other = Store::open(s.path()).unwrap();
+    fetch_tab(
+        &mut other,
+        "pc",
+        "Standard",
+        "t3",
+        "Never",
+        vec![ring("late", "Rare", json!({}))],
+        50,
+    );
+    let moved = holder.corpus(&live, &s, &intent).unwrap();
+    assert!(
+        !Arc::ptr_eq(&first, &moved),
+        "a recorded tab moves the basis"
+    );
+    assert!(moved.basis.snapshot.response > first.basis.snapshot.response);
+    assert_eq!(
+        as_json(&answer(&moved, &live).unwrap())["total"]["matched"],
+        json!(8)
+    );
+
+    let all = asked(json!({ "scope": { "membership": "all" } }));
+    let of_all = holder.corpus(&all, &s, &intent).unwrap();
+    assert!(!Arc::ptr_eq(&moved, &of_all));
+    assert_eq!(
+        of_all.membership,
+        acquisition_search::answer::Membership::All
+    );
+    let back = holder.corpus(&live, &s, &intent).unwrap();
+    assert!(
+        !Arc::ptr_eq(&moved, &back),
+        "one slot: the other scope replaced it"
+    );
+
+    // a second realm, then nothing moves between the two asks
+    list_tabs(
+        &mut other,
+        "xbox",
+        "Standard",
+        json!([tab("x1", "Box")]),
+        60,
+    );
+    fetch_tab(
+        &mut other,
+        "xbox",
+        "Standard",
+        "x1",
+        "Box",
+        vec![ring("rx", "Rare", json!({}))],
+        61,
+    );
+    const TRADE_ID: &str = "H4sIAAAAAAAA_5XM0QrCMAyF4XfJdZFhB2N7FRlSuwiB2JYtFUfJu5speO9t_pyvwSZB6gZTg1yEcoIJcmJKCOo-0dqlgewFLYW0gIM7seD6DbTYGV-FKZKcjsHVn8fR90PXe_t9Bq548A8ye-hUZ3U_L6410o3xL9SEWd8TZHM0ugAAAA";
+    let url = format!("https://www.pathofexile.com/trade/search/Standard/{TRADE_ID}");
+    let site = asked(json!({ "query": { "trade": url } }));
+    assert_eq!(
+        holder.corpus(&site, &s, &intent).unwrap().realm,
+        Realm::One("pc".to_string())
+    );
+    let e = holder.corpus(&live, &s, &intent).unwrap_err();
+    assert_eq!(e.to_json()["kind"], "realm_needed", "{}", e.to_json());
+
+    let pc = asked(json!({ "scope": { "realm": "pc" } }));
+    let of_s = holder.corpus(&pc, &s, &intent).unwrap();
+    let dir_b = tempfile::tempdir().unwrap();
+    let b = worked_in(&dir_b);
+    let of_b = holder.corpus(&pc, &b, &intent).unwrap();
+    assert!(!Arc::ptr_eq(&of_s, &of_b));
+    assert_ne!(of_s.basis.store, of_b.basis.store);
+    assert_eq!(of_b.basis, load_with(&b, &intent, Some("pc")).basis);
+}
+
 /// C104 — a request sends the text or the tree, and the answer returns both.
 #[test]
 fn c104_a_tree_is_accepted_and_the_answer_returns_both() {
