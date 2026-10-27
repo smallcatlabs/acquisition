@@ -1093,11 +1093,12 @@ fn journaled_token_posts(log_path: &std::path::Path) -> usize {
         .count()
 }
 
-/// C135 (the access token kept beside the refresh token, a lifetime
-/// refreshes only at expiry), issue #55: a start restores, from the
-/// keyring entry, the access token and its expiry beside the refresh
-/// token, so the session sends no token POST until that token expires,
-/// and one at expiry. Before, the entry held the refresh token alone and
+/// C135 (the access token kept beside the refresh token and restored
+/// with it), issue #55: a start restores, from the keyring entry, the
+/// access token and its expiry beside the refresh token, so the session
+/// sends no token POST while the token has an hour left, and one once
+/// its expiry is reached (the margin itself is
+/// `a_restored_session_refreshes_within_the_margin_of_expiry`'s). Before, the entry held the refresh token alone and
 /// every lifetime's first token use was a `POST oauth-token`.
 #[tokio::test]
 async fn a_restored_session_sends_no_refresh_before_expiry() {
