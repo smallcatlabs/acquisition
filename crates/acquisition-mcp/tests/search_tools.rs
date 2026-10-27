@@ -378,7 +378,13 @@ fn describe_is_the_clis_and_reads_no_store() {
     let mut seat = Seat::over(scratch("mcp-search"));
     let (whole, refused) = seat.call("describe", &json!({}));
     assert!(!refused, "{whole}");
-    assert_eq!(whole, cli(&seat.base, &["search", "--describe"]).0);
+    // the language is the CLI's; this tool's own sections, what the
+    // pricing and job tools answer, stand beside it (#83)
+    let mut language = whole.clone();
+    let fields = language.as_object_mut().unwrap();
+    assert!(fields.remove("pricing").is_some(), "{whole}");
+    assert!(fields.remove("daemon").is_some(), "{whole}");
+    assert_eq!(language, cli(&seat.base, &["search", "--describe"]).0);
     let (some, _) = seat.call("describe", &json!({ "names": ["league", "total_res"] }));
     assert_eq!(
         some,
@@ -388,7 +394,56 @@ fn describe_is_the_clis_and_reads_no_store() {
     let (e, is_error) = seat.call("describe", &json!({ "names": ["leauge"] }));
     assert!(is_error, "{e}");
     assert_eq!(e["kind"], "unknown_name");
-    assert_eq!(e, cli(&seat.base, &["search", "--describe", "leauge"]).0);
+    // the CLI's refusal, every name this tool knows after its own
+    let printed = cli(&seat.base, &["search", "--describe", "leauge"]).0;
+    assert_eq!(
+        e["error"],
+        json!(format!(
+            "{}, pricing, daemon",
+            printed["error"].as_str().unwrap()
+        ))
+    );
+    assert_eq!(e["readings"], printed["readings"]);
+}
+
+/// #83: what the pricing tools and the job tools answer is read once, by
+/// name, through the one door for reading on demand: `describe` with
+/// names [`pricing`] or [`daemon`] answers that section alone, beside a
+/// language section when one is named too, and an unknown name's refusal
+/// lists both.
+#[test]
+fn describe_answers_the_pricing_model_and_the_daemon_by_name() {
+    let mut seat = Seat::over(scratch("mcp-search"));
+    for (section, entry) in [("pricing", "revision"), ("daemon", "no daemon")] {
+        let (one, refused) = seat.call("describe", &json!({ "names": [section] }));
+        assert!(!refused, "{one}");
+        let keys: Vec<&String> = one.as_object().unwrap().keys().collect();
+        assert_eq!(keys, [section], "{one}");
+        assert!(
+            one[section]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|e| e["name"] == entry && e["what"].as_str().is_some_and(|w| w.len() > 40)),
+            "{one}"
+        );
+    }
+    let (both, _) = seat.call("describe", &json!({ "names": ["answer", "PRICING"] }));
+    assert!(
+        both["answer"].as_array().is_some_and(|a| !a.is_empty()),
+        "{both}"
+    );
+    assert!(
+        both["pricing"].is_array() && both.get("daemon").is_none(),
+        "{both}"
+    );
+    let (e, refused) = seat.call("describe", &json!({ "names": ["pricng"] }));
+    assert!(refused, "{e}");
+    let said = e["error"].as_str().unwrap();
+    assert!(
+        said.contains("answer") && said.ends_with(", pricing, daemon"),
+        "{said}"
+    );
 }
 
 /// F10 of the agent's seat (R18): where no account's store is found the
@@ -579,7 +634,12 @@ fn describe_is_as_large_as_its_text_says() {
     assert!(size(&mut seat, json!(["answer"])) < 7_000);
     assert!(size(&mut seat, json!(["answer"])) > 4_000);
     let large = ["computed", "trade", "fields", "categories", "answer"];
-    for section in acquisition_search::describe::SECTIONS {
+    // the pricing model and the daemon's entries are this tool's own
+    // sections beside the language's (#83)
+    for section in acquisition_search::describe::SECTIONS
+        .into_iter()
+        .chain(["pricing", "daemon"])
+    {
         if !large.contains(&section) {
             assert!(size(&mut seat, json!([section])) < 4_000, "{section}");
         }

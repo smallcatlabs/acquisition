@@ -663,25 +663,20 @@ fn a_clear_lands_alike_on_both_surfaces_without_the_facts() {
 
 /// The release seat (mcp-opus, mcp-sonnet): a cleared row took a
 /// revision, and the next write's continued from it, said nowhere. The
-/// two write tools' texts say it.
+/// pricing model says it, read once by name (`describe` with names
+/// [`pricing`], #83), where the two write tools' texts said it before.
 #[test]
 fn the_price_write_tools_say_a_clear_takes_a_revision() {
     let dir = scratch("mcp-price-clear-revision");
     let mut mcp = Mcp::start(&dir.0, &[]);
-    let tools = mcp.list_tools();
-    for name in ["price_set", "price_clear"] {
-        let tool = tools
-            .iter()
-            .find(|t| t["name"] == json!(name))
-            .unwrap_or_else(|| panic!("no {name}"));
-        let said = tool["description"].as_str().unwrap_or_default();
-        assert!(
-            said.contains(
-                "A clear takes a revision too, so the next write's revision continues from it"
-            ),
-            "{name}: {said}"
-        );
-    }
+    let result = mcp.result("describe", json!({ "names": ["pricing"] }));
+    let said = result["content"][0]["text"].as_str().unwrap_or_default();
+    assert!(
+        said.contains(
+            "A clear takes a revision too, so the next write's revision continues from it"
+        ),
+        "{said}"
+    );
 }
 
 /// The release seat's finding 9: a pricing refusal spoke the CLI's flags,

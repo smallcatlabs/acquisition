@@ -760,6 +760,54 @@ pub fn currency_document(word: Option<&str>) -> Result<CurrencyDocument> {
     }
 }
 
+/// One entry of the pricing model as a frontend prints it on demand: a
+/// name and what it says (the MCP's `describe` with names
+/// `["pricing"]`, #83). The words are the ones the MCP's tool texts carried,
+/// cut, beside the functions that make what they describe.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct Described {
+    pub name: &'static str,
+    pub what: &'static str,
+}
+
+/// The listing model, read once rather than in every tool's text: the
+/// hand row and what inherits it, the game's reading, the relation and
+/// the effective side, the revision rule and the undo, and the counts
+/// [`report`]'s summary carries.
+pub fn described() -> Vec<Described> {
+    let entry = |name, what| Described { name, what };
+    vec![
+        entry(
+            "hand row",
+            "a price set by hand is one row on an item, tab, substash or character, which what it covers inherits (a tab's items, a folder's tabs, a parent tab's substashes, a character's items) unless a row nearer the item says otherwise; a listing's `manual` is the row that applies, its own target in `from`, `inherited` when that is a container's, and its `revision`. A row is local: writing it sends nothing and changes nothing in game",
+        ),
+        entry(
+            "game",
+            "the game's reading: an item's note, then its tab's name, read only where the tab is public; a listing's `game` holds the note and the tab name verbatim beside what each reads as, the tab and whether it is public",
+        ),
+        entry(
+            "relation",
+            "how the two sides stand: none, manual_only, game_only, agree or conflict, so the items priced by hand are manual_only, agree and conflict together",
+        ),
+        entry(
+            "effective",
+            "who decides an item's price: game, manual, none, or unresolved — a row that cannot be read could decide",
+        ),
+        entry(
+            "revision",
+            "a write over a row the target has of its own names that row's revision — a listing's `manual.revision` where `manual.from` is the target itself, or the revision a refusal names — and with no row names none, to create one. A clear takes a revision too, so the next write's revision continues from it",
+        ),
+        entry(
+            "undo",
+            "a write's receipt holds `written` and `prior`: after a create, a clear naming the written revision; after a replace, a set with the prior's value naming the written revision, unless the prior is a value this build cannot read (a newer build's, replaced only by naming its revision), which it cannot write back; after a clear, a set with the prior's value. `in_facts` is false for a target the facts do not hold (not fetched yet, or a typo): the row stands",
+        ),
+        entry(
+            "counts",
+            "a league's listing state, counted: `counts.by_effective` and `counts.by_relation` by the two words above; `counts.game_priced` the items the game prices; `counts.residue` the items carrying price text the trade site cannot see — a note on a character's item, which decides no price until the item is moved into a public stash tab, or a note or tab name in a tab that is not public, which decides none until the tab is made public in the game; `counts.invalid_notes` the notes that start like a price and do not read as one (no effect: the tab's name applies); `rows` accounts for every hand-written row: how many apply here, which name nothing in the facts (`unmatched`, each row whole — `value`, `from`, `revision`, `updated_at`, `written_via` — since no listing carries it), which cannot be read, which belong to other leagues or realms",
+        ),
+    ]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

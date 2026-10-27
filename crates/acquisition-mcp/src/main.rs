@@ -501,6 +501,68 @@ impl schemars::JsonSchema for RequestParams {
     }
 }
 
+/// What the job tools answer, read once by name (`describe` with names
+/// `["daemon"]`, #83): the words their texts carried, cut. The document is
+/// the verbs crate's; the words are this adapter's, since what this
+/// server does about a daemon (never spawning one in real mode, never
+/// replacing one) is its own (C13).
+const DAEMON: [(&str, &str); 7] = [
+    (
+        "real mode",
+        "in real-GGG mode the daemon must already be running: a human starts it from the CLI, which also does the login, and this server never spawns or replaces one there — it submits, applies and quotes only through one a human started; in mock mode it starts one into an empty socket",
+    ),
+    (
+        "jobs",
+        "an API request is a job: submit_job and apply_plan return an id at once; poll job_status, then read job_result. A waiting job with a large ETA is the rate limiter holding, not a hang: holds can reach about 5 minutes",
+    ),
+    (
+        "no daemon",
+        "the job tools observe only: with no daemon running none spawns one, and each answers from the ledger on disk with `running: false` — list_jobs `persisted`, the open rows as the last daemon left them (without ETAs), and `written_at`, how old that picture is; job_status the job's row and `next`, the command a person runs to start a daemon; daemon_status `persisted` (waiting, recorded_running, written_at) and `log`, the last daemon's log file in this world. `persisted` is null when this world has no queue yet",
+    ),
+    (
+        "ledger",
+        "a finished job is answered from the ledger on disk while retention keeps it, whichever daemon ran it, across restarts; its outcome there is final, and an unfinished one is refused as wrong_state with `next`; a job the ledger does not hold is refused as unknown_job with `next`. A job command from the CLI spawns a successor that restores the open ones",
+    ),
+    (
+        "outcome",
+        "job_result holds the payload or the error, with `job_id` and `account` beside it; a parent's failure carries its children's tally as `children` (done, failed, cancelled, failed_ids) and the first ten failed children with their kind, target and error as `failed_children`. Payloads can be large: the store tools read the same data",
+    ),
+    (
+        "another daemon",
+        "daemon_status `running: true, compatible: false`: a daemon of another contract, artifact, provider or world, reported by its identity alone — contract_matches, artifact_matches, provider_matches, world_matches; artifact_relation same_file, same_bytes for another copy, different, unhashable, no_sibling or unreported, against the acqd beside this server; `wanted` this server's own — and never replaced by this server. A compatible one adds its vitals: provider, uptime, idle_shutdown_seconds, connections, queue counts, rate-limit policies learned, the rails state with the journal path, keyring health and `log`, the file it opened",
+    ),
+    (
+        "wedged",
+        "daemon_status `running: true, responsive: false`, with `socket` and `lock_holder`, the pid the world's lock records: something accepted the connection and did not answer hello within 5 s — a wedged daemon, for a human to stop by hand",
+    ),
+];
+
+/// The names `describe` answers beside the search crate's sections: what
+/// the pricing tools and the job tools answer, which are not the
+/// search's (C1: the search links no plan).
+const OWN_SECTIONS: [&str; 2] = ["pricing", "daemon"];
+
+/// One entry of an own section: a name and what it says.
+#[derive(serde::Serialize)]
+struct Entry {
+    name: &'static str,
+    what: &'static str,
+}
+
+/// `describe`'s answer: the search crate's document for the names it
+/// knows, beside the pricing model and the daemon entries where named or
+/// where nothing is named. Flattened, so the language's keys keep the
+/// order the crate declares (C115).
+#[derive(serde::Serialize)]
+struct Described {
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    language: Option<acquisition_search::describe::Describe>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pricing: Option<Vec<acquisition_plan::pricing::Described>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    daemon: Option<Vec<Entry>>,
+}
+
 #[derive(Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 struct DescribeParams {
@@ -512,13 +574,10 @@ struct DescribeParams {
 /// (`describe::SECTIONS`, which the search crate pins against the answer).
 fn describe_names_doc() -> String {
     format!(
-        "Only these entries: a section, by the answer's own key — {} — or a name within one: \
-`league`, `total_res`. Omitted: the whole language.",
-        acquisition_search::describe::SECTIONS
-            .iter()
-            .map(|s| format!("`{s}`"))
-            .collect::<Vec<_>>()
-            .join(", ")
+        "Sections, each by the key it answers under: {}, {} — or a name within one (league, \
+total_res). Omitted: everything, over 100 KB.",
+        acquisition_search::describe::SECTIONS.join(", "),
+        OWN_SECTIONS.join(", ")
     )
 }
 
@@ -980,17 +1039,49 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "The query language `search` takes, as this build knows it (no store read): fields, what a line has, operators, closed value sets, slots, the computed values with their definitions, what a count takes, what a trade site search's clauses become, what is not built and the limits stated — or only the entries named. The whole is over 100 KB, most of it under `computed`: name what is needed instead. Of the sections `names` lists, computed is some 80 KB, fields and trade some 20 KB each, categories some 10 KB, answer some 5 KB, and the rest each under 4 KB; a single name — league, total_res — returns its own entry. A name it does not know is refused, and the refusal lists every name it knows."
+        description = "What the tools answer and the language `search` takes, read by name (no store read): answer, every key of a search answer; trade, what a site search becomes and its report; fields, what a query may ask; pricing, the listing model and its revision rule; daemon, what the job tools answer without one. The whole is over 100 KB: computed is some 80 KB, fields and trade some 20 KB each, categories some 10 KB, answer some 5 KB, and the rest each under 4 KB. A name it does not know is refused, and the refusal lists every name it knows."
     )]
     fn describe(&self, Parameters(p): Parameters<Args<DescribeParams>>) -> Told {
         let p = match p.read() {
             Ok(p) => p,
             Err(refusal) => return Ok(refusal),
         };
-        match acquisition_search::describe(&p.names.unwrap_or_default()) {
-            Ok(described) => told(&described),
-            Err(e) => Ok(refused(e)),
-        }
+        let names = p.names.unwrap_or_default();
+        let own = |section: &str| {
+            names.is_empty() || names.iter().any(|n| n.eq_ignore_ascii_case(section))
+        };
+        let language: Vec<String> = names
+            .iter()
+            .filter(|n| !OWN_SECTIONS.iter().any(|o| o.eq_ignore_ascii_case(n)))
+            .cloned()
+            .collect();
+        // the whole, or the language's names alone: an own section asked
+        // alone is never the whole language
+        let language = if names.is_empty() || !language.is_empty() {
+            match acquisition_search::describe(&language) {
+                Ok(described) => Some(described),
+                Err(mut e) => {
+                    // every name this tool knows, its own among them
+                    if e.kind == acquisition_search::error::ErrorKind::UnknownName {
+                        e.message
+                            .push_str(&format!(", {}", OWN_SECTIONS.join(", ")));
+                    }
+                    return Ok(refused(e));
+                }
+            }
+        } else {
+            None
+        };
+        told(&Described {
+            language,
+            pricing: own("pricing").then(acquisition_plan::pricing::described),
+            daemon: own("daemon").then(|| {
+                DAEMON
+                    .iter()
+                    .map(|&(name, what)| Entry { name, what })
+                    .collect()
+            }),
+        })
     }
 
     #[tool(

@@ -98,14 +98,17 @@ fn the_reference_matches_the_server() {
 /// `price_clear` after the server's instructions had dropped the word. The
 /// word names a mechanism a reader cannot parse (C146, a count says what
 /// it counts); it stands in what the server sends only as a JSON name,
-/// in backticks, found case-insensitively.
+/// in backticks, found case-insensitively. What is read on demand is
+/// sent too (#83): `describe` whole, every section the tools point to.
 #[test]
 fn the_old_word_intent_stands_only_as_a_json_name() {
     let scratch = harness::scratch("mref-intent");
     let base = scratch.0.clone();
     let mut mcp = Mcp::start(&base, &[]);
     let tools = mcp.list_tools();
-    let text = render(&mcp.instructions, &tools);
+    let described = mcp.result("describe", serde_json::json!({}));
+    let mut text = render(&mcp.instructions, &tools);
+    text.push_str(described["content"][0]["text"].as_str().unwrap_or_default());
     let _ = mcp.child.kill();
     let lower = text.to_lowercase();
     let stray: Vec<&str> = lower
