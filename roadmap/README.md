@@ -175,11 +175,8 @@ list when a step's close commit or an issue takes it.
 - **Deferred past 2f, the daemon's architecture**, each a row of the
   assessment's architecture report: a typed `JobKind`, the generic
   reference-table loader, the `Thing` columns, the lock merge, sharing
-  `frame.rs`. The lock merge has a second input from 2f: the keyring's
-  save runs under `shared` (`install_tokens_locked` in
-  `daemon/refresh.rs`, the login's in `daemon/login.rs`), so a keyring
-  that stalls holds every task that waits on `shared`; C133's hard end
-  bounds the exit, not the stall.
+  `frame.rs`. (2f's second input to the lock merge, the keyring's save
+  under `shared`, was taken by r2: C148.)
 - **Unruled**: the stream of a text failure's report (`refresh --apply`
   prints it on stdout, `acq result` on stderr); `--if-revision 0` as
   "no policy stands" is the CLI's meaning alone, where the MCP's
@@ -191,6 +188,11 @@ list when a step's close commit or an issue takes it.
   is not in the tree; the pin is bumped before the generators run
   (C125, the tables name their export); at `poe1@ee2084de` the forms
   table would differ by two trade-stat ids (2e's measurement).
+- **The owner's, from r2**: a brief that asks for its tests committed
+  failing first (r2's Do 1) meets `TEMPLATE.md`'s rule that a commit
+  is gated on the gate's exit status; r2 committed red and said so in
+  the message. Whether a failing-tests commit is an exception the
+  template names, or the tests ride with their fix.
 - **The owner's**: the `AGENTS.md` budget, raised to 15,277 bytes under
   his temporary permission during phase 2, his to reassess; whether a
   *Pinned:* path with a slash becomes a bothy rule (2d writes nineteen
@@ -284,19 +286,13 @@ list when a step's close commit or an issue takes it.
 
 ## Current step
 
-r2, the credential I/O off the shared lock (#81), built from
-`briefs/r2-build.md` (C148, its Unbuilt line gone): the three `c148_`
-tests committed failing, the build, and the registry, `81e80d3f` to
-`19c8a759`. Its review, `reviews/r2-19c8a759.md`, found three P2
-and one P3; the owner approved the four fixes as proposed, built
-`f354ede2` to `344da98f`. The fix round's review,
-`reviews/r2-fixes-344da98f.md`, found one P3 (the new panic test
-leaves its harness directory behind); the owner reads it before the
-close. Then
-r3 to r5 in order, each from its brief; the C135 round (#55, with the
-start's keyring read, #92) after r2. Phase 3, the owner's league run,
-follows; the second week before 3.30, if the group closes early, draws
-from "Pull-forward". The assessment these rest on is
+r3, the hour idle default and finished trees out of memory (#80;
+`briefs/r3-idle-and-eviction.md`), an Opus session from its brief;
+then r4 and r5 in order, each from its brief. r2 closed 2026-10-27
+(C148 built); the C135 round (#55, with the start's keyring read,
+#92) is its own round after r2. Phase 3, the owner's league run,
+follows; the second week before 3.30, if the group closes early,
+draws from "Pull-forward". The assessment these rest on is
 `STATE-2026-10-26.md`; the issues carry the evidence per step.
 `AGENTS.md` governs; the gate is `tools/gate.sh`.
 
@@ -322,7 +318,7 @@ messages.
 | #70 the Windows gate's deadline flakes | ruling and brief `dd9b7859`; build `04001a27` to `90db890a`; the reorder and the review `54d9f957`, `493ff5d4`; fixes `6697afc3`, `32769f72` (the review deleted there, whole at `493ff5d4`) | the fix-round review found nothing (`reviews/70-fixes-32769f72.md`); the issue closes on a week of pushes without a re-run | the watch and what it holds, under "Open" |
 | p0 the process round | `f1a29952` to the commit carrying this line; reviews `reviews/p0-1523a776.md`, `reviews/p0-fixes-16ef9210.md` | 2026-10-26 | the gate script's breaker suite, on #87; the rebuild observation, on #88; the four memory notes, retired |
 | r1 the Windows gate decides again | build `c2318752` to `de6ad867`; review `reviews/r1-de6ad867.md` (no findings); the Windows lint `ad216160`; closed by the commit carrying this line | 2026-10-27; Windows green at run 40428110668 | #70's week, counted from that run, under "Open" |
-| r2 the credential I/O off the shared lock | design `912206df`, `62eaeea0`; ruling `610286d1`; brief `193c2c21`; build `81e80d3f` (the tests, failing) to the commit carrying this line | fixes `f354ede2` to `344da98f`; their review `reviews/r2-fixes-344da98f.md` awaits the owner's reading | the save cut at the exit's bound, left to the time seam (4-0) |
+| r2 the credential I/O off the shared lock | design `912206df`, `62eaeea0`; ruling `610286d1`; brief `193c2c21`; tests `81e80d3f` (committed failing); build `e4e2b9b7`, `19c8a759`; review `d2cfdf70` (`reviews/r2-19c8a759.md`); fixes `f354ede2` to `344da98f`; their review `c32c057e` (`reviews/r2-fixes-344da98f.md`); its fix `8393336a`; closed by the commit carrying this line | 2026-10-27 | the save cut at the exit's bound, left to the time seam (4-0); #92 and #55 for the C135 round; a brief's "commit the tests failing" beside the gate-per-commit rule, the owner's, under "Open" |
 
 ## Housekeeping
 

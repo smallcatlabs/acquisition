@@ -127,11 +127,19 @@ other reader is served at step 1: a waiter on the flight, because the
 flight's watch channel is published at the install, not at the end
 (`wait_for_refresh`, `daemon/refresh.rs:531`); a bearer read under a
 permit, because the token is in the session from step 1
-(`SessionBearer::token`, `daemon/kinds.rs:98`); a `force_refresh`
-caller arriving between steps 1 and 3 finds the flight still set and
-joins it, as a joiner of an in-flight refresh does today. The flight
-stays set until step 3, so the drain (`InFlight::of`,
-`daemon/server.rs:653`) counts the save.
+(`SessionBearer::token`, `daemon/kinds.rs:98`). The flight closes at
+step 1, its waiters served there; a caller arriving between steps 1
+and 3 that finds no valid token (a `force_refresh`, or one whose token
+a 401 cleared) starts a flight of its own, whose landing waits on
+`credentials`. The drain counts the save through a count of landings
+in flight (`landings`, raised before the landing's blocking thread is
+spawned and lowered when it returns), not through the flight.
+*Corrected 2026-10-27, by r2's review (`reviews/r2-19c8a759.md`, its
+first and second findings):* this paragraph had the flight stay set
+until step 3, a forced refresh joining it and the drain counting the
+save through it; a 401 on the installed token then let the next lookup
+join the open flight and be handed the rejected token, and the drain
+still could not see a logout's clears.
 
 **The single-flight guard.** `RefreshOwnerGuard` (`daemon/refresh.rs:17`)
 still serialises refreshes per account and still publishes on drop
@@ -153,8 +161,9 @@ step 3, the warning after it. What changes is that `auth status` can
 show `saving` while the prompt stands, which is the true state.
 
 **The exit's drain at the bound.** The drain waits for a save in
-flight as it waits for a refresh today (the flight is set until step
-3), up to C133's bound; `exit_waits_for_a_refresh_and_installs_the_token`
+flight, and for a logout's or forget's clears, through the landings
+count (corrected 2026-10-27, as the paragraph above: it said the
+flight, set until step 3), up to C133's bound; `exit_waits_for_a_refresh_and_installs_the_token`
 (`daemon/tests/exit.rs:120`) stays green. At the bound the process
 leaves with the save cut: the keyring holds the previous token (the
 save never landed) or the new one (landed, the mark unrecorded), the
@@ -311,7 +320,8 @@ and `a_login_whose_profile_job_waits_is_not_held_by_the_drain`
 `a_bare_harness_daemon_saves_a_rotated_token_into_the_test_store`
 (`refresh.rs:308`, invariant 5's test side); the stress's
 `wait_for_refresh_waiters` (`stress.rs:9`) counts receivers on a
-flight that is now set until step 3, which only widens its window.
+flight that closes at step 1, as it closed at the landing before
+(corrected 2026-10-27: it said set until step 3).
 
 The measurement the build brief asks for: the `hello` round trip over
 a socket while a save is blocked, in-process on the mock provider
