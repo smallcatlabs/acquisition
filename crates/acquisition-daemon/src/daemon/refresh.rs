@@ -39,12 +39,12 @@ impl RefreshOwnerGuard<'_> {
                 .daemon
                 .finish_refresh(&account, id, generations, refresh, &sender);
         }
-        let daemon = self.daemon.clone();
-        tokio::task::spawn_blocking(move || {
-            daemon.finish_refresh(&account, id, generations, refresh, &sender)
-        })
-        .await
-        .unwrap_or_else(|_| Err(Refusal::new(ErrorKind::Internal, REFRESH_OWNER_ABANDONED)))
+        self.daemon
+            .spawn_landing(move |daemon| {
+                daemon.finish_refresh(&account, id, generations, refresh, &sender)
+            })
+            .await
+            .unwrap_or_else(|_| Err(Refusal::new(ErrorKind::Internal, REFRESH_OWNER_ABANDONED)))
     }
 }
 

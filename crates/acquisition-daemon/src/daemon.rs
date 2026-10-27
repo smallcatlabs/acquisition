@@ -742,6 +742,10 @@ struct Shared {
     jobs: HashMap<JobId, Entry>,
     next_id: JobId,
     auth: Sessions,
+    /// C148: landings spawned and not yet returned, each a keyring or
+    /// account-index write the exit's drain waits for
+    /// ([`Daemon::spawn_landing`]).
+    landings: usize,
     /// Recent errors for the dashboard, newest last (bounded ring). Every
     /// entry is also in the log; this is the structured, queryable subset.
     errors: VecDeque<(Instant, String)>,
@@ -975,6 +979,27 @@ impl Daemon {
             .now()
             .saturating_duration_since(self.started)
             .as_secs()
+    }
+
+    /// C148: run a landing (a refresh's, a login's, a logout's or
+    /// forget's, the profile job's uuid write) on a blocking thread,
+    /// counted in `landings` from before it is spawned until it returns,
+    /// its `credentials` released by then, so the exit's drain waits for
+    /// every keyring and index write in flight whichever path made it.
+    async fn spawn_landing<T: Send + 'static>(
+        self: &Arc<Self>,
+        landing: impl FnOnce(&Daemon) -> T + Send + 'static,
+    ) -> Result<T, tokio::task::JoinError> {
+        /// Lowers the count when the landing returns.
+        struct Counted(Arc<Daemon>);
+        impl Drop for Counted {
+            fn drop(&mut self) {
+                self.0.shared.lock().unwrap().landings -= 1;
+            }
+        }
+        self.shared.lock().unwrap().landings += 1;
+        let counted = Counted(self.clone());
+        tokio::task::spawn_blocking(move || landing(&counted.0)).await
     }
 
     /// C148: mark activity at `now` on the daemon's clock, taking no lock.

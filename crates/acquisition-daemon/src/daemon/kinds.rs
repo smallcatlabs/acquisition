@@ -159,13 +159,13 @@ impl Daemon {
         self: &Arc<Self>,
         f: impl FnOnce(&mut Index) -> anyhow::Result<()> + Send + 'static,
     ) {
-        let daemon = self.clone();
-        let applied = tokio::task::spawn_blocking(move || {
-            let _serialised = daemon.credentials.lock().unwrap();
-            daemon.index_apply(f)
-        })
-        .await
-        .unwrap_or_else(|e| Err(format!("accounts index: the write did not finish: {e}")));
+        let applied = self
+            .spawn_landing(move |daemon| {
+                let _serialised = daemon.credentials.lock().unwrap();
+                daemon.index_apply(f)
+            })
+            .await
+            .unwrap_or_else(|e| Err(format!("accounts index: the write did not finish: {e}")));
         if let Err(e) = applied {
             self.note_error(&e);
         }

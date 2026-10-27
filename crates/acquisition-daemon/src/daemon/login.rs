@@ -238,11 +238,11 @@ impl Daemon {
             // C148: the landing's keyring and index I/O blocks, so it runs
             // on a blocking thread, never on a runtime worker.
             Ok(uuid) => {
-                let daemon = self.clone();
-                let _ = tokio::task::spawn_blocking(move || {
-                    daemon.complete_login(generation, &username, &uuid)
-                })
-                .await;
+                let _ = self
+                    .spawn_landing(move |daemon| {
+                        daemon.complete_login(generation, &username, &uuid)
+                    })
+                    .await;
             }
             Err(error) => self.abort_login(generation, &username, &error),
         }
@@ -549,8 +549,7 @@ impl Daemon {
         self: &Arc<Self>,
         account: Option<String>,
     ) -> Result<KeyringOutcome, Refusal> {
-        let daemon = self.clone();
-        tokio::task::spawn_blocking(move || daemon.logout(account.as_deref()))
+        self.spawn_landing(move |daemon| daemon.logout(account.as_deref()))
             .await
             .unwrap_or_else(|e| {
                 Err(Refusal::new(

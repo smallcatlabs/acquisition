@@ -491,6 +491,7 @@ async fn run_with_log(
             jobs: HashMap::new(),
             next_id: 1,
             auth: sessions,
+            landings: 0,
             errors: VecDeque::new(),
             active_jobs: HashMap::new(),
         }),

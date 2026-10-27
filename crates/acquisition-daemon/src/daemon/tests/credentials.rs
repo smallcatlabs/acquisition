@@ -33,22 +33,28 @@ fn answered<T: Send + 'static>(
     rx.recv_timeout(ANSWERED_WITHIN).ok()
 }
 
-/// A save held at its start: `started` fires when a save is under way,
-/// and the save goes on when `release` is sent (or dropped).
+/// A save or a clear held at its start: `started` fires when it is
+/// under way, and it goes on when `release` is sent (or dropped).
 struct HeldSave {
     started: oneshot::Receiver<()>,
     release: std::sync::mpsc::Sender<()>,
 }
 
-/// Hold the next save `store` makes until the test releases it.
-fn hold_the_next_save(store: &RecordingCredentialStore) -> HeldSave {
+/// Hold the next call `slot` (the recorder's `on_save` or `on_clear`)
+/// runs until the test releases it.
+fn hold_the_next(slot: &Mutex<Option<Box<dyn FnOnce() + Send>>>) -> HeldSave {
     let (started_tx, started) = oneshot::channel();
     let (release, released) = std::sync::mpsc::channel::<()>();
-    *store.on_save.lock().unwrap() = Some(Box::new(move || {
+    *slot.lock().unwrap() = Some(Box::new(move || {
         let _ = started_tx.send(());
         let _ = released.recv();
     }));
     HeldSave { started, release }
+}
+
+/// Hold the next save `store` makes until the test releases it.
+fn hold_the_next_save(store: &RecordingCredentialStore) -> HeldSave {
+    hold_the_next(&store.on_save)
 }
 
 /// A logged-in harness daemon facing the account server (`rt-old` is
@@ -297,5 +303,77 @@ async fn c148_status_answers_and_a_second_login_is_refused_while_a_login_lands()
     assert_eq!(s.auth.flow_result, Some(Ok("Alice#1".to_string())));
     assert!(s.auth.pending.is_none());
     drop(s);
+    finish_harness(None, &log_path);
+}
+
+/// C148, the review of r2, its second finding: a logout's keyring clears
+/// and its not-persisted mark are the exit's drain's until they land.
+/// Before, the drain looked only at `shared`, which the logout no longer
+/// holds across its I/O, so a stop asked while a clear stood found
+/// nothing in flight and exited before the mark was written, and the
+/// next lifetime restored the account the user had logged out of. Every
+/// landing is now counted from before its spawn until it returns.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn c148_a_stop_waits_for_a_logout_whose_clear_is_held() {
+    let (mut daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
+    logged_in(&mut daemon);
+    let store = Arc::new(RecordingCredentialStore::default());
+    store
+        .entries
+        .lock()
+        .unwrap()
+        .insert("test-user".into(), "rt-old".into());
+    let mut held = hold_the_next(&store.on_clear);
+    let dir = TestPath::dir();
+    Index::load(&dir)
+        .unwrap()
+        .record_login("test-user", "u-1", true, 1, &[])
+        .unwrap();
+    {
+        let d = Arc::get_mut(&mut daemon).unwrap();
+        d.credential_store = store.clone();
+        d.store_dir = Some(dir.to_path_buf());
+        d.exit = Exit::with_bound(ANSWERED_WITHIN);
+    }
+    let logout = {
+        let daemon = daemon.clone();
+        tokio::spawn(async move {
+            daemon
+                .handle_request(
+                    Request::AuthLogout {
+                        account: Some("test-user".into()),
+                    },
+                    &mut None,
+                )
+                .await
+        })
+    };
+    (&mut held.started)
+        .await
+        .expect("the logout reached its clear");
+
+    assert!(daemon.begin_exit("test: exit"));
+    let drain = {
+        let daemon = daemon.clone();
+        tokio::spawn(async move { daemon.drain().await })
+    };
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let waited = !drain.is_finished();
+    held.release.send(()).unwrap();
+
+    assert!(waited, "the drain waits for the logout's clear");
+    assert_eq!(drain.await.unwrap(), None, "nothing was cut");
+    assert!(
+        matches!(logout.await.unwrap(), Response::Ack { .. }),
+        "the logout landed"
+    );
+    assert!(
+        !Index::load(&dir)
+            .unwrap()
+            .get("test-user")
+            .unwrap()
+            .persisted,
+        "the not-persisted mark landed before the exit"
+    );
     finish_harness(None, &log_path);
 }

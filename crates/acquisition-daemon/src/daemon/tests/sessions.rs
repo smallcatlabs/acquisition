@@ -235,6 +235,7 @@ fn test_daemon(base: &str) -> (Arc<Daemon>, Arc<MemoryCredentialStore>, TestPath
                 next_refresh_flight: 1,
                 ..AuthSession::default()
             }),
+            landings: 0,
             errors: VecDeque::new(),
             active_jobs: HashMap::new(),
         }),

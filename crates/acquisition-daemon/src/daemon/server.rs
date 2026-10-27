@@ -644,6 +644,8 @@ pub(super) struct InFlight {
     pub(super) refreshes: Vec<String>,
     /// Login code exchanges in flight.
     pub(super) exchanges: usize,
+    /// C148: landings in flight, each a keyring or account-index write.
+    pub(super) landings: usize,
     /// A login whose profile job has finished, or is about to be
     /// submitted, while its staged tokens are not yet registered or
     /// dropped: `complete_login` or `abort_login` is still to run; or a
@@ -692,6 +694,7 @@ impl InFlight {
             held,
             refreshes,
             exchanges: s.auth.exchanges,
+            landings: s.landings,
             login,
         }
     }
@@ -701,6 +704,7 @@ impl InFlight {
             && self.held.is_empty()
             && self.refreshes.is_empty()
             && self.exchanges == 0
+            && self.landings == 0
             && !self.login
     }
 
@@ -728,6 +732,9 @@ impl InFlight {
         }
         if self.exchanges > 0 {
             parts.push("a login's code exchange".into());
+        }
+        if self.landings > 0 {
+            parts.push("a keyring or account-index write".into());
         }
         if self.login {
             parts.push("a login landing its profile".into());
