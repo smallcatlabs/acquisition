@@ -67,6 +67,7 @@ dependencies = [
  "acquisition-store",
  "acquisition-verbs",
  "anyhow",
+ "num-traits",
  "rmcp",
  "serde",
  "serde_json",

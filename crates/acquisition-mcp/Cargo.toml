@@ -25,6 +25,11 @@ serde.workspace = true
 serde_json.workspace = true
 anyhow.workspace = true
 rmcp = { version = "3.1", features = ["transport-io"] }
+# Linked through rmcp's chrono, never named in this crate's code. Its `std`
+# is proptest's, a dev-dependency of the plan and the search, and a
+# dev-dependency feature unifies into every test build, which gave acq-mcp
+# a second form (#88, C84); compiled in always, so one build writes one binary.
+num-traits = { version = "0.2", features = ["std"] }
 
 [[test]]
 name = "main"
