@@ -343,10 +343,8 @@ list when a step's close commit or an issue takes it.
 ## Current step
 
 2g, the read economy and the refusal and receipt bundle (#9, #10),
-built by rounds from `briefs/2g-build.md`: round 1 is closed, round 2
-(the planner's documents under the bound) is built and its review is
-pending, and round 3, the bare arrays, follows the owner's reading of
-it.
+built by rounds from `briefs/2g-build.md`: rounds 1 and 2 are closed,
+and round 3, C149's bare arrays, is next for a fresh worker.
 
 ## Ledger
 
@@ -379,7 +377,7 @@ messages.
 | #83 the MCP surface trimmed (pull-forward 2) | brief `1dd3dfdb`; build `81178cd0` (the answer section), `c9d6aec3` (the refusal's spelling), `c250b2c8` (`describe` by name), `d2a588bc` (the cut, the length test, the measurement); review `reviews/p83-d2a588bc.md`; the ruling `a4e4db41` (C146 amended); fixes `e26871c3` (the glosses move), `280f1075`, `fd564e33`; their review `reviews/p83-fixes-fd564e33.md`; its two wording fixes `e4231ecf` (unreviewed); closed by the commit carrying this line | 2026-10-27 | the schemas as the larger part of the first turn, and `characters`' two glosses, under "Open"; the seat (#84) next |
 | #84 the seat, the first row of the seat ledger (pull-forward 2, its seat) | brief `799c39d9`; the record, `SEAT-LEDGER.md` and its row, and the skill's ledger step `5df58a64`; fixes `64edb5d7` (the MCP's own words), `45ea27f7`, `67b30646`; their review `reviews/p84-fixes-67b30646.md`; fixes `acdda4dd`, `c62c0a7b`; their review `reviews/p84-fixes-c62c0a7b.md` (no findings), added by the commit carrying this line; closed by the commit carrying this line | 2026-10-27 | rule 6 (a typo'd account as `not_logged_in`, C121) and the seat skill's wording, the owner's, under "Open"; rules 2, 3, 7, 8 on #18, #11, #9, #10 |
 | #88 one feature graph for the plain and the test build (pull-forward 3) | brief `87dcb51a`; the measurement `b5721ccf`; build `9dfbb4fd` (num-traits `std` in the plain build), `053658df` (the daemon's integration test), `72e973fa` (the gate's `artifacts` stage), `f264866e`; review `reviews/p88-f264866e.md`; fixes `e1e8fad7`, `d81d5ec7`, `8869753a`; their review `reviews/p88-fixes-8869753a.md`; its two fixes `4737a3c6` (unreviewed); closed by the commit carrying this line | 2026-10-27 | the retirement of the build-order rule's second half (the brief's Do 6), the owner's, under "Open" with its text; #96, the tour's leaked daemon |
-| 2g the read economy and the refusal and receipt bundle | round 1 `8e6e1853` (the bound in the store), `3df72bf5` (the search default), `14b9a915` (`tabs`' one rule), `08c1c571`; its review `reviews/2g-r1-08c1c571.md` and its fix at `1f8053f0` (unreviewed, words only); round 1 closed 2026-10-27 at `d54e669e`; round 2 `0e40bfe9` (`price show`), `7ed67bf4` (`shop render`), `7b2bdfb4` (`price list`), `90e80afb` (`price status`) and the commit carrying this line | round 1 done; round 2 built, its fix round's review pending | the close's |
+| 2g the read economy and the refusal and receipt bundle | round 1 `8e6e1853` (the bound in the store), `3df72bf5` (the search default), `14b9a915` (`tabs`' one rule), `08c1c571`; its review `reviews/2g-r1-08c1c571.md` and its fix at `1f8053f0` (unreviewed, words only); round 1 closed 2026-10-27 at `d54e669e`; round 2 `0e40bfe9` (`price show`), `7ed67bf4` (`shop render`), `7b2bdfb4` (`price list`), `90e80afb` (`price status`), `ae151de2`; its review `reviews/2g-r2-ae151de2.md`; its fix round `460b6a25`, `a01e748e`, reviewed at `reviews/2g-r2-fixes-a01e748e.md`; its second fix round `e7db898a`, reviewed at `reviews/2g-r2-fixes-e7db898a.md` (no findings); the shop schema back to 5 at `b87432e0` (the owner's word: a bound is no schema event); round 2 closed 2026-10-27 by the commit carrying this line | rounds 1 and 2 done; round 3 next | the close's |
 
 ## Housekeeping
 
