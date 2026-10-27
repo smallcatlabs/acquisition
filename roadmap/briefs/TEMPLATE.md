@@ -43,6 +43,13 @@ needs what a later step delivers. A number or a literal in a line is
 measured on the tree the brief is written against, or the line says
 the build measures it: 2e's brief said fourteen tabs where the empty
 league lists seven, and a grep whose literal the fix changed.
+A fix round's done-when is its own, not the brief's: each finding of
+the review it answers fixed by one rule and pinned, or named as not
+taken and why, and the gate green on the round's tree. Execution
+evidence (the gate's exit status per stage, the test count, a
+measurement) lives in the worker's report, which the orchestrating
+session holds against the review; a commit message carries what it
+measured, never the gate table.
 
 ## Not in scope
 What a worker will be tempted to do and must not, with where it lives

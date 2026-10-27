@@ -35,6 +35,12 @@ verified", never guessed. The worker's report is not supplied to
 you, by design: the commit is the evidence and the report its
 author's account, and the session that reads both holds them
 against each other. Judge the done-when against the commit alone.
+Execution evidence (the gate's exit statuses, the test count) is in
+that report and never in a commit, so say "not verified" once, in one
+line, and spend no paragraph on it. When the range named is a fix
+round, its done-when is each finding of the review it answers fixed
+by one rule and pinned, or named as not taken and why, and the gate
+green; judge it against those findings, not the brief's build lines.
 
 Report in this form, nothing else:
 - One line: the commit, and whether the brief's done-when holds.

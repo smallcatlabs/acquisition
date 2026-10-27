@@ -224,11 +224,6 @@ list when a step's close commit or an issue takes it.
   and log are found by this shell's knobs, and the daemon writing its
   journal path beside its log marker is more mechanism than today's
   evidence asks (#94 carries the contract form).
-- **The owner's, from r4's rounds**: three reviews each asked that a
-  fix round have an acceptance line of its own (each finding fixed and
-  pinned, the gate green), apart from the build's execution-dependent
-  done-when a read-only reviewer cannot check; the orchestrator agrees
-  and it is a `TEMPLATE.md` sentence, his file.
 - **From r5, the sentences** (`briefs/r5-surface.md` and its round):
   C127's words say the client kinds are "the daemon's kind table lists
   for clients, in the provider modes each row names", and since
@@ -255,11 +250,6 @@ list when a step's close commit or an issue takes it.
   (`quote` resolves its account against the session table), and the
   build has it wait. A 401 under an unreadable account index followed
   by a restart resends the rejected bearer once (#63).
-- **The owner's, from r3's rounds**: for `briefs/REVIEW-PROMPT.md`,
-  Codex asked three times for the gate's stage table in the commit
-  message, where the rhythm keeps it in the report (not taken, his
-  call); and asked again, as 4b's reviews did, that a fix round's
-  acceptance be told apart from the brief's execution-dependent lines.
 - **The Windows gate's watch (#70)**: the step landed 2026-10-24
   (`dd9b7859` to `90db890a`); the issue closes when a week of pushes
   needs no re-run, counted from r1's first green Windows run
