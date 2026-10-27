@@ -257,7 +257,8 @@ enum Cmd {
     /// `--json` is the same document: the counts, `by_type`, and `rows`,
     /// the tabs listed, with `left_out` counting the rest.
     Tabs {
-        /// List this many tabs, the most items first, in place of ten.
+        /// List this many tabs in place of ten: the most items first
+        /// where some are left out, else in the listing's order.
         #[arg(long, value_name = "N")]
         limit: Option<usize>,
         /// List every tab of the league, or of the selection.

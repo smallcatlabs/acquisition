@@ -209,7 +209,7 @@ The stash tabs of a league, counted first, from the store (no daemon), then list
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
 - `expand` (boolean | null) — List every tab of the league, or of the selection.
 - `league` (string | null) — League name; defaults to "Standard".
-- `limit` (integer | null) — List this many tabs, the most items first, in place of ten.
+- `limit` (integer | null) — List this many tabs in place of ten: the most items first where some are left out, else in the listing's order.
 - `never_fetched` (boolean | null) — Only tabs never fetched.
 - `realm` (string | null) — Realm: pc (default), xbox, or sony.
 - `type` (string | null) — Only tabs of this type, as GGG names it (UniqueStash, MapStash, PremiumStash …; `by_type` lists them).

@@ -179,7 +179,7 @@ Tabs of a league, from the shared store (no daemon round-trip): the counts first
 Usage: acq tabs [OPTIONS]
 
 Options:
-      --limit <N>          List this many tabs, the most items first, in place of ten
+      --limit <N>          List this many tabs in place of ten: the most items first where some are left out, else in the listing's order
       --expand             List every tab of the league, or of the selection
       --type <TYPE>        Only tabs of this type, as GGG names it (UniqueStash, MapStash, PremiumStash …; the counts by type list them)
       --never-fetched      Only tabs never fetched

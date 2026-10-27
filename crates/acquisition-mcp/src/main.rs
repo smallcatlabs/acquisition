@@ -466,7 +466,8 @@ const ACCOUNT: &str = "A username, with or without its #discriminator, or a uuid
 struct TabsParams {
     /// League name; defaults to "Standard".
     league: Option<String>,
-    /// List this many tabs, the most items first, in place of ten.
+    /// List this many tabs in place of ten: the most items first where
+    /// some are left out, else in the listing's order.
     limit: Option<usize>,
     /// List every tab of the league, or of the selection.
     expand: Option<bool>,

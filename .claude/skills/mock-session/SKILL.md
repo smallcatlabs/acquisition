@@ -31,8 +31,8 @@ acq daemon status                                             # a fresh socket: 
 ## Log in without a browser
 
 ```sh
-acq auth --no-browser --json &          # prints {"authorize_url": …}
-curl -sL "<that url with /authorize? replaced by /approve?>"     # add &user=NAME for a second account
+acq auth --no-browser --json > "$ACQ_STORE_DIR.auth.json" &   # writes {"authorize_url": …}; wait until it does
+curl -sL "$(sed -n 's/.*"authorize_url":"\([^"]*\)".*/\1/p' "$ACQ_STORE_DIR.auth.json" | sed 's|/authorize?|/approve?|')"   # add &user=NAME for a second account
 ```
 
 `-L` is required: approve 302-redirects to the daemon's callback, and
