@@ -85,7 +85,10 @@ pub fn render_cmd(cx: &Ctx, realm: Realm, league: &str, args: &RenderArgs<'_>) -
         println!("{}", serde_json::to_string_pretty(&rendered)?);
         return Ok(());
     }
-    print!("{}", render_text(&rendered, now, args.expand));
+    print!(
+        "{}",
+        render_text(&rendered, now, args.expand, &opened.account.entry.username)
+    );
     Ok(())
 }
 
@@ -222,7 +225,9 @@ fn left_out_line(l: &LeftOut) -> String {
     )
 }
 
-fn render_text(r: &ShopRender, now: i64, expand: bool) -> String {
+fn render_text(r: &ShopRender, now: i64, expand: bool, account: &str) -> String {
+    // every printed `acq price` command carries the render's scope
+    let flags = crate::price_cmd::scope_flags(&r.listing, account);
     let mut out = String::new();
     let c = &r.counts;
     let place = format!("{}{}", realm_prefix(r.listing.realm), r.listing.league);
@@ -230,7 +235,9 @@ fn render_text(r: &ShopRender, now: i64, expand: bool) -> String {
         out.push_str(&format!(
             "no items on record for {place}: nothing to render\n"
         ));
-        out.push_str("next: `acq price status` says what is on record\n");
+        out.push_str(&format!(
+            "next: `acq price status {flags}` says what is on record\n"
+        ));
         return out;
     }
     let omitted = breakdown(r, Verdict::Omit);
@@ -336,11 +343,13 @@ fn render_text(r: &ShopRender, now: i64, expand: bool) -> String {
         )
     } else if c.blocked > 0 {
         format!(
-            "{} is blocked; `--expand` shows the policy table and each item; `acq price set item/<id> exact <amount> <tag>` prices one by hand",
+            "{} is blocked; `--expand` shows the policy table and each item; `acq price set {flags} item/<id> exact <amount> <tag>` prices one by hand",
             plural(c.blocked, "item", "items")
         )
     } else {
-        "`acq price set item/<id> exact <amount> <tag>` prices one by hand; `acq price list` shows what the game already lists".to_string()
+        format!(
+            "`acq price set {flags} item/<id> exact <amount> <tag>` prices one by hand; `acq price list {flags}` shows what the game already lists"
+        )
     };
     out.push_str(&format!("next: {next}\n"));
     out
@@ -512,7 +521,7 @@ mod tests {
     #[test]
     fn c53_shop_render_opens_with_one_line_and_labels_every_page() {
         let r = rendered();
-        let text = render_text(&r, 5000, false);
+        let text = render_text(&r, 5000, false, "a");
         let lines: Vec<&str> = text.lines().collect();
         assert_eq!(
             lines[0],
@@ -568,7 +577,7 @@ mod tests {
         assert_eq!(lines.len(), 16, "{text}");
         assert!(!text.contains("policy table"), "{text}");
 
-        let text = render_text(&r, 5000, true);
+        let text = render_text(&r, 5000, true, "a");
         assert!(
             text.contains("policy table (page size 200, template 7 characters):\n"),
             "{text}"
@@ -591,14 +600,16 @@ mod tests {
         none.counts.posted = 0;
         none.counts.pages = 0;
         none.counts.blocked = 5;
-        let text = render_text(&none, 5000, false);
+        let text = render_text(&none, 5000, false, "a");
         assert!(
             text.starts_with("nothing to paste for Standard: 13 items — 5 omitted"),
             "{text}"
         );
         assert!(!text.contains("coverage:"), "{text}");
         assert!(
-            text.ends_with("`acq price set item/<id> exact <amount> <tag>` prices one by hand\n"),
+            text.ends_with(
+                "`acq price set --account a item/<id> exact <amount> <tag>` prices one by hand\n"
+            ),
             "{text}"
         );
 
@@ -606,7 +617,7 @@ mod tests {
         let mut broken = rendered();
         broken.freshness.refresh_requests = None;
         broken.freshness.refresh_problem = Some("no such league".into());
-        let text = render_text(&broken, 5000, false);
+        let text = render_text(&broken, 5000, false, "a");
         assert!(
             text.contains("; `acq refresh --plan` could not be compiled: no such league\n"),
             "{text}"
@@ -615,7 +626,7 @@ mod tests {
         // No policy: the one line names the remedy.
         let mut unset = rendered();
         unset.freshness.policy = "not_set".into();
-        let text = render_text(&unset, 5000, false);
+        let text = render_text(&unset, 5000, false, "a");
         assert!(text.contains("policy: none set, so no refresh covers the page's facts; `acq policy set` declares coverage\n"), "{text}");
         assert!(!text.contains("coverage:"), "{text}");
         assert!(text.contains("positions: 1 item"), "{text}");
@@ -627,10 +638,10 @@ mod tests {
             pages: vec![],
             ..rendered()
         };
-        let text = render_text(&empty, 5000, false);
+        let text = render_text(&empty, 5000, false, "a");
         assert_eq!(
             text,
-            "no items on record for Standard: nothing to render\nnext: `acq price status` says what is on record\n"
+            "no items on record for Standard: nothing to render\nnext: `acq price status --account a` says what is on record\n"
         );
     }
 
@@ -662,7 +673,7 @@ mod tests {
         assert_eq!(r.left_out.len(), (1977 - 31) * 32);
 
         let t = Instant::now();
-        let text = render_text(&r, s.taken_at, true);
+        let text = render_text(&r, s.taken_at, true, "a");
         let took = t.elapsed();
         assert!(
             took < Duration::from_secs(2),

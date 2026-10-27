@@ -91,7 +91,10 @@ pub fn show(
         println!("{}", serde_json::to_string_pretty(&view)?);
         return Ok(());
     }
-    print!("{}", render_show(&view, acquisition_store::now(), bound));
+    print!(
+        "{}",
+        render_show(&view, acquisition_store::now(), bound, &username)
+    );
     Ok(())
 }
 
@@ -118,7 +121,7 @@ pub fn list(
         println!("{}", serde_json::to_string_pretty(&view)?);
         return Ok(());
     }
-    print!("{}", render_list(&view, expand));
+    print!("{}", render_list(&view, expand, &username));
     Ok(())
 }
 
@@ -233,29 +236,45 @@ fn rows_detail(r: &ListingReport) -> String {
     out
 }
 
-fn render_status(r: &ListingReport, now: i64, expand: bool, account: &str) -> String {
-    // Every command the next step prints, as it runs: the account it ran as, and the
-    // league and realm where they are not the defaults (the release
-    // seat's rerun: Allflame's next step read Standard, call 48).
-    let place_flags = format!(
+/// The realm and league an answer resolved, as flags, where they are not
+/// the defaults: what a printed command carries so it reads the same
+/// place (the release seat's rerun: Allflame's next step read Standard,
+/// call 48).
+pub(crate) fn place_flags(h: &ReportHeader) -> String {
+    format!(
         "{}{}",
-        match r.header.realm.segment() {
+        match h.realm.segment() {
             Some(seg) => format!(" --realm {seg}"),
             None => String::new(),
         },
-        if r.header.league == pricing::DEFAULT_LEAGUE {
+        if h.league == pricing::DEFAULT_LEAGUE {
             String::new()
         } else {
             format!(
                 " --league {}",
-                acquisition_search::answer::shell_quoted(&r.header.league)
+                acquisition_search::answer::shell_quoted(&h.league)
             )
         }
-    );
-    let scope = format!(
-        "--account {}{place_flags}",
+    )
+}
+
+/// The one scope every printed `acq price` command carries (step 2g's
+/// second fix rule): the account it ran as, so it runs as printed once a
+/// second account is known, and [`place_flags`]. A command that promises
+/// each or every item adds `--expand` itself, since the default lists
+/// ten (C53, the read economy).
+pub(crate) fn scope_flags(h: &ReportHeader, account: &str) -> String {
+    format!(
+        "--account {}{}",
         acquisition_search::answer::shell_quoted(account),
-    );
+        place_flags(h)
+    )
+}
+
+fn render_status(r: &ListingReport, now: i64, expand: bool, account: &str) -> String {
+    // Every command the next step prints, as it runs ([`scope_flags`]).
+    let place_flags = place_flags(&r.header);
+    let scope = scope_flags(&r.header, account);
     let mut out = String::new();
     let h = &r.header;
     let place = format!("{}{}", realm_prefix(h.realm), h.league);
@@ -392,10 +411,10 @@ fn render_status(r: &ListingReport, now: i64, expand: bool, account: &str) -> St
     }
     let next = if unresolved > 0 {
         format!(
-            "`acq price list {scope} --effective unresolved` names each item a row that cannot be read could decide"
+            "`acq price list {scope} --effective unresolved --expand` names each item a row that cannot be read could decide"
         )
     } else if count_of(r, Relation::Conflict) > 0 {
-        format!("`acq price list {scope} --relation conflict` names each conflict")
+        format!("`acq price list {scope} --relation conflict --expand` names each conflict")
     } else if rows.unreadable_total > 0 {
         format!("`acq price status {scope} --expand` lists the rows that cannot be read")
     } else {
@@ -551,9 +570,10 @@ fn container_label(containers: &[Listing], c: &Listing) -> String {
     }
 }
 
-fn render_list(view: &ListView, expand: bool) -> String {
+fn render_list(view: &ListView, expand: bool, account: &str) -> String {
     let mut out = String::new();
     let h = &view.header;
+    let flags = scope_flags(h, account);
     let items: Vec<&Listing> = view.items.iter().collect();
     let place = format!("{}{}", realm_prefix(h.realm), h.league);
     let mut scope = String::new();
@@ -576,7 +596,9 @@ fn render_list(view: &ListView, expand: bool) -> String {
                 "0 of {} items listed for {place}{scope} (--limit 0)\n",
                 view.total
             ));
-            out.push_str("next: `acq price list --limit N` lists the first N\n");
+            out.push_str(&format!(
+                "next: `acq price list {flags} --limit N` lists the first N\n"
+            ));
             return out;
         }
         let nothing = if view.items_on_record == 0 {
@@ -590,7 +612,9 @@ fn render_list(view: &ListView, expand: bool) -> String {
             format!("{} items on record, none match", view.items_on_record)
         };
         out.push_str(&format!("{nothing} for {place}{scope}\n"));
-        out.push_str("next: `acq price status` says what is on record\n");
+        out.push_str(&format!(
+            "next: `acq price status {flags}` says what is on record\n"
+        ));
         return out;
     }
     // Groups by container, in the containers' order (tabs in listing
@@ -669,10 +693,11 @@ fn render_list(view: &ListView, expand: bool) -> String {
     out
 }
 
-fn render_show(view: &ShowView, now: i64, bound: pricing::Bound) -> String {
+fn render_show(view: &ShowView, now: i64, bound: pricing::Bound, account: &str) -> String {
     let expand = bound.expand;
     let mut out = String::new();
     let h: &ReportHeader = &view.header;
+    let flags = scope_flags(h, account);
     let l = &view.listing;
     let s = &l.subject;
     let mut head = format!("{}: {}", s.target, s.label());
@@ -857,14 +882,14 @@ fn render_show(view: &ShowView, now: i64, bound: pricing::Bound) -> String {
         }
         if deferred {
             out.push_str(&format!(
-                "next: `acq price show {target} --expand` lists every item of both sets; `acq price list --in {target}` is the filtered route, the items physically here a price applies to (`--covered-by` the covered set)\n",
+                "next: `acq price show {flags} {target} --expand` lists every item of both sets; `acq price list {flags} --in {target} --expand` is the filtered route, every item physically here a price applies to (`--covered-by` the covered set)\n",
                 target = s.target
             ));
             return out;
         }
     }
     let next = match &s.location {
-        Some(loc) => format!("`acq price list --in {loc}` is its neighbours"),
+        Some(loc) => format!("`acq price list {flags} --in {loc}` is its neighbours"),
         None => "`acq price show item/<id>` is one item".into(),
     };
     out.push_str(&format!("next: {next}\n"));
@@ -1194,7 +1219,7 @@ mod tests {
         );
         assert_eq!(
             lines[4],
-            "next: `acq price list --account a --relation conflict` names each conflict"
+            "next: `acq price list --account a --relation conflict --expand` names each conflict"
         );
         assert_eq!(lines.len(), 5, "{text}");
         assert!(!text.contains("parser"), "{text}");
@@ -1284,7 +1309,7 @@ mod tests {
         let r = report();
         let view = r.list_view(ListFilter::default()).unwrap();
         assert_eq!(view.listed, acquisition_store::bound::LISTED);
-        let text = render_list(&view, false);
+        let text = render_list(&view, false, "a");
         let lines: Vec<&str> = text.lines().collect();
         // The map-tab item and the character's are relation `none` now:
         // their price text is residue (C81), so the default leaves them out.
@@ -1315,10 +1340,10 @@ mod tests {
             })
             .unwrap();
         assert_eq!(
-            render_list(&view, false).lines().next(),
+            render_list(&view, false, "a").lines().next(),
             Some("12 items listed in Standard: 11 in game only, 1 conflict; in 1 container")
         );
-        let text = render_list(&view, true);
+        let text = render_list(&view, true, "a");
         assert!(
             text.contains(
                 "  conflict     game  skip               5 chaos            Chaos Orb x10"
@@ -1350,7 +1375,7 @@ mod tests {
                 ..ListFilter::default()
             })
             .unwrap();
-        let text = render_list(&view, false);
+        let text = render_list(&view, false, "a");
         let lines: Vec<&str> = text.lines().collect();
         assert_eq!(
             lines[0],
@@ -1386,10 +1411,10 @@ mod tests {
                 ..ListFilter::default()
             })
             .unwrap();
-        let text = render_list(&view, false);
+        let text = render_list(&view, false, "a");
         assert_eq!(
             text,
-            "15 items on record, none match for Standard with relation agree\nnext: `acq price status` says what is on record\n"
+            "15 items on record, none match for Standard with relation agree\nnext: `acq price status --account a` says what is on record\n"
         );
     }
 
@@ -1405,6 +1430,7 @@ mod tests {
             &l.clone().bounded(None, false),
             8_000,
             pricing::Bound::default(),
+            "a",
         );
         assert_eq!(
             text,
@@ -1415,7 +1441,7 @@ mod tests {
              in game: 5 chaos from the note\n\
              \x20 note \"~price 5 chaos\" reads 5 chaos\n\
              \x20 tab c1 \"~price 3 chaos (A)\" reads 3 chaos, public\n\
-             next: `acq price list --in tab/pc/c1` is its neighbours\n"
+             next: `acq price list --account a --in tab/pc/c1` is its neighbours\n"
         );
         let text = render_show(
             &l,
@@ -1424,6 +1450,7 @@ mod tests {
                 limit: None,
                 expand: true,
             },
+            "a",
         );
         assert!(text.contains("set 1h ago via cli as tom)"), "{text}");
         assert!(text.contains("chain: item/i-01 > tab/pc/c1\n"), "{text}");
@@ -1440,6 +1467,7 @@ mod tests {
             &l.clone().bounded(None, false),
             8_000,
             pricing::Bound::default(),
+            "a",
         );
         assert!(
             text.contains("in game: none (price text the trade site cannot see, in a tab that is not public or on a character: it decides nothing)\n  tab m1 \"~price 1 divine (Remove-only)\" reads 1 divine, not public\n  substash \"1 (Remove-only)\" (its parent's name and public are read)\n"),
@@ -1462,6 +1490,7 @@ mod tests {
             &l.clone().bounded(None, false),
             8_000,
             pricing::Bound::default(),
+            "a",
         );
         assert!(
             text.contains("  no tab name read: no stash to publish\n"),
@@ -1477,6 +1506,7 @@ mod tests {
             &l.clone().bounded(None, false),
             8_000,
             pricing::Bound::default(),
+            "a",
         );
         assert!(
             text.starts_with("tab/pc/c1: ~price 3 chaos (A) (PremiumStash)\nrelation game_only: in game: 3 chaos; no row applies\neffective: 3 chaos — 3 chaos in game; no row applies\n"),
@@ -1488,7 +1518,7 @@ mod tests {
         );
         assert!(!text.contains("covered through children"), "{text}");
         assert!(
-            text.ends_with("next: `acq price show tab/pc/c1 --expand` lists every item of both sets; `acq price list --in tab/pc/c1` is the filtered route, the items physically here a price applies to (`--covered-by` the covered set)\n"),
+            text.ends_with("next: `acq price show --account a tab/pc/c1 --expand` lists every item of both sets; `acq price list --account a --in tab/pc/c1 --expand` is the filtered route, every item physically here a price applies to (`--covered-by` the covered set)\n"),
             "{text}"
         );
         let text = render_show(
@@ -1498,6 +1528,7 @@ mod tests {
                 limit: None,
                 expand: true,
             },
+            "a",
         );
         assert_eq!(text.matches("\n  game_only ").count(), 11, "{text}");
         // A mixed parent tab: its own item here and its substash's covered
@@ -1510,6 +1541,7 @@ mod tests {
             &l.clone().bounded(None, false),
             8_000,
             pricing::Bound::default(),
+            "a",
         );
         assert!(
             text.contains("items here: 1 item — 1 unlisted\nitems covered through children: 1 item — 1 unlisted\n"),
@@ -1691,7 +1723,7 @@ mod tests {
                 ..Default::default()
             })
             .unwrap();
-        let list = render_list(&view, true);
+        let list = render_list(&view, true, "a");
         let show = r.show_view(&tab).unwrap();
         let shown = render_show(
             &show,
@@ -1700,6 +1732,7 @@ mod tests {
                 limit: None,
                 expand: true,
             },
+            "a",
         );
         let status = render_status(&r, now, true, "a");
         let took = t.elapsed();

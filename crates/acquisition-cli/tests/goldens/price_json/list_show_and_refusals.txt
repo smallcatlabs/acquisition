@@ -4,7 +4,7 @@ $ acq price list --in tab/pc/f1 --relation none
 # holds "none match for Standard with relation none in tab/pc/f1"
 --- stdout
 4 items on record, none match for Standard with relation none in tab/pc/f1
-next: `acq price status` says what is on record
+next: `acq price status --account 'Alice#1234'` says what is on record
 
 $ acq price show tab/pc/f1
 # holds "items covered through children: 2 items"
