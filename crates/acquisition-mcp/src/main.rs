@@ -77,6 +77,19 @@
 //!   load; every other pays the evaluation alone. `show` reads one item
 //!   and holds nothing.
 //!
+//! **Every text the server serves speaks its own words** (C143, the
+//! shared words first and an adapter's spelling after them; the readiness
+//! seat, `audits/readiness-2026-10/seat/`, calls 5, 6, 12, 13, 35, 47):
+//! the shared crates' words are the CLI's, and wherever a refusal,
+//! `describe` or an answer's `why` or `hint` speaks a CLI command or flag,
+//! `spoken` appends `— here,` and what each is here (`acq search` is
+//! `search`, `--realm` is `realm`), from one table, `SPOKEN`. A person's
+//! command (`acq auth check`) is left as the person's; an entry's name,
+//! how it is asked for, keeps the CLI's spelling and its `what` carries
+//! the spelling; every other string of an answer is data, sent verbatim.
+//! The rewrite is on the serialized text, so the document's key order
+//! stands (C115). Pinned by `tests/spoken.rs`.
+//!
 //! An account that cannot be picked is refused in the protocol's words
 //! (C121): `not_logged_in` when no account's store is found (naming the
 //! directory looked in) or the selector names none, `ambiguous_account`
@@ -96,7 +109,8 @@
 //! render` and `acq reference currency` call (C46): a tool returns the
 //! document the CLI's `--json` prints for the same request, and a
 //! refusal is a result marked `isError` holding the CLI's failure
-//! document, `{"error": …}` in the CLI's words (C11). Pricing reads
+//! document, `{"error": …}` in the CLI's words (C11), this server's
+//! spelling after them. Pricing reads
 //! intent and facts through the store: no daemon, no network (C64). The
 //! account is selected as the search's tools select it, with their three
 //! refusals; arguments a tool does not take are refused as theirs are. A
@@ -248,14 +262,14 @@ fn failure_words(e: &anyhow::Error, named: &str) -> String {
 /// and an uncovered league as JSON-RPC errors where the instructions
 /// promise results (mcp-opus-2 calls 50, 46).
 fn failed(e: anyhow::Error) -> Told {
-    let words = failure_words(&e, "account");
+    let words = spelled(&failure_words(&e, "account"));
     match e.chain().find_map(|c| c.downcast_ref::<Fault>()) {
         Some(Fault::Daemon(refused)) => Err(daemon_error(refused.kind, words)),
         Some(Fault::Door(door)) => Err(connect_error(door, words)),
         Some(Fault::AnotherDaemon(_) | Fault::Unresponsive(_) | Fault::Transport(_)) => {
             Err(ErrorData::internal_error(words, None))
         }
-        _ => Ok(CallToolResult::structured_error(refusal(&e, "account"))),
+        _ => Ok(refusing(refusal(&e, "account"))),
     }
 }
 
@@ -342,8 +356,18 @@ type Told = Result<CallToolResult, ErrorData>;
 /// them (C115); the structured content, a JSON value, holds them in its
 /// own order, and an agent reads the text.
 fn told<T: serde::Serialize>(document: &T) -> Told {
-    let text = serde_json::to_string(document).map_err(|e| err(e.into()))?;
-    let mut result = serde_json::to_value(document)
+    told_as(document, false)
+}
+
+/// [`told`], every string of the document the tool's words where `all`
+/// (`describe`), else those under [`WORDS`]: each [`spoken`] for this
+/// server, and the structured content read back from the text.
+fn told_as<T: serde::Serialize>(document: &T, all: bool) -> Told {
+    let text = spoken(
+        &serde_json::to_string(document).map_err(|e| err(e.into()))?,
+        all,
+    );
+    let mut result = serde_json::from_str(&text)
         .map(CallToolResult::structured)
         .map_err(|e| err(e.into()))?;
     result.content = vec![rmcp::model::ContentBlock::text(text)];
@@ -353,7 +377,7 @@ fn told<T: serde::Serialize>(document: &T) -> Told {
 /// A refusal, as the search crate words it (C11): `error`, `kind`,
 /// `readings`, `offers`.
 fn refused(e: impl Into<SearchError>) -> CallToolResult {
-    CallToolResult::structured_error(e.into().to_json())
+    refusing(e.into().to_json())
 }
 
 /// A tool's arguments, read here and not by the SDK, whose refusal of
@@ -388,8 +412,7 @@ impl<T: serde::de::DeserializeOwned> Args<T> {
 
     /// The arguments, or their refusal document.
     fn read(self) -> std::result::Result<T, CallToolResult> {
-        self.parse()
-            .map_err(|e| CallToolResult::structured_error(refusal(&e, "account")))
+        self.parse().map_err(|e| refusing(refusal(&e, "account")))
     }
 }
 
@@ -861,37 +884,264 @@ struct PriceClearParams {
     account: Option<String>,
 }
 
-/// The CLI's flags a pricing refusal may speak (the plan crate's words
-/// are the CLI's, which were first), each with this server's argument.
-const FLAGS: [(&str, &str); 6] = [
-    ("--if-revision", "if_revision"),
-    ("--league", "league"),
-    ("--realm", "realm"),
-    ("--account", "account"),
-    ("--in", "in"),
-    ("--covered-by", "covered_by"),
+/// The CLI's words the shared layer speaks, each with what it is here:
+/// the commands, longest first where one begins another, then the flags
+/// (the shared crates' words are the CLI's, which were first). A phrase
+/// follows the word in the spelling (`acq search` is `search`); an empty
+/// phrase is a person's command, which the words already give a person
+/// at a terminal, and which no tool here performs. Drawn from the words
+/// the readiness seat met (`audits/readiness-2026-10/seat/`: calls 5, 6,
+/// 12, 13, 35, 47) and a grep of the shared crates' texts for `acq ` and
+/// `--`.
+const SPOKEN: [(&str, &str); 52] = [
+    ("acq price show", "is `price_show`"),
+    ("acq price status", "is `price_status`"),
+    ("acq price list", "is `price_list`"),
+    ("acq price set", "is `price_set`"),
+    ("acq price clear", "is `price_clear`"),
+    ("acq shop render", "is `shop_render`"),
+    ("acq reference currency", "is `reference_currency`"),
+    ("acq store status", "is `store_status`"),
+    ("acq store events", "is `item_events`"),
+    ("acq store characters", "is `characters`"),
+    ("acq store refused", "has no tool here: a person runs it"),
+    ("acq policy set", "is `set_sync_policy`"),
+    ("acq policy", "is `sync_policy`"),
+    ("acq refresh", "is `refresh_plan`, then `apply_plan`"),
+    ("acq search", "is `search`"),
+    ("acq show", "is `show`"),
+    ("acq tabs", "is `tabs`"),
+    ("acq accounts", "is `accounts`"),
+    ("acq leagues", "is `submit_job` with kind `leagues`"),
+    ("acq submit", "is `submit_job`"),
+    ("acq jobs", "is `list_jobs`"),
+    ("acq status", "is `job_status`"),
+    ("acq result", "is `job_result`"),
+    ("acq cancel", "is `cancel_job`"),
+    ("acq daemon status", "is `daemon_status`"),
+    ("acq daemon stop", ""),
+    ("acq daemon reset-tripwire", ""),
+    ("acq auth check", ""),
+    ("acq auth status", ""),
+    ("acq auth", ""),
+    ("acq profile", ""),
+    ("--if-revision", "is `if_revision`"),
+    ("--league", "is `league`"),
+    ("--realm", "is `realm` (`scope.realm` in a search request)"),
+    (
+        "--account",
+        "is `account` (`scope.account` in a search request)",
+    ),
+    ("--in", "is `in`"),
+    ("--covered-by", "is `covered_by`"),
+    ("--expand", "is `expand`"),
+    ("--replace", "is `replace`"),
+    (
+        "--limit",
+        "is `limit` (`view.rows.limit` in a search request)",
+    ),
+    ("--count", "is `view.counts.keys`"),
+    ("--cross", "is `view.cross.keys`"),
+    ("--sum", "is `sum` in `view.counts` or `view.cross`"),
+    ("--sort", "is `view.rows.sort`"),
+    ("--desc", "is `view.rows.desc`"),
+    ("--explain", "is `view.explain.path`"),
+    ("--context", "is `context`"),
+    ("--routes", "is `view.routes`"),
+    ("--against", "is `show`'s `against`"),
+    ("--describe", "is `describe`"),
+    (
+        "--dir",
+        "has no spelling here: ACQ_STORE_DIR sets this server's store",
+    ),
+    (
+        "--fields",
+        "has no spelling here, being built on neither surface",
+    ),
 ];
 
-/// A pricing refusal's words, then this server's spelling of each flag
-/// they speak (C143: the shared words first, an adapter's spelling after
-/// them), so a tool's text need not say that `--league` is `league` (the
-/// release seat's finding 9: the refusals spoke the CLI's vocabulary).
-fn spelled(words: &str) -> String {
-    let said: Vec<String> = FLAGS
+/// The flags built on neither surface beside `--fields`, spelled as it is.
+const UNBUILT: [&str; 2] = ["--rebind", "--basis"];
+
+/// Where `word` stands in `words` as a word: not inside a longer one.
+fn stands(words: &str, word: &str) -> bool {
+    words.match_indices(word).any(|(at, _)| {
+        let before = words[..at].chars().next_back();
+        let after = words[at + word.len()..].chars().next();
+        !before.is_some_and(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+            && !after.is_some_and(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    })
+}
+
+/// What this server says after shared words that speak the CLI (C143:
+/// the shared words first, an adapter's spelling after them): `— here,`
+/// and each command or flag they speak with what it is here, or nothing
+/// when they speak none. A command begun by a longer one the words also
+/// speak is the longer one's (`acq auth` in `acq auth check`).
+fn spelling(words: &str) -> String {
+    let unbuilt = UNBUILT
         .iter()
-        .filter(|(flag, _)| {
-            words.match_indices(flag).any(|(at, _)| {
-                !words[at + flag.len()..]
-                    .starts_with(|c: char| c.is_ascii_alphanumeric() || c == '-')
+        .map(|&flag| (flag, "has no spelling here, being built on neither surface"));
+    let spoken: Vec<(&str, &str)> = SPOKEN.iter().copied().chain(unbuilt).collect();
+    let said: Vec<String> = spoken
+        .iter()
+        .filter(|(word, _)| stands(words, word))
+        .filter(|(word, _)| {
+            !spoken.iter().any(|(longer, _)| {
+                longer.len() > word.len() && longer.starts_with(word) && stands(words, longer)
             })
         })
-        .map(|(flag, argument)| format!("`{flag}` is `{argument}`"))
+        .filter(|(_, here)| !here.is_empty())
+        .map(|(word, here)| format!("`{word}` {here}"))
         .collect();
     if said.is_empty() {
-        words.to_string()
+        String::new()
     } else {
-        format!("{words} — here, {}", said.join(", "))
+        format!(" — here, {}", said.join(", "))
     }
+}
+
+/// Shared words, then this server's [`spelling`] of the CLI they speak.
+fn spelled(words: &str) -> String {
+    format!("{words}{}", spelling(words))
+}
+
+/// The keys of an answer whose strings are the tool's own words, spelled
+/// where they speak the CLI; every other string of an answer is data,
+/// sent verbatim. A refusal's and `describe`'s strings are all words.
+const WORDS: [&str; 2] = ["why", "hint"];
+
+/// The keys whose string names an entry, asked by that name: never
+/// rewritten, their spelling carried by the entry's `what` instead.
+const NAMES: [&str; 2] = ["name", "construct"];
+
+/// Every text this server serves, spelled (C143): `text`, a serialized
+/// JSON document, with [`spelling`] appended inside each string literal
+/// that is the tool's words — every string where `all` (a refusal,
+/// `describe`), else the strings under [`WORDS`] — and an entry's name's
+/// spelling appended to its `what`. Done on the text, so the document's
+/// key order (C115) stands; the structured content is read back from it.
+fn spoken(text: &str, all: bool) -> String {
+    enum Frame {
+        Object {
+            key: Option<String>,
+            expecting_key: bool,
+            name: Option<String>,
+        },
+        Array {
+            key: Option<String>,
+        },
+    }
+    let mut out = String::with_capacity(text.len());
+    let mut frames: Vec<Frame> = Vec::new();
+    let mut chars = text.char_indices().peekable();
+    while let Some((at, c)) = chars.next() {
+        match c {
+            '"' => {
+                // the literal whole, escapes included
+                let mut end = at + 1;
+                let mut escaped = false;
+                for (i, c) in chars.by_ref() {
+                    end = i + c.len_utf8();
+                    if escaped {
+                        escaped = false;
+                    } else if c == '\\' {
+                        escaped = true;
+                    } else if c == '"' {
+                        break;
+                    }
+                }
+                let literal = &text[at..end];
+                let value: String = serde_json::from_str(literal).unwrap_or_default();
+                match frames.last_mut() {
+                    Some(Frame::Object {
+                        key, expecting_key, ..
+                    }) if *expecting_key => {
+                        *key = Some(value);
+                        out.push_str(literal);
+                        continue;
+                    }
+                    _ => {}
+                }
+                let key = match frames.last() {
+                    Some(Frame::Object { key, .. }) | Some(Frame::Array { key }) => key.clone(),
+                    None => None,
+                };
+                let key = key.as_deref().unwrap_or("");
+                let mut more = String::new();
+                if NAMES.contains(&key) {
+                    if let Some(Frame::Object { name, .. }) = frames.last_mut() {
+                        *name = Some(value);
+                    }
+                } else if all || WORDS.contains(&key) {
+                    let named = match frames.last_mut() {
+                        Some(Frame::Object { name, .. }) if key == "what" => name.take(),
+                        _ => None,
+                    };
+                    let said = match named {
+                        Some(name) => format!("{name} {value}"),
+                        None => value,
+                    };
+                    more = spelling(&said);
+                }
+                if more.is_empty() {
+                    out.push_str(literal);
+                } else {
+                    let escaped = serde_json::to_string(&more).unwrap_or_default();
+                    out.push_str(&literal[..literal.len() - 1]);
+                    out.push_str(&escaped[1..escaped.len() - 1]);
+                    out.push('"');
+                }
+            }
+            '{' => {
+                let key = match frames.last() {
+                    Some(Frame::Array { key }) => key.clone(),
+                    _ => None,
+                };
+                frames.push(Frame::Object {
+                    key,
+                    expecting_key: true,
+                    name: None,
+                });
+                out.push(c);
+            }
+            '[' => {
+                let key = match frames.last() {
+                    Some(Frame::Object { key, .. }) | Some(Frame::Array { key }) => key.clone(),
+                    None => None,
+                };
+                frames.push(Frame::Array { key });
+                out.push(c);
+            }
+            '}' | ']' => {
+                frames.pop();
+                out.push(c);
+            }
+            ':' => {
+                if let Some(Frame::Object { expecting_key, .. }) = frames.last_mut() {
+                    *expecting_key = false;
+                }
+                out.push(c);
+            }
+            ',' => {
+                if let Some(Frame::Object { expecting_key, .. }) = frames.last_mut() {
+                    *expecting_key = true;
+                }
+                out.push(c);
+            }
+            _ => out.push(c),
+        }
+    }
+    out
+}
+
+/// A refusal's document as a tool's result, marked an error: every
+/// string of it [`spoken`] for this server.
+fn refusing(doc: Value) -> CallToolResult {
+    let text = spoken(&doc.to_string(), true);
+    let mut result = CallToolResult::structured_error(serde_json::from_str(&text).unwrap_or(doc));
+    result.content = vec![rmcp::model::ContentBlock::text(text)];
+    result
 }
 
 /// A pricing verb's answer as a tool's result: the document the CLI's
@@ -901,11 +1151,11 @@ fn priced<T: serde::Serialize>(answer: Result<T>) -> Told {
     match answer {
         Ok(document) => told(&document),
         Err(e) => {
-            let mut report = json!({ "error": spelled(&format!("{e:#}")) });
+            let mut report = json!({ "error": format!("{e:#}") });
             if let Some(refused) = acquisition_plan::pricing::Refused::find(&e) {
                 report.as_object_mut().unwrap().extend(refused.fields());
             }
-            Ok(CallToolResult::structured_error(report))
+            Ok(refusing(report))
         }
     }
 }
@@ -915,9 +1165,8 @@ fn priced<T: serde::Serialize>(answer: Result<T>) -> Told {
 fn price_realm(realm: Option<&str>) -> std::result::Result<Option<Realm>, CallToolResult> {
     realm
         .map(|s| {
-            acquisition_verbs::realm(s).map_err(|why| {
-                CallToolResult::structured_error(json!({ "error": why, "kind": "arguments" }))
-            })
+            acquisition_verbs::realm(s)
+                .map_err(|why| refusing(json!({ "error": why, "kind": "arguments" })))
         })
         .transpose()
 }
@@ -952,7 +1201,7 @@ impl AcqMcp {
         self.account(selector)
             .and_then(|account| account.open())
             .map(|opened| (opened.facts, opened.intent))
-            .map_err(|e| CallToolResult::structured_error(refusal(&e.into(), named)))
+            .map_err(|e| refusing(refusal(&e.into(), named)))
     }
 
     /// [`Self::open_search`] with the account's name, for a refusal that
@@ -966,7 +1215,7 @@ impl AcqMcp {
         self.account(selector)
             .and_then(|account| account.open())
             .map(|opened| (opened.facts, opened.intent, opened.account.entry.username))
-            .map_err(|e| CallToolResult::structured_error(refusal(&e.into(), named)))
+            .map_err(|e| refusing(refusal(&e.into(), named)))
     }
 
     /// The selected account's intent file alone, for a verb that reads
@@ -980,7 +1229,7 @@ impl AcqMcp {
     ) -> std::result::Result<Annotations, CallToolResult> {
         self.account(selector)
             .and_then(|account| account.intent())
-            .map_err(|e| CallToolResult::structured_error(refusal(&e.into(), named)))
+            .map_err(|e| refusing(refusal(&e.into(), named)))
     }
 }
 
@@ -1116,12 +1365,15 @@ impl AcqMcp {
                 .collect();
             (!kept.is_empty()).then_some(kept)
         });
-        told(&Described {
-            language,
-            pricing: chosen.next().flatten(),
-            daemon: chosen.next().flatten(),
-            store: chosen.next().flatten(),
-        })
+        told_as(
+            &Described {
+                language,
+                pricing: chosen.next().flatten(),
+                daemon: chosen.next().flatten(),
+                store: chosen.next().flatten(),
+            },
+            true,
+        )
     }
 
     #[tool(
@@ -1136,7 +1388,7 @@ impl AcqMcp {
             None => None,
             Some(Ok(query)) => Some(query),
             Some(Err(e)) => {
-                return Ok(CallToolResult::structured_error(json!({
+                return Ok(refusing(json!({
                     "error": format!(
                         "`against` is a query as a request holds one, {{\"text\": …}} or {{\"tree\": …}}: {e}"
                     ),

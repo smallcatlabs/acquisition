@@ -17,7 +17,7 @@ use std::path::{Path, PathBuf};
 use acquisition_plan::price::Buyout;
 use acquisition_plan::{PolicyWrite, put_sync_policy};
 use acquisition_store::{Annotations, Endpoint, Index, Provenance, Store, account_path};
-use harness::{Mcp, acq, no_daemon_appeared, scratch};
+use harness::{Mcp, acq, assert_spoken_as, no_daemon_appeared, scratch};
 use serde_json::{Value, json};
 
 const USER: &str = "Alice#1234";
@@ -311,10 +311,10 @@ fn each_pricing_read_is_the_document_the_cli_prints() {
             (*succeeds, *succeeds),
             "{name} {args} / acq {verb:?}: {by_tool}\n{by_cli}"
         );
-        assert_eq!(
-            steady(by_tool, CLOCK),
-            steady(by_cli, CLOCK),
-            "{name} {args} is not what acq {verb:?} --json prints"
+        assert_spoken_as(
+            &steady(by_tool, CLOCK),
+            &steady(by_cli, CLOCK),
+            &format!("{name} {args} is not what acq {verb:?} --json prints"),
         );
     }
 
@@ -328,7 +328,11 @@ fn each_pricing_read_is_the_document_the_cli_prints() {
         base,
         &["shop", "render", "--template", path.to_str().unwrap()],
     );
-    assert_eq!(steady(by_tool, CLOCK), steady(by_cli, CLOCK));
+    assert_spoken_as(
+        &steady(by_tool, CLOCK),
+        &steady(by_cli, CLOCK),
+        "shop_render with a template",
+    );
     assert!(no_daemon_appeared(base), "a pricing read reached a daemon");
 }
 
@@ -398,10 +402,10 @@ fn the_shop_document_bounds_what_it_leaves_out_alike_on_both_surfaces() {
         let (tool_ok, by_tool) = tool(&mut mcp, "shop_render", args.clone());
         let (cli_ok, by_cli) = cli(base, verb);
         assert!(tool_ok && cli_ok, "{by_tool}\n{by_cli}");
-        assert_eq!(
-            steady(by_tool.clone(), CLOCK),
-            steady(by_cli, CLOCK),
-            "shop_render {args} is not what acq {verb:?} --json prints"
+        assert_spoken_as(
+            &steady(by_tool.clone(), CLOCK),
+            &steady(by_cli, CLOCK),
+            &format!("shop_render {args} is not what acq {verb:?} --json prints"),
         );
         let listed = by_tool["left_out"].as_array().map_or(0, Vec::len);
         let total = by_tool["left_out_total"].as_u64().unwrap_or_default() as usize;
@@ -591,7 +595,7 @@ fn a_blind_replace_and_a_blind_clear_are_refused_naming_the_current_revision() {
     let (ok, refusal) = tool(&mut mcp, "price_clear", json!({ "target": "item/i-map" }));
     assert!(!ok);
     let (_, by_cli) = cli(base, &["price", "clear", "item/i-map"]);
-    assert_eq!(refusal, by_cli);
+    assert_spoken_as(&refusal, &by_cli, "price_clear item/i-map");
     let (ok, receipt) = tool(
         &mut mcp,
         "price_set",
@@ -701,7 +705,9 @@ fn a_pricing_refusal_names_the_argument_after_each_flag_it_speaks() {
     let said = refusal["error"].as_str().unwrap_or_default();
     assert!(
         said.contains("names the revision it replaces (1) with `--if-revision 1`")
-            && said.ends_with("— here, `--if-revision` is `if_revision`"),
+            && said.ends_with(
+                "— here, `acq price show` is `price_show`, `--if-revision` is `if_revision`"
+            ),
         "{said}"
     );
     let (ok, refusal) = tool(&mut mcp, "price_list", json!({ "in": "item/i-plain" }));

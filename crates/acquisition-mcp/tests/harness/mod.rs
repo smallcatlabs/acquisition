@@ -318,3 +318,37 @@ impl Mcp {
         }
     }
 }
+
+/// C143: the server's document is the CLI's with this server's spelling
+/// after the shared words — the same shape, and each string the CLI's
+/// whole, or the CLI's followed by ` — here, ` and the spelling. The
+/// first string that differs otherwise, with its path, or `None`.
+pub fn spoken_otherwise(server: &Value, cli: &Value, path: &str) -> Option<String> {
+    match (server, cli) {
+        (Value::String(s), Value::String(c)) => (s != c
+            && !s
+                .strip_prefix(c.as_str())
+                .is_some_and(|rest| rest.starts_with(" — here, ")))
+        .then(|| format!("{path}: {s:?} is not {c:?} spelled")),
+        (Value::Array(s), Value::Array(c)) if s.len() == c.len() => s
+            .iter()
+            .zip(c)
+            .enumerate()
+            .find_map(|(i, (s, c))| spoken_otherwise(s, c, &format!("{path}[{i}]"))),
+        (Value::Object(s), Value::Object(c))
+            if s.keys().collect::<Vec<_>>() == c.keys().collect::<Vec<_>>() =>
+        {
+            s.iter()
+                .find_map(|(k, v)| spoken_otherwise(v, &c[k], &format!("{path}.{k}")))
+        }
+        _ => (server != cli).then(|| format!("{path}: {server} is not {cli}")),
+    }
+}
+
+/// [`spoken_otherwise`] as an assertion.
+#[track_caller]
+pub fn assert_spoken_as(server: &Value, cli: &Value, what: &str) {
+    if let Some(differs) = spoken_otherwise(server, cli, "") {
+        panic!("{what}: {differs}");
+    }
+}

@@ -15,7 +15,7 @@ use crate::harness;
 use std::path::{Path, PathBuf};
 
 use acquisition_store::{Endpoint, Index, Store, account_path};
-use harness::{Mcp, acq, no_daemon_appeared};
+use harness::{Mcp, acq, assert_spoken_as, no_daemon_appeared};
 use harness::{Scratch, scratch};
 use serde_json::{Value, json};
 
@@ -226,7 +226,7 @@ impl Seat {
         std::fs::write(&file, request.to_string()).unwrap();
         let (printed, ok) = cli(&self.base, &["search", "--request", file.to_str().unwrap()]);
         let (doc, refused) = self.call("search", request);
-        assert_eq!(doc, printed, "search {request}");
+        assert_spoken_as(&doc, &printed, &format!("search {request}"));
         assert_eq!(refused, !ok, "search {request}: {doc}");
         (doc, refused)
     }
@@ -385,11 +385,16 @@ fn describe_is_the_clis_and_reads_no_store() {
     assert!(fields.remove("pricing").is_some(), "{whole}");
     assert!(fields.remove("daemon").is_some(), "{whole}");
     assert!(fields.remove("store").is_some(), "{whole}");
-    assert_eq!(language, cli(&seat.base, &["search", "--describe"]).0);
+    assert_spoken_as(
+        &language,
+        &cli(&seat.base, &["search", "--describe"]).0,
+        "describe",
+    );
     let (some, _) = seat.call("describe", &json!({ "names": ["league", "total_res"] }));
-    assert_eq!(
-        some,
-        cli(&seat.base, &["search", "--describe", "league,total_res"]).0
+    assert_spoken_as(
+        &some,
+        &cli(&seat.base, &["search", "--describe", "league,total_res"]).0,
+        "describe league, total_res",
     );
     assert_ne!(some, whole);
     let (e, is_error) = seat.call("describe", &json!({ "names": ["leauge"] }));
@@ -397,7 +402,9 @@ fn describe_is_the_clis_and_reads_no_store() {
     assert_eq!(e["kind"], "unknown_name");
     // the CLI's refusal, every name this tool knows after its own
     let printed = cli(&seat.base, &["search", "--describe", "leauge"]).0;
+    // the names, then this server's spelling of the flags among them
     let said = e["error"].as_str().unwrap();
+    let said = said.split(" — here, ").next().unwrap();
     let own = format!(
         "{}, pricing, daemon, store, ",
         printed["error"].as_str().unwrap()
