@@ -222,16 +222,19 @@ impl Daemon {
                         LOGIN_PROFILE_TIMEOUT.as_secs()
                     ))
                 }
-                Some(Outcome::Success { payload }) => payload
+                Some(Err(refusal)) => Err(format!(
+                    "profile fetch (job {id}) finished, but its outcome could not be read: {refusal}"
+                )),
+                Some(Ok(Outcome::Success { payload })) => payload
                     .get("body")
                     .and_then(|b| b.get("uuid"))
                     .and_then(Value::as_str)
                     .map(str::to_string)
                     .ok_or_else(|| "profile response carried no uuid".to_string()),
-                Some(Outcome::Failure { error, .. }) => {
+                Some(Ok(Outcome::Failure { error, .. })) => {
                     Err(format!("profile fetch failed: {error}"))
                 }
-                Some(Outcome::Cancelled) => Err("profile fetch was cancelled".into()),
+                Some(Ok(Outcome::Cancelled)) => Err("profile fetch was cancelled".into()),
             },
         };
         match uuid {
@@ -402,8 +405,15 @@ impl Daemon {
     }
 
     /// Wait until job `id` is terminal, returning its outcome (`None` on
-    /// timeout). Daemon-internal; clients wait through the protocol.
-    async fn wait_job_terminal(&self, id: JobId, timeout: Duration) -> Option<Outcome> {
+    /// timeout). A job concluded and evicted is read from the table (C6),
+    /// and a read that fails is the answer, never a reason to wait on:
+    /// the job has concluded, so no later event would bring its outcome.
+    /// Daemon-internal; clients wait through the protocol.
+    pub(super) async fn wait_job_terminal(
+        &self,
+        id: JobId,
+        timeout: Duration,
+    ) -> Option<Result<Outcome, Refusal>> {
         let mut rx = self.events.subscribe();
         tokio::time::timeout(timeout, async {
             loop {
@@ -417,14 +427,21 @@ impl Daemon {
                             .flatten()
                     })
                 };
-                // Not in memory: concluded and evicted, its outcome in the
-                // table (C6).
-                let outcome = match held {
-                    Some(outcome) => outcome,
-                    None => self.stored_outcome(id).ok().flatten(),
-                };
-                if let Some(outcome) = outcome {
-                    return outcome;
+                match held {
+                    Some(Some(outcome)) => return Ok(outcome),
+                    Some(None) => {}
+                    // Not in memory: concluded and evicted, its outcome in
+                    // the table (C6).
+                    None => {
+                        return self.stored_outcome(id).and_then(|outcome| {
+                            outcome.ok_or_else(|| {
+                                Refusal::new(
+                                    ErrorKind::QueueFailed,
+                                    format!("job {id} left memory with no outcome in the queue"),
+                                )
+                            })
+                        });
+                    }
                 }
                 match rx.recv().await {
                     Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => {}
