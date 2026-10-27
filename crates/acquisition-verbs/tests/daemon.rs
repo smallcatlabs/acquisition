@@ -884,3 +884,33 @@ async fn a_diagnosis_with_the_daemon_running_reads_its_report() {
         "the logged-in name `alice` is in the diagnosis: {document:#}"
     );
 }
+
+/// r4's review, finding 5: an index entry with an empty uuid made an
+/// empty needle, which matched at every position and advanced none, so
+/// the diagnosis never ended. It ends, and an empty string is replaced
+/// nowhere. The work runs on a thread watched from here: a scan that
+/// does not end is a busy loop no async timeout can interrupt.
+#[tokio::test]
+async fn an_index_entry_with_an_empty_uuid_does_not_stall_the_diagnosis() {
+    let s = session("diagnose-empty-uuid");
+    let mock = s.base.join("store").join("mock");
+    acquisition_store::Index::load(&mock)
+        .unwrap()
+        .record_login(PLANTED_USER, "", false, 1_000, &[])
+        .unwrap();
+    let diagnosis = Frontend::agent("test")
+        .unwrap()
+        .diagnose(acquisition_verbs::Tails::DEFAULT)
+        .await;
+    let (sent, received) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let document = diagnosis.document();
+        let (text, _) = diagnosis.redact_text("\nfirst line\n");
+        let _ = sent.send((document, text));
+    });
+    let (document, text) = received
+        .recv_timeout(Duration::from_secs(60))
+        .expect("the redaction of a diagnosis whose index holds an empty uuid never ended");
+    assert_eq!(text, "\nfirst line\n");
+    assert_eq!(document["store"][0]["account"], json!("<account 1>"));
+}

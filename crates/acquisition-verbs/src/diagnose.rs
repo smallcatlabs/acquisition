@@ -601,8 +601,19 @@ impl Redactor {
                 });
             }
         }
-        needles.sort_by_key(|n| std::cmp::Reverse(n.text.len()));
-        needles.dedup_by(|a, b| a.text == b.text);
+        // An empty needle matches everywhere and advances nowhere: the
+        // scan would never end (r4's review, finding 5: an index entry's
+        // empty uuid). None is built.
+        needles.retain(|n| !n.text.is_empty());
+        // The longest first; equal texts side by side, the first pushed
+        // kept, so a dedup leaves each text once.
+        needles.sort_by(|a, b| {
+            b.text
+                .len()
+                .cmp(&a.text.len())
+                .then_with(|| a.text.cmp(&b.text))
+        });
+        needles.dedup_by(|later, kept| later.text == kept.text);
         Redactor {
             needles,
             tokens: BTreeMap::new(),
