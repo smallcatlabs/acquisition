@@ -114,8 +114,12 @@ threads too. The closure needs the daemon as `Arc<Self>`: the
 dispatcher's `run_active` (`daemon/dispatch.rs:119`), `auth_start`
 (`daemon/login.rs:16`) and the request handler already hold one, so
 `valid_access_token`, `complete_login`, `logout` and `with_index`
-take `self: &Arc<Self>` through their callers. The build counts the
-signatures it touches; the design expects under ten.
+take `self: &Arc<Self>` through their callers: about a dozen
+signatures (the kind runners, `api_get`, the refresh pair and its
+guard, the login pair, `logout`, `with_index`). Or none: the landing's
+inputs (`shared`, `credentials`, the credential store, the store
+directory, the log) held in `Arc`s on `Daemon` and cloned into the
+closure. The build picks and says which; the property is the same.
 
 **Who waits for what.** The refresh's owner awaits its landing whole
 and gets, as today, the token with the save's outcome behind it. Every
@@ -228,14 +232,25 @@ refresh runs (one token POST per ten hours instead of one per
 lifetime) and does not remove this schedule: the first refresh after
 a rebuild still meets the dialog, at expiry instead of at first use.
 
-One thing the C135 round must look at that this step does not: once
-the access token is restored at start, the start's keyring *read*
-(`daemon/start.rs:464`, after the socket is bound at `:427` and
-before `serve` at `:598`) becomes the first keychain call of a
-rebuilt binary, and a prompt there is met by the client's start-up
-deadline, not the handshake deadline. Whether the read prompts for an
-ad-hoc-signed build the way the modify does is a fact to establish on
-the owner's Mac before that round is designed (section 9).
+The start's keyring read is a second site of the same symptom, and
+the tree already records that it prompts: `tools/sign-acqd.sh`'s
+header (2026-09-12) says an ad-hoc-signed `acqd` is asked twice per
+login after every rebuild, "the read at start, the modify on save".
+The socket is bound (`daemon/start.rs:427`) before the restore reads
+the keyring (`:464`) and served after (`:598`), so a client that
+connects during that prompt waits for `hello` past its deadline and
+reports the daemon unresponsive, before any save. The read holds no
+lock, so this design's rule does not reach it; after C135 it is the
+one prompt a rebuild meets. Its fix is a lifecycle state, not a lock:
+serve before the restore, the restore on a blocking thread, the
+sessions arriving under `shared` with `auth status` saying
+*restoring* until they do, the dispatcher, the drain and the idle
+verdict holding for it. The restore is the function C135 rewrites
+(two tokens read instead of one), so the recommendation is an issue
+now and the design in the C135 round, one change to the restore
+reviewed once; the owner may instead fold it into r2's build as a
+fourth site, at the cost of a lifecycle change in a step cut as a
+lock change.
 
 ## 6. Where this meets the time seam
 
@@ -322,10 +337,10 @@ Written from the tree, as the template asks:
 
 Left for the owner, beside the ruling:
 
-- The start's keyring read (section 5): a sibling of this schedule,
-  before the socket serves, which C135 makes the first call of a
-  rebuilt binary. Not this step; a fact to establish, then an issue
-  or a line in the C135 round's brief.
+- The start's keyring read (section 5): the same symptom at start,
+  recorded in the tree, held by no lock. Recommended: an issue now,
+  designed in the C135 round; the alternative is a fourth site in
+  r2's build.
 - The second login's refusal words (section 3) are agent-facing and
   the session's; listed here so the close can list them.
 - Whether the save cut at the bound is pinned now with paused time or
@@ -336,4 +351,5 @@ Left for the owner, beside the ruling:
 As the brief's: the lock merge whole, the typed `JobKind`, `frame.rs`
 shared; the time seam; the quote's simulation under the limiter lock
 and the outranked check; keyring 4 or any change to which store holds
-the token; and, found here, the start's keyring read.
+the token; and the start's keyring read, unless the owner folds it in
+(section 5).
