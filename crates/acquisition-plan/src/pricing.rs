@@ -489,8 +489,8 @@ fn standing(target: &PriceTarget, revision: i64, verb: &str) -> anyhow::Error {
         Some(revision),
         format!(
             "{target} has a price row of its own at revision {revision}: {verb} names the \
-             revision it replaces ({revision}), never a row it has not read — \
-             `acq price show {target}` reads it"
+             revision it replaces ({revision}) with `--if-revision {revision}`, never a row it \
+             has not read — `acq price show {target}` reads it"
         ),
     )
 }

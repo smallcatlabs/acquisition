@@ -683,3 +683,34 @@ fn the_price_write_tools_say_a_clear_takes_a_revision() {
         );
     }
 }
+
+/// The release seat's finding 9: a pricing refusal spoke the CLI's flags,
+/// and the tool texts carried the translation ("--league is `league`, --in
+/// is `in`"). The refusal says it: the shared words whole, then this
+/// server's argument for each flag they speak (C143) — the conflict over
+/// a row the target already has names `if_revision` after the flag, and
+/// a container argument given an item names `in`.
+#[test]
+fn a_pricing_refusal_names_the_argument_after_each_flag_it_speaks() {
+    let dir = scratch("mcp-price-spelled");
+    let base = &dir.0;
+    seed(base);
+    let mut mcp = Mcp::start(base, &[]);
+    let (ok, refusal) = tool(
+        &mut mcp,
+        "price_set",
+        json!({ "target": "item/i-plain", "type": "skip" }),
+    );
+    assert!(!ok, "{refusal}");
+    assert_eq!(refusal["kind"], "conflict", "{refusal}");
+    let said = refusal["error"].as_str().unwrap_or_default();
+    assert!(
+        said.contains("names the revision it replaces (1) with `--if-revision 1`")
+            && said.ends_with("— here, `--if-revision` is `if_revision`"),
+        "{said}"
+    );
+    let (ok, refusal) = tool(&mut mcp, "price_list", json!({ "in": "item/i-plain" }));
+    assert!(!ok, "{refusal}");
+    let said = refusal["error"].as_str().unwrap_or_default();
+    assert!(said.ends_with("— here, `--in` is `in`"), "{said}");
+}

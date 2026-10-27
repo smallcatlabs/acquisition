@@ -776,14 +776,47 @@ struct PriceClearParams {
     account: Option<String>,
 }
 
+/// The CLI's flags a pricing refusal may speak (the plan crate's words
+/// are the CLI's, which were first), each with this server's argument.
+const FLAGS: [(&str, &str); 6] = [
+    ("--if-revision", "if_revision"),
+    ("--league", "league"),
+    ("--realm", "realm"),
+    ("--account", "account"),
+    ("--in", "in"),
+    ("--covered-by", "covered_by"),
+];
+
+/// A pricing refusal's words, then this server's spelling of each flag
+/// they speak (C143: the shared words first, an adapter's spelling after
+/// them), so a tool's text need not say that `--league` is `league` (the
+/// release seat's finding 9: the refusals spoke the CLI's vocabulary).
+fn spelled(words: &str) -> String {
+    let said: Vec<String> = FLAGS
+        .iter()
+        .filter(|(flag, _)| {
+            words.match_indices(flag).any(|(at, _)| {
+                !words[at + flag.len()..]
+                    .starts_with(|c: char| c.is_ascii_alphanumeric() || c == '-')
+            })
+        })
+        .map(|(flag, argument)| format!("`{flag}` is `{argument}`"))
+        .collect();
+    if said.is_empty() {
+        words.to_string()
+    } else {
+        format!("{words} — here, {}", said.join(", "))
+    }
+}
+
 /// A pricing verb's answer as a tool's result: the document the CLI's
 /// `--json` prints, or its failure document, `{"error": …}`, in a result
-/// marked an error.
+/// marked an error, its words [`spelled`] for this server.
 fn priced<T: serde::Serialize>(answer: Result<T>) -> Told {
     match answer {
         Ok(document) => told(&document),
         Err(e) => {
-            let mut report = json!({ "error": format!("{e:#}") });
+            let mut report = json!({ "error": spelled(&format!("{e:#}")) });
             if let Some(refused) = acquisition_plan::pricing::Refused::find(&e) {
                 report.as_object_mut().unwrap().extend(refused.fields());
             }
