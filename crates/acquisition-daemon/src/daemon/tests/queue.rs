@@ -1480,6 +1480,29 @@ async fn a_failed_queue_write_refuses_new_jobs_and_stops_dispatch() {
     finish_harness(None, &log);
 }
 
+/// C6 as amended: a concluded tree leaves memory only when every row is
+/// persisted. A job that concludes after a failed queue write stays in
+/// memory, which answers for it: its row was not written.
+#[tokio::test]
+async fn a_job_concluded_after_a_failed_queue_write_stays_in_memory() {
+    let db = test_db_path();
+    let (daemon, log) = persisting_daemon("http://127.0.0.1:1", &db);
+    let id = daemon
+        .submit("sleep".into(), json!({}), 0, "t".into(), None)
+        .unwrap();
+    break_queue(&db);
+    daemon.start_and_finish(id, Outcome::Success { payload: json!({}) });
+    assert!(daemon.queue_failed().is_some());
+    let s = daemon.shared.lock().unwrap();
+    assert_eq!(
+        s.jobs.get(&id).map(|e| e.info.state),
+        Some(JobState::Done),
+        "memory still holds the job, concluded"
+    );
+    drop(s);
+    finish_harness(None, &log);
+}
+
 #[tokio::test]
 async fn a_broken_queue_is_fatal_to_restore() {
     let db = test_db_path();

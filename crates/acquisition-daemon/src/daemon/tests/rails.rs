@@ -203,11 +203,9 @@ fn ceiling_daemon(base: &str, max_sends: u64, db: &std::path::Path) -> (Arc<Daem
 async fn wait_halted_and_settled(daemon: &Daemon, ids: &[JobId]) {
     tokio::time::timeout(Duration::from_secs(3), async {
         loop {
-            let settled = {
-                let s = daemon.shared.lock().unwrap();
-                ids.iter()
-                    .all(|id| s.jobs[id].info.state != JobState::Running)
-            };
+            let settled = ids
+                .iter()
+                .all(|&id| state_of(daemon, id) != JobState::Running);
             if settled && daemon.choke.rails().halted().is_some() {
                 return;
             }
@@ -221,10 +219,7 @@ async fn wait_halted_and_settled(daemon: &Daemon, ids: &[JobId]) {
 /// The job is waiting with no retry spent, in memory and in `daemon.db`
 /// read through a connection of its own.
 fn assert_parked(daemon: &Daemon, db: &std::path::Path, id: JobId) {
-    let (info, outcome) = {
-        let s = daemon.shared.lock().unwrap();
-        (s.jobs[&id].info.clone(), s.jobs[&id].outcome.clone())
-    };
+    let (info, outcome) = held(daemon, id).expect("the job");
     assert_eq!(
         info.state,
         JobState::Waiting,
@@ -538,11 +533,8 @@ async fn a_cancel_before_the_halt_parks_the_job_concludes_it_cancelled() {
     release.send(()).unwrap();
     wait_halted_and_settled(&daemon, &[id]).await;
     tokio::time::sleep(Duration::from_millis(100)).await;
-    let (state, outcome) = {
-        let s = daemon.shared.lock().unwrap();
-        (s.jobs[&id].info.state, s.jobs[&id].outcome.clone())
-    };
-    assert_eq!(state, JobState::Cancelled, "{outcome:?}");
+    let (info, outcome) = held(&daemon, id).expect("the job");
+    assert_eq!(info.state, JobState::Cancelled, "{outcome:?}");
     let row = JobDb::open(&db).unwrap().get(id).unwrap().expect("the row");
     assert_eq!(row.state, JobState::Cancelled.to_string(), "on disk");
     assert_eq!(
@@ -630,13 +622,11 @@ async fn a_parked_whoami_is_not_picked_again_while_halted() {
     })
     .await
     .expect("no job task left running");
-    let parked: Vec<JobId> = {
-        let s = daemon.shared.lock().unwrap();
-        ids.iter()
-            .copied()
-            .filter(|id| s.jobs[id].info.state == JobState::Waiting)
-            .collect()
-    };
+    let parked: Vec<JobId> = ids
+        .iter()
+        .copied()
+        .filter(|&id| state_of(&daemon, id) == JobState::Waiting)
+        .collect();
     assert_eq!(parked.len(), 1, "one whoami was turned away");
     assert_parked(&daemon, &db, parked[0]);
     assert!(daemon.pick_runnable().is_empty(), "the pick passes it over");

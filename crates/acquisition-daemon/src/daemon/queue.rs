@@ -7,7 +7,7 @@
 //!
 //! ## C6 — The job queue persists: a `jobs` table in a per-daemon `daemon.db` (SQLite, in the prov…
 //!
-//! **The job queue persists: a `jobs` table in a per-daemon `daemon.db` (SQLite, in the provider's store directory beside the account files), written through at every state change and read back at start.** Memory stays the runtime source of truth — the table is a mirror, "the HashMap, but it survives" — and the one thing read from it while the daemon runs is `result` for an id this lifetime never held (history, not state). On restore only open jobs are loaded (terminal rows carry bodies; a week of them does not belong in memory): `waiting` jobs resume; a `running` job is **re-queued** where the replay premise holds — every network kind is an idempotent GET and the restart probe reads GGG's current counters before it sends, so the duplicate costs one seen hit. Two exceptions (2026-08-30 review): on a declared **no-probe route** the premise fails — a replay would go out against an empty limiter — so the job fails as interrupted instead; and a running **parent whose children exist is mid-fan-out** (its held result was not yet written) — re-running it would submit a duplicate child set, so it holds for the children it has and then finishes as **interrupted, never success**: how many children were never submitted is unknowable, so a partial fan-out must not claim completeness (the children that did run recorded their responses; resubmitting completes the set). A parent whose held result was written resumes holding it; `probe` rows are dropped (one HEAD per lifetime, N16); ids continue from where they were (`AUTOINCREMENT`, never reused, so a stale `acq result <id>` can never name a different job) — a daemon that cannot open or read `daemon.db` refuses to start rather than risk reissuing them, and a queue **write** failure at runtime is sticky: a submit whose insert fails is refused with its id rolled back (a job exists only once its row does), later submits are refused outright, and the dispatcher stops picking while running jobs finish — **ids** never run ahead of disk. Completions are the accepted residual, stated plainly: a job already running when the flag trips finishes in memory but its outcome write fails, so disk still says running and the next daemon replays it (probed route: one seen duplicate hit; no-probe: fails as interrupted) — the send already happened, so refusing to finish it would record nothing at all. The same teeth apply per transition: a `waiting→running` write that fails reverts the job instead of running it (a send the queue cannot see must not happen), `cancel`/`set-priority` report a failed write instead of claiming success (the cancel still wins the job's terminal surface in this lifetime, though an already-running job may still complete its in-flight send — sends are committed once dispatched), and a `result` read failure is an error, never "no job". `submit_child` is refused once its parent is terminal or asked to cancel, under the lock `cancel` takes, so cancellation cannot race an active fan-out into submitting unseen children; a stopped fan-out finishes cancelled or failed, never as success over a partial set; a cancellation that lands after the last child is honored when the held result is installed, cancelled children never count toward a parent's success, and `finish` arbitrates a pending `cancel_requested` under the final lock — a cancel can land at any instant before terminalization and still win. Terminal rows stay so `acq result` has a memory across restarts (`acq jobs` lists live jobs only), pruned at start by age — `ACQ_JOB_RETENTION_DAYS` (default 7) for done/cancelled and `ACQ_FAILED_JOB_RETENTION_DAYS` (default 30) for failed, misread values logged as `CONFIG` errors like the rails knobs. Outcomes are stored verbatim, bodies included (a full refresh is ~50 MB, bounded by retention); compression was considered and deferred — it costs a crate and makes the column unreadable in `sqlite3`, and compressing one column later is a local change. **One daemon per store directory is the world lock (C83)**: since the daemon split's step 5 the daemon takes an exclusive lock on its world's root (`<root>/daemon.lock`, `acquisition_store::world::Lock`) before `daemon.db` opens and refuses to start naming the holder; two daemons on one `daemon.db` would each restore and run the same queue. Parallel mock daemons are parallel worlds (`ACQ_STORE_DIR=<scratch>`, whose socket derives from it; the mock-session skill). Rationale: the queue was the one thing a restart lost once results moved to the store (2026-08-29); a mirror written under the same lock as the memory change keeps disk equal to memory at the `process::exit` the daemon leaves by (up to the declared write-failure residual above); SQLite because it is the crate's one persistence idiom, debuggable with `sqlite3`, and readable by a frontend without a daemon. Decided 2026-08-30.
+//! **The job queue persists: a `jobs` table in a per-daemon `daemon.db` (SQLite, in the provider's store directory beside the account files), written through at every state change and read back at start.** Memory stays the runtime source of truth — the table is a mirror, "the HashMap, but it survives" — and the one thing read from it while the daemon runs is `result` for an id this lifetime never held (history, not state). On restore only open jobs are loaded (terminal rows carry bodies; a week of them does not belong in memory): `waiting` jobs resume; a `running` job is **re-queued** where the replay premise holds — every network kind is an idempotent GET and the restart probe reads GGG's current counters before it sends, so the duplicate costs one seen hit. Two exceptions (2026-08-30 review): on a declared **no-probe route** the premise fails — a replay would go out against an empty limiter — so the job fails as interrupted instead; and a running **parent whose children exist is mid-fan-out** (its held result was not yet written) — re-running it would submit a duplicate child set, so it holds for the children it has and then finishes as **interrupted, never success**: how many children were never submitted is unknowable, so a partial fan-out must not claim completeness (the children that did run recorded their responses; resubmitting completes the set). A parent whose held result was written resumes holding it; `probe` rows are dropped (one HEAD per lifetime, N16); ids continue from where they were (`AUTOINCREMENT`, never reused, so a stale `acq result <id>` can never name a different job) — a daemon that cannot open or read `daemon.db` refuses to start rather than risk reissuing them, and a queue **write** failure at runtime is sticky: a submit whose insert fails is refused with its id rolled back (a job exists only once its row does), later submits are refused outright, and the dispatcher stops picking while running jobs finish — **ids** never run ahead of disk. Completions are the accepted residual, stated plainly: a job already running when the flag trips finishes in memory but its outcome write fails, so disk still says running and the next daemon replays it (probed route: one seen duplicate hit; no-probe: fails as interrupted) — the send already happened, so refusing to finish it would record nothing at all. The same teeth apply per transition: a `waiting→running` write that fails reverts the job instead of running it (a send the queue cannot see must not happen), `cancel`/`set-priority` report a failed write instead of claiming success (the cancel still wins the job's terminal surface in this lifetime, though an already-running job may still complete its in-flight send — sends are committed once dispatched), and a `result` read failure is an error, never "no job". `submit_child` is refused once its parent is terminal or asked to cancel, under the lock `cancel` takes, so cancellation cannot race an active fan-out into submitting unseen children; a stopped fan-out finishes cancelled or failed, never as success over a partial set; a cancellation that lands after the last child is honored when the held result is installed, cancelled children never count toward a parent's success, and `finish` arbitrates a pending `cancel_requested` under the final lock — a cancel can land at any instant before terminalization and still win. Terminal rows stay so `acq result` has a memory across restarts (`acq jobs` lists live jobs only), pruned at start by age — `ACQ_JOB_RETENTION_DAYS` (default 7) for done/cancelled and `ACQ_FAILED_JOB_RETENTION_DAYS` (default 30) for failed, misread values logged as `CONFIG` errors like the rails knobs. Outcomes are stored verbatim, bodies included (a full refresh is ~50 MB, bounded by retention); compression was considered and deferred — it costs a crate and makes the column unreadable in `sqlite3`, and compressing one column later is a local change. **One daemon per store directory is the world lock (C83)**: since the daemon split's step 5 the daemon takes an exclusive lock on its world's root (`<root>/daemon.lock`, `acquisition_store::world::Lock`) before `daemon.db` opens and refuses to start naming the holder; two daemons on one `daemon.db` would each restore and run the same queue. Parallel mock daemons are parallel worlds (`ACQ_STORE_DIR=<scratch>`, whose socket derives from it; the mock-session skill). Rationale: the queue was the one thing a restart lost once results moved to the store (2026-08-29); a mirror written under the same lock as the memory change keeps disk equal to memory at the `process::exit` the daemon leaves by (up to the declared write-failure residual above); SQLite because it is the crate's one persistence idiom, debuggable with `sqlite3`, and readable by a frontend without a daemon. Decided 2026-08-30. Amended 2026-10-27 (the owner's word, step r3): memory is the truth for live trees; a tree whose root has concluded and whose every row is persisted leaves memory, and the table answers `status`, `result` and the job list for it, so a daemon's memory is bounded by its work and not by its lifetime (`Daemon::evict_tree`).
 //!
 
 use super::*;
@@ -169,6 +169,7 @@ impl Daemon {
         {
             let mut s = self.shared.lock().unwrap();
             s.next_id = next_id;
+            s.first_id = next_id;
             for mut entry in entries {
                 if entry.info.kind == "probe" {
                     dropped += 1;
@@ -320,6 +321,50 @@ resubmit if still wanted",
                 format!("could not read the persisted queue: {e:#}"),
             )),
         }
+    }
+
+    /// C6: a job this daemon does not hold in memory, as the table
+    /// records it — a tree concluded and evicted, or an earlier daemon's
+    /// job. `Ok(None)` is genuinely no such job; a queue that cannot be
+    /// read is an error, never "no job".
+    pub(super) fn stored_job(&self, id: JobId) -> Result<Option<JobInfo>, Refusal> {
+        let read = self.jobs_db.lock().unwrap().listed(id);
+        match read {
+            Ok(row) => Ok(row.and_then(listed_info)),
+            Err(e) => Err(Refusal::new(
+                ErrorKind::QueueFailed,
+                format!("could not read the persisted queue: {e:#}"),
+            )),
+        }
+    }
+
+    /// The job list (C6): every job memory holds, the waiting ones with
+    /// their ETAs, and every finished job submitted to this daemon that
+    /// has left memory, read from the table; by id. Memory is read first
+    /// and the table after, so a tree evicted between the two reads is in
+    /// the second; a job in both is memory's. The table is read outside
+    /// `shared`, and without the bulk columns.
+    pub(super) fn job_list(&self) -> Result<Vec<JobInfo>, Refusal> {
+        let (mut jobs, first) = {
+            let s = self.shared.lock().unwrap();
+            (s.list(self), s.first_id)
+        };
+        let read = self.jobs_db.lock().unwrap().listed_finished_from(first);
+        let finished = read.map_err(|e| {
+            Refusal::new(
+                ErrorKind::QueueFailed,
+                format!("could not read the persisted queue: {e:#}"),
+            )
+        })?;
+        let held: HashSet<JobId> = jobs.iter().map(|j| j.id).collect();
+        jobs.extend(
+            finished
+                .into_iter()
+                .filter(|row| !held.contains(&row.id))
+                .filter_map(listed_info),
+        );
+        jobs.sort_by_key(|info| info.id);
+        Ok(jobs)
     }
 
     pub(super) fn submit(
@@ -479,11 +524,20 @@ resubmit if still wanted",
         let mut persist_failed = false;
         {
             let mut s = self.shared.lock().unwrap();
-            let entry = s.jobs.get(&id).ok_or_else(|| Refusal::no_job(id))?;
-            if entry.info.state.is_terminal() {
+            let state = match s.jobs.get(&id) {
+                Some(entry) => entry.info.state,
+                // Not in memory: concluded and evicted, or an earlier
+                // daemon's (C6); the table says which, and how it ended.
+                None => {
+                    self.stored_job(id)?
+                        .ok_or_else(|| Refusal::no_job(id))?
+                        .state
+                }
+            };
+            if state.is_terminal() {
                 return Err(Refusal::new(
                     ErrorKind::WrongState,
-                    format!("job {id} already {}", entry.info.state),
+                    format!("job {id} already {state}"),
                 ));
             }
             let mut targets = vec![id];
@@ -519,6 +573,7 @@ resubmit if still wanted",
                 }
                 persist_failed |= !self.persist(entry);
             }
+            self.evict_tree(&mut s, id);
         }
         // A cancelled child may have been the last thing its parent was
         // holding for; without this the parent would wait forever.
@@ -548,7 +603,15 @@ resubmit if still wanted",
 
     pub(super) fn set_priority(&self, id: JobId, priority: Priority) -> Result<(), Refusal> {
         let mut s = self.shared.lock().unwrap();
-        let entry = s.jobs.get_mut(&id).ok_or_else(|| Refusal::no_job(id))?;
+        let Some(entry) = s.jobs.get_mut(&id) else {
+            // Not in memory: concluded and evicted, or an earlier
+            // daemon's (C6), so never waiting.
+            let job = self.stored_job(id)?.ok_or_else(|| Refusal::no_job(id))?;
+            return Err(Refusal::new(
+                ErrorKind::WrongState,
+                format!("job {id} is {}, not waiting", job.state),
+            ));
+        };
         if entry.info.state != JobState::Waiting {
             return Err(Refusal::new(
                 ErrorKind::WrongState,

@@ -287,8 +287,9 @@ list when a step's close commit or an issue takes it.
 ## Current step
 
 r3, the hour idle default and finished trees out of memory (#80;
-`briefs/r3-idle-and-eviction.md`), an Opus session from its brief;
-then r4 and r5 in order, each from its brief. r2 closed 2026-10-27
+`briefs/r3-idle-and-eviction.md`): built, its review pending, then the
+owner's reading and the close; then r4 and r5 in order, each from its
+brief. r2 closed 2026-10-27
 (C148 built); the C135 round (#55, with the start's keyring read,
 #92) is its own round after r2. Phase 3, the owner's league run,
 follows; the second week before 3.30, if the group closes early,
@@ -319,6 +320,7 @@ messages.
 | p0 the process round | `f1a29952` to the commit carrying this line; reviews `reviews/p0-1523a776.md`, `reviews/p0-fixes-16ef9210.md` | 2026-10-26 | the gate script's breaker suite, on #87; the rebuild observation, on #88; the four memory notes, retired |
 | r1 the Windows gate decides again | build `c2318752` to `de6ad867`; review `reviews/r1-de6ad867.md` (no findings); the Windows lint `ad216160`; closed by the commit carrying this line | 2026-10-27; Windows green at run 40428110668 | #70's week, counted from that run, under "Open" |
 | r2 the credential I/O off the shared lock | design `912206df`, `62eaeea0`; ruling `610286d1`; brief `193c2c21`; tests `81e80d3f` (committed failing); build `e4e2b9b7`, `19c8a759`; review `d2cfdf70` (`reviews/r2-19c8a759.md`); fixes `f354ede2` to `344da98f`; their review `c32c057e` (`reviews/r2-fixes-344da98f.md`); its fix `8393336a`; closed by the commit carrying this line | 2026-10-27 | the save cut at the exit's bound, left to the time seam (4-0); #92 and #55 for the C135 round; a brief's "commit the tests failing" beside the gate-per-commit rule, the owner's, under "Open" |
+| r3 the hour idle default and finished trees out of memory | ruling `e258a4c8`; build `61627c82`, `2e848e7d` and the commit carrying this line | review pending | the close's |
 
 ## Housekeeping
 

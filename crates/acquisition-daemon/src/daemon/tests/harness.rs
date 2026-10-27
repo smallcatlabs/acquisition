@@ -496,6 +496,7 @@ pub(super) fn test_daemon_scenario_at(
         shared: Mutex::new(Shared {
             jobs: HashMap::new(),
             next_id: 1,
+            first_id: 1,
             auth: Sessions::with(AuthSession::default()),
             landings: 0,
             errors: VecDeque::new(),
@@ -534,20 +535,35 @@ pub(super) fn read_journal(path: &std::path::Path) -> Vec<Value> {
         .collect()
 }
 
+/// Job `id` as a client reads it: from memory, or from the table once
+/// its tree has concluded and left memory (C6); its outcome once
+/// terminal. `None` for an id neither holds.
+pub(super) fn held(daemon: &Daemon, id: JobId) -> Option<(JobInfo, Option<Outcome>)> {
+    let in_memory = daemon
+        .shared
+        .lock()
+        .unwrap()
+        .jobs
+        .get(&id)
+        .map(|e| (e.info.clone(), e.outcome.clone()));
+    in_memory.or_else(|| {
+        let info = daemon.stored_job(id).expect("the table reads")?;
+        Some((info, daemon.stored_outcome(id).expect("the table reads")))
+    })
+}
+
+/// The state of job `id` as a client reads it ([`held`]).
+pub(super) fn state_of(daemon: &Daemon, id: JobId) -> JobState {
+    held(daemon, id).expect("a job the daemon issued").0.state
+}
+
 pub(super) async fn wait_terminal(daemon: &Daemon, id: JobId) -> (JobInfo, Outcome) {
     tokio::time::timeout(Duration::from_secs(3), async {
         loop {
-            if let Some(done) = {
-                let shared = daemon.shared.lock().unwrap();
-                shared.jobs.get(&id).and_then(|entry| {
-                    entry
-                        .info
-                        .state
-                        .is_terminal()
-                        .then(|| (entry.info.clone(), entry.outcome.clone().unwrap()))
-                })
-            } {
-                return done;
+            if let Some((info, Some(outcome))) = held(daemon, id)
+                && info.state.is_terminal()
+            {
+                return (info, outcome);
             }
             tokio::task::yield_now().await;
         }

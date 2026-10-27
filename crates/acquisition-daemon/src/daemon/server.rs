@@ -258,10 +258,19 @@ impl Daemon {
                     refusal.into()
                 }
             },
-            Request::Status { id } => match self.shared.lock().unwrap().snapshot(self, id) {
-                Some(job) => Response::Status { job },
-                None => Refusal::no_job(id).into(),
-            },
+            Request::Status { id } => {
+                let held = self.shared.lock().unwrap().snapshot(self, id);
+                // Not in memory: concluded and evicted, or an earlier
+                // daemon's; the table answers for it (C6).
+                match held.map_or_else(|| self.stored_job(id), |job| Ok(Some(job))) {
+                    Ok(Some(job)) => Response::Status { job },
+                    Ok(None) => Refusal::no_job(id).into(),
+                    Err(refusal) => {
+                        self.note_error(&format!("status {id}: {refusal}"));
+                        refusal.into()
+                    }
+                }
+            }
             Request::Result { id } => {
                 let held = {
                     let s = self.shared.lock().unwrap();
@@ -273,8 +282,8 @@ impl Daemon {
                         Refusal::new(ErrorKind::WrongState, format!("job {id} is still {state}"))
                             .into()
                     }
-                    // Not this lifetime's: a previous daemon's result, if
-                    // retention still has it.
+                    // Not in memory: concluded and evicted (C6), or a
+                    // previous daemon's, if retention still has it.
                     None => match self.stored_outcome(id) {
                         Ok(Some(outcome)) => Response::Result { id, outcome },
                         Ok(None) => Refusal::no_job(id).into(),
@@ -296,8 +305,12 @@ impl Daemon {
                 }
                 Err(refusal) => refusal.into(),
             },
-            Request::List => Response::Jobs {
-                jobs: self.shared.lock().unwrap().list(self),
+            Request::List => match self.job_list() {
+                Ok(jobs) => Response::Jobs { jobs },
+                Err(refusal) => {
+                    self.note_error(&format!("list: {refusal}"));
+                    refusal.into()
+                }
             },
             Request::Subscribe => {
                 *events = Some(self.events.subscribe());
@@ -370,6 +383,13 @@ impl Daemon {
                 Err(refusal) => refusal.into(),
             },
             Request::Dashboard => {
+                let jobs = match self.job_list() {
+                    Ok(jobs) => jobs,
+                    Err(refusal) => {
+                        self.note_error(&format!("dashboard: {refusal}"));
+                        return refusal.into();
+                    }
+                };
                 let now = self.choke.now();
                 let s = self.shared.lock().unwrap();
                 let (in_flight, max_in_flight) = self.choke.actual_send_occupancy();
@@ -396,7 +416,7 @@ impl Daemon {
                     policies: self.choke.policy_statuses(),
                     policyless_endpoints: self.choke.policyless_endpoints(),
                     degraded_endpoints: self.choke.degraded_endpoints(),
-                    jobs: s.list(self),
+                    jobs,
                     sends: self.choke.recent_sends(),
                     rails: self.rails().status(),
                     errors: s
@@ -689,7 +709,9 @@ impl InFlight {
                 .as_ref()
                 .is_some_and(|st| match st.profile_job {
                     None => true,
-                    Some(id) => s.jobs.get(&id).is_some_and(|e| e.info.state.is_terminal()),
+                    // Absent is evicted, so terminal: the id was set
+                    // where the job was inserted (C6).
+                    Some(id) => s.jobs.get(&id).is_none_or(|e| e.info.state.is_terminal()),
                 });
         InFlight {
             jobs,

@@ -118,7 +118,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant, SystemTime};
 
-use acquisition_store::jobs::{JobDb, JobRow, Retention};
+use acquisition_store::jobs::{JobDb, JobRow, ListedJob, Retention};
 use acquisition_store::world::{Lock, World, app_runtime_dir};
 use acquisition_store::{Endpoint, Index, Store, account_matches, account_path};
 use anyhow::Result;
@@ -331,14 +331,7 @@ impl Entry {
     /// A restored row. What a restart does with `running` (re-queue) or
     /// `probe` (drop) is decided by the caller; this is the plain mapping.
     fn from_row(row: JobRow) -> Option<Entry> {
-        let state = match row.state.as_str() {
-            "waiting" => JobState::Waiting,
-            "running" => JobState::Running,
-            "done" => JobState::Done,
-            "failed" => JobState::Failed,
-            "cancelled" => JobState::Cancelled,
-            _ => return None,
-        };
+        let state = job_state(&row.state)?;
         let outcome = |v: Option<Value>| v.and_then(|v| serde_json::from_value(v).ok());
         Some(Entry {
             info: JobInfo {
@@ -359,6 +352,35 @@ impl Entry {
             submitted_at: row.submitted_at,
         })
     }
+}
+
+/// A job's state from the word `daemon.db` records it by.
+fn job_state(word: &str) -> Option<JobState> {
+    Some(match word {
+        "waiting" => JobState::Waiting,
+        "running" => JobState::Running,
+        "done" => JobState::Done,
+        "failed" => JobState::Failed,
+        "cancelled" => JobState::Cancelled,
+        _ => return None,
+    })
+}
+
+/// C6: a job the table answers for, as memory held it — finished, so
+/// with no ETA.
+fn listed_info(row: ListedJob) -> Option<JobInfo> {
+    Some(JobInfo {
+        id: row.id,
+        kind: row.kind,
+        state: job_state(&row.state)?,
+        priority: row.priority,
+        submitted_by: row.submitted_by,
+        eta_seconds: None,
+        parent: row.parent,
+        retries: row.retries,
+        account: row.account,
+        params: row.params,
+    })
 }
 
 /// A request the daemon will not perform, classified where it is made
@@ -742,8 +764,15 @@ impl AuthSession {
 }
 
 struct Shared {
+    /// C6 as amended 2026-10-27: the live trees, and a concluded tree's
+    /// jobs until its root concludes. A concluded tree whose every row is
+    /// persisted leaves ([`Daemon::evict_tree`]); the table answers for
+    /// it.
     jobs: HashMap<JobId, Entry>,
     next_id: JobId,
+    /// The first id this daemon issues, `next_id` as the restore left it:
+    /// the job list reads the finished rows from here on (C6).
+    first_id: JobId,
     auth: Sessions,
     /// C148: landings spawned and not yet returned, each a keyring or
     /// account-index write the exit's drain waits for

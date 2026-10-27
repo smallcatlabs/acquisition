@@ -197,19 +197,10 @@ async fn n6_integration_stress_mixes_policies_refresh_rotation_and_cancellation_
     assert_eq!(saves[0].2, "test-user");
     drop(saves);
 
-    let jobs = daemon.shared.lock().unwrap();
-    let probes: Vec<_> = jobs
-        .jobs
-        .values()
-        .filter(|entry| entry.info.kind == "probe")
-        .collect();
+    let jobs = daemon.job_list().unwrap();
+    let probes: Vec<_> = jobs.iter().filter(|job| job.kind == "probe").collect();
     assert_eq!(probes.len(), 4, "one probe per exercised API route");
-    assert!(
-        probes
-            .iter()
-            .all(|entry| entry.info.state == JobState::Done)
-    );
-    drop(jobs);
+    assert!(probes.iter().all(|job| job.state == JobState::Done));
 
     let sends = daemon.choke.recent_sends();
     assert_eq!(sends.iter().filter(|send| send.method == "HEAD").count(), 4);

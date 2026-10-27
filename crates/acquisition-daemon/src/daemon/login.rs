@@ -407,12 +407,21 @@ impl Daemon {
         let mut rx = self.events.subscribe();
         tokio::time::timeout(timeout, async {
             loop {
-                let outcome = {
+                let held = {
                     let s = self.shared.lock().unwrap();
-                    s.jobs
-                        .get(&id)
-                        .filter(|e| e.info.state.is_terminal())
-                        .and_then(|e| e.outcome.clone())
+                    s.jobs.get(&id).map(|e| {
+                        e.info
+                            .state
+                            .is_terminal()
+                            .then(|| e.outcome.clone())
+                            .flatten()
+                    })
+                };
+                // Not in memory: concluded and evicted, its outcome in the
+                // table (C6).
+                let outcome = match held {
+                    Some(outcome) => outcome,
+                    None => self.stored_outcome(id).ok().flatten(),
                 };
                 if let Some(outcome) = outcome {
                     return outcome;

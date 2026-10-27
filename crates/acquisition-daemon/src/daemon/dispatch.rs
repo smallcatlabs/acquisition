@@ -455,12 +455,65 @@ impl Daemon {
             };
             entry.outcome = Some(outcome);
             self.persist(entry);
-            entry.info.clone()
+            let info = entry.info.clone();
+            self.evict_tree(&mut s, id);
+            info
         };
         let parent = info.parent;
         self.emit(info);
         if let Some(pid) = parent {
             self.maybe_finish_parent(pid);
+        }
+    }
+
+    /// C6 as amended 2026-10-27: a concluded tree leaves memory, and the
+    /// table answers for it. Called under `shared` wherever a job becomes
+    /// terminal (`finish`, `cancel`) with that job's id. The tree is the
+    /// one whose root `id` reaches by its parents in memory; it leaves only
+    /// when its root and every job under it are terminal, so a child stays
+    /// until its parent concludes (the parent's tally scans its children),
+    /// and a child's call finds its root still live and returns after a
+    /// walk up its parents. A tree the restore brought back from an
+    /// earlier daemon (its root's id before `first_id`) stays for this
+    /// lifetime: the job list reads the table from `first_id` on, so
+    /// memory is where the list finds what the restore concluded, and the
+    /// restore loads only an earlier lifetime's open work. Every row was
+    /// written at its job's last change, under this lock, before this
+    /// call; a failed queue write is sticky, and once one has happened a
+    /// row may say less than memory, so nothing leaves.
+    pub(super) fn evict_tree(&self, s: &mut Shared, id: JobId) {
+        if self.queue_failed().is_some() {
+            return;
+        }
+        let root_of = |s: &Shared, mut id: JobId| {
+            while let Some(parent) = s.jobs.get(&id).and_then(|e| e.info.parent) {
+                if !s.jobs.contains_key(&parent) {
+                    break;
+                }
+                id = parent;
+            }
+            id
+        };
+        let root = root_of(s, id);
+        if root < s.first_id
+            || !s
+                .jobs
+                .get(&root)
+                .is_some_and(|e| e.info.state.is_terminal())
+        {
+            return;
+        }
+        let tree: Vec<JobId> = s
+            .jobs
+            .keys()
+            .copied()
+            .filter(|&job| root_of(s, job) == root)
+            .collect();
+        if tree.iter().any(|job| !s.jobs[job].info.state.is_terminal()) {
+            return;
+        }
+        for job in tree {
+            s.jobs.remove(&job);
         }
     }
 

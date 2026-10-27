@@ -29,8 +29,8 @@ Commands:
   demo          Submit a burst of fetch jobs against the mock's 5-per-10 s policy and watch the rate limiter queue them (the ETAs are the limiter's prediction, corrected by headers)
   dash          Live dashboard (TUI): rate limiter state (enter expands a policy: bucket state, the observed X-Rate-Limit headers, per-endpoint sends), job queue, HTTP sends, recent errors, a rails halt in red. With --json, prints one snapshot and exits
   version       What this build is: the package version, the shared-contract revision the daemon handshake compares — a digest over the protocol and store crates' manifests and `src` trees, the root manifest and the lock, never a git commit — and the sibling `acqd` a job command would start, as found on disk (path, length, modification time; no hash — the run record hashes it). This reports the candidate; `acq daemon status` reports the daemon running. `--json`: {"version", "contract", "provider", "acqd": {path, len, mtime_ns} | null}, plus "acqd_absent" (why) when acqd is null; `--version` is the human form of the first two
-  jobs          The live jobs: id, parent, kind, target (from params), state (`↻n` counts 429 re-queues), priority, account, submitter, ETA. Every waiting and running job is listed, and the ten most recent finished ones; the last line counts them all, and says when the next waiting job starts and when the last one does. `--json` is every job the daemon holds. Observes only: with no daemon running it never spawns one, and answers from the ledger on disk instead — the non-terminal rows as the last daemon left them, without ETAs, and how long ago they were written; `--json`: `running: false`, `persisted` (`jobs`, `written_at`; `null` when this shell's world has no queue yet). A job command spawns a successor that restores them; `cancel` then acts on them
-  status        One job's state and ETA. A large ETA is the limiter holding, not a hang: holds can reach 300 s plus the timing bucket. With no daemon running, the job as the ledger on disk records it (never spawns)
+  jobs          The live jobs: id, parent, kind, target (from params), state (`↻n` counts 429 re-queues), priority, account, submitter, ETA. Every waiting and running job is listed, and the ten most recent finished ones; the last line counts them all, and says when the next waiting job starts and when the last one does. `--json` is every job the daemon lists: the open ones and every finished one submitted to it. Observes only: with no daemon running it never spawns one, and answers from the ledger on disk instead — the non-terminal rows as the last daemon left them, without ETAs, and how long ago they were written; `--json`: `running: false`, `persisted` (`jobs`, `written_at`; `null` when this shell's world has no queue yet). A job command spawns a successor that restores them; `cancel` then acts on them
+  status        One job's state and ETA. A large ETA is the limiter holding, not a hang: holds can reach 300 s plus the timing bucket. A finished job is answered from disk while retention keeps it, whichever daemon ran it. With no daemon running, the job as the ledger on disk records it (never spawns)
   result        A finished job's payload or error. Kept on disk (7 days done, 30 failed, by default) and answered whether or not a daemon runs; a job still waiting or running is an error unless --wait. A failed or cancelled job exits 1. A failed fetch's refused body is in `acq store refused <id>`, not here
   cancel        Cancel a waiting or running job; cascades to every descendant still waiting. Needs the running daemon and never starts one
   set-priority  Change a waiting job's priority; higher runs sooner and the queue reorders live. Needs the running daemon and never starts one
@@ -525,20 +525,20 @@ Options:
 ## `acq jobs`
 
 ```text
-The live jobs: id, parent, kind, target (from params), state (`↻n` counts 429 re-queues), priority, account, submitter, ETA. Every waiting and running job is listed, and the ten most recent finished ones; the last line counts them all, and says when the next waiting job starts and when the last one does. `--json` is every job the daemon holds. Observes only: with no daemon running it never spawns one, and answers from the ledger on disk instead — the non-terminal rows as the last daemon left them, without ETAs, and how long ago they were written; `--json`: `running: false`, `persisted` (`jobs`, `written_at`; `null` when this shell's world has no queue yet). A job command spawns a successor that restores them; `cancel` then acts on them
+The live jobs: id, parent, kind, target (from params), state (`↻n` counts 429 re-queues), priority, account, submitter, ETA. Every waiting and running job is listed, and the ten most recent finished ones; the last line counts them all, and says when the next waiting job starts and when the last one does. `--json` is every job the daemon lists: the open ones and every finished one submitted to it. Observes only: with no daemon running it never spawns one, and answers from the ledger on disk instead — the non-terminal rows as the last daemon left them, without ETAs, and how long ago they were written; `--json`: `running: false`, `persisted` (`jobs`, `written_at`; `null` when this shell's world has no queue yet). A job command spawns a successor that restores them; `cancel` then acts on them
 
 Usage: acq jobs [OPTIONS]
 
 Options:
       --watch              Subscribe, print the queue, then every job-state change as it happens; the queue is printed again after a missed-events signal, and the watch ends when the daemon stops
-      --all                List every finished job the daemon still holds, not the ten most recent. A daemon holds the jobs it ran: an earlier daemon's finished jobs are not listed, and `acq result <id>` still answers them from disk
+      --all                List every finished job submitted to the daemon running, not the ten most recent. An earlier daemon's finished jobs are not listed; `acq status <id>` and `acq result <id>` still answer them from disk while retention keeps them
   -h, --help               Print help
 ```
 
 ## `acq status`
 
 ```text
-One job's state and ETA. A large ETA is the limiter holding, not a hang: holds can reach 300 s plus the timing bucket. With no daemon running, the job as the ledger on disk records it (never spawns)
+One job's state and ETA. A large ETA is the limiter holding, not a hang: holds can reach 300 s plus the timing bucket. A finished job is answered from disk while retention keeps it, whichever daemon ran it. With no daemon running, the job as the ledger on disk records it (never spawns)
 
 Usage: acq status [OPTIONS] <ID>
 

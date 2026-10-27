@@ -51,24 +51,13 @@ async fn apply_fans_out_exactly_its_tuples_and_records_through_the_store() {
     // same order (ids ascend in submission order), nothing more (the
     // probes the routes needed are daemon jobs, not children of the
     // apply) — and the payload's child_jobs echoes them in that order.
-    let children: Vec<(JobId, String, Value, Option<String>)> = {
-        let s = daemon.shared.lock().unwrap();
-        let mut c: Vec<_> = s
-            .jobs
-            .values()
-            .filter(|e| e.info.parent == Some(id))
-            .map(|e| {
-                (
-                    e.info.id,
-                    e.info.kind.clone(),
-                    e.info.params.clone(),
-                    e.info.account.clone(),
-                )
-            })
-            .collect();
-        c.sort_by_key(|(id, ..)| *id);
-        c
-    };
+    let children: Vec<(JobId, String, Value, Option<String>)> = daemon
+        .job_list()
+        .unwrap()
+        .into_iter()
+        .filter(|job| job.parent == Some(id))
+        .map(|job| (job.id, job.kind, job.params, job.account))
+        .collect();
     let tuples: Vec<(&str, &Value)> = children
         .iter()
         .map(|(_, kind, params, _)| (kind.as_str(), params))
@@ -242,12 +231,8 @@ async fn a_parent_cancelled_after_its_last_child_is_not_a_success() {
             payload: json!({ "tabs_listed": 1 }),
         },
     );
-    let (state, outcome) = {
-        let s = daemon.shared.lock().unwrap();
-        let e = &s.jobs[&parent];
-        (e.info.state, e.outcome.clone())
-    };
-    assert_eq!(state, JobState::Cancelled, "never a success");
+    let (info, outcome) = held(&daemon, parent).unwrap();
+    assert_eq!(info.state, JobState::Cancelled, "never a success");
     assert!(matches!(outcome, Some(Outcome::Cancelled)));
     finish_harness(None, &log);
 }
@@ -271,11 +256,7 @@ async fn cancelled_children_do_not_make_a_parent_successful() {
     let child = daemon.submit_child(parent, "stash", json!({})).unwrap();
     daemon.cancel(child).unwrap();
     daemon.conclude(parent, Outcome::Success { payload: json!({}) });
-    let Outcome::Failure { error, .. } = daemon.shared.lock().unwrap().jobs[&parent]
-        .outcome
-        .clone()
-        .unwrap()
-    else {
+    let Outcome::Failure { error, .. } = held(&daemon, parent).unwrap().1.unwrap() else {
         panic!("a parent with cancelled children must not succeed")
     };
     assert!(error.contains("cancelled"), "{error}");
@@ -303,12 +284,8 @@ async fn a_cancellation_pending_at_finish_wins_the_terminal_state() {
             payload: json!({ "stale": true }),
         },
     );
-    let (state, outcome) = {
-        let s = daemon.shared.lock().unwrap();
-        let e = &s.jobs[&id];
-        (e.info.state, e.outcome.clone())
-    };
-    assert_eq!(state, JobState::Cancelled);
+    let (info, outcome) = held(&daemon, id).unwrap();
+    assert_eq!(info.state, JobState::Cancelled);
     assert!(matches!(outcome, Some(Outcome::Cancelled)));
     finish_harness(None, &log);
 }

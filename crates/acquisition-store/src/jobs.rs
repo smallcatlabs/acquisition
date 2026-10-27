@@ -1,7 +1,8 @@
 //! The persisted job queue: `store/<provider>/daemon.db`, one row per job,
 //! written by the daemon at every state change and read back when a
-//! daemon starts. The daemon's memory is the source of truth while it
-//! runs; this table is its mirror, and the queue survives a restart —
+//! daemon starts. The daemon's memory is the source of truth for its live
+//! trees; this table is their mirror, and answers for a tree that has
+//! concluded and left memory (C6). The queue survives a restart —
 //! idle exit, `daemon stop`, a version respawn, a crash. What a
 //! restarting daemon does with each row — resume, replay, hold, or fail
 //! as interrupted — is its decision, not this crate's.
@@ -88,6 +89,25 @@ pub struct JobRow {
     pub cancel_requested: bool,
     pub submitted_at: i64,
     pub updated_at: i64,
+}
+
+/// One job as a list names it: the columns that lead the row, before its
+/// bulk ones (`outcome`, `deferred`, which can be a whole refresh), so a
+/// read of many never walks a body. Column for column the daemon's
+/// `JobInfo`, its ETA aside: what the daemon answers `status` and its job
+/// list with for a job it no longer holds in memory (C6, a concluded tree
+/// leaves memory and the table answers for it).
+#[derive(Clone, Debug, PartialEq)]
+pub struct ListedJob {
+    pub id: u64,
+    pub kind: String,
+    pub state: String,
+    pub priority: u8,
+    pub submitted_by: String,
+    pub parent: Option<u64>,
+    pub retries: u32,
+    pub account: Option<String>,
+    pub params: Value,
 }
 
 /// How long terminal rows are kept, in days, by final state.
@@ -227,6 +247,43 @@ impl JobDb {
                 cancel_requested: r.get(11)?,
                 submitted_at: r.get(12)?,
                 updated_at: r.get(13)?,
+            })
+        })?;
+        Ok(rows.collect::<std::result::Result<_, _>>()?)
+    }
+
+    /// One row by id as a list names it ([`ListedJob`]).
+    pub fn listed(&self, id: u64) -> Result<Option<ListedJob>> {
+        let mut rows = self.list_where("id = ?1", params![id])?;
+        Ok(rows.pop())
+    }
+
+    /// The terminal rows of id `first` and after, by id, as a list names
+    /// them: the finished jobs of a daemon whose first id was `first`. A
+    /// range of the primary key, read without the bulk columns.
+    pub fn listed_finished_from(&self, first: u64) -> Result<Vec<ListedJob>> {
+        self.list_where(
+            "id >= ?1 AND state IN ('done', 'failed', 'cancelled')",
+            params![first],
+        )
+    }
+
+    fn list_where(&self, filter: &str, args: impl rusqlite::Params) -> Result<Vec<ListedJob>> {
+        let mut stmt = self.conn.prepare(&format!(
+            "SELECT id, kind, state, priority, submitted_by, parent, retries, account, params
+             FROM jobs WHERE {filter} ORDER BY id"
+        ))?;
+        let rows = stmt.query_map(args, |r| {
+            Ok(ListedJob {
+                id: r.get(0)?,
+                kind: r.get(1)?,
+                state: r.get(2)?,
+                priority: r.get(3)?,
+                submitted_by: r.get(4)?,
+                parent: r.get(5)?,
+                retries: r.get(6)?,
+                account: r.get(7)?,
+                params: parse(r.get::<_, String>(8)?),
             })
         })?;
         Ok(rows.collect::<std::result::Result<_, _>>()?)
@@ -500,6 +557,40 @@ mod tests {
         db.upsert(&r).unwrap();
         db.upsert(&row(2, "waiting", 101)).unwrap();
         assert_eq!(db.load().unwrap(), vec![r, row(2, "waiting", 101)]);
+    }
+
+    /// C6, the table answers for a concluded tree: the listed reads name
+    /// a row by its leading columns, and the finished range starts at the
+    /// first id asked and leaves out the open rows.
+    #[test]
+    fn listed_reads_name_the_finished_rows_from_an_id_on() {
+        let db = JobDb::open_memory().unwrap();
+        for (id, state) in [(1, "done"), (2, "failed"), (3, "running"), (4, "cancelled")] {
+            db.upsert(&row(id, state, 100)).unwrap();
+        }
+        let listed = db.listed(2).unwrap().expect("row 2");
+        assert_eq!(
+            (
+                listed.id,
+                listed.state.as_str(),
+                listed.parent,
+                &listed.params
+            ),
+            (
+                2,
+                "failed",
+                Some(1),
+                &json!({ "league": "Standard", "id": "t2" })
+            )
+        );
+        assert_eq!(db.listed(9).unwrap(), None);
+        let ids: Vec<u64> = db
+            .listed_finished_from(2)
+            .unwrap()
+            .iter()
+            .map(|j| j.id)
+            .collect();
+        assert_eq!(ids, [2, 4], "from id 2 on, terminal rows only");
     }
 
     #[test]

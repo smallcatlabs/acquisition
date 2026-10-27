@@ -1226,15 +1226,11 @@ async fn full_acceptable_head_429_establishes_under_hold_without_job_retry() {
     assert_eq!(info.retries, 0);
     assert_eq!(fetch_payload_marker(&outcome), "after-probe");
     let probe = daemon
-        .shared
-        .lock()
+        .job_list()
         .unwrap()
-        .jobs
-        .values()
-        .find(|entry| entry.info.kind == "probe")
-        .unwrap()
-        .info
-        .clone();
+        .into_iter()
+        .find(|job| job.kind == "probe")
+        .unwrap();
     assert_eq!(probe.state, JobState::Done);
     assert_eq!(probe.retries, 0);
     assert_eq!(requests.lock().unwrap().as_slice(), ["HEAD", "GET"]);
@@ -1270,15 +1266,11 @@ async fn malformed_or_unacceptable_head_429_fails_under_cooldown() {
         ));
         assert_eq!(requests.lock().unwrap().as_slice(), ["HEAD"]);
         let probe = daemon
-            .shared
-            .lock()
+            .job_list()
             .unwrap()
-            .jobs
-            .values()
-            .find(|entry| entry.info.kind == "probe")
-            .unwrap()
-            .info
-            .clone();
+            .into_iter()
+            .find(|job| job.kind == "probe")
+            .unwrap();
         assert_eq!(probe.state, JobState::Failed);
         assert_eq!(probe.retries, 0);
         server.await.unwrap();

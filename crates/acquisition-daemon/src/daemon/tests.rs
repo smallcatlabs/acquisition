@@ -7,6 +7,7 @@ mod bearer;
 mod credentials;
 mod diagnostics;
 mod dispatch;
+mod evict;
 mod exit;
 mod harness;
 mod idle;

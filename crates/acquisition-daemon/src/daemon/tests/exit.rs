@@ -56,10 +56,6 @@ fn row_of(db: &std::path::Path, id: JobId) -> acquisition_store::jobs::JobRow {
     JobDb::open(db).unwrap().get(id).unwrap().expect("the row")
 }
 
-fn state_of(daemon: &Daemon, id: JobId) -> JobState {
-    daemon.shared.lock().unwrap().jobs[&id].info.state
-}
-
 async fn wait_state(daemon: &Daemon, id: JobId, state: JobState) {
     tokio::time::timeout(Duration::from_secs(3), async {
         while state_of(daemon, id) != state {

@@ -450,7 +450,8 @@ is the per-location summary.")]
     /// Every waiting and running job is listed, and the ten most recent
     /// finished ones; the last line counts them all, and says when the
     /// next waiting job starts and when the last one does. `--json` is
-    /// every job the daemon holds.
+    /// every job the daemon lists: the open ones and every finished one
+    /// submitted to it.
     /// Observes only: with no daemon running it never spawns one, and
     /// answers from the ledger on disk instead — the non-terminal
     /// rows as the last daemon left them, without ETAs, and how long ago
@@ -464,16 +465,18 @@ is the per-location summary.")]
         /// and the watch ends when the daemon stops.
         #[arg(long)]
         watch: bool,
-        /// List every finished job the daemon still holds, not the ten
-        /// most recent. A daemon holds the jobs it ran: an earlier
-        /// daemon's finished jobs are not listed, and `acq result <id>`
-        /// still answers them from disk.
+        /// List every finished job submitted to the daemon running, not
+        /// the ten most recent. An earlier daemon's finished jobs are not
+        /// listed; `acq status <id>` and `acq result <id>` still answer
+        /// them from disk while retention keeps them.
         #[arg(long, conflicts_with = "watch")]
         all: bool,
     },
     /// One job's state and ETA. A large ETA is the limiter holding, not a
-    /// hang: holds can reach 300 s plus the timing bucket. With no daemon
-    /// running, the job as the ledger on disk records it (never spawns).
+    /// hang: holds can reach 300 s plus the timing bucket. A finished job
+    /// is answered from disk while retention keeps it, whichever daemon
+    /// ran it. With no daemon running, the job as the ledger on disk
+    /// records it (never spawns).
     Status { id: u64 },
     /// A finished job's payload or error. Kept on disk (7 days done, 30
     /// failed, by default) and answered whether or not a daemon runs; a
