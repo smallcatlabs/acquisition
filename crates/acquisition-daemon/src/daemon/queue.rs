@@ -268,11 +268,13 @@ resubmit if still wanted",
                 restored.push(entry.info.clone());
                 s.jobs.insert(entry.info.id, entry);
             }
-            // C6: the list reads the table from the smallest id brought
-            // back, and a tree the restore concluded (a cancelled or
-            // failed root, a lost login's fetch) leaves memory as any
-            // concluded tree does.
-            s.list_from = restored.iter().map(|info| info.id).min().unwrap_or(next_id);
+            // C6: the list reads this daemon's work from the first id it
+            // issues and what the restore brought back by its ids, and a
+            // tree the restore concluded (a cancelled or failed root, a
+            // lost login's fetch) leaves memory as any concluded tree does.
+            s.first_id = next_id;
+            s.restored = restored.iter().map(|info| info.id).collect();
+            s.restored.sort_unstable();
             for info in restored.iter().filter(|info| info.state.is_terminal()) {
                 self.evict_tree(&mut s, info.id);
             }
@@ -346,18 +348,34 @@ resubmit if still wanted",
     }
 
     /// The job list (C6): every job memory holds, the waiting ones with
-    /// their ETAs, and the finished rows from `Shared::list_from` on, read
-    /// from the table: this daemon's work and what its restore inherited;
-    /// by id. Memory is read first
+    /// their ETAs, and the finished rows of this daemon's work (from
+    /// `Shared::first_id` on) and of what its restore brought back (by
+    /// `Shared::restored`), read from the table; by id. Never the rows
+    /// between: an earlier lifetime's other finished jobs are not this
+    /// daemon's list. Memory is read first
     /// and the table after, so a tree evicted between the two reads is in
     /// the second; a job in both is memory's. The table is read outside
     /// `shared`, and without the bulk columns.
     pub(super) fn job_list(&self) -> Result<Vec<JobInfo>, Refusal> {
-        let (mut jobs, first) = {
+        let (mut jobs, first, restored) = {
             let s = self.shared.lock().unwrap();
-            (s.list(self), s.list_from)
+            let held: HashSet<JobId> = s.jobs.keys().copied().collect();
+            // A restored job still in memory is listed from memory.
+            let restored: Vec<JobId> = s
+                .restored
+                .iter()
+                .copied()
+                .filter(|id| !held.contains(id))
+                .collect();
+            (s.list(self), s.first_id, restored)
         };
-        let read = self.jobs_db.lock().unwrap().listed_finished_from(first);
+        let read = {
+            let db = self.jobs_db.lock().unwrap();
+            db.listed_finished(&restored).and_then(|mut rows| {
+                rows.extend(db.listed_finished_from(first)?);
+                Ok(rows)
+            })
+        };
         let finished = read.map_err(|e| {
             Refusal::new(
                 ErrorKind::QueueFailed,

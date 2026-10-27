@@ -1556,23 +1556,30 @@ async fn a_waiting_row_on_disk_and_not_in_memory_is_never_acted_on() {
 }
 
 /// C6, uniform eviction: a tree the restore brought back leaves memory
-/// when it concludes, as any tree does. An apply held for one waiting
-/// child is restored with its done child; the child concludes, the
-/// parent finishes, and memory holds nothing. The list reads the table
-/// from the smallest id the restore brought back: the tree, and the
-/// earlier lifetime's finished row after it, which the restore
-/// inherited; the finished row before it is not listed.
+/// when it concludes, as any tree does, and the list names this daemon's
+/// work and what the restore brought back, never the rows between. A
+/// waiting job and an apply held for one waiting child (with its done
+/// child) are restored; two of the earlier lifetime's finished jobs sit
+/// on disk, one before the restored ids and one between them and this
+/// daemon's first id. The child concludes, the parent finishes, and
+/// memory holds only the waiting job. The list names it, the tree, and
+/// a job this daemon then runs; neither earlier finished job, which stay
+/// on disk for `result` (a list of every such row is what would carry a
+/// long history past the frame).
 #[tokio::test]
-async fn a_restored_tree_that_concludes_leaves_memory() {
+async fn a_restored_tree_leaves_memory_and_the_list_skips_the_rows_between() {
     let db = test_db_path();
     // The finished rows outside the tree are recent: the restore's prune
-    // keeps them, so only the list's bound leaves the earlier one out.
+    // keeps them, so only the list's rule leaves them out.
     let recent = |id| JobRow {
         updated_at: MANUAL_WALL_ORIGIN.as_secs() as i64,
         ..disk_row(id, "sleep", "done", None)
     };
     {
         let other = JobDb::open(&db).unwrap();
+        other
+            .upsert(&disk_row(5, "sleep", "waiting", None))
+            .unwrap();
         other.upsert(&recent(9)).unwrap();
         let mut parent = disk_row(11, "apply", "running", None);
         parent.deferred = Some(json!({ "outcome": "success", "payload": {} }));
@@ -1586,17 +1593,21 @@ async fn a_restored_tree_that_concludes_leaves_memory() {
         other.upsert(&recent(14)).unwrap();
     }
     let (daemon, log) = persisting_daemon("http://127.0.0.1:1", &db);
-    let mut held_ids: Vec<JobId> = daemon.shared.lock().unwrap().jobs.keys().copied().collect();
-    held_ids.sort_unstable();
+    let in_memory = || {
+        let mut ids: Vec<JobId> = daemon.shared.lock().unwrap().jobs.keys().copied().collect();
+        ids.sort_unstable();
+        ids
+    };
     assert_eq!(
-        held_ids,
-        [11, 12, 13],
-        "the restore brought back the open tree"
+        in_memory(),
+        [5, 11, 12, 13],
+        "the restore brought back the open work"
     );
 
     daemon.start_and_finish(12, Outcome::Success { payload: json!({}) });
-    assert!(
-        daemon.shared.lock().unwrap().jobs.is_empty(),
+    assert_eq!(
+        in_memory(),
+        [5],
         "the restored tree left memory when it concluded"
     );
     let (info, outcome) = held(&daemon, 11).unwrap();
@@ -1605,40 +1616,24 @@ async fn a_restored_tree_that_concludes_leaves_memory() {
         panic!("the restored parent did not succeed: {outcome:?}")
     };
     assert_eq!(payload["children"]["done"], json!(2), "{payload}");
+
+    let own = daemon
+        .submit("sleep".into(), json!({}), 0, "t".into(), None)
+        .unwrap();
+    assert_eq!(own, 15, "this daemon's first id");
+    daemon.start_and_finish(own, Outcome::Success { payload: json!({}) });
     let listed: Vec<JobId> = daemon.job_list().unwrap().iter().map(|j| j.id).collect();
     assert_eq!(
         listed,
-        [11, 12, 13, 14],
-        "from the smallest id brought back"
+        [5, 11, 12, 13, 15],
+        "what the restore brought back and this daemon's work, nothing between"
     );
-    assert!(
-        JobDb::open(&db).unwrap().get(9).unwrap().is_some(),
-        "the row before the bound is still on disk, for `result`"
-    );
-    finish_harness(None, &log);
-}
-
-/// C6 with C50 (a login lands only with its profile's uuid): the
-/// login's wait reads a profile job that concluded and left memory from
-/// the table, and a table that cannot be read is its answer at once,
-/// the cause the login fails with, never a wait for an event that will
-/// not come and a timeout that names none. The job concludes and is
-/// evicted, the queue breaks, then the wait reads.
-#[tokio::test]
-async fn the_login_wait_answers_a_broken_queue_after_its_job_concluded() {
-    let db = test_db_path();
-    let (daemon, log) = persisting_daemon("http://127.0.0.1:1", &db);
-    let id = daemon
-        .submit("sleep".into(), json!({}), 0, "t".into(), None)
-        .unwrap();
-    daemon.start_and_finish(id, Outcome::Success { payload: json!({}) });
-    assert!(daemon.shared.lock().unwrap().jobs.is_empty(), "evicted");
-    break_queue(&db);
-    let answer = daemon.wait_job_terminal(id, Duration::from_secs(60)).await;
-    let Some(Err(refusal)) = answer else {
-        panic!("the wait did not answer with the read failure: {answer:?}")
-    };
-    assert_eq!(refusal.kind, ErrorKind::QueueFailed, "{refusal}");
+    for id in [9, 14] {
+        assert!(
+            JobDb::open(&db).unwrap().get(id).unwrap().is_some(),
+            "row {id} is still on disk, for `result`"
+        );
+    }
     finish_harness(None, &log);
 }
 

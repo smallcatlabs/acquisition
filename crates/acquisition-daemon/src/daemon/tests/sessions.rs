@@ -221,7 +221,8 @@ fn test_daemon(base: &str) -> (Arc<Daemon>, Arc<MemoryCredentialStore>, TestPath
         shared: Mutex::new(Shared {
             jobs: HashMap::new(),
             next_id: 1,
-            list_from: 1,
+            first_id: 1,
+            restored: Vec::new(),
             auth: Sessions::with(AuthSession {
                 access_token: Some("at-expired".into()),
                 access_expires_at: Some(SystemTime::now()),

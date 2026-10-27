@@ -259,9 +259,8 @@ impl JobDb {
     }
 
     /// The terminal rows of id `first` and after, by id, as a list names
-    /// them: a daemon's list reads them from the smallest id its restore
-    /// brought back. A range of the primary key, read without the bulk
-    /// columns.
+    /// them: a daemon's list reads its own work from the first id it
+    /// issued. A range of the primary key, read without the bulk columns.
     pub fn listed_finished_from(&self, first: u64) -> Result<Vec<ListedJob>> {
         self.list_where(
             "id >= ?1 AND state IN ('done', 'failed', 'cancelled')",
@@ -269,24 +268,30 @@ impl JobDb {
         )
     }
 
+    /// The terminal rows among `ids`, by id, as a list names them: a
+    /// daemon's list reads what its restore brought back by the ids the
+    /// restore took, one primary-key lookup each, never the rows between.
+    pub fn listed_finished(&self, ids: &[u64]) -> Result<Vec<ListedJob>> {
+        let mut stmt = self.conn.prepare_cached(
+            "SELECT id, kind, state, priority, submitted_by, parent, retries, account, params
+             FROM jobs WHERE id = ?1 AND state IN ('done', 'failed', 'cancelled')",
+        )?;
+        let mut rows = Vec::new();
+        for &id in ids {
+            if let Some(row) = stmt.query_row(params![id], listed_row).optional()? {
+                rows.push(row);
+            }
+        }
+        rows.sort_by_key(|row| row.id);
+        Ok(rows)
+    }
+
     fn list_where(&self, filter: &str, args: impl rusqlite::Params) -> Result<Vec<ListedJob>> {
         let mut stmt = self.conn.prepare(&format!(
             "SELECT id, kind, state, priority, submitted_by, parent, retries, account, params
              FROM jobs WHERE {filter} ORDER BY id"
         ))?;
-        let rows = stmt.query_map(args, |r| {
-            Ok(ListedJob {
-                id: r.get(0)?,
-                kind: r.get(1)?,
-                state: r.get(2)?,
-                priority: r.get(3)?,
-                submitted_by: r.get(4)?,
-                parent: r.get(5)?,
-                retries: r.get(6)?,
-                account: r.get(7)?,
-                params: parse(r.get::<_, String>(8)?),
-            })
-        })?;
+        let rows = stmt.query_map(args, listed_row)?;
         Ok(rows.collect::<std::result::Result<_, _>>()?)
     }
 
@@ -520,6 +525,21 @@ impl Persisted {
     }
 }
 
+/// One [`ListedJob`] from a select of its nine leading columns.
+fn listed_row(r: &rusqlite::Row) -> rusqlite::Result<ListedJob> {
+    Ok(ListedJob {
+        id: r.get(0)?,
+        kind: r.get(1)?,
+        state: r.get(2)?,
+        priority: r.get(3)?,
+        submitted_by: r.get(4)?,
+        parent: r.get(5)?,
+        retries: r.get(6)?,
+        account: r.get(7)?,
+        params: parse(r.get::<_, String>(8)?),
+    })
+}
+
 fn parse(text: String) -> Value {
     serde_json::from_str(&text).unwrap_or(Value::Null)
 }
@@ -592,6 +612,13 @@ mod tests {
             .map(|j| j.id)
             .collect();
         assert_eq!(ids, [2, 4], "from id 2 on, terminal rows only");
+        let ids: Vec<u64> = db
+            .listed_finished(&[4, 3, 1, 9])
+            .unwrap()
+            .iter()
+            .map(|j| j.id)
+            .collect();
+        assert_eq!(ids, [1, 4], "the ids asked, terminal rows only, by id");
     }
 
     #[test]

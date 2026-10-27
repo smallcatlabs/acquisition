@@ -490,7 +490,8 @@ async fn run_with_log(
         shared: Mutex::new(Shared {
             jobs: HashMap::new(),
             next_id: 1,
-            list_from: 1,
+            first_id: 1,
+            restored: Vec::new(),
             auth: sessions,
             landings: 0,
             errors: VecDeque::new(),

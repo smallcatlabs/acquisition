@@ -474,8 +474,8 @@ impl Daemon {
     /// until its parent concludes (the parent's tally scans its children),
     /// and a child's call finds its root still live and returns after a
     /// walk up its parents. A tree the restore brought back leaves as any
-    /// other does: the job list reads the table from the smallest id the
-    /// restore brought back (`Shared::list_from`). Every row was
+    /// other does: the job list reads its rows by the ids the restore
+    /// took (`Shared::restored`). Every row was
     /// written at its job's last change, under this lock, before this
     /// call; a failed queue write is sticky, and once one has happened a
     /// row may say less than memory, so nothing leaves.
