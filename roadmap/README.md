@@ -370,15 +370,16 @@ list when a step's close commit or an issue takes it.
 
 ## Current step
 
-The milestone's steps are closed (p0, r1 to r5, the C135 round);
-pull-forward 1 to 3 (#82, #83 with its seat #84, #88) closed
-2026-10-27. Next from "Pull-forward": 2g, the read economy and the
-refusal bundle (#9, #10), a design brief first. The owner's rulings
-waiting: the build-order rule's retirement (#88, under "Open"), rule 6
-of the seat (C121), the C127 words. Phase 3, the owner's league run,
-follows at his word; #70 closes on a week of pushes without a re-run.
-The assessment these rest on is `STATE-2026-10-26.md`; the issues
-carry the evidence per step. `AGENTS.md` governs; the gate is
+2g, the read economy and the refusal bundle (#9, #10): its design brief
+`briefs/2g-design.md` (`e11768e2`) waits on the owner's rulings (Q1
+to Q4 on C53 and a new entry, Q5's kind under C121); the build brief
+is written after them. The owner's other rulings waiting: the
+build-order rule's retirement (#88), rule 6 of the seat (C121), the
+C127 words, all under "Open". Closed 2026-10-27: r3, r4, r5, the C135
+round, #82, #83, #84, #88. Phase 3, the owner's league run, follows at
+his word; #70 closes on a week of pushes without a re-run. The
+assessment these rest on is `STATE-2026-10-26.md`; the issues carry
+the evidence per step. `AGENTS.md` governs; the gate is
 `tools/gate.sh`.
 
 ## Ledger
