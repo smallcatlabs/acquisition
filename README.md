@@ -118,7 +118,8 @@ price items and render the shop (`price_status`, `price_list`,
 The store and pricing tools need no daemon. The tools that fetch do,
 and against GGG `acq-mcp` never starts one: it uses the daemon you
 started, which exits after an hour with nothing to do and never while
-a job waits or runs. When none is running, start one:
+a job runs, or waits with no rails halt holding it. When none is
+running, start one:
 
 ```sh
 acq auth check   # a daemon with your login back from the keyring
@@ -237,7 +238,7 @@ them.
 | `ACQ_LOG_DIR=<dir>` | the platform log dir | bounded daemon log and default journal, by store and provider | [world.rs][world] |
 | `ACQ_NO_KEYRING=1` | off | logins in memory only, never plaintext on disk | [auth.rs][auth] |
 | `ACQ_NO_SPAWN=1` | off | never start or replace a daemon; for cron, ssh and headless shells | [client.rs][client]; keyring context: [auth.rs][auth] |
-| `ACQ_IDLE_SHUTDOWN=<s>` | 3600 | idle exit, held while a job is live or the limiter's history is | [start.rs][daemon] |
+| `ACQ_IDLE_SHUTDOWN=<s>` | 3600 | idle exit, held while a job runs or waits unhalted, or the limiter's history is live | [start.rs][daemon] |
 | `ACQ_HELLO_WITHIN=<s>` | 5 | how long a daemon has to answer the handshake before it is reported unresponsive | [client.rs][client] |
 | `ACQ_STARTUP_WITHIN=<s>` | 5 | how long a daemon a command started has to bind its socket before the start is reported failed | [client.rs][client] |
 | `ACQ_ANNOTATION_WAIT=<s>` | 5 | how long a write waits for another writer's lock on the annotation file before it is refused as busy | [annotations.rs][annotations] |

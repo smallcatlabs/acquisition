@@ -70,7 +70,7 @@ One job's state, ETA, and retries. A waiting job with a large ETA is the rate li
 
 ### `list_jobs`
 
-Jobs the daemon knows about this lifetime, with states and ETAs: the open ones and every finished one submitted to it. Observes only: with no daemon running it never spawns one and answers from the ledger on disk instead — running: false, persisted: the non-terminal rows as the last daemon left them (jobs, without ETAs) and written_at, how old that picture is; persisted is null when this shell's world has no queue yet. A job command from the CLI spawns a successor that restores them.
+Jobs the daemon lists, with states and ETAs: the open ones, and the finished ones read from the ledger on disk from the oldest job it took over from the daemon before it, or from its own first job when it took none. Observes only: with no daemon running it never spawns one and answers from the ledger on disk instead — running: false, persisted: the non-terminal rows as the last daemon left them (jobs, without ETAs) and written_at, how old that picture is; persisted is null when this shell's world has no queue yet. A job command from the CLI spawns a successor that restores them.
 
 No arguments.
 

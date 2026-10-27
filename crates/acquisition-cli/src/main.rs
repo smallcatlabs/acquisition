@@ -450,8 +450,9 @@ is the per-location summary.")]
     /// Every waiting and running job is listed, and the ten most recent
     /// finished ones; the last line counts them all, and says when the
     /// next waiting job starts and when the last one does. `--json` is
-    /// every job the daemon lists: the open ones and every finished one
-    /// submitted to it.
+    /// every job the daemon lists: the open ones, and the finished ones
+    /// read from disk from the oldest job it took over from the daemon
+    /// before it, or from its own first job when it took none.
     /// Observes only: with no daemon running it never spawns one, and
     /// answers from the ledger on disk instead — the non-terminal
     /// rows as the last daemon left them, without ETAs, and how long ago
@@ -465,10 +466,12 @@ is the per-location summary.")]
         /// and the watch ends when the daemon stops.
         #[arg(long)]
         watch: bool,
-        /// List every finished job submitted to the daemon running, not
-        /// the ten most recent. An earlier daemon's finished jobs are not
-        /// listed; `acq status <id>` and `acq result <id>` still answer
-        /// them from disk while retention keeps them.
+        /// List every finished job the daemon lists, not the ten most
+        /// recent: read from disk, from the oldest job the daemon took
+        /// over from the one before it, or from its own first job when it
+        /// took none. Older finished jobs are not listed; `acq status
+        /// <id>` and `acq result <id>` still answer them from disk while
+        /// retention keeps them.
         #[arg(long, conflicts_with = "watch")]
         all: bool,
     },
