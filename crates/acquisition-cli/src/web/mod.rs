@@ -41,9 +41,10 @@
 //!   of 4b, its first finding).
 //! - **One corpus, held** (C98, the consumer holds the corpus and checks
 //!   currency before every answer): the server holds the last corpus it
-//!   loaded for the account it serves and checks `is_current` before
-//!   every answer; a stale one, or one of another scope, is loaded again
-//!   and swapped. No answer loads per request.
+//!   loaded for the account it serves in the search crate's `Holder`,
+//!   the one `acq-mcp` holds too, which checks `is_current` before every
+//!   answer; a stale one, or one of another scope, is loaded again and
+//!   swapped. No answer loads per request.
 //! - **A page's document as JSON**: a request that accepts
 //!   `application/json` is answered with the document the page renders —
 //!   the answer, the item, the plan, the jobs — which is how the tests
@@ -52,12 +53,12 @@
 mod form;
 mod page;
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use acquisition_plan::RefreshPlan;
 use acquisition_protocol::realm::Realm;
 use acquisition_search::answer::{Asked, Request};
-use acquisition_search::{Corpus, SearchError};
+use acquisition_search::{Holder, SearchError};
 use acquisition_verbs::{Account, Apply, Fault, Frontend, Jobs};
 use anyhow::Result;
 use axum::Router;
@@ -97,14 +98,7 @@ struct Web {
     host: String,
     origin: String,
     form: form::Form,
-    held: Mutex<Option<Held>>,
-}
-
-/// The corpus last loaded, and the scope it was loaded for.
-struct Held {
-    realm: Option<acquisition_search::Realm>,
-    membership: acquisition_search::answer::Membership,
-    corpus: Corpus,
+    held: Holder,
 }
 
 /// Why a page could not render its document: a search refusal in the
@@ -168,7 +162,7 @@ pub(crate) async fn web(account: Option<String>, no_browser: bool, json: bool) -
         origin: format!("http://127.0.0.1:{port}"),
         token: token.clone(),
         form: form::Form::load()?,
-        held: Mutex::new(None),
+        held: Holder::new(),
     });
     if json {
         println!("{}", json!({ "url": url }));
@@ -346,31 +340,12 @@ impl Web {
     }
 
     /// The request answered over the held corpus (C98): checked first,
-    /// then the corpus reused where it is current and of the request's
-    /// scope, else loaded and swapped.
+    /// then the holder's corpus, current and of the request's scope.
     fn answer(&self, request: &Request) -> Result<acquisition_search::Answer, Failure> {
         request.check()?;
         let opened = self.account.open()?;
-        let mut held = self.held.lock().unwrap_or_else(|p| p.into_inner());
-        let reuse = match held.as_ref() {
-            Some(h)
-                if h.realm == request.scope.realm && h.membership == request.scope.membership =>
-            {
-                h.corpus.is_current(&opened.facts, &opened.intent)?
-            }
-            _ => false,
-        };
-        if !reuse {
-            *held = Some(Held {
-                realm: request.scope.realm.clone(),
-                membership: request.scope.membership,
-                corpus: request.corpus(&opened.facts, &opened.intent)?,
-            });
-        }
-        match held.as_ref() {
-            Some(h) => Ok(acquisition_search::answer(&h.corpus, request)?),
-            None => Err(Failure::Other(anyhow::anyhow!("no corpus is held"))),
-        }
+        let corpus = self.held.corpus(request, &opened.facts, &opened.intent)?;
+        Ok(acquisition_search::answer(&corpus, request)?)
     }
 
     /// The store's league list (the `leagues` job's latest answer), each
