@@ -170,6 +170,8 @@ fn the_mcp_tools_carry_the_plan_slice_and_its_gates() {
     let selected = mcp.expect_ok("refresh_plan", json!({ "selection": { "tabs": [tab] } }));
     let chosen = validated_plan(&selected);
     assert_eq!(chosen.basis.policy_revision, None);
+    // the notes are a policy plan's, as the description says
+    assert_eq!(selected.get("notes"), None, "{selected}");
     assert_eq!(
         selected["plan"]["basis"]["selection"],
         json!({ "tabs": [tab] })
