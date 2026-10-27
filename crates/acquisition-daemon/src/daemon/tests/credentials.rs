@@ -786,3 +786,42 @@ async fn c148_the_dispatcher_the_idle_verdict_and_the_drain_hold_for_the_restore
     );
     finish_harness(None, &log_path);
 }
+
+/// Poll `work` once, on this thread: `Pending` means it reached a wait
+/// and is parked there, with no scheduling assumed. Awaiting it later
+/// polls it on as any future.
+fn polled_once<F: std::future::Future>(work: std::pin::Pin<&mut F>) -> std::task::Poll<F::Output> {
+    work.poll(&mut std::task::Context::from_waker(std::task::Waker::noop()))
+}
+
+/// C148 with C133: a request that waits for the restore is refused as
+/// stopping before the wait and after it. An exit begun while the
+/// restore's keyring read stands refuses `auth` at once, where it waited
+/// for the restore and could then start a login on the departing daemon;
+/// released, it is refused still.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn c148_a_request_that_waits_for_the_restore_is_refused_while_stopping() {
+    let (daemon, held, _dir, log_path) = restoring_daemon().await;
+    assert!(daemon.begin_exit("test: exit"));
+    let mut events = None;
+    let mut start = std::pin::pin!(daemon.handle_request(Request::AuthStart, &mut events));
+    let before = polled_once(start.as_mut());
+    held.release.send(()).unwrap();
+
+    let std::task::Poll::Ready(before) = before else {
+        panic!("auth is refused at once, not held behind the restore")
+    };
+    let stopping = |response: &Response| {
+        matches!(response, Response::Error { kind: ErrorKind::Refused, message }
+            if message.contains("the daemon is stopping"))
+    };
+    assert!(stopping(&before), "{before:?}");
+    answered({
+        let daemon = daemon.clone();
+        async move { daemon.await_restore().await }
+    })
+    .expect("the restore lands once released");
+    let after = daemon.handle_request(Request::AuthStart, &mut None).await;
+    assert!(stopping(&after), "{after:?}");
+    finish_harness(None, &log_path);
+}

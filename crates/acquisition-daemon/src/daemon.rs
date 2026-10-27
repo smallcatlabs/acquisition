@@ -401,7 +401,7 @@ fn listed_info(row: ListedJob) -> Option<JobInfo> {
 /// | `Sessions::get`: several live, none named | `several accounts are logged in (…)` | `ambiguous_account` |
 /// | `Sessions::matching` (submit, quote, auth check, logout): a selector two or more live sessions match | `account … names several live sessions (…)` | `ambiguous_account` |
 /// | `resolve_account`: a selector with no session | `account …: not logged in` / `… is not logged in (live: …)` | `not_logged_in` |
-/// | `refuse_while_stopping` (submit, once the exit has begun, C133) | `the daemon is stopping; try again in a moment` | `refused` |
+/// | `refuse_while_stopping` (submit, once the exit has begun, C133; and, through `restored`, auth, auth check, logout and quote, before and after their wait for the start's restore, C148) | `the daemon is stopping; try again in a moment` | `refused` |
 /// | `validate_apply`, `admit_realm`, `admit_params_size`, `admit_submitter` (submit) | `apply needs a jobs array …`, `action i: …`, `max_requests must be …`, `plan exceeds the budget …`, a realm refusal, `params of N bytes as JSON exceed …`, `submitted_by must be at most …` | `refused` |
 /// | `admit_client_submitter` (a client's submit, C136) | `this submitted_by is reserved for the daemon's own work …` | `refused` |
 /// | `submit_with_parent`: parent gone or cancelled (children only; becomes the parent's outcome) | `parent job N is gone` / `was cancelled` | `refused` |

@@ -266,12 +266,9 @@ impl Daemon {
                     .and_then(|()| admit_client_submitter(&submitted_by));
                 // C148: a job that will need a session waits for the
                 // start's restore before its account is resolved.
-                // An exit begun during the wait refuses it as it would
-                // have before.
                 let admitted =
                     if admitted.is_ok() && (account.is_some() || self.kind_needs_account(&kind)) {
-                        self.await_restore().await;
-                        self.refuse_while_stopping()
+                        self.restored().await.map(|_| ())
                     } else {
                         admitted
                     };
@@ -345,15 +342,23 @@ impl Daemon {
                 Response::Subscribed
             }
             // C148: the four requests below read the session table, so
-            // each waits for the start's restore first; so does a quote,
-            // which resolves its account as a submit does.
-            Request::AuthStart => match self.restored().await.auth_start().await {
-                Ok(authorize_url) => Response::AuthUrl { authorize_url },
+            // each waits for the start's restore first, refused as
+            // stopping before and after the wait; so does a quote, which
+            // resolves its account as a submit does.
+            Request::AuthStart => match self.restored().await {
                 Err(refusal) => refusal.into(),
+                Ok(daemon) => match daemon.auth_start().await {
+                    Ok(authorize_url) => Response::AuthUrl { authorize_url },
+                    Err(refusal) => refusal.into(),
+                },
             },
             Request::AuthStatus => self.auth_status(),
             Request::AuthCheck { account } => {
-                match self.restored().await.canonical_account(account.as_deref()) {
+                match self
+                    .restored()
+                    .await
+                    .and_then(|daemon| daemon.canonical_account(account.as_deref()))
+                {
                     Err(refusal) => refusal.into(),
                     Ok(account) => match self
                         .valid_access_token(account.as_deref(), true, None)
@@ -372,16 +377,21 @@ impl Daemon {
             // the decision is the logout's own, ordered with the other
             // landings, and a clear that failed is the answer. C148: its
             // keyring and index I/O runs on a blocking thread.
-            Request::AuthLogout { account } => {
-                match self.restored().await.logout_blocking(account).await {
+            Request::AuthLogout { account } => match self.restored().await {
+                Err(refusal) => refusal.into(),
+                Ok(daemon) => match daemon.logout_blocking(account).await {
                     Ok(keyring) => Response::Ack {
                         keyring: Some(keyring),
                     },
                     Err(refusal) => refusal.into(),
-                }
-            }
+                },
+            },
             Request::Quote { jobs, account } => {
-                match self.restored().await.quote(&jobs, account.as_deref()) {
+                match self
+                    .restored()
+                    .await
+                    .and_then(|daemon| daemon.quote(&jobs, account.as_deref()))
+                {
                     Ok(quote) => Response::Quote { quote },
                     Err(refusal) => refusal.into(),
                 }
@@ -487,14 +497,21 @@ impl Daemon {
         Ok(())
     }
 
-    /// C133: a submit after the exit began is refused, in words a frontend
-    /// can act on; the queue is the next daemon's.
-    /// This daemon, once the start's restore has landed (C148).
-    async fn restored(self: &Arc<Self>) -> &Arc<Self> {
+    /// C148: this daemon, once the start's restore has landed, for a
+    /// request that reads the session table. One rule for every request
+    /// that waits: it is refused as stopping (C133) before the wait and
+    /// after it, so an exit begun while the restore read the keyring
+    /// starts no login, check, logout, quote or submit on a departing
+    /// daemon.
+    async fn restored(self: &Arc<Self>) -> Result<&Arc<Self>, Refusal> {
+        self.refuse_while_stopping()?;
         self.await_restore().await;
-        self
+        self.refuse_while_stopping()?;
+        Ok(self)
     }
 
+    /// C133: a submit after the exit began is refused, in words a frontend
+    /// can act on; the queue is the next daemon's.
     pub(super) fn refuse_while_stopping(&self) -> Result<(), Refusal> {
         if self.exit.begun() {
             return Err(Refusal::new(
