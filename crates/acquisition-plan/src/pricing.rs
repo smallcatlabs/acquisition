@@ -826,7 +826,7 @@ pub fn described() -> Vec<Described> {
         ),
         entry(
             "shop counts",
-            "a shop render, counted: each page's `tabs` name each `Stash<n>` its links write — the tab's rank among the tabs the website lists — by the tab's own `name`, with how many `items` link to it; `left_out` lists the first 50 items left off for a reason, the blocked first, each with its `cell`, and `left_out_total` counts them all; `counts` counts every item by its cell, the items nothing applies to in `off_page`; `policy` gives each cell's rule and count",
+            "a shop render, counted: each page's `tabs` name each `Stash<n>` its links write — the tab's rank among the tabs the website lists — by the tab's own `name`, with how many `items` link to it; `posted` lists the first ten items on the pages and `posted_total` counts them all; `left_out` lists the first ten items left off for a reason, the blocked first, each with its `cell`, and `left_out_total` counts them all; `freshness`'s `uncovered`, `stale` and `position_before_listing` list ten each beside `uncovered_total`, `stale_total` and `position_before_listing_total`; `expand` lists every one; `counts` counts every item by its cell, the items nothing applies to in `off_page`; `policy` gives each cell's rule and count",
         ),
     ]
 }

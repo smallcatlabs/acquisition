@@ -126,6 +126,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt;
 
 use acquisition_protocol::realm::Realm;
+use acquisition_store::bound::bounded;
 use serde::{Deserialize, Serialize};
 
 use crate::currency::{self, CurrencyTableError};
@@ -135,11 +136,17 @@ use crate::{Selection, SyncPolicy};
 
 /// The render's JSON shape; changes are additive (C53) until they are
 /// not, and then this moves. The shape is pinned by
-/// `reference/shop-render-schema-5.json`
-/// (`the_render_json_matches_the_committed_fixture`). **5** since
-/// 2026-10-19: `left_out` lists at most [`LEFT_OUT_LISTED`] items, the
-/// blocked first, with `left_out_total` counting them all, unless
-/// expanded — the release seat's rerun met 160 KB of them. **4** since
+/// `reference/shop-render-schema-6.json`
+/// (`the_render_json_matches_the_committed_fixture`). **6** since
+/// 2026-10-27 (step 2g, C53's read economy): `posted`, `left_out` and
+/// each list of `freshness` hold the store's one bound of ten
+/// (`acquisition_store::bound::LISTED`) unless expanded, each counted
+/// whole beside it (`posted_total`, `left_out_total`, `uncovered_total`,
+/// `stale_total`, `position_before_listing_total`) — the readiness
+/// seat's call 35 was 34,779 bytes for a 2,800-character page. **5**
+/// since 2026-10-19: `left_out` lists at most fifty items, the blocked
+/// first, with `left_out_total` counting them all, unless expanded —
+/// the release seat's rerun met 160 KB of them. **4** since
 /// 2026-10-19: `left_out` lists the items left off for a reason and
 /// leaves out the ones nothing applies to unless asked
 /// ([`RenderOptions::expand`]), saying which in `off_page_listed` — the
@@ -147,12 +154,7 @@ use crate::{Selection, SyncPolicy};
 /// page shape (spoilers) renamed `Posted.price` to `title`; 2 measured
 /// staleness over the stale set only; neither 1 nor 2 reached a
 /// consumer.
-pub const SHOP_SCHEMA: u32 = 5;
-
-/// How many items left off the page the default document lists
-/// (`left_out`); `left_out_total` counts them all and `expand` lists
-/// them all (C53: a bounded detail by default).
-pub const LEFT_OUT_LISTED: usize = 50;
+pub const SHOP_SCHEMA: u32 = 6;
 
 /// The forum's hard post limit in characters (T23); the C++ app's
 /// constant (T15) had it right.
@@ -455,11 +457,18 @@ pub struct Freshness {
     /// Why the caller could not compile that plan, when it could not.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub refresh_problem: Option<String>,
-    /// Containers of posted items the policy does not cover.
+    /// Containers of posted items the policy does not cover: ten unless
+    /// expanded.
     pub uncovered: Vec<PriceTarget>,
+    /// How many `uncovered` holds unbounded.
+    #[serde(default)]
+    pub uncovered_total: usize,
     /// Posted items in covered containers whose fact is older than the
-    /// window — the ones the cited refresh fetches.
+    /// window — the ones the cited refresh fetches: ten unless expanded.
     pub stale: Vec<PriceTarget>,
+    /// How many `stale` holds unbounded.
+    #[serde(default)]
+    pub stale_total: usize,
     /// Posted items in uncovered containers past the window: the policy
     /// edit comes first for these.
     pub stale_uncovered: usize,
@@ -469,8 +478,31 @@ pub struct Freshness {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub oldest_stale_seconds: Option<i64>,
     /// Posted stash items whose fetch predates the stash listing their
-    /// `Stash<n>` comes from.
+    /// `Stash<n>` comes from: ten unless expanded.
     pub position_before_listing: Vec<PriceTarget>,
+    /// How many `position_before_listing` holds unbounded.
+    #[serde(default)]
+    pub position_before_listing_total: usize,
+}
+
+impl Freshness {
+    /// C53, the read economy: each list counted whole, then cut to the
+    /// store's bound unless `expand`.
+    fn bounded(mut self, expand: bool) -> Freshness {
+        for (list, total) in [
+            (&mut self.uncovered, &mut self.uncovered_total),
+            (&mut self.stale, &mut self.stale_total),
+            (
+                &mut self.position_before_listing,
+                &mut self.position_before_listing_total,
+            ),
+        ] {
+            *total = list.len();
+            let (kept, _) = bounded(std::mem::take(list), None, expand);
+            *list = kept;
+        }
+        self
+    }
 }
 
 /// The counts a first line needs.
@@ -502,11 +534,16 @@ pub struct ShopRender {
     pub template: String,
     pub policy: Vec<PolicyRow>,
     pub counts: ShopCounts,
+    /// The items on the pages, in page order: ten unless expanded (the
+    /// pages' `text` is whole either way, never a list, C53).
     pub posted: Vec<Posted>,
+    /// How many `posted` holds unbounded: every item on the pages.
+    #[serde(default)]
+    pub posted_total: usize,
     /// The items left off the page, the blocked first, then the omitted,
     /// then — when `off_page_listed` — the items nothing applies to, each
-    /// group in the listing's order. The default lists at most
-    /// [`LEFT_OUT_LISTED`] of them; `expand` lists them all.
+    /// group in the listing's order. The default lists the store's bound
+    /// of ten (C53); `expand` lists them all.
     pub left_out: Vec<LeftOut>,
     /// How many `left_out` would hold unbounded: every item omitted or
     /// blocked, and the items nothing applies to when `off_page_listed`.
@@ -866,11 +903,11 @@ pub fn render(report: &ListingReport, opts: &RenderOptions<'_>) -> Result<ShopRe
         Verdict::OffPage | Verdict::Post => 2,
     });
     let left_out_total = left_out.len();
-    if !opts.expand {
-        left_out.truncate(LEFT_OUT_LISTED);
-    }
+    let (left_out, _) = bounded(left_out, None, opts.expand);
+    let posted_total = cut.posted.len();
+    let (posted, _) = bounded(cut.posted, None, opts.expand);
 
-    let freshness = freshness(report, &cut.entries, opts);
+    let freshness = freshness(report, &cut.entries, opts).bounded(opts.expand);
     let policy = Cell::ALL
         .into_iter()
         .map(|c| PolicyRow {
@@ -888,7 +925,8 @@ pub fn render(report: &ListingReport, opts: &RenderOptions<'_>) -> Result<ShopRe
         template: opts.template.to_string(),
         policy,
         counts,
-        posted: cut.posted,
+        posted,
+        posted_total,
         left_out,
         left_out_total,
         off_page_listed: opts.expand,
@@ -1081,10 +1119,13 @@ fn freshness(report: &ListingReport, entries: &[Entry], opts: &RenderOptions<'_>
         refresh_requests: None,
         refresh_problem: None,
         uncovered: Vec::new(),
+        uncovered_total: 0,
         stale: Vec::new(),
+        stale_total: 0,
         stale_uncovered: 0,
         oldest_stale_seconds: None,
         position_before_listing: Vec::new(),
+        position_before_listing_total: 0,
     };
     let listing_response = report.header.stash_listing.map(|b| b.response_id);
     for e in entries {
@@ -1490,6 +1531,33 @@ mod tests {
         assert_eq!(r.counts.by_cell[&Cell::LeagueUnknown], 1);
         assert_eq!(r.counts.by_cell[&Cell::HandSkip], 1);
         assert_eq!(r.counts.by_cell[&Cell::NothingApplies], 1);
+
+        // C53, the read economy (step 2g): the default document's lists
+        // hold the bound, and every item is still counted, each list's
+        // whole beside it
+        let whole = render(
+            &report(),
+            &RenderOptions {
+                expand: true,
+                ..opts(PolicySource::NotSet)
+            },
+        )
+        .unwrap();
+        let r = render(&report(), &opts(PolicySource::NotSet)).unwrap();
+        let c = &r.counts;
+        assert_eq!(c, &whole.counts);
+        assert_eq!(c.posted + c.omitted + c.blocked + c.off_page, c.items);
+        assert_eq!(r.posted_total, c.posted);
+        assert_eq!(
+            r.posted.len(),
+            c.posted.min(acquisition_store::bound::LISTED)
+        );
+        assert_eq!(r.left_out_total, c.omitted + c.blocked);
+        assert_eq!(
+            r.left_out.len(),
+            r.left_out_total.min(acquisition_store::bound::LISTED)
+        );
+        assert_eq!(whole.posted_total, whole.posted.len());
     }
 
     /// C47, C74 — a store row never panics the render and a vocabulary
@@ -2001,7 +2069,7 @@ mod tests {
     fn the_render_json_matches_the_committed_fixture() {
         let path = concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/reference/shop-render-schema-5.json"
+            "/reference/shop-render-schema-6.json"
         );
         let policy = SyncPolicy::from_value(&json!({
             "version": 3,
@@ -2229,7 +2297,7 @@ mod tests {
                 (31, 52, 5, 1889, 1)
             );
             assert_eq!(c.posted + c.omitted + c.blocked + c.off_page, c.items);
-            assert_eq!(r.posted.len() + r.left_out_total + c.off_page, c.items);
+            assert_eq!(r.posted_total + r.left_out_total + c.off_page, c.items);
             assert_eq!(c.by_cell.values().sum::<usize>(), c.items);
             let expected: BTreeMap<Cell, usize> = Cell::ALL
                 .iter()
@@ -2272,6 +2340,19 @@ mod tests {
                     .all(|l| matches!(l.location, Some(PriceTarget::Substash { .. })))
             );
 
+            // every posted item, past the default's ten (C53): the whole
+            // list, under `expand`, beside the same pages
+            let whole = render(
+                &report,
+                &RenderOptions {
+                    expand: true,
+                    ..opts_at(s.taken_at, PolicySource::NotSet)
+                },
+            )
+            .unwrap();
+            assert_eq!(whole.pages, r.pages);
+            assert_eq!(whole.posted.len(), r.posted_total);
+            let r = whole;
             let tab = real_scale_fixture::owners_test_tab(&s);
             assert!(
                 r.posted
@@ -2356,14 +2437,17 @@ mod tests {
                 all.left_out
                     .iter()
                     .filter(|l| l.verdict != Verdict::OffPage)
-                    .take(LEFT_OUT_LISTED)
+                    .take(acquisition_store::bound::LISTED)
                     .collect::<Vec<_>>(),
                 r.left_out.iter().collect::<Vec<_>>()
             );
             assert_eq!(
-                (&all.counts, &all.posted, &all.pages, &all.policy),
-                (&r.counts, &r.posted, &r.pages, &r.policy)
+                (&all.counts, &all.pages, &all.policy),
+                (&r.counts, &r.pages, &r.policy)
             );
+            // the posted list: the default is the whole one's head, counted
+            assert_eq!(&all.posted[..r.posted.len()], &r.posted[..]);
+            assert_eq!(all.posted.len(), r.posted_total);
             eprintln!(
                 "expanded: {} bytes",
                 serde_json::to_string_pretty(&all).unwrap().len()
@@ -2373,8 +2457,8 @@ mod tests {
         /// C53, C74 — the release seat's rerun (mcp-opus-2, calls 37, 38):
         /// the shop document was still 160 KB on the owner's league, 135 KB
         /// of it `left_out`'s 521 items left off for a reason, and `page`
-        /// drops the counts. The default document lists at most
-        /// `LEFT_OUT_LISTED` of them — the blocked first, which a person
+        /// drops the counts. The default document lists the store's bound
+        /// of them (`LISTED`, C53) — the blocked first, which a person
         /// can act on — with `left_out_total` counting them all and every
         /// cell's count intact; `expand` lists them all. Read through the
         /// JSON, the contract both surfaces print. Here 57 are left off for
@@ -2385,7 +2469,11 @@ mod tests {
             let r = render(&report, &opts_at(s.taken_at, PolicySource::NotSet)).unwrap();
             let doc = serde_json::to_value(&r).unwrap();
             let listed = doc["left_out"].as_array().unwrap();
-            assert_eq!(listed.len(), 50, "the default lists a bound");
+            assert_eq!(
+                listed.len(),
+                acquisition_store::bound::LISTED,
+                "the default lists the bound"
+            );
             assert_eq!(doc["left_out_total"], json!(57), "and counts them all");
             assert!(
                 listed[..5].iter().all(|l| l["verdict"] == json!("block")),
@@ -2412,7 +2500,7 @@ mod tests {
             assert_eq!(every.len(), 1977 - 31, "expand lists every one");
             assert_eq!(all["left_out_total"], json!(1977 - 31));
             assert_eq!(
-                &every[..50],
+                &every[..acquisition_store::bound::LISTED],
                 &listed[..],
                 "the default is the expanded list's head"
             );
@@ -2430,7 +2518,15 @@ mod tests {
         #[test]
         fn t24_at_real_scale_every_posted_link_numbers_its_tab_as_the_website_does() {
             let (s, report) = fixture();
-            let r = render(&report, &opts_at(s.taken_at, PolicySource::NotSet)).unwrap();
+            // every posted link: the whole list, past the default's ten
+            let r = render(
+                &report,
+                &RenderOptions {
+                    expand: true,
+                    ..opts_at(s.taken_at, PolicySource::NotSet)
+                },
+            )
+            .unwrap();
             let path = concat!(
                 env!("CARGO_MANIFEST_DIR"),
                 "/reference/website-tabs-2026-09-07.json"
@@ -2531,11 +2627,13 @@ mod tests {
             assert_eq!(f.window_seconds, Some(3600));
             assert_eq!(f.refresh_requests, Some(2));
             assert!(f.uncovered.is_empty());
-            assert_eq!(f.stale.len(), 31);
+            // counted whole, the default's ten listed (C53)
+            assert_eq!(f.stale_total, 31);
             assert_eq!(
                 f.stale,
                 r.posted
                     .iter()
+                    .take(acquisition_store::bound::LISTED)
                     .map(|p| p.target.clone())
                     .collect::<Vec<_>>()
             );

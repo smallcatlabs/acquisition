@@ -853,9 +853,9 @@ struct ShopRenderParams {
     /// One page alone, by its number from 1: that page's record in place
     /// of the whole render.
     page: Option<usize>,
-    /// List every item left off in `left_out`, past the first 50 and the
-    /// items nothing applies to included (some 200 bytes an item; a
-    /// league holds thousands); they are counted either way.
+    /// List every entry of `posted`, `left_out` and `freshness`'s lists,
+    /// past the first ten, the items nothing applies to included in
+    /// `left_out` (a league holds thousands); they are counted either way.
     expand: Option<bool>,
     #[schemars(description = ACCOUNT)]
     account: Option<String>,

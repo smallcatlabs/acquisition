@@ -39,6 +39,7 @@
         "scope": "item"
       }
     ],
+    "position_before_listing_total": 1,
     "refresh_requests": 7,
     "stale": [
       {
@@ -62,6 +63,7 @@
         "scope": "item"
       }
     ],
+    "stale_total": 5,
     "stale_uncovered": 1,
     "uncovered": [
       {
@@ -70,6 +72,7 @@
         "scope": "tab"
       }
     ],
+    "uncovered_total": 1,
     "window_seconds": 3600
   },
   "left_out": [
@@ -208,47 +211,6 @@
       },
       "target": {
         "id": "i-skip",
-        "scope": "item"
-      },
-      "verdict": "omit"
-    },
-    {
-      "cell": "game_lists",
-      "label": "Chaos Orb",
-      "location": {
-        "id": "c1",
-        "realm": "pc",
-        "scope": "tab"
-      },
-      "target": {
-        "id": "i-noted",
-        "scope": "item"
-      },
-      "verdict": "omit"
-    },
-    {
-      "cell": "game_skips",
-      "label": "Chaos Orb",
-      "location": {
-        "id": "c1",
-        "realm": "pc",
-        "scope": "tab"
-      },
-      "target": {
-        "id": "i-gameskip",
-        "scope": "item"
-      },
-      "verdict": "omit"
-    },
-    {
-      "cell": "hand_skip",
-      "label": "Chaos Orb",
-      "location": {
-        "id": "ch2",
-        "scope": "character"
-      },
-      "target": {
-        "id": "i-nowhere-skip",
         "scope": "item"
       },
       "verdict": "omit"
@@ -524,8 +486,9 @@
       "title": ""
     }
   ],
+  "posted_total": 6,
   "rendered_at": 5000,
-  "schema": 5,
+  "schema": 6,
   "size": 50000,
   "template": "[items]"
 }

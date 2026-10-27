@@ -307,3 +307,172 @@ fn shop_render_json_is_the_document_the_text_and_the_page_read() {
         "{text}"
     );
 }
+
+/// C53, the read economy (step 2g, round 2; the second cold review of the
+/// brief, finding 3): every list of the shop document holds ten beside a
+/// count made from the whole, and the text counts from the document,
+/// never from a list's length — staged past ten of each before any
+/// golden: in the league Wide, twelve covered tabs whose hand-priced
+/// items are past the policy's window (stale), twelve tabs outside the
+/// policy (uncovered), a substash of twelve hand-priced items (blocked),
+/// and the stash listing read again after every fetch, so all
+/// twenty-four posted items' positions predate it.
+#[test]
+fn the_shop_lists_hold_ten_and_the_text_counts_the_whole_past_ten_of_each() {
+    use acquisition_store::bound::LISTED;
+    let scratch = harness::scratch("shop-wide");
+    let base = scratch.0.clone();
+    let mock = seed(&base);
+    let now = acquisition_store::now();
+    let old = now - 7_200;
+    let mut store = Store::open(&account_path(&mock, USER)).unwrap();
+    // the params name the league, which the listing's basis is read by
+    let record = |store: &mut Store, ep: Endpoint, body: Value, at: i64| {
+        store
+            .record(&ep, &json!({ "league": "Wide" }), 200, &body, at)
+            .unwrap();
+    };
+    let mut listed = vec![
+        json!({ "id": "fw", "name": "Covered", "type": "Folder", "index": 0,
+        "children": (0..12).map(|i| json!({ "id": format!("cw{i}"), "name": format!("C {i}"), "type": "PremiumStash", "index": 1 + i, "metadata": { "public": true } })).collect::<Vec<_>>() }),
+    ];
+    listed.extend((0..12).map(|i| json!({ "id": format!("uw{i}"), "name": format!("U {i}"), "type": "PremiumStash", "index": 20 + i, "metadata": { "public": true } })));
+    listed.push(json!({ "id": "mw", "name": "Maps", "type": "MapStash", "index": 40 }));
+    let listing = Endpoint::Stashes {
+        realm: "pc".into(),
+        league: "Wide".into(),
+    };
+    record(
+        &mut store,
+        listing.clone(),
+        json!({ "stashes": listed }),
+        old,
+    );
+    let item = |id: &str, x: i64| json!({ "id": id, "name": "", "typeLine": "Chaos Orb", "baseType": "Chaos Orb", "x": x, "y": 0, "stackSize": 1, "inventoryId": "Stash1" });
+    let stash = |id: &str, sub: Option<&str>| Endpoint::Stash {
+        realm: "pc".into(),
+        league: "Wide".into(),
+        id: id.into(),
+        sub: sub.map(str::to_string),
+    };
+    let mut priced = Vec::new();
+    for i in 0..12 {
+        let (c, u) = (format!("cw{i}"), format!("uw{i}"));
+        let (ci, ui) = (format!("i-c{i:02}"), format!("i-u{i:02}"));
+        record(
+            &mut store,
+            stash(&c, None),
+            json!({ "stash": { "id": c, "name": format!("C {i}"), "type": "PremiumStash", "items": [ item(&ci, 0) ] } }),
+            old,
+        );
+        record(
+            &mut store,
+            stash(&u, None),
+            json!({ "stash": { "id": u, "name": format!("U {i}"), "type": "PremiumStash", "items": [ item(&ui, 0) ] } }),
+            now,
+        );
+        priced.extend([ci, ui]);
+    }
+    let subs: Vec<String> = (0..12).map(|i| format!("i-s{i:02}")).collect();
+    record(
+        &mut store,
+        stash("mw", None),
+        json!({ "stash": { "id": "mw", "name": "Maps", "type": "MapStash", "items": [],
+                           "children": [ { "id": "sw", "name": "1", "type": "MapStash", "metadata": { "items": 12 } } ] } }),
+        now,
+    );
+    record(
+        &mut store,
+        stash("mw", Some("sw")),
+        json!({ "stash": { "id": "sw", "name": "1", "type": "MapStash",
+                           "items": subs.iter().enumerate().map(|(x, id)| item(id, x as i64)).collect::<Vec<_>>() } }),
+        now,
+    );
+    // the listing again, after every fetch, a tab renamed in it: each
+    // position predates it
+    let last = listed.len() - 1;
+    listed[last]["name"] = json!("Maps again");
+    record(&mut store, listing, json!({ "stashes": listed }), now + 1);
+    drop(store);
+    let mut a = Annotations::open_for(&mock, UUID).unwrap();
+    let via = Provenance::via("test");
+    for id in priced.iter().chain(&subs) {
+        a.put::<Buyout>(
+            "item",
+            id,
+            &json!({ "version": 1, "type": "exact", "amount": "1", "currency": "chaos" }),
+            None,
+            &via,
+        )
+        .unwrap();
+    }
+    let policy = json!({ "version": 3, "realms": { "pc": { "leagues": {
+        "Standard": { "tabs": ["f1"], "max_age_seconds": 3600 },
+        "Wide": { "tabs": ["fw"], "max_age_seconds": 3600 } } } } });
+    // over the seed's policy, revision 1
+    put_sync_policy(&mut a, &policy, Some(1), PolicyWrite::Replace, &via).unwrap();
+    drop(a);
+
+    let render = |args: &[&str]| -> ShopRender {
+        let out = acq(
+            &base,
+            &[&["shop", "render", "--league", "Wide", "--json"], args].concat(),
+        );
+        assert!(out.status.success(), "{}", stderr(&out));
+        serde_json::from_value(sole_json(&out)).unwrap()
+    };
+    let r = render(&[]);
+    assert_eq!(
+        (r.counts.posted, r.counts.blocked),
+        (24, 12),
+        "{:?}",
+        r.counts
+    );
+    let f = &r.freshness;
+    for (listed, total, whole) in [
+        (r.posted.len(), r.posted_total, 24),
+        (r.left_out.len(), r.left_out_total, 12),
+        (f.uncovered.len(), f.uncovered_total, 12),
+        (f.stale.len(), f.stale_total, 12),
+        (
+            f.position_before_listing.len(),
+            f.position_before_listing_total,
+            24,
+        ),
+    ] {
+        assert_eq!((listed, total), (LISTED, whole), "{f:?}");
+    }
+    // the pages are whole: every posted item's link is in their text
+    let links: usize = r
+        .pages
+        .iter()
+        .map(|p| p.text.matches("[linkItem").count())
+        .sum();
+    assert_eq!(links, 24);
+    let all = render(&["--expand"]);
+    assert_eq!(all.posted.len(), 24);
+    assert_eq!(all.freshness.uncovered.len(), 12);
+    assert_eq!(all.freshness.stale.len(), 12);
+    assert_eq!(all.freshness.position_before_listing.len(), 24);
+    assert_eq!(all.left_out.len(), all.left_out_total);
+
+    // the text's numbers are the whole ones
+    let out = acq(&base, &["shop", "render", "--league", "Wide"]);
+    assert!(out.status.success(), "{}", stderr(&out));
+    let text = String::from_utf8_lossy(&out.stdout);
+    for said in [
+        "24 items to post",
+        "12 blocked (12 in a substash)",
+        "coverage: 12 containers on the page outside the sync policy",
+        "stale: 12 items on the page last seen past the policy's window",
+        "positions: 24 items on the page seen before the current stash listing",
+        "; `--expand` names each blocked item",
+    ] {
+        assert!(text.contains(said), "{said:?} not in\n{text}");
+    }
+    assert!(text.contains(" …; add them"), "ten named and more: {text}");
+    assert!(
+        !text.contains("blocked:\n"),
+        "twelve are counted, not listed: {text}"
+    );
+}

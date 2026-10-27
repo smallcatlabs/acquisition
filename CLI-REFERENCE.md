@@ -771,7 +771,7 @@ Options:
       --size <SIZE>          Characters per page, the template included (the forum's hard limit) [default: 50000]
       --template <TEMPLATE>  A file whose `[items]` token each page replaces; without it the page is the items alone
       --page <PAGE>          Print one page alone (its text; with --json, its record), for the clipboard
-      --expand               The whole policy table with each row's rule and count, and every item left off the page with its cell, those nothing applies to included. Without it they are counted: the --json document lists the first 50 left off for a reason, the blocked first, and `left_out_total` counts them all
+      --expand               The whole policy table with each row's rule and count, and every item left off the page with its cell, those nothing applies to included. Without it they are counted: the --json document lists the first ten left off for a reason, the blocked first, and `left_out_total` counts them all; `posted` and each freshness list hold ten beside their counts the same way
   -h, --help                 Print help
 ```
 

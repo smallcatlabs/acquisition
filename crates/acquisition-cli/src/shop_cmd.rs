@@ -33,8 +33,9 @@ use crate::Ctx;
 use crate::store_cmd::{ago, clip, realm_prefix};
 
 /// Groups of this many items or fewer are listed one per line; larger
-/// groups are counted (C53; `--expand` lists every one).
-const LIST_UP_TO: usize = 10;
+/// groups are counted (C53; `--expand` lists every one): the store's one
+/// bound, which the document's lists hold too.
+const LIST_UP_TO: usize = acquisition_store::bound::LISTED;
 
 /// `render`'s flags as typed.
 #[derive(Debug)]
@@ -152,12 +153,19 @@ fn freshness_lines(r: &ShopRender, now: i64) -> String {
             r.listing.league
         )),
         _ => {
-            if !f.uncovered.is_empty() {
-                let named: Vec<String> = f.uncovered.iter().map(ToString::to_string).collect();
-                let list = if named.len() <= LIST_UP_TO {
+            // each count is the document's whole one, never the length of
+            // the list it bounds (C53)
+            if f.uncovered_total > 0 {
+                let named: Vec<String> = f
+                    .uncovered
+                    .iter()
+                    .take(LIST_UP_TO)
+                    .map(ToString::to_string)
+                    .collect();
+                let list = if f.uncovered_total <= named.len() {
                     named.join(", ")
                 } else {
-                    format!("{} …", named[..LIST_UP_TO].join(", "))
+                    format!("{} …", named.join(", "))
                 };
                 let past = if f.stale_uncovered > 0 {
                     format!(
@@ -169,11 +177,11 @@ fn freshness_lines(r: &ShopRender, now: i64) -> String {
                 };
                 out.push_str(&format!(
                     "coverage: {} on the page outside the sync policy (revision {}): {list}; add them with `acq policy set`{past}\n",
-                    plural(f.uncovered.len(), "container", "containers"),
+                    plural(f.uncovered_total, "container", "containers"),
                     f.policy_revision.unwrap_or(0)
                 ));
             }
-            if !f.stale.is_empty() {
+            if f.stale_total > 0 {
                 let remedy = match (f.refresh_requests, &f.refresh_problem) {
                     (Some(n), _) => format!("`acq refresh --plan` would send {n} requests"),
                     (None, Some(why)) => {
@@ -185,17 +193,17 @@ fn freshness_lines(r: &ShopRender, now: i64) -> String {
                 };
                 out.push_str(&format!(
                     "stale: {} on the page last seen past the policy's window of {}s (oldest {}); {remedy}\n",
-                    plural(f.stale.len(), "item", "items"),
+                    plural(f.stale_total, "item", "items"),
                     f.window_seconds.unwrap_or(0),
                     ago(now, f.oldest_stale_seconds.map(|s| now.saturating_sub(s)))
                 ));
             }
         }
     }
-    if !f.position_before_listing.is_empty() {
+    if f.position_before_listing_total > 0 {
         out.push_str(&format!(
             "positions: {} on the page seen before the current stash listing, whose indices the links use; a tab reindexed between would move the link — a refresh re-reads them\n",
-            plural(f.position_before_listing.len(), "item", "items")
+            plural(f.position_before_listing_total, "item", "items")
         ));
     }
     out
@@ -283,7 +291,10 @@ fn render_text(r: &ShopRender, now: i64, expand: bool) -> String {
                 out.push_str(&left_out_line(l));
             }
         }
-    } else if !blocked.is_empty() && blocked.len() <= LIST_UP_TO {
+    } else if c.blocked > 0 && c.blocked <= LIST_UP_TO {
+        // decided by the document's count, never by the sample's length:
+        // the blocked come first in `left_out`, so ten or fewer are all
+        // there
         out.push_str("blocked:\n");
         for l in &blocked {
             out.push_str(&left_out_line(l));
@@ -317,7 +328,7 @@ fn render_text(r: &ShopRender, now: i64, expand: bool) -> String {
         format!(
             "paste page 1 of {} into the shop thread and preview it before posting; `acq shop render --page N` prints one page alone{}",
             c.pages,
-            if !expand && blocked.len() > LIST_UP_TO {
+            if !expand && c.blocked > LIST_UP_TO {
                 "; `--expand` names each blocked item"
             } else {
                 ""
@@ -414,6 +425,7 @@ mod tests {
             },
             off_page_listed: false,
             left_out_total: 3,
+            posted_total: 3,
             posted: vec![
                 posted("a", 1, tab("c1")),
                 posted("b", 1, tab("c1")),
@@ -482,10 +494,13 @@ mod tests {
                 refresh_requests: Some(7),
                 refresh_problem: None,
                 uncovered: vec![tab("t2")],
+                uncovered_total: 1,
                 stale: vec![item("c")],
+                stale_total: 1,
                 stale_uncovered: 1,
                 oldest_stale_seconds: Some(3800),
                 position_before_listing: vec![item("c")],
+                position_before_listing_total: 1,
             },
         }
     }

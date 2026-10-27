@@ -702,8 +702,9 @@ enum ShopCmd {
         /// The whole policy table with each row's rule and count, and
         /// every item left off the page with its cell, those nothing
         /// applies to included. Without it they are counted: the --json
-        /// document lists the first 50 left off for a reason, the blocked
-        /// first, and `left_out_total` counts them all.
+        /// document lists the first ten left off for a reason, the blocked
+        /// first, and `left_out_total` counts them all; `posted` and each
+        /// freshness list hold ten beside their counts the same way.
         #[arg(long)]
         expand: bool,
     },

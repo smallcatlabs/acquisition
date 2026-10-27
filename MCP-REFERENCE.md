@@ -167,7 +167,7 @@ Write the account's sync policy, validated strictly, compare-and-swap on `if_rev
 The forum shop pages for one league, for a person to paste by hand; this server posts nothing and reads no forum (no daemon). One link code per hand-priced item under its price's spoiler, in pages of at most `size` characters: `pages` (each `text` is what to paste), `posted`, `left_out`, `counts`, `policy` and `freshness`, whether the sync policy covers the posted items — reported, never enforced. `describe` with names ["pricing"] says what each count counts.
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
-- `expand` (boolean | null) — List every item left off in `left_out`, past the first 50 and the items nothing applies to included (some 200 bytes an item; a league holds thousands); they are counted either way.
+- `expand` (boolean | null) — List every entry of `posted`, `left_out` and `freshness`'s lists, past the first ten, the items nothing applies to included in `left_out` (a league holds thousands); they are counted either way.
 - `league` (string | null) — The league; Standard when omitted.
 - `page` (integer | null) — One page alone, by its number from 1: that page's record in place of the whole render.
 - `realm` (string | null) — pc (the default), xbox, sony or poe2.
