@@ -228,6 +228,7 @@ fn left_out_line(l: &LeftOut) -> String {
 fn render_text(r: &ShopRender, now: i64, expand: bool, account: &str) -> String {
     // every printed `acq price` command carries the render's scope
     let flags = crate::price_cmd::scope_flags(&r.listing, account);
+    let write = crate::price_cmd::write_flags(account);
     let mut out = String::new();
     let c = &r.counts;
     let place = format!("{}{}", realm_prefix(r.listing.realm), r.listing.league);
@@ -343,12 +344,12 @@ fn render_text(r: &ShopRender, now: i64, expand: bool, account: &str) -> String 
         )
     } else if c.blocked > 0 {
         format!(
-            "{} is blocked; `--expand` shows the policy table and each item; `acq price set {flags} item/<id> exact <amount> <tag>` prices one by hand",
+            "{} is blocked; `--expand` shows the policy table and each item; `acq price set {write} item/<id> exact <amount> <tag>` prices one by hand",
             plural(c.blocked, "item", "items")
         )
     } else {
         format!(
-            "`acq price set {flags} item/<id> exact <amount> <tag>` prices one by hand; `acq price list {flags}` shows what the game already lists"
+            "`acq price set {write} item/<id> exact <amount> <tag>` prices one by hand; `acq price list {flags}` shows what the game already lists"
         )
     };
     out.push_str(&format!("next: {next}\n"));
@@ -641,7 +642,7 @@ mod tests {
         let text = render_text(&empty, 5000, false, "a");
         assert_eq!(
             text,
-            "no items on record for Standard: nothing to render\nnext: `acq price status --account a` says what is on record\n"
+            "no items on record for Standard: nothing to render\nnext: `acq price status --account a --realm pc --league Standard` says what is on record\n"
         );
     }
 

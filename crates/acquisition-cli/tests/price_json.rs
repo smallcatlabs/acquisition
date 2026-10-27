@@ -1190,7 +1190,7 @@ fn price_show_lists_ten_of_each_set_beside_the_whole_counts_and_expand_lists_eve
         &[
             "items here: 13 items — 13 unlisted",
             "items covered through children: 14 items — 14 unlisted",
-            "next: `acq price show --account 'Alice#1234' --league Big tab/pc/b1 --expand` lists every item of both sets; `acq price list --account 'Alice#1234' --league Big --in tab/pc/b1 --expand` is the filtered route",
+            "next: `acq price show --account 'Alice#1234' --realm pc --league Big tab/pc/b1 --expand` lists every item of both sets; `acq price list --account 'Alice#1234' --realm pc --league Big --in tab/pc/b1 --expand` is the filtered route",
         ],
     );
     let out = acq(&base, &["price", "show", "tab/pc/b1", "--expand"]);
@@ -1251,7 +1251,7 @@ fn price_list_lists_ten_and_expand_returns_every_item_of_a_selection_past_ten() 
         "{text}"
     );
     assert!(
-        text.ends_with("next: `--expand` lists every item; `acq price show item/<id>` is one\n"),
+        text.ends_with("next: `--expand` lists every item; `acq price show --account 'Alice#1234' --realm pc --league Big item/<id>` is one\n"),
         "{text}"
     );
 }
@@ -1278,16 +1278,29 @@ fn shell_words(command: &str) -> Vec<String> {
     words
 }
 
-/// Every `acq price …` command a text prints between backticks that
-/// runs as typed: a placeholder (`<id>`, a bare `N`) is the reader's to
-/// fill, never run.
-fn printed_price_commands(text: &str) -> Vec<String> {
+/// Every `acq price …` command a text prints between backticks, each
+/// placeholder filled with a value of the world under test (`fills`, the
+/// placeholder word to its value), so a command the reader completes is
+/// run as they would complete it.
+fn printed_price_commands(text: &str, fills: &[(&str, &str)]) -> Vec<String> {
     text.split('`')
         .skip(1)
         .step_by(2)
         .filter(|c| c.starts_with("acq price "))
-        .filter(|c| !c.contains('<') && !c.split(' ').any(|w| w == "N"))
-        .map(str::to_string)
+        .map(|c| {
+            c.split(' ')
+                .map(|w| {
+                    fills.iter().fold(w.to_string(), |w, (from, to)| {
+                        if *from == "N" {
+                            if w == "N" { to.to_string() } else { w }
+                        } else {
+                            w.replace(from, to)
+                        }
+                    })
+                })
+                .collect::<Vec<_>>()
+                .join(" ")
+        })
         .collect()
 }
 
@@ -1308,16 +1321,19 @@ fn run_printed(base: &Path, command: &str) -> Value {
     sole_json(&out)
 }
 
-/// Step 2g's round-2 fix rule (the review of round 2, both findings): a
-/// printed `acq price` command carries the scope the answer resolved —
-/// the account it ran as, the realm and league where not the defaults —
-/// and, where it promises each or every item, `--expand`, since the
-/// default lists ten (C53). Staged with two accounts known, over the
-/// league Big (a map tab of 13 over a substash of 14), an xbox tab of 12
-/// and the league Clash, eleven items whose hand price conflicts with
-/// the game's: the show's audit command recovers both whole sets, the
-/// realm's too, the status's conflict remedy lists all eleven, and every
-/// printed price command of these answers runs as printed.
+/// Step 2g's round-2 fix rule, refined by its review (`2g-r2-ae151de2.md`
+/// and `2g-r2-fixes-a01e748e.md`): a printed `acq price` read carries the
+/// account it ran as and the realm and league the answer resolved,
+/// always; a write carries the account alone; a read that promises each
+/// or every item adds `--expand`, since the default lists ten (C53).
+/// Staged with two accounts known, over the league Big (a map tab of 13
+/// over a substash of 14), an xbox tab of 12, a tab `tw` live in both
+/// Standard and Big with twelve game-priced items in each, the league
+/// Clash (eleven items whose hand price conflicts with the game's) and
+/// the league Murk (eleven items under a row this build cannot read).
+/// Each audit route and remedy returns its whole set, and every printed
+/// price command of these answers runs as printed, its placeholders
+/// filled with this world's values.
 #[test]
 fn every_printed_price_command_carries_its_scope_and_runs_as_printed() {
     let scratch = harness::scratch("price-printed");
@@ -1337,6 +1353,11 @@ fn every_printed_price_command_carries_its_scope_and_runs_as_printed() {
         }
         v
     };
+    let items = |prefix: &str, n: usize, note: Option<&str>| -> Vec<Value> {
+        (0..n)
+            .map(|i| item(format!("{prefix}{i:02}"), i, note))
+            .collect()
+    };
     let mut record = |realm: &str, league: &str, id: Option<&str>, body: Value| {
         let params = json!({ "realm": realm, "league": league });
         let ep = match id {
@@ -1353,6 +1374,8 @@ fn every_printed_price_command_carries_its_scope_and_runs_as_printed() {
         };
         store.record(&ep, &params, 200, &body, at).unwrap();
     };
+    let tab = |id: &str, name: &str, index: i64| json!({ "id": id, "name": name, "type": "PremiumStash", "index": index, "metadata": { "public": true } });
+    let fetched = |id: &str, name: &str, items: Vec<Value>| json!({ "stash": { "id": id, "name": name, "type": "PremiumStash", "items": items } });
     record(
         "xbox",
         "Standard",
@@ -1363,21 +1386,60 @@ fn every_printed_price_command_carries_its_scope_and_runs_as_printed() {
         "xbox",
         "Standard",
         Some("x1"),
-        json!({ "stash": { "id": "x1", "name": "Box", "type": "PremiumStash",
-                           "items": (0..12).map(|i| item(format!("i-x{i:02}"), i, None)).collect::<Vec<_>>() } }),
+        fetched("x1", "Box", items("i-x", 12, None)),
+    );
+    // `tw` beside the seed's Standard tabs, and beside Big's `b1`
+    record(
+        "pc",
+        "Standard",
+        None,
+        json!({ "stashes": [
+            { "id": "f1", "name": "Sale", "type": "Folder", "index": 0,
+              "children": [ { "id": "c1", "name": "~price 3 chaos", "type": "PremiumStash", "index": 1, "metadata": { "public": true } } ] },
+            { "id": "m1", "name": "Maps", "type": "MapStash", "index": 2 },
+            tab("tw", "Twice", 3) ] }),
+    );
+    record(
+        "pc",
+        "Standard",
+        Some("tw"),
+        fetched("tw", "Twice", items("i-ws", 12, Some("~price 2 chaos"))),
+    );
+    record(
+        "pc",
+        "Big",
+        None,
+        json!({ "stashes": [ { "id": "b1", "name": "Many", "type": "MapStash", "index": 0 }, tab("tw", "Twice", 1) ] }),
+    );
+    record(
+        "pc",
+        "Big",
+        Some("tw"),
+        fetched("tw", "Twice", items("i-wb", 12, Some("~price 2 chaos"))),
     );
     record(
         "pc",
         "Clash",
         None,
-        json!({ "stashes": [ { "id": "k1", "name": "Clash", "type": "PremiumStash", "index": 0, "metadata": { "public": true } } ] }),
+        json!({ "stashes": [ tab("k1", "Clash", 0) ] }),
     );
     record(
         "pc",
         "Clash",
         Some("k1"),
-        json!({ "stash": { "id": "k1", "name": "Clash", "type": "PremiumStash",
-                           "items": (0..11).map(|i| item(format!("i-k{i:02}"), i, Some("~price 5 chaos"))).collect::<Vec<_>>() } }),
+        fetched("k1", "Clash", items("i-k", 11, Some("~price 5 chaos"))),
+    );
+    record(
+        "pc",
+        "Murk",
+        None,
+        json!({ "stashes": [ tab("u1", "Murk", 0) ] }),
+    );
+    record(
+        "pc",
+        "Murk",
+        Some("u1"),
+        fetched("u1", "Murk", items("i-u", 11, None)),
     );
     drop(store);
     let mut a = Annotations::open_for(&mock, UUID).unwrap();
@@ -1391,31 +1453,59 @@ fn every_printed_price_command_carries_its_scope_and_runs_as_printed() {
         )
         .unwrap();
     }
+    // a row on the tab this build cannot read: each item under it unresolved
+    a.put::<NewerBuyout>(
+        "tab",
+        "pc/u1",
+        &json!({ "version": 2, "type": "auction", "reserve": "5 chaos" }),
+        None,
+        &Provenance::via("future"),
+    )
+    .unwrap();
     drop(a);
 
-    let account = "--account";
     let text = |args: &[&str]| -> String {
-        let out = acq(&base, &[&["price"][..], args, &[account, USER]].concat());
+        let out = acq(
+            &base,
+            &[&["price"][..], args, &["--account", USER]].concat(),
+        );
         assert!(out.status.success(), "{args:?}: {}", stderr(&out));
         String::from_utf8_lossy(&out.stdout).into_owned()
     };
-    let shop = {
-        let out = acq(&base, &["shop", "render", "--league", "Big", account, USER]);
+    let shop = |league: &str| -> String {
+        let out = acq(
+            &base,
+            &["shop", "render", "--league", league, "--account", USER],
+        );
         assert!(out.status.success(), "{}", stderr(&out));
         String::from_utf8_lossy(&out.stdout).into_owned()
     };
-    let answers = [
-        text(&["show", "tab/pc/b1"]),
-        text(&["show", "tab/xbox/x1"]),
-        text(&["show", "item/i-b00"]),
-        text(&["status", "--league", "Clash"]),
-        text(&["status"]),
-        text(&["list", "--league", "Big", "--relation", "agree"]),
-        shop,
+    // each answer beside an item of its own place, which fills its
+    // placeholders
+    let answered = [
+        (text(&["show", "tab/pc/b1"]), "item/i-b00"),
+        (text(&["show", "tab/xbox/x1"]), "item/i-x00"),
+        (
+            text(&["show", "tab/pc/tw", "--league", "Standard"]),
+            "item/i-ws00",
+        ),
+        (text(&["show", "item/i-b00"]), "item/i-b01"),
+        (text(&["status", "--league", "Clash"]), "item/i-k00"),
+        (text(&["status", "--league", "Murk"]), "item/i-u00"),
+        (text(&["status"]), "item/i-noted"),
+        (
+            text(&["list", "--league", "Big", "--relation", "agree"]),
+            "item/i-b02",
+        ),
+        (shop("Big"), "item/i-b03"),
+        (shop("Murk"), "item/i-u01"),
     ];
+    let answers: Vec<&String> = answered.iter().map(|(text, _)| text).collect();
+    let read =
+        |realm: &str, league: &str| format!("--account '{USER}' --realm {realm} --league {league}");
 
-    // the show's audit command: both whole sets, in the league shown
-    let audit = format!("acq price show --account '{USER}' --league Big tab/pc/b1 --expand");
+    // the show's two audit routes: both whole sets, in the league shown
+    let audit = format!("acq price show {} tab/pc/b1 --expand", read("pc", "Big"));
     assert!(answers[0].contains(&audit), "{}", answers[0]);
     let doc = run_printed(&base, &audit);
     assert_eq!(
@@ -1426,38 +1516,103 @@ fn every_printed_price_command_carries_its_scope_and_runs_as_printed() {
         (13, 14),
         "{doc}"
     );
-    // the filtered route keeps the league too, every item it promises
-    let filtered =
-        format!("acq price list --account '{USER}' --league Big --in tab/pc/b1 --expand");
+    let filtered = format!(
+        "acq price list {} --in tab/pc/b1 --expand",
+        read("pc", "Big")
+    );
     assert!(answers[0].contains(&filtered), "{}", answers[0]);
-    // and a realm not the default
-    let audit = format!("acq price show --account '{USER}' --realm xbox tab/xbox/x1 --expand");
+    // a realm not the default
+    let audit = format!(
+        "acq price show {} tab/xbox/x1 --expand",
+        read("xbox", "Standard")
+    );
     assert!(answers[1].contains(&audit), "{}", answers[1]);
     let doc = run_printed(&base, &audit);
     assert_eq!(doc["items_here"].as_array().unwrap().len(), 12, "{doc}");
-
-    // eleven conflicts: the remedy names each, all eleven
-    let remedy =
-        format!("acq price list --account '{USER}' --league Clash --relation conflict --expand");
-    assert!(answers[3].contains(&remedy), "{}", answers[3]);
-    let doc = run_printed(&base, &remedy);
+    // a tab live in two leagues, shown in the default one named: both
+    // routes name it, and each returns Standard's twelve whole
+    let audit = format!(
+        "acq price show {} tab/pc/tw --expand",
+        read("pc", "Standard")
+    );
+    let filtered = format!(
+        "acq price list {} --in tab/pc/tw --expand",
+        read("pc", "Standard")
+    );
+    for route in [&audit, &filtered] {
+        assert!(
+            answers[2].contains(route.as_str()),
+            "{route}: {}",
+            answers[2]
+        );
+    }
+    let doc = run_printed(&base, &audit);
+    assert_eq!(doc["items_here_counts"]["total"], 12, "{doc}");
+    assert_eq!(doc["items_here"].as_array().unwrap().len(), 12, "{doc}");
+    let doc = run_printed(&base, &filtered);
     assert_eq!(
         (&doc["total"], doc["items"].as_array().unwrap().len()),
-        (&json!(11), 11),
+        (&json!(12), 12),
         "{doc}"
     );
 
-    // the sweep: every printed price command of these answers runs
+    // eleven conflicts, and eleven unresolved: each remedy names all
+    for (answer, remedy) in [
+        (
+            &answers[4],
+            format!(
+                "acq price list {} --relation conflict --expand",
+                read("pc", "Clash")
+            ),
+        ),
+        (
+            &answers[5],
+            format!(
+                "acq price list {} --effective unresolved --expand",
+                read("pc", "Murk")
+            ),
+        ),
+    ] {
+        assert!(answer.contains(&remedy), "{remedy}: {answer}");
+        let doc = run_printed(&base, &remedy);
+        assert_eq!(
+            (&doc["total"], doc["items"].as_array().unwrap().len()),
+            (&json!(11), 11),
+            "{doc}"
+        );
+    }
+
+    // the sweep: every printed price command of these answers, its
+    // placeholders filled, carries the account and runs as printed; a
+    // write carries nothing else
     let mut ran = 0;
-    for answer in &answers {
-        for command in printed_price_commands(answer) {
+    let mut writes = 0;
+    for (answer, item) in &answered {
+        let fills = [
+            ("item/<id>", *item),
+            ("<target>", *item),
+            ("<amount>", "1"),
+            ("<tag>", "chaos"),
+            ("N", "1"),
+        ];
+        for command in printed_price_commands(answer, &fills) {
             assert!(
                 command.contains(&format!("--account '{USER}'")),
                 "`{command}` drops the account"
             );
+            if command.starts_with("acq price set") || command.starts_with("acq price clear") {
+                assert!(
+                    !command.contains("--realm") && !command.contains("--league"),
+                    "`{command}`: a write takes the account alone"
+                );
+                writes += 1;
+            }
             run_printed(&base, &command);
             ran += 1;
         }
     }
-    assert!(ran >= 8, "{ran} printed commands run");
+    assert!(
+        ran >= 12 && writes >= 1,
+        "{ran} printed commands run, {writes} writes"
+    );
 }

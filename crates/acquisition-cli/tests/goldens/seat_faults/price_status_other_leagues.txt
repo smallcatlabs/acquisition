@@ -7,7 +7,7 @@ $ acq price status
 1 item in Standard: 0 the game decides, 0 decided by hand, 1 nothing applies
 sides: nothing priced
 rows: 0 of 3 apply here; 1 name nothing in the facts, 0 unreadable, 2 for other leagues, 0 for other realms
-next: `acq price list --account 'Alice#1234'` groups the listed items by tab; `acq price show --account 'Alice#1234' <target>` is one listing
+next: `acq price list --account 'Alice#1234' --realm pc --league Standard` groups the listed items by tab; `acq price show --account 'Alice#1234' --realm pc --league Standard <target>` is one listing
 
 $ acq price status --league Allflame
 # holds "rows: 2 of 3 apply here"
@@ -15,4 +15,4 @@ $ acq price status --league Allflame
 1 item in Allflame: 0 the game decides, 1 decided by hand, 0 nothing applies
 sides: 1 priced by hand (1 by hand alone, 0 agree with the game's price, 0 conflict with it); 0 priced in game
 rows: 2 of 3 apply here; 1 name nothing in the facts, 0 unreadable, 0 for other leagues, 0 for other realms
-next: `acq price list --account 'Alice#1234' --league Allflame` groups the listed items by tab; `acq price show --account 'Alice#1234' --league Allflame <target>` is one listing
+next: `acq price list --account 'Alice#1234' --realm pc --league Allflame` groups the listed items by tab; `acq price show --account 'Alice#1234' --realm pc --league Allflame <target>` is one listing

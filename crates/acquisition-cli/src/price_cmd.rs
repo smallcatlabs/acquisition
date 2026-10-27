@@ -237,9 +237,9 @@ fn rows_detail(r: &ListingReport) -> String {
 }
 
 /// The realm and league an answer resolved, as flags, where they are not
-/// the defaults: what a printed command carries so it reads the same
-/// place (the release seat's rerun: Allflame's next step read Standard,
-/// call 48).
+/// the defaults: what the `acq refresh --plan` a status names carries
+/// (the release seat's rerun: Allflame's next step read Standard, call
+/// 48). A printed `acq price` read carries [`scope_flags`] instead.
 pub(crate) fn place_flags(h: &ReportHeader) -> String {
     format!(
         "{}{}",
@@ -258,16 +258,29 @@ pub(crate) fn place_flags(h: &ReportHeader) -> String {
     )
 }
 
-/// The one scope every printed `acq price` command carries (step 2g's
-/// second fix rule): the account it ran as, so it runs as printed once a
-/// second account is known, and [`place_flags`]. A command that promises
-/// each or every item adds `--expand` itself, since the default lists
-/// ten (C53, the read economy).
+/// The one scope every printed `acq price` read carries (step 2g's
+/// round-2 fix rule, refined by its review): the account it ran as, and
+/// the realm and league the answer resolved, always — a default league
+/// left out reads another where the target is live in two (`league_of`
+/// refuses), so it runs as printed whatever is known. A read that
+/// promises each or every item adds `--expand` itself, since the default
+/// lists ten (C53, the read economy). A write takes [`write_flags`].
 pub(crate) fn scope_flags(h: &ReportHeader, account: &str) -> String {
     format!(
-        "--account {}{}",
-        acquisition_search::answer::shell_quoted(account),
-        place_flags(h)
+        "{} --realm {} --league {}",
+        write_flags(account),
+        h.realm.as_str(),
+        acquisition_search::answer::shell_quoted(&h.league)
+    )
+}
+
+/// The scope a printed `acq price set` or `clear` carries: the account
+/// alone, since a write takes no realm or league (its target names the
+/// place).
+pub(crate) fn write_flags(account: &str) -> String {
+    format!(
+        "--account {}",
+        acquisition_search::answer::shell_quoted(account)
     )
 }
 
@@ -349,7 +362,7 @@ fn render_status(r: &ListingReport, now: i64, expand: bool, account: &str) -> St
     // character has no tab to publish (the h2 review)
     if c.residue > 0 {
         out.push_str(&format!(
-            "{}: a note on a character's item decides no price until the item is moved into a public stash tab, and a note or tab name in a tab that is not public decides none until the tab is made public in the game; `acq price show item/<id>` shows one item's text\n",
+            "{}: a note on a character's item decides no price until the item is moved into a public stash tab, and a note or tab name in a tab that is not public decides none until the tab is made public in the game; `acq price show {scope} item/<id>` shows one item's text\n",
             plural(
                 c.residue,
                 "item carries price text the trade site cannot see",
@@ -682,13 +695,17 @@ fn render_list(view: &ListView, expand: bool, account: &str) -> String {
     }
     if cut && view.filter.limit.is_some() {
         out.push_str(&format!(
-            "next: `--limit {}` lists every one; `acq price show item/<id>` is one\n",
+            "next: `--limit {}` lists every one; `acq price show {flags} item/<id>` is one\n",
             view.total
         ));
     } else if cut {
-        out.push_str("next: `--expand` lists every item; `acq price show item/<id>` is one\n");
+        out.push_str(&format!(
+            "next: `--expand` lists every item; `acq price show {flags} item/<id>` is one\n"
+        ));
     } else {
-        out.push_str("next: `acq price show item/<id>` is one listing with its texts\n");
+        out.push_str(&format!(
+            "next: `acq price show {flags} item/<id>` is one listing with its texts\n"
+        ));
     }
     out
 }
@@ -890,7 +907,7 @@ fn render_show(view: &ShowView, now: i64, bound: pricing::Bound, account: &str) 
     }
     let next = match &s.location {
         Some(loc) => format!("`acq price list {flags} --in {loc}` is its neighbours"),
-        None => "`acq price show item/<id>` is one item".into(),
+        None => format!("`acq price show {flags} item/<id>` is one item"),
     };
     out.push_str(&format!("next: {next}\n"));
     out
@@ -1211,7 +1228,7 @@ mod tests {
         );
         assert_eq!(
             lines[2],
-            "3 items carry price text the trade site cannot see: a note on a character's item decides no price until the item is moved into a public stash tab, and a note or tab name in a tab that is not public decides none until the tab is made public in the game; `acq price show item/<id>` shows one item's text"
+            "3 items carry price text the trade site cannot see: a note on a character's item decides no price until the item is moved into a public stash tab, and a note or tab name in a tab that is not public decides none until the tab is made public in the game; `acq price show --account a --realm pc --league Standard item/<id>` shows one item's text"
         );
         assert_eq!(
             lines[3],
@@ -1219,7 +1236,7 @@ mod tests {
         );
         assert_eq!(
             lines[4],
-            "next: `acq price list --account a --relation conflict --expand` names each conflict"
+            "next: `acq price list --account a --realm pc --league Standard --relation conflict --expand` names each conflict"
         );
         assert_eq!(lines.len(), 5, "{text}");
         assert!(!text.contains("parser"), "{text}");
@@ -1293,7 +1310,7 @@ mod tests {
         let text = render_status(&r, 8_000, false, "a");
         assert!(
             text.contains(
-                "1 item carries price text the trade site cannot see: a note on a character's item decides no price until the item is moved into a public stash tab, and a note or tab name in a tab that is not public decides none until the tab is made public in the game; `acq price show item/<id>` shows one item's text\n"
+                "1 item carries price text the trade site cannot see: a note on a character's item decides no price until the item is moved into a public stash tab, and a note or tab name in a tab that is not public decides none until the tab is made public in the game; `acq price show --account a --realm pc --league Standard item/<id>` shows one item's text\n"
             ),
             "{text}"
         );
@@ -1330,7 +1347,9 @@ mod tests {
         );
         assert_eq!(
             lines.last().copied(),
-            Some("next: `--expand` lists every item; `acq price show item/<id>` is one")
+            Some(
+                "next: `--expand` lists every item; `acq price show --account a --realm pc --league Standard item/<id>` is one"
+            )
         );
 
         let view = r
@@ -1414,7 +1433,7 @@ mod tests {
         let text = render_list(&view, false, "a");
         assert_eq!(
             text,
-            "15 items on record, none match for Standard with relation agree\nnext: `acq price status --account a` says what is on record\n"
+            "15 items on record, none match for Standard with relation agree\nnext: `acq price status --account a --realm pc --league Standard` says what is on record\n"
         );
     }
 
@@ -1441,7 +1460,7 @@ mod tests {
              in game: 5 chaos from the note\n\
              \x20 note \"~price 5 chaos\" reads 5 chaos\n\
              \x20 tab c1 \"~price 3 chaos (A)\" reads 3 chaos, public\n\
-             next: `acq price list --account a --in tab/pc/c1` is its neighbours\n"
+             next: `acq price list --account a --realm pc --league Standard --in tab/pc/c1` is its neighbours\n"
         );
         let text = render_show(
             &l,
@@ -1518,7 +1537,7 @@ mod tests {
         );
         assert!(!text.contains("covered through children"), "{text}");
         assert!(
-            text.ends_with("next: `acq price show --account a tab/pc/c1 --expand` lists every item of both sets; `acq price list --account a --in tab/pc/c1 --expand` is the filtered route, every item physically here a price applies to (`--covered-by` the covered set)\n"),
+            text.ends_with("next: `acq price show --account a --realm pc --league Standard tab/pc/c1 --expand` lists every item of both sets; `acq price list --account a --realm pc --league Standard --in tab/pc/c1 --expand` is the filtered route, every item physically here a price applies to (`--covered-by` the covered set)\n"),
             "{text}"
         );
         let text = render_show(
@@ -1576,7 +1595,7 @@ mod tests {
             text,
             "no items on record for Standard: 4 tabs and characters listed, none fetched with items\n\
              rows: 0 of 3 apply here; 2 name nothing in the facts, 1 unreadable, 0 for other leagues, 0 for other realms\n\
-             next: `acq price status --account a --expand` lists the rows that cannot be read\n"
+             next: `acq price status --account a --realm pc --league Standard --expand` lists the rows that cannot be read\n"
         );
         let text = render_status(&r, 8_000, true, "a");
         assert!(
