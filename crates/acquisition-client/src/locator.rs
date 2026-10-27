@@ -32,8 +32,8 @@
 //! a [`LocateError`] naming the executable and the path it looked for,
 //! and what puts one there: the installation, or in a source tree
 //! `cargo build --workspace` — which is why the quality gate builds
-//! before it tests (`AGENTS.md`), since `cargo test` alone does not
-//! uplift `target/debug/acqd`.
+//! before it tests (`AGENTS.md`), since a test run that leaves out the
+//! daemon's package does not uplift `target/debug/acqd`.
 //!
 //! The frontends' process tests start the daemon of the binary they
 //! drive through [`beside`] on that binary's path (`CARGO_BIN_EXE_acq`,

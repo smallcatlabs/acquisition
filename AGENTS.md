@@ -58,11 +58,11 @@ As few as possible, each a property, never a mechanism.
   know. A finding (what building or running taught) is recorded
   after, at its home below.
 - **Build order.** Run `cargo build --workspace` before anything that
-  starts a daemon, and after any test run or edit to a contract input
-  (the protocol and store sources, the manifests, the lock), since
-  tests never write `acqd` (C84, the artifact mismatch); `tools/gate.sh`
-  ends with that build. Never run the live drivers, a bare `acq` or a
-  second gate while the gate runs.
+  starts a daemon. A `--workspace` test run writes the same `acqd`,
+  `acq` and `acq-mcp` as that build, held by the gate's last stage, so
+  no build is owed after a test run; a `-p` run that leaves out the
+  daemon's package writes no `acqd`. Never run the live drivers, a bare
+  `acq` or a second gate while the gate runs.
 - **The gate decides.** Every change keeps `tools/gate.sh` green, and a
   commit is gated on its exit status, never on a filtered grep.
 - **No id in user-facing text** (C116): help, refusals, reasons and

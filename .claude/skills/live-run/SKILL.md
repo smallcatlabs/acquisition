@@ -115,8 +115,8 @@ test against the mock with rails 1 and 5 forced on.
    journal header. A driver writes both into `provenance.json` before
    any wire phase and holds every journal header to the `acqd` hash; by
    hand, a clean tree, the build, then the run, and the ledger row
-   names HEAD. Build after any tests (the session-close skill, "Why
-   build order matters"), then `tools/sign-acqd.sh` (the daemon's code
+   names HEAD. After the build (the session-close skill, "Why build
+   order matters"), `tools/sign-acqd.sh` (the daemon's code
    identity, from `ACQ_CODESIGN_IDENTITY` in your shell profile;
    without it macOS Keychain asks twice per login after every rebuild;
    sign after the build, since one that re-links `acqd` writes a fresh

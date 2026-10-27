@@ -19,16 +19,13 @@ scratch.
 
 ### Why build order matters
 
-The test and doc stages never write `target/debug/acqd` and rewrite
-`acq-mcp` in another form, and an edit to a
-[contract input](../../../crates/acquisition-protocol/build.rs) leaves
-`acqd` on the old revision, so `tools/gate.sh` ends with `cargo build
---workspace` and a daemon is never started after a test run or such an
-edit without that build (C84, the artifact mismatch). Apart from that
-rule: `cargo build --workspace --release` and `cargo build --release -p
-acquisition-cli` uplift two forms of `target/release/acq` from one
-source, and a no-op build swaps them, so a hash in a ledger names the
-form that built it.
+`tools/gate.sh` ends with its `artifacts` stage: it hashes `acq`,
+`acqd` and `acq-mcp`, runs `cargo build --workspace`, and fails if the
+build compiled anything or a hash moved, so a test run leaves the
+executables that build writes (C84). `cargo build --workspace
+--release` and `cargo build --release -p acquisition-cli` uplift two
+forms of `target/release/acq` from one source, and a no-op build swaps
+them, so a hash in a ledger names the form that built it.
 
 ## 2. Commit
 

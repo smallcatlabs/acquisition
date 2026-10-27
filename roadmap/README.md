@@ -252,30 +252,6 @@ list when a step's close commit or an issue takes it.
   written to be read together and the name lookup reads each alone, so
   an entry never points at a sibling by position (pinned for
   `status counts`, checked by eye for the rest).
-- **The owner's, from #88** (`briefs/p88-one-feature-graph.md`, Do 6):
-  the measurement holds (`b5721ccf`, `72e973fa`): after one manifest
-  line and one daemon integration test, a `--workspace` test run
-  leaves `acqd`, `acq` and `acq-mcp` byte-identical to the plain
-  build's, held by the gate's `artifacts` stage, so the hard rule's
-  "and after any test run" guards nothing. His retirement under P6,
-  the text drawn: `AGENTS.md` "Build order" becomes "Run `cargo build
-  --workspace` before anything that starts a daemon. A `--workspace`
-  test run writes the same `acqd`, `acq` and `acq-mcp` as that build,
-  held by the gate's last stage, so no build is owed after a test run;
-  a `-p` run that leaves out the daemon's package writes no `acqd`.
-  Never run the live drivers, a bare `acq` or a second gate while the
-  gate runs."; C84 gains "One tree writes one artifact: the
-  workspace's plain build and its test build resolve one feature graph
-  and leave the same executables, so a test run never leaves a sibling
-  behind the frontend that would spawn it", pinned by `tools/gate.sh`
-  and `crates/acquisition-daemon/tests/main.rs`; the session-close and
-  mock-session skills and future briefs' Rules drop "after any test
-  run". The gain is the rule and its five repetitions, not seconds
-  (the rebuild cost 0 s inside the gate; a standalone build after a
-  test run fell from 2 to 7 s to under 0.3 s). The arch-check layout
-  rule counts only crates with a `tests/` directory, so a future
-  binary crate without an integration target brings the stale sibling
-  back, caught by the `artifacts` stage.
 - **The owner's, from the seat (#84)**: a typo'd account is refused as
   `not_logged_in` (C121's design: the index is read client-side and an
   unknown name is a name with no login); the runner asked for an
@@ -373,10 +349,10 @@ list when a step's close commit or an issue takes it.
 2g, the read economy and the refusal bundle (#9, #10): its design brief
 `briefs/2g-design.md` (`e11768e2`) waits on the owner's rulings (Q1
 to Q4 on C53 and a new entry, Q5's kind under C121); the build brief
-is written after them. The owner's other rulings waiting: the
-build-order rule's retirement (#88), rule 6 of the seat (C121), the
-C127 words, all under "Open". Closed 2026-10-27: r3, r4, r5, the C135
-round, #82, #83, #84, #88. Phase 3, the owner's league run, follows at
+is written after them. The owner's other rulings waiting: rule 6 of
+the seat (C121), the C127 words, both under "Open". Closed 2026-10-27:
+r3, r4, r5, the C135 round, #82, #83, #84, #88 and its build-order
+retirement. Phase 3, the owner's league run, follows at
 his word; #70 closes on a week of pushes without a re-run. The
 assessment these rest on is `STATE-2026-10-26.md`; the issues carry
 the evidence per step. `AGENTS.md` governs; the gate is
