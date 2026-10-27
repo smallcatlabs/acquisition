@@ -40,6 +40,7 @@ struct App {
 }
 
 /// One `dashboard` response, unpacked.
+#[derive(Default)]
 struct Snap {
     pid: u32,
     version: String,
@@ -187,7 +188,7 @@ fn draw(f: &mut Frame, s: &Snap, app: &mut App) {
         2 + summary_lines
     };
     let [header, policies, jobs, bottom, footer] = Layout::vertical([
-        Constraint::Length(3),
+        Constraint::Length(header_height(s, f.area().width)),
         Constraint::Length(policies_height),
         Constraint::Min(6),
         Constraint::Length(9),
@@ -238,7 +239,57 @@ fn draw_header(f: &mut Frame, area: Rect, s: &Snap) {
     ];
     spans.extend(auth);
     let block = Block::bordered().title(" acquisition daemon ");
-    f.render_widget(Paragraph::new(Line::from(spans)).block(block), area);
+    let inner = block.inner(area);
+    f.render_widget(block, area);
+    let [first, rest] = Layout::vertical([Constraint::Length(1), Constraint::Fill(1)]).areas(inner);
+    f.render_widget(Paragraph::new(Line::from(spans)), first);
+    // While the start restores the sessions, the sentence with its
+    // remedy and the keyring word get lines of their own, wrapped, so no
+    // width hides them.
+    if restoring(s) {
+        f.render_widget(
+            Paragraph::new(vec![
+                Line::from(Span::styled(
+                    crate::RESTORING_SESSIONS,
+                    Style::new().yellow(),
+                )),
+                Line::from(format!("keyring {}", s.keyring)),
+            ])
+            .wrap(Wrap { trim: true }),
+            rest,
+        );
+    }
+}
+
+/// Whether the daemon's start is still restoring the sessions from the
+/// keyring: no session live, the keyring word `restoring`.
+fn restoring(s: &Snap) -> bool {
+    !s.logged_in && s.keyring == "restoring"
+}
+
+/// The header's height at `width`: the border and one line, and while
+/// the restore reads, the lines its wrapped sentence needs and one for
+/// the keyring word.
+fn header_height(s: &Snap, width: u16) -> u16 {
+    if !restoring(s) {
+        return 3;
+    }
+    let inner = usize::from(width.saturating_sub(2)).max(1);
+    let words: Vec<&str> = crate::RESTORING_SESSIONS.split(' ').collect();
+    let mut rows = 1usize;
+    let mut used = 0usize;
+    for word in words {
+        let len = word.chars().count();
+        if used == 0 {
+            used = len;
+        } else if used + 1 + len <= inner {
+            used += 1 + len;
+        } else {
+            rows += 1;
+            used = len;
+        }
+    }
+    4 + u16::try_from(rows).unwrap_or(u16::MAX)
 }
 
 /// The header's login state. While the daemon's start restores its
@@ -263,10 +314,9 @@ fn auth_spans(
             Span::raw(format!(" · {expiry} · keyring {keyring}")),
         ]
     } else if keyring == "restoring" {
-        vec![
-            Span::styled(crate::RESTORING_SESSIONS, Style::new().yellow()),
-            Span::raw(format!(" · keyring {keyring}")),
-        ]
+        // The sentence and the keyring word are the header's own lines
+        // below (`draw_header`).
+        Vec::new()
     } else {
         vec![Span::styled("not logged in", Style::new().yellow())]
     }
@@ -723,17 +773,39 @@ mod tests {
     use super::*;
 
     /// The dashboard's header while the daemon's start restores its
-    /// sessions from the keyring: the restore's sentence and the keyring
-    /// word, never "not logged in".
+    /// sessions from the keyring, drawn at 80 columns: the restore's
+    /// sentence whole, remedy included, and the keyring word on lines of
+    /// their own below the daemon's line, never "not logged in".
     #[test]
     fn the_header_while_the_restore_reads_says_so() {
-        let text: String = auth_spans(false, None, None, "restoring")
-            .iter()
-            .map(|span| span.content.as_ref())
+        let snap = Snap {
+            pid: 12345,
+            version: "1.0.0-alpha.1".into(),
+            contract: "contract-abc".into(),
+            provider: acquisition_protocol::provider::GGG.into(),
+            uptime_seconds: 1,
+            connections: 1,
+            keyring: "restoring".into(),
+            ..Snap::default()
+        };
+        let height = header_height(&snap, 80);
+        let mut terminal =
+            ratatui::Terminal::new(ratatui::backend::TestBackend::new(80, height)).unwrap();
+        terminal.draw(|f| draw_header(f, f.area(), &snap)).unwrap();
+        let buffer = terminal.backend().buffer();
+        let rows: Vec<String> = (0..height)
+            .map(|y| {
+                (1..79)
+                    .map(|x| buffer[(x, y)].symbol().to_string())
+                    .collect::<String>()
+                    .trim()
+                    .to_string()
+            })
             .collect();
-        assert_eq!(
-            text,
-            "restoring the sessions saved in the keyring — if a keychain prompt is open, answer it · keyring restoring"
-        );
+        let last = usize::from(height) - 2;
+        let sentence = rows[2..last].join(" ");
+        assert_eq!(sentence, crate::RESTORING_SESSIONS, "{rows:#?}");
+        assert_eq!(rows[last], "keyring restoring", "{rows:#?}");
+        assert!(!rows.iter().any(|row| row.contains("not logged in")));
     }
 }

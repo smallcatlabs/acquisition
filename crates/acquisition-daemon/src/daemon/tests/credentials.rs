@@ -812,3 +812,29 @@ async fn c148_a_request_that_waits_for_the_restore_is_refused_while_stopping() {
     assert!(stopping(&after), "{after:?}");
     finish_harness(None, &log_path);
 }
+
+/// C148 with C133: a request already waiting for the restore when the
+/// exit begins is refused as stopping once the restore lands, never let
+/// through to a departing daemon: `auth` polled to its wait while the
+/// restore's keyring read stands, then the exit begun, then the read
+/// released, and the same request answers "stopping".
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn c148_a_request_waiting_for_the_restore_when_the_exit_begins_is_refused() {
+    let (daemon, held, _dir, log_path) = restoring_daemon().await;
+    let mut events = None;
+    let mut start = std::pin::pin!(daemon.handle_request(Request::AuthStart, &mut events));
+    let waiting = polled_once(start.as_mut()).is_pending();
+    assert!(daemon.begin_exit("test: exit"));
+    held.release.send(()).unwrap();
+
+    assert!(waiting, "auth waits while the restore reads");
+    let answer = tokio::time::timeout(ANSWERED_WITHIN, start)
+        .await
+        .expect("auth answers once the restore lands");
+    assert!(
+        matches!(&answer, Response::Error { kind: ErrorKind::Refused, message }
+            if message.contains("the daemon is stopping")),
+        "{answer:?}"
+    );
+    finish_harness(None, &log_path);
+}
