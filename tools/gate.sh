@@ -24,38 +24,30 @@
 # feature graph for both, and an integration test in every binary's
 # crate, so cargo writes each binary on a test run), and the stage holds
 # that at the boundary, what the test run leaves on disk. The doc stage writes none of them
-# (measured, #88). It still performs the build, so a failing gate leaves
-# the plain artifacts behind for any daemon started after it (C84, the
-# artifact mismatch). CI runs the stages singly, for timing.
+# (measured, #88). It still performs the build, unless an executable
+# could not be hashed before it, so a failing gate leaves the plain
+# artifacts behind for any daemon started after it (C84, the artifact
+# mismatch). CI runs the stages singly, for timing.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
 names=(build test clippy fmt diff docs arch trade bothy doc artifacts)
 DOCS=(diff docs arch trade bothy)
 
-# The `artifacts` stage (the header): what the stages before it left in
-# cargo's output directory must be what the plain build writes. Equality
-# counts only between valid digests of the files cargo writes: the
-# directory is cargo's own (`cargo metadata`, so CARGO_TARGET_DIR and a
-# configured target-dir are followed), and a digest that is not 64 hex
-# characters, a file absent or a hash command that failed, fails the
-# stage rather than comparing equal (#88, the review's two findings).
+# The `artifacts` stage (the header): what the stages before it left
+# must be what the plain build writes. Equality counts only between
+# valid digests of the files cargo itself reports writing: the paths
+# hashed before the build are cargo's target directory (`cargo
+# metadata`), the build runs with `--message-format=json`, and a binary
+# it reports at another path (a configured or cross target) fails the
+# stage by name; a hash command that fails, or a digest that is not 64
+# hex characters, fails it before any comparison (#88, the reviews).
 ARTIFACTS=(acq acqd acq-mcp)
-
-artifact_dir() {
-  if [[ -n ${CARGO_BUILD_TARGET:-} ]]; then
-    echo "gate: artifacts: CARGO_BUILD_TARGET is set, and a cross build writes under another directory than the one this stage reads; unset it" >&2
-    return 1
-  fi
-  cargo metadata --format-version 1 --no-deps |
-    python3 -I -c 'import json, sys; print(json.load(sys.stdin)["target_directory"])'
-}
 
 # The SHA-256 of `$1`, or the stage's failure naming it.
 artifact_hash() {
   local digest
-  digest=$(shasum -a 256 "$1" 2>/dev/null | cut -d' ' -f1)
-  if [[ ! $digest =~ ^[0-9a-f]{64}$ ]]; then
+  if ! digest=$(shasum -a 256 "$1" 2>/dev/null | cut -d' ' -f1) || [[ ! $digest =~ ^[0-9a-f]{64}$ ]]; then
     echo "gate: artifacts: no SHA-256 of $1 (absent, or the hash command failed)" >&2
     return 1
   fi
@@ -63,16 +55,17 @@ artifact_hash() {
 }
 
 artifacts() {
-  local dir log before=() after a i rc moved=0
-  dir=$(artifact_dir) || return 1
-  [[ -n $dir ]] || { echo "gate: artifacts: cargo metadata named no target directory" >&2; return 1; }
+  local dir log json reported before=() digest a i rc path moved=0
+  dir=$(cargo metadata --format-version 1 --no-deps |
+    python3 -I -c 'import json, sys; print(json.load(sys.stdin)["target_directory"])') && [[ -n $dir ]] ||
+    { echo "gate: artifacts: cargo metadata named no target directory" >&2; return 1; }
   dir=$dir/debug
   for a in "${ARTIFACTS[@]}"; do
-    after=$(artifact_hash "$dir/$a") || return 1
-    before+=("$after")
+    digest=$(artifact_hash "$dir/$a") || return 1
+    before+=("$digest")
   done
-  log=$(mktemp) || return 2
-  cargo build --workspace 2>"$log"
+  log=$(mktemp) && json=$(mktemp) || return 2
+  cargo build --workspace --message-format=json 2>"$log" >"$json"
   rc=$?
   cat "$log" >&2
   if grep -E '^ *Compiling ' "$log" >/dev/null; then
@@ -80,12 +73,24 @@ artifacts() {
     grep -E '^ *Compiling ' "$log" >&2
     moved=1
   fi
-  rm -f "${log:?}"
+  reported=$(python3 -I -c '
+import json, sys
+for line in open(sys.argv[1]):
+    m = json.loads(line) if line.startswith("{") else {}
+    if m.get("reason") == "compiler-artifact" and m.get("executable") and "bin" in m["target"]["kind"]:
+        print(m["target"]["name"], m["executable"])
+' "$json")
+  rm -f "${log:?}" "${json:?}"
   for i in "${!ARTIFACTS[@]}"; do
     a=${ARTIFACTS[$i]}
-    after=$(artifact_hash "$dir/$a") || return 1
-    if [[ $after != "${before[$i]}" ]]; then
-      echo "gate: artifacts: $dir/$a changed under cargo build --workspace: a test run wrote another form of it, or never wrote it" >&2
+    path=$(awk -v n="$a" '$1 == n { print substr($0, length(n) + 2) }' <<<"$reported")
+    if [[ $path != "$dir/$a" ]]; then
+      echo "gate: artifacts: cargo reports writing $a at '${path:-nowhere}', not the $dir/$a this stage hashed: a configured or cross target writes elsewhere" >&2
+      return 1
+    fi
+    digest=$(artifact_hash "$path") || return 1
+    if [[ $digest != "${before[$i]}" ]]; then
+      echo "gate: artifacts: $path changed under cargo build --workspace: a test run wrote another form of it, or never wrote it" >&2
       moved=1
     fi
   done
