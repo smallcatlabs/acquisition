@@ -249,14 +249,18 @@ enum Cmd {
     Accounts,
     /// Tabs of a league, from the shared store (no daemon round-trip):
     /// the counts first, then every tab with its type, items, age and id.
-    /// A league of more than thirty tabs is counted by type with its ten
-    /// largest tabs instead; --expand lists every one. --type and
+    /// A league of more than ten tabs is counted by type with its ten
+    /// largest tabs instead; --limit lists more or fewer, --expand every
+    /// one. --type and
     /// --never-fetched select the tabs listed — the never fetched of one
     /// type by name, which a refresh takes — under the league's counts.
     /// `--json` is the same document: the counts, `by_type`, and `rows`,
     /// the tabs listed, with `left_out` counting the rest.
     Tabs {
-        /// List every tab of a large league, or of the selection.
+        /// List this many tabs, the most items first, in place of ten.
+        #[arg(long, value_name = "N")]
+        limit: Option<usize>,
+        /// List every tab of the league, or of the selection.
         #[arg(long)]
         expand: bool,
         /// Only tabs of this type, as GGG names it (UniqueStash,
@@ -1199,6 +1203,7 @@ async fn run(cli: Cli) -> Result<()> {
         Cmd::Tabs {
             league,
             realm,
+            limit,
             expand,
             r#type,
             never_fetched,
@@ -1210,6 +1215,7 @@ async fn run(cli: Cli) -> Result<()> {
                 kind: r#type,
                 never_fetched,
             },
+            limit,
             expand,
             cli.json,
         ),

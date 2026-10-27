@@ -204,11 +204,12 @@ The account's sync policy (declared coverage and freshness) with its revision �
 
 ### `tabs`
 
-The stash tabs of a league, counted first, from the store (no daemon), then listed — every one where the league holds thirty or fewer, else the ten with the most items — each with its type, item count and fetch time; `type` and `never_fetched` select the tabs listed. `describe` with names ["store"] says what each count counts. A name ending ` (Remove-only)` is GGG's mark on a tab whose items can only be taken out.
+The stash tabs of a league, counted first, from the store (no daemon), then listed — the ten with the most items, `limit` more or fewer, `expand` every one — each with its type, item count and fetch time; `type` and `never_fetched` select the tabs listed. `describe` with names ["store"] says what each count counts. A name ending ` (Remove-only)` is GGG's mark on a tab whose items can only be taken out.
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
-- `expand` (boolean | null) — List every tab of a league of more than thirty, or of the selection, in place of the ten with the most items.
+- `expand` (boolean | null) — List every tab of the league, or of the selection.
 - `league` (string | null) — League name; defaults to "Standard".
+- `limit` (integer | null) — List this many tabs, the most items first, in place of ten.
 - `never_fetched` (boolean | null) — Only tabs never fetched.
 - `realm` (string | null) — Realm: pc (default), xbox, or sony.
 - `type` (string | null) — Only tabs of this type, as GGG names it (UniqueStash, MapStash, PremiumStash …; `by_type` lists them).

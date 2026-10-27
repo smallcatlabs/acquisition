@@ -623,8 +623,9 @@ fn stopping_a_daemon_says_which_logins_ended_with_it() {
 /// `acq tabs` printed every tab of the league with its only summary on
 /// the last line: 355 KB for the owner's Standard, which two seats met —
 /// the first turned away, the second filled its context. The counts are
-/// the first line, and a league of more than thirty tabs is counted by
-/// type with its ten largest; `--expand` is every tab. `--json` is the
+/// the first line, and a league of more than ten tabs is counted by type
+/// with its ten largest (C53, the one rule: a league of thirty or fewer
+/// was once listed whole); `--limit` lists more, `--expand` every tab. `--json` is the
 /// same document (C115): its tabs are `rows`, cut the same way, every one
 /// under `--expand` — the refresh-run script reads them there (the review
 /// of note 38 at `16bba23e`, step 1, reproduced its abort on the old flat list).
@@ -704,6 +705,35 @@ fn tabs_says_its_counts_first_and_counts_a_large_league() {
             r#"`acq search --realm pc 'league="Hard Mode"' --count tab`"#,
         ],
     );
+    // Twenty tabs, thirty or fewer: counted and the ten listed, like any
+    // league over the bound; `--limit` lists more.
+    let small: Vec<Value> = stashes[..20].to_vec();
+    let mut store = Store::open(&account_path(&mock, "Alice#1234")).unwrap();
+    store
+        .record(
+            &Endpoint::Stashes {
+                realm: "pc".into(),
+                league: "Small".into(),
+            },
+            &json!({ "league": "Small" }),
+            200,
+            &json!({ "stashes": small }),
+            acquisition_store::now(),
+        )
+        .unwrap();
+    drop(store);
+    t.run(
+        &["tabs", "--league", "Small"],
+        &[
+            "20 tabs in Small: 0 fetched, 20 never fetched; 0 items",
+            "the 10 with the most items:",
+            "`acq tabs --expand --league Small` lists all 20",
+        ],
+    );
+    t.run(
+        &["tabs", "--league", "Small", "--limit", "15"],
+        &["the 15 with the most items:"],
+    );
     golden(file!(), "tabs_counts_first", &t);
     let all = stdout(&acq(&base, &["tabs", "--expand", "--league", "Hard Mode"]));
     assert!(all.contains("q40") && all.lines().count() > 41, "{all}");
@@ -766,6 +796,17 @@ fn tabs_lists_the_never_fetched_of_one_type() {
             "40 never-fetched UniqueStash tabs",
             "10 of 40 shown: `acq tabs --expand --type UniqueStash --never-fetched` lists all",
         ],
+    );
+    t.run(
+        &[
+            "tabs",
+            "--type",
+            "UniqueStash",
+            "--never-fetched",
+            "--limit",
+            "25",
+        ],
+        &["25 of 40 shown: `acq tabs --expand --type UniqueStash --never-fetched` lists all"],
     );
     golden(file!(), "tabs_never_fetched_of_a_type", &t);
     let all = stdout(&acq(

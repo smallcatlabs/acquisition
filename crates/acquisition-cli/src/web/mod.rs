@@ -511,6 +511,7 @@ async fn tabs(
             &league,
             facts.tabs(realm.as_str(), &league)?,
             &acquisition_search::tabs::Selection::default(),
+            None,
             true,
         )
         .grouped();

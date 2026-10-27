@@ -466,8 +466,9 @@ const ACCOUNT: &str = "A username, with or without its #discriminator, or a uuid
 struct TabsParams {
     /// League name; defaults to "Standard".
     league: Option<String>,
-    /// List every tab of a league of more than thirty, or of the
-    /// selection, in place of the ten with the most items.
+    /// List this many tabs, the most items first, in place of ten.
+    limit: Option<usize>,
+    /// List every tab of the league, or of the selection.
     expand: Option<bool>,
     /// Only tabs of this type, as GGG names it (UniqueStash, MapStash,
     /// PremiumStash …; `by_type` lists them).
@@ -590,7 +591,7 @@ const STORE: [(&str, &str); 2] = [
     ),
     (
         "tab counts",
-        "tabs, counted first: how many tabs, fetched, never fetched and folders, how many items, and the same by tab type (`by_type`, the most items first); then `rows`, the tabs listed — every one where the league holds thirty or fewer, else the ten with the most items (`listed`: `all` or `most_items`). `left_out` counts the tabs not listed. `type` and `never_fetched: true` select the tabs listed — the never fetched of one type by name, which a refresh takes — under the league's counts, `selected` counting them",
+        "tabs, counted first: how many tabs, fetched, never fetched and folders, how many items, and the same by tab type (`by_type`, the most items first); then `rows`, the tabs listed — the ten with the most items, `limit` more or fewer, `expand` every one, in the listing's order where none is left out (`listed`: `all` or `most_items`). `left_out` counts the tabs not listed. `type` and `never_fetched: true` select the tabs listed — the never fetched of one type by name, which a refresh takes — under the league's counts, `selected` counting them",
     ),
 ];
 
@@ -1324,7 +1325,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "The stash tabs of a league, counted first, from the store (no daemon), then listed — every one where the league holds thirty or fewer, else the ten with the most items — each with its type, item count and fetch time; `type` and `never_fetched` select the tabs listed. `describe` with names [\"store\"] says what each count counts. A name ending ` (Remove-only)` is GGG's mark on a tab whose items can only be taken out."
+        description = "The stash tabs of a league, counted first, from the store (no daemon), then listed — the ten with the most items, `limit` more or fewer, `expand` every one — each with its type, item count and fetch time; `type` and `never_fetched` select the tabs listed. `describe` with names [\"store\"] says what each count counts. A name ending ` (Remove-only)` is GGG's mark on a tab whose items can only be taken out."
     )]
     fn tabs(&self, Parameters(p): Parameters<Args<TabsParams>>) -> Told {
         answer(|| {
@@ -1344,6 +1345,7 @@ impl AcqMcp {
                     kind: p.r#type,
                     never_fetched: p.never_fetched.unwrap_or(false),
                 },
+                p.limit,
                 p.expand.unwrap_or(false),
             ))
         })

@@ -1,8 +1,8 @@
 //! A league's tabs as `tabs` gives them on both surfaces (C115, C53):
 //! counted first — how many, how many fetched and never, how many items,
-//! and the same by tab type — then the tabs listed: every one where the
-//! league holds few or the whole list is asked, else the ten with the most
-//! items and the rest counted.
+//! and the same by tab type — then the tabs listed under the read
+//! economy's one rule (C53): the ten with the most items, more where
+//! `limit` names more, every one under `expand`, and the rest counted.
 //!
 //! # As built
 //!
@@ -13,7 +13,9 @@
 //! limit, cut to its head in three of the trade seat's runs (mcp-opus
 //! call 9, both rounds; mcp-sonnet-2 call 6). The rows are the store's
 //! own (`TabRow`), whole; what is left out is the request's `expand`, as
-//! a table's rest is its limit.
+//! a table's rest is its limit. A league of thirty tabs or fewer was
+//! listed whole until step 2g folded that into the one rule: the number
+//! is the store's (`acquisition_store::bound::LISTED`), not this file's.
 //!
 //! The counter by type ([`by_type`]) is also a search's: its scope names
 //! the never fetched by the same types, so the two say one thing (C118).
@@ -28,13 +30,8 @@
 //! the ten are by id).
 
 use acquisition_store::TabRow;
+use acquisition_store::bound::bounded;
 use serde::Serialize;
-
-/// A league of this many tabs or fewer is listed whole. The owner's
-/// Standard is 3,347.
-pub const LISTED_WHOLE: usize = 30;
-/// How many a larger league lists: the most items first.
-pub const MOST_ITEMS: usize = 10;
 
 /// A league's tabs, counted and then listed.
 #[derive(Debug, Clone, Serialize)]
@@ -60,12 +57,14 @@ pub struct Tabs {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub selected: Option<usize>,
     /// Which of the selected tabs `rows` holds: `all`, in the listing's
-    /// order, or `most_items`, the ten with the most.
+    /// order, or `most_items`, those with the most items, as many as the
+    /// request's `limit` or ten.
     pub listed: &'static str,
     pub rows: Vec<TabRow>,
     /// Tabs not in `rows`.
     pub left_out: usize,
-    /// What lists them: the request's `expand`.
+    /// What lists them all: the request's `expand` (its `limit` lists
+    /// more).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub left_out_needs: Option<&'static str>,
     /// `rows` grouped, where a reader asks for groups ([`Tabs::grouped`]):
@@ -135,14 +134,17 @@ pub struct TabType {
 }
 
 impl Tabs {
-    /// The league's tabs, as the store lists them, counted and listed:
-    /// the selection's rows whole where `expand` or where there are few,
-    /// else the ten with the most items.
+    /// The league's tabs, as the store lists them, counted and listed
+    /// under the one rule (C53): the selection's rows whole, in the
+    /// listing's order, where `expand` is asked or where they fit the
+    /// bound (`limit`, else ten); else those with the most items, as many
+    /// as the bound, the rest counted.
     pub fn of(
         realm: &str,
         league: &str,
         rows: Vec<TabRow>,
         select: &Selection,
+        limit: Option<usize>,
         expand: bool,
     ) -> Tabs {
         let folders = rows.iter().filter(|t| t.r#type == "Folder").count();
@@ -155,20 +157,20 @@ impl Tabs {
         let items = rows.iter().map(|t| t.item_count).sum();
         let rows: Vec<TabRow> = rows.into_iter().filter(|t| select.holds(t)).collect();
         let selected = rows.len();
-        let whole = expand || selected <= LISTED_WHOLE;
-        let rows = if whole {
-            rows
-        } else {
-            let mut most = rows;
-            most.sort_by(|a, b| {
-                b.item_count
-                    .cmp(&a.item_count)
-                    .then_with(|| a.id.cmp(&b.id))
-            });
-            most.truncate(MOST_ITEMS);
-            most
-        };
-        let left_out = selected - rows.len();
+        // the most items first, then by id, cut by the one bound; where
+        // nothing is cut, the listing's own order
+        let mut most: Vec<(usize, TabRow)> = rows.into_iter().enumerate().collect();
+        most.sort_by(|(_, a), (_, b)| {
+            b.item_count
+                .cmp(&a.item_count)
+                .then_with(|| a.id.cmp(&b.id))
+        });
+        let (mut kept, left_out) = bounded(most, limit, expand);
+        let whole = left_out == 0;
+        if whole {
+            kept.sort_by_key(|(at, _)| *at);
+        }
+        let rows: Vec<TabRow> = kept.into_iter().map(|(_, row)| row).collect();
         Tabs {
             realm: realm.to_string(),
             league: league.to_string(),

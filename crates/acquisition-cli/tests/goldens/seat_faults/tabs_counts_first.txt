@@ -15,7 +15,7 @@ $ acq tabs
 type           tabs  fetched   items
 PremiumStash      1        1       1
 QuadStash        40        0       0
-the ten with the most items:
+the 10 with the most items:
 name    type          items  fetched      parent       id
 Gear    PremiumStash      1  <age> ago                    a1
 Dump 1  QuadStash         -  never                     q1
@@ -37,7 +37,7 @@ $ acq tabs --league 'Hard Mode'
 type           tabs  fetched   items
 PremiumStash      1        0       0
 QuadStash        40        0       0
-the ten with the most items:
+the 10 with the most items:
 name    type          items  fetched      parent       id
 Gear    PremiumStash      -  never                     a1
 Dump 1  QuadStash         -  never                     q1
@@ -50,3 +50,52 @@ Dump 15 QuadStash         -  never                     q15
 Dump 16 QuadStash         -  never                     q16
 Dump 17 QuadStash         -  never                     q17
 next: `acq tabs --expand --league 'Hard Mode'` lists all 41; `acq search --realm pc 'league="Hard Mode"' --count tab` counts what a query matches by tab
+
+$ acq tabs --league Small
+# holds "20 tabs in Small: 0 fetched, 20 never fetched; 0 items"
+# holds "the 10 with the most items:"
+# holds "`acq tabs --expand --league Small` lists all 20"
+--- stdout
+20 tabs in Small: 0 fetched, 20 never fetched; 0 items
+type           tabs  fetched   items
+PremiumStash      1        0       0
+QuadStash        19        0       0
+the 10 with the most items:
+name    type          items  fetched      parent       id
+Gear    PremiumStash      -  never                     a1
+Dump 1  QuadStash         -  never                     q1
+Dump 10 QuadStash         -  never                     q10
+Dump 11 QuadStash         -  never                     q11
+Dump 12 QuadStash         -  never                     q12
+Dump 13 QuadStash         -  never                     q13
+Dump 14 QuadStash         -  never                     q14
+Dump 15 QuadStash         -  never                     q15
+Dump 16 QuadStash         -  never                     q16
+Dump 17 QuadStash         -  never                     q17
+next: `acq tabs --expand --league Small` lists all 20; `acq search --realm pc league=Small --count tab` counts what a query matches by tab
+
+$ acq tabs --league Small --limit 15
+# holds "the 15 with the most items:"
+--- stdout
+20 tabs in Small: 0 fetched, 20 never fetched; 0 items
+type           tabs  fetched   items
+PremiumStash      1        0       0
+QuadStash        19        0       0
+the 15 with the most items:
+name    type          items  fetched      parent       id
+Gear    PremiumStash      -  never                     a1
+Dump 1  QuadStash         -  never                     q1
+Dump 10 QuadStash         -  never                     q10
+Dump 11 QuadStash         -  never                     q11
+Dump 12 QuadStash         -  never                     q12
+Dump 13 QuadStash         -  never                     q13
+Dump 14 QuadStash         -  never                     q14
+Dump 15 QuadStash         -  never                     q15
+Dump 16 QuadStash         -  never                     q16
+Dump 17 QuadStash         -  never                     q17
+Dump 18 QuadStash         -  never                     q18
+Dump 19 QuadStash         -  never                     q19
+Dump 2  QuadStash         -  never                     q2
+Dump 3  QuadStash         -  never                     q3
+Dump 4  QuadStash         -  never                     q4
+next: `acq tabs --expand --league Small` lists all 20; `acq search --realm pc league=Small --count tab` counts what a query matches by tab

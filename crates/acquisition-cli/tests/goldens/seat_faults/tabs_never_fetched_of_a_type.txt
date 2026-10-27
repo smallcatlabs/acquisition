@@ -18,3 +18,36 @@ Uniques 16 UniqueStash      -  never                     u16
 Uniques 17 UniqueStash      -  never                     u17
 Uniques 18 UniqueStash      -  never                     u18
 10 of 40 shown: `acq tabs --expand --type UniqueStash --never-fetched` lists all
+
+$ acq tabs --type UniqueStash --never-fetched --limit 25
+# holds "25 of 40 shown: `acq tabs --expand --type UniqueStash --never-fetched` lists all"
+--- stdout
+42 tabs in Standard: 1 fetched, 40 never fetched, 1 folder (never fetched); 1 items
+40 never-fetched UniqueStash tabs
+name       type         items  fetched      parent       id
+Uniques 1  UniqueStash      -  never                     u1
+Uniques 10 UniqueStash      -  never                     u10
+Uniques 11 UniqueStash      -  never                     u11
+Uniques 12 UniqueStash      -  never                     u12
+Uniques 13 UniqueStash      -  never                     u13
+Uniques 14 UniqueStash      -  never                     u14
+Uniques 15 UniqueStash      -  never                     u15
+Uniques 16 UniqueStash      -  never                     u16
+Uniques 17 UniqueStash      -  never                     u17
+Uniques 18 UniqueStash      -  never                     u18
+Uniques 19 UniqueStash      -  never                     u19
+Uniques 2  UniqueStash      -  never                     u2
+Uniques 20 UniqueStash      -  never                     u20
+Uniques 21 UniqueStash      -  never                     u21
+Uniques 22 UniqueStash      -  never                     u22
+Uniques 23 UniqueStash      -  never                     u23
+Uniques 24 UniqueStash      -  never                     u24
+Uniques 25 UniqueStash      -  never                     u25
+Uniques 26 UniqueStash      -  never                     u26
+Uniques 27 UniqueStash      -  never                     u27
+Uniques 28 UniqueStash      -  never                     u28
+Uniques 29 UniqueStash      -  never                     u29
+Uniques 3  UniqueStash      -  never                     u3
+Uniques 30 UniqueStash      -  never                     u30
+Uniques 31 UniqueStash      -  never                     u31
+25 of 40 shown: `acq tabs --expand --type UniqueStash --never-fetched` lists all

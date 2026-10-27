@@ -869,7 +869,9 @@ fn the_answers_text_leads_with_its_total_never_with_its_terms() {
 /// (mcp-opus-1 call 9, mcp-opus-2 call 10, mcp-sonnet-2 call 6). The
 /// listing rule is the search crate's (`tabs.rs`); here, the adapter's
 /// part over 41 tabs: the answer's size, the counts first in its text,
-/// `expand` mapped, and the document `acq tabs --json` prints.
+/// `limit` and `expand` mapped, and the document `acq tabs --json`
+/// prints; and over a league of thirty or fewer, once listed whole, the
+/// same ten (C53, the one rule).
 #[test]
 fn tabs_counts_first_and_lists_the_ten_with_the_most_items() {
     let mut seat = Seat::new();
@@ -894,6 +896,41 @@ fn tabs_counts_first_and_lists_the_ten_with_the_most_items() {
     assert_eq!(all["rows"].as_array().unwrap().len(), 41);
     let (printed, _) = cli(&seat.base, &["tabs", "--expand"]);
     assert_eq!(printed, all);
+
+    let (more, _) = seat.call("tabs", &json!({ "limit": 25 }));
+    assert_eq!(more["rows"].as_array().unwrap().len(), 25, "{more}");
+    assert_eq!(more["left_out"], 16);
+    let (printed, _) = cli(&seat.base, &["tabs", "--limit", "25"]);
+    assert_eq!(printed, more);
+
+    // twenty tabs of another league: ten listed, ten counted
+    let mut store = Store::open(&account_path(&stores(&seat.base), USER)).unwrap();
+    let stashes: Vec<Value> = (0..20)
+        .map(|i| json!({ "id": format!("s{i}"), "name": format!("S {i}"), "type": "QuadStash" }))
+        .collect();
+    record(
+        &mut store,
+        Endpoint::Stashes {
+            realm: "pc".into(),
+            league: "Small".into(),
+        },
+        "pc",
+        json!({ "stashes": stashes }),
+        40,
+    );
+    drop(store);
+    let (small, _) = seat.call("tabs", &json!({ "league": "Small" }));
+    assert_eq!(
+        (
+            &small["tabs"],
+            small["rows"].as_array().unwrap().len(),
+            &small["left_out"]
+        ),
+        (&json!(20), 10, &json!(10)),
+        "{small}"
+    );
+    let (printed, _) = cli(&seat.base, &["tabs", "--league", "Small"]);
+    assert_eq!(printed, small);
 }
 
 /// Pc Standard listed again as 41 tabs: Rings and Dump, and 39 of `kind`
@@ -972,6 +1009,28 @@ fn tabs_lists_the_never_fetched_of_one_type() {
         &json!({ "type": "UniqueStash", "never_fetched": true, "expand": true }),
     );
     assert_eq!(all["rows"].as_array().unwrap().len(), 39, "{all}");
+    // `limit` cuts the selection as it cuts the league
+    let (more, _) = seat.call(
+        "tabs",
+        &json!({ "type": "UniqueStash", "never_fetched": true, "limit": 20 }),
+    );
+    assert_eq!(
+        (more["rows"].as_array().unwrap().len(), &more["left_out"]),
+        (20, &json!(19)),
+        "{more}"
+    );
+    let (printed, _) = cli(
+        &seat.base,
+        &[
+            "tabs",
+            "--type",
+            "UniqueStash",
+            "--never-fetched",
+            "--limit",
+            "20",
+        ],
+    );
+    assert_eq!(printed, more);
 }
 
 /// A row's place carried no age (the trade seat: mcp-sonnet-2 calls 3, 14,

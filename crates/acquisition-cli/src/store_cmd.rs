@@ -253,15 +253,16 @@ fn render_tabs_table(tabs: &[acquisition_store::TabRow], now: i64) -> String {
     out
 }
 
-/// `acq tabs`: the league's tabs counted first and then listed — whole
-/// for a small league or under `--expand`, else the ten with the most
-/// items (C53). The document is the search crate's, one maker for this
+/// `acq tabs`: the league's tabs counted first and then listed — the ten
+/// with the most items, `--limit` more or fewer, `--expand` every one,
+/// whole where they fit (C53). The document is the search crate's, one maker for this
 /// text, `--json` and the MCP's `tabs` (C115).
 pub fn tabs(
     cx: &Ctx,
     realm: Realm,
     league: &str,
     select: &acquisition_search::tabs::Selection,
+    limit: Option<usize>,
     expand: bool,
     json: bool,
 ) -> Result<()> {
@@ -271,6 +272,7 @@ pub fn tabs(
         league,
         store.tabs(realm.as_str(), league)?,
         select,
+        limit,
         expand,
     );
     if json {
@@ -329,7 +331,7 @@ pub fn tabs(
             t.kind, t.tabs, t.fetched, t.items
         );
     }
-    println!("the ten with the most items:");
+    println!("the {} with the most items:", listed.rows.len());
     print!("{}", render_tabs_table(&listed.rows, now));
     print!("{}", remove_only_said(&listed.rows));
     let (expand, count) = tabs_next(realm, league);
