@@ -3,7 +3,7 @@
 //!
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
-use super::harness::TestPath;
+use super::harness::{TestPath, saved_refresh_tokens};
 use crate::daemon::refresh::{REFRESH_OWNER_ABANDONED, SESSION_CHANGED_DURING_REFRESH};
 use crate::daemon::*;
 
@@ -695,7 +695,7 @@ async fn successful_refresh_rotation_advances_token_generations_and_persists_new
         assert_ne!(s.auth.one().generations.refresh_token, before.refresh_token);
     }
     assert_eq!(
-        store.saves.lock().unwrap().as_slice(),
+        saved_refresh_tokens(&store.saves.lock().unwrap()),
         [(
             "acq-mock".into(),
             "rt-rotated".into(),
@@ -805,7 +805,7 @@ async fn reauthentication_during_refresh_keeps_new_session_and_rejects_old_compl
         assert_ne!(s.auth.one().generations.session, before.session);
     }
     assert_eq!(
-        store.saves.lock().unwrap().as_slice(),
+        saved_refresh_tokens(&store.saves.lock().unwrap()),
         [("acq-mock".into(), "rt-reauth".into(), "old-user".into())]
     );
     delayed.server.await.unwrap();

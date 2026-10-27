@@ -3,6 +3,9 @@
 //! C148: a refresh lands on a blocking thread, its tokens installed and
 //! published under `shared`, its keyring save and index writes under
 //! `credentials` alone, its keyring mark written under `shared` after.
+//! C135: what a landing saves is one keyring entry, the access token and
+//! its expiry beside the refresh token (`auth::KeyringEntry`), so a start
+//! restores a session that refreshes only when that token expires.
 //!
 //! Rulings: `decisions/network.md`; the cross-cutting ones are `AGENTS.md`'s.
 
@@ -79,7 +82,7 @@ impl Daemon {
     /// Install fresh tokens in a session, under the caller's hold of
     /// `shared`: the access token and its expiry, the refresh token the
     /// provider rotated, the username, the generations advanced. Nothing
-    /// is persisted here (C148): the landing saves the refresh token
+    /// is persisted here (C148): the landing saves the session's tokens
     /// under `credentials` alone ([`Self::persist_credentials`]).
     pub(super) fn install_tokens_locked(
         &self,
@@ -97,8 +100,11 @@ impl Daemon {
         session.advance_refresh_token();
     }
 
-    /// C144 — the one persist of a refresh token, login's and refresh's
-    /// alike, called under the caller's hold of `credentials` and never
+    /// C144 — the one persist of a keyring entry, login's and refresh's
+    /// alike: C135, the refresh token with the access token and its expiry
+    /// beside it, written as the entry's secret here and read back in
+    /// `start::restore_sessions` alone. Called under the caller's hold of
+    /// `credentials` and never
     /// under `shared` (C148), so the keyring and the index land together,
     /// ordered with logout and forget. The
     /// index holds `username` before the token is saved under it
@@ -122,7 +128,7 @@ impl Daemon {
     pub(super) fn persist_credentials(
         &self,
         username: &str,
-        refresh_token: &str,
+        entry: &auth::KeyringEntry,
         uuid: Option<&str>,
         old_name: Option<&str>,
         at: i64,
@@ -161,7 +167,9 @@ impl Daemon {
                 indexed: Err(e),
             };
         }
-        let saved = self.credential_store.save(service, refresh_token, username);
+        let saved = self
+            .credential_store
+            .save(service, &entry.to_secret(), username);
         let mut warnings = Vec::new();
         let mut released = Vec::new();
         let keyring = match &saved {
@@ -474,16 +482,21 @@ impl Daemon {
                             renamed = Some(tokens.username.clone());
                         }
                         let result = (tokens.access_token.clone(), tokens.username.clone());
-                        landing = Some(Landing {
-                            username: tokens.username.clone(),
-                            refresh_token: tokens.refresh_token.clone(),
-                            uuid: session.uuid.clone(),
-                            old_name: session
-                                .username
-                                .clone()
-                                .filter(|old| !old.is_empty() && *old != tokens.username),
-                        });
+                        let username = tokens.username.clone();
+                        let old_name = session
+                            .username
+                            .clone()
+                            .filter(|old| !old.is_empty() && *old != tokens.username);
                         self.install_tokens_locked(session, tokens);
+                        // C135: what is saved is what the session holds,
+                        // the access token and its expiry beside the
+                        // refresh token, taken at the install.
+                        landing = session.keyring_entry().map(|entry| Landing {
+                            username,
+                            entry,
+                            uuid: session.uuid.clone(),
+                            old_name,
+                        });
                         // C144: `auth status` says no `ok` for a save that
                         // has not landed.
                         session.keyring = "saving".into();
@@ -511,7 +524,7 @@ impl Daemon {
         if let Some(landing) = landing {
             let persisted = self.persist_credentials(
                 &landing.username,
-                &landing.refresh_token,
+                &landing.entry,
                 landing.uuid.as_deref(),
                 landing.old_name.as_deref(),
                 self.unix_now(),
@@ -560,10 +573,11 @@ impl Daemon {
     }
 }
 
-/// What a refresh's landing persists, taken at its install.
+/// What a refresh's landing persists, taken from the session at its
+/// install.
 struct Landing {
     username: String,
-    refresh_token: String,
+    entry: auth::KeyringEntry,
     uuid: Option<String>,
     old_name: Option<String>,
 }

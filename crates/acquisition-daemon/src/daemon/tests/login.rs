@@ -566,10 +566,7 @@ async fn a_headerless_code_exchange_2xx_installs_its_tokens() {
         assert_eq!(session.refresh_token.as_deref(), Some("rt-rotated"));
     }
     assert_eq!(
-        credentials
-            .saves
-            .lock()
-            .unwrap()
+        saved_refresh_tokens(&credentials.saves.lock().unwrap())
             .iter()
             .map(|(_, token, user)| (token.as_str(), user.as_str()))
             .collect::<Vec<_>>(),
@@ -922,7 +919,8 @@ fn c144_restore_reads_through_the_credential_store_and_reports_a_failed_load() {
         .unwrap()
         .insert("alice".into(), "rt-a".into());
     let mut log = Vec::new();
-    let sessions = start::restore_sessions(&store, "acq-mock", &dir, None, &mut log);
+    let sessions =
+        start::restore_sessions(&store, "acq-mock", &dir, None, SystemTime::now(), &mut log);
     assert_eq!(sessions.keyring, "ok");
     assert_eq!(
         sessions.find("alice").unwrap().refresh_token.as_deref(),
@@ -937,7 +935,14 @@ fn c144_restore_reads_through_the_credential_store_and_reports_a_failed_load() {
 
     let failing = RecordingCredentialStore::failing("load", "keychain locked");
     let mut log = Vec::new();
-    let sessions = start::restore_sessions(&failing, "acq-mock", &dir, None, &mut log);
+    let sessions = start::restore_sessions(
+        &failing,
+        "acq-mock",
+        &dir,
+        None,
+        SystemTime::now(),
+        &mut log,
+    );
     assert!(sessions.by_account.is_empty());
     assert_eq!(sessions.keyring, "unavailable: keychain locked");
     let log = String::from_utf8(log).unwrap();
@@ -1023,7 +1028,7 @@ async fn c144_a_re_login_under_a_renamed_username_clears_the_old_names_entry() {
     let generation = staged_login(&daemon, "New#1");
     assert!(daemon.complete_login(generation, "New#1", "u-a"));
     assert_eq!(
-        credentials.entries.lock().unwrap().clone(),
+        entry_refresh_tokens(&credentials.entries.lock().unwrap()),
         HashMap::from([("New#1".to_string(), "rt-New#1".to_string())]),
         "one entry, under the new name"
     );
@@ -1196,10 +1201,7 @@ async fn c144_a_login_cannot_land_between_a_forgets_clear_and_its_mark() {
         "a live session's account is restored at start: {entry:?}"
     );
     assert_eq!(
-        credentials
-            .entries
-            .lock()
-            .unwrap()
+        entry_refresh_tokens(&credentials.entries.lock().unwrap())
             .get("Alice#1")
             .map(String::as_str),
         Some("rt-Alice#1"),
@@ -1218,4 +1220,37 @@ fn logged_in_again(daemon: &Daemon) {
         keyring: "ok".into(),
         ..AuthSession::default()
     });
+}
+
+/// C135: a login's landing saves the staged access token and its expiry
+/// as unix seconds beside the refresh token, what the session it
+/// registers holds.
+#[tokio::test]
+async fn a_logins_landing_saves_the_access_token_beside_the_refresh_token() {
+    let (daemon, credentials, _store_dir, _log_path) = login_daemon("http://127.0.0.1:1");
+
+    let generation = staged_login(&daemon, "Alice#1");
+    assert!(daemon.complete_login(generation, "Alice#1", "u-a"));
+    let expires = daemon
+        .shared
+        .lock()
+        .unwrap()
+        .auth
+        .find("Alice#1")
+        .unwrap()
+        .access_expires_at
+        .unwrap();
+    let secret = credentials.entries.lock().unwrap()["Alice#1"].clone();
+    let entry = auth::KeyringEntry::from_secret(&secret, expires);
+    assert_eq!(entry.access_token.as_deref(), Some("at-x.Alice#1"));
+    assert_eq!(
+        entry.access_expires_at,
+        Some(
+            expires
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_secs()
+        )
+    );
+    assert_eq!(entry.refresh_token, "rt-Alice#1");
 }

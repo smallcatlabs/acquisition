@@ -299,9 +299,15 @@ impl Daemon {
                 // A failed save clears the entry it would have replaced,
                 // and a re-login under a renamed username clears the name
                 // the index mapped the uuid to (C144).
+                // C135: the staged access token and its expiry are saved
+                // beside the refresh token, as the session will hold them.
+                let entry = auth::KeyringEntry::new(
+                    staging.refresh_token.clone(),
+                    Some((staging.access_token.clone(), staging.access_expires_at)),
+                );
                 let persisted = self.persist_credentials(
                     username,
-                    &staging.refresh_token,
+                    &entry,
                     Some(uuid),
                     None,
                     acquisition_store::now(),

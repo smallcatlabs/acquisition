@@ -1,5 +1,8 @@
 //! The daemon's start: the world and its locks, the log, the knobs read at
 //! start, the bound on the diagnostic files, and the accept loop.
+//! C135: the restore reads each persisted account's keyring entry, the
+//! refresh token and, beside it, the access token and its expiry, so a
+//! restored session sends no token POST until that token expires.
 //!
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
@@ -467,6 +470,7 @@ async fn run_with_log(
         provider.keyring_service,
         &dir,
         auth::keyring_disabled(),
+        choke.wall(),
         &mut &log,
     );
 
@@ -674,8 +678,8 @@ impl AcceptErrors {
     }
 }
 
-/// C144 (no keyring entry out of the index's reach): an account's refresh
-/// token, read under its username and, when that read fails or finds
+/// C144 (no keyring entry out of the index's reach): an account's keyring
+/// secret, read under its username and, when that read fails or finds
 /// nothing, under each name the index holds for it in turn, so a rotated
 /// token saved under a name a rename left behind is still reached. A
 /// token found under a held name is logged. When no name yields a token,
@@ -719,7 +723,13 @@ fn load_reached(
 
 /// The sessions a start restores: every account the index marks
 /// persisted comes back as a live session from its credential-store entry
-/// (C31), and one unreadable entry never blocks the rest. Every result of
+/// (C31), and one unreadable entry never blocks the rest. C135: the entry
+/// is read here alone ([`auth::KeyringEntry::from_secret`], at `wall` on
+/// the daemon's clock), and the session gets the refresh token and, when
+/// the entry holds them, the access token and its expiry; an entry an
+/// earlier daemon saved, the bare refresh token, restores with none. No
+/// expiry is judged here: the one check in `valid_access_token_once`
+/// decides at the first use, so an unexpired token sends no POST. Every result of
 /// a load reaches the words (C144): an entry the store does not hold, a
 /// load that fails (the keyring status then says so, as `auth status`
 /// reads it), an index that cannot be read, each a log line.
@@ -728,6 +738,7 @@ pub(super) fn restore_sessions(
     service: &str,
     dir: &std::path::Path,
     disabled: Option<&str>,
+    wall: SystemTime,
     log: &mut dyn std::io::Write,
 ) -> Sessions {
     let mut sessions = Sessions {
@@ -741,9 +752,13 @@ pub(super) fn restore_sessions(
         Ok(index) => {
             for entry in index.persisted() {
                 match load_reached(store, service, entry, log) {
-                    Ok(Some(refresh_token)) => {
+                    Ok(Some(secret)) => {
+                        let kept = auth::KeyringEntry::from_secret(&secret, wall);
+                        let expires = kept.expires_at();
                         sessions.replace(AuthSession {
-                            refresh_token: Some(refresh_token),
+                            access_token: expires.and(kept.access_token),
+                            access_expires_at: expires,
+                            refresh_token: Some(kept.refresh_token),
                             username: Some(entry.username.clone()),
                             uuid: entry.uuid.clone(),
                             keyring: "ok".into(),

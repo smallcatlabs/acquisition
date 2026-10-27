@@ -173,6 +173,32 @@ impl CredentialStore for RecordingCredentialStore {
     }
 }
 
+/// C135: the saves a store recorded, each secret read as the restore
+/// reads it and shown as the refresh token it holds.
+pub(super) fn saved_refresh_tokens(
+    saves: &[(String, String, String)],
+) -> Vec<(String, String, String)> {
+    saves
+        .iter()
+        .map(|(service, secret, username)| {
+            let entry = auth::KeyringEntry::from_secret(secret, SystemTime::now());
+            (service.clone(), entry.refresh_token, username.clone())
+        })
+        .collect()
+}
+
+/// C135: a store's entries, each secret shown as the refresh token it
+/// holds.
+pub(super) fn entry_refresh_tokens(entries: &HashMap<String, String>) -> HashMap<String, String> {
+    entries
+        .iter()
+        .map(|(username, secret)| {
+            let entry = auth::KeyringEntry::from_secret(secret, SystemTime::now());
+            (username.clone(), entry.refresh_token)
+        })
+        .collect()
+}
+
 /// The recording store a harness daemon from `test_daemon_with` saves
 /// into. Panics if the daemon holds any other store.
 pub(super) fn harness_credentials(daemon: &Daemon) -> &RecordingCredentialStore {

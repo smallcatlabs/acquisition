@@ -323,7 +323,7 @@ async fn a_bare_harness_daemon_saves_a_rotated_token_into_the_test_store() {
     let (token, _) = daemon.valid_access_token(None, false, None).await.unwrap();
     assert_eq!(token, "at-new");
     assert_eq!(
-        credentials.saves.lock().unwrap().as_slice(),
+        saved_refresh_tokens(&credentials.saves.lock().unwrap()),
         [(
             daemon.provider.keyring_service.to_string(),
             "rt-rotated".to_string(),
@@ -368,7 +368,7 @@ async fn a_headerless_token_2xx_installs_its_tokens_and_holds_the_route() {
         "the rotated refresh token is the session's"
     );
     assert_eq!(
-        credentials.saves.lock().unwrap().as_slice(),
+        saved_refresh_tokens(&credentials.saves.lock().unwrap()),
         [(
             daemon.provider.keyring_service.to_string(),
             "rt-rotated".to_string(),
@@ -574,7 +574,7 @@ async fn c144_a_refresh_that_renames_clears_the_old_names_entry() {
 
     let (_, username) = daemon.valid_access_token(None, false, None).await.unwrap();
     assert_eq!(username, "NewName#2");
-    let entries = store.entries.lock().unwrap().clone();
+    let entries = entry_refresh_tokens(&store.entries.lock().unwrap());
     assert_eq!(
         entries,
         HashMap::from([("NewName#2".to_string(), "rt-rotated".to_string())]),
@@ -730,10 +730,7 @@ async fn c144_a_logout_where_a_refresh_releases_the_lock_keeps_its_mark() {
         "the logout's mark stands: no start restores the account"
     );
     assert_eq!(
-        store
-            .entries
-            .lock()
-            .unwrap()
+        entry_refresh_tokens(&store.entries.lock().unwrap())
             .get("test-user")
             .map(String::as_str),
         Some("rt-rotated"),
@@ -860,7 +857,8 @@ async fn c144_a_logout_after_an_unindexed_rename_finds_the_account_by_its_uuid()
     let index = Index::load(&dir).unwrap();
     assert!(index.persisted().is_empty(), "{:?}", index.entries());
     let mut log = Vec::new();
-    let sessions = start::restore_sessions(&*store, "acq-mock", &dir, None, &mut log);
+    let sessions =
+        start::restore_sessions(&*store, "acq-mock", &dir, None, SystemTime::now(), &mut log);
     assert!(sessions.by_account.is_empty(), "a start restores nothing");
     server.await.unwrap();
     assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
@@ -982,7 +980,8 @@ fn c144_restore_reaches_a_token_under_a_held_name() {
         .unwrap()
         .insert("Old#1".into(), "rt-held".into());
     let mut log = Vec::new();
-    let sessions = start::restore_sessions(&store, "acq-mock", &dir, None, &mut log);
+    let sessions =
+        start::restore_sessions(&store, "acq-mock", &dir, None, SystemTime::now(), &mut log);
     assert_eq!(
         sessions.find("New#2").unwrap().refresh_token.as_deref(),
         Some("rt-held")
@@ -1016,7 +1015,8 @@ fn c144_restore_reports_a_held_names_failed_load() {
         .unwrap()
         .insert("A#1".into(), "access denied".into());
     let mut log = Vec::new();
-    let sessions = start::restore_sessions(&store, "acq-mock", &dir, None, &mut log);
+    let sessions =
+        start::restore_sessions(&store, "acq-mock", &dir, None, SystemTime::now(), &mut log);
     assert!(sessions.by_account.is_empty());
     assert_eq!(sessions.keyring, "unavailable: access denied");
     let log = String::from_utf8(log).unwrap();
@@ -1025,4 +1025,173 @@ fn c144_restore_reports_a_held_names_failed_load() {
         "{log}"
     );
     assert!(!log.contains("has no entry"), "{log}");
+}
+
+/// A harness daemon on the manual clock facing `answers`, whose sessions
+/// are the ones a start restores (`start::restore_sessions`) from a
+/// recorder holding `secret` under `test-user`, the index listing that
+/// account persisted.
+async fn restored_daemon(
+    answers: Vec<ScriptedResponse>,
+    secret: &str,
+) -> (
+    Arc<Daemon>,
+    Arc<RecordingCredentialStore>,
+    Arc<ManualClock>,
+    TestPath,
+    TestPath,
+    Arc<Mutex<Vec<String>>>,
+    tokio::task::JoinHandle<()>,
+) {
+    let (base, requests, server) = scripted_server(answers).await;
+    let clock = Arc::new(ManualClock::new());
+    let (mut daemon, log_path) =
+        test_daemon_with(Provider::mock(&base), clock.clone(), RailsConfig::default());
+    let dir = TestPath::dir();
+    Index::load(&dir)
+        .unwrap()
+        .record_login("test-user", "u-1", true, 1, &[])
+        .unwrap();
+    let store = Arc::new(RecordingCredentialStore::default());
+    store
+        .entries
+        .lock()
+        .unwrap()
+        .insert("test-user".into(), secret.into());
+    let mut log = Vec::new();
+    let sessions = start::restore_sessions(
+        &*store,
+        daemon.provider.keyring_service,
+        &dir,
+        None,
+        clock.wall(),
+        &mut log,
+    );
+    {
+        let daemon = Arc::get_mut(&mut daemon).unwrap();
+        daemon.credential_store = store.clone();
+        daemon.store_dir = Some(dir.to_path_buf());
+    }
+    daemon.shared.lock().unwrap().auth = sessions;
+    (daemon, store, clock, dir, log_path, requests, server)
+}
+
+/// The unix seconds of a wall-clock time, as the keyring entry holds it.
+fn unix_secs(at: SystemTime) -> u64 {
+    at.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs()
+}
+
+/// The token sends the journal holds, by method and route.
+fn journaled_token_posts(log_path: &std::path::Path) -> usize {
+    journal_sends(log_path)
+        .iter()
+        .filter(|send| {
+            send["method"] == "POST"
+                && crate::ratelimit::split_endpoint_key(send["route"].as_str().unwrap()).0
+                    == "oauth-token"
+        })
+        .count()
+}
+
+/// C135 (the access token kept beside the refresh token, a lifetime
+/// refreshes only at expiry), issue #55: a start restores, from the
+/// keyring entry, the access token and its expiry beside the refresh
+/// token, so the session sends no token POST until that token expires,
+/// and one at expiry. Before, the entry held the refresh token alone and
+/// every lifetime's first token use was a `POST oauth-token`.
+#[tokio::test]
+async fn a_restored_session_sends_no_refresh_before_expiry() {
+    let wall = SystemTime::UNIX_EPOCH + MANUAL_WALL_ORIGIN;
+    let secret = json!({
+        "refresh_token": "rt-kept",
+        "access_token": "at-kept",
+        "access_expires_at": unix_secs(wall) + 3600,
+    })
+    .to_string();
+    let (daemon, _store, clock, _dir, log_path, requests, server) =
+        restored_daemon(vec![token_answer("200 OK", TOKEN_HEADERS, None)], &secret).await;
+
+    let (token, user) = daemon.valid_access_token(None, false, None).await.unwrap();
+    assert_eq!(
+        journaled_token_posts(&log_path),
+        0,
+        "the journal holds no token POST before expiry"
+    );
+    assert!(requests.lock().unwrap().is_empty(), "nothing on the wire");
+    assert_eq!((token.as_str(), user.as_str()), ("at-kept", "test-user"));
+
+    clock.advance(Duration::from_secs(3600));
+    let (token, _) = daemon.valid_access_token(None, false, None).await.unwrap();
+    assert_eq!(token, "at-new", "the expired token is refreshed");
+    assert_eq!(
+        journaled_token_posts(&log_path),
+        1,
+        "one token POST, at expiry"
+    );
+    server.await.unwrap();
+    assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
+    finish_harness(None, &log_path);
+}
+
+/// C135: an entry an earlier daemon saved, the bare refresh token,
+/// restores as before, with no access token: the first use refreshes
+/// once, and that refresh's landing rewrites the entry in the new form,
+/// the access token and its expiry beside the rotated refresh token.
+#[tokio::test]
+async fn an_entry_an_earlier_daemon_saved_restores_and_is_rewritten_at_its_first_refresh() {
+    let (daemon, store, clock, _dir, log_path, requests, server) =
+        restored_daemon(vec![token_answer("200 OK", TOKEN_HEADERS, None)], "rt-old").await;
+    {
+        let s = daemon.shared.lock().unwrap();
+        let session = s.auth.find("test-user").unwrap();
+        assert_eq!(session.refresh_token.as_deref(), Some("rt-old"));
+        assert_eq!(session.access_token, None);
+        assert_eq!(session.access_expires_at, None);
+    }
+
+    let (token, _) = daemon.valid_access_token(None, false, None).await.unwrap();
+    assert_eq!(token, "at-new");
+    assert_eq!(journaled_token_posts(&log_path), 1, "one token POST");
+    let secret = store.entries.lock().unwrap()["test-user"].clone();
+    assert!(
+        secret.starts_with('{'),
+        "rewritten in the new form: {secret:?}"
+    );
+    let entry = auth::KeyringEntry::from_secret(&secret, clock.wall());
+    assert_eq!(entry.refresh_token, "rt-rotated");
+    assert_eq!(entry.access_token.as_deref(), Some("at-new"));
+    assert_eq!(
+        entry.access_expires_at,
+        Some(unix_secs(clock.wall()) + 3600)
+    );
+    server.await.unwrap();
+    assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
+    finish_harness(None, &log_path);
+}
+
+/// C135: a refresh's landing saves what the session holds after the
+/// install: the installed access token, the session's expiry as unix
+/// seconds and the rotated refresh token.
+#[tokio::test]
+async fn a_refreshs_landing_saves_the_access_token_beside_the_refresh_token() {
+    let (daemon, credentials, clock, log_path, requests, server) =
+        token_daemon(vec![token_answer("200 OK", TOKEN_HEADERS, None)]).await;
+
+    daemon.valid_access_token(None, false, None).await.unwrap();
+    let expires = daemon
+        .shared
+        .lock()
+        .unwrap()
+        .auth
+        .one()
+        .access_expires_at
+        .unwrap();
+    let secret = credentials.entries.lock().unwrap()["test-user"].clone();
+    let entry = auth::KeyringEntry::from_secret(&secret, clock.wall());
+    assert_eq!(entry.access_token.as_deref(), Some("at-new"));
+    assert_eq!(entry.access_expires_at, Some(unix_secs(expires)));
+    assert_eq!(entry.refresh_token, "rt-rotated");
+    server.await.unwrap();
+    assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
+    finish_harness(None, &log_path);
 }

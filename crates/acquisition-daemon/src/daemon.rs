@@ -755,6 +755,15 @@ impl Sessions {
 }
 
 impl AuthSession {
+    /// C135: the keyring entry for the tokens this session holds, the
+    /// access token beside the refresh token; `None` with no refresh
+    /// token.
+    fn keyring_entry(&self) -> Option<auth::KeyringEntry> {
+        let refresh_token = self.refresh_token.clone()?;
+        let access = self.access_token.clone().zip(self.access_expires_at);
+        Some(auth::KeyringEntry::new(refresh_token, access))
+    }
+
     fn advance_access_token(&mut self) {
         self.generations.access_token = self.generations.access_token.wrapping_add(1);
     }

@@ -99,6 +99,7 @@ send. The rest are scenario pins:
 | a send is held only if the previous landed response on its route was a 429, then for `[Retry-After, Retry-After + RETRY_BUCKET_PAD + BUFFER]`; otherwise `wait_ms == 0` | N19, N33 | safety floor and performance ceiling at once (scripted servers only; against a counting mock the limiter holds before a violation and the last row applies) |
 | after a 401 the account's next send is `POST oauth-token` (sequential, over the journal); no HEAD or GET carrying the rejected bearer reaches the server after a 401 was answered (concurrent, at the server) | N34, C87 | refresh on rejection |
 | after a laptop sleep past expiry, no 401, a refresh reaches the wire, all sends within 60 virtual s | R8 | wall-clock expiry |
+| a restored session with an unexpired access token sends no `POST oauth-token` before expiry, and one at it | C135 | the access token kept beside the refresh token |
 | no send answered 429; every reported window state `hits ≤ max` with no restriction active (`assert_never_over_the_limit`) | N4/N25 | never over the limit; real only against a counting mock (`MockPolicy`), in the mock teardown's tests |
 
 Each has been broken deliberately and seen to fail. A pre-emptive hold

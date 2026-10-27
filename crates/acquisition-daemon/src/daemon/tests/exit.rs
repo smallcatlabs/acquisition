@@ -137,7 +137,7 @@ async fn exit_waits_for_a_refresh_and_installs_the_token() {
 
     let (token, _) = waiter.await.unwrap().expect("the waiter got its token");
     assert_eq!(token, "at-new");
-    let saves = store.saves.lock().unwrap().clone();
+    let saves = saved_refresh_tokens(&store.saves.lock().unwrap());
     assert!(
         saves.iter().any(|(_, token, _)| token == "rt-rotated"),
         "the rotated refresh token was saved: {saves:?}"

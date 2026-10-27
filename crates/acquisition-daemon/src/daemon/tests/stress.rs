@@ -190,12 +190,11 @@ async fn n6_integration_stress_mixes_policies_refresh_rotation_and_cancellation_
     assert_eq!(refresh_token, "rt-rotated");
     assert_eq!(access_token, "at-new");
     assert!(!refresh_flight);
-    let saves = credential_store.saves.lock().unwrap();
+    let saves = saved_refresh_tokens(&credential_store.saves.lock().unwrap());
     assert_eq!(saves.len(), 1, "rotated refresh token persisted once");
     assert_eq!(saves[0].0, "acq-mock");
     assert_eq!(saves[0].1, "rt-rotated");
     assert_eq!(saves[0].2, "test-user");
-    drop(saves);
 
     let jobs = daemon.job_list().unwrap();
     let probes: Vec<_> = jobs.iter().filter(|job| job.kind == "probe").collect();
