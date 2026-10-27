@@ -914,3 +914,80 @@ async fn an_index_entry_with_an_empty_uuid_does_not_stall_the_diagnosis() {
     assert_eq!(text, "\nfirst line\n");
     assert_eq!(document["store"][0]["account"], json!("<account 1>"));
 }
+
+/// r4's review, finding 3: a peer that answers the handshake as this
+/// world's daemon and then never its status held the diagnosis forever,
+/// every section behind it. The status request is bounded by the
+/// handshake's deadline (`ACQ_HELLO_WITHIN`, here 1 s); its expiry is
+/// forced by a peer that never answers (C137, the deadline's contract is
+/// its expiry behaviour), and the rest is read from disk. The peer
+/// replays the hello a real daemon of this world gave, so the observe
+/// door finds it compatible.
+#[tokio::test]
+async fn a_peer_that_answers_hello_and_not_its_status_leaves_the_rest_to_the_disk() {
+    use tokio::io::{AsyncBufReadExt as _, AsyncWriteExt as _, BufReader};
+
+    let s = session("diagnose-stalled");
+    let daemon = start_daemon_in_process(&s, &acqd_built()).await;
+    let world = World::observe().unwrap();
+    let socket = world.socket_path().unwrap();
+    let hello = {
+        let mut line = serde_json::to_string(&acquisition_protocol::protocol::Bootstrap::Hello {
+            version: acquisition_protocol::VERSION.to_string(),
+            contract: acquisition_protocol::CONTRACT_REVISION.to_string(),
+            world: world.name(),
+        })
+        .unwrap();
+        line.push('\n');
+        line
+    };
+    let reply = {
+        let stream = acquisition_client::endpoint::connect(&socket)
+            .await
+            .unwrap();
+        let (read, mut write) = tokio::io::split(stream);
+        write.write_all(hello.as_bytes()).await.unwrap();
+        let mut reply = String::new();
+        BufReader::new(read).read_line(&mut reply).await.unwrap();
+        reply
+    };
+    drop(daemon);
+
+    let mut listener = acquisition_client::endpoint::Listener::bind(&socket).unwrap();
+    tokio::spawn(async move {
+        let stream = listener.accept().await.unwrap();
+        let (read, mut write) = tokio::io::split(stream);
+        let mut lines = BufReader::new(read).lines();
+        let _hello = lines.next_line().await.unwrap();
+        write.write_all(reply.as_bytes()).await.unwrap();
+        let _status = lines.next_line().await.unwrap();
+        // Holds the connection, and never answers.
+        std::future::pending::<()>().await;
+        drop(write);
+    });
+    s.set_knob("ACQ_HELLO_WITHIN", Some("1"));
+    let frontend = Frontend::agent("test").unwrap();
+
+    // The watchdog outlives the tested bound: without the bound this
+    // fails instead of hanging the gate.
+    let document = tokio::time::timeout(
+        Duration::from_secs(60),
+        frontend.diagnose(acquisition_verbs::Tails::DEFAULT),
+    )
+    .await
+    .expect("the diagnosis waited on a peer that never answers its status")
+    .document();
+    assert!(
+        document["daemon"]["unread"]
+            .as_str()
+            .is_some_and(|why| why.contains("answered the handshake and then not its status")),
+        "{document:#}"
+    );
+    assert_eq!(document["rails"]["from"], json!("disk"), "{document:#}");
+    assert!(
+        document["log"]["lines"]
+            .as_array()
+            .is_some_and(|lines| !lines.is_empty()),
+        "the last daemon's log, read from disk: {document:#}"
+    );
+}

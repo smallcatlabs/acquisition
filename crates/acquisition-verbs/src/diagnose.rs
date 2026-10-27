@@ -165,7 +165,13 @@ impl Frontend {
         let mut version = version_document();
         version["platform"] = json!(platform());
 
-        let daemon = self.daemon().await.map_err(|fault| fault.to_string());
+        // Bounded by the handshake's own deadline: a peer that answers
+        // `hello` and then never its status must not hold the rest of the
+        // diagnosis (r4's review, finding 3).
+        let daemon = self
+            .daemon_within(Some(acquisition_client::client::hello_within()))
+            .await
+            .map_err(|fault| fault.to_string());
         let world = World::observe_at(&self.root);
 
         let known = self.accounts().map_err(|f| f.to_string());
