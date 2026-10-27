@@ -1,0 +1,16 @@
+You are the outside reviewer of a BUILD BRIEF, not a code change, in the Acquisition Rust workspace. The brief is roadmap/briefs/2g-build.md, committed at 3691766e; read it with `git show 3691766e` and the file as it stands. It was written from the design brief roadmap/briefs/2g-design.md (e11768e2), which the owner ruled on in full: the rulings are in decisions/frontends.md (C53 as amended, C149 new, C146, C143) and decisions/daemon.md (C121 kept), landed at ea0b0255. Read; do not build or run anything; the tree is read-only to you. The brief's form is roadmap/briefs/TEMPLATE.md; the rhythm is roadmap/README.md, "A step"; AGENTS.md names the invariants and the cross-cutting rulings.
+
+The owner's concerns, which are your lens:
+1. Size and scope. This is the largest step planned today: eleven Do items across four crates, every list answer, every refusal, every write's receipt, the web pages and both references, where every other step today was one concern. Say which Do items are the step the rulings require, which are consequences that must ride with them, and which are nice-to-haves that could be their own small round later (for example the host measurement of the second copy, the before/after seat replay, the ages). Propose a cut into rounds if one is safer: each round gated, committed and reviewed on its own, in an order where no later round is needed by an earlier one.
+2. The compatibility break. C149 turns three bare-array answers into objects. Name every consumer in the tree that reads those three answers (tests, the web pages, the CLI's text, the seat door, any script under tools/ or search/), and whether the brief names each; name any consumer it misses.
+3. Technical defects in the plan: a citation that does not match the tree (a line, a name, a test that does not exist); a Do item that cannot be built as drawn (a crate edge C1 forbids, a type that does not carry what the brief says it carries, a bound that would cut what C38 says is binding); a done-when line that no commit can show; a measurement that is unrepeatable as drawn; a ruling the brief assumes that the registry does not hold; two Do items that touch one fact in two places; a test the brief says exists and does not.
+
+Then the shapes the records have taught, each a finding if it applies to the brief: a claim wider than its evidence (a number recalled rather than measured, a "the tree already has" that it does not); a sibling sentence the brief leaves standing (the other surface, the other verb, the reference, the README, a describe entry) when it changes a document's shape; a printed command or request that would not run as printed after the change; a document the plan leaves unbounded by default; a fixture the plan would regenerate blind.
+
+Report in this form, nothing else:
+- One line: the brief, and whether it is buildable as drawn.
+- The proposed cut into rounds, if any, each round's Do items and why that order.
+- Findings, most severe first, each: the brief's section or Do number, what is wrong in one sentence, the concrete reading in the tree that shows it (file:line), and the smallest change to the brief you believe sufficient. Where several share one cause, say so once.
+- What you did not check and why.
+- Which findings you would call nitpicks.
+- Anything about the brief's form or this prompt that got in your way, a sentence each.
