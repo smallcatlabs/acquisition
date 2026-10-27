@@ -214,6 +214,21 @@ list when a step's close commit or an issue takes it.
   `wait_job_terminal` directly, since no seam stages a queue break
   between the profile job's eviction and the read through a login; the
   parent scan's O(n²) stands, over live work only now.
+- **From r4, the diagnosis** (`briefs/r4-diagnose.md` and its rounds):
+  `acq daemon status` waits without bound on a peer that answers
+  `hello` and never its status, where the diagnosis bounds its own
+  request by the handshake's deadline (C86 untouched; a bound on every
+  observe request is the owner's); the placeholders are angle-bracketed
+  and vanish outside a code block, so the header says to paste between
+  backtick fences, confirmed as the design; a stopped daemon's journal
+  and log are found by this shell's knobs, and the daemon writing its
+  journal path beside its log marker is more mechanism than today's
+  evidence asks (#94 carries the contract form).
+- **The owner's, from r4's rounds**: three reviews each asked that a
+  fix round have an acceptance line of its own (each finding fixed and
+  pinned, the gate green), apart from the build's execution-dependent
+  done-when a read-only reviewer cannot check; the orchestrator agrees
+  and it is a `TEMPLATE.md` sentence, his file.
 - **The owner's, from r3's rounds**: for `briefs/REVIEW-PROMPT.md`,
   Codex asked three times for the gate's stage table in the commit
   message, where the rhythm keeps it in the report (not taken, his
@@ -300,17 +315,14 @@ list when a step's close commit or an issue takes it.
 
 ## Current step
 
-r4, `acq diagnose` (#79; `briefs/r4-diagnose.md`), is built, reviewed
-and its fix round built, the fates set by the orchestrator under the
-owner's word for the day; the fix round's review is pending, then the
-close. Then r5
-from its brief. r3 closed 2026-10-27 (C3's hour and C6's eviction
-built). The C135 round (#55, with the start's keyring read, #92) is
-its own round after the group. Phase 3, the owner's league run,
-follows; the second week before 3.30, if the group closes early, draws
-from "Pull-forward". The assessment these rest on is
-`STATE-2026-10-26.md`; the issues carry the evidence per step.
-`AGENTS.md` governs; the gate is `tools/gate.sh`.
+r5, the five surface sentences (#78; `briefs/r5-surface.md`), an Opus
+session from its brief, the last of the readiness group. r4 closed
+2026-10-27 (`acq diagnose`); r3 closed the same day. The C135 round
+(#55, with the start's keyring read, #92) is its own round after the
+group. Phase 3, the owner's league run, follows; the second week before
+3.30, if the group closes early, draws from "Pull-forward". The
+assessment these rest on is `STATE-2026-10-26.md`; the issues carry the
+evidence per step. `AGENTS.md` governs; the gate is `tools/gate.sh`.
 
 ## Ledger
 
@@ -336,7 +348,7 @@ messages.
 | r1 the Windows gate decides again | build `c2318752` to `de6ad867`; review `reviews/r1-de6ad867.md` (no findings); the Windows lint `ad216160`; closed by the commit carrying this line | 2026-10-27; Windows green at run 40428110668 | #70's week, counted from that run, under "Open" |
 | r2 the credential I/O off the shared lock | design `912206df`, `62eaeea0`; ruling `610286d1`; brief `193c2c21`; tests `81e80d3f` (committed failing); build `e4e2b9b7`, `19c8a759`; review `d2cfdf70` (`reviews/r2-19c8a759.md`); fixes `f354ede2` to `344da98f`; their review `c32c057e` (`reviews/r2-fixes-344da98f.md`); its fix `8393336a`; closed by the commit carrying this line | 2026-10-27 | the save cut at the exit's bound, left to the time seam (4-0); #92 and #55 for the C135 round; a brief's "commit the tests failing" beside the gate-per-commit rule, the owner's, under "Open" |
 | r3 the hour idle default and finished trees out of memory | ruling `e258a4c8`; build `61627c82`, `2e848e7d`, `0c04b6e3`; review `reviews/r3-0c04b6e3.md`; fixes `30c90878` to `719c86e9`; their review `reviews/r3-fixes-719c86e9.md`; fixes `5d434a27`, `068044f0`; their review `reviews/r3-fixes-068044f0.md`; the lost pin restored `79033fe5` (no review: no behaviour changed); closed by the commit carrying this line | 2026-10-27 | the list's count bound, on #56; the list's range read under the queue lock, the orphan open row `ended_elsewhere` leaves, and the login wait's missing seam, under "Open"; Do 3's "within retention" not built, on #56 |
-| r4 `acq diagnose` | build `abc7e71d` (the document and the redaction), `ecf2c89c` (the verb, its text, the README and the reference); review `12c0d1e6` (`reviews/r4-ecf2c89c.md`); fixes `41bb35d6` (the token rule), `fa76532f` (no empty needle), `5b019b36` (the bounded status), `42548143` (`ACQ_JOURNAL` offline), `b0b6e487` (the printed locations) and the commit carrying this line | the fix round's review pending | the close's |
+| r4 `acq diagnose` | build `abc7e71d` (the document and the redaction), `ecf2c89c` (the verb, its text, the README and the reference); review `12c0d1e6` (`reviews/r4-ecf2c89c.md`); fixes `41bb35d6` (the token rule), `fa76532f` (no empty needle), `5b019b36` (the bounded status), `42548143` (`ACQ_JOURNAL` offline), `b0b6e487` (the printed locations), `62b6e9f4`; their review `bf3c4f25` (`reviews/r4-fixes-62b6e9f4.md`); fixes `c8907c6c`, `4cb10cd8`, `b9303f3a`; their review `a44fa3e0` (`reviews/r4-fixes-b9303f3a.md`), whose numeric finding that commit fixes unreviewed; closed by the commit carrying this line | 2026-10-27 | #94, the daemon report's journal path and the owner's question of a log that never formats a token; `acq daemon status` on a peer that stalls after `hello`, and a fix round's own acceptance line, under "Open" |
 
 ## Housekeeping
 
