@@ -852,10 +852,10 @@ impl Corpus {
 /// before it is handed out, so the store and the account (the basis's
 /// digest and uuid), the facts revision and the intent's are each
 /// compared on every ask; time is never a component. Another scope,
-/// another account or a moved basis loads anew and replaces: one corpus
-/// is resident, and the one replaced is let go before the load so two
-/// are never held by the slot at once. Nothing is kept across processes
-/// (C48, no cached search service).
+/// another account or a moved basis loads anew and replaces. The slot
+/// holds one corpus; a call still answering keeps the one it was handed
+/// until it finishes, and the slot lets its own go before a load. Nothing
+/// is kept across processes (C48, no cached search service).
 ///
 /// The lock is held while the corpus is checked or loaded and released
 /// before it is answered over, so a concurrent ask waits for a load and
