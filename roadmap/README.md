@@ -329,17 +329,10 @@ list when a step's close commit or an issue takes it.
 
 ## Current step
 
-The readiness group's five steps are closed (p0, r1 to r5, the last
-three on 2026-10-27). Next in the milestone: the C135 round (#55, the
-access token kept beside the refresh token, with the start's keyring
-read off the socket's path, #92), its brief written from
-`briefs/TEMPLATE.md` by the session that starts it, over the shape
-`briefs/r2-design.md` section 5 drew; then, the group having closed
-early, "Pull-forward" in order. Phase 3, the owner's league run,
-follows at his word; #70 closes on a week of pushes without a re-run.
-The assessment these rest on is `STATE-2026-10-26.md`; the issues
-carry the evidence per step. `AGENTS.md` governs; the gate is
-`tools/gate.sh`.
+The C135 round (#55, #92, `briefs/c135-round.md`) has built Do 2 to 4,
+the access token kept beside the refresh token, and its review is
+pending; Do 5 to 7, the restore off the socket's path, wait on the
+owner's ruling (the brief's Do 1).
 
 ## Ledger
 
@@ -367,6 +360,7 @@ messages.
 | r3 the hour idle default and finished trees out of memory | ruling `e258a4c8`; build `61627c82`, `2e848e7d`, `0c04b6e3`; review `reviews/r3-0c04b6e3.md`; fixes `30c90878` to `719c86e9`; their review `reviews/r3-fixes-719c86e9.md`; fixes `5d434a27`, `068044f0`; their review `reviews/r3-fixes-068044f0.md`; the lost pin restored `79033fe5` (no review: no behaviour changed); closed by the commit carrying this line | 2026-10-27 | the list's count bound, on #56; the list's range read under the queue lock, the orphan open row `ended_elsewhere` leaves, and the login wait's missing seam, under "Open"; Do 3's "within retention" not built, on #56 |
 | r4 `acq diagnose` | build `abc7e71d` (the document and the redaction), `ecf2c89c` (the verb, its text, the README and the reference); review `12c0d1e6` (`reviews/r4-ecf2c89c.md`); fixes `41bb35d6` (the token rule), `fa76532f` (no empty needle), `5b019b36` (the bounded status), `42548143` (`ACQ_JOURNAL` offline), `b0b6e487` (the printed locations), `62b6e9f4`; their review `bf3c4f25` (`reviews/r4-fixes-62b6e9f4.md`); fixes `c8907c6c`, `4cb10cd8`, `b9303f3a`; their review `a44fa3e0` (`reviews/r4-fixes-b9303f3a.md`), whose numeric finding that commit fixes unreviewed; closed by the commit carrying this line | 2026-10-27 | #94, the daemon report's journal path and the owner's question of a log that never formats a token; `acq daemon status` on a peer that stalls after `hello`, and a fix round's own acceptance line, under "Open" |
 | r5 the five surface sentences | build `b2c9dd6e` (the kind list), `a694d991` (the describe sections), `2f4ae288` (the logout words), `aae783b2` (`refresh --characters`), `19592b01` (the MCP's `selection`); review `6f5e0119` (`reviews/r5-19592b01.md`); fixes `6f5e0119`, `5e7cc216`, `43cad6ff`; their review `566b22e9` (`reviews/r5-fixes-43cad6ff.md`), whose one wording finding that commit takes unreviewed; closed by the commit carrying this line | 2026-10-27 | C127's mechanism words and the league note on a selection plan, under "Open" |
+| C135 round | build `d21c79c5` (the entry), `b99675f7` (the landings and the restore), `38620e2e` (the registry); this row by the commit carrying it | Do 2 to 4 built, review pending; Do 5 to 7 wait on the owner's ruling (the brief's Do 1) | the close's |
 
 ## Housekeeping
 
