@@ -1766,9 +1766,10 @@ impl ServerHandler for AcqMcp {
         info.instructions = Some(format!(
             "Acquisition (provider: {}).\n\
              - price_set, price_clear and set_sync_policy write locally and send nothing.\n\
-             - The job tools talk to the daemon (submit_job, apply_plan, list_jobs, job_status, \
-             job_result, cancel_job, daemon_status); in real mode a human starts it and this \
-             server never spawns one.\n\
+             - submit_job, apply_plan and cancel_job talk to the daemon; in real mode a human \
+             starts it and this server never spawns one.\n\
+             - list_jobs, job_status, job_result and daemon_status observe, and answer without \
+             one: the jobs from the ledger on disk.\n\
              - Every other tool reads locally, no daemon; refresh_plan adds a running daemon's \
              quote, never starting one.\n\
              - Begin with search and no arguments; where the store holds several realms, name \

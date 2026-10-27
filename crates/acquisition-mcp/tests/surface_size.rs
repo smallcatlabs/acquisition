@@ -168,7 +168,8 @@ fn every_count_a_description_left_is_glossed_where_it_points() {
 /// starts a mock daemon, "the pricing tools … write" where five of them
 /// read. A group sentence names only the tools it is true of: the
 /// daemon section's observing sentence names the four observers and no
-/// submitter, and the instructions' writing line names the writers.
+/// submitter, the instructions' writing line names the writers, and
+/// their daemon line names the tools that need one.
 #[test]
 fn a_group_sentence_names_only_the_tools_it_is_true_of() {
     let scratch = harness::scratch("mcp-surface-groups");
@@ -210,5 +211,29 @@ fn a_group_sentence_names_only_the_tools_it_is_true_of() {
         "{writes}"
     );
     assert!(!writes.contains("pricing tools"), "{writes}");
+    // the readiness seat (`audits/readiness-2026-10/seat/`, call 1
+    // against calls 40, 42, 45): the instructions' daemon line named the
+    // four observers, which answered with no daemon running. It names
+    // the tools that need one, and the observers' line says they do not.
+    let talks = mcp
+        .instructions
+        .lines()
+        .find(|l| l.contains("talk to the daemon"))
+        .expect("the instructions say which tools talk to the daemon");
+    for tool in ["submit_job", "apply_plan", "cancel_job"] {
+        assert!(talks.contains(tool), "{talks}");
+    }
+    for tool in ["list_jobs", "job_status", "job_result", "daemon_status"] {
+        assert!(!talks.contains(tool), "{talks}");
+    }
+    let observe = mcp
+        .instructions
+        .lines()
+        .find(|l| l.contains("observe"))
+        .expect("the instructions say which tools observe");
+    for tool in ["list_jobs", "job_status", "job_result", "daemon_status"] {
+        assert!(observe.contains(tool), "{observe}");
+    }
+    assert!(observe.contains("without one"), "{observe}");
     let _ = mcp.child.kill();
 }

@@ -1,12 +1,13 @@
-# The readiness seat — the record (draft)
+# The readiness seat — the record
 
 Pull-forward step 3, #84: the seat over the MCP surface #83 trimmed,
 before `alpha.2`, and the first row of `SEAT-LEDGER.md`. Run under
 `BRIEF.md`, `PROMPT.md` and `PROMPT-debrief.md`, committed at
-`799c39d9`. One run, Opus, on the MCP door, 2026-10-27. **A draft:**
-the fates below are proposed, not decided; the session that reads this
-decides the fix round, and the close writes the fates, removes
-`BRIEF.md` (the skill's step 10) and adds the fate rows to the ledger.
+`799c39d9`. One run, Opus, on the MCP door, 2026-10-27. The fates
+below were decided by the orchestrating session under the owner's
+standing word for the day; the fix round is `64edb5d7`, `45ea27f7` and
+the commit that writes this table. The close removes `BRIEF.md` (the
+skill's step 10) and writes the ledger's row for the fates.
 
 ## The world
 
@@ -71,22 +72,22 @@ as its own knowledge of the game.
 The counts in the report's task sections are the runner's, not
 recomputed here.
 
-## The faults, by the rule each expresses (fates proposed)
+## The faults, by the rule each expresses
 
 Read against the calls they cite: calls 1, 5, 6, 7, 12, 13, 19, 33,
 35, 45, 46, 47, 49 (thirteen), and calls 6, 46 and 47 reproduced in a
 scratch world made from the same pristine, on the same build.
 
-| Rule | Faults (calls) | Whose | Proposed fate |
+| Rule | Faults (calls) | Whose | Fate |
 | --- | --- | --- | --- |
-| An MCP answer speaks the MCP's words: tools and argument paths, never the CLI's verbs and flags | `realm_needed`'s `readings` `--realm pc` (6); `not_found` names `acq search`, `acq tabs` (47); the shop's `unresolved` rule names `acq price show` (35); `describe` "store" names `acq store refused` (5), "counts" documents `--count`, `--cross`, `--sum` (13), "values" `--sort` (12) | the tool's; the runner's worst and its first change | one rule at the adapter (C143, a shared refusal speaks the request's words and an adapter adds its own spelling): the fix round, or 2g with #10, which folds the refusals' flags but not `describe`'s entries |
-| What a tool counts, a tool lists | `refused_bodies: 4` with no MCP listing (5); `invalid_notes` counted, not named (20, 21) | the tool's | #18 (a `store_refused` tool) and #11 (no listing of invalid notes), each with this seat's calls; no new issue |
-| Every key an answer carries is explained where `describe` says | `freshness.position_before_listing` (35); `persisted` on `accounts` (2); `basis.intent` moving 0 to 3 (18, 34) | the tool's | #11, the words nobody understood, with this seat's calls |
-| The pricing model states who decides | an item's game note beat the hand row on its tab (33, its `why` says so per item); `describe` "pricing" names `effective` and not the rule (19) | the tool's, a gap in words (C69 and C81, the most specific statement, hold the rule) | one sentence in the "effective" entry: the fix round |
-| The instructions' sentences are true of every tool they name | "The job tools talk to the daemon (… list_jobs, job_status, job_result, … daemon_status)" (1), four of which answered without one (40, 42, 45) | the tool's | one sentence in the instructions: the fix round |
-| A kind names the mistake | a typo'd account refused as `not_logged_in` (46) | C121's consequence (one word for an account that cannot be picked, on purpose) | kept; made visible or brought to the owner, as the skill's step 8 says |
-| The read economy | `shop_render` 34,779 bytes, mostly `left_out` and `freshness` (35); a tab's `price_show` 28,857 bytes (27); `characters` 65 rows and no counts (11), which the debrief names as the cause of its two retracted counts | the tool's | #9, in 2g |
-| Ages are words where a person reads them | epoch seconds in every answer (2, 8, 18) | the tool's (C53: epochs are JSON) | #10, which folds it |
+| An MCP answer speaks the MCP's words: tools and argument paths, never the CLI's verbs and flags | `realm_needed`'s `readings` `--realm pc` (6); `not_found` names `acq search`, `acq tabs` (47); the shop's `unresolved` rule names `acq price show` (35); `describe` "store" names `acq store refused` (5), "counts" documents `--count`, `--cross`, `--sum` (13), "values" `--sort` (12) | the tool's; the runner's worst and its first change | fixed by one rule, `64edb5d7`: every text the MCP serves passes through the spelling (C143's form, one table of commands and flags), pinned by the sweep in `crates/acquisition-mcp/tests/spoken.rs` |
+| What a tool counts, a tool lists | `refused_bodies: 4` with no MCP listing (5); `invalid_notes` counted, not named (20, 21) | the tool's | not fixed here: #18 and #11, this seat's calls added as comments |
+| Every key an answer carries is explained where `describe` says | `freshness.position_before_listing` (35); `persisted` on `accounts` (2); `basis.intent` moving 0 to 3 (18, 34) | the tool's | not fixed here: #11, this seat's calls added as a comment |
+| The pricing model states who decides | an item's game note beat the hand row on its tab (33, its `why` says so per item); `describe` "pricing" names `effective` and not the rule (19) | the tool's, a gap in words (C69 and C81, the most specific statement, hold the rule) | fixed, `45ea27f7`: one sentence in the `effective` entry, pinned in `pricing_tools.rs` |
+| The instructions' sentences are true of every tool they name | "The job tools talk to the daemon (… list_jobs, job_status, job_result, … daemon_status)" (1), four of which answered without one (40, 42, 45) | the tool's | fixed by the commit that writes this table: the daemon line names `submit_job`, `apply_plan`, `cancel_job`, and a line says the four observers answer without one; pinned in `surface_size.rs`'s group-sentence test |
+| A kind names the mistake | a typo'd account refused as `not_logged_in` (46) | C121's consequence (one word for an account that cannot be picked, on purpose) | kept as designed (C121); raised for the owner at the close |
+| The read economy | `shop_render` 34,779 bytes, mostly `left_out` and `freshness` (35); a tab's `price_show` 28,857 bytes (27); `characters` 65 rows and no counts (11), which the debrief names as the cause of its two retracted counts | the tool's | not fixed here: #9 (2g), this seat's calls added as a comment |
+| Ages are words where a person reads them | epoch seconds in every answer (2, 8, 18) | the tool's (C53: epochs are JSON) | not fixed here: #10 (2g), this seat's calls added as a comment |
 | Not faults | "Begin with search and no arguments" fails (1, 6): the same sentence goes on "where the store holds several realms, name scope.realm (the refusal offers each)"; `realm` as a count key (7): realm is the scope, every bucket carries it (8), and the refusal listed the keys; `job_status` on an unknown id advising a daemon (45): it says both, "no job 1 on disk, and the daemon is not running" | the runner's reading | not taken |
 
 ## What the README and the tools did not say (input, not faults)
