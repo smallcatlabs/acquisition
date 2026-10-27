@@ -5,7 +5,8 @@
 //! `credentials` alone, its keyring mark written under `shared` after.
 //! C135: what a landing saves is one keyring entry, the access token and
 //! its expiry beside the refresh token (`auth::KeyringEntry`), so a start
-//! restores a session that refreshes only when that token expires.
+//! restores a session that refreshes only within the refresh margin of
+//! that token's expiry.
 //!
 //! Rulings: `decisions/network.md`; the cross-cutting ones are `AGENTS.md`'s.
 

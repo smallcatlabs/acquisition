@@ -2,7 +2,8 @@
 //! start, the bound on the diagnostic files, and the accept loop.
 //! C135: the restore reads each persisted account's keyring entry, the
 //! refresh token and, beside it, the access token and its expiry, so a
-//! restored session sends no token POST until that token expires.
+//! restored session sends no token POST until within the refresh margin
+//! of that token's expiry.
 //!
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
@@ -729,7 +730,8 @@ fn load_reached(
 /// the entry holds them, the access token and its expiry; an entry an
 /// earlier daemon saved, the bare refresh token, restores with none. No
 /// expiry is judged here: the one check in `valid_access_token_once`
-/// decides at the first use, so an unexpired token sends no POST. Every result of
+/// decides at the first use, so a token outside the refresh margin of
+/// its expiry sends no POST. Every result of
 /// a load reaches the words (C144): an entry the store does not hold, a
 /// load that fails (the keyring status then says so, as `auth status`
 /// reads it), an index that cannot be read, each a log line.

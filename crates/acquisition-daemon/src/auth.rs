@@ -341,7 +341,8 @@ async fn token_request(
 // `tools/sign-acqd.sh` gives it a stable identity after the build.
 /// C135 — what one keyring entry holds: the refresh token, and beside it
 /// the access token and its expiry as unix seconds, so a restored session
-/// sends no token POST until that access token expires. The entry is one
+/// sends no token POST until within the refresh margin of that access
+/// token's expiry. The entry is one
 /// JSON object the daemon alone writes ([`Self::to_secret`]) and reads
 /// ([`Self::from_secret`]); a secret that is no such object is the bare
 /// refresh token an earlier daemon saved, which restores with no access

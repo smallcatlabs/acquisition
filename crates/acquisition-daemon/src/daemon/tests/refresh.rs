@@ -1195,3 +1195,33 @@ async fn a_refreshs_landing_saves_the_access_token_beside_the_refresh_token() {
     assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
     finish_harness(None, &log_path);
 }
+
+/// C135 at the refresh margin: a restored access token serves while more
+/// than the margin (5 s) of its life is left and is refreshed, with one
+/// token POST, once no more than the margin is left, though it has not
+/// yet expired.
+#[tokio::test]
+async fn a_restored_session_refreshes_within_the_margin_of_expiry() {
+    let wall = SystemTime::UNIX_EPOCH + MANUAL_WALL_ORIGIN;
+    let secret = json!({
+        "refresh_token": "rt-kept",
+        "access_token": "at-kept",
+        "access_expires_at": unix_secs(wall) + 3600,
+    })
+    .to_string();
+    let (daemon, _store, clock, _dir, log_path, requests, server) =
+        restored_daemon(vec![token_answer("200 OK", TOKEN_HEADERS, None)], &secret).await;
+
+    clock.advance(Duration::from_secs(3594));
+    let (token, _) = daemon.valid_access_token(None, false, None).await.unwrap();
+    assert_eq!(journaled_token_posts(&log_path), 0, "6 s left: no POST");
+    assert_eq!(token, "at-kept");
+
+    clock.advance(Duration::from_secs(1));
+    let (token, _) = daemon.valid_access_token(None, false, None).await.unwrap();
+    assert_eq!(journaled_token_posts(&log_path), 1, "5 s left: one POST");
+    assert_eq!(token, "at-new");
+    server.await.unwrap();
+    assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
+    finish_harness(None, &log_path);
+}
