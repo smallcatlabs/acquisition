@@ -237,6 +237,21 @@ impl Frontend {
                 Err(e) => (Err(no_world(e)), Err(no_world(e)), Err(no_world(e))),
             },
         };
+        // The files the document prints as diagnostic locations, kept
+        // for the path needles below.
+        let printed: Vec<(PathBuf, &str)> = [
+            log_path
+                .as_ref()
+                .ok()
+                .map(|(path, _)| (path.clone(), "<logs>")),
+            journal_path
+                .as_ref()
+                .ok()
+                .map(|(path, _)| (path.clone(), "<journal>")),
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
         let journal = journal_path.and_then(|(path, from)| {
             let (lines, earlier_left_out) = tail(&path, tails.journal)?;
             let lines = lines
@@ -309,6 +324,22 @@ impl Frontend {
             if let Some(dir) = world.log_dir(self.provider).parent() {
                 paths.push((dir.to_path_buf(), "<logs>"));
             }
+        }
+        // Every diagnostic location printed, by its directory (r4's
+        // review, finding 2): the running daemon reports its own log and
+        // journal, which may sit under another log base than this
+        // shell's, and `ACQ_JOURNAL` may name any directory. A directory
+        // named for the provider is a world's log directory, and its
+        // parent is the placeholder's, as for this world's own. A
+        // directory equal to one already held keeps that one's
+        // placeholder.
+        for (file, placeholder) in printed {
+            let Some(dir) = file.parent() else { continue };
+            let dir = match dir.file_name() {
+                Some(name) if name == self.provider => dir.parent().unwrap_or(dir),
+                _ => dir,
+            };
+            paths.push((dir.to_path_buf(), placeholder));
         }
         if let Some(home) = std::env::home_dir() {
             paths.push((home, "~"));

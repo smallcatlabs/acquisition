@@ -1048,3 +1048,60 @@ async fn with_no_daemon_the_journal_read_is_the_one_acq_journal_names() {
         "journals off in this shell, and the world's default left unread: {document:#}"
     );
 }
+
+/// r4's review, finding 2: the path needles were this shell's own log
+/// directory, so a daemon started under another `ACQ_LOG_DIR` and with
+/// `ACQ_JOURNAL` elsewhere had both reported paths printed whole. Every
+/// diagnostic location the document prints is a needle by its directory:
+/// the log as `<logs>`, the journal as `<journal>`.
+#[tokio::test]
+async fn a_daemon_logging_elsewhere_has_its_reported_paths_replaced() {
+    let s = session("diagnose-elsewhere");
+    let private_logs = s.base.join("private-logs");
+    let private_runs = s.base.join("private-runs");
+    std::fs::create_dir_all(&private_runs).unwrap();
+    let journal = private_runs.join("sends.jsonl");
+    let acqd = acqd_built();
+    harness::link_beside_this_test(&acqd);
+    let mut cmd = harness::daemon_command(&acqd, &s.base);
+    cmd.env("ACQ_LOG_DIR", &private_logs)
+        .env("ACQ_JOURNAL", &journal);
+    let (_daemon, said) = harness::spawn_drained(cmd, &acqd);
+    let frontend = Frontend::agent("test").unwrap();
+    let deadline = Instant::now() + Duration::from_secs(120);
+    let mut client = loop {
+        if let Ok(Some(client)) = frontend.observe().await {
+            break client;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "the daemon did not come up: {}",
+            String::from_utf8_lossy(&said.lock().unwrap())
+        );
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    };
+    login_in_process(&mut client, Some("alice")).await;
+
+    let document = frontend
+        .diagnose(acquisition_verbs::Tails::both(5))
+        .await
+        .document();
+    let printed = document.to_string();
+    for planted in [&private_logs, &private_runs] {
+        let spellings = [
+            planted.display().to_string(),
+            planted.canonicalize().unwrap().display().to_string(),
+        ];
+        for spelling in spellings {
+            assert!(
+                !printed.contains(&spelling),
+                "the diagnosis prints {spelling}, where the test started the daemon's log \
+                 (ACQ_LOG_DIR) or its journal (ACQ_JOURNAL): {document:#}"
+            );
+        }
+    }
+    let shown = |path: &serde_json::Value| path.as_str().unwrap().replace('\\', "/");
+    assert_eq!(shown(&document["log"]["path"]), "<logs>/mock/daemon.log");
+    assert_eq!(shown(&document["journal"]["path"]), "<journal>/sends.jsonl");
+    assert_eq!(document["log"]["from"], json!("daemon"));
+}
