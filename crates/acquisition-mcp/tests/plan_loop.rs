@@ -155,6 +155,46 @@ fn the_mcp_tools_carry_the_plan_slice_and_its_gates() {
     assert_eq!(error["code"], -32002, "{error}");
     assert_eq!(error["message"], "no job 999", "{error}");
 
+    // C76 (one door) and C44 (a selection plan carries no policy
+    // revision): `selection` compiles a named tab into a plan in place of
+    // the policy, and apply_plan takes it as it takes any plan — the
+    // listing it selects from and the tab, however fresh, both done.
+    let tab = second
+        .actions
+        .iter()
+        .find_map(|a| match a {
+            RefreshAction::FetchTab { id, .. } => Some(id.clone()),
+            _ => None,
+        })
+        .expect("the policy plan fetches a tab");
+    let selected = mcp.expect_ok("refresh_plan", json!({ "selection": { "tabs": [tab] } }));
+    let chosen = validated_plan(&selected);
+    assert_eq!(chosen.basis.policy_revision, None);
+    assert_eq!(
+        selected["plan"]["basis"]["selection"],
+        json!({ "tabs": [tab] })
+    );
+    assert!(
+        matches!(
+            &chosen.actions[..],
+            [RefreshAction::ListStashes { .. }, RefreshAction::FetchTab { id, .. }] if *id == tab
+        ),
+        "{:?}",
+        chosen.actions
+    );
+    let applied = mcp.expect_ok("apply_plan", json!({ "plan": selected["plan"] }));
+    assert_eq!(applied["requests"], json!(2), "{applied}");
+    let outcome = harness::finish_job(&mut mcp, &applied["job_id"]);
+    assert_eq!(outcome["outcome"], json!("success"), "{outcome}");
+    assert_eq!(
+        outcome["payload"]["children"]["done"],
+        json!(2),
+        "{outcome}"
+    );
+    // a selection the tool cannot read is refused as its arguments
+    let msg = mcp.expect_err("refresh_plan", json!({ "selection": { "tabs": "some" } }));
+    assert!(msg.contains("all"), "{msg}");
+
     // Everything below is claimed to happen with no daemon contact, so
     // prove it with no daemon: stop it and wait for the socket to die.
     rt.block_on(async {

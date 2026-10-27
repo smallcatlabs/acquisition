@@ -609,6 +609,14 @@ struct PlanParams {
     /// Realm: pc (default), xbox, sony, or poe2 (a poe2 plan can carry
     /// character work only).
     realm: Option<String>,
+    /// An explicit selection, compiled in place of the stored policy, in
+    /// the shape a selection plan's `basis.selection` carries:
+    /// {"tabs": "all" or [tab ids], "characters": [character ids],
+    /// "deep": true to fetch a named map or unique tab's pages on record
+    /// with it}, any of them left out. Ids are as `tabs` and `characters`
+    /// list them; one the facts do not hold is reported, never fetched.
+    #[schemars(with = "Option<Value>")]
+    selection: Option<acquisition_plan::PlanSelection>,
     account: Option<String>,
 }
 
@@ -1031,7 +1039,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Compile the stored sync policy + facts on record into a RefreshPlan for one (realm, league): the explicit, bounded action set applying would execute — stash listing and tab fetches, the realm's character listing and character fetches, each facet as the policy covers it — with per-action reasons, skipped tabs and characters, unknown ids, and a coarse wire estimate. Offline — sends nothing, spends nothing. A running daemon adds its read-only quote (ETA + rate-limit headroom; never spawned for this); `quote_note` says why one is absent. `notes.league` names the plan's league when the account's fetched league list does not hold it (with `list_fetched_at`, when that list was fetched; nothing when no list was ever fetched, which set_sync_policy's receipt says), and `notes.no_characters_listed` says the policy covers the league's characters and the realm's character listing names none in it. Review the plan, then hand `plan` to apply_plan."
+        description = "Compile a RefreshPlan for one (realm, league) from the stored sync policy and the facts on record: stash listing and tab fetches, the realm's character listing and character fetches, each facet as the policy covers it. With `selection`, compile that explicit selection instead: the listings it selects from and each named tab or character however fresh, needing no policy and carrying no policy revision, so apply_plan checks none. Either plan is the explicit, bounded action set applying would execute, with per-action reasons, skipped tabs and characters, unknown ids, and a coarse wire estimate. Offline — sends nothing, spends nothing. A running daemon adds its read-only quote (ETA + rate-limit headroom; never spawned for this); `quote_note` says why one is absent. `notes.league` names the plan's league when the account's fetched league list does not hold it (with `list_fetched_at`, when that list was fetched; nothing when no list was ever fetched, which set_sync_policy's receipt says), and `notes.no_characters_listed` says the policy covers the league's characters and the realm's character listing names none in it. Review the plan, then hand `plan` to apply_plan."
     )]
     async fn refresh_plan(&self, Parameters(p): Parameters<Args<PlanParams>>) -> Told {
         settled(
@@ -1043,7 +1051,10 @@ impl AcqMcp {
                     .league
                     .as_deref()
                     .unwrap_or(acquisition_plan::DEFAULT_LEAGUE);
-                Ok(opened.plan(realm, league).await?)
+                Ok(match &p.selection {
+                    Some(selection) => opened.plan_selection(realm, league, selection).await?,
+                    None => opened.plan(realm, league).await?,
+                })
             }
             .await,
         )
@@ -1353,8 +1364,9 @@ impl ServerHandler for AcqMcp {
              The refresh slice: sync_policy / \
              set_sync_policy declare what to keep fresh (local, sends nothing; replacing a policy \
              must name the revision it replaces), refresh_plan compiles it offline into \
-             the explicit bounded action set for review, and apply_plan spends exactly \
-             that plan as one parent job. Job tools talk to the local daemon; API \
+             the explicit bounded action set for review, or compiles a `selection` of tabs \
+             and characters named in its place, and apply_plan spends exactly that plan as \
+             one parent job. Job tools talk to the local daemon; API \
              requests are jobs (submit_job returns an id; poll job_status, then \
              job_result). Rate-limit holds can reach ~5 minutes — a waiting job is the \
              limiter working. Login is done by the human via the `acq` CLI; this server \
