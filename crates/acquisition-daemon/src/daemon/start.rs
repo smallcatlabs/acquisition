@@ -1,9 +1,11 @@
 //! The daemon's start: the world and its locks, the log, the knobs read at
 //! start, the bound on the diagnostic files, and the accept loop.
-//! C135: the restore reads each persisted account's keyring entry, the
-//! refresh token and, beside it, the access token and its expiry, so a
-//! restored session sends no token POST until within the refresh margin
-//! of that token's expiry.
+//! C148: the restore is the fifth landing, begun before the accept loop,
+//! so the socket serves while it reads the keyring. C135: the restore
+//! reads each persisted account's keyring entry, the refresh token and,
+//! beside it, the access token and its expiry, so a restored session
+//! sends no token POST until within the refresh margin of that token's
+//! expiry.
 //!
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
@@ -463,17 +465,10 @@ async fn run_with_log(
     let now = choke.now();
 
     // Sessions survive daemon restarts through the keyring (C144: read
-    // through the credential store, as every keyring call is).
+    // through the credential store, as every keyring call is), read by
+    // the restore's landing once the daemon exists (C148, below).
     let dir = world.provider_dir(provider.name);
     let credential_store: Arc<dyn CredentialStore> = Arc::new(OsCredentialStore);
-    let sessions = restore_sessions(
-        credential_store.as_ref(),
-        provider.keyring_service,
-        &dir,
-        auth::keyring_disabled(),
-        choke.wall(),
-        &mut &log,
-    );
 
     // A daemon that cannot read its queue must not run: it would restart
     // ids at 1 and reuse them against the table's history the moment the
@@ -497,7 +492,7 @@ async fn run_with_log(
             next_id: 1,
             first_id: 1,
             restored: Vec::new(),
-            auth: sessions,
+            auth: Sessions::default(),
             landings: 0,
             errors: VecDeque::new(),
             active_jobs: HashMap::new(),
@@ -520,6 +515,7 @@ async fn run_with_log(
         jobs_db,
         queue_failure: Mutex::new(None),
         exit: Exit::default(),
+        restore: watch::channel(false).0,
         #[cfg(test)]
         refresh_landed_hook: Mutex::new(None),
     });
@@ -562,23 +558,14 @@ async fn run_with_log(
             daemon.log(&format!("journal: {what}"));
         }
     }
-    let (keyring, username) = {
-        let s = daemon.shared.lock().unwrap();
-        let names = s.auth.usernames();
-        (
-            daemon.keyring_summary(&s),
-            (!names.is_empty()).then(|| names.join(", ")),
-        )
-    };
+    // The keyring and the sessions are the restore's to log, when it
+    // lands (C148).
     let provider_desc = if daemon.provider.is_real() {
         "ggg (REAL GGG — requests leave this machine)".to_string()
     } else {
         format!("mock at {}", daemon.provider.api_base)
     };
-    daemon.log(&format!(
-        "provider: {provider_desc} | keyring: {keyring} | session: {}",
-        username.as_deref().unwrap_or("none"),
-    ));
+    daemon.log(&format!("provider: {provider_desc}"));
     let rails = daemon.rails().status();
     daemon.log(&format!(
         "rails: tripwire {} | halted: {} | refresh-failed: {} | ceiling: {} | journal: {} | idle exit after {}s",
@@ -602,10 +589,80 @@ async fn run_with_log(
         );
     }
 
+    // C148: the restore is a landing, begun before the dispatcher, the
+    // watchdog and the accept loop, and none of them waits for it: the
+    // socket serves while it reads the keyring (a keychain prompt), a
+    // request that needs a session waits for it, and the dispatcher, the
+    // idle verdict and the exit's drain hold for it.
+    daemon.begin_restore(auth::keyring_disabled());
     tokio::spawn(daemon.clone().dispatcher());
     tokio::spawn(daemon.clone().idle_watchdog());
 
     daemon.serve(listener, ACCEPT_PAUSE_CAP).await
+}
+
+impl Daemon {
+    /// C148 — the start's restore, the fifth landing: the sessions the
+    /// keyring and the index hold ([`restore_sessions`]) are read under
+    /// `credentials` on a blocking thread, counted in `landings` from
+    /// before this returns and under no job's mark, and published under
+    /// `shared` when read. Until then the daemon has no session, its
+    /// keyring word is `restoring` (`keyring_summary`), a request that
+    /// needs a session waits ([`Self::await_restore`]) and the dispatcher
+    /// picks nothing. `disabled` is why the keyring is off, if it is
+    /// (`auth::keyring_disabled`).
+    pub(super) fn begin_restore(self: &Arc<Self>, disabled: Option<&'static str>) {
+        self.restore.send_replace(false);
+        let _restoring = self.start_landing(move |daemon| daemon.land_restore(disabled));
+    }
+
+    /// [`Self::begin_restore`]'s landing. It publishes the sessions, the
+    /// last login and the keyring word, never a login's flow state: no
+    /// request that could start a flow runs before it lands. Then the
+    /// restore is marked landed, activity is stamped (the idle hour
+    /// counts from here, not from the start a keychain prompt held), the
+    /// dispatcher is woken for the jobs the queue restored, and the log
+    /// gets the restore's lines and the keyring and session summary.
+    fn land_restore(&self, disabled: Option<&str>) {
+        let credentials = self.credentials.lock().unwrap();
+        let mut lines = Vec::new();
+        let restored = match &self.store_dir {
+            Some(dir) => restore_sessions(
+                self.credential_store.as_ref(),
+                self.provider.keyring_service,
+                dir,
+                disabled,
+                self.choke.wall(),
+                &mut lines,
+            ),
+            None => Sessions::default(),
+        };
+        {
+            let mut s = self.shared.lock().unwrap();
+            s.auth.by_account = restored.by_account;
+            s.auth.last_login = restored.last_login;
+            s.auth.keyring = restored.keyring;
+        }
+        drop(credentials);
+        self.restore.send_replace(true);
+        self.mark_activity(self.choke.now());
+        self.work.notify_one();
+        for line in String::from_utf8_lossy(&lines).lines() {
+            self.log(line);
+        }
+        let (keyring, names) = {
+            let s = self.shared.lock().unwrap();
+            (self.keyring_summary(&s), s.auth.usernames())
+        };
+        self.log(&format!(
+            "keyring: {keyring} | session: {}",
+            if names.is_empty() {
+                "none".to_string()
+            } else {
+                names.join(", ")
+            }
+        ));
+    }
 }
 
 /// C134: the longest the accept loop pauses after an error before it

@@ -1,5 +1,7 @@
 //! The dispatcher and a job's life: picking what runs, running it,
-//! concluding it, and finishing its parent.
+//! concluding it, and finishing its parent. C148: nothing is picked
+//! before the start's restore lands (the fifth landing), which wakes the
+//! dispatcher for the jobs the queue restored.
 //!
 //! Rulings: `decisions/daemon.md`, `decisions/network.md`; the cross-cutting ones are `AGENTS.md`'s.
 //!
@@ -65,6 +67,12 @@ impl Daemon {
         // and a wake must not park a worker behind a keyring prompt
         // holding `shared`.
         if self.exit.begun() {
+            return Vec::new();
+        }
+        // C148: nothing starts before the start's restore lands: a job the
+        // queue restored (C6) would read a session that is not there yet
+        // and fail as not logged in. The landing wakes the dispatcher.
+        if !self.restore_landed() {
             return Vec::new();
         }
         let mut s = self.shared.lock().unwrap();

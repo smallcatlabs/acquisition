@@ -556,3 +556,233 @@ fn c148_a_panic_in_a_jobs_landing_marks_the_job() {
         "the child's harness log is under the parent's directory"
     );
 }
+
+/// A harness daemon about to restore, as a start restores: its index
+/// lists `test-user` persisted, its recorder holds `test-user`'s entry
+/// (`rt-kept`, `at-kept`, an hour left) and holds the next load, and the
+/// restore is begun as `run_with_log` begins it. Returns once the load is
+/// under way, the daemon not yet holding any session.
+async fn restoring_daemon() -> (Arc<Daemon>, HeldSave, TestPath, TestPath) {
+    let clock = Arc::new(ManualClock::new());
+    let (mut daemon, log_path) = test_daemon("http://127.0.0.1:1", clock.clone());
+    let dir = TestPath::dir();
+    Index::load(&dir)
+        .unwrap()
+        .record_login("test-user", "u-1", true, 1, &[])
+        .unwrap();
+    let store = Arc::new(RecordingCredentialStore::default());
+    store.entries.lock().unwrap().insert(
+        "test-user".into(),
+        auth::KeyringEntry::new(
+            "rt-kept".into(),
+            Some(("at-kept".into(), clock.wall() + Duration::from_secs(3600))),
+        )
+        .to_secret(),
+    );
+    let mut held = hold_the_next(&store.on_load);
+    {
+        let daemon = Arc::get_mut(&mut daemon).unwrap();
+        daemon.credential_store = store;
+        daemon.store_dir = Some(dir.to_path_buf());
+    }
+    daemon.shared.lock().unwrap().auth = Sessions::default();
+    daemon.begin_restore(None);
+    (&mut held.started)
+        .await
+        .expect("the restore reached its load");
+    (daemon, held, dir, log_path)
+}
+
+/// The keyring word of the three status documents, in order: `auth
+/// status`, `daemon status`, the dashboard.
+async fn keyring_words(daemon: &Arc<Daemon>) -> Vec<String> {
+    let mut words = Vec::new();
+    for request in [
+        Request::AuthStatus,
+        Request::DaemonStatus,
+        Request::Dashboard,
+    ] {
+        let daemon = daemon.clone();
+        let response = answered(async move { daemon.handle_request(request, &mut None).await })
+            .expect("a status document answers while the restore reads");
+        words.push(match response {
+            Response::Auth { keyring, .. }
+            | Response::DaemonStatus { keyring, .. }
+            | Response::Dashboard { keyring, .. } => keyring,
+            other => panic!("not a status document: {other:?}"),
+        });
+    }
+    words
+}
+
+/// Long enough for a request that does not wait to have answered.
+async fn settle() {
+    tokio::time::sleep(Duration::from_millis(100)).await;
+}
+
+/// C148, the start's restore as the fifth landing: while the restore's
+/// keyring read stands, as a keychain prompt holds it, a client
+/// connecting over the socket is greeted, and the status documents
+/// answer, `auth status` not logged in and every keyring word
+/// `restoring`. Before, the socket was bound before the read and served
+/// after it, so every client's handshake waited out the prompt and
+/// called the daemon unresponsive. Released, `test-user` is live with
+/// both tokens, its mark `ok`, and the documents say so.
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn c148_hello_and_the_status_documents_answer_while_the_restore_reads() {
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
+    let (daemon, held, _dir, log_path) = restoring_daemon().await;
+
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("c148-restore.sock");
+    let (listener, bound) = crate::daemon::endpoint::Listener::bind(&path)
+        .await
+        .unwrap();
+    let serving = tokio::spawn(daemon.clone().serve(listener, Duration::from_millis(1)));
+    let socket = path.clone();
+    let greeted = answered(async move {
+        let stream = tokio::net::UnixStream::connect(&socket).await?;
+        let (read, mut write) = tokio::io::split(stream);
+        write.write_all(b"{\"req\":\"hello\"}\n").await?;
+        let mut line = String::new();
+        tokio::io::BufReader::new(read).read_line(&mut line).await?;
+        std::io::Result::Ok(line)
+    })
+    .expect("hello is answered while the restore reads")
+    .expect("the connection answered");
+    assert!(
+        matches!(
+            acquisition_protocol::protocol::BootstrapReply::read(greeted.as_bytes()),
+            Some(acquisition_protocol::protocol::BootstrapReply::Hello { .. })
+        ),
+        "{greeted}"
+    );
+    let logged_in = match daemon.auth_status() {
+        Response::Auth { logged_in, .. } => logged_in,
+        other => panic!("{other:?}"),
+    };
+    let words = keyring_words(&daemon).await;
+    let still_reading = !daemon.restore_landed();
+    held.release.send(()).unwrap();
+
+    assert!(
+        still_reading,
+        "the restore had not landed when they answered"
+    );
+    assert!(!logged_in, "no session before the restore lands");
+    assert_eq!(words, ["restoring"; 3]);
+    answered({
+        let daemon = daemon.clone();
+        async move { daemon.await_restore().await }
+    })
+    .expect("the restore lands once released");
+    {
+        let s = daemon.shared.lock().unwrap();
+        let session = s.auth.find("test-user").expect("restored");
+        assert_eq!(session.access_token.as_deref(), Some("at-kept"));
+        assert_eq!(session.refresh_token.as_deref(), Some("rt-kept"));
+        assert_eq!(session.keyring, "ok");
+    }
+    assert_eq!(keyring_words(&daemon).await, ["ok"; 3]);
+    serving.abort();
+    bound.remove_if_still_ours();
+    finish_harness(None, &log_path);
+}
+
+/// C148: a submit that needs a session, sent while the restore's keyring
+/// read stands, waits for the restore and is never refused: a client
+/// submits the moment `hello` answers, and before, its first job after a
+/// start found no session and was refused as not logged in. Released, it
+/// is submitted under the restored account.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn c148_a_submit_that_needs_a_session_waits_for_the_restore() {
+    let (daemon, held, _dir, log_path) = restoring_daemon().await;
+    let submit = {
+        let daemon = daemon.clone();
+        tokio::spawn(async move {
+            daemon
+                .handle_request(
+                    Request::Submit {
+                        kind: "characters".into(),
+                        params: json!({}),
+                        priority: 0,
+                        submitted_by: "client".into(),
+                        account: None,
+                    },
+                    &mut None,
+                )
+                .await
+        })
+    };
+    settle().await;
+    let answered_early = submit.is_finished();
+    held.release.send(()).unwrap();
+
+    assert!(!answered_early, "the submit waits while the restore reads");
+    let response = answered(async move { submit.await.unwrap() })
+        .expect("the submit answers once the restore lands");
+    let Response::Submitted { id } = response else {
+        panic!("submitted, not refused: {response:?}")
+    };
+    let (info, _) = held_job(&daemon, id);
+    assert_eq!(info.account.as_deref(), Some("test-user"));
+    finish_harness(None, &log_path);
+}
+
+/// A job the daemon holds, by id.
+fn held_job(daemon: &Daemon, id: JobId) -> (JobInfo, Option<Outcome>) {
+    held(daemon, id).expect("the job is held")
+}
+
+/// C148: while the restore's keyring read stands, the dispatcher starts
+/// nothing (a job the queue restored would read no session and fail as
+/// not logged in), the daemon is not idle, and an exit's drain waits for
+/// the restore; released, the job is picked, the daemon is idle with no
+/// connection, and the drain returns with nothing cut.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn c148_the_dispatcher_the_idle_verdict_and_the_drain_hold_for_the_restore() {
+    // The dispatcher.
+    let (daemon, held, _dir, log_path) = restoring_daemon().await;
+    let id = daemon
+        .submit(
+            "characters".into(),
+            json!({}),
+            0,
+            "client".into(),
+            Some("test-user".into()),
+        )
+        .unwrap();
+    let picked_while_reading = daemon.pick_runnable();
+    held.release.send(()).unwrap();
+    answered({
+        let daemon = daemon.clone();
+        async move { daemon.await_restore().await }
+    })
+    .expect("the restore lands once released");
+    assert!(picked_while_reading.is_empty(), "{picked_while_reading:?}");
+    assert_eq!(daemon.pick_runnable(), [id]);
+    finish_harness(None, &log_path);
+
+    // The idle verdict and the drain.
+    let (daemon, held, _dir, log_path) = restoring_daemon().await;
+    let idle_while_reading = daemon.is_idle(Duration::ZERO);
+    assert!(daemon.begin_exit("test: exit"));
+    let drain = {
+        let daemon = daemon.clone();
+        tokio::spawn(async move { daemon.drain().await })
+    };
+    settle().await;
+    let drained_while_reading = drain.is_finished();
+    held.release.send(()).unwrap();
+
+    assert!(!idle_while_reading, "the restore holds the daemon");
+    assert!(!drained_while_reading, "the drain waits for the restore");
+    let cut = answered(async move { drain.await.unwrap() }).expect("the drain returns");
+    assert_eq!(cut, None, "nothing was cut");
+    assert!(
+        daemon.is_idle(Duration::ZERO),
+        "idle once the restore lands"
+    );
+    finish_harness(None, &log_path);
+}

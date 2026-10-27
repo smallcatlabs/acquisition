@@ -906,10 +906,12 @@ impl Shared {
 /// (`leave`).
 pub struct Daemon {
     /// C148 — the keyring and account-index I/O of a landing (a
-    /// refresh's, a login's, a logout's or forget's, the profile job's
-    /// uuid write) runs under this lock alone, on a blocking thread, so
-    /// the landings stay ordered with each other (C144) while no request,
-    /// bearer read, status document or `hello` waits on the I/O.
+    /// refresh's, a login's, a logout's or forget's, the start's restore,
+    /// a rejected token's clear (C135), the profile job's uuid write)
+    /// runs under this lock alone, on a blocking thread, so the landings
+    /// stay ordered with each other (C144) while no request, bearer read,
+    /// status document or `hello` waits on the I/O. Every landing counts
+    /// in `landings`, which the idle verdict and the exit's drain read.
     credentials: Mutex<()>,
     shared: Mutex<Shared>,
     /// C148: open connections, outside every lock, so `hello` takes none.
@@ -960,6 +962,13 @@ pub struct Daemon {
     store: Mutex<Option<(String, Store)>>,
     /// C133: the exit, begun at most once. Outside every lock.
     exit: Exit,
+    /// C148 — whether the start's restore has landed: `false` from the
+    /// start until the restore's landing has published its sessions
+    /// ([`Daemon::begin_restore`]). A request that needs a session waits
+    /// for it ([`Daemon::restore_landed`]); the dispatcher picks nothing
+    /// before it. Outside every lock, as `hello`'s state is. A harness
+    /// daemon starts landed, having nothing to restore.
+    restore: watch::Sender<bool>,
     /// The persisted queue (`daemon.db`), mirrored from memory at every
     /// state change and read at start. Always present: `run` refuses to
     /// start without it, and test daemons get a throwaway in-memory one —
@@ -1030,16 +1039,29 @@ impl Daemon {
     }
 
     /// C148: run a landing (a refresh's, a login's, a logout's or
-    /// forget's, the profile job's uuid write) on a blocking thread,
-    /// counted in `landings` from before it is spawned until it returns,
-    /// its `credentials` released by then, so the exit's drain waits for
-    /// every keyring and index write in flight whichever path made it.
+    /// forget's, a rejected token's clear, the profile job's uuid write;
+    /// the start's restore through [`Self::start_landing`]) on a blocking
+    /// thread, counted in `landings` from before it is spawned until it
+    /// returns, its `credentials` released by then, so the idle verdict
+    /// and the exit's drain wait for every keyring and index write in
+    /// flight whichever path made it.
     /// A landing spawned from a job's task runs under that job's mark
     /// ([`RUNNING_JOB`]), so a panic in it names the job (C134).
     async fn spawn_landing<T: Send + 'static>(
         self: &Arc<Self>,
         landing: impl FnOnce(&Daemon) -> T + Send + 'static,
     ) -> Result<T, tokio::task::JoinError> {
+        self.start_landing(landing).await
+    }
+
+    /// [`Self::spawn_landing`]'s first half, which returns at once: the
+    /// landing is counted in `landings` before this returns, so a caller
+    /// that does not await it (the start's restore) is still seen by the
+    /// idle verdict and the exit's drain from that moment.
+    fn start_landing<T: Send + 'static>(
+        self: &Arc<Self>,
+        landing: impl FnOnce(&Daemon) -> T + Send + 'static,
+    ) -> tokio::task::JoinHandle<T> {
         /// Lowers the count when the landing returns.
         struct Counted(Arc<Daemon>);
         impl Drop for Counted {
@@ -1054,7 +1076,23 @@ impl Daemon {
             Some(id) => RUNNING_JOB.sync_scope(id, || landing(&counted.0)),
             None => landing(&counted.0),
         })
-        .await
+    }
+
+    /// C148: whether the start's restore has landed.
+    fn restore_landed(&self) -> bool {
+        *self.restore.borrow()
+    }
+
+    /// C148: wait until the start's restore has landed; at once when it
+    /// has. A request that needs a session awaits this before it reads
+    /// one: it waits, never refused, since a client submits the moment
+    /// `hello` answers and reads the answer under no deadline, so the
+    /// wait is the keychain prompt's own length.
+    async fn await_restore(&self) {
+        let mut landed = self.restore.subscribe();
+        // The sender lives as long as the daemon, so the wait ends only
+        // when the restore lands.
+        let _ = landed.wait_for(|landed| *landed).await;
     }
 
     /// C148: mark activity at `now` on the daemon's clock, taking no lock.

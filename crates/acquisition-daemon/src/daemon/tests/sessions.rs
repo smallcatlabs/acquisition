@@ -259,6 +259,7 @@ fn test_daemon(base: &str) -> (Arc<Daemon>, Arc<MemoryCredentialStore>, TestPath
         jobs_db: Mutex::new(JobDb::open_memory().unwrap()),
         queue_failure: Mutex::new(None),
         exit: Exit::default(),
+        restore: watch::channel(true).0,
         refresh_landed_hook: Mutex::new(None),
     });
     (daemon, credential_store, log_path)

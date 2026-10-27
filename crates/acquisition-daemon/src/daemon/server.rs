@@ -4,6 +4,13 @@
 //! connection count and the activity stamp being atomics; a logout's
 //! landing runs on a blocking thread; the drain counts every landing
 //! until its keyring and index I/O ends, and a login being recorded.
+//! C148, the start's restore as the fifth landing: the socket serves
+//! while it reads the keyring; `hello`, `daemon_stop`, the status
+//! documents (their keyring word `restoring`), `list`, `status`,
+//! `result`, `cancel`, `set_priority` and `subscribe` answer at once;
+//! a submit that needs a session, a quote, `auth`, `auth check` and
+//! `logout` wait for it, never refused; the idle verdict holds while any
+//! landing is in flight (the restore, a save, a rejected token's clear).
 //!
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
@@ -38,7 +45,14 @@ impl Daemon {
             .or_else(|| s.auth.get(None).ok())
     }
 
+    /// The one keyring word the three status documents print: the
+    /// headline session's mark, else the daemon's. C148: `restoring`
+    /// while the start's restore reads the keyring, as `saving` is a
+    /// refresh's: a field's word, the documents' shape unchanged.
     pub(super) fn keyring_summary(&self, s: &Shared) -> String {
+        if !self.restore_landed() {
+            return "restoring".to_string();
+        }
         self.headline_session(s)
             .map(|session| session.keyring.clone())
             .unwrap_or_else(|| s.auth.keyring.clone())
@@ -245,19 +259,33 @@ impl Daemon {
                 priority,
                 submitted_by,
                 account,
-            } => match self
-                .refuse_while_stopping()
-                .and_then(|()| admit_client(&kind, &params, self.provider.is_real()))
-                .and_then(|()| admit_client_submitter(&submitted_by))
-                .and_then(|()| self.resolve_account(&kind, account.as_deref()))
-                .and_then(|account| self.submit(kind, params, priority, submitted_by, account))
-            {
-                Ok(id) => Response::Submitted { id },
-                Err(refusal) => {
-                    self.note_error(&format!("submit refused: {refusal}"));
-                    refusal.into()
+            } => {
+                let admitted = self
+                    .refuse_while_stopping()
+                    .and_then(|()| admit_client(&kind, &params, self.provider.is_real()))
+                    .and_then(|()| admit_client_submitter(&submitted_by));
+                // C148: a job that will need a session waits for the
+                // start's restore before its account is resolved.
+                // An exit begun during the wait refuses it as it would
+                // have before.
+                let admitted =
+                    if admitted.is_ok() && (account.is_some() || self.kind_needs_account(&kind)) {
+                        self.await_restore().await;
+                        self.refuse_while_stopping()
+                    } else {
+                        admitted
+                    };
+                match admitted
+                    .and_then(|()| self.resolve_account(&kind, account.as_deref()))
+                    .and_then(|account| self.submit(kind, params, priority, submitted_by, account))
+                {
+                    Ok(id) => Response::Submitted { id },
+                    Err(refusal) => {
+                        self.note_error(&format!("submit refused: {refusal}"));
+                        refusal.into()
+                    }
                 }
-            },
+            }
             Request::Status { id } => {
                 let held = self.shared.lock().unwrap().snapshot(self, id);
                 // Not in memory: concluded and evicted, or an earlier
@@ -316,39 +344,48 @@ impl Daemon {
                 *events = Some(self.events.subscribe());
                 Response::Subscribed
             }
-            Request::AuthStart => match self.auth_start().await {
+            // C148: the four requests below read the session table, so
+            // each waits for the start's restore first; so does a quote,
+            // which resolves its account as a submit does.
+            Request::AuthStart => match self.restored().await.auth_start().await {
                 Ok(authorize_url) => Response::AuthUrl { authorize_url },
                 Err(refusal) => refusal.into(),
             },
             Request::AuthStatus => self.auth_status(),
-            Request::AuthCheck { account } => match self.canonical_account(account.as_deref()) {
-                Err(refusal) => refusal.into(),
-                Ok(account) => match self
-                    .valid_access_token(account.as_deref(), true, None)
-                    .await
-                {
-                    Ok(_) => self.auth_status(),
-                    Err(refusal) => {
-                        self.note_error(&format!("auth check failed: {refusal}"));
-                        refusal.into()
-                    }
-                },
-            },
+            Request::AuthCheck { account } => {
+                match self.restored().await.canonical_account(account.as_deref()) {
+                    Err(refusal) => refusal.into(),
+                    Ok(account) => match self
+                        .valid_access_token(account.as_deref(), true, None)
+                        .await
+                    {
+                        Ok(_) => self.auth_status(),
+                        Err(refusal) => {
+                            self.note_error(&format!("auth check failed: {refusal}"));
+                            refusal.into()
+                        }
+                    },
+                }
+            }
             // A live session (named, or the sole one) logs out; a known
             // but not live account only loses its keyring entries. C144:
             // the decision is the logout's own, ordered with the other
             // landings, and a clear that failed is the answer. C148: its
             // keyring and index I/O runs on a blocking thread.
-            Request::AuthLogout { account } => match self.logout_blocking(account).await {
-                Ok(keyring) => Response::Ack {
-                    keyring: Some(keyring),
-                },
-                Err(refusal) => refusal.into(),
-            },
-            Request::Quote { jobs, account } => match self.quote(&jobs, account.as_deref()) {
-                Ok(quote) => Response::Quote { quote },
-                Err(refusal) => refusal.into(),
-            },
+            Request::AuthLogout { account } => {
+                match self.restored().await.logout_blocking(account).await {
+                    Ok(keyring) => Response::Ack {
+                        keyring: Some(keyring),
+                    },
+                    Err(refusal) => refusal.into(),
+                }
+            }
+            Request::Quote { jobs, account } => {
+                match self.restored().await.quote(&jobs, account.as_deref()) {
+                    Ok(quote) => Response::Quote { quote },
+                    Err(refusal) => refusal.into(),
+                }
+            }
             Request::DaemonStatus => {
                 let s = self.shared.lock().unwrap();
                 let (in_flight, max_in_flight) = self.choke.actual_send_occupancy();
@@ -452,6 +489,12 @@ impl Daemon {
 
     /// C133: a submit after the exit began is refused, in words a frontend
     /// can act on; the queue is the next daemon's.
+    /// This daemon, once the start's restore has landed (C148).
+    async fn restored(self: &Arc<Self>) -> &Arc<Self> {
+        self.await_restore().await;
+        self
+    }
+
     pub(super) fn refuse_while_stopping(&self) -> Result<(), Refusal> {
         if self.exit.begun() {
             return Err(Refusal::new(
@@ -620,6 +663,9 @@ impl Daemon {
             self.connections.load(Ordering::SeqCst) == 0
                 && !live_jobs
                 && s.auth.pending.is_none()
+                // C148: a keyring or index write in flight, the start's
+                // restore among them, holds the daemon.
+                && s.landings == 0
                 && now.saturating_duration_since(self.last_activity()) >= idle_shutdown
         };
         idle && !self.choke.is_live()

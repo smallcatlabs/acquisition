@@ -108,6 +108,10 @@ pub(super) struct RecordingCredentialStore {
     /// Run once at the next save, before it acts: a test's pause where a
     /// save is under way, as a keychain prompt holds one (C148).
     pub(super) on_save: Mutex<Option<Box<dyn FnOnce() + Send>>>,
+    /// Run once at the next load, before it acts: a test's pause where
+    /// the start's restore reads the keyring, as a keychain prompt holds
+    /// it (C148).
+    pub(super) on_load: Mutex<Option<Box<dyn FnOnce() + Send>>>,
 }
 
 impl RecordingCredentialStore {
@@ -147,6 +151,10 @@ impl CredentialStore for RecordingCredentialStore {
     }
 
     fn load(&self, _service: &str, username: &str) -> Result<Option<String>, String> {
+        let hook = self.on_load.lock().unwrap().take();
+        if let Some(hook) = hook {
+            hook();
+        }
         if let Some(why) = self.fail_load.lock().unwrap().clone() {
             return Err(why);
         }
@@ -547,6 +555,7 @@ pub(super) fn test_daemon_scenario_at(
         jobs_db: Mutex::new(JobDb::open_memory().unwrap()),
         queue_failure: Mutex::new(None),
         exit: Exit::default(),
+        restore: watch::channel(true).0,
         refresh_landed_hook: Mutex::new(None),
     });
     // Test daemons know what the real one knows about routes.

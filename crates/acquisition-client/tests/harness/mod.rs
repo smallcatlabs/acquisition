@@ -403,8 +403,10 @@ fn did_not_come_up(acqd: &Path, base: &Path, said: &Mutex<Vec<u8>>) -> String {
 }
 
 /// Start the mock daemon under `base` and wait until `acq daemon status
-/// --json` (the frontend at `acq`) sees it running, compatible and mock;
-/// returns it with its pid. The sibling link is placed first, so an
+/// --json` (the frontend at `acq`) sees it running, compatible and mock,
+/// its start's restore landed (C148: a keyring word other than
+/// `restoring`, so a test's first `auth status` never races the
+/// restore); returns it with its pid. The sibling link is placed first, so an
 /// in-process client and the binary agree on the artifact.
 pub fn start_daemon(acq: &Path, acqd: &Path, base: &Path) -> (Proc, u64) {
     start_daemon_with(acq, acqd, base, &[])
@@ -429,7 +431,9 @@ pub fn start_daemon_with(
         status.args(["daemon", "status", "--json"]);
         isolate(&mut status, base);
         let status = sole_json(&status.output().expect("spawning acq daemon status"));
-        if let Some(pid) = status["pid"].as_u64() {
+        if let Some(pid) = status["pid"].as_u64()
+            && status["keyring"] != "restoring"
+        {
             assert_eq!(status["running"], true, "{status}");
             assert_eq!(status["compatible"], true, "{status}");
             assert_eq!(status["provider"], "mock", "{status}");
@@ -921,14 +925,23 @@ impl Session {
 }
 
 /// Start the mock daemon for the session and wait until the in-process
-/// client observes it compatible; the sibling link is placed first.
+/// client observes it compatible, its start's restore landed (C148: its
+/// `daemon status` says a keyring word other than `restoring`); the
+/// sibling link is placed first.
 pub async fn start_daemon_in_process(s: &Session, acqd: &Path) -> Proc {
     link_beside_this_test(acqd);
     let (daemon, said) = spawn_drained(daemon_command(acqd, &s.base), acqd);
     let deadline = Instant::now() + Duration::from_secs(120);
     loop {
         match Client::observe().await {
-            Ok(Observed::Compatible(_)) => return daemon,
+            Ok(Observed::Compatible(mut client)) => {
+                if let Ok(Response::DaemonStatus { keyring, .. }) =
+                    client.request(&Request::DaemonStatus).await
+                    && keyring != "restoring"
+                {
+                    return daemon;
+                }
+            }
             Ok(Observed::Incompatible(found)) => {
                 panic!("{} is not this build's daemon: {found}", acqd.display())
             }
