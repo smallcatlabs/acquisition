@@ -24,6 +24,8 @@
 //! - [`jobs`]: submit, wait, and the queue's reads, live or from the
 //!   ledger on disk (C45).
 //! - [`daemon`]: the daemon's four observed states, one document.
+//! - [`diagnose`]: one redacted document for a bug report, composed of
+//!   the others (#79).
 //! - [`events`]: the item events by location (C53).
 //!
 //! Every field of a value a verb takes is public, so a test builds one
@@ -35,6 +37,7 @@
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
 
 pub mod daemon;
+pub mod diagnose;
 pub mod events;
 pub mod fault;
 pub mod frontend;
@@ -42,6 +45,7 @@ pub mod jobs;
 pub mod refresh;
 
 pub use daemon::{DaemonReport, PersistedSummary};
+pub use diagnose::{Diagnosis, Redactions, Tails};
 pub use fault::Fault;
 pub use frontend::{Account, AccountRow, Accounts, Door, Frontend, Opened, realm};
 pub use jobs::{ChildTally, FailedChild, Job, JobResult, Jobs, Progress};

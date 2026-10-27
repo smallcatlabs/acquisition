@@ -1,7 +1,8 @@
 //! The layer against a daemon, or against its absence (C10, C45, C111,
 //! C23): the quote with no daemon and with a wedged peer, the ledger's
 //! answers when no daemon runs, and the apply flow over the mock daemon —
-//! applied twice, held by a queued job, a parent whose child failed.
+//! applied twice, held by a queued job, a parent whose child failed; and
+//! the diagnosis (#79) with and without a daemon.
 //!
 //! The harness is the one every crate's process tests share (C122),
 //! `acquisition-client/tests/harness/mod.rs`, included by `#[path]`: one
@@ -680,4 +681,192 @@ async fn c147_a_frontend_over_another_world_acts_in_its_world_not_the_environmen
         other => panic!("nothing runs: {other:?}"),
     }
     assert!(!a.exists(), "the environment's world was created");
+}
+
+// ---- the diagnosis (#79) ------------------------------------------------
+
+/// What the redaction test plants, each a string no printed diagnosis may
+/// hold: an account's name and uuid, two tokens in the log, and a second
+/// account the index never knew, named only by the journal's route key.
+const PLANTED_USER: &str = "Alice#1234";
+const PLANTED_UUID: &str = "u-diagnose-7d1e";
+const PLANTED_OTHER: &str = "Bob#5678";
+const PLANTED_ACCESS: &str = "sentinel-access-55d0";
+const PLANTED_BEARER: &str = "sentinel-bearer-91c4";
+
+/// #79: with no daemon, every section still reads — the ledger's
+/// picture, the store's counts read-only, the world's rails file, the
+/// journal and the log the last daemon left — and nothing planted
+/// survives into the document: the account's name in the index, the
+/// store file and the log, the journal's route keys (each account its
+/// own placeholder), the store root and the home directory written into
+/// the log, and two tokens. A torn last journal line is reported, never
+/// pasted.
+#[tokio::test]
+async fn a_diagnosis_with_no_daemon_reads_every_section_and_holds_nothing_planted() {
+    let s = session("diagnose-absent");
+    let frontend = Frontend::agent("test").unwrap();
+    let mock = s.base.join("store").join("mock");
+    acquisition_store::Index::load(&mock)
+        .unwrap()
+        .record_login(PLANTED_USER, PLANTED_UUID, false, 1_000, &[])
+        .unwrap();
+    let store_file = acquisition_store::account_path(&mock, PLANTED_USER);
+    acquisition_store::Store::open(&store_file)
+        .unwrap()
+        .record(
+            &acquisition_store::Endpoint::Profile,
+            &json!({}),
+            200,
+            &json!({ "uuid": PLANTED_UUID, "name": PLANTED_USER }),
+            1_000,
+        )
+        .unwrap();
+    let world = World::observe_at(&s.base.join("store")).unwrap();
+    let home = std::env::home_dir().expect("a home directory");
+    let log = world.log_path("mock");
+    std::fs::create_dir_all(log.parent().unwrap()).unwrap();
+    std::fs::write(
+        &log,
+        format!(
+            "[    0s] world: {}\n[    5s] store: {} opened for {PLANTED_USER}\n\
+             [    5s] logged in as {PLANTED_USER} ({PLANTED_UUID})\n\
+             [    6s] GET /oauth/token?access_token={PLANTED_ACCESS} -> 403\n\
+             [    6s] Authorization: Bearer {PLANTED_BEARER}\n\
+             [    7s] config read from {}\n",
+            world.root().display(),
+            store_file.display(),
+            home.join(".config").display(),
+        ),
+    )
+    .unwrap();
+    let send = |account: &str| {
+        json!({ "method": "GET", "route": format!("stash@{account}"), "path": "/stash/Standard/a1",
+                "status": 200, "counted": true, "wait_ms": 0 })
+        .to_string()
+    };
+    std::fs::write(
+        world.journal_path("mock"),
+        format!(
+            "{}\n{}\n{{\"route\":\"stash@{PLANTED_USER}",
+            send(PLANTED_USER),
+            send(PLANTED_OTHER)
+        ),
+    )
+    .unwrap();
+
+    let document = frontend
+        .diagnose(acquisition_verbs::Tails::DEFAULT)
+        .await
+        .document();
+    let printed = document.to_string();
+    let bare_home = home.display().to_string();
+    for planted in [
+        PLANTED_USER,
+        "Alice",
+        "Alice_1234",
+        PLANTED_UUID,
+        PLANTED_OTHER,
+        PLANTED_ACCESS,
+        PLANTED_BEARER,
+        &world.root().display().to_string(),
+        &bare_home,
+    ] {
+        assert!(
+            !printed.contains(planted),
+            "the diagnosis holds {planted:?}, which the test planted in the index, the store \
+             file's name, the log (the world root, the store file, the home directory, an \
+             access token and a bearer token) and the journal's route keys: {document:#}"
+        );
+    }
+
+    assert_eq!(document["daemon"]["running"], json!(false), "{document:#}");
+    assert_eq!(document["store"][0]["account"], json!("<account 1>"));
+    assert_eq!(document["store"][0]["status"]["responses"], json!(1));
+    assert_eq!(
+        (
+            document["rails"]["from"].clone(),
+            document["rails"]["state"].clone()
+        ),
+        (json!("disk"), json!(null)),
+        "no rails file is nothing held: {document:#}"
+    );
+    let journal = &document["journal"]["lines"];
+    assert_eq!(
+        (
+            journal[0]["route"].clone(),
+            journal[1]["route"].clone(),
+            journal[0]["path"].clone()
+        ),
+        (
+            json!("stash@<account 1>"),
+            json!("stash@<account 2>"),
+            json!("/stash/Standard/a1")
+        ),
+        "each account its own placeholder, the rest of the line kept: {document:#}"
+    );
+    assert!(
+        journal[2]["unread"]
+            .as_str()
+            .is_some_and(|why| why.contains("not JSON")),
+        "the torn line reported: {document:#}"
+    );
+    let log_lines = document["log"]["lines"].as_array().unwrap();
+    assert_eq!(log_lines.len(), 6, "{document:#}");
+    assert_eq!(
+        log_lines[1],
+        json!("[    5s] store: <store>/mock/<account 1>.db opened for <account 1>")
+    );
+    assert_eq!(
+        log_lines[2],
+        json!("[    5s] logged in as <account 1> (<account 1 uuid>)")
+    );
+    assert_eq!(log_lines[5], json!("[    7s] config read from ~/.config"));
+    assert_eq!(
+        document["redactions"]["tokens"],
+        json!(2),
+        "the two planted tokens: {document:#}"
+    );
+}
+
+/// #79: with this client's daemon running, the daemon section is its
+/// status document, the rails are its report, the log is the one it
+/// opened, and the journal it does not keep (the isolation list's
+/// `ACQ_JOURNAL=0`) says so in its place; the logged-in name is in none.
+#[tokio::test]
+async fn a_diagnosis_with_the_daemon_running_reads_its_report() {
+    let s = session("diagnose-running");
+    let _daemon = start_daemon_in_process(&s, &acqd_built()).await;
+    let frontend = Frontend::agent("test").unwrap();
+    let mut client = frontend.connect().await.expect("the daemon");
+    login_in_process(&mut client, Some("alice")).await;
+
+    let document = frontend
+        .diagnose(acquisition_verbs::Tails::both(5))
+        .await
+        .document();
+    assert_eq!(
+        (
+            document["daemon"]["running"].clone(),
+            document["daemon"]["compatible"].clone(),
+            document["rails"]["from"].clone()
+        ),
+        (json!(true), json!(true), json!("daemon")),
+        "{document:#}"
+    );
+    assert!(
+        document["journal"]["unread"]
+            .as_str()
+            .is_some_and(|why| why.contains("ACQ_JOURNAL=0")),
+        "{document:#}"
+    );
+    let log = document["log"]["lines"]
+        .as_array()
+        .expect("the daemon's log");
+    assert!(!log.is_empty() && log.len() <= 5, "{document:#}");
+    assert_eq!(document["store"][0]["account"], json!("<account 1>"));
+    assert!(
+        !document.to_string().contains("alice"),
+        "the logged-in name `alice` is in the diagnosis: {document:#}"
+    );
 }
