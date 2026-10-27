@@ -319,27 +319,50 @@ impl Mcp {
     }
 }
 
+/// The keys whose value is payload (`PAYLOAD` in the server): what an
+/// agent sends back as printed or types as written, never spelled.
+const PAYLOAD: [&str; 7] = [
+    "offers", "request", "query", "params", "next", "route", "examples",
+];
+
 /// C143: the server's document is the CLI's with this server's spelling
-/// after the shared words — the same shape, and each string the CLI's
-/// whole, or the CLI's followed by ` — here, ` and the spelling. The
-/// first string that differs otherwise, with its path, or `None`.
+/// after the shared words — the same shape, and each string of prose the
+/// CLI's whole, or the CLI's followed by ` — here, ` and the spelling.
+/// Payload is the CLI's exactly: every value under a `PAYLOAD` key, and
+/// `readings` unless the object's `offers` stand beside them (a scope
+/// refusal's readings are its offers' commands, prose). The first string
+/// that differs otherwise, with its path, or `None`.
 pub fn spoken_otherwise(server: &Value, cli: &Value, path: &str) -> Option<String> {
+    spoken_under(server, cli, path, false)
+}
+
+fn spoken_under(server: &Value, cli: &Value, path: &str, payload: bool) -> Option<String> {
     match (server, cli) {
         (Value::String(s), Value::String(c)) => (s != c
-            && !s
-                .strip_prefix(c.as_str())
-                .is_some_and(|rest| rest.starts_with(" — here, ")))
-        .then(|| format!("{path}: {s:?} is not {c:?} spelled")),
+            && (payload
+                || !s
+                    .strip_prefix(c.as_str())
+                    .is_some_and(|rest| rest.starts_with(" — here, "))))
+        .then(|| {
+            format!(
+                "{path}: {s:?} is not {c:?} spelled{}",
+                if payload { " (payload: exactly)" } else { "" }
+            )
+        }),
         (Value::Array(s), Value::Array(c)) if s.len() == c.len() => s
             .iter()
             .zip(c)
             .enumerate()
-            .find_map(|(i, (s, c))| spoken_otherwise(s, c, &format!("{path}[{i}]"))),
+            .find_map(|(i, (s, c))| spoken_under(s, c, &format!("{path}[{i}]"), payload)),
         (Value::Object(s), Value::Object(c))
             if s.keys().collect::<Vec<_>>() == c.keys().collect::<Vec<_>>() =>
         {
-            s.iter()
-                .find_map(|(k, v)| spoken_otherwise(v, &c[k], &format!("{path}.{k}")))
+            s.iter().find_map(|(k, v)| {
+                let under = payload
+                    || PAYLOAD.contains(&k.as_str())
+                    || (k == "readings" && !s.contains_key("offers"));
+                spoken_under(v, &c[k], &format!("{path}.{k}"), under)
+            })
         }
         _ => (server != cli).then(|| format!("{path}: {server} is not {cli}")),
     }

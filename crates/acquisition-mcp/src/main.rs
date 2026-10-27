@@ -356,16 +356,22 @@ type Told = Result<CallToolResult, ErrorData>;
 /// them (C115); the structured content, a JSON value, holds them in its
 /// own order, and an agent reads the text.
 fn told<T: serde::Serialize>(document: &T) -> Told {
-    told_as(document, false)
+    told_as(
+        document,
+        Prose {
+            all: false,
+            readings: false,
+        },
+    )
 }
 
-/// [`told`], every string of the document the tool's words where `all`
-/// (`describe`), else those under [`WORDS`]: each [`spoken`] for this
-/// server, and the structured content read back from the text.
-fn told_as<T: serde::Serialize>(document: &T, all: bool) -> Told {
+/// [`told`], the document's prose as [`Prose`] says: each string
+/// [`spoken`] for this server, and the structured content read back from
+/// the text.
+fn told_as<T: serde::Serialize>(document: &T, prose: Prose) -> Told {
     let text = spoken(
         &serde_json::to_string(document).map_err(|e| err(e.into()))?,
-        all,
+        prose,
     );
     let mut result = serde_json::from_str(&text)
         .map(CallToolResult::structured)
@@ -375,9 +381,19 @@ fn told_as<T: serde::Serialize>(document: &T, all: bool) -> Told {
 }
 
 /// A refusal, as the search crate words it (C11): `error`, `kind`,
-/// `readings`, `offers`.
+/// `readings`, `offers`. A scope refusal's readings are its offers'
+/// commands (`SearchError::to_json`), prose to spell; a language
+/// refusal's are readings of the query, payload.
 fn refused(e: impl Into<SearchError>) -> CallToolResult {
-    refusing(e.into().to_json())
+    let e = e.into();
+    let readings = matches!(e, SearchError::Scope { .. });
+    refusing_as(
+        e.to_json(),
+        Prose {
+            all: true,
+            readings,
+        },
+    )
 }
 
 /// A tool's arguments, read here and not by the SDK, whose refusal of
@@ -1015,23 +1031,60 @@ const WORDS: [&str; 2] = ["why", "hint"];
 /// rewritten, their spelling carried by the entry's `what` instead.
 const NAMES: [&str; 2] = ["name", "construct"];
 
+/// The keys whose value is payload, not prose: what an agent sends back
+/// as printed (an offer, a request, its query and params, a
+/// continuation, a count's route) or types as written (an example of
+/// the language). Nothing under one is spelled, at any depth: the
+/// spelling is prose's, and a request it touched would no longer run as
+/// printed (the readiness seat's fix-round review, P2). `readings` is
+/// payload too, unless the refusal's readings are its offers' — see
+/// [`Prose`].
+const PAYLOAD: [&str; 7] = [
+    "offers", "request", "query", "params", "next", "route", "examples",
+];
+
+/// Which strings of a document are the tool's words.
+#[derive(Clone, Copy)]
+struct Prose {
+    /// Every string not under [`PAYLOAD`] (a refusal, `describe`); else
+    /// those under [`WORDS`] alone (an answer).
+    all: bool,
+    /// The refusal's `readings` are the commands of its offers, written
+    /// for a terminal (a search's scope refusal: `--realm pc`), so prose;
+    /// else they are readings of the query the author typed, literals
+    /// sent back as written, so payload.
+    readings: bool,
+}
+
 /// Every text this server serves, spelled (C143): `text`, a serialized
 /// JSON document, with [`spelling`] appended inside each string literal
-/// that is the tool's words — every string where `all` (a refusal,
-/// `describe`), else the strings under [`WORDS`] — and an entry's name's
-/// spelling appended to its `what`. Done on the text, so the document's
-/// key order (C115) stands; the structured content is read back from it.
-fn spoken(text: &str, all: bool) -> String {
+/// that is the tool's words ([`Prose`]), never one under [`PAYLOAD`],
+/// and an entry's name's spelling appended to its `what`. Done on the
+/// text, so the document's key order (C115) stands; the structured
+/// content is read back from it.
+fn spoken(text: &str, prose: Prose) -> String {
     enum Frame {
         Object {
             key: Option<String>,
             expecting_key: bool,
             name: Option<String>,
+            payload: bool,
         },
         Array {
             key: Option<String>,
+            payload: bool,
         },
     }
+    let payload_key = |key: Option<&str>| {
+        key.is_some_and(|k| PAYLOAD.contains(&k) || (k == "readings" && !prose.readings))
+    };
+    // a value is payload when its frame is, or the key it stands under is
+    let payload_here = |frames: &[Frame]| match frames.last() {
+        Some(Frame::Object { key, payload, .. }) | Some(Frame::Array { key, payload }) => {
+            *payload || payload_key(key.as_deref())
+        }
+        None => false,
+    };
     let mut out = String::with_capacity(text.len());
     let mut frames: Vec<Frame> = Vec::new();
     let mut chars = text.char_indices().peekable();
@@ -1063,17 +1116,19 @@ fn spoken(text: &str, all: bool) -> String {
                     }
                     _ => {}
                 }
+                let payload = payload_here(&frames);
                 let key = match frames.last() {
-                    Some(Frame::Object { key, .. }) | Some(Frame::Array { key }) => key.clone(),
+                    Some(Frame::Object { key, .. }) | Some(Frame::Array { key, .. }) => key.clone(),
                     None => None,
                 };
                 let key = key.as_deref().unwrap_or("");
                 let mut more = String::new();
-                if NAMES.contains(&key) {
+                if payload {
+                } else if NAMES.contains(&key) {
                     if let Some(Frame::Object { name, .. }) = frames.last_mut() {
                         *name = Some(value);
                     }
-                } else if all || WORDS.contains(&key) {
+                } else if prose.all || WORDS.contains(&key) {
                     let named = match frames.last_mut() {
                         Some(Frame::Object { name, .. }) if key == "what" => name.take(),
                         _ => None,
@@ -1094,23 +1149,26 @@ fn spoken(text: &str, all: bool) -> String {
                 }
             }
             '{' => {
+                let payload = payload_here(&frames);
                 let key = match frames.last() {
-                    Some(Frame::Array { key }) => key.clone(),
+                    Some(Frame::Array { key, .. }) => key.clone(),
                     _ => None,
                 };
                 frames.push(Frame::Object {
                     key,
                     expecting_key: true,
                     name: None,
+                    payload,
                 });
                 out.push(c);
             }
             '[' => {
+                let payload = payload_here(&frames);
                 let key = match frames.last() {
-                    Some(Frame::Object { key, .. }) | Some(Frame::Array { key }) => key.clone(),
+                    Some(Frame::Object { key, .. }) | Some(Frame::Array { key, .. }) => key.clone(),
                     None => None,
                 };
-                frames.push(Frame::Array { key });
+                frames.push(Frame::Array { key, payload });
                 out.push(c);
             }
             '}' | ']' => {
@@ -1135,10 +1193,21 @@ fn spoken(text: &str, all: bool) -> String {
     out
 }
 
-/// A refusal's document as a tool's result, marked an error: every
-/// string of it [`spoken`] for this server.
+/// A refusal's document as a tool's result, marked an error: its prose
+/// [`spoken`] for this server, its readings payload.
 fn refusing(doc: Value) -> CallToolResult {
-    let text = spoken(&doc.to_string(), true);
+    refusing_as(
+        doc,
+        Prose {
+            all: true,
+            readings: false,
+        },
+    )
+}
+
+/// [`refusing`], with the readings `prose` says.
+fn refusing_as(doc: Value, prose: Prose) -> CallToolResult {
+    let text = spoken(&doc.to_string(), prose);
     let mut result = CallToolResult::structured_error(serde_json::from_str(&text).unwrap_or(doc));
     result.content = vec![rmcp::model::ContentBlock::text(text)];
     result
@@ -1372,7 +1441,10 @@ impl AcqMcp {
                 daemon: chosen.next().flatten(),
                 store: chosen.next().flatten(),
             },
-            true,
+            Prose {
+                all: true,
+                readings: false,
+            },
         )
     }
 

@@ -13,6 +13,12 @@
 //! a person at a terminal. An entry's name (`name`, `construct`), which
 //! is how the entry is asked for, stays as the CLI spells it and its
 //! spelling stands in the entry's `what`.
+//!
+//! Payload is never spelled (the fix round's review, P2): an offer's
+//! request, a query, a continuation, an example, a language refusal's
+//! readings — what an agent sends back as printed. The sweep reads
+//! prose alone, and the round trip sends a refusal's offer back with a
+//! query literal that speaks a CLI command and holds it accepted.
 
 use crate::harness;
 
@@ -25,7 +31,9 @@ use serde_json::{Value, json};
 const USER: &str = "Alice#1234";
 
 /// One account with a public tab of one item in pc's Standard and a tab
-/// of one item in poe2's, so a search naming no realm is refused.
+/// of one item in poe2's, so a search naming no realm is refused; and a
+/// tab, `t-gone`, fetched and then left out of pc's listing, so it is no
+/// longer in the account and `show` of its id is refused as no item.
 fn seed(base: &Path) {
     let dir = base.join("store").join("mock");
     std::fs::create_dir_all(&dir).unwrap();
@@ -41,6 +49,35 @@ fn seed(base: &Path) {
             200,
             &json!({ "uuid": "u-spoken", "name": USER }),
             1,
+        )
+        .unwrap();
+    let gone = json!({ "id": "i-gone", "name": "", "typeLine": "Chaos Orb",
+                       "baseType": "Chaos Orb", "x": 0, "y": 0, "stackSize": 1 });
+    store
+        .record(
+            &Endpoint::Stash {
+                realm: "pc".into(),
+                league: "Standard".into(),
+                id: "t-gone".into(),
+                sub: None,
+            },
+            &json!({ "realm": "pc", "league": "Standard" }),
+            200,
+            &json!({ "stash": { "id": "t-gone", "name": "Old", "type": "PremiumStash",
+                                 "items": [gone] } }),
+            5,
+        )
+        .unwrap();
+    store
+        .record(
+            &Endpoint::Stashes {
+                realm: "pc".into(),
+                league: "Standard".into(),
+            },
+            &json!({ "realm": "pc", "league": "Standard" }),
+            200,
+            &json!({ "stashes": [ { "id": "t-pc", "name": "Sale", "type": "PremiumStash" } ] }),
+            8,
         )
         .unwrap();
     for realm in ["pc", "poe2"] {
@@ -116,7 +153,14 @@ fn unspelled(said: &str) -> Vec<String> {
     found
 }
 
-/// Every string of `doc` that speaks the CLI unspelled, with its path.
+/// The keys whose value is payload, never spelled and never swept.
+const PAYLOAD: [&str; 7] = [
+    "offers", "request", "query", "params", "next", "route", "examples",
+];
+
+/// Every string of `doc`'s prose that speaks the CLI unspelled, with its
+/// path. A refusal's `readings` are prose where its `offers` stand
+/// beside them, payload otherwise.
 fn sweep(doc: &Value, path: &str, out: &mut Vec<String>) {
     match doc {
         Value::String(s) => {
@@ -131,6 +175,11 @@ fn sweep(doc: &Value, path: &str, out: &mut Vec<String>) {
         }
         Value::Object(fields) => {
             for (k, v) in fields {
+                if PAYLOAD.contains(&k.as_str())
+                    || (k == "readings" && !fields.contains_key("offers"))
+                {
+                    continue;
+                }
                 match (k.as_str(), v) {
                     // a name is asked by: its spelling stands in `what`
                     ("name" | "construct", Value::String(name)) => {
@@ -188,4 +237,37 @@ fn every_text_the_server_sends_spells_the_cli_it_speaks() {
         "a shape no longer speaks the CLI: the sweep reads less"
     );
     assert!(faults.is_empty(), "{}", faults.join("\n"));
+}
+
+/// The fix round's review, P2 (shape 6, a printed request that does not
+/// run as printed): the spelling reached into a refusal's offers, so a
+/// query literal speaking a CLI command gained a suffix and the offer no
+/// longer ran. Over two realms a search naming none is refused with an
+/// offer per realm; the offer's request holds the query exactly as sent,
+/// and sent back as printed it is answered.
+#[test]
+fn a_refusals_offer_sent_back_as_printed_is_answered() {
+    let dir = scratch("mcp-spoken-offer");
+    seed(&dir.0);
+    let mut mcp = Mcp::start(&dir.0, &[]);
+    let text = "name:\"acq search --count\"";
+    let result = mcp.result("search", json!({ "query": { "text": text } }));
+    assert_eq!(result["isError"], json!(true), "{result}");
+    let refusal = &result["structuredContent"];
+    assert_eq!(refusal["kind"], "realm_needed", "{refusal}");
+    let offer = refusal["offers"][0]["request"].clone();
+    assert_eq!(offer["query"]["text"], json!(text), "{refusal}");
+    let printed: Value =
+        serde_json::from_str(result["content"][0]["text"].as_str().unwrap_or_default()).unwrap();
+    assert_eq!(
+        printed["offers"][0]["request"], offer,
+        "the text and the content differ"
+    );
+    let answered = mcp.result("search", offer.clone());
+    assert_ne!(answered["isError"], json!(true), "{offer}: {answered}");
+    assert_eq!(
+        answered["structuredContent"]["query"]["text"],
+        json!(text),
+        "{answered}"
+    );
 }
