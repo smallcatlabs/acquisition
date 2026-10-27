@@ -772,8 +772,9 @@ pub struct Described {
 
 /// The listing model, read once rather than in every tool's text: the
 /// hand row and what inherits it, the game's reading, the relation and
-/// the effective side, the revision rule and the undo, and the counts
-/// [`report`]'s summary carries.
+/// the effective side, the revision rule and the undo, and the counts a
+/// listing state, a list and a shop render carry (C146: on the MCP a
+/// count's gloss stands here, named by the tool's description).
 pub fn described() -> Vec<Described> {
     let entry = |name, what| Described { name, what };
     vec![
@@ -802,8 +803,16 @@ pub fn described() -> Vec<Described> {
             "a write's receipt holds `written` and `prior`: after a create, a clear naming the written revision; after a replace, a set with the prior's value naming the written revision, unless the prior is a value this build cannot read (a newer build's, replaced only by naming its revision), which it cannot write back; after a clear, a set with the prior's value. `in_facts` is false for a target the facts do not hold (not fetched yet, or a typo): the row stands",
         ),
         entry(
-            "counts",
+            "status counts",
             "a league's listing state, counted: `counts.by_effective` and `counts.by_relation` by the two words above; `counts.game_priced` the items the game prices; `counts.residue` the items carrying price text the trade site cannot see — a note on a character's item, which decides no price until the item is moved into a public stash tab, or a note or tab name in a tab that is not public, which decides none until the tab is made public in the game; `counts.invalid_notes` the notes that start like a price and do not read as one (no effect: the tab's name applies); `rows` accounts for every hand-written row: how many apply here, which name nothing in the facts (`unmatched`, each row whole — `value`, `from`, `revision`, `updated_at`, `written_via` — since no listing carries it), which cannot be read, which belong to other leagues or realms",
+        ),
+        entry(
+            "list counts",
+            "a list of the priced items, counted: `items_on_record`, how many items the league holds, so an empty answer says which nothing; `total`, how many the selection holds, and `listed`, how many `items` lists — fewer only under `limit`, the first in listing order, `containers` then being theirs alone",
+        ),
+        entry(
+            "shop counts",
+            "a shop render, counted: each page's `tabs` name each `Stash<n>` its links write — the tab's rank among the tabs the website lists — by the tab's own `name`, with how many `items` link to it; `left_out` lists the first 50 items left off for a reason, the blocked first, each with its `cell`, and `left_out_total` counts them all; `counts` counts every item by its cell, the items nothing applies to in `off_page`; `policy` gives each cell's rule and count",
         ),
     ]
 }

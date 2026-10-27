@@ -384,6 +384,7 @@ fn describe_is_the_clis_and_reads_no_store() {
     let fields = language.as_object_mut().unwrap();
     assert!(fields.remove("pricing").is_some(), "{whole}");
     assert!(fields.remove("daemon").is_some(), "{whole}");
+    assert!(fields.remove("store").is_some(), "{whole}");
     assert_eq!(language, cli(&seat.base, &["search", "--describe"]).0);
     let (some, _) = seat.call("describe", &json!({ "names": ["league", "total_res"] }));
     assert_eq!(
@@ -399,7 +400,7 @@ fn describe_is_the_clis_and_reads_no_store() {
     assert_eq!(
         e["error"],
         json!(format!(
-            "{}, pricing, daemon",
+            "{}, pricing, daemon, store",
             printed["error"].as_str().unwrap()
         ))
     );
@@ -441,7 +442,7 @@ fn describe_answers_the_pricing_model_and_the_daemon_by_name() {
     assert!(refused, "{e}");
     let said = e["error"].as_str().unwrap();
     assert!(
-        said.contains("answer") && said.ends_with(", pricing, daemon"),
+        said.contains("answer") && said.ends_with(", pricing, daemon, store"),
         "{said}"
     );
 }
@@ -638,7 +639,7 @@ fn describe_is_as_large_as_its_text_says() {
     // sections beside the language's (#83)
     for section in acquisition_search::describe::SECTIONS
         .into_iter()
-        .chain(["pricing", "daemon"])
+        .chain(["pricing", "daemon", "store"])
     {
         if !large.contains(&section) {
             assert!(size(&mut seat, json!([section])) < 4_000, "{section}");

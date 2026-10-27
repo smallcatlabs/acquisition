@@ -540,10 +540,46 @@ const DAEMON: [(&str, &str); 7] = [
     ),
 ];
 
+/// What `store_status` and `tabs` count, read once by name (`describe`
+/// with names `["store"]`): C146, amended 2026-10-27 — on the MCP a
+/// count's gloss stands in the `describe` entry the tool's description
+/// names. The words are the ones those descriptions carried, whole.
+const STORE: [(&str, &str); 2] = [
+    (
+        "store counts",
+        "store_status: the store file's path, size and row counts. `leagues` counts the league listing's rows and `league_list` says whether that listing was ever fetched (`acq leagues` or a `leagues` job fetches it); characters and tabs carry their league names whether or not it was. `refused_bodies` counts bodies the store would not take, which `acq store refused` lists. `withheld_responses` counts fetches of tabs or characters the latest list no longer named and `withheld_items` the items they carried: kept as evidence, in no search or count, nothing to do unless a list names the place again. `unlifted_items` counts item-shaped objects in characters' data under a key this build does not read as items, so no search counts them: GGG added a kind of item list, which a newer build reads. `granted_skills` counts the skill entries PoE2 characters' items grant — GGG shows a granted skill once in each place it appears, the item's sockets and the character's skills, so one skill can be two entries — kept with their characters and not counted as items, having no id of their own",
+    ),
+    (
+        "tab counts",
+        "tabs, counted first: how many tabs, fetched, never fetched and folders, how many items, and the same by tab type (`by_type`, the most items first); then `rows`, the tabs listed — every one where the league holds thirty or fewer, else the ten with the most items (`listed`: `all` or `most_items`). `left_out` counts the tabs not listed. `type` and `never_fetched: true` select the tabs listed — the never fetched of one type by name, which a refresh takes — under the league's counts, `selected` counting them",
+    ),
+];
+
 /// The names `describe` answers beside the search crate's sections: what
-/// the pricing tools and the job tools answer, which are not the
-/// search's (C1: the search links no plan).
-const OWN_SECTIONS: [&str; 2] = ["pricing", "daemon"];
+/// the pricing tools, the job tools and the store's counts answer, which
+/// are not the search's (C1: the search links no plan).
+const OWN_SECTIONS: [&str; 3] = ["pricing", "daemon", "store"];
+
+/// The own sections' entries, in [`OWN_SECTIONS`]' order.
+fn own_sections() -> [Vec<Entry>; 3] {
+    let entries = |table: &[(&'static str, &'static str)]| {
+        table
+            .iter()
+            .map(|&(name, what)| Entry { name, what })
+            .collect()
+    };
+    [
+        acquisition_plan::pricing::described()
+            .into_iter()
+            .map(|d| Entry {
+                name: d.name,
+                what: d.what,
+            })
+            .collect(),
+        entries(&DAEMON),
+        entries(&STORE),
+    ]
+}
 
 /// One entry of an own section: a name and what it says.
 #[derive(serde::Serialize)]
@@ -561,9 +597,11 @@ struct Described {
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
     language: Option<acquisition_search::describe::Describe>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pricing: Option<Vec<acquisition_plan::pricing::Described>>,
+    pricing: Option<Vec<Entry>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     daemon: Option<Vec<Entry>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    store: Option<Vec<Entry>>,
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]
@@ -958,7 +996,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "The stash tabs of a league, counted first, from the store (no daemon): how many tabs, fetched, never fetched and folders, how many items, and the same by tab type (`by_type`, the most items first); then `rows`, the tabs listed — every one where the league holds thirty or fewer, else the ten with the most items (`listed`: `all` or `most_items`) — each with its type, item count and fetch time. `left_out` counts the tabs not listed. `type` and `never_fetched: true` select the tabs listed — the never fetched of one type by name, which a refresh takes — under the league's counts, `selected` counting them. A name ending ` (Remove-only)` is GGG's mark on a tab whose items can only be taken out."
+        description = "The stash tabs of a league, counted first, from the store (no daemon), then listed — every one where the league holds thirty or fewer, else the ten with the most items — each with its type, item count and fetch time; `type` and `never_fetched` select the tabs listed. `describe` with names [\"store\"] says what each count counts. A name ending ` (Remove-only)` is GGG's mark on a tab whose items can only be taken out."
     )]
     fn tabs(&self, Parameters(p): Parameters<Args<TabsParams>>) -> Told {
         answer(|| {
@@ -1000,7 +1038,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Item search over the store (no daemon): a query in the language `describe` prints, asked of every item in scope. The arguments are the request: {} is every item; {\"query\": {\"text\": \"class:ring rarity=rare\"}} is a query, and {\"query\": {\"trade\": a trade site URL}} a site search translated to one. The answer is one JSON document — `query`, `scope`, `total`, `rows`, `view`, `terms`, `basis` — and `describe` with names [\"answer\"] says what each key holds. Its counts: `scope` (account, realm, `items` every live item in scope before any term, what was and was not fetched: `fetched` counts the tabs, their pages and the characters fetched, `oldest_fetch` and `newest_fetch` the earliest and the latest of their last fetches, each one location's, where a row's `place.fetched_at` is its own; `never_fetched` counts the tabs, their pages and the characters a listing names and no fetch has filled, and no answer says what they hold, a count of none or of many; `never_fetched_by_type` is the same by tab type, a character's `character`: each type that has a location never fetched, its `tabs` every location of the type and `fetched` how many of them were, so `tabs` minus `fetched` were never fetched, and `items` the live items in the fetched ones, counted as the `tabs` tool counts a type, over the scope's realm in every league whatever the query asks, since what a never-fetched location holds is unknown, and `tabs` lists a league's tabs, `never_fetched_leagues` naming the leagues that hold a never-fetched tab, the most first), `terms` (for each term how many items matched, failed, lacked the thing or were undecided — each term alone over every item in scope, never over the matches, which are `total`; a pattern term's `resolved` is what it matched there, its `rest.denominator` `scope`). Rows past the limit are counted in `view.rows.left_out`. Any request an answer holds is sent back as printed."
+        description = "Item search over the store (no daemon): a query in the language `describe` prints, asked of every item in scope. The arguments are the request: {} is every item; {\"query\": {\"text\": \"class:ring rarity=rare\"}} is a query, and {\"query\": {\"trade\": a trade site URL}} a site search translated to one. The answer is one JSON document — `query`, `scope`, `total`, `rows`, `view`, `terms`, `basis`; `describe` with names [\"answer\"] says what each key holds and what each count counts. Any request an answer holds is sent back as printed."
     )]
     fn search(&self, Parameters(RequestParams(args)): Parameters<RequestParams>) -> Told {
         let asked = match Asked::read(&Value::Object(args)) {
@@ -1027,7 +1065,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "What the tools answer and the language `search` takes, read by name (no store read): answer, every key of a search answer; trade, what a site search becomes and its report; fields, what a query may ask; pricing, the listing model and its revision rule; daemon, what the job tools answer without one. The whole is over 100 KB: computed is some 80 KB, fields and trade some 20 KB each, categories some 10 KB, answer some 5 KB, and the rest each under 4 KB. A name it does not know is refused, and the refusal lists every name it knows."
+        description = "What the tools answer and the language `search` takes, read by name (no store read): answer, every key of a search answer; trade, what a site search becomes and its report; fields, what a query may ask; pricing, the listing model and its revision rule; daemon, what the job tools answer without one; store, what store_status and tabs count. The whole is over 100 KB: computed is some 80 KB, fields and trade some 20 KB each, categories some 10 KB, answer some 5 KB, and the rest each under 4 KB. A name it does not know is refused, and the refusal lists every name it knows."
     )]
     fn describe(&self, Parameters(p): Parameters<Args<DescribeParams>>) -> Told {
         let p = match p.read() {
@@ -1060,15 +1098,12 @@ impl AcqMcp {
         } else {
             None
         };
+        let [pricing, daemon, store] = own_sections();
         told(&Described {
             language,
-            pricing: own("pricing").then(acquisition_plan::pricing::described),
-            daemon: own("daemon").then(|| {
-                DAEMON
-                    .iter()
-                    .map(|&(name, what)| Entry { name, what })
-                    .collect()
-            }),
+            pricing: own("pricing").then_some(pricing),
+            daemon: own("daemon").then_some(daemon),
+            store: own("store").then_some(store),
         })
     }
 
@@ -1111,7 +1146,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Store file path, size, and row counts (no daemon). `leagues` counts the league listing's rows and `league_list` says whether that listing was ever fetched (`acq leagues` or a `leagues` job fetches it); characters and tabs carry their league names whether or not it was. `refused_bodies` counts bodies the store would not take, which `acq store refused` lists. `withheld_responses` counts fetches of tabs or characters the latest list no longer named and `withheld_items` the items they carried: kept as evidence, in no search or count, nothing to do unless a list names the place again. `unlifted_items` counts item-shaped objects in characters' data under a key this build does not read as items, so no search counts them: GGG added a kind of item list, which a newer build reads. `granted_skills` counts the skill entries PoE2 characters' items grant — GGG shows a granted skill once in each place it appears, the item's sockets and the character's skills, so one skill can be two entries — kept with their characters and not counted as items, having no id of their own."
+        description = "Store file path, size, and row counts (no daemon); `describe` with names [\"store\"] says what each count counts."
     )]
     fn store_status(&self, Parameters(p): Parameters<Args<StoreParams>>) -> Told {
         answer(|| self.facts(p.parse()?.account.as_deref())?.status())
@@ -1201,7 +1236,7 @@ impl AcqMcp {
     // ---- pricing: adapters of acquisition-plan's pricing verbs ----
 
     #[tool(
-        description = "The listing state of one league, counted (no daemon): what every item, tab and character is priced as — by hand (a row this server or the CLI wrote), in game (an item's note, then its tab's name, read only where the tab is public), how the two stand — as the counts and the row accounting, without the listings themselves. `counts.by_effective` says who decides each item's price (game, manual, none, unresolved — a row that cannot be read could decide), `counts.by_relation` how the two sides stand (none, manual_only, game_only, agree, conflict), so the items priced by hand are its manual_only, agree and conflict together; `counts.game_priced` the items the game prices; `counts.residue` the items carrying price text the trade site cannot see — a note on a character's item, which decides no price until the item is moved into a public stash tab, or a note or tab name in a tab that is not public, which decides none until the tab is made public in the game; `counts.invalid_notes` the notes that start like a price and do not read as one (no effect: the tab's name applies); `rows` accounts for every hand-written row: how many apply here, which name nothing in the facts (`unmatched`, each row whole — `value`, `from`, `revision`, `updated_at`, `written_via` — since no listing carries it), which cannot be read, which belong to other leagues or realms. price_list names the items; price_show is one target."
+        description = "The listing state of one league, counted (no daemon): what every item, tab and character is priced as — by hand, in game, how the two stand — as the counts and the row accounting, without the listings themselves; `describe` with names [\"pricing\"] says what each count counts. price_list names the items; price_show is one target."
     )]
     fn price_status(&self, Parameters(p): Parameters<Args<PriceStatusParams>>) -> Told {
         let p = match p.read() {
@@ -1226,7 +1261,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "The items of one league that are priced, each with both sides of its listing (no daemon): `items`, each with its `subject`, the hand row that applies (`manual`), the game's reading (`game`), the `relation` and the `effective` price; `containers`, the tabs, substashes and characters they sit under; `items_on_record`, how many items the league holds, so an empty answer says which nothing; `total`, how many the selection holds, and `listed`, how many `items` lists — fewer only under `limit`, the first in listing order, `containers` then being theirs alone. With neither `relation` nor `effective`, items nothing prices are left out, except unresolved ones."
+        description = "The items of one league that are priced, each with both sides of its listing (no daemon): `items`, each with its `subject`, the hand row that applies (`manual`), the game's reading (`game`), the `relation` and the `effective` price; `containers`, the tabs, substashes and characters they sit under; and the counts `describe` with names [\"pricing\"] explains. With neither `relation` nor `effective`, items nothing prices are left out, except unresolved ones."
     )]
     fn price_list(&self, Parameters(p): Parameters<Args<PriceListParams>>) -> Told {
         let p = match p.read() {
@@ -1286,7 +1321,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "The forum shop pages for one league, for a person to paste by hand; this server posts nothing and reads no forum (no daemon). One link code per hand-priced item under its price's spoiler, in pages of at most `size` characters: `pages` (each `text` is what to paste, and its `tabs` name each `Stash<n>` its links write — the tab's rank among the tabs the website lists — by the tab's own `name`, with how many `items` link to it), `posted`, `left_out` (the first 50 items left off for a reason, the blocked first, each with its `cell`) and `left_out_total` counting them all, `counts` (every item by its cell; the items nothing applies to in `off_page`), `policy` (each cell's rule and count) and `freshness`: whether the sync policy covers the posted items, reported, never enforced."
+        description = "The forum shop pages for one league, for a person to paste by hand; this server posts nothing and reads no forum (no daemon). One link code per hand-priced item under its price's spoiler, in pages of at most `size` characters: `pages` (each `text` is what to paste), `posted`, `left_out`, `counts`, `policy` and `freshness`, whether the sync policy covers the posted items — reported, never enforced. `describe` with names [\"pricing\"] says what each count counts."
     )]
     fn shop_render(&self, Parameters(p): Parameters<Args<ShopRenderParams>>) -> Told {
         let p = match p.read() {
@@ -1470,7 +1505,7 @@ impl ServerHandler for AcqMcp {
              - Begin with search and no arguments; where the store holds several realms, name \
              scope.realm (the refusal offers each).\n\
              - describe with names explains the language and the answers: fields first, then \
-             answer, trade, pricing, daemon; the whole is over 100 KB.\n\
+             answer, trade, pricing, daemon, store; the whole is over 100 KB.\n\
              - A refusal is a result marked isError, with readings and offers; any request an \
              answer holds is sent back as printed.\n\
              - No tool says what an item is worth: a price is the owner's own listing.",
