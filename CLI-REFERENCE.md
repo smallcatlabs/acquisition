@@ -618,7 +618,7 @@ The listing state (no daemon): what every item, tab and character is priced as �
 Usage: acq price [OPTIONS] [COMMAND]
 
 Commands:
-  status  One line on the league's listing state and the next action (the default); --expand adds the game side, the rows and the basis
+  status  One line on the league's listing state and the next action (the default); --expand adds the game side, the rows and the basis. `--json`: the rows naming nothing, unreadable and of other leagues ten each beside their counts, every one under --expand
   show    One target's listing: `item/<id>`, `character/<id>`, `tab/<realm>/<id>` or `substash/<realm>/<parent>/<id>` — both sides with their causes, the raw note beside the parse; a container's items summarized under it, each set counted and listed when ten or fewer (--limit lists that many of each, --expand them all). `--json`: each set ten by default beside its counts
   list    Listed items grouped by container: the first ten of the selection, counted whole on the first line (--limit lists N, --expand every one with its texts). With neither --relation nor --effective, items whose relation is `none` are left out — except unresolved ones (a row that cannot be read could decide), which are always listed
   set     Set one target's price by hand — a row on an item, tab, substash or character; what it covers inherits it. Prints what it replaced, how to put that back, and a note when the facts hold no such target (a tab not fetched yet, or a typo — never a refusal). A clear takes a revision too, so the next write's revision continues from it
@@ -632,7 +632,7 @@ Options:
 ## `acq price status`
 
 ```text
-One line on the league's listing state and the next action (the default); --expand adds the game side, the rows and the basis
+One line on the league's listing state and the next action (the default); --expand adds the game side, the rows and the basis. `--json`: the rows naming nothing, unreadable and of other leagues ten each beside their counts, every one under --expand
 
 Usage: acq price status [OPTIONS]
 

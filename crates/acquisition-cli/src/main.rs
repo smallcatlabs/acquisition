@@ -561,6 +561,8 @@ is the per-location summary.")]
 enum PriceCmd {
     /// One line on the league's listing state and the next action (the
     /// default); --expand adds the game side, the rows and the basis.
+    /// `--json`: the rows naming nothing, unreadable and of other leagues
+    /// ten each beside their counts, every one under --expand.
     Status {
         #[arg(long, default_value = acquisition_plan::DEFAULT_LEAGUE)]
         league: String,

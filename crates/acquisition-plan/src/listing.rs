@@ -487,15 +487,47 @@ pub struct RowAccounting {
     /// Tab and substash rows of another realm.
     pub other_realm: usize,
     /// Readable rows naming nothing in these facts, each whole: no
-    /// listing carries them, so this is where they are read.
+    /// listing carries them, so this is where they are read. The status
+    /// lists ten unless expanded ([`ListingReport::status`]).
     pub unmatched: Vec<ManualSide>,
+    /// How many rows name nothing in these facts, `unmatched` whole.
+    #[serde(default)]
+    pub unmatched_total: usize,
+    /// Rows that cannot be read, each with why: the status lists ten
+    /// unless expanded.
     pub unreadable: Vec<RowProblem>,
+    /// How many rows cannot be read, `unreadable` whole.
+    #[serde(default)]
+    pub unreadable_total: usize,
     /// Rows the facts hold in another league of this realm: taken out of
     /// `unmatched`, by address, by [`ListingReport::place_other_leagues`], which a
     /// caller holding the facts runs (the snapshot is one league's and
-    /// cannot say); empty until then.
+    /// cannot say); empty until then. The status lists ten unless
+    /// expanded.
     #[serde(default)]
     pub other_league: Vec<PriceTarget>,
+    /// How many rows the facts hold in another league, `other_league`
+    /// whole.
+    #[serde(default)]
+    pub other_league_total: usize,
+}
+
+impl RowAccounting {
+    /// Each list's whole count, from the lists as they stand.
+    fn counted(&mut self) {
+        self.unmatched_total = self.unmatched.len();
+        self.unreadable_total = self.unreadable.len();
+        self.other_league_total = self.other_league.len();
+    }
+
+    /// C53, the read economy (step 2g): each list cut to the store's
+    /// bound of ten unless `expand`, its whole count standing beside it.
+    fn bounded(mut self, expand: bool) -> RowAccounting {
+        self.unmatched = bounded(std::mem::take(&mut self.unmatched), None, expand).0;
+        self.unreadable = bounded(std::mem::take(&mut self.unreadable), None, expand).0;
+        self.other_league = bounded(std::mem::take(&mut self.other_league), None, expand).0;
+        self
+    }
 }
 
 /// Counts over the items (containers are not items), so `status` needs
@@ -731,6 +763,7 @@ impl ListingReport {
                 self.rows.unmatched.push(row);
             }
         }
+        self.rows.counted();
         Ok(())
     }
 
@@ -757,12 +790,21 @@ impl ListingReport {
             .filter(move |l| l.subject.is_item() && l.chain.contains(target))
     }
 
-    /// The report without its listings: what `status` is.
+    /// The report without its listings.
     pub fn summary(&self) -> ListingReport {
         ListingReport {
             listings: Vec::new(),
             ..self.clone()
         }
+    }
+
+    /// What `status` is: the report without its listings, each list of
+    /// its row accounting ten unless `expand`, beside its whole count
+    /// (C53, the read economy).
+    pub fn status(&self, expand: bool) -> ListingReport {
+        let mut status = self.summary();
+        status.rows = status.rows.bounded(expand);
+        status
     }
 
     /// `list`'s view under a filter. `None` when the filter names a
@@ -1637,6 +1679,7 @@ pub fn resolve(snapshot: &PricingSnapshot) -> Result<ListingReport, ListingError
             accounting.unmatched.push(row.side(target, false));
         }
     }
+    accounting.counted();
 
     Ok(ListingReport {
         header: ReportHeader {
@@ -2543,6 +2586,85 @@ mod tests {
             assert_eq!(listed.len(), all.len());
         }
         assert_eq!(audit.items_here_counts.left_out, 0);
+    }
+
+    /// C53, the read economy (step 2g, round 2; the second cold review of
+    /// the brief, finding 2: no exemption): the status's three row lists
+    /// — rows naming nothing here, rows that cannot be read, rows of
+    /// another league — each hold ten beside a count of the whole, and
+    /// `expand` lists each whole; the whole report keeps every row.
+    #[test]
+    fn c53_the_status_lists_ten_of_each_row_list_beside_its_whole_count() {
+        use acquisition_store::bound::LISTED;
+        let mut snap = snapshot();
+        let skip = json!({ "version": 1, "type": "skip" });
+        for i in 0..12 {
+            snap.buyouts.push(row(
+                "item",
+                &format!("i-gone-{i:02}"),
+                skip.clone(),
+                100 + i,
+            ));
+            snap.buyouts.push(row(
+                "item",
+                &format!("i-else-{i:02}"),
+                skip.clone(),
+                200 + i,
+            ));
+            // a tab key with no realm cannot be read
+            snap.buyouts
+                .push(row("tab", &format!("k{i:02}"), skip.clone(), 300 + i));
+        }
+        let mut report = resolve(&snap).unwrap();
+        report
+            .place_other_leagues(|t| {
+                Ok::<_, std::convert::Infallible>(t.to_string().starts_with("item/i-else-"))
+            })
+            .unwrap();
+        let whole = &report.rows;
+        // the fixture's own: one row naming nothing, two unreadable
+        assert_eq!(
+            (
+                whole.unmatched.len(),
+                whole.unreadable.len(),
+                whole.other_league.len()
+            ),
+            (13, 14, 12)
+        );
+        assert_eq!(
+            (
+                whole.unmatched_total,
+                whole.unreadable_total,
+                whole.other_league_total
+            ),
+            (13, 14, 12)
+        );
+        let status = report.status(false);
+        let rows = &status.rows;
+        assert_eq!(
+            (
+                rows.unmatched.len(),
+                rows.unreadable.len(),
+                rows.other_league.len()
+            ),
+            (LISTED, LISTED, LISTED)
+        );
+        assert_eq!(
+            (
+                rows.unmatched_total,
+                rows.unreadable_total,
+                rows.other_league_total
+            ),
+            (13, 14, 12)
+        );
+        assert_eq!(&rows.unmatched[..], &whole.unmatched[..LISTED]);
+        // the whole-set counts stand as they are
+        assert_eq!(
+            (rows.total, rows.applied, rows.other_realm),
+            (whole.total, whole.applied, whole.other_realm)
+        );
+        assert!(status.listings.is_empty());
+        assert_eq!(report.status(true).rows, report.rows);
     }
 
     /// C70 — every listing carries its chain, so a target's coverage is

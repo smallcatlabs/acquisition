@@ -780,6 +780,9 @@ struct PriceStatusParams {
     league: Option<String>,
     /// pc (the default), xbox, sony or poe2.
     realm: Option<String>,
+    /// List every row of `rows.unmatched`, `rows.unreadable` and
+    /// `rows.other_league`, past the first ten.
+    expand: Option<bool>,
     #[schemars(description = ACCOUNT)]
     account: Option<String>,
 }
@@ -1617,7 +1620,8 @@ impl AcqMcp {
             .as_deref()
             .unwrap_or(acquisition_plan::pricing::DEFAULT_LEAGUE);
         priced(
-            acquisition_plan::pricing::report(&store, &intent, realm, league).map(|r| r.summary()),
+            acquisition_plan::pricing::report(&store, &intent, realm, league)
+                .map(|r| r.status(p.expand.unwrap_or(false))),
         )
     }
 

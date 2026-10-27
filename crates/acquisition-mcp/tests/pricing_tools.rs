@@ -200,6 +200,12 @@ fn each_pricing_read_is_the_document_the_cli_prints() {
         ("price_status", json!({}), &["price", "status"], true),
         (
             "price_status",
+            json!({ "expand": true }),
+            &["price", "status", "--expand"],
+            true,
+        ),
+        (
+            "price_status",
             json!({ "league": "Hardcore" }),
             &["price", "status", "--league", "Hardcore"],
             true,

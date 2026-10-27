@@ -1318,6 +1318,7 @@
   "rows": {
     "applied": 6,
     "other_league": [],
+    "other_league_total": 0,
     "other_realm": 1,
     "total": 10,
     "unmatched": [
@@ -1338,6 +1339,7 @@
         "written_via": "test"
       }
     ],
+    "unmatched_total": 1,
     "unreadable": [
       {
         "key": "pc",
@@ -1351,7 +1353,8 @@
         "scope": "item",
         "why": "buyout declares version 2, newer than this build's v1 — a newer build wrote it"
       }
-    ]
+    ],
+    "unreadable_total": 2
   },
   "schema": 3,
   "stash_listing": {

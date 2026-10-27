@@ -123,6 +123,7 @@ One target's listing (no daemon): `listing`, both sides with their causes — th
 The listing state of one league, counted (no daemon): what every item, tab and character is priced as — by hand, in game, how the two stand — as the counts and the row accounting, without the listings themselves; `describe` with names ["pricing"] says what each count counts. price_list names the items; price_show is one target.
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
+- `expand` (boolean | null) — List every row of `rows.unmatched`, `rows.unreadable` and `rows.other_league`, past the first ten.
 - `league` (string | null) — The league; Standard when omitted.
 - `realm` (string | null) — pc (the default), xbox, sony or poe2.
 

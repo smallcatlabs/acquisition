@@ -53,9 +53,11 @@ fn opened(cx: &Ctx) -> Result<(Store, Annotations, String)> {
 /// `acq price status`.
 pub fn status(cx: &Ctx, realm: Realm, league: &str, expand: bool, json: bool) -> Result<()> {
     let (store, annotations, username) = opened(cx)?;
-    let r = pricing::report(&store, &annotations, realm, league)?;
+    // the document both print: its row lists ten unless --expand,
+    // each counted whole (C53)
+    let r = pricing::report(&store, &annotations, realm, league)?.status(expand);
     if json {
-        println!("{}", serde_json::to_string_pretty(&r.summary())?);
+        println!("{}", serde_json::to_string_pretty(&r)?);
         return Ok(());
     }
     print!(
@@ -187,19 +189,20 @@ fn relation_word(rel: Relation) -> &'static str {
 /// are any; the same line whether or not there are items (C35: orphaned
 /// intent stays visible).
 fn rows_line(r: &ListingReport) -> Option<String> {
+    // each count the document's whole one, never a bounded list's length
     let rows = &r.rows;
-    (!rows.unmatched.is_empty()
-        || !rows.unreadable.is_empty()
-        || !rows.other_league.is_empty()
+    (rows.unmatched_total > 0
+        || rows.unreadable_total > 0
+        || rows.other_league_total > 0
         || rows.other_realm > 0)
         .then(|| {
             format!(
                 "rows: {} of {} apply here; {} name nothing in the facts, {} unreadable, {} for other leagues, {} for other realms\n",
                 rows.applied,
                 rows.total,
-                rows.unmatched.len(),
-                rows.unreadable.len(),
-                rows.other_league.len(),
+                rows.unmatched_total,
+                rows.unreadable_total,
+                rows.other_league_total,
                 rows.other_realm
             )
         },
@@ -218,7 +221,7 @@ fn rows_detail(r: &ListingReport) -> String {
             ));
         }
     }
-    if !rows.unreadable.is_empty() {
+    if rows.unreadable_total > 0 {
         out.push_str("rows that cannot be read:\n");
         for p in &rows.unreadable {
             out.push_str(&format!(
@@ -279,7 +282,7 @@ fn render_status(r: &ListingReport, now: i64, expand: bool, account: &str) -> St
         if expand {
             out.push_str(&rows_detail(r));
         }
-        let next = if !r.rows.unreadable.is_empty() {
+        let next = if r.rows.unreadable_total > 0 {
             format!("`acq price status {scope} --expand` lists the rows that cannot be read")
         } else {
             format!("`acq refresh --plan{place_flags}` shows what a refresh would fetch")
@@ -393,7 +396,7 @@ fn render_status(r: &ListingReport, now: i64, expand: bool, account: &str) -> St
         )
     } else if count_of(r, Relation::Conflict) > 0 {
         format!("`acq price list {scope} --relation conflict` names each conflict")
-    } else if !rows.unreadable.is_empty() {
+    } else if rows.unreadable_total > 0 {
         format!("`acq price status {scope} --expand` lists the rows that cannot be read")
     } else {
         format!(
