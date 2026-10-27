@@ -17,10 +17,14 @@ use crate::harness;
 use harness::{Transcript, acq, golden, no_daemon_appeared, sole_json};
 
 /// What the test plants: the account's name and uuid in the index, the
-/// store file's name and the log, and a token in the log.
+/// store file's name and the log, and three tokens in the log.
 const USER: &str = "Alice#1234";
 const UUID: &str = "u-diagnose-cli";
 const TOKEN: &str = "sentinel-code-7f3a";
+/// The review's two token shapes (r4, finding 1): a quoted value after
+/// `=`, and a JSON body's spacing.
+const QUOTED: &str = "sentinel-refresh-q1";
+const SPACED: &str = "sentinel-code-q2";
 
 /// One account with its profile on record, and the log and journal a
 /// last daemon of this world would have left under the isolation's log
@@ -52,7 +56,9 @@ fn seed(base: &Path) {
             "[    0s] world: {}\n\
              [    5s] store: {} opened for {USER}\n\
              [    5s] logged in as {USER} ({UUID})\n\
-             [    6s] callback /auth/path-of-exile?code={TOKEN}&state=s\n",
+             [    6s] callback /auth/path-of-exile?code={TOKEN}&state=s\n\
+             [    6s] refresh_token=\"{QUOTED}\"\n\
+             [    6s] body {{\"code\": \"{SPACED}\"}}\n",
             world.root().display(),
             store_file.display(),
         ),
@@ -89,7 +95,7 @@ fn a_diagnosis_with_no_daemon_prints_every_section_and_nothing_planted() {
         &["diagnose"],
         &[
             "Replaced before printing: 7 occurrences of account names and uuids",
-            "1 occurrence of token-shaped strings",
+            "3 occurrences of token-shaped strings",
             "== daemon\ndaemon is not running; no queue on disk\nlast log: <logs>",
             "responses 1",
             "holds\nnothing: no block mark, no trip, no account's refresh disabled",
@@ -99,15 +105,27 @@ fn a_diagnosis_with_no_daemon_prints_every_section_and_nothing_planted() {
             "(not read: line 3 of this tail is not JSON",
             "logged in as <account 1> (<account 1 uuid>)",
             "?code=<token 1>&state=s",
+            "refresh_token=\"<token 2>\"",
+            "{\"code\": \"<token 3>\"}",
         ],
     );
     assert!(out.status.success(), "{out:?}");
     let printed = String::from_utf8_lossy(&out.stdout);
-    for planted in [USER, "Alice", "Alice_1234", "Bob#5678", UUID, TOKEN] {
+    for planted in [
+        USER,
+        "Alice",
+        "Alice_1234",
+        "Bob#5678",
+        UUID,
+        TOKEN,
+        QUOTED,
+        SPACED,
+    ] {
         assert!(
             !printed.contains(planted),
             "the text holds {planted:?}, which the test planted in the index, the store file's \
-             name, the log (the account, its uuid and a code) and the journal's route keys:\n{printed}"
+             name, the log (the account, its uuid, a code, a quoted refresh token and a JSON \
+             body's code) and the journal's route keys:\n{printed}"
         );
     }
 

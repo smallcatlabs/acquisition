@@ -693,6 +693,10 @@ const PLANTED_UUID: &str = "u-diagnose-7d1e";
 const PLANTED_OTHER: &str = "Bob#5678";
 const PLANTED_ACCESS: &str = "sentinel-access-55d0";
 const PLANTED_BEARER: &str = "sentinel-bearer-91c4";
+/// The review's two (r4, finding 1): a quoted value after `=`, and a
+/// JSON body's spacing.
+const PLANTED_QUOTED: &str = "sentinel-refresh-q1";
+const PLANTED_SPACED: &str = "sentinel-code-q2";
 
 /// #79: with no daemon, every section still reads — the ledger's
 /// picture, the store's counts read-only, the world's rails file, the
@@ -700,7 +704,7 @@ const PLANTED_BEARER: &str = "sentinel-bearer-91c4";
 /// survives into the document: the account's name in the index, the
 /// store file and the log, the journal's route keys (each account its
 /// own placeholder), the store root and the home directory written into
-/// the log, and two tokens. A torn last journal line is reported, never
+/// the log, and four tokens, two of them in the review's shapes. A torn last journal line is reported, never
 /// pasted.
 #[tokio::test]
 async fn a_diagnosis_with_no_daemon_reads_every_section_and_holds_nothing_planted() {
@@ -733,6 +737,8 @@ async fn a_diagnosis_with_no_daemon_reads_every_section_and_holds_nothing_plante
              [    5s] logged in as {PLANTED_USER} ({PLANTED_UUID})\n\
              [    6s] GET /oauth/token?access_token={PLANTED_ACCESS} -> 403\n\
              [    6s] Authorization: Bearer {PLANTED_BEARER}\n\
+             [    6s] refresh_token=\"{PLANTED_QUOTED}\"\n\
+             [    6s] body {{\"code\": \"{PLANTED_SPACED}\"}}\n\
              [    7s] config read from {}\n",
             world.root().display(),
             store_file.display(),
@@ -769,6 +775,8 @@ async fn a_diagnosis_with_no_daemon_reads_every_section_and_holds_nothing_plante
         PLANTED_OTHER,
         PLANTED_ACCESS,
         PLANTED_BEARER,
+        PLANTED_QUOTED,
+        PLANTED_SPACED,
         &world.root().display().to_string(),
         &bare_home,
     ] {
@@ -776,7 +784,8 @@ async fn a_diagnosis_with_no_daemon_reads_every_section_and_holds_nothing_plante
             !printed.contains(planted),
             "the diagnosis holds {planted:?}, which the test planted in the index, the store \
              file's name, the log (the world root, the store file, the home directory, an \
-             access token and a bearer token) and the journal's route keys: {document:#}"
+             access token, a bearer token, a quoted refresh token and a JSON body's code) and \
+             the journal's route keys: {document:#}"
         );
     }
 
@@ -812,7 +821,7 @@ async fn a_diagnosis_with_no_daemon_reads_every_section_and_holds_nothing_plante
         "the torn line reported: {document:#}"
     );
     let log_lines = document["log"]["lines"].as_array().unwrap();
-    assert_eq!(log_lines.len(), 6, "{document:#}");
+    assert_eq!(log_lines.len(), 8, "{document:#}");
     assert_eq!(
         log_lines[1],
         json!("[    5s] store: <store>/mock/<account 1>.db opened for <account 1>")
@@ -821,11 +830,16 @@ async fn a_diagnosis_with_no_daemon_reads_every_section_and_holds_nothing_plante
         log_lines[2],
         json!("[    5s] logged in as <account 1> (<account 1 uuid>)")
     );
-    assert_eq!(log_lines[5], json!("[    7s] config read from ~/.config"));
+    assert_eq!(log_lines[5], json!(r#"[    6s] refresh_token="<token 3>""#));
+    assert_eq!(
+        log_lines[6],
+        json!(r#"[    6s] body {"code": "<token 4>"}"#)
+    );
+    assert_eq!(log_lines[7], json!("[    7s] config read from ~/.config"));
     assert_eq!(
         document["redactions"]["tokens"],
-        json!(2),
-        "the two planted tokens: {document:#}"
+        json!(4),
+        "the four planted tokens: {document:#}"
     );
 }
 

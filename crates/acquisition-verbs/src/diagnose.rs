@@ -419,37 +419,99 @@ impl Diagnosis {
     }
 }
 
-/// The marks a token is written after: the query and form names an OAuth
-/// exchange carries it under, the header schemes, the game's session
-/// cookie and a JSON key. What follows a mark, to the next delimiter, is
-/// the token. The shapes the journal refuses to write (`rails.rs`'s
-/// `journal_writes_one_flushed_line_without_secrets`), kept as a belt.
-const TOKEN_MARKS: [&str; 12] = [
-    "access_token=",
-    "refresh_token=",
-    "code=",
-    "code_verifier=",
-    "client_secret=",
-    "poesessid=",
-    "bearer ",
-    "\"access_token\":\"",
-    "\"refresh_token\":\"",
-    "\"access_token\": \"",
-    "\"refresh_token\": \"",
-    "\"code\":\"",
-];
-
-/// The JSON keys whose string value is a token whatever it looks like.
-const TOKEN_KEYS: [&str; 8] = [
+/// The names a token is carried under: the OAuth exchange's query and
+/// form fields, the headers, the game's session cookie. A token is the
+/// value after one of them, wherever it stands: the name bare or quoted,
+/// optional spaces, `=` or `:`, optional spaces, then the value, to its
+/// closing quote when quoted, else to the next delimiter
+/// (`refresh_token=…`, `refresh_token="…"`, `{"code": "…"}`). The same
+/// list is the JSON keys whose string value is a token whatever it looks
+/// like. A value of digits alone is no token (a GGG error's `"code": 2`),
+/// nor a scheme word before its token (`Authorization: Bearer …`), nor a
+/// challenge's parameter (`is_parameter`).
+const TOKEN_KEYS: [&str; 10] = [
     "access_token",
     "refresh_token",
     "code",
     "code_verifier",
     "client_secret",
+    "poesessid",
     "authorization",
     "cookie",
     "set-cookie",
+    "x-access-token",
 ];
+
+/// The schemes a token follows after a space (`Bearer <token>`).
+const TOKEN_SCHEMES: [&str; 1] = ["bearer"];
+
+/// Where `rest` holds a token, when it starts one at a word's start: the
+/// length of what is kept before it (the name and separator, or the
+/// scheme) and of the token itself.
+fn token_at(rest: &str) -> Option<(usize, usize)> {
+    let starts = |text: &str, word: &str| {
+        text.get(..word.len())
+            .is_some_and(|head| head.eq_ignore_ascii_case(word))
+    };
+    let spaces = |text: &str| text.len() - text.trim_start_matches(' ').len();
+    for scheme in TOKEN_SCHEMES {
+        if starts(rest, scheme) {
+            let after = &rest[scheme.len()..];
+            let gap = spaces(after);
+            if gap > 0 {
+                let head = scheme.len() + gap;
+                let value = unquoted_len(&rest[head..]);
+                let next = rest[head + value..].chars().next();
+                return is_token(&rest[head..head + value], next).then_some((head, value));
+            }
+        }
+    }
+    let quote = rest.chars().next().filter(|c| matches!(c, '"' | '\''));
+    let body = &rest[quote.map_or(0, char::len_utf8)..];
+    let key = TOKEN_KEYS.iter().find(|key| {
+        starts(body, key)
+            && match quote {
+                Some(q) => body[key.len()..].starts_with(q),
+                None => !body[key.len()..]
+                    .chars()
+                    .next()
+                    .is_some_and(|c| c.is_alphanumeric() || c == '_' || c == '-'),
+            }
+    })?;
+    let mut head = rest.len() - body.len() + key.len() + quote.map_or(0, char::len_utf8);
+    head += spaces(&rest[head..]);
+    if !rest[head..].starts_with(['=', ':']) {
+        return None;
+    }
+    head += 1;
+    head += spaces(&rest[head..]);
+    let value = match rest[head..].chars().next() {
+        Some(q @ ('"' | '\'')) => {
+            head += 1;
+            rest[head..].find(q).unwrap_or(rest.len() - head)
+        }
+        _ => unquoted_len(&rest[head..]),
+    };
+    let next = rest[head + value..].chars().next();
+    is_token(&rest[head..head + value], next).then_some((head, value))
+}
+
+/// An unquoted value's length: to the first delimiter.
+fn unquoted_len(text: &str) -> usize {
+    text.chars()
+        .take_while(|c| !ends_token(*c))
+        .map(char::len_utf8)
+        .sum()
+}
+
+/// Whether a value after a mark is a token: not empty, not digits alone,
+/// not a scheme word, not a challenge's parameter.
+fn is_token(value: &str, next: Option<char>) -> bool {
+    !value.is_empty()
+        && !value.chars().all(|c| c.is_ascii_digit())
+        && !TOKEN_SCHEMES.iter().any(|s| value.eq_ignore_ascii_case(s))
+        && !is_parameter(value, next)
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Kind {
@@ -575,29 +637,12 @@ impl Redactor {
                 at += needle.text.len();
                 continue 'scan;
             }
-            if starts_word {
-                for mark in TOKEN_MARKS {
-                    let Some(head) = rest.get(..mark.len()) else {
-                        continue;
-                    };
-                    if !head.eq_ignore_ascii_case(mark) {
-                        continue;
-                    }
-                    let value: usize = rest[mark.len()..]
-                        .chars()
-                        .take_while(|c| !ends_token(*c))
-                        .map(char::len_utf8)
-                        .sum();
-                    let token = &rest[mark.len()..mark.len() + value];
-                    let next = rest[mark.len() + value..].chars().next();
-                    if value == 0 || is_parameter(token, next) {
-                        continue;
-                    }
-                    out.push_str(head);
-                    out.push_str(&self.token(token));
-                    at += mark.len() + value;
-                    continue 'scan;
-                }
+            if starts_word && let Some((head, value)) = token_at(rest) {
+                out.push_str(&rest[..head]);
+                let token = &rest[head..head + value];
+                out.push_str(&self.token(token));
+                at += head + value;
+                continue 'scan;
             }
             let Some(c) = rest.chars().next() else { break };
             out.push(c);
@@ -733,21 +778,30 @@ mod tests {
     fn a_token_after_its_mark_is_numbered_by_value() {
         let mut r = redactor();
         assert_eq!(
-            r.redact(
-                "GET /x?code=abc&state=s Authorization: Bearer xyz; again code=abc; code= none"
-            ),
-            "GET /x?code=<token 1>&state=s Authorization: Bearer <token 2>; again code=<token 1>; code= none"
+            r.redact("GET /x?code=abc&state=s Authorization: Bearer xyz; again code=abc; code=&x"),
+            "GET /x?code=<token 1>&state=s Authorization: Bearer <token 2>; again code=<token 1>; code=&x"
         );
         assert_eq!(
             r.redact("Bearer error=\"invalid_token\" and Bearer pad==; done"),
             "Bearer error=\"invalid_token\" and Bearer <token 3>; done"
+        );
+        // The review's two lines (r4, finding 1): a quoted value after
+        // `=`, and JSON's spacing; a GGG error's numeric code stays, and
+        // the cookie's name inside a header's value is still found.
+        assert_eq!(
+            r.redact(r#"refresh_token="q1" then {"code": "q2"} and {"error":{"code": 2}}"#),
+            r#"refresh_token="<token 4>" then {"code": "<token 5>"} and {"error":{"code": 2}}"#
+        );
+        assert_eq!(
+            r.redact("set-cookie: POESESSID=c1; HttpOnly"),
+            "set-cookie: POESESSID=<token 6>; HttpOnly"
         );
         let mut value =
             json!({ "access_token": "plain", "nested": [{ "Alice#1234": "refresh_token=r1" }] });
         r.redact_value(&mut value);
         assert_eq!(
             value,
-            json!({ "access_token": "<token 4>", "nested": [{ "<account 1>": "refresh_token=<token 5>" }] })
+            json!({ "access_token": "<token 7>", "nested": [{ "<account 1>": "refresh_token=<token 8>" }] })
         );
     }
 
