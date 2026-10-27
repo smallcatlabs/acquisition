@@ -1207,6 +1207,8 @@ async fn c144_a_login_cannot_land_between_a_forgets_clear_and_its_mark() {
 }
 
 /// `test-user`'s session back in the daemon, as `logged_in` installs it.
+/// Unix-only, as its one caller is.
+#[cfg(unix)]
 fn logged_in_again(daemon: &Daemon) {
     let mut s = daemon.shared.lock().unwrap();
     s.auth.replace(AuthSession {

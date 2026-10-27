@@ -5,6 +5,8 @@
 
 use super::harness::*;
 use crate::daemon::*;
+// Its one reader is a unix-only test (an unwritable index).
+#[cfg(unix)]
 use acquisition_protocol::protocol::KeyringOutcome;
 
 /// The login arm is `a_completed_login_clears_the_dead_grant_mark`.
