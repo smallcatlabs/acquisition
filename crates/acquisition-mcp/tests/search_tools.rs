@@ -483,7 +483,9 @@ fn arguments_a_tool_does_not_take_are_refused_as_a_document() {
 
 /// `describe`'s text says how large the whole language is and which
 /// sections are small: held here, so that the text is changed when the
-/// language outgrows it.
+/// language outgrows it. The sections are `names`' own list, the
+/// answer's keys (`describe::SECTIONS`, pinned against the answer in the
+/// search crate), so every section is measured here.
 #[test]
 fn describe_is_as_large_as_its_text_says() {
     let mut seat = Seat::over(scratch("mcp-search"));
@@ -494,25 +496,24 @@ fn describe_is_as_large_as_its_text_says() {
     };
     let (whole, _) = seat.call("describe", &json!({}));
     assert!(whole.to_string().len() > 100_000);
-    assert!(size(&mut seat, json!(["computed"])) > 50_000);
+    // some 80 KB, every computed value's definition (83,448 bytes at r5)
+    assert!(size(&mut seat, json!(["computed"])) > 70_000);
+    assert!(size(&mut seat, json!(["computed"])) < 90_000);
     // some 20 KB, the trade catalogue's rows (C113), each what the report
-    // says of it since the trade seat (21,633 bytes then)
+    // says of it since the trade seat (21,633 bytes then, 22,439 at r5)
     assert!(size(&mut seat, json!(["trade"])) < 25_000);
     assert!(size(&mut seat, json!(["trade"])) > 18_000);
     // some 20 KB since the property fields joined it (C114)
     assert!(size(&mut seat, json!(["fields"])) < 24_000);
     assert!(size(&mut seat, json!(["fields"])) > 16_000);
-    for section in [
-        "line",
-        "linked",
-        "values",
-        "composition",
-        "operators",
-        "slots",
-        "counts",
-        "explain",
-    ] {
-        assert!(size(&mut seat, json!([section])) < 4_000, "{section}");
+    // some 10 KB, every category id with what makes it hold (10,734 at r5)
+    assert!(size(&mut seat, json!(["categories"])) < 13_000);
+    assert!(size(&mut seat, json!(["categories"])) > 8_000);
+    let large = ["computed", "trade", "fields", "categories"];
+    for section in acquisition_search::describe::SECTIONS {
+        if !large.contains(&section) {
+            assert!(size(&mut seat, json!([section])) < 4_000, "{section}");
+        }
     }
     let tools = seat.mcp.list_tools();
     let text = tools
@@ -524,26 +525,12 @@ fn describe_is_as_large_as_its_text_says() {
     // that says other numbers fails here and is checked again.
     for stated in [
         "The whole is over 100 KB",
-        "fields (some 20 KB)",
-        "(each under 4 KB)",
-        "trade (some 20 KB)",
+        "computed is some 80 KB",
+        "fields and trade some 20 KB each",
+        "categories some 10 KB",
+        "the rest each under 4 KB",
     ] {
         assert!(text.contains(stated), "{stated}: {text}");
-    }
-    for section in [
-        "fields",
-        "line",
-        "linked",
-        "values",
-        "composition",
-        "operators",
-        "slots",
-        "computed",
-        "counts",
-        "explain",
-        "trade",
-    ] {
-        assert!(text.contains(section), "{section}: {text}");
     }
 }
 

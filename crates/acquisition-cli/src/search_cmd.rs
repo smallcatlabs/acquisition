@@ -1770,13 +1770,23 @@ fn describe_text(d: &Describe, index: bool) -> String {
         );
     } else {
         block(
-            &format!("computed values — {}", d.totals),
+            &format!(
+                "computed values — {}",
+                d.totals.as_deref().unwrap_or_default()
+            ),
             &d.computed,
             false,
         );
     }
     block("counts", &d.counts, false);
     block("why an answer is what it is", &d.explain, false);
+    // `--describe totals` alone: the table, with no value under it
+    if !index
+        && d.computed.is_empty()
+        && let Some(totals) = &d.totals
+    {
+        out.push_str(&format!("totals — {totals}\n"));
+    }
     // every category id with the site's text for it and what makes it
     // hold (C106)
     if !d.categories.is_empty() {

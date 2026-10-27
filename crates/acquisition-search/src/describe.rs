@@ -41,8 +41,10 @@ pub struct Describe {
     /// derived fields (C94, C101; `pseudo.rs`).
     pub computed: Vec<Named>,
     /// The totals table's version and source (C106's clause (c)), or why
-    /// it does not load.
-    pub totals: String,
+    /// it does not load: in the whole answer, and in a narrowed one where
+    /// `totals` is named or a computed value is printed.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub totals: Option<String>,
     /// What `--count`, `--cross` and `--sum` take (C95, C97).
     pub counts: Vec<Named>,
     /// What says why an answer is what it is: `--explain`, `--context`
@@ -61,6 +63,28 @@ pub struct Describe {
     pub not_built: Vec<NotBuilt>,
     pub limits: Vec<Limit>,
 }
+
+/// The sections of the whole answer, by the keys it is serialised under,
+/// in the struct's order: each can be asked for alone and answers with
+/// its own key filled (`tests/surface_faults.rs`). The MCP's `describe`
+/// lists them from here.
+pub const SECTIONS: [&str; 15] = [
+    "fields",
+    "line",
+    "linked",
+    "values",
+    "composition",
+    "operators",
+    "slots",
+    "computed",
+    "totals",
+    "counts",
+    "explain",
+    "categories",
+    "trade",
+    "not_built",
+    "limits",
+];
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Named {
@@ -532,7 +556,7 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
         operators,
         slots,
         computed: crate::pseudo::described(),
-        totals: crate::pseudo::provenance(),
+        totals: Some(crate::pseudo::provenance()),
         counts,
         explain,
         categories: crate::category::tables()
@@ -578,21 +602,9 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
             })
             || (entry.starts_with("arg1") && crate::tree::arg_index(asked).is_some())
     };
-    // `pseudo` names the computed block, as the namespace does
-    const BLOCKS: [&str; 12] = [
-        "fields",
-        "line",
-        "linked",
-        "values",
-        "composition",
-        "operators",
-        "slots",
-        "computed",
-        "pseudo",
-        "counts",
-        "explain",
-        "trade",
-    ];
+    // every section by its key, and `pseudo` names the computed block, as
+    // the namespace does
+    let blocks = || SECTIONS.into_iter().chain(["pseudo"]);
     let entries = |d: &Describe| -> Vec<String> {
         [
             &d.fields,
@@ -613,7 +625,7 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
     };
     let all = entries(&out);
     for name in names {
-        let known = BLOCKS.iter().any(|b| b.eq_ignore_ascii_case(name))
+        let known = blocks().any(|b| b.eq_ignore_ascii_case(name))
             || all.iter().any(|entry| answers(entry, name));
         if !known {
             if let Some(unbuilt) = NOT_BUILT.iter().find(|n| {
@@ -629,7 +641,7 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
                 .iter()
                 .flat_map(|entry| entry.split_whitespace())
                 .filter(|word| *word != "…")
-                .chain(BLOCKS)
+                .chain(blocks())
                 .collect();
             let near = bind::near(name, &words);
             return Err(LanguageError::new(
@@ -657,20 +669,23 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
         .retain(|n| wants("computed", &n.name) || wants("pseudo", &n.name));
     out.counts.retain(|n| wants("counts", &n.name));
     out.explain.retain(|n| wants("explain", &n.name));
+    let named = |block: &str| names.iter().any(|asked| asked.eq_ignore_ascii_case(block));
+    // the totals' table is named over the computed values it defines
+    if !named("totals") && out.computed.is_empty() {
+        out.totals = None;
+    }
     // the ids are the field's: printed where `category` is named
-    if !names
-        .iter()
-        .any(|asked| asked.eq_ignore_ascii_case(crate::category::FIELD))
-    {
+    if !named(crate::category::FIELD) && !named("categories") {
         out.categories.clear();
     }
-    if !names
-        .iter()
-        .any(|asked| asked.eq_ignore_ascii_case("trade"))
-    {
+    if !named("trade") {
         out.trade = None;
     }
-    out.not_built.clear();
-    out.limits.clear();
+    if !named("not_built") {
+        out.not_built.clear();
+    }
+    if !named("limits") {
+        out.limits.clear();
+    }
     Ok(out)
 }

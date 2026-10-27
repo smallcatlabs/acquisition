@@ -526,3 +526,33 @@ fn c93_the_reason_given_is_the_open_occurrences_own() {
         assert_eq!(why[0]["unread"], unread, "`{query}`");
     }
 }
+
+/// C97 (`--describe` is the help): the sections a frontend lists are the
+/// whole answer's own keys, and each asked for alone
+/// answers with its key filled. The MCP's `names` listed ten and left out
+/// `trade`, which its instructions tell an agent to send, and `totals`.
+#[test]
+fn c97_the_sections_listed_are_the_answers_keys_and_each_answers_alone() {
+    let whole = serde_json::to_value(describe::describe(&[]).unwrap()).unwrap();
+    let mut keys: Vec<&str> = whole
+        .as_object()
+        .unwrap()
+        .keys()
+        .map(String::as_str)
+        .collect();
+    let mut sections = describe::SECTIONS.to_vec();
+    keys.sort_unstable();
+    sections.sort_unstable();
+    assert_eq!(keys, sections);
+    for section in describe::SECTIONS {
+        let one = serde_json::to_value(describe::describe(&[section.to_string()]).unwrap())
+            .unwrap_or_else(|e| panic!("{section}: {e}"));
+        let filled = match &one[section] {
+            Value::Array(entries) => !entries.is_empty(),
+            Value::String(text) => !text.is_empty(),
+            Value::Object(block) => !block.is_empty(),
+            _ => false,
+        };
+        assert!(filled, "{section} alone answers without it: {one}");
+    }
+}
