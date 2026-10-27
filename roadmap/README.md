@@ -328,12 +328,12 @@ list when a step's close commit or an issue takes it.
 
 ## Current step
 
-The milestone's steps are closed (p0, r1 to r5, the C135 round) and
-pull-forward 1, #82, closed 2026-10-27. Next from "Pull-forward": #83,
-the MCP surface trimmed, then the seat (#84), its brief written from
-`briefs/TEMPLATE.md` by the session that starts it. Phase 3, the
-owner's league run, follows at his word; #70 closes on a week of
-pushes without a re-run. The assessment these rest on is
+#83, the MCP surface trimmed (pull-forward 2,
+`briefs/p83-surface-trimmed.md`), is built and its review pending, the
+count glosses waiting on the owner's ruling; the seat (#84) follows its
+close, its brief written from `briefs/TEMPLATE.md` by the session that
+starts it. Phase 3, the owner's league run, follows at his word; #70
+closes on a week of pushes without a re-run. The assessment these rest on is
 `STATE-2026-10-26.md`; the issues carry the evidence per step.
 `AGENTS.md` governs; the gate is `tools/gate.sh`.
 
@@ -365,6 +365,7 @@ messages.
 | r5 the five surface sentences | build `b2c9dd6e` (the kind list), `a694d991` (the describe sections), `2f4ae288` (the logout words), `aae783b2` (`refresh --characters`), `19592b01` (the MCP's `selection`); review `6f5e0119` (`reviews/r5-19592b01.md`); fixes `6f5e0119`, `5e7cc216`, `43cad6ff`; their review `566b22e9` (`reviews/r5-fixes-43cad6ff.md`), whose one wording finding that commit takes unreviewed; closed by the commit carrying this line | 2026-10-27 | C127's mechanism words and the league note on a selection plan, under "Open" |
 | the C135 round, the access token beside the refresh token and the start's restore off the socket's path | brief `9a6a3c63`; build `d21c79c5` (the entry), `b99675f7` (the landings and the restore), `38620e2e` (the registry), `f28e027e`; review `reviews/c135-f28e027e.md`; fixes `b3ab68f0` (a rejected token leaves the entry), `380fccb1`; their review `reviews/c135-fixes-380fccb1.md`; its wording fix `4ab6342a` (unreviewed); the rulings `0065e17d`; build `fb92f468` (the restore as the fifth landing), `b9bada44` (the `auth status` words), `7cb7bd7f`; review `reviews/c135-7cb7bd7f.md`; fixes `1bf30803`, `1e8879aa`, `9f222231`; their review `reviews/c135-fixes-9f222231.md`; its two fixes `355229d0` (unreviewed); closed by the commit carrying this line | 2026-10-27 | the index-unreadable 401 restart, on #63; `exit.rs`'s `settle()` and the refusal during any exit, under "Open" |
 | #82 the held corpus in `acq-mcp` (pull-forward 1) | brief `500e4468`; build `551520fd` (the holder), `b439d30e` (the web on it), `bfd3a410` (the MCP on it, M8); review `reviews/p82-bfd3a410.md`; its one doc fix `9a1e8d0b` (unreviewed); closed by the commit carrying this line | 2026-10-27 | #95, the resident size per reload; `show` over the held corpus and a per-account slot, declined until a consumer asks |
+| #83 the MCP surface trimmed (pull-forward 2) | brief `1dd3dfdb`; build `81178cd0` (the answer section), `c9d6aec3` (the refusal's spelling), `c250b2c8` (`describe` by name), the commit carrying this line (the cut, the length test, the measurement) | review pending; the count glosses wait on the owner's ruling (the brief's Do 1) | the close's |
 
 ## Housekeeping
 

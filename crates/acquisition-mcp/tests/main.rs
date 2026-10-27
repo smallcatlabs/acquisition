@@ -14,4 +14,5 @@ mod persisted_queue;
 mod pricing_tools;
 mod provider_default;
 mod search_tools;
+mod surface_size;
 mod tool_refusals;

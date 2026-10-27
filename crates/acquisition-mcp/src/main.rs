@@ -420,6 +420,9 @@ fn realm_param(realm: Option<&str>) -> Result<Realm> {
     }
 }
 
+/// Every tool's `account`, one sentence (#83: undescribed on seven).
+const ACCOUNT: &str = "A username, with or without its #discriminator, or a uuid; needed only when several are known.";
+
 #[derive(Deserialize, schemars::JsonSchema)]
 struct TabsParams {
     /// League name; defaults to "Standard".
@@ -434,8 +437,7 @@ struct TabsParams {
     never_fetched: Option<bool>,
     /// Realm: pc (default), xbox, or sony.
     realm: Option<String>,
-    /// Account selector (username with or without `#discriminator`, or
-    /// uuid); required only when several accounts are known.
+    #[schemars(description = ACCOUNT)]
     account: Option<String>,
 }
 
@@ -445,6 +447,7 @@ struct CharactersParams {
     league: Option<String>,
     /// Restrict to one realm (pc, xbox, sony, poe2); omitted lists every realm.
     realm: Option<String>,
+    #[schemars(description = ACCOUNT)]
     account: Option<String>,
 }
 
@@ -466,15 +469,15 @@ impl schemars::JsonSchema for RequestParams {
             "properties": {
                 "scope": {
                     "type": "object",
-                    "description": "What is searched: {\"account\": a username or uuid, needed only when several accounts are known; \"realm\": pc, xbox, sony, poe2 or all, needed only when the store holds several; \"membership\": \"live\" (the default); \"all\", which adds removed items, each row marked with when it left; or \"removed\", the removed items alone: what has left the stash and the characters}. Under all and removed the answer's scope counts the live items as `items` and the removed as `removed`, whichever were searched."
+                    "description": "What is searched: {\"account\": needed only where several could be meant, \"realm\": pc, xbox, sony, poe2 or all, needed only where the store holds several, \"membership\": \"live\" (the default), \"all\", the removed items too, each marked with when it left, or \"removed\"}."
                 },
                 "query": {
                     "type": "object",
-                    "description": "{\"text\": a query in the language `describe` prints} or {\"tree\": the tree an answer returned}, never both. Omitted: every item in scope. A refinement is the old text in parentheses and a new term. Or {\"trade\": a trade site search}: its URL, its id or its query JSON as a string, or the query JSON as an object (PoE1), translated with no network to the text a person would type; the answer's `query.trade` holds every clause with its status — exact, ambiguous, unsupported, listing_only, disabled; an exact one with a term of its own its `at`, `term` and `path` alone, any other — a sum's filter, a group, a clause not exact — the site's filter and what the catalogue says of it — the `remainder` that did not run, and `fidelity`, how far the text is the site's search: exact, ambiguous where a clause ran as the site may not read it, or partial where the remainder is not empty, the answer then not the site's search. An ambiguous clause whose other reading is known carries `other`: that reading, and the items in scope it `adds` and `drops` against the query as run. Never how far the items are the site's: the answer is over the items the store has fetched, priced or not — what it never fetched is `scope.never_fetched` — and the site shows public listings, a tab's being `tab.public`. A URL's realm is the scope, so `scope.realm` beside one is the URL's or nothing; an id or JSON takes a realm as a text does, and a `league` beside the JSON's `query` is a term, as a URL's league is; `defences: \"displayed\"` beside it reads the four defence filters as the item stands, where the site reads them at 20 % quality. A `text` sent beside `trade` must be the one it translates to, as `view.rows.next` sends it: an edited text is refused — drop `trade` to run the edit as your own query. `describe` with names [\"trade\"] says what each clause becomes."
+                    "description": "{\"text\": a query in the language `describe` prints} or {\"tree\": the tree an answer returned}, never both; omitted, every item in scope. Or {\"trade\": a trade site search's URL, id or query JSON}, translated with no network; `describe` with names [\"trade\"] says what it becomes and reports."
                 },
                 "view": {
                     "type": "object",
-                    "description": "One of: {\"rows\": {\"limit\": N, \"sort\": a value, \"desc\": true}}, the default, 20 rows where no limit is given; {\"counts\": {\"keys\": [a key, …], \"sum\": a value, \"limit\": N}}, a table for each key and no rows, a sum's `value` over the items that have the value and its `lacking` counting the items without it, which add nothing; {\"cross\": {\"keys\": [two keys]}}, one crossed table; {\"explain\": {\"path\": a node's path, a term's as `terms[].path` gives it}}, the total with that node forced true and forced false. Beside any of them, \"routes\": true gives every count its request, a terminal's --routes; alone, {\"routes\": true} is the default rows. `describe` with names [\"counts\"] lists the keys. A sort's value is a field (reqlevel), a computed value (pseudo.total_res), a line's number (line(\"# to maximum Life\").arg1) or a sum of one (`sum(\"# to maximum Life\")`), spanning every source unless `source=` names one; an item that lacks it is last, ascending or descending."
+                    "description": "{\"rows\": {\"limit\": N, \"sort\": a value, \"desc\": true}}, the default (20 rows); {\"counts\": {\"keys\": [a key, …], \"sum\": a value}}; {\"cross\": {\"keys\": [two keys]}}; or {\"explain\": {\"path\": a node's path}}; \"routes\": true beside any. `describe` with names [\"answer\"] says what each gives."
                 },
                 "context": {
                     "type": "string",
@@ -486,7 +489,7 @@ impl schemars::JsonSchema for RequestParams {
                 },
                 "request": {
                     "type": "object",
-                    "description": "In place of the fields above: a request as an answer holds one — a count (`count`, `request`, and `denominator`, what the request searches: the scope, never the share the count is of), `view.rows.next`, or an offer — sent whole, as printed."
+                    "description": "In place of the fields above: a request as an answer holds one — a count's, `view.rows.next`, an offer — sent whole, as printed."
                 },
                 "count": {
                     "type": "integer",
@@ -591,13 +594,13 @@ struct ShowParams {
     /// Why the item does or does not match a query: `{"text": …}`,
     /// `{"tree": …}` or `{"trade": …}`, as a request's `query`.
     against: Option<Value>,
-    /// Account selector (username with or without `#discriminator`, or
-    /// uuid); required only when several accounts are known.
+    #[schemars(description = ACCOUNT)]
     account: Option<String>,
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]
 struct StoreParams {
+    #[schemars(description = ACCOUNT)]
     account: Option<String>,
 }
 
@@ -607,6 +610,7 @@ struct EventsParams {
     hours: Option<f64>,
     /// Maximum rows (default 200).
     limit: Option<usize>,
+    #[schemars(description = ACCOUNT)]
     account: Option<String>,
 }
 
@@ -616,9 +620,7 @@ fn submit_kind_doc() -> String {
     use acquisition_protocol::job::{MOCK_ONLY_KINDS, client_kinds};
     format!(
         "Job kind, one a client may submit: {}. {} run against the mock daemon alone and are \
-refused in real mode. apply takes {{\"jobs\": [{{\"kind\", \"params\"}}, …]}}, the single \
-requests a plan authorizes (stashes, stash, characters, character); apply_plan sends a reviewed \
-plan after the checks this skips.",
+refused in real mode. apply_plan sends a reviewed plan, with the checks an apply here skips.",
         client_kinds(false),
         MOCK_ONLY_KINDS.join(", ")
     )
@@ -631,7 +633,7 @@ struct SubmitParams {
     /// Kind-specific params, e.g. {"league": "Standard", "id": "..."} for
     /// stash. Passed verbatim; visible to every connected client.
     params: Option<Value>,
-    /// Account to run as; required when several sessions are live.
+    #[schemars(description = ACCOUNT)]
     account: Option<String>,
     /// Higher runs sooner (default 0).
     priority: Option<u8>,
@@ -645,28 +647,19 @@ struct JobParams {
 
 #[derive(Deserialize, schemars::JsonSchema)]
 struct SetPolicyParams {
-    /// The sync-policy value, e.g.
-    /// {"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}
-    /// — per league, `tabs` and/or `characters` ("all" or an id list;
-    /// absent means no coverage of that facet; an entry covering neither is
-    /// refused). `tabs` is refused under realm poe2 (stashes are PoE1
-    /// only); `characters` is taken under every realm. Older values still
-    /// parse: a version-1 top-level `leagues` map as realm pc, and version
-    /// 1/2 as tab coverage only.
-    /// Validated strictly before anything lands — a typo'd field is
-    /// refused, never half-honored. Each realm it names replaces that
-    /// realm's stored policy, every league of it; a realm it does not
-    /// name stays, and a realm named with no leagues
-    /// ({"poe2":{"leagues":{}}}) is removed.
+    /// The policy, e.g.
+    /// {"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}:
+    /// per league `tabs` and/or `characters`, "all" or an id list; a realm
+    /// named with no leagues is removed. Validated strictly, landing whole
+    /// or not at all.
     value: Value,
-    /// The revision this write replaces, from sync_policy. Required when a
-    /// policy exists (replacing a policy you have not read is refused as a
-    /// conflict naming the current revision), with `replace` too; omit
-    /// only to create the first policy.
+    /// The revision this write replaces, from sync_policy: required when a
+    /// policy exists, `replace` or not; omitted only to create the first.
     if_revision: Option<i64>,
     /// true writes the whole policy: every realm `value` does not name is
     /// removed. Default false: the realms `value` names, the rest kept.
     replace: Option<bool>,
+    #[schemars(description = ACCOUNT)]
     account: Option<String>,
 }
 
@@ -677,14 +670,14 @@ struct PlanParams {
     /// Realm: pc (default), xbox, sony, or poe2 (a poe2 plan can carry
     /// character work only).
     realm: Option<String>,
-    /// An explicit selection, compiled in place of the stored policy, in
-    /// the shape a selection plan's `basis.selection` carries:
+    /// An explicit selection, compiled in place of the stored policy:
     /// {"tabs": "all" or [tab ids], "characters": [character ids],
     /// "deep": true to fetch a named map or unique tab's pages on record
-    /// with it}, any of them left out. Ids are as `tabs` and `characters`
-    /// list them; one the facts do not hold is reported, never fetched.
+    /// with it}, any of them left out; ids as `tabs` and `characters` list
+    /// them.
     #[schemars(with = "Option<Value>")]
     selection: Option<acquisition_plan::PlanSelection>,
+    #[schemars(description = ACCOUNT)]
     account: Option<String>,
 }
 
@@ -697,6 +690,7 @@ struct ApplyParams {
     /// Refuse at admission — before any child job exists — if the plan
     /// authorizes more logical requests than this.
     max_requests: Option<u64>,
+    #[schemars(description = ACCOUNT)]
     account: Option<String>,
 }
 
@@ -707,8 +701,7 @@ struct PriceStatusParams {
     league: Option<String>,
     /// pc (the default), xbox, sony or poe2.
     realm: Option<String>,
-    /// Account selector (username with or without `#discriminator`, or
-    /// uuid); required only when several accounts are known.
+    #[schemars(description = ACCOUNT)]
     account: Option<String>,
 }
 
@@ -727,8 +720,7 @@ struct PriceShowParams {
     /// or substash address carries its own, and a realm given beside it
     /// must agree.
     realm: Option<String>,
-    /// Account selector (username with or without `#discriminator`, or
-    /// uuid); required only when several accounts are known.
+    #[schemars(description = ACCOUNT)]
     account: Option<String>,
 }
 
@@ -757,8 +749,7 @@ struct PriceListParams {
     /// List at most this many items, the first in listing order (some
     /// 1.3 KB an item); `total` says how many the selection holds.
     limit: Option<usize>,
-    /// Account selector (username with or without `#discriminator`, or
-    /// uuid); required only when several accounts are known.
+    #[schemars(description = ACCOUNT)]
     account: Option<String>,
 }
 
@@ -782,8 +773,7 @@ struct ShopRenderParams {
     /// items nothing applies to included (some 200 bytes an item; a
     /// league holds thousands); they are counted either way.
     expand: Option<bool>,
-    /// Account selector (username with or without `#discriminator`, or
-    /// uuid); required only when several accounts are known.
+    #[schemars(description = ACCOUNT)]
     account: Option<String>,
 }
 
@@ -816,8 +806,7 @@ struct PriceSetParams {
     /// itself, or the revision a refusal names. Required when the target
     /// has a row of its own; omit it only to create one.
     if_revision: Option<i64>,
-    /// Account selector (username with or without `#discriminator`, or
-    /// uuid); required only when several accounts are known.
+    #[schemars(description = ACCOUNT)]
     account: Option<String>,
 }
 
@@ -830,8 +819,7 @@ struct PriceClearParams {
     /// price_set. Required: a clear without it is refused naming the
     /// current revision.
     if_revision: Option<i64>,
-    /// Account selector (username with or without `#discriminator`, or
-    /// uuid); required only when several accounts are known.
+    #[schemars(description = ACCOUNT)]
     account: Option<String>,
 }
 
@@ -970,7 +958,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "The stash tabs of a league, counted first, from the shared store (no daemon, no network): how many tabs, fetched, never fetched and folders, how many items, and the same by tab type (`by_type`, the most items first); then `rows`, the tabs listed — every one where the league holds thirty or fewer, else the ten with the most items (`listed`: `all` or `most_items`) — each with its type, item count and fetch time, a substash naming its `parent`. `left_out` counts the tabs not listed; `expand: true` lists them all (some 220 bytes a tab). `type` and `never_fetched: true` select the tabs listed — the never fetched of one type by name, which a refresh takes — under the league's counts, `selected` counting them. A name ending ` (Remove-only)` is GGG's mark on a tab whose items can only be taken out; a search asks it as `tab.remove_only`."
+        description = "The stash tabs of a league, counted first, from the store (no daemon): how many tabs, fetched, never fetched and folders, how many items, and the same by tab type (`by_type`, the most items first); then `rows`, the tabs listed — every one where the league holds thirty or fewer, else the ten with the most items (`listed`: `all` or `most_items`) — each with its type, item count and fetch time. `left_out` counts the tabs not listed. `type` and `never_fetched: true` select the tabs listed — the never fetched of one type by name, which a refresh takes — under the league's counts, `selected` counting them. A name ending ` (Remove-only)` is GGG's mark on a tab whose items can only be taken out."
     )]
     fn tabs(&self, Parameters(p): Parameters<Args<TabsParams>>) -> Told {
         answer(|| {
@@ -996,7 +984,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Characters known to the store, with class, level, league, and two counts — `item_count`, the live items the store holds at the character now, and `fetched_items`, what the last full fetch's body carried (equipment + inventory, socketed gems not counted), null until one — (no daemon, no network). Fresh data is a `characters` or `character` job."
+        description = "Characters known to the store, with class, level, league, and two counts — `item_count`, the live items the store holds at the character now, and `fetched_items`, what the last full fetch's body carried (equipment + inventory, socketed gems not counted), null until one — (no daemon). Fresh data is a `characters` or `character` job."
     )]
     fn characters(&self, Parameters(p): Parameters<Args<CharactersParams>>) -> Told {
         answer(|| {
@@ -1012,7 +1000,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Item search over the shared store (no daemon, no network): a query in the language `describe` prints, asked of every item in scope. The arguments are the request: {} is every item; {\"query\": {\"text\": \"class:ring rarity=rare\"}} is a query, and {\"query\": {\"trade\": a trade site URL}} a site search translated to one. The answer is one JSON document, its keys in this order: `query` (the text as understood, and its tree), `scope` (account, realm, `items` every live item in scope before any term, what was and was not fetched: `fetched` counts the tabs, their pages and the characters fetched, `oldest_fetch` and `newest_fetch` the earliest and the latest of their last fetches, each one location's, where a row's `place.fetched_at` is its own; `never_fetched` counts the tabs, their pages and the characters a listing names and no fetch has filled, and no answer says what they hold, a count of none or of many; `never_fetched_by_type` is the same by tab type, a character's `character`: each type that has a location never fetched, its `tabs` every location of the type and `fetched` how many of them were, so `tabs` minus `fetched` were never fetched, and `items` the live items in the fetched ones, counted as the `tabs` tool counts a type, over the scope's realm in every league whatever the query asks, since what a never-fetched location holds is unknown, and `tabs` lists a league's tabs, `never_fetched_leagues` naming the leagues that hold a never-fetched tab, the most first), `total`, `rows` — id, name, base, rarity, place by name and id — a tab's page with no name of its own has `name` null and its tab in `parent` — with the cell the item sits in (`place.cell`, GGG's x and y, in a tab or an inventory) and when that place was last fetched (`place.fetched_at`), and the lines each term touched with their values, the term named by its `path` in `terms`, never the item's body, which is `show` — then `view`, and last `terms` (for each term how many items matched, failed, lacked the thing or were undecided — each term alone over every item in scope, never over the matches, which are `total`; a pattern term's `resolved` is what it matched there, its `rest.denominator` `scope`) and `basis` (what the answer was computed from: its `intent` is the revision of the account's hand-written prices and sync policy, which every write to either moves). Rows past the limit are counted in `view.rows.left_out`, and `view.rows.next` is the request for the rows after: send it back whole. A count holds the request that returns exactly its members where a next step hangs on it — what is undecided, what holds only together, what a key could not place (`none`, `undecided`), what an ambiguous trade clause's other reading adds or drops, and each term's matched where nothing matched — and every other count is its number alone: `view.routes: true` asks for every count's. A zero total offers requests under `zero.offers`: any request an answer holds is sent back as printed. A count-first look is {\"view\": {\"counts\": {\"keys\": [\"tab\", \"rarity\"]}}}; the vocabulary of lines is the key `line`, or `line:<text>` narrowed. A key is one entry of `keys`: a terminal's list `line:resist,life` is [\"line:resist\", \"line:life\"], and a comma inside an entry is part of its text. A time is seconds since 1970, UTC. The messages name the request's own fields, and `describe` names a terminal's flags: --count, --cross, --sum, --sort, --desc, --limit, --explain and --routes are `view`'s fields, --context is `context`, --realm and --membership are `scope`'s, and --next is `view.rows.next` sent back. A refusal is a result marked isError: `error`, `kind`, `readings` (what may have been meant, as a terminal would type it: a query text, a name, a flag or a whole `acq` command) and, where a way on is a search, `offers` (the same as requests to send instead)."
+        description = "Item search over the store (no daemon): a query in the language `describe` prints, asked of every item in scope. The arguments are the request: {} is every item; {\"query\": {\"text\": \"class:ring rarity=rare\"}} is a query, and {\"query\": {\"trade\": a trade site URL}} a site search translated to one. The answer is one JSON document — `query`, `scope`, `total`, `rows`, `view`, `terms`, `basis` — and `describe` with names [\"answer\"] says what each key holds. Its counts: `scope` (account, realm, `items` every live item in scope before any term, what was and was not fetched: `fetched` counts the tabs, their pages and the characters fetched, `oldest_fetch` and `newest_fetch` the earliest and the latest of their last fetches, each one location's, where a row's `place.fetched_at` is its own; `never_fetched` counts the tabs, their pages and the characters a listing names and no fetch has filled, and no answer says what they hold, a count of none or of many; `never_fetched_by_type` is the same by tab type, a character's `character`: each type that has a location never fetched, its `tabs` every location of the type and `fetched` how many of them were, so `tabs` minus `fetched` were never fetched, and `items` the live items in the fetched ones, counted as the `tabs` tool counts a type, over the scope's realm in every league whatever the query asks, since what a never-fetched location holds is unknown, and `tabs` lists a league's tabs, `never_fetched_leagues` naming the leagues that hold a never-fetched tab, the most first), `terms` (for each term how many items matched, failed, lacked the thing or were undecided — each term alone over every item in scope, never over the matches, which are `total`; a pattern term's `resolved` is what it matched there, its `rest.denominator` `scope`). Rows past the limit are counted in `view.rows.left_out`. Any request an answer holds is sent back as printed."
     )]
     fn search(&self, Parameters(RequestParams(args)): Parameters<RequestParams>) -> Told {
         let asked = match Asked::read(&Value::Object(args)) {
@@ -1085,7 +1073,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "One item as the search derives it, live or removed (no daemon, no network): its place, its fields, class, category and price, and every line with its kind, template and numbers. `against` adds why the item does or does not match a query: the root's outcome and each node's — a term's `matched`, `failed`, `lacked` or `undecided`, a group's `match`, `no_match` or `undecided`. `body` adds the stored body, verbatim. An id that is a tab's or a character's is refused and offers the search that lists it. A refusal is a result marked isError, as `search`'s is."
+        description = "One item as the search derives it, live or removed (no daemon): its place, its fields, class, category and price, and every line with its kind, template and numbers. `against` adds why the item does or does not match a query, each node's outcome (`describe` with names [\"against\"]); `body` adds the stored body, verbatim."
     )]
     fn show(&self, Parameters(p): Parameters<Args<ShowParams>>) -> Told {
         let p = match p.read() {
@@ -1123,14 +1111,14 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Store file path, size, and row counts (no daemon, no network). `leagues` counts the league listing's rows and `league_list` says whether that listing was ever fetched (`acq leagues` or a `leagues` job fetches it); characters and tabs carry their league names whether or not it was. `refused_bodies` counts bodies the store would not take, which `acq store refused` lists. `withheld_responses` counts fetches of tabs or characters the latest list no longer named and `withheld_items` the items they carried: kept as evidence, in no search or count, nothing to do unless a list names the place again. `unlifted_items` counts item-shaped objects in characters' data under a key this build does not read as items, so no search counts them: GGG added a kind of item list, which a newer build reads. `granted_skills` counts the skill entries PoE2 characters' items grant — GGG shows a granted skill once in each place it appears, the item's sockets and the character's skills, so one skill can be two entries — kept with their characters and not counted as items, having no id of their own."
+        description = "Store file path, size, and row counts (no daemon). `leagues` counts the league listing's rows and `league_list` says whether that listing was ever fetched (`acq leagues` or a `leagues` job fetches it); characters and tabs carry their league names whether or not it was. `refused_bodies` counts bodies the store would not take, which `acq store refused` lists. `withheld_responses` counts fetches of tabs or characters the latest list no longer named and `withheld_items` the items they carried: kept as evidence, in no search or count, nothing to do unless a list names the place again. `unlifted_items` counts item-shaped objects in characters' data under a key this build does not read as items, so no search counts them: GGG added a kind of item list, which a newer build reads. `granted_skills` counts the skill entries PoE2 characters' items grant — GGG shows a granted skill once in each place it appears, the item's sockets and the character's skills, so one skill can be two entries — kept with their characters and not counted as items, having no id of their own."
     )]
     fn store_status(&self, Parameters(p): Parameters<Args<StoreParams>>) -> Told {
         answer(|| self.facts(p.parse()?.account.as_deref())?.status())
     }
 
     #[tool(
-        description = "Item events (added/moved/changed/removed) from recent ingests, newest first (no daemon, no network); `hours` how far back, `limit` how many of the newest."
+        description = "Item events (added/moved/changed/removed) from recent ingests, newest first (no daemon)."
     )]
     fn item_events(&self, Parameters(p): Parameters<Args<EventsParams>>) -> Told {
         answer(|| {
@@ -1144,7 +1132,7 @@ impl AcqMcp {
     // ---- the intent/plan slice (tracer step 8): policy → plan → apply ----
 
     #[tool(
-        description = "The per-account sync policy (declared coverage + freshness, an annotation) with its revision — what refresh_plan compiles. Reads the store; no daemon, no network. `policy` is null when none is set."
+        description = "The account's sync policy (declared coverage and freshness) with its revision — what refresh_plan compiles (no daemon). `policy` is null when none is set."
     )]
     fn sync_policy(&self, Parameters(p): Parameters<Args<StoreParams>>) -> Told {
         answer(|| {
@@ -1154,7 +1142,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Write the per-account sync policy (validated strictly, compare-and-swap on if_revision). Sends nothing — the policy is local; the network cost appears only when a plan is applied. Each realm the value names replaces that realm alone; the others stay, a realm named with no leagues is removed, and `replace: true` writes the whole policy instead. Replacing an existing policy requires if_revision (from sync_policy) either way; a stale or missing revision is a conflict, never a clobber. Returns the stored row, the whole policy as it now stands, and `league_notes` when the value names a league the account's fetched league list does not hold: each such league with `list_fetched_at`, when that list was fetched, null when it never was (a `leagues` job fetches it). Nothing refuses on a note."
+        description = "Write the account's sync policy, validated strictly, compare-and-swap on `if_revision`. Local only: it sends nothing; the network cost appears only when a plan is applied. Each realm the value names replaces that realm alone, the others stay; `replace: true` writes the whole policy. Returns the stored row, and `league_notes` for a league the account's fetched league list does not hold, with `list_fetched_at` (null when never fetched; a `leagues` job fetches it). Nothing refuses on a note."
     )]
     fn set_sync_policy(&self, Parameters(p): Parameters<Args<SetPolicyParams>>) -> Told {
         answer(|| {
@@ -1174,7 +1162,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Compile a RefreshPlan for one (realm, league) from the stored sync policy and the facts on record: stash listing and tab fetches, the realm's character listing and character fetches, each facet as the policy covers it. With `selection`, compile that explicit selection instead: the listings it selects from and each named tab or character however fresh, needing no policy and carrying no policy revision, so apply_plan checks none. Either plan is the explicit, bounded action set applying would execute, with per-action reasons, skipped tabs and characters, unknown ids, and a coarse wire estimate. Offline — sends nothing, spends nothing. A running daemon adds its read-only quote (ETA + rate-limit headroom; never spawned for this); `quote_note` says why one is absent. Only policy plans can carry `notes`; selection plans carry none: `notes.league` names the plan's league when the account's fetched league list does not hold it (with `list_fetched_at`, when that list was fetched; nothing when no list was ever fetched, which set_sync_policy's receipt says), and `notes.no_characters_listed` says the policy covers the league's characters and the realm's character listing names none in it. Review the plan, then hand `plan` to apply_plan."
+        description = "Compile a refresh plan for one realm and league, offline — sends nothing, spends nothing: from the stored sync policy, or with `selection` from that explicit selection, which needs no policy. The plan is the bounded action set applying would execute, with reasons, skips, unknown ids and a wire estimate; a running daemon adds its read-only quote, never spawned for it (`quote_note` says why one is absent). A policy plan's `notes` names a league the fetched league list lacks, or a covered league with no character listed. Review it, then hand `plan` to apply_plan."
     )]
     async fn refresh_plan(&self, Parameters(p): Parameters<Args<PlanParams>>) -> Told {
         settled(
@@ -1196,7 +1184,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Execute a reviewed plan: its actions and nothing else, as one `apply` parent job the daemon admits or refuses whole at submit (single-request vocabulary + the max_requests budget). Refused offline — before any daemon contact — if the stored sync-policy revision moved since the plan (replan with refresh_plan). In real-GGG mode the daemon must already be running (a human starts it; this server never spawns one there). An empty plan is a no-op with no daemon contact (`applied: false`, `note`, `skipped`). A plan spends each request once: an action whose target was fetched after the plan was compiled, or whose request the daemon already holds, is listed in `spent` (with `fetched_at`, or the `job_id` holding it) and not sent again, so replaying a plan answers `applied: false`, sends nothing, and gives `remaining_requests`, what a plan compiled now would fetch (null while a queued request has not landed). Returns the parent `job_id`, its `account`, the `requests` sent, `spent` and `skipped`; poll job_status, then job_result."
+        description = "Execute a reviewed plan, its actions and nothing else, as one `apply` parent job the daemon admits or refuses whole. Refused offline if the stored policy revision moved since the plan (replan with refresh_plan). A plan spends each request once: an action fetched since the plan, or held by the daemon, is listed in `spent` and not sent, so a replay answers `applied: false` with `remaining_requests`, what a plan compiled now would fetch. Returns `job_id`, `account`, `requests`, `spent` and `skipped`; poll job_status, then job_result."
     )]
     async fn apply_plan(&self, Parameters(p): Parameters<Args<ApplyParams>>) -> Told {
         settled(
@@ -1213,7 +1201,7 @@ impl AcqMcp {
     // ---- pricing: adapters of acquisition-plan's pricing verbs ----
 
     #[tool(
-        description = "The listing state of one league, counted (no daemon, no network): what every item, tab and character is priced as — by hand (a row this server or the CLI wrote), in game (an item's note, then its tab's name, read only where the tab is public), how the two stand — as the counts and the row accounting, without the listings themselves. `counts.by_effective` says who decides each item's price (game, manual, none, unresolved — a row that cannot be read could decide), `counts.by_relation` how the two sides stand (none, manual_only, game_only, agree, conflict), so the items priced by hand are its manual_only, agree and conflict together; `counts.game_priced` the items the game prices; `counts.residue` the items carrying price text the trade site cannot see — a note on a character's item, which decides no price until the item is moved into a public stash tab, or a note or tab name in a tab that is not public, which decides none until the tab is made public in the game; `counts.invalid_notes` the notes that start like a price and do not read as one (no effect: the tab's name applies); `rows` accounts for every hand-written row: how many apply here, which name nothing in the facts (`unmatched`, each row whole — `value`, `from`, `revision`, `updated_at`, `written_via` — since no listing carries it), which cannot be read, which belong to other leagues or realms. The document `acq price status --json` prints. price_list names the items; price_show is one target."
+        description = "The listing state of one league, counted (no daemon): what every item, tab and character is priced as — by hand (a row this server or the CLI wrote), in game (an item's note, then its tab's name, read only where the tab is public), how the two stand — as the counts and the row accounting, without the listings themselves. `counts.by_effective` says who decides each item's price (game, manual, none, unresolved — a row that cannot be read could decide), `counts.by_relation` how the two sides stand (none, manual_only, game_only, agree, conflict), so the items priced by hand are its manual_only, agree and conflict together; `counts.game_priced` the items the game prices; `counts.residue` the items carrying price text the trade site cannot see — a note on a character's item, which decides no price until the item is moved into a public stash tab, or a note or tab name in a tab that is not public, which decides none until the tab is made public in the game; `counts.invalid_notes` the notes that start like a price and do not read as one (no effect: the tab's name applies); `rows` accounts for every hand-written row: how many apply here, which name nothing in the facts (`unmatched`, each row whole — `value`, `from`, `revision`, `updated_at`, `written_via` — since no listing carries it), which cannot be read, which belong to other leagues or realms. price_list names the items; price_show is one target."
     )]
     fn price_status(&self, Parameters(p): Parameters<Args<PriceStatusParams>>) -> Told {
         let p = match p.read() {
@@ -1238,7 +1226,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "The items of one league that are priced, each with both sides of its listing (no daemon, no network): `items`, each with its `subject` (an item address in `subject.target`), the hand row that applies (`manual`: the value, the row's own target in `from`, `inherited`, its `revision`), the game's reading (`game`: the note and the tab name verbatim beside what each reads as, the tab and whether it is public), the `relation` and the `effective` price; `containers`, the tabs, substashes and characters those items sit under, each with its own listing; `items_on_record`, how many items the league holds, so an empty answer says which nothing; `total`, how many the selection holds, and `listed`, how many `items` lists — fewer only under `limit`, the first in listing order, `containers` then being theirs alone. With neither `relation` nor `effective`, items nothing prices are left out, except unresolved ones, which are always listed. A container the facts do not hold is refused (`kind: \"not_found\"`), never an empty selection. The document `acq price list --json` prints; a refusal is a result marked isError holding `error`, whose words name the CLI's flags (--league is `league`, --in is `in`)."
+        description = "The items of one league that are priced, each with both sides of its listing (no daemon): `items`, each with its `subject`, the hand row that applies (`manual`), the game's reading (`game`), the `relation` and the `effective` price; `containers`, the tabs, substashes and characters they sit under; `items_on_record`, how many items the league holds, so an empty answer says which nothing; `total`, how many the selection holds, and `listed`, how many `items` lists — fewer only under `limit`, the first in listing order, `containers` then being theirs alone. With neither `relation` nor `effective`, items nothing prices are left out, except unresolved ones."
     )]
     fn price_list(&self, Parameters(p): Parameters<Args<PriceListParams>>) -> Told {
         let p = match p.read() {
@@ -1271,7 +1259,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "One target's listing (no daemon, no network): `listing`, both sides with their causes — the hand row that applies with its `revision` and the target it is on (`manual.from`; the target's own row when that is the target itself, a container's when `inherited`), the note and the tab name verbatim beside what each reads as — the relation, the effective price and why; `container`, the one an item sits in; for a tab, substash or character, `items_here` (physically in it) and `items_covered_below` (covered through its children). A bare id is refused with its two readings, `item/<id>` and `character/<id>`; a target the facts do not hold is refused (`kind: \"not_found\"`) naming the league that holds it, if any, and saying so when it has a row of its own and naming what displays it: price_status lists a row the facts hold nowhere whole, and price_show in the league that holds the target shows its row. The document `acq price show --json` prints. Read it before price_set or price_clear on a target that has a row of its own: they name the revision they replace."
+        description = "One target's listing (no daemon): `listing`, both sides with their causes — the hand row that applies (`manual`, with its `revision` and the target it is on, `from`), the note and the tab name verbatim beside what each reads as — the relation, the effective price and why; `container`, the one an item sits in; for a tab, substash or character, `items_here` (physically in it) and `items_covered_below` (covered through its children). Read it before price_set or price_clear on a target with a row of its own: they name the revision they replace."
     )]
     fn price_show(&self, Parameters(p): Parameters<Args<PriceShowParams>>) -> Told {
         let p = match p.read() {
@@ -1298,7 +1286,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "The forum shop pages for one league, rendered for a person to paste by hand; this server posts nothing and reads no forum (no daemon, no network). One link code per hand-priced item under its price's spoiler, in pages of at most `size` characters, each page labelled n of N: `pages` (each `text` is what to paste, and its `tabs` name each `Stash<n>` its links write — the tab's rank among the tabs the website lists — by the tab's own `name`, with how many `items` link to it), `posted` (the items on them), `left_out` (the first 50 items left off for a reason, the blocked first, each with its `cell` — what the game already lists or a skip is omitted, a case the forum has not been observed for is blocked — and `left_out_total` counting them all; `expand: true` lists every one, the items nothing applies to too, as `off_page_listed` says), `counts` (every item by its cell; the items nothing applies to in `off_page`), `policy` (each cell's rule and count) and `freshness`: whether the sync policy covers the posted items and which of them are older than its window, with the refresh that would renew them — reported, never enforced. `page` returns one page's record alone. The document `acq shop render --json` prints."
+        description = "The forum shop pages for one league, for a person to paste by hand; this server posts nothing and reads no forum (no daemon). One link code per hand-priced item under its price's spoiler, in pages of at most `size` characters: `pages` (each `text` is what to paste, and its `tabs` name each `Stash<n>` its links write — the tab's rank among the tabs the website lists — by the tab's own `name`, with how many `items` link to it), `posted`, `left_out` (the first 50 items left off for a reason, the blocked first, each with its `cell`) and `left_out_total` counting them all, `counts` (every item by its cell; the items nothing applies to in `off_page`), `policy` (each cell's rule and count) and `freshness`: whether the sync policy covers the posted items, reported, never enforced."
     )]
     fn shop_render(&self, Parameters(p): Parameters<Args<ShopRenderParams>>) -> Told {
         let p = match p.read() {
@@ -1337,7 +1325,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "The currency table this build ships (no store, no daemon, no network): every row — `tag`, the word a price cites; `emit`, the word the game writes in a note; `aliases`, legacy words that resolve to it; `display`; `retired` where the game no longer writes it; `evidence` — with the table's version and sources. `word` resolves one word instead, exact and case-sensitive: `{word, version, currency}`, or a refusal naming the word and the version. The document `acq reference currency --json` prints."
+        description = "The currency table this build ships (no store, no daemon): every row — `tag`, the word a price cites; `emit`, the word the game writes in a note; `aliases`, legacy words that resolve to it; `display`; `retired` where the game no longer writes it; `evidence` — with the table's version. `word` resolves one word instead."
     )]
     fn reference_currency(&self, Parameters(p): Parameters<Args<ReferenceCurrencyParams>>) -> Told {
         let p = match p.read() {
@@ -1350,7 +1338,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Set one target's price by hand: one row on an item, tab, substash or character, which what it covers inherits (a tab's items, a folder's tabs, a parent tab's substashes, a character's items) unless a row nearer the item says otherwise. Local only: it sends nothing and changes nothing in game. Stricter than `acq price set`: a target that already has a row of its own is replaced only when `if_revision` names that row's revision, and without it the write is refused naming the current revision — `kind: \"conflict\"`, the revision in `revision`, as for a stale one — read the target with price_show first; with no row, omit `if_revision` to create one. A clear takes a revision too, so the next write's revision continues from it. Returns the receipt: `target`, `written` (the row now, with its revision), `prior` (the row replaced, or null after a create) — the undo after a create is price_clear with `if_revision` the written revision, and after a replace price_set with the prior's value and `if_revision` the written revision, unless the prior is a value this build cannot read (a newer build's, replaced only by naming its revision), which it cannot write back — and `in_facts`, false for a target the facts do not hold (not fetched yet, or a typo: the row stands). The document `acq price set --json` prints."
+        description = "Set one target's price by hand: one row on an item, tab, substash or character, which what it covers inherits unless a row nearer the item says otherwise. Local only: it sends nothing and changes nothing in game. Over a row the target already has, `if_revision` names that row's revision (price_show reads it); with none, omit it to create one. Returns the receipt — `target`, `written`, `prior`, `in_facts`; `describe` with names [\"pricing\"] gives the revision rule and the undo."
     )]
     fn price_set(&self, Parameters(p): Parameters<Args<PriceSetParams>>) -> Told {
         let p = match p.read() {
@@ -1377,7 +1365,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Remove one target's own price row; what it covered falls back to the next row up, or to the game's price. Local only: it sends nothing. Stricter than `acq price clear`: `if_revision` must name the revision of the row it removes, and without it the clear is refused naming the current revision (or saying the target has no row of its own) — `kind: \"conflict\"`, the revision in `revision` — read the target with price_show first. A clear takes a revision too, so the next write's revision continues from it. Returns the receipt: `target`, `written` null, `prior` (the row removed); price_set with the prior's value puts it back. The document `acq price clear --json` prints."
+        description = "Remove one target's own price row; what it covered falls back to the next row up, or to the game's price. Local only: it sends nothing. `if_revision` names the revision of the row it removes (price_show reads it). Returns `target`, `written` null and `prior`, the row removed; price_set with the prior's value puts it back."
     )]
     fn price_clear(&self, Parameters(p): Parameters<Args<PriceClearParams>>) -> Told {
         let p = match p.read() {
@@ -1402,7 +1390,7 @@ impl AcqMcp {
     // ---- daemon jobs ----
 
     #[tool(
-        description = "Submit a job to the daemon and return its id immediately; poll job_status then fetch job_result. In real-GGG mode the daemon must already be running (a human starts it; this server never spawns one there)."
+        description = "Submit a job to the daemon and return its id at once; poll job_status, then job_result. `describe` with names [\"daemon\"] says what the job tools answer."
     )]
     async fn submit_job(&self, Parameters(p): Parameters<SubmitParams>) -> Told {
         settled(
@@ -1424,21 +1412,21 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Jobs the daemon lists, with states and ETAs: the open ones, and the finished ones of this daemon's work and of what it restored from the daemon before it, read from the ledger on disk. Observes only: with no daemon running it never spawns one and answers from the ledger on disk instead — running: false, persisted: the non-terminal rows as the last daemon left them (jobs, without ETAs) and written_at, how old that picture is; persisted is null when this shell's world has no queue yet. A job command from the CLI spawns a successor that restores them."
+        description = "Jobs the daemon lists, with states and ETAs: the open ones and the finished ones the ledger on disk holds. Observes only, never spawning a daemon: with none running it answers from the ledger (`running: false`, `persisted`); `describe` with names [\"daemon\"] says what each holds."
     )]
     async fn list_jobs(&self) -> Told {
         settled(async { Ok(self.frontend.jobs().await?) }.await)
     }
 
     #[tool(
-        description = "One job's state, ETA, and retries. A waiting job with a large ETA is the rate limiter holding, not a hang (holds can reach ~5 minutes). A finished job is answered from the ledger on disk while retention keeps it, whichever daemon ran it. Observes only: with no daemon running it answers from the ledger on disk — running: false, persisted: the job's row as the last daemon recorded it, and next, the command a person runs to start a daemon; a job the ledger does not hold is refused as unknown_job with next."
+        description = "One job's state, ETA and retries. A waiting job with a large ETA is the rate limiter holding, not a hang (holds can reach about 5 minutes). Observes only: a finished job, or any job with no daemon running, is answered from the ledger on disk (`describe` with names [\"daemon\"])."
     )]
     async fn job_status(&self, Parameters(p): Parameters<JobParams>) -> Told {
         settled(async { Ok(self.frontend.job(p.id).await?) }.await)
     }
 
     #[tool(
-        description = "A finished job's outcome — payload or error — with its job_id and account beside it; answered across daemon restarts (the queue persists), and with no daemon running read from the ledger on disk, where a finished job's outcome is final (an unfinished one is refused as wrong_state with next). A parent's failure carries its children's tally as `children` (done, failed, cancelled, failed_ids), and the first ten failed children with their kind, target and error as `failed_children`. Payloads can be large — prefer the store tools for reading data."
+        description = "A finished job's outcome — payload or error — with its job_id and account, from the daemon or, with none running, the ledger on disk; an unfinished one is refused. A parent's failure carries `children` and `failed_children`. Payloads can be large — prefer the store tools for reading data."
     )]
     async fn job_result(&self, Parameters(p): Parameters<JobParams>) -> Told {
         settled(async { Ok(self.frontend.result(p.id).await?) }.await)
@@ -1459,7 +1447,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "The daemon running: its identity — contract revision, the executable it runs from and its hash (artifact), the world it serves (its canonical store root), the socket it was reached on (derived from the world), how that file relates to the acqd beside this server (artifact_relation: same_file, same_bytes for another copy, different, unhashable, no_sibling, unreported), which of the four dimensions match (contract_matches, artifact_matches, provider_matches, world_matches), and under wanted this server's own version, contract, provider and world with that sibling — all from the one look that judged the daemon; and, when compatible, its vitals: provider, uptime, idle_shutdown_seconds (the idle exit it was started with), connections, queue counts, rate-limit policies learned, rails state (with the journal path), keyring health, and log — the log file the daemon opened, as it reports it. Observes only: running=false when no daemon is up, with persisted — what the ledger on disk holds: waiting, recorded_running, written_at; null when this shell's world has no queue yet — and log, the last daemon's log file in this world when one exists; running=true, compatible=false for a daemon of another contract, artifact, provider or world, reported by its identity alone and never replaced by this server; running=true, responsive=false (with socket and lock_holder, the pid the world's lock records) for something that accepted the connection and did not answer hello within 5s — a wedged daemon, for a human to stop by hand."
+        description = "The daemon running: its identity — contract, executable and hash, the world it serves, its socket — which of the four match this server (`contract_matches`, `artifact_matches`, `provider_matches`, `world_matches`; `wanted` is this server's own) and, when compatible, its vitals. Observes only: `running: false` with no daemon, `compatible: false` for one of another contract, artifact, provider or world (never replaced here), `responsive: false` for a wedged one; `describe` with names [\"daemon\"] says what each holds."
     )]
     async fn daemon_status(&self) -> Told {
         settled(async { Ok(self.frontend.daemon().await?) }.await)
@@ -1472,43 +1460,21 @@ impl ServerHandler for AcqMcp {
         let mut info = ServerInfo::default();
         info.capabilities = ServerCapabilities::builder().enable_tools().build();
         info.instructions = Some(format!(
-            "Acquisition (provider: {}). Items: search answers a query over \
-             every item the store holds — the total, then rows or tables, then counts \
-             for each term — describe prints its query language, and show is one item whole. \
-             Their arguments and answers are JSON; a count a next step hangs on — what is \
-             undecided, what a key could not place — holds the request that returns its \
-             members, sent back as printed, view.routes asks every count's, and a refusal is a result marked isError with readings and offers to go on \
-             from. A call nested deeper than {} JSON levels is not read: it is refused \
-             as arguments. Begin with search with no arguments, for what the store holds, or with \
-             scope.realm named where the store holds several realms (a PoE2 character beside \
-             the PoE1 stashes), since a search over several realms is refused and its offers \
-             are the request in each realm: send one back. Then describe with names \
-             [\"fields\"], for what a query may ask: describe whole is over 100 KB. A \
-             trade site search — its URL, id or query JSON — is the query \
-             {{\"trade\": …}}, translated to the text a person would type. No \
-             tool says what an item is worth: a price is the owner's own listing. \
-             Pricing: price_status counts a league's listing state, price_list names \
-             the priced items and price_show is one target, each with its price by hand \
-             and in game; price_set and price_clear write one hand row (local only, \
-             sending nothing), and over a row the target already has they name the \
-             revision they replace; shop_render renders the forum pages for a person \
-             to paste, posting nothing; reference_currency is the currency table a \
-             price cites. The store tools (search, show, accounts, tabs, characters, \
-             store_status, item_events) and the pricing tools read the shared SQLite \
-             store directly — no daemon, no network. \
-             The refresh slice: sync_policy / \
-             set_sync_policy declare what to keep fresh (local, sends nothing; replacing a policy \
-             must name the revision it replaces), refresh_plan compiles it offline into \
-             the explicit bounded action set for review, or compiles a `selection` of tabs \
-             and characters named in its place, and apply_plan spends exactly that plan as \
-             one parent job. Job tools talk to the local daemon; API \
-             requests are jobs (submit_job returns an id; poll job_status, then \
-             job_result). Rate-limit holds can reach ~5 minutes — a waiting job is the \
-             limiter working. Login is done by the human via the `acq` CLI; this server \
-             never spawns or replaces a daemon in real-GGG mode — there it submits, applies \
-             and quotes only through one a human already started.",
+            "Acquisition (provider: {}).\n\
+             - The store tools read the store, no daemon: search, show, describe, accounts, tabs, \
+             characters, store_status, item_events, sync_policy, refresh_plan.\n\
+             - The pricing tools and set_sync_policy write locally and send nothing.\n\
+             - The job tools talk to the daemon a human started (submit_job, apply_plan, \
+             list_jobs, job_status, job_result, cancel_job, daemon_status); in real mode this \
+             server never spawns one.\n\
+             - Begin with search and no arguments; where the store holds several realms, name \
+             scope.realm (the refusal offers each).\n\
+             - describe with names explains the language and the answers: fields first, then \
+             answer, trade, pricing, daemon; the whole is over 100 KB.\n\
+             - A refusal is a result marked isError, with readings and offers; any request an \
+             answer holds is sent back as printed.\n\
+             - No tool says what an item is worth: a price is the owner's own listing.",
             self.frontend.provider,
-            transport::MAX_DEPTH,
         ));
         info
     }
