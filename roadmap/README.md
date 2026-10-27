@@ -151,9 +151,8 @@ issue carrying its evidence and its done-when, and takes a brief from
 `briefs/TEMPLATE.md` written by the session that starts it. An item
 leaves the list when its step closes or the owner strikes it.
 
-1. #83, the MCP surface trimmed (short tool descriptions, the language
-   as resources), then a seat with the first row of the seat ledger
-   (#84), before `alpha.2`.
+1. #84, the seat with the first row of the seat ledger, over the
+   surface #83 trimmed, before `alpha.2`.
 2. #88, one feature graph for the plain and the test build: measured,
    and if it holds, C84's build-order rule and the gate's final rebuild
    retired (P6).
@@ -247,6 +246,17 @@ list when a step's close commit or an issue takes it.
   (`quote` resolves its account against the session table), and the
   build has it wait. A 401 under an unreadable account index followed
   by a restart resends the rejected bearer once (#63).
+- **From #83, the surface** (`briefs/p83-surface-trimmed.md` and its
+  round): the first turn is 26.4 KB, not the brief's expected 20, and
+  the schemas are 15.3 KB of it (rmcp's `$schema` header about 1.25 KB,
+  every optional argument typed `["string","null"]`); dropping
+  `$schema` and `title` from `list_tools` is one override, outside the
+  brief's words-only scope, for the seat's evidence or 2g; `characters`
+  keeps its two count glosses in its description, under the bound and
+  not among the six the ruling moved; the own sections' entries were
+  written to be read together and the name lookup reads each alone, so
+  an entry never points at a sibling by position (pinned for
+  `status counts`, checked by eye for the rest).
 - **The Windows gate's watch (#70)**: the step landed 2026-10-24
   (`dd9b7859` to `90db890a`); the issue closes when a week of pushes
   needs no re-run, counted from r1's first green Windows run
@@ -328,14 +338,15 @@ list when a step's close commit or an issue takes it.
 
 ## Current step
 
-#83, the MCP surface trimmed (pull-forward 2,
-`briefs/p83-surface-trimmed.md`), is built and its review pending, the
-count glosses waiting on the owner's ruling; the seat (#84) follows its
-close, its brief written from `briefs/TEMPLATE.md` by the session that
-starts it. Phase 3, the owner's league run, follows at his word; #70
-closes on a week of pushes without a re-run. The assessment these rest on is
-`STATE-2026-10-26.md`; the issues carry the evidence per step.
-`AGENTS.md` governs; the gate is `tools/gate.sh`.
+The milestone's steps are closed (p0, r1 to r5, the C135 round);
+pull-forward 1 (#82) and 2 (#83) closed 2026-10-27. Next from
+"Pull-forward": #84, the seat with the first row of the seat ledger,
+under the seat skill, over the surface #83 trimmed; its brief written
+by the session that starts it. Phase 3, the owner's league run,
+follows at his word; #70 closes on a week of pushes without a re-run.
+The assessment these rest on is `STATE-2026-10-26.md`; the issues
+carry the evidence per step. `AGENTS.md` governs; the gate is
+`tools/gate.sh`.
 
 ## Ledger
 
@@ -365,7 +376,7 @@ messages.
 | r5 the five surface sentences | build `b2c9dd6e` (the kind list), `a694d991` (the describe sections), `2f4ae288` (the logout words), `aae783b2` (`refresh --characters`), `19592b01` (the MCP's `selection`); review `6f5e0119` (`reviews/r5-19592b01.md`); fixes `6f5e0119`, `5e7cc216`, `43cad6ff`; their review `566b22e9` (`reviews/r5-fixes-43cad6ff.md`), whose one wording finding that commit takes unreviewed; closed by the commit carrying this line | 2026-10-27 | C127's mechanism words and the league note on a selection plan, under "Open" |
 | the C135 round, the access token beside the refresh token and the start's restore off the socket's path | brief `9a6a3c63`; build `d21c79c5` (the entry), `b99675f7` (the landings and the restore), `38620e2e` (the registry), `f28e027e`; review `reviews/c135-f28e027e.md`; fixes `b3ab68f0` (a rejected token leaves the entry), `380fccb1`; their review `reviews/c135-fixes-380fccb1.md`; its wording fix `4ab6342a` (unreviewed); the rulings `0065e17d`; build `fb92f468` (the restore as the fifth landing), `b9bada44` (the `auth status` words), `7cb7bd7f`; review `reviews/c135-7cb7bd7f.md`; fixes `1bf30803`, `1e8879aa`, `9f222231`; their review `reviews/c135-fixes-9f222231.md`; its two fixes `355229d0` (unreviewed); closed by the commit carrying this line | 2026-10-27 | the index-unreadable 401 restart, on #63; `exit.rs`'s `settle()` and the refusal during any exit, under "Open" |
 | #82 the held corpus in `acq-mcp` (pull-forward 1) | brief `500e4468`; build `551520fd` (the holder), `b439d30e` (the web on it), `bfd3a410` (the MCP on it, M8); review `reviews/p82-bfd3a410.md`; its one doc fix `9a1e8d0b` (unreviewed); closed by the commit carrying this line | 2026-10-27 | #95, the resident size per reload; `show` over the held corpus and a per-account slot, declined until a consumer asks |
-| #83 the MCP surface trimmed (pull-forward 2) | brief `1dd3dfdb`; build `81178cd0` (the answer section), `c9d6aec3` (the refusal's spelling), `c250b2c8` (`describe` by name), the commit carrying this line (the cut, the length test, the measurement) | review pending; the count glosses wait on the owner's ruling (the brief's Do 1) | the close's |
+| #83 the MCP surface trimmed (pull-forward 2) | brief `1dd3dfdb`; build `81178cd0` (the answer section), `c9d6aec3` (the refusal's spelling), `c250b2c8` (`describe` by name), `d2a588bc` (the cut, the length test, the measurement); review `reviews/p83-d2a588bc.md`; the ruling `a4e4db41` (C146 amended); fixes `e26871c3` (the glosses move), `280f1075`, `fd564e33`; their review `reviews/p83-fixes-fd564e33.md`; its two wording fixes `e4231ecf` (unreviewed); closed by the commit carrying this line | 2026-10-27 | the schemas as the larger part of the first turn, and `characters`' two glosses, under "Open"; the seat (#84) next |
 
 ## Housekeeping
 
