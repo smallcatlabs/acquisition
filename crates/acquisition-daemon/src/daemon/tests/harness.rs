@@ -105,6 +105,9 @@ pub(super) struct RecordingCredentialStore {
     /// Run once at the next clear, before it acts: a test's pause where
     /// a clear is under way.
     pub(super) on_clear: Mutex<Option<Box<dyn FnOnce() + Send>>>,
+    /// Run once at the next save, before it acts: a test's pause where a
+    /// save is under way, as a keychain prompt holds one (C148).
+    pub(super) on_save: Mutex<Option<Box<dyn FnOnce() + Send>>>,
 }
 
 impl RecordingCredentialStore {
@@ -124,6 +127,10 @@ impl RecordingCredentialStore {
 
 impl CredentialStore for RecordingCredentialStore {
     fn save(&self, service: &str, refresh_token: &str, username: &str) -> Result<(), String> {
+        let hook = self.on_save.lock().unwrap().take();
+        if let Some(hook) = hook {
+            hook();
+        }
         self.saves.lock().unwrap().push((
             service.to_string(),
             refresh_token.to_string(),

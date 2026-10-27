@@ -4,6 +4,7 @@
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
 mod bearer;
+mod credentials;
 mod diagnostics;
 mod dispatch;
 mod exit;

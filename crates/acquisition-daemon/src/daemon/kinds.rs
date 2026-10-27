@@ -70,7 +70,7 @@ enum Auth {
 /// refresh installed meanwhile, or nothing — the token was rejected while
 /// this send waited, and the send does not go out. A rejection reaches
 /// the session through `rejected`, under the rejecting send's permit.
-struct SessionBearer<'a> {
+pub(super) struct SessionBearer<'a> {
     daemon: &'a Daemon,
     username: &'a str,
     expected: &'a str,
@@ -80,7 +80,7 @@ struct SessionBearer<'a> {
 }
 
 impl<'a> SessionBearer<'a> {
-    fn new(daemon: &'a Daemon, username: &'a str, expected: &'a str) -> Self {
+    pub(super) fn new(daemon: &'a Daemon, username: &'a str, expected: &'a str) -> Self {
         SessionBearer {
             daemon,
             username,
