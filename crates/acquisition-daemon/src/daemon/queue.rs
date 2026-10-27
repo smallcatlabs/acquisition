@@ -169,7 +169,6 @@ impl Daemon {
         {
             let mut s = self.shared.lock().unwrap();
             s.next_id = next_id;
-            s.first_id = next_id;
             for mut entry in entries {
                 if entry.info.kind == "probe" {
                     dropped += 1;
@@ -269,6 +268,14 @@ resubmit if still wanted",
                 restored.push(entry.info.clone());
                 s.jobs.insert(entry.info.id, entry);
             }
+            // C6: the list reads the table from the smallest id brought
+            // back, and a tree the restore concluded (a cancelled or
+            // failed root, a lost login's fetch) leaves memory as any
+            // concluded tree does.
+            s.list_from = restored.iter().map(|info| info.id).min().unwrap_or(next_id);
+            for info in restored.iter().filter(|info| info.state.is_terminal()) {
+                self.evict_tree(&mut s, info.id);
+            }
         }
         // C134: removed once its job's failure is on disk, so a second
         // restore finds the job terminal and the marker gone. A failure
@@ -339,15 +346,16 @@ resubmit if still wanted",
     }
 
     /// The job list (C6): every job memory holds, the waiting ones with
-    /// their ETAs, and every finished job submitted to this daemon that
-    /// has left memory, read from the table; by id. Memory is read first
+    /// their ETAs, and the finished rows from `Shared::list_from` on, read
+    /// from the table: this daemon's work and what its restore inherited;
+    /// by id. Memory is read first
     /// and the table after, so a tree evicted between the two reads is in
     /// the second; a job in both is memory's. The table is read outside
     /// `shared`, and without the bulk columns.
     pub(super) fn job_list(&self) -> Result<Vec<JobInfo>, Refusal> {
         let (mut jobs, first) = {
             let s = self.shared.lock().unwrap();
-            (s.list(self), s.first_id)
+            (s.list(self), s.list_from)
         };
         let read = self.jobs_db.lock().unwrap().listed_finished_from(first);
         let finished = read.map_err(|e| {

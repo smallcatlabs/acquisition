@@ -496,7 +496,7 @@ pub(super) fn test_daemon_scenario_at(
         shared: Mutex::new(Shared {
             jobs: HashMap::new(),
             next_id: 1,
-            first_id: 1,
+            list_from: 1,
             auth: Sessions::with(AuthSession::default()),
             landings: 0,
             errors: VecDeque::new(),

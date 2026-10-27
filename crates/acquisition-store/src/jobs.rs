@@ -259,8 +259,9 @@ impl JobDb {
     }
 
     /// The terminal rows of id `first` and after, by id, as a list names
-    /// them: the finished jobs of a daemon whose first id was `first`. A
-    /// range of the primary key, read without the bulk columns.
+    /// them: a daemon's list reads them from the smallest id its restore
+    /// brought back. A range of the primary key, read without the bulk
+    /// columns.
     pub fn listed_finished_from(&self, first: u64) -> Result<Vec<ListedJob>> {
         self.list_where(
             "id >= ?1 AND state IN ('done', 'failed', 'cancelled')",

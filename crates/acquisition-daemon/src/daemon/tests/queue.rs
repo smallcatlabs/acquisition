@@ -1388,7 +1388,7 @@ async fn restore_drops_probes_and_finishes_a_parent_whose_children_are_done() {
         db.upsert(&row(7, "stash", "waiting", Some(6))).unwrap();
     }
     let (daemon, log) = persisting_daemon("http://127.0.0.1:1", &db);
-    let jobs = daemon.shared.lock().unwrap().list(&daemon);
+    let jobs = daemon.job_list().unwrap();
     let states: Vec<(JobId, JobState)> = jobs.iter().map(|j| (j.id, j.state)).collect();
     assert_eq!(
         states,
@@ -1402,11 +1402,7 @@ async fn restore_drops_probes_and_finishes_a_parent_whose_children_are_done() {
         ],
         "no-probe replays fail; a mid-fan-out parent holds for its children"
     );
-    let Outcome::Failure { error, .. } = daemon.shared.lock().unwrap().jobs[&5]
-        .outcome
-        .clone()
-        .unwrap()
-    else {
+    let Outcome::Failure { error, .. } = held(&daemon, 5).unwrap().1.unwrap() else {
         panic!("the leagues replay did not fail")
     };
     assert!(error.contains("not replayed"), "{error}");
@@ -1415,10 +1411,7 @@ async fn restore_drops_probes_and_finishes_a_parent_whose_children_are_done() {
     daemon.cancel(7).unwrap();
     let Outcome::Failure {
         error, children, ..
-    } = daemon.shared.lock().unwrap().jobs[&6]
-        .outcome
-        .clone()
-        .unwrap()
+    } = held(&daemon, 6).unwrap().1.unwrap()
     else {
         panic!("held parent must finish as interrupted, not success")
     };
@@ -1434,11 +1427,7 @@ async fn restore_drops_probes_and_finishes_a_parent_whose_children_are_done() {
         }),
         "the interrupted parent carries its children's tally as a field"
     );
-    let Outcome::Success { payload } = daemon.shared.lock().unwrap().jobs[&1]
-        .outcome
-        .clone()
-        .unwrap()
-    else {
+    let Outcome::Success { payload } = held(&daemon, 1).unwrap().1.unwrap() else {
         panic!("parent did not finish with its held result")
     };
     assert_eq!(payload["tabs_listed"], json!(1));
@@ -1562,6 +1551,69 @@ async fn a_waiting_row_on_disk_and_not_in_memory_is_never_acted_on() {
     assert_eq!(
         (priority.kind, priority.message.as_str()),
         (ErrorKind::WrongState, "job 41 is done, not waiting")
+    );
+    finish_harness(None, &log);
+}
+
+/// C6, uniform eviction: a tree the restore brought back leaves memory
+/// when it concludes, as any tree does. An apply held for one waiting
+/// child is restored with its done child; the child concludes, the
+/// parent finishes, and memory holds nothing. The list reads the table
+/// from the smallest id the restore brought back: the tree, and the
+/// earlier lifetime's finished row after it, which the restore
+/// inherited; the finished row before it is not listed.
+#[tokio::test]
+async fn a_restored_tree_that_concludes_leaves_memory() {
+    let db = test_db_path();
+    // The finished rows outside the tree are recent: the restore's prune
+    // keeps them, so only the list's bound leaves the earlier one out.
+    let recent = |id| JobRow {
+        updated_at: MANUAL_WALL_ORIGIN.as_secs() as i64,
+        ..disk_row(id, "sleep", "done", None)
+    };
+    {
+        let other = JobDb::open(&db).unwrap();
+        other.upsert(&recent(9)).unwrap();
+        let mut parent = disk_row(11, "apply", "running", None);
+        parent.deferred = Some(json!({ "outcome": "success", "payload": {} }));
+        other.upsert(&parent).unwrap();
+        other
+            .upsert(&disk_row(12, "sleep", "waiting", Some(11)))
+            .unwrap();
+        other
+            .upsert(&disk_row(13, "sleep", "done", Some(11)))
+            .unwrap();
+        other.upsert(&recent(14)).unwrap();
+    }
+    let (daemon, log) = persisting_daemon("http://127.0.0.1:1", &db);
+    let mut held_ids: Vec<JobId> = daemon.shared.lock().unwrap().jobs.keys().copied().collect();
+    held_ids.sort_unstable();
+    assert_eq!(
+        held_ids,
+        [11, 12, 13],
+        "the restore brought back the open tree"
+    );
+
+    daemon.start_and_finish(12, Outcome::Success { payload: json!({}) });
+    assert!(
+        daemon.shared.lock().unwrap().jobs.is_empty(),
+        "the restored tree left memory when it concluded"
+    );
+    let (info, outcome) = held(&daemon, 11).unwrap();
+    assert_eq!(info.state, JobState::Done);
+    let Some(Outcome::Success { payload }) = outcome else {
+        panic!("the restored parent did not succeed: {outcome:?}")
+    };
+    assert_eq!(payload["children"]["done"], json!(2), "{payload}");
+    let listed: Vec<JobId> = daemon.job_list().unwrap().iter().map(|j| j.id).collect();
+    assert_eq!(
+        listed,
+        [11, 12, 13, 14],
+        "from the smallest id brought back"
+    );
+    assert!(
+        JobDb::open(&db).unwrap().get(9).unwrap().is_some(),
+        "the row before the bound is still on disk, for `result`"
     );
     finish_harness(None, &log);
 }

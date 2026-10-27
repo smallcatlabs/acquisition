@@ -473,11 +473,9 @@ impl Daemon {
     /// when its root and every job under it are terminal, so a child stays
     /// until its parent concludes (the parent's tally scans its children),
     /// and a child's call finds its root still live and returns after a
-    /// walk up its parents. A tree the restore brought back from an
-    /// earlier daemon (its root's id before `first_id`) stays for this
-    /// lifetime: the job list reads the table from `first_id` on, so
-    /// memory is where the list finds what the restore concluded, and the
-    /// restore loads only an earlier lifetime's open work. Every row was
+    /// walk up its parents. A tree the restore brought back leaves as any
+    /// other does: the job list reads the table from the smallest id the
+    /// restore brought back (`Shared::list_from`). Every row was
     /// written at its job's last change, under this lock, before this
     /// call; a failed queue write is sticky, and once one has happened a
     /// row may say less than memory, so nothing leaves.
@@ -495,11 +493,10 @@ impl Daemon {
             id
         };
         let root = root_of(s, id);
-        if root < s.first_id
-            || !s
-                .jobs
-                .get(&root)
-                .is_some_and(|e| e.info.state.is_terminal())
+        if !s
+            .jobs
+            .get(&root)
+            .is_some_and(|e| e.info.state.is_terminal())
         {
             return;
         }

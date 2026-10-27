@@ -714,10 +714,8 @@ async fn a_fault_marker_fails_its_job_once() {
     let (daemon, log1) = world_daemon(&dir);
     let states = |daemon: &Daemon| -> Vec<(JobId, JobState)> {
         daemon
-            .shared
-            .lock()
+            .job_list()
             .unwrap()
-            .list(daemon)
             .iter()
             .map(|j| (j.id, j.state))
             .collect()

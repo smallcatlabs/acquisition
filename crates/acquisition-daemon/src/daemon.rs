@@ -770,9 +770,11 @@ struct Shared {
     /// it.
     jobs: HashMap<JobId, Entry>,
     next_id: JobId,
-    /// The first id this daemon issues, `next_id` as the restore left it:
-    /// the job list reads the finished rows from here on (C6).
-    first_id: JobId,
+    /// Where the job list's finished rows start (C6): the smallest id the
+    /// restore brought back, or the first id this daemon issues when it
+    /// brought none. The rows from here on are this daemon's work and
+    /// what it inherited, the earlier lifetime's finished rows among them.
+    list_from: JobId,
     auth: Sessions,
     /// C148: landings spawned and not yet returned, each a keyring or
     /// account-index write the exit's drain waits for
