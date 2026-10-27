@@ -947,7 +947,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "The query language `search` takes, as this build knows it (no store read): fields, what a line has, operators, closed value sets, slots, the computed values with their definitions, what a count takes, what a trade site search's clauses become, what is not built and the limits stated — or only the entries named. The whole is over 100 KB, most of it under `computed`: name what is needed instead. Of the sections `names` lists, computed is some 80 KB, fields and trade some 20 KB each, categories some 10 KB, and the rest each under 4 KB; a single name — league, total_res — returns its own entry. A name it does not know is refused, and the refusal lists every name it knows."
+        description = "The query language `search` takes, as this build knows it (no store read): fields, what a line has, operators, closed value sets, slots, the computed values with their definitions, what a count takes, what a trade site search's clauses become, what is not built and the limits stated — or only the entries named. The whole is over 100 KB, most of it under `computed`: name what is needed instead. Of the sections `names` lists, computed is some 80 KB, fields and trade some 20 KB each, categories some 10 KB, answer some 5 KB, and the rest each under 4 KB; a single name — league, total_res — returns its own entry. A name it does not know is refused, and the refusal lists every name it knows."
     )]
     fn describe(&self, Parameters(p): Parameters<Args<DescribeParams>>) -> Told {
         let p = match p.read() {

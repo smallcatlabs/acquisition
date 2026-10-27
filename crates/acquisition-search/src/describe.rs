@@ -49,6 +49,10 @@ pub struct Describe {
     /// What says why an answer is what it is: `--explain`, `--context`
     /// and `show --against`.
     pub explain: Vec<Named>,
+    /// An answer's keys, in the order an answer prints them, and what
+    /// each counts ([`answer_keys`]): the anatomy a frontend's tool text
+    /// carried, read on demand beside the language (#83).
+    pub answer: Vec<Named>,
     /// Every category id with the site's text for it and what makes it
     /// hold (C106; `category.rs`): printed whole, and beside the field
     /// `category` where that is named.
@@ -67,7 +71,7 @@ pub struct Describe {
 /// in the struct's order: each can be asked for alone and answers with
 /// its own key filled (`tests/surface_faults.rs`). The MCP's `describe`
 /// lists them from here.
-pub const SECTIONS: [&str; 15] = [
+pub const SECTIONS: [&str; 16] = [
     "fields",
     "line",
     "linked",
@@ -79,6 +83,7 @@ pub const SECTIONS: [&str; 15] = [
     "totals",
     "counts",
     "explain",
+    "answer",
     "categories",
     "trade",
     "not_built",
@@ -97,10 +102,14 @@ pub struct Named {
     pub examples: Vec<&'static str>,
 }
 
-/// The trade catalogue as `--describe trade` prints it: its version, the
+/// The trade catalogue as `--describe trade` prints it: what an answer's
+/// report of a translation says ([`trade_report`]), then its version, the
 /// stat table's beside it, and a row per clause.
 #[derive(Debug, Clone, Serialize)]
 pub struct TradeCatalogue {
+    /// The report an answer carries in `query.trade`, key by key: the
+    /// words that tell a translation's fidelity from the site's items.
+    pub report: Vec<Named>,
     pub version: u32,
     /// The stat table's version: the capture its ids and texts are from.
     pub stats: String,
@@ -132,6 +141,7 @@ fn trade_catalogue() -> Result<TradeCatalogue, LanguageError> {
     let catalogue = crate::trade::catalogue::catalogue().map_err(|e| defect(e.to_string()))?;
     let stats = crate::trade::stats::table().map_err(|e| defect(e.to_string()))?;
     Ok(TradeCatalogue {
+        report: trade_report(),
         version: catalogue.version(),
         stats: stats.version().to_string(),
         rows: catalogue
@@ -183,6 +193,99 @@ pub const LIMITS: &[Limit] = &[
         said: "legacy is the user's knowledge; the search finds what the user names and never says whether the game can still produce it",
     },
 ];
+
+/// An answer's keys, in the order an answer prints them: the words the
+/// MCP's `search` text carried until #83, cut, each fact a seat stopped
+/// on kept (`acquisition-mcp/tests/search_tools.rs` reads them here). A
+/// key nested in another is named by its path. `tests/surface_faults.rs`
+/// holds every key an answer prints to an entry here.
+pub fn answer_keys() -> Vec<Named> {
+    let key = |name: &str, what: &str| named(name, "key", what);
+    vec![
+        key(
+            "query",
+            "the text as understood, and its tree; a trade site search's report is `query.trade`, which the trade section explains",
+        ),
+        key(
+            "set_aside",
+            "under the corpus context, the query typed beside it: read, set aside, and counted nowhere",
+        ),
+        key(
+            "scope",
+            "what was searched: account, realm, `items` every live item in scope before any term — under membership all and removed `items` counts the live and `removed` the removed, whichever were searched — and what was and was not fetched: `fetched` counts the tabs, their pages and the characters fetched, `oldest_fetch` and `newest_fetch` the earliest and the latest of their last fetches, each one location's, where a row's `place.fetched_at` is its own. A time is seconds since 1970, UTC",
+        ),
+        key(
+            "scope.never_fetched",
+            "`never_fetched` counts the tabs, their pages and the characters a listing names and no fetch has filled, and no answer says what they hold, a count of none or of many",
+        ),
+        key(
+            "scope.never_fetched_by_type",
+            "`never_fetched_by_type` is the same by tab type, a character's `character`: each type that has a location never fetched, its `tabs` every location of the type and `fetched` how many of them were, so `tabs` minus `fetched` were never fetched, and `items` the live items in the fetched ones, counted as `tabs` counts a type, over the scope's realm in every league whatever the query asks, since what a never-fetched location holds is unknown; `tabs` lists a league's tabs",
+        ),
+        key(
+            "scope.never_fetched_leagues",
+            "`never_fetched_leagues` names the leagues that hold a never-fetched tab, the most first",
+        ),
+        key(
+            "total",
+            "the matches: `matched`, and `undecided` the items the query could not decide, with why in `undecided_reasons`",
+        ),
+        key(
+            "before",
+            "where a request is sent back with the `count` it was printed with, and the `counted_at` basis it came from: where the count has moved since",
+        ),
+        key(
+            "rows",
+            "id, name, base, rarity, place by name and id — a tab's page with no name of its own has `name` null and its tab in `parent` — with the cell the item sits in (`place.cell`, GGG's x and y, in a tab or an inventory) and when that place was last fetched (`place.fetched_at`), and the lines each term touched with their values, the term named by its `path` in `terms`, never the item's body, which is `show`",
+        ),
+        key(
+            "view",
+            "the view as it ran: rows, the default, 20 where no limit is given, sorted by a value; counts, a table for each key and no rows, a sum's `value` over the items that have the value and its `lacking` counting the items without it, which add nothing; cross, one crossed table of two keys; explain, the total with one node forced true and forced false, the node named by its path as `terms[].path` gives it. A key is one entry of `keys`: a terminal's list `line:resist,life` is [\"line:resist\", \"line:life\"], and a comma inside an entry is part of its text; the counts section lists the keys. A sort's value is a field (reqlevel), a computed value (pseudo.total_res), a line's number (line(\"# to maximum Life\").arg1) or a sum of one (`sum(\"# to maximum Life\")`), spanning every source unless `source=` names one; an item that lacks it is last, ascending or descending",
+        ),
+        key(
+            "view.rows.next",
+            "rows past the limit are counted in `view.rows.left_out`, and `view.rows.next` is the request for the rows after: send it back whole",
+        ),
+        key(
+            "zero",
+            "in place of rows when the total is zero: `zero.offers`, requests to send instead, each sent back as printed",
+        ),
+        key(
+            "terms",
+            "for each term how many items matched, failed, lacked the thing or were undecided — each term alone over every item in scope, never over the matches, which are `total`; a pattern term's `resolved` is what it matched there, its `rest.denominator` `scope`",
+        ),
+        key(
+            "basis",
+            "what the answer was computed from: its `intent` is the revision of the account's hand-written prices and sync policy, which every write to either moves",
+        ),
+        key(
+            "request",
+            "a count holds the request that returns exactly its members where a next step hangs on it — what is undecided, what holds only together, what a key could not place (`none`, `undecided`), what an ambiguous trade clause's other reading adds or drops, and each term's matched where nothing matched — with `denominator`, what the request searches: the scope, never the share the count is of; every other count is its number alone, and routes asks for every count's. Any request an answer holds is sent back as printed",
+        ),
+    ]
+}
+
+/// What an answer's `query.trade` reports of a site search's translation,
+/// key by key: the words the MCP's `query` argument carried until #83,
+/// cut, opening the trade section before the catalogue's rows.
+pub fn trade_report() -> Vec<Named> {
+    let key = |name: &str, what: &str| named(name, "key", what);
+    vec![
+        key(
+            "query.trade",
+            "a site search — its URL, its id or its query JSON as a string, or the query JSON as an object (PoE1) — translated with no network to the text a person would type, and reported: every clause with its status — exact, ambiguous, unsupported, listing_only, disabled; an exact one with a term of its own its `at`, `term` and `path` alone, any other — a sum's filter, a group, a clause not exact — the site's filter and what the catalogue says of it. A URL's realm is the scope; an id or JSON takes a realm as a text does, and a `league` beside the JSON's `query` is a term, as a URL's league is; `defences: \"displayed\"` beside it reads the four defence filters as the item stands, where the site reads them at 20 % quality",
+        ),
+        key("remainder", "the clauses that did not run"),
+        key(
+            "fidelity",
+            "how far the text is the site's search: exact, ambiguous where a clause ran as the site may not read it, or partial where the remainder is not empty, the answer then not the site's search. Never how far the items are the site's: the answer is over the items the store has fetched, priced or not — what it never fetched is `scope.never_fetched` — and the site shows public listings, a tab's being `tab.public`",
+        ),
+        key(
+            "other",
+            "an ambiguous clause whose other reading is known carries `other`: that reading, and the items in scope it `adds` and `drops` against the query as run",
+        ),
+    ]
+}
 
 fn named(name: &str, kind: &'static str, what: &str) -> Named {
     Named {
@@ -543,7 +646,7 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
         named(
             "show --against",
             "show",
-            "beside one item, a query's canonical text, the root's outcome on the item — match, no match, undecided — and each term's — matched, failed, lacked, undecided — and each group's, a term with what a row shows of it where it matched, what the item has where it failed, and the reason where it is undecided; at the basis the item was read at",
+            "beside one item, a query's canonical text, the root's outcome on the item and each node's — a term's `matched`, `failed`, `lacked` or `undecided`, a group's `match`, `no_match` or `undecided` — a term with what a row shows of it where it matched, what the item has where it failed, and the reason where it is undecided; at the basis the item was read at",
         ),
     ];
     let mut out = Describe {
@@ -558,6 +661,7 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
         totals: crate::pseudo::provenance(),
         counts,
         explain,
+        answer: answer_keys(),
         categories: crate::category::tables()
             .map(|tables| tables.described())
             .unwrap_or_default(),
@@ -616,6 +720,7 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
             &d.computed,
             &d.counts,
             &d.explain,
+            &d.answer,
         ]
         .into_iter()
         .flatten()
@@ -668,6 +773,7 @@ pub fn describe(names: &[String]) -> Result<Describe, LanguageError> {
         .retain(|n| wants("computed", &n.name) || wants("pseudo", &n.name));
     out.counts.retain(|n| wants("counts", &n.name));
     out.explain.retain(|n| wants("explain", &n.name));
+    out.answer.retain(|n| wants("answer", &n.name));
     let named = |block: &str| names.iter().any(|asked| asked.eq_ignore_ascii_case(block));
     // the ids are the field's: printed where `category` is named
     if !named(crate::category::FIELD) && !named("categories") {

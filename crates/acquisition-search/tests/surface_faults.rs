@@ -561,3 +561,46 @@ fn c97_the_sections_listed_are_the_answers_keys_and_each_answers_alone() {
         serde_json::to_value(describe::describe(&["fields".to_string()]).unwrap()).unwrap();
     assert_eq!(fields["totals"], whole["totals"], "{fields}");
 }
+
+/// #83: the anatomy of an answer left the MCP's tool text for the
+/// `answer` section, read on demand, so the section is held to the
+/// answer: every key an answer prints — with rows, with a zero total and
+/// its offers, under the corpus context with the query set aside — is an
+/// entry's name or the head of one's path.
+#[test]
+fn the_answer_section_names_every_key_an_answer_prints() {
+    let (corpus, _) = fixture(vec![lines(&["+20 to maximum Life"])]);
+    let section = serde_json::to_value(describe::describe(&["answer".to_string()]).unwrap())
+        .unwrap()["answer"]
+        .clone();
+    let named: Vec<&str> = section
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| e["name"].as_str().unwrap())
+        .collect();
+    let mut matched = request("\"# to maximum Life\">=10", None, false, 10);
+    let zero = request("\"# to maximum Life\">=100", None, false, 10);
+    let mut corpus_context = request("\"# to maximum Life\">=100", None, false, 10);
+    corpus_context["context"] = json!("corpus");
+    matched["view"]["routes"] = json!(true);
+    let mut seen = std::collections::BTreeSet::new();
+    for asked in [&matched, &zero, &corpus_context] {
+        let answer = run(&corpus, asked).unwrap_or_else(|e| panic!("{asked}: {e}"));
+        seen.extend(answer.as_object().unwrap().keys().cloned());
+    }
+    for key in ["rows", "zero", "set_aside"] {
+        assert!(
+            seen.contains(key),
+            "the answers printed no `{key}`: {seen:?}"
+        );
+    }
+    for key in &seen {
+        assert!(
+            named
+                .iter()
+                .any(|n| n == key || n.split('.').next() == Some(key.as_str())),
+            "the answer section names no `{key}`: {named:?}"
+        );
+    }
+}

@@ -244,6 +244,18 @@ impl Seat {
     }
 }
 
+/// What `describe` with names [`name`] sends, as an agent reads it: the
+/// result's text. The anatomy of an answer and a translation's report
+/// are read here on demand, never in the tool list (#83).
+fn described(seat: &mut Seat, name: &str) -> String {
+    let result = seat.mcp.result("describe", json!({ "names": [name] }));
+    assert!(result["isError"] != json!(true), "{name}: {result}");
+    result["content"][0]["text"]
+        .as_str()
+        .unwrap_or_default()
+        .to_string()
+}
+
 fn ids(answer: &Value) -> Vec<&str> {
     answer["rows"]
         .as_array()
@@ -552,7 +564,8 @@ fn describe_is_as_large_as_its_text_says() {
     assert!(size(&mut seat, json!(["computed"])) > 70_000);
     assert!(size(&mut seat, json!(["computed"])) < 90_000);
     // some 20 KB, the trade catalogue's rows (C113), each what the report
-    // says of it since the trade seat (21,633 bytes then, 22,439 at r5)
+    // says of it since the trade seat (21,633 bytes then, 22,439 at r5,
+    // 24,359 with the report an answer carries, #83)
     assert!(size(&mut seat, json!(["trade"])) < 25_000);
     assert!(size(&mut seat, json!(["trade"])) > 18_000);
     // some 20 KB since the property fields joined it (C114)
@@ -561,7 +574,11 @@ fn describe_is_as_large_as_its_text_says() {
     // some 10 KB, every category id with what makes it hold (10,734 at r5)
     assert!(size(&mut seat, json!(["categories"])) < 13_000);
     assert!(size(&mut seat, json!(["categories"])) > 8_000);
-    let large = ["computed", "trade", "fields", "categories"];
+    // some 5 KB, every key an answer prints and what it counts (#83:
+    // 5,340 bytes when the anatomy left `search`'s text)
+    assert!(size(&mut seat, json!(["answer"])) < 7_000);
+    assert!(size(&mut seat, json!(["answer"])) > 4_000);
+    let large = ["computed", "trade", "fields", "categories", "answer"];
     for section in acquisition_search::describe::SECTIONS {
         if !large.contains(&section) {
             assert!(size(&mut seat, json!([section])) < 4_000, "{section}");
@@ -580,6 +597,7 @@ fn describe_is_as_large_as_its_text_says() {
         "computed is some 80 KB",
         "fields and trade some 20 KB each",
         "categories some 10 KB",
+        "answer some 5 KB",
         "the rest each under 4 KB",
     ] {
         assert!(text.contains(stated), "{stated}: {text}");
@@ -622,17 +640,14 @@ fn a_site_search_is_a_query_and_its_report_stands_in_the_answer() {
 /// A reader took a trade answer's `fidelity: exact` for "the site would
 /// show me the same", reading "partial … the answer then not the site's"
 /// as its converse (the trade seat: mcp-opus calls 1, 11, its worst
-/// fault). The `query` field's text says what fidelity measures and that
-/// the items are the store's, never the site's listings.
+/// fault). The trade section's report, read by name, says what fidelity
+/// measures and that the items are the store's, never the site's
+/// listings.
 #[test]
 fn a_trade_fidelity_is_never_said_to_be_the_sites_items() {
     let mut seat = Seat::new();
-    let tools = seat.mcp.list_tools();
-    let search = tools.iter().find(|t| t["name"] == "search").unwrap();
-    let query = search["inputSchema"]["properties"]["query"]["description"]
-        .as_str()
-        .unwrap();
-    // the fact words; the description whole is MCP-REFERENCE.md's
+    let query = described(&mut seat, "trade");
+    // the fact words; the entry whole is `describe`'s
     for said in [
         "how far the text is the site's search",
         "Never how far the items are the site's",
@@ -644,13 +659,12 @@ fn a_trade_fidelity_is_never_said_to_be_the_sites_items() {
 /// `scope.never_fetched` was printed beside every answer and explained
 /// nowhere: a reader could not say what it counts or that an answer is
 /// blind to it (the trade seat: mcp-opus call 3, its fault 4; mcp-sonnet
-/// call 4, its faults 3 and 5 and its debrief's answer 5).
+/// call 4, its faults 3 and 5 and its debrief's answer 5). The answer
+/// section says it, read by name.
 #[test]
 fn the_never_fetched_count_says_what_it_counts_and_what_no_answer_sees() {
     let mut seat = Seat::new();
-    let tools = seat.mcp.list_tools();
-    let search = tools.iter().find(|t| t["name"] == "search").unwrap();
-    let text = search["description"].as_str().unwrap();
+    let text = described(&mut seat, "answer");
     for said in [
         "`never_fetched` counts the tabs, their pages and the characters",
         "no answer says what they hold",
@@ -662,14 +676,13 @@ fn the_never_fetched_count_says_what_it_counts_and_what_no_answer_sees() {
 /// A pattern term's `resolved` values were read as the answer's tier
 /// breakdown, tier 13 and other leagues among them, and `scope.items` as
 /// the matches' base (the trade seat: mcp-sonnet calls 4, 19, 20, its
-/// faults 1 and 2). The text says each term is alone over the scope,
-/// never over the matches, what `resolved` is, and what `items` counts.
+/// faults 1 and 2). The answer section says each term is alone over the
+/// scope, never over the matches, what `resolved` is, and what `items`
+/// counts.
 #[test]
 fn a_terms_counts_and_resolved_values_are_said_to_be_over_the_scope() {
     let mut seat = Seat::new();
-    let tools = seat.mcp.list_tools();
-    let search = tools.iter().find(|t| t["name"] == "search").unwrap();
-    let text = search["description"].as_str().unwrap();
+    let text = described(&mut seat, "answer");
     for said in [
         "never over the matches, which are `total`",
         "`resolved` is what it matched there",
@@ -682,13 +695,12 @@ fn a_terms_counts_and_resolved_values_are_said_to_be_over_the_scope() {
 /// `against` gave `match` for a group and `matched` for each term, two
 /// words a reader took for one outcome (the trade seat: mcp-opus call 37,
 /// its fault 8). By design a term counts and a group is true or false;
-/// the `show` text names both vocabularies.
+/// `against`'s entry in the language, read by name, names both
+/// vocabularies.
 #[test]
 fn show_names_a_terms_outcomes_and_a_groups() {
     let mut seat = Seat::new();
-    let tools = seat.mcp.list_tools();
-    let show = tools.iter().find(|t| t["name"] == "show").unwrap();
-    let text = show["description"].as_str().unwrap();
+    let text = described(&mut seat, "against");
     for said in [
         "a term's `matched`, `failed`, `lacked` or `undecided`",
         "a group's `match`, `no_match` or `undecided`",
@@ -843,11 +855,7 @@ fn forty_one_tabs(base: &Path, kind: &str) {
 #[test]
 fn the_search_tools_words_name_tab_public_every_fidelity_and_a_sums_sources() {
     let mut seat = Seat::over(scratch("mcp-search"));
-    let tools = seat.mcp.list_tools();
-    let search = tools.iter().find(|t| t["name"] == "search").unwrap();
-    let query = search["inputSchema"]["properties"]["query"]["description"]
-        .as_str()
-        .unwrap();
+    let query = described(&mut seat, "trade");
     for said in [
         "a tab's being `tab.public`",
         "exact, ambiguous where a clause ran as the site may not read it",
@@ -855,9 +863,7 @@ fn the_search_tools_words_name_tab_public_every_fidelity_and_a_sums_sources() {
     ] {
         assert!(query.contains(said), "{said}: {query}");
     }
-    let view = search["inputSchema"]["properties"]["view"]["description"]
-        .as_str()
-        .unwrap();
+    let view = described(&mut seat, "answer");
     assert!(
         view.contains("spanning every source unless `source=` names one"),
         "{view}"
@@ -897,27 +903,23 @@ fn tabs_lists_the_never_fetched_of_one_type() {
 
 /// A row's place carried no age (the trade seat: mcp-sonnet-2 calls 3, 14,
 /// 24, its fault 4). C118: the place carries its location's `fetched_at`,
-/// and the tool's text names it.
+/// and the answer section names it.
 #[test]
 fn a_rows_place_carries_when_its_location_was_fetched() {
     let mut seat = Seat::over(scratch("mcp-search"));
-    let tools = seat.mcp.list_tools();
-    let search = tools.iter().find(|t| t["name"] == "search").unwrap();
-    let text = search["description"].as_str().unwrap();
+    let text = described(&mut seat, "answer");
     assert!(text.contains("(`place.fetched_at`)"), "{text}");
 }
 
 /// `scope.never_fetched` stood unsized and which tabs it counted could not
 /// be learned (the trade seat: mcp-opus-2 calls 3, 10, its fault 2;
-/// mcp-sonnet-2 reading 2,940 as items). C118: the tool's text says the
-/// scope counts the never fetched by tab type as `tabs` counts a type, and
-/// names `tabs` as the list.
+/// mcp-sonnet-2 reading 2,940 as items). C118: the answer section says
+/// the scope counts the never fetched by tab type as `tabs` counts a type,
+/// and names `tabs` as the list.
 #[test]
 fn the_scope_counts_the_never_fetched_by_tab_type_and_names_the_list() {
     let mut seat = Seat::over(scratch("mcp-search"));
-    let tools = seat.mcp.list_tools();
-    let search = tools.iter().find(|t| t["name"] == "search").unwrap();
-    let text = search["description"].as_str().unwrap();
+    let text = described(&mut seat, "answer");
     for said in [
         "`never_fetched_by_type` is the same by tab type",
         "`tabs` lists a league's tabs",

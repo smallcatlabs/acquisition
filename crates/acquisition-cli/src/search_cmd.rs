@@ -1778,6 +1778,17 @@ fn describe_text(d: &Describe, index: bool, totals: bool) -> String {
     }
     block("counts", &d.counts, false);
     block("why an answer is what it is", &d.explain, false);
+    // an answer's keys: whole where named, one line in the index, as the
+    // trade catalogue is
+    if !index {
+        block("an answer, key by key", &d.answer, false);
+    }
+    if index && !d.answer.is_empty() {
+        out.push_str(&format!(
+            "answer — what each key of an answer holds and counts, {} keys: `--describe answer`\n",
+            d.answer.len()
+        ));
+    }
     // `--describe totals`: the table, where no computed value's head
     // already names it
     if totals && d.computed.is_empty() {
@@ -1803,9 +1814,19 @@ fn describe_text(d: &Describe, index: bool, totals: bool) -> String {
             ));
         } else {
             out.push_str(&format!(
-                "trade — the catalogue v{}, the site's stats of {}: each clause a site search can carry, its status when it runs, and the text it becomes\n",
+                "trade — the catalogue v{}, the site's stats of {}: what an answer reports of a translation, then each clause a site search can carry, its status when it runs, and the text it becomes\n",
                 trade.version, trade.stats
             ));
+            // the report an answer carries opens the block, before the rows
+            let width = trade
+                .report
+                .iter()
+                .map(|e| e.name.chars().count() + 2)
+                .max()
+                .unwrap_or(0);
+            for e in &trade.report {
+                out.push_str(&format!("  {:<width$}{}\n", e.name, e.what));
+            }
             let key = trade
                 .rows
                 .iter()
