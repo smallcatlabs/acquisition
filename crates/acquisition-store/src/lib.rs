@@ -906,6 +906,7 @@ pub struct Status {
 }
 
 pub mod annotations;
+pub mod bound;
 pub mod corpus;
 pub mod index;
 pub mod jobs;
