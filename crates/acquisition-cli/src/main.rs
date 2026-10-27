@@ -1833,6 +1833,23 @@ async fn login(cx: &Ctx, no_browser: bool, json: bool) -> Result<()> {
 }
 
 fn print_auth(status: &Response, json: bool) -> Result<()> {
+    if json {
+        if !matches!(status, Response::Auth { .. }) {
+            bail!("unexpected response: {status:?}");
+        }
+        println!("{}", serde_json::to_string_pretty(status)?);
+        return Ok(());
+    }
+    print!("{}", auth_text(status)?);
+    Ok(())
+}
+
+/// `auth status`'s text. While the daemon's start restores its sessions
+/// from the keyring (its keyring word `restoring`), there is no session
+/// yet and none is lost: the text says the restore is under way and that
+/// a keychain prompt may be waiting, never "not logged in".
+fn auth_text(status: &Response) -> Result<String> {
+    use std::fmt::Write as _;
     let Response::Auth {
         logged_in,
         pending,
@@ -1844,16 +1861,17 @@ fn print_auth(status: &Response, json: bool) -> Result<()> {
     else {
         bail!("unexpected response: {status:?}");
     };
-    if json {
-        println!("{}", serde_json::to_string_pretty(status)?);
-        return Ok(());
-    }
+    let mut out = String::new();
     if provider == GGG {
-        println!("provider: real GGG");
+        writeln!(out, "provider: real GGG")?;
     }
     match (logged_in, pending) {
-        (_, true) => println!("login in progress (waiting on the browser)"),
-        (false, _) => println!("not logged in — run `acq auth`"),
+        (_, true) => writeln!(out, "login in progress (waiting on the browser)")?,
+        (false, _) if keyring == "restoring" => writeln!(
+            out,
+            "restoring the sessions saved in the keyring — if a keychain prompt is open, answer it"
+        )?,
+        (false, _) => writeln!(out, "not logged in — run `acq auth`")?,
         (true, _) => {
             for a in accounts {
                 let token = match a.access_expires_in_seconds {
@@ -1869,12 +1887,12 @@ fn print_auth(status: &Response, json: bool) -> Result<()> {
                 } else {
                     format!("; keyring {}", a.keyring)
                 };
-                println!("logged in as {}: {token}{kr}", a.username);
+                writeln!(out, "logged in as {}: {token}{kr}", a.username)?;
             }
         }
     }
-    println!("keyring: {keyring}");
-    Ok(())
+    writeln!(out, "keyring: {keyring}")?;
+    Ok(out)
 }
 
 pub(crate) fn open_browser(url: &str) -> bool {
@@ -2586,6 +2604,30 @@ async fn watch_table_until_done(client: &mut Client, ids: &[u64]) -> Result<()> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `auth status` while the daemon's start restores its sessions from
+    /// the keyring: no session yet, and the text says the restore is
+    /// under way, never that the user is logged out.
+    #[test]
+    fn auth_status_while_the_restore_reads_says_so() {
+        let status = Response::Auth {
+            logged_in: false,
+            pending: false,
+            login_ok: None,
+            login_error: None,
+            username: None,
+            access_expires_in_seconds: None,
+            keyring: "restoring".into(),
+            provider: "mock".into(),
+            accounts: Vec::new(),
+        };
+        let text = auth_text(&status).unwrap();
+        assert_eq!(
+            text,
+            "restoring the sessions saved in the keyring — if a keychain prompt is open, answer it\nkeyring: restoring\n"
+        );
+        assert!(!text.contains("not logged in"), "{text}");
+    }
 
     #[test]
     fn refresh_plan_conflicts_with_the_execute_selectors() {
