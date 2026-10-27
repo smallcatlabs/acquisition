@@ -287,8 +287,9 @@ list when a step's close commit or an issue takes it.
 r2, the credential I/O off the shared lock (#81), built from
 `briefs/r2-build.md` (C148, its Unbuilt line gone): the three `c148_`
 tests committed failing, the build, and the registry, `81e80d3f` to
-the commit carrying this line. Codex's review of that range is
-pending, then the owner's reading of its findings and the close. Then
+`19c8a759`. Codex's review is saved at `reviews/r2-19c8a759.md`
+(three P2 findings, one P3); the owner reads them and the proposed
+fixes, then a fix round and the close. Then
 r3 to r5 in order, each from its brief; the C135 round (#55, with the
 start's keyring read, #92) after r2. Phase 3, the owner's league run,
 follows; the second week before 3.30, if the group closes early, draws
@@ -318,7 +319,7 @@ messages.
 | #70 the Windows gate's deadline flakes | ruling and brief `dd9b7859`; build `04001a27` to `90db890a`; the reorder and the review `54d9f957`, `493ff5d4`; fixes `6697afc3`, `32769f72` (the review deleted there, whole at `493ff5d4`) | the fix-round review found nothing (`reviews/70-fixes-32769f72.md`); the issue closes on a week of pushes without a re-run | the watch and what it holds, under "Open" |
 | p0 the process round | `f1a29952` to the commit carrying this line; reviews `reviews/p0-1523a776.md`, `reviews/p0-fixes-16ef9210.md` | 2026-10-26 | the gate script's breaker suite, on #87; the rebuild observation, on #88; the four memory notes, retired |
 | r1 the Windows gate decides again | build `c2318752` to `de6ad867`; review `reviews/r1-de6ad867.md` (no findings); the Windows lint `ad216160`; closed by the commit carrying this line | 2026-10-27; Windows green at run 40428110668 | #70's week, counted from that run, under "Open" |
-| r2 the credential I/O off the shared lock | design `912206df`, `62eaeea0`; ruling `610286d1`; brief `193c2c21`; build `81e80d3f` (the tests, failing) to the commit carrying this line | review pending | the save cut at the exit's bound, left to the time seam (4-0) |
+| r2 the credential I/O off the shared lock | design `912206df`, `62eaeea0`; ruling `610286d1`; brief `193c2c21`; build `81e80d3f` (the tests, failing) to the commit carrying this line | review saved, `reviews/r2-19c8a759.md`; fixes await the owner's reading | the save cut at the exit's bound, left to the time seam (4-0) |
 
 ## Housekeeping
 
