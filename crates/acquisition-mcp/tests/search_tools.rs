@@ -441,6 +441,58 @@ fn the_requests_account_selects_the_store() {
     assert_eq!(shown["item"]["facts"]["id"], "bob1");
 }
 
+/// C98 through one server (#82): the corpus is held across calls and
+/// checked before every answer, so a tab recorded while the server runs
+/// is in the next answer, at a higher snapshot, and a price written
+/// through the server moves the next answer's intent revision. The
+/// server opens the store per call and holds no handle between, so the
+/// test writes the facts through the store crate beside it.
+#[test]
+fn a_held_corpus_is_loaded_again_when_a_tab_or_a_price_is_written() {
+    let mut seat = Seat::new();
+    let first = seat.answer(&json!({}));
+    assert_eq!(first["total"]["matched"], json!(5), "{first}");
+
+    let mut store = Store::open(&account_path(&stores(&seat.base), USER)).unwrap();
+    record(
+        &mut store,
+        Endpoint::Stashes {
+            realm: "pc".into(),
+            league: "Standard".into(),
+        },
+        "pc",
+        json!({ "stashes": [
+            { "id": "t1", "name": "Rings", "type": "PremiumStash" },
+            { "id": "t2", "name": "Dump", "type": "PremiumStash" },
+            { "id": "t3", "name": "Late", "type": "PremiumStash" } ] }),
+        40,
+    );
+    record(
+        &mut store,
+        stash("pc", "t3"),
+        "pc",
+        json!({ "stash": { "id": "t3", "name": "Late", "type": "PremiumStash", "items": [
+            item("late", "Late Loop", "Iron Ring", "Rare", json!({})),
+        ] } }),
+        50,
+    );
+    drop(store);
+    let fetched = seat.answer(&json!({}));
+    assert_eq!(fetched["total"]["matched"], json!(6), "{fetched}");
+    let response = |a: &Value| a["basis"]["snapshot"]["response"].as_i64().unwrap();
+    assert!(response(&fetched) > response(&first), "{fetched}");
+
+    let (set, refused) = seat.call(
+        "price_set",
+        &json!({ "target": "item/r1", "type": "exact", "amount": "5", "currency": "chaos" }),
+    );
+    assert!(!refused, "{set}");
+    let priced = seat.answer(&json!({}));
+    let intent = |a: &Value| a["basis"]["intent"].as_i64().unwrap();
+    assert!(intent(&priced) > intent(&fetched), "{priced}");
+    assert_eq!(response(&priced), response(&fetched), "{priced}");
+}
+
 /// No daemon is started by any of the three: none bound a socket in the
 /// scratch world. (That none was reached for is the crate's edges: the
 /// search links no client, `tools/arch-check.sh`.)

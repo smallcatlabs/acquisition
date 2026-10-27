@@ -570,3 +570,45 @@ the price join and sqlite hold for a moment is in it: the steady
 figure a consumer holding the corpus all day would show is at most
 this and was not measured apart. M1's 8.7 MB was the streaming read
 alone, no item kept.
+
+**M8 — the held corpus in `acq-mcp` (#82, 2026-10-27): a warm `search` over the copy is 9 to 15 ms where every call loaded at 430 to 440; the corpus build was 97% of a warm call, and one held corpus is 195 MB resident.**
+One release `acq-mcp` per request, driven over stdio as the MCP
+harness's `Mcp` drives one (`initialize`, then `tools/call` lines):
+one cold `search` and ten warm, wall time from the request's write to
+its response line, the median of ten; the resident size by `ps -o rss=`
+after `initialize`, after the first call and after the last. The
+before-run is HEAD `500e4468`'s binary copied aside before any edit,
+the after-run the step's; each alone on the machine. Two worlds: the
+journey's (`journey.rs`'s mock daemon, login, policy, plan and apply
+until the plan names nothing; 49 items) and a copy of the M3 store
+(22,623 items under pc; the requests name `scope.realm` pc, since the
+copy holds more than one realm). Three requests: `{}` with
+`view.rows.limit` 0, `class=Rings rarity=rare`, and
+`class="Stackable Currency"` counted by `base` with `stack` summed.
+
+| world, request | before: first, median ms | after: first, median ms | build's share | resident MB before (init, first, last) | after |
+| --- | --- | --- | --- | --- | --- |
+| journey, `{}` | 50.2, 1.7 | 48.9, 1.1 | 35% | 4.6, 27.0, 27.3 | 4.6, 26.8, 27.1 |
+| journey, rings | 29.6, 1.6 | 30.8, 1.0 | 38% | 4.6, 27.1, 27.4 | 4.6, 27.0, 27.2 |
+| journey, currency count | 29.7, 1.6 | 31.7, 1.0 | 38% | 4.6, 27.3, 27.7 | 4.6, 27.2, 27.4 |
+| copy, `{}` | 730.2, 429.6 | 492.7, 9.3 | 98% | 4.6, 183.8, 555.6 | 4.7, 195.0, 195.2 |
+| copy, rings | 468.7, 434.5 | 465.3, 12.3 | 97% | 4.6, 184.9, 556.8 | 4.6, 196.2, 196.6 |
+| copy, currency count | 476.5, 439.6 | 470.8, 15.4 | 97% | 4.6, 186.0, 557.7 | 4.6, 196.4, 196.7 |
+
+The build's share is the before-median less the after-median, over the
+before-median. The cold call is the load, paid once; the before-run's
+first over the copy, 730 ms, was the first read after the copy was
+written. A warm call is the per-call open of the store and the intent,
+`is_current`'s whole-header read and the evaluation, which were not
+measured apart: at 9 to 15 ms, under the 29 ms M3 puts on the dearest
+evaluation, `is_current` was left as it is (the brief's Do 6). The
+steady resident size of one held corpus after the load's transients
+drop is the after-run's 195 MB. Each load leaves some 36 MB more
+resident that is freed and not returned: twenty calls on one server
+alternating membership `live` and `all`, so that each loads, climbed
+from 184 to 884 MB on HEAD's binary and from 195 to 884 MB on the
+step's, the allocated bytes flat at 151 MB after two loads and after
+ten while macOS's empty large regions grew from 61 to 489 MB
+(`vmmap --summary`). A resident consumer pays it on every moved basis;
+before the step every `acq-mcp` call did. The driver's text is in the step's report, not the
+tree.

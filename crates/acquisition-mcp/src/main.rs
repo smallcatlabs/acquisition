@@ -67,6 +67,15 @@
 //!   the server could not serve — a daemon's own refusal with its closed
 //!   kind (C85), a door that did not open, another or an unresponsive
 //!   daemon, the transport.
+//! - **The corpus is held across calls** (C98, the consumer holds the
+//!   corpus and checks before every answer; #82): `search` opens the
+//!   account's store and intent per call, as before, and asks the search
+//!   crate's `Holder` — the one `acq web` holds — for the corpus, which
+//!   is reused while its scope is the request's and `is_current` says the
+//!   basis still holds. The first call after a refresh, a price or policy
+//!   write, or a call of another account, realm or membership pays the
+//!   load; every other pays the evaluation alone. `show` reads one item
+//!   and holds nothing.
 //!
 //! An account that cannot be picked is refused in the protocol's words
 //! (C121): `not_logged_in` when no account's store is found (naming the
@@ -124,8 +133,8 @@ use acquisition_plan::pricing::Expect;
 use acquisition_plan::{PolicyWrite, RefreshPlan};
 use acquisition_protocol::protocol::{ErrorKind, Request, Response};
 use acquisition_protocol::realm::Realm;
-use acquisition_search::SearchError;
 use acquisition_search::answer::{Asked, QueryInput};
+use acquisition_search::{Holder, SearchError};
 use acquisition_store::{Annotations, Provenance, Store};
 use acquisition_verbs::fault::door_word;
 use acquisition_verbs::{Account, Fault, Frontend};
@@ -799,6 +808,8 @@ fn price_realm(realm: Option<&str>) -> std::result::Result<Option<Realm>, CallTo
 /// (C13), the account resolved per call.
 struct AcqMcp {
     frontend: Frontend,
+    /// The one corpus `search` answers over (C98).
+    held: Holder,
 }
 
 impl AcqMcp {
@@ -925,9 +936,9 @@ impl AcqMcp {
                 Ok(opened) => opened,
                 Err(refusal) => return Ok(refusal),
             };
-        match asked
-            .request
-            .corpus(&store, &intent)
+        match self
+            .held
+            .corpus(&asked.request, &store, &intent)
             .and_then(|corpus| asked.answer(&corpus))
         {
             Ok(answer) => told(&answer),
@@ -1394,7 +1405,14 @@ async fn main() -> Result<()> {
     // before it failed (a line answered before initialisation, then
     // stdin closed) still reaches stdout.
     let served: Result<()> = async {
-        AcqMcp { frontend }.serve(stdio).await?.waiting().await?;
+        AcqMcp {
+            frontend,
+            held: Holder::new(),
+        }
+        .serve(stdio)
+        .await?
+        .waiting()
+        .await?;
         Ok(())
     }
     .await;
