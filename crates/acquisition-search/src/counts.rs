@@ -222,7 +222,7 @@ pub(crate) fn bind(
     Ok(BoundCounts {
         keys: bound,
         sum,
-        limit: limit.unwrap_or(crate::answer::DEFAULT_LIMIT),
+        limit: limit.unwrap_or(acquisition_store::bound::LISTED),
     })
 }
 

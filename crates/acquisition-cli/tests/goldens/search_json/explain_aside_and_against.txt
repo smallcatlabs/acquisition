@@ -96,7 +96,7 @@ against line("# to maximum Life" arg1>=90)
 basis   store <store> · build <build> · snapshot 4 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2
 
 $ acq search --realm pc 'rarity=rare rarity=unique'
-# holds "--limit 20 --context corpus"
+# holds "--limit 10 --context corpus"
 --- stdout
 query   rarity=rare rarity=unique
 scope   account Alice#1234 · pc · live · 5 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago)
@@ -107,7 +107,7 @@ offers  each part of the query forced true and forced false, the part fewest ite
     acq search --account 'Alice#1234' --realm pc 'rarity=rare rarity=unique' --explain 1
     acq search --account 'Alice#1234' --realm pc 'rarity=rare rarity=unique' --explain 0
         every item in scope, this query set aside
-    acq search --account 'Alice#1234' --realm pc 'rarity=rare rarity=unique' --limit 20 --context corpus
+    acq search --account 'Alice#1234' --realm pc 'rarity=rare rarity=unique' --limit 10 --context corpus
 terms   each term counted alone over all live pc items in all leagues, never over the matches
   0    rarity=rare    4 matched · 1 failed
   1    rarity=unique  1 matched · 4 failed

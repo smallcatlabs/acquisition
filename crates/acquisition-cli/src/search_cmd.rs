@@ -54,8 +54,8 @@
 use std::io::Read as _;
 
 use acquisition_search::answer::{
-    Answer, Asked, ClauseOut, Context, Count, DEFAULT_LIMIT, Membership, Request, Rows, Scope,
-    Shape, TradeOut, View, ViewOut,
+    Answer, Asked, ClauseOut, Context, Count, Membership, Request, Rows, Scope, Shape, TradeOut,
+    View, ViewOut,
 };
 use acquisition_search::corpus::Realm;
 use acquisition_search::counts::{Bucket, CrossOut, Label, SumOf, Summed, Table};
@@ -131,7 +131,7 @@ pub struct SearchArgs {
     pub desc: bool,
     /// How many rows to return — or, of a count, how many values a table
     /// lists; the rest are counted.
-    /// Twenty where none is given.
+    /// Ten where none is given.
     #[arg(long)]
     pub limit: Option<usize>,
     /// Print every count's route — the command that returns exactly its
@@ -469,7 +469,7 @@ pub fn search(cx: &Ctx, args: SearchArgs, json: bool) -> Result<()> {
         args.sum.clone(),
         args.explain.clone(),
         Rows {
-            limit: Some(args.limit.unwrap_or(DEFAULT_LIMIT)),
+            limit: Some(args.limit.unwrap_or(acquisition_store::bound::LISTED)),
             sort: args.sort.clone(),
             desc: args.desc,
             after: None,

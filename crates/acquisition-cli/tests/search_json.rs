@@ -1058,7 +1058,7 @@ fn step_10_explain_context_and_against_at_a_terminal() {
     // fewest matched first, then the corpus
     let shown = text(&t.run(
         &["search", "--realm", "pc", "rarity=rare rarity=unique"],
-        &["--limit 20 --context corpus"],
+        &["--limit 10 --context corpus"],
     ));
     golden(file!(), "explain_aside_and_against", &t);
     let commands = printed_commands(&shown);
@@ -1071,7 +1071,7 @@ fn step_10_explain_context_and_against_at_a_terminal() {
         [
             "acq search --account 'Alice#1234' --realm pc 'rarity=rare rarity=unique' --explain 1",
             "acq search --account 'Alice#1234' --realm pc 'rarity=rare rarity=unique' --explain 0",
-            "acq search --account 'Alice#1234' --realm pc 'rarity=rare rarity=unique' --limit 20 --context corpus",
+            "acq search --account 'Alice#1234' --realm pc 'rarity=rare rarity=unique' --limit 10 --context corpus",
         ],
         "{shown}"
     );

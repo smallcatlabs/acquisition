@@ -337,11 +337,13 @@ pub const SUGGESTED_SAID: &str = "a line the search cannot name is shown as unkn
 pub const ID_WHOLE: &str =
     "an id is matched whole, as an answer printed it: a part of one finds nothing";
 
-/// How many rows an answer returns when the request names no limit.
-pub const DEFAULT_LIMIT: usize = 20;
-/// How many of a bounded block's entries are listed before the rest are
-/// counted (C53).
-const LISTED: usize = 10;
+// How many rows an answer returns when the request names no limit, and
+// how many of a bounded block's entries are listed before the rest are
+// counted, is the store's one number (C53, the read economy's bound:
+// `acquisition_store::bound::LISTED`), never a second one here.
+use acquisition_store::bound::{LISTED, bounded};
+/// How many near values a zero answer offers beside a term: offers, not a
+/// list of entities, so not the read economy's bound.
 const SUGGESTED: usize = 5;
 
 // ---- the request ------------------------------------------------------------------------------
@@ -1098,7 +1100,7 @@ impl Shape {
                     None => None,
                 },
                 desc: rows.desc,
-                limit: rows.limit.unwrap_or(DEFAULT_LIMIT),
+                limit: rows.limit.unwrap_or(LISTED),
                 fields: rows.fields.clone(),
             },
             Shape::Counts(c) => {
@@ -1798,15 +1800,14 @@ pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError>
                         });
                         // every pick of a category term is printed: the
                         // ids are a closed set, and no count lists the rest
-                        let listed = match &term.atom {
+                        let whole = matches!(
+                            &term.atom,
                             Atom::Closed {
                                 thing: Thing::Category,
                                 ..
-                            } => values.len(),
-                            _ => LISTED,
-                        };
-                        let more = values.len().saturating_sub(listed);
-                        values.truncate(listed);
+                            }
+                        );
+                        let (values, more) = bounded(values, None, whole);
                         let rest = (more > 0)
                             .then(|| rest_of(term))
                             .flatten()
@@ -1826,8 +1827,7 @@ pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError>
     // nothing on an item can leave it open
     let root_undecided = (!is_empty(&query.root))
         .then(|| Node::Undecided(Probe::Term(Box::new(query.root.clone()))));
-    let reasons_left_out = reasons.len().saturating_sub(LISTED);
-    reasons.truncate(LISTED);
+    let (reasons, reasons_left_out) = bounded(reasons, None, false);
     let total = Total {
         matched: matches.len(),
         undecided: count(n_undecided, root_undecided.as_ref()),
@@ -2244,8 +2244,7 @@ fn offers(router: &Router<'_>, query: &Query, part_matched: &[usize], request: &
         .map(|(n, node)| (part_matched.get(n).copied().unwrap_or(0), n, node))
         .collect();
     parts.sort_by_key(|(matched, n, _)| (*matched, *n));
-    let explain_left_out = parts.len().saturating_sub(LISTED);
-    parts.truncate(LISTED);
+    let (parts, explain_left_out) = bounded(parts, None, false);
     Offers {
         explain: parts
             .into_iter()

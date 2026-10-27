@@ -42,7 +42,7 @@ total   0 matches
 offers  each part of the query forced true and forced false, the part fewest items match first
     acq search --account 'Alice#1234' --realm pc rarity=normal --explain 0
         every item in scope, this query set aside
-    acq search --account 'Alice#1234' --realm pc rarity=normal --limit 20 --context corpus
+    acq search --account 'Alice#1234' --realm pc rarity=normal --limit 10 --context corpus
 terms   each term counted alone over all live pc items in all leagues, never over the matches
   0    rarity=normal  0 matched · 2 lacked
 routes  each returns exactly the members counted (1 more: --routes)

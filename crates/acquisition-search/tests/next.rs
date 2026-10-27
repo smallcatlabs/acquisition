@@ -565,3 +565,49 @@ fn a_site_search_is_kept_by_its_continuation_and_its_request_is_whole() {
     .unwrap();
     assert_eq!(resolved["query"], first["query"]);
 }
+
+/// C53, the read economy: a request that names no limit returns the
+/// store's one bound of rows, never a number of the search's own, counts
+/// the rest and continues — over more matching items than the bound, so
+/// the default is seen to cut. Followed, the continuation keeps the
+/// bound and reaches every match once.
+#[test]
+fn an_unlimited_request_over_more_than_ten_matching_items_returns_ten_counts_the_rest_and_continues()
+ {
+    use acquisition_store::bound::LISTED;
+    let mut s = store();
+    list_tabs(&mut s, "pc", "Standard", json!([tab("d1", "Dump")]), 10);
+    let n = LISTED + 7;
+    let rings = (0..n)
+        .map(|i| {
+            item(
+                &format!("r{i:02}"),
+                &format!("Ring {i}"),
+                "Iron Ring",
+                "Rare",
+                json!({}),
+            )
+        })
+        .collect();
+    fetch_tab(&mut s, "pc", "Standard", "d1", "Dump", rings, 20);
+    let corpus = load(&s, Some("pc"));
+
+    let first = asked(&corpus, &json!({ "query": { "text": "rarity=rare" } })).unwrap();
+    assert_eq!(first["total"]["matched"], n, "{first}");
+    let view = &first["view"]["rows"];
+    assert_eq!(
+        (&view["limit"], &view["returned"], &view["left_out"]),
+        (&json!(LISTED), &json!(LISTED), &json!(n - LISTED)),
+        "{view}"
+    );
+    assert_eq!(rows_of(&first).len(), LISTED);
+    let next = &view["next"]["request"];
+    assert_eq!(next["view"]["rows"]["limit"], LISTED, "{next}");
+    assert_eq!(next["view"]["rows"]["after"], LISTED, "{next}");
+
+    let (all, asks) = pages(&corpus, &json!({ "query": { "text": "rarity=rare" } }));
+    assert_eq!(asks, 2);
+    let ids: std::collections::BTreeSet<&str> =
+        all.iter().map(|r| r["id"].as_str().unwrap()).collect();
+    assert_eq!(ids.len(), n, "every match once");
+}

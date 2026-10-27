@@ -516,7 +516,7 @@ impl schemars::JsonSchema for RequestParams {
                 },
                 "view": {
                     "type": "object",
-                    "description": "{\"rows\": {\"limit\": N, \"sort\": a value, \"desc\": true}}, the default (20 rows); {\"counts\": {\"keys\": [a key, …], \"sum\": a value}}; {\"cross\": {\"keys\": [two keys]}}; or {\"explain\": {\"path\": a node's path}}; \"routes\": true beside any. `describe` with names [\"answer\"] says what each gives."
+                    "description": "{\"rows\": {\"limit\": N, \"sort\": a value, \"desc\": true}}, the default (ten rows); {\"counts\": {\"keys\": [a key, …], \"sum\": a value}}; {\"cross\": {\"keys\": [two keys]}}; or {\"explain\": {\"path\": a node's path}}; \"routes\": true beside any. `describe` with names [\"answer\"] says what each gives."
                 },
                 "context": {
                     "type": "string",

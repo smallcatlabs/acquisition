@@ -428,6 +428,11 @@ fn the_route_checker_rejects_refusal_miscounts_missing_routes_and_overlap() {
 fn route_membership_is_checked_beyond_the_default_page() {
     let (corpus, scope) = fixture(vec![json!({}); 24]);
     let document = run(&corpus, &json!({"query": {"text": "true()"}})).unwrap();
-    assert_eq!(document["rows"].as_array().unwrap().len(), 20);
+    // the default page is the store's one bound (C53), past which the
+    // routes are checked
+    assert_eq!(
+        document["rows"].as_array().unwrap().len(),
+        acquisition_store::bound::LISTED
+    );
     check_routes(&document, &scope, &mut |r| run(&corpus, r)).unwrap();
 }

@@ -1042,7 +1042,14 @@ fn rule_8_what_the_percentile_asks_opens_it() {
         ),
         vest("base", "23", json!({ "baseType": 7 })),
     ]);
-    let found = |text: &str| ids(&asked(&s, text));
+    // every match, past the default page (C53, the read economy's bound)
+    let found = |text: &str| {
+        let request: Request = serde_json::from_value(
+            json!({ "query": { "text": text }, "view": { "rows": { "limit": 100 } } }),
+        )
+        .unwrap();
+        ids(&as_json(&answer(&load(&s, Some("pc")), &request).unwrap()))
+    };
     assert_eq!(found("pseudo.defence_pct=50"), ["local_only"]);
     assert_eq!(found("-has:pseudo.defence_pct"), ["quality_alone"]);
     assert_eq!(

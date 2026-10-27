@@ -38,7 +38,7 @@ nothing in scope carries the id of term 0: id:r2 — it left the scope, as its t
 offers  each part of the query forced true and forced false, the part fewest items match first
     acq search --account 'Alice#1234' --realm pc id:r2 --explain 0
         every item in scope, this query set aside
-    acq search --account 'Alice#1234' --realm pc id:r2 --limit 20 --context corpus
+    acq search --account 'Alice#1234' --realm pc id:r2 --limit 10 --context corpus
 terms   each term counted alone over all live pc items in all leagues, never over the matches
   0    id:r2  0 matched · 4 failed
        this id is an item that left the scope <age> ago: acq search --account 'Alice#1234' --realm pc id:r2 --membership all

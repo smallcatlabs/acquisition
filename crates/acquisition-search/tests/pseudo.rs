@@ -114,7 +114,11 @@ fn counts(term: &Value) -> [u64; 4] {
 }
 
 fn follow(s: &Store, realm: &str, count: &Value) -> Vec<String> {
-    let request = serde_json::from_value(count["request"].clone()).unwrap();
+    // every member the route returns, not the default page of them (C53,
+    // the read economy's bound): its limit is its count
+    let mut request = count["request"].clone();
+    request["view"]["rows"]["limit"] = count["count"].clone();
+    let request = serde_json::from_value(request).unwrap();
     let routed = as_json(&answer(&load(s, Some(realm)), &request).unwrap());
     assert_eq!(routed["total"]["matched"], count["count"]);
     ids(&routed)
@@ -1769,7 +1773,13 @@ fn c93_a_reading_is_open_by_no_more_than_the_totals_it_reads() {
     // the sort: a value first, then what is no value — an open count with
     // what was established, an open least with the least established
     let sorted = |by: &str| -> Vec<(String, Value)> {
-        view(&s, "", json!({ "rows": { "sort": by, "desc": true } })).unwrap()["rows"]
+        // every item, past the default page (C53)
+        view(
+            &s,
+            "",
+            json!({ "rows": { "sort": by, "desc": true, "limit": 100 } }),
+        )
+        .unwrap()["rows"]
             .as_array()
             .unwrap()
             .iter()
