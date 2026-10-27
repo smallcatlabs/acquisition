@@ -227,7 +227,7 @@ impl Frontend {
             "ACQ_STORE_DIR={} ",
             acquisition_search::answer::shell_quoted(&self.root.display().to_string())
         ));
-        format!("{world}ACQ_IDLE_SHUTDOWN=3600 acq auth check")
+        format!("{world}acq auth check")
     }
 
     /// What a no-daemon refusal's `next` says: a person's act, the

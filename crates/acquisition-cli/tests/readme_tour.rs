@@ -26,7 +26,7 @@
 use std::process::Command;
 
 use crate::harness;
-use harness::{acq, login, login_with, scratch, sole_json};
+use harness::{acq, login_with, scratch, sole_json};
 
 fn help(path: &[&str]) -> Result<String, String> {
     let out = Command::new(env!("CARGO_BIN_EXE_acq"))
@@ -290,39 +290,43 @@ fn the_grammar_reads_alternatives() {
     assert_eq!(without_env("acq x=1"), "acq x=1");
 }
 
+/// The README's "Your agent" section, from its heading to the next.
+fn agent_section() -> String {
+    let text = readme();
+    let start = text
+        .find("\n## Your agent")
+        .expect("the README has a \"Your agent\" section");
+    let rest = &text[start + 1..];
+    let end = rest[1..].find("\n## ").map_or(rest.len(), |i| i + 1);
+    rest[..end].to_string()
+}
+
 /// The agent's daemon recipe runs as the README prints it, in the case
-/// this harness can stage: no keyring, so a stopped daemon took the
-/// login with it, and `auth check` would answer not_logged_in. The line
-/// the README gives for that case logs in again under the idle knob and
-/// leaves a daemon running that reports the knob's value as its idle
-/// exit; the keyring line is the same verb's `check`, which the harness
-/// cannot run.
+/// this harness can stage: no keyring, so the line for that case is the
+/// login itself, and the keyring line is the same verb's `check`, which
+/// the harness cannot run. With the idle knob left to its default (C3,
+/// the hour) the recipe needs no knob: the section names none, and the
+/// daemon the login starts reports an idle exit of 3600 s.
 #[test]
-fn the_agent_recipe_logs_in_again_after_the_daemon_stopped() {
-    let line = "ACQ_IDLE_SHUTDOWN=3600 acq auth   #";
+fn the_agent_recipe_starts_a_daemon_that_idles_out_after_the_hour() {
+    let section = agent_section();
+    for line in ["acq auth check   #", "acq auth   #"] {
+        assert!(
+            section.lines().any(|l| l.starts_with(line)),
+            "the README's agent section has no line `{line}`"
+        );
+    }
     assert!(
-        readme().lines().any(|l| l.starts_with(line)),
-        "the README's agent section has no line `{line}`"
+        !section.contains("ACQ_IDLE_SHUTDOWN"),
+        "the agent section still names the idle knob"
     );
     let dir = scratch("recipe");
     let base = &dir.0;
-    login(base, "Alice#1");
-    let stopped = sole_json(&acq(base, &["daemon", "stop", "--json"]));
-    assert_eq!(stopped["stopped"], serde_json::json!(true), "{stopped}");
-    let check = acq(base, &["auth", "check", "--json"]);
-    assert!(
-        !check.status.success(),
-        "auth check restored a login this world has no keyring for"
-    );
-    // The check started a daemon of its own to answer; the recipe's
-    // knob is read by the daemon the login starts, so none may be up.
-    let stopped = sole_json(&acq(base, &["daemon", "stop", "--json"]));
-    assert_eq!(stopped["stopped"], serde_json::json!(true), "{stopped}");
     let status = sole_json(&acq(base, &["daemon", "status", "--json"]));
     assert_eq!(status["running"], serde_json::json!(false), "{status}");
-    login_with(base, "Alice#1", &[("ACQ_IDLE_SHUTDOWN", "3600")]);
-    // The daemon the recipe's login started reports the idle exit it
-    // was started with: the knob took, on a new daemon.
+    // The harness isolates every daemon at a 30 s idle exit; an empty
+    // knob is misread and keeps the default, the README's hour.
+    login_with(base, "Alice#1", &[("ACQ_IDLE_SHUTDOWN", "")]);
     let status = sole_json(&acq(base, &["daemon", "status", "--json"]));
     assert_eq!(
         (

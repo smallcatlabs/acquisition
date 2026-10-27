@@ -172,7 +172,7 @@ fn the_no_daemon_remedy_names_the_provider_and_store_the_server_runs_with() {
         let next = result["structuredContent"]["next"]
             .as_str()
             .unwrap_or_default();
-        let command = format!("`{prefix}ACQ_IDLE_SHUTDOWN=3600 acq auth check`");
+        let command = format!("`{prefix}acq auth check`");
         assert!(
             next.contains(&command),
             "{provider}: the remedy is not {command} as the server's world needs it: {result}"

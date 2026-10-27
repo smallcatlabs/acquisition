@@ -54,5 +54,5 @@ tracer evidence goes to `runs/mock/`.
 ## Tear down
 
 `acq daemon stop`. Mock access tokens live 60 s, so a daemon left up
-exercises silent refresh; it idles out on its own after 60 s with no
-connections and no live jobs.
+exercises silent refresh; it idles out on its own after an hour with no
+connections and no live jobs (C3), so stop it when the session ends.

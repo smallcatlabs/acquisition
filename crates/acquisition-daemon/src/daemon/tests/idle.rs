@@ -51,9 +51,9 @@ fn idle_verdict_follows_the_clock_the_connections_and_the_queue() {
         clock.clone(),
         tripwire_config(),
     );
-    let knob = Duration::from_secs(60);
+    let knob = IDLE_SHUTDOWN;
     assert!(!daemon.is_idle(knob), "a fresh daemon's activity is now");
-    clock.advance(Duration::from_secs(59));
+    clock.advance(knob - Duration::from_secs(1));
     assert!(!daemon.is_idle(knob), "one second short of the knob");
     clock.advance(Duration::from_secs(1));
     assert!(daemon.is_idle(knob), "the knob elapsed on the clock");
@@ -147,6 +147,9 @@ async fn idle_verdict_waits_for_limiter_history_to_leave_the_window() {
     assert_eq!(info.state, JobState::Done);
     server.await.unwrap();
 
+    // A knob shorter than the window: the default hour outlasts every
+    // policy window, so the clause this test stages shows only under a
+    // knob a person set short.
     let knob = Duration::from_secs(60);
     clock.advance(knob);
     assert!(
@@ -159,4 +162,43 @@ async fn idle_verdict_waits_for_limiter_history_to_leave_the_window() {
         "the window passed on the clock: nothing left to keep"
     );
     finish_harness_wire(dispatcher, &log_path, &requests);
+}
+
+/// C3 as amended: the default idle exit is an hour, and a live job holds
+/// the daemon past it however long the job waits. A job running under a
+/// manual clock advanced two hours keeps the daemon up; the hour counts
+/// from the last connection or submit, so once the job concludes with
+/// both two hours gone, nothing holds the daemon.
+#[test]
+fn idle_verdict_a_live_job_holds_the_daemon_past_the_hour() {
+    let clock = Arc::new(ManualClock::new());
+    let (daemon, log) = test_daemon("http://127.0.0.1:1", clock.clone());
+    assert_eq!(
+        IDLE_SHUTDOWN,
+        Duration::from_secs(3600),
+        "the default is the hour"
+    );
+    let id = daemon
+        .submit("sleep".into(), json!({}), 0, "t".into(), None)
+        .unwrap();
+    daemon
+        .shared
+        .lock()
+        .unwrap()
+        .jobs
+        .get_mut(&id)
+        .unwrap()
+        .info
+        .state = JobState::Running;
+    clock.advance(2 * IDLE_SHUTDOWN);
+    assert!(
+        !daemon.is_idle(IDLE_SHUTDOWN),
+        "a running job two hours on holds the daemon"
+    );
+    daemon.finish(id, Outcome::Success { payload: json!({}) });
+    assert!(
+        daemon.is_idle(IDLE_SHUTDOWN),
+        "the job concluded and the hour is gone: the daemon idles out"
+    );
+    finish_harness(None, &log);
 }

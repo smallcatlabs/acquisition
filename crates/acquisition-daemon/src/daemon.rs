@@ -176,7 +176,10 @@ use refresh::AccessTokenResult;
 use routes::why_no_url;
 use start::idle_shutdown_from_env;
 
-const IDLE_SHUTDOWN: Duration = Duration::from_secs(60);
+/// C3: the idle exit, an hour (the owner's word of 2026-10-26), so an
+/// agent's session and a person's sitting meet the daemon they started a
+/// while ago. A live job holds the daemon however long it waits.
+const IDLE_SHUTDOWN: Duration = Duration::from_secs(3600);
 
 const IDLE_POLL: Duration = Duration::from_secs(5);
 
