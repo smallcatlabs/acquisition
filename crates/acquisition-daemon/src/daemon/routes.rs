@@ -112,7 +112,7 @@ impl Daemon {
         if e.info.kind == "probe" {
             return "probe".into();
         }
-        match self.keyed_route_for(&e.info.kind, &e.params, e.info.account.as_deref()) {
+        match self.keyed_route_for(&e.info.kind, &e.info.params, e.info.account.as_deref()) {
             Some((route, _)) => self.choke.serial_key(&route),
             None => format!("solo:{}", e.info.id),
         }
@@ -122,7 +122,7 @@ impl Daemon {
         s.jobs.values().any(|e| {
             e.info.kind == "probe"
                 && !e.info.state.is_terminal()
-                && e.params.get("route").and_then(Value::as_str) == Some(route)
+                && e.info.params.get("route").and_then(Value::as_str) == Some(route)
         })
     }
 

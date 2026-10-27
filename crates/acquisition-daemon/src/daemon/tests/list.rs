@@ -17,7 +17,7 @@ fn per_job_snapshot(s: &Shared, daemon: &Daemon, id: JobId) -> Option<JobInfo> {
     let entry = s.jobs.get(&id)?;
     let mut info = entry.info.clone();
     info.eta_seconds = if info.state == JobState::Waiting {
-        match daemon.keyed_route_for(&info.kind, &entry.params, info.account.as_deref()) {
+        match daemon.keyed_route_for(&info.kind, &entry.info.params, info.account.as_deref()) {
             Some((route, _)) => {
                 let ahead = queue
                     .iter()
@@ -28,7 +28,7 @@ fn per_job_snapshot(s: &Shared, daemon: &Daemon, id: JobId) -> Option<JobInfo> {
                             .and_then(|e| {
                                 daemon.keyed_route_for(
                                     &e.info.kind,
-                                    &e.params,
+                                    &e.info.params,
                                     e.info.account.as_deref(),
                                 )
                             })

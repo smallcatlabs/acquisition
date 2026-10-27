@@ -153,7 +153,7 @@ impl Daemon {
         let closed_route = entries
             .iter()
             .find(|e| faulted == Some(e.info.id) && e.info.kind == "probe")
-            .and_then(|e| e.params.get("route").and_then(Value::as_str))
+            .and_then(|e| e.info.params.get("route").and_then(Value::as_str))
             .map(str::to_string);
         if let Some(route) = &closed_route {
             self.choke.degrade(route, PROBE_FAULT_WORDS);
@@ -183,7 +183,7 @@ impl Daemon {
                 let on_closed_route = closed_route.as_deref().is_some_and(|closed| {
                     self.keyed_route_for(
                         &entry.info.kind,
-                        &entry.params,
+                        &entry.info.params,
                         entry.info.account.as_deref(),
                     )
                     .is_some_and(|(route, _)| route == closed)
@@ -220,7 +220,7 @@ impl Daemon {
                     let no_probe_route = self
                         .keyed_route_for(
                             &entry.info.kind,
-                            &entry.params,
+                            &entry.info.params,
                             entry.info.account.as_deref(),
                         )
                         .is_some_and(|(route, _)| !Self::route_probes(&route));
@@ -448,11 +448,10 @@ resubmit if still wanted",
                 parent,
                 retries: 0,
                 account,
-                params: params.clone(),
+                params,
             };
             let entry = Entry {
                 info: info.clone(),
-                params,
                 outcome: None,
                 cancel_requested: false,
                 deferred: None,

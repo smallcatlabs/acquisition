@@ -84,7 +84,7 @@ impl Daemon {
             let entry = &s.jobs[&id];
             let route = self.keyed_route_for(
                 &entry.info.kind,
-                &entry.params,
+                &entry.info.params,
                 entry.info.account.as_deref(),
             );
             // A halted daemon (the rails, `rails.rs`) sends nothing:
@@ -129,7 +129,7 @@ impl Daemon {
             let s = self.shared.lock().unwrap();
             match s.jobs.get(&id) {
                 Some(e) => (
-                    self.keyed_route_for(&e.info.kind, &e.params, e.info.account.as_deref()),
+                    self.keyed_route_for(&e.info.kind, &e.info.params, e.info.account.as_deref()),
                     e.info.account.clone(),
                     e.info.kind.clone(),
                 ),
@@ -230,7 +230,7 @@ impl Daemon {
                 entry.info.state = JobState::Waiting;
                 return;
             }
-            (entry.info.clone(), entry.params.clone())
+            (entry.info.clone(), entry.info.params.clone())
         };
         let (info, params) = job;
         self.emit(info);

@@ -291,9 +291,10 @@ const LOGIN_PRIORITY: Priority = u8::MAX - 1;
 /// rather than pinning the flow forever.
 const LOGIN_PROFILE_TIMEOUT: Duration = Duration::from_secs(120);
 
+/// One job in memory. Its params are `info.params`, the one copy (C7,
+/// they travel on `JobInfo` as submitted).
 struct Entry {
     info: JobInfo,
-    params: Value,
     outcome: Option<Outcome>,
     cancel_requested: bool,
     /// A parent's own result, held back until its descendants finish. Set
@@ -318,7 +319,7 @@ impl Entry {
             parent: self.info.parent,
             retries: self.info.retries,
             account: self.info.account.clone(),
-            params: self.params.clone(),
+            params: self.info.params.clone(),
             outcome: self.outcome.as_ref().map(json),
             deferred: self.deferred.as_ref().map(json),
             cancel_requested: self.cancel_requested,
@@ -350,9 +351,8 @@ impl Entry {
                 parent: row.parent,
                 retries: row.retries,
                 account: row.account,
-                params: row.params.clone(),
+                params: row.params,
             },
-            params: row.params,
             outcome: outcome(row.outcome),
             cancel_requested: row.cancel_requested,
             deferred: outcome(row.deferred),
@@ -820,7 +820,7 @@ impl Shared {
         for id in self.queue_order() {
             let e = &self.jobs[&id];
             let wanted = only.is_none_or(|o| o == id);
-            match daemon.keyed_route_for(&e.info.kind, &e.params, e.info.account.as_deref()) {
+            match daemon.keyed_route_for(&e.info.kind, &e.info.params, e.info.account.as_deref()) {
                 Some((route, _)) => {
                     let (passed, wanted_here) = routes.entry(route).or_default();
                     if wanted {

@@ -61,7 +61,7 @@ async fn apply_fans_out_exactly_its_tuples_and_records_through_the_store() {
                 (
                     e.info.id,
                     e.info.kind.clone(),
-                    e.params.clone(),
+                    e.info.params.clone(),
                     e.info.account.clone(),
                 )
             })

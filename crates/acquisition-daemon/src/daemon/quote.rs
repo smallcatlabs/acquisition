@@ -67,7 +67,7 @@ impl Daemon {
                     continue;
                 }
                 if let Some((endpoint, _)) =
-                    self.keyed_route_for(&e.info.kind, &e.params, e.info.account.as_deref())
+                    self.keyed_route_for(&e.info.kind, &e.info.params, e.info.account.as_deref())
                 {
                     *queued.entry(self.choke.serial_key(&endpoint)).or_insert(0) += 1;
                 }
