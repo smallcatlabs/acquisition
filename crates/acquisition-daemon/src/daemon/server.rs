@@ -2,8 +2,8 @@
 //! the status documents, the rails reset, the idle verdict and watchdog,
 //! and the exit. C148: `hello` is read and answered under no lock, the
 //! connection count and the activity stamp being atomics; a logout's
-//! landing runs on a blocking thread; the drain counts a login being
-//! recorded and a refresh until its keyring mark lands.
+//! landing runs on a blocking thread; the drain counts every landing
+//! until its keyring and index I/O ends, and a login being recorded.
 //!
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 

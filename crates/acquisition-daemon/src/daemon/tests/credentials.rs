@@ -377,3 +377,66 @@ async fn c148_a_stop_waits_for_a_logout_whose_clear_is_held() {
     );
     finish_harness(None, &log_path);
 }
+
+/// C148, the review of r2, its first finding: a refresh's published
+/// token serves no caller that comes after it has left the session.
+/// Before, the flight stayed open, and joinable, until the save landed:
+/// a 401 on the installed token while the save was held cleared it from
+/// the session (C87, a dead bearer), and the next lookup joined the open
+/// flight and was handed the rejected token, so its send went stale
+/// twice and the job gave up, and `auth check` could report success.
+/// The flight now closes at the install; the next lookup refreshes, and
+/// its landing waits for the held one.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn c148_a_token_rejected_while_its_save_is_held_is_not_handed_out_again() {
+    let (daemon, _store, mut held, sent_log, _base, log_path) = saving_daemon().await;
+    let refresh = refresh_held_in_its_save(&daemon, &mut held).await;
+    assert_eq!(
+        daemon.reject_access_token("at-test-user").as_deref(),
+        Some("test-user"),
+        "the installed token is rejected while its save is held"
+    );
+
+    let looked_up = Arc::new(AtomicBool::new(false));
+    let lookup = {
+        let daemon = daemon.clone();
+        let looked_up = looked_up.clone();
+        tokio::spawn(async move {
+            let token = daemon.valid_access_token(None, false, None).await;
+            looked_up.store(true, Ordering::SeqCst);
+            token
+        })
+    };
+    let posts = {
+        let sent_log = sent_log.clone();
+        move || {
+            sent_log
+                .lock()
+                .unwrap()
+                .iter()
+                .filter(|(method, _)| method == "POST")
+                .count()
+        }
+    };
+    let waited = {
+        let posts = posts.clone();
+        answered(async move {
+            while !looked_up.load(Ordering::SeqCst) && posts() < 2 {
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        })
+    };
+    let posts_while_held = posts();
+    held.release.send(()).unwrap();
+
+    waited.expect("the lookup refreshed or answered while the save was held");
+    assert_eq!(
+        posts_while_held, 2,
+        "the next lookup sent a refresh of its own, not the rejected token"
+    );
+    let (token, _) = lookup.await.unwrap().expect("the second refresh lands");
+    assert_eq!(token, "at-test-user");
+    refresh.await.unwrap().expect("the first refresh lands");
+    assert_journal_matches_wire(&log_path, &wire_methods(&sent_log));
+    finish_harness(None, &log_path);
+}

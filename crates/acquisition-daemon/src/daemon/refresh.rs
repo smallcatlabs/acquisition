@@ -428,11 +428,13 @@ impl Daemon {
     /// throughout, which orders it with logout, forget and login, and
     /// takes `shared` twice, never across the I/O: first it checks its
     /// flight is current, installs the tokens, follows a rename and marks
-    /// the session's keyring `saving`, and publishes the token to every
-    /// waiter, so a waiter and a bearer read are served at the install;
-    /// then the keyring and the index ([`Self::persist_credentials`]);
-    /// then the keyring mark, and the flight cleared, which the exit's
-    /// drain waits for. A logout lands wholly before it (the refresh is
+    /// the session's keyring `saving`, closes its flight and publishes the
+    /// token to the flight's waiters, so a waiter and a bearer read are
+    /// served at the install; then the keyring and the index
+    /// ([`Self::persist_credentials`]); then the keyring mark. The exit's
+    /// drain waits for it as for every landing (`spawn_landing`). A
+    /// caller that finds no valid token in the gap starts a refresh of
+    /// its own, whose landing waits for this one. A logout lands wholly before it (the refresh is
     /// stale) or wholly after (its not-persisted mark stands). It blocks
     /// when it brings tokens: the owner runs it on a blocking thread.
     pub(super) fn finish_refresh(
@@ -446,6 +448,7 @@ impl Daemon {
         let credentials = refresh.is_ok().then(|| self.credentials.lock().unwrap());
         let mut renamed = None;
         let mut landing = None;
+        let mut installed = None;
         let outcome = {
             let mut s = self.shared.lock().unwrap();
             let Some(session) = s.auth.find_mut(account) else {
@@ -484,13 +487,13 @@ impl Daemon {
                         // C144: `auth status` says no `ok` for a save that
                         // has not landed.
                         session.keyring = "saving".into();
-                        // The flight stays set until the mark, its
-                        // generations the installed ones, so a forced
-                        // refresh joins it and reads the published token.
-                        let installed = session.generations;
-                        if let Some(flight) = &mut session.refresh_flight {
-                            flight.generations = installed;
-                        }
+                        // The flight closes at the install: its published
+                        // token serves only the waiters it already had,
+                        // never one that comes after the token may have
+                        // left the session (a 401, C87). The save in flight
+                        // is the drain's through `landings`.
+                        session.refresh_flight = None;
+                        installed = Some(session.generations);
                         if let Some(new_name) = &renamed {
                             s.auth.rename(account, new_name);
                         }
@@ -519,16 +522,14 @@ impl Daemon {
             }
             warning = (!warnings.is_empty()).then(|| warnings.join("; "));
             let mut s = self.shared.lock().unwrap();
-            // Only the session this landing installed: no other landing
-            // ran meanwhile (`credentials`), so it is still there.
+            // Only the session this landing installed, by its generations:
+            // no other landing ran meanwhile (`credentials`), so it is
+            // still there, and a refresh that began in the gap installs
+            // only after this landing releases.
             if let Some(session) = s.auth.find_mut(&landing.username)
-                && session
-                    .refresh_flight
-                    .as_ref()
-                    .is_some_and(|flight| flight.id == id)
+                && Some(session.generations) == installed
             {
                 session.keyring = persisted.keyring;
-                session.refresh_flight = None;
             }
         }
         drop(credentials);
