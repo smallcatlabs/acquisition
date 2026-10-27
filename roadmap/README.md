@@ -216,12 +216,7 @@ list when a step's close commit or an issue takes it.
   journal path beside its log marker is more mechanism than today's
   evidence asks (#94 carries the contract form).
 - **From r5, the sentences** (`briefs/r5-surface.md` and its round):
-  C127's words say the client kinds are "the daemon's kind table lists
-  for clients, in the provider modes each row names", and since
-  `b2c9dd6e` the protocol's two lists (`job::CLIENT_KINDS`,
-  `job::MOCK_ONLY_KINDS`) name the kinds and the modes, read by the
-  daemon's door and both frontends' help; the property stands and the
-  mechanism words are the owner's to redraw. A selection plan carries
+  C127's words were redrawn at `ea0b0255`. A selection plan carries
   no `notes` on any surface (the CLI's `--tabs` and `--characters`, the
   page, the MCP's `selection`), where a policy plan notes a league the
   fetched list lacks; a selection-shaped `plan_notes` is a planner
@@ -255,7 +250,8 @@ list when a step's close commit or an issue takes it.
 - **The owner's, from the seat (#84)**: a typo'd account is refused as
   `not_logged_in` (C121's design: the index is read client-side and an
   unknown name is a name with no login); the runner asked for an
-  `unknown_account` kind, kept as designed, his to reopen; the seat
+  `unknown_account` kind, kept as designed, the owner's word of
+  2026-10-27 (`ea0b0255`); the seat
   skill's step 10 now keeps the pristine store (the issue's word) and
   its step 11 writes the ledger row, process wording an agent changed;
   `AGENTS.md`'s "Where things live" has no line for a seat
@@ -346,17 +342,17 @@ list when a step's close commit or an issue takes it.
 
 ## Current step
 
-2g, the read economy and the refusal bundle (#9, #10): its design brief
-`briefs/2g-design.md` (`e11768e2`) waits on the owner's rulings (Q1
-to Q4 on C53 and a new entry, Q5's kind under C121); the build brief
-is written after them. The owner's other rulings waiting: rule 6 of
-the seat (C121), the C127 words, both under "Open". Closed 2026-10-27:
-r3, r4, r5, the C135 round, #82, #83, #84, #88 and its build-order
-retirement. Phase 3, the owner's league run, follows at
-his word; #70 closes on a week of pushes without a re-run. The
-assessment these rest on is `STATE-2026-10-26.md`; the issues carry
-the evidence per step. `AGENTS.md` governs; the gate is
-`tools/gate.sh`.
+2g, the read economy and the refusal bundle (#9, #10): its design
+brief `briefs/2g-design.md` (`e11768e2`) is ruled (the owner,
+2026-10-27, "yes to all": C53 amended, C149, C121 kept, at
+`ea0b0255`); the build brief is written next, by the session that
+starts it, then the build. Closed 2026-10-27: r3, r4, r5, the C135
+round, #82, #83, #84, #88 and its build-order retirement; the C127
+words redrawn and the seat's rule 6 kept, both at `ea0b0255`. Phase
+3, the owner's league run, follows at his word; #70 closes on a week
+of pushes without a re-run. The assessment these rest on is
+`STATE-2026-10-26.md`; the issues carry the evidence per step.
+`AGENTS.md` governs; the gate is `tools/gate.sh`.
 
 ## Ledger
 
