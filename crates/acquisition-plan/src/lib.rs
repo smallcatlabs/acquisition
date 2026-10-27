@@ -337,6 +337,10 @@ pub enum PlanError {
     /// stamped with the request's realm, so this is a store written by a
     /// build with a wider table — refused, never guessed at.
     UnknownRealm { realm: String },
+    /// A selection names tabs under a realm the stash endpoints do not
+    /// take (poe2): refused before a plan exists, in the words the policy
+    /// refuses `tabs` there with.
+    TabsNotTaken { realm: Realm },
     /// A serialized plan failed validation: unknown fields, a wrong
     /// operation, a league its envelope does not name, or derived counts
     /// that do not recompute. A plan that will not parse is a plan apply
@@ -372,6 +376,7 @@ impl std::fmt::Display for PlanError {
                     "the snapshot names realm {realm:?}, which this build does not know"
                 )
             }
+            PlanError::TabsNotTaken { realm } => f.write_str(&tabs_not_taken(*realm)),
             PlanError::MalformedPlan { detail } => {
                 write!(f, "malformed refresh plan: {detail}")
             }
@@ -384,6 +389,12 @@ impl std::fmt::Display for PlanError {
 }
 
 impl std::error::Error for PlanError {}
+
+/// Tabs named under a realm the stash family does not take: the one
+/// sentence a policy and a selection are refused with.
+fn tabs_not_taken(realm: Realm) -> String {
+    format!("tabs under realm {realm}: the stash endpoints do not take it (PoE1 only)")
+}
 
 /// The per-account sync policy: an inspectable declaration of desired
 /// coverage and freshness — not a scheduler. Stored as the
@@ -604,9 +615,7 @@ fn parse_policy(value: &Value) -> Result<SyncPolicy, String> {
                 ));
             }
             if entry.tabs.is_some() && !Family::Stashes.accepts(*realm) {
-                return Err(format!(
-                    "tabs under realm {realm}: the stash endpoints do not take it (PoE1 only)"
-                ));
+                return Err(tabs_not_taken(*realm));
             }
         }
     }
@@ -1860,6 +1869,9 @@ pub fn plan_selection(
         realm: snapshot.realm.clone(),
     })?;
     let tabs = match &selection.tabs {
+        Some(_) if !Family::Stashes.accepts(realm) => {
+            return Err(PlanError::TabsNotTaken { realm });
+        }
         Some(tabs) => select_tabs(realm, snapshot, tabs, selection.deep),
         None => Facet::empty(),
     };
@@ -3908,6 +3920,44 @@ mod tests {
         assert_eq!(plan.unknown_characters, ["gone"]);
         assert_eq!(plan.basis.selection.as_ref(), Some(&selection));
         assert_eq!(plan.basis.policy_revision, None);
+    }
+
+    /// C76 under the realm rule a policy keeps: a selection naming tabs
+    /// under a realm the stash endpoints do not take (poe2) is refused
+    /// before a plan exists, in the policy's own words, so no plan holds
+    /// stash work the daemon would refuse whole at the apply; characters
+    /// alone under that realm still compile.
+    #[test]
+    fn c76_a_selection_naming_tabs_under_poe2_is_refused_as_a_policy_is() {
+        let s = store();
+        let a = Annotations::open_memory_for("u-1").unwrap();
+        let snap = s.refresh_snapshot("poe2", "Standard", &a).unwrap();
+        for tabs in [Selection::All, Selection::Ids(vec!["t1".into()])] {
+            let selection = PlanSelection {
+                tabs: Some(tabs),
+                characters: vec!["c1".into()],
+                deep: false,
+            };
+            let err = plan_selection("mock", &snap, &selection, 1).unwrap_err();
+            assert_eq!(err, PlanError::TabsNotTaken { realm: Realm::Poe2 });
+            assert_eq!(
+                err.to_string(),
+                "tabs under realm poe2: the stash endpoints do not take it (PoE1 only)"
+            );
+        }
+        let characters = PlanSelection {
+            tabs: None,
+            characters: vec!["c1".into()],
+            deep: false,
+        };
+        let plan = plan_selection("mock", &snap, &characters, 1).unwrap();
+        assert!(
+            plan.actions
+                .iter()
+                .all(|a| matches!(a, RefreshAction::ListCharacters { .. })),
+            "{:?}",
+            plan.actions
+        );
     }
 
     /// C111 as amended over a selection plan, by response and never the
