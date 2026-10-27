@@ -23,7 +23,7 @@ Commands:
   store         The shared store itself (what the daemon writes; every frontend reads)
   stashes       List stash tabs for a league: a second rate-limit policy, paced in parallel with the character routes
   stash         Fetch one stash tab (or one substash of a map/unique tab)
-  refresh       Refresh tabs. `--tabs` and `--all` name a selection, compiled into a plan, printed and applied at once: each named tab fetched however fresh, under `--deep` a map or unique tab's pages on record with it. Selection is explicit — there is no default. Keeping a league up to date is the plan path: `acq policy set` once, then `--plan` and `--apply` until the plan says nothing to do — a map or unique tab's substashes are known only once the tab is fetched, so a first sync takes two rounds, and each apply ends by saying what is left
+  refresh       Refresh tabs and characters. `--tabs`, `--all` and `--characters` name a selection, compiled into a plan, printed and applied at once: each named tab or character fetched however fresh, under `--deep` a map or unique tab's pages on record with it. Selection is explicit — there is no default. Keeping a league up to date is the plan path: `acq policy set` once, then `--plan` and `--apply` until the plan says nothing to do — a map or unique tab's substashes are known only once the tab is fetched, so a first sync takes two rounds, and each apply ends by saying what is left
   policy        The per-account sync policy: the declared coverage and freshness that `acq refresh --plan` compiles into requests
   submit        Submit any job kind by hand
   demo          Submit a burst of fetch jobs against the mock's 5-per-10 s policy and watch the rate limiter queue them (the ETAs are the limiter's prediction, corrected by headers)
@@ -371,16 +371,19 @@ Options:
 ## `acq refresh`
 
 ```text
-Refresh tabs. `--tabs` and `--all` name a selection, compiled into a plan, printed and applied at once: each named tab fetched however fresh, under `--deep` a map or unique tab's pages on record with it. Selection is explicit — there is no default. Keeping a league up to date is the plan path: `acq policy set` once, then `--plan` and `--apply` until the plan says nothing to do — a map or unique tab's substashes are known only once the tab is fetched, so a first sync takes two rounds, and each apply ends by saying what is left
+Refresh tabs and characters. `--tabs`, `--all` and `--characters` name a selection, compiled into a plan, printed and applied at once: each named tab or character fetched however fresh, under `--deep` a map or unique tab's pages on record with it. Selection is explicit — there is no default. Keeping a league up to date is the plan path: `acq policy set` once, then `--plan` and `--apply` until the plan says nothing to do — a map or unique tab's substashes are known only once the tab is fetched, so a first sync takes two rounds, and each apply ends by saying what is left
 
 Usage: acq refresh [OPTIONS]
 
 Options:
       --all
-          Every tab in the league (folder children included, folders not)
+          Every tab in the league (folder children included, folders not), and no character: `--characters` names those
 
       --tabs <TABS>
           Comma-separated tab ids
+
+      --characters <CHARACTERS>
+          Comma-separated character ids, as `acq store characters` lists them, with the realm's character listing fetched beside them; alone, or with --tabs or --all
 
       --deep
           With --tabs or --all: a named map or unique tab's pages on record are fetched with it

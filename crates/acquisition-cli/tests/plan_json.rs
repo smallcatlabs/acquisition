@@ -278,6 +278,62 @@ fn json_stdout_is_the_contract_surface() {
     );
 }
 
+/// The adapter's part of `acq refresh --characters` (C76): the flag's
+/// comma-separated ids reach the selection, which compiles with no policy
+/// at all and prints the named character by id and name before the
+/// apply, which here needs the daemon this harness forbids; `--all` names
+/// no character; and a bare `refresh` names the flag among its choices.
+#[test]
+fn refresh_characters_names_characters_by_id_in_a_selection() {
+    let scratch = harness::scratch("e2e-characters");
+    let base = scratch.0.clone();
+    let mock = seed_store(&base);
+    let mut store = Store::open(&account_path(&mock, USER)).unwrap();
+    store
+        .record(
+            &Endpoint::Characters { realm: "pc".into() },
+            &json!({ "realm": "pc" }),
+            200,
+            &json!({ "characters": [
+                { "id": "c1", "name": "Alpha", "league": "Standard", "class": "Witch", "level": 90 },
+                { "id": "c2", "name": "Beta", "league": "Standard", "class": "Witch", "level": 90 },
+            ] }),
+            acquisition_store::now(),
+        )
+        .unwrap();
+    drop(store);
+
+    let out = acq(&base, &["refresh", "--characters", "c1,gone"]);
+    let said = String::from_utf8_lossy(&out.stdout);
+    assert_eq!(out.status.code(), Some(1), "{out:?}");
+    for fact in [
+        "a selection",
+        "list characters",
+        "fetch 1 character",
+        "c1  Alpha",
+        "unknown characters (not fetched): gone",
+    ] {
+        assert!(said.contains(fact), "{fact}: {said}");
+    }
+    assert!(!said.contains("Beta"), "{said}");
+    assert!(
+        String::from_utf8_lossy(&out.stderr).contains("ACQ_NO_SPAWN"),
+        "{out:?}"
+    );
+
+    let out = acq(&base, &["refresh", "--all"]);
+    let said = String::from_utf8_lossy(&out.stdout);
+    assert!(said.contains("fetch 1 tab"), "{said}");
+    assert!(!said.contains("character"), "{said}");
+
+    let out = acq(&base, &["refresh"]);
+    assert_eq!(out.status.code(), Some(1), "{out:?}");
+    assert!(
+        String::from_utf8_lossy(&out.stderr).contains("--characters <id,...>"),
+        "{out:?}"
+    );
+}
+
 /// C36, amended 2026-10-19 — `policy set` writes the realms it names and
 /// keeps the rest: a poe2 policy set alone leaves the pc one standing
 /// (the README's first known gap until then), a realm named with no

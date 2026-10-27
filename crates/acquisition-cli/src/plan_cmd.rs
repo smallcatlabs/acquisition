@@ -357,24 +357,18 @@ pub async fn refresh_apply(
     apply_plan(&mut opened, &plan, max_requests, json).await
 }
 
-/// `acq refresh --tabs` and `--all` (C44 as amended): the selection
-/// compiled into a plan — quoted by a running daemon, printed as `--plan`
+/// `acq refresh --tabs`, `--all` and `--characters` (C44 as amended, C76):
+/// the selection compiled into a plan — quoted by a running daemon, printed as `--plan`
 /// prints one — and applied through the one apply road `--apply` takes.
 /// `--json` prints the apply's document alone, as `--apply --json` does.
 pub async fn refresh_selection(
     cx: &Ctx,
     realm: Realm,
     league: &str,
-    tabs: acquisition_plan::Selection,
-    deep: bool,
+    selection: acquisition_plan::PlanSelection,
     json: bool,
 ) -> Result<()> {
     let mut opened = cx.account()?.open()?;
-    let selection = acquisition_plan::PlanSelection {
-        tabs: Some(tabs),
-        characters: Vec::new(),
-        deep,
-    };
     let Planned {
         plan,
         quote_note,

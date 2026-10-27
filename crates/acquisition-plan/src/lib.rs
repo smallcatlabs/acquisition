@@ -3860,6 +3860,56 @@ mod tests {
         assert!(matches!(err, SpendError::PolicyMoved { .. }), "{err}");
     }
 
+    /// C76 (one door: `--characters` among the selection flags) and C55 (a
+    /// character's id is its identity, its name its address): a
+    /// selection naming characters by id compiles to the realm's
+    /// character listing, refreshed as a selection's listing is, and a
+    /// fetch of each named character that the listing holds in the
+    /// league, addressed by its name, however fresh; a character not
+    /// named is not fetched, and an id the facts do not hold is reported,
+    /// never fetched.
+    #[test]
+    fn c76_a_selection_naming_characters_fetches_each_by_its_id() {
+        let mut s = store();
+        list_characters(
+            &mut s,
+            "pc",
+            json!([
+                entry("c1", "Alpha", "Standard", 10),
+                entry("c2", "Beta", "Standard", 20),
+            ]),
+            1000,
+        );
+        fetch_character(&mut s, "pc", body("c1", "Alpha", "Standard", 10), 1100);
+        let a = Annotations::open_memory_for("u-1").unwrap();
+        let snap = s.refresh_snapshot("pc", "Standard", &a).unwrap();
+        let selection = PlanSelection {
+            tabs: None,
+            characters: vec!["c1".into(), "gone".into()],
+            deep: false,
+        };
+        let plan = plan_selection("mock", &snap, &selection, 1101).unwrap();
+        assert_eq!(
+            plan.actions,
+            [
+                RefreshAction::ListCharacters {
+                    realm: Realm::Pc,
+                    reason: ListingReason::Selected,
+                },
+                RefreshAction::FetchCharacter {
+                    realm: Realm::Pc,
+                    league: "Standard".into(),
+                    id: "c1".into(),
+                    name: "Alpha".into(),
+                    reason: FetchReason::Selected,
+                },
+            ]
+        );
+        assert_eq!(plan.unknown_characters, ["gone"]);
+        assert_eq!(plan.basis.selection.as_ref(), Some(&selection));
+        assert_eq!(plan.basis.policy_revision, None);
+    }
+
     /// C111 as amended over a selection plan, by response and never the
     /// clock: a tab fetched, then a selection compiled from a snapshot
     /// taken in that same second, still sends it — the fetch landed in the

@@ -322,9 +322,10 @@ enum Cmd {
         #[arg(long, default_value = "pc", value_parser = acquisition_verbs::realm)]
         realm: Realm,
     },
-    /// Refresh tabs. `--tabs` and `--all` name a selection, compiled into
-    /// a plan, printed and applied at once: each named tab fetched however
-    /// fresh, under `--deep` a map or unique tab's pages on record with it.
+    /// Refresh tabs and characters. `--tabs`, `--all` and `--characters`
+    /// name a selection, compiled into a plan, printed and applied at
+    /// once: each named tab or character fetched however fresh, under
+    /// `--deep` a map or unique tab's pages on record with it.
     /// Selection is explicit — there is no default. Keeping a league up to date is the
     /// plan path: `acq policy set` once, then `--plan` and `--apply` until
     /// the plan says nothing to do — a map or unique tab's substashes are
@@ -340,12 +341,18 @@ with `jq` over `acq refresh --plan --json` rather than parsing prose —
 `acq refresh --apply --json` adds `store_changes` beside the outcome; `acq store events --summary --json` \
 is the per-location summary.")]
     Refresh {
-        /// Every tab in the league (folder children included, folders not).
+        /// Every tab in the league (folder children included, folders
+        /// not), and no character: `--characters` names those.
         #[arg(long, conflicts_with = "tabs")]
         all: bool,
         /// Comma-separated tab ids.
         #[arg(long, value_delimiter = ',')]
         tabs: Vec<String>,
+        /// Comma-separated character ids, as `acq store characters`
+        /// lists them, with the realm's character listing fetched beside
+        /// them; alone, or with --tabs or --all.
+        #[arg(long, value_delimiter = ',')]
+        characters: Vec<String>,
         /// With --tabs or --all: a named map or unique tab's pages on record
         /// are fetched with it.
         #[arg(long)]
@@ -357,7 +364,7 @@ is the per-location summary.")]
         /// stdin) renders a reviewed envelope instead, through the same
         /// renderer, with the quote it carries.
         #[arg(long, value_name = "FILE", num_args = 0..=1, require_equals = true,
-              default_missing_value = "", conflicts_with_all = ["all", "tabs", "deep"])]
+              default_missing_value = "", conflicts_with_all = ["all", "tabs", "characters", "deep"])]
         plan: Option<String>,
         /// With --plan: one line per action and every quote note, instead
         /// of the grouped view (groups over ten entities are counted).
@@ -376,7 +383,7 @@ is the per-location summary.")]
         /// `acq character`, `refresh --tabs`. Refused if the stored
         /// policy revision no longer matches the plan's.
         #[arg(long, value_name = "FILE", num_args = 0..=1, require_equals = true,
-              default_missing_value = "", conflicts_with_all = ["all", "tabs", "deep", "plan"])]
+              default_missing_value = "", conflicts_with_all = ["all", "tabs", "characters", "deep", "plan"])]
         apply: Option<String>,
         /// Refuse the apply before anything runs if the plan authorizes
         /// more than this many requests (checked by the daemon at
@@ -1256,6 +1263,7 @@ async fn run(cli: Cli) -> Result<()> {
         Cmd::Refresh {
             all,
             tabs,
+            characters,
             deep,
             plan,
             expand,
@@ -1294,21 +1302,27 @@ async fn run(cli: Cli) -> Result<()> {
                 )
                 .await;
             }
-            if !all && tabs.is_empty() {
-                bail!("refresh needs --all, --tabs <id,...>, --plan, or --apply");
+            if !all && tabs.is_empty() && characters.is_empty() {
+                bail!(
+                    "refresh needs --all, --tabs <id,...>, --characters <id,...>, --plan, or --apply"
+                );
             }
+            let tabs = if all {
+                Some(acquisition_plan::Selection::All)
+            } else {
+                (!tabs.is_empty()).then_some(acquisition_plan::Selection::Ids(tabs))
+            };
             plan_cmd::refresh_selection(
                 cx,
                 realm.unwrap_or(Realm::DEFAULT),
                 league
                     .as_deref()
                     .unwrap_or(acquisition_plan::DEFAULT_LEAGUE),
-                if all {
-                    acquisition_plan::Selection::All
-                } else {
-                    acquisition_plan::Selection::Ids(tabs)
+                acquisition_plan::PlanSelection {
+                    tabs,
+                    characters,
+                    deep,
                 },
-                deep,
                 cli.json,
             )
             .await

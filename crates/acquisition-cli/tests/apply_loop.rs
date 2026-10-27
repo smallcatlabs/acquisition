@@ -166,6 +166,14 @@ fn the_plan_apply_replan_loop_closes_against_the_mock() {
     assert!(out.status.success(), "{out:?}");
     assert_eq!(sole_json(&out)["requests"], json!(0));
 
+    // `--characters` is a selection too (C76): the realm's character
+    // listing and the one character named by its id, fresh as it is,
+    // applied through the same apply kind
+    let id = rows[0]["id"].as_str().expect("a character's id");
+    let payload = apply(&base, &["refresh", "--characters", id, "--json"]);
+    assert_eq!(payload["requests"], json!(2));
+    assert_eq!(payload["children"]["done"], json!(2));
+
     let out = acq(&base, &["daemon", "stop"]);
     assert!(out.status.success(), "{out:?}");
 }
