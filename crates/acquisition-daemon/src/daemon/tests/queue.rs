@@ -1637,6 +1637,30 @@ async fn a_restored_tree_leaves_memory_and_the_list_skips_the_rows_between() {
     finish_harness(None, &log);
 }
 
+/// C6 with C50 (a login lands only with its profile's uuid): the
+/// login's wait reads a profile job that concluded and left memory from
+/// the table, and a table that cannot be read is its answer at once,
+/// the cause the login fails with, never a wait for an event that will
+/// not come and a timeout that names none. The job concludes and is
+/// evicted, the queue breaks, then the wait reads.
+#[tokio::test]
+async fn the_login_wait_answers_a_broken_queue_after_its_job_concluded() {
+    let db = test_db_path();
+    let (daemon, log) = persisting_daemon("http://127.0.0.1:1", &db);
+    let id = daemon
+        .submit("sleep".into(), json!({}), 0, "t".into(), None)
+        .unwrap();
+    daemon.start_and_finish(id, Outcome::Success { payload: json!({}) });
+    assert!(daemon.shared.lock().unwrap().jobs.is_empty(), "evicted");
+    break_queue(&db);
+    let answer = daemon.wait_job_terminal(id, Duration::from_secs(60)).await;
+    let Some(Err(refusal)) = answer else {
+        panic!("the wait did not answer with the read failure: {answer:?}")
+    };
+    assert_eq!(refusal.kind, ErrorKind::QueueFailed, "{refusal}");
+    finish_harness(None, &log);
+}
+
 #[tokio::test]
 async fn a_broken_queue_is_fatal_to_restore() {
     let db = test_db_path();

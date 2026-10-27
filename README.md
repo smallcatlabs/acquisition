@@ -240,7 +240,7 @@ them.
 | `ACQ_LOG_DIR=<dir>` | the platform log dir | bounded daemon log and default journal, by store and provider | [world.rs][world] |
 | `ACQ_NO_KEYRING=1` | off | logins in memory only, never plaintext on disk | [auth.rs][auth] |
 | `ACQ_NO_SPAWN=1` | off | never start or replace a daemon; for cron, ssh and headless shells | [client.rs][client]; keyring context: [auth.rs][auth] |
-| `ACQ_IDLE_SHUTDOWN=<s>` | 3600 | idle exit, an hour after the last connection or job submitted once no login is under way, no job is sending or waiting to send, and the limiter's recent history is gone; a rails halt or a failed queue write parks the queue on disk, and nothing waiting then holds it | [start.rs][daemon] |
+| `ACQ_IDLE_SHUTDOWN=<s>` | 3600 | idle exit, this many seconds after the last connection or job submitted once no login is under way, no job is sending or waiting to send, and the limiter's recent history is gone; a rails halt or a failed queue write parks the queue on disk, and nothing waiting then holds it | [start.rs][daemon] |
 | `ACQ_HELLO_WITHIN=<s>` | 5 | how long a daemon has to answer the handshake before it is reported unresponsive | [client.rs][client] |
 | `ACQ_STARTUP_WITHIN=<s>` | 5 | how long a daemon a command started has to bind its socket before the start is reported failed | [client.rs][client] |
 | `ACQ_ANNOTATION_WAIT=<s>` | 5 | how long a write waits for another writer's lock on the annotation file before it is refused as busy | [annotations.rs][annotations] |
