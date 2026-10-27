@@ -11,8 +11,9 @@
 //! (`acqd_built`, `start_daemon_in_process`), and a login through the
 //! mock's approve page. This file sets the process environment, so it is
 //! its own test binary beside `documents.rs`. Run `cargo build
-//! --workspace` first: a `-p` test run does not build the daemon. Nothing
-//! here reaches GGG: the daemon runs the mock provider.
+//! --workspace` first: a test run that leaves out the daemon's package
+//! does not build the daemon. Nothing here reaches GGG: the daemon runs
+//! the mock provider.
 
 #[path = "../../acquisition-client/tests/harness/mod.rs"]
 mod harness;

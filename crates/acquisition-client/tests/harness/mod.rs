@@ -24,7 +24,8 @@
 //! frontend under test ([`acqd_beside`], C82), or one level above the
 //! `deps/` directory for a crate with no binary of its own
 //! ([`acqd_built`]); either names `cargo build --workspace` when it is
-//! missing, since a `-p` test run does not build it. A test that drives
+//! missing, since a test run that leaves out the daemon's package does
+//! not build it. A test that drives
 //! the client in-process places the daemon's name beside its own
 //! executable too ([`link_beside_this_test`]), since the client judges a
 //! daemon's artifact against that sibling (C84). Nothing here reaches
@@ -209,7 +210,10 @@ pub fn offline(cmd: &mut Command, base: &Path) {
 /// naming the build step.
 pub fn acqd_beside(frontend: &Path) -> PathBuf {
     acquisition_client::locator::beside(frontend).unwrap_or_else(|e| {
-        panic!("{e}: run `cargo build --workspace` first (a `-p` test run does not build acqd)")
+        panic!(
+            "{e}: run `cargo build --workspace` first (a test run that leaves out the daemon's \
+             package does not build acqd)"
+        )
     })
 }
 
@@ -228,7 +232,8 @@ pub fn acqd_built() -> PathBuf {
     assert!(
         acqd.is_file(),
         "no daemon at {}: run `cargo build --workspace` first (a `--workspace` test run \
-         writes it as that build does; a `-p` test run does not build it)",
+         writes it as that build does; a test run that leaves out the daemon's package does \
+         not build it)",
         acqd.display()
     );
     acqd
