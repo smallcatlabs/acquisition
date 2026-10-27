@@ -17,7 +17,7 @@ use crate::harness;
 use harness::{Transcript, acq, golden, no_daemon_appeared, sole_json};
 
 /// What the test plants: the account's name and uuid in the index, the
-/// store file's name and the log, and three tokens in the log.
+/// store file's name and the log, and five tokens in the log.
 const USER: &str = "Alice#1234";
 const UUID: &str = "u-diagnose-cli";
 const TOKEN: &str = "sentinel-code-7f3a";
@@ -25,6 +25,9 @@ const TOKEN: &str = "sentinel-code-7f3a";
 /// `=`, and a JSON body's spacing.
 const QUOTED: &str = "sentinel-refresh-q1";
 const SPACED: &str = "sentinel-code-q2";
+/// Their twins with tabs (the fix-round review, finding 1).
+const TABBED: &str = "sentinel-code-t1";
+const TABBED_BEARER: &str = "sentinel-bearer-t2";
 
 /// One account with its profile on record, and the log and journal a
 /// last daemon of this world would have left under the isolation's log
@@ -58,7 +61,9 @@ fn seed(base: &Path) {
              [    5s] logged in as {USER} ({UUID})\n\
              [    6s] callback /auth/path-of-exile?code={TOKEN}&state=s\n\
              [    6s] refresh_token=\"{QUOTED}\"\n\
-             [    6s] body {{\"code\": \"{SPACED}\"}}\n",
+             [    6s] body {{\"code\": \"{SPACED}\"}}\n\
+             [    6s] body {{\"code\":\t\"{TABBED}\"}}\n\
+             [    6s] Authorization: Bearer\t{TABBED_BEARER}\n",
             world.root().display(),
             store_file.display(),
         ),
@@ -97,7 +102,7 @@ fn a_diagnosis_with_no_daemon_prints_every_section_and_nothing_planted() {
         &["diagnose"],
         &[
             "Replaced before printing: 7 occurrences of account names and uuids",
-            "3 occurrences of token-shaped strings",
+            "5 occurrences of token-shaped strings",
             "== daemon\ndaemon is not running; no queue on disk\nlast log: <logs>",
             "responses 1",
             "holds\nnothing: no block mark, no trip, no account's refresh disabled",
@@ -109,6 +114,8 @@ fn a_diagnosis_with_no_daemon_prints_every_section_and_nothing_planted() {
             "?code=<token 1>&state=s",
             "refresh_token=\"<token 2>\"",
             "{\"code\": \"<token 3>\"}",
+            "{\"code\":\t\"<token 4>\"}",
+            "Bearer\t<token 5>",
         ],
     );
     assert!(out.status.success(), "{out:?}");
@@ -122,12 +129,15 @@ fn a_diagnosis_with_no_daemon_prints_every_section_and_nothing_planted() {
         TOKEN,
         QUOTED,
         SPACED,
+        TABBED,
+        TABBED_BEARER,
     ] {
         assert!(
             !printed.contains(planted),
             "the text holds {planted:?}, which the test planted in the index, the store file's \
-             name, the log (the account, its uuid, a code, a quoted refresh token and a JSON \
-             body's code) and the journal's route keys:\n{printed}"
+             name, the log (the account, its uuid, a code, a quoted refresh token, a JSON \
+             body's code, and that code and a bearer token after tabs) and the journal's route \
+             keys:\n{printed}"
         );
     }
 

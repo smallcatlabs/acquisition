@@ -478,8 +478,9 @@ impl Diagnosis {
 /// The names a token is carried under: the OAuth exchange's query and
 /// form fields, the headers, the game's session cookie. A token is the
 /// value after one of them, wherever it stands: the name bare or quoted,
-/// optional spaces, `=` or `:`, optional spaces, then the value, to its
-/// closing quote when quoted, else to the next delimiter
+/// optional whitespace within the line, `=` or `:`, optional whitespace,
+/// then the value, to its closing quote when quoted, else to the next
+/// delimiter
 /// (`refresh_token=…`, `refresh_token="…"`, `{"code": "…"}`). The same
 /// list is the JSON keys whose string value is a token whatever it looks
 /// like. A value of digits alone is no token (a GGG error's `"code": 2`),
@@ -498,7 +499,8 @@ const TOKEN_KEYS: [&str; 10] = [
     "x-access-token",
 ];
 
-/// The schemes a token follows after a space (`Bearer <token>`).
+/// The schemes a token follows after whitespace within the line
+/// (`Bearer <token>`).
 const TOKEN_SCHEMES: [&str; 1] = ["bearer"];
 
 /// Where `rest` holds a token, when it starts one at a word's start: the
@@ -509,7 +511,14 @@ fn token_at(rest: &str) -> Option<(usize, usize)> {
         text.get(..word.len())
             .is_some_and(|head| head.eq_ignore_ascii_case(word))
     };
-    let spaces = |text: &str| text.len() - text.trim_start_matches(' ').len();
+    // Whitespace within a line, tabs included (r4's fix-round review,
+    // finding 1): a line end is never crossed.
+    let spaces = |text: &str| {
+        text.len()
+            - text
+                .trim_start_matches(|c: char| c.is_whitespace() && c != '\n' && c != '\r')
+                .len()
+    };
     for scheme in TOKEN_SCHEMES {
         if starts(rest, scheme) {
             let after = &rest[scheme.len()..];
@@ -859,16 +868,21 @@ mod tests {
             r.redact(r#"refresh_token="q1" then {"code": "q2"} and {"error":{"code": 2}}"#),
             r#"refresh_token="<token 4>" then {"code": "<token 5>"} and {"error":{"code": 2}}"#
         );
+        // Their twins with tabs (r4's fix-round review, finding 1).
+        assert_eq!(
+            r.redact("{\"code\":\t\"q2\"} and Authorization: Bearer\tq3"),
+            "{\"code\":\t\"<token 5>\"} and Authorization: Bearer\t<token 6>"
+        );
         assert_eq!(
             r.redact("set-cookie: POESESSID=c1; HttpOnly"),
-            "set-cookie: POESESSID=<token 6>; HttpOnly"
+            "set-cookie: POESESSID=<token 7>; HttpOnly"
         );
         let mut value =
             json!({ "access_token": "plain", "nested": [{ "Alice#1234": "refresh_token=r1" }] });
         r.redact_value(&mut value);
         assert_eq!(
             value,
-            json!({ "access_token": "<token 7>", "nested": [{ "<account 1>": "refresh_token=<token 8>" }] })
+            json!({ "access_token": "<token 8>", "nested": [{ "<account 1>": "refresh_token=<token 9>" }] })
         );
     }
 
