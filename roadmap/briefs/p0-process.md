@@ -77,7 +77,7 @@ come from the documents as they stand.
    any stage failed, and `cargo build --workspace` as the last stage,
    so the artifact rule (C84, the artifact mismatch) holds by order
    rather than by lore. `--only <stage>` runs one; `--docs` runs the
-   five stages that read no Rust (`git diff --check`, docs-check,
+   five stages that build no Rust (`git diff --check`, docs-check,
    arch-check, trade-check, bothy) for a documents-only change. The
    script never pipes a stage through a filter. CI stays as it is: it
    runs the stages singly for timing.
