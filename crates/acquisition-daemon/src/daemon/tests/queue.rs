@@ -1503,6 +1503,69 @@ async fn a_job_concluded_after_a_failed_queue_write_stays_in_memory() {
     finish_harness(None, &log);
 }
 
+/// A row as a previous daemon (or a neighbour connection) wrote it.
+fn disk_row(id: u64, kind: &str, state: &str, parent: Option<u64>) -> JobRow {
+    JobRow {
+        id,
+        kind: kind.into(),
+        state: state.into(),
+        priority: 0,
+        submitted_by: "t".into(),
+        parent,
+        retries: 0,
+        account: None,
+        params: json!({}),
+        outcome: matches!(state, "done" | "failed" | "cancelled")
+            .then(|| json!({ "outcome": "success", "payload": {} })),
+        deferred: None,
+        cancel_requested: false,
+        submitted_at: 0,
+        updated_at: 0,
+    }
+}
+
+/// C6: a job not in memory is read from the table and never acted on.
+/// A row still waiting on disk that memory does not hold (a probe whose
+/// delete failed at the restore) is no job to `cancel` and
+/// `set-priority`, as it was before the table answered; a finished row
+/// is the `wrong_state` refusal. Nothing panics, and the open row is
+/// left as it was.
+#[tokio::test]
+async fn a_waiting_row_on_disk_and_not_in_memory_is_never_acted_on() {
+    let db = test_db_path();
+    let (daemon, log) = persisting_daemon("http://127.0.0.1:1", &db);
+    {
+        let other = JobDb::open(&db).unwrap();
+        other
+            .upsert(&disk_row(40, "probe", "waiting", None))
+            .unwrap();
+        other.upsert(&disk_row(41, "sleep", "done", None)).unwrap();
+    }
+    for refusal in [daemon.cancel(40), daemon.set_priority(40, 3)] {
+        let refusal = refusal.unwrap_err();
+        assert_eq!(
+            (refusal.kind, refusal.message.as_str()),
+            (ErrorKind::UnknownJob, "no job 40")
+        );
+    }
+    assert_eq!(
+        JobDb::open(&db).unwrap().get(40).unwrap().unwrap().state,
+        "waiting",
+        "the open row is left as it was"
+    );
+    let cancel = daemon.cancel(41).unwrap_err();
+    assert_eq!(
+        (cancel.kind, cancel.message.as_str()),
+        (ErrorKind::WrongState, "job 41 already done")
+    );
+    let priority = daemon.set_priority(41, 3).unwrap_err();
+    assert_eq!(
+        (priority.kind, priority.message.as_str()),
+        (ErrorKind::WrongState, "job 41 is done, not waiting")
+    );
+    finish_harness(None, &log);
+}
+
 #[tokio::test]
 async fn a_broken_queue_is_fatal_to_restore() {
     let db = test_db_path();

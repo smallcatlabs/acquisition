@@ -524,15 +524,13 @@ resubmit if still wanted",
         let mut persist_failed = false;
         {
             let mut s = self.shared.lock().unwrap();
-            let state = match s.jobs.get(&id) {
-                Some(entry) => entry.info.state,
-                // Not in memory: concluded and evicted, or an earlier
-                // daemon's (C6); the table says which, and how it ended.
-                None => {
-                    self.stored_job(id)?
-                        .ok_or_else(|| Refusal::no_job(id))?
-                        .state
-                }
+            let Some(state) = s.jobs.get(&id).map(|e| e.info.state) else {
+                drop(s);
+                let state = self.ended_elsewhere(id)?;
+                return Err(Refusal::new(
+                    ErrorKind::WrongState,
+                    format!("job {id} already {state}"),
+                ));
             };
             if state.is_terminal() {
                 return Err(Refusal::new(
@@ -601,15 +599,28 @@ resubmit if still wanted",
         Ok(())
     }
 
+    /// C6: how a job this daemon does not hold in memory ended, read from
+    /// the table after `shared` is released. A job not in memory is read
+    /// and never acted on: a terminal row is its end, for the caller's
+    /// `wrong_state` refusal; a row still open on disk (a probe whose
+    /// delete failed at the restore) or no row at all is no job, as it
+    /// was before the table answered; a table that cannot be read is an
+    /// error.
+    fn ended_elsewhere(&self, id: JobId) -> Result<JobState, Refusal> {
+        match self.stored_job(id)? {
+            Some(job) if job.state.is_terminal() => Ok(job.state),
+            _ => Err(Refusal::no_job(id)),
+        }
+    }
+
     pub(super) fn set_priority(&self, id: JobId, priority: Priority) -> Result<(), Refusal> {
         let mut s = self.shared.lock().unwrap();
         let Some(entry) = s.jobs.get_mut(&id) else {
-            // Not in memory: concluded and evicted, or an earlier
-            // daemon's (C6), so never waiting.
-            let job = self.stored_job(id)?.ok_or_else(|| Refusal::no_job(id))?;
+            drop(s);
+            let state = self.ended_elsewhere(id)?;
             return Err(Refusal::new(
                 ErrorKind::WrongState,
-                format!("job {id} is {}, not waiting", job.state),
+                format!("job {id} is {state}, not waiting"),
             ));
         };
         if entry.info.state != JobState::Waiting {
