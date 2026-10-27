@@ -55,7 +55,9 @@ rewrite cheap.
 ## 4.2 "Rewrite or evolve" is opened and never closed (2026-08-08)
 
 **Before.** An outside contributor proposed a local control plane that
-would make the C++ app drivable by scripts and coding agents.
+would make the C++ app drivable by scripts and coding agents. The
+owner, for this series, names that contact as the moment the agentic
+rewrite "took off".
 
 **Decision.** A second decision record, "Rewrite or Evolve the Core
 and UI", status *Proposed* (`f9795ed1`), naming three options and a

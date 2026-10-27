@@ -17,7 +17,7 @@ Read the reader's guide first. The rest can be read in any order.
 | 4 | `04-turning-points.md` | Which decisions changed the course, and why? | first pass |
 | 5 | `05-operating-model.md` | How do the owner and the agents actually work together, and how did that evolve? | first pass |
 | 6 | `06-concepts.md` | Which ideas are new here, and which old ideas changed shape? | first pass |
-| 7 | `07-retrospective.md` | What worked, what it cost, what the owner would do differently? | first pass; the owner's interview answers still to fold in |
+| 7 | `07-retrospective.md` | What worked, what it cost, what the owner would do differently? | first pass, with the owner's first-generation interview answers |
 | 8 | `08-playbook.md` | What would an engineer do on Monday to work this way? | first pass |
 | 9 | `09-primary-sources.md` | What do the real documents look like, annotated? | first pass |
 

@@ -56,11 +56,14 @@ of November 2023), a dynamic rate limiter, Path of Exile 2 API
 changes, crash reporting, and installers for three platforms.
 
 This is also the era the owner describes as learning C++ with AI
-chat tools on the side. None of that is visible in the repository:
-commit messages are one-line subjects, there are no AI trailers
-before April 2026, and the conversations lived in other tools. The
-series does not mine them, and treats this era as the owner's own
-account. It matters to the story because the person who later
+chat tools on the side: "describing problems of pasting code snippets
+into a web chat, then copying bits and pieces back", and using the
+chats to climb learning curves and to brainstorm ("'what are my
+options' was my favorite prompt from this era"). None of that is
+visible in the repository: commit messages are one-line subjects,
+there are no AI trailers before April 2026, and the conversations
+lived in other tools. The series does not mine them, and treats this
+era as the owner's own account. It matters to the story because the person who later
 directed the agents had spent two years reading this codebase with an
 AI explaining it to him, which is a different starting point from
 either a C++ expert or a newcomer.
@@ -97,7 +100,11 @@ it survives here. What the history shows plainly is this: on
 network redesign's numbered claims, and a week later
 `spikes/rust-playground` begins. The Rust rewrite was never announced
 as such in a commit; it started as a spike to test one component and
-did not stop.
+did not stop. The owner's own account of the trigger: he had been
+"toying with the idea in stages", and the agentic rewrite "took off"
+when an outside contributor reached out after forking the app to add
+agentic hooks, the pull request of early August that report 4
+describes.
 
 ## 3.5 The Rust spikes: August to October 2026
 
@@ -251,7 +258,10 @@ August, and the cause was not established.
   of them carry a trailer linking a claude.ai/code session, 80
   distinct ones between 2026-08-08 and 2026-09-14, so that stretch
   ran in Claude Code's cloud sessions rather than on this machine.
-  The owner also worked from a second computer for part of August. Report 5 reconstructs the missing window from the
+  The owner confirms they were cloud sessions and that they may also
+  be linked to his desktop computer at home; he also worked from a
+  second computer for part of August and was travelling for the
+  Eastern-time stretch in September and most of October. Report 5 reconstructs the missing window from the
   commits and says so wherever it does.
 - **GitHub.** The repository was recreated on 2026-10-22, so issue,
   workflow and release history on GitHub starts that day. Older

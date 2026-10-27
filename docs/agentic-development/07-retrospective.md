@@ -131,67 +131,127 @@ I was along for the ride."
 
 ## 7.5 The owner's account
 
-*From `INTERVIEW.md`. Quoted as his where answered; the questions he
-has not yet answered are listed so the reader knows what is missing.*
+*From `INTERVIEW.md`, his first-generation answers of 2026-10-27,
+which he may still revise; quoted as his. The question numbers are
+the interview's.*
 
-Said in the transcripts, in the course of the work:
+**Before the agents.** The 2024 era was web chat: "describing
+problems of pasting code snippets into a web chat, then copying bits
+and pieces back. It was a long time before I felt comfortable
+dabbling with a CLI coding agent." What the chats gave him was speed
+up learning curves and a way to brainstorm: "'what are my options'
+was my favorite prompt from this era." The rewrite had three
+motives, "the fun of learning a new language, pushing my AI skills,
+and picking a popular modern tech stack", and he had been "toying
+with the idea in stages", including rewriting the C++ UI in QML by
+hand. The fully agentic rewrite "took off" when an outside
+contributor reached out after forking the app to add agentic hooks:
+the pull request report 4 names as the trigger of the
+rewrite-or-evolve record.
 
-- On his method, 2026-08-10: "You've lived through how I build best
-  with AI, plan, review, build, review, repeat. That's how I get
-  things done." And the same evening: "i'm dismayed with how complex
-  this spike has grown due to the way we've been building it, but
-  i'm committed to the process so we will see where it lands."
-- On taking a process failure on himself, 2026-08-10: "I will change
-  my process to review each slice. I had thought they were simple
-  enough to breeze through, but it looks like I was wrong."
-- On the documentation tax, 2026-09-24: "I want to stop now and think
-  about what we can do to minimize or even reverse this content
-  growth, because we have about 4 more phases, and the grown will
-  make each one more difficult."
-- On his own prompting, 2026-10-18: "I've gotten good results with
-  very basic prompt engineering combined with developing my own
-  judgement on how to direct my agents."
-- On his limits, 2026-10-23: "(i'm smart, but this work is very
-  technical and i'm unfamiliar with its inner working compared to
-  you)".
-- On what the project is for, 2026-10-26: "It may be a hobby project,
-  but I want us both to be proud of how professionally acquisition is
-  managed, and I want us both to enjoy the process of building as
-  well as of using what we build."
+**Time and money.** "I've let this take a lot of my time. Several
+hours a day on average, and sometimes a partial or full weekend,
+with breaks for socialization or travel." The project ran beside a
+day job, which confirms what the commit rhythm suggested, and he was
+travelling for the Eastern-time stretch in September and for most
+of October. The money: a $200 Claude subscription; a $200 Codex
+subscription cut to $20 once Fable 5.1 and Opus 5.5 arrived and the
+OpenAI models were "relegated to external review", which "has been
+enough".
 
-Answered in conversation while this series was written:
+**A working day.** He asks an Opus-class model to summarise the
+state and present options; complex analysis or synthesis gets a
+Fable session, "planning and building and investigation" gets Opus.
+On what he reads: "I don't know how I decide what to pay attention
+to in the agents' outputs. I skim quickly, but stop to read about key
+milestones and decisions. Yet, I'm not sure how I pick those items
+out. It's somewhat gut instinct and keyword recognition."
 
-- On the rewrite-or-evolve record: once created, he "promptly
-  proceeded to pretty much ignore it."
-- On the period of accumulating process: "I was along for the ride."
-- On the second model: Astra, the OpenAI model driving Codex, is
-  "somewhat comparable to Fable."
+**Worst and best.** The worst moments: "when I'm halfway through a
+plan and new problems seem to be coming up faster than they are
+being fixed. When I look into things I often find a bunch of cruft,
+so I know the agent is reading so much and trying to keep track of so
+much that it's entering the dumb zone." The best: "The first time I
+pushed Fable to think deeply and holistically about Acquisition's
+design as a key stakeholder, asking the model what it wanted to see
+as a developer and also as a user of the CLI and MCP. The output was
+eye-opening."
 
-Not yet answered: the 2024 era of learning C++ with AI; the first
-moment an agent did something he could not have; why rewrite rather
-than maintain; hours a week and money; a typical day; the worst and
-best moments; how the assessment's verdict landed; how he arrived at
-the model roles; what he does and does not trust the agents with;
-the four questions the commit history raised (the cloud sessions,
-the untrailered commits, the Eastern-time stretch, the day job); and
-the three questions for Aaron.
+**On "the words are the mass."** "Heh. This repo has been a learning
+curve. One of the meta patterns is that I'd add a layer of
+governance, policy, or procedure. That layer would be appropriate at
+first, but over time cruft would accumulate and eventually become
+untenable, so I'd call in an advanced model to help me think deeply
+to understand and reframe the situation." He adds a second cause:
+"I did not start using external mechanisms like GitHub issues and
+milestones until several thousand commits into the project." His
+verdict on the result: "I see it as a sign of learning the hard way.
+An existing organization and team or experienced developer should
+have things in place to avoid this. However, agentic development is
+evolving so rapidly, I still want to spend time close to the models
+as much as possible, so I'm willing to learn these lessons."
 
-## 7.6 What the record suggests he would do differently
+**The model roles.** Not a benchmark: "Fable 5.1 and Opus 5.5 just
+seemed to produce results and communicate with me on my wavelength
+in a way that Codex didn't." On the untrailered commits of August:
+"Codex was probably writing the commits. I rarely wrote commits
+myself once I started using the agentic development tools."
 
-The owner has not said; the record has. Each of these is something
-the project changed itself, late, after measuring:
+**Trust.** What he does not trust: "I don't trust agents when they
+say they are done." Two reasons: "External reviews find material
+issues almost every time", and "If I follow up with 'is there
+anything else you'd like to do before we wrap up this session', the
+answer is almost always yes, and it's almost always something
+significant." What he now trusts them with: "I trust agents to
+brainstorm, design, plan, code, deploy, test, and maintain. I trust
+the most advanced models to think more deeply and more abstractly
+than I myself can."
 
-- Delegate agent-facing design from the start and reserve rulings
-  for boundaries. The project did this on 2026-10-13 and then
-  un-did it with "rulings first" the same day, and re-did it on
-  2026-10-26.
-- Set a stopping rule for review before the first round, not after
-  the twentieth.
-- Write plainly. The compressed register cost a glossary, a ruling,
-  and a tax on every reader.
-- Budget as a note, not a failure.
-- Decide on day one where session records live, and keep them.
-- Retire something every week. The principle was there in September.
+**On the missing transcripts.** The August to September sessions were
+cloud sessions; whether they can still be retrieved he could not
+check from a plane, and they "might also be linked to my desktop
+computer at home."
+
+## 7.6 What he would tell Aaron, and his 2024 self
+
+Three things to copy, in his words:
+
+- "Let the agents be smarter than you. Fable especially you can push
+  to think deeply to find hidden patterns and cross-cutting insights
+  that a basic 'build this thing' approach will miss." He notes that
+  those sessions he has had to prompt by hand, and that he has not
+  yet asked a model to write such prompts, so he does not claim it
+  cannot.
+- On the agent's questions: "I often find when the agent wants to ask
+  me a question, I don't like the choices it gives me or I don't
+  understand the question well enough to give an answer that adds
+  value, so I ignore the question and write my own prompt asking for
+  more information or to investigate or reframe the problem."
+- "Push the whole system, but let it grow organically and learn to
+  develop a gut sense for when you need to intervene and call in a
+  Fable-class model for an intervention to figure out how to address
+  whatever cruft or dead end you are wrestling with."
+
+On a team of ten humans and agents: "I'm honestly not sure about
+this at all. However, I suspect that governance by prompting and
+markdown needs to be upgraded to an external system like bothy,
+beads, or GitHub issues, projects and milestones." (Bothy is his own
+sibling project, a registry linter; beads is a third-party issue
+tool for agents.)
+
+To his 2024 self: "Go agentic. Be more ambitious. Become a systems
+engineering manager. Spend time 'close to the model' so that you can
+develop your own intuition for how to work."
+
+What the record suggested before he answered, and which his answers
+confirm or sharpen: delegate agent-facing design early and reserve
+rulings for boundaries; set a stopping rule for review before the
+first round; write plainly; budget as a note, not a failure; put
+issues in an issue tracker from the first week; and retire something
+every week. His own addition is the one the record could not have
+produced: the cycle of adding a layer, watching it accrue cruft, and
+calling in the most capable model to reframe, which he now treats as
+the method rather than a failure of it.
 
 ## 7.7 For Aaron
 

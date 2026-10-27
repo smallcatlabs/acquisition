@@ -68,5 +68,7 @@ Claude Code sessions whose token spend is not itemised here.
 ## Status
 
 First pass of all nine reports complete on 2026-10-27, one day of
-work. Open: the owner's interview answers, to be folded into the
-retrospective; and a possible second round over the cloud sessions.
+work. The owner's first-generation interview answers were folded into the
+retrospective the same day; he may revise them. Open: a possible
+second round over the cloud sessions, which the owner confirms were
+Claude Code cloud sessions.

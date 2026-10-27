@@ -421,8 +421,10 @@ required reading at 246 KB and the registry with ids was born.
 
 **The rhythm.** Sundays and Saturdays were the heaviest days, then
 Friday; almost nothing happened between midnight and six; the peak
-hour was nine in the evening. The research pass reads this as the
-rhythm of someone with a day job, and the interview asks.
+hour was nine in the evening. The research pass read this as the
+rhythm of someone with a day job, and the owner confirms it: "Several
+hours a day on average, and sometimes a partial or full weekend",
+beside a day job, with travel in September and October.
 
 **The strongest hypotheses, each with its test.** First, that most of
 the 287 untrailered commits in the window are Codex's, acting as
@@ -430,7 +432,10 @@ implementer as well as reviewer: they share a style (one-line
 subjects, "reconcile accepted review", a `Validation:` paragraph), the
 kickoff files are addressed to "Claude Code, Codex, or other", and
 the owner wrote on 2026-09-14 that "I've been using codex for reviews
-and this has worked well". Codex's own session logs would settle it.
+and this has worked well". Asked for this series, the owner agrees:
+"Codex was probably writing the commits. I rarely wrote commits
+myself once I started using the agentic development tools." Codex's
+own session logs would settle it beyond "probably".
 Second, that the owner framed work in conversation and steered with
 short verdicts on numbered questions, which the agents then wrote
 into the repository before work began: "agreed", "I agree with you on
@@ -441,7 +446,9 @@ refute this, and section 5.8 reports what they show. Third, that the
 second computer was a Windows PC: a Codex review of 2026-08-09 cites
 a Windows path, a Claude session built and ran the Windows binary on
 2026-08-22, and seventeen C++ commits that month are signed with a
-key not used today.
+key not used today. The owner confirms the Eastern-time stretch was
+travel, not a third machine, and that the cloud sessions "might also
+be linked to my desktop computer at home".
 
 **What the commits cannot tell.** The prompts themselves, beyond the
 short quotes the agents kept; what was rejected; who typed the
