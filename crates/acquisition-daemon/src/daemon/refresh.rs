@@ -233,19 +233,85 @@ impl Daemon {
     /// so every send admitted after it reads the cleared session. The job
     /// that met the 401 fails as it did; the next send for that account is
     /// the refresh (`TESTING-NOTES.md`, the C87 scenarios). Returns the
-    /// account whose token was cleared, or `None` when no session held it
-    /// any more.
-    pub(super) fn reject_access_token(&self, token: &str) -> Option<String> {
-        let username = self
-            .shared
-            .lock()
-            .unwrap()
-            .auth
-            .reject_access_token(token)?;
+    /// account whose token was cleared and the session's generations then,
+    /// for the job to land the clear in the keyring entry
+    /// ([`Self::land_rejection`]), or `None` when no session held it any
+    /// more.
+    pub(super) fn reject_access_token(&self, token: &str) -> Option<(String, AuthGenerations)> {
+        let (username, generations) = {
+            let mut s = self.shared.lock().unwrap();
+            let username = s.auth.reject_access_token(token)?;
+            let generations = s.auth.find(&username)?.generations;
+            (username, generations)
+        };
         self.log(&format!(
             "access token for {username} rejected (401); forgotten — the next send refreshes first"
         ));
-        Some(username)
+        Some((username, generations))
+    }
+
+    /// C135 with C87 — the keyring entry holds what the session holds,
+    /// so a rejected access token leaves the entry as it leaves the
+    /// session, and no restart restores a bearer GGG already rejected.
+    /// The job whose send met the 401 lands it, after the send, as a
+    /// landing (C148: under `credentials`, on a blocking thread, counted
+    /// in `landings` for the exit's drain): the entry is rewritten with
+    /// the refresh token alone through the one persist, only while the
+    /// session's generations are those of the clear (a refresh, a
+    /// re-login or a logout in the gap landed its own entry, or none) and
+    /// only for a session whose keyring holds its entry (`ok`). One more
+    /// keyring write, on a 401 alone, which GGG answers only to a revoked
+    /// token.
+    pub(super) async fn land_rejection(
+        self: &Arc<Self>,
+        username: &str,
+        generations: AuthGenerations,
+    ) {
+        let username = username.to_string();
+        // A landing that panics aborts the daemon (C134); there is no
+        // other way for it to end without returning.
+        let _ = self
+            .spawn_landing(move |daemon| daemon.persist_rejection(&username, generations))
+            .await;
+    }
+
+    /// [`Self::land_rejection`]'s body, on the landing's thread.
+    fn persist_rejection(&self, username: &str, generations: AuthGenerations) {
+        let credentials = self.credentials.lock().unwrap();
+        let (entry, uuid) = {
+            let s = self.shared.lock().unwrap();
+            let Some(session) = s.auth.find(username) else {
+                return;
+            };
+            if session.generations != generations
+                || session.keyring != "ok"
+                || session.access_token.is_some()
+            {
+                return;
+            }
+            let Some(entry) = session.keyring_entry() else {
+                return;
+            };
+            (entry, session.uuid.clone())
+        };
+        let persisted =
+            self.persist_credentials(username, &entry, uuid.as_deref(), None, self.unix_now());
+        let mut warnings = persisted.warnings;
+        if let Err(e) = persisted.indexed {
+            warnings.push(e);
+        }
+        {
+            let mut s = self.shared.lock().unwrap();
+            if let Some(session) = s.auth.find_mut(username)
+                && session.generations == generations
+            {
+                session.keyring = persisted.keyring;
+            }
+        }
+        drop(credentials);
+        if !warnings.is_empty() {
+            self.note_error(&warnings.join("; "));
+        }
     }
 
     /// Current access token, refreshing through the provider if it is

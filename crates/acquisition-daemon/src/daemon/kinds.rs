@@ -74,9 +74,10 @@ pub(super) struct SessionBearer<'a> {
     daemon: &'a Daemon,
     username: &'a str,
     expected: &'a str,
-    /// Set when `rejected` cleared the session's token: the job's error
-    /// says so.
-    cleared: std::sync::atomic::AtomicBool,
+    /// Set when `rejected` cleared the session's token, to the session's
+    /// generations then: the job's error says so, and the job lands the
+    /// clear in the keyring entry (C135, [`Daemon::land_rejection`]).
+    cleared: Mutex<Option<AuthGenerations>>,
 }
 
 impl<'a> SessionBearer<'a> {
@@ -85,12 +86,13 @@ impl<'a> SessionBearer<'a> {
             daemon,
             username,
             expected,
-            cleared: std::sync::atomic::AtomicBool::new(false),
+            cleared: Mutex::new(None),
         }
     }
 
-    fn was_cleared(&self) -> bool {
-        self.cleared.load(std::sync::atomic::Ordering::SeqCst)
+    /// The session's generations when `rejected` cleared its token.
+    fn cleared_at(&self) -> Option<AuthGenerations> {
+        *self.cleared.lock().unwrap()
     }
 }
 
@@ -109,9 +111,8 @@ impl Bearer for SessionBearer<'_> {
     }
 
     fn rejected(&self, token: &str) {
-        if self.daemon.reject_access_token(token).is_some() {
-            self.cleared
-                .store(true, std::sync::atomic::Ordering::SeqCst);
+        if let Some((_, generations)) = self.daemon.reject_access_token(token) {
+            *self.cleared.lock().unwrap() = Some(generations);
         }
     }
 }
@@ -662,8 +663,11 @@ impl Daemon {
                         .await;
                     let cleared_for = bearer
                         .as_ref()
-                        .filter(|b| b.was_cleared())
-                        .map(|b| b.username.to_string());
+                        .and_then(|b| Some((b.username.to_string(), b.cleared_at()?)));
+                    if let Some((username, generations)) = &cleared_for {
+                        self.land_rejection(username, *generations).await;
+                    }
+                    let cleared_for = cleared_for.map(|(username, _)| username);
                     match probed {
                         // C87: the token this probe was to carry was rejected
                         // while it waited for the exclusive permit. Refresh
@@ -768,7 +772,11 @@ impl Daemon {
                         .choke
                         .get_bearer(route, url, &bearer, ready, &wanted)
                         .await;
-                    (sent, bearer.was_cleared().then(|| username.clone()))
+                    let cleared_at = bearer.cleared_at();
+                    if let Some(generations) = cleared_at {
+                        self.land_rejection(username, generations).await;
+                    }
+                    (sent, cleared_at.map(|_| username.clone()))
                 }
                 Auth::Staged(token) => (
                     self.choke

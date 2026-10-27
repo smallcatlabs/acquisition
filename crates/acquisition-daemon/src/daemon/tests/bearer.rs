@@ -728,3 +728,129 @@ async fn a_cloudflare_401_on_the_get_keeps_the_access_token() {
     assert_eq!(gets, ["at-old", "at-old"], "{wire:?}");
     assert_eq!(info.state, JobState::Done, "{outcome:?}\n{sends:?}");
 }
+
+/// A harness daemon on `clock` whose sessions are the ones a start
+/// restores from `store` and the index in `dir`, journaling beside a log
+/// of its own.
+fn restored_scenario_daemon(
+    base: &str,
+    clock: Arc<ManualClock>,
+    store: Arc<RecordingCredentialStore>,
+    dir: &std::path::Path,
+) -> (Arc<Daemon>, TestPath) {
+    let (mut daemon, log_path) =
+        test_daemon_with(Provider::mock(base), clock.clone(), RailsConfig::default());
+    let mut log = Vec::new();
+    let sessions = start::restore_sessions(&*store, "acq-mock", dir, None, clock.wall(), &mut log);
+    {
+        let daemon = Arc::get_mut(&mut daemon).unwrap();
+        daemon.credential_store = store;
+        daemon.store_dir = Some(dir.to_path_buf());
+    }
+    daemon.shared.lock().unwrap().auth = sessions;
+    (daemon, log_path)
+}
+
+/// C87 across a restart, with C135: a restored access token the
+/// provider rejects is cleared from the keyring entry as from the
+/// session, so the next lifetime restores the refresh token alone and
+/// refreshes before any send; the rejected bearer is never sent again.
+/// The first lifetime restores `at-kept`, unexpired, and its first job
+/// meets the 401 (on the probe or the GET, by `probe_checks_bearer`);
+/// the second restores from the same store and index. Returns the
+/// second lifetime's journal sends.
+async fn rejected_access_token_across_a_restart(probe_checks_bearer: bool) -> Vec<Value> {
+    let (base, server) = bearer_aware_server("at-kept", "at-new", probe_checks_bearer).await;
+    let clock = Arc::new(ManualClock::new());
+    let dir = TestPath::dir();
+    Index::load(&dir)
+        .unwrap()
+        .record_login("scenario-user", "u-1", true, 1, &[])
+        .unwrap();
+    let kept = auth::KeyringEntry::new(
+        "rt-kept".into(),
+        Some(("at-kept".into(), clock.wall() + Duration::from_secs(3600))),
+    );
+    let store = Arc::new(RecordingCredentialStore::default());
+    store
+        .entries
+        .lock()
+        .unwrap()
+        .insert("scenario-user".into(), kept.to_secret());
+
+    let (first, first_log) = restored_scenario_daemon(&base, clock.clone(), store.clone(), &dir);
+    let dispatcher = tokio::spawn(first.clone().dispatcher());
+    let job = first
+        .submit("characters".into(), json!({}), 0, "test".into(), None)
+        .unwrap();
+    let (info, _) = wait_terminal(&first, job).await;
+    assert_eq!(info.state, JobState::Failed, "the job met the 401");
+    let entry = auth::KeyringEntry::from_secret(
+        &store.entries.lock().unwrap()["scenario-user"],
+        clock.wall(),
+    );
+    assert_eq!(entry.refresh_token, "rt-kept");
+    assert_eq!(
+        entry.access_token, None,
+        "the rejected token left the entry"
+    );
+    let first_sends = journal_sends(&first_log);
+    assert_eq!(
+        first_sends.iter().filter(|l| l["status"] == 401).count(),
+        1,
+        "{first_sends:?}"
+    );
+    finish_harness(dispatcher, &first_log);
+
+    let (second, second_log) = restored_scenario_daemon(&base, clock.clone(), store, &dir);
+    let dispatcher = tokio::spawn(second.clone().dispatcher());
+    let job = second
+        .submit("characters".into(), json!({}), 0, "test".into(), None)
+        .unwrap();
+    // What the job files is not this scenario's: the sends are.
+    wait_terminal(&second, job).await;
+    server.abort();
+    let sends = journal_sends(&second_log);
+    finish_harness(dispatcher, &second_log);
+    sends
+}
+
+/// What both shapes must show of the second lifetime: its first send is
+/// the refresh, and nothing it sends is answered 401, which the server
+/// answers to the rejected bearer on every route the shape checks.
+fn assert_restart_refreshes_first(sends: &[Value]) {
+    assert!(
+        sends[0]["method"] == "POST" && sends[0]["route"] == "oauth-token",
+        "the restarted daemon refreshes before any send: {sends:?}"
+    );
+    assert!(
+        sends.iter().all(|l| l["status"] != 401),
+        "the rejected bearer is never sent again: {sends:?}"
+    );
+}
+
+/// C87 and C135: a 401 on the probe clears the restored token from the
+/// keyring entry, and a restart refreshes before its first send.
+#[tokio::test]
+async fn a_token_rejected_on_the_probe_is_not_restored_after_a_restart() {
+    let sends = rejected_access_token_across_a_restart(true).await;
+    assert_restart_refreshes_first(&sends);
+    let methods: Vec<&str> = sends
+        .iter()
+        .map(|l| l["method"].as_str().unwrap())
+        .collect();
+    assert_eq!(methods, ["POST", "HEAD", "GET"], "{sends:?}");
+}
+
+/// C87 and C135: a 401 on the GET clears the restored token from the
+/// keyring entry, and a restart refreshes before its first send.
+#[tokio::test]
+async fn a_token_rejected_on_the_get_is_not_restored_after_a_restart() {
+    let sends = rejected_access_token_across_a_restart(false).await;
+    assert_restart_refreshes_first(&sends);
+    let methods: Vec<&str> = sends
+        .iter()
+        .map(|l| l["method"].as_str().unwrap())
+        .collect();
+    assert_eq!(methods, ["POST", "HEAD", "GET"], "{sends:?}");
+}

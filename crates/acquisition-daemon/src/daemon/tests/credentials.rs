@@ -392,7 +392,10 @@ async fn c148_a_token_rejected_while_its_save_is_held_is_not_handed_out_again() 
     let (daemon, _store, mut held, sent_log, _base, log_path) = saving_daemon().await;
     let refresh = refresh_held_in_its_save(&daemon, &mut held).await;
     assert_eq!(
-        daemon.reject_access_token("at-test-user").as_deref(),
+        daemon
+            .reject_access_token("at-test-user")
+            .map(|(username, _)| username)
+            .as_deref(),
         Some("test-user"),
         "the installed token is rejected while its save is held"
     );
