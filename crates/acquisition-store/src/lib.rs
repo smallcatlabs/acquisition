@@ -2103,23 +2103,19 @@ impl Store {
     /// yet is legitimate — so a target the facts do not know is noted,
     /// never refused (the pricing reading-1 question, answered 2026-09-12).
     pub fn holds(&self, address: &FactAddress<'_>) -> Result<bool> {
-        let (sql, params): (&str, Vec<&str>) = match address {
-            FactAddress::Item { id } => ("SELECT 1 FROM items WHERE id = ?1", vec![id]),
-            FactAddress::Character { id } => ("SELECT 1 FROM characters WHERE id = ?1", vec![id]),
-            // A tab is top-level or a folder's child; a row under any
-            // other parent is a substash, addressed as one.
-            FactAddress::Tab { realm, id } => (
-                "SELECT 1 FROM tabs t WHERE t.realm = ?1 AND t.id = ?2 AND (t.parent IS NULL
-                    OR EXISTS (SELECT 1 FROM tabs p WHERE p.realm = t.realm AND p.league = t.league
-                                  AND p.id = t.parent AND p.type = 'Folder'))",
-                vec![realm, id],
-            ),
-            FactAddress::Substash { realm, parent, id } => (
-                "SELECT 1 FROM tabs WHERE realm = ?1 AND parent = ?2 AND id = ?3",
-                vec![realm, parent, id],
-            ),
+        let (sql, params): (String, Vec<&str>) = match address {
+            FactAddress::Item { id } => ("SELECT 1 FROM items WHERE id = ?1".into(), vec![id]),
+            FactAddress::Character { id } => {
+                ("SELECT 1 FROM characters WHERE id = ?1".into(), vec![id])
+            }
+            FactAddress::Tab { .. } | FactAddress::Substash { .. } => {
+                let Some((filter, params)) = container_rows(address) else {
+                    return Ok(Default::default());
+                };
+                (format!("SELECT 1 FROM tabs t WHERE {filter}"), params)
+            }
         };
-        let mut stmt = self.conn.prepare(sql)?;
+        let mut stmt = self.conn.prepare(&sql)?;
         Ok(stmt.exists(rusqlite::params_from_iter(params))?)
     }
 
@@ -2129,33 +2125,33 @@ impl Store {
     /// What a refusal for a target one scope does not hold names as the
     /// scopes that do (round 4 of the 2g build: its offers run there).
     pub fn places_of(&self, address: &FactAddress<'_>) -> Result<Vec<(String, String)>> {
-        let (sql, params): (&str, Vec<&str>) = match address {
+        let (sql, params): (String, Vec<&str>) = match address {
             FactAddress::Item { id } => (
                 "SELECT DISTINCT i.realm, COALESCE(i.league, c.league)
                    FROM items i LEFT JOIN characters c
                      ON i.location_kind = 'character' AND c.realm = i.realm AND c.id = i.location_id
-                  WHERE i.id = ?1 AND i.removed_at IS NULL",
+                  WHERE i.id = ?1 AND i.removed_at IS NULL"
+                    .into(),
                 vec![id],
             ),
             FactAddress::Character { id } => (
-                "SELECT realm, league FROM characters WHERE id = ?1 AND removed_at IS NULL",
+                "SELECT realm, league FROM characters WHERE id = ?1 AND removed_at IS NULL".into(),
                 vec![id],
             ),
-            // The same reading of a tab as `holds`.
-            FactAddress::Tab { realm, id } => (
-                "SELECT DISTINCT t.realm, t.league FROM tabs t
-                  WHERE t.realm = ?1 AND t.id = ?2 AND t.removed_at IS NULL AND (t.parent IS NULL
-                    OR EXISTS (SELECT 1 FROM tabs p WHERE p.realm = t.realm AND p.league = t.league
-                                  AND p.id = t.parent AND p.type = 'Folder'))",
-                vec![realm, id],
-            ),
-            FactAddress::Substash { realm, parent, id } => (
-                "SELECT DISTINCT realm, league FROM tabs
-                  WHERE realm = ?1 AND parent = ?2 AND id = ?3 AND removed_at IS NULL",
-                vec![realm, parent, id],
-            ),
+            // The same reading of a tab and a substash as `holds`.
+            FactAddress::Tab { .. } | FactAddress::Substash { .. } => {
+                let Some((filter, params)) = container_rows(address) else {
+                    return Ok(Default::default());
+                };
+                (
+                    format!(
+                        "SELECT DISTINCT t.realm, t.league FROM tabs t WHERE {filter} AND t.removed_at IS NULL"
+                    ),
+                    params,
+                )
+            }
         };
-        let mut stmt = self.conn.prepare(sql)?;
+        let mut stmt = self.conn.prepare(&sql)?;
         let rows = stmt.query_map(rusqlite::params_from_iter(params), |r| {
             Ok((r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?))
         })?;
@@ -2176,33 +2172,33 @@ impl Store {
     /// say a price row belongs to another league rather than to nothing,
     /// and lets `acq price show` find its target's league unasked.
     pub fn leagues_of(&self, address: &FactAddress<'_>) -> Result<Vec<String>> {
-        let (sql, params): (&str, Vec<&str>) = match address {
+        let (sql, params): (String, Vec<&str>) = match address {
             FactAddress::Item { id } => (
                 "SELECT DISTINCT COALESCE(i.league, c.league)
                    FROM items i LEFT JOIN characters c
                      ON i.location_kind = 'character' AND c.realm = i.realm AND c.id = i.location_id
-                  WHERE i.id = ?1 AND i.removed_at IS NULL",
+                  WHERE i.id = ?1 AND i.removed_at IS NULL"
+                    .into(),
                 vec![id],
             ),
             FactAddress::Character { id } => (
-                "SELECT league FROM characters WHERE id = ?1 AND removed_at IS NULL",
+                "SELECT league FROM characters WHERE id = ?1 AND removed_at IS NULL".into(),
                 vec![id],
             ),
-            // The same reading of a tab as `holds`.
-            FactAddress::Tab { realm, id } => (
-                "SELECT DISTINCT t.league FROM tabs t
-                  WHERE t.realm = ?1 AND t.id = ?2 AND t.removed_at IS NULL AND (t.parent IS NULL
-                    OR EXISTS (SELECT 1 FROM tabs p WHERE p.realm = t.realm AND p.league = t.league
-                                  AND p.id = t.parent AND p.type = 'Folder'))",
-                vec![realm, id],
-            ),
-            FactAddress::Substash { realm, parent, id } => (
-                "SELECT DISTINCT league FROM tabs
-                  WHERE realm = ?1 AND parent = ?2 AND id = ?3 AND removed_at IS NULL",
-                vec![realm, parent, id],
-            ),
+            // The same reading of a tab and a substash as `holds`.
+            FactAddress::Tab { .. } | FactAddress::Substash { .. } => {
+                let Some((filter, params)) = container_rows(address) else {
+                    return Ok(Default::default());
+                };
+                (
+                    format!(
+                        "SELECT DISTINCT t.league FROM tabs t WHERE {filter} AND t.removed_at IS NULL"
+                    ),
+                    params,
+                )
+            }
         };
-        let mut stmt = self.conn.prepare(sql)?;
+        let mut stmt = self.conn.prepare(&sql)?;
         let rows = stmt.query_map(rusqlite::params_from_iter(params), |r| {
             r.get::<_, Option<String>>(0)
         })?;
@@ -2842,6 +2838,32 @@ fn ingest_item(
         )?;
     }
     Ok(())
+}
+
+/// The one classification of a stash tab's address over `tabs t` (the
+/// SQL filter and its parameters), shared by `holds`, `leagues_of` and
+/// `places_of`: a tab is a top-level row or a folder's child, and a
+/// substash a row under any other parent, addressed under that parent.
+/// A folder's child is a tab, never a substash of the folder (round 4's
+/// review: an offer named `substash/<realm>/<folder>/<tab>`, which the
+/// pricing resolver reads only as the tab, and was refused again). None
+/// for an address that is no stash tab's.
+fn container_rows<'a>(address: &FactAddress<'a>) -> Option<(&'static str, Vec<&'a str>)> {
+    match *address {
+        FactAddress::Tab { realm, id } => Some((
+            "t.realm = ?1 AND t.id = ?2 AND (t.parent IS NULL OR EXISTS (SELECT 1 FROM tabs p
+               WHERE p.realm = t.realm AND p.league = t.league AND p.id = t.parent
+                 AND p.type = 'Folder'))",
+            vec![realm, id],
+        )),
+        FactAddress::Substash { realm, parent, id } => Some((
+            "t.realm = ?1 AND t.parent = ?2 AND t.id = ?3 AND NOT EXISTS (SELECT 1 FROM tabs p
+               WHERE p.realm = t.realm AND p.league = t.league AND p.id = t.parent
+                 AND p.type = 'Folder')",
+            vec![realm, parent, id],
+        )),
+        FactAddress::Item { .. } | FactAddress::Character { .. } => None,
+    }
 }
 
 #[cfg(test)]
@@ -5121,13 +5143,14 @@ mod fact_address_tests {
                 },
                 true,
             ),
+            // a folder's child is a tab, never a substash of the folder
             (
                 FactAddress::Substash {
                     realm: "pc",
                     parent: "f1",
                     id: "c1",
                 },
-                true,
+                false,
             ),
             (
                 FactAddress::Substash {

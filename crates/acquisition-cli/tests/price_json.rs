@@ -1755,3 +1755,42 @@ fn every_offer_a_refusal_prints_runs_as_printed() {
         assert_eq!(shown["listing"]["subject"]["target"]["id"], "ix", "{shown}");
     }
 }
+
+/// Round 4's review (P2, shapes 6 and 7): a folder's child addressed as
+/// a substash of the folder was found "held" in the folder's league, and
+/// the offer, its show there, was refused again, the pricing resolver
+/// reading the row only as a tab. The store classifies a stash tab's
+/// address once: the child is no substash, so the refusal offers the
+/// search of the realm and the league's tabs, each of which runs.
+#[test]
+fn a_folders_child_asked_as_a_substash_is_offered_what_runs() {
+    let scratch = harness::scratch("price-folder-child");
+    let base = scratch.0.clone();
+    seed(&base);
+    let out = acq(
+        &base,
+        &[
+            "--json",
+            "price",
+            "show",
+            "substash/pc/f1/c1",
+            "--league",
+            "Hardcore",
+        ],
+    );
+    assert!(!out.status.success());
+    let doc = sole_json(&out);
+    assert_eq!(doc["kind"], "not_found", "{doc}");
+    let offers = doc["offers"].as_array().unwrap();
+    assert_eq!(offers.len(), 2, "{doc}");
+    let file = base.join("offer.json");
+    std::fs::write(&file, offers[0]["request"].to_string()).unwrap();
+    run_offered(
+        &base,
+        &format!("acq --json search --request {}", file.display()),
+    );
+    run_offered(
+        &base,
+        &format!("{} --json", offers[1]["request"].as_str().unwrap()),
+    );
+}
