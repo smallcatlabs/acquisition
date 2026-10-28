@@ -1040,6 +1040,20 @@ gone, every former read of it is migrated under its named purpose,
 successes and refusals; the gate green on the round's tree. Must not
 touch: any document shape, any list bound.
 
+*Settled in the round (its fix round,* `reviews/2g-r7-e871a496.md`*):*
+the measurement found a third case the rule did not draw: `claude`
+2.1.312 handed on the structured copy alone, its keys sorted, and the
+text block only when no structured content was sent, so one copy
+reached the model and it was not the one in the declared order. The
+rule as corrected: the copy count and the reading order are separate
+acceptance conditions, and a copy stays only if the model reads the
+declared order through it (C115). The round's commit kept both copies
+on the count alone; its fix round took the removal branch, the text
+block alone from both emitters (and the transport's refusal of a
+message nested too deep), every read of the structured content
+migrated, and `spoken.rs` asserting its absence on successes and
+refusals.
+
 ### Round 8 — The replay, before and after (evidence, deferrable; the step's measurement)
 
 The three calls (11, 27, 35) through `seat-mcp.py` `call` over a fresh
