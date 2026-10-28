@@ -521,37 +521,42 @@ async fn flow_ended(daemon: &Daemon) -> (bool, Option<String>, Option<String>) {
     .expect("the flow ended")
 }
 
-/// A callback connection that sends nothing holds nothing up: it is
-/// answered in its own task, and the browser's redirect on the next
-/// connection completes the login while the silent one is still open.
+/// A callback connection that sends nothing holds nothing up: with a
+/// read bound of an hour, a silent connection and then the browser's
+/// redirect on a second connection, `wait_callback` returns the code
+/// within the test's guard. Green for one reason: a listener that read
+/// its connections one at a time would wait the hour on the silent one,
+/// so the redirect could only be answered by a task of its own.
 #[tokio::test]
 async fn a_callback_connection_that_sends_nothing_does_not_block_the_login() {
-    let base = mockggg::start().await.unwrap();
-    let (daemon, _credentials, _store_dir, log_path) = login_daemon(&base);
-    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let waiting = tokio::spawn(async move {
+        wait_callback(listener, "st-expected", Duration::from_secs(3600)).await
+    });
 
-    let authorize = daemon.auth_start().await.unwrap();
-    let (redirect_uri, _) = callback_of(&authorize);
-    let callback = url::Url::parse(&redirect_uri).unwrap();
-    let silent =
-        tokio::net::TcpStream::connect((callback.host_str().unwrap(), callback.port().unwrap()))
-            .await
-            .unwrap();
-
-    approve_at_mock(&authorize).await;
-    let (logged_in, ok, error) = flow_ended(&daemon).await;
-    assert!(logged_in, "ok={ok:?} error={error:?}");
-    assert_eq!(ok.as_deref(), Some(mockggg::USERNAME));
-    // The silent connection is still ours: nothing waited on it.
-    assert!(silent.peer_addr().is_ok());
+    let silent = tokio::net::TcpStream::connect(addr).await.unwrap();
+    let redirect = format!("http://{addr}{CALLBACK_PATH}?code=code-x&state=st-expected");
+    let answered = tokio::time::timeout(Duration::from_secs(5), reqwest::get(&redirect))
+        .await
+        .expect("the redirect was answered while the silent connection was open")
+        .unwrap();
+    assert!(answered.status().is_success(), "{answered:?}");
+    let code = tokio::time::timeout(Duration::from_secs(5), waiting)
+        .await
+        .expect("the flow ended on the redirect")
+        .unwrap();
+    assert_eq!(code, Ok("code-x".to_string()));
     drop(silent);
-    dispatcher.abort();
-    finish_harness(None, &log_path);
 }
 
 /// The read bound's expiry (C137, pinned by forcing it): a connection
 /// that has sent nothing when its bound expires is dropped without a
-/// response, and the flow waits on; the listener still accepts.
+/// response, and the flow waits on; the listener still accepts. Green
+/// for one reason: the second connection's EOF, read while the flow's
+/// task still runs, is written only by a task that accepted it and
+/// dropped it at its own expiry; a connection left in the backlog reads
+/// nothing until the listener closes.
 #[tokio::test]
 async fn a_callback_read_past_its_bound_is_dropped_and_the_flow_waits() {
     use tokio::io::AsyncReadExt as _;
@@ -567,12 +572,15 @@ async fn a_callback_read_past_its_bound_is_dropped_and_the_flow_waits() {
         .expect("the daemon closed the silent connection");
     assert_eq!(read.ok(), Some(0), "closed without a response");
     assert!(!waiting.is_finished(), "the flow still waits");
-    // The listener is still accepting: a second connection is taken.
-    let second = tokio::time::timeout(Duration::from_secs(5), tokio::net::TcpStream::connect(addr))
+
+    // The listener is still accepting: a second silent connection is
+    // taken and dropped at the zero bound, so it too reads EOF; one left
+    // in the backlog would read nothing while the listener stands.
+    let mut second = tokio::net::TcpStream::connect(addr).await.unwrap();
+    let read = tokio::time::timeout(Duration::from_secs(5), second.read(&mut byte))
         .await
-        .expect("the listener accepts")
-        .unwrap();
-    drop(second);
+        .expect("the daemon accepted and closed the second connection");
+    assert_eq!(read.ok(), Some(0), "closed without a response");
     assert!(!waiting.is_finished(), "the flow still waits");
     waiting.abort();
 }

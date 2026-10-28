@@ -118,6 +118,24 @@ pub fn start_daemon_with(base: &Path, env: &[(&str, &str)]) -> (Proc, u64) {
     shared::start_daemon_with(acq_exe(), &acqd(), base, env)
 }
 
+/// The daemon a command under `base` spawned lazily, stopped when the
+/// test ends, failure included: a test owns what it starts, and a daemon
+/// left to its idle exit holds its database, lock and log open past the
+/// scratch's removal. Declared after the scratch, so it drops first. A
+/// test that stops its daemon itself needs none; a stop with no daemon
+/// to stop is nothing.
+pub struct StopOnDrop(PathBuf);
+
+pub fn stop_on_drop(base: &Path) -> StopOnDrop {
+    StopOnDrop(base.to_path_buf())
+}
+
+impl Drop for StopOnDrop {
+    fn drop(&mut self) {
+        let _ = acq(&self.0, &["daemon", "stop"]);
+    }
+}
+
 /// The scripted mock login as `user`.
 pub fn login(base: &Path, user: &str) {
     login_with(base, user, &[]);

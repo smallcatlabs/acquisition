@@ -2081,11 +2081,13 @@ async fn run(cli: Cli) -> Result<()> {
 
 /// The interactive login flow: ask the daemon to start OAuth, hand the URL to
 /// the browser, then poll auth status until the flow resolves. The wait is
-/// the daemon's: its flow is bounded at each step (the browser wait,
-/// `ACQ_LOGIN_WITHIN`; the exchange's send; the profile fetch), and a
-/// deadline of the CLI's own once gave up while the daemon still
-/// registered the session. The loop ends with the flow's own result, a
-/// transport error, or the user's interrupt.
+/// the daemon's, with no deadline of the CLI's own: one once gave up while
+/// the daemon still registered the session. The daemon bounds its browser
+/// wait (`ACQ_LOGIN_WITHIN`) and its profile fetch; the credential
+/// recording that lands the login (its lock and the keyring save) has no
+/// bound, a standing concern of the keyring's reach (C148), so the loop
+/// ends with the flow's own result, a transport error, or the user's
+/// interrupt.
 async fn login(cx: &Ctx, no_browser: bool, json: bool) -> Result<()> {
     let mut client = connect(cx).await?;
     let url = match client.request(&Request::AuthStart).await? {

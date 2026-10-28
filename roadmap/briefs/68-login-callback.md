@@ -140,8 +140,12 @@ login, never guessed.
    the mock's exchange) and
    `a_callback_read_past_its_bound_is_dropped_and_the_flow_waits`
    (`wait_callback` called directly with a zero bound: the silent
-   connection reads EOF, the flow has not ended, then a good redirect
-   on the same listener ends it).
+   connection reads EOF, the flow has not ended, and a second
+   connection's request is accepted and dropped at the same bound).
+   *Settled in the round:* the brief said a good redirect on the same
+   listener then ends the flow; a zero bound drops every read, so the
+   silent-connection test, with an hour's bound, shows the redirect
+   answered instead.
 2. **A denial in the browser's words.** A callback request with the
    flow's `state` and an `error` query ends the flow failed with the
    words "the login was denied in the browser: <error>: <description>"
@@ -178,10 +182,12 @@ login, never guessed.
    exchange's send under the choke, the profile's 120 s), so the CLI's
    wait is. Pin, in the CLI's `tests/error_kind.rs` or a sibling file
    of the one binary: `the_login_ends_with_the_daemons_words_not_a_bound_of_its_own`:
-   `acq auth --no-browser --json` with `ACQ_LOGIN_WITHIN=0` on the
-   command (the daemon it starts reads it), never approved; the exit
-   code is non-zero, stderr carries "login failed:" and the daemon's
-   words, and nothing says "5 minutes".
+   `acq auth --no-browser` with `ACQ_LOGIN_WITHIN=0` on the command (the
+   daemon it starts reads it), never approved; the exit code is
+   non-zero, stderr carries "login failed:" and the daemon's words, and
+   nothing says "5 minutes". *Settled in the round:* the brief said
+   `--json` and stderr together; the CLI's JSON error goes to stdout,
+   so the pin runs in text mode, where the failure is on stderr.
 6. `cargo build --workspace`, then the gate; one commit per concern
    (1, 2 and 3 may share one when the fix is one function's rewrite,
    named so in the message), each message naming this brief.
