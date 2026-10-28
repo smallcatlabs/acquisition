@@ -855,9 +855,14 @@ policy write, C126). Additive on both surfaces.
    lands carries `prior` on every policy write.
 4. The `describe` pricing entries `revision` and `undo` (`pricing.rs`
    798, 802) say the shape in the same words. A write naming a
-   container's revision is refused as a conflict naming the target's
-   own revision or none (today's behaviour; a test pins it as the
-   teaching refusal). Pinned once at the planner
+   revision the target's own row does not stand at is refused as a
+   conflict naming the target's own revision or none — a container's
+   revision among them, unless the target's own row stands at that
+   same number, which a per-target revision cannot tell apart (today's
+   behaviour; a test pins it as the teaching refusal, the equal-number
+   case landing). *Settled in the round's fix round* (its review's
+   finding 2, `reviews/2g-r5-a86158c1.md`): the first wording promised
+   every container's revision refused. Pinned once at the planner
    (`c78_a_write_returns_the_prior_value_so_a_hand_can_undo_it`
    extended to `revision` and `undo`, never renamed) and once at the
    verbs for the policy receipt; the receipt tests under "The tests
@@ -872,7 +877,8 @@ both and never neither; the post-clear `undo` is a create naming no
 revision and runs as printed, pinned; the policy receipt carries
 `prior` on every write, the pre-put row checked against the expected
 revision as the price path checks it and carried through the merge,
-the race pinned; the container-revision conflict pinned; references
+the race pinned; the container-revision conflict pinned, the
+equal-number case as landing; references
 regenerated; the gate green on the round's tree. Measurement: none.
 Must not touch: the refusal shape beyond using it, any list bound, a
 policy clear verb.

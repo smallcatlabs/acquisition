@@ -940,7 +940,7 @@ pub fn described() -> Vec<Described> {
         ),
         entry(
             "revision",
-            "a write over a row the target has of its own names that row's revision — a listing's `manual.revision` where `manual.from` is the target itself, a write's receipt's `revision`, or the `revision` a `conflict` refusal names, beside `current`, the live row as `manual` prints it (absent over a cleared row) — and with no row names none, to create one; a container's revision (`manual.revision` where `manual.inherited`) is refused as a `conflict` naming the target's own revision, null where it has none. A clear takes a revision too, so the next write's revision continues from it: a receipt's `revision` is the one now current, the written row's, or after a clear its tombstone's — the generation the row sequence has reached, which a later conflict names — and the next write after a clear is a create, naming none",
+            "a write over a row the target has of its own names that row's revision — a listing's `manual.revision` where `manual.from` is the target itself, a write's receipt's `revision`, or the `revision` a `conflict` refusal names, beside `current`, the live row as `manual` prints it (absent over a cleared row) — and with no row names none, to create one; a write naming a revision the target's own row does not stand at is refused as a `conflict` naming the target's own revision, null where it has none — a container's (`manual.revision` where `manual.inherited`) among them, unless the target's own row stands at that same number, which a revision cannot tell apart: revisions count per target. A clear takes a revision too, so the next write's revision continues from it: a receipt's `revision` is the one now current, the written row's, or after a clear its tombstone's — the generation the row sequence has reached, which a later conflict names — and the next write after a clear is a create, naming none",
         ),
         entry(
             "undo",
@@ -1541,11 +1541,16 @@ mod tests {
         );
     }
 
-    /// Q6 of the 2g design, the teaching refusal: `price_show`'s
-    /// `manual.revision` is a container's when the row is inherited, and
-    /// a write over the item naming it is refused as a `conflict` naming
-    /// the item's own revision — none while it has no row of its own, its
-    /// own once it has one — never landed over the container's row. The
+    /// Q6 of the 2g design, the teaching refusal, as round 5's fix round
+    /// narrowed it (its review's finding 2): a write naming a revision the
+    /// target's own row does not stand at is refused as a `conflict`
+    /// naming the target's own revision. `price_show`'s `manual.revision`
+    /// is a container's when the row is inherited, and a write over the
+    /// item naming it is refused naming the item's own revision — none
+    /// while it has no row of its own, its own once it has one — never
+    /// landed over the container's row. Revisions count per target, so
+    /// where the item's own row stands at the container's number the
+    /// write lands: a revision cannot say where it was read. The
     /// refusal's read-back carries the account the write ran as (round 5
     /// of the 2g build: a write resolves no realm or league, so the
     /// account alone).
@@ -1661,6 +1666,42 @@ mod tests {
                 }
             ),
             "{r:?}"
+        );
+        // The equal-number case: the item's own row moved to 3, the tab's
+        // number, and a write naming 3 lands over the item's own row —
+        // the number is the item's own revision, whatever it was read from.
+        for revision in [1, 2] {
+            set(
+                &store,
+                &mut a,
+                "item/i1",
+                "skip",
+                None,
+                None,
+                Expect::Exactly(revision),
+                &via,
+                "a",
+                plain,
+            )
+            .unwrap();
+        }
+        let landed = set(
+            &store,
+            &mut a,
+            "item/i1",
+            "no_price",
+            None,
+            None,
+            Expect::Exactly(manual.revision),
+            &via,
+            "a",
+            plain,
+        )
+        .unwrap();
+        assert_eq!(
+            landed.write.prior.map(|row| (row.key, row.revision)),
+            Some(("i1".to_string(), 3)),
+            "the item's own row replaced, never the tab's"
         );
         // the write refusals' read-back: `price show` as the account
         let r =
