@@ -116,7 +116,7 @@ dirty_glossary() { printf 'a session edit\n' >>GLOSSARY.md; }
 appends()        { writes 'printf x >>GLOSSARY.md'; }
 creates()        { writes 'printf x >zz-gate-breaker.txt'; }
 deletes()        { writes 'rm GLOSSARY.md'; }
-ignored()        { writes 'printf x >target/zz-gate-breaker.txt'; }
+ignored()        { writes 'mkdir -p target && printf x >target/zz-gate-breaker.txt'; }   # a fresh clone has no target/
 rewrites_dirty() { dirty_glossary && appends; }
 leaves_dirty()   { dirty_glossary && writes true; }
 run_case 'a stage dirties a clean tracked file'                  refuse $'M\tGLOSSARY.md'         appends        $gate --docs
