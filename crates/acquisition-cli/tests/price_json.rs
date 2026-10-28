@@ -1962,3 +1962,151 @@ fn a_request_read_whole_is_offered_as_itself_with_its_account_set() {
         assert_eq!(found["scope"]["account"]["name"], USER, "{args:?}: {found}");
     }
 }
+
+/// Bob's facts beside Alice's: pc Standard's tab `bt` with two items, so
+/// both stores hold items and a request answered over either holds rows.
+fn bob_holds_items(base: &Path) {
+    let mock = base.join("mock");
+    let at = acquisition_store::now();
+    let mut store = Store::open(&account_path(&mock, "Bob#5678")).unwrap();
+    store
+        .record(
+            &Endpoint::Profile,
+            &json!({}),
+            200,
+            &json!({ "uuid": "u-bob", "name": "Bob#5678" }),
+            at,
+        )
+        .unwrap();
+    store
+        .record(
+            &Endpoint::Stashes {
+                realm: "pc".into(),
+                league: "Standard".into(),
+            },
+            &json!({ "league": "Standard" }),
+            200,
+            &json!({ "stashes": [ { "id": "bt", "name": "Bob's", "type": "PremiumStash", "index": 0 } ] }),
+            at,
+        )
+        .unwrap();
+    let item = |id: &str, x: i64| {
+        json!({ "id": id, "name": "", "typeLine": "Chaos Orb", "baseType": "Chaos Orb",
+                "x": x, "y": 0, "stackSize": 5 })
+    };
+    store
+        .record(
+            &Endpoint::Stash {
+                realm: "pc".into(),
+                league: "Standard".into(),
+                id: "bt".into(),
+                sub: None,
+            },
+            &json!({}),
+            200,
+            &json!({ "stash": { "id": "bt", "name": "Bob's", "type": "PremiumStash",
+                                "items": [ item("ib1", 0), item("ib2", 1) ] } }),
+            at,
+        )
+        .unwrap();
+}
+
+/// Round 4's second fix round, finding 1 of its fix round's review (a
+/// sibling sentence left standing: the MCP's repeat kept a route's
+/// envelope and the CLI's did not): a route read whole under a typo'd
+/// account is offered as the envelope as read, the account inside it
+/// alone changed, so replayed it still says the count it was printed
+/// with; every offer, Alice's and Bob's, runs.
+#[test]
+fn a_route_offered_as_another_account_keeps_its_count_at_a_terminal() {
+    let scratch = harness::scratch("price-repeat-route");
+    let base = scratch.0.clone();
+    two_accounts_and_xbox(&base);
+    bob_holds_items(&base);
+    let route = json!({
+        "request": { "scope": { "account": "Alicia", "realm": "pc" }, "query": { "text": "" } },
+        "count": 12,
+    });
+    let file = base.join("route.json");
+    std::fs::write(&file, route.to_string()).unwrap();
+    let out = acq(
+        &base,
+        &["--json", "search", "--request", file.to_str().unwrap()],
+    );
+    let doc = sole_json(&out);
+    assert_eq!(doc["kind"], "not_logged_in", "{doc}");
+    let offers = doc["offers"].as_array().unwrap();
+    assert_eq!(offers.len(), 2, "{doc}");
+    for (offer, name) in offers.iter().zip([USER, "Bob#5678"]) {
+        let mut expected = route.clone();
+        expected["request"]["scope"]["account"] = json!(name);
+        assert_eq!(offer["request"], expected, "{doc}");
+        assert_eq!(
+            offer["says"],
+            format!("the same request as {name}"),
+            "{doc}"
+        );
+        let sent = base.join("offer.json");
+        std::fs::write(&sent, offer["request"].to_string()).unwrap();
+        let found = run_offered(
+            &base,
+            &format!("acq --json search --request {}", sent.display()),
+        );
+        assert_eq!(found["scope"]["account"]["name"], name, "{found}");
+        assert_eq!(found["before"]["count"], 12, "{found}");
+    }
+}
+
+/// Round 4's second fix round, finding 2 of its fix round's review: a
+/// continuation offered as another account kept Alice's basis and place,
+/// and Bob's offer was refused as `basis_changed`. The repeat drops the
+/// place and says it is the request from its start; with both stores
+/// holding items every offer runs, each answering one row as its account.
+#[test]
+fn a_continuation_offered_as_another_account_restarts_at_a_terminal() {
+    let scratch = harness::scratch("price-repeat-next");
+    let base = scratch.0.clone();
+    two_accounts_and_xbox(&base);
+    bob_holds_items(&base);
+    let first = sole_json(&acq(
+        &base,
+        &[
+            "--json",
+            "--account",
+            USER,
+            "search",
+            "--realm",
+            "pc",
+            "",
+            "--limit",
+            "1",
+        ],
+    ));
+    let mut next = first["view"]["rows"]["next"]["request"].clone();
+    assert!(next.is_object(), "no continuation: {first}");
+    next["scope"]["account"] = json!("Alicia");
+    let next: acquisition_search::Request = serde_json::from_value(next).unwrap();
+    let token = next.token();
+    let doc = sole_json(&acq(&base, &["--json", "search", "--next", &token]));
+    assert_eq!(doc["kind"], "not_logged_in", "{doc}");
+    let offers = doc["offers"].as_array().unwrap();
+    assert_eq!(offers.len(), 2, "{doc}");
+    for (offer, name) in offers.iter().zip([USER, "Bob#5678"]) {
+        assert_eq!(
+            offer["says"],
+            format!("the same request from its start, as {name}"),
+            "{doc}"
+        );
+        let request = &offer["request"];
+        assert!(request.get("basis").is_none(), "{offer}");
+        assert!(request["view"]["rows"].get("after").is_none(), "{offer}");
+        let sent = base.join("offer.json");
+        std::fs::write(&sent, request.to_string()).unwrap();
+        let found = run_offered(
+            &base,
+            &format!("acq --json search --request {}", sent.display()),
+        );
+        assert_eq!(found["scope"]["account"]["name"], name, "{found}");
+        assert_eq!(found["view"]["rows"]["returned"], 1, "{found}");
+    }
+}

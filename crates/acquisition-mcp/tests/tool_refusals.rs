@@ -422,3 +422,85 @@ fn a_search_offered_again_as_another_account_keeps_its_route() {
     assert_eq!(answer["total"]["matched"], 1, "{answer}");
     assert_eq!(answer["before"]["count"], 12, "{answer}");
 }
+
+/// `account`'s facts in `base` gain xbox Allflame's tab `t2` with two
+/// items: what a continuation of one row needs, and Bob's store a store
+/// that holds items.
+fn two_items(base: &std::path::Path, account: &str, prefix: &str) {
+    let mock = base.join("store").join("mock");
+    let at = acquisition_store::now();
+    let mut store = Store::open(&account_path(&mock, account)).unwrap();
+    store
+        .record(
+            &Endpoint::Stashes {
+                realm: "xbox".into(),
+                league: "Allflame".into(),
+            },
+            &json!({ "league": "Allflame" }),
+            200,
+            &json!({ "stashes": [
+                { "id": "tx", "name": "Box", "type": "PremiumStash", "index": 0 },
+                { "id": "t2", "name": "Two", "type": "PremiumStash", "index": 1 } ] }),
+            at,
+        )
+        .unwrap();
+    let item = |id: String, x: i64| {
+        json!({ "id": id, "name": "", "typeLine": "Chaos Orb", "baseType": "Chaos Orb",
+                "x": x, "y": 0, "stackSize": 5 })
+    };
+    store
+        .record(
+            &Endpoint::Stash {
+                realm: "xbox".into(),
+                league: "Allflame".into(),
+                id: "t2".into(),
+                sub: None,
+            },
+            &json!({}),
+            200,
+            &json!({ "stash": { "id": "t2", "name": "Two", "type": "PremiumStash", "items": [
+                item(format!("{prefix}1"), 0), item(format!("{prefix}2"), 1) ] } }),
+            at,
+        )
+        .unwrap();
+}
+
+/// Round 4's second fix round (its fix round's review, finding 2): an
+/// account offer for a continuation kept its place, another store's
+/// basis, so Bob's was refused as `basis_changed`. A repeat as another
+/// account drops the place and says it is the request from its start;
+/// with both stores holding items, every offer is answered.
+#[test]
+fn a_continuation_offered_as_another_account_is_its_request_from_its_start() {
+    let scratch = harness::scratch("mcp-offer-next");
+    let base = scratch.0.clone();
+    seed_two(&base);
+    two_items(&base, USER, "ia");
+    two_items(&base, "Bob#5678", "ib");
+    let mut mcp = Mcp::start(&base, &[]);
+    let first = mcp.result(
+        "search",
+        json!({ "scope": { "account": USER, "realm": "xbox" }, "view": { "rows": { "limit": 1 } } }),
+    );
+    let mut next = first["structuredContent"]["view"]["rows"]["next"].clone();
+    assert!(next.is_object(), "no continuation: {first}");
+    next["request"]["scope"]["account"] = json!("Alicia");
+    let doc = refusal(&mut mcp, "search", next, "not_logged_in");
+    let offers = doc["offers"].as_array().unwrap();
+    assert_eq!(offers.len(), 2, "{doc}");
+    for (offer, name) in offers.iter().zip([USER, "Bob#5678"]) {
+        assert_eq!(
+            offer["says"],
+            format!("the same request from its start, as {name}"),
+            "{doc}"
+        );
+        let request = &offer["request"]["request"];
+        assert!(request.get("basis").is_none(), "{offer}");
+        assert!(request["view"]["rows"].get("after").is_none(), "{offer}");
+        let result = mcp.result("search", offer["request"].clone());
+        assert_ne!(result["isError"], json!(true), "{offer}: {result}");
+        let answer = &result["structuredContent"];
+        assert_eq!(answer["scope"]["account"]["name"], name, "{answer}");
+        assert_eq!(answer["view"]["rows"]["returned"], 1, "{answer}");
+    }
+}

@@ -89,6 +89,46 @@ pub trait Surface {
     fn reading(&self, offered: &Offered) -> String {
         offered.reading.clone()
     }
+
+    /// Whether the request this surface repeats as another account is a
+    /// continuation, whose place it drops ([`again`]): the offer then says
+    /// it is the request from its start.
+    fn repeats_from_its_start(&self) -> bool {
+        false
+    }
+}
+
+/// A search request read whole, as sent — a request, or the object that
+/// holds one (a route with its `count` and `counted_at`, an offer) — as
+/// `account`'s: the envelope as read with only the nested
+/// `scope.account` changed, so what it holds beside the request stands
+/// (round 4's review, finding 3, and its fix round's, finding 1, on both
+/// surfaces). A continuation's place is another store's basis, so it is
+/// dropped — `basis` and the rows' `after` — and the second value says
+/// so: the request from its start (the fix round's finding 2). None for
+/// what is no request `search` reads.
+pub fn again(envelope: &Value, account: &str) -> Option<(Value, bool)> {
+    acquisition_search::answer::Asked::read(envelope).ok()?;
+    let mut envelope = envelope.clone();
+    let request = match envelope.get("request").is_some() {
+        true => envelope.get_mut("request")?,
+        false => &mut envelope,
+    };
+    let request = request.as_object_mut()?;
+    let scope = request
+        .entry("scope")
+        .or_insert_with(|| json!({}))
+        .as_object_mut()?;
+    scope.insert("account".into(), json!(account));
+    let mut restarted = request.remove("basis").is_some();
+    if let Some(rows) = request
+        .get_mut("view")
+        .and_then(|view| view.get_mut("rows"))
+        .and_then(Value::as_object_mut)
+    {
+        restarted |= rows.remove("after").is_some();
+    }
+    Some((envelope, restarted))
 }
 
 /// The refusal `e` as `surface` prints it: the one shape.
@@ -100,7 +140,12 @@ pub fn document(e: &anyhow::Error, surface: &dyn Surface) -> Value {
     let mut offers = Vec::new();
     doc.insert("error".into(), json!(surface.words(e)));
     if let Some(fault) = e.chain().find_map(|c| c.downcast_ref::<Fault>()) {
-        faulted(fault, &mut doc, &mut offers);
+        faulted(
+            fault,
+            surface.repeats_from_its_start(),
+            &mut doc,
+            &mut offers,
+        );
     } else if let Some(refused) = Refused::find(e) {
         doc.extend(refused.fields());
         if let RefusedKind::NotFound(missing) = &refused.kind {
@@ -203,7 +248,12 @@ fn searched(
 /// A layer fault's kind and fields (C121, C45), the offers an account
 /// that cannot be picked has — the refused request as each name known —
 /// and a policy write refused for its revision as `conflict` (C11).
-fn faulted(fault: &Fault, doc: &mut Map<String, Value>, offers: &mut Vec<(Way, String)>) {
+fn faulted(
+    fault: &Fault,
+    repeats_from_its_start: bool,
+    doc: &mut Map<String, Value>,
+    offers: &mut Vec<(Way, String)>,
+) {
     if let Fault::Policy(PutPolicyError::Store(AnnotationError::Conflict { current })) = fault {
         doc.insert("kind".into(), json!("conflict"));
         doc.insert(
@@ -226,7 +276,10 @@ fn faulted(fault: &Fault, doc: &mut Map<String, Value>, offers: &mut Vec<(Way, S
             Way::Again {
                 account: name.clone(),
             },
-            format!("the same request as {name}"),
+            match repeats_from_its_start {
+                true => format!("the same request from its start, as {name}"),
+                false => format!("the same request as {name}"),
+            },
         )
     }));
 }

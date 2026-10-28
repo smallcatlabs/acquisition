@@ -1315,3 +1315,28 @@ fn a_policy_write_refused_for_its_revision_is_a_conflict_with_the_row() {
         "the sync policy is at revision 1 (re-read and retry)"
     );
 }
+
+/// The one rule both surfaces repeat a request read whole by: the
+/// envelope as read, the nested account alone changed (a route's `count`
+/// and `counted_at` kept); a continuation's place, another store's basis,
+/// dropped and said; what `search` does not read, no repeat.
+#[test]
+fn a_request_read_whole_is_repeated_as_another_account_by_one_rule() {
+    use acquisition_verbs::refusal::again;
+    let route =
+        json!({ "request": { "scope": { "account": "Typo", "realm": "pc" } }, "count": 12 });
+    let (sent, restarted) = again(&route, USER).unwrap();
+    let mut expected = route.clone();
+    expected["request"]["scope"]["account"] = json!(USER);
+    assert_eq!((sent, restarted), (expected, false));
+    let bare = json!({ "query": { "text": "" } });
+    let (sent, restarted) = again(&bare, USER).unwrap();
+    assert_eq!(
+        (sent, restarted),
+        (
+            json!({ "query": { "text": "" }, "scope": { "account": USER } }),
+            false
+        )
+    );
+    assert!(again(&json!([1]), USER).is_none());
+}

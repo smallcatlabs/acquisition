@@ -312,31 +312,31 @@ impl refusal::Surface for Spoken<'_> {
         failure_words(e, self.named)
     }
 
+    fn repeats_from_its_start(&self) -> bool {
+        CALLED
+            .try_with(|c| {
+                c.tool == "search"
+                    && refusal::again(&Value::Object(c.arguments.clone()), "")
+                        .is_some_and(|(_, restarted)| restarted)
+            })
+            .unwrap_or(false)
+    }
+
     fn request(&self, way: &Way) -> Option<(Value, Option<&'static str>)> {
         let called = CALLED.try_with(Called::clone).ok();
         let tool = called.as_ref().map(|c| c.tool.clone());
         let other = |name: &'static str| (tool.as_deref() != Some(name)).then_some(name);
         match way {
             // the arguments as sent, only the account changed: for
-            // `search` the request's `scope.account`, inside the object
-            // holding it where it came in one (a route's `count` and
-            // `counted_at` kept), never the request re-read and re-made
+            // `search` the verbs' one rule over a request read whole
+            // (`refusal::again`), a continuation from its start
             Way::Again { account } => {
                 let mut arguments = called?.arguments;
                 if tool.as_deref() == Some("search") {
-                    Asked::read(&Value::Object(arguments.clone())).ok()?;
-                    let request = match arguments.get_mut("request") {
-                        Some(Value::Object(request)) => request,
-                        _ => &mut arguments,
-                    };
-                    let scope = request
-                        .entry("scope")
-                        .or_insert_with(|| json!({}))
-                        .as_object_mut()?;
-                    scope.insert("account".into(), json!(account));
-                } else {
-                    arguments.insert("account".into(), json!(account));
+                    let (envelope, _) = refusal::again(&Value::Object(arguments), account)?;
+                    return Some((envelope, None));
                 }
+                arguments.insert("account".into(), json!(account));
                 Some((Value::Object(arguments), None))
             }
             Way::Search(request) => Some((serde_json::to_value(request).ok()?, other("search"))),

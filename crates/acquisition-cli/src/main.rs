@@ -1071,9 +1071,10 @@ pub(crate) enum Repeat {
     /// The parsed command's arguments, each given on the command line,
     /// as a shell takes them: `acq --account <name>` is put before them.
     Line(Vec<String>),
-    /// A request read whole (`--request`, `--next`), its account set in
-    /// its scope: the request `acq search --request` reads.
-    Request(Box<acquisition_search::Request>),
+    /// A request read whole (`--request`, `--next`), as it was read —
+    /// the request or the object holding it — repeated by the verbs' one
+    /// rule (`refusal::again`): what `acq search --request` reads.
+    Request(serde_json::Value),
     /// Nothing to repeat: a page, or a command that read its input from
     /// stdin, which a line repeated would not carry.
     None,
@@ -1088,10 +1089,11 @@ impl Terminal {
         }
     }
 
-    /// A request read whole, refused: offered again as itself.
-    pub(crate) fn asking(request: &acquisition_search::Request) -> Terminal {
+    /// A request read whole, refused: offered again as itself, the
+    /// envelope it was read in kept.
+    pub(crate) fn asking(envelope: serde_json::Value) -> Terminal {
         Terminal {
-            repeat: Repeat::Request(Box::new(request.clone())),
+            repeat: Repeat::Request(envelope),
         }
     }
 
@@ -1128,10 +1130,9 @@ impl acquisition_verbs::refusal::Surface for Terminal {
                     .chain(words.iter().map(|w| quote(w)))
                     .collect::<Vec<_>>()
                     .join(" "),
-                Repeat::Request(request) => {
-                    let mut request = request.clone();
-                    request.scope.account = Some(account.clone());
-                    return Some((serde_json::to_value(request).ok()?, None));
+                Repeat::Request(envelope) => {
+                    let (envelope, _) = acquisition_verbs::refusal::again(envelope, account)?;
+                    return Some((envelope, None));
                 }
                 Repeat::None => return None,
             },
@@ -1165,6 +1166,14 @@ impl acquisition_verbs::refusal::Surface for Terminal {
 
     fn reading(&self, offered: &acquisition_search::error::Offered) -> String {
         search_cmd::terminal_reading(offered)
+    }
+
+    fn repeats_from_its_start(&self) -> bool {
+        match &self.repeat {
+            Repeat::Request(envelope) => acquisition_verbs::refusal::again(envelope, "")
+                .is_some_and(|(_, restarted)| restarted),
+            Repeat::Line(_) | Repeat::None => false,
+        }
     }
 }
 
