@@ -321,8 +321,9 @@ impl Mcp {
 
 /// The keys whose value is payload (`PAYLOAD` in the server): what an
 /// agent sends back as printed or types as written, never spelled.
-const PAYLOAD: [&str; 8] = [
-    "offers", "request", "query", "params", "next", "route", "examples", "readings",
+const PAYLOAD: [&str; 10] = [
+    "offers", "request", "query", "params", "next", "route", "examples", "readings", "current",
+    "accounts",
 ];
 
 /// C143: the server's document is the CLI's with this server's spelling

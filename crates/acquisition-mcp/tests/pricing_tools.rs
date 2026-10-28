@@ -859,3 +859,38 @@ fn price_list_and_price_show_list_ten_and_expand_returns_every_item_past_ten() {
     }
     assert!(no_daemon_appeared(base));
 }
+
+/// Round 4's review (P3): a conflict's `current` is the stored row,
+/// data, never this server's prose — a row whose actor names a command
+/// came back spelled. Over such a row a set at a stale revision is
+/// `conflict`, its `current` exactly the row `price_show` prints as
+/// `manual`.
+#[test]
+fn a_conflicts_current_is_the_row_price_show_prints_verbatim() {
+    let dir = scratch("mcp-price-current");
+    let base = &dir.0;
+    seed(base);
+    Annotations::open_for(&base.join("store").join("mock"), UUID)
+        .unwrap()
+        .put::<Buyout>(
+            "item",
+            "i-map",
+            &json!({ "version": 1, "type": "skip" }),
+            None,
+            &Provenance::via("test").as_actor("acq search --count tab"),
+        )
+        .unwrap();
+    let mut mcp = Mcp::start(base, &[]);
+    let (ok, view) = tool(&mut mcp, "price_show", json!({ "target": "item/i-map" }));
+    assert!(ok, "{view}");
+    let manual = view["listing"]["manual"].clone();
+    assert_eq!(manual["actor"], "acq search --count tab", "{view}");
+    let (ok, refusal) = tool(
+        &mut mcp,
+        "price_set",
+        json!({ "target": "item/i-map", "type": "no_price", "if_revision": 9 }),
+    );
+    assert!(!ok, "{refusal}");
+    assert_eq!(refusal["kind"], "conflict", "{refusal}");
+    assert_eq!(refusal["current"], manual, "{refusal}");
+}

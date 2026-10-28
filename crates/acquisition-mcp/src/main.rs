@@ -1145,9 +1145,12 @@ const NAMES: [&str; 2] = ["name", "construct"];
 /// spelling is prose's, and a request it touched would no longer run as
 /// printed (the readiness seat's fix-round review, P2). A refusal's
 /// `readings` are payload on every refusal: how what was typed could be
-/// read, in the request's words (C143).
-const PAYLOAD: [&str; 8] = [
-    "offers", "request", "query", "params", "next", "route", "examples", "readings",
+/// read, in the request's words (C143); and a refusal's `current` and
+/// `accounts` are data, a stored row and names, carried verbatim as the
+/// read that prints them does (round 4's review, P3).
+const PAYLOAD: [&str; 10] = [
+    "offers", "request", "query", "params", "next", "route", "examples", "readings", "current",
+    "accounts",
 ];
 
 /// Which strings of a document are the tool's words.
