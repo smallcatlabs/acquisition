@@ -1891,6 +1891,41 @@ fn c144_a_store_that_cannot_record_fails_the_job_and_keeps_the_body() {
     finish_harness(None, &log_path);
 }
 
+/// C144 (the daemon reports no success it did not earn), issue #90: a
+/// kind the store knows no place for (`Endpoint::from_job` answers
+/// `None`) fails the job naming the kind, where it used to return `Ok`
+/// and the job ended done with nothing stored. No kind a client can
+/// submit reaches this arm today (every caller of `record` is a kind the
+/// store knows), so the pin is a direct call with a test-only kind, as
+/// the test above is. The failure keeps the params and the body, and no
+/// account file is created for a response nothing can be recorded under.
+#[test]
+fn c144_a_kind_the_store_cannot_place_fails_the_job_naming_the_kind() {
+    let (mut daemon, log_path) = test_daemon("http://127.0.0.1:1", Arc::new(ManualClock::new()));
+    let dir = TestPath::dir();
+    Arc::get_mut(&mut daemon).unwrap().store_dir = Some(dir.to_path_buf());
+    let params = json!({ "league": "Standard", "id": "t1" });
+    let body = json!({ "items": [] });
+
+    let failed = daemon
+        .record(Some("A#1"), "test-only-kind", &params, &body)
+        .unwrap_err();
+    let (error, payload) = kept_failure(&failed);
+    assert!(
+        error.contains("fetched, but the store could not record it")
+            && error.contains("no place for a test-only-kind response"),
+        "{error}"
+    );
+    assert_eq!(payload, &json!({ "params": params, "body": body }));
+    assert!(
+        !acquisition_store::account_path(&dir, "A#1").exists(),
+        "no account file for a kind nothing can be recorded under"
+    );
+    assert!(daemon.store.lock().unwrap().is_none(), "no store opened");
+    drop(daemon);
+    finish_harness(None, &log_path);
+}
+
 /// C144 end to end: the job a store cannot record for ends failed, never
 /// done, its outcome carrying the body GGG answered.
 #[tokio::test]

@@ -187,11 +187,14 @@ impl Daemon {
     ///
     /// C144 — the daemon reports no success it did not earn: a store that
     /// cannot be opened (a schema newer than this daemon's, a file that is
-    /// not a store) or written after the send, or a job with no account to
-    /// file it under, fails the job too, in a sentence that names the
-    /// store's fault. The send was made, so the failure keeps what it
-    /// fetched as its payload (`Outcome::failure_keeping`): the params and
-    /// the body, which reach the client that asked.
+    /// not a store) or written after the send, a job with no account to
+    /// file it under, or a kind the store knows no place for
+    /// (`Endpoint::from_job` answers `None`: a kind this daemon runs and
+    /// the store does not record, which no client kind is today and the
+    /// next endpoint would be), fails the job too, in a sentence that
+    /// names the store's fault. The send was made, so the failure keeps
+    /// what it fetched as its payload (`Outcome::failure_keeping`): the
+    /// params and the body, which reach the client that asked.
     pub(super) fn record(
         &self,
         account: Option<&str>,
@@ -202,15 +205,19 @@ impl Daemon {
         let Some(dir) = &self.store_dir else {
             return Ok(());
         };
-        let Some(endpoint) = Endpoint::from_job(kind, params) else {
-            return Ok(());
-        };
         let not_recorded = |fault: String| {
             self.note_error(&format!("store: {kind} not recorded: {fault}"));
             Outcome::failure_keeping(
                 format!("the response was fetched, but the store could not record it: {fault}"),
                 json!({ "params": params, "body": body }),
             )
+        };
+        // Judged before the account and the open: a kind nothing can be
+        // recorded under creates no account file.
+        let Some(endpoint) = Endpoint::from_job(kind, params) else {
+            return Err(not_recorded(format!(
+                "the store knows no place for a {kind} response"
+            )));
         };
         // The job's account — fixed at submit — selects the file, never the
         // session at landing time: a login as B while A's refresh is still
