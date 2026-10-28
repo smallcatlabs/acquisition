@@ -104,8 +104,9 @@ impl Daemon {
     /// C144 — the one persist of a keyring entry, login's and refresh's
     /// alike: C135, the refresh token with the access token and its expiry
     /// beside it, written as the entry's secret here and read back in
-    /// `start::restore_sessions` alone. Called under the caller's hold of
-    /// `credentials` and never
+    /// `start::restore_sessions` alone. Takes the caller's hold of
+    /// `credentials` (`held.rs`: the value only the lock gives, so a
+    /// persist outside it does not compile) and never runs
     /// under `shared` (C148), so the keyring and the index land together,
     /// ordered with logout and forget. The
     /// index holds `username` before the token is saved under it
@@ -128,6 +129,7 @@ impl Daemon {
     /// reaches them. Every clear that fails is a warning.
     pub(super) fn persist_credentials(
         &self,
+        credentials: &held::CredentialsHeld<'_>,
         username: &str,
         entry: &auth::KeyringEntry,
         uuid: Option<&str>,
@@ -156,9 +158,9 @@ impl Daemon {
         // The index knows the name before the keyring does: an index that
         // cannot hold it means no save, so no credential lands where no
         // verb can find it. The session keeps its tokens in memory.
-        if let Err(e) =
-            self.index_apply(|index| index.hold_keyring_name(uuid, username, old_name, at))
-        {
+        if let Err(e) = self.index_apply(credentials, |index| {
+            index.hold_keyring_name(uuid, username, old_name, at)
+        }) {
             return Persisted {
                 keyring: format!("unavailable: not saved, the account index could not hold its name: {e}"),
                 warnings: vec![
@@ -199,7 +201,7 @@ impl Daemon {
         if persisted {
             hold.push(username.to_string());
         }
-        let indexed = self.index_apply(|index| match uuid {
+        let indexed = self.index_apply(credentials, |index| match uuid {
             Some(uuid) => index.record_login(username, uuid, persisted, at, &hold),
             None => index.upsert(username, persisted, at, &hold),
         });
@@ -214,7 +216,7 @@ impl Daemon {
                 }
             }
             if !released.is_empty()
-                && let Err(e) = self.index_apply(|index| {
+                && let Err(e) = self.index_apply(credentials, |index| {
                     index.settle_keyring_names(uuid, username, &[], &released, None)
                 })
             {
@@ -278,7 +280,7 @@ impl Daemon {
 
     /// [`Self::land_rejection`]'s body, on the landing's thread.
     fn persist_rejection(&self, username: &str, generations: AuthGenerations) {
-        let credentials = self.credentials.lock().unwrap();
+        let credentials = self.hold_credentials();
         let (entry, uuid) = {
             let s = self.shared.lock().unwrap();
             let Some(session) = s.auth.find(username) else {
@@ -295,8 +297,14 @@ impl Daemon {
             };
             (entry, session.uuid.clone())
         };
-        let persisted =
-            self.persist_credentials(username, &entry, uuid.as_deref(), None, self.unix_now());
+        let persisted = self.persist_credentials(
+            &credentials,
+            username,
+            &entry,
+            uuid.as_deref(),
+            None,
+            self.unix_now(),
+        );
         let mut warnings = persisted.warnings;
         if let Err(e) = persisted.indexed {
             warnings.push(e);
@@ -520,7 +528,9 @@ impl Daemon {
         refresh: Result<auth::TokenResponse, Refusal>,
         sender: &watch::Sender<Option<AccessTokenResult>>,
     ) -> AccessTokenResult {
-        let credentials = refresh.is_ok().then(|| self.credentials.lock().unwrap());
+        // Held only for a refresh that succeeded: the landing below is
+        // only then, and it takes this hold.
+        let credentials = refresh.is_ok().then(|| self.hold_credentials());
         let mut renamed = None;
         let mut landing = None;
         let mut installed = None;
@@ -588,8 +598,9 @@ impl Daemon {
         };
         sender.send_replace(Some(outcome.clone()));
         let mut warning = None;
-        if let Some(landing) = landing {
+        if let (Some(landing), Some(credentials)) = (landing, credentials.as_ref()) {
             let persisted = self.persist_credentials(
+                credentials,
                 &landing.username,
                 &landing.entry,
                 landing.uuid.as_deref(),

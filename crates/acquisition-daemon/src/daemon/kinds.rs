@@ -131,10 +131,14 @@ impl Bearer for StagedBearer {
 
 impl Daemon {
     /// Apply one change to the account index, reporting failure to the
-    /// caller. Called under `credentials`, never under `shared` (C148);
-    /// it never calls `note_error`. No-op in tests (no store directory).
+    /// caller. The one writer of the index: it requires the credentials
+    /// lock held (C144, the index written under the one lock; C148, never
+    /// under `shared`), as the value only [`Daemon::hold_credentials`]
+    /// makes, so a writer outside the lock does not compile (`held.rs`).
+    /// It never calls `note_error`. No-op in tests (no store directory).
     pub(super) fn index_apply(
         &self,
+        _credentials: &held::CredentialsHeld<'_>,
         f: impl FnOnce(&mut Index) -> anyhow::Result<()>,
     ) -> Result<(), String> {
         let Some(dir) = &self.store_dir else {
@@ -162,8 +166,8 @@ impl Daemon {
     ) {
         let applied = self
             .spawn_landing(move |daemon| {
-                let _serialised = daemon.credentials.lock().unwrap();
-                daemon.index_apply(f)
+                let credentials = daemon.hold_credentials();
+                daemon.index_apply(&credentials, f)
             })
             .await
             .unwrap_or_else(|e| Err(format!("accounts index: the write did not finish: {e}")));

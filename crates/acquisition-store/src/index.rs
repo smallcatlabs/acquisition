@@ -694,8 +694,8 @@ mod tests {
     /// processes, or a daemon writer beside a stray one — never tear the
     /// file: each save has a temporary of its own, so a reader always
     /// parses an index one of them wrote whole. (That neither loses the
-    /// other's change is the daemon's lock, its every index write under
-    /// `shared`.)
+    /// other's change is the daemon's lock: its every index write takes
+    /// the credentials hold as a value, C148.)
     #[test]
     fn c144_two_accounts_saving_at_once_never_tear_the_index() {
         let temp = tempfile::tempdir().unwrap();

@@ -153,6 +153,7 @@ use crate::{auth, mockggg};
 
 mod dispatch;
 mod endpoint;
+mod held;
 mod kinds;
 mod login;
 mod queue;
@@ -919,6 +920,8 @@ pub struct Daemon {
     /// stay ordered with each other (C144) while no request, bearer read,
     /// status document or `hello` waits on the I/O. Every landing counts
     /// in `landings`, which the idle verdict and the exit's drain read.
+    /// Taken through [`Daemon::hold_credentials`] alone, whose value every
+    /// index write and every keyring persist requires (`held.rs`).
     credentials: Mutex<()>,
     shared: Mutex<Shared>,
     /// C148: open connections, outside every lock, so `hello` takes none.

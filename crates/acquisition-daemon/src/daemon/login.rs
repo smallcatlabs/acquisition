@@ -283,7 +283,7 @@ impl Daemon {
             Failed(String),
             Registered { warning: Option<String> },
         }
-        let credentials = self.credentials.lock().unwrap();
+        let credentials = self.hold_credentials();
         let staged = {
             let mut s = self.shared.lock().unwrap();
             if s.auth.pending != Some(generation) {
@@ -315,6 +315,7 @@ impl Daemon {
                     Some((staging.access_token.clone(), staging.access_expires_at)),
                 );
                 let persisted = self.persist_credentials(
+                    &credentials,
                     username,
                     &entry,
                     Some(uuid),
@@ -505,7 +506,7 @@ impl Daemon {
     /// succeeded and marks the account not persisted, in one write. Every
     /// result reaches the caller (`settle`).
     pub(super) fn logout(&self, account: Option<&str>) -> Result<KeyringOutcome, Refusal> {
-        let credentials = self.credentials.lock().unwrap();
+        let credentials = self.hold_credentials();
         let named = |x: &AuthSession| (x.username.clone().unwrap_or_default(), x.uuid.clone());
         let live = {
             let mut s = self.shared.lock().unwrap();
@@ -568,7 +569,7 @@ impl Daemon {
             }
         }
         let (cleared, released, failed) = self.clear_account_entries(&names);
-        let indexed = self.index_apply(|index| {
+        let indexed = self.index_apply(&credentials, |index| {
             index.settle_keyring_names(uuid.as_deref(), &username, &failed, &released, Some(false))
         });
         drop(credentials);
