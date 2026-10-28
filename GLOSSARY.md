@@ -70,8 +70,9 @@ new text uses that word rather than "door".
   `ACQ_STORE_DIR`; each has a row in the README's knob table.
 - **last** (a round): the final fix round of a step, after the tail.
 - **ledger**: a table of dated rows read from its newest end:
-  `RUN-LEDGER.md` for live runs, `SEAT-LEDGER.md` for seats, the
-  roadmap's ledger for closed steps.
+  `RUN-LEDGER.md` for live runs, `SEAT-LEDGER.md` for seats,
+  `roadmap/LEDGER.md` for closed steps; `search/LEDGER.md`, the search
+  slice's closed record, is looked up by its row instead.
 - **ledger** (the job ledger): the daemon's persisted job queue on
   disk, which a frontend reads when no daemon answers.
 - **mirror**: the jobs table in the world's database, written at every

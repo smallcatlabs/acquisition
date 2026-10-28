@@ -19,6 +19,7 @@ commit's message; a shape that came back is `REVIEW-CHECKLIST.md`'s.
 | Three platforms: Windows, macOS, Linux, released from GitHub | `4f49e285..eccd22c8` | 2026-10-15 | `06c34401` (the open record at `eccd22c8`) |
 | The trade import: a site URL as a third spelling of a query | `6745e5ba..16bba23e` | 2026-10-18 | `807f237e` (the brief's steps at `77666ea4` and `6e31d630`; note 38 at `16bba23e`) |
 | The release, `v1.0.0-alpha.1`: pricing on the MCP, the README, the policies, the seat | `05e6c70c..d0ab421e` | 2026-10-19 | `e7f279b5` (the open record and the brief at `d0ab421e`) |
-| Roadmap phase 0: the week's fixes | `roadmap/README.md`'s ledger | 2026-10-20 | `cca73395` (the briefs and the review files) |
-| Roadmap phase 1: the governance reset | `roadmap/README.md`'s ledger | 2026-10-20 | `0704a8f7` (the briefs, the drafts and the review files) |
+| Roadmap phase 0: the week's fixes | `roadmap/LEDGER.md`'s row | 2026-10-20 | `cca73395` (the briefs and the review files) |
+| Roadmap phase 1: the governance reset | `roadmap/LEDGER.md`'s row | 2026-10-20 | `0704a8f7` (the briefs, the drafts and the review files) |
 | The honesty slice: the daemon reports no success it did not earn, a count says what it counts, the doors take the world (C144 to C147; #71, #59, #61, #62, #49, #69, #75 closed; #11, #63, #16 in part; #74 opened) | `efc6e745..0b199df3` | 2026-10-26 | the briefs under `roadmap/briefs/h1-*.md`, `h2-*.md`, `h3-*.md`; the reviews whole at `0e7ed91d`, `65b18c90`, `a519fb02`, `117c0aa6`, `e82fa488`, `684262bb`, `a0bb6ab1` |
+| Roadmap readiness group: p0 the process round, r1 to r5 the league readiness (C3, C148; #77, #79, #80, #81, #78 closed) | `f1a29952..c5a736db` | 2026-10-27 | the briefs `roadmap/briefs/p0-process.md` and `r1-*.md` to `r5-*.md`, the reviews under `roadmap/reviews/` |
