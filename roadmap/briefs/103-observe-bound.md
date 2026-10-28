@@ -221,11 +221,14 @@ No measurement. The failing inputs the tests stage:
    `request(DaemonStatus)` on the same client is the same refusal; a
    fresh observation under the knob at 60 and `request(Cancel)` and
    `request(Quote)` under the knob at zero return the peer's error
-   frame as a `Response`. *Settled in the round:* the peer
-   acknowledges each frame it reads on a channel the test awaits
-   before any count, and the poisoned retry's "no frame sent" is read
-   from the connection's transcript after the client is dropped, never
-   from a counter read at a moment (the review's finding 2).
+   frame as a `Response`. *Settled in the round:* the test itself is
+   the peer: it accepts and answers in the same task as the client it
+   drives, and the poisoned retry's "no frame sent" is the transcript
+   the test reads from its own end of the connection to EOF after the
+   client is dropped, never a counter read at a moment nor a spawned
+   peer's report of its own completeness (the build's review, finding
+   2, then the two fix rounds' findings on a spawned peer, closed in
+   round 3 by removing the task).
 3. **The verbs crate stops bounding for itself.** `daemon_within` and
    its `Option<Duration>` go; `daemon` calls `request` and maps its
    error as every other door does (`Fault::from_client`, so the
@@ -275,7 +278,9 @@ No measurement. The failing inputs the tests stage:
   frame sent.
 - A test in `contract.rs` forces the expiry at zero against a peer
   that answers, reads the words and the fields, and shows an acting
-  request unbounded under the same knob.
+  request unbounded under the same knob; the test is the peer and
+  reads the connection's transcript to EOF itself (*settled in the
+  round*, round 3).
 - The verbs pin at `tests/daemon.rs` line 962 is green unchanged in
   its assertions; a CLI process test reads the refusal and a non-zero
   exit from `acq daemon status` against a peer that holds the status.
