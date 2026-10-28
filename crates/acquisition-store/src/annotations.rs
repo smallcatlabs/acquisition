@@ -504,6 +504,16 @@ pub enum AnnotationError {
     Busy {
         waited: Option<std::time::Duration>,
     },
+    /// The row stands at the last revision an `i64` holds, so no write can
+    /// take the next one (C47: a stored value at the bound is a structured
+    /// refusal, never an overflow); nothing was written. Reached only by a
+    /// damaged revision or a write count no use makes.
+    RevisionExhausted {
+        scope: String,
+        key: String,
+        kind: String,
+        revision: i64,
+    },
     Db(rusqlite::Error),
     Io(std::io::Error),
     Json(serde_json::Error),
@@ -553,6 +563,16 @@ impl std::fmt::Display for AnnotationError {
             AnnotationError::Busy { waited: None } => write!(
                 f,
                 "annotation file is busy: another writer held it (retry later)"
+            ),
+            AnnotationError::RevisionExhausted {
+                scope,
+                key,
+                kind,
+                revision,
+            } => write!(
+                f,
+                "annotation {scope}/{key}/{kind} is at revision {revision}, the last a row can \
+                 take: nothing was written"
             ),
             AnnotationError::Db(e) => write!(f, "annotation store: {e}"),
             AnnotationError::Io(e) => write!(f, "annotation store: {e}"),
@@ -966,13 +986,13 @@ impl Annotations {
             }),
             // Recreation after a delete: the tombstone's revision carries on.
             (None, Some((tombstone, true))) => stamped(AnnotationRow {
-                revision: tombstone.revision + 1,
+                revision: next_revision(&tombstone)?,
                 created_at: now,
                 ..tombstone
             }),
             (Some(expected), Some((current, false))) if current.revision == expected => {
                 stamped(AnnotationRow {
-                    revision: expected + 1,
+                    revision: next_revision(&current)?,
                     ..current
                 })
             }
@@ -1036,9 +1056,10 @@ impl Annotations {
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         let tombstone = match row_of(&tx, scope, key, kind)? {
             Some((current, false)) if current.revision == expected_revision => {
+                let tombstone = next_revision(&current)?;
                 tx.execute(
                     "UPDATE annotations
-                        SET deleted_at = ?4, updated_at = ?4, revision = revision + 1,
+                        SET deleted_at = ?4, updated_at = ?4, revision = ?7,
                             written_via = ?5, actor = ?6
                       WHERE scope = ?1 AND key = ?2 AND kind = ?3",
                     params![
@@ -1047,10 +1068,11 @@ impl Annotations {
                         kind,
                         crate::now(),
                         provenance.written_via,
-                        provenance.actor
+                        provenance.actor,
+                        tombstone
                     ],
                 )?;
-                expected_revision + 1
+                tombstone
             }
             current => return Err(conflict(current)),
         };
@@ -1271,6 +1293,22 @@ impl Annotations {
 
 /// A conflict, exposing only a live row: a tombstone reads as "no such
 /// annotation", but its revision still gates the next write.
+/// The revision a write over `row` takes: one past it, computed once
+/// before anything is written and bound into the write, the same number
+/// the write returns — or, at the last revision an `i64` holds, the
+/// refusal that says so with nothing written ([`AnnotationError::RevisionExhausted`]).
+/// The one increment both doors take, `put` and `delete`.
+fn next_revision(row: &AnnotationRow) -> Result<i64, AnnotationError> {
+    row.revision
+        .checked_add(1)
+        .ok_or_else(|| AnnotationError::RevisionExhausted {
+            scope: row.scope.clone(),
+            key: row.key.clone(),
+            kind: row.kind.clone(),
+            revision: row.revision,
+        })
+}
+
 fn conflict(current: Option<(AnnotationRow, bool)>) -> AnnotationError {
     AnnotationError::Conflict {
         current: current.and_then(|(row, deleted)| (!deleted).then(|| Box::new(row))),
@@ -1612,6 +1650,71 @@ mod tests {
             .put::<Buyout>("item", "i1", &price("3c"), None, &via)
             .unwrap();
         assert_eq!(recreated.revision, tombstone + 1);
+    }
+
+    /// C47 (a stored value at the bound is a structured refusal) — a row
+    /// at the last revision an `i64` holds takes no next one: a replace, a
+    /// delete and a create over such a tombstone each refuse as
+    /// `RevisionExhausted`, and nothing is written; one below it moves to
+    /// the bound, the number written the number returned (round 5 of the
+    /// 2g build, its review's finding 3).
+    #[test]
+    fn a_row_at_the_last_revision_refuses_every_write_and_changes_nothing() {
+        let mut a = Annotations::open_memory().unwrap();
+        let via = via_test();
+        a.put::<Buyout>("item", "i1", &price("1c"), None, &via)
+            .unwrap();
+        let at = |a: &Annotations, revision: i64| {
+            a.conn
+                .execute(
+                    "UPDATE annotations SET revision = ?1 WHERE key = 'i1'",
+                    [revision],
+                )
+                .unwrap();
+        };
+        let exhausted = |e: AnnotationError| {
+            assert!(
+                matches!(
+                    e,
+                    AnnotationError::RevisionExhausted {
+                        revision: i64::MAX,
+                        ..
+                    }
+                ),
+                "{e}"
+            );
+        };
+        at(&a, i64::MAX - 1);
+        let row = a
+            .put::<Buyout>("item", "i1", &price("2c"), Some(i64::MAX - 1), &via)
+            .unwrap();
+        assert_eq!(row.revision, i64::MAX);
+        assert_eq!(a.get("item", "i1", "buyout").unwrap(), Some(row.clone()));
+        exhausted(
+            a.put::<Buyout>("item", "i1", &price("3c"), Some(i64::MAX), &via)
+                .unwrap_err(),
+        );
+        exhausted(
+            a.delete("item", "i1", "buyout", i64::MAX, &via)
+                .unwrap_err(),
+        );
+        assert_eq!(
+            a.get("item", "i1", "buyout").unwrap(),
+            Some(row),
+            "untouched"
+        );
+        at(&a, i64::MAX - 1);
+        assert_eq!(
+            a.delete("item", "i1", "buyout", i64::MAX - 1, &via)
+                .unwrap(),
+            i64::MAX
+        );
+        assert_eq!(a.cleared("item", "i1", "buyout").unwrap(), Some(i64::MAX));
+        exhausted(
+            a.put::<Buyout>("item", "i1", &price("4c"), None, &via)
+                .unwrap_err(),
+        );
+        assert_eq!(a.cleared("item", "i1", "buyout").unwrap(), Some(i64::MAX));
     }
 
     /// C35 — two writers on one file serialize under BEGIN IMMEDIATE: one wins, the other gets a Conflict, never a clobber.
