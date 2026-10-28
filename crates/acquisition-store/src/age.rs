@@ -38,11 +38,12 @@ pub fn span(seconds: i64) -> String {
 }
 
 /// An epoch's age at `now`: `{span} ago`, or `never` where there is no
-/// epoch. An epoch after `now` (a clock set back) reads `0s ago`.
+/// epoch. An epoch after `now` (a clock set back) reads `0s ago`; the
+/// difference saturates, so no epoch a store holds overflows it (C47).
 pub fn ago(now: i64, at: Option<i64>) -> String {
     match at {
         None => "never".into(),
-        Some(at) => span_ago(now - at),
+        Some(at) => span_ago(now.saturating_sub(at)),
     }
 }
 
@@ -52,11 +53,12 @@ pub fn span_ago(seconds: i64) -> String {
 }
 
 /// An epoch's age at another epoch of the same document, named by its
-/// field: `{span} before {basis}`, or `never` where there is no epoch.
+/// field: `{span} before {basis}`, or `never` where there is no epoch;
+/// the difference saturates, as [`ago`]'s.
 pub fn before(basis: &str, basis_at: i64, at: Option<i64>) -> String {
     match at {
         None => "never".into(),
-        Some(at) => format!("{} before {basis}", span(basis_at - at)),
+        Some(at) => format!("{} before {basis}", span(basis_at.saturating_sub(at))),
     }
 }
 
@@ -99,6 +101,29 @@ mod tests {
             "3h before generated_at"
         );
         assert_eq!(before("generated_at", now, None), "never");
+    }
+
+    /// The round's review, P2: an epoch at either end of `i64`, which a
+    /// corrupt index or row could hold, is read without overflow — the
+    /// difference saturates, so the oldest possible epoch is the most
+    /// days ago and one past `now` none.
+    #[test]
+    fn c53_an_epoch_at_either_end_of_its_range_reads_without_overflow() {
+        let most = format!("{}d ago", i64::MAX / 86_400);
+        for now in [0, 1_000_000, i64::MAX] {
+            assert_eq!(ago(now, Some(i64::MIN)), most, "now {now}");
+        }
+        assert_eq!(ago(0, Some(i64::MAX)), "0s ago");
+        assert_eq!(ago(i64::MIN, Some(i64::MAX)), "0s ago");
+        assert_eq!(ago(i64::MIN, Some(i64::MIN)), "0s ago");
+        assert_eq!(
+            before("generated_at", 0, Some(i64::MIN)),
+            format!("{}d before generated_at", i64::MAX / 86_400)
+        );
+        assert_eq!(
+            before("generated_at", i64::MIN, Some(i64::MAX)),
+            "0s before generated_at"
+        );
     }
 
     /// The store's rows a maker ages (C53): each says its epoch in the
