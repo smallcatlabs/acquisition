@@ -167,6 +167,13 @@ fn json_stdout_is_the_contract_surface() {
     // C65: the row says which channel wrote it; no actor was claimed.
     assert_eq!(row["written_via"], json!("cli"));
     assert!(row.get("actor").is_none(), "{row}");
+    // The receipt every write answers (round 5 of the 2g build) stands
+    // beside the row: a first write's prior null, its undo none and why.
+    let receipt = row.as_object_mut().unwrap();
+    let written = receipt.remove("written");
+    assert_eq!(receipt.remove("prior"), Some(Value::Null));
+    assert!(receipt.remove("target").is_some() && receipt.remove("no_undo").is_some());
+    assert_eq!(written.as_ref(), Some(&row));
     let out = acq(&base, &["policy", "show", "--json"]);
     assert_eq!(sole_json(&out), json!({ "policy": row }));
 
@@ -379,4 +386,74 @@ fn a_poe2_policy_set_alone_leaves_the_pc_policy_standing() {
         replaced["value"],
         serde_json::from_str::<Value>(poe2).unwrap()
     );
+}
+
+/// Round 5 of the 2g build (the receipt shape): `policy set --json`
+/// answers the shape every write answers — `target`, `written`, `prior`
+/// (null on a first write), the flattened row's `revision` the next
+/// write's — and `undo`, the command line that writes the prior back
+/// whole over the revision this write left, which runs as printed with a
+/// second account known; a first write has none and `no_undo` says why.
+#[test]
+fn a_policy_receipts_undo_runs_as_printed_and_a_first_write_says_why_it_has_none() {
+    let scratch = harness::scratch("e2e-policy-undo");
+    let base = scratch.0.clone();
+    let mock = seed_store(&base);
+    Index::load(&mock)
+        .unwrap()
+        .record_login("Bob#5678", "u-bob", false, acquisition_store::now(), &[])
+        .unwrap();
+    let pc = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","max_age_seconds":3600}}}}}"#;
+    let poe2 = r#"{"version":3,"realms":{"poe2":{"leagues":{"Standard":{"characters":"all","max_age_seconds":600}}}}}"#;
+    let set = |args: &[&str]| {
+        let out = acq(
+            &base,
+            &[&["policy", "set", "--account", USER], args, &["--json"]].concat(),
+        );
+        assert!(out.status.success(), "{out:?}");
+        sole_json(&out)
+    };
+    let first = set(&[pc]);
+    assert_eq!(
+        (
+            &first["prior"],
+            &first["revision"],
+            &first["written"]["revision"]
+        ),
+        (&Value::Null, &json!(1), &json!(1)),
+        "{first}"
+    );
+    assert_eq!(
+        first["target"],
+        json!({ "account": USER, "realms": ["pc"] })
+    );
+    assert_eq!(first.get("undo"), None, "{first}");
+    assert!(
+        first["no_undo"]
+            .as_str()
+            .is_some_and(|s| s.contains("no verb clears a policy")),
+        "{first}"
+    );
+    let merged = set(&[poe2]);
+    assert_eq!(
+        merged["prior"]["value"],
+        serde_json::from_str::<Value>(pc).unwrap()
+    );
+    let line = merged["undo"]["request"]
+        .as_str()
+        .unwrap_or_else(|| panic!("{merged}"));
+    assert!(
+        line.starts_with("acq policy set --account 'Alice#1234' --replace --if-revision 2 '"),
+        "{line}"
+    );
+    // run as printed, `--json` added as a refusal's offers are run
+    let words = harness::shell_words(line);
+    let mut args: Vec<&str> = words[1..].iter().map(String::as_str).collect();
+    args.push("--json");
+    let out = acq(&base, &args);
+    assert!(out.status.success(), "`{line}`: {out:?}");
+    let back = sole_json(&out);
+    assert_eq!(back["revision"], json!(3));
+    assert_eq!(back["value"], serde_json::from_str::<Value>(pc).unwrap());
+    assert_eq!(back["prior"], merged["written"]);
 }

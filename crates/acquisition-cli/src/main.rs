@@ -1202,6 +1202,15 @@ impl acquisition_verbs::refusal::Surface for Terminal {
                 quote(account),
                 quote(target)
             ),
+            Way::PolicySet {
+                account,
+                value,
+                if_revision,
+            } => format!(
+                "acq policy set --account {} --replace --if-revision {if_revision} {}",
+                quote(account),
+                quote(&value.to_string())
+            ),
         };
         Some((json!(line), None))
     }

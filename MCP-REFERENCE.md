@@ -161,7 +161,7 @@ Item search over the store (no daemon): a query in the language `describe` print
 
 ### `set_sync_policy`
 
-Write the account's sync policy, validated strictly, compare-and-swap on `if_revision`. Local only: it sends nothing; the network cost appears only when a plan is applied. Each realm the value names replaces that realm alone, the others stay; `replace: true` writes the whole policy. Returns the stored row, and `league_notes` for a league the account's fetched league list does not hold, with `list_fetched_at` (null when never fetched; a `leagues` job fetches it). Nothing refuses on a note.
+Write the account's sync policy, validated strictly, compare-and-swap on `if_revision`. Local only: it sends nothing; the network cost appears only when a plan is applied. Each realm the value names replaces that realm alone, the others stay; `replace: true` writes the whole policy. Returns the stored row with the receipt — `target`, `written`, `prior`, `undo` (a request that puts `prior` back) or `no_undo` (why none) — and `league_notes` for a league the fetched league list lacks, with `list_fetched_at` (null if never fetched; a `leagues` job fetches it). Nothing refuses on a note.
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
 - `if_revision` (integer | null) — The revision this write replaces, from sync_policy: required when a policy exists, `replace` or not; omitted only to create the first.

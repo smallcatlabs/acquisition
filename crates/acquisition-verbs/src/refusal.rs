@@ -86,6 +86,13 @@ pub enum Way {
         account: String,
         if_revision: i64,
     },
+    /// The account's sync policy written whole as `value` over
+    /// `if_revision`. A receipt's undo.
+    PolicySet {
+        account: String,
+        value: Value,
+        if_revision: i64,
+    },
 }
 
 /// What a surface adds to the one shape: its words, the remedy in its

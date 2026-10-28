@@ -1003,3 +1003,59 @@ fn every_receipts_undo_sent_back_as_printed_puts_the_prior_back() {
     assert_eq!(manual(&mut mcp)["value"], created["written"]["value"]);
     assert!(no_daemon_appeared(&dir.0));
 }
+
+/// Round 5 of the 2g build (the receipt shape): `set_sync_policy`
+/// answers the shape every write answers, its `undo` a request to the
+/// same tool — the prior written back whole (`replace`) over the revision
+/// this write left — which, sent back as printed, lands; a first policy
+/// has none, and `no_undo` says why.
+#[test]
+fn a_policy_receipts_undo_sent_back_as_printed_puts_the_prior_back() {
+    let dir = scratch("mcp-policy-undo");
+    let mock = dir.0.join("store").join("mock");
+    std::fs::create_dir_all(&mock).unwrap();
+    Index::load(&mock)
+        .unwrap()
+        .record_login(USER, UUID, false, acquisition_store::now(), &[])
+        .unwrap();
+    let mut mcp = Mcp::start(&dir.0, &[]);
+    let pc = json!({ "version": 3, "realms": { "pc": { "leagues": { "Standard":
+        { "tabs": "all", "max_age_seconds": 3600 } } } } });
+    let poe2 = json!({ "version": 3, "realms": { "poe2": { "leagues": { "Standard":
+        { "characters": "all", "max_age_seconds": 600 } } } } });
+    let (ok, first) = tool(&mut mcp, "set_sync_policy", json!({ "value": pc }));
+    assert!(ok, "{first}");
+    assert_eq!(
+        (&first["prior"], &first["revision"]),
+        (&Value::Null, &json!(1))
+    );
+    assert_eq!(
+        first["target"],
+        json!({ "account": USER, "realms": ["pc"] })
+    );
+    assert_eq!(first.get("undo"), None, "{first}");
+    assert!(first["no_undo"].is_string(), "{first}");
+    let (ok, merged) = tool(
+        &mut mcp,
+        "set_sync_policy",
+        json!({ "value": poe2, "if_revision": 1 }),
+    );
+    assert!(ok, "{merged}");
+    assert_eq!(merged["prior"]["value"], pc);
+    assert_eq!(
+        merged["undo"],
+        json!({
+            "request": { "value": pc, "if_revision": 2, "replace": true, "account": USER },
+            "says": "puts the prior policy back, whole",
+        }),
+        "the same tool, so no `tool`"
+    );
+    let (ok, back) = tool(
+        &mut mcp,
+        "set_sync_policy",
+        merged["undo"]["request"].clone(),
+    );
+    assert!(ok, "{back}");
+    assert_eq!((&back["revision"], &back["value"]), (&json!(3), &pc));
+    assert_eq!(back["prior"], merged["written"]);
+}

@@ -196,7 +196,8 @@ pub fn policy_set(
         .account()?
         .set_policy(&value, policy_expect(if_revision), write)?;
     if json {
-        println!("{}", serde_json::to_string_pretty(&written)?);
+        let receipt = acquisition_verbs::receipt::policy(&written, &crate::Terminal::writing());
+        println!("{}", serde_json::to_string_pretty(&receipt)?);
     } else {
         println!(
             "sync policy written (revision {}) — preview the work with `acq refresh --plan`",

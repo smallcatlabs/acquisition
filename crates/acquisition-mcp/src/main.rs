@@ -404,6 +404,16 @@ impl refusal::Surface for Spoken<'_> {
                 json!({ "target": target, "if_revision": if_revision, "account": account }),
                 other("price_clear"),
             )),
+            Way::PolicySet {
+                account,
+                value,
+                if_revision,
+            } => Some((
+                json!({
+                    "value": value, "if_revision": if_revision, "replace": true, "account": account,
+                }),
+                other("set_sync_policy"),
+            )),
         }
     }
 }
@@ -1678,7 +1688,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Write the account's sync policy, validated strictly, compare-and-swap on `if_revision`. Local only: it sends nothing; the network cost appears only when a plan is applied. Each realm the value names replaces that realm alone, the others stay; `replace: true` writes the whole policy. Returns the stored row, and `league_notes` for a league the account's fetched league list does not hold, with `list_fetched_at` (null when never fetched; a `leagues` job fetches it). Nothing refuses on a note."
+        description = "Write the account's sync policy, validated strictly, compare-and-swap on `if_revision`. Local only: it sends nothing; the network cost appears only when a plan is applied. Each realm the value names replaces that realm alone, the others stay; `replace: true` writes the whole policy. Returns the stored row with the receipt — `target`, `written`, `prior`, `undo` (a request that puts `prior` back) or `no_undo` (why none) — and `league_notes` for a league the fetched league list lacks, with `list_fetched_at` (null if never fetched; a `leagues` job fetches it). Nothing refuses on a note."
     )]
     fn set_sync_policy(&self, Parameters(p): Parameters<Args<SetPolicyParams>>) -> Told {
         answer(|| {
@@ -1689,11 +1699,12 @@ impl AcqMcp {
                 PolicyWrite::Merge
             };
             // C52: naming no revision creates, never replaces.
-            Ok(self.account(p.account.as_deref())?.set_policy(
+            let written = self.account(p.account.as_deref())?.set_policy(
                 &p.value,
                 Expect::or(p.if_revision, Expect::Create),
                 write,
-            )?)
+            )?;
+            Ok(receipt::policy(&written, &Spoken { named: "account" }))
         })
     }
 

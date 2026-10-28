@@ -21,7 +21,9 @@ use std::path::PathBuf;
 
 use acquisition_client::client::{Client, ConnectError, ConnectOptions, Observed};
 use acquisition_plan::pricing::Expect;
-use acquisition_plan::{LeagueNote, PolicyWrite, SyncPolicy, league_notes, put_sync_policy};
+use acquisition_plan::{
+    LeagueNote, PolicyWrite, PutPolicyError, SyncPolicy, league_notes, put_sync_policy_over,
+};
 use acquisition_protocol::provider::GGG;
 use acquisition_protocol::realm::Realm;
 use acquisition_store::world::intended_root;
@@ -372,6 +374,16 @@ impl Account {
     /// carries a note for each league the value names that the account's
     /// fetched league list does not hold (C126); nothing refuses on it, and
     /// a facts file this build cannot read leaves the receipt without notes.
+    ///
+    /// The row the write replaces is read once, before the put, and
+    /// checked as a price write's is (round 5 of the 2g build; the second
+    /// cold review's finding 1): under [`Expect::Exactly`] the row at
+    /// exactly that revision, else the conflict the put would raise
+    /// ([`Annotations::at_revision`]), so a row read at 4, another
+    /// writer's 5 and a write naming 5 report 5 as the prior, never 4;
+    /// under [`Expect::Current`] the row read; under [`Expect::Create`] no
+    /// read, the prior absent whatever stands. That one row is the merge's
+    /// ([`put_sync_policy_over`]) and the receipt's `prior`.
     pub fn set_policy(
         &self,
         value: &Value,
@@ -379,8 +391,17 @@ impl Account {
         write: PolicyWrite,
     ) -> Result<PolicyWritten, Fault> {
         let mut intent = self.intent()?;
-        let expected = match expect {
-            Expect::Exactly(revision) => Some(revision),
+        let prior = match expect {
+            Expect::Exactly(revision) => Some(
+                intent
+                    .at_revision(
+                        SYNC_POLICY_SCOPE,
+                        SYNC_POLICY_KEY,
+                        SYNC_POLICY_KIND,
+                        revision,
+                    )
+                    .map_err(PutPolicyError::Store)?,
+            ),
             Expect::Create => None,
             Expect::Current => {
                 match intent
@@ -389,7 +410,7 @@ impl Account {
                 {
                     None => None,
                     Some(row) => match SyncPolicy::from_value(&row.value) {
-                        Ok(_) => Some(row.revision),
+                        Ok(_) => Some(row),
                         Err(e) => {
                             return Err(Fault::UnreadablePolicy {
                                 revision: row.revision,
@@ -400,13 +421,17 @@ impl Account {
                 }
             }
         };
-        let row = put_sync_policy(
+        let row = put_sync_policy_over(
             &mut intent,
             value,
-            expected,
+            prior.as_ref(),
             write,
             &Provenance::via(self.frontend.via),
         )?;
+        let target = PolicyTarget {
+            account: self.entry.username.clone(),
+            realms: replaced_realms(value, prior.as_ref(), write),
+        };
         let notes = match (
             SyncPolicy::from_value(value),
             self.facts().ok().map(|f| f.league_list()),
@@ -415,10 +440,32 @@ impl Account {
             _ => Vec::new(),
         };
         Ok(PolicyWritten {
+            written: row.clone(),
             row,
+            target,
+            prior,
             league_notes: notes,
         })
     }
+}
+
+/// The realms a policy write replaced: those the value names, and under
+/// [`PolicyWrite::Replace`] every realm the prior held as well (a realm
+/// the whole value omits is gone). A value or a prior this build cannot
+/// read names none of its own.
+fn replaced_realms(value: &Value, prior: Option<&AnnotationRow>, write: PolicyWrite) -> Vec<Realm> {
+    let realms = |v: &Value| {
+        SyncPolicy::from_value(v)
+            .map(|p| p.realms.into_keys().collect::<Vec<_>>())
+            .unwrap_or_default()
+    };
+    let mut out = realms(value);
+    if write == PolicyWrite::Replace {
+        out.extend(prior.map(|row| realms(&row.value)).unwrap_or_default());
+    }
+    out.sort();
+    out.dedup();
+    out
 }
 
 /// The sync policy as both doors show it (C149: every answer one object,
@@ -431,13 +478,31 @@ pub struct PolicyShown {
 
 /// A sync-policy write as both doors report it (C36, C126): the stored
 /// row, whole, and a note for each league the written value names that
-/// the account's fetched league list does not hold.
+/// the account's fetched league list does not hold; and the one receipt
+/// shape every write answers (round 5 of the 2g build,
+/// [`crate::receipt`]): `target`, `written` (the stored row again, under
+/// the shape's name; the flattened row stands, C53 additive), `prior`,
+/// the row the write replaced, null on a create — the flattened row's
+/// `revision` is the receipt's, the one the next write names. Its `undo`
+/// or `no_undo` is spelled by each surface ([`crate::receipt::policy`]).
 #[derive(Clone, Debug, Serialize)]
 pub struct PolicyWritten {
     #[serde(flatten)]
     pub row: AnnotationRow,
+    pub target: PolicyTarget,
+    pub written: AnnotationRow,
+    pub prior: Option<AnnotationRow>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub league_notes: Vec<LeagueNote>,
+}
+
+/// What a sync-policy write wrote: the account's one policy (one per
+/// account, C35), and the realms it replaced: those the value names and,
+/// under a whole write, every realm the prior held.
+#[derive(Clone, Debug, Serialize)]
+pub struct PolicyTarget {
+    pub account: String,
+    pub realms: Vec<Realm>,
 }
 
 /// An account's facts and intent, open together (C12): what the refresh

@@ -1074,6 +1074,7 @@ impl acquisition_verbs::refusal::Surface for Plain {
             Way::PriceStatus { .. } => Some("price_status"),
             Way::PriceSet { .. } => Some("price_set"),
             Way::PriceClear { .. } => Some("price_clear"),
+            Way::PolicySet { .. } => Some("set_sync_policy"),
         };
         Some((json!(format!("{way:?}")), tool))
     }
@@ -1341,4 +1342,132 @@ fn a_request_read_whole_is_repeated_as_another_account_by_one_rule() {
         )
     );
     assert!(again(&json!([1]), USER).is_none());
+}
+
+// ---- the one receipt shape (C78; round 5 of the 2g build) ----------------
+
+/// Round 5 of the 2g build (the second cold review's findings 1 and 14):
+/// a policy write's receipt carries `prior`, the row the write replaced,
+/// read once before the put and checked against the revision the write
+/// names as a price write's is. Staged as the race: an agent reads the
+/// policy at 2; a second writer lands 3; a write naming 2 is the conflict
+/// carrying 3, and one naming 3 reports 3 as its prior — never the row the
+/// agent read. A first write's prior is absent whatever stands, so its
+/// receipt names no undo and says why (`no_undo`); a later write's `undo`
+/// writes the prior back whole over the revision it left, and lands. The
+/// `target` is the account and the realms the write replaced; `written`
+/// the row now standing, beside the flattened row whose `revision` is the
+/// next write's. A prior this build cannot read has no undo either.
+#[test]
+fn a_policy_receipt_carries_its_prior_checked_at_the_revision_it_names_and_its_undo() {
+    use acquisition_verbs::receipt;
+    use acquisition_verbs::refusal::Way;
+    let s = scratch();
+    let account = profiled(&s.mock);
+    let surface = Plain;
+    let undo = |written: &acquisition_verbs::frontend::PolicyWritten| {
+        let Ok((
+            Way::PolicySet {
+                account: who,
+                value,
+                if_revision,
+            },
+            _,
+        )) = receipt::policy_undo(written)
+        else {
+            panic!("no undo: {:?}", receipt::policy(written, &surface));
+        };
+        assert_eq!(who, USER);
+        account
+            .set_policy(&value, Expect::Exactly(if_revision), PolicyWrite::Replace)
+            .unwrap()
+    };
+
+    // A create: no prior, so no undo, and the receipt says why.
+    let first = account
+        .set_policy(&policy(), Expect::Create, PolicyWrite::Merge)
+        .unwrap();
+    let doc = receipt::policy(&first, &surface);
+    assert_eq!(doc["prior"], Value::Null, "{doc}");
+    assert_eq!(doc["revision"], json!(1));
+    assert_eq!(doc["written"]["revision"], json!(1));
+    assert_eq!(doc["target"], json!({ "account": USER, "realms": ["pc"] }));
+    assert_eq!(doc.get("undo"), None, "{doc}");
+    assert!(
+        doc["no_undo"]
+            .as_str()
+            .is_some_and(|s| s.contains("no verb clears a policy")),
+        "{doc}"
+    );
+
+    // An agent reads 2 ...
+    let poe2 = json!({ "version": 3, "realms": { "poe2": { "leagues": { "Standard":
+        { "characters": "all", "max_age_seconds": 3600 } } } } });
+    let read = account
+        .set_policy(&poe2, Expect::Exactly(1), PolicyWrite::Merge)
+        .unwrap();
+    assert_eq!(read.prior.as_ref(), Some(&first.row), "the merge's prior");
+    let doc = receipt::policy(&read, &surface);
+    assert_eq!(doc["target"]["realms"], json!(["poe2"]), "{doc}");
+    assert!(
+        doc.get("undo").is_some() && doc.get("no_undo").is_none(),
+        "{doc}"
+    );
+    // ... a second writer lands 3 ...
+    let second = account
+        .set_policy(&policy(), Expect::Exactly(2), PolicyWrite::Replace)
+        .unwrap();
+    assert_eq!(
+        second.target.realms,
+        [Realm::Pc, Realm::Poe2],
+        "a replace's prior realms too"
+    );
+    // ... and a write naming 2 is the conflict carrying 3.
+    let stale = account
+        .set_policy(&poe2, Expect::Exactly(2), PolicyWrite::Merge)
+        .unwrap_err();
+    let refused = acquisition_verbs::refusal::document(&stale.into(), &surface);
+    assert_eq!(
+        (
+            &refused["kind"],
+            &refused["revision"],
+            &refused["current"]["value"]
+        ),
+        (&json!("conflict"), &json!(3), &policy()),
+        "{refused}"
+    );
+    // A write naming 3 replaced 3, the second writer's row, never 2.
+    let named = account
+        .set_policy(&poe2, Expect::Exactly(3), PolicyWrite::Merge)
+        .unwrap();
+    assert_eq!(named.prior.as_ref(), Some(&second.row));
+    assert_eq!(named.row.revision, 4);
+    // Its undo writes the prior back whole over 4, and lands.
+    let back = undo(&named);
+    assert_eq!((back.row.revision, &back.row.value), (5, &policy()));
+    assert_eq!(back.prior.as_ref(), Some(&named.row));
+    // The current form reads its prior too.
+    let current = account
+        .set_policy(&poe2, Expect::Current, PolicyWrite::Merge)
+        .unwrap();
+    assert_eq!(current.prior.as_ref(), Some(&back.row));
+
+    // A prior this build cannot read: replaced only by naming it, and
+    // nothing puts it back.
+    rusqlite::Connection::open(acquisition_store::annotations_path(&s.mock, UUID))
+        .unwrap()
+        .execute(
+            "UPDATE annotations SET value = '{\"version\":99,\"realms\":{}}' WHERE kind = ?1",
+            [SYNC_POLICY_KIND],
+        )
+        .unwrap();
+    let over = account
+        .set_policy(&policy(), Expect::Exactly(6), PolicyWrite::Replace)
+        .unwrap();
+    let doc = receipt::policy(&over, &surface);
+    assert_eq!(doc.get("undo"), None, "{doc}");
+    assert_eq!(
+        doc["no_undo"],
+        json!("the prior policy cannot be put back: this build cannot read it")
+    );
 }

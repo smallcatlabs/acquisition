@@ -893,9 +893,10 @@ impl std::error::Error for PutPolicyError {}
 /// [`PolicyWrite::Merge`] the stored policy is read and the realms the
 /// value names replace its own, so a poe2 policy written alone leaves
 /// the pc one standing. The merge is made from the row at exactly
-/// `expected_revision` — any other stored revision is the same conflict
-/// the put would raise — and lands in one put, so the revision advances
-/// once per write.
+/// `expected_revision`, read once and checked as a price write's is
+/// ([`Annotations::at_revision`]: any other stored revision is the same
+/// conflict the put would raise), and lands in one put, so the revision
+/// advances once per write; a create reads nothing ([`put_sync_policy_over`]).
 pub fn put_sync_policy(
     annotations: &mut Annotations,
     value: &Value,
@@ -903,15 +904,35 @@ pub fn put_sync_policy(
     write: PolicyWrite,
     provenance: &Provenance,
 ) -> Result<AnnotationRow, PutPolicyError> {
+    let prior = expected_revision
+        .map(|r| annotations.at_revision(SYNC_POLICY_SCOPE, SYNC_POLICY_KEY, SYNC_POLICY_KIND, r))
+        .transpose()
+        .map_err(PutPolicyError::Store)?;
+    put_sync_policy_over(annotations, value, prior.as_ref(), write, provenance)
+}
+
+/// [`put_sync_policy`] over the row it replaces, already read and checked
+/// by the caller — `prior`, the stored row at the revision the write
+/// names, or none for a create — so one read serves the check, the merge
+/// and a receipt's `prior` (round 5 of the 2g build, the second cold
+/// review's finding 1): the put names `prior`'s revision, so a row that
+/// moved since the read is the conflict, never a stale prior reported as
+/// replaced. A create merges into nothing and the put refuses it over a
+/// live row, carrying that row.
+pub fn put_sync_policy_over(
+    annotations: &mut Annotations,
+    value: &Value,
+    prior: Option<&AnnotationRow>,
+    write: PolicyWrite,
+    provenance: &Provenance,
+) -> Result<AnnotationRow, PutPolicyError> {
+    let expected_revision = prior.map(|row| row.revision);
     let merged;
     let value = match write {
         PolicyWrite::Replace => value,
         PolicyWrite::Merge => {
             let mut written = SyncPolicy::from_value(value).map_err(PutPolicyError::Invalid)?;
-            let stored = annotations
-                .get(SYNC_POLICY_SCOPE, SYNC_POLICY_KEY, SYNC_POLICY_KIND)
-                .map_err(PutPolicyError::Store)?;
-            let policy = match stored {
+            let policy = match prior {
                 // Nothing to merge into: the put creates, or refuses a
                 // revision that names nothing, as it always has. A realm
                 // named with no leagues goes here as it does from a merge;
@@ -920,11 +941,6 @@ pub fn put_sync_policy(
                     let named = written.realms.len();
                     written.realms.retain(|_, entry| !entry.leagues.is_empty());
                     (written.realms.len() != named).then_some(written)
-                }
-                Some(row) if Some(row.revision) != expected_revision => {
-                    return Err(PutPolicyError::Store(AnnotationError::Conflict {
-                        current: Some(Box::new(row)),
-                    }));
                 }
                 Some(row) => {
                     let mut policy = SyncPolicy::from_value(&row.value)
@@ -3671,6 +3687,42 @@ mod tests {
             put_sync_policy(&mut a, &poe2, Some(4), PolicyWrite::Replace, &via_test()).unwrap();
         assert_eq!(row.revision, 5);
         assert_eq!(row.value, poe2);
+    }
+
+    /// Round 5 of the 2g build (the second cold review's finding 1): a
+    /// policy write over a row read beforehand names that row's revision,
+    /// so a row read at 1 and moved to 2 by another writer is the
+    /// conflict carrying 2 — never a write that lands and reports the row
+    /// read as replaced; the merge is made from the row passed, read once.
+    #[test]
+    fn a_policy_write_over_a_row_that_moved_since_it_was_read_is_the_conflict() {
+        let mut a = Annotations::open_memory().unwrap();
+        let pc = json!({ "version": 3, "realms": { "pc": { "leagues": { "Standard":
+            { "tabs": "all", "max_age_seconds": 3600 } } } } });
+        let poe2 = json!({ "version": 3, "realms": { "poe2": { "leagues": { "Standard":
+            { "characters": "all", "max_age_seconds": 3600 } } } } });
+        let read = put_sync_policy(&mut a, &pc, None, PolicyWrite::Merge, &via_test()).unwrap();
+        let moved =
+            put_sync_policy(&mut a, &poe2, Some(1), PolicyWrite::Replace, &via_test()).unwrap();
+        let err = put_sync_policy_over(&mut a, &poe2, Some(&read), PolicyWrite::Merge, &via_test())
+            .unwrap_err();
+        match err {
+            PutPolicyError::Store(AnnotationError::Conflict { current }) => {
+                assert_eq!(current.as_deref(), Some(&moved));
+            }
+            other => panic!("not the conflict: {other}"),
+        }
+        let landed =
+            put_sync_policy_over(&mut a, &pc, Some(&moved), PolicyWrite::Merge, &via_test())
+                .unwrap();
+        assert_eq!(landed.revision, 3);
+        let both = SyncPolicy::from_value(&landed.value).unwrap();
+        assert_eq!(
+            both.realms.len(),
+            2,
+            "merged into the row passed: {}",
+            landed.value
+        );
     }
 
     /// C36, amended 2026-10-19 — a realm named with no leagues goes from a

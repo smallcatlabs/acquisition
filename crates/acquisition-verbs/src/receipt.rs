@@ -1,10 +1,11 @@
 //! One receipt shape for every write (round 5 of `roadmap/briefs/2g-build.md`,
 //! the shape its design's Q6 delegated; C78, a single write returns the
-//! prior so a hand can undo it): `price_set`'s and `price_clear`'s answer
-//! is one document on every surface, made here so no frontend shapes a
-//! receipt alone:
+//! prior so a hand can undo it): `price_set`'s, `price_clear`'s and the
+//! sync policy's write's answer is one document on every surface, made
+//! here so no frontend shapes a receipt alone:
 //!
-//! - `target`: what was written;
+//! - `target`: what was written — a price's target; a policy's account
+//!   and the realms the write replaced;
 //! - `written`, the row now standing, null after a clear; `prior`, the
 //!   row before, null on a create;
 //! - `revision`, the revision now current, which the next write over the
@@ -15,13 +16,17 @@
 //!   surface spells it, [`Surface::request`]); or, where nothing puts it
 //!   back, `no_undo` beside its absence, the reason in words — never both,
 //!   never neither;
-//! - the write's own facts: `in_facts` on a price set.
+//! - the write's own facts: `in_facts` on a price set, `league_notes` on
+//!   a policy write (C126).
 
+use acquisition_plan::SyncPolicy;
 use acquisition_plan::price::{PriceWrite, Undo};
 use acquisition_plan::pricing::SetReceipt;
+use acquisition_store::{IntentValue as _, check_value};
 use serde::Serialize;
 use serde_json::{Map, Value, json};
 
+use crate::frontend::PolicyWritten;
 use crate::refusal::{Surface, Way, offer};
 
 /// `price set`'s receipt, as the account it ran as: the planner's
@@ -74,6 +79,41 @@ pub fn price_undo(write: &PriceWrite, account: &str) -> Result<(Way, String), St
             (way, says)
         }
     })
+}
+
+/// The sync policy's write's receipt: [`PolicyWritten`], then its `undo`
+/// or `no_undo`.
+pub fn policy(written: &PolicyWritten, surface: &dyn Surface) -> Value {
+    shaped(written, policy_undo(written), surface)
+}
+
+/// What puts a policy write's prior back: the prior's value written whole
+/// (`replace`), naming the revision this write left, so it undoes this
+/// write and not a later one; or why nothing does. A first write has no
+/// prior to put back, and no verb clears a policy (round 5 of the 2g
+/// build names the missing undo rather than adding one); a prior this
+/// build cannot read is no value its door would write.
+pub fn policy_undo(written: &PolicyWritten) -> Result<(Way, String), String> {
+    let Some(prior) = &written.prior else {
+        return Err(
+            "a first policy has nothing before it to put back, and no verb clears a policy"
+                .to_string(),
+        );
+    };
+    check_value::<SyncPolicy>(&prior.value)
+        .map_err(|_| ())
+        .and_then(|policy| policy.check_write().map_err(|_| ()))
+        .map_err(|()| {
+            "the prior policy cannot be put back: this build cannot read it".to_string()
+        })?;
+    Ok((
+        Way::PolicySet {
+            account: written.target.account.clone(),
+            value: prior.value.clone(),
+            if_revision: written.row.revision,
+        },
+        "puts the prior policy back, whole".to_string(),
+    ))
 }
 
 /// `document` as one object, `undo` spelled by `surface` or `no_undo`
