@@ -457,16 +457,26 @@ async fn c137_the_handshake_deadline_at_zero_is_unresponsive_against_a_peer_that
 /// is the deadline's, not the peer's — and the refusal names the peer's
 /// socket and pid, what was asked, zero seconds and the kill line. The
 /// connection that met it is poisoned: a second request is refused with
-/// the same words and sends no frame (the peer counts what it read). An
-/// acting request under the same deadline at zero is not bounded here:
-/// the peer's own answer comes back. The peer replays the `hello` a real
+/// the same words and sends no frame, read from the connection's
+/// transcript once the client is dropped (the peer reports each frame as
+/// it reads it, and the transcript when the connection closes; nothing
+/// is counted at a moment: the build's review, finding 2). A cancel and
+/// a quote under the same deadline at zero are not bounded here: the
+/// peer's own answer comes back. The peer replays the `hello` a real
 /// daemon of this world gave, so the observe door finds it compatible;
 /// no wall-clock bound is asserted.
 #[tokio::test]
 async fn c137_an_observe_request_under_the_deadline_at_zero_is_refused_naming_the_peer_and_an_acting_one_is_not()
  {
-    use std::sync::Arc;
-    use std::sync::atomic::{AtomicUsize, Ordering};
+    use tokio::sync::mpsc;
+
+    /// What the peer reports: a frame read, by its `req`, or a
+    /// connection closed, with every `req` it read.
+    #[derive(Debug, PartialEq)]
+    enum Seen {
+        Read(String),
+        Closed(Vec<String>),
+    }
 
     let s = session("stalled");
     // A real daemon's hello, replayed by the scripted peer below.
@@ -488,45 +498,47 @@ async fn c137_an_observe_request_under_the_deadline_at_zero_is_refused_naming_th
     drop(daemon);
 
     // The peer: the replayed hello, then an answer at once to whatever
-    // is asked, counting every frame it reads.
-    let frames = Arc::new(AtomicUsize::new(0));
+    // is asked, reporting each frame as it reads it and the transcript
+    // when the connection closes.
+    let (seen, mut saw) = mpsc::unbounded_channel::<Seen>();
     let socket = session_socket();
     let mut listener = Listener::bind(&socket).unwrap_or_else(|e| panic!("bind: {e:?}"));
-    let peer = {
-        let frames = Arc::clone(&frames);
-        tokio::spawn(async move {
-            loop {
-                let stream = listener.accept().await.expect("accept");
-                let (read, mut write) = tokio::io::split(stream);
-                let mut reader = BufReader::new(read);
-                let reply = reply.clone();
-                let frames = Arc::clone(&frames);
-                tokio::spawn(async move {
-                    while let Ok(Frame::Line(bytes)) =
-                        read_frame(&mut reader, MAX_FRAME_BYTES).await
-                    {
-                        frames.fetch_add(1, Ordering::SeqCst);
-                        let frame: Value = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
-                        let answer = match frame["req"].as_str() {
-                            Some("hello") => reply.clone(),
-                            _ => {
-                                json!({ "resp": "error", "kind": "refused", "message": "scripted" })
-                            }
-                        };
-                        let mut line = answer.to_string();
-                        line.push('\n');
-                        if write.write_all(line.as_bytes()).await.is_err() {
-                            break;
-                        }
+    let peer = tokio::spawn(async move {
+        loop {
+            let stream = listener.accept().await.expect("accept");
+            let (read, mut write) = tokio::io::split(stream);
+            let mut reader = BufReader::new(read);
+            let reply = reply.clone();
+            let seen = seen.clone();
+            tokio::spawn(async move {
+                let mut transcript = Vec::new();
+                while let Ok(Frame::Line(bytes)) = read_frame(&mut reader, MAX_FRAME_BYTES).await {
+                    let frame: Value = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
+                    let req = frame["req"].as_str().unwrap_or("?").to_string();
+                    transcript.push(req.clone());
+                    let _ = seen.send(Seen::Read(req.clone()));
+                    let answer = match req.as_str() {
+                        "hello" => reply.clone(),
+                        _ => json!({ "resp": "error", "kind": "refused", "message": "scripted" }),
+                    };
+                    let mut line = answer.to_string();
+                    line.push('\n');
+                    if write.write_all(line.as_bytes()).await.is_err() {
+                        break;
                     }
-                });
-            }
-        })
-    };
+                }
+                let _ = seen.send(Seen::Closed(transcript));
+            });
+        }
+    });
+    async fn next(saw: &mut mpsc::UnboundedReceiver<Seen>) -> Seen {
+        saw.recv().await.expect("the peer's report")
+    }
 
     // Observed under the isolation list's deadline: this client's daemon.
     let mut client = compatible_client().await;
     assert_eq!(client.daemon().pid(), pid);
+    assert_eq!(next(&mut saw).await, Seen::Read("hello".into()));
     let socket = socket.to_str().expect("utf-8").to_string();
 
     s.set_knob("ACQ_HELLO_WITHIN", Some("0"));
@@ -549,34 +561,57 @@ async fn c137_an_observe_request_under_the_deadline_at_zero_is_refused_naming_th
         )),
         "{sentence}"
     );
-    let read_so_far = frames.load(Ordering::SeqCst);
-    assert_eq!(read_so_far, 2, "the hello and the status: {read_so_far}");
+    // The status frame was sent before the deadline expired: the peer
+    // reads it, whenever it gets to.
+    assert_eq!(next(&mut saw).await, Seen::Read("daemon_status".into()));
 
     // Poisoned: the next request is refused the same way, and no frame
-    // reaches the peer, whose late answer it would otherwise read.
+    // reaches the peer, whose late answer it would otherwise read. The
+    // transcript the peer reports when the client hangs up is the whole
+    // of what the connection carried.
     let again = client
         .request(&Request::List)
         .await
         .expect_err("a request on a stalled connection");
     assert_eq!(format!("{again:#}"), sentence);
+    drop(client);
     assert_eq!(
-        frames.load(Ordering::SeqCst),
-        read_so_far,
-        "a frame was sent"
+        next(&mut saw).await,
+        Seen::Closed(vec!["hello".into(), "daemon_status".into()]),
+        "the poisoned connection carried a frame after its expiry"
     );
 
-    // An acting request is not bounded here: under the deadline at
-    // zero the peer's own answer comes back.
+    // A cancel (acting) and a quote (waiting on the start's restore) are
+    // not bounded here: under the deadline at zero the peer's own answer
+    // comes back.
     s.set_knob("ACQ_HELLO_WITHIN", Some("60"));
     let mut client = compatible_client().await;
+    assert_eq!(next(&mut saw).await, Seen::Read("hello".into()));
     s.set_knob("ACQ_HELLO_WITHIN", Some("0"));
-    match client.request(&Request::Cancel { id: 1 }).await {
-        Ok(Response::Error { kind, message }) => {
-            assert_eq!(kind, ErrorKind::Refused);
-            assert_eq!(message, "scripted");
+    for (req, name) in [
+        (Request::Cancel { id: 1 }, "cancel"),
+        (
+            Request::Quote {
+                jobs: Vec::new(),
+                account: None,
+            },
+            "quote",
+        ),
+    ] {
+        match client.request(&req).await {
+            Ok(Response::Error { kind, message }) => {
+                assert_eq!(kind, ErrorKind::Refused, "{name}");
+                assert_eq!(message, "scripted", "{name}");
+            }
+            other => panic!("{name} did not get the peer's answer: {other:?}"),
         }
-        other => panic!("the acting request did not get the peer's answer: {other:?}"),
+        assert_eq!(next(&mut saw).await, Seen::Read(name.into()));
     }
+    drop(client);
+    assert_eq!(
+        next(&mut saw).await,
+        Seen::Closed(vec!["hello".into(), "cancel".into(), "quote".into()])
+    );
 
     peer.abort();
     let _ = peer.await;

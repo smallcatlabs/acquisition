@@ -69,12 +69,14 @@
 //! Every observe request after the handshake runs under the same
 //! deadline (#103, `roadmap/briefs/103-observe-bound.md`): a request the
 //! daemon answers from memory — a job's status or result, the list, the
-//! daemon's status, the dashboard, the login's status, a quote, the
+//! daemon's status, the dashboard, the login's status, the
 //! subscription's turn — is bounded in [`Client::request`] by
 //! [`hello_within`], and its expiry is [`Stalled`], naming the peer's
 //! socket and pid, what was asked and the hand that stops it. An acting
 //! request (a submit, a cancel, a login step, a tripwire reset) is not
-//! bounded here: its wait is legitimate and bounded where it is made.
+//! bounded here: its wait is legitimate and bounded where it is made;
+//! nor is a quote, which waits for the start's credential restore
+//! (C148) and is bounded by its one caller, the planner's.
 //! The class is one exhaustive match (`asked`), so a new request is
 //! classed before the crate builds.
 //!
@@ -492,11 +494,17 @@ impl std::error::Error for Stalled {}
 /// #103: the class of a request at this client, one exhaustive match so
 /// a new variant is classed before the crate builds. An observe request
 /// is answered from the daemon's memory (a job evicted from it is read
-/// from the table, C6; a quote waits only for the start's restore,
-/// C148), so the handshake's deadline fits it; the words are what the
-/// refusal says was asked. An acting request waits on something real —
-/// the keyring, a store write, a listener bind, the limiter (invariant
-/// 1) — and is bounded where that wait is made, never here.
+/// from the table, C6), so the handshake's deadline fits it; the words
+/// are what the refusal says was asked. An acting request waits on
+/// something real — the keyring, a store write, a listener bind, the
+/// limiter (invariant 1) — and is bounded where that wait is made,
+/// never here. A quote is read-only but waits for the start's
+/// credential restore (C148), which on macOS is a Keychain prompt a
+/// person answers, so a bound here would say "kill" over a healthy
+/// daemon (the build's review, finding 1): it is bounded by its one
+/// caller, `acquisition_verbs::refresh::quote_within` under
+/// `QUOTE_TIMEOUT`, whose expiry is a note on an offline plan. A second
+/// caller of [`Client::quote`] brings its own bound.
 fn asked(req: &Request) -> Option<&'static str> {
     match req {
         Request::Status { .. } => Some("the job's status"),
@@ -504,10 +512,10 @@ fn asked(req: &Request) -> Option<&'static str> {
         Request::List => Some("the job list"),
         Request::Subscribe => Some("the subscription"),
         Request::AuthStatus => Some("the login's status"),
-        Request::Quote { .. } => Some("the quote"),
         Request::DaemonStatus => Some("its status"),
         Request::Dashboard => Some("the dashboard"),
-        Request::Submit { .. }
+        Request::Quote { .. }
+        | Request::Submit { .. }
         | Request::Cancel { .. }
         | Request::SetPriority { .. }
         | Request::AuthStart

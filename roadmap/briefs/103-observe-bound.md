@@ -170,11 +170,16 @@ No measurement. The failing inputs the tests stage:
    over `Request` with an exhaustive match, so a new variant must be
    classed before the crate builds: an observe request, answered from
    the daemon's memory and bounded here (`Status`, `Result`, `List`,
-   `Subscribe`, `AuthStatus`, `Quote`, `DaemonStatus`, `Dashboard`),
-   or an acting request, not bounded here (`Submit`, `Cancel`,
-   `SetPriority`, `AuthStart`, `AuthCheck`, `AuthLogout`,
-   `ResetTripwire`; where each one's wait is bounded is "Not in
-   scope"). The match names, for each observe request, what it asked
+   `Subscribe`, `AuthStatus`, `DaemonStatus`, `Dashboard`), or a
+   request not bounded here (`Submit`, `Cancel`, `SetPriority`,
+   `AuthStart`, `AuthCheck`, `AuthLogout`, `ResetTripwire`, and
+   `Quote`; where each one's wait is bounded is "Not in scope").
+   *Settled in the round:* the brief first listed `Quote` among the
+   observe requests; it waits for the start's credential restore
+   (C148), a Keychain prompt on macOS, so the client's refusal would
+   say "kill" over a healthy daemon (the review's finding 1); its
+   bound is its one caller's, `quote_within` under `QUOTE_TIMEOUT`,
+   and the match's doc comment names that caller. The match names, for each observe request, what it asked
    in words for the refusal ("its status", "the job list", "the job's
    status", "the job's result", "the subscription", "the login's
    status", "the quote", "the dashboard"). This is not a ruling: C86's
@@ -196,7 +201,9 @@ No measurement. The failing inputs the tests stage:
    <asked> within <s>s; stop it by hand (`kill <n>`) and run the
    command again" (`taskkill /F /PID` on Windows, as `KILL` already
    says), and a `find` on an `anyhow::Error` as `DaemonError` has. No
-   Keychain sentence: none of these requests touches the keyring. The
+   Keychain sentence: none of these requests touches the keyring or
+   waits for its restore (*settled in the round:* true once `Quote`
+   left the class, Do 1). The
    expiry poisons the connection (C85: an answer may still arrive, and
    the next frame read would be it): the client keeps the `Stalled`
    and every later request on it is refused with the same words
@@ -210,8 +217,13 @@ No measurement. The failing inputs the tests stage:
    4242, and whose words carry "answered the handshake and then not
    its status within 0s" and the kill line; a second
    `request(DaemonStatus)` on the same client is the same refusal; a
-   fresh observation under the knob at 60 and `request(Cancel)` under
-   the knob at zero returns the peer's error frame as a `Response`.
+   fresh observation under the knob at 60 and `request(Cancel)` and
+   `request(Quote)` under the knob at zero return the peer's error
+   frame as a `Response`. *Settled in the round:* the peer
+   acknowledges each frame it reads on a channel the test awaits
+   before any count, and the poisoned retry's "no frame sent" is read
+   from the connection's transcript after the client is dropped, never
+   from a counter read at a moment (the review's finding 2).
 3. **The verbs crate stops bounding for itself.** `daemon_within` and
    its `Option<Duration>` go; `daemon` calls `request` and maps its
    error as every other door does (`Fault::from_client`, so the
@@ -273,6 +285,8 @@ No measurement. The failing inputs the tests stage:
 
 ## Not in scope
 
+- `Quote`'s wait: the planner's `QUOTE_TIMEOUT` around the whole
+  attempt (settled in the round, Do 1).
 - The acting requests' waits: `Submit`'s is the job's (`wait` in
   verbs `jobs.rs`, the apply loop's own deadline), `AuthStart`'s and
   `AuthLogout`'s are the keyring's (C148, the standing concern of the
