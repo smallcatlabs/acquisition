@@ -187,8 +187,10 @@ PARENT=
 HALTED=
 for _ in $(seq 1 240); do
     s=$(status_json)
-    [ -z "$PARENT" ] && PARENT=$("$ACQ" jobs --json 2>/dev/null |
-        jq -r '[.[] | select(.kind == "refresh")][0].id // empty' || true)
+    # every job (`--all`; the default lists ten of each, C53), one
+    # document whose rows are `rows` (C149)
+    [ -z "$PARENT" ] && PARENT=$("$ACQ" jobs --all --json 2>/dev/null |
+        jq -r '[.rows[] | select(.kind == "refresh")][0].id // empty' || true)
     HALTED=$(echo "$s" | jq -r '.rails.halted // empty')
     [ -n "$HALTED" ] && break
     if ! kill -0 "$REFRESH_PID" 2>/dev/null; then
@@ -213,13 +215,16 @@ sleep 2 # let an already-dispatched send land (the gate admits two)
 { kill "$REFRESH_PID" && wait "$REFRESH_PID"; } 2>/dev/null || true
 REFRESH_PID=
 
-"$ACQ" jobs --json >"$RUN_DIR/jobs-halted.json"
-failed=$(jq '[.[] | select(.state == "failed")] | length' "$RUN_DIR/jobs-halted.json")
-waiting=$(jq '[.[] | select(.state == "waiting" and .kind == "stash")] | length' \
+# Every job (`--all`): the failed count is the document's own, made
+# over every job, and the waiting stash children are counted from every
+# row, never from ten (C53, C149).
+"$ACQ" jobs --all --json >"$RUN_DIR/jobs-halted.json"
+failed=$(jq '.by_state.failed' "$RUN_DIR/jobs-halted.json")
+waiting=$(jq '[.rows[] | select(.state == "waiting" and .kind == "stash")] | length' \
     "$RUN_DIR/jobs-halted.json")
 if [ "$failed" != 0 ]; then
     echo "*** $failed job(s) FAILED under the halt (pre-persistence behavior):" >&2
-    jq '[.[] | select(.state == "failed")]' "$RUN_DIR/jobs-halted.json" >&2
+    jq '[.rows[] | select(.state == "failed")]' "$RUN_DIR/jobs-halted.json" >&2
     exit 1
 fi
 echo "parent job $PARENT held; $waiting stash children waiting, none failed:"

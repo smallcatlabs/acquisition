@@ -270,7 +270,9 @@ stop_daemon() {
 fail_apply() { # <tag> <journal offset at cycle start> <ceiling>
     local tag=$1
     "$ACQ" jobs >&2 || true
-    "$ACQ" jobs --json >"$RUN_DIR/jobs-$tag.json" 2>/dev/null || true
+    # the evidence is every job (`--all`): the default lists ten of each
+    # beside the counts (C53, C149)
+    "$ACQ" jobs --all --json >"$RUN_DIR/jobs-$tag.json" 2>/dev/null || true
     check_rails "apply" "$2" "$3" || true
     status_json >"$RUN_DIR/daemon-$tag-status.json"
     if [ -n "$(daemon_log)" ]; then cp "$(daemon_log)" "$RUN_DIR/daemon.log"; fi
@@ -689,7 +691,7 @@ for c in $(seq 1 "$CYCLES"); do
     fi
     check_rails "apply" "$cycle_offset" "$ceiling"
     save_status "$tag"
-    "$ACQ" jobs --json >"$RUN_DIR/jobs-$tag.json"
+    "$ACQ" jobs --all --json >"$RUN_DIR/jobs-$tag.json"
     stop_daemon
     printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$c" $((LOGIN_LIFETIME + c)) "$logical" "$probes" "$ceiling" "$quote" >>"$CYCLE_ROWS"
     note "cycle $c (plan → quote → apply)"

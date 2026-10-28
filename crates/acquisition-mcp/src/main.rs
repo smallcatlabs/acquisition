@@ -554,7 +554,7 @@ impl schemars::JsonSchema for RequestParams {
 /// the verbs crate's; the words are this adapter's, since what this
 /// server does about a daemon (never spawning one in real mode, never
 /// replacing one) is its own (C13).
-const DAEMON: [(&str, &str); 7] = [
+const DAEMON: [(&str, &str); 8] = [
     (
         "real mode",
         "in real-GGG mode the daemon must already be running: a human starts it from the CLI, which also does the login, and this server never spawns or replaces one there — it submits, applies and quotes only through one a human started; in mock mode it starts one into an empty socket",
@@ -566,6 +566,10 @@ const DAEMON: [(&str, &str); 7] = [
     (
         "no daemon",
         "list_jobs, job_status, job_result and daemon_status observe only: with no daemon running none of them spawns one, and each answers from the ledger on disk; list_jobs, job_status and daemon_status say `running: false` — list_jobs `persisted`, the open rows as the last daemon left them (without ETAs), and `written_at`, how old that picture is; job_status the job's row and `next`, the command a person runs to start a daemon; daemon_status `persisted` (waiting, recorded_running, written_at) and `log`, the last daemon's log file in this world. `persisted` is null when this world has no queue yet; job_result answers a finished job's outcome as a running daemon would",
+    ),
+    (
+        "job counts",
+        "list_jobs with a daemon running: `running: true`, `total` every job it lists, `by_state` them by state (running, waiting, done, failed, cancelled, a zero included), and `next_starts_in_seconds` and `last_starts_in_seconds` the soonest and the latest predicted start among the waiting (a start, never an end; absent when none is predicted); then `rows` in id order, the first ten open jobs and the ten most recent finished, `open_left_out` and `finished_left_out` counting the rest, which `expand` lists. With none running, `persisted` holds ten of the ledger's open rows as `jobs`, with `total`, `waiting`, `recorded_running` and `left_out` over every one",
     ),
     (
         "ledger",
@@ -734,6 +738,12 @@ struct SubmitParams {
     account: Option<String>,
     /// Higher runs sooner (default 0).
     priority: Option<u8>,
+}
+
+#[derive(Deserialize, schemars::JsonSchema)]
+struct ListJobsParams {
+    /// List every job, open and finished, not ten of each.
+    expand: Option<bool>,
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]
@@ -1856,10 +1866,14 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Jobs the daemon lists, with states and ETAs: the open ones and the finished ones the ledger on disk holds. Observes only, never spawning a daemon: with none running it answers from the ledger (`running: false`, `persisted`); `describe` with names [\"daemon\"] says what each holds."
+        description = "Jobs the daemon lists, with states and ETAs, counted first over every job (`total`, `by_state`), then listed: ten open and the ten most recent finished, `expand` every one. Observes only, never spawning a daemon: with none running it answers from the ledger (`running: false`, `persisted`); `describe` with names [\"daemon\"] says what each holds and counts."
     )]
-    async fn list_jobs(&self) -> Told {
-        settled(async { Ok(self.frontend.jobs().await?) }.await)
+    async fn list_jobs(&self, Parameters(p): Parameters<Args<ListJobsParams>>) -> Told {
+        let expand = match p.parse() {
+            Ok(p) => p.expand.unwrap_or(false),
+            Err(e) => return failed(e),
+        };
+        settled(async { Ok(self.frontend.jobs(expand).await?) }.await)
     }
 
     #[tool(

@@ -40,12 +40,19 @@ fn signal(child: &Child, sig: &str) {
     assert!(status.success(), "kill {sig}");
 }
 
-/// One thing the watcher printed under `--json`: a snapshot (a pretty
-/// array) or an event (one object per line).
+/// One thing the watcher printed under `--json`: a snapshot (the `jobs`
+/// document, pretty, over lines; C149) or an event (one object per line).
 #[derive(Debug)]
 enum Item {
-    Snapshot(Vec<Value>),
+    Snapshot(Value),
     Event(Value),
+}
+
+/// A snapshot's rows.
+fn rows(snapshot: &Value) -> &Vec<Value> {
+    snapshot["rows"]
+        .as_array()
+        .unwrap_or_else(|| panic!("a snapshot lists its rows: {snapshot}"))
 }
 
 struct Output {
@@ -62,27 +69,25 @@ impl Output {
 
     fn item(&self, deadline: Instant) -> Item {
         let first = self.line(deadline);
-        if first == "[]" {
-            return Item::Snapshot(Vec::new());
-        }
-        if first.starts_with('[') {
+        // a pretty document opens on a line of its own; an event is one line
+        if first == "{" {
             let mut text = first;
             loop {
                 let line = self.line(deadline);
                 text.push('\n');
                 text.push_str(&line);
-                if line == "]" {
+                if line == "}" {
                     break;
                 }
             }
-            return Item::Snapshot(serde_json::from_str(&text).expect("a snapshot array"));
+            return Item::Snapshot(serde_json::from_str(&text).expect("a snapshot document"));
         }
         Item::Event(serde_json::from_str(&first).unwrap_or_else(|e| panic!("{e}: {first}")))
     }
 }
 
-fn watcher(base: &Path) -> (Proc, Output) {
-    let mut child = command(base, &["jobs", "--watch", "--json"])
+fn watcher(base: &Path, args: &[&str]) -> (Proc, Output) {
+    let mut child = command(base, &[&["jobs", "--watch", "--json"], args].concat())
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
@@ -146,10 +151,11 @@ fn c85_the_watch_subscribes_and_reads_again_after_it_lagged_with_no_leftover_eve
     let (_daemon, _) = start_daemon(&base);
     let runtime = tokio::runtime::Runtime::new().unwrap();
 
-    let (watch, out) = watcher(&base);
+    // every job in every snapshot (`--all`): the proof below reads all of them
+    let (watch, out) = watcher(&base, &["--all"]);
     let deadline = Instant::now() + Duration::from_secs(120);
     match out.item(deadline) {
-        Item::Snapshot(jobs) => assert!(jobs.is_empty(), "{jobs:?}"),
+        Item::Snapshot(jobs) => assert!(rows(&jobs).is_empty(), "{jobs}"),
         other => panic!("the watch opens with a snapshot: {other:?}"),
     }
 
@@ -177,6 +183,11 @@ fn c85_the_watch_subscribes_and_reads_again_after_it_lagged_with_no_leftover_eve
         }
     };
     assert_eq!(
+        snapshot["total"], JOBS,
+        "{events_before} events, then {snapshot}"
+    );
+    let snapshot = rows(&snapshot).clone();
+    assert_eq!(
         snapshot.len(),
         JOBS,
         "{events_before} events, then a partial snapshot"
@@ -190,6 +201,26 @@ fn c85_the_watch_subscribes_and_reads_again_after_it_lagged_with_no_leftover_eve
         .map(|j| j["id"].as_u64().unwrap())
         .max()
         .unwrap();
+
+    // A watch with no `--all` prints the same document bounded (C53, the
+    // brief's second review, finding 11): the 800 counted done beside the
+    // ten most recent, the rest counted as left out.
+    let (default_watch, default_out) = watcher(&base, &[]);
+    match default_out.item(Instant::now() + Duration::from_secs(120)) {
+        Item::Snapshot(listed) => {
+            assert_eq!(listed["total"], JOBS, "{listed}");
+            assert_eq!(listed["by_state"]["done"], JOBS, "{listed}");
+            assert_eq!(rows(&listed).len(), 10, "{listed}");
+            assert_eq!(listed["finished_left_out"], JOBS - 10, "{listed}");
+            assert_eq!(
+                rows(&listed).last().map(|j| j["id"].as_u64().unwrap()),
+                Some(newest_old),
+                "{listed}"
+            );
+        }
+        other => panic!("the watch opens with a snapshot: {other:?}"),
+    }
+    drop(default_watch);
 
     // After that snapshot, the only events are about jobs that came later:
     // the lagged subscription and everything it held are gone.
@@ -208,6 +239,6 @@ fn c85_the_watch_subscribes_and_reads_again_after_it_lagged_with_no_leftover_eve
             );
             assert!(job["state"].is_string(), "{job}");
         }
-        Item::Snapshot(jobs) => panic!("a second resync: {jobs:?}"),
+        Item::Snapshot(jobs) => panic!("a second resync: {jobs}"),
     }
 }

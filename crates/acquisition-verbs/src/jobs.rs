@@ -10,6 +10,7 @@ use std::time::Duration;
 use acquisition_client::client::{Client, DaemonError};
 use acquisition_protocol::job::{JobInfo, JobState, Outcome, target_of};
 use acquisition_protocol::protocol::{ErrorKind, Request, Response};
+use acquisition_store::bound::bounded;
 use acquisition_store::jobs::{Persisted, PersistedJob, PersistedRecord};
 use serde::Serialize;
 use serde::ser::{SerializeMap, Serializer};
@@ -122,11 +123,162 @@ async fn tally(client: &mut Client, parent: u64) -> Result<ChildTally, Fault> {
 }
 
 /// The queue: the daemon's list, or with no daemon the ledger's open
-/// rows (C45). `persisted` is `None` when this world has no queue yet.
+/// rows (C45), each one document counted beside its rows (C149, every
+/// answer one object; C53, the read economy). `persisted` is `None` when
+/// this world has no queue yet.
 #[derive(Clone, Debug)]
 pub enum Jobs {
-    Live(Vec<JobInfo>),
-    Absent { persisted: Option<Persisted> },
+    Live(Listed),
+    Absent { persisted: Option<PersistedJobs> },
+}
+
+/// Jobs by state, every state named, a zero included.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
+pub struct ByState {
+    pub running: usize,
+    pub waiting: usize,
+    pub done: usize,
+    pub failed: usize,
+    pub cancelled: usize,
+}
+
+/// The counts `acq jobs` prints on its last line, made over every job a
+/// list holds before any cut: how many, by state, and of the waiting
+/// jobs with a predicted start the soonest and the latest, in seconds
+/// from now — a start, never an end.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
+pub struct JobCounts {
+    /// Every job the list holds.
+    pub total: usize,
+    pub by_state: ByState,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_starts_in_seconds: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_starts_in_seconds: Option<u64>,
+}
+
+impl JobCounts {
+    /// The counts of `jobs`, whole.
+    pub fn of(jobs: &[JobInfo]) -> JobCounts {
+        let count = |s: JobState| jobs.iter().filter(|j| j.state == s).count();
+        let etas = || {
+            jobs.iter()
+                .filter(|j| j.state == JobState::Waiting)
+                .filter_map(|j| j.eta_seconds)
+                .filter(|e| *e > 0)
+        };
+        JobCounts {
+            total: jobs.len(),
+            by_state: ByState {
+                running: count(JobState::Running),
+                waiting: count(JobState::Waiting),
+                done: count(JobState::Done),
+                failed: count(JobState::Failed),
+                cancelled: count(JobState::Cancelled),
+            },
+            next_starts_in_seconds: etas().min(),
+            last_starts_in_seconds: etas().max(),
+        }
+    }
+}
+
+/// C149 and C53: the daemon's job list as one document — its counts over
+/// every job ([`JobCounts`]), then `rows`, in the daemon's id order: the
+/// open jobs (running or waiting), ten, the earliest by id (those running
+/// or next to run), and the ten most recent finished; every job under
+/// `expand` (the CLI's `--all`). What is left out is counted, open and
+/// finished apart (the brief's second review, finding 2: no exemption
+/// for the open jobs).
+#[derive(Clone, Debug, Serialize)]
+pub struct Listed {
+    #[serde(flatten)]
+    pub counts: JobCounts,
+    pub rows: Vec<JobInfo>,
+    /// Open jobs not in `rows`.
+    pub open_left_out: usize,
+    /// Finished jobs not in `rows`: the earliest.
+    pub finished_left_out: usize,
+    /// What lists them all: the request's `expand`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub left_out_needs: Option<&'static str>,
+}
+
+impl Listed {
+    /// The daemon's list, counted whole and then cut by the one rule.
+    pub fn of(jobs: Vec<JobInfo>, expand: bool) -> Listed {
+        let counts = JobCounts::of(&jobs);
+        let (open, finished): (Vec<JobInfo>, Vec<JobInfo>) =
+            jobs.into_iter().partition(|j| !j.state.is_terminal());
+        let (open, open_left_out) = bounded(open, None, expand);
+        // the most recent finished are the last by id: cut from the end
+        let mut finished = finished;
+        finished.reverse();
+        let (mut finished, finished_left_out) = bounded(finished, None, expand);
+        finished.reverse();
+        let mut rows = open;
+        rows.extend(finished);
+        rows.sort_by_key(|j| j.id);
+        Listed {
+            counts,
+            rows,
+            open_left_out,
+            finished_left_out,
+            left_out_needs: (open_left_out + finished_left_out > 0).then_some("expand"),
+        }
+    }
+}
+
+/// C45 and C149: the ledger's open rows as one document — `jobs` (the
+/// store's rows, ten, every one under `expand`), `written_at`, and the
+/// ledger's counts over every open row: `total`, `waiting`,
+/// `recorded_running`, the words `daemon_status` uses, and `left_out`.
+#[derive(Clone, Debug, Serialize)]
+pub struct PersistedJobs {
+    pub jobs: Vec<PersistedJob>,
+    pub written_at: Option<i64>,
+    /// Every open row the ledger holds.
+    pub total: usize,
+    pub waiting: usize,
+    pub recorded_running: usize,
+    /// The open rows not in `jobs`.
+    pub left_out: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub left_out_needs: Option<&'static str>,
+}
+
+impl PersistedJobs {
+    /// The ledger's open rows, counted whole and then cut by the one rule.
+    pub fn of(persisted: Persisted, expand: bool) -> PersistedJobs {
+        let (total, waiting, recorded_running) = (
+            persisted.jobs.len(),
+            persisted.waiting(),
+            persisted.recorded_running(),
+        );
+        let (jobs, left_out) = bounded(persisted.jobs, None, expand);
+        PersistedJobs {
+            jobs,
+            written_at: persisted.written_at,
+            total,
+            waiting,
+            recorded_running,
+            left_out,
+            left_out_needs: (left_out > 0).then_some("expand"),
+        }
+    }
+
+    /// The ledger's counts in the live list's shape, for one summary
+    /// line: what was recorded running counts as running.
+    pub fn counts(&self) -> JobCounts {
+        JobCounts {
+            total: self.total,
+            by_state: ByState {
+                running: self.recorded_running,
+                waiting: self.waiting,
+                ..ByState::default()
+            },
+            ..JobCounts::default()
+        }
+    }
 }
 
 /// One job: the daemon's reading, or with no daemon the ledger's row as
@@ -163,8 +315,9 @@ pub struct JobResult {
 }
 
 /// How many of a parent's failed children a result details; the tally
-/// lists every id.
-pub const FAILED_CHILDREN_DETAILED: usize = 10;
+/// lists every id (C23, the one exemption from the read economy's
+/// bound). The bound's own number, held once (C53).
+pub const FAILED_CHILDREN_DETAILED: usize = acquisition_store::bound::LISTED;
 
 /// One failed child of a parent, as the parent's result details it.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -228,11 +381,23 @@ fn disk_outcome(outcome: Option<Value>) -> Result<Outcome, String> {
 }
 
 impl Serialize for Jobs {
-    /// Live: the job list as the daemon gives it. Absent: `running:
-    /// false` and the persisted queue.
+    /// Live: `running: true` beside the listed document ([`Listed`]).
+    /// Absent: `running: false` and the persisted queue.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         match self {
-            Jobs::Live(jobs) => jobs.serialize(serializer),
+            Jobs::Live(listed) => {
+                #[derive(Serialize)]
+                struct Live<'a> {
+                    running: bool,
+                    #[serde(flatten)]
+                    listed: &'a Listed,
+                }
+                Live {
+                    running: true,
+                    listed,
+                }
+                .serialize(serializer)
+            }
             Jobs::Absent { persisted } => {
                 let mut map = serializer.serialize_map(Some(2))?;
                 map.serialize_entry("running", &false)?;
@@ -344,12 +509,14 @@ pub async fn outcome_live(client: &mut Client, id: u64) -> Result<Outcome, Fault
 
 impl Frontend {
     /// C45 (the ledger answers) and C10: the queue, live, or from the
-    /// ledger on disk when no daemon answers; never spawns.
-    pub async fn jobs(&self) -> Result<Jobs, Fault> {
+    /// ledger on disk when no daemon answers; never spawns. Ten open and
+    /// ten finished rows beside the counts of every job, every one under
+    /// `expand` (C53, C149).
+    pub async fn jobs(&self, expand: bool) -> Result<Jobs, Fault> {
         match self.observe().await? {
-            Some(mut client) => Ok(Jobs::Live(list(&mut client).await?)),
+            Some(mut client) => Ok(Jobs::Live(Listed::of(list(&mut client).await?, expand))),
             None => Ok(Jobs::Absent {
-                persisted: self.persisted()?,
+                persisted: self.persisted()?.map(|p| PersistedJobs::of(p, expand)),
             }),
         }
     }

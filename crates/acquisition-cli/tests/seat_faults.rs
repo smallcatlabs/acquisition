@@ -585,8 +585,18 @@ fn jobs_lists_what_is_open_and_counts_the_finished_it_leaves_out() {
     );
     assert!(!said.contains("not listed"), "{said}");
 
-    let all = sole_json(&acq(&base, &["jobs", "--json"]));
-    assert_eq!(all.as_array().map(Vec::len), Some(12), "{all}");
+    // the same document (C149): every job counted, ten finished listed
+    let listed = sole_json(&acq(&base, &["jobs", "--json"]));
+    assert_eq!(listed["total"], 12, "{listed}");
+    assert_eq!(listed["by_state"]["done"], 12, "{listed}");
+    assert_eq!(
+        listed["rows"].as_array().map(Vec::len),
+        Some(10),
+        "{listed}"
+    );
+    assert_eq!(listed["finished_left_out"], 2, "{listed}");
+    let all = sole_json(&acq(&base, &["jobs", "--all", "--json"]));
+    assert_eq!(all["rows"].as_array().map(Vec::len), Some(12), "{all}");
 }
 
 /// `daemon stop` said one line, and the next job command said "not
@@ -925,7 +935,7 @@ fn an_apply_behind_a_waiting_stash_fetch_does_not_queue_it_again() {
         assert!(out.status.success(), "{}", text(&out));
     }
     let open_jobs = || {
-        sole_json(&acq(&base, &["jobs", "--all", "--json"]))
+        sole_json(&acq(&base, &["jobs", "--all", "--json"]))["rows"]
             .as_array()
             .expect("a list of jobs")
             .clone()
@@ -1017,7 +1027,7 @@ fn an_apply_retried_while_its_requests_wait_queues_nothing_more() {
         .spawn()
         .expect("spawning acq");
     let open_jobs = || {
-        sole_json(&acq(&base, &["jobs", "--all", "--json"]))
+        sole_json(&acq(&base, &["jobs", "--all", "--json"]))["rows"]
             .as_array()
             .expect("a list of jobs")
             .clone()

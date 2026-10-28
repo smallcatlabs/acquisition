@@ -787,16 +787,16 @@ async fn apply(
 /// The jobs (Do 7): the `jobs` document, reloading itself while a job is
 /// not done. It observes and never spawns.
 async fn jobs(State(web): State<Arc<Web>>, headers: HeaderMap) -> Response {
-    let listed = match web.cx.frontend.jobs().await {
+    let listed = match web.cx.frontend.jobs(false).await {
         Ok(listed) => listed,
         Err(fault) => return web.failed("Jobs", &Failure::from(fault), &headers),
     };
     match listed {
-        Jobs::Live(jobs) => {
+        Jobs::Live(ref jobs) => {
             if wants_json(&headers) {
-                return document(&jobs);
+                return document(&listed);
             }
-            let running = jobs.iter().any(|j| !j.state.is_terminal());
+            let running = jobs.counts.by_state.running + jobs.counts.by_state.waiting > 0;
             let head = Head {
                 refresh: running.then_some(JOBS_REFRESH),
                 ..Head::default()
@@ -815,7 +815,7 @@ async fn jobs(State(web): State<Arc<Web>>, headers: HeaderMap) -> Response {
             web.page(
                 "Jobs",
                 head,
-                &pre(&format!("{rails}{}", crate::jobs_text(&jobs, false))),
+                &pre(&format!("{rails}{}", crate::jobs_text(jobs))),
             )
         }
         absent => {

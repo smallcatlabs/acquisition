@@ -52,5 +52,8 @@ pub use daemon::{DaemonReport, PersistedSummary};
 pub use diagnose::{Diagnosis, Redactions, Tails};
 pub use fault::Fault;
 pub use frontend::{Account, AccountRow, Accounts, Door, Frontend, JournalKnob, Opened, realm};
-pub use jobs::{ChildTally, FailedChild, Job, JobResult, Jobs, Progress};
+pub use jobs::{
+    ByState, ChildTally, FailedChild, Job, JobCounts, JobResult, Jobs, Listed, PersistedJobs,
+    Progress,
+};
 pub use refresh::{Apply, Landed, Planned, QuoteNote, Skipped, StoreChanges, Submitted};

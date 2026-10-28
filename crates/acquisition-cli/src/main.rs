@@ -26,7 +26,8 @@ use acquisition_protocol::realm::Realm;
 use acquisition_store::world::{Lock, RailsState, World};
 use acquisition_verbs::jobs::{job_info, result_live};
 use acquisition_verbs::{
-    Account, ChildTally, DaemonReport, FailedChild, Fault, Frontend, Job, JobResult, Jobs, Progress,
+    Account, ChildTally, DaemonReport, FailedChild, Fault, Frontend, Job, JobCounts, JobResult,
+    Jobs, Listed, Progress,
 };
 use anyhow::{Result, bail};
 use clap::{Parser, Subcommand};
@@ -94,7 +95,7 @@ pub(crate) fn persisted_queue_text(jobs: &Jobs) -> Result<String> {
     let spawns = "a job command or `acq auth` starts one";
     Ok(match persisted {
         None => format!("daemon is not running; no queue on disk ({spawns})\n"),
-        Some(p) if p.jobs.is_empty() => {
+        Some(p) if p.total == 0 => {
             format!("daemon is not running; nothing waits on disk ({spawns})\n")
         }
         Some(p) => {
@@ -103,15 +104,23 @@ pub(crate) fn persisted_queue_text(jobs: &Jobs) -> Result<String> {
                 .iter()
                 .map(job_info)
                 .collect::<Result<Vec<_>, Fault>>()?;
-            format!(
+            let mut text = format!(
                 "daemon is not running; on disk: {} waiting, {} recorded running, written {} — \
                  a job command spawns a successor that restores them, and `acq cancel <id>` \
-                 then acts on them\n{}",
-                p.waiting(),
-                p.recorded_running(),
+                 then acts on them\n{}{}",
+                p.waiting,
+                p.recorded_running,
                 store_cmd::ago(acquisition_store::now(), p.written_at),
-                table_text(&jobs)
-            )
+                rows_text(&jobs),
+                summary_text(&p.counts())
+            );
+            if p.left_out > 0 {
+                text.push_str(&format!(
+                    "{} more waiting or recorded running on disk not listed (`acq jobs --all`)\n",
+                    p.left_out
+                ));
+            }
+            text
         }
     })
 }
@@ -477,31 +486,35 @@ is the per-location summary.")]
     },
     /// The live jobs: id, parent, kind, target (from params), state
     /// (`↻n` counts 429 re-queues), priority, account, submitter, ETA.
-    /// Every waiting and running job is listed, and the ten most recent
-    /// finished ones; the last line counts them all, and says when the
-    /// next waiting job starts and when the last one does. `--json` is
-    /// every job the daemon lists: the open ones, and the finished ones of
-    /// this daemon's work and of what it restored from the daemon before
-    /// it, read from disk.
+    /// The first ten waiting and running jobs are listed, and the ten
+    /// most recent finished ones; the last line counts every job the
+    /// daemon lists, and says when the next waiting job starts and when
+    /// the last one does, and what was left out; `--all` lists every one.
+    /// `--json` is the same document: `running: true`, the counts
+    /// (`total`, `by_state`, the starts), `rows`, and `open_left_out` and
+    /// `finished_left_out`; the finished ones are of this daemon's work
+    /// and of what it restored from the daemon before it, read from disk.
     /// Observes only: with no daemon running it never spawns one, and
     /// answers from the ledger on disk instead — the non-terminal
-    /// rows as the last daemon left them, without ETAs, and how long ago
-    /// they were written; `--json`: `running: false`, `persisted` (`jobs`,
-    /// `written_at`; `null` when this shell's world has no queue yet). A
-    /// job command spawns a successor that restores them; `cancel` then
-    /// acts on them.
+    /// rows as the last daemon left them, ten unless `--all`, without
+    /// ETAs, and how long ago they were written; `--json`: `running:
+    /// false`, `persisted` (`jobs`, `written_at`, `total`, `waiting`,
+    /// `recorded_running`, `left_out`; `null` when this shell's world has
+    /// no queue yet). A job command spawns a successor that restores them;
+    /// `cancel` then acts on them.
     Jobs {
         /// Subscribe, print the queue, then every job-state change as it
         /// happens; the queue is printed again after a missed-events signal,
         /// and the watch ends when the daemon stops.
         #[arg(long)]
         watch: bool,
-        /// List every finished job of this daemon's work and of what it
-        /// restored from the daemon before it, read from disk, not the ten
-        /// most recent. An earlier daemon's other finished jobs are not
-        /// listed; `acq status <id>` and `acq result <id>` still answer
-        /// them from disk while retention keeps them.
-        #[arg(long, conflicts_with = "watch")]
+        /// List every job: every open one, not the first ten, and every
+        /// finished job of this daemon's work and of what it restored from
+        /// the daemon before it, read from disk, not the ten most recent;
+        /// with --watch, in every snapshot. An earlier daemon's other
+        /// finished jobs are not listed; `acq status <id>` and `acq result
+        /// <id>` still answer them from disk while retention keeps them.
+        #[arg(long)]
         all: bool,
     },
     /// One job's state and ETA. A large ETA is the limiter holding, not a
@@ -1539,16 +1552,16 @@ async fn run(cli: Cli) -> Result<()> {
         }
         Cmd::Jobs { watch, all } => {
             if watch {
-                return watch_jobs(cx, cli.json).await;
+                return watch_jobs(cx, cli.json, all).await;
             }
-            let jobs = match cx.frontend.jobs().await? {
-                Jobs::Live(jobs) => jobs,
-                absent => return print_persisted_queue(&absent, cli.json),
+            let jobs = cx.frontend.jobs(all).await?;
+            let Jobs::Live(listed) = &jobs else {
+                return print_persisted_queue(&jobs, cli.json);
             };
             if cli.json {
                 println!("{}", serde_json::to_string_pretty(&jobs)?);
             } else {
-                print_jobs(&jobs, all);
+                print!("{}", jobs_text(listed));
             }
             Ok(())
         }
@@ -2157,12 +2170,15 @@ async fn list(client: &mut Client) -> Result<Vec<JobInfo>> {
 /// with a fresh subscription and snapshot; when the daemon goes, observe
 /// it again — an observer never spawns — and subscribe and snapshot
 /// afresh if it is back. Pinned by `tests/watch_recovery.rs`.
-async fn watch_jobs(cx: &Ctx, json: bool) -> Result<()> {
-    let print_snapshot = |jobs: &[JobInfo]| -> Result<()> {
+async fn watch_jobs(cx: &Ctx, json: bool, all: bool) -> Result<()> {
+    // each snapshot the `jobs` document (C149), ten open and ten finished
+    // beside the counts of every job, every one under `--all` (C53)
+    let print_snapshot = |jobs: Vec<JobInfo>| -> Result<()> {
+        let listed = Listed::of(jobs, all);
         if json {
-            println!("{}", serde_json::to_string_pretty(jobs)?);
+            println!("{}", serde_json::to_string_pretty(&Jobs::Live(listed))?);
         } else {
-            print_table(jobs);
+            print!("{}", jobs_text(&listed));
         }
         Ok(())
     };
@@ -2179,7 +2195,7 @@ async fn watch_jobs(cx: &Ctx, json: bool) -> Result<()> {
             // to a daemon that is gone. Start over.
             continue;
         }
-        print_snapshot(&list(&mut client).await?)?;
+        print_snapshot(list(&mut client).await?)?;
         loop {
             let signal = match subscription.next().await {
                 Ok(signal) => signal,
@@ -2454,48 +2470,27 @@ fn print_outcome(result: &JobResult, json: bool) -> Result<()> {
     }
 }
 
-/// Finished jobs `acq jobs` lists without `--all` (C53: more are
-/// counted).
-const FINISHED_LISTED: usize = 10;
-
-/// `acq jobs`: every open job, the most recent finished ones, and the
-/// summary over all of them — the answer to "what is running, what
-/// waits, when is it done" is never below a screen of history.
-fn print_jobs(jobs: &[JobInfo], all: bool) {
-    print!("{}", jobs_text(jobs, all));
-}
-
-/// `jobs` as text: the rows, the earliest finished past the listed ones
-/// left out unless `all`, and the counts by state — the web UI's jobs
-/// page states it word for word.
-pub(crate) fn jobs_text(jobs: &[JobInfo], all: bool) -> String {
+/// `jobs` as text, a function of its document (C53, C149): the rows,
+/// the counts by state read from the document, and what it left out —
+/// the open past the ten, the earliest finished past the ten most recent
+/// — with `--all`, which lists every one. The web UI's jobs page states
+/// it word for word.
+pub(crate) fn jobs_text(listed: &Listed) -> String {
     let mut out = String::new();
-    let finished = jobs.iter().filter(|j| j.state.is_terminal()).count();
-    let hidden = if all {
-        0
-    } else {
-        finished.saturating_sub(FINISHED_LISTED)
-    };
-    // The daemon lists by id: the earliest finished are the ones left out.
-    let mut skip = hidden;
-    let shown: Vec<JobInfo> = jobs
-        .iter()
-        .filter(|j| {
-            if j.state.is_terminal() && skip > 0 {
-                skip -= 1;
-                return false;
-            }
-            true
-        })
-        .cloned()
-        .collect();
-    if !jobs.is_empty() {
-        out.push_str(&rows_text(&shown));
+    if !listed.rows.is_empty() {
+        out.push_str(&rows_text(&listed.rows));
     }
-    out.push_str(&summary_text(jobs));
-    if hidden > 0 {
+    out.push_str(&summary_text(&listed.counts));
+    if listed.open_left_out > 0 {
         out.push_str(&format!(
-            "{hidden} earlier finished jobs not listed (`acq jobs --all`)\n"
+            "{} more open jobs not listed (`acq jobs --all`)\n",
+            listed.open_left_out
+        ));
+    }
+    if listed.finished_left_out > 0 {
+        out.push_str(&format!(
+            "{} earlier finished jobs not listed (`acq jobs --all`)\n",
+            listed.finished_left_out
         ));
     }
     out
@@ -2509,7 +2504,7 @@ fn table_text(jobs: &[JobInfo]) -> String {
     if jobs.is_empty() {
         return "no jobs\n".to_string();
     }
-    rows_text(jobs) + &summary_text(jobs)
+    rows_text(jobs) + &summary_text(&JobCounts::of(jobs))
 }
 
 fn rows_text(jobs: &[JobInfo]) -> String {
@@ -2587,39 +2582,33 @@ fn rows_text(jobs: &[JobInfo]) -> String {
 /// The last line of a job table: the counts by state, and for what waits
 /// when the next starts and when the last does — a start, never an end:
 /// how long a request then takes is not predicted.
-fn summary_text(jobs: &[JobInfo]) -> String {
-    if jobs.is_empty() {
+fn summary_text(counts: &JobCounts) -> String {
+    if counts.total == 0 {
         return "no jobs\n".to_string();
     }
-    let count = |s: JobState| jobs.iter().filter(|j| j.state == s).count();
-    let mut parts = vec![format!("{} running", count(JobState::Running))];
-    let waiting = count(JobState::Waiting);
-    let etas = || {
-        jobs.iter()
-            .filter(|j| j.state == JobState::Waiting)
-            .filter_map(|j| j.eta_seconds)
-            .filter(|e| *e > 0)
-    };
-    parts.push(match (etas().min(), etas().max()) {
-        (Some(next), Some(last)) if last > next => {
-            format!("{waiting} waiting (next starts in ~{next}s, the last in ~{last}s)")
-        }
-        (Some(next), _) => format!("{waiting} waiting (next starts in ~{next}s)"),
-        _ => format!("{waiting} waiting"),
-    });
-    parts.push(format!("{} done", count(JobState::Done)));
-    let failed = count(JobState::Failed);
-    if failed > 0 {
-        parts.push(format!("{failed} failed"));
+    let by = &counts.by_state;
+    let mut parts = vec![format!("{} running", by.running)];
+    let waiting = by.waiting;
+    parts.push(
+        match (counts.next_starts_in_seconds, counts.last_starts_in_seconds) {
+            (Some(next), Some(last)) if last > next => {
+                format!("{waiting} waiting (next starts in ~{next}s, the last in ~{last}s)")
+            }
+            (Some(next), _) => format!("{waiting} waiting (next starts in ~{next}s)"),
+            _ => format!("{waiting} waiting"),
+        },
+    );
+    parts.push(format!("{} done", by.done));
+    if by.failed > 0 {
+        parts.push(format!("{} failed", by.failed));
     }
-    let cancelled = count(JobState::Cancelled);
-    if cancelled > 0 {
-        parts.push(format!("{cancelled} cancelled"));
+    if by.cancelled > 0 {
+        parts.push(format!("{} cancelled", by.cancelled));
     }
     format!(
         "{} job{}: {}\n",
-        jobs.len(),
-        if jobs.len() == 1 { "" } else { "s" },
+        counts.total,
+        if counts.total == 1 { "" } else { "s" },
         parts.join(", ")
     )
 }
@@ -2677,6 +2666,47 @@ mod tests {
             "restoring the sessions saved in the keyring — if a keychain prompt is open, answer it\nkeyring: restoring\n"
         );
         assert!(!text.contains("not logged in"), "{text}");
+    }
+
+    /// C53 and C149: `jobs`' text is a function of its document — the
+    /// counts line read from it over every job, and what it left out,
+    /// open and finished apart, each with the flag that lists every one
+    /// (the brief's second review, finding 2: the open jobs are cut too).
+    #[test]
+    fn c149_the_jobs_text_counts_every_job_and_says_what_it_left_out() {
+        let job = |id: u64, state: JobState| JobInfo {
+            id,
+            kind: "sleep".into(),
+            state,
+            priority: 0,
+            submitted_by: "cli:1".into(),
+            eta_seconds: (state == JobState::Waiting).then_some(id),
+            parent: None,
+            retries: 0,
+            account: None,
+            params: serde_json::json!({}),
+        };
+        let jobs: Vec<JobInfo> = (1..=15)
+            .map(|id| job(id, JobState::Done))
+            .chain((16..=28).map(|id| job(id, JobState::Waiting)))
+            .collect();
+        let text = jobs_text(&Listed::of(jobs.clone(), false));
+        assert_eq!(text.lines().filter(|l| l.contains(" sleep ")).count(), 20);
+        assert!(
+            text.contains(
+                "28 jobs: 0 running, 13 waiting (next starts in ~16s, the last in ~28s), 15 done\n"
+            ),
+            "{text}"
+        );
+        assert!(
+            text.ends_with(
+                "3 more open jobs not listed (`acq jobs --all`)\n5 earlier finished jobs not listed (`acq jobs --all`)\n"
+            ),
+            "{text}"
+        );
+        let all = jobs_text(&Listed::of(jobs, true));
+        assert_eq!(all.lines().filter(|l| l.contains(" sleep ")).count(), 28);
+        assert!(!all.contains("not listed"), "{all}");
     }
 
     #[test]

@@ -250,7 +250,7 @@ async fn with_no_daemon_the_queue_and_its_counts_are_the_ledgers() {
     let s = session("queue");
     let frontend = Frontend::agent("test").unwrap();
     assert_eq!(
-        serde_json::to_value(frontend.jobs().await.unwrap()).unwrap(),
+        serde_json::to_value(frontend.jobs(false).await.unwrap()).unwrap(),
         json!({ "running": false, "persisted": null })
     );
     ledger(
@@ -283,7 +283,7 @@ async fn with_no_daemon_the_queue_and_its_counts_are_the_ledgers() {
             },
         ],
     );
-    let jobs = serde_json::to_value(frontend.jobs().await.unwrap()).unwrap();
+    let jobs = serde_json::to_value(frontend.jobs(false).await.unwrap()).unwrap();
     assert_eq!(jobs["running"], json!(false), "{jobs}");
     assert_eq!(
         jobs["persisted"]["written_at"],

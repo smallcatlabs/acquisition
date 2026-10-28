@@ -74,9 +74,9 @@ One job's state, ETA and retries. A waiting job with a large ETA is the rate lim
 
 ### `list_jobs`
 
-Jobs the daemon lists, with states and ETAs: the open ones and the finished ones the ledger on disk holds. Observes only, never spawning a daemon: with none running it answers from the ledger (`running: false`, `persisted`); `describe` with names ["daemon"] says what each holds.
+Jobs the daemon lists, with states and ETAs, counted first over every job (`total`, `by_state`), then listed: ten open and the ten most recent finished, `expand` every one. Observes only, never spawning a daemon: with none running it answers from the ledger (`running: false`, `persisted`); `describe` with names ["daemon"] says what each holds and counts.
 
-No arguments.
+- `expand` (boolean | null) — List every job, open and finished, not ten of each.
 
 ### `price_clear`
 

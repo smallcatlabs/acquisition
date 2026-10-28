@@ -668,7 +668,7 @@ fn the_refresh_loop_runs_through_the_pages() {
     let out = harness::acq(&base, &["refresh", "--tabs", "dump,cur1"]);
     assert!(out.status.success(), "{out:?}");
     let listed = sole_json(&harness::acq(&base, &["jobs", "--all", "--json"]));
-    let applies: Vec<&Value> = listed
+    let applies: Vec<&Value> = listed["rows"]
         .as_array()
         .unwrap()
         .iter()
@@ -685,7 +685,7 @@ fn the_refresh_loop_runs_through_the_pages() {
     );
     assert_eq!(page["params"]["jobs"], cli["params"]["jobs"]);
     assert!(
-        listed
+        listed["rows"]
             .as_array()
             .unwrap()
             .iter()
@@ -707,7 +707,7 @@ fn the_refresh_loop_runs_through_the_pages() {
         assert!(said.contains(fact), "{fact}: {said}");
     }
     let listed = sole_json(&harness::acq(&base, &["jobs", "--all", "--json"]));
-    let all = listed
+    let all = listed["rows"]
         .as_array()
         .unwrap()
         .iter()
@@ -867,7 +867,7 @@ fn a_selection_submits_as_the_served_account_whatever_the_daemon_holds() {
     assert_eq!(refused.status, 400, "{}", refused.body);
     assert!(refused.body.contains("Alice"), "{}", refused.body);
     let jobs = |base: &Path| -> Vec<Value> {
-        sole_json(&harness::acq(base, &["jobs", "--all", "--json"]))
+        sole_json(&harness::acq(base, &["jobs", "--all", "--json"]))["rows"]
             .as_array()
             .unwrap()
             .iter()

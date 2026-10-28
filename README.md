@@ -151,7 +151,7 @@ acq stash <id> [--sub <id>] [--deep]   # one tab, optionally with substashes
 acq refresh --tabs a,b,c | --all [--deep] | --characters x,y   # a selection by id: compiled into a plan, printed, applied at once
 acq submit <kind> [--params JSON] [--detach]   # submit a job by kind
 acq demo   # mock only: a burst of jobs with the limiter's ETAs
-acq jobs [--watch | --all] | status <id> | result <id> [--wait]   # open jobs and the latest finished; one job; its payload, from disk if no daemon runs
+acq jobs [--watch] [--all] | status <id> | result <id> [--wait]   # every job counted, ten open and ten finished listed (--all every one); one job; its payload, from disk if no daemon runs
 acq cancel <id> | set-priority <id> <n>   # cancel a subtree; change priority
 
 # keeping a league fresh: a policy, then a plan you read before it runs
