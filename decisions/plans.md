@@ -24,3 +24,4 @@ What someone would propose and the project declines, each until the trigger it n
 - Dynamic `--deep` fan-out: not until live evidence that two-cycle reconciliation hurts.
 - Type-level sync-policy filters: not until a policy author needs an exclusion the parent-covers-children rule cannot express.
 - A daemon-side check against two applies of one plan racing: not until a duplicate fetch is traced to concurrent applies in a journal; until then both send.
+- `notes` on a selection plan (a selection-shaped `plan_notes`, the league a fetched list lacks, as a policy plan notes it): not until a consumer asks for it.

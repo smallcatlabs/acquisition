@@ -25,3 +25,4 @@ What someone would propose and the project declines, each until the trigger it n
 
 - A standalone queue TUI (`dash` as its own binary): not until a queue-monitoring slice opens.
 - A web listener beyond loopback (a phone on the LAN): not until a design of its own rules its security story.
+- Item counts beside `acq web`'s league select: not until one document carries the league list and the counts on one basis.
