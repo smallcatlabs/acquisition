@@ -1448,18 +1448,10 @@ fn compact_label(name: &str) -> &str {
     if name.is_empty() { "(unnamed)" } else { name }
 }
 
-/// A saturated age from the planner, human-shaped: "45s", "12m", "3h", "9d".
+/// A saturated age from the planner, human-shaped: "45s", "12m", "3h",
+/// "9d" — the store's one vocabulary (C53), its bare span.
 fn dur(seconds: i64) -> String {
-    let s = seconds.max(0);
-    if s < 90 {
-        format!("{s}s")
-    } else if s < 5400 {
-        format!("{}m", s / 60)
-    } else if s < 172_800 {
-        format!("{}h", s / 3600)
-    } else {
-        format!("{}d", s / 86400)
-    }
+    acquisition_store::age::span(seconds)
 }
 
 fn policy_window(seconds: u32) -> String {

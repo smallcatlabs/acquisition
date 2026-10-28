@@ -212,6 +212,26 @@ fn two_accounts_and_no_selector_is_ambiguous_with_both() {
     assert_eq!(accounts.accounts[1].store, account_path(&s.mock, "Bob#9"));
 }
 
+/// C53 (an age the text prints stands in words beside its epoch, made
+/// at the answer's own time): an account's last login, which `acq
+/// accounts` prints as an age, stands in words beside the epoch.
+#[test]
+fn c53_an_account_row_says_its_last_login_as_an_age() {
+    let entry = AccountEntry {
+        username: USER.into(),
+        last_login: 1_000,
+        persisted: true,
+        uuid: Some(UUID.into()),
+        keyring_names: Vec::new(),
+    };
+    let dir = Path::new("/stores");
+    let row = acquisition_verbs::AccountRow::of(&entry, dir, 1_000 + 6 * 86_400 + 5);
+    let doc = serde_json::to_value(&row).unwrap();
+    assert_eq!(doc["last_login"], 1_000);
+    assert_eq!(doc["last_login_age"], "6d ago", "{doc}");
+    assert_eq!(row.store, account_path(dir, USER));
+}
+
 #[test]
 fn a_selector_matching_none_is_not_logged_in_with_the_known() {
     let s = scratch();
@@ -988,6 +1008,7 @@ fn c149_every_document_a_verb_returns_is_one_json_object() {
                 Vec::new(),
                 None,
                 false,
+                0,
             ))
             .unwrap(),
         ),

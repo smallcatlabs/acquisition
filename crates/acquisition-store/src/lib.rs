@@ -741,6 +741,11 @@ pub struct TabRow {
     pub idx: Option<i64>,
     pub listed_at: Option<i64>,
     pub fetched_at: Option<i64>,
+    /// C53: `fetched_at` in words at the answer's time (`6d ago`,
+    /// `never`), where the answer's maker says it ([`TabRow::aged`]);
+    /// absent from a row no maker aged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fetched_at_age: Option<String>,
     pub removed_at: Option<i64>,
     /// Live (not removed) items whose location is this tab.
     pub item_count: i64,
@@ -761,9 +766,17 @@ pub struct CharacterRow {
     pub class: Option<String>,
     pub level: Option<i64>,
     pub listed_at: Option<i64>,
+    /// C53: `listed_at` in words at the answer's time, where the answer's
+    /// maker says it ([`CharacterRow::aged`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub listed_at_age: Option<String>,
     /// Set once the full character (equipment + inventory) has been fetched;
     /// a listed-only character has items only if a fetch ever ran.
     pub fetched_at: Option<i64>,
+    /// C53: `fetched_at` in words at the answer's time, where the
+    /// answer's maker says it ([`CharacterRow::aged`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fetched_at_age: Option<String>,
     /// Live (not removed) items whose location is this character.
     pub item_count: i64,
     /// Item facts the last landed body carried (the sum of its `_split`
@@ -771,6 +784,25 @@ pub struct CharacterRow {
     /// revived without a standing fetch. A stripped character is
     /// `Some(0)` beside `fetched_at`; a never-fetched one is `None`.
     pub fetched_items: Option<i64>,
+}
+
+impl TabRow {
+    /// C53 (an age the text prints stands in words beside its epoch):
+    /// the row with its fetch's age said at `now`, the answer's time.
+    pub fn aged(mut self, now: i64) -> TabRow {
+        self.fetched_at_age = Some(age::ago(now, self.fetched_at));
+        self
+    }
+}
+
+impl CharacterRow {
+    /// C53: the row with its listing's and its fetch's ages said at
+    /// `now`, the answer's time.
+    pub fn aged(mut self, now: i64) -> CharacterRow {
+        self.listed_at_age = Some(age::ago(now, self.listed_at));
+        self.fetched_at_age = Some(age::ago(now, self.fetched_at));
+        self
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -905,6 +937,7 @@ pub struct Status {
     pub last_event: i64,
 }
 
+pub mod age;
 pub mod annotations;
 pub mod bound;
 pub mod corpus;
@@ -2031,7 +2064,9 @@ impl Store {
                 class: r.get(4)?,
                 level: r.get(5)?,
                 listed_at: r.get(6)?,
+                listed_at_age: None,
                 fetched_at: r.get(7)?,
+                fetched_at_age: None,
                 item_count: r.get(8)?,
                 fetched_items: r.get(9)?,
             })
@@ -2058,6 +2093,7 @@ impl Store {
                 idx: r.get(6)?,
                 listed_at: r.get(7)?,
                 fetched_at: r.get(8)?,
+                fetched_at_age: None,
                 removed_at: r.get(9)?,
                 item_count: r.get(10)?,
                 fetched_items: r.get(11)?,

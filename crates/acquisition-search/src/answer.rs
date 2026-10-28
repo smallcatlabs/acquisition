@@ -309,6 +309,7 @@
 
 use std::collections::HashMap;
 
+use acquisition_store::age;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as Json;
 
@@ -1316,6 +1317,9 @@ pub struct Removed {
     /// `item`, `tab` or `character`.
     pub what: &'static str,
     pub removed_at: i64,
+    /// C53: `removed_at` in words at the answer's time.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub removed_at_age: Option<String>,
     /// Under `live`, the request that finds it under `all`. None under
     /// `all`, where a retired tab or character that matches nothing held
     /// no item.
@@ -1467,6 +1471,10 @@ pub struct Row {
     /// of its place no longer had it, or the place was retired.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub removed_at: Option<i64>,
+    /// C53: `removed_at` in words at the answer's time, where the item
+    /// left.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub removed_at_age: Option<String>,
     pub matched: Vec<Touched>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sort: Option<Sorted>,
@@ -1569,7 +1577,35 @@ pub struct Suggestion {
 
 /// Answer a request from a held corpus. The corpus is the scope: a
 /// request naming another realm or account than it holds is refused.
+/// Every age the text prints is said beside its epoch at the answer's
+/// own time, the clock read now ([`Answer::aged`]): a corpus is held
+/// across answers, so its places are aged by each answer, never by the
+/// load.
 pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError> {
+    unaged(corpus, request).map(|answered| answered.aged(acquisition_store::now()))
+}
+
+impl Answer {
+    /// C53 (an age the text prints stands in words beside its epoch,
+    /// made at the answer's own time): the scope's fetch and list ages,
+    /// each row's place and removal, and each term's removed id, said
+    /// at `now`. Said again at another `now`, the words are that time's.
+    pub fn aged(mut self, now: i64) -> Answer {
+        self.scope.coverage.aged(now);
+        for row in &mut self.rows {
+            row.place.aged(now);
+            row.removed_at_age = row.removed_at.map(|at| age::ago(now, Some(at)));
+        }
+        for term in &mut self.terms {
+            if let Some(removed) = &mut term.removed {
+                removed.removed_at_age = Some(age::ago(now, Some(removed.removed_at)));
+            }
+        }
+        self
+    }
+}
+
+fn unaged(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError> {
     if let Some(account) = &request.scope.account
         && !account_is(corpus, account)
     {
@@ -1766,6 +1802,7 @@ pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError>
                                 _ => "character",
                             },
                             removed_at: left.removed_at,
+                            removed_at_age: None,
                             route: (corpus.membership == Membership::Live).then(|| {
                                 let mut route = router.route(&term.node, None);
                                 route.request.scope.membership = Membership::All;
@@ -1892,6 +1929,7 @@ pub fn answer(corpus: &Corpus, request: &Request) -> Result<Answer, SearchError>
                 icon: icon.then(|| held.item.icon.clone()),
                 place: held.place.clone(),
                 removed_at: held.item.facts.removed_at,
+                removed_at_age: None,
                 matched: touched
                     .into_iter()
                     .map(|i| {

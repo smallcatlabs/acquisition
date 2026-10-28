@@ -206,6 +206,10 @@ pub struct Facts {
     pub first_seen: i64,
     pub last_seen: i64,
     pub removed_at: Option<i64>,
+    /// C53: `removed_at` in words at the answer's time, where the item
+    /// left and an answer that prints it said it (`show`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub removed_at_age: Option<String>,
 }
 
 /// The item as the search sees it. Every `Option` is present or *known*

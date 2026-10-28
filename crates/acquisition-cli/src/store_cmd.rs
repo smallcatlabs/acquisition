@@ -134,22 +134,11 @@ pub fn accounts(cx: &Ctx, expand: bool, json: bool) -> Result<()> {
     Ok(())
 }
 
+/// An epoch's age at `now` in the one vocabulary (C53), `never` for
+/// none: the store's reading, which the JSON's words beside an epoch
+/// share.
 pub(crate) fn ago(now: i64, t: Option<i64>) -> String {
-    match t {
-        None => "never".into(),
-        Some(t) => {
-            let d = (now - t).max(0);
-            if d < 90 {
-                format!("{d}s ago")
-            } else if d < 5400 {
-                format!("{}m ago", d / 60)
-            } else if d < 172_800 {
-                format!("{}h ago", d / 3600)
-            } else {
-                format!("{}d ago", d / 86400)
-            }
-        }
-    }
+    acquisition_store::age::ago(now, t)
 }
 
 /// `xbox/` before a league in a message; nothing for pc, as on the wire.
@@ -276,6 +265,7 @@ pub fn tabs(
     json: bool,
 ) -> Result<()> {
     let store = open(cx)?;
+    let now = acquisition_store::now();
     let listed = acquisition_search::tabs::Tabs::of(
         realm.as_str(),
         league,
@@ -283,6 +273,7 @@ pub fn tabs(
         select,
         limit,
         expand,
+        now,
     );
     if json {
         println!("{}", serde_json::to_string_pretty(&listed)?);
@@ -292,7 +283,6 @@ pub fn tabs(
         println!("{}", no_tabs_text(realm, league, &store));
         return Ok(());
     }
-    let now = acquisition_store::now();
     // The answer first (C53), so it is never under a screen of rows.
     println!("{}", tabs_head(&listed, realm, league));
     // a selection is the answer under the league's counts: its rows,
@@ -424,12 +414,14 @@ pub fn characters(
 ) -> Result<()> {
     let account = cx.account()?;
     let store = account.facts()?;
+    let now = acquisition_store::now();
     let listed = acquisition_verbs::Characters::of(
         realm.map(Realm::as_str),
         league,
         store.characters(realm.map(Realm::as_str), league)?,
         limit,
         expand,
+        now,
     );
     if json {
         println!("{}", serde_json::to_string_pretty(&listed)?);
@@ -450,10 +442,7 @@ pub fn characters(
         );
         return Ok(());
     }
-    print!(
-        "{}",
-        characters_text(&listed, &account.entry.username, acquisition_store::now())
-    );
+    print!("{}", characters_text(&listed, &account.entry.username, now));
     Ok(())
 }
 
@@ -1119,6 +1108,7 @@ mod tests {
             idx: Some(1),
             listed_at: Some(90),
             fetched_at: Some(90),
+            fetched_at_age: None,
             removed_at: None,
             item_count: 7,
             fetched_items: Some(7),

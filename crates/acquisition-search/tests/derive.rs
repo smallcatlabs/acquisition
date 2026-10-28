@@ -20,6 +20,7 @@ fn facts() -> Facts {
         first_seen: 100,
         last_seen: 200,
         removed_at: None,
+        removed_at_age: None,
     }
 }
 

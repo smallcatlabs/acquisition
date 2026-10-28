@@ -989,3 +989,87 @@ fn many_removed_items_are_each_told_apart_from_the_live_ones() {
         a["terms"]
     );
 }
+
+/// C53 (an age the text prints stands in words beside its epoch, made at
+/// the answer's own time): every time the CLI's search text says as an
+/// age — a row's place fetched, a row's removal, the scope's oldest and
+/// newest fetch and when its lists were seen, a removed id's leaving —
+/// stands in the answer beside its epoch under the epoch's name and
+/// `_age`, and `show` says its place and removal the same way. The
+/// answer's time is given (`Answer::aged`, `Shown::aged`), never the
+/// clock: at 140, `left`'s fetch and `b`'s removal at 50 are 90 seconds
+/// old, and the listing at 60 that retired `Gone` 80.
+#[test]
+fn c53_an_answer_says_each_age_its_text_prints_beside_the_epoch() {
+    const NOW: i64 = 140;
+    let s = left();
+    let a = as_json(
+        &answer(
+            &all(&s),
+            &serde_json::from_value(json!({ "scope": { "membership": "all" } })).unwrap(),
+        )
+        .unwrap()
+        .aged(NOW),
+    );
+    let rows = a["rows"].as_array().unwrap();
+    assert_eq!(in_order(&a), ["a", "b", "c"]);
+    assert_eq!(
+        (
+            &rows[0]["place"]["fetched_at"],
+            &rows[0]["place"]["fetched_at_age"]
+        ),
+        (&json!(50), &json!("1m ago"))
+    );
+    assert!(
+        rows[0].get("removed_at_age").is_none(),
+        "a live row: {}",
+        rows[0]
+    );
+    assert_eq!(
+        (&rows[1]["removed_at"], &rows[1]["removed_at_age"]),
+        (&json!(50), &json!("1m ago"))
+    );
+    assert_eq!(
+        (&rows[2]["removed_at"], &rows[2]["removed_at_age"]),
+        (&json!(60), &json!("80s ago"))
+    );
+    let scope = &a["scope"];
+    assert_eq!(
+        (&scope["oldest_fetch"], &scope["oldest_fetch_age"]),
+        (&json!(50), &json!("1m ago"))
+    );
+    assert_eq!(
+        (&scope["newest_fetch"], &scope["newest_fetch_age"]),
+        (&json!(50), &json!("1m ago"))
+    );
+    assert_eq!(
+        (&scope["list_seen"], &scope["list_seen_age"]),
+        (&json!(60), &json!("80s ago"))
+    );
+    // a removed id's leaving, on the live corpus's term
+    let live = as_json(&ask(&load(&s, Some("pc")), "id:b").unwrap().aged(NOW));
+    let removed = &live["terms"][0]["removed"];
+    assert_eq!(
+        (&removed["removed_at"], &removed["removed_at_age"]),
+        (&json!(50), &json!("1m ago"))
+    );
+    // said again at another time, the words are that time's
+    let later = as_json(
+        &ask(&load(&s, Some("pc")), "id:b")
+            .unwrap()
+            .aged(NOW + 86_400),
+    );
+    assert_eq!(later["terms"][0]["removed"]["removed_at_age"], "24h ago");
+    // `show`: the place and the removal, the same words
+    let shown = serde_json::to_value(show(&s, "b", false).unwrap().aged(NOW)).unwrap();
+    assert_eq!(shown["place"]["fetched_at_age"], "1m ago", "{shown}");
+    assert_eq!(
+        shown["item"]["facts"]["removed_at_age"], "1m ago",
+        "{shown}"
+    );
+    let shown = serde_json::to_value(show(&s, "a", false).unwrap().aged(NOW)).unwrap();
+    assert!(
+        shown["item"]["facts"].get("removed_at_age").is_none(),
+        "{shown}"
+    );
+}

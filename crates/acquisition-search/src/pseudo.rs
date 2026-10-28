@@ -1774,6 +1774,7 @@ mod tests {
             first_seen: 0,
             last_seen: 0,
             removed_at: None,
+            removed_at_age: None,
         };
         Held {
             item: derive(facts, body),
@@ -1793,6 +1794,7 @@ mod tests {
                 socketed_in: None,
                 cell: None,
                 fetched_at: None,
+                fetched_at_age: None,
                 public: None,
                 remove_only: None,
             },

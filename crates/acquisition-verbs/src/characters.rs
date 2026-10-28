@@ -51,13 +51,15 @@ pub struct Characters {
 
 impl Characters {
     /// The selection's characters, as the store lists them, counted whole
-    /// and then cut by the read economy's one rule (C53).
+    /// and then cut by the read economy's one rule (C53), each listed
+    /// row's listing and fetch said as ages at `now`, the answer's time.
     pub fn of(
         realm: Option<&str>,
         league: Option<&str>,
         rows: Vec<CharacterRow>,
         limit: Option<usize>,
         expand: bool,
+        now: i64,
     ) -> Characters {
         let characters = rows.len();
         let fetched = rows.iter().filter(|c| c.fetched_at.is_some()).count();
@@ -67,6 +69,7 @@ impl Characters {
             .count();
         let items = rows.iter().map(|c| c.item_count).sum();
         let (rows, left_out) = bounded(rows, limit, expand);
+        let rows = rows.into_iter().map(|row| row.aged(now)).collect();
         Characters {
             realm: realm.map(str::to_string),
             league: league.map(str::to_string),
@@ -87,6 +90,10 @@ mod tests {
     use super::*;
     use acquisition_store::bound::LISTED;
 
+    /// The answer's time the documents here are made at (C53: an age
+    /// under test is made from a time given, never the clock).
+    const NOW: i64 = 2 * 3600 + 1;
+
     fn character(n: usize, fetched: bool, items: i64) -> CharacterRow {
         CharacterRow {
             id: format!("c{n:02}"),
@@ -96,7 +103,9 @@ mod tests {
             class: None,
             level: Some(90),
             listed_at: Some(1),
+            listed_at_age: None,
             fetched_at: fetched.then_some(2),
+            fetched_at_age: None,
             item_count: items,
             fetched_items: fetched.then_some(items),
         }
@@ -116,7 +125,7 @@ mod tests {
                 _ => character(n, false, 0),
             })
             .collect();
-        let listed = Characters::of(None, Some("Standard"), rows.clone(), None, false);
+        let listed = Characters::of(None, Some("Standard"), rows.clone(), None, false, NOW);
         assert_eq!(listed.characters, 65);
         assert_eq!(listed.fetched, 50);
         assert_eq!(listed.empty_bodies, 5);
@@ -134,15 +143,34 @@ mod tests {
             "an unasked realm is absent: {doc}"
         );
 
-        let more = Characters::of(None, None, rows.clone(), Some(20), false);
+        let more = Characters::of(None, None, rows.clone(), Some(20), false, NOW);
         assert_eq!((more.rows.len(), more.left_out), (20, 45));
-        let none = Characters::of(None, None, rows.clone(), Some(0), false);
+        let none = Characters::of(None, None, rows.clone(), Some(0), false, NOW);
         assert_eq!(
             (none.rows.len(), none.left_out, none.characters),
             (0, 65, 65)
         );
-        let all = Characters::of(None, None, rows, None, true);
+        let all = Characters::of(None, None, rows, None, true, NOW);
         assert_eq!((all.rows.len(), all.left_out), (65, 0));
         assert_eq!(all.left_out_needs, None);
+    }
+
+    /// C53 (an age the text prints stands in words beside its epoch,
+    /// made at the answer's own time): a listed character says its
+    /// listing and its fetch as the CLI's columns do, `never` beside a
+    /// null, under each epoch's name and `_age`.
+    #[test]
+    fn c53_a_listed_character_says_its_listing_and_fetch_as_ages() {
+        let rows = vec![character(0, true, 3), character(1, false, 0)];
+        let listed = Characters::of(None, None, rows, None, false, NOW);
+        let doc = serde_json::to_value(&listed).unwrap();
+        let fetched = &doc["rows"][0];
+        assert_eq!(fetched["listed_at"], 1);
+        assert_eq!(fetched["listed_at_age"], "2h ago", "{doc}");
+        assert_eq!(fetched["fetched_at"], 2);
+        assert_eq!(fetched["fetched_at_age"], "1h ago", "{doc}");
+        let never = &doc["rows"][1];
+        assert_eq!(never["fetched_at"], serde_json::Value::Null);
+        assert_eq!(never["fetched_at_age"], "never", "{doc}");
     }
 }

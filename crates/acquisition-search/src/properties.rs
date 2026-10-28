@@ -1155,6 +1155,7 @@ mod tests {
             first_seen: 0,
             last_seen: 0,
             removed_at: None,
+            removed_at_age: None,
         };
         let item = derive(
             facts,

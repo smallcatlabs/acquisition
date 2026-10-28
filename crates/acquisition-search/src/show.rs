@@ -217,10 +217,25 @@ fn shown(
 ) -> Result<Shown, SearchError> {
     for _ in 0..REREADS {
         if let Some(shown) = read_one(store, intent, id, body, against)? {
-            return Ok(shown);
+            return Ok(shown.aged(acquisition_store::now()));
         }
     }
     Err(moved())
+}
+
+impl Shown {
+    /// C53 (an age the text prints stands in words beside its epoch,
+    /// made at the answer's own time): the place's fetch and the item's
+    /// removal, where it left, said at `now`.
+    pub fn aged(mut self, now: i64) -> Shown {
+        self.place.aged(now);
+        self.item.facts.removed_at_age = self
+            .item
+            .facts
+            .removed_at
+            .map(|at| acquisition_store::age::ago(now, Some(at)));
+        self
+    }
 }
 
 /// One read of the item, or nothing where the facts or the intent moved

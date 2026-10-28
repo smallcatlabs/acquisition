@@ -129,10 +129,27 @@ impl Accounts {
 pub struct AccountRow {
     pub username: String,
     pub last_login: i64,
+    /// C53: `last_login` in words at the answer's time (`6d ago`).
+    pub last_login_age: String,
     pub persisted: bool,
     pub uuid: Option<String>,
     /// The account's facts file, whether or not it exists yet.
     pub store: PathBuf,
+}
+
+impl AccountRow {
+    /// One account as the index knows it, its store's path under `dir`,
+    /// its last login said as an age at `now`, the answer's time (C53).
+    pub fn of(entry: &AccountEntry, dir: &std::path::Path, now: i64) -> AccountRow {
+        AccountRow {
+            username: entry.username.clone(),
+            last_login: entry.last_login,
+            last_login_age: acquisition_store::age::ago(now, Some(entry.last_login)),
+            persisted: entry.persisted,
+            uuid: entry.uuid.clone(),
+            store: account_path(dir, &entry.username),
+        }
+    }
 }
 
 impl Frontend {
@@ -174,16 +191,11 @@ impl Frontend {
     /// empty listing is an answer, never a fault.
     pub fn accounts(&self) -> Result<Accounts, Fault> {
         let index = self.index()?;
+        let now = acquisition_store::now();
         let accounts: Vec<AccountRow> = index
             .entries()
             .iter()
-            .map(|e| AccountRow {
-                username: e.username.clone(),
-                last_login: e.last_login,
-                persisted: e.persisted,
-                uuid: e.uuid.clone(),
-                store: account_path(&self.dir(), &e.username),
-            })
+            .map(|e| AccountRow::of(e, &self.dir(), now))
             .collect();
         Ok(Accounts {
             provider: self.provider.to_string(),

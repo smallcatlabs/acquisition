@@ -321,7 +321,7 @@ pub fn spent_phrase(spent: &[Spent], now: i64) -> String {
         parts.push(format!(
             "{} fetched after it was compiled, the latest {} ago",
             fetched.len(),
-            age((now - latest).max(0))
+            acquisition_store::age::span(now - latest)
         ));
     }
     if !owners.is_empty() {
@@ -349,20 +349,6 @@ pub fn holding_jobs(spent: &[Spent]) -> Vec<u64> {
     owners.sort_unstable();
     owners.dedup();
     owners
-}
-
-/// `45s`, `3m`, `5h`, `2d`: an age as the plan's text writes one.
-fn age(seconds: i64) -> String {
-    let s = seconds.max(0);
-    if s < 90 {
-        format!("{s}s")
-    } else if s < 5400 {
-        format!("{}m", s / 60)
-    } else if s < 172_800 {
-        format!("{}h", s / 3600)
-    } else {
-        format!("{}d", s / 86400)
-    }
 }
 
 /// The note of an apply with nothing to send.

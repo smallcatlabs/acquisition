@@ -18,6 +18,11 @@ use acquisition_store::bound::LISTED;
 use common::*;
 use serde_json::{Value, json};
 
+/// The answer's time every document here is made at: three days after
+/// the fixtures' fetches (C53: an age under test is made from a time
+/// given, never the clock).
+const NOW: i64 = 3 * 86_400 + 20;
+
 /// Rings (`t1`, two items) and Dump (`t2`, three) fetched, and 39 tabs of
 /// `kind` never fetched.
 fn league(kind: &str) -> Store {
@@ -63,7 +68,7 @@ fn league(kind: &str) -> Store {
 
 fn tabs_of(s: &Store, select: &Selection, expand: bool) -> Value {
     let rows = s.tabs("pc", "Standard").unwrap();
-    serde_json::to_value(Tabs::of("pc", "Standard", rows, select, None, expand)).unwrap()
+    serde_json::to_value(Tabs::of("pc", "Standard", rows, select, None, expand, NOW)).unwrap()
 }
 
 fn listed(doc: &Value) -> Vec<&str> {
@@ -73,6 +78,37 @@ fn listed(doc: &Value) -> Vec<&str> {
         .iter()
         .map(|t| t["id"].as_str().unwrap())
         .collect()
+}
+
+/// C53 (an age the text prints stands in words beside its epoch): each
+/// listed tab says its fetch's age at the answer's time under
+/// `fetched_at_age`, the words `acq tabs` prints, `never` beside a null.
+#[test]
+fn a_listed_tabs_fetch_carries_its_age_in_words_beside_the_epoch() {
+    let s = league("QuadStash");
+    let doc = tabs_of(&s, &Selection::default(), false);
+    let row = |id: &str| {
+        doc["rows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|t| t["id"] == id)
+            .unwrap_or_else(|| panic!("{id}: {doc}"))
+            .clone()
+    };
+    let (t1, t2, q0) = (row("t1"), row("t2"), row("q0"));
+    assert_eq!(
+        (&t1["fetched_at"], &t1["fetched_at_age"]),
+        (&json!(20), &json!("3d ago"))
+    );
+    assert_eq!(
+        (&t2["fetched_at"], &t2["fetched_at_age"]),
+        (&json!(30), &json!("2d ago"))
+    );
+    assert_eq!(
+        (&q0["fetched_at"], &q0["fetched_at_age"]),
+        (&Value::Null, &json!("never"))
+    );
 }
 
 /// Counts first, by type beside them, then the ten with the most items
@@ -170,6 +206,7 @@ fn a_league_of_thirty_or_fewer_lists_the_ten_with_the_most_items_and_limit_names
             &Selection::default(),
             limit,
             expand,
+            NOW,
         ))
         .unwrap()
     };
@@ -312,11 +349,21 @@ fn a_map_tabs_pages_are_grouped_under_it_when_asked() {
         &Selection::default(),
         None,
         true,
+        NOW,
     ))
     .unwrap();
     assert!(flat.get("groups").is_none(), "{flat}");
     let grouped = serde_json::to_value(
-        Tabs::of("pc", "Standard", rows, &Selection::default(), None, true).grouped(),
+        Tabs::of(
+            "pc",
+            "Standard",
+            rows,
+            &Selection::default(),
+            None,
+            true,
+            NOW,
+        )
+        .grouped(),
     )
     .unwrap();
     assert_eq!(grouped["rows"], flat["rows"], "the flat rows stand");

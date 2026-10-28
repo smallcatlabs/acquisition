@@ -696,13 +696,15 @@ const DAEMON: [(&str, &str); 8] = [
     ),
 ];
 
-/// What `store_status`, `tabs`, `characters` and `item_events` count, read once by name
-/// (`describe` with names `["store"]`): C146, amended 2026-10-27 — on the
+/// What `store_status`, `tabs`, `characters` and `item_events` count, and
+/// what an age's words beside a time say on every tool that carries them,
+/// read once by name (`describe` with names `["store"]`, or `["ages"]`
+/// alone, the store's own words): C146, amended 2026-10-27 — on the
 /// MCP a count's gloss stands in the `describe` entry the tool's
 /// description names. The words are the ones those descriptions carried,
 /// whole, and the CLI footers' (C149: the counts a text prints stand in
 /// its JSON under one set of words).
-const STORE: [(&str, &str); 4] = [
+const STORE: [(&str, &str); 5] = [
     (
         "store counts",
         "store_status: the store file's path, size and row counts. `leagues` counts the league listing's rows and `league_list` says whether that listing was ever fetched (`acq leagues` or a `leagues` job fetches it); characters and tabs carry their league names whether or not it was. `refused_bodies` counts bodies the store would not take, which `acq store refused` lists. `withheld_responses` counts fetches of tabs or characters the latest list no longer named and `withheld_items` the items they carried: kept as evidence, in no search or count, nothing to do unless a list names the place again. `unlifted_items` counts item-shaped objects in characters' data under a key this build does not read as items, so no search counts them: GGG added a kind of item list, which a newer build reads. `granted_skills` counts the skill entries PoE2 characters' items grant — GGG shows a granted skill once in each place it appears, the item's sockets and the character's skills, so one skill can be two entries — kept with their characters and not counted as items, having no id of their own",
@@ -719,6 +721,7 @@ const STORE: [(&str, &str); 4] = [
         "event counts",
         "item_events reads the newest events of the last `hours`, at most `limit` (ten when not given): `returned` counts the events in `rows`, and `limit_reached` says it returned as many as `limit`, so the window may hold more (a larger `limit` reads them); the window's whole is not counted. With `summary: true` the same events by location: `events` counts the events summarized, `locations` every location they touched (a move touches two), `by_kind` the added, changed, moved and removed over every location; `rows` lists ten locations, the newest activity first, `expand` every one, and `left_out` counts the locations not listed",
     ),
+    ("ages", acquisition_store::age::SAID),
 ];
 
 /// The names `describe` answers beside the search crate's sections: what
@@ -1451,7 +1454,7 @@ impl AcqMcp {
     // ---- store reads: no daemon, no GGG traffic ----
 
     #[tool(
-        description = "Accounts this machine has logged into (from the store's non-secret index; no daemon), each with its store file: `total` counts every one, `accounts` lists ten, `expand` every one, and `left_out` counts the rest."
+        description = "Accounts this machine has logged into (from the store's non-secret index; no daemon), each with its store file: `total` counts every one, `accounts` lists ten, `expand` every one, and `left_out` counts the rest. Each age is in words beside its time (`describe` with names [\"ages\"])."
     )]
     fn accounts(&self, Parameters(p): Parameters<Args<AccountsParams>>) -> Told {
         answer(|| {
@@ -1461,7 +1464,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "The stash tabs of a league, counted first, from the store (no daemon), then listed — the ten with the most items, `limit` more or fewer, `expand` every one — each with its type, item count and fetch time; `type` and `never_fetched` select the tabs listed. `describe` with names [\"store\"] says what each count counts. A name ending ` (Remove-only)` is GGG's mark on a tab whose items can only be taken out."
+        description = "The stash tabs of a league, counted first, from the store (no daemon), then listed — the ten with the most items, `limit` more or fewer, `expand` every one — each with its type, item count and fetch time, its age in words beside it; `type` and `never_fetched` select the tabs listed. `describe` with names [\"store\"] says what each count counts, and [\"ages\"] what an age's words say. A name ending ` (Remove-only)` is GGG's mark on a tab whose items can only be taken out."
     )]
     fn tabs(&self, Parameters(p): Parameters<Args<TabsParams>>) -> Told {
         answer(|| {
@@ -1483,12 +1486,13 @@ impl AcqMcp {
                 },
                 p.limit,
                 p.expand.unwrap_or(false),
+                acquisition_store::now(),
             ))
         })
     }
 
     #[tool(
-        description = "Characters known to the store (no daemon), counted first — how many, fetched, fetched empty, never fetched, their items — then listed: ten, `limit` more or fewer, `expand` every one, each with class, level, league, `item_count` (the live items held at it now) and `fetched_items` (what the last full fetch carried, null until one). `describe` with names [\"store\"] says what each count counts. Fresh data is a `characters` or `character` job."
+        description = "Characters known to the store (no daemon), counted first — how many, fetched, fetched empty, never fetched, their items — then listed: ten, `limit` more or fewer, `expand` every one, each with class, level, league, `item_count` (the live items held at it now) and `fetched_items` (what the last full fetch carried, null until one), and when it was listed and fetched, each age in words beside its time. `describe` with names [\"store\"] says what each count counts, and [\"ages\"] what an age's words say. Fresh data is a `characters` or `character` job."
     )]
     fn characters(&self, Parameters(p): Parameters<Args<CharactersParams>>) -> Told {
         answer(|| {
@@ -1506,6 +1510,7 @@ impl AcqMcp {
                 store.characters(realm, p.league.as_deref())?,
                 p.limit,
                 p.expand.unwrap_or(false),
+                acquisition_store::now(),
             ))
         })
     }
@@ -1601,7 +1606,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "One item as the search derives it, live or removed (no daemon): its place, its fields, class, category and price, and every line with its kind, template and numbers. `against` adds why the item does or does not match a query, each node's outcome (`describe` with names [\"against\"]); `body` adds the stored body, verbatim."
+        description = "One item as the search derives it, live or removed (no daemon): its place, its fields, class, category and price, and every line with its kind, template and numbers. `against` adds why the item does or does not match a query, each node's outcome (`describe` with names [\"against\"]); `body` adds the stored body, verbatim. Each age is in words beside its time (`describe` with names [\"ages\"])."
     )]
     fn show(&self, Parameters(p): Parameters<Args<ShowParams>>) -> Told {
         let p = match p.read() {

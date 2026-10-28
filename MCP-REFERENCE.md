@@ -10,7 +10,7 @@ Acquisition (provider: mock). - price_set, price_clear and set_sync_policy write
 
 ### `accounts`
 
-Accounts this machine has logged into (from the store's non-secret index; no daemon), each with its store file: `total` counts every one, `accounts` lists ten, `expand` every one, and `left_out` counts the rest.
+Accounts this machine has logged into (from the store's non-secret index; no daemon), each with its store file: `total` counts every one, `accounts` lists ten, `expand` every one, and `left_out` counts the rest. Each age is in words beside its time (`describe` with names ["ages"]).
 
 - `expand` (boolean | null) — List every account, not ten.
 
@@ -30,7 +30,7 @@ Cancel a waiting or running job; cascades to its descendants.
 
 ### `characters`
 
-Characters known to the store (no daemon), counted first — how many, fetched, fetched empty, never fetched, their items — then listed: ten, `limit` more or fewer, `expand` every one, each with class, level, league, `item_count` (the live items held at it now) and `fetched_items` (what the last full fetch carried, null until one). `describe` with names ["store"] says what each count counts. Fresh data is a `characters` or `character` job.
+Characters known to the store (no daemon), counted first — how many, fetched, fetched empty, never fetched, their items — then listed: ten, `limit` more or fewer, `expand` every one, each with class, level, league, `item_count` (the live items held at it now) and `fetched_items` (what the last full fetch carried, null until one), and when it was listed and fetched, each age in words beside its time. `describe` with names ["store"] says what each count counts, and ["ages"] what an age's words say. Fresh data is a `characters` or `character` job.
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
 - `expand` (boolean | null) — List every character of the selection.
@@ -182,7 +182,7 @@ The forum shop pages for one league, for a person to paste by hand; this server 
 
 ### `show`
 
-One item as the search derives it, live or removed (no daemon): its place, its fields, class, category and price, and every line with its kind, template and numbers. `against` adds why the item does or does not match a query, each node's outcome (`describe` with names ["against"]); `body` adds the stored body, verbatim.
+One item as the search derives it, live or removed (no daemon): its place, its fields, class, category and price, and every line with its kind, template and numbers. `against` adds why the item does or does not match a query, each node's outcome (`describe` with names ["against"]); `body` adds the stored body, verbatim. Each age is in words beside its time (`describe` with names ["ages"]).
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
 - `against` (object) — Why the item does or does not match a query: `{"text": …}`, `{"tree": …}` or `{"trade": …}`, as a request's `query`.
@@ -212,7 +212,7 @@ The account's sync policy (declared coverage and freshness) with its revision �
 
 ### `tabs`
 
-The stash tabs of a league, counted first, from the store (no daemon), then listed — the ten with the most items, `limit` more or fewer, `expand` every one — each with its type, item count and fetch time; `type` and `never_fetched` select the tabs listed. `describe` with names ["store"] says what each count counts. A name ending ` (Remove-only)` is GGG's mark on a tab whose items can only be taken out.
+The stash tabs of a league, counted first, from the store (no daemon), then listed — the ten with the most items, `limit` more or fewer, `expand` every one — each with its type, item count and fetch time, its age in words beside it; `type` and `never_fetched` select the tabs listed. `describe` with names ["store"] says what each count counts, and ["ages"] what an age's words say. A name ending ` (Remove-only)` is GGG's mark on a tab whose items can only be taken out.
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
 - `expand` (boolean | null) — List every tab of the league, or of the selection.

@@ -79,7 +79,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex, PoisonError};
 
 use acquisition_store::corpus::{CorpusHeader, CorpusItem, LocationRow, RealmScope, Revision};
-use acquisition_store::{Annotations, Store};
+use acquisition_store::{Annotations, Store, age};
 use serde::{Deserialize, Serialize};
 
 use crate::answer::{Membership, Request};
@@ -314,6 +314,11 @@ pub struct Place {
     /// page's, a character's — so a reader can say how old the place is
     /// (C118); none where the store holds no fetch of it.
     pub fetched_at: Option<i64>,
+    /// C53: `fetched_at` in words at the answer's time (`6d ago`,
+    /// `never`), said by the answer that holds the place, absent from a
+    /// place no answer has aged.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fetched_at_age: Option<String>,
     /// Whether the tab is public — GGG's `metadata.public` as the listing
     /// state reads it, a substash's its tab's (C117, C80): none on a
     /// character's item, and on an item no listing state lists (a removed
@@ -379,13 +384,45 @@ pub struct Coverage {
     /// The earliest and the latest of the fetched locations' last
     /// fetches, each one location's; a row's place carries its own.
     pub oldest_fetch: Option<i64>,
+    /// C53: `oldest_fetch` in words at the answer's time, where there is
+    /// one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub oldest_fetch_age: Option<String>,
     pub newest_fetch: Option<i64>,
+    /// C53: `newest_fetch` in words at the answer's time, where there is
+    /// one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub newest_fetch_age: Option<String>,
     /// When the oldest of the location lists the scope reads was last
     /// seen: under a query that fixes one league, that league's tab list
     /// and the realm's character list; otherwise every list of the realm
     /// (the re-sit: a `league=Standard` query said 41 days where
     /// Standard's own list was 3 days old, mcp-opus its fault 2).
     pub list_seen: Option<i64>,
+    /// C53: `list_seen` in words at the answer's time, `never` where no
+    /// list was seen.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub list_seen_age: Option<String>,
+}
+
+impl Place {
+    /// C53 (an age the text prints stands in words beside its epoch):
+    /// the place with its fetch's age said at `now`, the answer's time.
+    pub fn aged(&mut self, now: i64) {
+        self.fetched_at_age = Some(age::ago(now, self.fetched_at));
+    }
+}
+
+impl Coverage {
+    /// C53: the scope's fetch and list ages said at `now`, the answer's
+    /// time — the oldest and newest fetch where there are fetches, as the
+    /// text says them, and when the lists were seen, `never` where none
+    /// was.
+    pub fn aged(&mut self, now: i64) {
+        self.oldest_fetch_age = self.oldest_fetch.map(|at| age::ago(now, Some(at)));
+        self.newest_fetch_age = self.newest_fetch.map(|at| age::ago(now, Some(at)));
+        self.list_seen_age = Some(age::ago(now, self.list_seen));
+    }
 }
 
 #[derive(Debug)]
@@ -510,6 +547,7 @@ pub(crate) fn placed(index: &Locations<'_>, row: CorpusItem) -> (Facts, Place) {
         socketed_in: row.socketed_in.clone().map(|id| Named { id, name: None }),
         cell: None,
         fetched_at: location.and_then(|l| l.fetched_at),
+        fetched_at_age: None,
         // joined with the price, from the listing state (`Corpus::read`)
         public: None,
         remove_only: location
@@ -527,6 +565,7 @@ pub(crate) fn placed(index: &Locations<'_>, row: CorpusItem) -> (Facts, Place) {
         first_seen: row.first_seen,
         last_seen: row.last_seen,
         removed_at: row.removed_at,
+        removed_at_age: None,
     };
     (facts, place)
 }
@@ -1044,7 +1083,9 @@ fn coverage(
         never_fetched_leagues: by_league.into_iter().map(|(l, _)| l.to_string()).collect(),
         folders: locations.len() - holds_items.len(),
         oldest_fetch: fetches().min(),
+        oldest_fetch_age: None,
         newest_fetch: fetches().max(),
+        newest_fetch_age: None,
         list_seen: header
             .listings
             .iter()
@@ -1054,6 +1095,7 @@ fn coverage(
             })
             .map(|l| l.fetched_at)
             .min(),
+        list_seen_age: None,
     }
 }
 

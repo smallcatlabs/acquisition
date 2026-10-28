@@ -135,7 +135,8 @@ pub struct TabType {
 
 impl Tabs {
     /// The league's tabs, as the store lists them, counted and listed
-    /// under the one rule (C53): the selection's rows whole, in the
+    /// under the one rule (C53), each listed row's fetch said as an age at
+    /// `now`, the answer's time: the selection's rows whole, in the
     /// listing's order, where `expand` is asked or where they fit the
     /// bound (`limit`, else ten); else those with the most items, as many
     /// as the bound, the rest counted.
@@ -146,6 +147,7 @@ impl Tabs {
         select: &Selection,
         limit: Option<usize>,
         expand: bool,
+        now: i64,
     ) -> Tabs {
         let folders = rows.iter().filter(|t| t.r#type == "Folder").count();
         let fetched = rows.iter().filter(|t| t.fetched_at.is_some()).count();
@@ -170,7 +172,7 @@ impl Tabs {
         if whole {
             kept.sort_by_key(|(at, _)| *at);
         }
-        let rows: Vec<TabRow> = kept.into_iter().map(|(_, row)| row).collect();
+        let rows: Vec<TabRow> = kept.into_iter().map(|(_, row)| row.aged(now)).collect();
         Tabs {
             realm: realm.to_string(),
             league: league.to_string(),

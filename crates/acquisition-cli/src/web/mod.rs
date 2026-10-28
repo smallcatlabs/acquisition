@@ -521,6 +521,7 @@ async fn tabs(
             &acquisition_search::tabs::Selection::default(),
             None,
             true,
+            acquisition_store::now(),
         )
         .grouped();
         // every character, as every tab: the page is a selection, and a
@@ -531,6 +532,7 @@ async fn tabs(
             facts.characters(Some(realm.as_str()), Some(&league))?,
             None,
             true,
+            acquisition_store::now(),
         );
         let empty = (listed.tabs == 0).then(|| store_cmd::no_tabs_text(realm, &league, &facts));
         let leagues = web.leagues(realm.as_str())?;

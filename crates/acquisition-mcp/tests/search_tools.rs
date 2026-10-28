@@ -411,7 +411,7 @@ fn describe_is_the_clis_and_reads_no_store() {
     );
     assert!(said.starts_with(&own), "{said}");
     assert!(
-        said.ends_with(", wedged, store counts, tab counts, character counts, event counts"),
+        said.ends_with(", wedged, store counts, tab counts, character counts, event counts, ages"),
         "{said}"
     );
     assert_eq!(e["readings"], printed["readings"]);
@@ -1046,12 +1046,30 @@ fn tabs_lists_the_never_fetched_of_one_type() {
 
 /// A row's place carried no age (the trade seat: mcp-sonnet-2 calls 3, 14,
 /// 24, its fault 4). C118: the place carries its location's `fetched_at`,
-/// and the answer section names it.
+/// and the answer section names it; C53 (ages amended, step 2g round 6):
+/// beside it the age in words, as the CLI's row prints it, so no agent
+/// subtracts an epoch from a clock it has to ask for.
 #[test]
 fn a_rows_place_carries_when_its_location_was_fetched() {
-    let mut seat = Seat::over(scratch("mcp-search"));
+    let mut seat = Seat::new();
     let text = described(&mut seat, "answer");
-    assert!(text.contains("(`place.fetched_at`)"), "{text}");
+    assert!(
+        text.contains("(`place.fetched_at`, in words `place.fetched_at_age`)"),
+        "{text}"
+    );
+    // C53: the words stand beside the epoch, in the store's vocabulary
+    // (pinned at the store; here the shape an agent reads)
+    let answer = seat.answer(&json!({ "query": { "text": "rarity=rare" } }));
+    let place = &answer["rows"][0]["place"];
+    assert!(place["fetched_at"].is_i64(), "{place}");
+    let words = place["fetched_at_age"].as_str().unwrap_or_default();
+    let span = words.strip_suffix(" ago").unwrap_or_default();
+    assert!(
+        span.len() > 1
+            && span[..span.len() - 1].bytes().all(|b| b.is_ascii_digit())
+            && span.ends_with(['s', 'm', 'h', 'd']),
+        "{place}"
+    );
 }
 
 /// `scope.never_fetched` stood unsized and which tabs it counted could not
