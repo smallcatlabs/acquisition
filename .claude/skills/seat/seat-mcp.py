@@ -22,7 +22,7 @@ calls/NNN.host-config.json; the call's text and sizes are the server's alone. A 
 whole as calls/NNN.args.json and in the row up to 2,000 characters, so no row outgrows a CSV reader.
 
 bytes: `text_bytes` is the result's text block; `result_bytes` is the whole JSON-RPC line, that text block
-escaped in its envelope (the server sends no structured content). A result is printed whole up to SHOWN bytes of text;
+escaped in its envelope (the server sends no structured content since 93cc52fd; an older binary's line holds the document twice). A result is printed whole up to SHOWN bytes of text;
 past that its head is printed and the row says `head`. `open` is printed whole: it is what a host shows.
 """
 import argparse, csv, json, os, queue, shutil, subprocess, sys, threading, time

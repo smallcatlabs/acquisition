@@ -1079,7 +1079,7 @@ the binaries were built from, the pristine store's path and the line
 recorded state", and one line stating what the three cost together
 before and after.
 
-This round's commit carries the step's ledger line and a "Current
+This round's commit extends the step's ledger line and writes a "Current
 step" that says the review is pending; if the owner takes the step's
 close before this round, the last round he takes carries the ledger
 line with "the sizes unmeasured; round 8 open". A worktree made for
