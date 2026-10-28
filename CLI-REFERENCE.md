@@ -248,7 +248,7 @@ Usage: acq store [OPTIONS] <COMMAND>
 
 Commands:
   status      Path, size, and row counts
-  characters  Characters on record (no daemon): id, address, league, freshness, live item count. `acq characters` (the job) fetches the list anew
+  characters  Characters on record (no daemon): id, address, league, freshness, live item count. The counts over every character first (the footer), then ten of them in the store's order, the highest level first in each league; --limit lists more or fewer, --expand every one. `--json` is the same document: the counts, and `rows`, the characters listed, with `left_out` counting the rest. `acq characters` (the job) fetches the list anew
   events      Item events (added/moved/changed/removed) from recent ingests: by default one line per location with counts (text) or the event list (--json); --expand / --summary pick either form in both modes
   refused     Bodies the store refused as malformed, kept verbatim as evidence: the list (newest first), or one body in full by its row id
   rebuild     Re-extract derived columns from each item's own JSON
@@ -273,13 +273,15 @@ Options:
 ## `acq store characters`
 
 ```text
-Characters on record (no daemon): id, address, league, freshness, live item count. `acq characters` (the job) fetches the list anew
+Characters on record (no daemon): id, address, league, freshness, live item count. The counts over every character first (the footer), then ten of them in the store's order, the highest level first in each league; --limit lists more or fewer, --expand every one. `--json` is the same document: the counts, and `rows`, the characters listed, with `left_out` counting the rest. `acq characters` (the job) fetches the list anew
 
 Usage: acq store characters [OPTIONS]
 
 Options:
       --realm <REALM>      Restrict to one realm (pc, xbox, sony, poe2); every realm otherwise
       --league <LEAGUE>    Restrict to one league; every league otherwise
+      --limit <LIMIT>      List this many characters in place of ten
+      --expand             List every character of the selection
   -h, --help               Print help
 ```
 

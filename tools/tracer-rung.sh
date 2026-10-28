@@ -755,14 +755,17 @@ if [ -n "$CHARACTERS" ]; then
     # The character facet's readback: every covered character on record in
     # this (realm, league) must have been fetched by the time the loop
     # closed, unless the final plan skips it for a reason that never
-    # fetches (deleted, expired, no league). Coverage is exact by id.
+    # fetches (deleted, expired, no league). Coverage is exact by id, so
+    # the readback asks every character (`--expand`): the default lists
+    # ten beside the counts (C53), one document whose rows are `rows`
+    # (C149).
     "$ACQ" store characters --realm "$REALM" >"$RUN_DIR/characters.txt"
-    "$ACQ" store characters --realm "$REALM" --json >"$RUN_DIR/characters.json"
+    "$ACQ" store characters --realm "$REALM" --expand --json >"$RUN_DIR/characters.json"
     head -20 "$RUN_DIR/characters.txt"
     if [ "$CHARACTERS" = all ]; then
-        covered=$(jq -c --arg l "$LEAGUE" '[.[] | select(.league == $l)]' "$RUN_DIR/characters.json")
+        covered=$(jq -c --arg l "$LEAGUE" '[.rows[] | select(.league == $l)]' "$RUN_DIR/characters.json")
     else
-        covered=$(jq -c --argjson sel "$chars_json" '[.[] | select(.id as $i | $sel | index($i) != null)]' "$RUN_DIR/characters.json")
+        covered=$(jq -c --argjson sel "$chars_json" '[.rows[] | select(.id as $i | $sel | index($i) != null)]' "$RUN_DIR/characters.json")
         unknown=$(jq -r '.unknown_characters | join(" ")' "$RUN_DIR/plan-c1-offline.json")
         for id in $(echo "$CHARACTERS" | tr ',' ' '); do
             if [ "$(echo "$covered" | jq --arg i "$id" '[.[] | select(.id == $i)] | length')" = 1 ]; then continue; fi

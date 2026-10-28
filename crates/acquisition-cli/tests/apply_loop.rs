@@ -127,8 +127,11 @@ fn the_plan_apply_replan_loop_closes_against_the_mock() {
     // with items, readable with no daemon.
     let out = acq(&base, &["store", "characters", "--realm", "pc", "--json"]);
     assert!(out.status.success(), "{out:?}");
-    let rows = sole_json(&out);
-    let rows = rows.as_array().unwrap();
+    // one document (C149): the counts beside the rows
+    let listed = sole_json(&out);
+    assert_eq!(listed["characters"], 2, "{listed}");
+    assert_eq!(listed["fetched"], 2, "{listed}");
+    let rows = listed["rows"].as_array().unwrap();
     assert_eq!(rows.len(), 2, "{rows:?}");
     for row in rows {
         assert!(row["fetched_at"].is_i64(), "{row}");

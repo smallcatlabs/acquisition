@@ -30,10 +30,12 @@ Cancel a waiting or running job; cascades to its descendants.
 
 ### `characters`
 
-Characters known to the store, with class, level, league, and two counts — `item_count`, the live items the store holds at the character now, and `fetched_items`, what the last full fetch's body carried (equipment + inventory, socketed gems not counted), null until one — (no daemon). Fresh data is a `characters` or `character` job.
+Characters known to the store (no daemon), counted first — how many, fetched, fetched empty, never fetched, their items — then listed: ten, `limit` more or fewer, `expand` every one, each with class, level, league, `item_count` (the live items held at it now) and `fetched_items` (what the last full fetch carried, null until one). `describe` with names ["store"] says what each count counts. Fresh data is a `characters` or `character` job.
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
+- `expand` (boolean | null) — List every character of the selection.
 - `league` (string | null) — Restrict to one league; omitted lists every league.
+- `limit` (integer | null) — List this many characters in place of ten, in the store's order.
 - `realm` (string | null) — Restrict to one realm (pc, xbox, sony, poe2); omitted lists every realm.
 
 ### `daemon_status`

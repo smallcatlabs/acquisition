@@ -169,7 +169,7 @@ acq shop render [--size N] [--template FILE] [--page N] [--expand]   # forum pag
 
 # the store: no daemon, no network
 acq tabs [--league L] [--realm R] [--type T] [--never-fetched] [--limit N] [--expand]   # counts, then the ten tabs with the most items; --limit more, --expand all
-acq store characters [--realm R] [--league L]   # character locations, ages and live items
+acq store characters [--realm R] [--league L] [--limit N] [--expand]   # counts, then ten characters: locations, ages and live items; --expand all
 acq search [--realm R] ['<query>'] [--sort V [--desc]] [--limit N] [--routes]   # item search; a store of two realms needs --realm (pc, poe2, all)
 acq search ['<query>'] --count KEY,… | --cross KEY,KEY [--sum V]   # the matches counted by key; line[:text,…] is the vocabulary
 acq search --describe [name,…|all]   # the query language: an index, or entries whole

@@ -27,6 +27,8 @@
 //! - [`diagnose`]: one redacted document for a bug report, composed of
 //!   the others (#79).
 //! - [`events`]: the item events by location (C53).
+//! - [`characters`]: the characters on record, counted beside their
+//!   rows (C149, C53).
 //!
 //! Every field of a value a verb takes is public, so a test builds one
 //! over a fixture store with no environment.
@@ -36,6 +38,7 @@
 // structured fault, never a panic.
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
 
+pub mod characters;
 pub mod daemon;
 pub mod diagnose;
 pub mod events;
@@ -44,6 +47,7 @@ pub mod frontend;
 pub mod jobs;
 pub mod refresh;
 
+pub use characters::Characters;
 pub use daemon::{DaemonReport, PersistedSummary};
 pub use diagnose::{Diagnosis, Redactions, Tails};
 pub use fault::Fault;

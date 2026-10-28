@@ -491,7 +491,8 @@ async fn stats(
 // ---- the refresh pages --------------------------------------------------------------------------
 
 /// The tabs and characters of a league with a selection (Do 7): the
-/// `tabs` document whole and the characters listing, no default ticked.
+/// `tabs` document whole and the `characters` document whole (C149),
+/// no default ticked.
 async fn tabs(
     State(web): State<Arc<Web>>,
     headers: HeaderMap,
@@ -515,7 +516,15 @@ async fn tabs(
             true,
         )
         .grouped();
-        let characters = facts.characters(Some(realm.as_str()), Some(&league))?;
+        // every character, as every tab: the page is a selection, and a
+        // row it does not list cannot be ticked (C53's audit view)
+        let characters = acquisition_verbs::Characters::of(
+            Some(realm.as_str()),
+            Some(&league),
+            facts.characters(Some(realm.as_str()), Some(&league))?,
+            None,
+            true,
+        );
         let empty = (listed.tabs == 0).then(|| store_cmd::no_tabs_text(realm, &league, &facts));
         let leagues = web.leagues(realm.as_str())?;
         Ok((league, listed, characters, empty, leagues))
@@ -605,7 +614,7 @@ async fn tabs(
             body.push_str("</table>\n</details>\n<label class=\"control\"><input type=\"checkbox\" name=\"deep\" value=\"true\"> the substashes box: also fetch a ticked map or unique tab's pages</label>\n");
         }
     }
-    if characters.is_empty() {
+    if characters.characters == 0 {
         body.push_str(&pre(&format!(
             "no characters known in {}{league} (run `acq characters` or cover them in the sync policy)",
             store_cmd::realm_prefix(realm)
@@ -613,9 +622,9 @@ async fn tabs(
     } else {
         body.push_str(&format!(
             "<details class=\"list\" open><summary>Characters ({})</summary>\n<table>\n<tr><th></th><th>Character</th><th>Level</th><th>Items</th><th>Fetched</th></tr>\n",
-            characters.len()
+            characters.characters
         ));
-        for c in &characters {
+        for c in &characters.rows {
             body.push_str(&format!(
                 "<tr><td><input type=\"checkbox\" name=\"character\" value=\"{}\"></td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>\n",
                 esc(&c.id),

@@ -401,16 +401,32 @@ fn tabs_next(realm: Realm, league: &str) -> (String, String) {
 
 /// `acq store characters`: the characters on record, from the shared
 /// store (no daemon, no network) — the CLI's twin of the MCP `characters`
-/// tool. The readable columns first; the full id last (policy ids match
-/// exactly, C55, so it is never cut).
-pub fn characters(cx: &Ctx, realm: Option<Realm>, league: Option<&str>, json: bool) -> Result<()> {
-    let store = open(cx)?;
-    let characters = store.characters(realm.map(Realm::as_str), league)?;
+/// tool, one document for both (C149): the counts over every character
+/// the selection holds, then ten of them, `--limit` more or fewer,
+/// `--expand` every one (C53). The readable columns first; the full id
+/// last (policy ids match exactly, C55, so it is never cut).
+pub fn characters(
+    cx: &Ctx,
+    realm: Option<Realm>,
+    league: Option<&str>,
+    limit: Option<usize>,
+    expand: bool,
+    json: bool,
+) -> Result<()> {
+    let account = cx.account()?;
+    let store = account.facts()?;
+    let listed = acquisition_verbs::Characters::of(
+        realm.map(Realm::as_str),
+        league,
+        store.characters(realm.map(Realm::as_str), league)?,
+        limit,
+        expand,
+    );
     if json {
-        println!("{}", serde_json::to_string_pretty(&characters)?);
+        println!("{}", serde_json::to_string_pretty(&listed)?);
         return Ok(());
     }
-    if characters.is_empty() {
+    if listed.characters == 0 {
         // the league or realm asked about, as a line about a league names
         // it; the file when the whole store holds none
         let place = match (realm, league) {
@@ -425,26 +441,45 @@ pub fn characters(cx: &Ctx, realm: Option<Realm>, league: Option<&str>, json: bo
         );
         return Ok(());
     }
-    let now = acquisition_store::now();
-    let name_w = characters
+    print!(
+        "{}",
+        characters_text(&listed, &account.entry.username, acquisition_store::now())
+    );
+    Ok(())
+}
+
+/// `store characters`' text, a function of its document (C53, C149): the
+/// rows listed, the footer's counts read from the document, and where
+/// some are left out the command that lists every one, carrying the
+/// account and the selection it ran over so it runs as printed.
+pub(crate) fn characters_text(
+    listed: &acquisition_verbs::Characters,
+    account: &str,
+    now: i64,
+) -> String {
+    let rows = &listed.rows;
+    let name_w = rows
         .iter()
         .map(|c| c.name.chars().count())
         .max()
         .unwrap_or(4)
         .clamp(4, 32);
-    let league_w = characters
+    let league_w = rows
         .iter()
         .map(|c| c.league.as_deref().unwrap_or("-").chars().count())
         .max()
         .unwrap_or(6)
         .max(6);
-    println!(
-        "{:<name_w$} {:<5} {:<league_w$} {:>5} {:>6}  {:<9} {:<9} id",
-        "name", "realm", "league", "level", "items", "fetched", "listed"
-    );
-    for c in &characters {
-        println!(
-            "{:<name_w$} {:<5} {:<league_w$} {:>5} {:>6}  {:<9} {:<9} {}",
+    let mut out = String::new();
+    if !rows.is_empty() {
+        out.push_str(&format!(
+            "{:<name_w$} {:<5} {:<league_w$} {:>5} {:>6}  {:<9} {:<9} id\n",
+            "name", "realm", "league", "level", "items", "fetched", "listed"
+        ));
+    }
+    for c in rows {
+        out.push_str(&format!(
+            "{:<name_w$} {:<5} {:<league_w$} {:>5} {:>6}  {:<9} {:<9} {}\n",
             clip(&c.name, 32),
             c.realm,
             c.league.as_deref().unwrap_or("-"),
@@ -453,27 +488,40 @@ pub fn characters(cx: &Ctx, realm: Option<Realm>, league: Option<&str>, json: bo
             ago(now, c.fetched_at),
             ago(now, c.listed_at),
             c.id,
+        ));
+    }
+    let mut summary = format!("{} fetched", listed.fetched);
+    if listed.empty_bodies > 0 {
+        summary.push_str(&format!(" ({} with empty bodies)", listed.empty_bodies));
+    }
+    if listed.never_fetched > 0 {
+        summary.push_str(&format!(", {} never fetched", listed.never_fetched));
+    }
+    out.push_str(&format!(
+        "{} characters: {summary}; {} items\n",
+        listed.characters, listed.items
+    ));
+    if listed.left_out > 0 {
+        let mut every = format!(
+            "acq store characters --account {}",
+            acquisition_search::answer::shell_quoted(account)
         );
+        if let Some(realm) = &listed.realm {
+            every.push_str(&format!(" --realm {realm}"));
+        }
+        if let Some(league) = &listed.league {
+            every.push_str(&format!(
+                " --league {}",
+                acquisition_search::answer::shell_quoted(league)
+            ));
+        }
+        out.push_str(&format!(
+            "{} of {} listed: `{every} --expand` lists every one\n",
+            rows.len(),
+            listed.characters
+        ));
     }
-    let fetched = characters.iter().filter(|c| c.fetched_at.is_some()).count();
-    let empty = characters
-        .iter()
-        .filter(|c| c.fetched_at.is_some() && c.fetched_items == Some(0))
-        .count();
-    let never = characters.len() - fetched;
-    let mut summary = format!("{fetched} fetched");
-    if empty > 0 {
-        summary.push_str(&format!(" ({empty} with empty bodies)"));
-    }
-    if never > 0 {
-        summary.push_str(&format!(", {never} never fetched"));
-    }
-    println!(
-        "{} characters: {summary}; {} items",
-        characters.len(),
-        characters.iter().map(|c| c.item_count).sum::<i64>()
-    );
-    Ok(())
+    out
 }
 
 pub fn status(cx: &Ctx, json: bool) -> Result<()> {

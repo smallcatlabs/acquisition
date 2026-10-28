@@ -411,7 +411,7 @@ fn describe_is_the_clis_and_reads_no_store() {
     );
     assert!(said.starts_with(&own), "{said}");
     assert!(
-        said.ends_with(", wedged, store counts, tab counts"),
+        said.ends_with(", wedged, store counts, tab counts, character counts"),
         "{said}"
     );
     assert_eq!(e["readings"], printed["readings"]);

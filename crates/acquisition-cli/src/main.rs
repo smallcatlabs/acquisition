@@ -732,7 +732,12 @@ enum StoreCmd {
     /// Path, size, and row counts.
     Status,
     /// Characters on record (no daemon): id, address, league, freshness,
-    /// live item count. `acq characters` (the job) fetches the list anew.
+    /// live item count. The counts over every character first (the
+    /// footer), then ten of them in the store's order, the highest level
+    /// first in each league; --limit lists more or fewer, --expand every
+    /// one. `--json` is the same document: the counts, and `rows`, the
+    /// characters listed, with `left_out` counting the rest. `acq
+    /// characters` (the job) fetches the list anew.
     Characters {
         /// Restrict to one realm (pc, xbox, sony, poe2); every realm otherwise.
         #[arg(long, value_parser = acquisition_verbs::realm)]
@@ -740,6 +745,12 @@ enum StoreCmd {
         /// Restrict to one league; every league otherwise.
         #[arg(long)]
         league: Option<String>,
+        /// List this many characters in place of ten.
+        #[arg(long)]
+        limit: Option<usize>,
+        /// List every character of the selection.
+        #[arg(long)]
+        expand: bool,
     },
     /// Item events (added/moved/changed/removed) from recent ingests: by
     /// default one line per location with counts (text) or the event list
@@ -1234,9 +1245,12 @@ async fn run(cli: Cli) -> Result<()> {
         Cmd::Show(args) => search_cmd::show_item(cx, args, cli.json),
         Cmd::Store { cmd } => match cmd {
             StoreCmd::Status => store_cmd::status(cx, cli.json),
-            StoreCmd::Characters { realm, league } => {
-                store_cmd::characters(cx, realm, league.as_deref(), cli.json)
-            }
+            StoreCmd::Characters {
+                realm,
+                league,
+                limit,
+                expand,
+            } => store_cmd::characters(cx, realm, league.as_deref(), limit, expand, cli.json),
             StoreCmd::Events {
                 hours,
                 limit,

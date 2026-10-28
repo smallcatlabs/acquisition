@@ -151,7 +151,10 @@ fn a_character_only_poe2_policy_closes_its_loop_on_the_poe2_routes() {
     assert_eq!(place["realm"], "poe2");
     assert_eq!(named("pc")["total"]["matched"], 0);
     let out = acq(&base, &["store", "characters", "--realm", "poe2", "--json"]);
-    let rows = sole_json(&out);
+    // one document (C149): the counts beside the rows
+    let listed = sole_json(&out);
+    assert_eq!(listed["characters"], 1, "{listed}");
+    let rows = &listed["rows"];
     assert_eq!(rows.as_array().unwrap().len(), 1, "{rows}");
     assert!(rows[0]["fetched_at"].is_i64() && rows[0]["item_count"].as_i64().unwrap() > 0);
 

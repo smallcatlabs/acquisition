@@ -18,7 +18,7 @@ use serde_json::{Value, json};
 
 use crate::harness;
 
-use harness::{Transcript, golden, offline_acq as acq, sole_json};
+use harness::{Transcript, golden, offline_acq as acq, shell_words, sole_json};
 
 const USER: &str = "Alice#1234";
 const UUID: &str = "u-price";
@@ -1254,28 +1254,6 @@ fn price_list_lists_ten_and_expand_returns_every_item_of_a_selection_past_ten() 
         text.ends_with("next: `--expand` lists every item; `acq price show --account 'Alice#1234' --realm pc --league Big item/<id>` is one\n"),
         "{text}"
     );
-}
-
-/// The words of a printed command, as a shell would split them: on
-/// spaces outside single quotes, the quotes taken off (the frontends
-/// quote with `shell_quoted`, single quotes alone).
-fn shell_words(command: &str) -> Vec<String> {
-    let (mut words, mut word, mut quoted) = (Vec::new(), String::new(), false);
-    for c in command.chars() {
-        match c {
-            '\'' => quoted = !quoted,
-            ' ' if !quoted => {
-                if !word.is_empty() {
-                    words.push(std::mem::take(&mut word));
-                }
-            }
-            c => word.push(c),
-        }
-    }
-    if !word.is_empty() {
-        words.push(word);
-    }
-    words
 }
 
 /// Every `acq price …` command a text prints between backticks, each

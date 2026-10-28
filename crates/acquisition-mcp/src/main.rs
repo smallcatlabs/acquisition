@@ -488,6 +488,10 @@ struct CharactersParams {
     league: Option<String>,
     /// Restrict to one realm (pc, xbox, sony, poe2); omitted lists every realm.
     realm: Option<String>,
+    /// List this many characters in place of ten, in the store's order.
+    limit: Option<usize>,
+    /// List every character of the selection.
+    expand: Option<bool>,
     #[schemars(description = ACCOUNT)]
     account: Option<String>,
 }
@@ -581,11 +585,13 @@ const DAEMON: [(&str, &str); 7] = [
     ),
 ];
 
-/// What `store_status` and `tabs` count, read once by name (`describe`
-/// with names `["store"]`): C146, amended 2026-10-27 — on the MCP a
-/// count's gloss stands in the `describe` entry the tool's description
-/// names. The words are the ones those descriptions carried, whole.
-const STORE: [(&str, &str); 2] = [
+/// What `store_status`, `tabs` and `characters` count, read once by name
+/// (`describe` with names `["store"]`): C146, amended 2026-10-27 — on the
+/// MCP a count's gloss stands in the `describe` entry the tool's
+/// description names. The words are the ones those descriptions carried,
+/// whole, and the CLI footers' (C149: the counts a text prints stand in
+/// its JSON under one set of words).
+const STORE: [(&str, &str); 3] = [
     (
         "store counts",
         "store_status: the store file's path, size and row counts. `leagues` counts the league listing's rows and `league_list` says whether that listing was ever fetched (`acq leagues` or a `leagues` job fetches it); characters and tabs carry their league names whether or not it was. `refused_bodies` counts bodies the store would not take, which `acq store refused` lists. `withheld_responses` counts fetches of tabs or characters the latest list no longer named and `withheld_items` the items they carried: kept as evidence, in no search or count, nothing to do unless a list names the place again. `unlifted_items` counts item-shaped objects in characters' data under a key this build does not read as items, so no search counts them: GGG added a kind of item list, which a newer build reads. `granted_skills` counts the skill entries PoE2 characters' items grant — GGG shows a granted skill once in each place it appears, the item's sockets and the character's skills, so one skill can be two entries — kept with their characters and not counted as items, having no id of their own",
@@ -593,6 +599,10 @@ const STORE: [(&str, &str); 2] = [
     (
         "tab counts",
         "tabs, counted first: how many tabs, fetched, never fetched and folders, how many items, and the same by tab type (`by_type`, the most items first); then `rows`, the tabs listed — the ten with the most items, `limit` more or fewer, `expand` every one, in the listing's order where none is left out (`listed`: `all` or `most_items`). `left_out` counts the tabs not listed. `type` and `never_fetched: true` select the tabs listed — the never fetched of one type by name, which a refresh takes — under the league's counts, `selected` counting them",
+    ),
+    (
+        "character counts",
+        "characters, counted first over every character the selection holds (`realm` and `league` as asked, absent when not): `characters` how many; `fetched` those a full fetch (equipment and inventory) has filled; `empty_bodies` the fetched whose last full fetch carried no items (`fetched_items` 0); `never_fetched` those listed and never fetched, whose items no answer knows; `items` the live items held at every one. Then `rows`, the characters listed — ten in the store's order (by realm, league, then level, highest first), `limit` more or fewer, `expand` every one — and `left_out`, the characters not listed. On a row, `item_count` is the live items the store holds at the character now and `fetched_items` what the last full fetch's body carried (equipment and inventory, socketed gems not counted), null until one",
     ),
 ];
 
@@ -1363,7 +1373,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Characters known to the store, with class, level, league, and two counts — `item_count`, the live items the store holds at the character now, and `fetched_items`, what the last full fetch's body carried (equipment + inventory, socketed gems not counted), null until one — (no daemon). Fresh data is a `characters` or `character` job."
+        description = "Characters known to the store (no daemon), counted first — how many, fetched, fetched empty, never fetched, their items — then listed: ten, `limit` more or fewer, `expand` every one, each with class, level, league, `item_count` (the live items held at it now) and `fetched_items` (what the last full fetch carried, null until one). `describe` with names [\"store\"] says what each count counts. Fresh data is a `characters` or `character` job."
     )]
     fn characters(&self, Parameters(p): Parameters<Args<CharactersParams>>) -> Told {
         answer(|| {
@@ -1374,7 +1384,14 @@ impl AcqMcp {
                 .map(|r| realm_param(Some(r)))
                 .transpose()?;
             let store = self.facts(p.account.as_deref())?;
-            store.characters(realm.map(Realm::as_str), p.league.as_deref())
+            let realm = realm.map(Realm::as_str);
+            Ok(acquisition_verbs::Characters::of(
+                realm,
+                p.league.as_deref(),
+                store.characters(realm, p.league.as_deref())?,
+                p.limit,
+                p.expand.unwrap_or(false),
+            ))
         })
     }
 

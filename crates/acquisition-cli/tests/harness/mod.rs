@@ -460,6 +460,28 @@ fn progress_rule(text: &str) -> String {
         .collect()
 }
 
+/// The words of a printed command, as a shell would split them: on
+/// spaces outside single quotes, the quotes taken off (the frontends
+/// quote with `shell_quoted`, single quotes alone).
+pub fn shell_words(command: &str) -> Vec<String> {
+    let (mut words, mut word, mut quoted) = (Vec::new(), String::new(), false);
+    for c in command.chars() {
+        match c {
+            '\'' => quoted = !quoted,
+            ' ' if !quoted => {
+                if !word.is_empty() {
+                    words.push(std::mem::take(&mut word));
+                }
+            }
+            c => word.push(c),
+        }
+    }
+    if !word.is_empty() {
+        words.push(word);
+    }
+    words
+}
+
 /// A word as a shell reads it back: bare where it is safe, else quoted.
 fn shell_word(word: &str) -> String {
     if !word.is_empty()
