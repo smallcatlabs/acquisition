@@ -29,9 +29,11 @@ say "closes #90" only on the last.
   earn, whose entry names a store that cannot be opened or written after
   a send; its `Pinned` field is the `c144_` tests. C127, the kind table
   and the door: a kind outside `KINDS` is refused at submit, so the kind
-  that reaches `record` is a row of the table or a restored row from a
-  build with another table (`execute_inner`'s last arm, `kinds.rs`
-  line 744).
+  that reaches `record` is a row of the table. *Corrected 2026-10-28,
+  the review's note:* a restored row from a build with another table
+  fails in `execute_inner`'s last arm (`kinds.rs` line 744) and never
+  reaches `record`; the arm this step changes guards the next endpoint
+  alone.
 - `decisions/store.md`: C28, the daemon's part of the store is
   `record(endpoint, params, status, body)` and it never looks inside a
   body; C30, a refused body is evidence, kept in `refused`. An unknown
