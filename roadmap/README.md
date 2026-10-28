@@ -191,7 +191,7 @@ The owner's list, his to strike:
 ## Current step
 
 #103, a bound on every observe request
-(`briefs/103-observe-bound.md`): the brief committed, the build next;
-#68 closed (`LEDGER.md`). Phase 3, the owner's
+(`briefs/103-observe-bound.md`): built (`00ea78c2..4be1714d`), the
+review pending; #68 closed (`LEDGER.md`). Phase 3, the owner's
 league run, follows at his word; #70 closes on a week of pushes without
 a re-run. `AGENTS.md` governs; the gate is `tools/gate.sh`.
