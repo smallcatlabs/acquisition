@@ -52,6 +52,12 @@ Each in his words, with the commit that landed it.
   their fix; the `AGENTS.md` budget of 15,277 bytes stands; no
   frontends review before the league; #91 and #11 join "Pull-forward"
   (`64b7f505`).
+- 2026-10-28, the road reordered: "Yes: reorder the road as you
+  recommend, the league group first starting at #87, and write it
+  into the README and the pull-forward list before a step starts."
+  The league group is the milestone's buildable issues the owner's
+  run would otherwise meet; the automation and the words follow it
+  (the commit carrying this line).
 
 ## Roles
 
@@ -140,10 +146,18 @@ issue carrying its evidence and its done-when, and takes a brief from
 `briefs/TEMPLATE.md` written by the session that starts it. An item
 leaves the list when its step closes or the owner strikes it.
 
-1. #85, #86, #87, #89: the standing automation and the hygiene from the
+1. The league group, the owner's word of 2026-10-28, in this order:
+   #87 (the gate refuses a set fixture switch and a dirty tree), #90
+   (an unknown job kind fails its job), #68 (the login callback), #103
+   (a bound on every observe request), #63's remainder (store failures
+   absorbed as success), #53's generator (in the tree before the
+   post-launch pin), #94, #96. Each a half day to a day, one brief
+   each; the group closes before the league.
+2. #85, #86, #89: the standing automation and the hygiene from the
    assessment's R5, each a short step on any idle day.
-2. #91, the frontend hygiene from the 2026-10-26 read.
-3. #11, the words nobody understood.
+3. #91, the frontend hygiene from the 2026-10-26 read.
+4. The words, after the first seat on the league's build: #11, #16,
+   #20, #72, #74, #101, #107, in the order that seat gives them.
 
 ## Open
 
@@ -174,7 +188,8 @@ The owner's list, his to strike:
 ## Current step
 
 p1, the roadmap sweep (`briefs/p1-roadmap-sweep.md`): "Open" routed,
-the ledger moved to `LEDGER.md`, this file made true. Next from
-"Pull-forward": #85. Phase 3, the owner's league run, follows at his
+the ledger moved to `LEDGER.md`, this file made true, the road
+reordered. Next from "Pull-forward": #87, the first of the league
+group. Phase 3, the owner's league run, follows at his
 word; #70 closes on a week of pushes without a re-run. `AGENTS.md`
 governs; the gate is `tools/gate.sh`.
