@@ -493,7 +493,7 @@ is the per-location summary.")]
     },
     /// The live jobs: id, parent, kind, target (from params), state
     /// (`↻n` counts 429 re-queues), priority, account, submitter, ETA.
-    /// The first ten waiting and running jobs are listed, and the ten
+    /// The first ten waiting and running jobs by id are listed, and the ten
     /// most recent finished ones; the last line counts every job the
     /// daemon lists, and says when the next waiting job starts and when
     /// the last one does, and what was left out; `--all` lists every one.

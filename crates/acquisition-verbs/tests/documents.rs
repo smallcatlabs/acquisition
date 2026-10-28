@@ -861,7 +861,8 @@ fn job_row(id: u64, state: &str) -> PersistedJob {
 /// C149 and C53, and the brief's second review, finding 2 (no exemption
 /// for the open jobs): the live list is one document, its counts made
 /// over every job before the cut — 800 done, 12 waiting with predicted
-/// starts, one running — beside ten open rows (the earliest by id) and
+/// starts, one running — beside ten open rows (the first by id, not by
+/// when they run) and
 /// the ten most recent finished, in id order, with what each left out;
 /// `expand` lists every job. The ledger's queue is ten of its open rows
 /// beside its counts.
@@ -895,6 +896,14 @@ fn c149_the_job_list_counts_every_job_beside_ten_open_and_ten_finished() {
         "the ten most recent done, then the ten first open"
     );
     assert_eq!((listed.open_left_out, listed.finished_left_out), (3, 790));
+    // the first ten open by id, not by when they run: the one running job
+    // (813) is among those left out, and counted (round 3's review, P3)
+    assert!(
+        !listed.rows.iter().any(|j| j.id == 813),
+        "{:?}",
+        listed.rows
+    );
+    assert_eq!(listed.counts.by_state.running, 1);
     assert_eq!(listed.left_out_needs, Some("expand"));
     let doc = serde_json::to_value(Jobs::Live(listed)).unwrap();
     assert_eq!(doc["running"], true, "{doc}");

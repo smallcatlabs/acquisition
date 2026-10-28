@@ -577,7 +577,7 @@ const DAEMON: [(&str, &str); 8] = [
     ),
     (
         "job counts",
-        "list_jobs with a daemon running: `running: true`, `total` every job it lists, `by_state` them by state (running, waiting, done, failed, cancelled, a zero included), and `next_starts_in_seconds` and `last_starts_in_seconds` the soonest and the latest predicted start among the waiting (a start, never an end; absent when none is predicted); then `rows` in id order, the first ten open jobs and the ten most recent finished, `open_left_out` and `finished_left_out` counting the rest, which `expand` lists. With none running, `persisted` holds ten of the ledger's open rows as `jobs`, with `total`, `waiting`, `recorded_running` and `left_out` over every one",
+        "list_jobs with a daemon running: `running: true`, `total` every job it lists, `by_state` them by state (running, waiting, done, failed, cancelled, a zero included), and `next_starts_in_seconds` and `last_starts_in_seconds` the soonest and the latest predicted start among the waiting (a start, never an end; absent when none is predicted); then `rows` in id order, the first ten open jobs by id (not by when they run: priority decides that, so a running job can be left out) and the ten most recent finished, `open_left_out` and `finished_left_out` counting the rest, which `expand` lists. With none running, `persisted` holds ten of the ledger's open rows as `jobs`, with `total`, `waiting`, `recorded_running` and `left_out` over every one",
     ),
     (
         "ledger",

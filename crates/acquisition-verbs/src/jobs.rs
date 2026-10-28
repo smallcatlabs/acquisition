@@ -184,8 +184,9 @@ impl JobCounts {
 
 /// C149 and C53: the daemon's job list as one document — its counts over
 /// every job ([`JobCounts`]), then `rows`, in the daemon's id order: the
-/// open jobs (running or waiting), ten, the earliest by id (those running
-/// or next to run), and the ten most recent finished; every job under
+/// open jobs (running or waiting), the first ten by id — not by when they
+/// run, which priority decides, so a running job can be among those left
+/// out — and the ten most recent finished; every job under
 /// `expand` (the CLI's `--all`). What is left out is counted, open and
 /// finished apart (the brief's second review, finding 2: no exemption
 /// for the open jobs).
