@@ -632,9 +632,11 @@ impl IntentValue for Buyout {
 /// conflicting (C35) — and a create, naming none, replaces nothing: its
 /// `prior` is `None` even when a row stood until a racing clear.
 /// `prior.value` may be one this build cannot read (a newer build's,
-/// written past by an explicit revision): a frontend reads it through
-/// [`Buyout::parse`], shows the JSON when that fails, and does not
-/// promise to put it back.
+/// written past by an explicit revision, or a value not in its canonical
+/// text): a frontend reads it through the store's door check,
+/// `check_value::<Buyout>`, shows the JSON when that fails, and takes
+/// what puts it back from [`PriceWrite::undo`], never by parsing the
+/// prior itself.
 ///
 /// `revision` is the revision now current on the target, the one the next
 /// write over it names: the written row's, or after a clear its

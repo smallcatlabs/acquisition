@@ -670,6 +670,12 @@ fn on_conflict(
         PriceWriteError::Store(AnnotationError::Conflict { current }) => {
             refused_write(annotations, target, current.as_deref(), verb, shown)
         }
+        // the price's words, never the store's (C116)
+        PriceWriteError::Store(AnnotationError::RevisionExhausted { revision, .. }) => {
+            anyhow::anyhow!(
+                "{target}'s price is at revision {revision}, the last a row can take: nothing was written"
+            )
+        }
         other => other.into(),
     }
 }
@@ -1711,6 +1717,59 @@ mod tests {
                 .contains("`acq price show --account 'A#1' 'item/i2'` reads what covers it"),
             "{}",
             r.message
+        );
+    }
+
+    /// Round 5's fix round, its review's finding 1: a price row at the
+    /// last revision an `i64` holds is refused in the price's words,
+    /// never the store's, and nothing is written.
+    #[test]
+    fn a_price_at_the_last_revision_is_refused_in_the_prices_words() {
+        let (store, _) = priced();
+        let dir = tempfile::tempdir().unwrap();
+        let mut a = Annotations::open_for(dir.path(), "u-1").unwrap();
+        let via = Provenance::via("test");
+        set(
+            &store,
+            &mut a,
+            "item/i1",
+            "skip",
+            None,
+            None,
+            Expect::Create,
+            &via,
+            "a",
+            plain,
+        )
+        .unwrap();
+        rusqlite::Connection::open(acquisition_store::annotations_path(dir.path(), "u-1"))
+            .unwrap()
+            .execute("UPDATE annotations SET revision = ?1", [i64::MAX])
+            .unwrap();
+        let said = format!(
+            "item/i1's price is at revision {}, the last a row can take: nothing was written",
+            i64::MAX
+        );
+        let e = set(
+            &store,
+            &mut a,
+            "item/i1",
+            "no_price",
+            None,
+            None,
+            Expect::Current,
+            &via,
+            "a",
+            plain,
+        )
+        .unwrap_err();
+        assert_eq!(format!("{e:#}"), said);
+        let e = clear(&mut a, "item/i1", Expect::Current, &via, "a", plain).unwrap_err();
+        assert_eq!(format!("{e:#}"), said);
+        let row = a.get("item", "i1", BUYOUT_KIND).unwrap().unwrap();
+        assert_eq!(
+            (row.revision, row.value),
+            (i64::MAX, json!({ "version": 1, "type": "skip" }))
         );
     }
 }

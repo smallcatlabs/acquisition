@@ -869,6 +869,10 @@ impl std::fmt::Display for PutPolicyError {
                     "no sync policy is stored at that revision (re-read and retry)"
                 )
             }
+            PutPolicyError::Store(AnnotationError::RevisionExhausted { revision, .. }) => write!(
+                f,
+                "the sync policy is at revision {revision}, the last a row can take: nothing was written"
+            ),
             PutPolicyError::Store(e) => write!(f, "{e}"),
         }
     }
@@ -3687,6 +3691,36 @@ mod tests {
             put_sync_policy(&mut a, &poe2, Some(4), PolicyWrite::Replace, &via_test()).unwrap();
         assert_eq!(row.revision, 5);
         assert_eq!(row.value, poe2);
+    }
+
+    /// Round 5's fix round, its review's finding 1: a sync policy at the
+    /// last revision an `i64` holds is refused in the policy's words,
+    /// never the store's, and nothing is written.
+    #[test]
+    fn a_policy_at_the_last_revision_is_refused_in_the_policys_words() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut a = Annotations::open_for(dir.path(), "u-1").unwrap();
+        let pc = json!({ "version": 3, "realms": { "pc": { "leagues": { "Standard":
+            { "tabs": "all", "max_age_seconds": 3600 } } } } });
+        put_sync_policy(&mut a, &pc, None, PolicyWrite::Replace, &via_test()).unwrap();
+        rusqlite::Connection::open(acquisition_store::annotations_path(dir.path(), "u-1"))
+            .unwrap()
+            .execute("UPDATE annotations SET revision = ?1", [i64::MAX])
+            .unwrap();
+        let err = put_sync_policy(&mut a, &pc, Some(i64::MAX), PolicyWrite::Merge, &via_test())
+            .unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            format!(
+                "the sync policy is at revision {}, the last a row can take: nothing was written",
+                i64::MAX
+            )
+        );
+        let row = a
+            .get(SYNC_POLICY_SCOPE, SYNC_POLICY_KEY, SYNC_POLICY_KIND)
+            .unwrap()
+            .unwrap();
+        assert_eq!((row.revision, row.value), (i64::MAX, pc));
     }
 
     /// Round 5 of the 2g build (the second cold review's finding 1): a
