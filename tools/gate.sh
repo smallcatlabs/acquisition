@@ -36,6 +36,15 @@
 # rewrote every golden and went green (#87). The script records the
 # variable and unsets it before any stage of any selection, so no stage
 # rewrites a golden, and the stage fails naming it.
+#
+# The full gate ends with `tree`: the working tree its stages leave must
+# be the one they found (#87). A session gates its uncommitted work, so
+# the stage compares the tree before the first stage with the tree after
+# the last, never against a clean checkout (CI's checkout is clean, and
+# its step is the literal `git status --porcelain` check): tracked files
+# and the untracked ones `.gitignore` does not hide, by content, so a
+# golden already edited and rewritten again counts. A file a test must
+# write belongs under its scratch or an ignored path.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
@@ -43,7 +52,7 @@ fixture_switch=${ACQ_UPDATE_FIXTURES+set}
 fixture_value=${ACQ_UPDATE_FIXTURES-}
 unset ACQ_UPDATE_FIXTURES
 
-names=(fixtures build test clippy fmt diff docs arch trade bothy doc artifacts)
+names=(fixtures build test clippy fmt diff docs arch trade bothy doc artifacts tree)
 DOCS=(diff docs arch trade bothy)
 
 # The `artifacts` stage (the header): what the stages before it left
@@ -120,9 +129,41 @@ fixtures() {
   return 1
 }
 
+# The `tree` stage (the header). A snapshot is the tree object of the
+# working tree, written through a copy of the index (`git add -A`, then
+# `git write-tree`), so the real index is never touched and `git diff`
+# names what moved; it leaves loose blobs, which `git gc` prunes. A
+# snapshot that cannot be taken fails the stage, never passes it.
+tree_snapshot() {
+  local index tree rc
+  index=$(mktemp) || return 1
+  cp "$(git rev-parse --git-path index)" "$index" 2>/dev/null || rm -f "$index"
+  GIT_INDEX_FILE=$index git add -A >/dev/null && tree=$(GIT_INDEX_FILE=$index git write-tree)
+  rc=$?
+  rm -f "$index"
+  ((rc == 0)) && [[ $tree =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]] && echo "$tree"
+}
+
+tree_stage() {
+  local after
+  if [[ -z $tree_before ]]; then
+    echo "gate: tree: no snapshot of the working tree before the first stage (git add -A or git write-tree failed through a copy of the index): what the stages wrote cannot be told" >&2
+    return 1
+  fi
+  if ! after=$(tree_snapshot); then
+    echo "gate: tree: no snapshot of the working tree after the last stage (git add -A or git write-tree failed through a copy of the index)" >&2
+    return 1
+  fi
+  [[ $after == "$tree_before" ]] && return 0
+  echo "gate: tree: the working tree changed while the gate ran: a stage wrote these paths (a test regenerating a golden, or writing a file git neither tracks nor ignores), or another hand edited them. Put back what a stage wrote, and move a file a test writes under its scratch or an ignored path:" >&2
+  git diff --name-status "$tree_before" "$after" >&2
+  return 1
+}
+
 run_stage() {
   case $1 in
     fixtures) fixtures ;;
+    tree) tree_stage ;;
     build) cargo build --workspace ;;
     artifacts) artifacts ;;
     test) cargo nextest run --workspace --all-targets ;;
@@ -152,6 +193,9 @@ case ${1:-} in
   -h | --help) usage; exit 0 ;;
   *) usage >&2; exit 2 ;;
 esac
+
+tree_before=''
+[[ " ${selected[*]} " == *' tree '* ]] && tree_before=$(tree_snapshot)
 
 rcs=(); secs=()
 for stage in "${selected[@]}"; do

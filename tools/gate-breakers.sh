@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # gate-breakers.sh — proves tools/gate.sh refuses what it claims to, by
 # staging each refusal and watching it fail: a stage name it does not
-# know, and the fixture switch set at any value (#87).
+# know, the fixture switch set at any value, and a working tree its
+# stages changed (#87).
 #
 # A refusal is evidence only when it names the property, so each case
 # states the words the gate must print; a case that passes states the
@@ -18,8 +19,17 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 unset ACQ_UPDATE_FIXTURES   # the suite's own shell sets nothing a case did not
 
+# The paths the tree cases create and every restore removes, named once:
+# a path already there is someone's, so the suite refuses to start.
+owned=(zz-gate-breaker.txt target/zz-gate-breaker.txt)
+for p in "${owned[@]}"; do
+  if [[ -e $p || -L $p ]]; then
+    echo "refusing to start: $p exists, and the suite would delete it on every restore"; exit 2
+  fi
+done
+
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/acq-gate-breakers.XXXXXX")
-files=(tools/gate.sh)
+files=(tools/gate.sh GLOSSARY.md)
 for f in "${files[@]}"; do mkdir -p "$scratch/keep/$(dirname "$f")"; cp "$f" "$scratch/keep/$f"; done
 restore() {
   local f
@@ -27,6 +37,7 @@ restore() {
     cp "$scratch/keep/$f" "$f"
     cmp -s "$scratch/keep/$f" "$f" || { echo "RESTORE FAILED: $f"; exit 2; }
   done
+  rm -f "${owned[@]}"
 }
 trap 'restore; rm -rf "$scratch"' EXIT
 
@@ -38,6 +49,22 @@ p = pathlib.Path('tools/gate.sh'); s = p.read_text()
 line = re.compile(r'(?m)^    ' + re.escape(sys.argv[1]) + r'\) .* ;;$')
 assert len(line.findall(s)) == 1, 'no one stage line for ' + sys.argv[1]
 p.write_text(line.sub(lambda m: '    ' + sys.argv[1] + ') ' + sys.argv[2] + ' ;;', s))
+PY
+}
+gate_edit() {  # gate_edit <old> <new>: an exact-once substitution in gate.sh
+  python3 - "$1" "$2" <<'PY'
+import pathlib, sys
+p = pathlib.Path('tools/gate.sh'); s = p.read_text()
+assert s.count(sys.argv[1]) == 1, 'edit anchor not found once: ' + sys.argv[1][:60]
+p.write_text(s.replace(sys.argv[1], sys.argv[2]))
+PY
+}
+docs_are() {  # docs_are <stage>...: the --docs selection replaced, so a case builds no Rust
+  python3 - "$*" <<'PY'
+import pathlib, sys
+p = pathlib.Path('tools/gate.sh'); s = p.read_text(); a = 'DOCS=(diff docs arch trade bothy)\n'
+assert s.count(a) == 1, 'the DOCS line is not there once'
+p.write_text(s.replace(a, 'DOCS=(' + sys.argv[1] + ')\n'))
 PY
 }
 
@@ -80,6 +107,27 @@ run_case 'the switch unset'                                      pass   'gate: g
 sees_no_switch() { stage_does diff '[[ -z ${ACQ_UPDATE_FIXTURES+x} ]] || { echo "the stage saw the switch"; false; }'; }
 run_case 'a stage run with the switch set sees it unset'         pass   'gate: green'  sees_no_switch env ACQ_UPDATE_FIXTURES=1 $gate --only diff
 run_case 'the same stage under --docs'                           pass   'gate: green'  sees_no_switch env ACQ_UPDATE_FIXTURES=0 $gate --docs
+
+echo '== the tree: a stage that changed it fails the gate, naming each path (#87)'
+# The `diff` stage stands for any stage, a test run among them; the
+# selection is `diff` then `tree`.
+writes() { docs_are diff tree && stage_does diff "$1"; }   # writes <the stage's command>
+dirty_glossary() { printf 'a session edit\n' >>GLOSSARY.md; }
+appends()        { writes 'printf x >>GLOSSARY.md'; }
+creates()        { writes 'printf x >zz-gate-breaker.txt'; }
+deletes()        { writes 'rm GLOSSARY.md'; }
+ignored()        { writes 'printf x >target/zz-gate-breaker.txt'; }
+rewrites_dirty() { dirty_glossary && appends; }
+leaves_dirty()   { dirty_glossary && writes true; }
+run_case 'a stage dirties a clean tracked file'                  refuse $'M\tGLOSSARY.md'         appends        $gate --docs
+run_case 'a stage creates a file git does not ignore'            refuse $'A\tzz-gate-breaker.txt' creates        $gate --docs
+run_case 'a stage deletes a tracked file'                        refuse $'D\tGLOSSARY.md'         deletes        $gate --docs
+run_case 'a stage rewrites a file already dirty'                 refuse $'M\tGLOSSARY.md'         rewrites_dirty $gate --docs
+run_case 'a tree dirty before the gate, left as found'           pass   'gate: green'              leaves_dirty   $gate --docs
+run_case 'a stage writes under an ignored path'                  pass   'gate: green'              ignored        $gate --docs
+no_snapshot() { gate_edit 'git write-tree)' 'git write-treee)'; }
+run_case 'a snapshot that cannot be taken'                       refuse 'no snapshot of the working tree before the first stage' no_snapshot $gate --only tree
+run_case 'the tree stage alone, on the tree as it stands'        pass   'gate: green'              none           $gate --only tree
 
 echo
 printf '%d ok, %d failed\n' "$pass" "$failed"

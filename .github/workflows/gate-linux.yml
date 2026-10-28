@@ -81,6 +81,17 @@ jobs:
             cargo nextest run --workspace --all-targets --locked --profile ci
           '
 
+      # The tests leave the checkout as they found it (#87): a golden
+      # regenerated, or a file written where git neither tracks nor
+      # ignores it, fails here by name. The checkout is clean, so the
+      # literal check is the property; `tools/gate.sh`'s `tree` stage is
+      # the same property over a session's uncommitted tree.
+      - name: The tree after the tests
+        if: ${{ !cancelled() }}
+        run: |
+          git status --porcelain --untracked-files=all
+          test -z "$(git status --porcelain --untracked-files=all)"
+
       # Every step after the test step runs after a red test step too
       # (`!cancelled()`), so one failing test hides no lint or check
       # (#77); the test step's failure still fails the job.
