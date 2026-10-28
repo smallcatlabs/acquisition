@@ -123,7 +123,9 @@ fn store_characters_lists_ten_beside_its_counts_and_prints_the_command_for_all()
 /// The second review of the brief, finding 4: the summary's line reads
 /// its counts from the document, made over every location before the
 /// ten are cut, and the command it prints to list every location carries
-/// the account, the window and the limit, and lists every one as printed.
+/// the account, the window and the limit exactly as asked — a fractional
+/// window too, never its rounded words (round 3's review, P2) — and lists
+/// every one as printed.
 /// The event list is ten by default, its limit said reached.
 #[test]
 fn store_events_summary_counts_every_location_and_prints_the_command_for_all() {
@@ -173,6 +175,27 @@ fn store_events_summary_counts_every_location_and_prints_the_command_for_all() {
     assert_eq!(every[0]["locations"], 12, "{}", every[0]);
     assert_eq!(every[0]["rows"].as_array().map(Vec::len), Some(12));
     assert_eq!(every[0]["by_kind"]["added"], 12);
+
+    // a fractional window: the words round it, the printed command
+    // carries it exactly and reads the same twelve (the review's P2: the
+    // command printed `--hours 0.0`, an empty window)
+    let out = acq(
+        &base,
+        &["store", "events", "--hours", "0.04", "--limit", "20"],
+    );
+    let text = String::from_utf8_lossy(&out.stdout).to_string();
+    assert!(
+        text.starts_with("12 events at 12 locations in the last 0.0 h: +12 added\n"),
+        "{text}"
+    );
+    assert!(
+        text.contains("--hours 0.04 --limit 20 --summary --expand`"),
+        "{text}"
+    );
+    let every = run_printed(&base, &text);
+    assert_eq!(every.len(), 1, "{text}");
+    assert_eq!(every[0]["locations"], 12, "{}", every[0]);
+    assert_eq!(every[0]["rows"].as_array().map(Vec::len), Some(12));
 
     let listed = sole_json(&acq(&base, &["store", "events", "--json"]));
     assert_eq!(listed["limit"], LISTED, "{listed}");

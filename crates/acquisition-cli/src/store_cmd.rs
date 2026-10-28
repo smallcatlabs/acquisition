@@ -828,11 +828,16 @@ pub(crate) fn event_summary_text(
         ));
     }
     if listed.left_out > 0 {
+        // a printed command carries the request's values exactly, never
+        // their display rounding (round 3's review, P2: `--hours 0.04`
+        // printed as `--hours 0.0` read an empty window): the hours as
+        // the request held them, shortest round-trip
         out.push_str(&format!(
-            "{} of {} locations listed: `acq store events --account {} --hours {hours} --limit {} --summary --expand` lists every one\n",
+            "{} of {} locations listed: `acq store events --account {} --hours {} --limit {} --summary --expand` lists every one\n",
             rows.len(),
             listed.locations,
             acquisition_search::answer::shell_quoted(account),
+            listed.hours,
             listed.limit
         ));
     }
