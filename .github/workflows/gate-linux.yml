@@ -148,3 +148,6 @@ jobs:
 
       - name: The architecture check's breakers
         run: tools/arch-check-breakers.sh
+
+      - name: The gate's breakers
+        run: tools/gate-breakers.sh

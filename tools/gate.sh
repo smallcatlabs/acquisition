@@ -28,10 +28,22 @@
 # could not be hashed before it, so a failing gate leaves the plain
 # artifacts behind for any daemon started after it (C84, the artifact
 # mismatch). CI runs the stages singly, for timing.
+#
+# The full gate starts with `fixtures`: every golden regenerates when
+# `ACQ_UPDATE_FIXTURES` is set at all, `0` and empty among its values,
+# and the harness removes `ACQ_*` from the children a test spawns, never
+# from the test that compares, so a gate run in a shell that exports it
+# rewrote every golden and went green (#87). The script records the
+# variable and unsets it before any stage of any selection, so no stage
+# rewrites a golden, and the stage fails naming it.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
-names=(build test clippy fmt diff docs arch trade bothy doc artifacts)
+fixture_switch=${ACQ_UPDATE_FIXTURES+set}
+fixture_value=${ACQ_UPDATE_FIXTURES-}
+unset ACQ_UPDATE_FIXTURES
+
+names=(fixtures build test clippy fmt diff docs arch trade bothy doc artifacts)
 DOCS=(diff docs arch trade bothy)
 
 # The `artifacts` stage (the header): what the stages before it left
@@ -101,8 +113,16 @@ for line in open(sys.argv[1]):
   return "$rc"
 }
 
+# The `fixtures` stage (the header): the switch the script found set.
+fixtures() {
+  [[ -z $fixture_switch ]] && return 0
+  echo "gate: fixtures: ACQ_UPDATE_FIXTURES is set in this shell (to '$fixture_value'): any value, 0 and empty among them, makes every golden rewrite its fixture and pass. This run's stages ran without it; unset it, and regenerate a golden only by the command its failure names." >&2
+  return 1
+}
+
 run_stage() {
   case $1 in
+    fixtures) fixtures ;;
     build) cargo build --workspace ;;
     artifacts) artifacts ;;
     test) cargo nextest run --workspace --all-targets ;;
