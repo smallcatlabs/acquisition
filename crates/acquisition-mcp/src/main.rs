@@ -469,13 +469,21 @@ type Told = Result<CallToolResult, ErrorData>;
 /// The document as a tool's result. The text block is serialized from the
 /// document itself, so its keys come in the order the document declares
 /// them (C115); the structured content, a JSON value, holds them in its
-/// own order, and an agent reads the text.
+/// own order, sorted, and it is that copy the host measured hands the
+/// model ([`told_as`]).
 fn told<T: serde::Serialize>(document: &T) -> Told {
     told_as(document, Prose { all: false })
 }
 
 /// [`told`], the document's prose as [`Prose`] says: each string
 /// [`spoken`] for this server, and the structured content read back from
+/// the text.
+///
+/// Both copies stay by measurement (step 2g's round 7): `claude` 2.1.312
+/// handed the model one copy and not two, the structured content byte for
+/// byte as sent, its keys sorted, and the text block only when a result
+/// carried no structured content, so the second copy costs the model no
+/// bytes while the declared order reaches it only from a host that reads
 /// the text.
 fn told_as<T: serde::Serialize>(document: &T, prose: Prose) -> Told {
     let text = spoken(
