@@ -163,3 +163,26 @@ fn unreadable(file: &std::path::Path, shut: bool) {
     let mode = if shut { 0o000 } else { 0o644 };
     std::fs::set_permissions(file, std::fs::Permissions::from_mode(mode)).unwrap();
 }
+
+/// The login's wait is the daemon's (#68): under `ACQ_LOGIN_WITHIN=0` on
+/// the `acq auth` that starts the daemon, the browser wait expires at
+/// once and the CLI ends with the daemon's words, never with a bound of
+/// its own; a late callback can no longer be given up on by the CLI
+/// while the daemon still registers the session.
+#[test]
+fn the_login_ends_with_the_daemons_words_not_a_bound_of_its_own() {
+    let scratch = harness::scratch("within");
+    let base = scratch.0.clone();
+    let out = harness::command(&base, &["auth", "--no-browser"])
+        .env("ACQ_LOGIN_WITHIN", "0")
+        .output()
+        .expect("spawning acq auth");
+    assert_eq!(out.status.code(), Some(1), "{out:?}");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("login failed: the browser did not complete the login within 0 s"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("run `acq auth` again"), "{stderr}");
+    assert!(!stderr.contains("5 minutes"), "{stderr}");
+}

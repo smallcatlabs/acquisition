@@ -2080,7 +2080,12 @@ async fn run(cli: Cli) -> Result<()> {
 }
 
 /// The interactive login flow: ask the daemon to start OAuth, hand the URL to
-/// the browser, then poll auth status until the flow resolves.
+/// the browser, then poll auth status until the flow resolves. The wait is
+/// the daemon's: its flow is bounded at each step (the browser wait,
+/// `ACQ_LOGIN_WITHIN`; the exchange's send; the profile fetch), and a
+/// deadline of the CLI's own once gave up while the daemon still
+/// registered the session. The loop ends with the flow's own result, a
+/// transport error, or the user's interrupt.
 async fn login(cx: &Ctx, no_browser: bool, json: bool) -> Result<()> {
     let mut client = connect(cx).await?;
     let url = match client.request(&Request::AuthStart).await? {
@@ -2102,7 +2107,6 @@ async fn login(cx: &Ctx, no_browser: bool, json: bool) -> Result<()> {
     if !json {
         println!("waiting for login to complete...");
     }
-    let deadline = std::time::Instant::now() + Duration::from_secs(300);
     loop {
         tokio::time::sleep(Duration::from_millis(500)).await;
         let status = client.request(&Request::AuthStatus).await?;
@@ -2117,9 +2121,6 @@ async fn login(cx: &Ctx, no_browser: bool, json: bool) -> Result<()> {
             bail!("unexpected response: {status:?}");
         };
         if pending {
-            if std::time::Instant::now() > deadline {
-                bail!("login did not complete within 5 minutes");
-            }
             continue;
         }
         // Only the flow's own terminal result counts: `logged_in` is
