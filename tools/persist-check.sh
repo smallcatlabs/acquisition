@@ -146,8 +146,9 @@ if [ -n "$ACCOUNT" ]; then export ACQ_ACCOUNT="$ACCOUNT"; fi
 if [ "$MODE" = live ]; then
     echo "accounts on this machine (the fresh daemon restores the persisted ones):"
     "$ACQ" accounts || true
-    persisted=$("$ACQ" accounts --json 2>/dev/null |
-        jq '[.[] | select(.persisted)] | length' || echo 0)
+    # every account (`--expand`), under `accounts` (C53, C149)
+    persisted=$("$ACQ" accounts --expand --json 2>/dev/null |
+        jq '[.accounts[] | select(.persisted)] | length' || echo 0)
     if [ "$persisted" -gt 1 ] && [ -z "${ACQ_ACCOUNT:-}" ]; then
         echo "refusing: $persisted persisted accounts — every job needs a selector." >&2
         echo "rerun with --account <username>, the account whose tabs these are." >&2

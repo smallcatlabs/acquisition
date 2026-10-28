@@ -741,6 +741,12 @@ struct SubmitParams {
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]
+struct AccountsParams {
+    /// List every account, not ten.
+    expand: Option<bool>,
+}
+
+#[derive(Deserialize, schemars::JsonSchema)]
 struct ListJobsParams {
     /// List every job, open and finished, not ten of each.
     expand: Option<bool>,
@@ -1357,10 +1363,13 @@ impl AcqMcp {
     // ---- store reads: no daemon, no GGG traffic ----
 
     #[tool(
-        description = "Accounts this machine has logged into (from the store's non-secret index; no daemon), each with its store file."
+        description = "Accounts this machine has logged into (from the store's non-secret index; no daemon), each with its store file: `total` counts every one, `accounts` lists ten, `expand` every one, and `left_out` counts the rest."
     )]
-    fn accounts(&self) -> Told {
-        answer(|| Ok(self.frontend.accounts()?))
+    fn accounts(&self, Parameters(p): Parameters<Args<AccountsParams>>) -> Told {
+        answer(|| {
+            let expand = p.parse()?.expand.unwrap_or(false);
+            Ok(self.frontend.accounts()?.bounded(expand))
+        })
     }
 
     #[tool(

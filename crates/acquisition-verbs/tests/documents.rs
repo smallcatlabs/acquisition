@@ -926,3 +926,33 @@ fn c149_the_job_list_counts_every_job_beside_ten_open_and_ten_finished() {
     let whole = acquisition_verbs::PersistedJobs::of(persisted, true);
     assert_eq!((whole.jobs.len(), whole.left_out), (12, 0));
 }
+
+/// C149 and C53, and the brief's second review, finding 2 (no exemption
+/// for a handful of names): the accounts listing counts every account
+/// beside ten of them, every one under `expand`.
+#[test]
+fn c149_the_accounts_are_counted_beside_ten() {
+    let s = scratch();
+    for n in 0..12 {
+        login(&s.mock, &format!("Exile{n:02}#1"), &format!("u-{n}"));
+    }
+    let whole = frontend(&s.mock).accounts().unwrap();
+    assert_eq!(
+        (whole.total, whole.accounts.len(), whole.left_out),
+        (12, 12, 0)
+    );
+    let listed = whole.clone().bounded(false);
+    assert_eq!((listed.total, listed.accounts.len()), (12, 10));
+    assert_eq!(listed.left_out, 2);
+    let doc = serde_json::to_value(&listed).unwrap();
+    assert_eq!(doc["left_out_needs"], "expand", "{doc}");
+    assert_eq!(doc["provider"], "mock", "{doc}");
+    let all = whole.bounded(true);
+    assert_eq!((all.accounts.len(), all.left_out), (12, 0));
+    assert!(
+        serde_json::to_value(&all)
+            .unwrap()
+            .get("left_out_needs")
+            .is_none()
+    );
+}

@@ -140,7 +140,7 @@ acq <verb> --help   # every verb's reference
 # the session
 acq auth [--no-browser]   # log in on GGG's page
 acq auth status | check | logout   # live sessions, or with no daemon what one would restore; token check; logout
-acq accounts   # accounts this machine has logged into (no daemon)
+acq accounts [--expand]   # accounts this machine has logged into, ten and their count (no daemon)
 
 # jobs: fetched through the daemon, which starts on demand; a route's first use probes its limits
 acq profile | leagues   # profile; account leagues

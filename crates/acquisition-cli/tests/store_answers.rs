@@ -180,3 +180,33 @@ fn store_events_summary_counts_every_location_and_prints_the_command_for_all() {
     assert_eq!(listed["limit_reached"], true, "{listed}");
     assert_eq!(listed["rows"].as_array().map(Vec::len), Some(LISTED));
 }
+
+/// C149: `accounts --json` printed the inner array where the MCP's
+/// `accounts` answered the object; both print the layer's document now,
+/// ten accounts beside the count of all, and the text says what it left
+/// out with the flag that lists every one.
+#[test]
+fn accounts_json_is_the_layers_document_and_the_text_counts_what_it_left_out() {
+    let scratch = harness::scratch("store-accounts");
+    let base = scratch.0.clone();
+    let mock = world(&base, |_, _| {});
+    for n in 0..11 {
+        Index::load(&mock)
+            .unwrap()
+            .record_login(&format!("Exile{n:02}"), &format!("u-{n}"), false, 1, &[])
+            .unwrap();
+    }
+    let listed = sole_json(&acq(&base, &["accounts", "--json"]));
+    assert!(listed.is_object(), "{listed}");
+    assert_eq!(listed["provider"], "mock", "{listed}");
+    assert_eq!(listed["total"], 12, "{listed}");
+    assert_eq!(listed["accounts"].as_array().map(Vec::len), Some(LISTED));
+    assert_eq!(listed["left_out"], 2, "{listed}");
+    let all = sole_json(&acq(&base, &["accounts", "--expand", "--json"]));
+    assert_eq!(all["accounts"].as_array().map(Vec::len), Some(12), "{all}");
+    let text = String::from_utf8_lossy(&acq(&base, &["accounts"]).stdout).to_string();
+    assert!(
+        text.ends_with("10 of 12 accounts listed: `acq accounts --expand` lists every one\n"),
+        "{text}"
+    );
+}

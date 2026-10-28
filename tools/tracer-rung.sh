@@ -348,25 +348,27 @@ echo "realm $REALM | league $LEAGUE | selection $SELECTION | max_age_seconds $MA
 # `account_matches`): the username or the username without its
 # #discriminator, both case-insensitive (Unicode lowercasing, as Rust's
 # `to_lowercase`), or the exact uuid; exactly one hit. The exact username
-# is what gets exported.
+# is what gets exported. Every read of `accounts --json` asks every
+# account (`--expand`; the default lists ten, C53) and reads them under
+# `accounts`, one document (C149).
 resolve_account() { # <selector>
-    "$ACQ" accounts --json | python3 -c '
+    "$ACQ" accounts --expand --json | python3 -c '
 import json, sys
 sel = sys.argv[1]; low = sel.lower()
-hits = [e["username"] for e in json.load(sys.stdin)
+hits = [e["username"] for e in json.load(sys.stdin)["accounts"]
         if e["username"].lower() == low
         or e["username"].lower().split("#", 1)[0] == low
         or e.get("uuid") == sel]
 print(hits[0] if len(hits) == 1 else f"AMBIGUOUS_OR_NONE:{len(hits)}")' "$1"
 }
-account_uuid() { "$ACQ" accounts --json | jq -r --arg u "$ACQ_ACCOUNT" '.[] | select(.username == $u) | .uuid // empty'; }
+account_uuid() { "$ACQ" accounts --expand --json | jq -r --arg u "$ACQ_ACCOUNT" '.accounts[] | select(.username == $u) | .uuid // empty'; }
 
 NEED_LOGIN=0
 if [ "$MODE" = live ]; then
     echo "accounts on this machine:"
     "$ACQ" accounts || true
-    persisted=$("$ACQ" accounts --json 2>/dev/null |
-        jq '[.[] | select(.persisted)] | length' || echo 0)
+    persisted=$("$ACQ" accounts --expand --json 2>/dev/null |
+        jq '[.accounts[] | select(.persisted)] | length' || echo 0)
     if [ -n "$ACCOUNT" ]; then
         resolved=$(resolve_account "$ACCOUNT")
         case "$resolved" in
@@ -381,7 +383,7 @@ if [ "$MODE" = live ]; then
         echo "rerun with --account <selector>, the account whose tabs these are." >&2
         exit 2
     else
-        ACQ_ACCOUNT=$("$ACQ" accounts --json | jq -r '[.[] | select(.persisted)][0].username // empty')
+        ACQ_ACCOUNT=$("$ACQ" accounts --expand --json | jq -r '[.accounts[] | select(.persisted)][0].username // empty')
         export ACQ_ACCOUNT
     fi
     [ -n "${ACQ_ACCOUNT:-}" ] || { echo "no persisted account; log in first (acq auth, from a terminal)" >&2; exit 2; }

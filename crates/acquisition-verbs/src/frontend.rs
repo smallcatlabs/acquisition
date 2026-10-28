@@ -90,11 +90,36 @@ impl JournalKnob {
 }
 
 /// The index listing, every account with its store file (C12: the
-/// store's non-secret index, no daemon).
+/// store's non-secret index, no daemon), as one document counted beside
+/// its rows (C149): `total` every account the index knows, `accounts`
+/// those listed — every one as [`Frontend::accounts`] reads them, ten
+/// once [`Accounts::bounded`] (C53, the read economy; no exemption for a
+/// handful of names, the brief's second review, finding 2) — and
+/// `left_out` the rest.
 #[derive(Clone, Debug, Serialize)]
 pub struct Accounts {
     pub provider: String,
+    /// Every account the index knows.
+    pub total: usize,
     pub accounts: Vec<AccountRow>,
+    /// The accounts not in `accounts`.
+    pub left_out: usize,
+    /// What lists them all: the request's `expand`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub left_out_needs: Option<&'static str>,
+}
+
+impl Accounts {
+    /// The listing as a frontend answers it: ten accounts in the index's
+    /// order, every one under `expand`, the count whole.
+    pub fn bounded(mut self, expand: bool) -> Accounts {
+        let (kept, left_out) =
+            acquisition_store::bound::bounded(std::mem::take(&mut self.accounts), None, expand);
+        self.accounts = kept;
+        self.left_out += left_out;
+        self.left_out_needs = (self.left_out > 0).then_some("expand");
+        self
+    }
 }
 
 /// One account the index knows.
@@ -147,19 +172,23 @@ impl Frontend {
     /// empty listing is an answer, never a fault.
     pub fn accounts(&self) -> Result<Accounts, Fault> {
         let index = self.index()?;
+        let accounts: Vec<AccountRow> = index
+            .entries()
+            .iter()
+            .map(|e| AccountRow {
+                username: e.username.clone(),
+                last_login: e.last_login,
+                persisted: e.persisted,
+                uuid: e.uuid.clone(),
+                store: account_path(&self.dir(), &e.username),
+            })
+            .collect();
         Ok(Accounts {
             provider: self.provider.to_string(),
-            accounts: index
-                .entries()
-                .iter()
-                .map(|e| AccountRow {
-                    username: e.username.clone(),
-                    last_login: e.last_login,
-                    persisted: e.persisted,
-                    uuid: e.uuid.clone(),
-                    store: account_path(&self.dir(), &e.username),
-                })
-                .collect(),
+            total: accounts.len(),
+            accounts,
+            left_out: 0,
+            left_out_needs: None,
         })
     }
 

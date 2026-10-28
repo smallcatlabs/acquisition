@@ -254,8 +254,15 @@ enum Cmd {
     /// (`--json`: GGG's answer whole). A new league is listed here the day
     /// it opens.
     Leagues,
-    /// Accounts this machine has logged into (the store's index; no daemon).
-    Accounts,
+    /// Accounts this machine has logged into (the store's index; no
+    /// daemon): ten, --expand every one, the count of all of them beside.
+    /// `--json` is one document: `provider`, `total`, `accounts` (the
+    /// listed) and `left_out`.
+    Accounts {
+        /// List every account.
+        #[arg(long)]
+        expand: bool,
+    },
     /// Tabs of a league, from the shared store (no daemon round-trip):
     /// the counts first, then every tab with its type, items, age and id.
     /// A league of more than ten tabs is counted by type with its ten
@@ -1241,7 +1248,7 @@ async fn run(cli: Cli) -> Result<()> {
                 _ => print_outcome(&result, false),
             }
         }
-        Cmd::Accounts => store_cmd::accounts(cx, cli.json),
+        Cmd::Accounts { expand } => store_cmd::accounts(cx, expand, cli.json),
         Cmd::Tabs {
             league,
             realm,

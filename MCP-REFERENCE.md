@@ -10,9 +10,9 @@ Acquisition (provider: mock). - price_set, price_clear and set_sync_policy write
 
 ### `accounts`
 
-Accounts this machine has logged into (from the store's non-secret index; no daemon), each with its store file.
+Accounts this machine has logged into (from the store's non-secret index; no daemon), each with its store file: `total` counts every one, `accounts` lists ten, `expand` every one, and `left_out` counts the rest.
 
-No arguments.
+- `expand` (boolean | null) — List every account, not ten.
 
 ### `apply_plan`
 

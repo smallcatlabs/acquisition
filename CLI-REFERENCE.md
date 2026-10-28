@@ -16,7 +16,7 @@ Commands:
   characters    List characters on the logged-in account. A route's first use queues a visible `probe` job — one HEAD that learns the policy and the account's current counters before anything real is sent
   character     Fetch one character with its equipment and inventory
   leagues       List the account's leagues: one a line, with its realm and category (`--json`: GGG's answer whole). A new league is listed here the day it opens
-  accounts      Accounts this machine has logged into (the store's index; no daemon)
+  accounts      Accounts this machine has logged into (the store's index; no daemon): ten, --expand every one, the count of all of them beside. `--json` is one document: `provider`, `total`, `accounts` (the listed) and `left_out`
   tabs          Tabs of a league, from the shared store (no daemon round-trip): the counts first, then every tab with its type, items, age and id. A league of more than ten tabs is counted by type with its ten largest tabs instead; --limit lists more or fewer, --expand every one. --type and --never-fetched select the tabs listed — the never fetched of one type by name, which a refresh takes — under the league's counts. `--json` is the same document: the counts, `by_type`, and `rows`, the tabs listed, with `left_out` counting the rest
   search        Search the items the store holds (no daemon): a query over every live item of one realm, answered with the canonical query, the scope searched, the total, and the rows with the lines the query touched — then each term's counts over the scope, matched, failed, lacked, undecided, and the basis. Every count has a route: the command that returns exactly its members, printed where a next step hangs on it and every one under `--routes`. `--json` is the answer whole, in the same order, the query as text and as tree, a count's request where its route is printed; a failure is `{"error", "kind", "readings"}`, with `offers` where a way on is a request `--request` reads. `--describe` prints the language, and what this build refuses by name
   show          One item as the search derives it, live or removed (no daemon): its fields, its place, every line with its kind, template and numbers, and what could not be read; `--json` the same, structured. `--body` adds the body as the store holds it, which is still there when deriving could not read it
@@ -163,11 +163,12 @@ Options:
 ## `acq accounts`
 
 ```text
-Accounts this machine has logged into (the store's index; no daemon)
+Accounts this machine has logged into (the store's index; no daemon): ten, --expand every one, the count of all of them beside. `--json` is one document: `provider`, `total`, `accounts` (the listed) and `left_out`
 
 Usage: acq accounts [OPTIONS]
 
 Options:
+      --expand             List every account
   -h, --help               Print help
 ```
 

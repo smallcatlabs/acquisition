@@ -89,11 +89,13 @@ pub fn auth_status_absent(cx: &Ctx, json: bool) -> Result<()> {
 }
 
 /// Every account the index knows, with its store file (C12): the JSON is
-/// the layer's rows, the array as it always was (C53).
-pub fn accounts(cx: &Ctx, json: bool) -> Result<()> {
-    let accounts = cx.frontend.accounts()?;
+/// the layer's document, the MCP's `accounts` (C149: it was the inner
+/// array), ten accounts beside the count of all, every one under
+/// `--expand` (C53); the text reads it.
+pub fn accounts(cx: &Ctx, expand: bool, json: bool) -> Result<()> {
+    let accounts = cx.frontend.accounts()?.bounded(expand);
     if json {
-        println!("{}", serde_json::to_string_pretty(&accounts.accounts)?);
+        println!("{}", serde_json::to_string_pretty(&accounts)?);
         return Ok(());
     }
     if accounts.accounts.is_empty() {
@@ -120,6 +122,13 @@ pub fn accounts(cx: &Ctx, json: bool) -> Result<()> {
                 .as_deref()
                 .map(|u| format!("  uuid {u}"))
                 .unwrap_or_default()
+        );
+    }
+    if accounts.left_out > 0 {
+        println!(
+            "{} of {} accounts listed: `acq accounts --expand` lists every one",
+            accounts.accounts.len(),
+            accounts.total
         );
     }
     Ok(())
