@@ -24,19 +24,27 @@ use acquisition_plan::price::{PriceWrite, Undo};
 use acquisition_plan::pricing::SetReceipt;
 use acquisition_store::{IntentValue as _, check_value};
 use serde::Serialize;
-use serde_json::{Map, Value, json};
+use serde_json::Value;
 
 use crate::frontend::PolicyWritten;
 use crate::refusal::{Surface, Way, offer};
 
 /// `price set`'s receipt, as the account it ran as: the planner's
 /// document, then its `undo` or `no_undo`.
-pub fn price_set(receipt: &SetReceipt, account: &str, surface: &dyn Surface) -> Value {
+pub fn price_set<'a>(
+    receipt: &'a SetReceipt,
+    account: &str,
+    surface: &dyn Surface,
+) -> Receipt<'a, SetReceipt> {
     shaped(receipt, price_undo(&receipt.write, account), surface)
 }
 
 /// `price clear`'s receipt, as [`price_set`]'s.
-pub fn price_clear(write: &PriceWrite, account: &str, surface: &dyn Surface) -> Value {
+pub fn price_clear<'a>(
+    write: &'a PriceWrite,
+    account: &str,
+    surface: &dyn Surface,
+) -> Receipt<'a, PriceWrite> {
     shaped(write, price_undo(write, account), surface)
 }
 
@@ -83,7 +91,7 @@ pub fn price_undo(write: &PriceWrite, account: &str) -> Result<(Way, String), St
 
 /// The sync policy's write's receipt: [`PolicyWritten`], then its `undo`
 /// or `no_undo`.
-pub fn policy(written: &PolicyWritten, surface: &dyn Surface) -> Value {
+pub fn policy<'a>(written: &'a PolicyWritten, surface: &dyn Surface) -> Receipt<'a, PolicyWritten> {
     shaped(written, policy_undo(written), surface)
 }
 
@@ -116,23 +124,38 @@ pub fn policy_undo(written: &PolicyWritten) -> Result<(Way, String), String> {
     ))
 }
 
-/// `document` as one object, `undo` spelled by `surface` or `no_undo`
-/// beside its absence.
-fn shaped(
-    document: &impl Serialize,
+/// A write's document with its `undo`, spelled by a surface, or its
+/// `no_undo` beside that absence: serialized as one object, the
+/// document's keys in the order it declares them and the undo's after
+/// them, so the receipt reads as the document did (C115: an answer leads
+/// with what bears on the question).
+#[derive(Serialize)]
+pub struct Receipt<'a, T: Serialize> {
+    #[serde(flatten)]
+    pub document: &'a T,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub undo: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub no_undo: Option<String>,
+}
+
+/// `document` with `undo` spelled by `surface`, or `no_undo` beside its
+/// absence: one of the two, never both, never neither.
+fn shaped<'a, T: Serialize>(
+    document: &'a T,
     undo: Result<(Way, String), String>,
     surface: &dyn Surface,
-) -> Value {
-    let mut doc = match serde_json::to_value(document) {
-        Ok(Value::Object(doc)) => doc,
-        _ => Map::new(),
-    };
+) -> Receipt<'a, T> {
     let undo = undo.and_then(|(way, says)| {
         offer(&way, &says, surface).ok_or_else(|| "this surface sends no request back".to_string())
     });
-    match undo {
-        Ok(offer) => doc.insert("undo".into(), offer),
-        Err(why) => doc.insert("no_undo".into(), json!(why)),
+    let (undo, no_undo) = match undo {
+        Ok(offer) => (Some(offer), None),
+        Err(why) => (None, Some(why)),
     };
-    Value::Object(doc)
+    Receipt {
+        document,
+        undo,
+        no_undo,
+    }
 }

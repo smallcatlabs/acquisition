@@ -1375,7 +1375,10 @@ fn a_policy_receipt_carries_its_prior_checked_at_the_revision_it_names_and_its_u
             _,
         )) = receipt::policy_undo(written)
         else {
-            panic!("no undo: {:?}", receipt::policy(written, &surface));
+            panic!(
+                "no undo: {}",
+                serde_json::json!(receipt::policy(written, &surface))
+            );
         };
         assert_eq!(who, USER);
         account
@@ -1387,7 +1390,7 @@ fn a_policy_receipt_carries_its_prior_checked_at_the_revision_it_names_and_its_u
     let first = account
         .set_policy(&policy(), Expect::Create, PolicyWrite::Merge)
         .unwrap();
-    let doc = receipt::policy(&first, &surface);
+    let doc = serde_json::to_value(receipt::policy(&first, &surface)).unwrap();
     assert_eq!(doc["prior"], Value::Null, "{doc}");
     assert_eq!(doc["revision"], json!(1));
     assert_eq!(doc["written"]["revision"], json!(1));
@@ -1407,7 +1410,7 @@ fn a_policy_receipt_carries_its_prior_checked_at_the_revision_it_names_and_its_u
         .set_policy(&poe2, Expect::Exactly(1), PolicyWrite::Merge)
         .unwrap();
     assert_eq!(read.prior.as_ref(), Some(&first.row), "the merge's prior");
-    let doc = receipt::policy(&read, &surface);
+    let doc = serde_json::to_value(receipt::policy(&read, &surface)).unwrap();
     assert_eq!(doc["target"]["realms"], json!(["poe2"]), "{doc}");
     assert!(
         doc.get("undo").is_some() && doc.get("no_undo").is_none(),
@@ -1464,10 +1467,32 @@ fn a_policy_receipt_carries_its_prior_checked_at_the_revision_it_names_and_its_u
     let over = account
         .set_policy(&policy(), Expect::Exactly(6), PolicyWrite::Replace)
         .unwrap();
-    let doc = receipt::policy(&over, &surface);
+    let doc = serde_json::to_value(receipt::policy(&over, &surface)).unwrap();
     assert_eq!(doc.get("undo"), None, "{doc}");
     assert_eq!(
         doc["no_undo"],
         json!("the prior policy cannot be put back: this build cannot read it")
     );
+}
+
+/// Round 5 of the 2g build: a receipt reads in the order its document
+/// declares, its `undo` or `no_undo` last (C115: an answer leads with
+/// what bears on the question) — never the sorted order a JSON value
+/// would give it.
+#[test]
+fn a_receipt_keeps_its_documents_key_order_and_its_undo_after_it() {
+    let s = scratch();
+    let account = profiled(&s.mock);
+    let written = account
+        .set_policy(&policy(), Expect::Create, PolicyWrite::Merge)
+        .unwrap();
+    let text =
+        serde_json::to_string(&acquisition_verbs::receipt::policy(&written, &Plain)).unwrap();
+    let at = |key: &str| {
+        text.find(&format!("\"{key}\":"))
+            .unwrap_or_else(|| panic!("no {key}: {text}"))
+    };
+    let order = ["scope", "revision", "target", "written", "prior", "no_undo"].map(at);
+    assert!(order.is_sorted(), "{order:?}: {text}");
+    assert!(text.starts_with("{\"scope\":"), "{text}");
 }

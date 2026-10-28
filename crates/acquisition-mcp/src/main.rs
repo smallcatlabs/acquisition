@@ -1691,7 +1691,7 @@ impl AcqMcp {
         description = "Write the account's sync policy, validated strictly, compare-and-swap on `if_revision`. Local only: it sends nothing; the network cost appears only when a plan is applied. Each realm the value names replaces that realm alone, the others stay; `replace: true` writes the whole policy. Returns the stored row with the receipt — `target`, `written`, `prior`, `undo` (a request that puts `prior` back) or `no_undo` (why none) — and `league_notes` for a league the fetched league list lacks, with `list_fetched_at` (null if never fetched; a `leagues` job fetches it). Nothing refuses on a note."
     )]
     fn set_sync_policy(&self, Parameters(p): Parameters<Args<SetPolicyParams>>) -> Told {
-        answer(|| {
+        let written = (|| -> Result<_> {
             let p = p.parse()?;
             let write = if p.replace.unwrap_or(false) {
                 PolicyWrite::Replace
@@ -1704,8 +1704,12 @@ impl AcqMcp {
                 Expect::or(p.if_revision, Expect::Create),
                 write,
             )?;
-            Ok(receipt::policy(&written, &Spoken { named: "account" }))
-        })
+            Ok(written)
+        })();
+        match written {
+            Ok(w) => told(&receipt::policy(&w, &Spoken { named: "account" })),
+            Err(e) => failed(e),
+        }
     }
 
     #[tool(
@@ -1903,24 +1907,29 @@ impl AcqMcp {
             Ok(opened) => opened,
             Err(refusal) => return Ok(refusal),
         };
-        priced(
-            acquisition_plan::pricing::set(
-                &store,
-                &mut intent,
-                &p.target,
-                &p.r#type,
-                p.amount.as_deref(),
-                p.currency.as_deref(),
-                acquisition_plan::pricing::Expect::or(
-                    p.if_revision,
-                    acquisition_plan::pricing::Expect::Create,
-                ),
-                &Provenance::via(self.frontend.via),
+        let written = acquisition_plan::pricing::set(
+            &store,
+            &mut intent,
+            &p.target,
+            &p.r#type,
+            p.amount.as_deref(),
+            p.currency.as_deref(),
+            acquisition_plan::pricing::Expect::or(
+                p.if_revision,
+                acquisition_plan::pricing::Expect::Create,
+            ),
+            &Provenance::via(self.frontend.via),
+            &username,
+            acquisition_search::answer::shell_quoted,
+        );
+        match written {
+            Ok(r) => told(&receipt::price_set(
+                &r,
                 &username,
-                acquisition_search::answer::shell_quoted,
-            )
-            .map(|r| receipt::price_set(&r, &username, &Spoken { named: "account" })),
-        )
+                &Spoken { named: "account" },
+            )),
+            Err(e) => priced::<()>(Err(e)),
+        }
     }
 
     #[tool(
@@ -1936,20 +1945,25 @@ impl AcqMcp {
             Ok(opened) => opened,
             Err(refusal) => return Ok(refusal),
         };
-        priced(
-            acquisition_plan::pricing::clear(
-                &mut intent,
-                &p.target,
-                acquisition_plan::pricing::Expect::or(
-                    p.if_revision,
-                    acquisition_plan::pricing::Expect::Create,
-                ),
-                &Provenance::via(self.frontend.via),
+        let written = acquisition_plan::pricing::clear(
+            &mut intent,
+            &p.target,
+            acquisition_plan::pricing::Expect::or(
+                p.if_revision,
+                acquisition_plan::pricing::Expect::Create,
+            ),
+            &Provenance::via(self.frontend.via),
+            &username,
+            acquisition_search::answer::shell_quoted,
+        );
+        match written {
+            Ok(w) => told(&receipt::price_clear(
+                &w,
                 &username,
-                acquisition_search::answer::shell_quoted,
-            )
-            .map(|w| receipt::price_clear(&w, &username, &Spoken { named: "account" })),
-        )
+                &Spoken { named: "account" },
+            )),
+            Err(e) => priced::<()>(Err(e)),
+        }
     }
 
     // ---- daemon jobs ----
