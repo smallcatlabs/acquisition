@@ -186,8 +186,8 @@ The owner's list, his to strike:
 
 ## Current step
 
-#68, the login callback, next from "Pull-forward": its brief is
-`briefs/68-login-callback.md`, the build ahead; #90 closed
-(`LEDGER.md`). Phase 3, the owner's league run, follows at his word;
-#70 closes on a week of pushes without a re-run. `AGENTS.md` governs; the gate is
+#68, the login callback (`briefs/68-login-callback.md`): built at
+`84e32797..ad4fd7c3`, the review pending; #90 closed (`LEDGER.md`).
+Phase 3, the owner's league run, follows at his word; #70 closes on a
+week of pushes without a re-run. `AGENTS.md` governs; the gate is
 `tools/gate.sh`.
