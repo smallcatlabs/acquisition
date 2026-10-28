@@ -56,26 +56,22 @@ What a worker will be tempted to do and must not, with where it lives
 instead.
 
 ## Rules
-- The rhythm (the commits, the review, the owner's reading, the close)
-  is `roadmap/README.md`, "A step", stated once there.
-- Every `acq` runs in a mock world: `ACQ_PROVIDER=mock` and
-  `ACQ_STORE_DIR` under your scratch. Never the real provider.
+`AGENTS.md`'s hard rules apply, and the rhythm is `roadmap/README.md`,
+"A step". What a worker adds:
 - Your own worktree and your own scratch subdirectory, named in the
   brief's launch; never another worker's. Kill only the processes you
   started.
-- `tools/gate.sh` before the commit, the commit gated on its exit
-  status, never on a filtered grep. Never run the drivers while the
-  gate runs.
 - One commit per concern; the story in the message, which names this
   brief's file; a size or a count stated in a message is measured after
-  the last edit. A breaker case rides in the commit of the check it
-  stages, never in a commit of its own: step 1e ran the full gate eight
-  times for that.
-- A finding is a test named for the fault, or a line in the report;
-  never a new document. A review's finding is not fixed before the
-  owner has read it, and the saved review stays where it is.
+  the last edit. A test rides in the commit of the fix it pins, and a
+  breaker case in the commit of the check it stages: step 1e ran the
+  full gate eight times for that. A brief that wants a test seen
+  failing first asks for it in the report, not the history.
 - A draft the brief names is taken verbatim unless the tree disproves
-  a sentence of it; each correction is named in the report.
+  a sentence of it; each correction is named in the report. A brief
+  sentence a fix round corrects in place is marked "Settled in the
+  round".
+- A JSON pin may add `--json` to a printed command it runs.
 - No test asserts a wall-clock bound a slow machine can miss: a
   deadline's behaviour is pinned by forcing its expiry, and a lifecycle
   that waits across processes is designed as a state machine over an

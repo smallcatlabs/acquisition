@@ -61,8 +61,7 @@ Each in his words, with the commit that landed it.
   that need a design; it reads the workers' reports and keeps this
   file true. It does not build.
 - **An Opus session** runs a step from its brief. Independent steps may
-  run as Opus workers in parallel, each in its own git worktree with
-  its own scratch subdirectory (a fresh worktree builds from nothing);
+  run as Opus workers in parallel (`briefs/TEMPLATE.md`, "Rules");
   otherwise steps run one after another in the main tree, because a
   build under a live daemon or a concurrent gate is the artifact
   mismatch C84 names. A measurement runs alone on the machine: no
@@ -72,9 +71,10 @@ Each in his words, with the commit that landed it.
   `codex exec --sandbox read-only "$(cat roadmap/briefs/REVIEW-PROMPT.md) The commit: <sha>."`
   (the `review` subcommand cannot take both a commit and custom
   instructions, so the prompt names the commit; a range is written
-  `<first>^..<last>`, so git includes the first).
-- **Every `acq` an agent runs is in a mock world** (`ACQ_PROVIDER=mock`,
-  `ACQ_STORE_DIR` to scratch). The real provider is the owner's alone.
+  `<first>^..<last>`, so git includes the first). The session that
+  commits a worker's step launches its review and waits in the same
+  turn until `codex exec` exits: an idle session does not wake when a
+  background process does.
 
 ## A step
 
