@@ -13,7 +13,10 @@
 //!
 //! Never in the gate, and never the owner's store: the file is a sqlite
 //! `.backup` copy under a track's `raw/`, and any other path is refused.
-//! Opening it is `Store::open`, which may write the copy's WAL side files.
+//! A read opens through the read-only door (`Store::open_read_only`,
+//! C124: a tool that presents itself as a read never migrates): a copy at
+//! another schema version is refused with that door's remedy, and nothing
+//! is written beside the copy.
 
 use std::path::Path;
 use std::time::Instant;
@@ -38,7 +41,7 @@ fn main() -> anyhow::Result<()> {
         );
     }
     let opened = Instant::now();
-    let store = Store::open(path)?;
+    let store = Store::open_read_only(path)?;
     let open_ms = opened.elapsed().as_secs_f64() * 1e3;
     let started = Instant::now();
     let report = store.read_corpus(RealmScope::All, |header, items| {
