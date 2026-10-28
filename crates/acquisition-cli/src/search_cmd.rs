@@ -368,7 +368,7 @@ pub fn search(cx: &Ctx, args: SearchArgs, json: bool) -> Result<()> {
         let mut asked = Asked::read(&value).map_err(|e| fail(e.into(), json))?;
         asked.request.view.routes |= args.routes;
         asked.request.check().map_err(|e| fail(e.into(), json))?;
-        let (store, intent) = open_as_asked(cx, &asked.request)?;
+        let (store, intent) = open_as_asked(cx, &asked.request, json)?;
         let corpus = asked
             .request
             .corpus(&store, &intent)
@@ -387,7 +387,7 @@ pub fn search(cx: &Ctx, args: SearchArgs, json: bool) -> Result<()> {
         }
         request.view.routes |= args.routes;
         request.check().map_err(|e| fail(e.into(), json))?;
-        let (store, intent) = open_as_asked(cx, &request)?;
+        let (store, intent) = open_as_asked(cx, &request, json)?;
         let corpus = request.corpus(&store, &intent).map_err(|e| fail(e, json))?;
         let answered = answer(&corpus, &request).map_err(|e| fail(e, json))?;
         return emit(&answered, json, answer_text);
@@ -620,10 +620,30 @@ fn open_store_and_intent(cx: &Ctx) -> Result<(Store, acquisition_store::Annotati
 /// a request is whole, its scope its own, so one an answer or a refusal
 /// holds runs as printed with a second account known (round 4 of the 2g
 /// build). An `--account` given still selects, and a request bound to
-/// another is refused by the search as it was.
-fn open_as_asked(cx: &Ctx, request: &Request) -> Result<(Store, acquisition_store::Annotations)> {
+/// another is refused by the search as it was. Refused, the request is
+/// what it offers again as each account known (`Terminal::asking`).
+fn open_as_asked(
+    cx: &Ctx,
+    request: &Request,
+    json: bool,
+) -> Result<(Store, acquisition_store::Annotations)> {
     let selector = cx.account.as_deref().or(request.scope.account.as_deref());
-    let opened = cx.frontend.account(selector)?.open()?;
+    let opened = cx
+        .frontend
+        .account(selector)
+        .and_then(|account| account.open())
+        .map_err(|fault| {
+            let e = anyhow::Error::from(fault);
+            if json {
+                println!(
+                    "{}",
+                    acquisition_verbs::refusal::document(&e, &crate::Terminal::asking(request))
+                );
+            } else {
+                eprintln!("Error: {}", crate::failure_words(&e));
+            }
+            anyhow::Error::from(crate::AlreadyReported)
+        })?;
     Ok((opened.facts, opened.intent))
 }
 

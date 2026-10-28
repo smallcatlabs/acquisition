@@ -1059,22 +1059,47 @@ fn error_report(e: &anyhow::Error) -> serde_json::Value {
 /// ([`failure_words`]), and an offer as the line a shell runs — a
 /// search's as the request `acq search --request` reads, as a search's
 /// answer holds one — with the scope it carries spelled in flags; the
-/// command typed, `argv`, where one is at hand (a page has none).
+/// command refused, to repeat as another account ([`Repeat`]).
 pub(crate) struct Terminal {
-    argv: Option<Vec<String>>,
+    repeat: Repeat,
+}
+
+/// What "the same request as another account" is at this terminal, made
+/// from the command as parsed, never from its words as typed (round 4's
+/// review, findings 1 and 2).
+pub(crate) enum Repeat {
+    /// The parsed command's arguments, each given on the command line,
+    /// as a shell takes them: `acq --account <name>` is put before them.
+    Line(Vec<String>),
+    /// A request read whole (`--request`, `--next`), its account set in
+    /// its scope: the request `acq search --request` reads.
+    Request(Box<acquisition_search::Request>),
+    /// Nothing to repeat: a page, or a command that read its input from
+    /// stdin, which a line repeated would not carry.
+    None,
 }
 
 impl Terminal {
-    /// The command this process was run as.
+    /// The command this process was run as, parsed again by the parser
+    /// that ran it.
     pub(crate) fn this_command() -> Terminal {
         Terminal {
-            argv: Some(std::env::args().collect()),
+            repeat: parsed_line().map_or(Repeat::None, Repeat::Line),
+        }
+    }
+
+    /// A request read whole, refused: offered again as itself.
+    pub(crate) fn asking(request: &acquisition_search::Request) -> Terminal {
+        Terminal {
+            repeat: Repeat::Request(Box::new(request.clone())),
         }
     }
 
     /// No command to repeat: a page's refusal.
     pub(crate) fn page() -> Terminal {
-        Terminal { argv: None }
+        Terminal {
+            repeat: Repeat::None,
+        }
     }
 }
 
@@ -1098,7 +1123,18 @@ impl acquisition_verbs::refusal::Surface for Terminal {
             )
         };
         let line = match way {
-            Way::Again { account } => again(self.argv.as_deref()?, account)?,
+            Way::Again { account } => match &self.repeat {
+                Repeat::Line(words) => std::iter::once(format!("acq --account {}", quote(account)))
+                    .chain(words.iter().map(|w| quote(w)))
+                    .collect::<Vec<_>>()
+                    .join(" "),
+                Repeat::Request(request) => {
+                    let mut request = request.clone();
+                    request.scope.account = Some(account.clone());
+                    return Some((serde_json::to_value(request).ok()?, None));
+                }
+                Repeat::None => return None,
+            },
             Way::Search(request) => return Some((serde_json::to_value(request).ok()?, None)),
             Way::Tabs {
                 account,
@@ -1132,31 +1168,80 @@ impl acquisition_verbs::refusal::Surface for Terminal {
     }
 }
 
-/// The command typed, as `account`: `acq --account <name>` and every
-/// word typed after the program's name but an `--account` and its value;
-/// none for a request read whole (`--request`, `--next`), beside which no
-/// word of scope stands. Each word quoted for a shell.
-fn again(argv: &[String], account: &str) -> Option<String> {
-    let quote = |w: &str| acquisition_search::answer::shell_quoted(w);
-    let mut words = vec!["acq".to_string(), "--account".into(), quote(account)];
-    let mut typed = argv.iter().skip(1);
-    let mut operands = false;
-    while let Some(word) = typed.next() {
-        if !operands {
-            match word.as_str() {
-                "--request" | "--next" => return None,
-                "--account" => {
-                    typed.next();
-                    continue;
-                }
-                "--" => operands = true,
-                w if w.starts_with("--account=") => continue,
-                _ => {}
+/// This process's command, parsed again by the parser that ran it, as
+/// the words a shell takes after `acq`: every argument given on the
+/// command line but `--account`, at its own level — a global's first, a
+/// subcommand's after its name, an option as `--name=value`, positionals
+/// last behind `--` where one starts with `-`. None where any value read
+/// stdin (`-`), or a request is read whole (`--request`, `--next`: its
+/// refusal offers the request itself, [`Terminal::asking`]).
+fn parsed_line() -> Option<Vec<String>> {
+    let cmd = <Cli as clap::CommandFactory>::command();
+    let matches = cmd.clone().try_get_matches_from(std::env::args_os()).ok()?;
+    let mut words = Vec::new();
+    parsed_level(&cmd, &matches, true, &mut words)?;
+    Some(words)
+}
+
+/// One level of [`parsed_line`]: its arguments, then its subcommand's.
+fn parsed_level(
+    cmd: &clap::Command,
+    m: &clap::ArgMatches,
+    top: bool,
+    out: &mut Vec<String>,
+) -> Option<()> {
+    let mut positionals = Vec::new();
+    for arg in cmd.get_arguments() {
+        let id = arg.get_id().as_str();
+        if id == "account" || (arg.is_global_set() && !top) {
+            continue;
+        }
+        if m.value_source(id) != Some(clap::parser::ValueSource::CommandLine) {
+            continue;
+        }
+        if matches!(id, "request" | "next") {
+            return None;
+        }
+        let named = match (arg.get_long(), arg.get_short()) {
+            (Some(long), _) => format!("--{long}"),
+            (None, Some(short)) => format!("-{short}"),
+            (None, None) => String::new(),
+        };
+        if !arg.get_action().takes_values() {
+            let times = match arg.get_action() {
+                clap::ArgAction::Count => usize::from(m.get_count(id)),
+                _ => 1,
+            };
+            out.extend(std::iter::repeat_n(named, times));
+            continue;
+        }
+        let values: Vec<String> = m
+            .get_raw(id)?
+            .map(|v| v.to_str().map(str::to_string))
+            .collect::<Option<_>>()?;
+        if values.iter().any(|v| v == "-") {
+            return None;
+        }
+        if arg.is_positional() {
+            positionals.extend(values);
+        } else if arg.get_long().is_some() {
+            out.extend(values.into_iter().map(|v| format!("{named}={v}")));
+        } else {
+            for v in values {
+                out.push(named.clone());
+                out.push(v);
             }
         }
-        words.push(quote(word));
     }
-    Some(words.join(" "))
+    if positionals.iter().any(|v| v.starts_with('-')) {
+        out.push("--".into());
+    }
+    out.extend(positionals);
+    if let Some((name, sub)) = m.subcommand() {
+        out.push(name.to_string());
+        parsed_level(cmd.find_subcommand(name)?, sub, false, out)?;
+    }
+    Some(())
 }
 
 /// Set when this command started the daemon it then talked to, so a

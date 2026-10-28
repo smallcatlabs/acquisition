@@ -1693,7 +1693,7 @@ fn every_offer_a_refusal_prints_runs_as_printed() {
     assert_eq!(offers.len(), 2, "{doc}");
     assert_eq!(
         offers[0]["request"],
-        "acq --account 'Alice#1234' --json tabs --realm xbox --league Allflame"
+        "acq --account 'Alice#1234' --json tabs --league=Allflame --realm=xbox"
     );
     for offer in offers {
         run_offered(&base, offer["request"].as_str().unwrap());
@@ -1793,4 +1793,172 @@ fn a_folders_child_asked_as_a_substash_is_offered_what_runs() {
         &base,
         &format!("{} --json", offers[1]["request"].as_str().unwrap()),
     );
+}
+
+/// Alice's facts hold one tab `tx` with one item `ix` in xbox's
+/// Allflame, and Bob is known beside her: a command naming no account is
+/// ambiguous, and every offer must name one.
+fn two_accounts_and_xbox(base: &Path) {
+    let mock = seed(base);
+    Index::load(&mock)
+        .unwrap()
+        .record_login("Bob#5678", "u-bob", false, acquisition_store::now(), &[])
+        .unwrap();
+    let mut store = Store::open(&account_path(&mock, USER)).unwrap();
+    let at = acquisition_store::now();
+    store
+        .record(
+            &Endpoint::Stashes {
+                realm: "xbox".into(),
+                league: "Allflame".into(),
+            },
+            &json!({ "league": "Allflame" }),
+            200,
+            &json!({ "stashes": [ { "id": "tx", "name": "Box", "type": "PremiumStash", "index": 0 } ] }),
+            at,
+        )
+        .unwrap();
+    store
+        .record(
+            &Endpoint::Stash {
+                realm: "xbox".into(),
+                league: "Allflame".into(),
+                id: "tx".into(),
+                sub: None,
+            },
+            &json!({}),
+            200,
+            &json!({ "stash": { "id": "tx", "name": "Box", "type": "PremiumStash", "items": [
+                { "id": "ix", "name": "", "typeLine": "Chaos Orb", "baseType": "Chaos Orb",
+                  "x": 0, "y": 0, "stackSize": 5 } ] } }),
+            at,
+        )
+        .unwrap();
+}
+
+/// Round 4's review (P2, finding 1): the repeat offer was the words typed
+/// with the account swapped, so a command that read its input from stdin
+/// was offered without it and waited or failed. It is made from the
+/// command as parsed: a value read from stdin (`-`) gets no repeat offer
+/// (the names stand in `accounts`), and one given whole is repeated, an
+/// option as `--name=value`, and runs with stdin closed.
+#[test]
+fn a_refused_command_is_repeated_from_its_parse_and_one_that_read_stdin_is_not() {
+    let scratch = harness::scratch("price-repeat");
+    let base = scratch.0.clone();
+    two_accounts_and_xbox(&base);
+    let policy = r#"{"version":3,"realms":{"xbox":{"leagues":{"Allflame":{"tabs":"all","max_age_seconds":3600}}}}}"#;
+    let mut fed = harness::offline_command(
+        &base,
+        &["--json", "--account", "Alicia#1234", "policy", "set", "-"],
+    );
+    fed.stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped());
+    let mut child = fed.spawn().unwrap();
+    {
+        use std::io::Write;
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(policy.as_bytes())
+            .unwrap();
+    }
+    let out = child.wait_with_output().unwrap();
+    let doc = sole_json(&out);
+    assert_eq!(doc["kind"], "not_logged_in", "{doc}");
+    assert_eq!(doc["accounts"], json!([USER, "Bob#5678"]), "{doc}");
+    assert!(
+        doc.get("offers").is_none(),
+        "an offer without its stdin: {doc}"
+    );
+
+    let out = acq(
+        &base,
+        &[
+            "--json",
+            "--account",
+            "Alicia#1234",
+            "policy",
+            "set",
+            policy,
+        ],
+    );
+    let doc = sole_json(&out);
+    let offers = doc["offers"].as_array().unwrap();
+    assert_eq!(offers.len(), 2, "{doc}");
+    let repeated = offers[0]["request"].as_str().unwrap();
+    assert_eq!(
+        repeated,
+        format!("acq --account 'Alice#1234' --json policy set '{policy}'")
+    );
+    // `acq` runs with stdin closed (`Command::output`)
+    let written = run_offered(&base, repeated);
+    assert_eq!(written["revision"], json!(1), "{written}");
+}
+
+/// Round 4's review (P2, finding 2): a request read whole was offered as
+/// the words typed, so `--request <file>` offered nothing and
+/// `--request=<file>` offered a command that selected another store and
+/// was refused as bound to the typo. A request read whole — either
+/// spelling, or a continuation's `--next` — is offered as the parsed
+/// request with `scope.account` set, which `acq search --request` reads
+/// and answers.
+#[test]
+fn a_request_read_whole_is_offered_as_itself_with_its_account_set() {
+    let scratch = harness::scratch("price-repeat-request");
+    let base = scratch.0.clone();
+    two_accounts_and_xbox(&base);
+    let file = base.join("typo.json");
+    std::fs::write(
+        &file,
+        json!({ "scope": { "account": "Alicia", "realm": "xbox" }, "query": { "text": "" } })
+            .to_string(),
+    )
+    .unwrap();
+    let path = file.to_str().unwrap();
+    // a continuation's token, as `--next` reads one, bound to the typo:
+    // an answer's own `next`, its account changed
+    let first = sole_json(&acq(
+        &base,
+        &[
+            "--json",
+            "--account",
+            USER,
+            "search",
+            "--realm",
+            "pc",
+            "",
+            "--limit",
+            "1",
+        ],
+    ));
+    let mut next = first["view"]["rows"]["next"]["request"].clone();
+    assert!(next.is_object(), "no continuation: {first}");
+    next["scope"]["account"] = json!("Alicia");
+    let next: acquisition_search::Request = serde_json::from_value(next).unwrap();
+    let token = next.token();
+    let equals = format!("--request={path}");
+    for args in [
+        vec!["--json", "search", "--request", path],
+        vec!["--json", "search", &equals],
+        vec!["--json", "search", "--next", &token],
+    ] {
+        let out = acq(&base, &args);
+        assert!(!out.status.success(), "{args:?}");
+        let doc = sole_json(&out);
+        assert_eq!(doc["kind"], "not_logged_in", "{args:?}: {doc}");
+        let offers = doc["offers"].as_array().unwrap();
+        assert_eq!(offers.len(), 2, "{args:?}: {doc}");
+        let request = &offers[0]["request"];
+        assert_eq!(request["scope"]["account"], USER, "{args:?}: {doc}");
+        assert!(request["scope"]["realm"].is_string(), "{args:?}: {doc}");
+        let sent = base.join("offer.json");
+        std::fs::write(&sent, request.to_string()).unwrap();
+        let found = run_offered(
+            &base,
+            &format!("acq --json search --request {}", sent.display()),
+        );
+        assert_eq!(found["scope"]["account"]["name"], USER, "{args:?}: {found}");
+    }
 }
