@@ -187,9 +187,9 @@ The owner's list, his to strike:
 
 ## Current step
 
-p1, the roadmap sweep (`briefs/p1-roadmap-sweep.md`): "Open" routed,
-the ledger moved to `LEDGER.md`, this file made true, the road
-reordered. Next from "Pull-forward": #87, the first of the league
-group. Phase 3, the owner's league run, follows at his
-word; #70 closes on a week of pushes without a re-run. `AGENTS.md`
-governs; the gate is `tools/gate.sh`.
+#87, the gate refuses (`briefs/87-gate-refuses.md`): built at
+`68a4ab5d..5e05767c`, the review pending, then the owner's read of its
+findings before any fix, then the close. Next from "Pull-forward":
+#90. Phase 3, the owner's league run, follows at his word; #70 closes
+on a week of pushes without a re-run. `AGENTS.md` governs; the gate is
+`tools/gate.sh`.
