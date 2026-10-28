@@ -187,7 +187,7 @@ The owner's list, his to strike:
 ## Current step
 
 #90, a job kind the store cannot place fails its job
-(`briefs/90-unknown-kind.md`), the brief written, the build ahead; #87
+(`briefs/90-unknown-kind.md`), built at `cce02318`, the review pending; #87
 closed (`LEDGER.md`). Phase 3, the owner's league run, follows at his word;
 #70 closes on a week of pushes without a re-run. `AGENTS.md` governs; the gate is
 `tools/gate.sh`.
