@@ -2038,9 +2038,13 @@ fn a_route_offered_as_another_account_keeps_its_count_at_a_terminal() {
     let offers = doc["offers"].as_array().unwrap();
     assert_eq!(offers.len(), 2, "{doc}");
     for (offer, name) in offers.iter().zip([USER, "Bob#5678"]) {
-        let mut expected = route.clone();
-        expected["request"]["scope"]["account"] = json!(name);
-        assert_eq!(offer["request"], expected, "{doc}");
+        // the route as the command ran it: its request read (defaults
+        // said), its count kept, its account the name
+        let sent = &offer["request"];
+        assert_eq!(sent["count"], 12, "{doc}");
+        assert_eq!(sent["request"]["scope"]["account"], name, "{doc}");
+        assert_eq!(sent["request"]["scope"]["realm"], "pc", "{doc}");
+        assert_eq!(sent["request"]["query"], route["request"]["query"], "{doc}");
         assert_eq!(
             offer["says"],
             format!("the same request as {name}"),
@@ -2109,4 +2113,59 @@ fn a_continuation_offered_as_another_account_restarts_at_a_terminal() {
         assert_eq!(found["scope"]["account"]["name"], name, "{found}");
         assert_eq!(found["view"]["rows"]["returned"], 1, "{found}");
     }
+}
+
+/// Round 4's second fix round's review (P2): the repeat of `--request`
+/// kept the envelope as read and lost what the command line added to it.
+/// The same request is the request as the refused command would have run
+/// it: `--routes` stands in the offer, and the replay prints its routes.
+#[test]
+fn a_request_offered_again_keeps_the_command_lines_routes() {
+    let scratch = harness::scratch("price-repeat-routes");
+    let base = scratch.0.clone();
+    two_accounts_and_xbox(&base);
+    let route = json!({
+        "request": { "scope": { "account": "Alicia", "realm": "pc" }, "query": { "text": "class:currency" } },
+        "count": 12,
+    });
+    let file = base.join("route.json");
+    std::fs::write(&file, route.to_string()).unwrap();
+    let doc = sole_json(&acq(
+        &base,
+        &[
+            "--json",
+            "search",
+            "--request",
+            file.to_str().unwrap(),
+            "--routes",
+        ],
+    ));
+    assert_eq!(doc["kind"], "not_logged_in", "{doc}");
+    let offer = &doc["offers"][0];
+    assert_eq!(offer["request"]["count"], 12, "{offer}");
+    assert_eq!(
+        offer["request"]["request"]["view"]["routes"], true,
+        "{offer}"
+    );
+    let sent = base.join("offer.json");
+    std::fs::write(&sent, offer["request"].to_string()).unwrap();
+    let found = run_offered(
+        &base,
+        &format!("acq --json search --request {}", sent.display()),
+    );
+    assert_eq!(found["before"]["count"], 12, "{found}");
+    // the counts carry their routes as the same request run with
+    // `--routes` does, and not as it does without
+    let alice = base.join("alice.json");
+    let mut as_alice = route.clone();
+    as_alice["request"]["scope"]["account"] = json!(USER);
+    std::fs::write(&alice, as_alice.to_string()).unwrap();
+    let alice = alice.to_str().unwrap();
+    let routed = sole_json(&acq(
+        &base,
+        &["--json", "search", "--request", alice, "--routes"],
+    ));
+    let bare = sole_json(&acq(&base, &["--json", "search", "--request", alice]));
+    assert_ne!(routed["terms"], bare["terms"], "--routes adds nothing here");
+    assert_eq!(found["terms"], routed["terms"], "{found}");
 }

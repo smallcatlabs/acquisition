@@ -712,7 +712,10 @@ a person's act, never an agent's; and the kind's own fields
 `manual` prints it). A key this round adds is absent when it has
 nothing to say, never null; a field that stands today keeps its
 contract, so a conflict with no row ever written still says
-`revision: null` (C11; the review's finding 9).
+`revision: null` (C11; the review's finding 9). *Settled in the round
+(its two fix rounds):* the same request an offer repeats is the request
+as the refused command would have run it, its place dropped, its
+account changed — round 5's undo offers inherit it.
 
 1. **The context an offer needs** (the first review's finding 8; the
    second's finding 6). An offer is a request, so the maker of the

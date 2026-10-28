@@ -368,7 +368,15 @@ pub fn search(cx: &Ctx, args: SearchArgs, json: bool) -> Result<()> {
         let mut asked = Asked::read(&value).map_err(|e| fail(e.into(), json))?;
         asked.request.view.routes |= args.routes;
         asked.request.check().map_err(|e| fail(e.into(), json))?;
-        let (store, intent) = open_as_asked(cx, &asked.request, &value, json)?;
+        // the envelope as the command runs it: the request inside it with
+        // this command line's overrides (`--routes`) applied
+        let mut sent = value.clone();
+        let run = serde_json::to_value(&asked.request)?;
+        match sent.get_mut("request") {
+            Some(request) => *request = run,
+            None => sent = run,
+        }
+        let (store, intent) = open_as_asked(cx, &asked.request, &sent, json)?;
         let corpus = asked
             .request
             .corpus(&store, &intent)
