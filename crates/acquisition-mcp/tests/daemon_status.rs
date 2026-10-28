@@ -24,7 +24,7 @@ use serde_json::json;
 fn c84_daemon_status_reports_the_identity_and_the_sibling_it_is_judged_against() {
     let scratch = harness::scratch("mcp-status");
     let base = scratch.0.clone();
-    let acqd = acquisition_client::locator::beside(Path::new(env!("CARGO_BIN_EXE_acq-mcp")))
+    let acqd = acquisition_client::locator::beside(harness::exe())
         .unwrap_or_else(|e| panic!("{e}"))
         .canonicalize()
         .unwrap();

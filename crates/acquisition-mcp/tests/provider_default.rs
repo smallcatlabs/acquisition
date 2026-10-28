@@ -4,15 +4,18 @@
 //! client's and is pinned in the CLI's `provider_default.rs`; this
 //! server never spawns in real mode regardless (C13, `ggg_refusal.rs`).
 
-use std::process::{Command, Stdio};
+use std::process::Stdio;
+
+use crate::harness;
 
 #[test]
 fn c88_the_server_refuses_the_retired_knob_and_an_unknown_provider_at_start() {
+    let scratch = harness::scratch("c88-mcp");
     for (env, said) in [
         (("ACQ_GGG", "1"), "ACQ_GGG is no longer read"),
         (("ACQ_PROVIDER", "real"), "names no provider"),
     ] {
-        let out = Command::new(env!("CARGO_BIN_EXE_acq-mcp"))
+        let out = harness::command(&scratch.0, &[])
             .env(env.0, env.1)
             .stdin(Stdio::null())
             .output()

@@ -15,6 +15,9 @@
 # without -P). So an edit that does not apply, or leaves the tool
 # unparseable, fails the suite instead of passing as a refusal.
 #
+# The spawn rule's cases (§9) append to a test file the tree has, so no
+# case is also a layout refusal.
+#
 # Run it when an edge is added to arch-check.sh (the split's step 3 added
 # the client and daemon crates and their edges), not in the gate: it
 # runs the check once per case. Every case restores the files it touched from copies
@@ -36,7 +39,7 @@ for p in "${owned[@]}"; do
 done
 
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/acq-breakers.XXXXXX")
-files=(Cargo.toml Cargo.lock crates/acquisition-plan/Cargo.toml crates/acquisition-store/Cargo.toml crates/acquisition-search/Cargo.toml crates/acquisition-cli/Cargo.toml crates/acquisition-mcp/Cargo.toml crates/acquisition-client/Cargo.toml crates/acquisition-daemon/Cargo.toml crates/acquisition-cli/tests/main.rs tools/arch-check.sh)
+files=(Cargo.toml Cargo.lock crates/acquisition-plan/Cargo.toml crates/acquisition-store/Cargo.toml crates/acquisition-search/Cargo.toml crates/acquisition-cli/Cargo.toml crates/acquisition-mcp/Cargo.toml crates/acquisition-client/Cargo.toml crates/acquisition-daemon/Cargo.toml crates/acquisition-cli/tests/main.rs crates/acquisition-cli/tests/harness/mod.rs crates/acquisition-daemon/tests/main.rs tools/arch-check.sh)
 for f in "${files[@]}"; do mkdir -p "$scratch/keep/$(dirname "$f")"; cp "$f" "$scratch/keep/$f"; done
 restore() {
   local f
@@ -229,6 +232,19 @@ run_case 'discovery on beside a binary of modules'               refuse 'acquisi
 second_entry() { printf '\n[[test]]\nname = "main_copy"\npath = "tests/main.rs"\n' >>crates/acquisition-cli/Cargo.toml; }
 run_case 'a root named by two [[test]] entries'                  refuse 'names tests/main.rs in 2 [[test]] entries' second_entry
 run_case 'the layout as it stands'                               pass   'ok      layout' none
+
+echo '== the code: a test spawns a workspace binary through the harness (C122, #87)'
+in_tests()   { printf '%b' "$2" >>"$1"; }   # <file> <rust appended>
+cli_test()   { in_tests crates/acquisition-cli/tests/main.rs "$1"; }
+BIN='CARGO_BIN_'; BIN+='EXE_acq'   # built, so no source here holds the name whole
+run_case 'a test names the binary'                               refuse 'names CARGO_BIN_EXE_ outside the harness' cli_test "\nfn zz() -> &'static str { env!(\"$BIN\") }\n"
+run_case 'a test spawns by a path'                               refuse 'spawns by a path'           cli_test '\nfn zz(p: &std::path::Path) { let _ = std::process::Command::new(p); }\n'
+run_case 'a test spawns by a path on the next line'              refuse 'spawns by a path'           cli_test '\nfn zz(p: &std::path::Path) {\n    let _ = std::process::Command::new(\n        p,\n    );\n}\n'
+run_case 'a test spawns a shell'                                 refuse 'spawns through a shell'     cli_test '\nfn zz() { let _ = std::process::Command::new("sh"); }\n'
+run_case 'a test runs a system tool by name'                     pass   'ok      spawns'            cli_test '\nfn zz() { let _ = std::process::Command::new("kill"); }\n'
+run_case 'a comment names the binary'                            pass   'ok      spawns'            cli_test "\n// the binary is $BIN, through the harness\n"
+run_case 'the harness names the binary and spawns it by a path'  pass   'ok      spawns'            in_tests crates/acquisition-cli/tests/harness/mod.rs "\nfn zz() { let _ = Command::new(env!(\"$BIN\")); }\n"
+run_case 'the daemon crate'"'"'s tests, which cannot link the harness' pass 'ok      spawns'           in_tests crates/acquisition-daemon/tests/main.rs '\nfn zz(p: &std::path::Path) { let _ = Command::new(p); }\n'
 
 echo '== the code: shapes that must pass'
 dup() { adddep crates/acquisition-store/Cargo.toml "duplicate-helper = { path = \"$scratch/x/dup1\" }"; adddep crates/acquisition-cli/Cargo.toml "duplicate-helper = { path = \"$scratch/x/dup2\", version = \"0.2.0\" }"; }

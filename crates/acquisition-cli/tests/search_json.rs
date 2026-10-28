@@ -9,7 +9,7 @@
 
 use std::io::Write as _;
 use std::path::Path;
-use std::process::{Command, Output, Stdio};
+use std::process::{Output, Stdio};
 
 use acquisition_store::{Endpoint, Index, Store, account_path};
 use serde_json::{Value, json};
@@ -194,15 +194,7 @@ fn printed_commands(text: &str) -> Vec<String> {
 }
 
 fn run_printed(base: &Path, command: &str) -> Output {
-    Command::new("sh")
-        .arg("-c")
-        .arg(command.replacen("acq ", "\"$ACQ\" --json ", 1))
-        .env("ACQ", env!("CARGO_BIN_EXE_acq"))
-        .env("ACQ_STORE_DIR", base)
-        .env("ACQ_NO_KEYRING", "1")
-        .env("ACQ_NO_SPAWN", "1")
-        .env("ACQ_PROVIDER", "mock")
-        .env_remove("ACQ_ACCOUNT")
+    harness::offline_printed(base, &command.replacen("acq ", "acq --json ", 1))
         .output()
         .unwrap()
 }
@@ -667,15 +659,7 @@ fn c53_search_json_is_the_answer_whole_and_the_text_is_a_function_of_it() {
             .unwrap()
             .parse()
             .unwrap();
-        let out = Command::new("sh")
-            .arg("-c")
-            .arg(format!("\"$ACQ\" --json {command}"))
-            .env("ACQ", env!("CARGO_BIN_EXE_acq"))
-            .env("ACQ_STORE_DIR", &base)
-            .env("ACQ_NO_KEYRING", "1")
-            .env("ACQ_NO_SPAWN", "1")
-            .env("ACQ_PROVIDER", "mock")
-            .env_remove("ACQ_ACCOUNT")
+        let out = harness::offline_printed(&base, &format!("acq --json {command}"))
             .output()
             .unwrap();
         assert_eq!(sole_json(&out)["total"]["matched"], counted, "{command}");

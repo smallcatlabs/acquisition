@@ -153,7 +153,7 @@ fn c10_observation_never_spawns_or_replaces_and_reports_the_mismatch() {
 fn stage(dir: &Path, sibling: Option<&Path>) -> PathBuf {
     std::fs::create_dir_all(dir).unwrap();
     let acq = dir.join(format!("acq{}", std::env::consts::EXE_SUFFIX));
-    std::fs::copy(env!("CARGO_BIN_EXE_acq"), &acq).unwrap();
+    std::fs::copy(harness::acq_exe(), &acq).unwrap();
     if let Some(sibling) = sibling {
         std::fs::copy(sibling, dir.join(acquisition_client::locator::ACQD)).unwrap();
     }
@@ -303,10 +303,7 @@ fn c84_the_artifact_dimension_is_the_sibling_acqd_this_client_would_start() {
 
     // A copy of acq beside another file named acqd (here: acq itself):
     // another artifact — reported with both hashes, the daemon left alone.
-    let bogus = stage(
-        &base.join("bogus"),
-        Some(Path::new(env!("CARGO_BIN_EXE_acq"))),
-    );
+    let bogus = stage(&base.join("bogus"), Some(harness::acq_exe()));
     let out = command_of(&bogus, &base, &["daemon", "status", "--json"])
         .output()
         .unwrap();

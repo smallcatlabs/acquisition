@@ -8,19 +8,17 @@
 //! builds anyway. A verb's semantics is its help string (C11: the CLI
 //! is itself an API); the README's tour shows the shape.
 
-use std::process::Command;
-
 use crate::harness;
 
 const PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../CLI-REFERENCE.md");
 
 fn help(path: &[String]) -> String {
-    let out = Command::new(env!("CARGO_BIN_EXE_acq"))
-        .args(path)
+    // The isolation removes `ACQ_ACCOUNT`, which the account arg renders
+    // as `[env: ACQ_ACCOUNT=<value>]` when set.
+    let scratch = harness::scratch("help");
+    let path: Vec<&str> = path.iter().map(String::as_str).collect();
+    let out = harness::offline_command(&scratch.0, &path)
         .arg("--help")
-        // The account arg renders `[env: ACQ_ACCOUNT=<value>]` when set.
-        .env_remove("ACQ_ACCOUNT")
-        .env("ACQ_NO_SPAWN", "1")
         .output()
         .expect("running acq --help");
     assert!(out.status.success(), "acq {} --help failed", path.join(" "));

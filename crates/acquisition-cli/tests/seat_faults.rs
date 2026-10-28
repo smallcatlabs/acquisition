@@ -2074,13 +2074,7 @@ fn printed_in_next(said: &str) -> Vec<String> {
 /// A printed command, run as a person pastes it: through `sh`, in the
 /// world, no account from the environment.
 fn run_as_printed(base: &Path, command: &str) -> std::process::Output {
-    assert!(command.starts_with("acq "), "{command}");
-    let mut cmd = std::process::Command::new("sh");
-    cmd.arg("-c")
-        .arg(command.replacen("acq ", "\"$ACQ\" ", 1))
-        .env("ACQ", env!("CARGO_BIN_EXE_acq"));
-    harness::isolate(&mut cmd, base);
-    cmd.output().unwrap()
+    harness::printed(base, command).output().unwrap()
 }
 
 /// The release seat (cli-opus calls 61 to 73, cli-sonnet 55 to 64): the

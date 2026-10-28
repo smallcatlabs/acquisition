@@ -13,7 +13,7 @@ use std::process::Command;
 
 use crate::harness;
 
-use harness::{acq, acqd, command, isolate, scratch, scratch_tmp, sockets_under, sole_json, text};
+use harness::{acq, acqd, command, scratch, scratch_tmp, sockets_under, sole_json, text};
 
 #[test]
 fn c88_the_real_provider_is_the_default_and_the_retired_knob_is_refused() {
@@ -59,9 +59,10 @@ fn c88_the_real_provider_is_the_default_and_the_retired_knob_is_refused() {
 
     // The daemon refuses the same way, on its own stderr, before it makes
     // a world: no root, no log.
-    let mut daemon = Command::new(acqd());
-    isolate(&mut daemon, base);
-    let out = daemon.env("ACQ_GGG", "1").output().unwrap();
+    let out = harness::daemon_command(&acqd(), base)
+        .env("ACQ_GGG", "1")
+        .output()
+        .unwrap();
     assert_eq!(out.status.code(), Some(2), "{}", text(&out));
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(

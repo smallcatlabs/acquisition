@@ -30,6 +30,14 @@ pub fn exe() -> &'static Path {
     Path::new(env!("CARGO_BIN_EXE_acq-mcp"))
 }
 
+/// The `acq-mcp` binary under the isolation of `base`, not yet spawned.
+pub fn command(base: &Path, args: &[&str]) -> Command {
+    let mut cmd = Command::new(exe());
+    cmd.args(args);
+    isolate(&mut cmd, base);
+    cmd
+}
+
 /// Spawn the `acq-mcp` binary under the isolation of `base`, stderr to
 /// null, and `extra_env` applied last (so a test can opt into e.g.
 /// `ACQ_PROVIDER=ggg` deliberately).
@@ -39,9 +47,7 @@ pub fn spawn(
     extra_env: &[(&str, &str)],
     stdio: fn() -> Stdio,
 ) -> Child {
-    let mut cmd = Command::new(exe());
-    cmd.args(args);
-    isolate(&mut cmd, base);
+    let mut cmd = command(base, args);
     cmd.stdin(stdio()).stdout(stdio()).stderr(Stdio::null());
     cmd.envs(extra_env.iter().copied());
     cmd.spawn().expect("spawning acq-mcp")

@@ -67,6 +67,35 @@ pub fn offline_command(world: &Path, args: &[&str]) -> Command {
     cmd
 }
 
+/// A command a text prints, run as a person pastes it: through `sh`, its
+/// leading `acq` the binary under test, under the isolation of `base`
+/// (the world at `base/store`).
+pub fn printed(base: &Path, command: &str) -> Command {
+    let mut cmd = sh_printed(command);
+    isolate(&mut cmd, base);
+    cmd
+}
+
+/// [`printed`] over a world seeded by hand, as [`offline_command`]: the
+/// world is `world` itself, and no daemon is spawned.
+pub fn offline_printed(world: &Path, command: &str) -> Command {
+    let mut cmd = sh_printed(command);
+    isolate_at(&mut cmd, world, world);
+    cmd.env("ACQ_NO_SPAWN", "1");
+    cmd
+}
+
+fn sh_printed(command: &str) -> Command {
+    let rest = command
+        .strip_prefix("acq ")
+        .unwrap_or_else(|| panic!("not an acq command: {command}"));
+    let mut cmd = Command::new("sh");
+    cmd.arg("-c")
+        .arg(format!("\"$ACQ\" {rest}"))
+        .env("ACQ", acq_exe());
+    cmd
+}
+
 /// [`offline_command`], run to its end.
 pub fn offline_acq(world: &Path, args: &[&str]) -> Output {
     offline_command(world, args).output().expect("spawning acq")

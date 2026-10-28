@@ -23,7 +23,7 @@
 //! ends, so it never leaves the lock held.
 
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output, Stdio};
+use std::process::{Command, Output};
 use std::time::{Duration, Instant};
 
 use serde_json::Value;
@@ -47,12 +47,7 @@ fn acq(base: &Path, store: &str, args: &[&str]) -> Output {
 /// stderr piped so a refusal can be read (a lazy spawn's would go to the
 /// log; a driver captures stderr as this does).
 fn daemon_command(base: &Path, store: &str) -> Command {
-    let mut cmd = Command::new(acqd());
-    harness::isolate_in(&mut cmd, base, store);
-    cmd.stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::piped());
-    cmd
+    harness::daemon_command_at(&acqd(), &base.join(store), base)
 }
 
 /// Start a daemon and wait until `acq daemon status` (under `env`) sees

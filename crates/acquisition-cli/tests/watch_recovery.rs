@@ -19,7 +19,7 @@
 #![cfg(unix)]
 
 use std::io::{BufRead, BufReader};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::{Child, Command, Stdio};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
@@ -104,7 +104,7 @@ fn watcher(base: &Path, args: &[&str]) -> (Proc, Output) {
         }
     });
     (
-        Proc(child, PathBuf::from(env!("CARGO_BIN_EXE_acq"))),
+        Proc(child, harness::acq_exe().to_path_buf()),
         Output { lines: rx },
     )
 }

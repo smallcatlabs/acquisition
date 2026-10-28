@@ -23,16 +23,13 @@
 //! release workflow makes, for this version, and every target it makes is
 //! named.
 
-use std::process::Command;
-
 use crate::harness;
 use harness::{acq, login_with, scratch, sole_json};
 
 fn help(path: &[&str]) -> Result<String, String> {
-    let out = Command::new(env!("CARGO_BIN_EXE_acq"))
-        .args(path)
+    let scratch = scratch("help");
+    let out = harness::offline_command(&scratch.0, path)
         .arg("--help")
-        .env("ACQ_NO_SPAWN", "1")
         .output()
         .expect("running acq --help");
     if out.status.success() {

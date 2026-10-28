@@ -363,8 +363,13 @@ impl Drop for Proc {
 /// `base`: stdin and stdout to null, as a lazy spawn's, and stderr piped,
 /// so a daemon that does not come up says why ([`spawn_drained`]).
 pub fn daemon_command(acqd: &Path, base: &Path) -> Command {
+    daemon_command_at(acqd, &base.join("store"), base)
+}
+
+/// [`daemon_command`] with the world at `world`.
+pub fn daemon_command_at(acqd: &Path, world: &Path, base: &Path) -> Command {
     let mut cmd = Command::new(acqd);
-    isolate(&mut cmd, base);
+    isolate_at(&mut cmd, world, base);
     cmd.stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::piped());
