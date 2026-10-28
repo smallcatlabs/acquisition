@@ -333,7 +333,8 @@ except where a round says so.
   - call 49, `price_set` at a stale `if_revision`: `conflict` with
     `revision: 4` and no current value (158 text, 436 whole). Round 4:
     `current` stands beside `revision`, the row as `price_show`'s
-    `manual` prints it.
+    `manual` prints it (*settled in round 6's fix round:* the stored row
+    as it stands, less the age words `show` adds).
   - calls 28 to 31, 36, 37 (`price_set`, `price_clear`): receipts
     `target`, `written`, `prior`, `in_facts`; a clear's `written` null
     and its tombstone's revision nowhere. Round 5: every receipt
@@ -709,7 +710,10 @@ it is another tool's; `readings`, how what was typed could be read,
 payload on every refusal; `next`, one sentence or one command that is
 a person's act, never an agent's; and the kind's own fields
 (`accounts`; `revision` with `current`, the row as `price_show`'s
-`manual` prints it). A key this round adds is absent when it has
+`manual` prints it — *settled in round 6's fix round:* the stored row as
+it stands, which is `manual` less the age words `show` adds beside its
+`updated_at`; those words are an answer's, made at its time, and a
+refusal carries none). A key this round adds is absent when it has
 nothing to say, never null; a field that stands today keeps its
 contract, so a conflict with no row ever written still says
 `revision: null` (C11; the review's finding 9). *Settled in the round
