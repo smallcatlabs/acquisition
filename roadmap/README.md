@@ -147,7 +147,6 @@ issue carrying its evidence and its done-when, and takes a brief from
 leaves the list when its step closes or the owner strikes it.
 
 1. The league group, the owner's word of 2026-10-28, in this order:
-   #68 (the login callback),
    #103 (a bound on every observe request), #63's remainder (store
    failures absorbed as success), #53's generator (in the tree before
    the post-launch pin), #94, #96. Each a half day to a day, one brief
@@ -170,6 +169,11 @@ The owner's list, his to strike:
   live run; edited at 2g, not run since.
 - The frontends' review, as 2f's of the daemon, store and network:
   after the league (p1's packet, (i)).
+- Whether GGG's authorize page echoes `state` on a denial redirect
+  (`error=access_denied`): the daemon reads a denial only with the
+  flow's state, so a denial without it is answered 400 and the login
+  waits to its bound (#68). Read at the next live login by denying
+  once; a fact for `docs/design/network-ground-truth.md`.
 - `.claude/skills/session-close/SKILL.md`, "Why build order matters":
   whether its release-uplift sentences stand now the gate has its
   `artifacts` stage, a retirement for the next process round.
@@ -186,8 +190,7 @@ The owner's list, his to strike:
 
 ## Current step
 
-#68, the login callback (`briefs/68-login-callback.md`): built at
-`84e32797..ad4fd7c3`, the review pending; #90 closed (`LEDGER.md`).
-Phase 3, the owner's league run, follows at his word; #70 closes on a
-week of pushes without a re-run. `AGENTS.md` governs; the gate is
-`tools/gate.sh`.
+#103, a bound on every observe request, next from "Pull-forward", its
+brief not yet written; #68 closed (`LEDGER.md`). Phase 3, the owner's
+league run, follows at his word; #70 closes on a week of pushes without
+a re-run. `AGENTS.md` governs; the gate is `tools/gate.sh`.
