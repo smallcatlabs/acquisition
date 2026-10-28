@@ -37,11 +37,13 @@ use acquisition_plan::listing::{
 use acquisition_plan::price::{Buyout, PriceTarget, PriceWrite};
 use acquisition_plan::pricing::{self, Expect, ListArgs};
 use acquisition_protocol::realm::Realm;
-use acquisition_store::{AnnotationRow, Annotations, IntentValue, Provenance, Store, check_value};
+use acquisition_store::{AnnotationRow, Annotations, Provenance, Store, check_value};
 use anyhow::Result;
 
-use crate::Ctx;
 use crate::store_cmd::{ago, clip, realm_prefix};
+use crate::{Ctx, Terminal};
+use acquisition_verbs::receipt;
+use acquisition_verbs::refusal::{Surface as _, Way};
 
 /// The selected account's facts file, opened beside its intent (C121,
 /// C12), and the account's name.
@@ -939,8 +941,11 @@ pub fn set(
         currency,
         Expect::or(if_revision, Expect::Current),
         &Provenance::via(cx.frontend.via),
+        &username,
+        acquisition_search::answer::shell_quoted,
     )?;
     if json {
+        let receipt = receipt::price_set(&receipt, &username, &Terminal::writing());
         println!("{}", serde_json::to_string_pretty(&receipt)?);
         return Ok(());
     }
@@ -958,15 +963,19 @@ pub fn set(
 /// which nothing (C53).
 pub fn clear(cx: &Ctx, target: &str, if_revision: Option<i64>, json: bool) -> Result<()> {
     let account = cx.account()?;
+    let username = &account.entry.username;
     let mut annotations = account.intent()?;
     let write = pricing::clear(
         &mut annotations,
         target,
         Expect::or(if_revision, Expect::Current),
         &Provenance::via(cx.frontend.via),
+        username,
+        acquisition_search::answer::shell_quoted,
     )?;
     if json {
-        println!("{}", serde_json::to_string_pretty(&write)?);
+        let receipt = receipt::price_clear(&write, username, &Terminal::writing());
+        println!("{}", serde_json::to_string_pretty(&receipt)?);
         return Ok(());
     }
     print!("{}", render_write(&write, None, &account.entry.username));
@@ -981,14 +990,6 @@ fn value_text(row: &AnnotationRow) -> String {
     }
 }
 
-/// The `set` words that write this value again — the undo, typed.
-fn set_words(value: &Buyout) -> String {
-    match value.price() {
-        Some(price) => format!("{} {price}", value.kind()),
-        None => value.kind().into(),
-    }
-}
-
 /// `acq price <verb>` as a printed command types it: with the account
 /// the command ran with, so it runs as printed once a second account is
 /// known.
@@ -999,42 +1000,38 @@ fn price_verb(verb: &str, account: &str) -> String {
     )
 }
 
-/// Why a prior cannot be put back, or the `set` words that put it back:
-/// a value this build cannot read, or one a new price cannot name (a
-/// retired currency, C67's writer's rule — the receipt never promises a
-/// write the door refuses).
-fn undo_words(prior: &AnnotationRow) -> std::result::Result<String, String> {
-    let value = check_value::<Buyout>(&prior.value)
-        .map_err(|_| "this build cannot read it (its JSON is in --json)".to_string())?;
-    value.check_write()?;
-    Ok(set_words(&value))
+/// An offer's request as this terminal prints it: the command line.
+fn offered_line(way: &Way) -> String {
+    Terminal::writing()
+        .request(way)
+        .and_then(|(line, _)| line.as_str().map(str::to_string))
+        .unwrap_or_default()
 }
 
 /// The write receipt as text (C53): what the target is now and what it
 /// was (C78), then the next action — reading it beside the game side,
 /// and the command that undoes the write, every one carrying the
-/// account the command ran with. After a create that command is the
+/// account the command ran with. The undo is the JSON receipt's own
+/// (`receipt::price_undo`, its `undo` or `no_undo`): after a create the
 /// clear naming the revision just written; after a replacement the
 /// prior's value with `--if-revision` naming the revision just written,
-/// so it undoes this write and not a later one; after a clear it is a
-/// create, which the store lands over the tombstone whatever came
-/// between (a cleared price names no revision), and the line says so. A
-/// prior this build cannot read is shown as its JSON and promised no
-/// undo.
+/// so it undoes this write and not a later one; after a clear a create,
+/// which the store lands over the tombstone whatever came between (a
+/// cleared price names no revision), and the line says so. A prior this
+/// build cannot read is shown as its JSON and promised no undo.
 fn render_write(write: &PriceWrite, in_facts: Option<bool>, account: &str) -> String {
     let target = &write.target;
     // The target as a command word: quoted where a shell would split it.
     let word = acquisition_search::answer::shell_quoted(&target.to_string());
-    let (show, set, clear) = (
-        price_verb("show", account),
-        price_verb("set", account),
-        price_verb("clear", account),
-    );
+    let show = price_verb("show", account);
     let was = match &write.prior {
         None => "was unset".to_string(),
         Some(prior) => format!("was {} (revision {})", value_text(prior), prior.revision),
     };
-    let prior_words = write.prior.as_ref().map(undo_words);
+    let undo = match receipt::price_undo(write, account) {
+        Ok((way, says)) => format!("`{}` {says}", offered_line(&way)),
+        Err(why) => why,
+    };
     let mut out = String::new();
     match &write.written {
         Some(row) => {
@@ -1049,30 +1046,13 @@ fn render_write(write: &PriceWrite, in_facts: Option<bool>, account: &str) -> St
                      and `acq price status` counts it under \"name nothing in the facts\"\n"
                 ));
             }
-            let mut next = format!("`{show} {word}` reads it beside the game side");
-            match prior_words {
-                Some(Ok(words)) => next.push_str(&format!(
-                    "; `{set} {word} {words} --if-revision {}` puts the prior back",
-                    row.revision
-                )),
-                Some(Err(why)) => next.push_str(&format!("; the prior cannot be put back: {why}")),
-                None => next.push_str(&format!(
-                    "; `{clear} {word} --if-revision {}` undoes it",
-                    row.revision
-                )),
-            }
-            out.push_str(&format!("next: {next}\n"));
+            out.push_str(&format!(
+                "next: `{show} {word}` reads it beside the game side; {undo}\n"
+            ));
         }
         None => {
             out.push_str(&format!("{target}: cleared, {was}\n"));
-            let next = match prior_words {
-                Some(Ok(words)) => format!(
-                    "`{set} {word} {words}` puts it back (a create, which names no revision; the row's count continues past the clear)"
-                ),
-                Some(Err(why)) => format!("the cleared value cannot be put back: {why}"),
-                None => "nothing was cleared".to_string(),
-            };
-            out.push_str(&format!("next: {next}\n"));
+            out.push_str(&format!("next: {undo}\n"));
         }
     }
     out
@@ -1635,6 +1615,7 @@ mod tests {
             target: target.clone(),
             written: Some(row(exact.clone(), 1)),
             prior: None,
+            revision: 1,
         };
         assert_eq!(
             render_write(&created, None, "a"),
@@ -1668,6 +1649,7 @@ mod tests {
             target: target.clone(),
             written: Some(row(bo.clone(), 2)),
             prior: Some(row(exact.clone(), 1)),
+            revision: 2,
         };
         assert_eq!(
             render_write(&replaced, None, "a"),
@@ -1679,6 +1661,7 @@ mod tests {
             target: target.clone(),
             written: None,
             prior: Some(row(bo, 2)),
+            revision: 3,
         };
         assert_eq!(
             render_write(&cleared, None, "a"),
@@ -1691,6 +1674,7 @@ mod tests {
             target,
             written: None,
             prior: Some(row(newer, 3)),
+            revision: 4,
         };
         let text = render_write(&unreadable, None, "a");
         assert!(
@@ -1701,7 +1685,7 @@ mod tests {
         );
         assert!(
             text.ends_with(
-                "next: the cleared value cannot be put back: this build cannot read it (its JSON is in --json)\n"
+                "next: the cleared value cannot be put back: this build cannot read it\n"
             ),
             "{text}"
         );
@@ -1709,12 +1693,13 @@ mod tests {
             target: PriceTarget::Item { id: "i1".into() },
             written: Some(row(exact, 4)),
             prior: Some(row(json!({ "version": 9, "type": "auction" }), 3)),
+            revision: 4,
         };
         let text = render_write(&overwritten, None, "a");
         assert!(
             text.ends_with(
                 "next: `acq price show --account a item/i1` reads it beside the game side; \
-                 the prior cannot be put back: this build cannot read it (its JSON is in --json)\n"
+                 the prior cannot be put back: this build cannot read it\n"
             ),
             "{text}"
         );

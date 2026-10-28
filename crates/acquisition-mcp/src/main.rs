@@ -151,6 +151,7 @@ use acquisition_search::answer::{Asked, QueryInput};
 use acquisition_search::{Holder, SearchError};
 use acquisition_store::{Annotations, Provenance, Store};
 use acquisition_verbs::fault::door_word;
+use acquisition_verbs::receipt;
 use acquisition_verbs::refusal::{self, Arguments, Way};
 use acquisition_verbs::{Account, Fault, Frontend};
 use anyhow::Result;
@@ -368,6 +369,40 @@ impl refusal::Surface for Spoken<'_> {
                     "account": account, "realm": realm.as_str(), "league": league, "expand": true,
                 }),
                 other("price_status"),
+            )),
+            // a receipt's undo: the write tool's own arguments, the
+            // amount and currency only where the type carries a price,
+            // the revision only where it names one (a create names none)
+            Way::PriceSet {
+                target,
+                account,
+                kind,
+                amount,
+                currency,
+                if_revision,
+            } => {
+                let mut arguments = serde_json::Map::new();
+                arguments.insert("target".into(), json!(target));
+                arguments.insert("type".into(), json!(kind));
+                if let Some(amount) = amount {
+                    arguments.insert("amount".into(), json!(amount));
+                }
+                if let Some(currency) = currency {
+                    arguments.insert("currency".into(), json!(currency));
+                }
+                if let Some(revision) = if_revision {
+                    arguments.insert("if_revision".into(), json!(revision));
+                }
+                arguments.insert("account".into(), json!(account));
+                Some((Value::Object(arguments), other("price_set")))
+            }
+            Way::PriceClear {
+                target,
+                account,
+                if_revision,
+            } => Some((
+                json!({ "target": target, "if_revision": if_revision, "account": account }),
+                other("price_clear"),
             )),
         }
     }
@@ -1158,10 +1193,11 @@ const NAMES: [&str; 2] = ["name", "construct"];
 /// `readings` are payload on every refusal: how what was typed could be
 /// read, in the request's words (C143); and a refusal's `current` and
 /// `accounts` are data, a stored row and names, carried verbatim as the
-/// read that prints them does (round 4's review, P3).
-const PAYLOAD: [&str; 10] = [
+/// read that prints them does (round 4's review, P3); a receipt's `undo`
+/// is an offer, sent back as printed (round 5 of the 2g build).
+const PAYLOAD: [&str; 11] = [
     "offers", "request", "query", "params", "next", "route", "examples", "readings", "current",
-    "accounts",
+    "accounts", "undo",
 ];
 
 /// Which strings of a document are the tool's words.
@@ -1387,14 +1423,15 @@ impl AcqMcp {
     /// The selected account's intent file alone, for a verb that reads
     /// and writes nothing else — the MCP opens for a verb what the CLI
     /// opens for it, so a facts file the CLI's verb never opens cannot
-    /// refuse the tool's.
+    /// refuse the tool's — with the account's name, for the commands its
+    /// receipt and refusals print as that account.
     fn open_account_intent(
         &self,
         selector: Option<&str>,
         named: &str,
-    ) -> std::result::Result<Annotations, CallToolResult> {
+    ) -> std::result::Result<(Annotations, String), CallToolResult> {
         self.account(selector)
-            .and_then(|account| account.intent())
+            .and_then(|account| Ok((account.intent()?, account.entry.username)))
             .map_err(|e| refusing(refusal(&e.into(), named)))
     }
 }
@@ -1843,53 +1880,65 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Set one target's price by hand: one row on an item, tab, substash or character, which what it covers inherits unless a row nearer the item says otherwise. Local only: it sends nothing and changes nothing in game. Over a row the target already has, `if_revision` names that row's revision (price_show reads it); with none, omit it to create one. Returns the receipt — `target`, `written`, `prior`, `in_facts`; `describe` with names [\"pricing\"] gives the revision rule and the undo."
+        description = "Set one target's price by hand: one row on an item, tab, substash or character, which what it covers inherits unless a row nearer the item says otherwise. Local only: it sends nothing and changes nothing in game. Over a row the target already has, `if_revision` names that row's revision (price_show reads it); with none, omit it to create one. Returns the receipt — `target`, `written`, `prior`, `revision` (the next write's), `undo` (a request that puts `prior` back) or `no_undo` (why none), `in_facts`; `describe` with names [\"pricing\"] gives the revision rule and the undo."
     )]
     fn price_set(&self, Parameters(p): Parameters<Args<PriceSetParams>>) -> Told {
         let p = match p.read() {
             Ok(p) => p,
             Err(refusal) => return Ok(refusal),
         };
-        let (store, mut intent) = match self.open_search(p.account.as_deref(), "account") {
+        let (store, mut intent, username) = match self.open_priced(p.account.as_deref(), "account")
+        {
             Ok(opened) => opened,
             Err(refusal) => return Ok(refusal),
         };
-        priced(acquisition_plan::pricing::set(
-            &store,
-            &mut intent,
-            &p.target,
-            &p.r#type,
-            p.amount.as_deref(),
-            p.currency.as_deref(),
-            acquisition_plan::pricing::Expect::or(
-                p.if_revision,
-                acquisition_plan::pricing::Expect::Create,
-            ),
-            &Provenance::via(self.frontend.via),
-        ))
+        priced(
+            acquisition_plan::pricing::set(
+                &store,
+                &mut intent,
+                &p.target,
+                &p.r#type,
+                p.amount.as_deref(),
+                p.currency.as_deref(),
+                acquisition_plan::pricing::Expect::or(
+                    p.if_revision,
+                    acquisition_plan::pricing::Expect::Create,
+                ),
+                &Provenance::via(self.frontend.via),
+                &username,
+                acquisition_search::answer::shell_quoted,
+            )
+            .map(|r| receipt::price_set(&r, &username, &Spoken { named: "account" })),
+        )
     }
 
     #[tool(
-        description = "Remove one target's own price row; what it covered falls back to the next row up, or to the game's price. Local only: it sends nothing. `if_revision` names the revision of the row it removes (price_show reads it). Returns `target`, `written` null and `prior`, the row removed; price_set with the prior's value puts it back."
+        description = "Remove one target's own price row; what it covered falls back to the next row up, or to the game's price. Local only: it sends nothing. `if_revision` names the revision of the row it removes (price_show reads it). Returns the receipt — `target`, `written` null, `prior`, the row removed, `revision`, the one the clear left, and `undo`, the price_set that puts it back, a create naming no revision, sent as printed (or `no_undo`, why none)."
     )]
     fn price_clear(&self, Parameters(p): Parameters<Args<PriceClearParams>>) -> Told {
         let p = match p.read() {
             Ok(p) => p,
             Err(refusal) => return Ok(refusal),
         };
-        let mut intent = match self.open_account_intent(p.account.as_deref(), "account") {
+        let (mut intent, username) = match self.open_account_intent(p.account.as_deref(), "account")
+        {
             Ok(opened) => opened,
             Err(refusal) => return Ok(refusal),
         };
-        priced(acquisition_plan::pricing::clear(
-            &mut intent,
-            &p.target,
-            acquisition_plan::pricing::Expect::or(
-                p.if_revision,
-                acquisition_plan::pricing::Expect::Create,
-            ),
-            &Provenance::via(self.frontend.via),
-        ))
+        priced(
+            acquisition_plan::pricing::clear(
+                &mut intent,
+                &p.target,
+                acquisition_plan::pricing::Expect::or(
+                    p.if_revision,
+                    acquisition_plan::pricing::Expect::Create,
+                ),
+                &Provenance::via(self.frontend.via),
+                &username,
+                acquisition_search::answer::shell_quoted,
+            )
+            .map(|w| receipt::price_clear(&w, &username, &Spoken { named: "account" })),
+        )
     }
 
     // ---- daemon jobs ----

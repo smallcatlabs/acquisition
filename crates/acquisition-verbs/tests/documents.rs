@@ -1072,6 +1072,8 @@ impl acquisition_verbs::refusal::Surface for Plain {
             Way::Tabs { .. } => Some("tabs"),
             Way::PriceShow { .. } => Some("price_show"),
             Way::PriceStatus { .. } => Some("price_status"),
+            Way::PriceSet { .. } => Some("price_set"),
+            Way::PriceClear { .. } => Some("price_clear"),
         };
         Some((json!(format!("{way:?}")), tool))
     }

@@ -1103,6 +1103,14 @@ impl Terminal {
             repeat: Repeat::None,
         }
     }
+
+    /// A write's receipt: its one offer is the undo, a command line made
+    /// from the receipt, and nothing is repeated.
+    pub(crate) fn writing() -> Terminal {
+        Terminal {
+            repeat: Repeat::None,
+        }
+    }
 }
 
 impl acquisition_verbs::refusal::Surface for Terminal {
@@ -1159,6 +1167,40 @@ impl acquisition_verbs::refusal::Surface for Terminal {
             } => format!(
                 "acq price status --expand {}",
                 scope(account, realm, league)
+            ),
+            // a receipt's undo, as its text receipt prints it: the price
+            // words after the target, the revision last
+            Way::PriceSet {
+                target,
+                account,
+                kind,
+                amount,
+                currency,
+                if_revision,
+            } => {
+                let mut line = format!(
+                    "acq price set --account {} {} {}",
+                    quote(account),
+                    quote(target),
+                    quote(kind)
+                );
+                for word in [amount, currency].into_iter().flatten() {
+                    line.push(' ');
+                    line.push_str(&quote(word));
+                }
+                if let Some(revision) = if_revision {
+                    line.push_str(&format!(" --if-revision {revision}"));
+                }
+                line
+            }
+            Way::PriceClear {
+                target,
+                account,
+                if_revision,
+            } => format!(
+                "acq price clear --account {} {} --if-revision {if_revision}",
+                quote(account),
+                quote(target)
             ),
         };
         Some((json!(line), None))

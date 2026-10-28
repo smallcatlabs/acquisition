@@ -2169,3 +2169,129 @@ fn a_request_offered_again_keeps_the_command_lines_routes() {
     assert_ne!(routed["terms"], bare["terms"], "--routes adds nothing here");
     assert_eq!(found["terms"], routed["terms"], "{found}");
 }
+
+/// Round 5 of the 2g build (the receipt shape; its design's Q6, the cold
+/// review's finding 2): every write's `--json` receipt carries `revision`,
+/// the one the next write names — a clear's its tombstone's, from the
+/// delete itself — and `undo`, the command line that puts `prior` back,
+/// which runs as printed with two accounts known: a create's the clear
+/// naming the revision written, a clear's a create naming none, a
+/// replace's the prior's value naming the revision written. Where nothing
+/// puts the prior back (a currency since retired) `no_undo` says why and
+/// `undo` is absent: one of the two on every receipt, never both.
+#[test]
+fn every_json_receipts_undo_runs_as_printed_and_its_revision_is_the_next_writes() {
+    let scratch = harness::scratch("price-receipts");
+    let base = scratch.0.clone();
+    two_accounts_and_xbox(&base);
+    let write = |args: &[&str]| -> Value {
+        let mut args = args.to_vec();
+        args.extend(["--account", USER, "--json"]);
+        let out = acq(&base, &args);
+        assert!(out.status.success(), "{args:?}: {}", stderr(&out));
+        let doc = sole_json(&out);
+        assert!(
+            doc.get("undo").is_some() != doc.get("no_undo").is_some(),
+            "undo or no_undo, one of them: {doc}"
+        );
+        doc
+    };
+    let undone = |doc: &Value| -> Value {
+        let undo = &doc["undo"];
+        assert_eq!(undo.get("tool"), None, "a terminal names no tool: {doc}");
+        let line = undo["request"]
+            .as_str()
+            .unwrap_or_else(|| panic!("no undo: {doc}"));
+        assert!(line.contains("--account 'Alice#1234'"), "{line}");
+        // run as printed, `--json` added as a refusal's offers are run
+        // (the text receipt's line is run bare by `seat_faults.rs`)
+        let back = run_offered(&base, &format!("{line} --json"));
+        assert!(
+            back.get("undo").is_some() != back.get("no_undo").is_some(),
+            "{back}"
+        );
+        back
+    };
+    let manual = || -> Value {
+        run_offered(
+            &base,
+            "acq price show --account 'Alice#1234' item/i-map --json",
+        )["listing"]["manual"]
+            .clone()
+    };
+    let at = |doc: &Value| doc["revision"].as_i64().unwrap_or_else(|| panic!("{doc}"));
+
+    // A create: its revision is the row's, its undo the clear naming it.
+    let created = write(&["price", "set", "item/i-map", "exact", "12.5", "chaos"]);
+    assert_eq!(created["revision"], created["written"]["revision"]);
+    assert_eq!(
+        created["undo"]["request"],
+        json!(format!(
+            "acq price clear --account 'Alice#1234' item/i-map --if-revision {}",
+            at(&created)
+        ))
+    );
+    // The clear the undo ran: written null, its revision the tombstone's.
+    let cleared = undone(&created);
+    assert_eq!(manual(), Value::Null);
+    assert_eq!(
+        (&cleared["written"], at(&cleared)),
+        (&Value::Null, at(&created) + 1)
+    );
+    assert_eq!(cleared["prior"], created["written"]);
+    // Its undo is a create naming no revision, which says so, and lands
+    // at the revision after the tombstone's.
+    let line = cleared["undo"]["request"].as_str().unwrap();
+    assert!(!line.contains("--if-revision"), "{line}");
+    assert!(
+        cleared["undo"]["says"]
+            .as_str()
+            .is_some_and(|s| s.contains("a create, which names no revision")),
+        "{cleared}"
+    );
+    let recreated = undone(&cleared);
+    assert_eq!(
+        (&recreated["prior"], at(&recreated)),
+        (&Value::Null, at(&cleared) + 1)
+    );
+    assert_eq!(manual()["value"], created["written"]["value"]);
+
+    // A replace naming the receipt's revision: its undo puts the prior
+    // back over the revision it wrote.
+    let rev = at(&recreated).to_string();
+    let replaced = write(&[
+        "price",
+        "set",
+        "item/i-map",
+        "b/o",
+        "1/5",
+        "divine",
+        "--if-revision",
+        &rev,
+    ]);
+    assert_eq!(replaced["prior"], recreated["written"]);
+    let restored = undone(&replaced);
+    assert_eq!(restored["prior"], replaced["written"]);
+    assert_eq!(manual()["value"], created["written"]["value"]);
+    assert_eq!(manual()["revision"], json!(at(&restored)));
+
+    // A prior naming a retired currency: nothing puts it back, and why.
+    Annotations::open_for(&base.join("mock"), UUID)
+        .unwrap()
+        .put::<LegacyBuyout>(
+            "item",
+            "i-plain",
+            &json!({ "version": 1, "type": "exact", "amount": "3", "currency": "chisel" }),
+            Some(1),
+            &Provenance::via("old-build"),
+        )
+        .unwrap();
+    let over = write(&["price", "set", "item/i-plain", "skip", "--if-revision", "2"]);
+    assert_eq!(over.get("undo"), None, "{over}");
+    assert!(
+        over["no_undo"].as_str().is_some_and(
+            |s| s.starts_with("the prior cannot be put back: ") && s.contains("retired")
+        ),
+        "{over}"
+    );
+}

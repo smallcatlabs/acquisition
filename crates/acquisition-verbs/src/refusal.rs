@@ -68,6 +68,24 @@ pub enum Way {
         realm: Realm,
         league: String,
     },
+    /// A price written on one target, as `price set` takes it: the `type`
+    /// word, its amount and currency where it has a price, and the
+    /// revision it replaces (none: a create). A receipt's undo
+    /// ([`crate::receipt`]).
+    PriceSet {
+        target: String,
+        account: String,
+        kind: String,
+        amount: Option<String>,
+        currency: Option<String>,
+        if_revision: Option<i64>,
+    },
+    /// One target's price row cleared at `if_revision`. A receipt's undo.
+    PriceClear {
+        target: String,
+        account: String,
+        if_revision: i64,
+    },
 }
 
 /// What a surface adds to the one shape: its words, the remedy in its
@@ -179,21 +197,26 @@ fn offered(
 ) -> Value {
     let sent: Vec<Value> = offers
         .into_iter()
-        .filter_map(|(way, says)| {
-            let (request, tool) = surface.request(&way)?;
-            let mut offer = Map::new();
-            offer.insert("request".into(), request);
-            offer.insert("says".into(), json!(says));
-            if let Some(tool) = tool {
-                offer.insert("tool".into(), json!(tool));
-            }
-            Some(Value::Object(offer))
-        })
+        .filter_map(|(way, says)| offer(&way, &says, surface))
         .collect();
     if !sent.is_empty() {
         doc.insert("offers".into(), Value::Array(sent));
     }
     Value::Object(doc)
+}
+
+/// One offer as `surface` sends it: `{request, says}`, `tool` where it
+/// is another tool's; none where the surface holds no request to send.
+/// A refusal's `offers` and a receipt's `undo` alike ([`crate::receipt`]).
+pub(crate) fn offer(way: &Way, says: &str, surface: &dyn Surface) -> Option<Value> {
+    let (request, tool) = surface.request(way)?;
+    let mut offer = Map::new();
+    offer.insert("request".into(), request);
+    offer.insert("says".into(), json!(says));
+    if let Some(tool) = tool {
+        offer.insert("tool".into(), json!(tool));
+    }
+    Some(Value::Object(offer))
 }
 
 /// Arguments a tool cannot read: refused as `arguments`, the MCP's word

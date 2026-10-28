@@ -635,11 +635,66 @@ impl IntentValue for Buyout {
 /// written past by an explicit revision): a frontend reads it through
 /// [`Buyout::parse`], shows the JSON when that fails, and does not
 /// promise to put it back.
+///
+/// `revision` is the revision now current on the target, the one the next
+/// write over it names: the written row's, or after a clear its
+/// tombstone's, as the delete's own transaction returned it — the
+/// generation the row sequence has reached, which a later conflict names;
+/// the next write after a clear is a create and names none (round 5 of
+/// the 2g build).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PriceWrite {
     pub target: PriceTarget,
     pub written: Option<AnnotationRow>,
     pub prior: Option<AnnotationRow>,
+    pub revision: i64,
+}
+
+/// The write that puts a [`PriceWrite`]'s prior back (C78), before any
+/// surface spells it: after a create, the clear naming the revision
+/// written; after a replace, the prior's value naming the revision
+/// written, so it undoes this write and not a later one; after a clear, a
+/// create of the prior's value, which names no revision (the store lands
+/// it over the tombstone, [`Annotations::put`]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Undo {
+    Set {
+        value: Buyout,
+        if_revision: Option<i64>,
+    },
+    Clear {
+        if_revision: i64,
+    },
+}
+
+impl PriceWrite {
+    /// What undoes this write, or why nothing does, in words: a prior
+    /// this build cannot read (a newer build's, written past by naming
+    /// its revision), or one a new price cannot name (a retired currency,
+    /// the writer's rule, C67) — a receipt never promises a write the
+    /// door refuses.
+    pub fn undo(&self) -> Result<Undo, String> {
+        let put_back = |prior: &AnnotationRow| -> Result<Buyout, String> {
+            let value =
+                Buyout::parse(&prior.value).map_err(|_| "this build cannot read it".to_string())?;
+            value.check_write()?;
+            Ok(value)
+        };
+        match (&self.written, &self.prior) {
+            (Some(row), None) => Ok(Undo::Clear {
+                if_revision: row.revision,
+            }),
+            (Some(row), Some(prior)) => Ok(Undo::Set {
+                value: put_back(prior)?,
+                if_revision: Some(row.revision),
+            }),
+            (None, Some(prior)) => Ok(Undo::Set {
+                value: put_back(prior)?,
+                if_revision: None,
+            }),
+            (None, None) => Err("nothing was cleared".into()),
+        }
+    }
 }
 
 /// Why a price write did not land. The value's own refusals — the strict
@@ -683,6 +738,7 @@ impl From<AnnotationError> for PriceWriteError {
 /// A row at any other is refused here as the store's compare-and-swap
 /// would refuse it, so a write that lands replaced the very row returned:
 /// revisions only grow, and the swap holds the row at it until the put.
+/// The store's one checked read, [`Annotations::at_revision`].
 fn replaced(
     annotations: &Annotations,
     scope: &str,
@@ -692,13 +748,12 @@ fn replaced(
     let Some(expected) = expected else {
         return Ok(None);
     };
-    match annotations.get(scope, key, BUYOUT_KIND)? {
-        Some(row) if row.revision == expected => Ok(Some(row)),
-        current => Err(AnnotationError::Conflict {
-            current: current.map(Box::new),
-        }
-        .into()),
-    }
+    Ok(Some(annotations.at_revision(
+        scope,
+        key,
+        BUYOUT_KIND,
+        expected,
+    )?))
 }
 
 /// Write one price under compare-and-swap (C35) — the one write path
@@ -740,6 +795,7 @@ pub fn set_buyout(
     )?;
     Ok(PriceWrite {
         target: target.clone(),
+        revision: written.revision,
         written: Some(written),
         prior,
     })
@@ -747,7 +803,7 @@ pub fn set_buyout(
 
 /// Remove one price row under the same compare-and-swap, returning the
 /// row it removed (C78), the row at `expected_revision`, read and checked
-/// before the delete. `expected_revision` is exact: what the caller
+/// before the delete, and the tombstone's revision the delete returned. `expected_revision` is exact: what the caller
 /// reviewed; the store tombstones the row, so the revision sequence
 /// carries on and a stale writer still conflicts. Whether a target with
 /// no row is a refusal is the frontend's call — the store reports it as a
@@ -760,11 +816,12 @@ pub fn clear_buyout(
 ) -> Result<PriceWrite, PriceWriteError> {
     let (scope, key) = target.address()?;
     let prior = replaced(annotations, scope, &key, Some(expected_revision))?;
-    annotations.delete(scope, &key, BUYOUT_KIND, expected_revision, provenance)?;
+    let revision = annotations.delete(scope, &key, BUYOUT_KIND, expected_revision, provenance)?;
     Ok(PriceWrite {
         target: target.clone(),
         written: None,
         prior,
+        revision,
     })
 }
 
@@ -1194,32 +1251,75 @@ mod tests {
     /// value, so it can be undone by hand: a create's prior is nothing, a
     /// replacement's is the row replaced, a clear's is the row cleared,
     /// and setting the prior back restores the value with the revision
-    /// sequence carrying on (C35).
+    /// sequence carrying on (C35). Each write says the revision now
+    /// current — a clear its tombstone's, from the delete itself — and
+    /// the write that undoes it, which lands: a create's the clear naming
+    /// the revision written, a replace's the prior's value naming it, a
+    /// clear's a create naming none (round 5 of the 2g build).
     #[test]
     fn c78_a_write_returns_the_prior_value_so_a_hand_can_undo_it() {
         let mut a = Annotations::open_memory_for("u-1").unwrap();
         let via = Provenance::via("test");
         let target = PriceTarget::Item { id: "i1".into() };
+        let undone = |a: &mut Annotations, w: &PriceWrite| -> PriceWrite {
+            match w.undo().unwrap() {
+                Undo::Set { value, if_revision } => {
+                    set_buyout(a, &target, &value, if_revision, &via).unwrap()
+                }
+                Undo::Clear { if_revision } => clear_buyout(a, &target, if_revision, &via).unwrap(),
+            }
+        };
         let first = set_buyout(&mut a, &target, &exact("30", "chaos"), None, &via).unwrap();
         assert_eq!(first.target, target);
         assert_eq!(first.prior, None);
-        let w1 = first.written.unwrap();
+        assert_eq!(first.revision, 1);
+        assert_eq!(first.undo(), Ok(Undo::Clear { if_revision: 1 }));
+        let w1 = first.written.clone().unwrap();
         assert_eq!((w1.revision, w1.written_via.as_str()), (1, "test"));
         assert_eq!(Buyout::parse(&w1.value).unwrap(), exact("30", "chaos"));
-        let second = set_buyout(&mut a, &target, &Buyout::Skip, Some(1), &via).unwrap();
+        // the create's undo clears it, at the tombstone's revision
+        let gone = undone(&mut a, &first);
+        assert_eq!((gone.written, gone.revision), (None, 2));
+        assert!(a.get(ITEM_SCOPE, "i1", BUYOUT_KIND).unwrap().is_none());
+        let first = set_buyout(&mut a, &target, &exact("30", "chaos"), None, &via).unwrap();
+        let w1 = first.written.unwrap();
+        assert_eq!(w1.revision, 3);
+        let second = set_buyout(&mut a, &target, &Buyout::Skip, Some(3), &via).unwrap();
         assert_eq!(second.prior.as_ref(), Some(&w1));
-        assert_eq!(second.written.as_ref().map(|r| r.revision), Some(2));
-        let cleared = clear_buyout(&mut a, &target, 2, &via).unwrap();
+        assert_eq!(second.written.as_ref().map(|r| r.revision), Some(4));
+        assert_eq!(second.revision, 4);
+        assert_eq!(
+            second.undo(),
+            Ok(Undo::Set {
+                value: exact("30", "chaos"),
+                if_revision: Some(4)
+            })
+        );
+        let cleared = clear_buyout(&mut a, &target, 4, &via).unwrap();
         assert_eq!(cleared.written, None);
         assert_eq!(cleared.prior, second.written);
+        assert_eq!(cleared.revision, 5, "the tombstone's, from the delete");
         assert!(a.get(ITEM_SCOPE, "i1", BUYOUT_KIND).unwrap().is_none());
         // Undo by hand: the prior value, set again, as a caller who read
         // "nothing there" would — a create over the tombstone.
-        let undo = Buyout::parse(&cleared.prior.unwrap().value).unwrap();
-        let restored = set_buyout(&mut a, &target, &undo, None, &via).unwrap();
+        assert_eq!(
+            cleared.undo(),
+            Ok(Undo::Set {
+                value: Buyout::Skip,
+                if_revision: None
+            })
+        );
+        let restored = undone(&mut a, &cleared);
         assert_eq!(restored.prior, None);
+        assert_eq!(restored.revision, 6);
         let (row, typed) = a.get_as::<Buyout>(ITEM_SCOPE, "i1").unwrap().unwrap();
-        assert_eq!((row.revision, typed), (4, Buyout::Skip));
+        assert_eq!((row.revision, typed), (6, Buyout::Skip));
+        // and the replace's undo puts its prior back over the revision it wrote
+        let third = set_buyout(&mut a, &target, &exact("1", "divine"), Some(6), &via).unwrap();
+        let back = undone(&mut a, &third);
+        assert_eq!(back.prior, third.written);
+        let (_, typed) = a.get_as::<Buyout>(ITEM_SCOPE, "i1").unwrap().unwrap();
+        assert_eq!(typed, Buyout::Skip);
     }
 
     /// C35, C78 — what a write replaced is the row at the revision the

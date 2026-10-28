@@ -154,9 +154,9 @@ fn unspelled(said: &str) -> Vec<String> {
 }
 
 /// The keys whose value is payload, never spelled and never swept.
-const PAYLOAD: [&str; 10] = [
+const PAYLOAD: [&str; 11] = [
     "offers", "request", "query", "params", "next", "route", "examples", "readings", "current",
-    "accounts",
+    "accounts", "undo",
 ];
 
 /// Every string of `doc`'s prose that speaks the CLI unspelled, with its

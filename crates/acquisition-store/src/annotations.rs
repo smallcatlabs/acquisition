@@ -1003,6 +1003,11 @@ impl Annotations {
     /// path at all. The row becomes a tombstone (invisible to `get`/`list`)
     /// whose revision keeps counting, so no later writer can slip a stale
     /// value past the delete; the tombstone records who cleared it (C65).
+    /// Returns the tombstone's revision, the one this delete's own
+    /// transaction wrote: the generation the row sequence has reached,
+    /// which a later conflict names — never a read taken after it, which
+    /// another writer could have moved (round 5 of the 2g build). The next
+    /// write is a create and names no revision ([`Self::put`]).
     pub fn delete(
         &mut self,
         scope: &str,
@@ -1010,7 +1015,7 @@ impl Annotations {
         kind: &str,
         expected_revision: i64,
         provenance: &Provenance,
-    ) -> Result<(), AnnotationError> {
+    ) -> Result<i64, AnnotationError> {
         let r = self.delete_unreported(scope, key, kind, expected_revision, provenance);
         reported(&self.conn, r)
     }
@@ -1024,12 +1029,12 @@ impl Annotations {
         kind: &str,
         expected_revision: i64,
         provenance: &Provenance,
-    ) -> Result<(), AnnotationError> {
+    ) -> Result<i64, AnnotationError> {
         provenance.check()?;
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        match row_of(&tx, scope, key, kind)? {
+        let tombstone = match row_of(&tx, scope, key, kind)? {
             Some((current, false)) if current.revision == expected_revision => {
                 tx.execute(
                     "UPDATE annotations
@@ -1045,11 +1050,12 @@ impl Annotations {
                         provenance.actor
                     ],
                 )?;
+                expected_revision + 1
             }
             current => return Err(conflict(current)),
-        }
+        };
         tx.commit()?;
-        Ok(())
+        Ok(tombstone)
     }
 
     /// The stored row, raw: the value as written, with its provenance.
@@ -1061,6 +1067,27 @@ impl Annotations {
     ) -> Result<Option<AnnotationRow>, AnnotationError> {
         Ok(row_of(&self.conn, scope, key, kind)?
             .and_then(|(row, deleted)| (!deleted).then_some(row)))
+    }
+
+    /// The live row a write naming `revision` replaces: the row read now,
+    /// which must stand at exactly that revision, else the conflict the
+    /// write's own compare-and-swap would raise, carrying the row that
+    /// stands (none over a tombstone or no row). Revisions only grow and
+    /// the swap holds the row at `revision` until the write lands, so a
+    /// write naming it that lands replaced the very row returned: the one
+    /// read a receipt's `prior` is taken from, for a price and a policy
+    /// alike (C35, C78; round 5 of the 2g build).
+    pub fn at_revision(
+        &self,
+        scope: &str,
+        key: &str,
+        kind: &str,
+        revision: i64,
+    ) -> Result<AnnotationRow, AnnotationError> {
+        match row_of(&self.conn, scope, key, kind)? {
+            Some((row, false)) if row.revision == revision => Ok(row),
+            current => Err(conflict(current)),
+        }
     }
 
     /// The revision a clear left at this key — its tombstone's, which the
@@ -1545,6 +1572,46 @@ mod tests {
         );
         // A stale delete cannot remove the recreated value either.
         assert!(a.delete("item", "i1", "buyout", stale, &via).is_err());
+    }
+
+    /// C35, C78 — a delete returns the revision its own transaction gave
+    /// the tombstone, the generation a later conflict names and the next
+    /// create continues past; and the row a write names is read at exactly
+    /// that revision or refused as the write would be, carrying the live
+    /// row (none over a tombstone), so a receipt's prior is the row
+    /// replaced and never one a racing writer moved (round 5 of the 2g
+    /// build).
+    #[test]
+    fn a_delete_returns_its_tombstones_revision_and_a_write_reads_only_the_row_it_names() {
+        let mut a = Annotations::open_memory().unwrap();
+        let via = via_test();
+        a.put::<Buyout>("item", "i1", &price("1c"), None, &via)
+            .unwrap();
+        a.put::<Buyout>("item", "i1", &price("2c"), Some(1), &via)
+            .unwrap();
+        let at = a.at_revision("item", "i1", "buyout", 2).unwrap();
+        assert_eq!((at.revision, &at.value), (2, &price("2c")));
+        let err = a.at_revision("item", "i1", "buyout", 1).unwrap_err();
+        assert_eq!(
+            conflict_revision(err),
+            Some(2),
+            "a moved row is the conflict"
+        );
+        let tombstone = a.delete("item", "i1", "buyout", 2, &via).unwrap();
+        assert_eq!(tombstone, 3);
+        assert_eq!(a.cleared("item", "i1", "buyout").unwrap(), Some(tombstone));
+        let err = a.at_revision("item", "i1", "buyout", 3).unwrap_err();
+        assert_eq!(
+            conflict_revision(err),
+            None,
+            "a tombstone is no row to replace"
+        );
+        let err = a.at_revision("item", "i9", "buyout", 1).unwrap_err();
+        assert_eq!(conflict_revision(err), None, "nor is a row never written");
+        let recreated = a
+            .put::<Buyout>("item", "i1", &price("3c"), None, &via)
+            .unwrap();
+        assert_eq!(recreated.revision, tombstone + 1);
     }
 
     /// C35 — two writers on one file serialize under BEGIN IMMEDIATE: one wins, the other gets a Conflict, never a clobber.

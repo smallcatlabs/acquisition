@@ -570,8 +570,12 @@ impl Expect {
 /// reports as unreadable) is refused here rather than replaced — a blind
 /// write over it would destroy intent this build cannot restore, and the
 /// receipt's undo would be a value it cannot write. A named revision is
-/// the reviewed path past it.
-fn current_revision(annotations: &Annotations, target: &PriceTarget) -> Result<Option<i64>> {
+/// the reviewed path past it; `shown` the command that reads the row.
+fn current_revision(
+    annotations: &Annotations,
+    target: &PriceTarget,
+    shown: &str,
+) -> Result<Option<i64>> {
     let (scope, key) = target.address()?;
     let Some(row) = annotations.get(scope, &key, BUYOUT_KIND)? else {
         return Ok(None);
@@ -580,7 +584,7 @@ fn current_revision(annotations: &Annotations, target: &PriceTarget) -> Result<O
         bail!(
             "{target} holds a value this build cannot read (revision {}: {e}); \
              not replaced blind — `--if-revision {}` replaces it deliberately, \
-             `acq price show {target}` names it",
+             `{shown}` names it",
             row.revision,
             row.revision
         );
@@ -589,7 +593,7 @@ fn current_revision(annotations: &Annotations, target: &PriceTarget) -> Result<O
 }
 
 /// The create-only refusal: a row stands and no revision was named.
-fn standing(target: &PriceTarget, row: &AnnotationRow, verb: &str) -> anyhow::Error {
+fn standing(target: &PriceTarget, row: &AnnotationRow, verb: &str, shown: &str) -> anyhow::Error {
     let revision = row.revision;
     Refused::conflict(
         Conflicting::Live(row),
@@ -597,7 +601,7 @@ fn standing(target: &PriceTarget, row: &AnnotationRow, verb: &str) -> anyhow::Er
         format!(
             "{target} has a price row of its own at revision {revision}: {verb} names the \
              revision it replaces ({revision}) with `--if-revision {revision}`, never a row it \
-             has not read — `acq price show {target}` reads it"
+             has not read — `{shown}` reads it"
         ),
     )
 }
@@ -613,12 +617,13 @@ enum Verb {
 /// at another revision; a row a clear left, at the revision its tombstone
 /// holds; or no row ever written. `current` is the live row the store
 /// reported, if any, carried whole into the refusal; the tombstone is
-/// read here.
+/// read here. `shown` is the command that reads what covers the target.
 fn refused_write(
     annotations: &Annotations,
     target: &PriceTarget,
     current: Option<&AnnotationRow>,
     verb: Verb,
+    shown: &str,
 ) -> anyhow::Error {
     if let Some(row) = current {
         let revision = row.revision;
@@ -639,14 +644,14 @@ fn refused_write(
         }
         (Some(r), Verb::Clear) => format!(
             "{target}'s price was cleared (revision {r}): nothing to clear \
-             (`acq price show {target}` reads what covers it)"
+             (`{shown}` reads what covers it)"
         ),
         (None, Verb::Set) => {
             format!("{target} has no price of its own; a new price names no revision")
         }
         (None, Verb::Clear) => format!(
             "nothing to clear: {target} has no price row of its own \
-             (`acq price show {target}` reads what covers it)"
+             (`{shown}` reads what covers it)"
         ),
     };
     Refused::conflict(Conflicting::Cleared(cleared), target, message)
@@ -659,10 +664,11 @@ fn on_conflict(
     target: &PriceTarget,
     verb: Verb,
     e: PriceWriteError,
+    shown: &str,
 ) -> anyhow::Error {
     match e {
         PriceWriteError::Store(AnnotationError::Conflict { current }) => {
-            refused_write(annotations, target, current.as_deref(), verb)
+            refused_write(annotations, target, current.as_deref(), verb, shown)
         }
         other => other.into(),
     }
@@ -678,8 +684,22 @@ pub struct SetReceipt {
     pub in_facts: bool,
 }
 
+/// The read-back a write's refusal prints: `price show` of the target as
+/// the account the frontend resolved, and nothing else, since a write
+/// resolves no realm or league (round 5 of the 2g build: a printed
+/// command carries the scope its verb resolved, here the account alone).
+/// `quote` is the frontend's shell quoting, as for [`show`].
+fn read_back(target: &PriceTarget, account: &str, quote: fn(&str) -> String) -> String {
+    format!(
+        "acq price show --account {} {}",
+        quote(account),
+        quote(&target.to_string())
+    )
+}
+
 /// `price set <target> <type> [<amount> <currency>]`: one row through
-/// the shared write ([`set_buyout`]) under compare-and-swap.
+/// the shared write ([`set_buyout`]) under compare-and-swap. `account`
+/// and `quote` are as for [`show`]: the command a refusal prints.
 #[allow(clippy::too_many_arguments)]
 pub fn set(
     store: &Store,
@@ -690,8 +710,11 @@ pub fn set(
     currency: Option<&str>,
     expect: Expect,
     provenance: &Provenance,
+    account: &str,
+    quote: fn(&str) -> String,
 ) -> Result<SetReceipt> {
     let target = read_target(target)?;
+    let shown = read_back(&target, account, quote);
     let value = read_buyout(kind, amount, currency)?;
     // Everything the receipt reports is read before the write and nothing
     // after it, so a read that fails refuses before anything changes: the
@@ -701,16 +724,16 @@ pub fn set(
         .context("reading the facts for the target")?;
     let expected = match expect {
         Expect::Exactly(revision) => Some(revision),
-        Expect::Current => current_revision(annotations, &target)?,
+        Expect::Current => current_revision(annotations, &target, &shown)?,
         Expect::Create => None,
     };
     let write = match set_buyout(annotations, &target, &value, expected, provenance) {
         Err(PriceWriteError::Store(AnnotationError::Conflict { current: Some(row) }))
             if expect == Expect::Create =>
         {
-            return Err(standing(&target, &row, "a write over it"));
+            return Err(standing(&target, &row, "a write over it", &shown));
         }
-        Err(e) => return Err(on_conflict(annotations, &target, Verb::Set, e)),
+        Err(e) => return Err(on_conflict(annotations, &target, Verb::Set, e, &shown)),
         Ok(write) => write,
     };
     Ok(SetReceipt { write, in_facts })
@@ -718,30 +741,41 @@ pub fn set(
 
 /// `price clear <target>`: remove the row, under the same compare-and-
 /// swap. A target with no row is a refusal that says so — every nothing
-/// says which nothing.
+/// says which nothing. `account` and `quote` are as for [`set`].
 pub fn clear(
     annotations: &mut Annotations,
     target: &str,
     expect: Expect,
     provenance: &Provenance,
+    account: &str,
+    quote: fn(&str) -> String,
 ) -> Result<PriceWrite> {
     let target = read_target(target)?;
+    let shown = read_back(&target, account, quote);
     let expected = match expect {
         Expect::Exactly(revision) => revision,
-        Expect::Current => match current_revision(annotations, &target)? {
+        Expect::Current => match current_revision(annotations, &target, &shown)? {
             Some(revision) => revision,
-            None => return Err(refused_write(annotations, &target, None, Verb::Clear)),
+            None => {
+                return Err(refused_write(
+                    annotations,
+                    &target,
+                    None,
+                    Verb::Clear,
+                    &shown,
+                ));
+            }
         },
         Expect::Create => {
             let (scope, key) = target.address()?;
             return Err(match annotations.get(scope, &key, BUYOUT_KIND)? {
-                Some(row) => standing(&target, &row, "a clear"),
-                None => refused_write(annotations, &target, None, Verb::Clear),
+                Some(row) => standing(&target, &row, "a clear", &shown),
+                None => refused_write(annotations, &target, None, Verb::Clear, &shown),
             });
         }
     };
     clear_buyout(annotations, &target, expected, provenance)
-        .map_err(|e| on_conflict(annotations, &target, Verb::Clear, e))
+        .map_err(|e| on_conflict(annotations, &target, Verb::Clear, e, &shown))
 }
 
 /// `shop render`'s request beside the facts: the page size, the template
@@ -906,11 +940,11 @@ pub fn described() -> Vec<Described> {
         ),
         entry(
             "revision",
-            "a write over a row the target has of its own names that row's revision — a listing's `manual.revision` where `manual.from` is the target itself, or the `revision` a `conflict` refusal names, beside `current`, the live row as `manual` prints it (absent over a cleared row) — and with no row names none, to create one. A clear takes a revision too, so the next write's revision continues from it",
+            "a write over a row the target has of its own names that row's revision — a listing's `manual.revision` where `manual.from` is the target itself, a write's receipt's `revision`, or the `revision` a `conflict` refusal names, beside `current`, the live row as `manual` prints it (absent over a cleared row) — and with no row names none, to create one; a container's revision (`manual.revision` where `manual.inherited`) is refused as a `conflict` naming the target's own revision, null where it has none. A clear takes a revision too, so the next write's revision continues from it: a receipt's `revision` is the one now current, the written row's, or after a clear its tombstone's — the generation the row sequence has reached, which a later conflict names — and the next write after a clear is a create, naming none",
         ),
         entry(
             "undo",
-            "a write's receipt holds `written` and `prior`: after a create, a clear naming the written revision; after a replace, a set with the prior's value naming the written revision, unless the prior is a value this build cannot read (a newer build's, replaced only by naming its revision), which it cannot write back; after a clear, a set with the prior's value. `in_facts` is false for a target the facts do not hold (not fetched yet, or a typo): the row stands",
+            "a write's receipt, a set's or a clear's, is one shape: `target`; `written`, the row now standing, null after a clear; `prior`, the row before, null on a create; `revision`, the one the next write names; and `undo`, the request that puts `prior` back, sent back as printed (`request` and `says`, `tool` where it is another tool's): after a create, a clear naming the written revision; after a replace, a set with the prior's value naming the written revision; after a clear, a set with the prior's value naming no revision, a create. Where nothing puts it back `undo` is absent and `no_undo` says why, in words: a prior this build cannot read (a newer build's, replaced only by naming its revision) or one naming a retired currency, which a new price cannot name. `in_facts` is false for a target the facts do not hold (not fetched yet, or a typo): the row stands",
         ),
         entry(
             "status counts",
@@ -1037,6 +1071,8 @@ mod tests {
             Some("divine"),
             Expect::Current,
             &via,
+            "a",
+            plain,
         )
         .unwrap();
         set(
@@ -1048,6 +1084,8 @@ mod tests {
             Some("divine"),
             Expect::Exactly(1),
             &via,
+            "a",
+            plain,
         )
         .unwrap();
         let r = refused(
@@ -1060,6 +1098,8 @@ mod tests {
                 Some("divine"),
                 Expect::Exactly(1),
                 &via,
+                "a",
+                plain,
             )
             .unwrap_err(),
         );
@@ -1074,7 +1114,8 @@ mod tests {
             r.message,
             "item/i1 has a price at revision 2 (re-read and retry)"
         );
-        let r = refused(clear(&mut a, "item/i1", Expect::Exactly(1), &via).unwrap_err());
+        let r =
+            refused(clear(&mut a, "item/i1", Expect::Exactly(1), &via, "a", plain).unwrap_err());
         assert!(matches!(
             r.kind,
             RefusedKind::Conflict {
@@ -1083,7 +1124,7 @@ mod tests {
             }
         ));
 
-        clear(&mut a, "item/i1", Expect::Exactly(2), &via).unwrap();
+        clear(&mut a, "item/i1", Expect::Exactly(2), &via, "a", plain).unwrap();
         let r = refused(
             set(
                 &store,
@@ -1094,6 +1135,8 @@ mod tests {
                 Some("divine"),
                 Expect::Exactly(99),
                 &via,
+                "a",
+                plain,
             )
             .unwrap_err(),
         );
@@ -1108,7 +1151,7 @@ mod tests {
             r.message,
             "item/i1's price was cleared (revision 3); a new price names no revision"
         );
-        let r = refused(clear(&mut a, "item/i1", Expect::Current, &via).unwrap_err());
+        let r = refused(clear(&mut a, "item/i1", Expect::Current, &via, "a", plain).unwrap_err());
         assert!(matches!(
             r.kind,
             RefusedKind::Conflict {
@@ -1175,10 +1218,12 @@ mod tests {
                 None,
                 Expect::Current,
                 &via,
+                "a",
+                plain,
             )
             .map(|_| ())
             .unwrap_err(),
-            clear(&mut a, "item/i1", Expect::Current, &via)
+            clear(&mut a, "item/i1", Expect::Current, &via, "a", plain)
                 .map(|_| ())
                 .unwrap_err(),
         ];
@@ -1199,6 +1244,8 @@ mod tests {
             None,
             Expect::Exactly(1),
             &via,
+            "a",
+            plain,
         )
         .unwrap();
         assert_eq!(written.write.prior.map(|r| r.revision), Some(1));
@@ -1257,6 +1304,8 @@ mod tests {
             Some("chaos"),
             Expect::Create,
             &via,
+            "a",
+            plain,
         );
         let err = first.unwrap_err();
         assert!(format!("{err:#}").contains("reading the facts"), "{err:#}");
@@ -1275,7 +1324,10 @@ mod tests {
         )
         .unwrap();
         for expect in [Expect::Exactly(1), Expect::Current] {
-            let err = set(&store, &mut a, "item/i1", "skip", None, None, expect, &via).unwrap_err();
+            let err = set(
+                &store, &mut a, "item/i1", "skip", None, None, expect, &via, "a", plain,
+            )
+            .unwrap_err();
             assert!(format!("{err:#}").contains("reading the facts"), "{err:#}");
             let row = a.get("item", "i1", BUYOUT_KIND).unwrap().unwrap();
             assert_eq!(row.revision, 1, "{expect:?}: a replace landed");
@@ -1364,6 +1416,8 @@ mod tests {
                 Some("divine"),
                 expect,
                 &via,
+                "a",
+                plain,
             )
         };
         write(&mut a, Expect::Current).unwrap();
@@ -1384,19 +1438,19 @@ mod tests {
         for e in [
             write(&mut a, Expect::Exactly(9)).unwrap_err(),
             write(&mut a, Expect::Create).unwrap_err(),
-            clear(&mut a, "item/i1", Expect::Create, &via).unwrap_err(),
+            clear(&mut a, "item/i1", Expect::Create, &via, "a", plain).unwrap_err(),
         ] {
             let r = Refused::find(&e).unwrap();
             let fields = r.fields();
             assert_eq!(fields["revision"], json!(1), "{e:#}");
             assert_eq!(fields["current"], json!(shown), "{e:#}");
         }
-        clear(&mut a, "item/i1", Expect::Exactly(1), &via).unwrap();
+        clear(&mut a, "item/i1", Expect::Exactly(1), &via, "a", plain).unwrap();
         let e = write(&mut a, Expect::Exactly(9)).unwrap_err();
         let fields = Refused::find(&e).unwrap().fields();
         assert_eq!(fields["revision"], json!(2));
         assert!(!fields.contains_key("current"), "{fields:?}");
-        let e = clear(&mut a, "item/i2", Expect::Current, &via).unwrap_err();
+        let e = clear(&mut a, "item/i2", Expect::Current, &via, "a", plain).unwrap_err();
         let fields = Refused::find(&e).unwrap().fields();
         assert_eq!(fields["revision"], Value::Null);
         assert!(!fields.contains_key("current"), "{fields:?}");
@@ -1482,6 +1536,138 @@ mod tests {
             r.message.contains(
                 "the facts hold it in pc/Standard: `--realm` and `--league` read it there"
             ),
+            "{}",
+            r.message
+        );
+    }
+
+    /// Q6 of the 2g design, the teaching refusal: `price_show`'s
+    /// `manual.revision` is a container's when the row is inherited, and
+    /// a write over the item naming it is refused as a `conflict` naming
+    /// the item's own revision — none while it has no row of its own, its
+    /// own once it has one — never landed over the container's row. The
+    /// refusal's read-back carries the account the write ran as (round 5
+    /// of the 2g build: a write resolves no realm or league, so the
+    /// account alone).
+    #[test]
+    fn a_write_naming_a_containers_revision_is_a_conflict_naming_the_targets_own() {
+        let (store, mut a) = priced();
+        let via = Provenance::via("test");
+        let refused = |e: anyhow::Error| {
+            Refused::find(&e)
+                .cloned()
+                .unwrap_or_else(|| panic!("{e:#}"))
+        };
+        fn quoted(w: &str) -> String {
+            format!("'{w}'")
+        }
+        for _ in 0..3 {
+            let rev = show(
+                &store,
+                &a,
+                "tab/pc/t1",
+                None,
+                None,
+                Bound::default(),
+                "a",
+                plain,
+            )
+            .unwrap()
+            .listing
+            .manual
+            .map(|m| m.revision);
+            set(
+                &store,
+                &mut a,
+                "tab/pc/t1",
+                "exact",
+                Some("1"),
+                Some("chaos"),
+                Expect::or(rev, Expect::Create),
+                &via,
+                "a",
+                plain,
+            )
+            .unwrap();
+        }
+        let manual = show(
+            &store,
+            &a,
+            "item/i1",
+            None,
+            None,
+            Bound::default(),
+            "a",
+            plain,
+        )
+        .unwrap()
+        .listing
+        .manual
+        .unwrap();
+        assert!(manual.inherited);
+        assert_eq!(manual.revision, 3, "the tab's");
+        let over = |a: &mut Annotations| {
+            refused(
+                set(
+                    &store,
+                    a,
+                    "item/i1",
+                    "skip",
+                    None,
+                    None,
+                    Expect::Exactly(manual.revision),
+                    &via,
+                    "A#1",
+                    quoted,
+                )
+                .unwrap_err(),
+            )
+        };
+        let r = over(&mut a);
+        assert!(
+            matches!(
+                r.kind,
+                RefusedKind::Conflict {
+                    revision: None,
+                    current: None
+                }
+            ),
+            "{r:?}"
+        );
+        assert_eq!(
+            r.message,
+            "item/i1 has no price of its own; a new price names no revision"
+        );
+        set(
+            &store,
+            &mut a,
+            "item/i1",
+            "skip",
+            None,
+            None,
+            Expect::Create,
+            &via,
+            "a",
+            plain,
+        )
+        .unwrap();
+        let r = over(&mut a);
+        assert!(
+            matches!(
+                r.kind,
+                RefusedKind::Conflict {
+                    revision: Some(1),
+                    ..
+                }
+            ),
+            "{r:?}"
+        );
+        // the write refusals' read-back: `price show` as the account
+        let r =
+            refused(clear(&mut a, "item/i2", Expect::Current, &via, "A#1", quoted).unwrap_err());
+        assert!(
+            r.message
+                .contains("`acq price show --account 'A#1' 'item/i2'` reads what covers it"),
             "{}",
             r.message
         );

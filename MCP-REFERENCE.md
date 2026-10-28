@@ -80,7 +80,7 @@ Jobs the daemon lists, with states and ETAs, counted first over every job (`tota
 
 ### `price_clear`
 
-Remove one target's own price row; what it covered falls back to the next row up, or to the game's price. Local only: it sends nothing. `if_revision` names the revision of the row it removes (price_show reads it). Returns `target`, `written` null and `prior`, the row removed; price_set with the prior's value puts it back.
+Remove one target's own price row; what it covered falls back to the next row up, or to the game's price. Local only: it sends nothing. `if_revision` names the revision of the row it removes (price_show reads it). Returns the receipt — `target`, `written` null, `prior`, the row removed, `revision`, the one the clear left, and `undo`, the price_set that puts it back, a create naming no revision, sent as printed (or `no_undo`, why none).
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
 - `if_revision` (integer | null) — The revision of the target's own row this clear removes, as for price_set. Required: a clear without it is refused naming the current revision.
@@ -102,7 +102,7 @@ The items of one league that are priced, each with both sides of its listing (no
 
 ### `price_set`
 
-Set one target's price by hand: one row on an item, tab, substash or character, which what it covers inherits unless a row nearer the item says otherwise. Local only: it sends nothing and changes nothing in game. Over a row the target already has, `if_revision` names that row's revision (price_show reads it); with none, omit it to create one. Returns the receipt — `target`, `written`, `prior`, `in_facts`; `describe` with names ["pricing"] gives the revision rule and the undo.
+Set one target's price by hand: one row on an item, tab, substash or character, which what it covers inherits unless a row nearer the item says otherwise. Local only: it sends nothing and changes nothing in game. Over a row the target already has, `if_revision` names that row's revision (price_show reads it); with none, omit it to create one. Returns the receipt — `target`, `written`, `prior`, `revision` (the next write's), `undo` (a request that puts `prior` back) or `no_undo` (why none), `in_facts`; `describe` with names ["pricing"] gives the revision rule and the undo.
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
 - `amount` (string | null) — For exact and negotiable: a decimal of up to four places (`12.5`), or a `wanted/lot` ratio (`1/5`), as a string.

@@ -22,5 +22,5 @@ next: `acq price set --account 'Alice#1234' item/i-map negotiable 1/5 divine` pu
 $ acq price clear item/i-map
 # holds "item/i-map's price was cleared (revision 3): nothing to clear"
 --- stderr
-Error: item/i-map's price was cleared (revision 3): nothing to clear (`acq price show item/i-map` reads what covers it)
+Error: item/i-map's price was cleared (revision 3): nothing to clear (`acq price show --account 'Alice#1234' item/i-map` reads what covers it)
 --- exit 1

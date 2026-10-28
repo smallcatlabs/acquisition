@@ -33,6 +33,8 @@
 //!   offers spelled by each surface (C11, C149).
 //! - [`refused`]: the bodies the store refused, listed and counted
 //!   (C149).
+//! - [`receipt`]: the one receipt shape every write answers, its `undo`
+//!   an offer each surface spells (C78).
 //!
 //! Every field of a value a verb takes is public, so a test builds one
 //! over a fixture store with no environment.
@@ -49,6 +51,7 @@ pub mod events;
 pub mod fault;
 pub mod frontend;
 pub mod jobs;
+pub mod receipt;
 pub mod refresh;
 pub mod refusal;
 pub mod refused;

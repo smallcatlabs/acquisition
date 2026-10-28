@@ -158,7 +158,36 @@ fn steady(mut doc: Value, keys: &[&str]) -> Value {
 }
 
 const CLOCK: &[&str] = &["taken_at", "rendered_at"];
-const WRITE: &[&str] = &["taken_at", "created_at", "updated_at", "written_via"];
+/// A write's clock and channel, and `undo`, compared
+/// apart: one offer each surface spells (round 5 of the 2g build).
+const RECEIPT: &[&str] = &[
+    "taken_at",
+    "created_at",
+    "updated_at",
+    "written_via",
+    "undo",
+];
+
+/// Round 5 of the 2g build: two receipts for one write offer one undo,
+/// each spelled by its surface — the tool's a request naming the tool it
+/// goes to where another's, the CLI's a command line — saying the same,
+/// or both none, `no_undo` then compared with the rest.
+fn undo_alike(by_tool: &Value, by_cli: &Value) {
+    match (by_tool.get("undo"), by_cli.get("undo")) {
+        (None, None) => {}
+        (Some(tool), Some(cli)) => {
+            assert_eq!(tool["says"], cli["says"], "{by_tool}\n{by_cli}");
+            assert!(tool["request"].is_object(), "{by_tool}");
+            assert!(
+                cli["request"]
+                    .as_str()
+                    .is_some_and(|l| l.starts_with("acq price ")),
+                "{by_cli}"
+            );
+        }
+        _ => panic!("one surface offers an undo, the other none:\n{by_tool}\n{by_cli}"),
+    }
+}
 
 /// What the CLI prints under `--json`, with whether it succeeded.
 fn cli(base: &Path, args: &[&str]) -> (bool, Value) {
@@ -519,9 +548,10 @@ fn each_pricing_write_is_the_receipt_the_cli_prints() {
             (*succeeds, *succeeds),
             "{name} {args} / acq {verb:?}: {by_tool}\n{by_cli}"
         );
+        undo_alike(&by_tool, &by_cli);
         assert_eq!(
-            steady(by_tool, WRITE),
-            steady(by_cli, WRITE),
+            steady(by_tool, RECEIPT),
+            steady(by_cli, RECEIPT),
             "{name} {args} is not what acq {verb:?} --json prints"
         );
     }
@@ -662,7 +692,8 @@ fn a_clear_lands_alike_on_both_surfaces_without_the_facts() {
         );
         let (cli_ok, by_cli) = cli(&by_acq.0, &["price", "clear", target, "--if-revision", "1"]);
         assert!(tool_ok && cli_ok, "{by_tool}\n{by_cli}");
-        assert_eq!(steady(by_tool, WRITE), steady(by_cli, WRITE));
+        undo_alike(&by_tool, &by_cli);
+        assert_eq!(steady(by_tool, RECEIPT), steady(by_cli, RECEIPT));
     };
 
     let (gone_mcp, gone_acq) = (remove(&by_mcp.0), remove(&by_acq.0));
@@ -743,7 +774,8 @@ fn a_pricing_refusal_names_the_argument_after_each_flag_it_speaks() {
     assert!(
         said.contains("names the revision it replaces (1) with `--if-revision 1`")
             && said.ends_with(
-                "— here, `acq price show` is `price_show`, `--if-revision` is `if_revision`"
+                "— here, `acq price show` is `price_show`, `--if-revision` is `if_revision`, \
+                 `--account` is `account` (`scope.account` in a search request)"
             ),
         "{said}"
     );
@@ -893,4 +925,81 @@ fn a_conflicts_current_is_the_row_price_show_prints_verbatim() {
     assert!(!ok, "{refusal}");
     assert_eq!(refusal["kind"], "conflict", "{refusal}");
     assert_eq!(refusal["current"], manual, "{refusal}");
+}
+
+/// Round 5 of the 2g build (the receipt shape): a write's receipt on this
+/// server carries `revision`, the one the next write names, and `undo`, a
+/// request in the refusal's offer shape, naming the tool it goes to where
+/// another's; sent back as printed it puts `prior` back — price_set's
+/// create by price_clear naming the revision written, price_clear's by
+/// price_set naming none (a create, landing past the tombstone), a
+/// replace's by price_set naming the revision written.
+#[test]
+fn every_receipts_undo_sent_back_as_printed_puts_the_prior_back() {
+    let dir = scratch("mcp-price-undo");
+    seed(&dir.0);
+    let mut mcp = Mcp::start(&dir.0, &[]);
+    let sent = |mcp: &mut Mcp, called: &str, doc: &Value| -> (String, Value) {
+        let undo = &doc["undo"];
+        let to = undo["tool"].as_str().unwrap_or(called).to_string();
+        assert_ne!(undo.get("tool"), Some(&json!(called)), "{doc}");
+        let (ok, back) = tool(mcp, &to, undo["request"].clone());
+        assert!(ok, "{to} {}: {back}", undo["request"]);
+        (to, back)
+    };
+    let manual = |mcp: &mut Mcp| {
+        tool(mcp, "price_show", json!({ "target": "item/i-map" })).1["listing"]["manual"].clone()
+    };
+
+    let (ok, created) = tool(
+        &mut mcp,
+        "price_set",
+        json!({ "target": "item/i-map", "type": "exact", "amount": "12.5", "currency": "chaos" }),
+    );
+    assert!(ok, "{created}");
+    assert_eq!(created["revision"], json!(1));
+    assert_eq!(
+        created["undo"],
+        json!({
+            "request": { "target": "item/i-map", "if_revision": 1, "account": USER },
+            "says": "undoes it",
+            "tool": "price_clear",
+        })
+    );
+    let (to, cleared) = sent(&mut mcp, "price_set", &created);
+    assert_eq!(to, "price_clear");
+    assert_eq!(manual(&mut mcp), Value::Null);
+    assert_eq!(
+        (&cleared["written"], &cleared["revision"]),
+        (&Value::Null, &json!(2))
+    );
+    assert_eq!(cleared["undo"]["tool"], json!("price_set"));
+    assert_eq!(
+        cleared["undo"]["request"],
+        json!({ "target": "item/i-map", "type": "exact", "amount": "12.5",
+                "currency": "chaos", "account": USER }),
+        "a create names no revision"
+    );
+    let (_, recreated) = sent(&mut mcp, "price_clear", &cleared);
+    assert_eq!(
+        (&recreated["prior"], &recreated["revision"]),
+        (&Value::Null, &json!(3))
+    );
+    assert_eq!(manual(&mut mcp)["value"], created["written"]["value"]);
+
+    let (ok, replaced) = tool(
+        &mut mcp,
+        "price_set",
+        json!({ "target": "item/i-map", "type": "skip", "if_revision": 3 }),
+    );
+    assert!(ok, "{replaced}");
+    assert_eq!(
+        replaced["undo"].get("tool"),
+        None,
+        "the same tool: {replaced}"
+    );
+    let (_, restored) = sent(&mut mcp, "price_set", &replaced);
+    assert_eq!(restored["prior"], replaced["written"]);
+    assert_eq!(manual(&mut mcp)["value"], created["written"]["value"]);
+    assert!(no_daemon_appeared(&dir.0));
 }
