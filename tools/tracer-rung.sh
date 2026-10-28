@@ -791,14 +791,17 @@ fi
 "$ACQ" store status 2>&1 | tee "$RUN_DIR/store-status.txt"
 # Everything since the run started (plus an hour of margin), not a fixed
 # hour: an `all` cycle alone is longer than that. The CLI's default
-# limit (200, oldest first) would silently drop a big run's later
-# events, so the limit is explicit and hitting it is a failure.
+# limit (ten, the newest) would silently drop a big run's events, so the
+# limit is explicit and reaching it is a failure; the summary lists
+# every location (`--summary --expand`; ten by default, C53). The JSON
+# is one document (C149): the events under `rows`, `returned` counting
+# them and `limit_reached` saying the window may hold more.
 hours=$(python3 -c "import time; print((time.time() - $RUN_START) / 3600 + 1)")
 EVENT_LIMIT=1000000
-"$ACQ" store events --hours "$hours" --limit "$EVENT_LIMIT" >"$RUN_DIR/store-events.txt"
+"$ACQ" store events --hours "$hours" --limit "$EVENT_LIMIT" --summary --expand >"$RUN_DIR/store-events.txt"
 "$ACQ" store events --hours "$hours" --limit "$EVENT_LIMIT" --json >"$RUN_DIR/store-events.json"
-events_n=$(jq 'length' "$RUN_DIR/store-events.json")
-if [ "$events_n" -ge "$EVENT_LIMIT" ]; then
+events_n=$(jq '.returned' "$RUN_DIR/store-events.json")
+if [ "$(jq '.limit_reached' "$RUN_DIR/store-events.json")" != false ]; then
     echo "*** the item-event readback hit its limit ($EVENT_LIMIT): evidence would be truncated" >&2
     exit 1
 fi

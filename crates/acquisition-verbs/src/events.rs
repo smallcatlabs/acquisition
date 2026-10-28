@@ -2,11 +2,120 @@
 //! decision view): a derivation over the store's event rows (C34, facts
 //! through the store), moved here from the CLI so a second frontend that
 //! asks for it reads the same counts.
+//!
+//! Both forms are one document each (C149, every answer one object, its
+//! lists counted beside their rows): [`Events`], the rows as the store
+//! reads them, and [`EventSummary`], those rows by location, each with
+//! the counts the CLI's text prints, under C53's bound of ten.
 
 use std::collections::{BTreeMap, HashMap};
 
+use acquisition_store::bound::{LISTED, bounded};
 use acquisition_store::{EventRow, Store};
 use serde::Serialize;
+
+/// C149 and C53: the item events of a window as one document — the
+/// newest first, as many as the request's `limit` or ten, beside how
+/// many it returned and whether the limit was reached (then the window
+/// may hold more: a larger `limit` reads them). The window's total is
+/// not counted: the store's read is bounded by the limit and has none
+/// (step 2g's brief, round 3; a count read waits for a reader who asks).
+#[derive(Clone, Debug, Serialize)]
+pub struct Events {
+    /// How far back the window reaches, in hours.
+    pub hours: f64,
+    /// The most events the read returns.
+    pub limit: usize,
+    /// How many it returned.
+    pub returned: usize,
+    /// Whether it returned as many as `limit`: the window may hold more.
+    pub limit_reached: bool,
+    /// The events, newest first.
+    pub rows: Vec<EventRow>,
+}
+
+impl Events {
+    /// The newest `limit` (else ten) events of the last `hours` before
+    /// `now`, from the store's own read (C34).
+    pub fn read(
+        store: &Store,
+        now: i64,
+        hours: f64,
+        limit: Option<usize>,
+    ) -> anyhow::Result<Events> {
+        let limit = limit.unwrap_or(LISTED);
+        let since = now - (hours * 3600.0) as i64;
+        let rows = store.events_since(since, limit)?;
+        Ok(Events {
+            hours,
+            limit,
+            returned: rows.len(),
+            limit_reached: rows.len() == limit,
+            rows,
+        })
+    }
+}
+
+/// The per-kind totals of a summary, over every location row: `moved`
+/// counts the moves in (one move is one location's out and another's
+/// in).
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
+pub struct KindTotals {
+    pub added: usize,
+    pub changed: usize,
+    pub moved: usize,
+    pub removed: usize,
+}
+
+/// C149 and C53: the same events by location — a second cut with its
+/// own accounting, since one move touches two locations, so ten events
+/// can make twenty location rows: the events summarized and the
+/// locations counted apart, the per-kind totals made over every location
+/// before the rows are cut, then ten locations, every one under
+/// `expand`.
+#[derive(Clone, Debug, Serialize)]
+pub struct EventSummary {
+    pub hours: f64,
+    pub limit: usize,
+    /// The events summarized: those the read returned.
+    pub events: usize,
+    pub limit_reached: bool,
+    pub by_kind: KindTotals,
+    /// Every location the events touched.
+    pub locations: usize,
+    /// The locations listed, the newest activity first: ten, or every
+    /// one under `expand`.
+    pub rows: Vec<LocationChanges>,
+    /// The locations not in `rows`.
+    pub left_out: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub left_out_needs: Option<&'static str>,
+}
+
+impl EventSummary {
+    /// `events` grouped by location (`summary`), counted whole, then cut.
+    pub fn of(events: &Events, rows: Vec<LocationChanges>, expand: bool) -> EventSummary {
+        let by_kind = KindTotals {
+            added: rows.iter().map(|r| r.added).sum(),
+            changed: rows.iter().map(|r| r.changed).sum(),
+            moved: rows.iter().map(|r| r.moved_in).sum(),
+            removed: rows.iter().map(|r| r.removed).sum(),
+        };
+        let locations = rows.len();
+        let (rows, left_out) = bounded(rows, None, expand);
+        EventSummary {
+            hours: events.hours,
+            limit: events.limit,
+            events: events.returned,
+            limit_reached: events.limit_reached,
+            by_kind,
+            locations,
+            rows,
+            left_out,
+            left_out_needs: (left_out > 0).then_some("expand"),
+        }
+    }
+}
 
 /// One location's share of the events since a time, with the location's
 /// name resolved from the store's tab and character rows.
@@ -129,5 +238,60 @@ fn location_namer(store: &Store) -> impl FnMut(&str) -> Option<String> + '_ {
             }
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn moved(n: usize, at: i64) -> EventRow {
+        EventRow {
+            at,
+            item_id: format!("i{n}"),
+            kind: "moved".into(),
+            from_location: Some(format!("stash/pc/Standard/from{n:02}")),
+            to_location: Some(format!("stash/pc/Standard/to{n:02}")),
+            name: None,
+            type_line: None,
+        }
+    }
+
+    /// The second review of the brief, finding 4: one move touches two
+    /// locations, so ten events can make twenty location rows, whose first
+    /// ten cannot say the whole. The summary counts the events and the
+    /// locations apart, makes its per-kind totals over every location
+    /// before it cuts, and lists the rest under `expand`.
+    #[test]
+    fn c149_ten_moves_between_twenty_locations_are_counted_whole_beside_ten() {
+        let rows: Vec<EventRow> = (0..10).map(|n| moved(n, 1_000 + n as i64)).collect();
+        let events = Events {
+            hours: 24.0,
+            limit: LISTED,
+            returned: rows.len(),
+            limit_reached: true,
+            rows,
+        };
+        let locations = summarize(&events.rows, &mut |_| None);
+        assert_eq!(locations.len(), 20);
+        let summary = EventSummary::of(&events, locations.clone(), false);
+        assert_eq!(summary.events, 10);
+        assert_eq!(summary.locations, 20);
+        assert_eq!(summary.rows.len(), LISTED);
+        assert_eq!(summary.left_out, 10);
+        assert_eq!(summary.left_out_needs, Some("expand"));
+        assert_eq!(
+            summary.by_kind,
+            KindTotals {
+                moved: 10,
+                ..KindTotals::default()
+            }
+        );
+        let doc = serde_json::to_value(&summary).unwrap();
+        assert!(doc.is_object(), "{doc}");
+        let whole = EventSummary::of(&events, locations, true);
+        assert_eq!((whole.rows.len(), whole.left_out), (20, 0));
+        assert_eq!(whole.by_kind, summary.by_kind);
+        assert_eq!(whole.left_out_needs, None);
     }
 }

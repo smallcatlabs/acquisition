@@ -585,13 +585,13 @@ const DAEMON: [(&str, &str); 7] = [
     ),
 ];
 
-/// What `store_status`, `tabs` and `characters` count, read once by name
+/// What `store_status`, `tabs`, `characters` and `item_events` count, read once by name
 /// (`describe` with names `["store"]`): C146, amended 2026-10-27 — on the
 /// MCP a count's gloss stands in the `describe` entry the tool's
 /// description names. The words are the ones those descriptions carried,
 /// whole, and the CLI footers' (C149: the counts a text prints stand in
 /// its JSON under one set of words).
-const STORE: [(&str, &str); 3] = [
+const STORE: [(&str, &str); 4] = [
     (
         "store counts",
         "store_status: the store file's path, size and row counts. `leagues` counts the league listing's rows and `league_list` says whether that listing was ever fetched (`acq leagues` or a `leagues` job fetches it); characters and tabs carry their league names whether or not it was. `refused_bodies` counts bodies the store would not take, which `acq store refused` lists. `withheld_responses` counts fetches of tabs or characters the latest list no longer named and `withheld_items` the items they carried: kept as evidence, in no search or count, nothing to do unless a list names the place again. `unlifted_items` counts item-shaped objects in characters' data under a key this build does not read as items, so no search counts them: GGG added a kind of item list, which a newer build reads. `granted_skills` counts the skill entries PoE2 characters' items grant — GGG shows a granted skill once in each place it appears, the item's sockets and the character's skills, so one skill can be two entries — kept with their characters and not counted as items, having no id of their own",
@@ -603,6 +603,10 @@ const STORE: [(&str, &str); 3] = [
     (
         "character counts",
         "characters, counted first over every character the selection holds (`realm` and `league` as asked, absent when not): `characters` how many; `fetched` those a full fetch (equipment and inventory) has filled; `empty_bodies` the fetched whose last full fetch carried no items (`fetched_items` 0); `never_fetched` those listed and never fetched, whose items no answer knows; `items` the live items held at every one. Then `rows`, the characters listed — ten in the store's order (by realm, league, then level, highest first), `limit` more or fewer, `expand` every one — and `left_out`, the characters not listed. On a row, `item_count` is the live items the store holds at the character now and `fetched_items` what the last full fetch's body carried (equipment and inventory, socketed gems not counted), null until one",
+    ),
+    (
+        "event counts",
+        "item_events reads the newest events of the last `hours`, at most `limit` (ten when not given): `returned` counts the events in `rows`, and `limit_reached` says it returned as many as `limit`, so the window may hold more (a larger `limit` reads them); the window's whole is not counted. With `summary: true` the same events by location: `events` counts the events summarized, `locations` every location they touched (a move touches two), `by_kind` the added, changed, moved and removed over every location; `rows` lists ten locations, the newest activity first, `expand` every one, and `left_out` counts the locations not listed",
     ),
 ];
 
@@ -697,8 +701,12 @@ struct StoreParams {
 struct EventsParams {
     /// How far back to look (default 24 hours).
     hours: Option<f64>,
-    /// Maximum rows (default 200).
+    /// The most events read, the newest first (default ten).
     limit: Option<usize>,
+    /// The events counted by location in place of listed: ten locations.
+    summary: Option<bool>,
+    /// With `summary`, every location.
+    expand: Option<bool>,
     #[schemars(description = ACCOUNT)]
     account: Option<String>,
 }
@@ -1534,14 +1542,28 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Item events (added/moved/changed/removed) from recent ingests, newest first (no daemon)."
+        description = "Item events (added/moved/changed/removed) from recent ingests (no daemon): the newest ten, `limit` more or fewer, beside how many were returned and whether the limit was reached; `summary: true` counts them by location instead, ten locations, `expand` every one. `describe` with names [\"store\"] says what each count counts."
     )]
     fn item_events(&self, Parameters(p): Parameters<Args<EventsParams>>) -> Told {
-        answer(|| {
+        use acquisition_verbs::events::{EventSummary, Events, summary};
+        answer(|| -> Result<Value> {
             let p = p.parse()?;
             let store = self.facts(p.account.as_deref())?;
-            let since = acquisition_store::now() - (p.hours.unwrap_or(24.0) * 3600.0) as i64;
-            store.events_since(since, p.limit.unwrap_or(200))
+            let events = Events::read(
+                &store,
+                acquisition_store::now(),
+                p.hours.unwrap_or(24.0),
+                p.limit,
+            )?;
+            Ok(if p.summary.unwrap_or(false) {
+                serde_json::to_value(EventSummary::of(
+                    &events,
+                    summary(&store, &events.rows),
+                    p.expand.unwrap_or(false),
+                ))?
+            } else {
+                serde_json::to_value(events)?
+            })
         })
     }
 

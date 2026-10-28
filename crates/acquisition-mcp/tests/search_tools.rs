@@ -411,7 +411,7 @@ fn describe_is_the_clis_and_reads_no_store() {
     );
     assert!(said.starts_with(&own), "{said}");
     assert!(
-        said.ends_with(", wedged, store counts, tab counts, character counts"),
+        said.ends_with(", wedged, store counts, tab counts, character counts, event counts"),
         "{said}"
     );
     assert_eq!(e["readings"], printed["readings"]);
@@ -1127,10 +1127,14 @@ fn item_events_reads_back_its_hours_and_defaults_to_a_day() {
         }
     }
     let mut seat = Seat::over(scratch);
-    // an array, not a document: read through the harness's `expect_ok`,
-    // which takes the structured content whatever its shape
+    // one document (C149): the events under `rows`, beside `returned`
     let at_of = |events: &Value| -> Vec<i64> {
-        events
+        assert_eq!(
+            events["returned"].as_u64().map(|n| n as usize),
+            events["rows"].as_array().map(Vec::len),
+            "{events}"
+        );
+        events["rows"]
             .as_array()
             .unwrap_or_else(|| panic!("{events}"))
             .iter()
@@ -1148,8 +1152,21 @@ fn item_events_reads_back_its_hours_and_defaults_to_a_day() {
     let one = seat
         .mcp
         .expect_ok("item_events", json!({ "hours": 1.0e9, "limit": 1 }));
-    assert_eq!(one.as_array().unwrap().len(), 1, "{one}");
-    assert_eq!(one[0], all[0]);
+    assert_eq!(one["rows"].as_array().unwrap().len(), 1, "{one}");
+    assert_eq!(one["rows"][0], all["rows"][0]);
+    assert_eq!(one["limit_reached"], true, "{one}");
+    assert_eq!(all["limit_reached"], false, "{all}");
+    // the same events by location: counted apart from the events
+    let by = seat.mcp.expect_ok(
+        "item_events",
+        json!({ "hours": 1.0e9, "summary": true, "expand": true }),
+    );
+    assert_eq!(by["events"], 7, "{by}");
+    assert_eq!(
+        by["locations"].as_u64().map(|n| n as usize),
+        by["rows"].as_array().map(Vec::len),
+        "{by}"
+    );
 }
 
 /// The build review's P3: `names` says a name within a section answers

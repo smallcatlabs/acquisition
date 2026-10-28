@@ -671,93 +671,46 @@ fn counts(changes: &LocationChanges) -> String {
 
 /// `acq store events`: the text default is one line per location with
 /// counts; the JSON default is the event list (what the driver reads).
-/// `--expand` / `--summary` select either form in either mode (the
-/// legibility ruling's one stated divergence).
+/// `--expand` alone selects the event list in either mode, `--summary` the
+/// locations, and `--summary --expand` every location (the legibility
+/// ruling's one stated divergence). Each form is one document of the verbs
+/// crate's (C149), ten by default (C53): the events' `limit`, the
+/// locations' `expand`.
 pub fn events(
     cx: &Ctx,
     since_hours: f64,
-    limit: usize,
+    limit: Option<usize>,
     expand: bool,
     summary: bool,
     json: bool,
 ) -> Result<()> {
-    let store = open(cx)?;
+    use acquisition_verbs::events::{EventSummary, Events};
+    let account = cx.account()?;
+    let store = account.facts()?;
     let now = acquisition_store::now();
-    let since = now - (since_hours * 3600.0) as i64;
-    let ev = store.events_since(since, limit)?;
+    let ev = Events::read(&store, now, since_hours, limit)?;
     let summarize = summary || (!expand && !json);
     if summarize {
-        let rows = acquisition_verbs::events::summary(&store, &ev);
-        if json {
-            println!("{}", serde_json::to_string_pretty(&rows)?);
-            return Ok(());
-        }
-        let total = LocationChanges {
-            added: rows.iter().map(|r| r.added).sum(),
-            changed: rows.iter().map(|r| r.changed).sum(),
-            moved_in: rows.iter().map(|r| r.moved_in).sum(),
-            moved_out: 0,
-            removed: rows.iter().map(|r| r.removed).sum(),
-            ..Default::default()
-        };
-        let hours = if since_hours == since_hours.trunc() {
-            format!("{}", since_hours as i64)
-        } else {
-            format!("{since_hours:.1}")
-        };
-        if ev.is_empty() {
-            println!("0 events in the last {hours} h");
-            return Ok(());
-        }
-        let summed = counts(&total).replace(" moved in", " moved");
-        println!(
-            "{} event{} at {} location{} in the last {hours} h: {summed}{}",
-            ev.len(),
-            if ev.len() == 1 { "" } else { "s" },
-            rows.len(),
-            if rows.len() == 1 { "" } else { "s" },
-            if ev.len() == limit {
-                " (limit reached)"
-            } else {
-                ""
-            }
+        let listed = EventSummary::of(
+            &ev,
+            acquisition_verbs::events::summary(&store, &ev.rows),
+            summary && expand,
         );
-        let loc_w = rows
-            .iter()
-            .map(|r| r.location.chars().count())
-            .max()
-            .unwrap_or(0);
-        let name_w = rows
-            .iter()
-            .map(|r| {
-                r.name
-                    .as_deref()
-                    .map_or(0, |n| n.chars().count().max(7) + 2)
-            })
-            .max()
-            .unwrap_or(0);
-        for r in &rows {
-            let name = match r.name.as_deref() {
-                Some("") => "(unnamed)".to_string(),
-                Some(n) => format!("{n:?}"),
-                None => String::new(),
-            };
-            println!(
-                "  {:<loc_w$}  {:<name_w$}  {:<28}  {}",
-                r.location,
-                name,
-                counts(r),
-                ago(now, Some(r.last))
-            );
+        if json {
+            println!("{}", serde_json::to_string_pretty(&listed)?);
+            return Ok(());
         }
-        println!("(--expand lists every event)");
+        print!(
+            "{}",
+            event_summary_text(&listed, &account.entry.username, now)
+        );
         return Ok(());
     }
     if json {
         println!("{}", serde_json::to_string_pretty(&ev)?);
         return Ok(());
     }
-    for e in &ev {
+    for e in &ev.rows {
         let label = match (&e.name, &e.type_line) {
             (Some(n), Some(t)) if !n.is_empty() => format!("{n} {t}"),
             (_, Some(t)) => t.clone(),
@@ -781,14 +734,98 @@ pub fn events(
     }
     println!(
         "{} event(s){}",
-        ev.len(),
-        if ev.len() == limit {
+        ev.returned,
+        if ev.limit_reached {
             " (limit reached)"
         } else {
             ""
         }
     );
     Ok(())
+}
+
+/// The window's hours as the text says them: whole, or to a tenth.
+fn hours_words(hours: f64) -> String {
+    if hours == hours.trunc() {
+        format!("{}", hours as i64)
+    } else {
+        format!("{hours:.1}")
+    }
+}
+
+/// The summary's text, a function of its document (C53, C149): the line
+/// of counts read from it, the locations listed, and where some are left
+/// out the command that lists every one, carrying the account and the
+/// window it ran over so it runs as printed.
+pub(crate) fn event_summary_text(
+    listed: &acquisition_verbs::events::EventSummary,
+    account: &str,
+    now: i64,
+) -> String {
+    let hours = hours_words(listed.hours);
+    if listed.events == 0 {
+        return format!("0 events in the last {hours} h\n");
+    }
+    let total = LocationChanges {
+        added: listed.by_kind.added,
+        changed: listed.by_kind.changed,
+        moved_in: listed.by_kind.moved,
+        removed: listed.by_kind.removed,
+        ..Default::default()
+    };
+    let summed = counts(&total).replace(" moved in", " moved");
+    let mut out = format!(
+        "{} event{} at {} location{} in the last {hours} h: {summed}{}\n",
+        listed.events,
+        if listed.events == 1 { "" } else { "s" },
+        listed.locations,
+        if listed.locations == 1 { "" } else { "s" },
+        if listed.limit_reached {
+            " (limit reached)"
+        } else {
+            ""
+        }
+    );
+    let rows = &listed.rows;
+    let loc_w = rows
+        .iter()
+        .map(|r| r.location.chars().count())
+        .max()
+        .unwrap_or(0);
+    let name_w = rows
+        .iter()
+        .map(|r| {
+            r.name
+                .as_deref()
+                .map_or(0, |n| n.chars().count().max(7) + 2)
+        })
+        .max()
+        .unwrap_or(0);
+    for r in rows {
+        let name = match r.name.as_deref() {
+            Some("") => "(unnamed)".to_string(),
+            Some(n) => format!("{n:?}"),
+            None => String::new(),
+        };
+        out.push_str(&format!(
+            "  {:<loc_w$}  {:<name_w$}  {:<28}  {}\n",
+            r.location,
+            name,
+            counts(r),
+            ago(now, Some(r.last))
+        ));
+    }
+    if listed.left_out > 0 {
+        out.push_str(&format!(
+            "{} of {} locations listed: `acq store events --account {} --hours {hours} --limit {} --summary --expand` lists every one\n",
+            rows.len(),
+            listed.locations,
+            acquisition_search::answer::shell_quoted(account),
+            listed.limit
+        ));
+    }
+    out.push_str("(--expand lists every event)\n");
+    out
 }
 
 pub fn rebuild(cx: &Ctx, json: bool) -> Result<()> {

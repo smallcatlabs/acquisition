@@ -752,18 +752,25 @@ enum StoreCmd {
         #[arg(long)]
         expand: bool,
     },
-    /// Item events (added/moved/changed/removed) from recent ingests: by
-    /// default one line per location with counts (text) or the event list
-    /// (--json); --expand / --summary pick either form in both modes.
+    /// Item events (added/moved/changed/removed) from recent ingests, the
+    /// newest ten (--limit more or fewer): by default one line per
+    /// location with counts (text) or the event list (--json); --expand
+    /// alone picks the event list and --summary the locations in both
+    /// modes, ten locations, --summary --expand every one. `--json` counts
+    /// what it lists: the events `returned` and whether the limit was
+    /// reached; the summary the events, the locations and each kind.
     Events {
         #[arg(long, default_value_t = 24.0)]
         hours: f64,
-        #[arg(long, default_value_t = 200)]
-        limit: usize,
-        /// Every event, one per line (the JSON default).
-        #[arg(long, conflicts_with = "summary")]
+        /// The most events read, the newest first (ten when not given).
+        #[arg(long)]
+        limit: Option<usize>,
+        /// Every event read, one per line (the JSON default); with
+        /// --summary, every location.
+        #[arg(long)]
         expand: bool,
-        /// One line per location with counts (the text default).
+        /// One line per location with counts (the text default), ten
+        /// locations.
         #[arg(long)]
         summary: bool,
     },

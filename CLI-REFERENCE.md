@@ -249,7 +249,7 @@ Usage: acq store [OPTIONS] <COMMAND>
 Commands:
   status      Path, size, and row counts
   characters  Characters on record (no daemon): id, address, league, freshness, live item count. The counts over every character first (the footer), then ten of them in the store's order, the highest level first in each league; --limit lists more or fewer, --expand every one. `--json` is the same document: the counts, and `rows`, the characters listed, with `left_out` counting the rest. `acq characters` (the job) fetches the list anew
-  events      Item events (added/moved/changed/removed) from recent ingests: by default one line per location with counts (text) or the event list (--json); --expand / --summary pick either form in both modes
+  events      Item events (added/moved/changed/removed) from recent ingests, the newest ten (--limit more or fewer): by default one line per location with counts (text) or the event list (--json); --expand alone picks the event list and --summary the locations in both modes, ten locations, --summary --expand every one. `--json` counts what it lists: the events `returned` and whether the limit was reached; the summary the events, the locations and each kind
   refused     Bodies the store refused as malformed, kept verbatim as evidence: the list (newest first), or one body in full by its row id
   rebuild     Re-extract derived columns from each item's own JSON
   import      Replay a snapshot file from the retired `acq pull` into the store (no GGG traffic)
@@ -288,15 +288,15 @@ Options:
 ## `acq store events`
 
 ```text
-Item events (added/moved/changed/removed) from recent ingests: by default one line per location with counts (text) or the event list (--json); --expand / --summary pick either form in both modes
+Item events (added/moved/changed/removed) from recent ingests, the newest ten (--limit more or fewer): by default one line per location with counts (text) or the event list (--json); --expand alone picks the event list and --summary the locations in both modes, ten locations, --summary --expand every one. `--json` counts what it lists: the events `returned` and whether the limit was reached; the summary the events, the locations and each kind
 
 Usage: acq store events [OPTIONS]
 
 Options:
       --hours <HOURS>      [default: 24]
-      --limit <LIMIT>      [default: 200]
-      --expand             Every event, one per line (the JSON default)
-      --summary            One line per location with counts (the text default)
+      --limit <LIMIT>      The most events read, the newest first (ten when not given)
+      --expand             Every event read, one per line (the JSON default); with --summary, every location
+      --summary            One line per location with counts (the text default), ten locations
   -h, --help               Print help
 ```
 

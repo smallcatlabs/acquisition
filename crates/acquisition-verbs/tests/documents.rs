@@ -796,3 +796,56 @@ fn a_plain_failure_serialises_without_failed_children() {
         json!({ "job_id": 9, "outcome": "failure", "error": "GET /stash/Standard/t9 returned 404" })
     );
 }
+
+// ---- the store's reads as documents (C149) ------------------------------
+
+/// C149 and C53: the events of a window are one document, ten by default
+/// beside how many it returned and whether the limit was reached; a
+/// `limit` names more, and `limit: 0` returns none, its limit reached.
+#[test]
+fn c149_events_are_one_document_ten_by_default_with_the_limit_said() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut store = Store::open(&dir.path().join("facts.db")).unwrap();
+    let now = acquisition_store::now();
+    let items: Vec<Value> = (0..12)
+        .map(|n| {
+            json!({ "id": format!("i{n:02}"), "typeLine": "Iron Ring", "baseType": "Iron Ring",
+                         "frameType": 0, "identified": true, "ilvl": 1, "x": n, "y": 0 })
+        })
+        .collect();
+    store
+        .record(
+            &Endpoint::Stash {
+                realm: "pc".into(),
+                league: "Standard".into(),
+                id: "t1".into(),
+                sub: None,
+            },
+            &json!({ "league": "Standard" }),
+            200,
+            &json!({ "stash": { "id": "t1", "name": "One", "type": "PremiumStash", "items": items } }),
+            now - 60,
+        )
+        .unwrap();
+    let read = |limit| acquisition_verbs::events::Events::read(&store, now, 24.0, limit).unwrap();
+    let ten = read(None);
+    assert_eq!((ten.limit, ten.returned, ten.limit_reached), (10, 10, true));
+    assert_eq!(ten.rows.len(), 10);
+    let doc = serde_json::to_value(&ten).unwrap();
+    assert!(doc.is_object(), "{doc}");
+    assert_eq!(doc["rows"].as_array().map(Vec::len), Some(10), "{doc}");
+    let none = read(Some(0));
+    assert_eq!(
+        (none.limit, none.returned, none.limit_reached),
+        (0, 0, true)
+    );
+    let all = read(Some(50));
+    assert_eq!((all.returned, all.limit_reached), (12, false));
+    let summary = acquisition_verbs::events::EventSummary::of(
+        &all,
+        acquisition_verbs::events::summary(&store, &all.rows),
+        false,
+    );
+    assert_eq!((summary.events, summary.locations), (12, 1));
+    assert_eq!(summary.by_kind.added, 12);
+}

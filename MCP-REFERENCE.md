@@ -52,11 +52,13 @@ What the tools answer and the language `search` takes, read by name (no store re
 
 ### `item_events`
 
-Item events (added/moved/changed/removed) from recent ingests, newest first (no daemon).
+Item events (added/moved/changed/removed) from recent ingests (no daemon): the newest ten, `limit` more or fewer, beside how many were returned and whether the limit was reached; `summary: true` counts them by location instead, ten locations, `expand` every one. `describe` with names ["store"] says what each count counts.
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
+- `expand` (boolean | null) — With `summary`, every location.
 - `hours` (number | null) — How far back to look (default 24 hours).
-- `limit` (integer | null) — Maximum rows (default 200).
+- `limit` (integer | null) — The most events read, the newest first (default ten).
+- `summary` (boolean | null) — The events counted by location in place of listed: ten locations.
 
 ### `job_result`
 

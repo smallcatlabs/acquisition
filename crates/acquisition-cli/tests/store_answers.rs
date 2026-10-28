@@ -119,3 +119,64 @@ fn store_characters_lists_ten_beside_its_counts_and_prints_the_command_for_all()
     assert_eq!(two["rows"][1]["id"], "c01", "{two}");
     assert_eq!(two["left_out"], 11, "{two}");
 }
+
+/// The second review of the brief, finding 4: the summary's line reads
+/// its counts from the document, made over every location before the
+/// ten are cut, and the command it prints to list every location carries
+/// the account, the window and the limit, and lists every one as printed.
+/// The event list is ten by default, its limit said reached.
+#[test]
+fn store_events_summary_counts_every_location_and_prints_the_command_for_all() {
+    let scratch = harness::scratch("store-events");
+    let base = scratch.0.clone();
+    world(&base, |store, at| {
+        for n in 0..12 {
+            let tab = format!("t{n:02}");
+            store
+                .record(
+                    &Endpoint::Stash {
+                        realm: "pc".into(),
+                        league: "Standard".into(),
+                        id: tab.clone(),
+                        sub: None,
+                    },
+                    &json!({ "league": "Standard" }),
+                    200,
+                    &json!({ "stash": { "id": tab, "name": tab, "type": "PremiumStash", "items": [
+                        { "id": format!("i{n:02}"), "typeLine": "Iron Ring", "baseType": "Iron Ring",
+                          "frameType": 0, "identified": true, "ilvl": 1, "x": 0, "y": 0 } ] } }),
+                    at - 60 + n,
+                )
+                .unwrap();
+        }
+    });
+    let out = acq(&base, &["store", "events", "--limit", "20"]);
+    assert!(out.status.success(), "{out:?}");
+    let text = String::from_utf8_lossy(&out.stdout).to_string();
+    assert!(
+        text.starts_with("12 events at 12 locations in the last 24 h: +12 added\n"),
+        "{text}"
+    );
+    assert_eq!(
+        text.lines().filter(|l| l.contains("stash/pc/")).count(),
+        LISTED,
+        "{text}"
+    );
+    assert!(
+        text.contains(
+            "10 of 12 locations listed: `acq store events --account 'Alice#1234' --hours 24 --limit 20 --summary --expand` lists every one\n"
+        ),
+        "{text}"
+    );
+    let every = run_printed(&base, &text);
+    assert_eq!(every.len(), 1, "{text}");
+    assert_eq!(every[0]["locations"], 12, "{}", every[0]);
+    assert_eq!(every[0]["rows"].as_array().map(Vec::len), Some(12));
+    assert_eq!(every[0]["by_kind"]["added"], 12);
+
+    let listed = sole_json(&acq(&base, &["store", "events", "--json"]));
+    assert_eq!(listed["limit"], LISTED, "{listed}");
+    assert_eq!(listed["returned"], LISTED, "{listed}");
+    assert_eq!(listed["limit_reached"], true, "{listed}");
+    assert_eq!(listed["rows"].as_array().map(Vec::len), Some(LISTED));
+}
