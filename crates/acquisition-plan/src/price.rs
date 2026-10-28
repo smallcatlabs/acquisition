@@ -92,7 +92,7 @@ use std::str::FromStr;
 
 use acquisition_protocol::realm::Realm;
 use acquisition_store::{
-    AnnotationError, AnnotationRow, Annotations, FactAddress, IntentValue, Provenance,
+    AnnotationError, AnnotationRow, Annotations, FactAddress, IntentValue, Provenance, check_value,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -670,13 +670,16 @@ pub enum Undo {
 impl PriceWrite {
     /// What undoes this write, or why nothing does, in words: a prior
     /// this build cannot read (a newer build's, written past by naming
-    /// its revision), or one a new price cannot name (a retired currency,
-    /// the writer's rule, C67) — a receipt never promises a write the
-    /// door refuses.
+    /// its revision, or a value not in its canonical text), or one a new
+    /// price cannot name (a retired currency, the writer's rule, C67) — a
+    /// receipt never promises a write the door refuses, nor a value other
+    /// than the one stored. The prior is read through the store's own
+    /// door check ([`check_value`]: the version, the strict parse, the
+    /// exact round-trip), the read every reader of a stored row takes.
     pub fn undo(&self) -> Result<Undo, String> {
         let put_back = |prior: &AnnotationRow| -> Result<Buyout, String> {
-            let value =
-                Buyout::parse(&prior.value).map_err(|_| "this build cannot read it".to_string())?;
+            let value = check_value::<Buyout>(&prior.value)
+                .map_err(|_| "this build cannot read it".to_string())?;
             value.check_write()?;
             Ok(value)
         };
@@ -1320,6 +1323,42 @@ mod tests {
         assert_eq!(back.prior, third.written);
         let (_, typed) = a.get_as::<Buyout>(ITEM_SCOPE, "i1").unwrap().unwrap();
         assert_eq!(typed, Buyout::Skip);
+    }
+
+    /// Round 5 of the 2g build, its review's finding 1: an undo reads its
+    /// prior as every reader of a stored row does, through the store's
+    /// door check, so a prior stored as `"12.50"` — not its canonical
+    /// text, which no reader reads — gets no undo (`"12.5"` would be
+    /// another value than the one stored), after a replace and after a
+    /// clear alike; the canonical one does.
+    #[test]
+    fn an_undo_reads_its_prior_through_the_stores_door_and_a_noncanonical_one_has_none() {
+        let target = PriceTarget::Item { id: "i1".into() };
+        let row = |amount: &str, revision: i64| AnnotationRow {
+            scope: ITEM_SCOPE.into(),
+            key: "i1".into(),
+            kind: BUYOUT_KIND.into(),
+            value: json!({ "version": 1, "type": "exact", "amount": amount, "currency": "chaos" }),
+            revision,
+            created_at: 0,
+            updated_at: 0,
+            written_via: "old".into(),
+            actor: None,
+        };
+        assert!(check_value::<Buyout>(&row("12.50", 1).value).is_err());
+        for written in [Some(row("1", 2)), None] {
+            let write = |prior: AnnotationRow| PriceWrite {
+                target: target.clone(),
+                written: written.clone(),
+                prior: Some(prior),
+                revision: 2,
+            };
+            assert_eq!(
+                write(row("12.50", 1)).undo(),
+                Err("this build cannot read it".to_string())
+            );
+            assert!(write(row("12.5", 1)).undo().is_ok());
+        }
     }
 
     /// C35, C78 — what a write replaced is the row at the revision the
