@@ -27,8 +27,8 @@
 #
 #   9. A test spawns a workspace binary through the harness (C122): under
 #      a crate's `tests/`, outside `harness/`, no file names
-#      `CARGO_BIN_EXE_` and every `Command::new(` takes a string literal
-#      that is not `sh`; the daemon crate's tests excepted (#87).
+#      `CARGO_BIN_EXE_` and every `Command::new(` names an allowed system
+#      tool (`kill`, `ps`); the daemon crate's tests excepted (#87).
 #
 # Exit 1 on any failure; the report names each offender.
 set -euo pipefail
@@ -414,15 +414,17 @@ printf '%s\n' "$layout"
 # bare). So under a crate's `tests/`, outside its `harness/` directory,
 # no file names `CARGO_BIN_EXE_` — a test reaches its binary through the
 # harness's `acq_exe` or `exe` and spawns it through a harness function,
-# each of which applies the list — and every `Command::new(` takes a
-# string literal that is not `sh`: a system tool (`kill`, `ps`), never a
-# path, and never a shell, the way a binary is run by a variable. Comment
+# each of which applies the list — and every `Command::new(` names a
+# system tool on the allowlist below, by its bare literal: never a path or
+# a binary's name, which a literal can carry as well as a variable, and
+# never a shell. A new tool is added to the list by name. Comment
 # lines are not read. The daemon crate's `tests/` is excepted by name: it
 # cannot link the harness, which links the client (check 5), and starts
 # `acqd` from an emptied environment; its in-crate tests are #64's.
 if ! spawns=$(python3 -I - <<'PY'
 import glob, re, sys
 SPAWN = re.compile(r'Command::new\(\s*([^)]*)\)?')
+TOOLS = {'"kill"', '"ps"'}
 bad = []; n = 0
 for path in sorted(glob.glob("crates/*/tests/**/*.rs", recursive=True)):
     if "/harness/" in path or path.startswith("crates/acquisition-daemon/"):
@@ -435,12 +437,12 @@ for path in sorted(glob.glob("crates/*/tests/**/*.rs", recursive=True)):
         bad.append(f"SPAWN   {path}:{at} names CARGO_BIN_EXE_ outside the harness: a test reaches its binary through the harness (acq_exe, exe) and spawns it through a harness function, which applies the one isolation list (C122)")
     for m in SPAWN.finditer(text):
         arg = m.group(1).strip()
-        if re.fullmatch(r'"[^"]*"', arg) and arg != '"sh"':
+        if arg in TOOLS:
             continue
         at = text.count("\n", 0, m.start()) + 1
-        what = "through a shell" if arg == '"sh"' else f"by a path ({arg[:40]})"
+        what = "through a shell" if arg == '"sh"' else f"{arg[:40]}, which is not an allowed system tool (kill, ps)"
         bad.append(f"SPAWN   {path}:{at} spawns {what} outside the harness: a workspace binary is spawned by a harness function, which applies the one isolation list, and a printed command runs through the harness's printed (C122)")
-print("\n".join(bad) if bad else f"ok      {'spawns':<13} {n} test files outside the harness name no binary and spawn no path or shell: every workspace binary a test starts takes the one isolation list (C122)")
+print("\n".join(bad) if bad else f"ok      {'spawns':<13} {n} test files outside the harness name no binary and spawn only an allowed system tool: every workspace binary a test starts takes the one isolation list (C122)")
 sys.exit(1 if bad else 0)
 PY
 ); then fail=1; fi

@@ -238,8 +238,10 @@ in_tests()   { printf '%b' "$2" >>"$1"; }   # <file> <rust appended>
 cli_test()   { in_tests crates/acquisition-cli/tests/main.rs "$1"; }
 BIN='CARGO_BIN_'; BIN+='EXE_acq'   # built, so no source here holds the name whole
 run_case 'a test names the binary'                               refuse 'names CARGO_BIN_EXE_ outside the harness' cli_test "\nfn zz() -> &'static str { env!(\"$BIN\") }\n"
-run_case 'a test spawns by a path'                               refuse 'spawns by a path'           cli_test '\nfn zz(p: &std::path::Path) { let _ = std::process::Command::new(p); }\n'
-run_case 'a test spawns by a path on the next line'              refuse 'spawns by a path'           cli_test '\nfn zz(p: &std::path::Path) {\n    let _ = std::process::Command::new(\n        p,\n    );\n}\n'
+run_case 'a test spawns by a path'                               refuse 'not an allowed system tool' cli_test '\nfn zz(p: &std::path::Path) { let _ = std::process::Command::new(p); }\n'
+run_case 'a test spawns by a path on the next line'              refuse 'not an allowed system tool' cli_test '\nfn zz(p: &std::path::Path) {\n    let _ = std::process::Command::new(\n        p,\n    );\n}\n'
+run_case 'a test spawns a literal path'                         refuse 'not an allowed system tool' cli_test '\nfn zz() { let _ = std::process::Command::new("target/debug/acqd"); }\n'
+run_case 'a test spawns a binary by its name'                    refuse 'not an allowed system tool' cli_test '\nfn zz() { let _ = std::process::Command::new("acqd"); }\n'
 run_case 'a test spawns a shell'                                 refuse 'spawns through a shell'     cli_test '\nfn zz() { let _ = std::process::Command::new("sh"); }\n'
 run_case 'a test runs a system tool by name'                     pass   'ok      spawns'            cli_test '\nfn zz() { let _ = std::process::Command::new("kill"); }\n'
 run_case 'a comment names the binary'                            pass   'ok      spawns'            cli_test "\n// the binary is $BIN, through the harness\n"
