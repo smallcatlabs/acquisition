@@ -395,3 +395,30 @@ fn every_offer_a_refusal_makes_is_answered_as_sent_back() {
         assert_eq!(shown["listing"]["subject"]["target"]["id"], "ix", "{shown}");
     }
 }
+
+/// Round 4's review (P2): the account offer on `search` re-made the
+/// request alone, so a route sent with its `count` came back without it
+/// and the retry lost the comparison a route reports. The offer is the
+/// arguments as sent, the account inside the request alone changed: a
+/// route of `count` 12 over one item, retried, still says what it was.
+#[test]
+fn a_search_offered_again_as_another_account_keeps_its_route() {
+    let scratch = harness::scratch("mcp-offer-route");
+    let base = scratch.0.clone();
+    seed_two(&base);
+    let mut mcp = Mcp::start(&base, &[]);
+    let sent = json!({
+        "request": { "scope": { "account": "Alicia", "realm": "xbox" }, "query": { "text": "" } },
+        "count": 12,
+    });
+    let doc = refusal(&mut mcp, "search", sent.clone(), "not_logged_in");
+    let offer = &doc["offers"][0];
+    let mut expected = sent.clone();
+    expected["request"]["scope"]["account"] = json!(USER);
+    assert_eq!(offer["request"], expected, "{doc}");
+    let result = mcp.result("search", offer["request"].clone());
+    assert_ne!(result["isError"], json!(true), "{result}");
+    let answer = &result["structuredContent"];
+    assert_eq!(answer["total"]["matched"], 1, "{answer}");
+    assert_eq!(answer["before"]["count"], 12, "{answer}");
+}

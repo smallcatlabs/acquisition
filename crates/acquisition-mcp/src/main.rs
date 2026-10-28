@@ -300,8 +300,9 @@ struct Called {
 /// This server's side of the one refusal shape: its words
 /// ([`failure_words`]) and its requests — an offer is the arguments a
 /// tool takes, naming the tool where it is another than the one refused;
-/// the same call again is its arguments as sent with the account set
-/// (`scope.account` for `search`, whose arguments are a request).
+/// the same call again is its arguments as sent with the account alone
+/// changed (`scope.account` for `search`, inside the object that holds
+/// the request where it came in one).
 struct Spoken<'a> {
     named: &'a str,
 }
@@ -313,20 +314,30 @@ impl refusal::Surface for Spoken<'_> {
 
     fn request(&self, way: &Way) -> Option<(Value, Option<&'static str>)> {
         let called = CALLED.try_with(Called::clone).ok();
-        let tool = called.as_ref().map(|c| c.tool.as_str());
-        let other = |name: &'static str| (tool != Some(name)).then_some(name);
+        let tool = called.as_ref().map(|c| c.tool.clone());
+        let other = |name: &'static str| (tool.as_deref() != Some(name)).then_some(name);
         match way {
+            // the arguments as sent, only the account changed: for
+            // `search` the request's `scope.account`, inside the object
+            // holding it where it came in one (a route's `count` and
+            // `counted_at` kept), never the request re-read and re-made
             Way::Again { account } => {
-                let called = called?;
-                if called.tool == "search" {
-                    let mut asked = Asked::read(&Value::Object(called.arguments)).ok()?.request;
-                    asked.scope.account = Some(account.clone());
-                    Some((serde_json::to_value(asked).ok()?, None))
+                let mut arguments = called?.arguments;
+                if tool.as_deref() == Some("search") {
+                    Asked::read(&Value::Object(arguments.clone())).ok()?;
+                    let request = match arguments.get_mut("request") {
+                        Some(Value::Object(request)) => request,
+                        _ => &mut arguments,
+                    };
+                    let scope = request
+                        .entry("scope")
+                        .or_insert_with(|| json!({}))
+                        .as_object_mut()?;
+                    scope.insert("account".into(), json!(account));
                 } else {
-                    let mut arguments = called.arguments;
                     arguments.insert("account".into(), json!(account));
-                    Some((Value::Object(arguments), None))
                 }
+                Some((Value::Object(arguments), None))
             }
             Way::Search(request) => Some((serde_json::to_value(request).ok()?, other("search"))),
             Way::Tabs {
