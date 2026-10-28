@@ -249,7 +249,7 @@ pub struct ShowArgs {
 /// Print a failure on the path the caller chose, and exit 1 through main.
 fn fail(e: SearchError, json: bool) -> anyhow::Error {
     if json {
-        println!("{}", e.to_json());
+        println!("{}", search_error_json(&e));
     } else {
         eprintln!("Error: {}", search_error_text(&e));
     }
@@ -268,11 +268,48 @@ pub(crate) fn search_error_text(e: &SearchError) -> String {
         SearchError::Scope {
             message, offers, ..
         } => std::iter::once(message.clone())
-            .chain(offers.iter().map(|o| format!("    {}", o.reading)))
+            .chain(
+                offers
+                    .iter()
+                    .map(|o| format!("    {}", terminal_reading(o))),
+            )
             .collect::<Vec<_>>()
             .join("\n"),
         SearchError::Store(e) => format!("{e:#}"),
     }
+}
+
+/// A way on as a terminal reads it (C143): the shared reading, in the
+/// request's words, and after a realm's the flag this terminal spells it
+/// with.
+pub(crate) fn terminal_reading(o: &acquisition_search::error::Offered) -> String {
+    match o.realm() {
+        Some(realm) => format!("{} (--realm {realm})", o.reading),
+        None => o.reading.clone(),
+    }
+}
+
+/// A search refusal's `--json` document: the search crate's, its
+/// readings and each offer's `says` with this terminal's spelling after
+/// them ([`terminal_reading`]).
+pub(crate) fn search_error_json(e: &SearchError) -> serde_json::Value {
+    let mut doc = e.to_json();
+    if let SearchError::Scope { offers, .. } = e {
+        let said: Vec<String> = offers.iter().map(terminal_reading).collect();
+        if doc.get("readings").is_some() {
+            doc["readings"] = serde_json::json!(said);
+        }
+        let sent = offers
+            .iter()
+            .zip(&said)
+            .filter(|(o, _)| o.request.is_some());
+        if let Some(listed) = doc.get_mut("offers").and_then(|o| o.as_array_mut()) {
+            for (offer, (_, says)) in listed.iter_mut().zip(sent) {
+                offer["says"] = serde_json::json!(says);
+            }
+        }
+    }
+    doc
 }
 
 fn emit<T: Serialize>(value: &T, json: bool, text: impl FnOnce(&T) -> String) -> Result<()> {

@@ -2240,7 +2240,11 @@ fn a_refusal_offers_requests_beside_its_readings() {
         assert_eq!(out.status.code(), Some(1), "{args:?}");
         let refused = sole_json(&out);
         assert_eq!(refused["kind"], "realm_needed", "{refused}");
-        assert_eq!(refused["readings"], json!(["--realm pc", "--realm poe2"]));
+        // the request's words, this terminal's flag after them (C143)
+        assert_eq!(
+            refused["readings"],
+            json!(["realm pc (--realm pc)", "realm poe2 (--realm poe2)"])
+        );
         let offers = refused["offers"]
             .as_array()
             .unwrap_or_else(|| panic!("{refused}"));
@@ -2262,10 +2266,13 @@ fn a_refusal_offers_requests_beside_its_readings() {
             assert_eq!(a["view"]["rows"]["limit"], 2);
         }
     }
-    // the text prints the readings, as it did
+    // the text prints the readings, as the JSON holds them
     let shown = acq(&base, &["search", "rarity=rare"]);
     let err = String::from_utf8(shown.stderr).unwrap();
-    assert!(err.contains("    --realm pc\n    --realm poe2\n"), "{err}");
+    assert!(
+        err.contains("    realm pc (--realm pc)\n    realm poe2 (--realm poe2)\n"),
+        "{err}"
+    );
 }
 
 /// A site search composed for these tests in the site's own form — its

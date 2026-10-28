@@ -15,8 +15,8 @@
 //! spelling stands in the entry's `what`.
 //!
 //! Payload is never spelled (the fix round's review, P2): an offer's
-//! request, a query, a continuation, an example, a language refusal's
-//! readings — what an agent sends back as printed. The sweep reads
+//! request, a query, a continuation, an example, a refusal's readings —
+//! what an agent sends back as printed. The sweep reads
 //! prose alone, and the round trip sends a refusal's offer back with a
 //! query literal that speaks a CLI command and holds it accepted.
 
@@ -154,13 +154,12 @@ fn unspelled(said: &str) -> Vec<String> {
 }
 
 /// The keys whose value is payload, never spelled and never swept.
-const PAYLOAD: [&str; 7] = [
-    "offers", "request", "query", "params", "next", "route", "examples",
+const PAYLOAD: [&str; 8] = [
+    "offers", "request", "query", "params", "next", "route", "examples", "readings",
 ];
 
 /// Every string of `doc`'s prose that speaks the CLI unspelled, with its
-/// path. A refusal's `readings` are prose where its `offers` stand
-/// beside them, payload otherwise.
+/// path.
 fn sweep(doc: &Value, path: &str, out: &mut Vec<String>) {
     match doc {
         Value::String(s) => {
@@ -175,9 +174,7 @@ fn sweep(doc: &Value, path: &str, out: &mut Vec<String>) {
         }
         Value::Object(fields) => {
             for (k, v) in fields {
-                if PAYLOAD.contains(&k.as_str())
-                    || (k == "readings" && !fields.contains_key("offers"))
-                {
+                if PAYLOAD.contains(&k.as_str()) {
                     continue;
                 }
                 match (k.as_str(), v) {
@@ -230,13 +227,15 @@ fn every_text_the_server_sends_spells_the_cli_it_speaks() {
         let doc: Value = serde_json::from_str(text).unwrap();
         // the text and the structured content are one document
         assert_eq!(doc, result["structuredContent"], "{tool} {args}");
-        // the sweep reads something: every one but the account's (call
-        // 46, which names `account` alone) speaks the CLI
+        // the sweep reads something: every one speaks the CLI but the
+        // account's (call 46, which names `account` alone), the realms'
+        // (their readings the request's words, C143) and the gone tab's
+        // (its reading a command, payload beside its offer)
         seen += usize::from(text.contains("— here, "));
         sweep(&doc, &format!("{tool} {args}"), &mut faults);
     }
     assert_eq!(
-        seen, 7,
+        seen, 5,
         "a shape no longer speaks the CLI: the sweep reads less"
     );
     assert!(faults.is_empty(), "{}", faults.join("\n"));

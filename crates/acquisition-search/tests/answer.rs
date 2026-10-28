@@ -414,10 +414,7 @@ fn c96_the_realm_is_the_scope_and_is_always_resolved() {
     );
     let e = Corpus::load(&s, &intent(&s), None).unwrap_err();
     assert_eq!(e.to_json()["kind"], "realm_needed");
-    assert_eq!(
-        e.to_json()["readings"],
-        json!(["--realm pc", "--realm xbox"])
-    );
+    assert_eq!(e.to_json()["readings"], json!(["realm pc", "realm xbox"]));
     let all = load(&s, Some("all"));
     let a = as_json(&ask(&all, "").unwrap());
     assert_eq!(

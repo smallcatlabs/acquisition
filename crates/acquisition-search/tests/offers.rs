@@ -39,8 +39,10 @@ fn a_changed_basis_offers_the_request_from_its_start() {
     assert_eq!(e["kind"], "basis_changed", "{e}");
     let offers = offered(&e);
     assert_eq!(offers.len(), 1, "{e}");
-    // one maker: the reading is the offered request's own command
+    // one maker: the reading is the offered request's own command, and
+    // what the offer says
     assert_eq!(e["readings"], json!([offers[0].command()]));
+    assert_eq!(e["offers"][0]["says"], e["readings"][0], "{e}");
     assert_eq!(
         e["offers"][0]["request"],
         json!({
@@ -76,8 +78,9 @@ fn an_id_that_is_a_tab_offers_the_search_of_it() {
 }
 
 /// Over a store of several realms a request naming none is refused, and
-/// offered again once for each realm held: the flag a terminal adds, and
-/// the request itself with that realm in its scope.
+/// offered again once for each realm held: read in the request's words
+/// (C143, never a terminal's flag), and the request itself with that
+/// realm in its scope, saying its reading.
 #[test]
 fn a_realm_needed_offers_the_request_in_each_realm() {
     let mut s = worked();
@@ -98,7 +101,8 @@ fn a_realm_needed_offers_the_request_in_each_realm() {
     .unwrap();
     let e = request.corpus(&s, &intent(&s)).err().unwrap().to_json();
     assert_eq!(e["kind"], "realm_needed", "{e}");
-    assert_eq!(e["readings"], json!(["--realm pc", "--realm xbox"]));
+    assert_eq!(e["readings"], json!(["realm pc", "realm xbox"]));
+    assert_eq!(e["offers"][1]["says"], "realm xbox", "{e}");
     let offers = offered(&e);
     assert_eq!(offers.len(), 2, "{e}");
     for (offer, realm) in offers.iter().zip(["pc", "xbox"]) {

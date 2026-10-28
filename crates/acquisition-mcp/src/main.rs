@@ -356,13 +356,7 @@ type Told = Result<CallToolResult, ErrorData>;
 /// them (C115); the structured content, a JSON value, holds them in its
 /// own order, and an agent reads the text.
 fn told<T: serde::Serialize>(document: &T) -> Told {
-    told_as(
-        document,
-        Prose {
-            all: false,
-            readings: false,
-        },
-    )
+    told_as(document, Prose { all: false })
 }
 
 /// [`told`], the document's prose as [`Prose`] says: each string
@@ -389,19 +383,10 @@ fn told_as<T: serde::Serialize>(document: &T, prose: Prose) -> Told {
 }
 
 /// A refusal, as the search crate words it (C11): `error`, `kind`,
-/// `readings`, `offers`. A scope refusal's readings are its offers'
-/// commands (`SearchError::to_json`), prose to spell; a language
-/// refusal's are readings of the query, payload.
+/// `readings`, `offers`; its readings are payload, a scope refusal's in
+/// the request's words as a language refusal's are the query's.
 fn refused(e: impl Into<SearchError>) -> CallToolResult {
-    let e = e.into();
-    let readings = matches!(e, SearchError::Scope { .. });
-    refusing_as(
-        e.to_json(),
-        Prose {
-            all: true,
-            readings,
-        },
-    )
+    refusing(e.into().to_json())
 }
 
 /// A tool's arguments, read here and not by the SDK, whose refusal of
@@ -1100,11 +1085,11 @@ const NAMES: [&str; 2] = ["name", "construct"];
 /// continuation, a count's route) or types as written (an example of
 /// the language). Nothing under one is spelled, at any depth: the
 /// spelling is prose's, and a request it touched would no longer run as
-/// printed (the readiness seat's fix-round review, P2). `readings` is
-/// payload too, unless the refusal's readings are its offers' — see
-/// [`Prose`].
-const PAYLOAD: [&str; 7] = [
-    "offers", "request", "query", "params", "next", "route", "examples",
+/// printed (the readiness seat's fix-round review, P2). A refusal's
+/// `readings` are payload on every refusal: how what was typed could be
+/// read, in the request's words (C143).
+const PAYLOAD: [&str; 8] = [
+    "offers", "request", "query", "params", "next", "route", "examples", "readings",
 ];
 
 /// Which strings of a document are the tool's words.
@@ -1113,11 +1098,6 @@ struct Prose {
     /// Every string not under [`PAYLOAD`] (a refusal, `describe`); else
     /// those under [`WORDS`] alone (an answer).
     all: bool,
-    /// The refusal's `readings` are the commands of its offers, written
-    /// for a terminal (a search's scope refusal: `--realm pc`), so prose;
-    /// else they are readings of the query the author typed, literals
-    /// sent back as written, so payload.
-    readings: bool,
 }
 
 /// Every text this server serves, spelled (C143): `text`, a serialized
@@ -1139,9 +1119,7 @@ fn spoken(text: &str, prose: Prose) -> String {
             payload: bool,
         },
     }
-    let payload_key = |key: Option<&str>| {
-        key.is_some_and(|k| PAYLOAD.contains(&k) || (k == "readings" && !prose.readings))
-    };
+    let payload_key = |key: Option<&str>| key.is_some_and(|k| PAYLOAD.contains(&k));
     // a value is payload when its frame is, or the key it stands under is
     let payload_here = |frames: &[Frame]| match frames.last() {
         Some(Frame::Object { key, payload, .. }) | Some(Frame::Array { key, payload }) => {
@@ -1258,20 +1236,9 @@ fn spoken(text: &str, prose: Prose) -> String {
 }
 
 /// A refusal's document as a tool's result, marked an error: its prose
-/// [`spoken`] for this server, its readings payload.
+/// [`spoken`] for this server, its readings and offers payload.
 fn refusing(doc: Value) -> CallToolResult {
-    refusing_as(
-        doc,
-        Prose {
-            all: true,
-            readings: false,
-        },
-    )
-}
-
-/// [`refusing`], with the readings `prose` says.
-fn refusing_as(doc: Value, prose: Prose) -> CallToolResult {
-    let text = spoken(&doc.to_string(), prose);
+    let text = spoken(&doc.to_string(), Prose { all: true });
     let mut result = CallToolResult::structured_error(serde_json::from_str(&text).unwrap_or(doc));
     result.content = vec![rmcp::model::ContentBlock::text(text)];
     result
@@ -1516,10 +1483,7 @@ impl AcqMcp {
                 daemon: chosen.next().flatten(),
                 store: chosen.next().flatten(),
             },
-            Prose {
-                all: true,
-                readings: false,
-            },
+            Prose { all: true },
         )
     }
 

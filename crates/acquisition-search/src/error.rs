@@ -150,15 +150,18 @@ pub enum SearchError {
     Store(anyhow::Error),
 }
 
-/// One way on from a refusal (`search/LEDGER.md`, H5): what a terminal
-/// types, and — where that is a search — the request it is, for a caller
-/// that sends requests and types nothing. Where the way on is a whole
-/// search the reading is the request's own command
-/// ([`Request::command`]), made here and nowhere else, so the two never
-/// disagree; a realm's reading is the flag a terminal adds to what it
-/// typed, and its request the search asked, in that realm.
+/// One way on from a refusal (`search/LEDGER.md`, H5): what it says,
+/// and — where that is a search — the request it is, for a caller that
+/// sends requests and types nothing. Where the way on is a whole search
+/// the reading is the request's own command ([`Request::command`]),
+/// made here and nowhere else, so the two never disagree; a realm's
+/// reading is in the request's words, `realm pc` (C143, a shared refusal
+/// speaks the request's words: a terminal adds its flag after them,
+/// [`Offered::realm`]), and its request the search asked, in that realm.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Offered {
+    /// What the way on says: a refusal's `readings`, and each offer's
+    /// `says`.
     pub reading: String,
     pub request: Option<Request>,
     /// A realm offered where no request was at hand to put it in, and
@@ -169,6 +172,12 @@ pub struct Offered {
 }
 
 impl Offered {
+    /// The realm this way on names, where it is a realm's: what a
+    /// terminal spells `--realm` after the reading.
+    pub fn realm(&self) -> Option<&str> {
+        self.realm.as_ref().map(|(realm, _)| realm.as_str())
+    }
+
     fn request(request: Request) -> Offered {
         Offered {
             reading: request.command(),
@@ -195,14 +204,14 @@ impl SearchError {
         self
     }
 
-    /// The realms a search of `account`'s store may name, each the flag
-    /// a terminal adds.
+    /// The realms a search of `account`'s store may name, each read in
+    /// the request's words (C143).
     pub(crate) fn offering_realms(mut self, realms: &[String], account: &str) -> SearchError {
         if let SearchError::Scope { offers, .. } = &mut self {
             *offers = realms
                 .iter()
                 .map(|realm| Offered {
-                    reading: format!("--realm {realm}"),
+                    reading: format!("realm {realm}"),
                     request: None,
                     realm: Some((Realm::One(realm.clone()), account.to_string())),
                 })
@@ -248,8 +257,9 @@ impl SearchError {
     }
 
     /// The failure as `--json` prints it (C11): `error`, `kind`, what
-    /// the author may have meant as `readings`, and under `offers` each
-    /// way on that is a request, as an answer's zero block holds one.
+    /// the author may have meant as `readings`, payload on every refusal,
+    /// and under `offers` each way on that is a request, as an answer's
+    /// zero block holds one, beside what it `says` (its reading).
     pub fn to_json(&self) -> serde_json::Value {
         let mut out = serde_json::json!({ "error": self.to_string(), "kind": self.kind() });
         match self {
@@ -272,8 +282,8 @@ impl SearchError {
                 }
                 let requests: Vec<_> = offers
                     .iter()
-                    .filter_map(|o| o.request.as_ref())
-                    .map(|request| serde_json::json!({ "request": request }))
+                    .filter_map(|o| o.request.as_ref().map(|request| (request, &o.reading)))
+                    .map(|(request, says)| serde_json::json!({ "request": request, "says": says }))
                     .collect();
                 if !requests.is_empty() {
                     out["offers"] = serde_json::json!(requests);
