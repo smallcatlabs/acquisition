@@ -94,7 +94,7 @@ fn a_policy_written_under_revision_0_is_created_only_where_none_stands() {
             .contains("is at revision 1"),
         "{refused}"
     );
-    let shown = sole_json(&acq(&base, &["policy", "show", "--json"]));
+    let shown = sole_json(&acq(&base, &["policy", "show", "--json"]))["policy"].clone();
     assert_eq!(shown["revision"], json!(1));
     assert_eq!(
         shown["value"],
@@ -108,11 +108,12 @@ fn json_stdout_is_the_contract_surface() {
     let base = scratch.0.clone();
     seed_store(&base);
 
-    // No policy yet: `policy show --json` answers null, exit 0 — absent
-    // intent is data, not an error.
+    // No policy yet: `policy show --json` answers `{"policy": null}`, exit
+    // 0 — absent intent is data, not an error, and a success is one
+    // object, never a bare null (C149), the MCP's `sync_policy` shape.
     let out = acq(&base, &["policy", "show", "--json"]);
     assert!(out.status.success(), "{out:?}");
-    assert_eq!(sole_json(&out), Value::Null);
+    assert_eq!(sole_json(&out), json!({ "policy": null }));
 
     // `--json` is total: a refusal is {"error": …} on stdout with exit 1,
     // not prose on stderr.
@@ -143,7 +144,7 @@ fn json_stdout_is_the_contract_surface() {
             .contains("max_age_secs")
     );
     let out = acq(&base, &["policy", "show", "--json"]);
-    assert_eq!(sole_json(&out), Value::Null);
+    assert_eq!(sole_json(&out), json!({ "policy": null }));
 
     // A valid write answers the stored row, and C126's note on a league
     // the fetched league list does not hold: here no list was ever
@@ -162,7 +163,7 @@ fn json_stdout_is_the_contract_surface() {
     assert_eq!(row["written_via"], json!("cli"));
     assert!(row.get("actor").is_none(), "{row}");
     let out = acq(&base, &["policy", "show", "--json"]);
-    assert_eq!(sole_json(&out), row);
+    assert_eq!(sole_json(&out), json!({ "policy": row }));
 
     // A conflicting --if-revision is {"error": …} naming the current
     // revision, exit 1.

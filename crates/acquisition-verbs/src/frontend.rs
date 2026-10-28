@@ -354,6 +354,14 @@ impl Account {
             .map_err(|e| Fault::Other(e.into()))
     }
 
+    /// The stored sync policy as an answer (C149): the row under
+    /// `policy`, null when none is set.
+    pub fn policy_shown(&self) -> Result<PolicyShown, Fault> {
+        Ok(PolicyShown {
+            policy: self.policy()?,
+        })
+    }
+
     /// C52 (no blind clobber) and C35: write the sync policy through the
     /// planner's validate-then-compare-and-swap, stamped with this
     /// frontend's channel (C65). `expect` is what naming no revision
@@ -411,6 +419,14 @@ impl Account {
             league_notes: notes,
         })
     }
+}
+
+/// The sync policy as both doors show it (C149: every answer one object,
+/// so a success is never a bare `null`): `policy`, the stored row, null
+/// when none is set.
+#[derive(Clone, Debug, Serialize)]
+pub struct PolicyShown {
+    pub policy: Option<AnnotationRow>,
 }
 
 /// A sync-policy write as both doors report it (C36, C126): the stored

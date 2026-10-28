@@ -138,13 +138,16 @@ pub(crate) const POLICY_EXAMPLE: &str = r#"{"version":3,"realms":{"pc":{"leagues
 /// groups are counted (the ruling's threshold; `--expand` lists every one).
 const LIST_UP_TO: usize = 10;
 
+/// `acq policy show`: the stored row and its revision; `--json` the
+/// MCP's `sync_policy` document, `{"policy": row}`, row null when none is
+/// set (C149: a success is never a bare `null`).
 pub fn policy_show(cx: &Ctx, json: bool) -> Result<()> {
-    let row = cx.account()?.policy()?;
+    let shown = cx.account()?.policy_shown()?;
     if json {
-        println!("{}", serde_json::to_string_pretty(&row)?);
+        println!("{}", serde_json::to_string_pretty(&shown)?);
         return Ok(());
     }
-    match row {
+    match shown.policy {
         None => {
             println!("no sync policy is set — write one with `acq policy set '{POLICY_EXAMPLE}'`")
         }

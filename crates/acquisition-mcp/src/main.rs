@@ -1593,8 +1593,9 @@ impl AcqMcp {
     )]
     fn sync_policy(&self, Parameters(p): Parameters<Args<StoreParams>>) -> Told {
         answer(|| {
-            let row = self.account(p.parse()?.account.as_deref())?.policy()?;
-            Ok(json!({ "policy": row }))
+            Ok(self
+                .account(p.parse()?.account.as_deref())?
+                .policy_shown()?)
         })
     }
 

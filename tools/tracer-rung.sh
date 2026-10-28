@@ -460,10 +460,11 @@ chars_json='[]'
 # the stored policy keeps in it and this run's league set: a run over a
 # new league keeps Standard (the Allflame run dropped it, RUN-LEDGER.md).
 # With no policy stored, the realm holds this league alone, as before.
+# One document (C149): the stored row under `policy`, null when none.
 STORED=$("$ACQ" policy show --json)
 POLICY=$(jq -nc --arg r "$REALM" --arg l "$LEAGUE" --argjson t "$tabs_json" --argjson c "$chars_json" --argjson a "$MAX_AGE" \
     --argjson s "$STORED" \
-    '(($s // {}).value // {}) as $v
+    '(($s.policy // {}).value // {}) as $v
     | (($v.realms // {})[$r].leagues // (if $r == "pc" and ($v.version // 3) < 3 then $v.leagues else null end) // {}) as $kept
     | {version: 3, realms: {($r): {leagues: ($kept + {($l): ({max_age_seconds: $a}
         + (if $t != [] then {tabs: $t} else {} end)
@@ -475,7 +476,7 @@ echo "  $POLICY"
 # way: a policy another client changed in between, or created where
 # none stood (revision 0: write only where no policy stands), is a
 # conflict that stops the run, never an overwrite of its edit.
-STORED_REVISION=$(jq -r 'if . == null then 0 else .revision end' <<<"$STORED")
+STORED_REVISION=$(jq -r 'if .policy == null then 0 else .policy.revision end' <<<"$STORED")
 if ! "$ACQ" policy set "$POLICY" --if-revision "$STORED_REVISION" --json >"$RUN_DIR/policy.json"; then
     echo "*** the sync policy is no longer as read (revision $STORED_REVISION, 0 for none stored): another client wrote it since; nothing written — stop, read \`acq policy show\`, and run again" >&2
     cat "$RUN_DIR/policy.json" >&2
