@@ -169,13 +169,14 @@ impl Frontend {
         let mut version = version_document();
         version["platform"] = json!(platform());
 
-        // Bounded by the handshake's own deadline: a peer that answers
-        // `hello` and then never its status must not hold the rest of the
-        // diagnosis (r4's review, finding 3).
+        // A peer that answers `hello` and then never its status must not
+        // hold the rest of the diagnosis (r4's review, finding 3): the
+        // client bounds the request (#103), and the section says where
+        // the rest was read from.
         let daemon = self
-            .daemon_within(Some(acquisition_client::client::hello_within()))
+            .daemon()
             .await
-            .map_err(|fault| fault.to_string());
+            .map_err(|fault| format!("{fault}; the sections below are read from disk"));
         let world = World::observe_at(&self.root);
 
         let known = self.accounts().map_err(|f| f.to_string());

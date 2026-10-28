@@ -131,20 +131,12 @@ impl Frontend {
     /// C10, C45, C84, C86: the daemon of this world in one look — absent
     /// (with the ledger's counts and the last log), another daemon's
     /// identity, an unresponsive peer, or this client's daemon with its
-    /// vitals. Never spawns or replaces.
+    /// vitals. Never spawns or replaces. The status request is bounded
+    /// by the client (#103, the handshake's deadline): a peer that
+    /// answers the handshake and then not its status is the client's
+    /// `Stalled`, reaching every frontend as [`Fault::Transport`] in its
+    /// words, which name the peer and the hand that stops it.
     pub async fn daemon(&self) -> Result<DaemonReport, Fault> {
-        self.daemon_within(None).await
-    }
-
-    /// [`Frontend::daemon`] with its status request bounded by `within`
-    /// when given: the diagnosis's (#79), which must print whatever a
-    /// peer does. A peer that answers the handshake and then not its
-    /// status within the bound is [`Fault::Other`], in words. `daemon
-    /// status` itself waits unbounded, as before.
-    pub(crate) async fn daemon_within(
-        &self,
-        within: Option<std::time::Duration>,
-    ) -> Result<DaemonReport, Fault> {
         let observed = acquisition_client::client::Client::observe_at(&self.root)
             .await
             .map_err(Fault::Transport)?;
@@ -171,21 +163,11 @@ impl Frontend {
             }
         };
         let identity = Box::new(client.daemon().clone());
-        let request = client.request(&Request::DaemonStatus);
-        let answered = match within {
-            None => request.await,
-            Some(within) => match tokio::time::timeout(within, request).await {
-                Ok(answered) => answered,
-                Err(_) => {
-                    return Err(Fault::Other(anyhow::anyhow!(
-                        "the daemon on {} answered the handshake and then not its status within {} s (the handshake's bound, ACQ_HELLO_WITHIN); the sections below are read from disk",
-                        identity.socket(),
-                        within.as_secs_f64()
-                    )));
-                }
-            },
-        };
-        match answered.map_err(Fault::from_client)? {
+        match client
+            .request(&Request::DaemonStatus)
+            .await
+            .map_err(Fault::from_client)?
+        {
             status @ Response::DaemonStatus { .. } => Ok(DaemonReport::Running {
                 status: Box::new(status),
                 identity,

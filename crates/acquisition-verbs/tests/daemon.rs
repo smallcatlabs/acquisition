@@ -952,12 +952,14 @@ async fn an_index_entry_with_an_empty_uuid_does_not_stall_the_diagnosis() {
 
 /// r4's review, finding 3: a peer that answers the handshake as this
 /// world's daemon and then never its status held the diagnosis forever,
-/// every section behind it. The status request is bounded by the
-/// handshake's deadline (`ACQ_HELLO_WITHIN`, here 1 s); its expiry is
-/// forced by a peer that never answers (C137, the deadline's contract is
-/// its expiry behaviour), and the rest is read from disk. The peer
-/// replays the hello a real daemon of this world gave, so the observe
-/// door finds it compatible.
+/// every section behind it. The status request is bounded by the client
+/// under the handshake's deadline (#103; `ACQ_HELLO_WITHIN`, here 1 s);
+/// its expiry is forced by a peer that never answers (C137, the
+/// deadline's contract is its expiry behaviour), and the rest is read
+/// from disk. The peer replays the hello a real daemon of this world
+/// gave, so the observe door finds it compatible. What this pins is the
+/// diagnosis's part: the section carries the refusal and the rest is
+/// read; the bound itself is the client crate's (`contract.rs`).
 #[tokio::test]
 async fn a_peer_that_answers_hello_and_not_its_status_leaves_the_rest_to_the_disk() {
     use tokio::io::{AsyncBufReadExt as _, AsyncWriteExt as _, BufReader};

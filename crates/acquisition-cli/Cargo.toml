@@ -38,3 +38,7 @@ path = "tests/main.rs"
 [[test]]
 name = "watch_recovery"
 path = "tests/watch_recovery.rs"
+
+[[test]]
+name = "daemon_stalled"
+path = "tests/daemon_stalled.rs"

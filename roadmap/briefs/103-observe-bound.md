@@ -222,9 +222,13 @@ No measurement. The failing inputs the tests stage:
    stands as written, its doc comment corrected to say the bound is the
    client's.
 4. **The adapter's pin, in the CLI** (C122: the exit code and the
-   stream are the adapter's), in `tests/daemon_observe.rs`:
+   stream are the adapter's), in `tests/daemon_stalled.rs`, its own
+   binary named in `Cargo.toml` (*corrected in the build:* the brief
+   said `daemon_observe.rs` in the one binary, and the layout rule in
+   `tools/arch-check.sh` refuses a module there that calls `session`,
+   since it sets the process environment):
    `a_daemon_that_answers_hello_and_not_its_status_is_refused_naming_its_pid`,
-   a `#[tokio::test(flavor = "multi_thread")]` in the one binary: the
+   a `#[tokio::test(flavor = "multi_thread")]`: the
    verbs pin's staging (a real daemon started in-process for its
    `hello`, stopped, the reply replayed by a listener that holds the
    status), then `acq daemon status` run as a process with
