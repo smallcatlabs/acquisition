@@ -603,7 +603,10 @@ pub fn refused(cx: &Ctx, id: Option<i64>, limit: usize, json: bool) -> Result<()
             anyhow::bail!("no refused body with id {id} (see `acq store refused`)");
         };
         if json {
-            println!("{}", serde_json::to_string_pretty(&row)?);
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&row.aged(acquisition_store::now()))?
+            );
         } else {
             println!(
                 "refused {}  {} {}  fetched {}  status {}",
@@ -620,13 +623,13 @@ pub fn refused(cx: &Ctx, id: Option<i64>, limit: usize, json: bool) -> Result<()
     }
     // one document (C149): the rows under `rows`, `returned` and `limit`
     // beside them
-    let listed = acquisition_verbs::RefusedBodies::read(&store, limit)?;
+    let now = acquisition_store::now();
+    let listed = acquisition_verbs::RefusedBodies::read(&store, limit, now)?;
     if json {
         println!("{}", serde_json::to_string_pretty(&listed)?);
         return Ok(());
     }
     let rows = listed.rows;
-    let now = acquisition_store::now();
     for r in &rows {
         println!(
             "{:>5}  {:<10} {:<40} {:<9}  {}",
@@ -696,6 +699,7 @@ pub fn events(
             &ev,
             acquisition_verbs::events::summary(&store, &ev.rows),
             summary && expand,
+            now,
         );
         if json {
             println!("{}", serde_json::to_string_pretty(&listed)?);
@@ -1003,6 +1007,7 @@ mod tests {
     fn ev(at: i64, kind: &str, from: Option<&str>, to: Option<&str>) -> EventRow {
         EventRow {
             at,
+            at_age: None,
             item_id: "i".into(),
             kind: kind.into(),
             from_location: from.map(str::to_string),

@@ -417,6 +417,93 @@ async fn an_empty_plan_is_nothing_with_its_skipped_and_no_daemon() {
     assert!(client.is_none());
 }
 
+/// C53 (an age the text prints stands in words beside its epoch, made
+/// at the answer's own time) and the envelope's schema contract (round 6
+/// of step 2g, the second cold review's finding 7): a plan's ages stand
+/// on the verbs' presentation beside the envelope — its age at the
+/// answer, its listings' measured from its own `generated_at` and named
+/// so, its quote's at the answer — and the envelope and its quote are
+/// the bytes they were, parsed back by the planner's strict reader.
+#[test]
+fn c53_a_plans_ages_stand_beside_an_envelope_that_round_trips_unchanged() {
+    use acquisition_plan::{PlanNotes, RefreshPlan};
+    use acquisition_protocol::protocol::{Quote, QuoteJob};
+    use acquisition_verbs::refresh::{PlanAges, Planned};
+    let s = scratch();
+    let mut opened = opened(&s.mock);
+    listing(
+        &mut opened.facts,
+        1_900,
+        json!([{ "id": "t1", "name": "One", "type": "PremiumStash", "index": 0 }]),
+    );
+    let bare = opened.compile(Realm::Pc, "Standard", 2_000).unwrap();
+    let work: Vec<QuoteJob> = bare
+        .actions
+        .iter()
+        .map(|a| {
+            let (kind, params) = a.job();
+            QuoteJob {
+                kind: kind.into(),
+                params,
+            }
+        })
+        .collect();
+    let plan = bare
+        .clone()
+        .with_quote(Quote {
+            observed_at: 2_010,
+            provider: bare.provider.clone(),
+            account: bare.account_name.clone(),
+            halted: None,
+            work,
+            scopes: vec![acquisition_protocol::protocol::QuoteScope {
+                key: "stash".into(),
+                endpoints: vec!["stash".into()],
+                requests: bare.logical_requests,
+                queued_ahead: 0,
+                policy: None,
+                rules: Vec::new(),
+                observed_seconds_ago: None,
+                eta_seconds: None,
+                notes: Vec::new(),
+            }],
+            not_covered: Vec::new(),
+        })
+        .unwrap();
+    let envelope = serde_json::to_string(&plan).unwrap();
+    let planned = Planned {
+        plan: plan.clone(),
+        ages: PlanAges::default(),
+        quote_note: None,
+        notes: PlanNotes::default(),
+    }
+    .aged(2_000 + 3 * 3_600);
+    let doc = serde_json::to_value(&planned).unwrap();
+    assert_eq!(doc["generated_at_age"], "3h ago", "{doc}");
+    assert_eq!(
+        doc["stash_listing_fetched_at_age"], "1m before generated_at",
+        "{doc}"
+    );
+    assert_eq!(doc["character_listing_fetched_at_age"], "never", "{doc}");
+    assert_eq!(doc["quote_observed_at_age"], "2h ago", "{doc}");
+    // the envelope and its quote: the same bytes, read back strictly
+    assert_eq!(serde_json::to_string(&planned.plan).unwrap(), envelope);
+    for key in [
+        "generated_at_age",
+        "stash_listing_fetched_at_age",
+        "quote_observed_at_age",
+    ] {
+        assert!(doc["plan"].get(key).is_none(), "{key} in the envelope");
+        assert!(
+            doc["plan"]["quote"].get(key).is_none(),
+            "{key} in the quote"
+        );
+    }
+    let back = RefreshPlan::from_value(&doc["plan"]).unwrap();
+    assert_eq!(back, plan);
+    assert_eq!(serde_json::to_string(&back).unwrap(), envelope);
+}
+
 /// C111: a plan whose every request the facts show fetched after it was
 /// compiled is spent with no daemon contact, and says what a plan
 /// compiled now would fetch.
@@ -537,7 +624,10 @@ fn the_spent_phrase_names_the_jobs_holding_a_request() {
         },
         acquisition_plan::Spent {
             action,
-            by: acquisition_plan::SpentBy::Fetched { fetched_at: 100 },
+            by: acquisition_plan::SpentBy::Fetched {
+                fetched_at: 100,
+                fetched_at_age: None,
+            },
         },
     ];
     assert_eq!(
@@ -611,6 +701,7 @@ fn persisted_job(state: &str) -> PersistedJob {
         cancel_requested: false,
         submitted_at: 10,
         updated_at: 20,
+        updated_at_age: None,
     }
 }
 
@@ -633,32 +724,49 @@ fn a_ledger_row_maps_to_the_live_shape_and_an_unknown_state_is_a_fault() {
     assert!(fault.to_string().contains("`paused`"), "{fault}");
 }
 
+/// C45, and C53 (an age the text prints stands in words beside its
+/// epoch, made at the answer's own time): with no daemon, a job's row
+/// says when it was written, the queue and the daemon's report when the
+/// ledger was, each as the CLI's text says it, at a given time.
 #[test]
 fn the_absent_documents_say_running_false_beside_what_the_ledger_holds() {
+    const NOW: i64 = 20 + 180;
     let job = Job::Absent {
-        persisted: persisted_job("done"),
+        persisted: persisted_job("done").aged(NOW),
         next: "n".into(),
     };
     let doc = serde_json::to_value(&job).unwrap();
     assert_eq!(doc["running"], false);
     assert_eq!(doc["persisted"]["state"], "done");
+    assert_eq!(
+        (
+            &doc["persisted"]["updated_at"],
+            &doc["persisted"]["updated_at_age"]
+        ),
+        (&json!(20), &json!("3m ago"))
+    );
     assert_eq!(doc["next"], "n");
     assert_eq!(
         serde_json::to_value(Jobs::Absent { persisted: None }).unwrap(),
         json!({ "running": false, "persisted": null })
     );
+    let ledger = |written_at| acquisition_store::jobs::Persisted {
+        jobs: vec![persisted_job("waiting")],
+        written_at,
+    };
+    let queue = acquisition_verbs::PersistedJobs::of(ledger(Some(20)), false, NOW);
+    assert_eq!(queue.written_at_age, "3m ago");
+    let empty = acquisition_verbs::PersistedJobs::of(ledger(None), false, NOW);
+    assert_eq!(empty.written_at_age, "never");
     let report = DaemonReport::Absent {
-        persisted: Some(PersistedSummary {
-            waiting: 1,
-            recorded_running: 0,
-            written_at: Some(5),
-        }),
+        persisted: Some(PersistedSummary::of(&ledger(Some(5)), NOW)),
         log: Some("/l/daemon.log".into()),
     };
     assert_eq!(
         serde_json::to_value(&report).unwrap(),
         json!({ "running": false, "log": "/l/daemon.log",
-                "persisted": { "waiting": 1, "recorded_running": 0, "written_at": 5 } })
+                "persisted": { "waiting": 1, "recorded_running": 0, "written_at": 5,
+                               "written_at_age": "3m ago" } })
     );
 }
 
@@ -865,6 +973,7 @@ fn c149_events_are_one_document_ten_by_default_with_the_limit_said() {
         &all,
         acquisition_verbs::events::summary(&store, &all.rows),
         false,
+        now,
     );
     assert_eq!((summary.events, summary.locations), (12, 1));
     assert_eq!(summary.by_kind.added, 12);
@@ -940,7 +1049,7 @@ fn c149_the_job_list_counts_every_job_beside_ten_open_and_ten_finished() {
         jobs: (1..=12).map(|id| job_row(id, "waiting")).collect(),
         written_at: Some(20),
     };
-    let queue = acquisition_verbs::PersistedJobs::of(persisted.clone(), false);
+    let queue = acquisition_verbs::PersistedJobs::of(persisted.clone(), false, 0);
     assert_eq!(
         (queue.total, queue.waiting, queue.recorded_running),
         (12, 12, 0)
@@ -952,7 +1061,7 @@ fn c149_the_job_list_counts_every_job_beside_ten_open_and_ten_finished() {
     .unwrap();
     assert_eq!(doc["running"], false, "{doc}");
     assert_eq!(doc["persisted"]["total"], 12, "{doc}");
-    let whole = acquisition_verbs::PersistedJobs::of(persisted, true);
+    let whole = acquisition_verbs::PersistedJobs::of(persisted, true, 0);
     assert_eq!((whole.jobs.len(), whole.left_out), (12, 0));
 }
 
@@ -1018,7 +1127,7 @@ fn c149_every_document_a_verb_returns_is_one_json_object() {
         ),
         (
             "event summary",
-            serde_json::to_value(EventSummary::of(&events, Vec::new(), false)).unwrap(),
+            serde_json::to_value(EventSummary::of(&events, Vec::new(), false, 0)).unwrap(),
         ),
         (
             "jobs, live",
@@ -1038,6 +1147,7 @@ fn c149_every_document_a_verb_returns_is_one_json_object() {
                         written_at: None,
                     },
                     false,
+                    0,
                 )),
             })
             .unwrap(),
@@ -1052,7 +1162,7 @@ fn c149_every_document_a_verb_returns_is_one_json_object() {
         ),
         (
             "refused bodies",
-            serde_json::to_value(acquisition_verbs::RefusedBodies::read(&store, 50).unwrap())
+            serde_json::to_value(acquisition_verbs::RefusedBodies::read(&store, 50, 0).unwrap())
                 .unwrap(),
         ),
         (

@@ -31,6 +31,7 @@
   },
   "freshness": {
     "oldest_stale_seconds": 3800,
+    "oldest_stale_seconds_age": "63m ago",
     "policy": "covers",
     "policy_revision": 4,
     "position_before_listing": [

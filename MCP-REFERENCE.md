@@ -16,7 +16,7 @@ Accounts this machine has logged into (from the store's non-secret index; no dae
 
 ### `apply_plan`
 
-Execute a reviewed plan, its actions and nothing else, as one `apply` parent job the daemon admits or refuses whole. Refused offline if the stored policy revision moved since the plan (replan with refresh_plan). A plan spends each request once: an action fetched since the plan, or held by the daemon, is listed in `spent` and not sent, so a replay answers `applied: false` with `remaining_requests`, what a plan compiled now would fetch. Returns `job_id`, `account`, `requests`, `spent` and `skipped`; poll job_status, then job_result.
+Execute a reviewed plan, its actions and nothing else, as one `apply` parent job the daemon admits or refuses whole. Refused offline if the stored policy revision moved since the plan (replan with refresh_plan). A plan spends each request once: an action fetched since the plan, or held by the daemon, is listed in `spent` and not sent, so a replay answers `applied: false` with `remaining_requests`, what a plan compiled now would fetch. Returns `job_id`, `account`, `requests`, `spent` and `skipped`; poll job_status, then job_result. Ages in words: `describe` ["ages"].
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
 - `max_requests` (integer | null) — Refuse at admission — before any child job exists — if the plan authorizes more logical requests than this.
@@ -40,7 +40,7 @@ Characters known to the store (no daemon), counted first — how many, fetched, 
 
 ### `daemon_status`
 
-The daemon running: its identity — contract, executable and hash, the world it serves, its socket — which of the four match this server (`contract_matches`, `artifact_matches`, `provider_matches`, `world_matches`; `wanted` is this server's own) and, when compatible, its vitals. Observes only: `running: false` with no daemon, `compatible: false` for one of another contract, artifact, provider or world (never replaced here), `responsive: false` for a wedged one; `describe` with names ["daemon"] says what each holds.
+The daemon running: its identity — contract, executable and hash, the world it serves, its socket — which of the four match this server (`contract_matches`, `artifact_matches`, `provider_matches`, `world_matches`; `wanted` is this server's own) and, when compatible, its vitals. Observes only: `running: false` with no daemon, `compatible: false` for one of another contract, artifact, provider or world (never replaced here), `responsive: false` for a wedged one; `describe` with names ["daemon"] says what each holds, and ["ages"] what an age's words say.
 
 No arguments.
 
@@ -52,7 +52,7 @@ What the tools answer and the language `search` takes, read by name (no store re
 
 ### `item_events`
 
-Item events (added/moved/changed/removed) from recent ingests (no daemon): the newest ten, `limit` more or fewer, beside how many were returned and whether the limit was reached; `summary: true` counts them by location instead, ten locations, `expand` every one. `describe` with names ["store"] says what each count counts.
+Item events (added/moved/changed/removed) from recent ingests (no daemon): the newest ten, `limit` more or fewer, beside how many were returned and whether the limit was reached; `summary: true` counts them by location instead, ten locations, `expand` every one. `describe` with names ["store"] says what each count counts, and ["ages"] what an age's words say.
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
 - `expand` (boolean | null) — With `summary`, every location.
@@ -68,13 +68,13 @@ A finished job's outcome — payload or error — with its job_id and account, f
 
 ### `job_status`
 
-One job's state, ETA and retries. A waiting job with a large ETA is the rate limiter holding, not a hang (holds can reach about 5 minutes). Observes only: a finished job, or any job with no daemon running, is answered from the ledger on disk (`describe` with names ["daemon"]).
+One job's state, ETA and retries. A waiting job with a large ETA is the rate limiter holding, not a hang (holds can reach about 5 minutes). Observes only: a finished job, or any job with no daemon running, is answered from the ledger on disk (`describe` with names ["daemon"]; ["ages"] for an age's words).
 
 - `id` (integer, required) — The job id, as returned by submit_job.
 
 ### `list_jobs`
 
-Jobs the daemon lists, with states and ETAs, counted first over every job (`total`, `by_state`), then listed: ten open and the ten most recent finished, `expand` every one. Observes only, never spawning a daemon: with none running it answers from the ledger (`running: false`, `persisted`); `describe` with names ["daemon"] says what each holds and counts.
+Jobs the daemon lists, with states and ETAs, counted first over every job (`total`, `by_state`), then listed: ten open and the ten most recent finished, `expand` every one. Observes only, never spawning a daemon: with none running it answers from the ledger (`running: false`, `persisted`); `describe` with names ["daemon"] says what each holds and counts, and ["ages"] what an age's words say.
 
 - `expand` (boolean | null) — List every job, open and finished, not ten of each.
 
@@ -113,7 +113,7 @@ Set one target's price by hand: one row on an item, tab, substash or character, 
 
 ### `price_show`
 
-One target's listing (no daemon): `listing`, both sides with their causes — the hand row that applies (`manual`, its `revision` and the target it is on, `from`), the note and the tab name verbatim beside what each reads as — the relation, the effective price and why; `container`, the one an item sits in; for a container, `items_here` (in it) and `items_covered_below` (through its children), ten each beside its counts, `limit` more, `expand` all (`describe` with names ["pricing"]). Read it before price_set or price_clear on a target with its own row: they name the revision they replace.
+One target's listing (no daemon): `listing`, both sides with their causes — the hand row that applies (`manual`, its `revision` and the target it is on, `from`), the note and the tab name verbatim beside their readings — the relation, the effective price and why; `container`, the one an item sits in; for a container, `items_here` (in it) and `items_covered_below` (through its children), ten each beside its counts, `limit` more, `expand` all (`describe` with names ["pricing"]; ages, ["ages"]). Read it before price_set or price_clear on a target with its own row, whose revision they name.
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
 - `expand` (boolean | null) — List every item of both sets.
@@ -124,7 +124,7 @@ One target's listing (no daemon): `listing`, both sides with their causes — th
 
 ### `price_status`
 
-The listing state of one league, counted (no daemon): what every item, tab and character is priced as — by hand, in game, how the two stand — as the counts and the row accounting, without the listings themselves; `describe` with names ["pricing"] says what each count counts. price_list names the items; price_show is one target.
+The listing state of one league, counted (no daemon): what every item, tab and character is priced as — by hand, in game, how the two stand — as the counts and the row accounting, without the listings themselves; `describe` with names ["pricing"] says what each count counts. price_list names the items; price_show is one target. Each age is in words beside its time (`describe` with names ["ages"]).
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
 - `expand` (boolean | null) — List every row of `rows.unmatched`, `rows.unreadable` and `rows.other_league`, past the first ten.
@@ -139,7 +139,7 @@ The currency table this build ships (no store, no daemon): every row — `tag`, 
 
 ### `refresh_plan`
 
-Compile a refresh plan for one realm and league, offline — sends nothing, spends nothing: from the stored sync policy, or with `selection` from that explicit selection, which needs no policy. The plan is the bounded action set applying would execute, with reasons, skips, unknown ids and a wire estimate; a running daemon adds its read-only quote, never spawned for it (`quote_note` says why one is absent). A policy plan's `notes` names a league the fetched league list lacks, or a covered league with no character listed. Review it, then hand `plan` to apply_plan.
+Compile a refresh plan for one realm and league, offline — sends nothing, spends nothing: from the stored sync policy, or with `selection` from that explicit selection, which needs no policy. The plan is the bounded action set applying would execute, with reasons, skips, unknown ids and a wire estimate; a running daemon adds its read-only quote, never spawned for it (`quote_note` says why one is absent). A policy plan's `notes` names a league the fetched league list lacks, or a covered league with no character listed. Review it, then hand `plan` to apply_plan. Its ages: `describe` ["ages"].
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
 - `league` (string | null) — League name; defaults to "Standard".
@@ -161,7 +161,7 @@ Item search over the store (no daemon): a query in the language `describe` print
 
 ### `set_sync_policy`
 
-Write the account's sync policy, validated strictly, compare-and-swap on `if_revision`. Local only: it sends nothing; the network cost appears only when a plan is applied. Each realm the value names replaces that realm alone, the others stay; `replace: true` writes the whole policy. Returns the stored row with the receipt — `target`, `written`, `prior`, `undo` (a request that puts `prior` back) or `no_undo` (why none) — and `league_notes` for a league the fetched league list lacks, with `list_fetched_at` (null if never fetched; a `leagues` job fetches it). Nothing refuses on a note.
+Write the account's sync policy, validated strictly, compare-and-swap on `if_revision`. Local only: it sends nothing. Each realm the value names replaces that realm alone, the others stay; `replace: true` writes the whole policy. Returns the stored row with the receipt — `target`, `written`, `prior`, `undo` (a request that puts `prior` back) or `no_undo` (why none) — and `league_notes` for a league the fetched league list lacks, with `list_fetched_at` (null if never fetched; a `leagues` job fetches it) and its age in words (`describe` ["ages"]). Nothing refuses on a note.
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
 - `if_revision` (integer | null) — The revision this write replaces, from sync_policy: required when a policy exists, `replace` or not; omitted only to create the first.
@@ -170,7 +170,7 @@ Write the account's sync policy, validated strictly, compare-and-swap on `if_rev
 
 ### `shop_render`
 
-The forum shop pages for one league, for a person to paste by hand; this server posts nothing and reads no forum (no daemon). One link code per hand-priced item under its price's spoiler, in pages of at most `size` characters: `pages` (each `text` is what to paste), `posted`, `left_out`, `counts`, `policy` and `freshness`, whether the sync policy covers the posted items — reported, never enforced. `describe` with names ["pricing"] says what each count counts.
+The forum shop pages for one league, for a person to paste by hand; this server posts nothing and reads no forum (no daemon). One link code per hand-priced item under its price's spoiler, in pages of at most `size` characters: `pages` (each `text` is what to paste), `posted`, `left_out`, `counts`, `policy` and `freshness`, whether the sync policy covers the posted items — reported, never enforced. `describe` with names ["pricing"] says what each count counts, and ["ages"] what an age's words say.
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
 - `expand` (boolean | null) — List every entry of `posted`, `left_out` and `freshness`'s lists, past the first ten, the items nothing applies to included in `left_out` (a league holds thousands); they are counted either way.
@@ -206,7 +206,7 @@ Submit a job to the daemon and return its id at once; poll job_status, then job_
 
 ### `sync_policy`
 
-The account's sync policy (declared coverage and freshness) with its revision — what refresh_plan compiles (no daemon). `policy` is null when none is set.
+The account's sync policy (declared coverage and freshness) with its revision — what refresh_plan compiles (no daemon). `policy` is null when none is set. Each age is in words beside its time (`describe` with names ["ages"]).
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
 

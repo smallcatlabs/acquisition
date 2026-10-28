@@ -174,6 +174,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 
 use acquisition_protocol::realm::Realm;
+use acquisition_store::age;
 use acquisition_store::bound::bounded;
 use acquisition_store::{
     AnnotationRow, CharacterSnapshot, ItemSnapshot, ListingBasis, PricingSnapshot, TabSnapshot,
@@ -197,6 +198,11 @@ use crate::price::{Buyout, Price, PriceTarget};
 /// bump. The shape is pinned by `reference/listing-report-schema-3.json`
 /// (`the_report_json_matches_the_committed_fixture`); a change that
 /// fails it is either additive (regenerate the fixture) or a bump.
+/// Within 3 (step 2g round 6, C53's ages, additive): beside an epoch a
+/// view's text says as an age, its words under the epoch's name and
+/// `_age` — `status`'s `taken_at_age` and listings', `show`'s
+/// `taken_at_age`, `manual.updated_at_age` and `basis.at_age` — absent
+/// from the report itself and from `list`, which say none.
 pub const LISTING_SCHEMA: u32 = 3;
 
 /// The GGG tab type that groups tabs and holds no items.
@@ -283,6 +289,10 @@ pub struct ManualSide {
     pub inherited: bool,
     pub revision: i64,
     pub updated_at: i64,
+    /// C53: `updated_at` in words at the answer's time, on the target
+    /// `show` shows.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub updated_at_age: Option<String>,
     pub written_via: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub actor: Option<String>,
@@ -438,12 +448,16 @@ impl fmt::Display for Effective {
 
 /// The fact the subject's texts came from: the fetch that last saw an
 /// item, or the listing that last named a tab or character.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Basis {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub response: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub at: Option<i64>,
+    /// C53: `at` in words at the answer's time (`never` where none), on
+    /// the target `show` shows.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at_age: Option<String>,
 }
 
 /// One subject's listing state.
@@ -579,10 +593,21 @@ pub struct ReportHeader {
     pub realm: Realm,
     pub league: String,
     pub taken_at: i64,
+    /// C53: `taken_at` in words at the answer's time, on a view whose
+    /// text says it (`status`, `show`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub taken_at_age: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stash_listing: Option<ListingBasis>,
+    /// C53: `stash_listing.fetched_at` in words at the answer's time
+    /// (`never` where none), on `status`, whose text says it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stash_listing_fetched_at_age: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub character_listing: Option<ListingBasis>,
+    /// C53: `character_listing.fetched_at`, the same way.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub character_listing_fetched_at_age: Option<String>,
     pub note_parser_version: u32,
     pub currency_table_version: u32,
 }
@@ -726,6 +751,19 @@ impl SetCounts {
 }
 
 impl ShowView {
+    /// C53 (an age the text prints stands in words beside its epoch,
+    /// made at the answer's own time): the target's hand row's last
+    /// write, the fact its texts came from, and the snapshot, said at
+    /// `now`, as `show`'s text says them.
+    pub fn aged(mut self, now: i64) -> ShowView {
+        self.header.taken_at_age = Some(age::ago(now, Some(self.header.taken_at)));
+        if let Some(manual) = &mut self.listing.manual {
+            manual.updated_at_age = Some(age::ago(now, Some(manual.updated_at)));
+        }
+        self.listing.basis.at_age = Some(age::ago(now, self.listing.basis.at));
+        self
+    }
+
     /// The view under the read economy's one rule (C53): each set cut to
     /// the request's `limit`, else ten, every item under `expand`, its
     /// counts standing whole beside it.
@@ -800,10 +838,16 @@ impl ListingReport {
 
     /// What `status` is: the report without its listings, each list of
     /// its row accounting ten unless `expand`, beside its whole count
-    /// (C53, the read economy).
-    pub fn status(&self, expand: bool) -> ListingReport {
+    /// (C53, the read economy), and the snapshot's and the listings' ages
+    /// its text says, in words at `now`, the answer's time (C53, ages).
+    pub fn status(&self, expand: bool, now: i64) -> ListingReport {
         let mut status = self.summary();
         status.rows = status.rows.bounded(expand);
+        let h = &mut status.header;
+        let listing = |l: Option<ListingBasis>| Some(age::ago(now, l.map(|l| l.fetched_at)));
+        h.taken_at_age = Some(age::ago(now, Some(h.taken_at)));
+        h.stash_listing_fetched_at_age = listing(h.stash_listing);
+        h.character_listing_fetched_at_age = listing(h.character_listing);
         status
     }
 
@@ -944,6 +988,7 @@ impl ManualRow {
             inherited,
             revision: self.revision,
             updated_at: self.updated_at,
+            updated_at_age: None,
             written_via: self.written_via.clone(),
             actor: self.actor.clone(),
         }
@@ -1526,6 +1571,7 @@ pub fn resolve(snapshot: &PricingSnapshot) -> Result<ListingReport, ListingError
         let basis = Basis {
             response: info.tab.listed_response,
             at: info.tab.listed_at,
+            at_age: None,
         };
         listings.push(listing(subject, &info.chain, &rows, game, basis));
     }
@@ -1546,6 +1592,7 @@ pub fn resolve(snapshot: &PricingSnapshot) -> Result<ListingReport, ListingError
         let basis = Basis {
             response: c.listed_response,
             at: c.listed_at,
+            at_age: None,
         };
         listings.push(listing(subject, &chain, &rows, game, basis));
     }
@@ -1626,6 +1673,7 @@ pub fn resolve(snapshot: &PricingSnapshot) -> Result<ListingReport, ListingError
         let basis = Basis {
             response: item.seen_response,
             at: Some(item.last_seen),
+            at_age: None,
         };
         let l = listing(subject, &chain, &rows, game, basis);
         counts.items += 1;
@@ -1689,6 +1737,9 @@ pub fn resolve(snapshot: &PricingSnapshot) -> Result<ListingReport, ListingError
             realm,
             league: snapshot.league.clone(),
             taken_at: snapshot.taken_at,
+            taken_at_age: None,
+            stash_listing_fetched_at_age: None,
+            character_listing_fetched_at_age: None,
             stash_listing: snapshot.stash_listing,
             character_listing: snapshot.character_listing,
             note_parser_version: NOTE_PARSER_VERSION,
@@ -1942,7 +1993,8 @@ mod tests {
             l.basis,
             Basis {
                 response: Some(7),
-                at: Some(120)
+                at: Some(120),
+                at_age: None,
             }
         );
 
@@ -2639,7 +2691,7 @@ mod tests {
             ),
             (13, 14, 12)
         );
-        let status = report.status(false);
+        let status = report.status(false, 0);
         let rows = &status.rows;
         assert_eq!(
             (
@@ -2664,7 +2716,49 @@ mod tests {
             (whole.total, whole.applied, whole.other_realm)
         );
         assert!(status.listings.is_empty());
-        assert_eq!(report.status(true).rows, report.rows);
+        assert_eq!(report.status(true, 0).rows, report.rows);
+    }
+
+    /// C53 (an age the text prints stands in words beside its epoch,
+    /// made at the answer's own time): `status` says the snapshot and the
+    /// two listings it was resolved over, `show` the snapshot, its
+    /// target's hand row and the fact its texts came from — each in the
+    /// store's words at the time given, beside its epoch — and a view no
+    /// text ages (`list`, the report) carries none.
+    #[test]
+    fn c53_status_and_show_say_the_ages_their_texts_print() {
+        let report = resolve(&snapshot()).unwrap();
+        let now = report.header.taken_at + 3_600;
+        let said = |at: Option<i64>| Some(acquisition_store::age::ago(now, at));
+        let status = report.status(false, now);
+        let h = &status.header;
+        assert_eq!(h.taken_at_age.as_deref(), Some("60m ago"));
+        assert_eq!(
+            h.stash_listing_fetched_at_age,
+            said(h.stash_listing.map(|l| l.fetched_at))
+        );
+        assert_eq!(
+            h.character_listing_fetched_at_age,
+            said(h.character_listing.map(|l| l.fetched_at))
+        );
+        let unaged = serde_json::to_value(&report).unwrap();
+        assert!(unaged.get("taken_at_age").is_none(), "{unaged}");
+
+        let item = report
+            .listings
+            .iter()
+            .find(|l| l.subject.is_item() && l.manual.is_some())
+            .expect("an item a hand row prices")
+            .subject
+            .target
+            .clone();
+        let shown = report.show_view(&item).unwrap().aged(now);
+        let doc = serde_json::to_value(&shown).unwrap();
+        assert_eq!(doc["taken_at_age"], "60m ago", "{doc}");
+        assert!(doc.get("stash_listing_fetched_at_age").is_none(), "{doc}");
+        let manual = shown.listing.manual.as_ref().unwrap();
+        assert_eq!(manual.updated_at_age, said(Some(manual.updated_at)));
+        assert_eq!(shown.listing.basis.at_age, said(shown.listing.basis.at));
     }
 
     /// C70 — every listing carries its chain, so a target's coverage is

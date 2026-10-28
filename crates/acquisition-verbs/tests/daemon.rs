@@ -301,8 +301,21 @@ async fn with_no_daemon_the_queue_and_its_counts_are_the_ledgers() {
         "bulk columns are not read: {jobs}"
     );
 
+    // the ledger's age in words (C53, step 2g round 6) is made at the
+    // answer's time, read here for its shape and set aside
+    let mut report = serde_json::to_value(frontend.daemon().await.unwrap()).unwrap();
+    let age = report["persisted"]
+        .as_object_mut()
+        .unwrap()
+        .remove("written_at_age");
+    assert!(
+        age.as_ref()
+            .and_then(serde_json::Value::as_str)
+            .is_some_and(|a| a.ends_with(" ago")),
+        "{report}"
+    );
     assert_eq!(
-        serde_json::to_value(frontend.daemon().await.unwrap()).unwrap(),
+        report,
         json!({
             "running": false,
             "persisted": { "waiting": 2, "recorded_running": 1, "written_at": 1_700_000_040 }

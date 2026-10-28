@@ -61,7 +61,8 @@ pub use daemon::{DaemonReport, PersistedSummary};
 pub use diagnose::{Diagnosis, Redactions, Tails};
 pub use fault::Fault;
 pub use frontend::{
-    Account, AccountRow, Accounts, Door, Frontend, JournalKnob, Opened, PolicyShown, realm,
+    Account, AccountRow, Accounts, Door, Frontend, JournalKnob, Opened, PolicyShown, ShownPolicy,
+    realm,
 };
 pub use jobs::{
     ByState, ChildTally, FailedChild, Job, JobCounts, JobResult, Jobs, Listed, PersistedJobs,

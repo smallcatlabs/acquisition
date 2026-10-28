@@ -350,6 +350,20 @@ pub struct PersistedJob {
     pub cancel_requested: bool,
     pub submitted_at: i64,
     pub updated_at: i64,
+    /// C53: `updated_at` in words at the answer's time, where the
+    /// answer's maker says it ([`PersistedJob::aged`]): `job_status`
+    /// with no daemon, whose text says when its row was written.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub updated_at_age: Option<String>,
+}
+
+impl PersistedJob {
+    /// C53: the row with its last write's age said at `now`, the
+    /// answer's time.
+    pub fn aged(mut self, now: i64) -> PersistedJob {
+        self.updated_at_age = Some(crate::age::ago(now, Some(self.updated_at)));
+        self
+    }
 }
 
 /// The queue as the ledger holds it, read with no daemon running (C45).
@@ -437,6 +451,7 @@ impl Persisted {
                         cancel_requested: r.get(9)?,
                         submitted_at: r.get(10)?,
                         updated_at: r.get(11)?,
+                        updated_at_age: None,
                     },
                     outcome: r.get::<_, Option<String>>(12)?.map(parse),
                 })
@@ -505,6 +520,7 @@ impl Persisted {
                     cancel_requested: r.get(9)?,
                     submitted_at: r.get(10)?,
                     updated_at: r.get(11)?,
+                    updated_at_age: None,
                 })
             })
             .with_context(context)?;

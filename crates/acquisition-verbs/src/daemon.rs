@@ -7,6 +7,7 @@ use std::path::PathBuf;
 
 use acquisition_client::client::{DaemonId, Unresponsive};
 use acquisition_protocol::protocol::{Request, Response};
+use acquisition_store::jobs::Persisted;
 use acquisition_store::world::World;
 use serde::Serialize;
 use serde::ser::Serializer;
@@ -23,6 +24,22 @@ pub struct PersistedSummary {
     pub waiting: usize,
     pub recorded_running: usize,
     pub written_at: Option<i64>,
+    /// C53: `written_at` in words at the answer's time, `never` for a
+    /// ledger with no rows.
+    pub written_at_age: String,
+}
+
+impl PersistedSummary {
+    /// The ledger's counts, its last write said as an age at `now`, the
+    /// answer's time (C53).
+    pub fn of(persisted: &Persisted, now: i64) -> PersistedSummary {
+        PersistedSummary {
+            waiting: persisted.waiting(),
+            recorded_running: persisted.recorded_running(),
+            written_at: persisted.written_at,
+            written_at_age: acquisition_store::age::ago(now, persisted.written_at),
+        }
+    }
 }
 
 /// The daemon of this world, as one observation found it.
@@ -134,11 +151,9 @@ impl Frontend {
         let mut client = match observed {
             acquisition_client::client::Observed::Compatible(client) => client,
             acquisition_client::client::Observed::Absent => {
-                let persisted = self.persisted()?.map(|p| PersistedSummary {
-                    waiting: p.waiting(),
-                    recorded_running: p.recorded_running(),
-                    written_at: p.written_at,
-                });
+                let persisted = self
+                    .persisted()?
+                    .map(|p| PersistedSummary::of(&p, acquisition_store::now()));
                 // Where the last daemon of this world logged, when it left
                 // a log: the path this frontend's world derives, which is
                 // the one a daemon it spawned used.

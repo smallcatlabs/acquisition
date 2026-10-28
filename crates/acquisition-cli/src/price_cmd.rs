@@ -57,15 +57,13 @@ pub fn status(cx: &Ctx, realm: Realm, league: &str, expand: bool, json: bool) ->
     let (store, annotations, username) = opened(cx)?;
     // the document both print: its row lists ten unless --expand,
     // each counted whole (C53)
-    let r = pricing::report(&store, &annotations, realm, league)?.status(expand);
+    let now = acquisition_store::now();
+    let r = pricing::report(&store, &annotations, realm, league)?.status(expand, now);
     if json {
         println!("{}", serde_json::to_string_pretty(&r)?);
         return Ok(());
     }
-    print!(
-        "{}",
-        render_status(&r, acquisition_store::now(), expand, &username)
-    );
+    print!("{}", render_status(&r, now, expand, &username));
     Ok(())
 }
 

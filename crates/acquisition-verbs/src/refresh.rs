@@ -34,6 +34,10 @@ pub const QUOTE_TIMEOUT: Duration = Duration::from_secs(5);
 #[derive(Clone, Debug, Serialize)]
 pub struct Planned {
     pub plan: RefreshPlan,
+    /// The ages the plan's text prints, in words at the answer's time
+    /// (C53), beside the envelope and never in it ([`PlanAges`]).
+    #[serde(flatten)]
+    pub ages: PlanAges,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub quote_note: Option<QuoteNote>,
     /// What the compile saw beside the plan (C126, a league the list
@@ -41,6 +45,51 @@ pub struct Planned {
     /// plan read from a file, which reads no store.
     #[serde(skip_serializing_if = "PlanNotes::is_empty")]
     pub notes: PlanNotes,
+}
+
+/// C53 (an age the text prints stands in words beside its epoch, made at
+/// the answer's own time), for a plan: the envelope is strict and its
+/// shape a plan-schema event (`protocol.rs`, `Quote`; a parsed plan must
+/// reserialize byte for byte), so the words for its epochs stand on the
+/// verbs' presentation beside it, each named for the epoch's path in the
+/// envelope and `_age`. Empty, and absent, until [`Planned::aged`].
+#[derive(Clone, Debug, Default, Serialize)]
+pub struct PlanAges {
+    /// `plan.generated_at` at the answer's time: how old the plan is.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub generated_at_age: Option<String>,
+    /// `plan.basis.stash_listing.fetched_at` measured from the plan's own
+    /// `generated_at`, as its text says the facts' age (`3h before
+    /// generated_at`), `never` where the stashes were never listed.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stash_listing_fetched_at_age: Option<String>,
+    /// `plan.basis.character_listing.fetched_at`, the same way.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub character_listing_fetched_at_age: Option<String>,
+    /// `plan.quote.observed_at` at the answer's time, where a quote
+    /// stands.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quote_observed_at_age: Option<String>,
+}
+
+impl Planned {
+    /// The plan's ages said at `now`, the answer's time; the listings'
+    /// from the plan's own `generated_at`, as its text measures them.
+    /// The envelope is untouched.
+    pub fn aged(mut self, now: i64) -> Planned {
+        use acquisition_store::age::{ago, before};
+        let plan = &self.plan;
+        let basis = |l: Option<&acquisition_store::ListingBasis>| {
+            before("generated_at", plan.generated_at, l.map(|l| l.fetched_at))
+        };
+        self.ages = PlanAges {
+            generated_at_age: Some(ago(now, Some(plan.generated_at))),
+            stash_listing_fetched_at_age: Some(basis(plan.basis.stash_listing.as_ref())),
+            character_listing_fetched_at_age: Some(basis(plan.basis.character_listing.as_ref())),
+            quote_observed_at_age: plan.quote.as_ref().map(|q| ago(now, Some(q.observed_at))),
+        };
+        self
+    }
 }
 
 /// How many tabs and characters the plan skipped: every apply answer
@@ -201,6 +250,7 @@ pub async fn quote_within(world: &Path, plan: RefreshPlan, limit: Duration) -> P
         // account; with no name on record there is nothing to quote as.
         return Planned {
             plan,
+            ages: PlanAges::default(),
             quote_note: Some(QuoteNote::NoAccountName),
             notes: PlanNotes::default(),
         };
@@ -236,6 +286,7 @@ pub async fn quote_within(world: &Path, plan: RefreshPlan, limit: Duration) -> P
             Ok(enriched) => {
                 return Planned {
                     plan: enriched,
+                    ages: PlanAges::default(),
                     quote_note: None,
                     notes: PlanNotes::default(),
                 };
@@ -247,6 +298,7 @@ pub async fn quote_within(world: &Path, plan: RefreshPlan, limit: Duration) -> P
     };
     Planned {
         plan,
+        ages: PlanAges::default(),
         quote_note: Some(miss),
         notes: PlanNotes::default(),
     }
@@ -307,7 +359,7 @@ pub fn spent_phrase(spent: &[Spent], now: i64) -> String {
     let fetched: Vec<i64> = spent
         .iter()
         .filter_map(|s| match s.by {
-            SpentBy::Fetched { fetched_at } => Some(fetched_at),
+            SpentBy::Fetched { fetched_at, .. } => Some(fetched_at),
             SpentBy::Queued { .. } => None,
         })
         .collect();
@@ -333,6 +385,12 @@ pub fn spent_phrase(spent: &[Spent], now: i64) -> String {
         ));
     }
     parts.join(", ")
+}
+
+/// C53: the spent requests' fetches said as ages at `now`, the
+/// answer's time.
+fn aged(spent: Vec<Spent>, now: i64) -> Vec<Spent> {
+    spent.into_iter().map(|s| s.aged(now)).collect()
 }
 
 /// C111 (a request spent once): the jobs holding a plan's queued
@@ -384,8 +442,9 @@ impl Opened {
             acquisition_store::now(),
         )?;
         let mut planned = quote(&self.account.frontend.root, plan).await;
-        planned.notes = plan_notes(&snapshot);
-        Ok(planned)
+        let now = acquisition_store::now();
+        planned.notes = plan_notes(&snapshot, now);
+        Ok(planned.aged(now))
     }
 
     /// C44 as amended: an explicit selection compiled into a plan for one
@@ -412,7 +471,9 @@ impl Opened {
         selection: &PlanSelection,
     ) -> Result<Planned, Fault> {
         let plan = self.compile_selection(realm, league, selection, acquisition_store::now())?;
-        Ok(quote(&self.account.frontend.root, plan).await)
+        Ok(quote(&self.account.frontend.root, plan)
+            .await
+            .aged(acquisition_store::now()))
     }
 
     /// What a plan compiled now over the facts would fetch: `None` when
@@ -485,6 +546,10 @@ impl Opened {
                 (unspent, spent) = plan.unspent(&facts, &jobs, &username);
             }
         }
+        // C53: each fetch that spent a request said as an age at the
+        // answer's time, as the text says the latest
+        let now = acquisition_store::now();
+        let spent = aged(spent, now);
         let connected = match client.as_mut() {
             Some(connected) if !unspent.is_empty() => connected,
             _ => {
@@ -497,7 +562,7 @@ impl Opened {
                     requests: 0,
                     note: format!(
                         "nothing to do: every request of this plan is spent — {}",
-                        spent_phrase(&spent, acquisition_store::now())
+                        spent_phrase(&spent, now)
                     ),
                     spent,
                     skipped,
@@ -544,7 +609,7 @@ impl Opened {
             account: submitted.account,
             store_changes,
             remaining_requests: self.remaining(plan),
-            spent: submitted.spent,
+            spent: aged(submitted.spent, acquisition_store::now()),
             failed_children,
         })
     }

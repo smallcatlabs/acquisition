@@ -136,8 +136,11 @@ fn seed(base: &Path) {
 
 /// A document with the clock's own readings taken out — when the
 /// snapshot was taken and the render made, a second apart at most
-/// between the two processes — and, for a write's receipt, when the row
-/// was written and through which surface (`mcp` or `cli`, by design).
+/// between the two processes, and every age said in words beside an
+/// epoch (an `_age` key, C53: made at each answer's own time, so the two
+/// processes' can differ by a second) — and, for a write's receipt, when
+/// the row was written and through which surface (`mcp` or `cli`, by
+/// design).
 fn steady(mut doc: Value, keys: &[&str]) -> Value {
     fn strip(v: &mut Value, keys: &[&str]) {
         match v {
@@ -145,6 +148,7 @@ fn steady(mut doc: Value, keys: &[&str]) -> Value {
                 for key in keys {
                     map.remove(*key);
                 }
+                map.retain(|key, _| !key.ends_with("_age"));
                 for child in map.values_mut() {
                     strip(child, keys);
                 }
@@ -915,8 +919,18 @@ fn a_conflicts_current_is_the_row_price_show_prints_verbatim() {
     let mut mcp = Mcp::start(base, &[]);
     let (ok, view) = tool(&mut mcp, "price_show", json!({ "target": "item/i-map" }));
     assert!(ok, "{view}");
-    let manual = view["listing"]["manual"].clone();
+    let mut manual = view["listing"]["manual"].clone();
     assert_eq!(manual["actor"], "acq search --count tab", "{view}");
+    // less the words C53 says beside its `updated_at` on `show` (step 2g
+    // round 6), which a refusal does not carry: round 6 touches no refusal
+    assert!(
+        manual
+            .as_object_mut()
+            .unwrap()
+            .remove("updated_at_age")
+            .is_some(),
+        "{view}"
+    );
     let (ok, refusal) = tool(
         &mut mcp,
         "price_set",

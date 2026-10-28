@@ -98,13 +98,29 @@ fn a_policy_written_under_revision_0_is_created_only_where_none_stands() {
             .contains("the sync policy is at revision 1"),
         "{refused}"
     );
-    let shown = sole_json(&acq(&base, &["policy", "show", "--json"]))["policy"].clone();
+    let shown = shown_row(sole_json(&acq(&base, &["policy", "show", "--json"])));
     assert_eq!(refused["current"], shown, "{refused}");
     assert_eq!(shown["revision"], json!(1));
     assert_eq!(
         shown["value"],
         serde_json::from_str::<Value>(first).unwrap()
     );
+}
+
+/// `policy show --json`'s row without the words C53 adds beside its
+/// `updated_at` (an age made at the answer's time, round 6 of step 2g),
+/// which this file's comparisons set aside after reading their shape:
+/// the row as a write's receipt or a refusal carries it.
+fn shown_row(shown: Value) -> Value {
+    let mut row = shown["policy"].clone();
+    let age = row.as_object_mut().unwrap().remove("updated_at_age");
+    assert!(
+        age.as_ref()
+            .and_then(Value::as_str)
+            .is_some_and(|a| a.ends_with(" ago")),
+        "{shown}"
+    );
+    row
 }
 
 #[test]
@@ -160,7 +176,8 @@ fn json_stdout_is_the_contract_surface() {
     let mut row = sole_json(&out);
     assert_eq!(
         row.as_object_mut().unwrap().remove("league_notes"),
-        Some(json!([{ "league": "Standard", "list_fetched_at": null }]))
+        Some(json!([{ "league": "Standard", "list_fetched_at": null,
+                       "list_fetched_at_age": "never" }]))
     );
     assert_eq!(row["revision"], json!(1));
     assert_eq!(row["value"], serde_json::from_str::<Value>(policy).unwrap());
@@ -175,7 +192,7 @@ fn json_stdout_is_the_contract_surface() {
     assert!(receipt.remove("target").is_some() && receipt.remove("no_undo").is_some());
     assert_eq!(written.as_ref(), Some(&row));
     let out = acq(&base, &["policy", "show", "--json"]);
-    assert_eq!(sole_json(&out), json!({ "policy": row }));
+    assert_eq!(shown_row(sole_json(&out)), row);
 
     // A conflicting --if-revision is {"error": …} naming the current
     // revision, exit 1.

@@ -151,12 +151,12 @@ pub fn policy_show(cx: &Ctx, json: bool) -> Result<()> {
         None => {
             println!("no sync policy is set — write one with `acq policy set '{POLICY_EXAMPLE}'`")
         }
-        Some(row) => {
-            println!("{}", serde_json::to_string_pretty(&row.value)?);
+        Some(shown) => {
+            println!("{}", serde_json::to_string_pretty(&shown.row.value)?);
             println!(
                 "revision {}, updated {}",
-                row.revision,
-                store_cmd::ago(acquisition_store::now(), Some(row.updated_at))
+                shown.row.revision,
+                store_cmd::ago(acquisition_store::now(), Some(shown.row.updated_at))
             );
         }
     }
@@ -305,9 +305,11 @@ pub async fn refresh_plan(
         plan,
         quote_note,
         notes,
+        ..
     } = match source {
         Some(source) => Planned {
             plan: read_plan(source)?,
+            ages: acquisition_verbs::refresh::PlanAges::default(),
             quote_note: None,
             notes: PlanNotes::default(),
         },
@@ -377,6 +379,7 @@ pub async fn refresh_selection(
         plan,
         quote_note,
         notes,
+        ..
     } = opened.plan_selection(realm, league, &selection).await?;
     if !json {
         print!(

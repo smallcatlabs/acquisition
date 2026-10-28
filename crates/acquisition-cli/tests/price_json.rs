@@ -558,7 +558,19 @@ fn a_write_refused_for_its_revision_is_a_conflict_naming_it_in_the_verbs_words()
         "--json",
     ]);
     let shown = sole_json(&acq(&base, &["price", "show", "item/i-map", "--json"]));
-    assert_eq!(doc["current"], shown["listing"]["manual"], "{doc}");
+    // the row `show` prints, less the words C53 says beside its
+    // `updated_at` there (step 2g round 6), which a refusal does not
+    // carry: round 6 touches no refusal
+    let mut manual = shown["listing"]["manual"].clone();
+    assert!(
+        manual
+            .as_object_mut()
+            .unwrap()
+            .remove("updated_at_age")
+            .is_some(),
+        "{shown}"
+    );
+    assert_eq!(doc["current"], manual, "{doc}");
     doc.as_object_mut().unwrap().remove("current");
     assert_eq!(
         doc,

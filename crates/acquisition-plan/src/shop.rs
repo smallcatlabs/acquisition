@@ -144,7 +144,9 @@ use crate::{Selection, SyncPolicy};
 /// (`acquisition_store::bound::LISTED`) unless expanded, each counted
 /// whole beside it (`posted_total`, `left_out_total`, `uncovered_total`,
 /// `stale_total`, `position_before_listing_total`) — the readiness
-/// seat's call 35 was 34,779 bytes for a 2,800-character page. **5**
+/// seat's call 35 was 34,779 bytes for a 2,800-character page; and
+/// beside `freshness.oldest_stale_seconds` its words,
+/// `oldest_stale_seconds_age` (C53's ages, step 2g round 6). **5**
 /// since 2026-10-19: `left_out` lists at most fifty items, the blocked
 /// first, with `left_out_total` counting them all, unless expanded —
 /// the release seat's rerun met 160 KB of them. **4** since
@@ -478,6 +480,10 @@ pub struct Freshness {
     /// measured every posted item under the name `oldest_seconds`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub oldest_stale_seconds: Option<i64>,
+    /// C53: `oldest_stale_seconds` in words, an age at the render's time
+    /// (`1h ago`), as the text says the oldest.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub oldest_stale_seconds_age: Option<String>,
     /// Posted stash items whose fetch predates the stash listing their
     /// `Stash<n>` comes from: ten unless expanded.
     pub position_before_listing: Vec<PriceTarget>,
@@ -1125,6 +1131,7 @@ fn freshness(report: &ListingReport, entries: &[Entry], opts: &RenderOptions<'_>
         stale_total: 0,
         stale_uncovered: 0,
         oldest_stale_seconds: None,
+        oldest_stale_seconds_age: None,
         position_before_listing: Vec::new(),
         position_before_listing_total: 0,
     };
@@ -1200,6 +1207,9 @@ fn freshness(report: &ListingReport, entries: &[Entry], opts: &RenderOptions<'_>
         }
     }
     out.uncovered = uncovered.into_iter().collect();
+    out.oldest_stale_seconds_age = out
+        .oldest_stale_seconds
+        .map(acquisition_store::age::span_ago);
     out
 }
 
@@ -1868,6 +1878,35 @@ mod tests {
     /// C37), facts older than the window are named with the refresh's
     /// request count, a stash item whose fetch predates the listing is
     /// named; an absent, unreadable or non-covering policy says which.
+    /// C53 (an age the text prints stands in words beside its epoch,
+    /// made at the answer's own time): the oldest stale item's age, the
+    /// span the render measured at its own time, stands in the words the
+    /// text's "oldest" says, beside the seconds.
+    #[test]
+    fn c53_the_oldest_stale_age_stands_in_words_beside_its_seconds() {
+        let policy = SyncPolicy::from_value(&json!({
+            "version": 3,
+            "realms": { "pc": { "leagues": { "Standard": {
+                "tabs": ["f1"], "characters": ["ch1"], "max_age_seconds": 3600 } } } }
+        }))
+        .unwrap();
+        let r = render(
+            &report(),
+            &opts(PolicySource::Set {
+                policy: &policy,
+                revision: 4,
+                refresh: Ok(7),
+            }),
+        )
+        .unwrap();
+        let f = &r.freshness;
+        assert_eq!(f.oldest_stale_seconds, Some(3_800));
+        assert_eq!(f.oldest_stale_seconds_age.as_deref(), Some("63m ago"));
+        let none = render(&report(), &opts(PolicySource::NotSet)).unwrap();
+        assert_eq!(none.freshness.oldest_stale_seconds, None);
+        assert!(none.freshness.oldest_stale_seconds_age.is_none());
+    }
+
     #[test]
     fn c72_coverage_staleness_and_positions_are_reported_never_enforced() {
         let report = report();

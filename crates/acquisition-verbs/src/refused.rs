@@ -19,9 +19,14 @@ pub struct RefusedBodies {
 }
 
 impl RefusedBodies {
-    /// The store's listing of its refused bodies, at most `limit`.
-    pub fn read(store: &Store, limit: usize) -> anyhow::Result<RefusedBodies> {
-        let rows = store.refused_list(limit)?;
+    /// The store's listing of its refused bodies, at most `limit`, each
+    /// row's fetch said as an age at `now`, the answer's time (C53).
+    pub fn read(store: &Store, limit: usize, now: i64) -> anyhow::Result<RefusedBodies> {
+        let rows: Vec<Refused> = store
+            .refused_list(limit)?
+            .into_iter()
+            .map(|row| row.aged(now))
+            .collect();
         Ok(RefusedBodies {
             limit,
             returned: rows.len(),

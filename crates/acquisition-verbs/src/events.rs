@@ -36,7 +36,8 @@ pub struct Events {
 
 impl Events {
     /// The newest `limit` (else ten) events of the last `hours` before
-    /// `now`, from the store's own read (C34).
+    /// `now`, from the store's own read (C34), each event's time said as
+    /// an age at `now` (C53).
     pub fn read(
         store: &Store,
         now: i64,
@@ -45,7 +46,11 @@ impl Events {
     ) -> anyhow::Result<Events> {
         let limit = limit.unwrap_or(LISTED);
         let since = now - (hours * 3600.0) as i64;
-        let rows = store.events_since(since, limit)?;
+        let rows: Vec<EventRow> = store
+            .events_since(since, limit)?
+            .into_iter()
+            .map(|row| row.aged(now))
+            .collect();
         Ok(Events {
             hours,
             limit,
@@ -93,8 +98,10 @@ pub struct EventSummary {
 }
 
 impl EventSummary {
-    /// `events` grouped by location (`summary`), counted whole, then cut.
-    pub fn of(events: &Events, rows: Vec<LocationChanges>, expand: bool) -> EventSummary {
+    /// `events` grouped by location (`summary`), counted whole, then cut,
+    /// each listed location's latest event said as an age at `now`, the
+    /// answer's time (C53).
+    pub fn of(events: &Events, rows: Vec<LocationChanges>, expand: bool, now: i64) -> EventSummary {
         let by_kind = KindTotals {
             added: rows.iter().map(|r| r.added).sum(),
             changed: rows.iter().map(|r| r.changed).sum(),
@@ -103,6 +110,13 @@ impl EventSummary {
         };
         let locations = rows.len();
         let (rows, left_out) = bounded(rows, None, expand);
+        let rows = rows
+            .into_iter()
+            .map(|mut row| {
+                row.last_age = Some(acquisition_store::age::ago(now, Some(row.last)));
+                row
+            })
+            .collect();
         EventSummary {
             hours: events.hours,
             limit: events.limit,
@@ -130,6 +144,10 @@ pub struct LocationChanges {
     pub removed: usize,
     pub first: i64,
     pub last: i64,
+    /// C53: `last` in words at the answer's time, on a location a
+    /// summary lists.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_age: Option<String>,
 }
 
 /// C53 and C34: `events` grouped by location, the newest activity first,
@@ -248,6 +266,7 @@ mod tests {
     fn moved(n: usize, at: i64) -> EventRow {
         EventRow {
             at,
+            at_age: None,
             item_id: format!("i{n}"),
             kind: "moved".into(),
             from_location: Some(format!("stash/pc/Standard/from{n:02}")),
@@ -274,7 +293,7 @@ mod tests {
         };
         let locations = summarize(&events.rows, &mut |_| None);
         assert_eq!(locations.len(), 20);
-        let summary = EventSummary::of(&events, locations.clone(), false);
+        let summary = EventSummary::of(&events, locations.clone(), false, 2_000);
         assert_eq!(summary.events, 10);
         assert_eq!(summary.locations, 20);
         assert_eq!(summary.rows.len(), LISTED);
@@ -289,9 +308,44 @@ mod tests {
         );
         let doc = serde_json::to_value(&summary).unwrap();
         assert!(doc.is_object(), "{doc}");
-        let whole = EventSummary::of(&events, locations, true);
+        let whole = EventSummary::of(&events, locations, true, 2_000);
         assert_eq!((whole.rows.len(), whole.left_out), (20, 0));
         assert_eq!(whole.by_kind, summary.by_kind);
         assert_eq!(whole.left_out_needs, None);
+    }
+
+    /// C53 (an age the text prints stands in words beside its epoch,
+    /// made at the answer's own time): each listed location says its
+    /// latest event as `acq store events` prints it, under `last_age`.
+    #[test]
+    fn c53_a_listed_location_says_its_latest_event_as_an_age() {
+        let rows: Vec<EventRow> = vec![moved(0, 1_000), moved(1, 1_000 - 3_600)];
+        let events = Events {
+            hours: 24.0,
+            limit: LISTED,
+            returned: rows.len(),
+            limit_reached: false,
+            rows,
+        };
+        let summary = EventSummary::of(
+            &events,
+            summarize(&events.rows, &mut |_| None),
+            false,
+            1_045,
+        );
+        let ages: Vec<(i64, Option<&str>)> = summary
+            .rows
+            .iter()
+            .map(|r| (r.last, r.last_age.as_deref()))
+            .collect();
+        assert_eq!(
+            ages,
+            [
+                (1_000, Some("45s ago")),
+                (1_000, Some("45s ago")),
+                (-2_600, Some("60m ago")),
+                (-2_600, Some("60m ago")),
+            ]
+        );
     }
 }

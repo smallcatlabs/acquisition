@@ -128,6 +128,7 @@ impl Refused {
                         inherited: false,
                         revision: row.revision,
                         updated_at: row.updated_at,
+                        updated_at_age: None,
                         written_via: row.written_via.clone(),
                         actor: row.actor.clone(),
                     })
@@ -383,7 +384,8 @@ pub struct Bound {
 }
 
 /// `price show <target>`: one target's view, in the league the facts hold
-/// it in unless one is named, each item set under `bound`. `account` is
+/// it in unless one is named, each item set under `bound`, the ages its
+/// text says in words at the answer's time ([`ShowView::aged`]). `account` is
 /// the resolved account's name and `quote` the frontend's shell quoting,
 /// for the command a refusal names (`not_on_record`).
 #[allow(clippy::too_many_arguments)]
@@ -402,7 +404,9 @@ pub fn show(
     let league = league_of(store, &[&target], league)?;
     let r = report(store, annotations, realm, &league)?;
     match r.show_view(&target) {
-        Some(view) => Ok(view.bounded(bound.limit, bound.expand)),
+        Some(view) => Ok(view
+            .bounded(bound.limit, bound.expand)
+            .aged(acquisition_store::now())),
         None => {
             let (scope, key) = target.address()?;
             let own = annotations.get(scope, &key, BUYOUT_KIND)?;
@@ -1441,6 +1445,12 @@ mod tests {
         .listing
         .manual
         .unwrap();
+        // less the words C53 says beside its `updated_at` on `show` (step
+        // 2g round 6), which a refusal does not carry
+        let shown = ManualSide {
+            updated_at_age: None,
+            ..shown
+        };
         for e in [
             write(&mut a, Expect::Exactly(9)).unwrap_err(),
             write(&mut a, Expect::Create).unwrap_err(),

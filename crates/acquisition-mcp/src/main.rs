@@ -672,7 +672,7 @@ const DAEMON: [(&str, &str); 8] = [
     ),
     (
         "no daemon",
-        "list_jobs, job_status, job_result and daemon_status observe only: with no daemon running none of them spawns one, and each answers from the ledger on disk; list_jobs, job_status and daemon_status say `running: false` — list_jobs `persisted`, the open rows as the last daemon left them (without ETAs), and `written_at`, how old that picture is; job_status the job's row and `next`, the command a person runs to start a daemon; daemon_status `persisted` (waiting, recorded_running, written_at) and `log`, the last daemon's log file in this world. `persisted` is null when this world has no queue yet; job_result answers a finished job's outcome as a running daemon would",
+        "list_jobs, job_status, job_result and daemon_status observe only: with no daemon running none of them spawns one, and each answers from the ledger on disk; list_jobs, job_status and daemon_status say `running: false` — list_jobs `persisted`, the open rows as the last daemon left them (without ETAs), and `written_at`, how old that picture is, `written_at_age` in words; job_status the job's row, with `updated_at_age` when it was written, and `next`, the command a person runs to start a daemon; daemon_status `persisted` (waiting, recorded_running, written_at and written_at_age) and `log`, the last daemon's log file in this world. `persisted` is null when this world has no queue yet; job_result answers a finished job's outcome as a running daemon would",
     ),
     (
         "job counts",
@@ -1654,24 +1654,21 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Item events (added/moved/changed/removed) from recent ingests (no daemon): the newest ten, `limit` more or fewer, beside how many were returned and whether the limit was reached; `summary: true` counts them by location instead, ten locations, `expand` every one. `describe` with names [\"store\"] says what each count counts."
+        description = "Item events (added/moved/changed/removed) from recent ingests (no daemon): the newest ten, `limit` more or fewer, beside how many were returned and whether the limit was reached; `summary: true` counts them by location instead, ten locations, `expand` every one. `describe` with names [\"store\"] says what each count counts, and [\"ages\"] what an age's words say."
     )]
     fn item_events(&self, Parameters(p): Parameters<Args<EventsParams>>) -> Told {
         use acquisition_verbs::events::{EventSummary, Events, summary};
         answer(|| -> Result<Value> {
             let p = p.parse()?;
             let store = self.facts(p.account.as_deref())?;
-            let events = Events::read(
-                &store,
-                acquisition_store::now(),
-                p.hours.unwrap_or(24.0),
-                p.limit,
-            )?;
+            let now = acquisition_store::now();
+            let events = Events::read(&store, now, p.hours.unwrap_or(24.0), p.limit)?;
             Ok(if p.summary.unwrap_or(false) {
                 serde_json::to_value(EventSummary::of(
                     &events,
                     summary(&store, &events.rows),
                     p.expand.unwrap_or(false),
+                    now,
                 ))?
             } else {
                 serde_json::to_value(events)?
@@ -1682,7 +1679,7 @@ impl AcqMcp {
     // ---- the intent/plan slice (tracer step 8): policy → plan → apply ----
 
     #[tool(
-        description = "The account's sync policy (declared coverage and freshness) with its revision — what refresh_plan compiles (no daemon). `policy` is null when none is set."
+        description = "The account's sync policy (declared coverage and freshness) with its revision — what refresh_plan compiles (no daemon). `policy` is null when none is set. Each age is in words beside its time (`describe` with names [\"ages\"])."
     )]
     fn sync_policy(&self, Parameters(p): Parameters<Args<StoreParams>>) -> Told {
         answer(|| {
@@ -1693,7 +1690,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Write the account's sync policy, validated strictly, compare-and-swap on `if_revision`. Local only: it sends nothing; the network cost appears only when a plan is applied. Each realm the value names replaces that realm alone, the others stay; `replace: true` writes the whole policy. Returns the stored row with the receipt — `target`, `written`, `prior`, `undo` (a request that puts `prior` back) or `no_undo` (why none) — and `league_notes` for a league the fetched league list lacks, with `list_fetched_at` (null if never fetched; a `leagues` job fetches it). Nothing refuses on a note."
+        description = "Write the account's sync policy, validated strictly, compare-and-swap on `if_revision`. Local only: it sends nothing. Each realm the value names replaces that realm alone, the others stay; `replace: true` writes the whole policy. Returns the stored row with the receipt — `target`, `written`, `prior`, `undo` (a request that puts `prior` back) or `no_undo` (why none) — and `league_notes` for a league the fetched league list lacks, with `list_fetched_at` (null if never fetched; a `leagues` job fetches it) and its age in words (`describe` [\"ages\"]). Nothing refuses on a note."
     )]
     fn set_sync_policy(&self, Parameters(p): Parameters<Args<SetPolicyParams>>) -> Told {
         let written = (|| -> Result<_> {
@@ -1718,7 +1715,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Compile a refresh plan for one realm and league, offline — sends nothing, spends nothing: from the stored sync policy, or with `selection` from that explicit selection, which needs no policy. The plan is the bounded action set applying would execute, with reasons, skips, unknown ids and a wire estimate; a running daemon adds its read-only quote, never spawned for it (`quote_note` says why one is absent). A policy plan's `notes` names a league the fetched league list lacks, or a covered league with no character listed. Review it, then hand `plan` to apply_plan."
+        description = "Compile a refresh plan for one realm and league, offline — sends nothing, spends nothing: from the stored sync policy, or with `selection` from that explicit selection, which needs no policy. The plan is the bounded action set applying would execute, with reasons, skips, unknown ids and a wire estimate; a running daemon adds its read-only quote, never spawned for it (`quote_note` says why one is absent). A policy plan's `notes` names a league the fetched league list lacks, or a covered league with no character listed. Review it, then hand `plan` to apply_plan. Its ages: `describe` [\"ages\"]."
     )]
     async fn refresh_plan(&self, Parameters(p): Parameters<Args<PlanParams>>) -> Told {
         settled(
@@ -1740,7 +1737,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Execute a reviewed plan, its actions and nothing else, as one `apply` parent job the daemon admits or refuses whole. Refused offline if the stored policy revision moved since the plan (replan with refresh_plan). A plan spends each request once: an action fetched since the plan, or held by the daemon, is listed in `spent` and not sent, so a replay answers `applied: false` with `remaining_requests`, what a plan compiled now would fetch. Returns `job_id`, `account`, `requests`, `spent` and `skipped`; poll job_status, then job_result."
+        description = "Execute a reviewed plan, its actions and nothing else, as one `apply` parent job the daemon admits or refuses whole. Refused offline if the stored policy revision moved since the plan (replan with refresh_plan). A plan spends each request once: an action fetched since the plan, or held by the daemon, is listed in `spent` and not sent, so a replay answers `applied: false` with `remaining_requests`, what a plan compiled now would fetch. Returns `job_id`, `account`, `requests`, `spent` and `skipped`; poll job_status, then job_result. Ages in words: `describe` [\"ages\"]."
     )]
     async fn apply_plan(&self, Parameters(p): Parameters<Args<ApplyParams>>) -> Told {
         settled(
@@ -1757,7 +1754,7 @@ impl AcqMcp {
     // ---- pricing: adapters of acquisition-plan's pricing verbs ----
 
     #[tool(
-        description = "The listing state of one league, counted (no daemon): what every item, tab and character is priced as — by hand, in game, how the two stand — as the counts and the row accounting, without the listings themselves; `describe` with names [\"pricing\"] says what each count counts. price_list names the items; price_show is one target."
+        description = "The listing state of one league, counted (no daemon): what every item, tab and character is priced as — by hand, in game, how the two stand — as the counts and the row accounting, without the listings themselves; `describe` with names [\"pricing\"] says what each count counts. price_list names the items; price_show is one target. Each age is in words beside its time (`describe` with names [\"ages\"])."
     )]
     fn price_status(&self, Parameters(p): Parameters<Args<PriceStatusParams>>) -> Told {
         let p = match p.read() {
@@ -1778,7 +1775,7 @@ impl AcqMcp {
             .unwrap_or(acquisition_plan::pricing::DEFAULT_LEAGUE);
         priced(
             acquisition_plan::pricing::report(&store, &intent, realm, league)
-                .map(|r| r.status(p.expand.unwrap_or(false))),
+                .map(|r| r.status(p.expand.unwrap_or(false), acquisition_store::now())),
         )
     }
 
@@ -1817,7 +1814,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "One target's listing (no daemon): `listing`, both sides with their causes — the hand row that applies (`manual`, its `revision` and the target it is on, `from`), the note and the tab name verbatim beside what each reads as — the relation, the effective price and why; `container`, the one an item sits in; for a container, `items_here` (in it) and `items_covered_below` (through its children), ten each beside its counts, `limit` more, `expand` all (`describe` with names [\"pricing\"]). Read it before price_set or price_clear on a target with its own row: they name the revision they replace."
+        description = "One target's listing (no daemon): `listing`, both sides with their causes — the hand row that applies (`manual`, its `revision` and the target it is on, `from`), the note and the tab name verbatim beside their readings — the relation, the effective price and why; `container`, the one an item sits in; for a container, `items_here` (in it) and `items_covered_below` (through its children), ten each beside its counts, `limit` more, `expand` all (`describe` with names [\"pricing\"]; ages, [\"ages\"]). Read it before price_set or price_clear on a target with its own row, whose revision they name."
     )]
     fn price_show(&self, Parameters(p): Parameters<Args<PriceShowParams>>) -> Told {
         let p = match p.read() {
@@ -1848,7 +1845,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "The forum shop pages for one league, for a person to paste by hand; this server posts nothing and reads no forum (no daemon). One link code per hand-priced item under its price's spoiler, in pages of at most `size` characters: `pages` (each `text` is what to paste), `posted`, `left_out`, `counts`, `policy` and `freshness`, whether the sync policy covers the posted items — reported, never enforced. `describe` with names [\"pricing\"] says what each count counts."
+        description = "The forum shop pages for one league, for a person to paste by hand; this server posts nothing and reads no forum (no daemon). One link code per hand-priced item under its price's spoiler, in pages of at most `size` characters: `pages` (each `text` is what to paste), `posted`, `left_out`, `counts`, `policy` and `freshness`, whether the sync policy covers the posted items — reported, never enforced. `describe` with names [\"pricing\"] says what each count counts, and [\"ages\"] what an age's words say."
     )]
     fn shop_render(&self, Parameters(p): Parameters<Args<ShopRenderParams>>) -> Told {
         let p = match p.read() {
@@ -1996,7 +1993,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "Jobs the daemon lists, with states and ETAs, counted first over every job (`total`, `by_state`), then listed: ten open and the ten most recent finished, `expand` every one. Observes only, never spawning a daemon: with none running it answers from the ledger (`running: false`, `persisted`); `describe` with names [\"daemon\"] says what each holds and counts."
+        description = "Jobs the daemon lists, with states and ETAs, counted first over every job (`total`, `by_state`), then listed: ten open and the ten most recent finished, `expand` every one. Observes only, never spawning a daemon: with none running it answers from the ledger (`running: false`, `persisted`); `describe` with names [\"daemon\"] says what each holds and counts, and [\"ages\"] what an age's words say."
     )]
     async fn list_jobs(&self, Parameters(p): Parameters<Args<ListJobsParams>>) -> Told {
         let expand = match p.parse() {
@@ -2007,7 +2004,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "One job's state, ETA and retries. A waiting job with a large ETA is the rate limiter holding, not a hang (holds can reach about 5 minutes). Observes only: a finished job, or any job with no daemon running, is answered from the ledger on disk (`describe` with names [\"daemon\"])."
+        description = "One job's state, ETA and retries. A waiting job with a large ETA is the rate limiter holding, not a hang (holds can reach about 5 minutes). Observes only: a finished job, or any job with no daemon running, is answered from the ledger on disk (`describe` with names [\"daemon\"]; [\"ages\"] for an age's words)."
     )]
     async fn job_status(&self, Parameters(p): Parameters<JobParams>) -> Told {
         settled(async { Ok(self.frontend.job(p.id).await?) }.await)
@@ -2035,7 +2032,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "The daemon running: its identity — contract, executable and hash, the world it serves, its socket — which of the four match this server (`contract_matches`, `artifact_matches`, `provider_matches`, `world_matches`; `wanted` is this server's own) and, when compatible, its vitals. Observes only: `running: false` with no daemon, `compatible: false` for one of another contract, artifact, provider or world (never replaced here), `responsive: false` for a wedged one; `describe` with names [\"daemon\"] says what each holds."
+        description = "The daemon running: its identity — contract, executable and hash, the world it serves, its socket — which of the four match this server (`contract_matches`, `artifact_matches`, `provider_matches`, `world_matches`; `wanted` is this server's own) and, when compatible, its vitals. Observes only: `running: false` with no daemon, `compatible: false` for one of another contract, artifact, provider or world (never replaced here), `responsive: false` for a wedged one; `describe` with names [\"daemon\"] says what each holds, and [\"ages\"] what an age's words say."
     )]
     async fn daemon_status(&self) -> Told {
         settled(async { Ok(self.frontend.daemon().await?) }.await)

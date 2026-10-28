@@ -42,8 +42,13 @@ pub fn span(seconds: i64) -> String {
 pub fn ago(now: i64, at: Option<i64>) -> String {
     match at {
         None => "never".into(),
-        Some(at) => format!("{} ago", span(now - at)),
+        Some(at) => span_ago(now - at),
     }
+}
+
+/// A span of seconds already measured as an age: `{span} ago`.
+pub fn span_ago(seconds: i64) -> String {
+    format!("{} ago", span(seconds))
 }
 
 /// An epoch's age at another epoch of the same document, named by its
@@ -94,5 +99,53 @@ mod tests {
             "3h before generated_at"
         );
         assert_eq!(before("generated_at", now, None), "never");
+    }
+
+    /// The store's rows a maker ages (C53): each says its epoch in the
+    /// vocabulary at the time given, under the epoch's name and `_age`,
+    /// `never` beside a null; a row no maker aged carries no words.
+    #[test]
+    fn c53_a_row_a_maker_ages_says_its_epochs_beside_them() {
+        let now = 10_000;
+        let refused = crate::Refused {
+            id: 1,
+            endpoint: "stash".into(),
+            params: serde_json::json!({}),
+            fetched_at: now - 120,
+            fetched_at_age: None,
+            status: 200,
+            reason: "r".into(),
+            body: None,
+        };
+        let unaged = serde_json::to_value(&refused).unwrap();
+        assert!(unaged.get("fetched_at_age").is_none(), "{unaged}");
+        assert_eq!(refused.aged(now).fetched_at_age.as_deref(), Some("2m ago"));
+        let event = crate::EventRow {
+            at: now - 7200,
+            at_age: None,
+            item_id: "i".into(),
+            kind: "added".into(),
+            from_location: None,
+            to_location: None,
+            name: None,
+            type_line: None,
+        };
+        assert_eq!(event.aged(now).at_age.as_deref(), Some("2h ago"));
+        let tab = crate::TabRow {
+            realm: "pc".into(),
+            league: "Standard".into(),
+            id: "t".into(),
+            parent: None,
+            name: "T".into(),
+            r#type: "PremiumStash".into(),
+            idx: None,
+            listed_at: Some(now),
+            fetched_at: None,
+            fetched_at_age: None,
+            removed_at: None,
+            item_count: 0,
+            fetched_items: None,
+        };
+        assert_eq!(tab.aged(now).fetched_at_age.as_deref(), Some("never"));
     }
 }

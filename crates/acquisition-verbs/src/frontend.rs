@@ -371,9 +371,7 @@ impl Account {
     /// The stored sync policy as an answer (C149): the row under
     /// `policy`, null when none is set.
     pub fn policy_shown(&self) -> Result<PolicyShown, Fault> {
-        Ok(PolicyShown {
-            policy: self.policy()?,
-        })
+        Ok(PolicyShown::of(self.policy()?, acquisition_store::now()))
     }
 
     /// C52 (no blind clobber) and C35: write the sync policy through the
@@ -448,7 +446,9 @@ impl Account {
             SyncPolicy::from_value(value),
             self.facts().ok().map(|f| f.league_list()),
         ) {
-            (Ok(written), Some(Ok(list))) => league_notes(written.leagues(), list.as_ref()),
+            (Ok(written), Some(Ok(list))) => {
+                league_notes(written.leagues(), list.as_ref(), acquisition_store::now())
+            }
             _ => Vec::new(),
         };
         Ok(PolicyWritten {
@@ -485,7 +485,29 @@ fn replaced_realms(value: &Value, prior: Option<&AnnotationRow>, write: PolicyWr
 /// when none is set.
 #[derive(Clone, Debug, Serialize)]
 pub struct PolicyShown {
-    pub policy: Option<AnnotationRow>,
+    pub policy: Option<ShownPolicy>,
+}
+
+/// The stored policy row as shown: the row whole, and beside its
+/// `updated_at` the age the text prints, in words at the answer's time
+/// (C53; additive on the row).
+#[derive(Clone, Debug, Serialize)]
+pub struct ShownPolicy {
+    #[serde(flatten)]
+    pub row: AnnotationRow,
+    pub updated_at_age: String,
+}
+
+impl PolicyShown {
+    /// The stored row, or none, its last write said as an age at `now`.
+    pub fn of(row: Option<AnnotationRow>, now: i64) -> PolicyShown {
+        PolicyShown {
+            policy: row.map(|row| ShownPolicy {
+                updated_at_age: acquisition_store::age::ago(now, Some(row.updated_at)),
+                row,
+            }),
+        }
+    }
 }
 
 /// A sync-policy write as both doors report it (C36, C126): the stored

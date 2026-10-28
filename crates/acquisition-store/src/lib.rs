@@ -549,6 +549,10 @@ pub struct Refused {
     pub endpoint: String,
     pub params: Value,
     pub fetched_at: i64,
+    /// C53: `fetched_at` in words at the answer's time, where the
+    /// answer's maker says it ([`Refused::aged`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fetched_at_age: Option<String>,
     pub status: u16,
     /// The refusal, as `MalformedBody` displayed it (array and index
     /// included when an item's id was the missing thing).
@@ -786,6 +790,24 @@ pub struct CharacterRow {
     pub fetched_items: Option<i64>,
 }
 
+impl Refused {
+    /// C53: the row with its fetch's age said at `now`, the answer's
+    /// time.
+    pub fn aged(mut self, now: i64) -> Refused {
+        self.fetched_at_age = Some(age::ago(now, Some(self.fetched_at)));
+        self
+    }
+}
+
+impl EventRow {
+    /// C53: the event with its time's age said at `now`, the answer's
+    /// time.
+    pub fn aged(mut self, now: i64) -> EventRow {
+        self.at_age = Some(age::ago(now, Some(self.at)));
+        self
+    }
+}
+
 impl TabRow {
     /// C53 (an age the text prints stands in words beside its epoch):
     /// the row with its fetch's age said at `now`, the answer's time.
@@ -875,6 +897,10 @@ pub(crate) fn league_list_in(conn: &Connection) -> Result<Option<LeagueList>> {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EventRow {
     pub at: i64,
+    /// C53: `at` in words at the answer's time, where the answer's maker
+    /// says it ([`EventRow::aged`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at_age: Option<String>,
     pub item_id: String,
     pub kind: String,
     pub from_location: Option<String>,
@@ -1951,6 +1977,7 @@ impl Store {
                 params: serde_json::from_str(&params)
                     .with_context(|| format!("refused row {id}: malformed stored params"))?,
                 fetched_at,
+                fetched_at_age: None,
                 status,
                 reason,
                 body: None,
@@ -1987,6 +2014,7 @@ impl Store {
             params: serde_json::from_str(&params)
                 .with_context(|| format!("refused row {id}: malformed stored params"))?,
             fetched_at,
+            fetched_at_age: None,
             status,
             reason,
             body: Some(
@@ -2260,6 +2288,7 @@ impl Store {
         let rows = stmt.query_map(params![since, limit as i64], |r| {
             Ok(EventRow {
                 at: r.get(0)?,
+                at_age: None,
                 item_id: r.get(1)?,
                 kind: r.get(2)?,
                 from_location: r.get(3)?,
@@ -2284,6 +2313,7 @@ impl Store {
         let rows = stmt.query_map(params![id, limit as i64], |r| {
             Ok(EventRow {
                 at: r.get(0)?,
+                at_age: None,
                 item_id: r.get(1)?,
                 kind: r.get(2)?,
                 from_location: r.get(3)?,

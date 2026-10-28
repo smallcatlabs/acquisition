@@ -237,6 +237,9 @@ impl Listed {
 pub struct PersistedJobs {
     pub jobs: Vec<PersistedJob>,
     pub written_at: Option<i64>,
+    /// C53: `written_at` in words at the answer's time (`3m ago`, `never`
+    /// for a ledger with no rows): how old this picture is.
+    pub written_at_age: String,
     /// Every open row the ledger holds.
     pub total: usize,
     pub waiting: usize,
@@ -248,8 +251,9 @@ pub struct PersistedJobs {
 }
 
 impl PersistedJobs {
-    /// The ledger's open rows, counted whole and then cut by the one rule.
-    pub fn of(persisted: Persisted, expand: bool) -> PersistedJobs {
+    /// The ledger's open rows, counted whole and then cut by the one rule,
+    /// its last write said as an age at `now`, the answer's time (C53).
+    pub fn of(persisted: Persisted, expand: bool, now: i64) -> PersistedJobs {
         let (total, waiting, recorded_running) = (
             persisted.jobs.len(),
             persisted.waiting(),
@@ -259,6 +263,7 @@ impl PersistedJobs {
         PersistedJobs {
             jobs,
             written_at: persisted.written_at,
+            written_at_age: acquisition_store::age::ago(now, persisted.written_at),
             total,
             waiting,
             recorded_running,
@@ -517,7 +522,9 @@ impl Frontend {
         match self.observe().await? {
             Some(mut client) => Ok(Jobs::Live(Listed::of(list(&mut client).await?, expand))),
             None => Ok(Jobs::Absent {
-                persisted: self.persisted()?.map(|p| PersistedJobs::of(p, expand)),
+                persisted: self
+                    .persisted()?
+                    .map(|p| PersistedJobs::of(p, expand, acquisition_store::now())),
             }),
         }
     }
@@ -533,11 +540,12 @@ impl Frontend {
         }
     }
 
-    /// C45: one job as the ledger on disk records it.
+    /// C45: one job as the ledger on disk records it, its last write said
+    /// as an age at the answer's time (C53), as the text says it.
     pub fn job_on_disk(&self, id: u64) -> Result<Job, Fault> {
         let record = self.record(id)?;
         Ok(Job::Absent {
-            persisted: record.job,
+            persisted: record.job.aged(acquisition_store::now()),
             next: self.next(),
         })
     }

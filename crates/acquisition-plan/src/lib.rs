@@ -735,13 +735,18 @@ impl SyncPolicy {
 pub struct LeagueNote {
     pub league: String,
     pub list_fetched_at: Option<i64>,
+    /// C53: `list_fetched_at` in words at the answer's time (`2d ago`,
+    /// `never`), as the note's text says it.
+    pub list_fetched_at_age: String,
 }
 
 /// C126: a note for each of `leagues` the list does not hold, in the
-/// order given, each league once.
+/// order given, each league once, the list's fetch said as an age at
+/// `now`, the answer's time (C53).
 pub fn league_notes<'a>(
     leagues: impl IntoIterator<Item = &'a str>,
     list: Option<&LeagueList>,
+    now: i64,
 ) -> Vec<LeagueNote> {
     let mut notes: Vec<LeagueNote> = Vec::new();
     for league in leagues {
@@ -750,6 +755,7 @@ pub fn league_notes<'a>(
             notes.push(LeagueNote {
                 league: league.to_string(),
                 list_fetched_at: list.map(|l| l.fetched_at),
+                list_fetched_at_age: acquisition_store::age::ago(now, list.map(|l| l.fetched_at)),
             });
         }
     }
@@ -786,6 +792,11 @@ pub struct PlanNotes {
     /// character).
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub no_characters_listed: bool,
+    /// C53: beside `no_characters_listed`, when the realm's character
+    /// listing that names none was fetched, in words at the answer's
+    /// time (the epoch is the plan's `basis.character_listing.fetched_at`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub character_listing_fetched_at_age: Option<String>,
 }
 
 impl PlanNotes {
@@ -796,8 +807,9 @@ impl PlanNotes {
 
 /// The notes of a compile over `snapshot` ([`PlanNotes`]). A snapshot
 /// with no policy, or whose policy does not cover its league, has none:
-/// the compile refuses it first.
-pub fn plan_notes(snapshot: &RefreshSnapshot) -> PlanNotes {
+/// the compile refuses it first. Each age a note's text prints is said
+/// at `now`, the answer's time (C53).
+pub fn plan_notes(snapshot: &RefreshSnapshot, now: i64) -> PlanNotes {
     let covered = snapshot
         .policy
         .as_ref()
@@ -811,13 +823,22 @@ pub fn plan_notes(snapshot: &RefreshSnapshot) -> PlanNotes {
     let Some(characters_covered) = covered else {
         return PlanNotes::default();
     };
+    let no_characters_listed = characters_covered
+        && snapshot.character_listing.is_some()
+        && snapshot.characters.is_empty();
     PlanNotes {
-        league: league_notes([snapshot.league.as_str()], snapshot.league_list.as_ref())
-            .pop()
-            .filter(|note| note.list_fetched_at.is_some()),
-        no_characters_listed: characters_covered
-            && snapshot.character_listing.is_some()
-            && snapshot.characters.is_empty(),
+        league: league_notes(
+            [snapshot.league.as_str()],
+            snapshot.league_list.as_ref(),
+            now,
+        )
+        .pop()
+        .filter(|note| note.list_fetched_at.is_some()),
+        no_characters_listed,
+        character_listing_fetched_at_age: snapshot
+            .character_listing
+            .filter(|_| no_characters_listed)
+            .map(|l| acquisition_store::age::ago(now, Some(l.fetched_at))),
     }
 }
 
@@ -1619,7 +1640,10 @@ impl RefreshPlan {
             };
             let queued = || open().find(holds).or_else(|| open().find(lists));
             let by = match fetched {
-                Some(fetched_at) => Some(SpentBy::Fetched { fetched_at }),
+                Some(fetched_at) => Some(SpentBy::Fetched {
+                    fetched_at,
+                    fetched_at_age: None,
+                }),
                 None => queued().map(|job| SpentBy::Queued {
                     job_id: job.id,
                     parent: job.parent,
@@ -1647,11 +1671,31 @@ pub struct Spent {
     pub by: SpentBy,
 }
 
+impl Spent {
+    /// C53: a fetch that spent the request said as an age at `now`, the
+    /// answer's time, as the apply's text says the latest.
+    pub fn aged(mut self, now: i64) -> Spent {
+        if let SpentBy::Fetched {
+            fetched_at,
+            fetched_at_age,
+        } = &mut self.by
+        {
+            *fetched_at_age = Some(acquisition_store::age::ago(now, Some(*fetched_at)));
+        }
+        self
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(untagged)]
 pub enum SpentBy {
-    /// The target was fetched after the plan's snapshot.
-    Fetched { fetched_at: i64 },
+    /// The target was fetched after the plan's snapshot; `fetched_at_age`
+    /// says it in words at the answer's time ([`Spent::aged`], C53).
+    Fetched {
+        fetched_at: i64,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        fetched_at_age: Option<String>,
+    },
     /// The same request is waiting or running in the daemon.
     Queued {
         job_id: JobId,
@@ -4345,7 +4389,10 @@ mod tests {
             spent,
             vec![Spent {
                 action: plan.actions[0].clone(),
-                by: SpentBy::Fetched { fetched_at: taken },
+                by: SpentBy::Fetched {
+                    fetched_at: taken,
+                    fetched_at_age: None
+                },
             }]
         );
 
@@ -4395,7 +4442,10 @@ mod tests {
             spent,
             vec![Spent {
                 action: plan.actions[0].clone(),
-                by: SpentBy::Fetched { fetched_at: 1500 },
+                by: SpentBy::Fetched {
+                    fetched_at: 1500,
+                    fetched_at_age: None
+                },
             }]
         );
     }
@@ -5288,5 +5338,88 @@ mod tests {
                 "smuggled field at {path:?} was accepted"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod ages {
+    use super::*;
+
+    /// C53 (an age the text prints stands in words beside its epoch,
+    /// made at the answer's own time): a league note says the list's
+    /// fetch, `never` where none was fetched, and a fetch that spent a
+    /// plan's request says its own, each at the time given.
+    #[test]
+    fn c53_a_note_and_a_spent_fetch_say_their_epochs_as_ages() {
+        let now = 1_000 + 2 * 86_400;
+        let list = LeagueList {
+            fetched_at: 1_000,
+            ids: vec!["Standard".into()],
+        };
+        let notes = league_notes(["Mirage", "Standard"], Some(&list), now);
+        assert_eq!(notes.len(), 1, "{notes:?}");
+        let note = serde_json::to_value(&notes[0]).unwrap();
+        assert_eq!(note["list_fetched_at"], 1_000);
+        assert_eq!(note["list_fetched_at_age"], "2d ago", "{note}");
+        let unread = league_notes(["Mirage"], None, now);
+        assert_eq!(unread[0].list_fetched_at_age, "never");
+
+        let spent = Spent {
+            action: RefreshAction::ListStashes {
+                realm: Realm::Pc,
+                league: "Standard".into(),
+                reason: ListingReason::NeverListed,
+            },
+            by: SpentBy::Fetched {
+                fetched_at: now - 30,
+                fetched_at_age: None,
+            },
+        };
+        let unaged = serde_json::to_value(&spent).unwrap();
+        assert!(unaged.get("fetched_at_age").is_none(), "{unaged}");
+        let aged = serde_json::to_value(spent.aged(now)).unwrap();
+        assert_eq!(aged["fetched_at_age"], "30s ago", "{aged}");
+    }
+
+    /// C53: a plan's note that the realm's character listing names no
+    /// character in the league says when that listing was fetched, in
+    /// words at the time given, as the note's text does.
+    #[test]
+    fn c53_the_no_characters_note_says_its_listings_age() {
+        let mut s = acquisition_store::Store::open_memory().unwrap();
+        s.record(
+            &acquisition_store::Endpoint::Profile,
+            &serde_json::json!({}),
+            200,
+            &serde_json::json!({ "uuid": "u-1", "name": "tom" }),
+            1,
+        )
+        .unwrap();
+        s.record(
+            &acquisition_store::Endpoint::Characters { realm: "pc".into() },
+            &serde_json::json!({}),
+            200,
+            &serde_json::json!({ "characters": [
+                { "id": "c1", "name": "Elsewhere", "league": "Mirage" } ] }),
+            100,
+        )
+        .unwrap();
+        let mut a = Annotations::open_memory_for("u-1").unwrap();
+        a.put::<SyncPolicy>(
+            SYNC_POLICY_SCOPE,
+            SYNC_POLICY_KEY,
+            &serde_json::json!({ "version": 3, "realms": { "pc": { "leagues": { "Standard":
+                { "tabs": "all", "characters": "all", "max_age_seconds": 3600 } } } } }),
+            None,
+            &Provenance::via("test"),
+        )
+        .unwrap();
+        let snapshot = s.refresh_snapshot("pc", "Standard", &a).unwrap();
+        let notes = plan_notes(&snapshot, 100 + 5 * 3_600);
+        assert!(notes.no_characters_listed, "{notes:?}");
+        assert_eq!(
+            notes.character_listing_fetched_at_age.as_deref(),
+            Some("5h ago")
+        );
     }
 }

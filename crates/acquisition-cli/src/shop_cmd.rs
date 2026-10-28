@@ -509,6 +509,7 @@ mod tests {
                 stale_total: 1,
                 stale_uncovered: 1,
                 oldest_stale_seconds: Some(3800),
+                oldest_stale_seconds_age: None,
                 position_before_listing: vec![item("c")],
                 position_before_listing_total: 1,
             },
