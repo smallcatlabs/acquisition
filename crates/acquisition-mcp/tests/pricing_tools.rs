@@ -899,8 +899,8 @@ fn price_list_and_price_show_list_ten_and_expand_returns_every_item_past_ten() {
 /// Round 4's review (P3): a conflict's `current` is the stored row,
 /// data, never this server's prose — a row whose actor names a command
 /// came back spelled. Over such a row a set at a stale revision is
-/// `conflict`, its `current` exactly the row `price_show` prints as
-/// `manual`.
+/// `conflict`, its `current` exactly the stored row `price_show` prints
+/// as `manual`, less the age words an answer adds (round 6's fix round).
 #[test]
 fn a_conflicts_current_is_the_row_price_show_prints_verbatim() {
     let dir = scratch("mcp-price-current");

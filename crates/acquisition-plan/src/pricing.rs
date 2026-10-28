@@ -82,7 +82,9 @@ pub struct Refused {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RefusedKind {
     /// A write refused for its revision; `revision` is the row's now,
-    /// and `current` the live row as `show`'s `manual` prints it, where
+    /// and `current` the stored row as it stands — `show`'s `manual` less
+    /// the age words an answer adds (`updated_at_age`; round 6 of the 2g
+    /// build, its fix round) — where
     /// a live row stands and this build reads its value: none where a
     /// clear left the revision or no row was ever written.
     Conflict {
@@ -149,8 +151,9 @@ impl Refused {
 
     /// The fields a failure document adds beside `error`: `kind`, and
     /// for a conflict `revision` (null when no row was ever written:
-    /// C11's field, kept) and `current`, the live row as `show`'s
-    /// `manual` prints it — absent, never null, where none stands.
+    /// C11's field, kept) and `current`, the stored row as it stands,
+    /// `show`'s `manual` less the age words an answer adds — absent,
+    /// never null, where none stands.
     pub fn fields(&self) -> serde_json::Map<String, Value> {
         let mut out = serde_json::Map::new();
         match &self.kind {
@@ -950,7 +953,7 @@ pub fn described() -> Vec<Described> {
         ),
         entry(
             "revision",
-            "a write over a row the target has of its own names that row's revision — a listing's `manual.revision` where `manual.from` is the target itself, a write's receipt's `revision`, or the `revision` a `conflict` refusal names, beside `current`, the live row as `manual` prints it (absent over a cleared row) — and with no row names none, to create one; a write naming a revision the target's own row does not stand at is refused as a `conflict` naming the target's own revision, null where it has none — a container's (`manual.revision` where `manual.inherited`) among them, unless the target's own row stands at that same number, which a revision cannot tell apart: revisions count per target. A clear takes a revision too, so the next write's revision continues from it: a receipt's `revision` is the one now current, the written row's, or after a clear its tombstone's — the generation the row sequence has reached, which a later conflict names — and the next write after a clear is a create, naming none",
+            "a write over a row the target has of its own names that row's revision — a listing's `manual.revision` where `manual.from` is the target itself, a write's receipt's `revision`, or the `revision` a `conflict` refusal names, beside `current`, the stored row as it stands, `manual` less the age words an answer adds (`updated_at_age`), absent over a cleared row — and with no row names none, to create one; a write naming a revision the target's own row does not stand at is refused as a `conflict` naming the target's own revision, null where it has none — a container's (`manual.revision` where `manual.inherited`) among them, unless the target's own row stands at that same number, which a revision cannot tell apart: revisions count per target. A clear takes a revision too, so the next write's revision continues from it: a receipt's `revision` is the one now current, the written row's, or after a clear its tombstone's — the generation the row sequence has reached, which a later conflict names — and the next write after a clear is a create, naming none",
         ),
         entry(
             "undo",
@@ -1408,7 +1411,8 @@ mod tests {
     }
 
     /// Round 4 of `roadmap/briefs/2g-build.md`: a conflict carries the
-    /// live row it was refused over as `show`'s `manual` prints it, so an
+    /// live row it was refused over as it stands — `show`'s `manual` less
+    /// the age words an answer adds (round 6's fix round) — so an
     /// agent reads the current value without a second call; over a
     /// cleared row `current` is absent and `revision` the tombstone's,
     /// and where no row was ever written `revision` stays null (C11).

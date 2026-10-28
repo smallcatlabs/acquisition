@@ -513,8 +513,9 @@ fn price_list_is_bounded_by_a_limit_and_says_how_many_of_how_many() {
 /// it still counts. Staged as met: a stale revision over a live row, and
 /// a revision named over a cleared one; each is `kind: "conflict"` with
 /// the current `revision`, in the verb's words, and over the live row
-/// its `current`, the row as `price show`'s `manual` prints it (round 4
-/// of the 2g build). A target the facts do not hold is `kind:
+/// its `current`, the stored row as it stands — `price show`'s `manual`
+/// less the age words an answer adds (round 4 of the 2g build, settled
+/// in round 6's fix round). A target the facts do not hold is `kind:
 /// "not_found"`.
 #[test]
 fn a_write_refused_for_its_revision_is_a_conflict_naming_it_in_the_verbs_words() {
