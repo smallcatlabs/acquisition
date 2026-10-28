@@ -1167,6 +1167,67 @@ fn staged_login(daemon: &Daemon, user: &str) -> u64 {
     generation
 }
 
+/// C144 (the daemon reports no success it did not earn), issue #63's
+/// second comment: a login's finalisation as a recovery scenario. The
+/// login completes with the index directory unwritable: the index cannot
+/// hold the name, so the persist saves nothing (the index knows a name
+/// before the keyring does, h1's last round), the flow fails in words
+/// naming the index, no credential exists under the name, and a restore
+/// over the directory afterwards — the restart — finds no session and
+/// reports the keyring healthy. The brief said "the keyring entry it saved
+/// is cleared back"; the tree says no entry is saved at all, which the
+/// assertion on the store's cleared list pins.
+#[cfg(unix)]
+#[tokio::test]
+async fn c144_a_login_finalised_under_an_unwritable_index_leaves_nothing_to_restore() {
+    let (daemon, credentials, store_dir, _log_path) = login_daemon("http://127.0.0.1:1");
+    let generation = staged_login(&daemon, "Alice#1");
+    let frozen = freeze(&store_dir);
+    assert!(
+        !daemon.complete_login(generation, "Alice#1", "u-a"),
+        "the login does not complete"
+    );
+    drop(frozen);
+    let flow = daemon.shared.lock().unwrap().auth.flow_result.clone();
+    let error = match flow {
+        Some(Err(error)) => error,
+        other => panic!("the flow failed: {other:?}"),
+    };
+    assert!(
+        error.contains("could not record the login in the account index"),
+        "{error}"
+    );
+    assert!(
+        credentials.entries.lock().unwrap().is_empty(),
+        "no credential under a name the index could not hold"
+    );
+    assert!(
+        credentials.cleared.lock().unwrap().is_empty(),
+        "nothing was saved, so nothing had to be cleared back"
+    );
+    assert!(
+        daemon.shared.lock().unwrap().auth.find("Alice#1").is_none(),
+        "no session registered"
+    );
+
+    // The restart: a restore over the thawed directory.
+    let mut log = Vec::new();
+    let sessions = start::restore_sessions(
+        &*credentials,
+        daemon.provider.keyring_service,
+        &store_dir,
+        None,
+        std::time::SystemTime::now(),
+        &mut log,
+    );
+    assert!(
+        sessions.by_account.is_empty(),
+        "nothing to restore: {}",
+        String::from_utf8_lossy(&log)
+    );
+    assert_eq!(sessions.keyring, "ok");
+}
+
 /// C144 (a failed save clears the entry it would have replaced), the
 /// review of h1, its fourth finding: a re-login goes through the persist
 /// a refresh uses, so a re-login whose save fails clears the previous
