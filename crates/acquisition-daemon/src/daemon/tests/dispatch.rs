@@ -1958,3 +1958,77 @@ async fn c144_a_job_whose_store_cannot_open_ends_failed_with_its_body() {
     finish_harness(dispatcher, &log_path);
     drop(daemon);
 }
+
+/// C144 (the daemon reports no success it did not earn), issue #63's
+/// second comment: a restart after a failed write. A daemon on a
+/// file-backed `daemon.db` whose account's facts file is newer than it
+/// fails the profile job with the body kept (the test above, end to end);
+/// a second lifetime on the same `daemon.db` restores no open job, since
+/// the table holds the row as failed (C6: terminal rows are history, not
+/// the queue), answers the id from the table as that failure with its
+/// body, and so has nothing to replay — the account server's log at the
+/// end is lifetime 1's two sends and nothing more, read from the server,
+/// never from a daemon's report of itself.
+#[tokio::test]
+async fn c144_a_restart_after_a_failed_record_keeps_the_failure_and_replays_nothing() {
+    let (base, sent_log, _arrived, _release) = account_server(("GET", "/never", 0)).await;
+    let db = test_db_path();
+    let dir = TestPath::dir();
+    schema_too_new(&dir, "test-user");
+
+    // Lifetime 1: the job fails after its send, its row written failed.
+    let id = {
+        let (mut daemon, log_path) = test_daemon(&base, Arc::new(ManualClock::new()));
+        logged_in(&mut daemon);
+        let d = Arc::get_mut(&mut daemon).unwrap();
+        d.store_dir = Some(dir.to_path_buf());
+        d.jobs_db = Mutex::new(JobDb::open(&db).unwrap());
+        daemon.restore_jobs(Retention::default()).unwrap();
+        let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+        let id = daemon
+            .submit(
+                "profile".into(),
+                json!({}),
+                0,
+                "test".into(),
+                Some("test-user".into()),
+            )
+            .unwrap();
+        let (info, outcome) = wait_terminal(&daemon, id).await;
+        assert_eq!(info.state, JobState::Failed, "{outcome:?}");
+        finish_harness(dispatcher, &log_path);
+        drop(daemon);
+        id
+    };
+    assert!(
+        JobDb::open(&db).unwrap().load_open().unwrap().is_empty(),
+        "the table holds no open row: nothing for a restart to replay"
+    );
+
+    // Lifetime 2: restored from the same file, its dispatcher running.
+    let (mut daemon, log_path) = test_daemon(&base, Arc::new(ManualClock::new()));
+    logged_in(&mut daemon);
+    let d = Arc::get_mut(&mut daemon).unwrap();
+    d.store_dir = Some(dir.to_path_buf());
+    d.jobs_db = Mutex::new(JobDb::open(&db).unwrap());
+    daemon.restore_jobs(Retention::default()).unwrap();
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    assert!(
+        daemon.shared.lock().unwrap().list(&daemon).is_empty(),
+        "no job restored into memory"
+    );
+    let stored = daemon
+        .stored_outcome(id)
+        .unwrap()
+        .expect("the failed job is answered from the table");
+    let (error, payload) = kept_failure(&stored);
+    assert!(error.contains("could not record it"), "{error}");
+    assert_eq!(payload["body"]["uuid"], "uuid-test-user");
+    finish_harness(dispatcher, &log_path);
+    drop(daemon);
+    assert_eq!(
+        sent_log.lock().unwrap().as_slice(),
+        [sent("test-user", "POST"), sent("test-user", "GET")],
+        "the server saw lifetime 1's sends and nothing more"
+    );
+}
