@@ -9,6 +9,8 @@
 use super::*;
 use acquisition_protocol::protocol::KeyringOutcome;
 use acquisition_store::AccountEntry;
+use tokio::net::TcpStream;
+use tokio::sync::mpsc;
 
 impl Daemon {
     // ---- auth -----------------------------------------------------------
@@ -43,9 +45,11 @@ impl Daemon {
 
         let daemon = self.clone();
         tokio::spawn(async move {
-            let callback =
-                tokio::time::timeout(Duration::from_secs(300), wait_callback(listener, &state))
-                    .await;
+            let callback = tokio::time::timeout(
+                Duration::from_secs(300),
+                wait_callback(listener, &state, CALLBACK_READ_WITHIN),
+            )
+            .await;
             match callback {
                 Ok(Ok(code)) => {
                     // C133: the exchange is counted from before its send
@@ -761,39 +765,115 @@ fn posix_word(word: &str) -> String {
     }
 }
 
+/// The bound on one callback connection's request read. A browser's
+/// redirect arrives whole in milliseconds; a connection still silent
+/// after this long is not the browser, and is dropped unanswered.
+pub(super) const CALLBACK_READ_WITHIN: Duration = Duration::from_secs(10);
+
 /// Wait for the browser to hit the loopback redirect with an auth code.
-/// Ignores stray requests (favicons etc.) until `/callback` arrives.
-async fn wait_callback(listener: TcpListener, expected_state: &str) -> Result<String, String> {
+///
+/// Each accepted connection is answered in its own task, its request
+/// read under `read_within`, so a connection that sends nothing holds
+/// nothing up: the next accept proceeds, and the silent connection is
+/// dropped unanswered when its bound expires. The flow's `state` is the
+/// one key. A request on the callback path without it, another login's
+/// or none, is answered 400 and ignored, as any other path is answered
+/// 404: a local process that finds the port can neither end the flow nor
+/// take the code. With the state, a `code` ends the flow with the code,
+/// and an `error` (the authorize page's denial, RFC 6749 section 4.1.2.1)
+/// ends it failed in the browser's words. The tasks report an end on a
+/// channel; the first end wins and the listener closes with the return,
+/// so a task still answering writes its page and its report is dropped.
+pub(super) async fn wait_callback(
+    listener: TcpListener,
+    expected_state: &str,
+    read_within: Duration,
+) -> Result<String, String> {
+    let (ended, mut ends) = mpsc::channel::<Result<String, String>>(1);
+    let expected_state: Arc<str> = Arc::from(expected_state);
     loop {
-        let (mut stream, _) = listener.accept().await.map_err(|e| e.to_string())?;
-        let Some(req) = mockggg::read_request(&mut stream).await else {
-            continue;
-        };
-        if req.method != "GET" || req.path != CALLBACK_PATH {
-            mockggg::respond(&mut stream, "404 Not Found", "text/plain", "not found").await;
-            continue;
+        tokio::select! {
+            accepted = listener.accept() => {
+                let (stream, _) = accepted.map_err(|e| e.to_string())?;
+                tokio::spawn(answer_callback(
+                    stream,
+                    expected_state.clone(),
+                    read_within,
+                    ended.clone(),
+                ));
+            }
+            Some(end) = ends.recv() => return end,
         }
-        match (req.query.get("code"), req.query.get("state")) {
-            (Some(code), Some(state)) if state == expected_state => {
-                mockggg::respond(
-                    &mut stream,
-                    "200 OK",
-                    "text/html",
-                    "<h1>Logged in</h1><p>You can close this tab and return to the terminal.</p>",
-                )
-                .await;
-                return Ok(code.clone());
-            }
-            _ => {
-                mockggg::respond(
-                    &mut stream,
-                    "400 Bad Request",
-                    "text/plain",
-                    "state mismatch",
-                )
-                .await;
-                return Err("callback state mismatch".into());
-            }
+    }
+}
+
+/// One callback connection ([`wait_callback`]): the request read under
+/// its bound, the page the browser reads, and the flow's end when the
+/// request is the flow's own.
+async fn answer_callback(
+    mut stream: TcpStream,
+    expected_state: Arc<str>,
+    read_within: Duration,
+    ended: mpsc::Sender<Result<String, String>>,
+) {
+    let Ok(Some(req)) = tokio::time::timeout(read_within, mockggg::read_request(&mut stream)).await
+    else {
+        return;
+    };
+    if req.method != "GET" || req.path != CALLBACK_PATH {
+        mockggg::respond(&mut stream, "404 Not Found", "text/plain", "not found").await;
+        return;
+    }
+    if req.query.get("state").map(String::as_str) != Some(&*expected_state) {
+        mockggg::respond(
+            &mut stream,
+            "400 Bad Request",
+            "text/html",
+            "<h1>Not the login in progress</h1><p>This request does not carry the state of the \
+             login Acquisition is waiting for. Close this tab and return to the terminal, where \
+             the login is still waiting.</p>",
+        )
+        .await;
+        return;
+    }
+    match (req.query.get("code"), req.query.get("error")) {
+        (Some(code), _) => {
+            mockggg::respond(
+                &mut stream,
+                "200 OK",
+                "text/html",
+                "<h1>Logged in</h1><p>You can close this tab and return to the terminal.</p>",
+            )
+            .await;
+            let _ = ended.try_send(Ok(code.clone()));
+        }
+        (None, Some(error)) => {
+            mockggg::respond(
+                &mut stream,
+                "200 OK",
+                "text/html",
+                "<h1>Login denied</h1><p>The login was denied in the browser. You can close this \
+                 tab; to try again, run <code>acq auth</code> from the terminal.</p>",
+            )
+            .await;
+            let description = req
+                .query
+                .get("error_description")
+                .map(|d| format!(": {d}"))
+                .unwrap_or_default();
+            let _ = ended.try_send(Err(format!(
+                "the login was denied in the browser ({error}{description}); run `acq auth` to try again"
+            )));
+        }
+        (None, None) => {
+            mockggg::respond(
+                &mut stream,
+                "400 Bad Request",
+                "text/html",
+                "<h1>Not a login answer</h1><p>This request carries neither a code nor an error. \
+                 Close this tab and return to the terminal, where the login is still waiting.</p>",
+            )
+            .await;
         }
     }
 }

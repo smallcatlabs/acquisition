@@ -4,6 +4,7 @@
 //! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 
 use super::harness::*;
+use crate::daemon::login::wait_callback;
 use crate::daemon::*;
 use acquisition_protocol::protocol::KeyringOutcome;
 
@@ -484,6 +485,171 @@ async fn a_superseded_login_flow_sends_no_code_exchange() {
     assert!(daemon.shared.lock().unwrap().auth.pending.is_some());
     assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
     server.abort();
+    finish_harness(None, &log_path);
+}
+
+// ---- the callback listener (#68) --------------------------------------
+
+/// The authorize URL's redirect target and state, as the browser would
+/// carry them back.
+fn callback_of(authorize_url: &str) -> (String, String) {
+    let authorize = url::Url::parse(authorize_url).unwrap();
+    let query: HashMap<String, String> = authorize.query_pairs().into_owned().collect();
+    (query["redirect_uri"].clone(), query["state"].clone())
+}
+
+/// Approve the flow at the mock as its own user: the authorize URL's
+/// approve variant, its 302 followed to the daemon's callback.
+async fn approve_at_mock(authorize_url: &str) {
+    let approve = authorize_url.replacen("/authorize?", "/approve?", 1);
+    let answered = reqwest::get(&approve).await.unwrap();
+    assert!(answered.status().is_success(), "{answered:?}");
+}
+
+/// The flow's terminal result, waited for.
+async fn flow_ended(daemon: &Daemon) -> (bool, Option<String>, Option<String>) {
+    tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            let result = login_result(daemon);
+            if result.1.is_some() || result.2.is_some() {
+                return result;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("the flow ended")
+}
+
+/// A callback connection that sends nothing holds nothing up: it is
+/// answered in its own task, and the browser's redirect on the next
+/// connection completes the login while the silent one is still open.
+#[tokio::test]
+async fn a_callback_connection_that_sends_nothing_does_not_block_the_login() {
+    let base = mockggg::start().await.unwrap();
+    let (daemon, _credentials, _store_dir, log_path) = login_daemon(&base);
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+
+    let authorize = daemon.auth_start().await.unwrap();
+    let (redirect_uri, _) = callback_of(&authorize);
+    let callback = url::Url::parse(&redirect_uri).unwrap();
+    let silent =
+        tokio::net::TcpStream::connect((callback.host_str().unwrap(), callback.port().unwrap()))
+            .await
+            .unwrap();
+
+    approve_at_mock(&authorize).await;
+    let (logged_in, ok, error) = flow_ended(&daemon).await;
+    assert!(logged_in, "ok={ok:?} error={error:?}");
+    assert_eq!(ok.as_deref(), Some(mockggg::USERNAME));
+    // The silent connection is still ours: nothing waited on it.
+    assert!(silent.peer_addr().is_ok());
+    drop(silent);
+    dispatcher.abort();
+    finish_harness(None, &log_path);
+}
+
+/// The read bound's expiry (C137, pinned by forcing it): a connection
+/// that has sent nothing when its bound expires is dropped without a
+/// response, and the flow waits on; the listener still accepts.
+#[tokio::test]
+async fn a_callback_read_past_its_bound_is_dropped_and_the_flow_waits() {
+    use tokio::io::AsyncReadExt as _;
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let waiting =
+        tokio::spawn(async move { wait_callback(listener, "st-expected", Duration::ZERO).await });
+
+    let mut silent = tokio::net::TcpStream::connect(addr).await.unwrap();
+    let mut byte = [0u8; 1];
+    let read = tokio::time::timeout(Duration::from_secs(5), silent.read(&mut byte))
+        .await
+        .expect("the daemon closed the silent connection");
+    assert_eq!(read.ok(), Some(0), "closed without a response");
+    assert!(!waiting.is_finished(), "the flow still waits");
+    // The listener is still accepting: a second connection is taken.
+    let second = tokio::time::timeout(Duration::from_secs(5), tokio::net::TcpStream::connect(addr))
+        .await
+        .expect("the listener accepts")
+        .unwrap();
+    drop(second);
+    assert!(!waiting.is_finished(), "the flow still waits");
+    waiting.abort();
+}
+
+/// A denial is reported in the browser's words: a redirect with the
+/// flow's state and `error=access_denied` ends the flow failed, its
+/// result carrying the error and its description and a word on what to
+/// do, never "state mismatch"; the browser reads a page that says so.
+#[tokio::test]
+async fn a_denied_login_is_reported_in_the_browsers_words() {
+    let clock = Arc::new(ManualClock::new());
+    let (daemon, log_path) = test_daemon_with(
+        Provider::mock("http://127.0.0.1:1"),
+        clock,
+        RailsConfig::default(),
+    );
+    daemon.shared.lock().unwrap().auth.by_account.clear();
+
+    let authorize = daemon.auth_start().await.unwrap();
+    let (redirect_uri, state) = callback_of(&authorize);
+    let denied = format!(
+        "{redirect_uri}?error=access_denied&error_description=The+user+denied+the+request&state={state}"
+    );
+    let answered = reqwest::get(&denied).await.unwrap();
+    assert_eq!(answered.status(), 200);
+    let page = answered.text().await.unwrap();
+    assert!(page.contains("denied in the browser"), "{page}");
+    assert!(page.contains("acq auth"), "{page}");
+
+    let (logged_in, ok, error) = flow_ended(&daemon).await;
+    assert!(!logged_in);
+    assert_eq!(ok, None);
+    let error = error.expect("the flow failed");
+    assert!(error.contains("denied in the browser"), "{error}");
+    assert!(error.contains("access_denied"), "{error}");
+    assert!(error.contains("The user denied the request"), "{error}");
+    assert!(error.contains("acq auth"), "{error}");
+    assert!(!error.contains("state mismatch"), "{error}");
+    assert!(daemon.shared.lock().unwrap().auth.pending.is_none());
+    finish_harness(None, &log_path);
+}
+
+/// A request on the callback path without the flow's state is answered
+/// 400 and ignored: the flow waits, and the browser's own redirect then
+/// completes the login. So is one with the state and neither a code nor
+/// an error. A local process that finds the port can neither end the
+/// flow nor take the code.
+#[tokio::test]
+async fn a_callback_with_another_state_is_answered_and_the_login_waits() {
+    let base = mockggg::start().await.unwrap();
+    let (daemon, _credentials, _store_dir, log_path) = login_daemon(&base);
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+
+    let authorize = daemon.auth_start().await.unwrap();
+    let (redirect_uri, state) = callback_of(&authorize);
+    for stray in [
+        format!("{redirect_uri}?code=code-x&state=not-ours"),
+        format!("{redirect_uri}?code=code-x"),
+        format!("{redirect_uri}?error=access_denied"),
+        format!("{redirect_uri}?state={state}"),
+    ] {
+        let answered = reqwest::get(&stray).await.unwrap();
+        assert_eq!(answered.status(), 400, "{stray}");
+        let page = answered.text().await.unwrap();
+        assert!(page.contains("return to the terminal"), "{page}");
+        assert_eq!(login_result(&daemon), (false, None, None), "{stray}");
+        assert!(
+            daemon.shared.lock().unwrap().auth.pending.is_some(),
+            "the flow still waits after {stray}"
+        );
+    }
+
+    approve_at_mock(&authorize).await;
+    let (logged_in, ok, error) = flow_ended(&daemon).await;
+    assert!(logged_in, "ok={ok:?} error={error:?}");
+    assert_eq!(ok.as_deref(), Some(mockggg::USERNAME));
+    dispatcher.abort();
     finish_harness(None, &log_path);
 }
 

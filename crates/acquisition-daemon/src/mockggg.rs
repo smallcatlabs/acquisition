@@ -22,7 +22,7 @@ use crate::auth;
 /// username (`at-<random>.<user>`), which is how data requests are
 /// attributed and counted per account (rung 11: `Account` rules are per
 /// account on real GGG).
-const USERNAME: &str = "ExileTester";
+pub(crate) const USERNAME: &str = "ExileTester";
 const ACCESS_TOKEN_TTL_SECONDS: u64 = 60;
 
 struct PendingCode {
