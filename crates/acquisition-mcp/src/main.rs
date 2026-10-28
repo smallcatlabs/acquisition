@@ -151,6 +151,7 @@ use acquisition_search::answer::{Asked, QueryInput};
 use acquisition_search::{Holder, SearchError};
 use acquisition_store::{Annotations, Provenance, Store};
 use acquisition_verbs::fault::door_word;
+use acquisition_verbs::refusal::{self, Arguments, Way};
 use acquisition_verbs::{Account, Fault, Frontend};
 use anyhow::Result;
 use rmcp::handler::server::wrapper::Parameters;
@@ -258,7 +259,7 @@ fn failure_words(e: &anyhow::Error, named: &str) -> String {
 /// conversation with the daemon failing. Everything else is a refusal —
 /// the request was wrong, or the store or policy cannot serve it, or no
 /// daemon runs — a result marked isError holding the document
-/// [`refusal`] words. The release seat's rerun met an unknown account
+/// [`refusal()`] words. The release seat's rerun met an unknown account
 /// and an uncovered league as JSON-RPC errors where the instructions
 /// promise results (mcp-opus-2 calls 50, 46).
 fn failed(e: anyhow::Error) -> Told {
@@ -273,35 +274,93 @@ fn failed(e: anyhow::Error) -> Told {
     }
 }
 
-/// A refusal's document (C11, C121): `error` in the words the failure
-/// has and a `kind` — a layer fault's kind and fields (`accounts`, the
-/// names known or to pick from; `next`, the person's command), with
-/// `named` the argument that selects an account; `arguments` for a
-/// parameter the tool cannot read; `refused` for the rest.
+/// A refusal's document (C11, C121; round 4 of the 2g build, the one
+/// refusal shape): the verbs' one sorter
+/// (`acquisition_verbs::refusal::document`), its words this server's,
+/// `named` the argument that selects an account, and its offers spelled
+/// as this server's requests ([`Spoken`]).
 fn refusal(e: &anyhow::Error, named: &str) -> Value {
-    let mut doc = serde_json::Map::new();
-    doc.insert("error".into(), json!(failure_words(e, named)));
-    if let Some(fault) = e.chain().find_map(|c| c.downcast_ref::<Fault>()) {
-        doc.extend(fault.fields());
-    } else if e.downcast_ref::<BadArguments>().is_some() {
-        doc.insert("kind".into(), json!("arguments"));
-    } else {
-        doc.insert("kind".into(), json!("refused"));
-    }
-    Value::Object(doc)
+    refusal::document(e, &Spoken { named })
 }
 
-/// Arguments a tool cannot read: refused as `arguments`.
-#[derive(Debug)]
-struct BadArguments(String);
-
-impl std::fmt::Display for BadArguments {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
-    }
+tokio::task_local! {
+    /// The call being served, as sent: what a refusal's offer to send it
+    /// again as another account is made from ([`Spoken`]). Set around
+    /// every call by `call_tool`, read by nothing else.
+    static CALLED: Called;
 }
 
-impl std::error::Error for BadArguments {}
+/// A tool's name and its arguments, as the call sent them.
+#[derive(Clone)]
+struct Called {
+    tool: String,
+    arguments: serde_json::Map<String, Value>,
+}
+
+/// This server's side of the one refusal shape: its words
+/// ([`failure_words`]) and its requests — an offer is the arguments a
+/// tool takes, naming the tool where it is another than the one refused;
+/// the same call again is its arguments as sent with the account set
+/// (`scope.account` for `search`, whose arguments are a request).
+struct Spoken<'a> {
+    named: &'a str,
+}
+
+impl refusal::Surface for Spoken<'_> {
+    fn words(&self, e: &anyhow::Error) -> String {
+        failure_words(e, self.named)
+    }
+
+    fn request(&self, way: &Way) -> Option<(Value, Option<&'static str>)> {
+        let called = CALLED.try_with(Called::clone).ok();
+        let tool = called.as_ref().map(|c| c.tool.as_str());
+        let other = |name: &'static str| (tool != Some(name)).then_some(name);
+        match way {
+            Way::Again { account } => {
+                let called = called?;
+                if called.tool == "search" {
+                    let mut asked = Asked::read(&Value::Object(called.arguments)).ok()?.request;
+                    asked.scope.account = Some(account.clone());
+                    Some((serde_json::to_value(asked).ok()?, None))
+                } else {
+                    let mut arguments = called.arguments;
+                    arguments.insert("account".into(), json!(account));
+                    Some((Value::Object(arguments), None))
+                }
+            }
+            Way::Search(request) => Some((serde_json::to_value(request).ok()?, other("search"))),
+            Way::Tabs {
+                account,
+                realm,
+                league,
+            } => Some((
+                json!({ "account": account, "realm": realm.as_str(), "league": league }),
+                other("tabs"),
+            )),
+            Way::PriceShow {
+                target,
+                account,
+                realm,
+                league,
+            } => Some((
+                json!({
+                    "target": target, "account": account, "realm": realm.as_str(), "league": league,
+                }),
+                other("price_show"),
+            )),
+            Way::PriceStatus {
+                account,
+                realm,
+                league,
+            } => Some((
+                json!({
+                    "account": account, "realm": realm.as_str(), "league": league, "expand": true,
+                }),
+                other("price_status"),
+            )),
+        }
+    }
+}
 
 /// A tool's answer: the document, or its failure as [`failed`] sorts it.
 fn settled<T: serde::Serialize>(answer: Result<T>) -> Told {
@@ -382,11 +441,11 @@ fn told_as<T: serde::Serialize>(document: &T, prose: Prose) -> Told {
     Ok(result)
 }
 
-/// A refusal, as the search crate words it (C11): `error`, `kind`,
-/// `readings`, `offers`; its readings are payload, a scope refusal's in
-/// the request's words as a language refusal's are the query's.
+/// A refusal the search crate made (C11), in the one shape: `error`,
+/// `kind`, `readings`, payload, a scope refusal's in the request's words
+/// as a language refusal's are the query's, and `offers`.
 fn refused(e: impl Into<SearchError>) -> CallToolResult {
-    refusing(e.into().to_json())
+    refusing(refusal::of_search(&e.into(), &Spoken { named: "account" }))
 }
 
 /// A tool's arguments, read here and not by the SDK, whose refusal of
@@ -412,11 +471,10 @@ impl<T: schemars::JsonSchema> schemars::JsonSchema for Args<T> {
 }
 
 impl<T: serde::de::DeserializeOwned> Args<T> {
-    /// The arguments, or [`BadArguments`].
+    /// The arguments, or [`Arguments`], refused as `arguments`.
     fn parse(self) -> Result<T> {
-        serde_json::from_value(Value::Object(self.0)).map_err(|e| {
-            BadArguments(format!("these are not arguments the tool takes: {e}")).into()
-        })
+        serde_json::from_value(Value::Object(self.0))
+            .map_err(|e| Arguments(format!("these are not arguments the tool takes: {e}")).into())
     }
 
     /// The arguments, or their refusal document.
@@ -448,7 +506,7 @@ fn unexpected(response: Response) -> Fault {
 fn realm_param(realm: Option<&str>) -> Result<Realm> {
     match realm {
         None => Ok(Realm::DEFAULT),
-        Some(s) => acquisition_verbs::realm(s).map_err(|why| BadArguments(why).into()),
+        Some(s) => acquisition_verbs::realm(s).map_err(|why| Arguments(why).into()),
     }
 }
 
@@ -1250,13 +1308,7 @@ fn refusing(doc: Value) -> CallToolResult {
 fn priced<T: serde::Serialize>(answer: Result<T>) -> Told {
     match answer {
         Ok(document) => told(&document),
-        Err(e) => {
-            let mut report = json!({ "error": format!("{e:#}") });
-            if let Some(refused) = acquisition_plan::pricing::Refused::find(&e) {
-                report.as_object_mut().unwrap().extend(refused.fields());
-            }
-            Ok(refusing(report))
-        }
+        Err(e) => Ok(refusing(refusal(&e, "account"))),
     }
 }
 
@@ -1266,7 +1318,7 @@ fn price_realm(realm: Option<&str>) -> std::result::Result<Option<Realm>, CallTo
     realm
         .map(|s| {
             acquisition_verbs::realm(s)
-                .map_err(|why| refusing(json!({ "error": why, "kind": "arguments" })))
+                .map_err(|why| refusing(refusal(&Arguments(why).into(), "account")))
         })
         .transpose()
 }
@@ -1499,12 +1551,15 @@ impl AcqMcp {
             None => None,
             Some(Ok(query)) => Some(query),
             Some(Err(e)) => {
-                return Ok(refusing(json!({
-                    "error": format!(
+                // the language's own refusal of a tree it cannot read
+                return Ok(refused(acquisition_search::LanguageError {
+                    kind: acquisition_search::ErrorKind::Tree,
+                    message: format!(
                         "`against` is a query as a request holds one, {{\"text\": …}} or {{\"tree\": …}}: {e}"
                     ),
-                    "kind": "tree",
-                })));
+                    span: None,
+                    readings: Vec::new(),
+                }));
             }
         };
         // an authoring error is said before the store is read
@@ -1896,6 +1951,21 @@ impl AcqMcp {
 
 #[tool_handler]
 impl ServerHandler for AcqMcp {
+    /// Every call, served with the call itself at hand ([`CALLED`]), so
+    /// a refusal can offer it again as each account known.
+    async fn call_tool(
+        &self,
+        request: rmcp::model::CallToolRequestParams,
+        context: rmcp::service::RequestContext<rmcp::RoleServer>,
+    ) -> Result<rmcp::model::CallToolResponse, ErrorData> {
+        let called = Called {
+            tool: request.name.to_string(),
+            arguments: request.arguments.clone().unwrap_or_default(),
+        };
+        let call = rmcp::handler::server::tool::ToolCallContext::new(self, request, context);
+        CALLED.scope(called, Self::tool_router().call(call)).await
+    }
+
     fn get_info(&self) -> ServerInfo {
         let mut info = ServerInfo::default();
         info.capabilities = ServerCapabilities::builder().enable_tools().build();
@@ -1912,8 +1982,9 @@ impl ServerHandler for AcqMcp {
              scope.realm (the refusal offers each).\n\
              - describe with names explains the language and the answers: fields first, then \
              answer, trade, pricing, daemon, store; the whole is over 100 KB.\n\
-             - A refusal is a result marked isError, with readings and offers; any request an \
-             answer holds is sent back as printed.\n\
+             - A refusal is marked isError: error, kind, and readings, next and offers where \
+             it has them; any request an offer or an answer holds is sent back as printed, to \
+             the tool it names or the same one.\n\
              - No tool says what an item is worth: a price is the owner's own listing.",
             self.frontend.provider,
         ));

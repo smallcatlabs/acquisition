@@ -857,6 +857,18 @@ impl std::fmt::Display for PutPolicyError {
                  written cannot be merged into it: write the whole policy instead (`--replace`; on the \
                  MCP, `replace: true`)"
             ),
+            // the policy's words, never the store's (C116)
+            PutPolicyError::Store(AnnotationError::Conflict { current: Some(row) }) => write!(
+                f,
+                "the sync policy is at revision {} (re-read and retry)",
+                row.revision
+            ),
+            PutPolicyError::Store(AnnotationError::Conflict { current: None }) => {
+                write!(
+                    f,
+                    "no sync policy is stored at that revision (re-read and retry)"
+                )
+            }
             PutPolicyError::Store(e) => write!(f, "{e}"),
         }
     }

@@ -29,6 +29,8 @@
 //! - [`events`]: the item events by location (C53).
 //! - [`characters`]: the characters on record, counted beside their
 //!   rows (C149, C53).
+//! - [`refusal`]: the one refusal shape every frontend prints, its
+//!   offers spelled by each surface (C11, C149).
 //! - [`refused`]: the bodies the store refused, listed and counted
 //!   (C149).
 //!
@@ -48,6 +50,7 @@ pub mod fault;
 pub mod frontend;
 pub mod jobs;
 pub mod refresh;
+pub mod refusal;
 pub mod refused;
 
 pub use characters::Characters;

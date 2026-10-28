@@ -215,8 +215,8 @@ pub struct SearchArgs {
     /// `--json`, or a count's route — which reports both counts where its
     /// count has moved since, and wherever the basis has where the
     /// answer's `basis` is sent beside it as `counted_at`. A request is
-    /// whole: no word
-    /// of scope, query or view stands beside it.
+    /// whole: no word of scope, query or view stands beside it, and with
+    /// no `--account` the account its scope names selects the store.
     #[arg(long, value_name = "FILE|-")]
     pub request: Option<String>,
     /// Not built, waiting for a consumer that asks: run another account's
@@ -249,7 +249,10 @@ pub struct ShowArgs {
 /// Print a failure on the path the caller chose, and exit 1 through main.
 fn fail(e: SearchError, json: bool) -> anyhow::Error {
     if json {
-        println!("{}", search_error_json(&e));
+        println!(
+            "{}",
+            acquisition_verbs::refusal::of_search(&e, &crate::Terminal::this_command())
+        );
     } else {
         eprintln!("Error: {}", search_error_text(&e));
     }
@@ -287,29 +290,6 @@ pub(crate) fn terminal_reading(o: &acquisition_search::error::Offered) -> String
         Some(realm) => format!("{} (--realm {realm})", o.reading),
         None => o.reading.clone(),
     }
-}
-
-/// A search refusal's `--json` document: the search crate's, its
-/// readings and each offer's `says` with this terminal's spelling after
-/// them ([`terminal_reading`]).
-pub(crate) fn search_error_json(e: &SearchError) -> serde_json::Value {
-    let mut doc = e.to_json();
-    if let SearchError::Scope { offers, .. } = e {
-        let said: Vec<String> = offers.iter().map(terminal_reading).collect();
-        if doc.get("readings").is_some() {
-            doc["readings"] = serde_json::json!(said);
-        }
-        let sent = offers
-            .iter()
-            .zip(&said)
-            .filter(|(o, _)| o.request.is_some());
-        if let Some(listed) = doc.get_mut("offers").and_then(|o| o.as_array_mut()) {
-            for (offer, (_, says)) in listed.iter_mut().zip(sent) {
-                offer["says"] = serde_json::json!(says);
-            }
-        }
-    }
-    doc
 }
 
 fn emit<T: Serialize>(value: &T, json: bool, text: impl FnOnce(&T) -> String) -> Result<()> {
@@ -388,7 +368,7 @@ pub fn search(cx: &Ctx, args: SearchArgs, json: bool) -> Result<()> {
         let mut asked = Asked::read(&value).map_err(|e| fail(e.into(), json))?;
         asked.request.view.routes |= args.routes;
         asked.request.check().map_err(|e| fail(e.into(), json))?;
-        let (store, intent) = open_store_and_intent(cx)?;
+        let (store, intent) = open_as_asked(cx, &asked.request)?;
         let corpus = asked
             .request
             .corpus(&store, &intent)
@@ -407,7 +387,7 @@ pub fn search(cx: &Ctx, args: SearchArgs, json: bool) -> Result<()> {
         }
         request.view.routes |= args.routes;
         request.check().map_err(|e| fail(e.into(), json))?;
-        let (store, intent) = open_store_and_intent(cx)?;
+        let (store, intent) = open_as_asked(cx, &request)?;
         let corpus = request.corpus(&store, &intent).map_err(|e| fail(e, json))?;
         let answered = answer(&corpus, &request).map_err(|e| fail(e, json))?;
         return emit(&answered, json, answer_text);
@@ -631,6 +611,19 @@ pub fn show_item(cx: &Ctx, args: ShowArgs, json: bool) -> Result<()> {
 /// neither.
 fn open_store_and_intent(cx: &Ctx) -> Result<(Store, acquisition_store::Annotations)> {
     let opened = cx.account()?.open()?;
+    Ok((opened.facts, opened.intent))
+}
+
+/// [`open_store_and_intent`] for a request read whole (`--request`,
+/// `--next`): with no `--account` and no `ACQ_ACCOUNT`, the account its
+/// scope names selects the store, as the MCP's `scope.account` does —
+/// a request is whole, its scope its own, so one an answer or a refusal
+/// holds runs as printed with a second account known (round 4 of the 2g
+/// build). An `--account` given still selects, and a request bound to
+/// another is refused by the search as it was.
+fn open_as_asked(cx: &Ctx, request: &Request) -> Result<(Store, acquisition_store::Annotations)> {
+    let selector = cx.account.as_deref().or(request.scope.account.as_deref());
+    let opened = cx.frontend.account(selector)?.open()?;
     Ok((opened.facts, opened.intent))
 }
 

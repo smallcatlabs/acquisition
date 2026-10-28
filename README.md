@@ -185,8 +185,9 @@ acq diagnose [--lines N]   # what a bug report needs, account names, paths and t
 ```
 
 Every command takes `--json`, and it is total: a failure is
-`{"error":…}` on stdout with exit 1, a refused command line the same
-with `"kind":"usage"` and exit 2. Every command takes
+`{"error":…,"kind":…}` on stdout with exit 1, its `offers` the commands
+that would get past it, a refused command line the same with
+`"kind":"usage"` and exit 2. Every command takes
 `--account <username|name|uuid>` (or `ACQ_ACCOUNT`) too. Without it, a
 verb that reads the store takes the one account known on disk and a job
 verb the one logged in; where there are several, it refuses and names

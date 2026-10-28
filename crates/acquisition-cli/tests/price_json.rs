@@ -1601,3 +1601,157 @@ fn every_printed_price_command_carries_its_scope_and_runs_as_printed() {
         "{ran} printed commands run, {writes} writes"
     );
 }
+
+/// An offer's command line, run as printed: its words as a shell splits
+/// them, nothing added.
+fn run_offered(base: &Path, command: &str) -> Value {
+    let words = shell_words(command);
+    assert_eq!(words[0], "acq", "{command}");
+    let args: Vec<&str> = words[1..].iter().map(String::as_str).collect();
+    let out = acq(base, &args);
+    assert!(
+        out.status.success(),
+        "`{command}` does not run as printed: {}{}",
+        String::from_utf8_lossy(&out.stdout),
+        stderr(&out)
+    );
+    sole_json(&out)
+}
+
+/// Round 4 of the 2g build (the refusal shape; the cold reviews' findings
+/// 8 and 6), at a terminal: a refusal's offers are command lines a shell
+/// runs as printed, and a search's the request `acq search --request`
+/// reads. With two accounts known, an account typed wrong offers the
+/// command typed again as each name; a target the facts do not hold
+/// offers the search of its realm and its league's tabs, and the commands
+/// its words print run too; an item looked for where the facts do not
+/// hold it, whether the realm and league were named or taken by the verb,
+/// offers its show where they do.
+#[test]
+fn every_offer_a_refusal_prints_runs_as_printed() {
+    let scratch = harness::scratch("price-offers");
+    let base = scratch.0.clone();
+    let mock = seed(&base);
+    Index::load(&mock)
+        .unwrap()
+        .record_login("Bob#5678", "u-bob", false, acquisition_store::now(), &[])
+        .unwrap();
+    let mut store = Store::open(&account_path(&mock, USER)).unwrap();
+    let at = acquisition_store::now();
+    store
+        .record(
+            &Endpoint::Stashes {
+                realm: "xbox".into(),
+                league: "Allflame".into(),
+            },
+            &json!({ "league": "Allflame" }),
+            200,
+            &json!({ "stashes": [ { "id": "tx", "name": "Box", "type": "PremiumStash", "index": 0 } ] }),
+            at,
+        )
+        .unwrap();
+    store
+        .record(
+            &Endpoint::Stash {
+                realm: "xbox".into(),
+                league: "Allflame".into(),
+                id: "tx".into(),
+                sub: None,
+            },
+            &json!({}),
+            200,
+            &json!({ "stash": { "id": "tx", "name": "Box", "type": "PremiumStash", "items": [
+                { "id": "ix", "name": "", "typeLine": "Chaos Orb", "baseType": "Chaos Orb",
+                  "x": 0, "y": 0, "stackSize": 5 } ] } }),
+            at,
+        )
+        .unwrap();
+    drop(store);
+    let refused = |args: &[&str], kind: &str| -> Value {
+        let out = acq(&base, args);
+        assert!(!out.status.success(), "{args:?} answered");
+        let doc = sole_json(&out);
+        assert_eq!(doc["kind"], kind, "{args:?}: {doc}");
+        doc
+    };
+
+    // a typo'd account: the command typed, as each name (C121 kept)
+    let doc = refused(
+        &[
+            "--json",
+            "--account",
+            "Alicia#1234",
+            "tabs",
+            "--realm",
+            "xbox",
+            "--league",
+            "Allflame",
+        ],
+        "not_logged_in",
+    );
+    let offers = doc["offers"].as_array().unwrap();
+    assert_eq!(offers.len(), 2, "{doc}");
+    assert_eq!(
+        offers[0]["request"],
+        "acq --account 'Alice#1234' --json tabs --realm xbox --league Allflame"
+    );
+    for offer in offers {
+        run_offered(&base, offer["request"].as_str().unwrap());
+    }
+
+    // a target held nowhere: the search of the realm, a request, and the
+    // league's tabs, a command line; the words' commands run as well
+    let doc = refused(
+        &[
+            "--json",
+            "price",
+            "show",
+            "tab/xbox/nope",
+            "--account",
+            USER,
+            "--realm",
+            "xbox",
+            "--league",
+            "Allflame",
+        ],
+        "not_found",
+    );
+    let offers = doc["offers"].as_array().unwrap();
+    assert_eq!(offers.len(), 2, "{doc}");
+    let file = base.join("offer.json");
+    std::fs::write(&file, offers[0]["request"].to_string()).unwrap();
+    let found = run_offered(
+        &base,
+        &format!("acq --json search --request {}", file.display()),
+    );
+    assert_eq!(found["rows"][0]["id"], "ix", "{found}");
+    assert_eq!(
+        offers[1]["request"],
+        "acq tabs --account 'Alice#1234' --realm xbox --league Allflame"
+    );
+    let words = doc["error"].as_str().unwrap();
+    let printed: Vec<&str> = words.split('`').filter(|w| w.starts_with("acq ")).collect();
+    assert_eq!(printed.len(), 2, "{words}");
+    assert_eq!(printed[1], offers[1]["request"], "one command, two places");
+    for command in printed {
+        run_offered(&base, &format!("{command} --json"));
+    }
+
+    // an item where the facts do not hold it, the scope named and taken
+    for args in [&["--realm", "pc", "--league", "Allflame"][..], &[][..]] {
+        let mut asked = vec!["--json", "price", "show", "item/ix", "--account", USER];
+        asked.extend(args);
+        let doc = refused(&asked, "not_found");
+        let offers = doc["offers"].as_array().unwrap();
+        assert_eq!(offers.len(), 1, "{args:?}: {doc}");
+        assert_eq!(
+            offers[0]["request"],
+            "acq price show item/ix --account 'Alice#1234' --realm xbox --league Allflame"
+        );
+        let shown = run_offered(
+            &base,
+            &format!("{} --json", offers[0]["request"].as_str().unwrap()),
+        );
+        assert_eq!(shown["listing"]["subject"]["target"]["id"], "ix", "{shown}");
+    }
+}

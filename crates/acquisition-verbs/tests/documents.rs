@@ -1048,3 +1048,270 @@ fn c149_every_document_a_verb_returns_is_one_json_object() {
     }
     assert_eq!(documents[7].1, json!({ "policy": null }));
 }
+
+// ---- the one refusal shape (C11, C149; round 4 of the 2g build) ---------
+
+/// A surface for the shape's own tests: its words the chain whole, and
+/// a way spelled as its debug text, the tool named for every way but the
+/// same call again.
+struct Plain;
+
+impl acquisition_verbs::refusal::Surface for Plain {
+    fn words(&self, e: &anyhow::Error) -> String {
+        format!("{e:#}")
+    }
+
+    fn request(
+        &self,
+        way: &acquisition_verbs::refusal::Way,
+    ) -> Option<(Value, Option<&'static str>)> {
+        use acquisition_verbs::refusal::Way;
+        let tool = match way {
+            Way::Again { .. } => None,
+            Way::Search(_) => Some("search"),
+            Way::Tabs { .. } => Some("tabs"),
+            Way::PriceShow { .. } => Some("price_show"),
+            Way::PriceStatus { .. } => Some("price_status"),
+        };
+        Some((json!(format!("{way:?}")), tool))
+    }
+}
+
+/// The keys a refusal may hold: `error` and `kind` always; the four the
+/// shape adds — `offers`, `readings`, `next`, the kind's own fields —
+/// where they have something to say.
+const REFUSAL_KEYS: [&str; 9] = [
+    "error", "kind", "offers", "readings", "next", "accounts", "revision", "current", "span",
+];
+
+/// A not_found's refusal as the planner makes it, over a scope named.
+fn missing(elsewhere: Vec<(Realm, String)>, own_row: Option<i64>) -> anyhow::Error {
+    use acquisition_plan::pricing::{Missing, Refused, RefusedKind, read_target};
+    anyhow::Error::new(Refused {
+        kind: RefusedKind::NotFound(Box::new(Missing {
+            target: read_target("tab/xbox/nope").unwrap(),
+            account: USER.into(),
+            realm: Realm::Xbox,
+            league: "Allflame".into(),
+            elsewhere,
+            own_row,
+        })),
+        message: "tab/xbox/nope is not in the facts".into(),
+    })
+}
+
+/// Every refusal the layer, the planner, the search and the daemon make
+/// is one document from one function: `error` and `kind` from the closed
+/// lists, at most the shape's keys, an added key absent and never null,
+/// and C11's `revision: null` kept on a conflict over no row ever written.
+#[test]
+fn every_refusal_is_one_shape_from_one_function() {
+    use acquisition_plan::pricing::{Refused, RefusedKind};
+    use acquisition_search::error::ErrorKind as SearchKind;
+    use acquisition_search::{LanguageError, SearchError};
+    use acquisition_verbs::refusal::{Arguments, document, of_search};
+    let next = "a person starts one from a terminal: `acq auth check`".to_string();
+    let cases: Vec<(anyhow::Error, &str)> = vec![
+        (
+            Fault::UnknownAccount {
+                selector: "GERWARIK#7694".into(),
+                known: vec!["GERWARIC#7694".into()],
+            }
+            .into(),
+            "not_logged_in",
+        ),
+        (
+            Fault::AmbiguousAccount {
+                candidates: vec![USER.into(), "Bob#9".into()],
+            }
+            .into(),
+            "ambiguous_account",
+        ),
+        (
+            Fault::NoDaemon {
+                because: None,
+                next: next.clone(),
+            }
+            .into(),
+            "no_daemon",
+        ),
+        (Fault::Unopened(anyhow::anyhow!("disk")).into(), "store"),
+        (
+            anyhow::Error::new(Refused {
+                kind: RefusedKind::Conflict {
+                    revision: None,
+                    current: None,
+                },
+                message: "item/x has no price of its own".into(),
+            }),
+            "conflict",
+        ),
+        (missing(vec![], Some(3)), "not_found"),
+        (
+            anyhow::Error::new(acquisition_client::client::DaemonError {
+                kind: acquisition_protocol::protocol::ErrorKind::UnknownJob,
+                message: "no job 7".into(),
+            }),
+            "unknown_job",
+        ),
+        (Arguments("not an argument".into()).into(), "arguments"),
+        (anyhow::anyhow!("anything else"), "refused"),
+        (
+            anyhow::Error::new(SearchError::Language(LanguageError {
+                kind: SearchKind::BareWord,
+                message: "a word with no operator".into(),
+                span: Some((0, 4)),
+                readings: vec!["rarity=rare".into()],
+            })),
+            "bare_word",
+        ),
+    ];
+    for (e, kind) in cases {
+        let doc = document(&e, &Plain);
+        let fields = doc.as_object().unwrap();
+        assert_eq!(fields["kind"], kind, "{doc}");
+        assert!(fields["error"].is_string(), "{doc}");
+        for (key, value) in fields {
+            assert!(REFUSAL_KEYS.contains(&key.as_str()), "{key} in {doc}");
+            assert!(
+                !value.is_null() || key == "revision",
+                "{key} is null in {doc}"
+            );
+        }
+        for offer in fields
+            .get("offers")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            let keys: Vec<&String> = offer.as_object().unwrap().keys().collect();
+            assert!(
+                keys == ["request", "says"] || keys == ["request", "says", "tool"],
+                "{offer}"
+            );
+        }
+        // a search's refusal by itself is the same document
+        if let Some(search) = e.downcast_ref::<SearchError>() {
+            assert_eq!(of_search(search, &Plain), doc);
+        }
+    }
+    let conflict = document(
+        &anyhow::Error::new(Refused {
+            kind: RefusedKind::Conflict {
+                revision: None,
+                current: None,
+            },
+            message: "nothing to clear".into(),
+        }),
+        &Plain,
+    );
+    assert_eq!(
+        conflict,
+        json!({ "error": "nothing to clear", "kind": "conflict", "revision": null })
+    );
+}
+
+/// C121 kept: a name no login made is `not_logged_in` with the names
+/// known, its words the two readings, and an offer per name: the request
+/// refused, sent again as that account; several to pick from, the same.
+#[test]
+fn an_account_that_cannot_be_picked_offers_the_request_as_each_name() {
+    use acquisition_verbs::refusal::document;
+    let doc = document(
+        &Fault::UnknownAccount {
+            selector: "GERWARIK#7694".into(),
+            known: vec!["GERWARIC#7694".into(), "Bob#9".into()],
+        }
+        .into(),
+        &Plain,
+    );
+    assert_eq!(
+        doc["error"],
+        "no login made a store for `GERWARIK#7694`; the names known: GERWARIC#7694, Bob#9"
+    );
+    assert_eq!(doc["accounts"], json!(["GERWARIC#7694", "Bob#9"]));
+    assert_eq!(
+        doc["offers"],
+        json!([
+            { "request": "Again { account: \"GERWARIC#7694\" }", "says": "the same request as GERWARIC#7694" },
+            { "request": "Again { account: \"Bob#9\" }", "says": "the same request as Bob#9" },
+        ])
+    );
+    let doc = document(
+        &Fault::AmbiguousAccount {
+            candidates: vec![USER.into(), "Bob#9".into()],
+        }
+        .into(),
+        &Plain,
+    );
+    assert_eq!(doc["offers"].as_array().unwrap().len(), 2, "{doc}");
+}
+
+/// A target the facts do not hold offers what would find it, made from
+/// the scope the refusal carries: held elsewhere, its show in each place;
+/// held nowhere, the status that lists a row of its own, a search of the
+/// realm and the league's tabs — each naming the account, realm and
+/// league resolved, never one read again.
+#[test]
+fn a_not_found_offers_what_would_find_it_in_the_scope_it_carries() {
+    use acquisition_verbs::refusal::document;
+    let doc = document(&missing(vec![], Some(3)), &Plain);
+    let tools: Vec<&Value> = doc["offers"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|o| &o["tool"])
+        .collect();
+    assert_eq!(
+        tools,
+        [&json!("price_status"), &json!("search"), &json!("tabs")]
+    );
+    let tabs = doc["offers"][2]["request"].as_str().unwrap();
+    assert!(
+        tabs.contains("Xbox") && tabs.contains("Allflame") && tabs.contains(USER),
+        "{tabs}"
+    );
+    let search = doc["offers"][1]["request"].as_str().unwrap();
+    assert!(search.contains("xbox") && search.contains(USER), "{search}");
+    let doc = document(&missing(vec![], None), &Plain);
+    assert_eq!(doc["offers"].as_array().unwrap().len(), 2, "{doc}");
+    let doc = document(
+        &missing(vec![(Realm::Pc, "Standard".into())], Some(3)),
+        &Plain,
+    );
+    assert_eq!(
+        doc["offers"],
+        json!([{
+            "request": format!("PriceShow {{ target: \"tab/xbox/nope\", account: \"{USER}\", realm: Pc, league: \"Standard\" }}"),
+            "says": "tab/xbox/nope in pc Standard, where the facts hold it",
+            "tool": "price_show",
+        }])
+    );
+}
+
+/// C11: a policy write refused for its revision is `conflict`, with the
+/// stored row's revision and the row itself as `policy` prints it.
+#[test]
+fn a_policy_write_refused_for_its_revision_is_a_conflict_with_the_row() {
+    let s = scratch();
+    login(&s.mock, USER, UUID);
+    let account = frontend(&s.mock).account(None).unwrap();
+    account
+        .set_policy(&policy(), Expect::Current, PolicyWrite::Merge)
+        .unwrap();
+    let fault = account
+        .set_policy(&policy(), Expect::Exactly(7), PolicyWrite::Replace)
+        .unwrap_err();
+    let doc = acquisition_verbs::refusal::document(&fault.into(), &Plain);
+    assert_eq!(doc["kind"], "conflict", "{doc}");
+    assert_eq!(doc["revision"], 1, "{doc}");
+    assert_eq!(
+        doc["current"],
+        json!(account.policy().unwrap().unwrap()),
+        "{doc}"
+    );
+    assert_eq!(
+        doc["error"],
+        "the sync policy is at revision 1 (re-read and retry)"
+    );
+}

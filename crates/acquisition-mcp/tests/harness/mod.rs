@@ -321,17 +321,20 @@ impl Mcp {
 
 /// The keys whose value is payload (`PAYLOAD` in the server): what an
 /// agent sends back as printed or types as written, never spelled.
-const PAYLOAD: [&str; 7] = [
-    "offers", "request", "query", "params", "next", "route", "examples",
+const PAYLOAD: [&str; 8] = [
+    "offers", "request", "query", "params", "next", "route", "examples", "readings",
 ];
 
 /// C143: the server's document is the CLI's with this server's spelling
 /// after the shared words — the same shape, and each string of prose the
 /// CLI's whole, or the CLI's followed by ` — here, ` and the spelling.
-/// Payload is the CLI's exactly: every value under a `PAYLOAD` key, and
-/// `readings` unless the object's `offers` stand beside them (a scope
-/// refusal's readings are its offers' commands, prose). The first string
-/// that differs otherwise, with its path, or `None`.
+/// Payload is the CLI's exactly: every value under a `PAYLOAD` key, a
+/// refusal's `readings` among them — but a refusal's `offers`, each a
+/// request as its surface sends it (an MCP tool's arguments, naming the
+/// tool; a terminal's command line), which hold the same offers saying
+/// the same words (round 4 of the 2g build: the adapter spells the
+/// request). The first string that differs otherwise, with its path, or
+/// `None`.
 pub fn spoken_otherwise(server: &Value, cli: &Value, path: &str) -> Option<String> {
     spoken_under(server, cli, path, false)
 }
@@ -358,14 +361,26 @@ fn spoken_under(server: &Value, cli: &Value, path: &str, payload: bool) -> Optio
             if s.keys().collect::<Vec<_>>() == c.keys().collect::<Vec<_>>() =>
         {
             s.iter().find_map(|(k, v)| {
-                let under = payload
-                    || PAYLOAD.contains(&k.as_str())
-                    || (k == "readings" && !s.contains_key("offers"));
-                spoken_under(v, &c[k], &format!("{path}.{k}"), under)
+                let here = format!("{path}.{k}");
+                if k == "offers" && s.contains_key("kind") {
+                    return offered_otherwise(v, &c[k], &here);
+                }
+                let under = payload || PAYLOAD.contains(&k.as_str());
+                spoken_under(v, &c[k], &here, under)
             })
         }
         _ => (server != cli).then(|| format!("{path}: {server} is not {cli}")),
     }
+}
+
+/// A refusal's offers on two surfaces: as many, each saying the same.
+fn offered_otherwise(server: &Value, cli: &Value, path: &str) -> Option<String> {
+    let says = |v: &Value| -> Vec<Value> {
+        v.as_array()
+            .map(|offers| offers.iter().map(|o| o["says"].clone()).collect())
+            .unwrap_or_default()
+    };
+    (says(server) != says(cli)).then(|| format!("{path}: {server} does not say {cli}"))
 }
 
 /// [`spoken_otherwise`] as an assertion.

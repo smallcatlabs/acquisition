@@ -252,3 +252,146 @@ fn a_reply_queued_before_initialisation_reaches_stdout_when_stdin_closes() {
     assert_eq!(reply["id"], Value::Null, "{reply}");
     assert_eq!(reply["error"]["code"], json!(-32700), "{reply}");
 }
+
+/// Two accounts known — Alice, whose facts hold one tab `tx` with one
+/// item `ix` in xbox's Allflame, and Bob, with none — so a request
+/// naming no account is ambiguous and every offer must name one.
+fn seed_two(base: &std::path::Path) {
+    let mock = base.join("store").join("mock");
+    std::fs::create_dir_all(&mock).unwrap();
+    let at = acquisition_store::now();
+    for (name, uuid) in [(USER, UUID), ("Bob#5678", "u-bob")] {
+        Index::load(&mock)
+            .unwrap()
+            .record_login(name, uuid, false, at, &[])
+            .unwrap();
+        Store::open(&account_path(&mock, name))
+            .unwrap()
+            .record(
+                &Endpoint::Profile,
+                &json!({}),
+                200,
+                &json!({ "uuid": uuid, "name": name }),
+                at,
+            )
+            .unwrap();
+    }
+    let mut store = Store::open(&account_path(&mock, USER)).unwrap();
+    store
+        .record(
+            &Endpoint::Stashes {
+                realm: "xbox".into(),
+                league: "Allflame".into(),
+            },
+            &json!({ "league": "Allflame" }),
+            200,
+            &json!({ "stashes": [ { "id": "tx", "name": "Box", "type": "PremiumStash", "index": 0 } ] }),
+            at,
+        )
+        .unwrap();
+    store
+        .record(
+            &Endpoint::Stash {
+                realm: "xbox".into(),
+                league: "Allflame".into(),
+                id: "tx".into(),
+                sub: None,
+            },
+            &json!({}),
+            200,
+            &json!({ "stash": { "id": "tx", "name": "Box", "type": "PremiumStash", "items": [
+                { "id": "ix", "name": "", "typeLine": "Chaos Orb", "baseType": "Chaos Orb",
+                  "x": 0, "y": 0, "stackSize": 5 } ] } }),
+            at,
+        )
+        .unwrap();
+}
+
+/// Round 4 of the 2g build (the refusal shape; the cold reviews' findings
+/// 8 and 6): a refusal's offers are requests an agent sends back as
+/// printed, and each is answered. An account typed wrong offers the same
+/// call as each name known, on a store tool and on `search` (whose
+/// account is `scope.account`); a target the facts do not hold offers the
+/// tools that would find it, named and with the scope it was looked for
+/// in, whether the request named the non-default realm and league or the
+/// verb took them from the address and the facts.
+#[test]
+fn every_offer_a_refusal_makes_is_answered_as_sent_back() {
+    let scratch = harness::scratch("mcp-offers");
+    let base = scratch.0.clone();
+    seed_two(&base);
+    let mut mcp = Mcp::start(&base, &[]);
+    let answered = |mcp: &mut Mcp, refused: &str, offer: &Value| -> Value {
+        let tool = offer["tool"].as_str().unwrap_or(refused).to_string();
+        let result = mcp.result(&tool, offer["request"].clone());
+        assert_ne!(result["isError"], json!(true), "{offer}: {result}");
+        result["structuredContent"].clone()
+    };
+
+    // a typo'd account: the same call as each name, the kind kept (C121)
+    let asked = json!({ "account": "Alicia#1234", "realm": "xbox", "league": "Allflame" });
+    let doc = refusal(&mut mcp, "tabs", asked.clone(), "not_logged_in");
+    assert_eq!(doc["accounts"], json!([USER, "Bob#5678"]), "{doc}");
+    let offers = doc["offers"].as_array().unwrap();
+    assert_eq!(offers.len(), 2, "{doc}");
+    for (offer, name) in offers.iter().zip([USER, "Bob#5678"]) {
+        let mut sent = asked.clone();
+        sent["account"] = json!(name);
+        assert_eq!(offer["request"], sent, "{doc}");
+        assert!(offer.get("tool").is_none(), "the same tool: {offer}");
+        answered(&mut mcp, "tabs", offer);
+    }
+    let shown = answered(&mut mcp, "tabs", &offers[0]);
+    assert_eq!(shown["rows"][0]["id"], "tx", "{shown}");
+    let doc = refusal(
+        &mut mcp,
+        "search",
+        json!({ "scope": { "account": "Alicia" }, "query": { "text": "class:currency" } }),
+        "not_logged_in",
+    );
+    let offer = &doc["offers"][0];
+    assert_eq!(offer["request"]["scope"]["account"], USER, "{doc}");
+    assert_eq!(offer["request"]["query"]["text"], "class:currency", "{doc}");
+    let found = answered(&mut mcp, "search", offer);
+    assert_eq!(found["rows"][0]["id"], "ix", "{found}");
+
+    // a target held nowhere, its realm and league named: the search of
+    // the realm and the league's tabs, each answering in that scope
+    let doc = refusal(
+        &mut mcp,
+        "price_show",
+        json!({ "target": "tab/xbox/nope", "account": USER, "realm": "xbox", "league": "Allflame" }),
+        "not_found",
+    );
+    let offers = doc["offers"].as_array().unwrap();
+    let tools: Vec<&Value> = offers.iter().map(|o| &o["tool"]).collect();
+    assert_eq!(tools, [&json!("search"), &json!("tabs")], "{doc}");
+    assert_eq!(
+        offers[1]["request"],
+        json!({ "account": USER, "realm": "xbox", "league": "Allflame" })
+    );
+    let found = answered(&mut mcp, "price_show", &offers[0]);
+    assert_eq!(found["rows"][0]["id"], "ix", "{found}");
+    let tabs = answered(&mut mcp, "price_show", &offers[1]);
+    assert_eq!(tabs["rows"][0]["id"], "tx", "{tabs}");
+
+    // an item looked for in the realm and league the request named, and
+    // in those the verb took when it named neither (pc, the facts'
+    // Allflame): its show where the facts hold it, which answers
+    for asked in [
+        json!({ "target": "item/ix", "account": USER, "realm": "pc", "league": "Allflame" }),
+        json!({ "target": "item/ix", "account": USER }),
+    ] {
+        let doc = refusal(&mut mcp, "price_show", asked.clone(), "not_found");
+        let offers = doc["offers"].as_array().unwrap();
+        assert_eq!(offers.len(), 1, "{asked}: {doc}");
+        assert_eq!(
+            offers[0]["request"],
+            json!({ "target": "item/ix", "account": USER, "realm": "xbox", "league": "Allflame" }),
+            "{asked}"
+        );
+        assert!(offers[0].get("tool").is_none(), "{doc}");
+        let shown = answered(&mut mcp, "price_show", &offers[0]);
+        assert_eq!(shown["listing"]["subject"]["target"]["id"], "ix", "{shown}");
+    }
+}

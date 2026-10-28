@@ -179,7 +179,10 @@ pub(crate) async fn daemon_log_path(client: &mut Client) -> Option<String> {
 )]
 struct Cli {
     /// Emit structured JSON instead of human-readable output: one
-    /// document on stdout, a failure included (`{"error", "kind"}`). A
+    /// document on stdout, a failure included: `{"error", "kind"}`, and
+    /// where it has them `offers` (each `{request, says}`, a command line
+    /// to run as printed or a request `acq search --request` reads),
+    /// `readings`, `next` (a person's act) and the kind's own fields. A
     /// job verb's is `{"outcome", "payload", "job_id", "account"}`, and a
     /// failed job's carries `error` in place of `payload`; without the
     /// flag it prints the payload alone.
@@ -302,8 +305,8 @@ enum Cmd {
     /// step hangs on it and every one under `--routes`. `--json` is the
     /// answer whole, in the same order, the query as text and as tree, a
     /// count's request where its route is printed; a failure is `{"error",
-    /// "kind", "readings"}`, with `offers` where a way on is a request
-    /// `--request` reads. `--describe` prints the language, and what
+    /// "kind", "readings"}`, with `offers`, each `{request, says}`, where a
+    /// way on is a request `--request` reads. `--describe` prints the language, and what
     /// this build refuses by name.
     Search(Box<search_cmd::SearchArgs>),
     /// One item as the search derives it, live or removed (no daemon): its fields, its
@@ -1044,22 +1047,116 @@ pub(crate) fn failure_words(e: &anyhow::Error) -> String {
     format!("{e:#}")
 }
 
-/// What a failure's `--json` document carries beside its words (C11): a
-/// layer fault's kind and fields (`accounts`, `next`: C121, C45), a
-/// pricing refusal's (`conflict` with `revision`, `not_found`), a daemon
-/// refusal's closed kind (C85). Additive under C53; a failure with no
-/// kind has none to branch on beyond its message.
+/// A failure's `--json` document (C11): the one refusal shape every
+/// surface prints (`acquisition_verbs::refusal::document`; round 4 of
+/// the 2g build), its words this terminal's and its offers command lines
+/// ([`Terminal`]), this command's own repeated as another account.
 fn error_report(e: &anyhow::Error) -> serde_json::Value {
-    let mut report = serde_json::Map::new();
-    report.insert("error".into(), json!(failure_words(e)));
-    if let Some(fault) = e.chain().find_map(|c| c.downcast_ref::<Fault>()) {
-        report.extend(fault.fields());
-    } else if let Some(refused) = acquisition_plan::pricing::Refused::find(e) {
-        report.extend(refused.fields());
-    } else if let Some(refusal) = DaemonError::find(e) {
-        report.insert("kind".into(), json!(refusal.kind));
+    acquisition_verbs::refusal::document(e, &Terminal::this_command())
+}
+
+/// This terminal's side of the one refusal shape: its words
+/// ([`failure_words`]), and an offer as the line a shell runs — a
+/// search's as the request `acq search --request` reads, as a search's
+/// answer holds one — with the scope it carries spelled in flags; the
+/// command typed, `argv`, where one is at hand (a page has none).
+pub(crate) struct Terminal {
+    argv: Option<Vec<String>>,
+}
+
+impl Terminal {
+    /// The command this process was run as.
+    pub(crate) fn this_command() -> Terminal {
+        Terminal {
+            argv: Some(std::env::args().collect()),
+        }
     }
-    serde_json::Value::Object(report)
+
+    /// No command to repeat: a page's refusal.
+    pub(crate) fn page() -> Terminal {
+        Terminal { argv: None }
+    }
+}
+
+impl acquisition_verbs::refusal::Surface for Terminal {
+    fn words(&self, e: &anyhow::Error) -> String {
+        failure_words(e)
+    }
+
+    fn request(
+        &self,
+        way: &acquisition_verbs::refusal::Way,
+    ) -> Option<(serde_json::Value, Option<&'static str>)> {
+        use acquisition_verbs::refusal::Way;
+        let quote = |w: &str| acquisition_search::answer::shell_quoted(w);
+        let scope = |account: &str, realm: &acquisition_protocol::realm::Realm, league: &str| {
+            format!(
+                "--account {} --realm {} --league {}",
+                quote(account),
+                realm.as_str(),
+                quote(league)
+            )
+        };
+        let line = match way {
+            Way::Again { account } => again(self.argv.as_deref()?, account)?,
+            Way::Search(request) => return Some((serde_json::to_value(request).ok()?, None)),
+            Way::Tabs {
+                account,
+                realm,
+                league,
+            } => format!("acq tabs {}", scope(account, realm, league)),
+            Way::PriceShow {
+                target,
+                account,
+                realm,
+                league,
+            } => format!(
+                "acq price show {} {}",
+                quote(target),
+                scope(account, realm, league)
+            ),
+            Way::PriceStatus {
+                account,
+                realm,
+                league,
+            } => format!(
+                "acq price status --expand {}",
+                scope(account, realm, league)
+            ),
+        };
+        Some((json!(line), None))
+    }
+
+    fn reading(&self, offered: &acquisition_search::error::Offered) -> String {
+        search_cmd::terminal_reading(offered)
+    }
+}
+
+/// The command typed, as `account`: `acq --account <name>` and every
+/// word typed after the program's name but an `--account` and its value;
+/// none for a request read whole (`--request`, `--next`), beside which no
+/// word of scope stands. Each word quoted for a shell.
+fn again(argv: &[String], account: &str) -> Option<String> {
+    let quote = |w: &str| acquisition_search::answer::shell_quoted(w);
+    let mut words = vec!["acq".to_string(), "--account".into(), quote(account)];
+    let mut typed = argv.iter().skip(1);
+    let mut operands = false;
+    while let Some(word) = typed.next() {
+        if !operands {
+            match word.as_str() {
+                "--request" | "--next" => return None,
+                "--account" => {
+                    typed.next();
+                    continue;
+                }
+                "--" => operands = true,
+                w if w.starts_with("--account=") => continue,
+                _ => {}
+            }
+        }
+        words.push(quote(word));
+    }
+    Some(words.join(" "))
 }
 
 /// Set when this command started the daemon it then talked to, so a

@@ -325,9 +325,16 @@ impl Web {
             return (
                 StatusCode::BAD_REQUEST,
                 [(header::CONTENT_TYPE, "application/json")],
+                // the one refusal shape (round 4 of the 2g build), a page
+                // having no command line for an offer to repeat
                 match failure {
                     Failure::Usage(_) => json!({ "error": words, "kind": "usage" }),
-                    _ => json!({ "error": words }),
+                    Failure::Search(e) => {
+                        acquisition_verbs::refusal::of_search(e, &crate::Terminal::page())
+                    }
+                    Failure::Other(e) => {
+                        acquisition_verbs::refusal::document(e, &crate::Terminal::page())
+                    }
                 }
                 .to_string(),
             )

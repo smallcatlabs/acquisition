@@ -56,8 +56,9 @@ pub enum Fault {
     /// wrong provider or account (C44). Kind `refused`.
     Spend(SpendError),
     /// The policy write refused: invalid, unmergeable, or the store's
-    /// compare-and-swap. Kind `refused` (a revision conflict's own kind
-    /// waits for the one refusal shape).
+    /// compare-and-swap. Kind `refused`; the compare-and-swap's is
+    /// `conflict`, with `revision` and `current`, in the one refusal
+    /// shape (`refusal::document`, C11).
     Policy(PutPolicyError),
     /// A write that names no revision over a stored policy this build
     /// cannot read: never replaced blind (C35, intent is irreplaceable).
@@ -190,9 +191,16 @@ impl fmt::Display for Fault {
                 "no account's store in {} (provider {provider})",
                 dir.display()
             ),
-            Fault::UnknownAccount { selector, .. } => {
-                write!(f, "no account matches {selector:?}")
-            }
+            // the two readings, a typo or a name with no login, and the
+            // names an offer sends the request as (C121, kept)
+            Fault::UnknownAccount { selector, known } => write!(
+                f,
+                "no login made a store for `{selector}`; the names known: {}",
+                match known.is_empty() {
+                    true => "none".to_string(),
+                    false => known.join(", "),
+                }
+            ),
             Fault::AmbiguousAccount { candidates } => write!(
                 f,
                 "{} accounts are known and one is to be picked: {}",
