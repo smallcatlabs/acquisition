@@ -20,6 +20,17 @@ pub(super) fn idle_shutdown_from_env() -> Duration {
         .map_or(IDLE_SHUTDOWN, Duration::from_secs)
 }
 
+/// `ACQ_LOGIN_WITHIN=<secs>` overrides the login's browser wait
+/// ([`LOGIN_WITHIN`]): a test forces its expiry at zero (C137, the
+/// deadline's contract is its expiry behaviour); a value that is not a
+/// whole number of seconds keeps the default.
+pub(super) fn login_within_from_env() -> Duration {
+    std::env::var("ACQ_LOGIN_WITHIN")
+        .ok()
+        .and_then(|v| v.trim().parse::<u64>().ok())
+        .map_or(LOGIN_WITHIN, Duration::from_secs)
+}
+
 /// The bound on each diagnostic file — the daemon log and the default
 /// send journal (C83: "bounded diagnostics elsewhere"). Past it, the
 /// file is rotated once at daemon start ([`rotate_if_over`]): the
@@ -516,6 +527,7 @@ async fn run_with_log(
         queue_failure: Mutex::new(None),
         exit: Exit::default(),
         restore: watch::channel(false).0,
+        login_within: login_within_from_env(),
         #[cfg(test)]
         refresh_landed_hook: Mutex::new(None),
     });

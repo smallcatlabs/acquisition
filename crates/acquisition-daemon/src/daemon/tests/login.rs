@@ -653,6 +653,37 @@ async fn a_callback_with_another_state_is_answered_and_the_login_waits() {
     finish_harness(None, &log_path);
 }
 
+/// C137, the browser wait's expiry forced: a daemon whose `login_within`
+/// is zero fails the flow before any redirect, its result saying the
+/// browser did not complete the login within the bound and to run the
+/// login again, and the flow is no longer pending.
+#[tokio::test]
+async fn an_expired_browser_wait_fails_the_flow_with_its_words() {
+    let clock = Arc::new(ManualClock::new());
+    let (mut daemon, log_path) = test_daemon_with(
+        Provider::mock("http://127.0.0.1:1"),
+        clock,
+        RailsConfig::default(),
+    );
+    Arc::get_mut(&mut daemon)
+        .expect("fresh daemon")
+        .login_within = Duration::ZERO;
+    daemon.shared.lock().unwrap().auth.by_account.clear();
+
+    daemon.auth_start().await.unwrap();
+    let (logged_in, ok, error) = flow_ended(&daemon).await;
+    assert!(!logged_in);
+    assert_eq!(ok, None);
+    let error = error.expect("the flow failed");
+    assert!(
+        error.contains("the browser did not complete the login within 0 s"),
+        "{error}"
+    );
+    assert!(error.contains("run `acq auth` again"), "{error}");
+    assert!(daemon.shared.lock().unwrap().auth.pending.is_none());
+    finish_harness(None, &log_path);
+}
+
 /// C131, the login arm: a code exchange answered 200 with its tokens but
 /// no rate-limit header at all installs them, and the login completes
 /// on them; the exchange stays a journaled protocol failure.

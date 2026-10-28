@@ -260,6 +260,7 @@ fn test_daemon(base: &str) -> (Arc<Daemon>, Arc<MemoryCredentialStore>, TestPath
         queue_failure: Mutex::new(None),
         exit: Exit::default(),
         restore: watch::channel(true).0,
+        login_within: LOGIN_WITHIN,
         refresh_landed_hook: Mutex::new(None),
     });
     (daemon, credential_store, log_path)

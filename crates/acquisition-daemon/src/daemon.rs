@@ -292,6 +292,13 @@ const LOGIN_PRIORITY: Priority = u8::MAX - 1;
 /// rather than pinning the flow forever.
 const LOGIN_PROFILE_TIMEOUT: Duration = Duration::from_secs(120);
 
+/// How long a login waits for the browser's redirect before failing. A
+/// user reading the authorize page takes a minute; five is room for a
+/// password reset on the way. Widened by `ACQ_LOGIN_WITHIN`
+/// ([`Daemon::login_within`]); the expiry fails the flow in words that
+/// say to run the login again (C137, pinned by forcing it).
+const LOGIN_WITHIN: Duration = Duration::from_secs(300);
+
 /// One job in memory. Its params are `info.params`, the one copy (C7,
 /// they travel on `JobInfo` as submitted).
 struct Entry {
@@ -980,6 +987,10 @@ pub struct Daemon {
     /// Running jobs finish (their sends are committed); everything else
     /// refuses until a restart finds a working `daemon.db`.
     queue_failure: Mutex<Option<String>>,
+    /// The browser wait of a login: [`LOGIN_WITHIN`], or `ACQ_LOGIN_WITHIN`
+    /// read at the start (`start::login_within_from_env`); a test sets it
+    /// to zero to force the expiry (C137).
+    login_within: Duration,
     /// A test's pause where a refresh's landing releases `credentials`,
     /// run once (C144: the landings are ordered by that lock, C148).
     #[cfg(test)]

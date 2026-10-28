@@ -46,7 +46,7 @@ impl Daemon {
         let daemon = self.clone();
         tokio::spawn(async move {
             let callback = tokio::time::timeout(
-                Duration::from_secs(300),
+                daemon.login_within,
                 wait_callback(listener, &state, CALLBACK_READ_WITHIN),
             )
             .await;
@@ -92,9 +92,14 @@ impl Daemon {
                 }
                 Ok(Err(e)) => daemon
                     .finish_auth_flow_error(flow_generation, &format!("auth callback failed: {e}")),
-                Err(_) => {
-                    daemon.finish_auth_flow_error(flow_generation, "auth flow timed out after 300s")
-                }
+                // C137: the browser wait's expiry, its words saying what to do.
+                Err(_) => daemon.finish_auth_flow_error(
+                    flow_generation,
+                    &format!(
+                        "the browser did not complete the login within {} s; run `acq auth` again",
+                        daemon.login_within.as_secs()
+                    ),
+                ),
             }
         });
         Ok(authorize_url)
