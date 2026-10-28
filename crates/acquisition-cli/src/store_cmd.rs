@@ -629,11 +629,14 @@ pub fn refused(cx: &Ctx, id: Option<i64>, limit: usize, json: bool) -> Result<()
         }
         return Ok(());
     }
-    let rows = store.refused_list(limit)?;
+    // one document (C149): the rows under `rows`, `returned` and `limit`
+    // beside them
+    let listed = acquisition_verbs::RefusedBodies::read(&store, limit)?;
     if json {
-        println!("{}", serde_json::to_string_pretty(&rows)?);
+        println!("{}", serde_json::to_string_pretty(&listed)?);
         return Ok(());
     }
+    let rows = listed.rows;
     let now = acquisition_store::now();
     for r in &rows {
         println!(

@@ -1227,3 +1227,41 @@ fn the_status_counts_entry_reads_alone() {
     }
     assert!(!text.contains("above"), "{text}");
 }
+
+/// C149, the MCP's pin: every answer this step wrapped is one object
+/// carrying the counts its text prints — `characters`, `item_events` and
+/// its summary, `accounts`, `sync_policy` with no policy, and `list_jobs`
+/// with no daemon — and the server's one door for answers refuses any
+/// other shape (`told_as`), so no tool answers a bare array again.
+#[test]
+fn c149_every_answer_the_step_wrapped_is_one_object() {
+    let mut seat = Seat::new();
+    let mut answer = |tool: &str, args: Value| -> Value {
+        let (doc, refused) = seat.call(tool, &args);
+        assert!(!refused, "{tool}: {doc}");
+        assert!(doc.is_object(), "{tool}: {doc}");
+        doc
+    };
+    let characters = answer("characters", json!({}));
+    for key in [
+        "characters",
+        "fetched",
+        "empty_bodies",
+        "never_fetched",
+        "items",
+        "left_out",
+    ] {
+        assert!(characters[key].is_number(), "{key}: {characters}");
+    }
+    let events = answer("item_events", json!({ "hours": 1.0e9 }));
+    assert_eq!(events["limit"], 10, "{events}");
+    assert!(events["returned"].is_number(), "{events}");
+    let summary = answer("item_events", json!({ "hours": 1.0e9, "summary": true }));
+    assert!(summary["locations"].is_number(), "{summary}");
+    assert!(summary["by_kind"]["added"].is_number(), "{summary}");
+    let accounts = answer("accounts", json!({}));
+    assert_eq!(accounts["total"], 1, "{accounts}");
+    assert_eq!(answer("sync_policy", json!({})), json!({ "policy": null }));
+    let jobs = answer("list_jobs", json!({}));
+    assert_eq!(jobs["running"], false, "{jobs}");
+}

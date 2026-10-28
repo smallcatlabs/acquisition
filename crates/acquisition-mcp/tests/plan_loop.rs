@@ -111,6 +111,21 @@ fn the_mcp_tools_carry_the_plan_slice_and_its_gates() {
         json!(1),
         "{outcome}"
     );
+    // C149: the live job list is one object, every job counted beside the
+    // rows, the apply and its child among them under `expand`
+    let listed = mcp.expect_ok("list_jobs", json!({ "expand": true }));
+    assert_eq!(listed["running"], true, "{listed}");
+    let rows = listed["rows"].as_array().expect("rows");
+    assert_eq!(
+        listed["total"].as_u64(),
+        Some(rows.len() as u64),
+        "{listed}"
+    );
+    assert!(
+        rows.iter().any(|j| j["id"] == applied["job_id"]),
+        "{listed}"
+    );
+    assert!(listed["by_state"]["done"].as_u64() >= Some(2), "{listed}");
 
     // C111: the same plan handed back sends nothing — its one request is
     // spent, and the answer says by what.

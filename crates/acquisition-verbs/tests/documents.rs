@@ -956,3 +956,86 @@ fn c149_the_accounts_are_counted_beside_ten() {
             .is_none()
     );
 }
+
+/// C149, the pin: every document a verb returns serializes to one JSON
+/// object, never a bare array or a bare null — each answer this step
+/// wrapped (characters, the events and their summary, the job list live
+/// and absent, the accounts, the policy shown, the refused bodies) and
+/// the daemon's report beside them, each over an empty world, where a
+/// bare list would have been `[]` and a missing row `null`.
+#[test]
+fn c149_every_document_a_verb_returns_is_one_json_object() {
+    use acquisition_verbs::events::{EventSummary, Events};
+    let s = scratch();
+    login(&s.mock, USER, UUID);
+    let store = Store::open(&s.mock.join("facts.db")).unwrap();
+    let events = Events::read(&store, acquisition_store::now(), 24.0, None).unwrap();
+    let documents: Vec<(&str, Value)> = vec![
+        (
+            "characters",
+            serde_json::to_value(acquisition_verbs::Characters::of(
+                None,
+                None,
+                Vec::new(),
+                None,
+                false,
+            ))
+            .unwrap(),
+        ),
+        (
+            "events",
+            serde_json::to_value(Events::read(&store, 0, 1.0, Some(0)).unwrap()).unwrap(),
+        ),
+        (
+            "event summary",
+            serde_json::to_value(EventSummary::of(&events, Vec::new(), false)).unwrap(),
+        ),
+        (
+            "jobs, live",
+            serde_json::to_value(Jobs::Live(acquisition_verbs::Listed::of(Vec::new(), false)))
+                .unwrap(),
+        ),
+        (
+            "jobs, no queue",
+            serde_json::to_value(Jobs::Absent { persisted: None }).unwrap(),
+        ),
+        (
+            "jobs, the ledger's",
+            serde_json::to_value(Jobs::Absent {
+                persisted: Some(acquisition_verbs::PersistedJobs::of(
+                    acquisition_store::jobs::Persisted {
+                        jobs: Vec::new(),
+                        written_at: None,
+                    },
+                    false,
+                )),
+            })
+            .unwrap(),
+        ),
+        (
+            "accounts",
+            serde_json::to_value(frontend(&s.mock).accounts().unwrap().bounded(false)).unwrap(),
+        ),
+        (
+            "policy shown",
+            serde_json::to_value(acquisition_verbs::PolicyShown { policy: None }).unwrap(),
+        ),
+        (
+            "refused bodies",
+            serde_json::to_value(acquisition_verbs::RefusedBodies::read(&store, 50).unwrap())
+                .unwrap(),
+        ),
+        (
+            "daemon, absent",
+            serde_json::to_value(DaemonReport::Absent {
+                persisted: None,
+                log: None,
+            })
+            .unwrap(),
+        ),
+    ];
+    for (name, doc) in &documents {
+        assert!(doc.is_object(), "{name}: {doc}");
+    }
+    assert_eq!(documents[7].1, json!({ "policy": null }));
+}

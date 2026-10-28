@@ -796,6 +796,7 @@ enum StoreCmd {
     },
     /// Bodies the store refused as malformed, kept verbatim as evidence:
     /// the list (newest first), or one body in full by its row id.
+    /// `--json` lists them under `rows`, beside `returned` and `limit`.
     Refused {
         /// Row id from the list (or from the failed job's error).
         id: Option<i64>,

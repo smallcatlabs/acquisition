@@ -373,6 +373,14 @@ fn told_as<T: serde::Serialize>(document: &T, prose: Prose) -> Told {
         &serde_json::to_string(document).map_err(|e| err(e.into()))?,
         prose,
     );
+    // C149: every answer is one JSON object; a bare array, a bare null or
+    // a scalar is this server's fault, never served (held here, the one
+    // door every answer passes, so no tool can regress alone)
+    if !text.starts_with('{') {
+        return Err(err(anyhow::anyhow!(
+            "an answer must be one JSON object, and this tool's is not"
+        )));
+    }
     let mut result = serde_json::from_str(&text)
         .map(CallToolResult::structured)
         .map_err(|e| err(e.into()))?;

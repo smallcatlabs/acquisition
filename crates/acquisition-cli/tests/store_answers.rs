@@ -210,3 +210,60 @@ fn accounts_json_is_the_layers_document_and_the_text_counts_what_it_left_out() {
         "{text}"
     );
 }
+
+/// C149, the CLI's pin: every `--json` answer this step wrapped is one
+/// object, never a bare array or a bare null, read in a world where each
+/// would have been one — the store's lists empty, no policy, the job list
+/// live: `store characters`, `store events` and its `--summary`, `jobs`
+/// (and `--all`), `accounts`, `policy show` and `store refused`, each
+/// with the counts its text prints.
+#[test]
+fn c149_every_json_answer_the_step_wrapped_is_one_object() {
+    let scratch = harness::scratch("store-c149");
+    let base = scratch.0.clone();
+    let (_daemon, _pid) = harness::start_daemon(&base);
+    harness::login(&base, "alice");
+    let answer = |args: &[&str]| -> Value {
+        let out = harness::acq(&base, &[args, &["--json"]].concat());
+        assert!(out.status.success(), "{args:?}: {out:?}");
+        let doc = sole_json(&out);
+        assert!(doc.is_object(), "{args:?}: {doc}");
+        doc
+    };
+    let characters = answer(&["store", "characters"]);
+    for key in [
+        "characters",
+        "fetched",
+        "empty_bodies",
+        "never_fetched",
+        "items",
+        "left_out",
+    ] {
+        assert!(characters[key].is_number(), "{key}: {characters}");
+    }
+    assert!(characters["rows"].is_array(), "{characters}");
+    let events = answer(&["store", "events"]);
+    assert_eq!(events["limit"], LISTED, "{events}");
+    assert!(events["limit_reached"].is_boolean(), "{events}");
+    let summary = answer(&["store", "events", "--summary"]);
+    for key in ["events", "locations", "left_out"] {
+        assert!(summary[key].is_number(), "{key}: {summary}");
+    }
+    assert!(summary["by_kind"].is_object(), "{summary}");
+    for args in [&["jobs"][..], &["jobs", "--all"]] {
+        let jobs = answer(args);
+        assert_eq!(jobs["running"], true, "{jobs}");
+        assert!(jobs["total"].is_number(), "{jobs}");
+        assert!(jobs["by_state"]["done"].is_number(), "{jobs}");
+        assert!(jobs["rows"].is_array(), "{jobs}");
+    }
+    let accounts = answer(&["accounts"]);
+    assert_eq!(accounts["total"], 1, "{accounts}");
+    assert_eq!(answer(&["policy", "show"]), json!({ "policy": null }));
+    let refused = answer(&["store", "refused"]);
+    assert_eq!(
+        refused,
+        json!({ "limit": 50, "returned": 0, "rows": [] }),
+        "{refused}"
+    );
+}
