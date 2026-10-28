@@ -131,7 +131,10 @@ already dirty before the gate; a test file under `tests/` naming
    `tests/` is excepted by name, with the reason (it cannot link the
    harness; it starts `acqd` from an emptied environment); its in-crate
    tests are #64's. `tools/arch-check-breakers.sh` stages a refused
-   case for each clause and the tree as it stands passing.
+   case for each clause and the tree as it stands passing. *Settled in
+   the round (`4edbb709`):* a literal other than `sh` let a path or a
+   binary's name through, so `Command::new(` names a tool on an
+   allowlist, `kill` and `ps`, and a breaker stages each of the two.
 7. The gate, then one commit per concern: the fixture stage with its
    breakers and the CI job line; the tree stage with its cases and the
    CI step; the spawns with the rule and its cases. Each message names

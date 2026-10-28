@@ -31,3 +31,4 @@ phase close folds its rows into one and adds the `HISTORY.md` line.
 | #84 the seat, the first row of `SEAT-LEDGER.md` | `799c39d9..71b12c9a` | 2026-10-27 | #9, #10, #11, #18; #97 |
 | #88 one feature graph for the plain and the test build | `87dcb51a..e7653f87`; the build-order rule's second half retired at `a6a3b698` | 2026-10-27 | #96 |
 | 2g the read economy and the refusal and receipt bundle (#9, #10) | `8e6e1853..5f62d548`, rounds 1 to 8 | 2026-10-28 | #11, #18, #56; #97; #104; #105; the live drivers, on the owner's list |
+| #87 the gate refuses: a set fixture switch, a tree its stages changed, a test spawn past the isolation list | `241d5c5d..71a4f084`, one fix round, then the close commit after it | 2026-10-28 | #64, the daemon crate's tests; #70, the Windows tree check; the goldens' reads and the rest in the close message |
