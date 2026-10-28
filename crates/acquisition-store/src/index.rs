@@ -452,7 +452,8 @@ impl Index {
             let _ = std::fs::remove_file(&tmp);
         }
         renamed?;
-        sync_dir(self.path.parent())
+        crate::sync_dir(self.path.parent())
+            .with_context(|| format!("syncing {}", self.path.display()))
     }
 
     /// The first half of [`Self::save`]: the whole file written and synced
@@ -482,22 +483,6 @@ impl Index {
         }
         written.map(|()| tmp)
     }
-}
-
-/// Sync a directory, so a rename in it is durable. Windows cannot open a
-/// directory as a file through `std`, so there the rename goes unsynced:
-/// a crash may undo it, leaving the previous index whole, never a torn
-/// one.
-fn sync_dir(dir: Option<&Path>) -> Result<()> {
-    #[cfg(unix)]
-    if let Some(dir) = dir {
-        std::fs::File::open(dir)
-            .and_then(|d| d.sync_all())
-            .with_context(|| format!("syncing {}", dir.display()))?;
-    }
-    #[cfg(not(unix))]
-    let _ = dir;
-    Ok(())
 }
 
 #[cfg(test)]

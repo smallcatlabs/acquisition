@@ -1048,6 +1048,22 @@ pub(crate) fn ensure_wal(conn: &Connection) -> rusqlite::Result<()> {
     }
 }
 
+/// Sync a directory, so a rename or a hard link in it is durable: the one
+/// function every publish in this crate ends with (the account index's
+/// rename, the annotation export's link; issue #63). Windows cannot open
+/// a directory as a file through `std`, so there the publish goes
+/// unsynced: a crash may undo it, leaving the previous file whole, never
+/// a torn one.
+pub(crate) fn sync_dir(dir: Option<&Path>) -> std::io::Result<()> {
+    #[cfg(unix)]
+    if let Some(dir) = dir {
+        std::fs::File::open(dir)?.sync_all()?;
+    }
+    #[cfg(not(unix))]
+    let _ = dir;
+    Ok(())
+}
+
 /// `PRAGMA wal_checkpoint(TRUNCATE)` on one connection: its row is
 /// `(busy, log, checkpointed)`.
 pub(crate) fn checkpoint(conn: &Connection) -> Result<Checkpoint> {

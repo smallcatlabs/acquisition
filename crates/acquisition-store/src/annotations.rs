@@ -1205,7 +1205,9 @@ impl Annotations {
     /// destination end with one backup and one `AlreadyExists`, never a
     /// replaced backup. Only on a filesystem without hard links does a
     /// `rename` stand in, and that fallback is the one place a
-    /// simultaneous export could still replace another's. Fails if `dest`
+    /// simultaneous export could still replace another's. The publish
+    /// ends with the directory synced (the crate's one `sync_dir`, issue #63), so
+    /// the link is durable as the file is. Fails if `dest`
     /// already exists, before anything is written; the partial is removed
     /// either way.
     pub fn export(&self, dest: &Path) -> Result<(), AnnotationError> {
@@ -1262,6 +1264,7 @@ impl Annotations {
                 }
                 Err(e) => Err(e),
             }
+            .and_then(|()| crate::sync_dir(dest.parent()))
             .map_err(AnnotationError::Io)
         });
         let _ = std::fs::remove_file(&partial);
