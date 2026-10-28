@@ -13,7 +13,9 @@ reader, `acq diagnose`, bounds its own status request by that deadline
 in the verbs crate (`daemon.rs`, `daemon_within`, line 144; r4's review,
 finding 3). When this step is done, every observe request a client
 sends is bounded in one place, the client crate's `request`, by the
-handshake's deadline and its knob; its expiry is a refusal that names
+handshake's deadline and its knob (*settled in the round:* every one
+but the quote, which waits for the start's credential restore and is
+bounded by the plan's own attempt, Do 1); its expiry is a refusal that names
 the peer (its socket and pid) and what to do, through the one shape
 every frontend prints; and the verbs crate's own bound is gone, since
 the layer below holds it (C122, one pin at the lowest crate; C46,

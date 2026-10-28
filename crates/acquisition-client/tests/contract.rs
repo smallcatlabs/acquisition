@@ -459,8 +459,9 @@ async fn c137_the_handshake_deadline_at_zero_is_unresponsive_against_a_peer_that
 /// connection that met it is poisoned: a second request is refused with
 /// the same words and sends no frame, read from the connection's
 /// transcript once the client is dropped (the peer reports each frame as
-/// it reads it, and the transcript when the connection closes; nothing
-/// is counted at a moment: the build's review, finding 2). A cancel and
+/// it reads it, and the transcript when its read reaches EOF, whatever
+/// became of its writes; nothing is counted at a moment: the build's
+/// review, finding 2, and the fix round's, finding 1). A cancel and
 /// a quote under the same deadline at zero are not bounded here: the
 /// peer's own answer comes back. The peer replays the `hello` a real
 /// daemon of this world gave, so the observe door finds it compatible;
@@ -511,21 +512,35 @@ async fn c137_an_observe_request_under_the_deadline_at_zero_is_refused_naming_th
             let reply = reply.clone();
             let seen = seen.clone();
             tokio::spawn(async move {
+                // The transcript is complete because it ends at the
+                // read's EOF, never at a write's fate: a client that hangs
+                // up while an answer is being written fails that write,
+                // and the read half is drained to its end all the same
+                // (the fix round's review, finding 1). A read error is
+                // not a close: the test fails on it.
                 let mut transcript = Vec::new();
-                while let Ok(Frame::Line(bytes)) = read_frame(&mut reader, MAX_FRAME_BYTES).await {
+                let mut answering = true;
+                loop {
+                    let bytes = match read_frame(&mut reader, MAX_FRAME_BYTES).await {
+                        Ok(Frame::Line(bytes)) => bytes,
+                        Ok(Frame::Closed) => break,
+                        Ok(Frame::Oversize) => panic!("the peer read an oversize frame"),
+                        Err(e) => panic!("the peer's read failed: {e}"),
+                    };
                     let frame: Value = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
                     let req = frame["req"].as_str().unwrap_or("?").to_string();
                     transcript.push(req.clone());
                     let _ = seen.send(Seen::Read(req.clone()));
+                    if !answering {
+                        continue;
+                    }
                     let answer = match req.as_str() {
                         "hello" => reply.clone(),
                         _ => json!({ "resp": "error", "kind": "refused", "message": "scripted" }),
                     };
                     let mut line = answer.to_string();
                     line.push('\n');
-                    if write.write_all(line.as_bytes()).await.is_err() {
-                        break;
-                    }
+                    answering = write.write_all(line.as_bytes()).await.is_ok();
                 }
                 let _ = seen.send(Seen::Closed(transcript));
             });
