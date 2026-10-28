@@ -147,7 +147,7 @@ issue carrying its evidence and its done-when, and takes a brief from
 leaves the list when its step closes or the owner strikes it.
 
 1. The league group, the owner's word of 2026-10-28, in this order:
-   #90 (an unknown job kind fails its job), #68 (the login callback),
+   #68 (the login callback),
    #103 (a bound on every observe request), #63's remainder (store
    failures absorbed as success), #53's generator (in the tree before
    the post-launch pin), #94, #96. Each a half day to a day, one brief
@@ -186,8 +186,7 @@ The owner's list, his to strike:
 
 ## Current step
 
-#90, a job kind the store cannot place fails its job
-(`briefs/90-unknown-kind.md`), built at `cce02318`, the review pending; #87
-closed (`LEDGER.md`). Phase 3, the owner's league run, follows at his word;
+#68, the login callback, next from "Pull-forward", its brief not yet
+written; #90 closed (`LEDGER.md`). Phase 3, the owner's league run, follows at his word;
 #70 closes on a week of pushes without a re-run. `AGENTS.md` governs; the gate is
 `tools/gate.sh`.
