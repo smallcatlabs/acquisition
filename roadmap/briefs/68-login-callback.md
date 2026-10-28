@@ -100,10 +100,12 @@ last.
 
 No measurement. The failing inputs the tests stage, each against the
 daemon's own listener in a test:
-- a TCP connection to the callback port that sends nothing, then the
-  browser's redirect on a second connection: the login completes;
-- a connection whose read bound the test sets to zero: the connection
-  is closed without a response and the flow still waits;
+- a TCP connection to the listener that sends nothing, then the
+  redirect on a second connection, under an hour's read bound: the code
+  returns at once;
+- a silent connection whose read bound the test sets to zero: the
+  connection is closed without a response, the flow still waits, and a
+  second silent connection is closed the same way;
 - a `GET` on the callback path with the flow's `state` and
   `error=access_denied&error_description=...`: the flow ends failed,
   its words carrying the browser's;
@@ -113,9 +115,9 @@ daemon's own listener in a test:
 - the daemon's browser bound set to zero: the flow ends failed with the
   bound's words, through the one path every flow failure before its
   exchange takes;
-- `acq auth --no-browser --json` under `ACQ_LOGIN_WITHIN=0` on the
-  daemon it starts, never approved: the CLI exits non-zero saying the
-  daemon's words, not a bound of its own.
+- `acq auth --no-browser` under `ACQ_LOGIN_WITHIN=0` on the daemon it
+  starts, never approved: the CLI exits non-zero saying the daemon's
+  words, not a bound of its own.
 
 A fact this step cannot settle: whether GGG's authorize page echoes
 `state` on a denial redirect. RFC 6749 §4.1.2.1 requires it when the
@@ -136,16 +138,20 @@ login, never guessed.
    next accept and a channel the tasks report the flow's end on. The
    doc comment states the rule. Pins, in `tests/login.rs`:
    `a_callback_connection_that_sends_nothing_does_not_block_the_login`
-   (a silent connection, then the redirect, through `auth_start` and
-   the mock's exchange) and
+   (`wait_callback` called directly with an hour's bound: a silent
+   connection, then the redirect on a second, returns the code within
+   the test's guard) and
    `a_callback_read_past_its_bound_is_dropped_and_the_flow_waits`
    (`wait_callback` called directly with a zero bound: the silent
-   connection reads EOF, the flow has not ended, and a second
-   connection's request is accepted and dropped at the same bound).
-   *Settled in the round:* the brief said a good redirect on the same
-   listener then ends the flow; a zero bound drops every read, so the
-   silent-connection test, with an hour's bound, shows the redirect
-   answered instead.
+   connection reads EOF, the flow has not ended, and a second silent
+   connection is accepted and dropped at the same bound, reading EOF
+   too). *Settled in the round:* the brief first drove the first test
+   through `auth_start` and the mock, and said the zero-bound test ends
+   with a good redirect on the same listener; a zero bound expires a
+   silent connection's read (a request already buffered when the bound
+   is first polled is still read), so the second test keeps every
+   connection silent, and the first shows the redirect answered under
+   a bound a serial listener would wait out.
 2. **A denial in the browser's words.** A callback request with the
    flow's `state` and an `error` query ends the flow failed with the
    words "the login was denied in the browser: <error>: <description>"
@@ -178,9 +184,12 @@ login, never guessed.
    its own 300 s deadline and the "did not complete within 5 minutes"
    line: it polls `auth_status` while `pending` and ends with the
    flow's own result, a transport error, or the user's interrupt. The
-   daemon's flow is bounded at each step (the browser wait, the
-   exchange's send under the choke, the profile's 120 s), so the CLI's
-   wait is. Pin, in the CLI's `tests/error_kind.rs` or a sibling file
+   daemon bounds its browser wait and its profile fetch; the credential
+   recording that lands the login (its lock and the keyring save) has
+   no bound, a standing concern of the keyring's reach (C148), so the
+   CLI's wait ends on the daemon's result or the user's interrupt
+   (*settled in the round*: the brief first said the flow is bounded
+   at each step). Pin, in the CLI's `tests/error_kind.rs` or a sibling file
    of the one binary: `the_login_ends_with_the_daemons_words_not_a_bound_of_its_own`:
    `acq auth --no-browser` with `ACQ_LOGIN_WITHIN=0` on the command (the
    daemon it starts reads it), never approved; the exit code is
@@ -195,9 +204,9 @@ login, never guessed.
 ## Done when
 
 - A callback connection that sends nothing does not hold the next
-  accept: a test stages one and the login completes on the next
-  connection; the read bound is a parameter of `wait_callback`, and a
-  test with it at zero shows the connection dropped and the flow still
+  accept: a test stages one and the redirect on the next connection
+  returns the code; the read bound is a parameter of `wait_callback`,
+  and a test with it at zero shows the connection dropped and the flow still
   waiting.
 - A callback request with the flow's state and an `error` query ends
   the flow with `login_error` carrying the error and its description,
