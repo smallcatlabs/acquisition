@@ -4057,6 +4057,134 @@ mod tests {
         );
     }
 
+    /// Issue #63 (`roadmap/briefs/63-store-remainder.md`, Do 2): `record`
+    /// and `rebuild` take the write lock before their first read (BEGIN
+    /// IMMEDIATE), so a second writer on the file — `acq store rebuild`
+    /// or `store import` beside an ingesting daemon — makes the ingest
+    /// wait, never fail its upgrade from read to write. Both halves of
+    /// the SQLite behaviour are pinned. The fault: a deferred transaction
+    /// that has read, a write committed beside it, then its own write,
+    /// which SQLite refuses at once (`SQLITE_BUSY_SNAPSHOT`, which no busy
+    /// handler retries). The wait: a connection holding BEGIN IMMEDIATE
+    /// while `record` and then `rebuild` begin; each waits and lands once
+    /// the holder commits. The interleaving is forced, never timed: the
+    /// store connection's busy handler is the signal that the wait is
+    /// real, and the holder's commit follows that signal. No sleep. With
+    /// `record` flipped back to a deferred transaction the test fails at
+    /// "record began behind a held write lock": SQLite answers a reader
+    /// promoting itself to a writer beside a held write lock with busy at
+    /// once, never invoking the busy handler (its deadlock rule), so the
+    /// ingest failed where it now waits.
+    #[test]
+    fn a_writer_beside_the_ingest_makes_it_wait_never_fail_its_upgrade() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("facts.db");
+        {
+            let mut s = Store::open(&path).unwrap();
+            s.record(
+                &stash_ep("a"),
+                &json!({}),
+                200,
+                &stash("a", vec![item("i1", "Foo", 0)]),
+                100,
+            )
+            .unwrap();
+        }
+
+        // The fault SQLite has: a deferred writer behind a committed one.
+        let deferred = Connection::open(&path).unwrap();
+        deferred
+            .busy_timeout(std::time::Duration::from_secs(5))
+            .unwrap();
+        deferred.execute_batch("BEGIN").unwrap();
+        let read: i64 = deferred
+            .query_row("SELECT COUNT(*) FROM items", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(read, 1);
+        let beside = Connection::open(&path).unwrap();
+        beside
+            .execute_batch("BEGIN IMMEDIATE; UPDATE items SET name = 'Bar'; COMMIT;")
+            .unwrap();
+        let refused = deferred
+            .execute("UPDATE items SET name = 'Baz'", [])
+            .unwrap_err();
+        assert!(
+            matches!(
+                &refused,
+                rusqlite::Error::SqliteFailure(f, _) if f.code == rusqlite::ErrorCode::DatabaseBusy
+            ),
+            "a deferred write behind a committed one is refused, not retried: {refused:?}"
+        );
+        deferred.execute_batch("ROLLBACK").unwrap();
+        drop(deferred);
+
+        // The wait BEGIN IMMEDIATE buys. The busy handler is a plain fn,
+        // so its signal is a static count of its invocations.
+        static WAITS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        fn noticed(_attempts: i32) -> bool {
+            WAITS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            std::thread::yield_now();
+            true
+        }
+        let mut s = Store::open(&path).unwrap();
+        s.conn.busy_handler(Some(noticed)).unwrap();
+        let holder = Connection::open(&path).unwrap();
+        for round in ["record", "rebuild"] {
+            holder
+                .execute_batch("BEGIN IMMEDIATE; UPDATE items SET name = 'Held';")
+                .unwrap();
+            let before = WAITS.load(std::sync::atomic::Ordering::SeqCst);
+            let landed = std::thread::scope(|scope| {
+                let waiter = scope.spawn(|| match round {
+                    "record" => s
+                        .record(
+                            &stash_ep("a"),
+                            &json!({}),
+                            200,
+                            &stash("a", vec![item("i1", "Foo", 0), item("i2", "Bar", 2)]),
+                            200,
+                        )
+                        .map(|ingest| ingest.items),
+                    _ => s.rebuild(),
+                });
+                // The signal: the waiter's busy handler has run, so it is
+                // behind the holder's lock. A waiter that finished without
+                // it did not wait, and the assertion below says so.
+                while WAITS.load(std::sync::atomic::Ordering::SeqCst) == before
+                    && !waiter.is_finished()
+                {
+                    std::thread::yield_now();
+                }
+                holder.execute_batch("COMMIT").unwrap();
+                waiter.join().unwrap()
+            });
+            assert!(
+                WAITS.load(std::sync::atomic::Ordering::SeqCst) > before,
+                "{round} began behind a held write lock"
+            );
+            assert_eq!(
+                landed.unwrap(),
+                2,
+                "{round} landed after the holder released: an ingest of two, a rebuild of two"
+            );
+        }
+        let names: Vec<String> = {
+            let mut stmt = s
+                .conn
+                .prepare("SELECT name FROM items ORDER BY id")
+                .unwrap();
+            stmt.query_map([], |r| r.get(0))
+                .unwrap()
+                .collect::<Result<_, _>>()
+                .unwrap()
+        };
+        assert_eq!(
+            names,
+            ["Foo", "Bar"],
+            "the rebuild re-extracted what the ingest wrote"
+        );
+    }
+
     #[test]
     fn endpoint_from_job_kinds() {
         assert_eq!(
