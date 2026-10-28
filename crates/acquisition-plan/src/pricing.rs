@@ -46,15 +46,17 @@ use std::str::FromStr;
 
 use acquisition_protocol::realm::Realm;
 use acquisition_store::{
-    AnnotationError, Annotations, FactAddress, IntentValue, Provenance, SYNC_POLICY_KEY,
-    SYNC_POLICY_KIND, SYNC_POLICY_SCOPE, Store, check_value,
+    AnnotationError, AnnotationRow, Annotations, FactAddress, IntentValue, Provenance,
+    SYNC_POLICY_KEY, SYNC_POLICY_KIND, SYNC_POLICY_SCOPE, Store, check_value,
 };
 use anyhow::{Context, Result, bail};
 use serde::Serialize;
 use serde_json::{Value, json};
 
 use crate::currency::{Currency, CurrencyTable, table};
-use crate::listing::{ListFilter, ListView, ListingReport, Relation, ShowView, resolve};
+use crate::listing::{
+    ListFilter, ListView, ListingReport, ManualSide, Relation, ShowView, resolve,
+};
 use crate::price::{
     BUYOUT_KIND, BUYOUT_VERSION, Buyout, PriceTarget, PriceWrite, PriceWriteError, clear_buyout,
     set_buyout,
@@ -65,8 +67,11 @@ use crate::{SyncPolicy, plan_refresh};
 /// A refusal an agent branches on, beside its words (C11): what kind it
 /// is, and for a write refused for its revision the row's revision now
 /// — a live row's, or the one a clear left — or none when no row was
-/// ever written. Found in an error's chain by [`Refused::find`]; its
-/// [`Refused::fields`] join the failure document on both surfaces.
+/// ever written, with the live row itself; for a target the facts do not
+/// hold, the target and where it was looked for ([`Missing`]). Found in
+/// an error's chain by [`Refused::find`]; its [`Refused::fields`] join
+/// the failure document on both surfaces, and the verbs' one refusal
+/// shape makes its offers from [`Missing`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Refused {
     pub kind: RefusedKind,
@@ -74,18 +79,64 @@ pub struct Refused {
 }
 
 /// The kinds of [`Refused`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RefusedKind {
-    /// A write refused for its revision; `revision` is the row's now.
-    Conflict { revision: Option<i64> },
+    /// A write refused for its revision; `revision` is the row's now,
+    /// and `current` the live row as `show`'s `manual` prints it, where
+    /// a live row stands and this build reads its value: none where a
+    /// clear left the revision or no row was ever written.
+    Conflict {
+        revision: Option<i64>,
+        current: Option<Box<ManualSide>>,
+    },
     /// A target the facts do not hold.
-    NotFound,
+    NotFound(Box<Missing>),
+}
+
+/// What a `not_found` refusal knows of the request it refused (round 4
+/// of `roadmap/briefs/2g-build.md`): the target, and the scope it was
+/// looked for in as the verb resolved it — the account it ran as, the
+/// realm and the league — with where else the facts hold the target and
+/// the row of its own it has. The offers that would find it are made
+/// from these, carried from where the refusal is made, never by reading
+/// the scope again: a target names no league, an item or a character no
+/// realm, and a request may have named neither.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Missing {
+    pub target: PriceTarget,
+    pub account: String,
+    pub realm: Realm,
+    pub league: String,
+    /// The realms and leagues the facts hold the target in, if any, this
+    /// scope apart: an item's or a character's address names no realm, so
+    /// one held in another realm is found there too.
+    pub elsewhere: Vec<(Realm, String)>,
+    /// The revision of a row of the target's own, which no listing
+    /// carries.
+    pub own_row: Option<i64>,
 }
 
 impl Refused {
-    fn conflict(revision: Option<i64>, message: String) -> anyhow::Error {
+    fn conflict(current: Conflicting, target: &PriceTarget, message: String) -> anyhow::Error {
+        let (revision, current) = match current {
+            Conflicting::Live(row) => (
+                Some(row.revision),
+                check_value::<Buyout>(&row.value).ok().map(|value| {
+                    Box::new(ManualSide {
+                        value,
+                        from: target.clone(),
+                        inherited: false,
+                        revision: row.revision,
+                        updated_at: row.updated_at,
+                        written_via: row.written_via.clone(),
+                        actor: row.actor.clone(),
+                    })
+                }),
+            ),
+            Conflicting::Cleared(revision) => (revision, None),
+        };
         anyhow::Error::new(Refused {
-            kind: RefusedKind::Conflict { revision },
+            kind: RefusedKind::Conflict { revision, current },
             message,
         })
     }
@@ -96,20 +147,32 @@ impl Refused {
     }
 
     /// The fields a failure document adds beside `error`: `kind`, and
-    /// for a conflict `revision` (null when no row was ever written).
+    /// for a conflict `revision` (null when no row was ever written:
+    /// C11's field, kept) and `current`, the live row as `show`'s
+    /// `manual` prints it — absent, never null, where none stands.
     pub fn fields(&self) -> serde_json::Map<String, Value> {
         let mut out = serde_json::Map::new();
-        match self.kind {
-            RefusedKind::Conflict { revision } => {
+        match &self.kind {
+            RefusedKind::Conflict { revision, current } => {
                 out.insert("kind".into(), json!("conflict"));
                 out.insert("revision".into(), json!(revision));
+                if let Some(current) = current {
+                    out.insert("current".into(), json!(current));
+                }
             }
-            RefusedKind::NotFound => {
+            RefusedKind::NotFound(_) => {
                 out.insert("kind".into(), json!("not_found"));
             }
         }
         out
     }
+}
+
+/// The row a write was refused over: the live row the store reported,
+/// or the revision a clear left (none when no row was ever written).
+enum Conflicting<'a> {
+    Live(&'a AnnotationRow),
+    Cleared(Option<i64>),
 }
 
 impl std::fmt::Display for Refused {
@@ -211,9 +274,14 @@ pub fn realm_of(targets: &[&PriceTarget], given: Option<Realm>) -> Result<Realm>
 /// is `status` expanded in the target's realm, since the bare verb counts
 /// rows and reads pc. For a row the facts hold in another league it is
 /// `show` in that league: that league's `status` counts the row under
-/// "other league" and never displays it (the h2 fix round's review),
-/// with `--realm` only for an address that carries none. `quote` makes
-/// one shell word of the account, a league and the target; the frontend
+/// "other league" and never displays it (the h2 fix round's review).
+/// Every command it prints carries the scope the verb resolved, the
+/// account, the realm and the league, the defaults included (round 2 of
+/// `roadmap/briefs/2g-build.md`: a printed read runs as printed with a
+/// second account known and a target live in two leagues); and the
+/// refusal carries that scope beside the target ([`Missing`]), so the
+/// offers made from it are the commands it prints. `quote` makes one
+/// shell word of the account, a league and the target; the frontend
 /// supplies it (`acquisition_search::answer::shell_quoted`), since this
 /// crate does not link the search (C1).
 fn not_on_record(
@@ -224,60 +292,85 @@ fn not_on_record(
     account: &str,
     quote: fn(&str) -> String,
 ) -> anyhow::Error {
-    let elsewhere = store
-        .leagues_of(&FactAddress::from(target))
-        .unwrap_or_default();
-    let realm = match r.header.realm.segment() {
+    let here_realm = r.header.realm;
+    let elsewhere: Vec<(Realm, String)> = store
+        .places_of(&FactAddress::from(target))
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|(realm, league)| Some((Realm::parse(&realm)?, league)))
+        .filter(|(realm, league)| (*realm, league.as_str()) != (here_realm, &r.header.league))
+        .collect();
+    let realm = match here_realm.segment() {
         Some(seg) => format!("{seg}/"),
         None => String::new(),
     };
-    let realm_flag = match r.header.realm.segment() {
-        Some(seg) => format!(" --realm {seg}"),
-        None => String::new(),
+    let scope = |realm: Realm, league: &str| {
+        format!(
+            "--account {} --realm {} --league {}",
+            quote(account),
+            realm.as_str(),
+            quote(league)
+        )
     };
+    let here = scope(here_realm, &r.header.league);
+    // a place in this realm is its league; in another, realm/league
+    let places = elsewhere
+        .iter()
+        .map(|(realm, league)| match *realm == here_realm {
+            true => league.clone(),
+            false => format!("{}/{league}", realm.as_str()),
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
     let hint = match elsewhere.as_slice() {
-        [] => "`acq search` finds an item's id, `acq tabs` a tab's".to_string(),
-        leagues => format!(
-            "the facts hold it in {}: `--league` reads it there",
-            leagues.join(", ")
+        [] => format!(
+            "`acq search --account {} --realm {}` finds an item's id, `acq tabs {here}` a tab's",
+            quote(account),
+            here_realm.as_str()
         ),
+        held if held.iter().all(|(realm, _)| *realm == here_realm) => {
+            format!("the facts hold it in {places}: `--league` reads it there")
+        }
+        _ => format!("the facts hold it in {places}: `--realm` and `--league` read it there"),
     };
-    let account = quote(account);
     let row = match (own_row, elsewhere.as_slice()) {
         (None, _) => String::new(),
         (Some(revision), []) => format!(
             "; it has a price row of its own at revision {revision}: \
-             `acq price status --expand --account {account}{realm_flag}` lists it"
+             `acq price status --expand {here}` lists it"
         ),
-        (Some(revision), leagues) => {
-            let realm_flag = match target {
-                PriceTarget::Tab { .. } | PriceTarget::Substash { .. } => "",
-                _ => realm_flag.as_str(),
-            };
-            let shown = leagues
+        (Some(revision), held) => {
+            let shown = held
                 .iter()
-                .map(|league| {
+                .map(|(realm, league)| {
                     format!(
-                        "`acq price show {} --account {account}{realm_flag} --league {}`",
+                        "`acq price show {} {}`",
                         quote(&target.to_string()),
-                        quote(league)
+                        scope(*realm, league)
                     )
                 })
                 .collect::<Vec<_>>()
                 .join(" or ");
             format!(
-                "; it has a price row of its own at revision {revision} in {}: \
-                 {shown} shows it",
-                leagues.join(", ")
+                "; it has a price row of its own at revision {revision} in {places}: \
+                 {shown} shows it"
             )
         }
     };
+    let message = format!(
+        "{target} is not in the facts for {realm}{} ({} items, {} tabs and characters on record); {hint}{row}",
+        r.header.league, r.counts.items, r.counts.containers
+    );
     anyhow::Error::new(Refused {
-        kind: RefusedKind::NotFound,
-        message: format!(
-            "{target} is not in the facts for {realm}{} ({} items, {} tabs and characters on record); {hint}{row}",
-            r.header.league, r.counts.items, r.counts.containers
-        ),
+        kind: RefusedKind::NotFound(Box::new(Missing {
+            target: target.clone(),
+            account: account.to_string(),
+            realm: here_realm,
+            league: r.header.league.clone(),
+            elsewhere,
+            own_row,
+        })),
+        message,
     })
 }
 
@@ -496,9 +589,11 @@ fn current_revision(annotations: &Annotations, target: &PriceTarget) -> Result<O
 }
 
 /// The create-only refusal: a row stands and no revision was named.
-fn standing(target: &PriceTarget, revision: i64, verb: &str) -> anyhow::Error {
+fn standing(target: &PriceTarget, row: &AnnotationRow, verb: &str) -> anyhow::Error {
+    let revision = row.revision;
     Refused::conflict(
-        Some(revision),
+        Conflicting::Live(row),
+        target,
         format!(
             "{target} has a price row of its own at revision {revision}: {verb} names the \
              revision it replaces ({revision}) with `--if-revision {revision}`, never a row it \
@@ -517,16 +612,19 @@ enum Verb {
 /// A write refused for the row's state, in the verb's words: a live row
 /// at another revision; a row a clear left, at the revision its tombstone
 /// holds; or no row ever written. `current` is the live row the store
-/// reported, if any; the tombstone is read here.
+/// reported, if any, carried whole into the refusal; the tombstone is
+/// read here.
 fn refused_write(
     annotations: &Annotations,
     target: &PriceTarget,
-    current: Option<i64>,
+    current: Option<&AnnotationRow>,
     verb: Verb,
 ) -> anyhow::Error {
-    if let Some(revision) = current {
+    if let Some(row) = current {
+        let revision = row.revision;
         return Refused::conflict(
-            Some(revision),
+            Conflicting::Live(row),
+            target,
             format!("{target} has a price at revision {revision} (re-read and retry)"),
         );
     }
@@ -551,7 +649,7 @@ fn refused_write(
              (`acq price show {target}` reads what covers it)"
         ),
     };
-    Refused::conflict(cleared, message)
+    Refused::conflict(Conflicting::Cleared(cleared), target, message)
 }
 
 /// The store's compare-and-swap refusal as [`refused_write`]'s; any other
@@ -564,7 +662,7 @@ fn on_conflict(
 ) -> anyhow::Error {
     match e {
         PriceWriteError::Store(AnnotationError::Conflict { current }) => {
-            refused_write(annotations, target, current.map(|row| row.revision), verb)
+            refused_write(annotations, target, current.as_deref(), verb)
         }
         other => other.into(),
     }
@@ -610,7 +708,7 @@ pub fn set(
         Err(PriceWriteError::Store(AnnotationError::Conflict { current: Some(row) }))
             if expect == Expect::Create =>
         {
-            return Err(standing(&target, row.revision, "a write over it"));
+            return Err(standing(&target, &row, "a write over it"));
         }
         Err(e) => return Err(on_conflict(annotations, &target, Verb::Set, e)),
         Ok(write) => write,
@@ -637,7 +735,7 @@ pub fn clear(
         Expect::Create => {
             let (scope, key) = target.address()?;
             return Err(match annotations.get(scope, &key, BUYOUT_KIND)? {
-                Some(row) => standing(&target, row.revision, "a clear"),
+                Some(row) => standing(&target, &row, "a clear"),
                 None => refused_write(annotations, &target, None, Verb::Clear),
             });
         }
@@ -808,7 +906,7 @@ pub fn described() -> Vec<Described> {
         ),
         entry(
             "revision",
-            "a write over a row the target has of its own names that row's revision — a listing's `manual.revision` where `manual.from` is the target itself, or the revision a refusal names — and with no row names none, to create one. A clear takes a revision too, so the next write's revision continues from it",
+            "a write over a row the target has of its own names that row's revision — a listing's `manual.revision` where `manual.from` is the target itself, or the `revision` a `conflict` refusal names, beside `current`, the live row as `manual` prints it (absent over a cleared row) — and with no row names none, to create one. A clear takes a revision too, so the next write's revision continues from it",
         ),
         entry(
             "undo",
@@ -965,13 +1063,25 @@ mod tests {
             )
             .unwrap_err(),
         );
-        assert_eq!(r.kind, RefusedKind::Conflict { revision: Some(2) });
+        assert!(matches!(
+            r.kind,
+            RefusedKind::Conflict {
+                revision: Some(2),
+                ..
+            }
+        ));
         assert_eq!(
             r.message,
             "item/i1 has a price at revision 2 (re-read and retry)"
         );
         let r = refused(clear(&mut a, "item/i1", Expect::Exactly(1), &via).unwrap_err());
-        assert_eq!(r.kind, RefusedKind::Conflict { revision: Some(2) });
+        assert!(matches!(
+            r.kind,
+            RefusedKind::Conflict {
+                revision: Some(2),
+                ..
+            }
+        ));
 
         clear(&mut a, "item/i1", Expect::Exactly(2), &via).unwrap();
         let r = refused(
@@ -987,13 +1097,25 @@ mod tests {
             )
             .unwrap_err(),
         );
-        assert_eq!(r.kind, RefusedKind::Conflict { revision: Some(3) });
+        assert!(matches!(
+            r.kind,
+            RefusedKind::Conflict {
+                revision: Some(3),
+                ..
+            }
+        ));
         assert_eq!(
             r.message,
             "item/i1's price was cleared (revision 3); a new price names no revision"
         );
         let r = refused(clear(&mut a, "item/i1", Expect::Current, &via).unwrap_err());
-        assert_eq!(r.kind, RefusedKind::Conflict { revision: Some(3) });
+        assert!(matches!(
+            r.kind,
+            RefusedKind::Conflict {
+                revision: Some(3),
+                ..
+            }
+        ));
         assert!(
             r.message
                 .starts_with("item/i1's price was cleared (revision 3)"),
@@ -1015,7 +1137,7 @@ mod tests {
             plain,
         )
         .unwrap_err();
-        assert_eq!(refused(e).kind, RefusedKind::NotFound);
+        assert!(matches!(refused(e).kind, RefusedKind::NotFound(_)));
     }
 
     /// A row this build cannot read (a newer build's value) is never
@@ -1221,5 +1343,147 @@ mod tests {
             let err = read_buyout(words.0, words.1, words.2).unwrap_err();
             assert!(err.to_string().contains(said), "{words:?}: {err}");
         }
+    }
+
+    /// Round 4 of `roadmap/briefs/2g-build.md`: a conflict carries the
+    /// live row it was refused over as `show`'s `manual` prints it, so an
+    /// agent reads the current value without a second call; over a
+    /// cleared row `current` is absent and `revision` the tombstone's,
+    /// and where no row was ever written `revision` stays null (C11).
+    #[test]
+    fn a_conflict_carries_the_live_row_as_show_prints_it() {
+        let (store, mut a) = priced();
+        let via = Provenance::via("test");
+        let write = |a: &mut Annotations, expect| {
+            set(
+                &store,
+                a,
+                "item/i1",
+                "exact",
+                Some("3"),
+                Some("divine"),
+                expect,
+                &via,
+            )
+        };
+        write(&mut a, Expect::Current).unwrap();
+        let shown = show(
+            &store,
+            &a,
+            "item/i1",
+            None,
+            None,
+            Bound::default(),
+            "a",
+            plain,
+        )
+        .unwrap()
+        .listing
+        .manual
+        .unwrap();
+        for e in [
+            write(&mut a, Expect::Exactly(9)).unwrap_err(),
+            write(&mut a, Expect::Create).unwrap_err(),
+            clear(&mut a, "item/i1", Expect::Create, &via).unwrap_err(),
+        ] {
+            let r = Refused::find(&e).unwrap();
+            let fields = r.fields();
+            assert_eq!(fields["revision"], json!(1), "{e:#}");
+            assert_eq!(fields["current"], json!(shown), "{e:#}");
+        }
+        clear(&mut a, "item/i1", Expect::Exactly(1), &via).unwrap();
+        let e = write(&mut a, Expect::Exactly(9)).unwrap_err();
+        let fields = Refused::find(&e).unwrap().fields();
+        assert_eq!(fields["revision"], json!(2));
+        assert!(!fields.contains_key("current"), "{fields:?}");
+        let e = clear(&mut a, "item/i2", Expect::Current, &via).unwrap_err();
+        let fields = Refused::find(&e).unwrap().fields();
+        assert_eq!(fields["revision"], Value::Null);
+        assert!(!fields.contains_key("current"), "{fields:?}");
+    }
+
+    /// Round 4: a target the facts do not hold is refused with the target
+    /// and the scope the verb resolved — the account it ran as, the realm
+    /// the address carries or pc, the league named or Standard — and the
+    /// leagues that do hold it, from which the offers are made; every
+    /// command its words print carries that scope.
+    #[test]
+    fn a_not_found_carries_its_target_and_the_scope_it_was_looked_for_in() {
+        let (store, a) = priced();
+        let missing = |target: &str, league: Option<&str>| {
+            let e = show(
+                &store,
+                &a,
+                target,
+                None,
+                league,
+                Bound::default(),
+                "a",
+                plain,
+            )
+            .unwrap_err();
+            let r = Refused::find(&e).unwrap().clone();
+            match r.kind {
+                RefusedKind::NotFound(m) => (*m, r.message),
+                other => panic!("{other:?}"),
+            }
+        };
+        let (m, said) = missing("tab/xbox/nope", None);
+        assert_eq!(
+            m,
+            Missing {
+                target: read_target("tab/xbox/nope").unwrap(),
+                account: "a".into(),
+                realm: Realm::Xbox,
+                league: "Standard".into(),
+                elsewhere: vec![],
+                own_row: None,
+            }
+        );
+        assert!(
+            said.ends_with(
+                "`acq search --account a --realm xbox` finds an item's id, \
+                 `acq tabs --account a --realm xbox --league Standard` a tab's"
+            ),
+            "{said}"
+        );
+        let (m, said) = missing("item/i1", Some("Other"));
+        assert_eq!(
+            (m.realm, m.league.as_str(), m.elsewhere.as_slice()),
+            (
+                Realm::Pc,
+                "Other",
+                &[(Realm::Pc, "Standard".to_string())][..]
+            )
+        );
+        assert!(
+            said.contains("the facts hold it in Standard: `--league` reads it there"),
+            "{said}"
+        );
+        // an item's address names no realm: one held in another is found
+        // there, its realm said
+        let e = show(
+            &store,
+            &a,
+            "item/i1",
+            Some(Realm::Xbox),
+            None,
+            Bound::default(),
+            "a",
+            plain,
+        )
+        .unwrap_err();
+        let r = Refused::find(&e).unwrap();
+        let RefusedKind::NotFound(m) = &r.kind else {
+            panic!("{r:?}")
+        };
+        assert_eq!(m.elsewhere, vec![(Realm::Pc, "Standard".to_string())]);
+        assert!(
+            r.message.contains(
+                "the facts hold it in pc/Standard: `--realm` and `--league` read it there"
+            ),
+            "{}",
+            r.message
+        );
     }
 }

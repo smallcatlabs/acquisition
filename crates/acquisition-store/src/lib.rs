@@ -2123,6 +2123,52 @@ impl Store {
         Ok(stmt.exists(rusqlite::params_from_iter(params))?)
     }
 
+    /// The realms and leagues in which the facts hold this address live,
+    /// sorted, as `(realm, league)`: [`Store::leagues_of`] with the realm
+    /// each is in, since an item's or a character's address names none.
+    /// What a refusal for a target one scope does not hold names as the
+    /// scopes that do (round 4 of the 2g build: its offers run there).
+    pub fn places_of(&self, address: &FactAddress<'_>) -> Result<Vec<(String, String)>> {
+        let (sql, params): (&str, Vec<&str>) = match address {
+            FactAddress::Item { id } => (
+                "SELECT DISTINCT i.realm, COALESCE(i.league, c.league)
+                   FROM items i LEFT JOIN characters c
+                     ON i.location_kind = 'character' AND c.realm = i.realm AND c.id = i.location_id
+                  WHERE i.id = ?1 AND i.removed_at IS NULL",
+                vec![id],
+            ),
+            FactAddress::Character { id } => (
+                "SELECT realm, league FROM characters WHERE id = ?1 AND removed_at IS NULL",
+                vec![id],
+            ),
+            // The same reading of a tab as `holds`.
+            FactAddress::Tab { realm, id } => (
+                "SELECT DISTINCT t.realm, t.league FROM tabs t
+                  WHERE t.realm = ?1 AND t.id = ?2 AND t.removed_at IS NULL AND (t.parent IS NULL
+                    OR EXISTS (SELECT 1 FROM tabs p WHERE p.realm = t.realm AND p.league = t.league
+                                  AND p.id = t.parent AND p.type = 'Folder'))",
+                vec![realm, id],
+            ),
+            FactAddress::Substash { realm, parent, id } => (
+                "SELECT DISTINCT realm, league FROM tabs
+                  WHERE realm = ?1 AND parent = ?2 AND id = ?3 AND removed_at IS NULL",
+                vec![realm, parent, id],
+            ),
+        };
+        let mut stmt = self.conn.prepare(sql)?;
+        let rows = stmt.query_map(rusqlite::params_from_iter(params), |r| {
+            Ok((r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?))
+        })?;
+        let mut places: Vec<(String, String)> = rows
+            .collect::<rusqlite::Result<Vec<_>>>()?
+            .into_iter()
+            .filter_map(|(realm, league)| Some((realm, league?)))
+            .collect();
+        places.sort();
+        places.dedup();
+        Ok(places)
+    }
+
     /// The leagues in which the facts hold this address live, sorted:
     /// one for nearly every address, none for one the facts do not know
     /// or know only as removed, and none for a character the listing

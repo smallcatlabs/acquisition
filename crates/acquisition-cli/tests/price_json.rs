@@ -512,8 +512,10 @@ fn price_list_is_bounded_by_a_limit_and_says_how_many_of_how_many() {
 /// `annotation no longer exists`, which hid the clear and the revision
 /// it still counts. Staged as met: a stale revision over a live row, and
 /// a revision named over a cleared one; each is `kind: "conflict"` with
-/// the current `revision`, in the verb's words. A target the facts do
-/// not hold is `kind: "not_found"`.
+/// the current `revision`, in the verb's words, and over the live row
+/// its `current`, the row as `price show`'s `manual` prints it (round 4
+/// of the 2g build). A target the facts do not hold is `kind:
+/// "not_found"`.
 #[test]
 fn a_write_refused_for_its_revision_is_a_conflict_naming_it_in_the_verbs_words() {
     let scratch = harness::scratch("price-conflict");
@@ -544,7 +546,7 @@ fn a_write_refused_for_its_revision_is_a_conflict_naming_it_in_the_verbs_words()
         "--if-revision",
         "1",
     ]);
-    let doc = refused(&[
+    let mut doc = refused(&[
         "price",
         "set",
         "item/i-map",
@@ -555,6 +557,9 @@ fn a_write_refused_for_its_revision_is_a_conflict_naming_it_in_the_verbs_words()
         "1",
         "--json",
     ]);
+    let shown = sole_json(&acq(&base, &["price", "show", "item/i-map", "--json"]));
+    assert_eq!(doc["current"], shown["listing"]["manual"], "{doc}");
+    doc.as_object_mut().unwrap().remove("current");
     assert_eq!(
         doc,
         json!({
@@ -790,7 +795,7 @@ fn a_row_on_a_target_the_facts_do_not_hold_is_listed_whole_and_show_says_where()
     assert!(
         said.contains("tab/xbox/orphan is not in the facts for xbox/Standard")
             && said.contains(
-                "it has a price row of its own at revision 1: `acq price status --expand --account 'Alice#1234' --realm xbox` lists it"
+                "it has a price row of its own at revision 1: `acq price status --expand --account 'Alice#1234' --realm xbox --league Standard` lists it"
             ),
         "{said}"
     );
@@ -849,7 +854,8 @@ fn a_rows_refusal_names_the_account_it_ran_as_so_its_command_runs_with_two_known
             .find(|w| w.starts_with("acq price status"))
             .unwrap_or_else(|| panic!("{args:?}: no `acq price status …` command in {said}"));
         assert_eq!(
-            command, "acq price status --expand --account 'Alice#1234' --realm xbox",
+            command,
+            "acq price status --expand --account 'Alice#1234' --realm xbox --league Standard",
             "{args:?}"
         );
         let words: Vec<&str> = command
@@ -933,7 +939,8 @@ fn a_rows_refusal_in_another_league_prints_the_show_that_displays_it() {
             .find(|w| w.starts_with("acq price show"))
             .unwrap_or_else(|| panic!("{args:?}: no `acq price show …` command in {said}"));
         assert_eq!(
-            command, "acq price show tab/xbox/t --account 'Alice#1234' --league Allflame",
+            command,
+            "acq price show tab/xbox/t --account 'Alice#1234' --realm xbox --league Allflame",
             "{args:?}"
         );
         let words: Vec<&str> = command

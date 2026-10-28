@@ -24,7 +24,7 @@ next: `acq price show --account 'Alice#1234' --realm pc --league Standard item/<
 $ acq price list --in tab/pc/nope
 # holds "tab/pc/nope is not in the facts for Standard"
 --- stderr
-Error: tab/pc/nope is not in the facts for Standard (4 items, 5 tabs and characters on record); `acq search` finds an item's id, `acq tabs` a tab's
+Error: tab/pc/nope is not in the facts for Standard (4 items, 5 tabs and characters on record); `acq search --account 'Alice#1234' --realm pc` finds an item's id, `acq tabs --account 'Alice#1234' --realm pc --league Standard` a tab's
 --- exit 1
 
 $ acq price list --in tab/xbox/c1 --realm pc
@@ -36,7 +36,7 @@ Error: tab/xbox/c1 is a xbox address; pc was given (--realm or another address)
 $ acq price list --in tab/xbox/c1
 # holds "not in the facts for xbox/Standard"
 --- stderr
-Error: tab/xbox/c1 is not in the facts for xbox/Standard (0 items, 0 tabs and characters on record); `acq search` finds an item's id, `acq tabs` a tab's
+Error: tab/xbox/c1 is not in the facts for xbox/Standard (0 items, 0 tabs and characters on record); `acq search --account 'Alice#1234' --realm xbox` finds an item's id, `acq tabs --account 'Alice#1234' --realm xbox --league Standard` a tab's
 --- exit 1
 
 $ acq price status --league Hardcore
