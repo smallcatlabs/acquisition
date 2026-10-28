@@ -493,8 +493,10 @@ async fn c137_an_observe_request_under_the_deadline_at_zero_is_refused_naming_th
 
     /// The test's end of one connection: what it has read, in order.
     struct Peer {
-        reader: BufReader<OwnedReadHalf>,
-        write: OwnedWriteHalf,
+        // The accepted end's halves (`endpoint::Accepted`): one type with
+        // the connecting end's on Unix, the server pipe on Windows.
+        reader: BufReader<ReadHalf<endpoint::Accepted>>,
+        write: WriteHalf<endpoint::Accepted>,
         transcript: Vec<String>,
     }
 
