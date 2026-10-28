@@ -1052,7 +1052,9 @@ on the count alone; its fix round took the removal branch, the text
 block alone from both emitters (and the transport's refusal of a
 message nested too deep), every read of the structured content
 migrated, and `spoken.rs` asserting its absence on successes and
-refusals.
+refusals. The recipe's `--max-turns 2` is one short on a host that
+defers MCP tools behind a tool search: the capture still held the
+call, and a rerun gives three.
 
 ### Round 8 — The replay, before and after (evidence, deferrable; the step's measurement)
 
