@@ -59,15 +59,9 @@ fn c45_one_job_is_read_from_disk_on_both_surfaces() {
     );
     let refused = mcp.result("job_result", json!({ "id": 1 }));
     assert_eq!(refused["isError"], json!(true), "{refused}");
-    assert_eq!(
-        refused["structuredContent"]["kind"],
-        json!("wrong_state"),
-        "{refused}"
-    );
-    assert!(
-        refused["structuredContent"]["next"].is_string(),
-        "{refused}"
-    );
+    let doc = harness::document(&refused);
+    assert_eq!(doc["kind"], json!("wrong_state"), "{refused}");
+    assert!(doc["next"].is_string(), "{refused}");
     assert!(
         harness::no_daemon_appeared(&base),
         "a tool spawned a daemon"

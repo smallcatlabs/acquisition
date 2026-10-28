@@ -193,19 +193,13 @@ impl Seat {
 
     /// One tool call: the document, and whether the result was marked an
     /// error. H4: the JSON whole and no text — the result's one content
-    /// block is that same document, for a host that reads no structured
-    /// content, and nothing else stands beside it.
+    /// block is the document, and nothing else stands beside it.
     fn call(&mut self, tool: &str, args: &Value) -> (Value, bool) {
         let result = self.mcp.result(tool, args.clone());
-        let doc = result["structuredContent"].clone();
-        assert!(doc.is_object(), "{tool} {args}: {result}");
         let content = result["content"].as_array().unwrap();
         assert_eq!(content.len(), 1, "{tool} {args}: {result}");
-        assert_eq!(
-            serde_json::from_str::<Value>(content[0]["text"].as_str().unwrap()).unwrap(),
-            doc,
-            "{tool} {args}"
-        );
+        let doc = harness::document(&result);
+        assert!(doc.is_object(), "{tool} {args}: {result}");
         (doc, result["isError"] == json!(true))
     }
 
@@ -610,7 +604,7 @@ fn arguments_a_tool_does_not_take_are_refused_as_a_document() {
     // no arguments at all is every tool's empty object
     let result = seat.mcp.result("describe", Value::Null);
     assert!(result["isError"] != json!(true), "{result}");
-    assert!(result["structuredContent"]["fields"].is_array(), "{result}");
+    assert!(harness::document(&result)["fields"].is_array(), "{result}");
 }
 
 /// `describe`'s text says how large the whole language is and which

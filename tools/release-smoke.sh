@@ -148,7 +148,7 @@ if kill -0 "$mcp" 2>/dev/null; then
 fi
 wait "$mcp" || fail "acq-mcp exited non-zero: $(cat "$mcp_out" "$work/mcp.err")"
 answered || fail "acq-mcp never answered the daemon_status call: $(cat "$mcp_out" "$work/mcp.err")"
-reported=$(grep '"id":2' "$mcp_out" | jq -c '.result.structuredContent')
+reported=$(grep '"id":2' "$mcp_out" | jq -c '.result.content[0].text | fromjson')
 jq -e '.running == true and .compatible == true and .provider == "mock"' >/dev/null <<<"$reported" \
     || fail "acq-mcp does not report a running, compatible mock daemon: $(cat "$mcp_out")"
 ran=$(jq -r '.artifact.path // empty' <<<"$reported")

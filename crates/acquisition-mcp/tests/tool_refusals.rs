@@ -55,7 +55,7 @@ fn seed(base: &std::path::Path) {
 /// checked: a JSON-RPC error fails here, naming the tool.
 fn refusal(mcp: &mut Mcp, tool: &str, args: Value, kind: &str) -> Value {
     let result = mcp.result(tool, args.clone());
-    let doc = result["structuredContent"].clone();
+    let doc = harness::document(&result);
     assert!(
         result["isError"] == json!(true) && doc["kind"] == json!(kind) && doc["error"].is_string(),
         "{tool} {args} is not a refusal of kind {kind}: {result}"
@@ -191,7 +191,7 @@ fn a_request_the_server_cannot_read_gets_a_reply_and_the_next_call_one_too() {
         let line = json!({ "jsonrpc": "2.0", "id": id, "method": "tools/call",
             "params": { "name": "search", "arguments": arguments } });
         let reply = mcp.raw(&line.to_string(), &id);
-        let doc = &reply["result"]["structuredContent"];
+        let doc = &harness::document(&reply["result"]);
         assert_eq!(reply["result"]["isError"], json!(true), "{reply}");
         assert_eq!(doc["kind"], json!("arguments"), "{reply}");
         assert!(
@@ -200,12 +200,12 @@ fn a_request_the_server_cannot_read_gets_a_reply_and_the_next_call_one_too() {
         );
         // the next call is answered, its own
         let next = mcp.result("sync_policy", json!({}));
-        assert!(next["structuredContent"]["policy"].is_object(), "{next}");
+        assert!(harness::document(&next)["policy"].is_object(), "{next}");
     }
     let reply = mcp.raw(r#"{"jsonrpc":"2.0","id":99,"method":"#, &Value::Null);
     assert_eq!(reply["error"]["code"], json!(-32700), "{reply}");
     let next = mcp.result("sync_policy", json!({}));
-    assert!(next["structuredContent"]["policy"].is_object(), "{next}");
+    assert!(harness::document(&next)["policy"].is_object(), "{next}");
 }
 
 /// A line `serde_json` refuses never reaches `rmcp`, which would drop it:
@@ -233,7 +233,7 @@ fn a_deep_line_cut_short_and_a_line_behind_a_byte_order_mark_each_get_their_repl
         "params": { "name": "sync_policy", "arguments": {} } });
     let reply = mcp.raw(&format!("\u{feff}{line}"), &id);
     assert!(
-        reply["result"]["structuredContent"]["policy"].is_object(),
+        harness::document(&reply["result"])["policy"].is_object(),
         "{reply}"
     );
 }
@@ -325,7 +325,7 @@ fn every_offer_a_refusal_makes_is_answered_as_sent_back() {
         let tool = offer["tool"].as_str().unwrap_or(refused).to_string();
         let result = mcp.result(&tool, offer["request"].clone());
         assert_ne!(result["isError"], json!(true), "{offer}: {result}");
-        result["structuredContent"].clone()
+        harness::document(&result)
     };
 
     // a typo'd account: the same call as each name, the kind kept (C121)
@@ -418,7 +418,7 @@ fn a_search_offered_again_as_another_account_keeps_its_route() {
     assert_eq!(offer["request"], expected, "{doc}");
     let result = mcp.result("search", offer["request"].clone());
     assert_ne!(result["isError"], json!(true), "{result}");
-    let answer = &result["structuredContent"];
+    let answer = &harness::document(&result);
     assert_eq!(answer["total"]["matched"], 1, "{answer}");
     assert_eq!(answer["before"]["count"], 12, "{answer}");
 }
@@ -482,7 +482,7 @@ fn a_continuation_offered_as_another_account_is_its_request_from_its_start() {
         "search",
         json!({ "scope": { "account": USER, "realm": "xbox" }, "view": { "rows": { "limit": 1 } } }),
     );
-    let mut next = first["structuredContent"]["view"]["rows"]["next"].clone();
+    let mut next = harness::document(&first)["view"]["rows"]["next"].clone();
     assert!(next.is_object(), "no continuation: {first}");
     next["request"]["scope"]["account"] = json!("Alicia");
     let doc = refusal(&mut mcp, "search", next, "not_logged_in");
@@ -499,7 +499,7 @@ fn a_continuation_offered_as_another_account_is_its_request_from_its_start() {
         assert!(request["view"]["rows"].get("after").is_none(), "{offer}");
         let result = mcp.result("search", offer["request"].clone());
         assert_ne!(result["isError"], json!(true), "{offer}: {result}");
-        let answer = &result["structuredContent"];
+        let answer = &harness::document(&result);
         assert_eq!(answer["scope"]["account"]["name"], name, "{answer}");
         assert_eq!(answer["view"]["rows"]["returned"], 1, "{answer}");
     }

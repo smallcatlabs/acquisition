@@ -21,8 +21,8 @@ note says so. With --host-config the configuration as the call read it is kept b
 calls/NNN.host-config.json; the call's text and sizes are the server's alone. A call's arguments are kept
 whole as calls/NNN.args.json and in the row up to 2,000 characters, so no row outgrows a CSV reader.
 
-bytes: `text_bytes` is the result's text block; `result_bytes` is the whole JSON-RPC line, which carries
-the document a second time as structured content. A result is printed whole up to SHOWN bytes of text;
+bytes: `text_bytes` is the result's text block; `result_bytes` is the whole JSON-RPC line, that text block
+escaped in its envelope (the server sends no structured content). A result is printed whole up to SHOWN bytes of text;
 past that its head is printed and the row says `head`. `open` is printed whole: it is what a host shows.
 """
 import argparse, csv, json, os, queue, shutil, subprocess, sys, threading, time

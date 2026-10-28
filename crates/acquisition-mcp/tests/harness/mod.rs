@@ -263,8 +263,9 @@ impl Mcp {
         }
     }
 
-    /// Call one tool: `Ok(structured result)` or `Err(message)` whether
-    /// the failure came back as a JSON-RPC error or an isError result.
+    /// Call one tool: `Ok(the document)`, its text block parsed, or
+    /// `Err(message)` whether the failure came back as a JSON-RPC error or
+    /// an isError result.
     pub fn call(&mut self, tool: &str, args: Value) -> Result<Value, String> {
         let resp = self.rpc("tools/call", json!({ "name": tool, "arguments": args }));
         if let Some(error) = resp.get("error") {
@@ -280,16 +281,13 @@ impl Mcp {
         if result["isError"] == json!(true) {
             return Err(text());
         }
-        match result.get("structuredContent") {
-            Some(v) => Ok(v.clone()),
-            None => Ok(serde_json::from_str(&text())
-                .unwrap_or_else(|e| panic!("unstructured tool result ({e}): {resp}"))),
-        }
+        Ok(serde_json::from_str(&text())
+            .unwrap_or_else(|e| panic!("a tool result whose text is no document ({e}): {resp}")))
     }
 
     /// Call one tool and hand back its result object whole — `content`,
-    /// `structuredContent`, `isError` — for a test of the result's own
-    /// shape. A JSON-RPC error fails here: the call was not served.
+    /// `isError` — for a test of the result's own shape ([`document`]
+    /// reads its document). A JSON-RPC error fails here: the call was not served.
     pub fn result(&mut self, tool: &str, args: Value) -> Value {
         let resp = self.rpc("tools/call", json!({ "name": tool, "arguments": args }));
         resp.get("result")
@@ -317,6 +315,14 @@ impl Mcp {
             Ok(v) => panic!("{tool} unexpectedly succeeded: {v}"),
         }
     }
+}
+
+/// The document a tool's result carries: its one text block, parsed (the
+/// server sends no structured content; `spoken.rs` pins that).
+pub fn document(result: &Value) -> Value {
+    let text = result["content"][0]["text"].as_str().unwrap_or_default();
+    serde_json::from_str(text)
+        .unwrap_or_else(|e| panic!("a tool result whose text is no document ({e}): {result}"))
 }
 
 /// The keys whose value is payload (`PAYLOAD` in the server): what an

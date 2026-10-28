@@ -48,9 +48,10 @@
 //!   `--account` does; every request an answer holds names it.
 //! - **H3 — an omitted realm is the terminal's rule** (C96): resolved
 //!   over a store of one realm, refused over several.
-//! - **H4 — the answer's JSON whole, no text.** The result's structured
-//!   content is the answer, and its one content block is that same
-//!   document serialized, for a host that reads no structured content.
+//! - **H4 — the answer's JSON whole, no text.** The result's one content
+//!   block is the answer, its document serialized with its keys in the
+//!   order it declares them (C115), and no structured content is sent:
+//!   on the MCP the JSON is the text, with no second rendering (C53).
 //! - **H5 — an offer that is a command is a request too**: a refusal's
 //!   `offers`, made in the search crate (`error::Offered`).
 //! - **A trade site search is a request's query** (C113):
@@ -466,25 +467,24 @@ fn daemon_error(kind: ErrorKind, message: String) -> ErrorData {
 /// prints — an answer, or a failure in a result marked an error.
 type Told = Result<CallToolResult, ErrorData>;
 
-/// The document as a tool's result. The text block is serialized from the
+/// The document as a tool's result: one text block, serialized from the
 /// document itself, so its keys come in the order the document declares
-/// them (C115); the structured content, a JSON value, holds them in its
-/// own order, sorted, and it is that copy the host measured hands the
-/// model ([`told_as`]).
+/// them (C115), and no structured content ([`told_as`]).
 fn told<T: serde::Serialize>(document: &T) -> Told {
     told_as(document, Prose { all: false })
 }
 
 /// [`told`], the document's prose as [`Prose`] says: each string
-/// [`spoken`] for this server, and the structured content read back from
-/// the text.
+/// [`spoken`] for this server.
 ///
-/// Both copies stay by measurement (step 2g's round 7): `claude` 2.1.312
-/// handed the model one copy and not two, the structured content byte for
-/// byte as sent, its keys sorted, and the text block only when a result
-/// carried no structured content, so the second copy costs the model no
-/// bytes while the declared order reaches it only from a host that reads
-/// the text.
+/// The text block alone, by measurement (step 2g's round 7): in the
+/// stream `claude` 2.1.312 logged for two successes of one tool, the
+/// result it passed on was the structured copy alone, its keys sorted,
+/// when one was sent, and the text block when none was (that the model
+/// reads what the stream logs is inferred; a refusal was not measured).
+/// So the text block alone carries the declared order to the model: the
+/// answer leads with what bears on the question (C115), and on the MCP
+/// the JSON is the text, with no second rendering (C53).
 fn told_as<T: serde::Serialize>(document: &T, prose: Prose) -> Told {
     let text = spoken(
         &serde_json::to_string(document).map_err(|e| err(e.into()))?,
@@ -498,11 +498,11 @@ fn told_as<T: serde::Serialize>(document: &T, prose: Prose) -> Told {
             "an answer must be one JSON object, and this tool's is not"
         )));
     }
-    let mut result = serde_json::from_str(&text)
-        .map(CallToolResult::structured)
-        .map_err(|e| err(e.into()))?;
-    result.content = vec![rmcp::model::ContentBlock::text(text)];
-    Ok(result)
+    // the text is one JSON document, whatever `spoken` did to it
+    serde_json::from_str::<serde::de::IgnoredAny>(&text).map_err(|e| err(e.into()))?;
+    Ok(CallToolResult::success(vec![
+        rmcp::model::ContentBlock::text(text),
+    ]))
 }
 
 /// A refusal the search crate made (C11), in the one shape: `error`,
@@ -1233,8 +1233,7 @@ struct Prose {
 /// JSON document, with [`spelling`] appended inside each string literal
 /// that is the tool's words ([`Prose`]), never one under [`PAYLOAD`],
 /// and an entry's name's spelling appended to its `what`. Done on the
-/// text, so the document's key order (C115) stands; the structured
-/// content is read back from it.
+/// text, so the document's key order (C115) stands.
 fn spoken(text: &str, prose: Prose) -> String {
     enum Frame {
         Object {
@@ -1365,12 +1364,11 @@ fn spoken(text: &str, prose: Prose) -> String {
 }
 
 /// A refusal's document as a tool's result, marked an error: its prose
-/// [`spoken`] for this server, its readings and offers payload.
+/// [`spoken`] for this server, its readings and offers payload; the text
+/// block alone, as an answer's is ([`told_as`]).
 fn refusing(doc: Value) -> CallToolResult {
     let text = spoken(&doc.to_string(), Prose { all: true });
-    let mut result = CallToolResult::structured_error(serde_json::from_str(&text).unwrap_or(doc));
-    result.content = vec![rmcp::model::ContentBlock::text(text)];
-    result
+    CallToolResult::error(vec![rmcp::model::ContentBlock::text(text)])
 }
 
 /// A pricing verb's answer as a tool's result: the document the CLI's

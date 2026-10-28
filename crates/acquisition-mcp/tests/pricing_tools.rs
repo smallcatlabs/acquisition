@@ -208,16 +208,12 @@ fn cli(base: &Path, args: &[&str]) -> (bool, Value) {
     (out.status.success(), doc)
 }
 
-/// What the tool returns: its structured content, with whether it
-/// succeeded (a result not marked `isError`).
+/// What the tool returns: its document, with whether it succeeded (a
+/// result not marked `isError`).
 fn tool(mcp: &mut Mcp, name: &str, args: Value) -> (bool, Value) {
     let result = mcp.result(name, args);
     let ok = result["isError"] != json!(true);
-    let doc = result
-        .get("structuredContent")
-        .cloned()
-        .unwrap_or_else(|| panic!("{name} returned no document: {result}"));
-    (ok, doc)
+    (ok, harness::document(&result))
 }
 
 /// C46, C11 — for every read the seven tools serve, the tool's document

@@ -95,7 +95,7 @@ fn a_job_tool_with_no_daemon_names_the_command_that_starts_one() {
         // The approved form: a result marked isError, `kind: "no_daemon"`,
         // with what a person does — never a protocol error (review 8).
         let result = mcp.result(tool, args);
-        let doc = &result["structuredContent"];
+        let doc = &harness::document(&result);
         assert!(
             result["isError"] == json!(true)
                 && doc["kind"] == json!("no_daemon")
@@ -108,7 +108,7 @@ fn a_job_tool_with_no_daemon_names_the_command_that_starts_one() {
     // A job the ledger does not hold: the daemon's word for an id it
     // does not remember, with what a person does.
     let result = mcp.result("job_status", json!({ "id": 1 }));
-    let doc = &result["structuredContent"];
+    let doc = &harness::document(&result);
     assert!(
         result["isError"] == json!(true)
             && doc["kind"] == json!("unknown_job")
@@ -169,9 +169,8 @@ fn the_no_daemon_remedy_names_the_provider_and_store_the_server_runs_with() {
     ] {
         let mut mcp = Mcp::start(&base, &[("ACQ_PROVIDER", provider), ("ACQ_NO_SPAWN", "1")]);
         let result = mcp.result("cancel_job", json!({ "id": 1 }));
-        let next = result["structuredContent"]["next"]
-            .as_str()
-            .unwrap_or_default();
+        let doc = harness::document(&result);
+        let next = doc["next"].as_str().unwrap_or_default();
         let command = format!("`{prefix}acq auth check`");
         assert!(
             next.contains(&command),

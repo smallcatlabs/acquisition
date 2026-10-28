@@ -226,8 +226,10 @@ fn every_text_the_server_sends_spells_the_cli_it_speaks() {
         assert_eq!(result["isError"], json!(refused), "{tool} {args}: {result}");
         let text = result["content"][0]["text"].as_str().unwrap_or_default();
         let doc: Value = serde_json::from_str(text).unwrap();
-        // the text and the structured content are one document
-        assert_eq!(doc, result["structuredContent"], "{tool} {args}");
+        // the text is the one document: no structured content is sent, an
+        // answer's or a refusal's, so no host hands the model a copy with
+        // its keys sorted in the text's place (2g round 7, measured)
+        assert_eq!(result.get("structuredContent"), None, "{tool} {args}");
         // the sweep reads something: every one speaks the CLI but the
         // account's (call 46, which names `account` alone), the realms'
         // (their readings the request's words, C143) and the gone tab's
@@ -256,20 +258,14 @@ fn a_refusals_offer_sent_back_as_printed_is_answered() {
     let text = "name:\"acq search --count\"";
     let result = mcp.result("search", json!({ "query": { "text": text } }));
     assert_eq!(result["isError"], json!(true), "{result}");
-    let refusal = &result["structuredContent"];
+    let refusal = &harness::document(&result);
     assert_eq!(refusal["kind"], "realm_needed", "{refusal}");
     let offer = refusal["offers"][0]["request"].clone();
     assert_eq!(offer["query"]["text"], json!(text), "{refusal}");
-    let printed: Value =
-        serde_json::from_str(result["content"][0]["text"].as_str().unwrap_or_default()).unwrap();
-    assert_eq!(
-        printed["offers"][0]["request"], offer,
-        "the text and the content differ"
-    );
     let answered = mcp.result("search", offer.clone());
     assert_ne!(answered["isError"], json!(true), "{offer}: {answered}");
     assert_eq!(
-        answered["structuredContent"]["query"]["text"],
+        harness::document(&answered)["query"]["text"],
         json!(text),
         "{answered}"
     );

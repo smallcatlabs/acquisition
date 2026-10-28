@@ -184,7 +184,6 @@ pub fn classify(line: &[u8]) -> Line {
             "id": id,
             "result": {
                 "content": [{ "type": "text", "text": doc.to_string() }],
-                "structuredContent": doc,
                 "isError": true,
             },
         }));
@@ -377,7 +376,9 @@ mod tests {
         let reply = answer(line.as_bytes());
         assert_eq!(reply["id"], json!("x-9"), "{reply}");
         assert_eq!(reply["result"]["isError"], json!(true), "{reply}");
-        let doc = &reply["result"]["structuredContent"];
+        assert_eq!(reply["result"].get("structuredContent"), None, "{reply}");
+        let doc: Value =
+            serde_json::from_str(reply["result"]["content"][0]["text"].as_str().unwrap()).unwrap();
         assert_eq!(doc["kind"], json!("arguments"), "{reply}");
         assert!(
             doc["error"].as_str().unwrap().contains("127 levels"),
