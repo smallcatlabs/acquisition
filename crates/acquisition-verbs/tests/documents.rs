@@ -979,6 +979,83 @@ fn c149_events_are_one_document_ten_by_default_with_the_limit_said() {
     assert_eq!(summary.by_kind.added, 12);
 }
 
+/// C53 (an age the text prints stands in words beside its epoch, made
+/// at the answer's own time), round 6's fix round (its review's P3): the
+/// three makers that read their rows from the store — the events of a
+/// window, the refused bodies, the policy shown — each say a populated
+/// row's time at the time given, in the document an agent reads.
+#[test]
+fn c53_the_events_the_refused_bodies_and_the_policy_shown_say_their_ages() {
+    const AT: i64 = 1_000;
+    let dir = tempfile::tempdir().unwrap();
+    let mut store = Store::open(&dir.path().join("facts.db")).unwrap();
+    let stash = |items: Value| json!({ "stash": { "id": "t1", "name": "One", "type": "PremiumStash", "items": items } });
+    let endpoint = Endpoint::Stash {
+        realm: "pc".into(),
+        league: "Standard".into(),
+        id: "t1".into(),
+        sub: None,
+    };
+    let ring = json!({ "id": "i1", "typeLine": "Iron Ring", "baseType": "Iron Ring",
+                       "frameType": 0, "identified": true, "ilvl": 1, "x": 0, "y": 0 });
+    store
+        .record(
+            &endpoint,
+            &json!({ "league": "Standard" }),
+            200,
+            &stash(json!([ring])),
+            AT,
+        )
+        .unwrap();
+    // an item with no id: a body the store refuses and keeps
+    let nameless = json!({ "typeLine": "Iron Ring", "baseType": "Iron Ring",
+                           "frameType": 0, "identified": true, "ilvl": 1, "x": 1, "y": 0 });
+    assert!(
+        store
+            .record(
+                &endpoint,
+                &json!({ "league": "Standard" }),
+                200,
+                &stash(json!([nameless])),
+                AT + 60
+            )
+            .is_err()
+    );
+
+    let events = acquisition_verbs::events::Events::read(&store, AT + 120, 24.0, None).unwrap();
+    let doc = serde_json::to_value(&events).unwrap();
+    assert_eq!(doc["rows"][0]["at"], AT, "{doc}");
+    assert_eq!(doc["rows"][0]["at_age"], "2m ago", "{doc}");
+
+    let refused = acquisition_verbs::RefusedBodies::read(&store, 50, AT + 60 + 3 * 3_600).unwrap();
+    let doc = serde_json::to_value(&refused).unwrap();
+    assert_eq!(doc["rows"][0]["fetched_at"], AT + 60, "{doc}");
+    assert_eq!(doc["rows"][0]["fetched_at_age"], "3h ago", "{doc}");
+
+    let mut intent = Annotations::open_memory_for(UUID).unwrap();
+    let row = intent
+        .put::<acquisition_plan::SyncPolicy>(
+            acquisition_store::SYNC_POLICY_SCOPE,
+            acquisition_store::SYNC_POLICY_KEY,
+            &policy(),
+            None,
+            &acquisition_store::Provenance::via("test"),
+        )
+        .unwrap();
+    let shown = acquisition_verbs::PolicyShown::of(Some(row.clone()), row.updated_at + 2 * 86_400);
+    let doc = serde_json::to_value(&shown).unwrap();
+    assert_eq!(doc["policy"]["updated_at"], row.updated_at, "{doc}");
+    assert_eq!(doc["policy"]["updated_at_age"], "2d ago", "{doc}");
+    assert_eq!(
+        doc["policy"]["revision"], row.revision,
+        "the row stands whole: {doc}"
+    );
+    assert_eq!(
+        serde_json::to_value(acquisition_verbs::PolicyShown::of(None, AT)).unwrap(),
+        json!({ "policy": null })
+    );
+}
+
 /// One ledger row of `state` with `id`, in the live list's shape.
 fn job_row(id: u64, state: &str) -> PersistedJob {
     PersistedJob {
