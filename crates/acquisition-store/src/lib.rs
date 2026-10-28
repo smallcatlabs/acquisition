@@ -1116,20 +1116,33 @@ impl Store {
     }
 
     fn init(mut conn: Connection, path: PathBuf) -> Result<Store> {
-        // WAL: the daemon writes while any number of frontends read.
-        ensure_wal(&conn)?;
-        conn.pragma_update(None, "synchronous", "NORMAL")?;
+        // A connection setting, not a file write.
         conn.busy_timeout(std::time::Duration::from_secs(5))?;
-        // A file at this build's version is opened with a read alone: the
-        // stamp from a deferred transaction, which takes no write lock, so
-        // a reader never waits behind an ingest or blocks the daemon (0a).
-        // Anything else goes on to the lock below, which reads it again.
+        // The version gate before any pragma that writes (issue #63, as
+        // `Annotations::prepare` orders it): a file stamped newer than
+        // this build is refused exactly as found, where `ensure_wal`
+        // below would first have rewritten a rollback-journal file's
+        // header. A file at this build's version is opened with this read
+        // alone: the stamp from a deferred transaction, which takes no
+        // write lock, so a reader never waits behind an ingest or blocks
+        // the daemon (0a). Anything else goes on to the lock below, which
+        // reads it again.
         let found: i64 = {
             let gate = conn.transaction_with_behavior(TransactionBehavior::Deferred)?;
             let found = gate.query_row("PRAGMA user_version", [], |r| r.get(0))?;
             gate.rollback()?;
             found
         };
+        if found > FACT_SCHEMA_VERSION {
+            return Err(SchemaTooNew {
+                found,
+                supported: FACT_SCHEMA_VERSION,
+            }
+            .into());
+        }
+        // WAL: the daemon writes while any number of frontends read.
+        ensure_wal(&conn)?;
+        conn.pragma_update(None, "synchronous", "NORMAL")?;
         if found == FACT_SCHEMA_VERSION {
             return Ok(Store { conn, path });
         }
@@ -4182,6 +4195,44 @@ mod tests {
             names,
             ["Foo", "Bar"],
             "the rebuild re-extracted what the ingest wrote"
+        );
+    }
+
+    /// Issue #63 (`roadmap/briefs/63-store-remainder.md`, Do 4): the
+    /// version is read before anything is written. A facts file in
+    /// rollback-journal mode stamped newer than this build is refused
+    /// exactly as found: its journal mode still `delete` after, no `-wal`
+    /// beside it — where `ensure_wal` used to run before the gate and
+    /// would have rewritten the header of a file this build may not touch.
+    #[test]
+    fn a_newer_file_is_refused_before_its_journal_mode_is_touched() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("facts.db");
+        {
+            let raw = Connection::open(&path).unwrap();
+            raw.execute_batch("CREATE TABLE future (x); PRAGMA user_version = 99;")
+                .unwrap();
+            let mode: String = raw
+                .query_row("PRAGMA journal_mode", [], |r| r.get(0))
+                .unwrap();
+            assert_eq!(mode, "delete", "staged in rollback-journal mode");
+        }
+        let refused = Store::open(&path).map(drop).unwrap_err();
+        assert_eq!(
+            refused.downcast_ref::<SchemaTooNew>(),
+            Some(&SchemaTooNew {
+                found: 99,
+                supported: FACT_SCHEMA_VERSION
+            })
+        );
+        let raw = Connection::open(&path).unwrap();
+        let mode: String = raw
+            .query_row("PRAGMA journal_mode", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(mode, "delete", "the refused file keeps its journal mode");
+        assert!(
+            !path.with_extension("db-wal").exists(),
+            "no WAL side file was written beside a refused file"
         );
     }
 

@@ -130,6 +130,33 @@ pub fn daemon_db_path(dir: &Path) -> PathBuf {
     dir.join("daemon.db")
 }
 
+/// The queue's schema version, stamped in `user_version` (issue #63; C48,
+/// the schema is internal). A file a build before the stamp wrote carries
+/// 0 and the same table, and is stamped on open; a file stamped newer than
+/// this build is refused ([`QueueSchemaTooNew`]), never guessed at.
+pub const JOBS_SCHEMA_VERSION: i64 = 1;
+
+/// `daemon.db` written by a newer build than this one. The daemon refuses
+/// to start on it (C6: a queue it cannot read is not run against), in
+/// words that say what to do.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct QueueSchemaTooNew {
+    pub found: i64,
+    pub supported: i64,
+}
+
+impl std::fmt::Display for QueueSchemaTooNew {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "daemon.db uses schema v{}, newer than this build's v{}: run the build that wrote it",
+            self.found, self.supported
+        )
+    }
+}
+
+impl std::error::Error for QueueSchemaTooNew {}
+
 pub struct JobDb {
     conn: Connection,
     path: PathBuf,
@@ -148,11 +175,27 @@ impl JobDb {
         Self::init(Connection::open_in_memory()?, PathBuf::from(":memory:"))
     }
 
+    /// The version gate first, before any pragma that writes (issue #63,
+    /// as the facts and annotation files order it); then WAL, the schema
+    /// and the stamp where the file has none. One daemon per world (C83)
+    /// is what keeps two opens from racing the stamp, so no transaction
+    /// serialises it here.
     fn init(conn: Connection, path: PathBuf) -> Result<JobDb> {
+        conn.busy_timeout(std::time::Duration::from_secs(5))?;
+        let found: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
+        if found > JOBS_SCHEMA_VERSION {
+            return Err(QueueSchemaTooNew {
+                found,
+                supported: JOBS_SCHEMA_VERSION,
+            }
+            .into());
+        }
         crate::ensure_wal(&conn)?;
         conn.pragma_update(None, "synchronous", "NORMAL")?;
-        conn.busy_timeout(std::time::Duration::from_secs(5))?;
         conn.execute_batch(SCHEMA)?;
+        if found < JOBS_SCHEMA_VERSION {
+            conn.pragma_update(None, "user_version", JOBS_SCHEMA_VERSION)?;
+        }
         Ok(JobDb { conn, path })
     }
 
@@ -654,6 +697,71 @@ mod tests {
             8,
             "the sequence survives prune and reopen"
         );
+    }
+
+    /// Issue #63 (`roadmap/briefs/63-store-remainder.md`, Do 4): the
+    /// queue's file carries its schema version. A fresh file is stamped;
+    /// one a build before the stamp wrote (the table, rows, no stamp)
+    /// opens with its rows and is stamped; one stamped newer than this
+    /// build is refused in words naming the file and what to do, its
+    /// stamp untouched.
+    #[test]
+    fn the_queue_file_is_stamped_and_a_newer_stamp_is_refused() {
+        let temp = tempfile::tempdir().unwrap();
+        let stamp = |path: &Path| -> i64 {
+            Connection::open(path)
+                .unwrap()
+                .query_row("PRAGMA user_version", [], |r| r.get(0))
+                .unwrap()
+        };
+
+        let fresh = temp.path().join("fresh.db");
+        drop(JobDb::open(&fresh).unwrap());
+        assert_eq!(
+            stamp(&fresh),
+            JOBS_SCHEMA_VERSION,
+            "a fresh file is stamped"
+        );
+
+        let legacy = temp.path().join("legacy.db");
+        {
+            let db = JobDb::open(&legacy).unwrap();
+            db.upsert(&row(3, "waiting", 100)).unwrap();
+        }
+        Connection::open(&legacy)
+            .unwrap()
+            .pragma_update(None, "user_version", 0)
+            .unwrap();
+        let db = JobDb::open(&legacy).unwrap();
+        assert_eq!(
+            db.load().unwrap(),
+            vec![row(3, "waiting", 100)],
+            "an unstamped file opens with its rows"
+        );
+        drop(db);
+        assert_eq!(stamp(&legacy), JOBS_SCHEMA_VERSION, "and is stamped");
+
+        let newer = temp.path().join("newer.db");
+        drop(JobDb::open(&newer).unwrap());
+        Connection::open(&newer)
+            .unwrap()
+            .pragma_update(None, "user_version", 99)
+            .unwrap();
+        let refused = JobDb::open(&newer).map(drop).unwrap_err();
+        assert_eq!(
+            refused.downcast_ref::<QueueSchemaTooNew>(),
+            Some(&QueueSchemaTooNew {
+                found: 99,
+                supported: JOBS_SCHEMA_VERSION
+            })
+        );
+        let words = format!("{refused:#}");
+        assert!(
+            words.contains("daemon.db uses schema v99")
+                && words.contains("run the build that wrote it"),
+            "{words}"
+        );
+        assert_eq!(stamp(&newer), 99, "a refused file is left as found");
     }
 
     #[test]
