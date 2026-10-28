@@ -66,6 +66,18 @@
 //! absence, so nothing spawns or replaces over it — and the report names
 //! the world lock's holder for the hand that stops it.
 //!
+//! Every observe request after the handshake runs under the same
+//! deadline (#103, `roadmap/briefs/103-observe-bound.md`): a request the
+//! daemon answers from memory — a job's status or result, the list, the
+//! daemon's status, the dashboard, the login's status, a quote, the
+//! subscription's turn — is bounded in [`Client::request`] by
+//! [`hello_within`], and its expiry is [`Stalled`], naming the peer's
+//! socket and pid, what was asked and the hand that stops it. An acting
+//! request (a submit, a cancel, a login step, a tripwire reset) is not
+//! bounded here: its wait is legitimate and bounded where it is made.
+//! The class is one exhaustive match (`asked`), so a new request is
+//! classed before the crate builds.
+//!
 //! # Decisions as recorded
 //!
 //! The rulings are the decision registry — `decisions/daemon.md` for this
@@ -431,6 +443,79 @@ impl fmt::Display for Unresponsive {
 }
 
 impl std::error::Error for Unresponsive {}
+
+/// A daemon that answered the handshake and then not an observe request
+/// within [`hello_within`] (#103; C86's deadline, C137's contract): the
+/// peer is identified, so the sentence names its socket and pid, what
+/// was asked, the effective deadline, and the hand that stops it. No
+/// Keychain clause: none of the bounded requests touches the keyring
+/// (C148). The connection that met it is poisoned (C85, one request in
+/// flight: the late answer would be read as the next request's), so the
+/// client keeps this and refuses every later request with it.
+#[derive(Debug, Clone)]
+pub struct Stalled {
+    /// The socket the handshake ran over.
+    pub at: Endpoint,
+    /// The pid the daemon reported in its `hello`.
+    pub pid: u32,
+    /// What was asked, in words ("its status", "the job list").
+    pub asked: &'static str,
+    /// The deadline the request ran under, the effective one (C137).
+    pub within: Duration,
+}
+
+impl Stalled {
+    /// The stalled request in an error chain, if one is there — how a
+    /// frontend tells a wedged daemon from a transport failure.
+    pub fn find(error: &anyhow::Error) -> Option<&Stalled> {
+        error.chain().find_map(|e| e.downcast_ref::<Stalled>())
+    }
+}
+
+impl fmt::Display for Stalled {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "the daemon at {} (pid {}) answered the handshake and then not {} within {}s; \
+             stop it by hand (`{KILL} {}`) and run the command again",
+            self.at.socket,
+            self.pid,
+            self.asked,
+            self.within.as_secs(),
+            self.pid
+        )
+    }
+}
+
+impl std::error::Error for Stalled {}
+
+/// #103: the class of a request at this client, one exhaustive match so
+/// a new variant is classed before the crate builds. An observe request
+/// is answered from the daemon's memory (a job evicted from it is read
+/// from the table, C6; a quote waits only for the start's restore,
+/// C148), so the handshake's deadline fits it; the words are what the
+/// refusal says was asked. An acting request waits on something real —
+/// the keyring, a store write, a listener bind, the limiter (invariant
+/// 1) — and is bounded where that wait is made, never here.
+fn asked(req: &Request) -> Option<&'static str> {
+    match req {
+        Request::Status { .. } => Some("the job's status"),
+        Request::Result { .. } => Some("the job's result"),
+        Request::List => Some("the job list"),
+        Request::Subscribe => Some("the subscription"),
+        Request::AuthStatus => Some("the login's status"),
+        Request::Quote { .. } => Some("the quote"),
+        Request::DaemonStatus => Some("its status"),
+        Request::Dashboard => Some("the dashboard"),
+        Request::Submit { .. }
+        | Request::Cancel { .. }
+        | Request::SetPriority { .. }
+        | Request::AuthStart
+        | Request::AuthCheck { .. }
+        | Request::AuthLogout { .. }
+        | Request::ResetTripwire => None,
+    }
+}
 
 /// Why a handshake did not identify a peer: the deadline, or a failure
 /// with its context.
@@ -965,6 +1050,9 @@ pub struct Client {
     /// frontend can say so when the command then fails (C3: the spawn is
     /// the ruling's; the release seat asked that it be said).
     spawned: bool,
+    /// The observe request this connection did not get answered in time
+    /// (#103): set once, and every later request is refused with it.
+    stalled: Option<Stalled>,
 }
 
 /// What a [`Subscription`] is told next (C85).
@@ -1590,6 +1678,7 @@ impl Client {
             write,
             daemon: DaemonId::judged(reported, at, own_world),
             spawned: false,
+            stalled: None,
         })
     }
 
@@ -1632,8 +1721,38 @@ impl Client {
     /// Send a request and return its response: one frame out, one frame
     /// in (C85). This connection never carries events — one arriving here
     /// is a protocol violation, reported as such.
+    ///
+    /// An observe request (`asked`) runs under [`hello_within`], read
+    /// here as the handshake reads it (#103; C86, C137): a reply is in
+    /// time only if it arrives before the deadline, so a deadline of
+    /// zero expires whatever the peer does, and the expiry is
+    /// [`Stalled`], kept on this connection so no later request reads
+    /// the late answer as its own.
     pub async fn request(&mut self, req: &Request) -> Result<Response> {
-        let bytes = self.exchange(req).await?;
+        if let Some(stalled) = &self.stalled {
+            return Err(stalled.clone().into());
+        }
+        let bytes = match asked(req) {
+            None => self.exchange(req).await?,
+            Some(asked) => {
+                let within = hello_within();
+                let deadline = tokio::time::Instant::now() + within;
+                match tokio::time::timeout_at(deadline, self.exchange(req)).await {
+                    Ok(Err(e)) => return Err(e),
+                    Ok(Ok(bytes)) if tokio::time::Instant::now() < deadline => bytes,
+                    Ok(Ok(_)) | Err(_) => {
+                        let stalled = Stalled {
+                            at: self.daemon.endpoint().clone(),
+                            pid: self.daemon.pid(),
+                            asked,
+                            within,
+                        };
+                        self.stalled = Some(stalled.clone());
+                        return Err(stalled.into());
+                    }
+                }
+            }
+        };
         match serde_json::from_slice::<Response>(&bytes)? {
             Response::Event { .. } | Response::ResyncRequired { .. } => {
                 bail!("protocol violation: an event arrived on a request connection")

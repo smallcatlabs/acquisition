@@ -450,6 +450,139 @@ async fn c137_the_handshake_deadline_at_zero_is_unresponsive_against_a_peer_that
     let _ = std::fs::remove_file(session_socket());
 }
 
+/// #103 (C137, the deadline's contract is its expiry behaviour; C86's
+/// deadline): an observe request after the handshake runs under the
+/// handshake's deadline, read at the request. At zero it expires against
+/// a peer that answers at once, as a healthy daemon does — so the refusal
+/// is the deadline's, not the peer's — and the refusal names the peer's
+/// socket and pid, what was asked, zero seconds and the kill line. The
+/// connection that met it is poisoned: a second request is refused with
+/// the same words and sends no frame (the peer counts what it read). An
+/// acting request under the same deadline at zero is not bounded here:
+/// the peer's own answer comes back. The peer replays the `hello` a real
+/// daemon of this world gave, so the observe door finds it compatible;
+/// no wall-clock bound is asserted.
+#[tokio::test]
+async fn c137_an_observe_request_under_the_deadline_at_zero_is_refused_naming_the_peer_and_an_acting_one_is_not()
+ {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    let s = session("stalled");
+    // A real daemon's hello, replayed by the scripted peer below.
+    let daemon = start_daemon_in_process(&s, &acqd_built()).await;
+    let world = World::observe().expect("the session's world");
+    let (reply, pid) = {
+        let mut raw = Raw::open().await;
+        let reply = raw
+            .ask(json!({
+                "req": "hello",
+                "version": VERSION,
+                "contract": CONTRACT_REVISION,
+                "world": world.name(),
+            }))
+            .await;
+        let pid = u32::try_from(reply["pid"].as_u64().expect("the daemon's pid")).unwrap();
+        (reply, pid)
+    };
+    drop(daemon);
+
+    // The peer: the replayed hello, then an answer at once to whatever
+    // is asked, counting every frame it reads.
+    let frames = Arc::new(AtomicUsize::new(0));
+    let socket = session_socket();
+    let mut listener = Listener::bind(&socket).unwrap_or_else(|e| panic!("bind: {e:?}"));
+    let peer = {
+        let frames = Arc::clone(&frames);
+        tokio::spawn(async move {
+            loop {
+                let stream = listener.accept().await.expect("accept");
+                let (read, mut write) = tokio::io::split(stream);
+                let mut reader = BufReader::new(read);
+                let reply = reply.clone();
+                let frames = Arc::clone(&frames);
+                tokio::spawn(async move {
+                    while let Ok(Frame::Line(bytes)) =
+                        read_frame(&mut reader, MAX_FRAME_BYTES).await
+                    {
+                        frames.fetch_add(1, Ordering::SeqCst);
+                        let frame: Value = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
+                        let answer = match frame["req"].as_str() {
+                            Some("hello") => reply.clone(),
+                            _ => {
+                                json!({ "resp": "error", "kind": "refused", "message": "scripted" })
+                            }
+                        };
+                        let mut line = answer.to_string();
+                        line.push('\n');
+                        if write.write_all(line.as_bytes()).await.is_err() {
+                            break;
+                        }
+                    }
+                });
+            }
+        })
+    };
+
+    // Observed under the isolation list's deadline: this client's daemon.
+    let mut client = compatible_client().await;
+    assert_eq!(client.daemon().pid(), pid);
+    let socket = socket.to_str().expect("utf-8").to_string();
+
+    s.set_knob("ACQ_HELLO_WITHIN", Some("0"));
+    let err = client
+        .request(&Request::DaemonStatus)
+        .await
+        .expect_err("the deadline at zero let an answer through");
+    let stalled = acquisition_client::client::Stalled::find(&err)
+        .unwrap_or_else(|| panic!("not the bound's refusal: {err:#}"));
+    assert_eq!(stalled.within, Duration::ZERO);
+    assert_eq!(stalled.pid, pid);
+    assert_eq!(stalled.at.socket, socket);
+    let sentence = format!("{err:#}");
+    assert!(
+        sentence.contains(&format!(
+            "the daemon at {socket} (pid {pid}) answered the handshake and then not its status within 0s"
+        )) && sentence.contains(&format!(
+            "stop it by hand (`{} {pid}`) and run the command again",
+            if cfg!(windows) { "taskkill /F /PID" } else { "kill" }
+        )),
+        "{sentence}"
+    );
+    let read_so_far = frames.load(Ordering::SeqCst);
+    assert_eq!(read_so_far, 2, "the hello and the status: {read_so_far}");
+
+    // Poisoned: the next request is refused the same way, and no frame
+    // reaches the peer, whose late answer it would otherwise read.
+    let again = client
+        .request(&Request::List)
+        .await
+        .expect_err("a request on a stalled connection");
+    assert_eq!(format!("{again:#}"), sentence);
+    assert_eq!(
+        frames.load(Ordering::SeqCst),
+        read_so_far,
+        "a frame was sent"
+    );
+
+    // An acting request is not bounded here: under the deadline at
+    // zero the peer's own answer comes back.
+    s.set_knob("ACQ_HELLO_WITHIN", Some("60"));
+    let mut client = compatible_client().await;
+    s.set_knob("ACQ_HELLO_WITHIN", Some("0"));
+    match client.request(&Request::Cancel { id: 1 }).await {
+        Ok(Response::Error { kind, message }) => {
+            assert_eq!(kind, ErrorKind::Refused);
+            assert_eq!(message, "scripted");
+        }
+        other => panic!("the acting request did not get the peer's answer: {other:?}"),
+    }
+
+    peer.abort();
+    let _ = peer.await;
+    let _ = std::fs::remove_file(session_socket());
+}
+
 /// The client side: a daemon whose frames carry fields this build has
 /// never seen is identified as another contract — reported, not used —
 /// and `stop_any` stops it; a stop it refuses is reported by message.

@@ -244,7 +244,7 @@ them.
 | `ACQ_NO_SPAWN=1` | off | never start or replace a daemon; for cron, ssh and headless shells | [client.rs][client]; keyring context: [auth.rs][auth] |
 | `ACQ_IDLE_SHUTDOWN=<s>` | 3600 | idle exit, this many seconds after the last connection or job submitted once no login is under way, no job is sending or waiting to send, and the limiter's recent history is gone; a rails halt or a failed queue write parks the queue on disk, and nothing waiting then holds it | [start.rs][daemon] |
 | `ACQ_LOGIN_WITHIN=<s>` | 300 | how long `acq auth` waits for the browser before the login fails; the CLI waits on the daemon's flow and has no bound of its own | [start.rs][daemon] |
-| `ACQ_HELLO_WITHIN=<s>` | 5 | how long a daemon has to answer the handshake before it is reported unresponsive | [client.rs][client] |
+| `ACQ_HELLO_WITHIN=<s>` | 5 | how long a daemon has to answer the handshake, and each read request after it (a status, a list, a quote, the dashboard), before it is reported unresponsive | [client.rs][client] |
 | `ACQ_STARTUP_WITHIN=<s>` | 5 | how long a daemon a command started has to bind its socket before the start is reported failed | [client.rs][client] |
 | `ACQ_ANNOTATION_WAIT=<s>` | 5 | how long a write waits for another writer's lock on the annotation file before it is refused as busy | [annotations.rs][annotations] |
 | `ACQ_JOB_RETENTION_DAYS`, `ACQ_FAILED_JOB_RETENTION_DAYS` | 7, 30 | finished-job retention for `acq result`; invalid values keep defaults | [start.rs][daemon] |
