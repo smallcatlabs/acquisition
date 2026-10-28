@@ -61,6 +61,20 @@ simpler, better Acquisition that is agent-friendly and agent-forward.
   print a note and never fail the gate; the history-marker refusal and
   the cross-cutting count stay failures. (d) The glossary is
   `GLOSSARY.md`, read on demand, named from the entry file in one line.
+- 2026-10-28, p1's packet of seventeen questions
+  (`briefs/p1-roadmap-sweep.md`, Do 1): "I accept all the packet's
+  recommendations, (a) to (q), as proposed." "Open" holds an item only
+  until the next close gives it a home (a); the ledger rows are ranges
+  and dates in `LEDGER.md` (b, c); the tools' issues are
+  `area:process` (d); the proxy variables route the client (C150, e);
+  a step's tests ride with their fix (f); the `AGENTS.md` budget of
+  15,277 bytes is the note's threshold, no longer temporary (g); no
+  bothy rule for a slash in *Pinned:* (h); no frontends review before
+  the league (i); three sentences in `REVIEW-PROMPT.md` (j); a bound on
+  every observe request, an issue (k); the seat skill's steps stand
+  (l); a seat line in `AGENTS.md` (m); two sentences in `TEMPLATE.md`
+  (n) and one in "Roles" (o); `STATE-2026-10-19.md` kept (p); #91 and
+  #11 join the pull-forward list (q).
 
 ## Roles
 
