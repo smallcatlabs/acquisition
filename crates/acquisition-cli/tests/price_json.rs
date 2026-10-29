@@ -973,6 +973,56 @@ fn a_rows_refusal_in_another_league_prints_the_show_that_displays_it() {
     }
 }
 
+/// Issue #107 (C146, a count says what it counts): an item asked for in
+/// the wrong realm is refused with the realm and league the facts hold it
+/// in, and the read those flags name shows the item. h2 found the
+/// refusal naming the league alone; `bf4d2586` chose it with the item's
+/// realm, and this runs the remedy it prints.
+#[test]
+fn an_item_asked_for_in_the_wrong_realm_is_shown_where_the_refusal_says() {
+    let scratch = harness::scratch("price-wrong-realm");
+    let base = scratch.0.clone();
+    seed(&base);
+
+    let out = acq(
+        &base,
+        &["price", "show", "item/i-plain", "--realm", "xbox", "--json"],
+    );
+    assert!(!out.status.success());
+    let said = sole_json(&out)["error"]
+        .as_str()
+        .unwrap_or_default()
+        .to_string();
+    let (realm, league) = said
+        .split_once("the facts hold it in ")
+        .and_then(|(_, rest)| rest.split_once(':'))
+        .and_then(|(place, _)| place.split_once('/'))
+        .unwrap_or_else(|| panic!("a realm and league in {said}"));
+    assert_eq!((realm, league), ("pc", "Standard"), "{said}");
+    assert!(
+        said.contains("`--realm` and `--league` read it there"),
+        "{said}"
+    );
+
+    let out = acq(
+        &base,
+        &[
+            "price",
+            "show",
+            "item/i-plain",
+            "--realm",
+            realm,
+            "--league",
+            league,
+            "--json",
+        ],
+    );
+    assert!(out.status.success(), "{}", stderr(&out));
+    let view: ShowView = serde_json::from_value(sole_json(&out)).unwrap();
+    assert_eq!(view.listing.subject.target.to_string(), "item/i-plain");
+    assert_eq!(view.listing.effective.to_string(), "3 chaos");
+}
+
 /// Review 8 of the release (2026-10-19): `price list --limit 0` said
 /// "none listed by hand or in game" where the JSON said `total: 3,
 /// listed: 0`. The text says none of how many, and why.
