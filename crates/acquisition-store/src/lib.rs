@@ -1057,6 +1057,13 @@ pub(crate) fn ensure_wal(conn: &Connection) -> rusqlite::Result<()> {
 pub(crate) fn sync_dir(dir: Option<&Path>) -> std::io::Result<()> {
     #[cfg(unix)]
     if let Some(dir) = dir {
+        // A bare filename's parent is `Some("")`, which no open accepts:
+        // it names the current directory (the #63 build's review).
+        let dir = if dir.as_os_str().is_empty() {
+            Path::new(".")
+        } else {
+            dir
+        };
         std::fs::File::open(dir)?.sync_all()?;
     }
     #[cfg(not(unix))]
@@ -4250,6 +4257,29 @@ mod tests {
             !path.with_extension("db-wal").exists(),
             "no WAL side file was written beside a refused file"
         );
+    }
+
+    /// The review of #63's build, its first finding: a publish to a bare
+    /// relative filename has a parent of `Some("")`, and the directory
+    /// sync that follows it opened "" and failed after the file was
+    /// published. The helper takes an empty parent as the current
+    /// directory; `None` and a real directory stand as before. The
+    /// export's own call is one line on `dest.parent()`, so the helper
+    /// pin holds it; an end-to-end export to a bare filename would set
+    /// the process's working directory, process state that needs its own
+    /// test binary (C122) for a property this pin already holds.
+    #[test]
+    fn a_publish_to_a_bare_filename_syncs_the_current_directory() {
+        let bare = Path::new("backup.db").parent();
+        assert_eq!(
+            bare,
+            Some(Path::new("")),
+            "a bare filename's parent is the empty path"
+        );
+        sync_dir(bare).unwrap();
+        sync_dir(None).unwrap();
+        let temp = tempfile::tempdir().unwrap();
+        sync_dir(temp.path().join("accounts.json").parent()).unwrap();
     }
 
     #[test]
