@@ -15,8 +15,9 @@
 //! `.backup` copy under a track's `raw/`, and any other path is refused.
 //! A read opens through the read-only door (`Store::open_read_only`,
 //! C124: a tool that presents itself as a read never migrates): a copy at
-//! another schema version is refused with that door's remedy, and nothing
-//! is written beside the copy.
+//! another schema version is refused with that door's remedy, and the copy
+//! itself is never modified or migrated. A current copy in WAL mode may
+//! still gain `-wal` and `-shm` side files, as the door's own doc says.
 
 use std::path::Path;
 use std::time::Instant;

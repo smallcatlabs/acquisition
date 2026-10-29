@@ -1331,9 +1331,10 @@ impl Annotations {
     /// destination end with one backup and one `AlreadyExists`, never a
     /// replaced backup. Only on a filesystem without hard links does a
     /// `rename` stand in, and that fallback is the one place a
-    /// simultaneous export could still replace another's. The publish
-    /// ends with the directory synced (the crate's one `sync_dir`, issue #63), so
-    /// the link is durable as the file is. Fails if `dest`
+    /// simultaneous export could still replace another's. On unix the
+    /// publish ends with the directory synced (the crate's one `sync_dir`,
+    /// issue #63), so the link is durable as the file is; Windows cannot
+    /// sync a directory and the publish stands unsynced there. Fails if `dest`
     /// already exists, before anything is written; the partial is removed
     /// either way.
     pub fn export(&self, dest: &Path) -> Result<(), AnnotationError> {

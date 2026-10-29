@@ -212,10 +212,12 @@ The failing inputs the step's tests stage:
   from the table as that failure with its body, and the account server
   saw one POST and one GET in all.
 - A login finalised with the index directory unwritable (unix): the
-  flow fails in the words `complete_login` already has, the keyring
-  entry it saved is cleared back, and `restore_sessions` over the
-  directory afterwards restores no session and reports the keyring
-  healthy.
+  flow fails in the words `complete_login` already has, no keyring
+  entry exists under the name (*settled in the round:* the brief first
+  said "the entry it saved is cleared back"; the index holds a name
+  before the keyring does, so nothing is saved and nothing is cleared,
+  which the test asserts), and `restore_sessions` over the directory
+  afterwards restores no session and reports the keyring healthy.
 
 ## Do
 
@@ -257,8 +259,11 @@ The failing inputs the step's tests stage:
    copied; the report says whether that older test should follow this
    one's shape (an issue, not this step).
 3. **The index's lock becomes a parameter.** `index_apply` takes the
-   `credentials` guard (`&MutexGuard<'_, ()>`) as its first argument,
-   so a writer outside the lock does not compile; `persist_credentials`
+   `credentials` guard as its first argument (*settled in the round:*
+   not the raw `&MutexGuard<'_, ()>` this brief first named but an
+   opaque `held::CredentialsHeld`, which only `Daemon::hold_credentials`
+   builds, so no sibling module can forge one), so a writer outside the
+   lock does not compile; `persist_credentials`
    takes it the same way and its three callers pass theirs
    (`finish_refresh` holds an `Option`, taken only on a successful
    refresh: the persist happens inside that branch, so the guard is
@@ -325,7 +330,8 @@ The failing inputs the step's tests stage:
   `Store::record` and `Store::rebuild` each waiting for a held `BEGIN
   IMMEDIATE` and landing after it, the wait proven by the busy handler's
   invocation; `grep -n sleep` over the test's body finds nothing.
-- `index_apply` and `persist_credentials` take a `&MutexGuard<'_, ()>`;
+- `index_apply` and `persist_credentials` take a `&held::CredentialsHeld<'_>`
+  (*settled in the round*, Do 3);
   `grep -rn 'fn index_apply' -A 3 crates/acquisition-daemon/src/daemon/kinds.rs`
   shows it; the test comment at `index.rs` 700 no longer names
   `shared` (`grep -n 'under .shared.' crates/acquisition-store/src/index.rs`
@@ -342,7 +348,8 @@ The failing inputs the step's tests stage:
   index's call and the export's.
 - Two `c144_` tests in the daemon crate stage the restart after a
   failed record and the login finalised under an unwritable index, each
-  reading the second lifetime's state and the server's log.
+  reading the second lifetime's state, and the restart test the server's
+  log (*settled in the round:* the login test has no server).
 - Do 1's ruling is recorded in `decisions/store.md` by the owner's
   word before any code for it; if the word is to build items 2 to 8
   first, the close says what of Do 1 is built and what waits.
