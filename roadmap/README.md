@@ -190,8 +190,8 @@ The owner's list, his to strike:
 ## Current step
 
 #94, the rails status's journal path as its own field: brief
-`briefs/94-journal-path.md`, the build under way; #53 closed
-(`LEDGER.md`).
+`briefs/94-journal-path.md`, C152 recorded, built (`f1b3fc77..e560daab`),
+the review pending; #53 closed (`LEDGER.md`).
 Phase 3, the owner's league run, follows at his word; #70 closes on a
 week of pushes without a re-run. `AGENTS.md` governs; the gate is
 `tools/gate.sh`.
