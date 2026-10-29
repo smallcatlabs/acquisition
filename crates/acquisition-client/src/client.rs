@@ -568,6 +568,16 @@ pub enum NotSpawned {
     NoTerminal,
 }
 
+/// What a stop the daemon acknowledged came to (#116's review).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Stopped {
+    /// Its connection ended: the process is gone, its endpoint removed.
+    Gone,
+    /// It answered `stopping` and had not gone when the wait for it
+    /// ended ([`STOPPED_WITHIN`]): it may still be running.
+    Acknowledged,
+}
+
 /// Why an incompatible daemon was left standing.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NotReplaced {
@@ -581,9 +591,12 @@ pub enum NotReplaced {
     /// This client replaced it, and the daemon it then found is still not
     /// its own — the sibling `acqd` is not this build's. `stopped`, #116:
     /// when that daemon is the one this door spawned, the stop sent to it
-    /// before refusing (its error as words); `None` for a daemon this door
-    /// did not start, which is left standing.
-    StillAfterRespawn { stopped: Option<Result<(), String>> },
+    /// before refusing: what it came to ([`Stopped`]) or its error as
+    /// words; `None` for a daemon this door did not start, which is left
+    /// standing.
+    StillAfterRespawn {
+        stopped: Option<Result<Stopped, String>>,
+    },
     /// C147, a failed stop is reported: this client asked it to stop so
     /// as to replace it, the stop failed (the daemon refused, or the
     /// conversation did), and the daemon is still there. The stop's
@@ -620,8 +633,13 @@ impl fmt::Display for ConnectError {
                 NotReplaced::StillAfterRespawn { stopped } => {
                     write!(f, "{found}, still, after a respawn")?;
                     match stopped {
-                        Some(Ok(())) => f.write_str(
+                        Some(Ok(Stopped::Gone)) => f.write_str(
                             "; the daemon this client started was stopped again, so none is left running",
+                        )?,
+                        Some(Ok(Stopped::Acknowledged)) => write!(
+                            f,
+                            "; the daemon this client started acknowledged a stop but had not exited within {}s, so it may still be running: `acq daemon stop` stops it",
+                            STOPPED_WITHIN.as_secs()
                         )?,
                         Some(Err(error)) => write!(
                             f,
@@ -1426,6 +1444,8 @@ impl Client {
                     // still there, the report is the stop's error; if it
                     // went all the same, the respawn goes ahead. A child
                     // this door spawned is reaped after the stop.
+                    // An acknowledged stop is no failure here: the next
+                    // look decides, as before (#116's review).
                     stop_failed = client.stop().await.err().map(|e| format!("{e:#}"));
                     respawned = true;
                     child = None;
@@ -1610,21 +1630,47 @@ impl Client {
     /// daemon of any revision can acknowledge. Only `stopping` is a stop;
     /// an error frame is reported by its message, anything else as
     /// unexpected, and a hang-up as the daemon closing the connection.
-    async fn stop(&mut self) -> Result<()> {
+    ///
+    /// A stop acknowledged is not a daemon gone (#116's review): what it
+    /// came to is the [`Stopped`] it returns, and each caller says what
+    /// it knows.
+    async fn stop(&mut self) -> Result<Stopped> {
+        self.stop_within(STOPPED_WITHIN).await
+    }
+
+    /// [`Client::stop`], waiting `within` for the daemon to go: its
+    /// seam, so a test forces the bound's expiry (C137).
+    async fn stop_within(&mut self, within: Duration) -> Result<Stopped> {
         let bytes = self.exchange(&Bootstrap::DaemonStop).await?;
         match BootstrapReply::read(&bytes) {
             Some(BootstrapReply::Stopping) => {
                 // Gone, not only going: this connection ends when the
                 // daemon's process does, after its endpoint is removed —
                 // so the next command finds no daemon rather than a
-                // dying one (first seen on CI's Windows runner).
+                // dying one (first seen on CI's Windows runner). A hang-up
+                // is that end; a bound that expires first, or a read that
+                // fails otherwise, leaves the stop only acknowledged.
                 let mut rest = Vec::new();
-                let _ = tokio::time::timeout(
-                    STOPPED_WITHIN,
+                let read = tokio::time::timeout(
+                    within,
                     tokio::io::AsyncReadExt::read_to_end(&mut self.reader, &mut rest),
                 )
                 .await;
-                Ok(())
+                Ok(match read {
+                    Ok(Ok(_)) => Stopped::Gone,
+                    Ok(Err(e))
+                        if matches!(
+                            e.kind(),
+                            std::io::ErrorKind::ConnectionReset
+                                | std::io::ErrorKind::ConnectionAborted
+                                | std::io::ErrorKind::BrokenPipe
+                                | std::io::ErrorKind::UnexpectedEof
+                        ) =>
+                    {
+                        Stopped::Gone
+                    }
+                    Ok(Err(_)) | Err(_) => Stopped::Acknowledged,
+                })
             }
             _ => match error_message(&bytes) {
                 Some(message) => bail!("{} refused to stop: {message}", self.daemon),
@@ -1649,6 +1695,8 @@ impl Client {
         let mut client = Client::handshake(stream, at, own_world)
             .await
             .map_err(|e| e.into_error(holder))?;
+        // `daemon stop` keeps its words for an acknowledged stop: it
+        // reports the daemon it asked, as before (#116's review).
         client.stop().await?;
         Ok(client.daemon)
     }
@@ -2105,6 +2153,75 @@ mod tests {
     }
 
     use super::*;
+
+    /// A client over one end of a socket pair whose other end answers
+    /// `hello` and then a stop with `stopping`; `linger` keeps that end
+    /// open afterwards, as a daemon that acknowledged and did not go.
+    #[cfg(unix)]
+    async fn stop_a_peer_that(linger: bool, within: Duration) -> (Stopped, DaemonId) {
+        use tokio::io::{AsyncBufReadExt as _, AsyncWriteExt as _};
+        let (ours, theirs) = tokio::net::UnixStream::pair().unwrap();
+        let peer = tokio::spawn(async move {
+            let (read, mut write) = theirs.into_split();
+            let mut lines = tokio::io::BufReader::new(read).lines();
+            let _hello = lines.next_line().await;
+            let hello = json!({
+                "resp": "hello",
+                "version": "9.9.9",
+                "contract": "ffffffffffff",
+                "pid": 4242,
+                "provider": "mock",
+                "world": "w",
+            });
+            let _ = write.write_all(format!("{hello}\n").as_bytes()).await;
+            let _stop = lines.next_line().await;
+            let _ = write
+                .write_all(format!("{}\n", json!({ "resp": "stopping" })).as_bytes())
+                .await;
+            if linger {
+                std::future::pending::<()>().await;
+            }
+        });
+        let at = Endpoint::world(Path::new("/peer.sock")).unwrap();
+        let Ok(mut client) = Client::handshake(ours, at, Ok("w".into())).await else {
+            panic!("the handshake failed");
+        };
+        let stopped = client
+            .stop_within(within)
+            .await
+            .expect("the stop was acknowledged");
+        peer.abort();
+        (stopped, client.daemon)
+    }
+
+    /// #116's review: a stop is gone only when the daemon's connection
+    /// ends; a daemon that acknowledged and lingers past the wait, its
+    /// expiry forced at zero (C137), is a stop only acknowledged, and the
+    /// door's refusal then names `acq daemon stop` and never says none is
+    /// left running.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_stop_acknowledged_by_a_daemon_that_lingers_is_not_a_daemon_gone() {
+        let (stopped, found) = stop_a_peer_that(true, Duration::ZERO).await;
+        assert_eq!(stopped, Stopped::Acknowledged);
+        let (stopped, _) = stop_a_peer_that(false, Duration::from_secs(MAX_WITHIN_SECS)).await;
+        assert_eq!(stopped, Stopped::Gone);
+        let words = |stopped| {
+            ConnectError::Incompatible {
+                found: Box::new(found.clone()),
+                because: NotReplaced::StillAfterRespawn {
+                    stopped: Some(Ok(stopped)),
+                },
+            }
+            .to_string()
+        };
+        let lingered = words(Stopped::Acknowledged);
+        assert!(
+            !lingered.contains("none is left running") && lingered.contains("acq daemon stop"),
+            "{lingered}"
+        );
+        assert!(words(Stopped::Gone).contains("none is left running"));
+    }
 
     /// C147 and C137, the look for the winner is bounded whole: a connect
     /// that began before the look's deadline and succeeded after it is
