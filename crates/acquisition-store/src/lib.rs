@@ -1098,6 +1098,8 @@ impl Store {
             std::fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
         }
         let conn = Connection::open(path).with_context(|| format!("opening {}", path.display()))?;
+        // A connection setting, not a file write.
+        conn.busy_timeout(std::time::Duration::from_secs(5))?;
         Self::init(conn, path.to_path_buf())
     }
 
@@ -1145,9 +1147,10 @@ impl Store {
         Self::init(Connection::open_in_memory()?, PathBuf::from(":memory:"))
     }
 
+    /// The open on a connection whose busy policy the caller has set:
+    /// [`Store::open`]'s timeout, or a test's busy handler, which observes
+    /// the wait the migration's lock makes (issue #111).
     fn init(mut conn: Connection, path: PathBuf) -> Result<Store> {
-        // A connection setting, not a file write.
-        conn.busy_timeout(std::time::Duration::from_secs(5))?;
         // The version gate before any pragma that writes (issue #63, as
         // `Annotations::prepare` orders it): a file stamped newer than
         // this build is refused exactly as found, where `ensure_wal`
@@ -4096,13 +4099,24 @@ mod tests {
         drop(Store::open(&path).unwrap());
         let writer = Connection::open(&path).unwrap();
         writer.execute_batch("BEGIN IMMEDIATE;").unwrap();
-        let started = std::time::Instant::now();
-        let s = Store::open(&path).unwrap();
-        assert!(
-            started.elapsed() < std::time::Duration::from_secs(2),
-            "the open waited {:?} on the writer",
-            started.elapsed()
+        // No wait, observed rather than timed (issue #111): a busy handler
+        // that counts and refuses, so an open that wanted the lock fails
+        // at once with the count above zero.
+        static REFUSED: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        fn refuse(_attempts: i32) -> bool {
+            REFUSED.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            false
+        }
+        let conn = Connection::open(&path).unwrap();
+        conn.busy_handler(Some(refuse)).unwrap();
+        let s = Store::init(conn, path.clone());
+        assert_eq!(
+            REFUSED.load(std::sync::atomic::Ordering::SeqCst),
+            0,
+            "the open waited on the writer: {:?}",
+            s.as_ref().err()
         );
+        let s = s.unwrap();
         assert_eq!(s.revision().unwrap().facts_version, FACT_SCHEMA_VERSION);
         drop(s);
         // A file to migrate waits for the writer, then sees its work: two
@@ -4119,13 +4133,31 @@ mod tests {
         writer
             .execute_batch("BEGIN IMMEDIATE; PRAGMA user_version = 99;")
             .unwrap();
+        // The wait is forced, never timed (issue #111): the opener's busy
+        // handler is the signal that it stands behind the writer's lock,
+        // and the writer commits only after that signal, as #63's pin
+        // below does. An opener that took no lock finishes without the
+        // signal, and the assertion after the join says so.
+        static WAITS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        fn noticed(_attempts: i32) -> bool {
+            WAITS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            std::thread::yield_now();
+            true
+        }
+        let conn = Connection::open(&path).unwrap();
+        conn.busy_handler(Some(noticed)).unwrap();
         let opened = std::thread::scope(|scope| {
-            let opener = scope.spawn(|| Store::open(&path).map(drop));
-            std::thread::sleep(std::time::Duration::from_millis(300));
-            assert!(!opener.is_finished(), "a migrating open took no lock");
+            let opener = scope.spawn(|| Store::init(conn, path.clone()).map(drop));
+            while WAITS.load(std::sync::atomic::Ordering::SeqCst) == 0 && !opener.is_finished() {
+                std::thread::yield_now();
+            }
             writer.execute_batch("COMMIT;").unwrap();
             opener.join().unwrap()
         });
+        assert!(
+            WAITS.load(std::sync::atomic::Ordering::SeqCst) > 0,
+            "a migrating open took no lock"
+        );
         assert_eq!(
             opened.unwrap_err().downcast_ref::<SchemaTooNew>(),
             Some(&SchemaTooNew {
