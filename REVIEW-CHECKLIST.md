@@ -63,6 +63,7 @@ come from are whole at the commit `HISTORY.md` names for each slice.
 | **An exit that unlinks the successor's socket.** | the daemon split | `BoundSocket` |
 | **A stop that returned early.** `daemon stop` returned while the daemon still exited | platforms | `a_stopped_daemon_is_gone_when_the_stop_returns` |
 | **A Unix mechanism assumed in product code.** The daemon inherited its caller's stdout pipe on Windows; a file's identity was its inode; paths kept `\\?\`; an fsync through a read handle | platforms | the suite on Windows in CI; `a_lazily_started_daemon_keeps_no_pipe_of_the_command_that_started_it` |
+| **A Unix spelling assumed by a test, or an item built for a Unix-only caller.** A path asserted with `/` where the product prints the platform's separator, or built without a drive and so relative on Windows; a helper or import whose only caller is `#[cfg(unix)]`, which Windows' clippy calls dead | `b1d9cf3c`; r1 (`ad216160`); #125, red on fourteen pushes of `main` | the suite and clippy on Windows in CI; a printed path read with `.replace('\\', "/")`, a `Transcript` fact read under the `scratch` rule's path half; the item takes its caller's `cfg` |
 | **Bytes that differ by checkout.** CRLF in `Cargo.lock` and `*.sql` gave the Windows archive another contract revision | platforms | `.gitattributes`; `acquisition-protocol/tests/line_endings.rs` |
 | **A process tree the host owns.** A kill-on-close job ended a lazily spawned daemon | platforms | the spawn asks to break away (`world_windows`); a host that forbids it is issue 1 |
 
