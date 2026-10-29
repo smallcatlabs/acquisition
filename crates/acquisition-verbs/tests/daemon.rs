@@ -1137,25 +1137,31 @@ async fn a_daemon_logging_elsewhere_has_its_reported_paths_replaced() {
     assert_eq!(document["log"]["from"], json!("daemon"));
 }
 
-/// r4's fix-round review, finding 2: a daemon that could not open its
-/// journal reports `NOT WRITTEN — journal <path> could not be opened`,
-/// which the diagnosis opened as a path and whose directory it never
-/// replaced. From the shell whose `ACQ_JOURNAL` named it, the journal
-/// section is unread in the daemon's words and the directory is
-/// `<journal>` wherever it is printed. The journal's directory is a file
-/// here, so no platform can create it.
+/// C152: the daemon reports its configured journal by its path in a
+/// field of its own, and the diagnosis redacts the journal's directory
+/// from that field. r4's fix-round reviews, findings 2 and 1: a daemon
+/// that could not open its journal named the path only inside its
+/// failure's words, so the diagnosis replaced the directory only when
+/// this shell's own `ACQ_JOURNAL` named it. Here the daemon is started
+/// under an unwritable journal and the diagnosing frontend has the knob
+/// unset: the field, the journal section's words and the log tail (its
+/// startup warning names the path) all carry `<journal>`, and neither
+/// spelling of the directory appears anywhere. The journal's directory
+/// is a file, so no platform can create it.
 #[tokio::test]
-async fn a_journal_the_daemon_could_not_open_is_unread_in_its_words_and_its_directory_replaced() {
+async fn c152_a_journal_the_daemon_could_not_open_is_redacted_from_another_shell() {
     let s = session("diagnose-not-written");
     let blocked = s.base.join("private-runs");
     std::fs::write(&blocked, "a file where the journal's directory would be").unwrap();
     let journal = blocked.join("sends.jsonl");
-    s.set_knob("ACQ_JOURNAL", Some(journal.to_str().unwrap()));
     let acqd = acqd_built();
     harness::link_beside_this_test(&acqd);
     let mut cmd = harness::daemon_command(&acqd, &s.base);
     cmd.env("ACQ_JOURNAL", &journal);
     let (_daemon, said) = harness::spawn_drained(cmd, &acqd);
+    // The diagnosing shell's knob differs from the daemon's: unset, the
+    // world's default.
+    s.set_knob("ACQ_JOURNAL", None);
     let frontend = Frontend::agent("test").unwrap();
     let deadline = Instant::now() + Duration::from_secs(120);
     while !matches!(frontend.observe().await, Ok(Some(_))) {
@@ -1166,22 +1172,39 @@ async fn a_journal_the_daemon_could_not_open_is_unread_in_its_words_and_its_dire
         );
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
+    // The directory lies under no needle the diagnosis held before the
+    // field: not the store root, not the log base. (On Windows the temp
+    // directory sits under the home, whose `~` would hide the absence;
+    // the `<journal>` assertions below see it there, because the longer
+    // needle wins.)
+    for known in [s.base.join("store"), s.base.join("logs")] {
+        assert!(
+            !blocked.starts_with(&known),
+            "{} is under {}, a needle the diagnosis already holds",
+            blocked.display(),
+            known.display()
+        );
+    }
 
     let document = frontend
         .diagnose(acquisition_verbs::Tails::DEFAULT)
         .await
         .document();
-    assert!(
-        document["daemon"]["rails"]["journal"]
-            .as_str()
-            .is_some_and(|words| words.starts_with("NOT WRITTEN")),
-        "the daemon reports the journal it could not open: {document:#}"
+    let shown = |value: &serde_json::Value| value.as_str().unwrap_or("").replace('\\', "/");
+    assert_eq!(
+        shown(&document["daemon"]["rails"]["journal_path"]),
+        "<journal>/sends.jsonl",
+        "the daemon reports the journal it was configured with, redacted: {document:#}"
     );
+    let words = shown(&document["daemon"]["rails"]["journal"]);
     assert!(
-        document["journal"]["unread"]
-            .as_str()
-            .is_some_and(|why| why.starts_with("the daemon running reports: NOT WRITTEN")),
-        "the journal section is the daemon's words, nothing opened: {document:#}"
+        words.starts_with("NOT WRITTEN") && !words.contains("<journal>"),
+        "the failure's words name no path: {document:#}"
+    );
+    let unread = shown(&document["journal"]["unread"]);
+    assert!(
+        unread.starts_with("the daemon running reports <journal>/sends.jsonl: NOT WRITTEN"),
+        "the journal section is the daemon's words with its path, nothing opened: {document:#}"
     );
     let printed = document.to_string();
     for spelling in [
@@ -1190,8 +1213,8 @@ async fn a_journal_the_daemon_could_not_open_is_unread_in_its_words_and_its_dire
     ] {
         assert!(
             !printed.contains(&spelling),
-            "the diagnosis prints {spelling}, the directory the test's ACQ_JOURNAL named: \
-             {document:#}"
+            "the diagnosis prints {spelling}, the directory the daemon's ACQ_JOURNAL named \
+             from another shell: {document:#}"
         );
     }
 }

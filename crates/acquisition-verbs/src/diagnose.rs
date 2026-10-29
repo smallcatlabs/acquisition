@@ -206,21 +206,28 @@ impl Frontend {
         let no_world = |e: &acquisition_store::world::WorldError| {
             format!("no world to read at {}: {}", e.intended.display(), e.io)
         };
+        // The journal the running daemon was configured with, by its
+        // path alone (C152), written or not: a needle below whatever the
+        // shell's own knob says.
+        let reported_journal = running
+            .as_ref()
+            .and_then(|(rails, _)| rails.journal_path.as_ref())
+            .map(PathBuf::from);
         let (rails, journal_path, log_path) = match running {
             Some((rails, log)) => (
                 Ok(Rails::Daemon(rails.clone())),
-                match rails.journal {
-                    None => Err(
+                match (&rails.journal_path, &rails.journal) {
+                    (None, _) | (_, None) => Err(
                         "the daemon running keeps no journal: it was started with ACQ_JOURNAL=0"
                             .to_string(),
                     ),
                     // A journal the daemon could not open is reported in
-                    // its words, never opened as a path (r4's fix-round
-                    // review, finding 2).
-                    Some(words) if words.starts_with(JOURNAL_NOT_WRITTEN) => {
-                        Err(format!("the daemon running reports: {words}"))
+                    // its words, never opened (r4's fix-round review,
+                    // finding 2); the path is the field's, not the words'.
+                    (Some(path), Some(words)) if words.starts_with(JOURNAL_NOT_WRITTEN) => {
+                        Err(format!("the daemon running reports {path}: {words}"))
                     }
-                    Some(path) => Ok((PathBuf::from(path), "daemon")),
+                    (Some(path), Some(_)) => Ok((PathBuf::from(path), "daemon")),
                 },
                 log.map(|path| (PathBuf::from(path), "daemon"))
                     .ok_or_else(|| "the daemon running reports no log file".to_string()),
@@ -244,8 +251,8 @@ impl Frontend {
                 Err(e) => (Err(no_world(e)), Err(no_world(e)), Err(no_world(e))),
             },
         };
-        // The files the document prints as diagnostic locations, kept
-        // for the path needles below.
+        // The files the document prints as diagnostic locations, and the
+        // journal the daemon reports, kept for the path needles below.
         let printed: Vec<(PathBuf, &str)> = [
             log_path
                 .as_ref()
@@ -255,6 +262,7 @@ impl Frontend {
                 .as_ref()
                 .ok()
                 .map(|(path, _)| (path.clone(), "<journal>")),
+            reported_journal.map(|path| (path, "<journal>")),
         ]
         .into_iter()
         .flatten()
@@ -335,11 +343,13 @@ impl Frontend {
         // Every diagnostic location printed, by its directory (r4's
         // review, finding 2): the running daemon reports its own log and
         // journal, which may sit under another log base than this
-        // shell's, and `ACQ_JOURNAL` may name any directory. A directory
-        // named for the provider is a world's log directory, and its
-        // parent is the placeholder's, as for this world's own. A
-        // directory equal to one already held keeps that one's
-        // placeholder.
+        // shell's, and `ACQ_JOURNAL` may name any directory: with a
+        // daemon, its configured journal is the needle whether it was
+        // written or not (C152), and without one, this shell's knob is
+        // the journal printed. A directory named for the provider is a
+        // world's log directory, and its parent is the placeholder's, as
+        // for this world's own. A directory equal to one already held
+        // keeps that one's placeholder.
         for (file, placeholder) in printed {
             let Some(dir) = file.parent() else { continue };
             let dir = match dir.file_name() {
@@ -347,16 +357,6 @@ impl Frontend {
                 _ => dir,
             };
             paths.push((dir.to_path_buf(), placeholder));
-        }
-        // The journal this frontend's own `ACQ_JOURNAL` names, by its
-        // directory, printed or not: a daemon that could not open it
-        // names it only inside its error's words (r4's fix-round review,
-        // finding 2). A daemon under another shell's knob is the gap the
-        // report's text alone carries (raised for the owner).
-        if let JournalKnob::At(path) = &self.journal
-            && let Some(dir) = path.parent()
-        {
-            paths.push((dir.to_path_buf(), "<journal>"));
         }
         if let Some(home) = std::env::home_dir() {
             paths.push((home, "~"));
@@ -375,7 +375,7 @@ impl Frontend {
 }
 
 /// How the daemon's rails report a journal it could not open (`rails.rs`,
-/// the status's `journal`): its words, not a path.
+/// the status's `journal`): its words, which name no path (C152).
 const JOURNAL_NOT_WRITTEN: &str = "NOT WRITTEN";
 
 /// The world's rails file as the store's one format reads it (C1: the
