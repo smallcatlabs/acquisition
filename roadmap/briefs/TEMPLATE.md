@@ -25,7 +25,11 @@ broke.
 ## Input
 What is fixed before the work starts: a measurement, a capture, a
 ruling, and the failing inputs the step's tests will stage, each
-named concretely. A step with no fixed input says so.
+named concretely. A step with no fixed input says so. A step whose
+work includes a sweep for a class runs the sweep before the brief is
+committed, and its Input lists the instances found, so the reviewer
+holds the commits against a fixed list (clock-tests' Do 4 ran after
+its brief).
 
 The last push's CI: each gate's run on `main` (`gh run list --branch
 main --workflow "Gate (Linux)" --limit 1`, the same for `Gate

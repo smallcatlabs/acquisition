@@ -12,7 +12,10 @@ real API.
 
 No golden and no assertion in the CLI, MCP, verbs and store tests
 depends on which second a step of the test lands in: an age's width,
-a fold on two equal ages, or a sleep that proves a wait. Each issue's
+a fold on two equal ages, or a sleep that proves a wait. The stated
+exception is what the sweep (Do 4) files rather than fixes, named in
+#131 with its evidence. (Settled in the round: the goal said "no
+assertion" while Do 4 allowed filing; the review's last note.) Each issue's
 "Closes when" is met by the fix that removes the clock at its source,
 the renderer's output or the test's assertion, so that a red check on
 a slow runner says something about the change. The class is named, so
