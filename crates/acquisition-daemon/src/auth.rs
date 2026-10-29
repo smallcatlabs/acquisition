@@ -104,22 +104,6 @@ impl PartialEq<&str> for Secret {
     }
 }
 
-/// The serializer of a [`KeyringEntry`]'s tokens: the keyring's write,
-/// built here.
-fn serialize_secret<S: serde::Serializer>(secret: &Secret, out: S) -> Result<S::Ok, S::Error> {
-    out.serialize_str(secret.expose())
-}
-
-fn serialize_optional_secret<S: serde::Serializer>(
-    secret: &Option<Secret>,
-    out: S,
-) -> Result<S::Ok, S::Error> {
-    match secret {
-        Some(secret) => out.serialize_some(secret.expose()),
-        None => out.serialize_none(),
-    }
-}
-
 /// A failed token request, keeping the HTTP status (when one landed) so
 /// the daemon can tell a rejected grant from a network blip (L0 rail 2),
 /// and the choke point's verdict that Cloudflare answered in GGG's place
@@ -474,21 +458,28 @@ const OAUTH_CODE_LEN: usize = 32;
 /// number: the object's shape is the version, a later field is optional,
 /// and the bare string is the form before it. Holds both tokens, so its
 /// `Debug` names neither (C144).
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Deserialize)]
 pub struct KeyringEntry {
-    #[serde(serialize_with = "serialize_secret")]
     pub refresh_token: Secret,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        serialize_with = "serialize_optional_secret"
-    )]
+    #[serde(default)]
     pub access_token: Option<Secret>,
     /// Unix seconds. Read back, at most the reader's clock plus
     /// [`MAX_ACCESS_TOKEN_LIFETIME_SECS`] (C47), so [`Self::expires_at`]
     /// adds it to the epoch unchecked.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub access_expires_at: Option<u64>,
+}
+
+/// #113: the form a [`KeyringEntry`] is written in, built here alone. The
+/// entry itself has no `Serialize`, so no code outside this module can
+/// turn its tokens into a string.
+#[derive(Serialize)]
+struct KeyringEntryForm<'a> {
+    refresh_token: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    access_token: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    access_expires_at: Option<u64>,
 }
 
 impl KeyringEntry {
@@ -514,7 +505,12 @@ impl KeyringEntry {
 
     /// The secret the keyring holds: the entry as one JSON object.
     pub fn to_secret(&self) -> Secret {
-        Secret(serde_json::to_string(self).expect("an entry of strings and a number serializes"))
+        let form = KeyringEntryForm {
+            refresh_token: self.refresh_token.expose(),
+            access_token: self.access_token.as_ref().map(Secret::expose),
+            access_expires_at: self.access_expires_at,
+        };
+        Secret(serde_json::to_string(&form).expect("an entry of strings and a number serializes"))
     }
 
     /// The entry a secret holds, read at `now` on the daemon's wall
@@ -676,6 +672,38 @@ mod tests {
         assert_eq!(read.expires_at(), Some(now + Duration::from_secs(3600)));
         let shown = format!("{read:?}");
         assert!(!shown.contains("kept"), "{shown}");
+    }
+
+    /// Whether `T` implements `Serialize`, decided at compile time by
+    /// method resolution: the probe's own method needs the bound, and the
+    /// reference's fallback answers when it does not hold.
+    struct SerializeProbe<T>(std::marker::PhantomData<T>);
+    trait Serializes {
+        fn serializes(&self) -> bool {
+            true
+        }
+    }
+    impl<T: Serialize> Serializes for SerializeProbe<T> {}
+    trait DoesNotSerialize {
+        fn serializes(&self) -> bool {
+            false
+        }
+    }
+    impl<T> DoesNotSerialize for &SerializeProbe<T> {}
+
+    /// #113: neither a token nor the entry that holds two can be
+    /// serialized outside this module: a `serde_json::to_string` of
+    /// either does not compile. The probe answers yes for a type that
+    /// serializes, so its no is the trait's absence.
+    #[test]
+    // The borrow picks the fallback when the bound fails: it is the probe.
+    #[allow(clippy::needless_borrow)]
+    fn a_secret_and_a_keyring_entry_have_no_serialize() {
+        assert!(
+            (&SerializeProbe::<KeyringEntryForm<'static>>(std::marker::PhantomData)).serializes()
+        );
+        assert!(!(&SerializeProbe::<KeyringEntry>(std::marker::PhantomData)).serializes());
+        assert!(!(&SerializeProbe::<Secret>(std::marker::PhantomData)).serializes());
     }
 
     /// C135: a secret an earlier daemon saved, the bare refresh token,
