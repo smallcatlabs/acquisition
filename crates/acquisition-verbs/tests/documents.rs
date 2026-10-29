@@ -816,6 +816,7 @@ fn a_daemons_report_is_flat_whether_it_is_this_clients_or_another() {
             sends: 0,
             max_sends: None,
             journal: None,
+            journal_path: None,
         },
         keyring: "ok".into(),
         log: Some("/l/daemon.log".into()),

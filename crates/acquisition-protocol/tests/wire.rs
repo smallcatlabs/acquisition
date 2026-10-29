@@ -184,6 +184,7 @@ fn rails() -> RailsStatus {
         sends: 12,
         max_sends: Some(200),
         journal: Some("/tmp/acq.sock.mock.sends.jsonl".into()),
+        journal_path: Some("/tmp/acq.sock.mock.sends.jsonl".into()),
     }
 }
 
@@ -531,6 +532,32 @@ fn c144_a_failure_with_a_payload_round_trips() {
     );
     let back: Outcome = serde_json::from_value(wire.clone()).expect("reads");
     assert_eq!(serde_json::to_value(&back).expect("serializable"), wire);
+}
+
+/// C152 (the journal's path a field of its own): the rails status a
+/// daemon from before the field wrote reads with `journal_path` absent,
+/// and a key this build does not know is skipped, not refused — the
+/// struct carries no `deny_unknown_fields`. Neither reader meets the
+/// other's daemon in use (C10, the single-version handshake: the field
+/// moves the contract revision, so an observer reports the other daemon
+/// by its identity alone); this pins that the document itself is read
+/// leniently whichever way it travels.
+#[test]
+fn c152_the_rails_status_reads_without_the_journal_path_and_past_an_unknown_key() {
+    let before = json!({
+        "tripwire_enabled": false,
+        "halted": null,
+        "refresh_failed": null,
+        "sends": 0,
+        "max_sends": null,
+        "journal": "NOT WRITTEN — journal /srv/runs/sends.jsonl could not be opened: denied",
+    });
+    let read: RailsStatus = serde_json::from_value(before).expect("reads");
+    assert_eq!(read.journal_path, None);
+    let mut later = serde_json::to_value(rails()).expect("serializable");
+    later["a_later_field"] = json!("kept for a later build");
+    let read: RailsStatus = serde_json::from_value(later).expect("reads past the key");
+    assert_eq!(read, rails());
 }
 
 /// The four bootstrap frames, and their lenient readers: a frame keyed

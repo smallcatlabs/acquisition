@@ -22,7 +22,15 @@ pub struct RailsStatus {
     pub refresh_failed: Option<String>,
     pub sends: u64,
     pub max_sends: Option<u64>,
+    /// The send journal: its path when it opened, the words of why not
+    /// when it did not (`NOT WRITTEN — …`, naming no path), `None` when
+    /// journals are off.
     pub journal: Option<String>,
+    /// C152: the journal this daemon was configured with, by its path
+    /// alone, written or not; `None` when journals are off. A frontend
+    /// that prints or redacts the journal's location reads this, never
+    /// `journal`'s words.
+    pub journal_path: Option<String>,
 }
 
 /// A degraded endpoint (N20), for the dashboard.

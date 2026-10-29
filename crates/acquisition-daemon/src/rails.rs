@@ -39,7 +39,8 @@
 //!   it), bounded by the daemon at its start like the log; `0`
 //!   disables; the directory is created on demand, and a journal that
 //!   cannot be opened is reported in `daemon status`, never silently
-//!   dropped. Each daemon lifetime opens with
+//!   dropped: its path in the status's `journal_path`, and the words of
+//!   why in `journal`, which name no path (C152). Each daemon lifetime opens with
 //!   `{"event":"open","pid","contract","daemon","clock"}` — the two
 //!   values that identify which code sent (C84): the shared-contract
 //!   revision the daemon was compiled against and the SHA-256 of the
@@ -385,7 +386,9 @@ pub struct Rails {
     config: RailsConfig,
     state: Mutex<State>,
     journal: Mutex<Option<File>>,
-    /// Why the journal could not be opened, if it could not.
+    /// Why the journal could not be opened, if it could not: the
+    /// reason alone, never the path (C152: the path is the status's own
+    /// field).
     journal_error: Option<String>,
     /// Stamps journal lines. Under a manual clock the timestamps are the
     /// scenario's, not the machine's — which is what makes "finished within
@@ -437,13 +440,7 @@ impl Rails {
                 .and_then(|()| OpenOptions::new().create(true).append(true).open(path))
             {
                 Ok(file) => (Some(file), None),
-                Err(error) => (
-                    None,
-                    Some(format!(
-                        "journal {} could not be opened: {error}",
-                        path.display()
-                    )),
-                ),
+                Err(error) => (None, Some(format!("could not be opened: {error}"))),
             },
         };
         let rails = Rails {
@@ -482,7 +479,11 @@ impl Rails {
     /// values and a journal that is not being written.
     pub fn startup_warnings(&self) -> Vec<String> {
         let mut warnings = self.config.warnings.clone();
-        warnings.extend(self.journal_error.clone());
+        // The log is the local reader's, so its warning names the path;
+        // a diagnosis redacts its tail from the status's field (C152).
+        if let (Some(error), Some(path)) = (&self.journal_error, &self.config.journal_path) {
+            warnings.push(format!("journal {} {error}", path.display()));
+        }
         warnings
     }
 
@@ -757,6 +758,12 @@ impl Rails {
                 (None, Some(path)) => Some(path.display().to_string()),
                 (None, None) => None,
             },
+            // C152: the configured path on its own, written or not.
+            journal_path: self
+                .config
+                .journal_path
+                .as_ref()
+                .map(|path| path.display().to_string()),
         }
     }
 
@@ -1675,19 +1682,55 @@ mod tests {
         assert!(!path.exists(), "the reset cleared the dormant trip");
     }
 
+    /// C152: the status names the configured journal by its path in a
+    /// field of its own, whether or not it was written, and the words of
+    /// a journal that could not be opened carry no path; the startup
+    /// warning, the local log's, names it. An unopenable journal sits
+    /// under a regular file, which no platform opens as a directory (a
+    /// missing root directory is one a Windows user may create).
     #[test]
-    fn unopenable_journal_is_reported_not_silent() {
-        // Under a regular file, which no platform opens as a directory (a
-        // missing root directory is one a Windows user may create).
+    fn c152_the_journal_is_reported_by_its_path_apart_from_whether_it_was_written() {
+        let off = Rails::with_config(RailsConfig::default()).status();
+        assert_eq!((off.journal, off.journal_path), (None, None));
+
         let temp = tempfile::tempdir().unwrap();
+        let opened = temp.path().join("acq.jsonl");
+        let status = Rails::with_config(RailsConfig {
+            journal_path: Some(opened.clone()),
+            ..RailsConfig::default()
+        })
+        .status();
+        let path = opened.display().to_string();
+        assert_eq!(
+            (status.journal.as_deref(), status.journal_path.as_deref()),
+            (Some(path.as_str()), Some(path.as_str()))
+        );
+
         let file = temp.path().join("not-a-dir");
         std::fs::write(&file, b"").unwrap();
+        let unopenable = file.join("acq.jsonl");
         let rails = Rails::with_config(RailsConfig {
-            journal_path: Some(file.join("acq.jsonl")),
+            journal_path: Some(unopenable.clone()),
             ..RailsConfig::default()
         });
-        assert!(rails.status().journal.unwrap().starts_with("NOT WRITTEN"));
-        assert_eq!(rails.startup_warnings().len(), 1);
+        let status = rails.status();
+        let path = unopenable.display().to_string();
+        assert_eq!(status.journal_path.as_deref(), Some(path.as_str()));
+        let words = status.journal.unwrap();
+        assert!(
+            words.starts_with("NOT WRITTEN — could not be opened: "),
+            "{words}"
+        );
+        assert!(
+            !words.contains(&file.display().to_string()),
+            "the failure's words name no path: {words}"
+        );
+        let warnings = rails.startup_warnings();
+        assert_eq!(warnings.len(), 1, "{warnings:?}");
+        assert!(
+            warnings[0].starts_with(&format!("journal {path} could not be opened: ")),
+            "{warnings:?}"
+        );
     }
 
     #[test]

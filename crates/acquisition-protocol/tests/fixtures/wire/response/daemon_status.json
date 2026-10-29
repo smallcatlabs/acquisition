@@ -14,6 +14,7 @@
   "rails": {
     "halted": "tripwire: 429 on stash@Alice#1234",
     "journal": "/tmp/acq.sock.mock.sends.jsonl",
+    "journal_path": "/tmp/acq.sock.mock.sends.jsonl",
     "max_sends": 200,
     "refresh_failed": null,
     "sends": 12,
