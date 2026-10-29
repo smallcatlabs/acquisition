@@ -1,0 +1,7 @@
+- `6faeb2f8` — the fix round’s done-when holds by inspection, except for execution verification.
+- **Findings:** None. The prior finding is addressed: the currency citation uses the required form, both citation scans include TOML, and a breaker pins rejection of a nonexistent hash in TOML. The cited commit holds `tools/census.py`. No regressions found in affected callers.
+- **Not verified:** Gate status, breaker results, test counts and reported measurements; execution was prohibited.
+- **Nitpicks:** None.
+- **Brief:** No changes suggested for this fix round.
+- **Plan:** No changes suggested.
+- **Prompt:** Nothing impeded the review.
