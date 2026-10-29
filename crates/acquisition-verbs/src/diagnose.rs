@@ -13,8 +13,10 @@
 //! diagnosis that fails is no diagnosis, so building one never fails.
 //!
 //! What it never prints (`SECURITY.md`): a refresh or access token. The
-//! journal holds none by construction (`rails.rs`) and the log is written
-//! to hold none; the redaction is a belt over both, and it also takes out
+//! journal holds none by construction (`rails.rs`), and so does the log
+//! (#113): every token the daemon holds is its `auth::Secret`, whose text
+//! no log line can format, and the log has one writer. The token
+//! redaction here is a belt over both, never the one line; it also takes out
 //! what a public issue should not carry: the account names and uuids
 //! (from the index, the journal's route keys and the rails' marks), the
 //! store root, this world's log directory and the home directory. Each is

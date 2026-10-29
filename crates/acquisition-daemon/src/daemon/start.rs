@@ -245,7 +245,7 @@ fn end_at_once(daemon: &Arc<Daemon>, log: std::fs::File) -> EndAtOnce {
     Arc::new(move |why: &str, code: i32| {
         if let Some(daemon) = daemon.upgrade() {
             let uptime = daemon.uptime_seconds();
-            let _ = writeln!(&log, "[{uptime:>5}s] {why}");
+            write_log_line(&log, Some(uptime), why);
             if let Some(socket) = &daemon.socket_path {
                 socket.remove_if_still_ours();
             }
@@ -295,9 +295,10 @@ pub(super) fn install_panic_hook(
             |id| format!("in job {id}"),
         );
         let uptime = started.elapsed().as_secs();
-        let _ = writeln!(
+        write_log_line(
             &log,
-            "[{uptime:>5}s] PANIC {within} at {place}: {words}{marked}; the daemon aborts"
+            Some(uptime),
+            &format!("PANIC {within} at {place}: {words}{marked}; the daemon aborts"),
         );
         previous(info);
         end()
@@ -344,7 +345,7 @@ pub async fn run() -> Result<()> {
             // 2026-09-11, round 21: a contender under another log
             // directory must make no file there either).
             if let Ok(log) = std::fs::OpenOptions::new().append(true).open(&log_path) {
-                writeln!(&log, "STARTUP: {e:#}").ok();
+                write_log_line(&log, None, &format!("STARTUP: {e:#}"));
             }
             return Err(e);
         }
@@ -366,7 +367,7 @@ pub async fn run() -> Result<()> {
                 .append(true)
                 .open(&log_path)
             {
-                writeln!(&log, "STARTUP: {e:#}").ok();
+                write_log_line(&log, None, &format!("STARTUP: {e:#}"));
             }
             return Err(e);
         }
@@ -377,11 +378,11 @@ pub async fn run() -> Result<()> {
         .open(&log_path)
         .map_err(|e| anyhow::anyhow!("opening the log {}: {e}", log_path.display()))?;
     if let Some(what) = rotated {
-        writeln!(&log, "log: {what}").ok();
+        write_log_line(&log, None, &format!("log: {what}"));
     }
     let result = run_with_log(world, locks, log_name, log.try_clone()?, signals).await;
     if let Err(e) = &result {
-        writeln!(&log, "STARTUP: {e:#}").ok();
+        write_log_line(&log, None, &format!("STARTUP: {e:#}"));
     }
     result
 }
@@ -659,7 +660,7 @@ impl Daemon {
         self.restore.send_replace(true);
         self.mark_activity(self.choke.now());
         self.work.notify_one();
-        for line in String::from_utf8_lossy(&lines).lines() {
+        for line in &lines {
             self.log(line);
         }
         let (keyring, names) = {
@@ -760,8 +761,8 @@ fn load_reached(
     store: &dyn CredentialStore,
     service: &str,
     entry: &acquisition_store::AccountEntry,
-    log: &mut dyn std::io::Write,
-) -> Result<Option<String>, (String, String)> {
+    log: &mut Vec<String>,
+) -> Result<Option<auth::Secret>, (String, String)> {
     let first = store.load(service, &entry.username);
     if let Ok(Some(token)) = first {
         return Ok(Some(token));
@@ -770,12 +771,10 @@ fn load_reached(
     for name in entry.keyring_names.iter().filter(|n| **n != entry.username) {
         match store.load(service, name) {
             Ok(Some(token)) => {
-                writeln!(
-                    log,
+                log.push(format!(
                     "ACCOUNTS: {} restored from its keyring entry under the old name {name}",
                     entry.username
-                )
-                .ok();
+                ));
                 return Ok(Some(token));
             }
             Ok(None) => {}
@@ -810,7 +809,7 @@ pub(super) fn restore_sessions(
     dir: &std::path::Path,
     disabled: Option<&str>,
     wall: SystemTime,
-    log: &mut dyn std::io::Write,
+    log: &mut Vec<String>,
 ) -> Sessions {
     let mut sessions = Sessions {
         keyring: match disabled {
@@ -837,12 +836,10 @@ pub(super) fn restore_sessions(
                         });
                     }
                     Ok(None) => {
-                        writeln!(
-                            log,
+                        log.push(format!(
                             "ACCOUNTS: index lists {} as persisted but the keyring has no entry",
                             entry.username
-                        )
-                        .ok();
+                        ));
                     }
                     Err((name, e)) => {
                         sessions.keyring = format!("unavailable: {e}");
@@ -851,12 +848,10 @@ pub(super) fn restore_sessions(
                         } else {
                             format!(" under the old name {name}")
                         };
-                        writeln!(
-                            log,
+                        log.push(format!(
                             "ACCOUNTS: keyring read for {}{under} failed: {e}",
                             entry.username
-                        )
-                        .ok();
+                        ));
                     }
                 }
             }
@@ -865,7 +860,7 @@ pub(super) fn restore_sessions(
             sessions.last_login = index.persisted().first().map(|e| e.username.clone());
         }
         Err(e) => {
-            writeln!(log, "ACCOUNTS: could not read {}: {e:#}", dir.display()).ok();
+            log.push(format!("ACCOUNTS: could not read {}: {e:#}", dir.display()));
         }
     }
     sessions

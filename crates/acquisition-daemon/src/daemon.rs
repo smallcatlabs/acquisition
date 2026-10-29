@@ -528,19 +528,19 @@ struct Staging {
     /// yet cleared (C133: a pending login has the bound to land).
     profile_job: Option<JobId>,
     username: String,
-    access_token: String,
+    access_token: auth::Secret,
     access_expires_at: SystemTime,
-    refresh_token: String,
+    refresh_token: auth::Secret,
 }
 
 #[derive(Default)]
 struct AuthSession {
-    access_token: Option<String>,
+    access_token: Option<auth::Secret>,
     /// Wall-clock, not `Instant`: on macOS a monotonic clock does not advance
     /// while the machine sleeps, so an `Instant` deadline would wake believing
     /// an expired token still has hours left and send 401s until it caught up.
     access_expires_at: Option<SystemTime>,
-    refresh_token: Option<String>,
+    refresh_token: Option<auth::Secret>,
     username: Option<String>,
     /// The account uuid the login's profile fetch delivered (restored
     /// sessions read it from the index). A refresh that renames the account
@@ -639,11 +639,11 @@ impl Sessions {
     /// (C49). The refresh token and the generations are untouched — a
     /// refresh already in flight installs over the cleared slot as it
     /// would have. Returns the username whose token was cleared.
-    fn reject_access_token(&mut self, token: &str) -> Option<String> {
+    fn reject_access_token(&mut self, token: &auth::Secret) -> Option<String> {
         let session = self
             .by_account
             .values_mut()
-            .find(|session| session.access_token.as_deref() == Some(token))?;
+            .find(|session| session.access_token.as_ref() == Some(token))?;
         session.access_token = None;
         session.access_expires_at = None;
         session.username.clone()
@@ -1009,27 +1009,45 @@ pub struct Daemon {
 /// C135: what is saved and loaded is the entry's secret
 /// ([`auth::KeyringEntry`]), a string the store never parses.
 trait CredentialStore: Send + Sync + std::any::Any {
-    fn save(&self, service: &str, secret: &str, username: &str) -> Result<(), String>;
+    fn save(&self, service: &str, secret: &auth::Secret, username: &str) -> Result<(), String>;
     /// The stored secret; `Ok(None)` when the store works and holds no
     /// entry for the account.
-    fn load(&self, service: &str, username: &str) -> Result<Option<String>, String>;
+    fn load(&self, service: &str, username: &str) -> Result<Option<auth::Secret>, String>;
     fn clear(&self, service: &str, username: &str) -> Result<(), auth::NotCleared>;
 }
 
 struct OsCredentialStore;
 
 impl CredentialStore for OsCredentialStore {
-    fn save(&self, service: &str, secret: &str, username: &str) -> Result<(), String> {
+    fn save(&self, service: &str, secret: &auth::Secret, username: &str) -> Result<(), String> {
         auth::keyring_save(service, secret, username)
     }
 
-    fn load(&self, service: &str, username: &str) -> Result<Option<String>, String> {
+    fn load(&self, service: &str, username: &str) -> Result<Option<auth::Secret>, String> {
         auth::keyring_load(service, username)
     }
 
     fn clear(&self, service: &str, username: &str) -> Result<(), auth::NotCleared> {
         auth::keyring_clear(service, username)
     }
+}
+
+/// #113: the one function that writes a line to the daemon's log, with
+/// its uptime stamp when the daemon has one (a line before it is built, a
+/// startup refusal, has none). Every writer calls it: [`Daemon::log`]
+/// and so every `note_error`, the exit that ends at once and the panic
+/// hook through their clones of the file, and the startup lines. Its
+/// input is text, and a token cannot be in it: every token the daemon
+/// holds is an [`auth::Secret`], whose text no code outside `auth.rs`
+/// reads and whose formatting is a placeholder. A write that fails is
+/// dropped: the log is a diagnostic, and the caller may be the thread
+/// that ends the process.
+fn write_log_line(log: &std::fs::File, uptime: Option<u64>, line: &str) {
+    let mut log = log;
+    let _ = match uptime {
+        Some(uptime) => writeln!(log, "[{uptime:>5}s] {line}"),
+        None => writeln!(log, "{line}"),
+    };
 }
 
 impl Daemon {
@@ -1127,8 +1145,8 @@ impl Daemon {
     /// clock, not `shared`, so it may be called under any other lock.
     fn log(&self, msg: &str) {
         let uptime = self.uptime_seconds();
-        let mut f = self.log.lock().unwrap();
-        let _ = writeln!(f, "[{uptime:>5}s] {msg}");
+        let f = self.log.lock().unwrap();
+        write_log_line(&f, Some(uptime), msg);
     }
 
     fn emit(&self, info: JobInfo) {

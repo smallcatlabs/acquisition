@@ -12,7 +12,7 @@
 
 use super::*;
 
-pub(super) type AccessTokenResult = Result<(String, String), Refusal>;
+pub(super) type AccessTokenResult = Result<(auth::Secret, String), Refusal>;
 
 pub(super) const SESSION_CHANGED_DURING_REFRESH: &str =
     "authentication session changed while token refresh was in progress";
@@ -240,7 +240,10 @@ impl Daemon {
     /// for the job to land the clear in the keyring entry
     /// ([`Self::land_rejection`]), or `None` when no session held it any
     /// more.
-    pub(super) fn reject_access_token(&self, token: &str) -> Option<(String, AuthGenerations)> {
+    pub(super) fn reject_access_token(
+        &self,
+        token: &auth::Secret,
+    ) -> Option<(String, AuthGenerations)> {
         let (username, generations) = {
             let mut s = self.shared.lock().unwrap();
             let username = s.auth.reject_access_token(token)?;
@@ -350,7 +353,7 @@ impl Daemon {
         account: Option<&str>,
         force_refresh: bool,
         party: Option<JobId>,
-    ) -> Result<(String, String), Refusal> {
+    ) -> AccessTokenResult {
         loop {
             let result = self
                 .valid_access_token_once(account, force_refresh, party)
@@ -368,12 +371,12 @@ impl Daemon {
         account: Option<&str>,
         force_refresh: bool,
         party: Option<JobId>,
-    ) -> Result<(String, String), Refusal> {
+    ) -> AccessTokenResult {
         enum Decision {
             Owner {
                 id: u64,
                 generations: AuthGenerations,
-                refresh_token: String,
+                refresh_token: auth::Secret,
                 result: watch::Sender<Option<AccessTokenResult>>,
             },
             Waiter(watch::Receiver<Option<AccessTokenResult>>),

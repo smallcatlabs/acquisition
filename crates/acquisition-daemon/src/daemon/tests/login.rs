@@ -13,7 +13,7 @@ use acquisition_protocol::protocol::KeyringOutcome;
 fn login_tokens(access: &str, user: &str) -> auth::TokenResponse {
     auth::TokenResponse {
         access_token: access.into(),
-        refresh_token: format!("rt-{user}"),
+        refresh_token: format!("rt-{user}").into(),
         expires_in: 3600,
         username: user.into(),
     }
@@ -546,7 +546,7 @@ async fn a_callback_connection_that_sends_nothing_does_not_block_the_login() {
         .await
         .expect("the flow ended on the redirect")
         .unwrap();
-    assert_eq!(code, Ok("code-x".to_string()));
+    assert_eq!(code, Ok("code-x".into()));
     drop(silent);
 }
 
@@ -767,8 +767,20 @@ async fn a_headerless_code_exchange_2xx_installs_its_tokens() {
     {
         let s = daemon.shared.lock().unwrap();
         let session = s.auth.find("test-user").expect("registered");
-        assert_eq!(session.access_token.as_deref(), Some("at-new"));
-        assert_eq!(session.refresh_token.as_deref(), Some("rt-rotated"));
+        assert_eq!(
+            session
+                .access_token
+                .as_ref()
+                .map(auth::Secret::exposed_for_test),
+            Some("at-new")
+        );
+        assert_eq!(
+            session
+                .refresh_token
+                .as_ref()
+                .map(auth::Secret::exposed_for_test),
+            Some("rt-rotated")
+        );
     }
     assert_eq!(
         saved_refresh_tokens(&credentials.saves.lock().unwrap())
@@ -1128,11 +1140,16 @@ fn c144_restore_reads_through_the_credential_store_and_reports_a_failed_load() {
         start::restore_sessions(&store, "acq-mock", &dir, None, SystemTime::now(), &mut log);
     assert_eq!(sessions.keyring, "ok");
     assert_eq!(
-        sessions.find("alice").unwrap().refresh_token.as_deref(),
+        sessions
+            .find("alice")
+            .unwrap()
+            .refresh_token
+            .as_ref()
+            .map(auth::Secret::exposed_for_test),
         Some("rt-a")
     );
     assert!(sessions.find("bob").is_none());
-    let log = String::from_utf8(log).unwrap();
+    let log = log.join("\n");
     assert!(
         log.contains("index lists bob as persisted but the keyring has no entry"),
         "{log}"
@@ -1150,7 +1167,7 @@ fn c144_restore_reads_through_the_credential_store_and_reports_a_failed_load() {
     );
     assert!(sessions.by_account.is_empty());
     assert_eq!(sessions.keyring, "unavailable: keychain locked");
-    let log = String::from_utf8(log).unwrap();
+    let log = log.join("\n");
     assert!(
         log.contains("keyring read for alice failed: keychain locked"),
         "{log}"
@@ -1223,7 +1240,7 @@ async fn c144_a_login_finalised_under_an_unwritable_index_leaves_nothing_to_rest
     assert!(
         sessions.by_account.is_empty(),
         "nothing to restore: {}",
-        String::from_utf8_lossy(&log)
+        log.join("\n")
     );
     assert_eq!(sessions.keyring, "ok");
 }
@@ -1507,8 +1524,14 @@ async fn a_logins_landing_saves_the_access_token_beside_the_refresh_token() {
         .access_expires_at
         .unwrap();
     let secret = credentials.entries.lock().unwrap()["Alice#1"].clone();
-    let entry = auth::KeyringEntry::from_secret(&secret, expires);
-    assert_eq!(entry.access_token.as_deref(), Some("at-x.Alice#1"));
+    let entry = auth::KeyringEntry::from_secret(&secret.as_str().into(), expires);
+    assert_eq!(
+        entry
+            .access_token
+            .as_ref()
+            .map(auth::Secret::exposed_for_test),
+        Some("at-x.Alice#1")
+    );
     assert_eq!(
         entry.access_expires_at,
         Some(

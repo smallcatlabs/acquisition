@@ -12,6 +12,7 @@ mod exit;
 mod harness;
 mod idle;
 mod list;
+mod log;
 mod login;
 mod parents;
 mod queue;

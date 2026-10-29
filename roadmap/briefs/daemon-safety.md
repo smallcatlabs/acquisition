@@ -102,7 +102,7 @@ the journal's and rails' own files (`rails.rs` 488, 841), the IPC write
 | `daemon/server.rs` | 154, 167, 281, 294, 316, 336, 369, 436, 490, 493, 565, 588, 596, 629, 639, 646, 656 |
 | `daemon/start.rs` | 227, 248, 298, 347, 369, 380, 384, 549, 558, 570, 580, 582, 592, 596, 663, 669, 713, 773, 840, 854, 868 |
 
-Of these, eight write the log's file themselves rather than through
+Of these, seven write the log's file themselves rather than through
 `Daemon::log`: `daemon.rs:1131` (its body), and `start.rs` 248
 (`end_at_once`), 298 (the panic hook), 347, 369, 380, 384 (the startup
 lines); `start.rs` 773, 840, 854 and 868 write `restore_sessions`'
@@ -186,7 +186,7 @@ carries it and meets one more 401.
   and the diagnosis's redaction is named a belt in its module doc."
   Read on the tree: no `access_token` or `refresh_token` field of type
   `String` in the daemon's product code; one `fn` writes the log's file
-  and the eight direct writers above call it; `Secret`'s text is read
+  and the seven direct writers above call it; `Secret`'s text is read
   only in `auth.rs`.
 - #116: the partial-install case refuses with words that say the
   daemon this door started was stopped and what to do, and leaves no

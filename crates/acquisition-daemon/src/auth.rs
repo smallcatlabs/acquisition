@@ -25,13 +25,99 @@ pub fn s256(verifier: &str) -> String {
     URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()))
 }
 
-/// Returns (verifier, challenge).
-pub fn pkce_pair() -> (String, String) {
+/// Returns (verifier, challenge): the verifier is the login's secret, the
+/// challenge its public digest.
+pub fn pkce_pair() -> (Secret, String) {
     let mut bytes = [0u8; 32];
     rand::rng().fill_bytes(&mut bytes);
     let verifier = URL_SAFE_NO_PAD.encode(bytes);
     let challenge = s256(&verifier);
-    (verifier, challenge)
+    (Secret(verifier), challenge)
+}
+
+/// #113, a log safe by construction: a credential the daemon holds — an
+/// access or a refresh token, the keyring's secret that holds them, a
+/// login's code or its PKCE verifier — from where it enters the daemon
+/// (a token response's body, a keyring read, the login's callback, the
+/// PKCE pair) to where it leaves (the bearer header, the token POST's
+/// form, a keyring write). All of those are built in this module, the
+/// only place its text is read (`Secret::expose` is private to it).
+/// It formats as a placeholder under `Debug` and `Display`, and has no
+/// `Serialize`, `Deref` or `AsRef<str>`; so no string the rest of the
+/// daemon builds, for its log or anything else, can hold a token, and
+/// the log's one writer (`daemon::write_log_line`) needs no rule of its
+/// own about them.
+#[derive(Clone, PartialEq, Eq, Deserialize)]
+#[serde(transparent)]
+pub struct Secret(String);
+
+impl Secret {
+    /// The text: read here alone, where a header, a form or a keyring
+    /// write is built from it.
+    fn expose(&self) -> &str {
+        &self.0
+    }
+
+    /// `request` carrying this token as its bearer: reqwest's own header,
+    /// marked sensitive.
+    pub fn authorize(&self, request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        request.bearer_auth(self.expose())
+    }
+
+    /// The text, for a test that asserts on what the wire or the keyring
+    /// carried.
+    #[cfg(test)]
+    pub fn exposed_for_test(&self) -> &str {
+        self.expose()
+    }
+}
+
+impl From<String> for Secret {
+    fn from(text: String) -> Self {
+        Secret(text)
+    }
+}
+
+impl From<&str> for Secret {
+    fn from(text: &str) -> Self {
+        Secret(text.to_string())
+    }
+}
+
+impl std::fmt::Debug for Secret {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("<redacted>")
+    }
+}
+
+impl std::fmt::Display for Secret {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("<redacted>")
+    }
+}
+
+/// A test compares a secret with the text it expects.
+#[cfg(test)]
+impl PartialEq<&str> for Secret {
+    fn eq(&self, other: &&str) -> bool {
+        self.0 == *other
+    }
+}
+
+/// The serializer of a [`KeyringEntry`]'s tokens: the keyring's write,
+/// built here.
+fn serialize_secret<S: serde::Serializer>(secret: &Secret, out: S) -> Result<S::Ok, S::Error> {
+    out.serialize_str(secret.expose())
+}
+
+fn serialize_optional_secret<S: serde::Serializer>(
+    secret: &Option<Secret>,
+    out: S,
+) -> Result<S::Ok, S::Error> {
+    match secret {
+        Some(secret) => out.serialize_some(secret.expose()),
+        None => out.serialize_none(),
+    }
 }
 
 /// A failed token request, keeping the HTTP status (when one landed) so
@@ -92,12 +178,12 @@ impl TokenError {
     }
 }
 
-/// Holds both tokens, so its `Debug` names neither (C144: no secret is
-/// formatted where a log or a panic could carry it).
+/// Holds both tokens as [`Secret`]s, so its `Debug` names neither (C144:
+/// no secret is formatted where a log or a panic could carry it).
 #[derive(Deserialize)]
 pub struct TokenResponse {
-    pub access_token: String,
-    pub refresh_token: String,
+    pub access_token: Secret,
+    pub refresh_token: Secret,
     /// Seconds, at most [`MAX_ACCESS_TOKEN_LIFETIME_SECS`] in any response
     /// [`exchange_code`] or [`refresh`] returns, so the daemon may add it
     /// to its wall clock unchecked.
@@ -128,8 +214,8 @@ pub const MAX_ACCESS_TOKEN_LIFETIME_SECS: u64 = 366 * 24 * 60 * 60;
 pub async fn exchange_code(
     choke: &ChokePoint,
     provider: &Provider,
-    code: &str,
-    verifier: &str,
+    code: &Secret,
+    verifier: &Secret,
     redirect_uri: &str,
     wanted: Wanted<'_>,
 ) -> Result<TokenResponse, TokenError> {
@@ -142,8 +228,8 @@ pub async fn exchange_code(
         &[
             ("grant_type", "authorization_code"),
             ("client_id", provider.client_id),
-            ("code", code),
-            ("code_verifier", verifier),
+            ("code", code.expose()),
+            ("code_verifier", verifier.expose()),
             ("redirect_uri", redirect_uri),
             ("scope", &scope),
         ],
@@ -157,7 +243,7 @@ pub async fn exchange_code(
 pub async fn refresh(
     choke: &ChokePoint,
     provider: &Provider,
-    refresh_token: &str,
+    refresh_token: &Secret,
     wanted: Wanted<'_>,
 ) -> Result<TokenResponse, TokenError> {
     token_request(
@@ -166,7 +252,7 @@ pub async fn refresh(
         &[
             ("grant_type", "refresh_token"),
             ("client_id", provider.client_id),
-            ("refresh_token", refresh_token),
+            ("refresh_token", refresh_token.expose()),
         ],
         wanted,
     )
@@ -352,9 +438,14 @@ async fn token_request(
 /// `Debug` names neither (C144).
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct KeyringEntry {
-    pub refresh_token: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub access_token: Option<String>,
+    #[serde(serialize_with = "serialize_secret")]
+    pub refresh_token: Secret,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        serialize_with = "serialize_optional_secret"
+    )]
+    pub access_token: Option<Secret>,
     /// Unix seconds. Read back, at most the reader's clock plus
     /// [`MAX_ACCESS_TOKEN_LIFETIME_SECS`] (C47), so [`Self::expires_at`]
     /// adds it to the epoch unchecked.
@@ -365,7 +456,7 @@ pub struct KeyringEntry {
 impl KeyringEntry {
     /// The entry for a session's tokens: the refresh token, and the
     /// access token with its wall-clock expiry when the session holds one.
-    pub fn new(refresh_token: String, access: Option<(String, SystemTime)>) -> Self {
+    pub fn new(refresh_token: Secret, access: Option<(Secret, SystemTime)>) -> Self {
         let (access_token, access_expires_at) = match access {
             Some((token, expires)) => (
                 Some(token),
@@ -384,8 +475,8 @@ impl KeyringEntry {
     }
 
     /// The secret the keyring holds: the entry as one JSON object.
-    pub fn to_secret(&self) -> String {
-        serde_json::to_string(self).expect("an entry of strings and a number serializes")
+    pub fn to_secret(&self) -> Secret {
+        Secret(serde_json::to_string(self).expect("an entry of strings and a number serializes"))
     }
 
     /// The entry a secret holds, read at `now` on the daemon's wall
@@ -395,10 +486,10 @@ impl KeyringEntry {
     /// input (C47) and restores no access token: the refresh token still
     /// does, and the first use refreshes. An expiry already past is kept:
     /// the daemon's one expiry check decides at the first use.
-    pub fn from_secret(secret: &str, now: SystemTime) -> Self {
-        let Ok(mut entry) = serde_json::from_str::<KeyringEntry>(secret) else {
+    pub fn from_secret(secret: &Secret, now: SystemTime) -> Self {
+        let Ok(mut entry) = serde_json::from_str::<KeyringEntry>(secret.expose()) else {
             return KeyringEntry {
-                refresh_token: secret.to_string(),
+                refresh_token: secret.clone(),
                 access_token: None,
                 access_expires_at: None,
             };
@@ -453,17 +544,17 @@ fn entry(service: &str, username: &str) -> Result<keyring::Entry, String> {
 
 /// Save `secret` (a [`KeyringEntry`]'s, which this never parses) as one
 /// account's entry.
-pub fn keyring_save(service: &str, secret: &str, username: &str) -> Result<(), String> {
+pub fn keyring_save(service: &str, secret: &Secret, username: &str) -> Result<(), String> {
     entry(service, username)?
-        .set_password(secret)
+        .set_password(secret.expose())
         .map_err(|e| e.to_string())
 }
 
 /// The stored secret for one account, read by [`KeyringEntry::from_secret`];
 /// Ok(None) means the keyring works but holds no entry for it.
-pub fn keyring_load(service: &str, username: &str) -> Result<Option<String>, String> {
+pub fn keyring_load(service: &str, username: &str) -> Result<Option<Secret>, String> {
     match entry(service, username)?.get_password() {
-        Ok(secret) => Ok(Some(secret)),
+        Ok(secret) => Ok(Some(Secret(secret))),
         Err(keyring::Error::NoEntry) => Ok(None),
         Err(e) => Err(e.to_string()),
     }
@@ -537,10 +628,13 @@ mod tests {
             Some(("at-kept".into(), now + Duration::from_secs(3600))),
         );
         let secret = entry.to_secret();
-        assert!(secret.starts_with('{'), "{secret}");
+        assert!(secret.expose().starts_with('{'), "{secret}");
         let read = KeyringEntry::from_secret(&secret, now);
         assert_eq!(read, entry);
-        assert_eq!(read.access_token.as_deref(), Some("at-kept"));
+        assert_eq!(
+            read.access_token.as_ref().map(Secret::exposed_for_test),
+            Some("at-kept")
+        );
         assert_eq!(read.expires_at(), Some(now + Duration::from_secs(3600)));
         let shown = format!("{read:?}");
         assert!(!shown.contains("kept"), "{shown}");
@@ -552,10 +646,13 @@ mod tests {
     #[test]
     fn a_bare_secret_reads_as_a_refresh_token() {
         let now = SystemTime::UNIX_EPOCH + Duration::from_secs(946_684_800);
-        let read = KeyringEntry::from_secret("rt-old", now);
+        let read = KeyringEntry::from_secret(&"rt-old".into(), now);
         assert_eq!(read.refresh_token, "rt-old");
         assert_eq!(
-            (read.access_token.as_deref(), read.expires_at()),
+            (
+                read.access_token.as_ref().map(Secret::exposed_for_test),
+                read.expires_at()
+            ),
             (None, None)
         );
 
@@ -565,10 +662,13 @@ mod tests {
             "access_expires_at": u64::MAX,
         })
         .to_string();
-        let read = KeyringEntry::from_secret(&far, now);
+        let read = KeyringEntry::from_secret(&far.into(), now);
         assert_eq!(read.refresh_token, "rt-far");
         assert_eq!(
-            (read.access_token.as_deref(), read.expires_at()),
+            (
+                read.access_token.as_ref().map(Secret::exposed_for_test),
+                read.expires_at()
+            ),
             (None, None)
         );
     }
@@ -598,7 +698,7 @@ mod tests {
         }
         let service = "acquisition-keyring-check";
         let username = random_token("roundtrip");
-        let token = random_token("rt");
+        let token = Secret(random_token("rt"));
         keyring_save(service, &token, &username).expect("save");
         assert_eq!(
             keyring_load(service, &username).expect("load"),
@@ -636,7 +736,7 @@ mod tests {
         let choke = ChokePoint::new();
         let provider = Provider::mock(&base);
 
-        let error = refresh(&choke, &provider, "rt-test", ALWAYS_WANTED)
+        let error = refresh(&choke, &provider, &"rt-test".into(), ALWAYS_WANTED)
             .await
             .unwrap_err();
         assert!(!error.message.contains("expected value"), "{error}");
@@ -706,8 +806,8 @@ mod tests {
                 exchange_code(
                     &choke,
                     &provider,
-                    "code",
-                    "verifier",
+                    &"code".into(),
+                    &"verifier".into(),
                     "http://callback",
                     ALWAYS_WANTED,
                 )
@@ -729,7 +829,9 @@ mod tests {
         let refresh = {
             let choke = choke.clone();
             let provider = provider.clone();
-            tokio::spawn(async move { refresh(&choke, &provider, "rt-old", ALWAYS_WANTED).await })
+            tokio::spawn(async move {
+                refresh(&choke, &provider, &"rt-old".into(), ALWAYS_WANTED).await
+            })
         };
         assert!(
             tokio::time::timeout(std::time::Duration::from_millis(50), arrived_rx.recv())

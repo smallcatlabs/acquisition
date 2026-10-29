@@ -65,16 +65,16 @@ struct MemoryCredentialStore {
 }
 
 impl CredentialStore for MemoryCredentialStore {
-    fn save(&self, service: &str, secret: &str, username: &str) -> Result<(), String> {
+    fn save(&self, service: &str, secret: &auth::Secret, username: &str) -> Result<(), String> {
         self.saves.lock().unwrap().push((
             service.to_string(),
-            secret.to_string(),
+            secret.exposed_for_test().to_string(),
             username.to_string(),
         ));
         Ok(())
     }
 
-    fn load(&self, _service: &str, _username: &str) -> Result<Option<String>, String> {
+    fn load(&self, _service: &str, _username: &str) -> Result<Option<auth::Secret>, String> {
         Ok(None)
     }
 
@@ -600,8 +600,22 @@ async fn abandoned_refresh_owner_completes_all_waiters_and_allows_retry() {
         let s = daemon.shared.lock().unwrap();
         assert!(s.auth.one().refresh_flight.is_none());
         assert_eq!(s.auth.one().generations, before);
-        assert_eq!(s.auth.one().refresh_token.as_deref(), Some("rt-old"));
-        assert_eq!(s.auth.one().access_token.as_deref(), Some("at-expired"));
+        assert_eq!(
+            s.auth
+                .one()
+                .refresh_token
+                .as_ref()
+                .map(auth::Secret::exposed_for_test),
+            Some("rt-old")
+        );
+        assert_eq!(
+            s.auth
+                .one()
+                .access_token
+                .as_ref()
+                .map(auth::Secret::exposed_for_test),
+            Some("at-expired")
+        );
     }
     assert!(store.saves.lock().unwrap().is_empty());
 
@@ -643,8 +657,22 @@ async fn abandoned_refresh_owner_without_waiters_allows_retry() {
         let s = daemon.shared.lock().unwrap();
         assert!(s.auth.one().refresh_flight.is_none());
         assert_eq!(s.auth.one().generations, before);
-        assert_eq!(s.auth.one().refresh_token.as_deref(), Some("rt-old"));
-        assert_eq!(s.auth.one().access_token.as_deref(), Some("at-expired"));
+        assert_eq!(
+            s.auth
+                .one()
+                .refresh_token
+                .as_ref()
+                .map(auth::Secret::exposed_for_test),
+            Some("rt-old")
+        );
+        assert_eq!(
+            s.auth
+                .one()
+                .access_token
+                .as_ref()
+                .map(auth::Secret::exposed_for_test),
+            Some("at-expired")
+        );
     }
     assert!(store.saves.lock().unwrap().is_empty());
 
@@ -690,8 +718,22 @@ async fn successful_refresh_rotation_advances_token_generations_and_persists_new
 
     {
         let s = daemon.shared.lock().unwrap();
-        assert_eq!(s.auth.one().refresh_token.as_deref(), Some("rt-rotated"));
-        assert_eq!(s.auth.one().access_token.as_deref(), Some("at-rotated"));
+        assert_eq!(
+            s.auth
+                .one()
+                .refresh_token
+                .as_ref()
+                .map(auth::Secret::exposed_for_test),
+            Some("rt-rotated")
+        );
+        assert_eq!(
+            s.auth
+                .one()
+                .access_token
+                .as_ref()
+                .map(auth::Secret::exposed_for_test),
+            Some("at-rotated")
+        );
         assert_eq!(s.auth.one().generations.session, before.session);
         assert_ne!(s.auth.one().generations.access_token, before.access_token);
         assert_ne!(s.auth.one().generations.refresh_token, before.refresh_token);
@@ -731,8 +773,22 @@ async fn refresh_failure_is_shared_and_leaves_token_state_unchanged() {
     {
         let s = daemon.shared.lock().unwrap();
         assert_eq!(s.auth.one().generations, before);
-        assert_eq!(s.auth.one().refresh_token.as_deref(), Some("rt-old"));
-        assert_eq!(s.auth.one().access_token.as_deref(), Some("at-expired"));
+        assert_eq!(
+            s.auth
+                .one()
+                .refresh_token
+                .as_ref()
+                .map(auth::Secret::exposed_for_test),
+            Some("rt-old")
+        );
+        assert_eq!(
+            s.auth
+                .one()
+                .access_token
+                .as_ref()
+                .map(auth::Secret::exposed_for_test),
+            Some("at-expired")
+        );
         assert!(s.auth.one().refresh_flight.is_none());
     }
     assert!(store.saves.lock().unwrap().is_empty());
@@ -801,8 +857,22 @@ async fn reauthentication_during_refresh_keeps_new_session_and_rejects_old_compl
     );
     {
         let s = daemon.shared.lock().unwrap();
-        assert_eq!(s.auth.one().access_token.as_deref(), Some("at-reauth"));
-        assert_eq!(s.auth.one().refresh_token.as_deref(), Some("rt-reauth"));
+        assert_eq!(
+            s.auth
+                .one()
+                .access_token
+                .as_ref()
+                .map(auth::Secret::exposed_for_test),
+            Some("at-reauth")
+        );
+        assert_eq!(
+            s.auth
+                .one()
+                .refresh_token
+                .as_ref()
+                .map(auth::Secret::exposed_for_test),
+            Some("rt-reauth")
+        );
         assert_eq!(s.auth.one().username.as_deref(), Some("old-user"));
         assert_ne!(s.auth.one().generations.session, before.session);
     }
@@ -917,7 +987,10 @@ async fn a_token_is_refused_once_the_session_no_longer_matches_the_job() {
         .valid_access_token(Some("old-user"), false, None)
         .await
         .unwrap();
-    assert_eq!((token.as_str(), user.as_str()), ("at-live", "old-user"));
+    assert_eq!(
+        (token.exposed_for_test(), user.as_str()),
+        ("at-live", "old-user")
+    );
     // Another account logging in changes nothing for old-user's jobs.
     daemon.shared.lock().unwrap().auth.replace(AuthSession {
         username: Some("new-user".into()),
@@ -962,7 +1035,12 @@ fn session_keys_follow_renames_so_replace_finds_the_right_session() {
     sessions.rename("A#1", "B#2");
     assert!(sessions.find("A#1").is_none());
     assert_eq!(
-        sessions.find("B#2").unwrap().refresh_token.as_deref(),
+        sessions
+            .find("B#2")
+            .unwrap()
+            .refresh_token
+            .as_ref()
+            .map(auth::Secret::exposed_for_test),
         Some("rt-a")
     );
     assert_eq!(sessions.usernames(), vec!["B#2".to_string()]);
@@ -975,7 +1053,13 @@ fn session_keys_follow_renames_so_replace_finds_the_right_session() {
     });
     assert_eq!(sessions.by_account.len(), 1);
     let after = sessions.find("B#2").unwrap();
-    assert_eq!(after.refresh_token.as_deref(), Some("rt-b"));
+    assert_eq!(
+        after
+            .refresh_token
+            .as_ref()
+            .map(auth::Secret::exposed_for_test),
+        Some("rt-b")
+    );
     assert_ne!(after.generations.session, before.session);
 }
 

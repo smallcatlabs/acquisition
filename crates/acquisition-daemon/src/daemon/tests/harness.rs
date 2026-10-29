@@ -70,11 +70,11 @@ impl Clock for ManualClock {
 pub(super) struct NoopCredentialStore;
 
 impl CredentialStore for NoopCredentialStore {
-    fn save(&self, _service: &str, _secret: &str, _username: &str) -> Result<(), String> {
+    fn save(&self, _service: &str, _secret: &auth::Secret, _username: &str) -> Result<(), String> {
         Ok(())
     }
 
-    fn load(&self, _service: &str, _username: &str) -> Result<Option<String>, String> {
+    fn load(&self, _service: &str, _username: &str) -> Result<Option<auth::Secret>, String> {
         Ok(None)
     }
 
@@ -86,7 +86,9 @@ impl CredentialStore for NoopCredentialStore {
 /// An in-memory keyring that records every call and can be told to fail
 /// any of the three (C144: every result reaches the caller). A save
 /// records its attempt and, when it succeeds, holds the entry; a clear
-/// records its attempt and, when it succeeds, removes it.
+/// records its attempt and, when it succeeds, removes it. It keeps each
+/// secret as its text, for a test to assert on (#113: the text is read
+/// through the test-only door).
 #[derive(Default)]
 pub(super) struct RecordingCredentialStore {
     pub(super) saves: Mutex<Vec<(String, String, String)>>,
@@ -130,7 +132,8 @@ impl RecordingCredentialStore {
 }
 
 impl CredentialStore for RecordingCredentialStore {
-    fn save(&self, service: &str, secret: &str, username: &str) -> Result<(), String> {
+    fn save(&self, service: &str, secret: &auth::Secret, username: &str) -> Result<(), String> {
+        let secret = secret.exposed_for_test();
         let hook = self.on_save.lock().unwrap().take();
         if let Some(hook) = hook {
             hook();
@@ -150,7 +153,7 @@ impl CredentialStore for RecordingCredentialStore {
         Ok(())
     }
 
-    fn load(&self, _service: &str, username: &str) -> Result<Option<String>, String> {
+    fn load(&self, _service: &str, username: &str) -> Result<Option<auth::Secret>, String> {
         let hook = self.on_load.lock().unwrap().take();
         if let Some(hook) = hook {
             hook();
@@ -161,7 +164,12 @@ impl CredentialStore for RecordingCredentialStore {
         if let Some(why) = self.fail_load_under.lock().unwrap().get(username) {
             return Err(why.clone());
         }
-        Ok(self.entries.lock().unwrap().get(username).cloned())
+        Ok(self
+            .entries
+            .lock()
+            .unwrap()
+            .get(username)
+            .map(|text| text.as_str().into()))
     }
 
     fn clear(&self, _service: &str, username: &str) -> Result<(), auth::NotCleared> {
@@ -189,8 +197,12 @@ pub(super) fn saved_refresh_tokens(
     saves
         .iter()
         .map(|(service, secret, username)| {
-            let entry = auth::KeyringEntry::from_secret(secret, SystemTime::now());
-            (service.clone(), entry.refresh_token, username.clone())
+            let entry = auth::KeyringEntry::from_secret(&secret.as_str().into(), SystemTime::now());
+            (
+                service.clone(),
+                entry.refresh_token.exposed_for_test().to_string(),
+                username.clone(),
+            )
         })
         .collect()
 }
@@ -201,8 +213,11 @@ pub(super) fn entry_refresh_tokens(entries: &HashMap<String, String>) -> HashMap
     entries
         .iter()
         .map(|(username, secret)| {
-            let entry = auth::KeyringEntry::from_secret(secret, SystemTime::now());
-            (username.clone(), entry.refresh_token)
+            let entry = auth::KeyringEntry::from_secret(&secret.as_str().into(), SystemTime::now());
+            (
+                username.clone(),
+                entry.refresh_token.exposed_for_test().to_string(),
+            )
         })
         .collect()
 }

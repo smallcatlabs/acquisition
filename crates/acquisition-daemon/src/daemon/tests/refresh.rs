@@ -57,7 +57,11 @@ async fn rejected_refresh_grant_disables_further_refreshes_until_logout() {
     {
         let s = daemon.shared.lock().unwrap();
         assert_eq!(
-            s.auth.one().refresh_token.as_deref(),
+            s.auth
+                .one()
+                .refresh_token
+                .as_ref()
+                .map(auth::Secret::exposed_for_test),
             Some("rt-old"),
             "nothing is deleted"
         );
@@ -105,7 +109,10 @@ async fn transient_refresh_failures_do_not_mark_the_session() {
     rails.reset_tripwire().unwrap();
 
     let (token, user) = daemon.valid_access_token(None, false, None).await.unwrap();
-    assert_eq!((token.as_str(), user.as_str()), ("at-new", "test-user"));
+    assert_eq!(
+        (token.exposed_for_test(), user.as_str()),
+        ("at-new", "test-user")
+    );
     assert_eq!(requests.lock().unwrap().len(), 2);
     server.await.unwrap();
     assert_journal_matches_wire(&log_path, &wire_posts(&requests));
@@ -239,7 +246,8 @@ async fn a_cloudflare_block_on_the_token_route_is_no_rejected_grant() {
             .auth
             .one()
             .refresh_token
-            .as_deref(),
+            .as_ref()
+            .map(auth::Secret::exposed_for_test),
         Some("rt-old"),
         "the session stands"
     );
@@ -344,7 +352,8 @@ fn session_refresh_token(daemon: &Daemon) -> Option<String> {
         .auth
         .one()
         .refresh_token
-        .clone()
+        .as_ref()
+        .map(|token| token.exposed_for_test().to_string())
 }
 
 /// C131: a token 200 that carries its tokens but no rate-limit header at
@@ -361,7 +370,10 @@ async fn a_headerless_token_2xx_installs_its_tokens_and_holds_the_route() {
     .await;
 
     let (token, user) = daemon.valid_access_token(None, false, None).await.unwrap();
-    assert_eq!((token.as_str(), user.as_str()), ("at-new", "test-user"));
+    assert_eq!(
+        (token.exposed_for_test(), user.as_str()),
+        ("at-new", "test-user")
+    );
     assert_eq!(
         session_refresh_token(&daemon).as_deref(),
         Some("rt-rotated"),
@@ -983,10 +995,15 @@ fn c144_restore_reaches_a_token_under_a_held_name() {
     let sessions =
         start::restore_sessions(&store, "acq-mock", &dir, None, SystemTime::now(), &mut log);
     assert_eq!(
-        sessions.find("New#2").unwrap().refresh_token.as_deref(),
+        sessions
+            .find("New#2")
+            .unwrap()
+            .refresh_token
+            .as_ref()
+            .map(auth::Secret::exposed_for_test),
         Some("rt-held")
     );
-    let log = String::from_utf8(log).unwrap();
+    let log = log.join("\n");
     assert!(
         log.contains("New#2 restored from its keyring entry under the old name Old#1"),
         "{log}"
@@ -1019,7 +1036,7 @@ fn c144_restore_reports_a_held_names_failed_load() {
         start::restore_sessions(&store, "acq-mock", &dir, None, SystemTime::now(), &mut log);
     assert!(sessions.by_account.is_empty());
     assert_eq!(sessions.keyring, "unavailable: access denied");
-    let log = String::from_utf8(log).unwrap();
+    let log = log.join("\n");
     assert!(
         log.contains("keyring read for B#2 under the old name A#1 failed: access denied"),
         "{log}"
@@ -1119,7 +1136,10 @@ async fn a_restored_session_sends_no_refresh_before_expiry() {
         "the journal holds no token POST before expiry"
     );
     assert!(requests.lock().unwrap().is_empty(), "nothing on the wire");
-    assert_eq!((token.as_str(), user.as_str()), ("at-kept", "test-user"));
+    assert_eq!(
+        (token.exposed_for_test(), user.as_str()),
+        ("at-kept", "test-user")
+    );
 
     clock.advance(Duration::from_secs(3600));
     let (token, _) = daemon.valid_access_token(None, false, None).await.unwrap();
@@ -1145,7 +1165,13 @@ async fn an_entry_an_earlier_daemon_saved_restores_and_is_rewritten_at_its_first
     {
         let s = daemon.shared.lock().unwrap();
         let session = s.auth.find("test-user").unwrap();
-        assert_eq!(session.refresh_token.as_deref(), Some("rt-old"));
+        assert_eq!(
+            session
+                .refresh_token
+                .as_ref()
+                .map(auth::Secret::exposed_for_test),
+            Some("rt-old")
+        );
         assert_eq!(session.access_token, None);
         assert_eq!(session.access_expires_at, None);
     }
@@ -1158,9 +1184,15 @@ async fn an_entry_an_earlier_daemon_saved_restores_and_is_rewritten_at_its_first
         secret.starts_with('{'),
         "rewritten in the new form: {secret:?}"
     );
-    let entry = auth::KeyringEntry::from_secret(&secret, clock.wall());
+    let entry = auth::KeyringEntry::from_secret(&secret.as_str().into(), clock.wall());
     assert_eq!(entry.refresh_token, "rt-rotated");
-    assert_eq!(entry.access_token.as_deref(), Some("at-new"));
+    assert_eq!(
+        entry
+            .access_token
+            .as_ref()
+            .map(auth::Secret::exposed_for_test),
+        Some("at-new")
+    );
     assert_eq!(
         entry.access_expires_at,
         Some(unix_secs(clock.wall()) + 3600)
@@ -1188,8 +1220,14 @@ async fn a_refreshs_landing_saves_the_access_token_beside_the_refresh_token() {
         .access_expires_at
         .unwrap();
     let secret = credentials.entries.lock().unwrap()["test-user"].clone();
-    let entry = auth::KeyringEntry::from_secret(&secret, clock.wall());
-    assert_eq!(entry.access_token.as_deref(), Some("at-new"));
+    let entry = auth::KeyringEntry::from_secret(&secret.as_str().into(), clock.wall());
+    assert_eq!(
+        entry
+            .access_token
+            .as_ref()
+            .map(auth::Secret::exposed_for_test),
+        Some("at-new")
+    );
     assert_eq!(entry.access_expires_at, Some(unix_secs(expires)));
     assert_eq!(entry.refresh_token, "rt-rotated");
     server.await.unwrap();

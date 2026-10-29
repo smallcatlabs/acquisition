@@ -60,8 +60,11 @@ fn turned_away<T>(
 /// login whole, C50); or not at all (the mock's fake data endpoint).
 enum Auth {
     None,
-    Session { token: String, username: String },
-    Staged(String),
+    Session {
+        token: auth::Secret,
+        username: String,
+    },
+    Staged(auth::Secret),
 }
 
 /// C87 — the session's token, as the choke point reads it after admission.
@@ -73,7 +76,7 @@ enum Auth {
 pub(super) struct SessionBearer<'a> {
     daemon: &'a Daemon,
     username: &'a str,
-    expected: &'a str,
+    expected: &'a auth::Secret,
     /// Set when `rejected` cleared the session's token, to the session's
     /// generations then: the job's error says so, and the job lands the
     /// clear in the keyring entry (C135, [`Daemon::land_rejection`]).
@@ -81,7 +84,7 @@ pub(super) struct SessionBearer<'a> {
 }
 
 impl<'a> SessionBearer<'a> {
-    pub(super) fn new(daemon: &'a Daemon, username: &'a str, expected: &'a str) -> Self {
+    pub(super) fn new(daemon: &'a Daemon, username: &'a str, expected: &'a auth::Secret) -> Self {
         SessionBearer {
             daemon,
             username,
@@ -97,11 +100,11 @@ impl<'a> SessionBearer<'a> {
 }
 
 impl Bearer for SessionBearer<'_> {
-    fn token(&self) -> Option<String> {
+    fn token(&self) -> Option<auth::Secret> {
         let s = self.daemon.shared.lock().unwrap();
         let session = s.auth.find(self.username)?;
         let current = session.access_token.clone()?;
-        if current != self.expected {
+        if current != *self.expected {
             self.daemon.log(&format!(
                 "send for {} carries the token a refresh installed while it waited",
                 self.username
@@ -110,7 +113,7 @@ impl Bearer for SessionBearer<'_> {
         Some(current)
     }
 
-    fn rejected(&self, token: &str) {
+    fn rejected(&self, token: &auth::Secret) {
         if let Some((_, generations)) = self.daemon.reject_access_token(token) {
             *self.cleared.lock().unwrap() = Some(generations);
         }
@@ -119,14 +122,14 @@ impl Bearer for SessionBearer<'_> {
 
 /// A login's staged access token (C50): held outside the session map, so
 /// there is nothing to re-read or to forget — a 401 fails the login whole.
-struct StagedBearer(String);
+struct StagedBearer(auth::Secret);
 
 impl Bearer for StagedBearer {
-    fn token(&self) -> Option<String> {
+    fn token(&self) -> Option<auth::Secret> {
         Some(self.0.clone())
     }
 
-    fn rejected(&self, _token: &str) {}
+    fn rejected(&self, _token: &auth::Secret) {}
 }
 
 impl Daemon {
@@ -599,7 +602,10 @@ impl Daemon {
                         "whoami is a mock-only job kind; not run against real GGG",
                     ));
                 }
-                let (token, username) =
+                // The token proves the session; no part of it is in the
+                // payload, which any connected client may read (as C7
+                // keeps params free of secrets; #113).
+                let (_token, username) =
                     match self.valid_access_token(account, false, Some(id)).await {
                         Ok(pair) => pair,
                         Err(error) => return refused(error),
@@ -617,7 +623,6 @@ impl Daemon {
                             { "name": "StashHoarder", "class": "Scion", "level": 97 },
                             { "name": "MuleQuadTab", "class": "Witch", "level": 12 },
                         ],
-                        "authorized_with": format!("{}…", token.chars().take(11).collect::<String>()),
                     }),
                 }
             }

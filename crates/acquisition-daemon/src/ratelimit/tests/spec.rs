@@ -3342,11 +3342,11 @@ fn the_eta_frees_a_window_from_the_servers_residue() {
 struct CountingBearer(std::sync::atomic::AtomicUsize);
 
 impl Bearer for CountingBearer {
-    fn token(&self) -> Option<String> {
+    fn token(&self) -> Option<crate::auth::Secret> {
         self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         Some("c128-token".into())
     }
-    fn rejected(&self, _token: &str) {}
+    fn rejected(&self, _token: &crate::auth::Secret) {}
 }
 
 /// C128: a bearer goes only to the provider's API origin. A GET or a HEAD

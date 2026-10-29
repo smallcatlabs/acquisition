@@ -177,7 +177,7 @@ impl Daemon {
         &self,
         job: JobId,
         account: Option<&str>,
-    ) -> Option<(String, String)> {
+    ) -> Option<(auth::Secret, String)> {
         let s = self.shared.lock().unwrap();
         s.auth
             .staging
@@ -794,8 +794,8 @@ pub(super) async fn wait_callback(
     listener: TcpListener,
     expected_state: &str,
     read_within: Duration,
-) -> Result<String, String> {
-    let (ended, mut ends) = mpsc::channel::<Result<String, String>>(1);
+) -> Result<auth::Secret, String> {
+    let (ended, mut ends) = mpsc::channel::<Result<auth::Secret, String>>(1);
     let expected_state: Arc<str> = Arc::from(expected_state);
     loop {
         tokio::select! {
@@ -820,7 +820,7 @@ async fn answer_callback(
     mut stream: TcpStream,
     expected_state: Arc<str>,
     read_within: Duration,
-    ended: mpsc::Sender<Result<String, String>>,
+    ended: mpsc::Sender<Result<auth::Secret, String>>,
 ) {
     let Ok(Some(req)) = tokio::time::timeout(read_within, mockggg::read_request(&mut stream)).await
     else {
@@ -851,7 +851,7 @@ async fn answer_callback(
                 "<h1>Logged in</h1><p>You can close this tab and return to the terminal.</p>",
             )
             .await;
-            let _ = ended.try_send(Ok(code.clone()));
+            let _ = ended.try_send(Ok(code.as_str().into()));
         }
         (None, Some(error)) => {
             mockggg::respond(

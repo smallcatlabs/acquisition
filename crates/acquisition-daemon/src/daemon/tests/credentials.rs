@@ -89,7 +89,7 @@ async fn saving_daemon() -> (
 async fn refresh_held_in_its_save(
     daemon: &Arc<Daemon>,
     held: &mut HeldSave,
-) -> tokio::task::JoinHandle<Result<(String, String), Refusal>> {
+) -> tokio::task::JoinHandle<AccessTokenResult> {
     let refresh = {
         let daemon = daemon.clone();
         tokio::spawn(async move { daemon.valid_access_token(None, true, None).await })
@@ -180,7 +180,8 @@ async fn c148_a_permit_holder_reads_the_installed_token_while_the_save_blocks() 
         let daemon = daemon.clone();
         let url = format!("{base}/profile");
         answered(async move {
-            let bearer = SessionBearer::new(&daemon, "test-user", "at-old");
+            let expected = "at-old".into();
+            let bearer = SessionBearer::new(&daemon, "test-user", &expected);
             let ready = daemon.choke.now();
             daemon
                 .choke
@@ -393,7 +394,7 @@ async fn c148_a_token_rejected_while_its_save_is_held_is_not_handed_out_again() 
     let refresh = refresh_held_in_its_save(&daemon, &mut held).await;
     assert_eq!(
         daemon
-            .reject_access_token("at-test-user")
+            .reject_access_token(&"at-test-user".into())
             .map(|(username, _)| username)
             .as_deref(),
         Some("test-user"),
@@ -577,7 +578,9 @@ async fn restoring_daemon() -> (Arc<Daemon>, HeldSave, TestPath, TestPath) {
             "rt-kept".into(),
             Some(("at-kept".into(), clock.wall() + Duration::from_secs(3600))),
         )
-        .to_secret(),
+        .to_secret()
+        .exposed_for_test()
+        .to_string(),
     );
     let mut held = hold_the_next(&store.on_load);
     {
@@ -684,8 +687,20 @@ async fn c148_hello_and_the_status_documents_answer_while_the_restore_reads() {
     {
         let s = daemon.shared.lock().unwrap();
         let session = s.auth.find("test-user").expect("restored");
-        assert_eq!(session.access_token.as_deref(), Some("at-kept"));
-        assert_eq!(session.refresh_token.as_deref(), Some("rt-kept"));
+        assert_eq!(
+            session
+                .access_token
+                .as_ref()
+                .map(auth::Secret::exposed_for_test),
+            Some("at-kept")
+        );
+        assert_eq!(
+            session
+                .refresh_token
+                .as_ref()
+                .map(auth::Secret::exposed_for_test),
+            Some("rt-kept")
+        );
         assert_eq!(session.keyring, "ok");
     }
     assert_eq!(keyring_words(&daemon).await, ["ok"; 3]);

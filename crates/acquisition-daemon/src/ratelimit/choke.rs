@@ -22,9 +22,9 @@ pub trait Bearer: Send + Sync {
     /// `None`: the token it was going to carry is gone (rejected, C87),
     /// so the send does not go out — the caller releases the permit,
     /// refreshes outside it, and tries admission again.
-    fn token(&self) -> Option<String>;
+    fn token(&self) -> Option<crate::auth::Secret>;
     /// A 401 landed on `token`; called while the permit is still held.
-    fn rejected(&self, token: &str);
+    fn rejected(&self, token: &crate::auth::Secret);
 }
 
 /// Why a HEAD probe did not leave its route with a policy.
@@ -549,7 +549,7 @@ impl ChokePoint {
         let wait = self.now().saturating_duration_since(since);
         let mut req = self.http.head(url);
         if let Some(token) = &token {
-            req = req.bearer_auth(token);
+            req = token.authorize(req);
         }
         let sent = req.send().await.map_err(|error| error.to_string());
         let (policy, retry_after, raw, headers) = sent.as_ref().map_or_else(
@@ -1010,10 +1010,8 @@ impl ChokePoint {
             return Err(SendError::StaleBearer);
         };
         let wait = self.now().saturating_duration_since(since);
-        let result = self
-            .http
-            .get(url)
-            .bearer_auth(&token)
+        let result = token
+            .authorize(self.http.get(url))
             .send()
             .await
             .map_err(|e| e.to_string());

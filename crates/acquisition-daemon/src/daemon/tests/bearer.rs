@@ -778,11 +778,10 @@ async fn rejected_access_token_across_a_restart(
         Some(("at-kept".into(), clock.wall() + Duration::from_secs(3600))),
     );
     let store = Arc::new(RecordingCredentialStore::default());
-    store
-        .entries
-        .lock()
-        .unwrap()
-        .insert("scenario-user".into(), kept.to_secret());
+    store.entries.lock().unwrap().insert(
+        "scenario-user".into(),
+        kept.to_secret().exposed_for_test().to_string(),
+    );
 
     let (first, first_log) = restored_scenario_daemon(&base, clock.clone(), store.clone(), &dir);
     let index_path = dir.join("accounts.json");
@@ -798,7 +797,9 @@ async fn rejected_access_token_across_a_restart(
     let (info, _) = wait_terminal(&first, job).await;
     assert_eq!(info.state, JobState::Failed, "the job met the 401");
     let entry = auth::KeyringEntry::from_secret(
-        &store.entries.lock().unwrap()["scenario-user"],
+        &store.entries.lock().unwrap()["scenario-user"]
+            .as_str()
+            .into(),
         clock.wall(),
     );
     assert_eq!(entry.refresh_token, "rt-kept");
