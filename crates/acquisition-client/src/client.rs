@@ -174,7 +174,8 @@
 //! daemon-only edit never changes the identity and a stale daemon keeps
 //! serving. Together, a partial rebuild is loud: the client sees the
 //! mismatch, replaces, spawns the same old file, and reports it "still,
-//! after a respawn". Every frontend built from one tree carries the same
+//! after a respawn", having stopped the daemon it spawned (#116), so the
+//! refusal leaves nothing holding the world. Every frontend built from one tree carries the same
 //! contract and finds the same sibling, which is what lets `acq-mcp`
 //! accept a daemon `acq` spawned (C6, C31); two installations would thrash
 //! by respawning each other's daemons — the design event C82 names.
@@ -578,8 +579,11 @@ pub enum NotReplaced {
     /// An autonomous client (the MCP server) never replaces (C13).
     NeverReplaces,
     /// This client replaced it, and the daemon it then found is still not
-    /// its own — the sibling `acqd` is not this build's.
-    StillAfterRespawn,
+    /// its own — the sibling `acqd` is not this build's. `stopped`, #116:
+    /// when that daemon is the one this door spawned, the stop sent to it
+    /// before refusing (its error as words); `None` for a daemon this door
+    /// did not start, which is left standing.
+    StillAfterRespawn { stopped: Option<Result<(), String>> },
     /// C147, a failed stop is reported: this client asked it to stop so
     /// as to replace it, the stop failed (the daemon refused, or the
     /// conversation did), and the daemon is still there. The stop's
@@ -613,7 +617,22 @@ impl fmt::Display for ConnectError {
                     f,
                     "{found}, and this client never replaces a daemon — resolve it with the CLI (`acq daemon stop`)"
                 ),
-                NotReplaced::StillAfterRespawn => write!(f, "{found}, still, after a respawn"),
+                NotReplaced::StillAfterRespawn { stopped } => {
+                    write!(f, "{found}, still, after a respawn")?;
+                    match stopped {
+                        Some(Ok(())) => f.write_str(
+                            "; the daemon this client started was stopped again, so none is left running",
+                        )?,
+                        Some(Err(error)) => write!(
+                            f,
+                            "; the daemon this client started could not be stopped ({error}), so `acq daemon stop` stops it"
+                        )?,
+                        None => {}
+                    }
+                    f.write_str(
+                        " — the `acqd` beside this client is another build's: build or install them together",
+                    )
+                }
                 NotReplaced::StopFailed(error) => write!(
                     f,
                     "{found}, and the stop sent to replace it failed: {error}"
@@ -1364,7 +1383,23 @@ impl Client {
                     if respawned {
                         let because = match stop_failed.take() {
                             Some(error) => NotReplaced::StopFailed(error),
-                            None => NotReplaced::StillAfterRespawn,
+                            None => {
+                                // #116: a daemon this door spawned and
+                                // still judged another build is stopped
+                                // before the refusal: this door started
+                                // it and nothing else uses it, and left
+                                // standing it would hold the world for
+                                // the idle hour (C3). A daemon another
+                                // process started is left as it is.
+                                let started_here =
+                                    child.as_ref().is_some_and(|c| c.pid == client.daemon.pid);
+                                let stopped = if started_here {
+                                    Some(client.stop().await.map_err(|e| format!("{e:#}")))
+                                } else {
+                                    None
+                                };
+                                NotReplaced::StillAfterRespawn { stopped }
+                            }
                         };
                         return Err(ConnectError::Incompatible {
                             found: Box::new(client.daemon),

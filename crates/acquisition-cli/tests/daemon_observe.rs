@@ -160,6 +160,53 @@ fn stage(dir: &Path, sibling: Option<&Path>) -> PathBuf {
     acq
 }
 
+/// C10 with #116: a partial install, a frontend whose sibling `acqd` is
+/// not the artifact that runs (staged without a rebuild: a script that
+/// `exec`s the built daemon, so the client hashes the script and the
+/// daemon its own file). A use verb spawns, judges it another build,
+/// replaces it, spawns the same file again and refuses "still, after a
+/// respawn"; before it refuses it stops the daemon it started, so no
+/// daemon of the world is left bound, counted by the endpoints under the
+/// scratch runtime directory. Unix: a script cannot stand as
+/// `acqd.exe`; the door's code is the same on both.
+#[cfg(unix)]
+#[test]
+fn c10_a_partial_install_refuses_and_leaves_no_daemon_bound() {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let scratch = harness::scratch("partial");
+    let base = scratch.0.clone();
+    // A failure below must not leave the daemon for its idle exit.
+    let _stop = harness::stop_on_drop(&base);
+    let real_acqd = acquisition_store::world::canonical(&acqd()).unwrap();
+    let dir = base.join("partial");
+    let acq = stage(&dir, None);
+    let script = dir.join(acquisition_client::locator::ACQD);
+    std::fs::write(
+        &script,
+        format!("#!/bin/sh\nexec '{}' \"$@\"\n", real_acqd.display()),
+    )
+    .unwrap();
+    std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+    let out = command_of(&acq, &base, &["profile", "--json"])
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(1), "{out:?}");
+    let msg = sole_json(&out)["error"].as_str().unwrap().to_string();
+    assert_eq!(
+        sockets_under(&scratch_tmp(&base)),
+        Vec::<PathBuf>::new(),
+        "a daemon of the world is still bound: {msg}"
+    );
+    assert!(
+        msg.contains("still, after a respawn")
+            && msg.contains("was stopped again, so none is left running")
+            && msg.contains("build or install them together"),
+        "{msg}"
+    );
+}
+
 /// C84's artifact dimension through the binaries: the running daemon is
 /// the `acqd` beside `acq`; a copy of `acq` whose sibling is a copy of
 /// that daemon judges it the same artifact (different inode, same bytes:
