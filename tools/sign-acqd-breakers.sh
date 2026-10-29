@@ -6,7 +6,8 @@
 # missing daemon exits 2; no identity is a no-op exit 0 and the ad-hoc
 # signature stays; and, when ACQ_CODESIGN_IDENTITY is set in the shell,
 # the real identity exits 0 with the fixed identifier in the requirement.
-# Run by hand after touching the script; ~1 s. Needs a cargo build first.
+# Run weekly on macOS (.github/workflows/weekly.yml, `sign-acqd`), and by
+# hand after touching the script; ~1 s. Needs a cargo build first.
 set -uo pipefail
 here=$(cd "$(dirname "$0")/.." && pwd)
 work=$(mktemp -d)

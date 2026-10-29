@@ -11,6 +11,12 @@ name: Weekly
 # never on a timeout (a mutant that hangs the suite is caught); every
 # shard's `mutants.out` is uploaded whatever the outcome. Nothing here
 # talks to GGG: the daemon's tests send to local servers only.
+#
+# The breakers of `tools/sign-acqd.sh`, which every live driver's preflight
+# runs, on the one platform with `codesign` (#89): no runner has the
+# owner's identity, so they stage the refusals and skip the real-identity
+# cases. A cold debug build of acqd alone was 30 s on the development
+# machine; the breakers take under a second.
 
 on:
   schedule:
@@ -62,3 +68,20 @@ jobs:
           name: mutants-shard-${{ matrix.shard }}
           path: mutants.out
           if-no-files-found: error
+
+  sign-acqd:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install the pinned toolchain
+        run: rustup toolchain install
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build the daemon
+        run: cargo build --locked -p acquisition-daemon --bin acqd
+
+      - name: The signing script's breakers
+        run: tools/sign-acqd-breakers.sh

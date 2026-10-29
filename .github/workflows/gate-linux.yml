@@ -141,7 +141,8 @@ jobs:
   # checkout and not under a session's edits. What they catch is the tree
   # moving under a case: two of the dependency guard's had failed unseen
   # since the search crate linked the planner (fb85d749).
-  # sign-acqd-breakers.sh is not here: it needs macOS's codesign.
+  # sign-acqd-breakers.sh is not here: it needs macOS's codesign, and runs
+  # weekly on macOS (weekly.yml, `sign-acqd`).
   breakers:
     runs-on: ubuntu-latest
     steps:
