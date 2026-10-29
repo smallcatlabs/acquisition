@@ -52,6 +52,16 @@ pub const CATALOGUE_VERSION: u32 = 1;
 /// (`search/trade-query/data/filters-2026-09-12.json`).
 pub const FILTERS_CAPTURE: &str = "2026-09-12";
 
+/// The filters capture itself, shipped (#91): the trade site's
+/// `api/trade/data/filters` as the owner captured it in a browser on
+/// [`FILTERS_CAPTURE`] (C79, a governed surface; `SURFACES.md`, the
+/// trade-site row), copied verbatim from its evidence row in
+/// `search/trade-query/MANIFEST.md`, whose sha256 a test holds it to.
+/// No script generates it: a new capture is the owner's, and the copy
+/// moves with it. Read by `acq web`'s search form (C139), a control per
+/// filter.
+pub const FILTERS_JSON: &str = include_str!("../../reference/trade-filters-2026-09-12.json");
+
 /// What a row's `lands` may be filled with (the file's header): each a
 /// part of a clause the translation reads (`translate.rs`, which fills
 /// every one).

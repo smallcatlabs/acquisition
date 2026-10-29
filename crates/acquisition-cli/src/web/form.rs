@@ -6,7 +6,8 @@
 //! # As built
 //!
 //! - **The form is the dump's.** The trade site's filter definitions of
-//!   2026-09-12 (`search/trade-query/data/filters-2026-09-12.json`) are
+//!   2026-09-12, shipped by the search crate
+//!   (`acquisition_search::trade::catalogue::FILTERS_JSON`), are
 //!   compiled into the binary and read once when the server starts: a
 //!   control per filter, in the dump's groups and order, its label the
 //!   site's. No build step writes it and no page reads the dump.
@@ -45,8 +46,9 @@ use acquisition_search::LanguageError;
 use acquisition_search::answer::{RowField, Rows, Shape, View};
 use serde_json::{Map, Value};
 
-/// The dump this build's form is generated from.
-const FILTERS: &str = include_str!("../../../../search/trade-query/data/filters-2026-09-12.json");
+/// The dump this build's form is generated from, as the search crate
+/// ships it.
+const FILTERS: &str = acquisition_search::trade::catalogue::FILTERS_JSON;
 
 /// How many stat rows the form offers; more is a refinement.
 pub(crate) const STAT_ROWS: usize = 4;

@@ -14,9 +14,25 @@ use acquisition_search::trade::catalogue::{
 };
 use serde_json::Value;
 
-const FILTERS: &str = include_str!("../../../search/trade-query/data/filters-2026-09-12.json");
+const FILTERS: &str = catalogue::FILTERS_JSON;
 const STATS: &str = include_str!("../../../search/trade-query/data/stats-2026-09-12.json");
 const GRAMMAR: &str = include_str!("../../../search/trade-query/data/grammar.json");
+
+/// #91: the filters capture this build ships, which `acq web`'s form and
+/// these tests read, is the owner's capture byte for byte: the sha256 of
+/// its evidence row in `search/trade-query/MANIFEST.md`.
+#[test]
+fn the_shipped_filters_capture_is_the_manifests() {
+    use sha2::{Digest as _, Sha256};
+    let digest: String = Sha256::digest(FILTERS.as_bytes())
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect();
+    assert_eq!(
+        digest,
+        "5f30047668bb1c9def5972c7160aed4cdefb09a68ba83a8717b07d0246962de1"
+    );
+}
 
 /// C113: the shipped catalogue loads at the version a basis will cite and
 /// holds what its header says, status by status.
