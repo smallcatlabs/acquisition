@@ -147,7 +147,7 @@ issue carrying its evidence and its done-when, and takes a brief from
 leaves the list when its step closes or the owner strikes it.
 
 1. The league group, the owner's word of 2026-10-28, in this order:
-   #53's generator (in the tree before the post-launch pin), #94, #96.
+   #94, #96.
    Each a half day to a day, one brief each; the group closes before
    the league.
 2. #85, #86, #89: the standing automation and the hygiene from the
@@ -189,9 +189,8 @@ The owner's list, his to strike:
 
 ## Current step
 
-#53's generator (in the tree before the post-launch pin), next from
-"Pull-forward": its brief is `briefs/53-defence-generator.md`; built
-(`b9cc4695..0184ea48`), the review pending; #63 closed (`LEDGER.md`).
+#94, next from "Pull-forward", its brief not yet written; #53 closed
+(`LEDGER.md`).
 Phase 3, the owner's league run, follows at his word; #70 closes on a
 week of pushes without a re-run. `AGENTS.md` governs; the gate is
 `tools/gate.sh`.
