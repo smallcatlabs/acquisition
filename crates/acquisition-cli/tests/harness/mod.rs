@@ -122,8 +122,16 @@ pub fn start_daemon_with(base: &Path, env: &[(&str, &str)]) -> (Proc, u64) {
 /// test ends, failure included: a test owns what it starts, and a daemon
 /// left to its idle exit holds its database, lock and log open past the
 /// scratch's removal. Declared after the scratch, so it drops first. A
-/// test that stops its daemon itself needs none; a stop with no daemon
-/// to stop is nothing.
+/// stop with no daemon to stop is nothing.
+///
+/// After the stop the guard counts what is left by the harness's own
+/// accounting, the endpoints bound under the test's scratch runtime
+/// directory ([`sockets_under`]): a daemon's socket derives from its
+/// world into that directory and nothing else binds there (C83), and a
+/// stop returns only once the daemon is gone
+/// (`a_stopped_daemon_is_gone_when_the_stop_returns`). One left fails a
+/// test that is not already failing, naming it; a failing one prints it
+/// beside the failure, since a second panic in a drop aborts.
 pub struct StopOnDrop(PathBuf);
 
 pub fn stop_on_drop(base: &Path) -> StopOnDrop {
@@ -133,6 +141,19 @@ pub fn stop_on_drop(base: &Path) -> StopOnDrop {
 impl Drop for StopOnDrop {
     fn drop(&mut self) {
         let _ = acq(&self.0, &["daemon", "stop"]);
+        let left = sockets_under(&scratch_tmp(&self.0));
+        if left.is_empty() {
+            return;
+        }
+        let said = format!(
+            "a daemon of the test under {} outlived its stop: {left:?}",
+            self.0.display()
+        );
+        if std::thread::panicking() {
+            eprintln!("{said}");
+        } else {
+            panic!("{said}");
+        }
     }
 }
 

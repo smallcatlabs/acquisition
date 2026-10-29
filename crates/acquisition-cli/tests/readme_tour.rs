@@ -24,7 +24,7 @@
 //! named.
 
 use crate::harness;
-use harness::{acq, login_with, scratch, sole_json};
+use harness::{acq, login_with, scratch, scratch_tmp, sockets_under, sole_json, stop_on_drop};
 
 fn help(path: &[&str]) -> Result<String, String> {
     let scratch = scratch("help");
@@ -298,6 +298,13 @@ fn agent_section() -> String {
     rest[..end].to_string()
 }
 
+/// The daemon the agent recipe's `acq auth` line starts, as the README
+/// runs it. The harness isolates every daemon at a 30 s idle exit; an
+/// empty knob is misread and keeps the default, the README's hour.
+fn recipe_daemon(base: &std::path::Path) {
+    login_with(base, "Alice#1", &[("ACQ_IDLE_SHUTDOWN", "")]);
+}
+
 /// The agent's daemon recipe runs as the README prints it, in the case
 /// this harness can stage: no keyring, so the line for that case is the
 /// login itself, and the keyring line is the same verb's `check`, which
@@ -319,11 +326,10 @@ fn the_agent_recipe_starts_a_daemon_that_idles_out_after_the_hour() {
     );
     let dir = scratch("recipe");
     let base = &dir.0;
+    let _daemon = stop_on_drop(base);
     let status = sole_json(&acq(base, &["daemon", "status", "--json"]));
     assert_eq!(status["running"], serde_json::json!(false), "{status}");
-    // The harness isolates every daemon at a 30 s idle exit; an empty
-    // knob is misread and keeps the default, the README's hour.
-    login_with(base, "Alice#1", &[("ACQ_IDLE_SHUTDOWN", "")]);
+    recipe_daemon(base);
     let status = sole_json(&acq(base, &["daemon", "status", "--json"]));
     assert_eq!(
         (
@@ -345,4 +351,44 @@ fn the_agent_recipe_starts_a_daemon_that_idles_out_after_the_hour() {
     );
     let stopped = sole_json(&acq(base, &["daemon", "stop", "--json"]));
     assert_eq!(stopped["stopped"], serde_json::json!(true), "{stopped}");
+}
+
+/// The recipe's daemon lives an hour, so a test that fails between the
+/// login that starts it and its own stop would leave it alive past the
+/// run, holding its world's lock (#88's runs found four). The guard stops
+/// it whichever way the test ends: here the failure is forced once the
+/// daemon is up, and the harness's own accounting, the endpoints under
+/// the scratch, finds none left.
+#[test]
+fn a_daemon_the_recipe_starts_is_stopped_when_its_test_fails() {
+    let dir = scratch("recipe");
+    let base = dir.0.clone();
+    const FORCED: &str = "a recipe test failing after its daemon started";
+    let failed = std::panic::catch_unwind(|| {
+        let _daemon = stop_on_drop(&base);
+        recipe_daemon(&base);
+        let up = sockets_under(&scratch_tmp(&base)).len();
+        if up == 1 {
+            panic!("{FORCED}");
+        }
+        up
+    });
+    // Only the forced failure counts: a login that failed, or no daemon
+    // up to stop, would leave nothing for the guard to prove.
+    let said = match &failed {
+        Ok(up) => format!("the recipe's login bound {up} endpoints, not one"),
+        Err(payload) => payload
+            .downcast_ref::<String>()
+            .cloned()
+            .unwrap_or_default(),
+    };
+    let left = sockets_under(&scratch_tmp(&base));
+    if !left.is_empty() {
+        let _ = acq(&base, &["daemon", "stop"]);
+    }
+    assert_eq!(said, FORCED, "the failure was not the forced one");
+    assert!(
+        left.is_empty(),
+        "the recipe's daemon outlived the failing test: {left:?}"
+    );
 }
