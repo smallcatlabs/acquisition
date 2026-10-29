@@ -192,141 +192,146 @@ fn retry_after_is_independent_of_full_policy_validity() {
     );
 }
 
+/// The token endpoint's one-window shape (N33), as observed.
+const TOKEN_SHAPE: &[(&str, &str)] = &[
+    ("x-rate-limit-policy", "token-request-limit"),
+    ("x-rate-limit-rules", "Ip"),
+    ("x-rate-limit-ip", "60:30:30"),
+    ("x-rate-limit-ip-state", "2:30:0"),
+];
+
+/// The trade site's three-window shape (N30), as observed.
+const TRADE_SHAPE: &[(&str, &str)] = &[
+    ("x-rate-limit-policy", "trade-policy"),
+    ("x-rate-limit-rules", "Ip"),
+    ("x-rate-limit-ip", "5:1:10,20:10:60,100:60:300"),
+    ("x-rate-limit-ip-state", "1:1:0,1:10:0,1:60:0"),
+];
+
 #[test]
 fn full_policy_accepts_observed_one_and_three_window_shapes() {
-    let token = parse(&[
-        ("x-rate-limit-policy", "token-request-limit"),
-        ("x-rate-limit-rules", "Ip"),
-        ("x-rate-limit-ip", "60:30:30"),
-        ("x-rate-limit-ip-state", "2:30:0"),
-    ])
-    .unwrap();
+    let token = parse(TOKEN_SHAPE).unwrap();
     assert_eq!(token.rules[0].limits.len(), 1, "N33");
 
-    let trade = parse(&[
-        ("x-rate-limit-policy", "trade-policy"),
-        ("x-rate-limit-rules", "Ip"),
-        ("x-rate-limit-ip", "5:1:10,20:10:60,100:60:300"),
-        ("x-rate-limit-ip-state", "1:1:0,1:10:0,1:60:0"),
-    ])
-    .unwrap();
+    let trade = parse(TRADE_SHAPE).unwrap();
     assert_eq!(trade.rules[0].limits.len(), 3, "N30");
 }
 
+/// Every partial or malformed header set D8 names, each refused whole.
+const D8_REJECTED: &[(&str, &[(&str, &str)])] = &[
+    ("missing policy", &[]),
+    ("empty policy", &[("x-rate-limit-policy", "  ")]),
+    (
+        "missing rules",
+        &[("x-rate-limit-policy", "character-request-limit")],
+    ),
+    (
+        "empty rules",
+        &[("x-rate-limit-policy", "p"), ("x-rate-limit-rules", "")],
+    ),
+    (
+        "empty rule name",
+        &[
+            ("x-rate-limit-policy", "p"),
+            ("x-rate-limit-rules", "Account,"),
+            ("x-rate-limit-account", "2:10:60"),
+            ("x-rate-limit-account-state", "1:10:0"),
+        ],
+    ),
+    (
+        "missing rule state",
+        &[
+            ("x-rate-limit-policy", "p"),
+            ("x-rate-limit-rules", "Account"),
+            ("x-rate-limit-account", "2:10:60"),
+        ],
+    ),
+    (
+        "short triplet",
+        &[
+            ("x-rate-limit-policy", "p"),
+            ("x-rate-limit-rules", "Account"),
+            ("x-rate-limit-account", "2:10"),
+            ("x-rate-limit-account-state", "1:10:0"),
+        ],
+    ),
+    (
+        "long triplet",
+        &[
+            ("x-rate-limit-policy", "p"),
+            ("x-rate-limit-rules", "Account"),
+            ("x-rate-limit-account", "2:10:60:9"),
+            ("x-rate-limit-account-state", "1:10:0"),
+        ],
+    ),
+    (
+        "non-numeric triplet",
+        &[
+            ("x-rate-limit-policy", "p"),
+            ("x-rate-limit-rules", "Account"),
+            ("x-rate-limit-account", "two:10:60"),
+            ("x-rate-limit-account-state", "1:10:0"),
+        ],
+    ),
+    (
+        "zero limit hits",
+        &[
+            ("x-rate-limit-policy", "p"),
+            ("x-rate-limit-rules", "Account"),
+            ("x-rate-limit-account", "0:10:60"),
+            ("x-rate-limit-account-state", "0:10:0"),
+        ],
+    ),
+    (
+        "zero limit period",
+        &[
+            ("x-rate-limit-policy", "p"),
+            ("x-rate-limit-rules", "Account"),
+            ("x-rate-limit-account", "2:0:60"),
+            ("x-rate-limit-account-state", "1:0:0"),
+        ],
+    ),
+    (
+        "zero state period",
+        &[
+            ("x-rate-limit-policy", "p"),
+            ("x-rate-limit-rules", "Account"),
+            ("x-rate-limit-account", "2:10:60"),
+            ("x-rate-limit-account-state", "1:0:0"),
+        ],
+    ),
+    (
+        "hit count outside u32",
+        &[
+            ("x-rate-limit-policy", "p"),
+            ("x-rate-limit-rules", "Account"),
+            ("x-rate-limit-account", "4294967296:10:60"),
+            ("x-rate-limit-account-state", "1:10:0"),
+        ],
+    ),
+    (
+        "window-count mismatch",
+        &[
+            ("x-rate-limit-policy", "p"),
+            ("x-rate-limit-rules", "Account"),
+            ("x-rate-limit-account", "2:10:60,5:300:300"),
+            ("x-rate-limit-account-state", "1:10:0"),
+        ],
+    ),
+    (
+        "period mismatch",
+        &[
+            ("x-rate-limit-policy", "p"),
+            ("x-rate-limit-rules", "Account"),
+            ("x-rate-limit-account", "2:10:60"),
+            ("x-rate-limit-account-state", "1:11:0"),
+        ],
+    ),
+];
+
 #[test]
 fn d8_full_header_grammar_rejects_every_partial_or_malformed_shape() {
-    let cases: &[(&str, &[(&str, &str)])] = &[
-        ("missing policy", &[]),
-        ("empty policy", &[("x-rate-limit-policy", "  ")]),
-        (
-            "missing rules",
-            &[("x-rate-limit-policy", "character-request-limit")],
-        ),
-        (
-            "empty rules",
-            &[("x-rate-limit-policy", "p"), ("x-rate-limit-rules", "")],
-        ),
-        (
-            "empty rule name",
-            &[
-                ("x-rate-limit-policy", "p"),
-                ("x-rate-limit-rules", "Account,"),
-                ("x-rate-limit-account", "2:10:60"),
-                ("x-rate-limit-account-state", "1:10:0"),
-            ],
-        ),
-        (
-            "missing rule state",
-            &[
-                ("x-rate-limit-policy", "p"),
-                ("x-rate-limit-rules", "Account"),
-                ("x-rate-limit-account", "2:10:60"),
-            ],
-        ),
-        (
-            "short triplet",
-            &[
-                ("x-rate-limit-policy", "p"),
-                ("x-rate-limit-rules", "Account"),
-                ("x-rate-limit-account", "2:10"),
-                ("x-rate-limit-account-state", "1:10:0"),
-            ],
-        ),
-        (
-            "long triplet",
-            &[
-                ("x-rate-limit-policy", "p"),
-                ("x-rate-limit-rules", "Account"),
-                ("x-rate-limit-account", "2:10:60:9"),
-                ("x-rate-limit-account-state", "1:10:0"),
-            ],
-        ),
-        (
-            "non-numeric triplet",
-            &[
-                ("x-rate-limit-policy", "p"),
-                ("x-rate-limit-rules", "Account"),
-                ("x-rate-limit-account", "two:10:60"),
-                ("x-rate-limit-account-state", "1:10:0"),
-            ],
-        ),
-        (
-            "zero limit hits",
-            &[
-                ("x-rate-limit-policy", "p"),
-                ("x-rate-limit-rules", "Account"),
-                ("x-rate-limit-account", "0:10:60"),
-                ("x-rate-limit-account-state", "0:10:0"),
-            ],
-        ),
-        (
-            "zero limit period",
-            &[
-                ("x-rate-limit-policy", "p"),
-                ("x-rate-limit-rules", "Account"),
-                ("x-rate-limit-account", "2:0:60"),
-                ("x-rate-limit-account-state", "1:0:0"),
-            ],
-        ),
-        (
-            "zero state period",
-            &[
-                ("x-rate-limit-policy", "p"),
-                ("x-rate-limit-rules", "Account"),
-                ("x-rate-limit-account", "2:10:60"),
-                ("x-rate-limit-account-state", "1:0:0"),
-            ],
-        ),
-        (
-            "hit count outside u32",
-            &[
-                ("x-rate-limit-policy", "p"),
-                ("x-rate-limit-rules", "Account"),
-                ("x-rate-limit-account", "4294967296:10:60"),
-                ("x-rate-limit-account-state", "1:10:0"),
-            ],
-        ),
-        (
-            "window-count mismatch",
-            &[
-                ("x-rate-limit-policy", "p"),
-                ("x-rate-limit-rules", "Account"),
-                ("x-rate-limit-account", "2:10:60,5:300:300"),
-                ("x-rate-limit-account-state", "1:10:0"),
-            ],
-        ),
-        (
-            "period mismatch",
-            &[
-                ("x-rate-limit-policy", "p"),
-                ("x-rate-limit-rules", "Account"),
-                ("x-rate-limit-account", "2:10:60"),
-                ("x-rate-limit-account-state", "1:11:0"),
-            ],
-        ),
-    ];
-
-    for (name, headers) in cases {
+    for (name, headers) in D8_REJECTED {
         assert!(parse(headers).is_err(), "{name} unexpectedly parsed");
     }
 }
@@ -470,9 +475,9 @@ fn observe_and_wait_for_are_total_at_and_above_deadline_bounds() {
     assert_eq!(limiter.wait_for("/rejected", now), Duration::ZERO);
 }
 
-#[test]
-fn pacing_table() {
-    let rows: Vec<Row> = vec![
+/// The pacing rows: a policy's headers and history against the wait.
+fn pacing_rows() -> Vec<Row> {
+    vec![
         Row {
             name: "unknown endpoint sends immediately",
             claims: "no headers seen yet — nothing to obey (HEAD-at-boot is a later step, N16)",
@@ -562,9 +567,12 @@ fn pacing_table() {
             ],
             expect_wait: 10.0 + 5.0 + 1.0 - 2.8,
         },
-    ];
+    ]
+}
 
-    for row in rows {
+#[test]
+fn pacing_table() {
+    for row in pacing_rows() {
         let now = far_future();
         let mut limiter = Limiter::new();
         run(&mut limiter, "/ep", row.headers, row.history, now);
@@ -3162,4 +3170,358 @@ async fn c128_a_bearer_goes_only_to_the_api_origin_and_nothing_reaches_either_se
         request.contains("authorization: bearer c128-token"),
         "the API origin's send carried no bearer: {request}"
     );
+}
+
+// ---- generated header sets (#85) ------------------------------------------
+//
+// The tables above are the cases someone thought of; this property is the
+// ones nobody did. A header set is drawn either from a table row with one
+// value replaced, or whole, its fields from the values where the grammar
+// and the arithmetic branch: zero, the caps and one past them, the edges
+// of `u32` and `u64`, a sign, a padded or empty field, a wrong field count.
+// What no set may do (upstream input, a GGG response; `REVIEW-CHECKLIST.md`,
+// "A parsed value that overflows"): panic in the parse, be accepted outside
+// the caps the parse claims, or panic in the limiter that observes it and
+// is read after it.
+
+mod generated_headers {
+    use super::*;
+    use crate::generated::config;
+    use proptest::prelude::*;
+
+    type HeaderSet = Vec<(String, String)>;
+
+    /// The values where the grammar and the arithmetic branch.
+    const EDGE_FIELDS: &[&str] = &[
+        "0",
+        "1",
+        "10",
+        "300",
+        "900",
+        "901",
+        "86400",
+        "86401",
+        "4294967295",
+        "4294967296",
+        "18446744073709551615",
+        "18446744073709551616",
+        "99999999999999999999",
+        "-1",
+        "+1",
+        "",
+        " 7 ",
+        "007",
+        "1.5",
+        "x",
+    ];
+
+    fn field() -> impl Strategy<Value = String> {
+        prop_oneof![
+            3 => (0u64..=700).prop_map(|n| n.to_string()),
+            3 => prop::sample::select(EDGE_FIELDS).prop_map(str::to_string),
+            1 => any::<u64>().prop_map(|n| n.to_string()),
+            1 => "[ 0-9a-z+.:-]{0,6}",
+        ]
+    }
+
+    fn triplet() -> impl Strategy<Value = String> {
+        prop_oneof![
+            6 => prop::collection::vec(field(), 3),
+            1 => prop::collection::vec(field(), 2..=4),
+        ]
+        .prop_map(|fields| fields.join(":"))
+    }
+
+    fn windows() -> impl Strategy<Value = String> {
+        (
+            prop::collection::vec(triplet(), 1..=3),
+            prop::bool::weighted(0.1),
+        )
+            .prop_map(|(triplets, trailing)| {
+                let mut value = triplets.join(",");
+                if trailing {
+                    value.push(',');
+                }
+                value
+            })
+    }
+
+    /// A header set drawn whole: a policy name, one to three rules (mixed
+    /// case, padded, empty or repeated), each with a limit and a state
+    /// header present nine times in ten, and a `Retry-After` half the time.
+    fn whole_set() -> impl Strategy<Value = HeaderSet> {
+        let names = prop::sample::select(&["Account", "Ip", "Client", "account", " Ip", ""][..]);
+        (
+            prop::sample::select(&["character-list-request-limit", "p", "  ", ""][..]),
+            prop::collection::vec(names, 1..=3),
+            prop::option::of(field()),
+        )
+            .prop_flat_map(|(policy, rules, retry)| {
+                let windows = prop::collection::vec(
+                    (
+                        prop::option::weighted(0.9, windows()),
+                        prop::option::weighted(0.9, windows()),
+                    ),
+                    rules.len(),
+                );
+                (Just(policy), Just(rules), Just(retry), windows)
+            })
+            .prop_map(|(policy, rules, retry, windows)| {
+                let mut set = vec![
+                    ("x-rate-limit-policy".to_string(), policy.to_string()),
+                    ("x-rate-limit-rules".to_string(), rules.join(",")),
+                ];
+                for (rule, (limit, state)) in rules.iter().zip(windows) {
+                    let key = rule.trim().to_ascii_lowercase();
+                    if let Some(limit) = limit {
+                        set.push((format!("x-rate-limit-{key}"), limit));
+                    }
+                    if let Some(state) = state {
+                        set.push((format!("x-rate-limit-{key}-state"), state));
+                    }
+                }
+                if let Some(retry) = retry {
+                    set.push(("retry-after".to_string(), retry));
+                }
+                set
+            })
+    }
+
+    /// Every header set the tables above hold: the N5 contract, the
+    /// observed one- and three-window shapes, D8's refusals and the pacing
+    /// rows.
+    fn table_sets() -> Vec<HeaderSet> {
+        let own = |set: &[(&str, &str)]| -> HeaderSet {
+            set.iter()
+                .map(|(name, value)| (name.to_string(), value.to_string()))
+                .collect()
+        };
+        let mut sets = vec![
+            own(&with_state(CHAR_LIST, "1:10:0,1:300:0")),
+            own(TOKEN_SHAPE),
+            own(TRADE_SHAPE),
+        ];
+        sets.extend(D8_REJECTED.iter().map(|(_, set)| own(set)));
+        sets.extend(pacing_rows().iter().map(|row| own(row.headers)));
+        sets
+    }
+
+    /// How a table row is changed: one field of one triplet replaced, so
+    /// the rest of the set stays valid and the field alone decides, in the
+    /// limit header and, when `paired`, at the same place in its state
+    /// header (a period must match across the two to be accepted); or a
+    /// whole value replaced by a field or a window list.
+    #[derive(Debug, Clone)]
+    enum Mutation {
+        Field {
+            at: prop::sample::Index,
+            within: prop::sample::Index,
+            value: String,
+            paired: bool,
+        },
+        Value(prop::sample::Index, String),
+    }
+
+    fn mutation() -> impl Strategy<Value = Mutation> {
+        prop_oneof![
+            3 => (
+                any::<prop::sample::Index>(),
+                any::<prop::sample::Index>(),
+                field(),
+                any::<bool>(),
+            )
+                .prop_map(|(at, within, value, paired)| Mutation::Field {
+                    at,
+                    within,
+                    value,
+                    paired,
+                }),
+            1 => (any::<prop::sample::Index>(), prop_oneof![field(), windows()])
+                .prop_map(|(at, value)| Mutation::Value(at, value)),
+        ]
+    }
+
+    /// `raw` with its field at `within` replaced by `value`, counting the
+    /// fields across both separators: ':' within a triplet, ',' between.
+    fn replace_field(raw: &str, within: prop::sample::Index, value: &str) -> String {
+        let fields: Vec<&str> = raw.split([':', ',']).collect();
+        let mut separators = raw.chars().filter(|c| *c == ':' || *c == ',');
+        let target = within.index(fields.len());
+        let mut out = String::new();
+        for (index, field) in fields.into_iter().enumerate() {
+            out.push_str(if index == target { value } else { field });
+            if let Some(separator) = separators.next() {
+                out.push(separator);
+            }
+        }
+        out
+    }
+
+    /// A table row with one mutation, and a drawn `Retry-After` one time
+    /// in five.
+    fn mutated_row() -> impl Strategy<Value = HeaderSet> {
+        (
+            prop::sample::select(table_sets()),
+            prop::option::weighted(0.9, mutation()),
+            prop::option::weighted(0.2, field()),
+        )
+            .prop_map(|(mut set, mutation, retry)| {
+                match mutation {
+                    _ if set.is_empty() => {}
+                    None => {}
+                    Some(Mutation::Value(at, value)) => {
+                        let at = at.index(set.len());
+                        set[at].1 = value;
+                    }
+                    Some(Mutation::Field {
+                        at,
+                        within,
+                        value,
+                        paired,
+                    }) => {
+                        let at = at.index(set.len());
+                        let name = set[at].0.clone();
+                        set[at].1 = replace_field(&set[at].1, within, &value);
+                        let partner = match name.strip_suffix("-state") {
+                            Some(limit) => limit.to_string(),
+                            None => format!("{name}-state"),
+                        };
+                        if paired
+                            && let Some(other) = set.iter_mut().find(|(key, _)| *key == partner)
+                        {
+                            other.1 = replace_field(&other.1, within, &value);
+                        }
+                    }
+                }
+                if let Some(retry) = retry {
+                    set.push(("retry-after".to_string(), retry));
+                }
+                set
+            })
+    }
+
+    fn header_set() -> impl Strategy<Value = HeaderSet> {
+        prop_oneof![mutated_row(), whole_set()]
+    }
+
+    fn get(set: &HeaderSet) -> impl Fn(&str) -> Option<String> + '_ {
+        |name| {
+            set.iter()
+                .find(|(key, _)| key == name)
+                .map(|(_, value)| value.clone())
+        }
+    }
+
+    /// The set as the choke point's snapshot keeps it.
+    fn raw(set: &HeaderSet) -> serde_json::Value {
+        serde_json::Value::Object(
+            set.iter()
+                .filter(|(name, _)| name.starts_with("x-rate-limit") || name == "retry-after")
+                .map(|(name, value)| (name.clone(), value.clone().into()))
+                .collect(),
+        )
+    }
+
+    /// What `Policy::parse` claims of every policy it accepts.
+    fn assert_within_caps(policy: &Policy) {
+        assert!(
+            !policy.name.trim().is_empty(),
+            "an accepted policy has a name"
+        );
+        assert!(!policy.rules.is_empty(), "an accepted policy has a rule");
+        for rule in &policy.rules {
+            assert!(!rule.name.is_empty(), "an accepted rule has a name");
+            assert!(!rule.limits.is_empty(), "rule {} has no window", rule.name);
+            assert_eq!(rule.limits.len(), rule.state.len(), "rule {}", rule.name);
+            for (limit, state) in rule.limits.iter().zip(&rule.state) {
+                assert!(limit.max_hits > 0, "{limit:?}");
+                assert!(
+                    (1..=MAX_POLICY_PERIOD_SECS).contains(&limit.period_secs),
+                    "{limit:?}"
+                );
+                assert!(
+                    limit.restriction_secs <= MAX_POLICY_RESTRICTION_SECS,
+                    "{limit:?}"
+                );
+                assert_eq!(limit.period_secs, state.period_secs, "{state:?}");
+                assert!(
+                    state.restricted_secs <= MAX_POLICY_RESTRICTION_SECS,
+                    "{state:?}"
+                );
+            }
+        }
+    }
+
+    /// Every read the daemon makes of a limiter, at one instant.
+    fn read_all(limiter: &Limiter, endpoint: &str, ahead: u32, at: Instant) {
+        let _ = limiter.wait_for(endpoint, at);
+        let _ = limiter.eta_for(endpoint, ahead, at);
+        let _ = limiter.etas_for(endpoint, ahead as usize, at);
+        let _ = limiter.statuses(at);
+        let _ = limiter.project(endpoint, ahead, at);
+        let _ = limiter.endpoint_state(endpoint, at);
+        let _ = limiter.degraded_endpoints(at);
+        let _ = limiter.is_live(at);
+    }
+
+    proptest! {
+        #![proptest_config(config(2_048, 100_000))]
+
+        /// A header set, then a second as the next response on the route:
+        /// each parsed, the first observed as the history before now, the
+        /// second landed as a 200 or a 429, a probe's 429 on a second
+        /// route, and the limiter read at now and at a drawn later instant.
+        #[test]
+        fn a_generated_header_set_parses_within_its_caps_and_the_limiter_survives_it(
+            first in header_set(),
+            second in header_set(),
+            history in prop::collection::vec(0u64..=4_000, 0..=8),
+            status in prop::sample::select(&[200u16, 429][..]),
+            ahead in 0u32..=48,
+            later in 0u64..=3 * MAX_POLICY_PERIOD_SECS,
+        ) {
+            let now = far_future();
+            let mut limiter = Limiter::new();
+            let first_policy = Policy::parse(get(&first));
+            let second_policy = Policy::parse(get(&second));
+            for policy in [&first_policy, &second_policy].into_iter().flatten() {
+                assert_within_caps(policy);
+            }
+            let mut ago = history;
+            ago.sort_unstable_by(|a, b| b.cmp(a));
+            for ago in ago {
+                let _ = limiter.observe(
+                    "/ep",
+                    first_policy.clone(),
+                    raw(&first),
+                    true,
+                    now - Duration::from_secs(ago),
+                );
+            }
+            let retry_after = parse_retry_after(get(&second));
+            let _ = retry_after.carried_secs();
+            let _ = limiter.observe_landed(
+                "/ep",
+                LandedObservation {
+                    policy: second_policy.clone(),
+                    retry_after: &retry_after,
+                    raw: raw(&second),
+                    counted: true,
+                    status,
+                    now,
+                },
+            );
+            let _ = limiter.observe_probe_429(
+                "/probe",
+                second_policy,
+                &retry_after,
+                raw(&second),
+                now,
+            );
+            for endpoint in ["/ep", "/probe"] {
+                read_all(&limiter, endpoint, ahead, now);
+                read_all(&limiter, endpoint, ahead, now + Duration::from_secs(later));
+            }
+        }
+    }
 }

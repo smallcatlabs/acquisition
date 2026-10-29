@@ -31,6 +31,8 @@ pub mod auth;
 pub mod daemon;
 pub mod frame;
 pub(crate) mod gate;
+#[cfg(test)]
+mod generated;
 pub mod mockggg;
 pub mod provider;
 pub mod rails;

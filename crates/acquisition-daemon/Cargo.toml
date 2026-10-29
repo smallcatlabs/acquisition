@@ -45,6 +45,10 @@ url = "2"
 
 
 [dev-dependencies]
+# the generated properties over the input no one here controls (#85): the
+# rate-limit headers and the frame reader; the plan's and the search's
+# version, so the test build's feature graph is unchanged (C84)
+proptest = "1.11.0"
 # The queue-failure tests break `daemon.db` through a second connection
 # (`break_queue`); the store crate carries no test-only door.
 rusqlite = "0.32"

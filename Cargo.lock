@@ -45,6 +45,7 @@ dependencies = [
  "anyhow",
  "base64 0.22.1",
  "keyring",
+ "proptest",
  "rand 0.9.5",
  "reqwest",
  "rusqlite",
