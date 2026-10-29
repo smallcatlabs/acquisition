@@ -189,7 +189,8 @@ The owner's list, his to strike:
 
 ## Current step
 
-#94, next from "Pull-forward", its brief not yet written; #53 closed
+#94, the rails status's journal path as its own field: brief
+`briefs/94-journal-path.md`, the build under way; #53 closed
 (`LEDGER.md`).
 Phase 3, the owner's league run, follows at his word; #70 closes on a
 week of pushes without a re-run. `AGENTS.md` governs; the gate is
