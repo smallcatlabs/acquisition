@@ -1226,3 +1226,80 @@ async fn c152_a_journal_the_daemon_could_not_open_is_redacted_from_another_shell
         "the relative spelling's directory is printed: {document:#}"
     );
 }
+
+/// #94's review, finding 1: the log is appended across lifetimes, so it
+/// may name a journal an earlier daemon was configured with while the one
+/// running reports none. A daemon started from this shell under an
+/// unwritable `ACQ_JOURNAL` logs its startup warning and goes; the next
+/// runs with journals off; the diagnosis from the first shell still
+/// replaces that directory in the log tail, from this shell's own knob
+/// beside the daemon's field (C152).
+#[tokio::test]
+async fn c152_a_journal_an_earlier_daemon_logged_is_redacted_by_this_shells_knob() {
+    let s = session("diagnose-earlier");
+    let blocked = s.base.join("private-runs");
+    std::fs::write(&blocked, "a file where the journal's directory would be").unwrap();
+    let journal = blocked.join("sends.jsonl");
+    s.set_knob("ACQ_JOURNAL", Some(journal.to_str().unwrap()));
+    let acqd = acqd_built();
+    harness::link_beside_this_test(&acqd);
+    let frontend = Frontend::agent("test").unwrap();
+    let up = |said: &std::sync::Arc<std::sync::Mutex<Vec<u8>>>| {
+        String::from_utf8_lossy(&said.lock().unwrap()).into_owned()
+    };
+    {
+        let mut cmd = harness::daemon_command(&acqd, &s.base);
+        cmd.env("ACQ_JOURNAL", &journal);
+        let (earlier, said) = harness::spawn_drained(cmd, &acqd);
+        let deadline = Instant::now() + Duration::from_secs(120);
+        while !matches!(frontend.observe().await, Ok(Some(_))) {
+            assert!(
+                Instant::now() < deadline,
+                "the first daemon did not come up: {}",
+                up(&said)
+            );
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+        drop(earlier);
+    }
+    let mut cmd = harness::daemon_command(&acqd, &s.base);
+    cmd.env("ACQ_JOURNAL", "0");
+    let (_daemon, said) = harness::spawn_drained(cmd, &acqd);
+    let deadline = Instant::now() + Duration::from_secs(120);
+    let document = loop {
+        let document = frontend
+            .diagnose(acquisition_verbs::Tails::DEFAULT)
+            .await
+            .document();
+        if document["daemon"]["running"] == json!(true) {
+            break document;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "the second daemon did not come up: {}",
+            up(&said)
+        );
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    };
+    assert_eq!(
+        document["daemon"]["rails"]["journal_path"],
+        json!(null),
+        "the daemon running keeps no journal: {document:#}"
+    );
+    let log = document["log"]["lines"].to_string().replace("\\\\", "/");
+    assert!(
+        log.contains("RAILS CONFIG: journal <journal>/sends.jsonl could not be opened"),
+        "the earlier lifetime's warning is in the tail, its directory replaced: {document:#}"
+    );
+    let printed = document.to_string();
+    for spelling in [
+        blocked.display().to_string(),
+        blocked.canonicalize().unwrap().display().to_string(),
+    ] {
+        assert!(
+            !printed.contains(&spelling),
+            "the diagnosis prints {spelling}, the directory this shell's ACQ_JOURNAL named \
+             for an earlier daemon: {document:#}"
+        );
+    }
+}

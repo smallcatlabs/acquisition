@@ -179,9 +179,15 @@ Measured on this tree (`48989db0`):
    the path (`the daemon running reports <path>: NOT WRITTEN — …`),
    which the redaction turns into `<journal>/sends.jsonl`; the path's
    directory joins the `printed` needles whatever was written. The
-   `JournalKnob::At` block goes: with a daemon, the daemon's field names
-   the journal; without one, the knob's path is already in `printed`.
-   Its comment's raised gap is closed. The pin is the existing verbs
+   `JournalKnob::At` block stays beside the field: every journal this
+   diagnosis was told about is a needle, because the log is appended
+   across lifetimes and may name a journal an earlier daemon of this
+   shell was configured with while the one running reports another or
+   none; both the daemon and the frontend read a relative `ACQ_JOURNAL`
+   as absolute against their working directory, so the path is one the
+   redactor takes. Settled in the round (#94's review, findings 1 and
+   2; the build had removed the block). Its comment's raised gap is
+   closed. The pin is the existing verbs
    test turned to the review's case: the daemon under the unwritable
    journal, the frontend's `ACQ_JOURNAL` unset, the precondition that
    the directory lies under no home, store or log needle asserted
@@ -217,9 +223,10 @@ Measured on this tree (`48989db0`):
   finds only the startup warning's formatting, and `Rails::status`
   builds `journal`'s failure words without the path (the daemon's
   `c152_` test).
-- `grep -n "JournalKnob::At" crates/acquisition-verbs/src/diagnose.rs`
-  finds the knob's tail path only, not a needle block, and the verbs
-  `c152_` test, with the diagnosing knob unset, is green.
+- The verbs `c152_` tests are green: with the diagnosing knob unset
+  and the daemon's relative, and with an earlier daemon's journal in
+  the log tail under this shell's knob. Settled in the round: the build
+  line said the knob's needle block was gone.
 - The CLI `c152_` test is green: `acq diagnose`'s text, from a shell
   whose knob differs from the daemon's, prints neither spelling of the
   directory.

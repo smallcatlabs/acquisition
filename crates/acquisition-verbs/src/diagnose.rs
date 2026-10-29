@@ -345,8 +345,7 @@ impl Frontend {
         // journal, which may sit under another log base than this
         // shell's, and `ACQ_JOURNAL` may name any directory: with a
         // daemon, its configured journal is the needle whether it was
-        // written or not (C152), and without one, this shell's knob is
-        // the journal printed. A directory named for the provider is a
+        // written or not (C152). A directory named for the provider is a
         // world's log directory, and its parent is the placeholder's, as
         // for this world's own. A directory equal to one already held
         // keeps that one's placeholder.
@@ -357,6 +356,16 @@ impl Frontend {
                 _ => dir,
             };
             paths.push((dir.to_path_buf(), placeholder));
+        }
+        // Every journal this diagnosis was told about is a needle: the
+        // daemon's field above, and this shell's own knob, printed or not.
+        // The log is appended across lifetimes, so it may name a journal
+        // an earlier daemon of this shell was configured with while the
+        // one running reports another or none (#94's review, finding 1).
+        if let JournalKnob::At(path) = &self.journal
+            && let Some(dir) = path.parent()
+        {
+            paths.push((dir.to_path_buf(), "<journal>"));
         }
         if let Some(home) = std::env::home_dir() {
             paths.push((home, "~"));
