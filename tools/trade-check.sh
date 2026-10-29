@@ -27,6 +27,16 @@
 #      a committed extract — the extract's two files are paired in one
 #      place (`trade_query.py`); and a unit is staged, read back and put
 #      in place with the old one set aside until it is (`trade-split.py`).
+#      And from #89, which found them run by nothing: the totals and stat
+#      tables are what their committed inputs give, read with no clone
+#      (`tools/totals-table.py --check`, `tools/trade-stats-table.py
+#      --check`), and the site join keeps its reason precedence
+#      (`tools/site-join.py --self-test`). The class, defence and forms
+#      tables' generators are not here: they read the `poe1` clone, which
+#      the CI runner lacks and `sources.require` refuses, so they run at a
+#      pin bump in the order `tools/game-diff.py` prints, each then with
+#      `--check`, and between bumps the drift line holds their headers to
+#      the pin.
 #
 # Exit 1 on any failure; the report names each offender.
 set -euo pipefail
@@ -36,7 +46,9 @@ fail=0
 
 # ---- 9. the sitting's tools ------------------------------------------------
 for check in "sheet tools/trade-sheet.py --verify" "split tools/trade-split.py --self-test" \
-             "category tools/category-table.py --check" "sources tools/sources.py --self-test" \
+             "category tools/category-table.py --check" "totals tools/totals-table.py --check" \
+             "stats tools/trade-stats-table.py --check" "sitejoin tools/site-join.py --self-test" \
+             "sources tools/sources.py --self-test" \
              "capture tools/trade_query.py --self-test" \
              "expected search/category/scripts/expected.py --self-test" \
              "gamediff tools/game-diff.py --self-test" "drift tools/game-diff.py --check"; do
