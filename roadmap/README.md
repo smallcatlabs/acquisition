@@ -162,7 +162,10 @@ issue carrying its evidence and its done-when, and takes a brief from
 leaves the list when its step closes or the owner strikes it.
 
 1. #85, #86, #89: the standing automation and the hygiene from the
-   assessment's R5, each a short step on any idle day; then #115, the
+   assessment's R5, each a short step on any idle day; then #125, the
+   Windows gate red on `main` and the first Dependabot PRs (the owner,
+   2026-10-29: "Yes: after #89, a step for the Windows gate on main and
+   the six Dependabot PRs, before #115. I merge."); then #115, the
    harness's login returning the guard that stops its daemon.
 2. #91, the frontend hygiene from the 2026-10-26 read.
 3. The words, after the first seat on the league's build: #11, #16,
@@ -185,6 +188,11 @@ The owner's list, his to strike:
   flow's state, so a denial without it is answered 400 and the login
   waits to its bound (#68). Read at the next live login by denying
   once; a fact for `docs/design/network-ground-truth.md`.
+- Whether the local gate runs the class, defence and forms generators'
+  `--check` where the `poe1` clone sits at its pin, so a table body and
+  its generator cannot drift between pin bumps: 9.1 s a gate on this
+  machine, 8.8 of it the forms table's, 0.35 s without it (#89's
+  close).
 - `.claude/skills/session-close/SKILL.md`, "Why build order matters":
   whether its release-uplift sentences stand now the gate has its
   `artifacts` stage, a retirement for the next process round.
@@ -202,9 +210,9 @@ The owner's list, his to strike:
 ## Current step
 
 The league group (#87, #90, #68, #103, #63, #53, #94, #96) closed on
-2026-10-28 (`LEDGER.md`); #85 closed the same day and #86 on
-2026-10-29. #89 built (`briefs/89-orphan-tools.md`), its review
-pending.
+2026-10-28 (`LEDGER.md`); #85 closed the same day, and #86 and #89 on
+2026-10-29. Next: #125, the Windows gate on `main` and the first
+Dependabot PRs, its brief not yet written; then #115.
 Phase 3, the owner's league run, follows at his word; #70 closes on a
 week of pushes without a re-run. `AGENTS.md` governs; the gate is
 `tools/gate.sh`.
