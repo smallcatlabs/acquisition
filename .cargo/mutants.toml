@@ -1,0 +1,50 @@
+# cargo-mutants over the rate-limit choke point, the limiter, the policy
+# parse and the send gate (#86): invariants 1 and 2 broken by machine, as
+# TESTING-NOTES.md breaks them by hand. Read by a bare `cargo mutants` at
+# the root and by the weekly workflow (`.github/workflows/weekly.yml`), so
+# both run the same set. A run is hours, never the gate's.
+#
+# Each mutant is judged by the daemon package's own tests, the lowest crate
+# that holds the limiter and the gate (C122, a behaviour pinned once at the
+# lowest crate that holds it). A mutant those tests miss is pinned there as
+# a test, or listed below with its reason or issue. A mutant that hangs the
+# suite (a gate that never grants) is reported as a timeout, and counts as
+# caught.
+
+examine_globs = [
+    "crates/acquisition-daemon/src/ratelimit.rs",
+    "crates/acquisition-daemon/src/ratelimit/*.rs",
+    "crates/acquisition-daemon/src/gate.rs",
+]
+test_tool = "nextest"
+
+# The mutants the daemon's tests cannot tell apart, each with its reason.
+# The first run (cargo-mutants 27.1.0, #86) left 46 alive; 31 are pinned
+# as tests in `ratelimit/tests/spec.rs`, and these 15 are listed. Each
+# names its line: the same operator elsewhere in the function is caught
+# and must stay tested, so a pattern for the function would hide it. A
+# listed line that moves comes back as missed, to be read again.
+exclude_re = [
+    # A strict comparison of two Instants made non-strict, or the reverse:
+    # the two differ only at the one instant the times are equal, and every
+    # deadline on the far side of it carries the 1 s buffer (BUFFER). A
+    # test there would pin a tie, not a pacing property.
+    'limiter\.rs:303:76: replace < with <= in Limiter::simulate$',
+    'limiter\.rs:312:53: replace < with <= in Limiter::simulate$',
+    'limiter\.rs:685:26: replace > with >= in Limiter::install_retry_hold$',
+    'limiter\.rs:763:44: replace > with >= in Limiter::statuses$',
+    'limiter\.rs:777:59: replace > with >= in Limiter::is_live$',
+    'limiter\.rs:779:56: replace > with >= in Limiter::is_live$',
+    'limiter\.rs:792:72: replace < with <= in Limiter::is_live$',
+    'limiter\.rs:846:69: replace > with >= in Limiter::degraded_endpoints$',
+    'limiter\.rs:927:57: replace < with <= in window_frees_at_seeded$',
+    'limiter\.rs:929:62: replace < with <= in window_frees_at_seeded$',
+    # `window_frees_at_seeded`'s fallback arm with a seed: unreachable. The
+    # simulation calls it only once the window holds at least max hits,
+    # which takes the indexed arm, and `next_safe_send` passes no seed.
+    'limiter\.rs:953:32: replace > with (==|<|>=) in window_frees_at_seeded$',
+    # A HEAD's body that fails to transfer: both arms fail the probe and
+    # differ only in the degraded reason's words, and a HEAD response
+    # carries no body for the client to fail on.
+    'choke\.rs:597:41: replace match guard status\.is_success\(\) with (true|false) in ChokePoint::head$',
+]

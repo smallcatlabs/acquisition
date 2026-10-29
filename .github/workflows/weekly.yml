@@ -1,0 +1,64 @@
+name: Weekly
+
+# What runs without a push (#86). The Linux gate's own weekly run is a
+# schedule on `gate-linux.yml`, not a copy here.
+#
+# cargo-mutants over the limiter and the send gate, as `.cargo/mutants.toml`
+# scopes it: each mutant is a deliberate break of invariant 1 or 2 that the
+# daemon's tests must catch. The first run, on the development machine
+# (10 cores, -j 4), took 112 minutes and 16.8 CPU-hours, so a four-core
+# runner splits it four ways. A shard fails on a mutant the tests missed,
+# never on a timeout (a mutant that hangs the suite is caught); every
+# shard's `mutants.out` is uploaded whatever the outcome. Nothing here
+# talks to GGG: the daemon's tests send to local servers only.
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mutants:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install the pinned toolchain
+        run: rustup toolchain install
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest@0.9.149,cargo-mutants@27.1.0
+
+      - uses: Swatinem/rust-cache@v2
+
+      # In place: the runner's checkout is clean and thrown away. Exit 2 is
+      # a missed mutant and 3 a timeout, read from the lists below; any
+      # other non-zero status (4, the unmutated tree failing) fails here.
+      - name: Mutants, shard ${{ matrix.shard }} of 4
+        run: |
+          status=0
+          cargo mutants --in-place --shard ${{ matrix.shard }}/4 || status=$?
+          case $status in 0|2|3) ;; *) exit $status ;; esac
+
+      - name: No mutant missed
+        if: ${{ !cancelled() }}
+        run: |
+          cat mutants.out/timeout.txt
+          cat mutants.out/missed.txt
+          test ! -s mutants.out/missed.txt
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: mutants-shard-${{ matrix.shard }}
+          path: mutants.out
+          if-no-files-found: error

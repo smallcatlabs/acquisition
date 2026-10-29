@@ -140,9 +140,11 @@ Measured on this brief's tree (`f0bfa17c`), before the work:
    nextest and cargo-mutants pinned by version, `cargo mutants`, the
    `mutants.out` directory uploaded as an artifact whatever the
    outcome), sharded only if the measured time says one runner cannot
-   finish inside its timeout. The job fails on a missed mutant or a
-   timeout (cargo-mutants' own exit status), so a week that lets a
-   mutant live is red until it is pinned or listed.
+   finish inside its timeout. The job fails on a missed mutant, so a
+   week that lets a mutant live is red until it is pinned or listed; a
+   timeout is a mutant that hangs the suite, which is the suite catching
+   it, and is listed in the artifact without failing the job. Settled in
+   the build: the brief first said a timeout fails it too.
 5. **The scheduled Linux gate.** `gate-linux.yml` gains a weekly
    `schedule` (an hour apart from the mutants run), and its concurrency
    group gains the event name, so a push to `main` and the scheduled
