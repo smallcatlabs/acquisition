@@ -125,7 +125,7 @@ tests and docs cite rulings by id.
 
 - **A ruling**: `decisions/<area>.md`, in the entry rule's form, the owner's word first. Its mechanism is a doc comment on the code, headed by the id; its property is a test that cites the id.
 - **A finding**: the test named for the fault, or the commit message. A fault that came back is a row in `REVIEW-CHECKLIST.md`, the review checklist by area, read before reviewing a change there.
-- **Work not done yet**: a GitHub issue, labelled `area:*` (the area file it belongs to) and `trigger:*` (`user`, a user's report; `seat`, a seat run; `consumer`, a second consumer; `gui`, phase 4; `live`, a live run, a sitting or a game event). A feature that waits for someone to ask for it is an issue. What the project declines until a named trigger is a "Not doing" line at the foot of the area's file.
+- **Work not done yet**: a GitHub issue, labelled `area:*` (its area file) and `trigger:*` (`user`, a user's report; `seat`, a seat run; `consumer`, a second consumer; `gui`, phase 4; `live`, a live run, a sitting or a game event; `ci`, a red CI run). A feature waiting to be asked for is an issue. What the project declines until a named trigger is a "Not doing" line at the foot of the area's file.
 - **A fact about GGG**: a numbered claim in `docs/design/network-ground-truth.md` (the trade appendix beside it); `acquisition-qt` takes copies, never the reverse.
 - **A live run**: one `RUN-LEDGER.md` row, read by its tail; evidence under gitignored `runs/`. A seat: one `SEAT-LEDGER.md` row.
 - **What a user meets** (a verb, a flag, a knob, an install step): clap help or the MCP tool text, regenerated into the references with `ACQ_UPDATE_FIXTURES=1`, and one README tour line or knob row; `readme_tour.rs` runs the tour.

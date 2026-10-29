@@ -81,6 +81,11 @@ Each in his words, with the commit that landed it.
   progress is named as such and the step goes on. No registry entry:
   it is process, and adds no edge and no boundary (the commit carrying
   this line).
+- 2026-10-29, a CI trigger: "Yes, add a CI trigger label." The label
+  `trigger:ci` ("A red CI run fires it", #131 the first to carry it)
+  joins the trigger list in `AGENTS.md`, "Where things live". No
+  registry entry: it is process, and adds no edge and no boundary (the
+  commit carrying this line).
 
 ## Roles
 
