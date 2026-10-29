@@ -9,8 +9,6 @@
 //! commands here never get a daemon, by the rule under test, and the
 //! world's root is checked to prove no spawn was attempted.
 
-use std::process::Command;
-
 use crate::harness;
 
 use harness::{acq, acqd, command, scratch, scratch_tmp, sockets_under, sole_json, text};
@@ -166,6 +164,7 @@ fn a_lazily_started_daemon_keeps_no_pipe_of_the_command_that_started_it() {
 #[test]
 fn a_lazily_started_daemon_survives_a_ctrl_c_at_the_prompt_that_started_it() {
     use std::os::unix::process::CommandExt as _;
+    use std::process::Command;
     let scratch = scratch("ctrl-c");
     let base = &scratch.0;
     let mut job = command(base, &["submit", "sleep", "--detach"]);

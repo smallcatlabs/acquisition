@@ -594,7 +594,9 @@ async fn restoring_daemon() -> (Arc<Daemon>, HeldSave, TestPath, TestPath) {
 }
 
 /// The keyring word of the three status documents, in order: `auth
-/// status`, `daemon status`, the dashboard.
+/// status`, `daemon status`, the dashboard. Unix's alone, as the one test
+/// that reads it, so Windows' clippy finds no dead code (#125).
+#[cfg(unix)]
 async fn keyring_words(daemon: &Arc<Daemon>) -> Vec<String> {
     let mut words = Vec::new();
     for request in [
