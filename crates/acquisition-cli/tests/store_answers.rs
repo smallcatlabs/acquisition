@@ -147,8 +147,9 @@ fn store_events_summary_counts_every_location_and_prints_the_command_for_all() {
                     &json!({ "stash": { "id": tab, "name": tab, "type": "PremiumStash", "items": [
                         { "id": format!("i{n:02}"), "typeLine": "Iron Ring", "baseType": "Iron Ring",
                           "frameType": 0, "identified": true, "ilvl": 1, "x": 0, "y": 0 } ] } }),
-                    // twelve seconds old or less, so the 144 s window below
-                    // holds every event under the harness's 120 s ceiling
+                    // twelve seconds old or less, so the 324 s window below
+                    // (`--hours 0.09`) holds every event past CI's 240 s
+                    // test ceiling
                     at - 12 + n,
                 )
                 .unwrap();
@@ -183,15 +184,15 @@ fn store_events_summary_counts_every_location_and_prints_the_command_for_all() {
     // command printed `--hours 0.0`, an empty window)
     let out = acq(
         &base,
-        &["store", "events", "--hours", "0.04", "--limit", "20"],
+        &["store", "events", "--hours", "0.09", "--limit", "20"],
     );
     let text = String::from_utf8_lossy(&out.stdout).to_string();
     assert!(
-        text.starts_with("12 events at 12 locations in the last 0.0 h: +12 added\n"),
+        text.starts_with("12 events at 12 locations in the last 0.1 h: +12 added\n"),
         "{text}"
     );
     assert!(
-        text.contains("--hours 0.04 --limit 20 --summary --expand`"),
+        text.contains("--hours 0.09 --limit 20 --summary --expand`"),
         "{text}"
     );
     let every = run_printed(&base, &text);
