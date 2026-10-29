@@ -146,14 +146,11 @@ issue carrying its evidence and its done-when, and takes a brief from
 `briefs/TEMPLATE.md` written by the session that starts it. An item
 leaves the list when its step closes or the owner strikes it.
 
-1. The league group, the owner's word of 2026-10-28, in this order:
-   #96.
-   Each a half day to a day, one brief each; the group closes before
-   the league.
-2. #85, #86, #89: the standing automation and the hygiene from the
-   assessment's R5, each a short step on any idle day.
-3. #91, the frontend hygiene from the 2026-10-26 read.
-4. The words, after the first seat on the league's build: #11, #16,
+1. #85, #86, #89: the standing automation and the hygiene from the
+   assessment's R5, each a short step on any idle day; then #115, the
+   harness's login returning the guard that stops its daemon.
+2. #91, the frontend hygiene from the 2026-10-26 read.
+3. The words, after the first seat on the league's build: #11, #16,
    #20, #72, #74, #101, #107, in the order that seat gives them.
 
 ## Open
@@ -189,8 +186,9 @@ The owner's list, his to strike:
 
 ## Current step
 
-#96, the last of the league group, from `briefs/96-tour-leak.md`:
-built, its review pending; #94 closed (`LEDGER.md`).
+The league group (#87, #90, #68, #103, #63, #53, #94, #96) closed on
+2026-10-28 (`LEDGER.md`); #85, next from "Pull-forward", its brief not
+yet written.
 Phase 3, the owner's league run, follows at his word; #70 closes on a
 week of pushes without a re-run. `AGENTS.md` governs; the gate is
 `tools/gate.sh`.
