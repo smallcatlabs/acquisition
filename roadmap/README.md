@@ -211,10 +211,9 @@ The owner's list, his to strike:
 
 The league group (#87, #90, #68, #103, #63, #53, #94, #96) closed on
 2026-10-28 (`LEDGER.md`); #85 closed the same day, and #86, #89 and
-#125 on 2026-10-29. Next: #115, the harness's login returning the
-guard that stops its daemon, its brief not yet written, reading #125's
-Windows run 40886043255 (#96's guard found a pipe open after the stop
-in two `error_kind` logout tests); then #91 (the owner, 2026-10-29:
+#125 on 2026-10-29. #115, the harness's login returning the
+guard that stops its daemon (`briefs/115-login-guard.md`), is built,
+its review pending; then #91 (the owner, 2026-10-29:
 "yes, go ahead on #91").
 Phase 3, the owner's league run, follows at his word; #70 closes on a
 week of pushes without a re-run. `AGENTS.md` governs; the gate is
