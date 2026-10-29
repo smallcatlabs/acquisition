@@ -14,6 +14,12 @@ use acquisition_store::bound::{LISTED, bounded};
 use acquisition_store::{EventRow, Store};
 use serde::Serialize;
 
+use crate::refusal::Arguments;
+
+/// How far back a window reaches when the request names none: a day,
+/// the one default both frontends read.
+pub const DEFAULT_HOURS: f64 = 24.0;
+
 /// C149 and C53: the item events of a window as one document — the
 /// newest first, as many as the request's `limit` or ten, beside how
 /// many it returned and whether the limit was reached (then the window
@@ -37,15 +43,25 @@ pub struct Events {
 impl Events {
     /// The newest `limit` (else ten) events of the last `hours` before
     /// `now`, from the store's own read (C34), each event's time said as
-    /// an age at `now` (C53).
+    /// an age at `now` (C53). An `hours` below zero or not a number is
+    /// refused as `arguments` (C47: a request's input is a structured
+    /// error, never a panic); a window past the epoch reads every event,
+    /// the cast and the subtraction saturating (#91: `-1e300` hours
+    /// overflowed the subtraction).
     pub fn read(
         store: &Store,
         now: i64,
         hours: f64,
         limit: Option<usize>,
     ) -> anyhow::Result<Events> {
+        if hours.is_nan() || hours < 0.0 {
+            return Err(Arguments(format!(
+                "`hours` is how far back from now the events are read, 0 or more, and this one is negative or not a number: name 0 or more hours, or leave it out for the last {DEFAULT_HOURS} hours"
+            ))
+            .into());
+        }
         let limit = limit.unwrap_or(LISTED);
-        let since = now - (hours * 3600.0) as i64;
+        let since = now.saturating_sub((hours * 3600.0) as i64);
         let rows: Vec<EventRow> = store
             .events_since(since, limit)?
             .into_iter()

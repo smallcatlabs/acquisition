@@ -1668,7 +1668,12 @@ impl AcqMcp {
             let p = p.parse()?;
             let store = self.facts(p.account.as_deref())?;
             let now = acquisition_store::now();
-            let events = Events::read(&store, now, p.hours.unwrap_or(24.0), p.limit)?;
+            let events = Events::read(
+                &store,
+                now,
+                p.hours.unwrap_or(acquisition_verbs::events::DEFAULT_HOURS),
+                p.limit,
+            )?;
             Ok(if p.summary.unwrap_or(false) {
                 serde_json::to_value(EventSummary::of(
                     &events,

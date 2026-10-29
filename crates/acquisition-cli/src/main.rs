@@ -783,7 +783,7 @@ enum StoreCmd {
     /// what it lists: the events `returned` and whether the limit was
     /// reached; the summary the events, the locations and each kind.
     Events {
-        #[arg(long, default_value_t = 24.0)]
+        #[arg(long, default_value_t = acquisition_verbs::events::DEFAULT_HOURS)]
         hours: f64,
         /// The most events read, the newest first (ten when not given).
         #[arg(long)]

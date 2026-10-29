@@ -980,6 +980,56 @@ fn c149_events_are_one_document_ten_by_default_with_the_limit_said() {
     assert_eq!(summary.by_kind.added, 12);
 }
 
+/// #91 (C47, malformed input a structured error): an `hours` below zero
+/// or not a number is refused as `arguments`, in the request's word,
+/// where `-1e300` overflowed the window's subtraction; a window reaching
+/// past the epoch reads every event; and a `usize::MAX` limit is no
+/// limit, read through the store's one bind.
+#[test]
+fn an_events_window_is_bounded_where_both_frontends_read_it() {
+    use acquisition_verbs::events::Events;
+    use acquisition_verbs::refusal::{Arguments, document};
+    let dir = tempfile::tempdir().unwrap();
+    let mut store = Store::open(&dir.path().join("facts.db")).unwrap();
+    let now = acquisition_store::now();
+    let items: Vec<Value> = (0..3)
+        .map(|n| {
+            json!({ "id": format!("i{n:02}"), "typeLine": "Iron Ring", "baseType": "Iron Ring",
+                         "frameType": 0, "identified": true, "ilvl": 1, "x": n, "y": 0 })
+        })
+        .collect();
+    store
+        .record(
+            &Endpoint::Stash {
+                realm: "pc".into(),
+                league: "Standard".into(),
+                id: "t1".into(),
+                sub: None,
+            },
+            &json!({ "league": "Standard" }),
+            200,
+            &json!({ "stash": { "id": "t1", "name": "One", "type": "PremiumStash", "items": items } }),
+            now - 60,
+        )
+        .unwrap();
+    for hours in [-1.0, -1e300, f64::NAN, f64::NEG_INFINITY] {
+        let e = Events::read(&store, now, hours, None).unwrap_err();
+        assert!(e.downcast_ref::<Arguments>().is_some(), "{hours}: {e:#}");
+        let words = e.to_string();
+        assert!(
+            words.starts_with("`hours` is how far back") && words.contains("name 0 or more hours"),
+            "{hours}: {words}"
+        );
+        assert_eq!(document(&e, &Plain)["kind"], "arguments", "{hours}");
+    }
+    for hours in [1e300, f64::INFINITY] {
+        let all = Events::read(&store, now, hours, None).unwrap();
+        assert_eq!(all.returned, 3, "{hours}");
+    }
+    let unbounded = Events::read(&store, now, 1.0, Some(usize::MAX)).unwrap();
+    assert_eq!((unbounded.returned, unbounded.limit_reached), (3, false));
+}
+
 /// C53 (an age the text prints stands in words beside its epoch, made
 /// at the answer's own time), round 6's fix round (its review's P3): the
 /// three makers that read their rows from the store — the events of a

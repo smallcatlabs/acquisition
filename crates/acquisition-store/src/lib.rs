@@ -994,6 +994,13 @@ pub use world::store_dir;
 pub(crate) const TAB_ORDER_KEYS: &str = "COALESCE((SELECT p.idx FROM tabs p WHERE p.realm = t.realm AND p.league = t.league AND p.id = t.parent), t.idx, 1000000),
                        t.parent IS NOT NULL, COALESCE(t.idx, 0), t.name";
 
+/// A read's `limit` as SQLite binds it: past `i64::MAX` it is
+/// `i64::MAX`, never the negative an `as` cast wraps to (#91), which
+/// SQLite reads as no limit by accident rather than by rule.
+fn sql_limit(limit: usize) -> i64 {
+    i64::try_from(limit).unwrap_or(i64::MAX)
+}
+
 pub fn now() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -1994,7 +2001,7 @@ impl Store {
         let mut stmt = self.conn.prepare(
             "SELECT id, endpoint, params, fetched_at, status, reason FROM refused ORDER BY id DESC LIMIT ?1",
         )?;
-        let rows = stmt.query_map([limit as i64], |r| {
+        let rows = stmt.query_map([sql_limit(limit)], |r| {
             Ok((
                 r.get::<_, i64>(0)?,
                 r.get::<_, String>(1)?,
@@ -2321,7 +2328,7 @@ impl Store {
                FROM item_events e LEFT JOIN items i ON i.id = e.item_id
               WHERE e.at >= ?1 ORDER BY e.at DESC, e.id DESC LIMIT ?2",
         )?;
-        let rows = stmt.query_map(params![since, limit as i64], |r| {
+        let rows = stmt.query_map(params![since, sql_limit(limit)], |r| {
             Ok(EventRow {
                 at: r.get(0)?,
                 at_age: None,
@@ -2346,7 +2353,7 @@ impl Store {
                FROM item_events e LEFT JOIN items i ON i.id = e.item_id
               WHERE e.id > ?1 ORDER BY e.id LIMIT ?2",
         )?;
-        let rows = stmt.query_map(params![id, limit as i64], |r| {
+        let rows = stmt.query_map(params![id, sql_limit(limit)], |r| {
             Ok(EventRow {
                 at: r.get(0)?,
                 at_age: None,
@@ -5514,5 +5521,25 @@ mod events_order {
             [300, 200],
             "the two newest, newest first"
         );
+    }
+
+    /// #91: a limit past `i64::MAX` binds as `i64::MAX` at each of the
+    /// three bounded reads, where an `as` cast wrapped it negative.
+    #[test]
+    fn a_limit_past_i64_max_binds_as_the_largest() {
+        assert_eq!(crate::sql_limit(usize::MAX), i64::MAX);
+        assert_eq!(crate::sql_limit(7), 7);
+        let s = crate::Store::open_memory().unwrap();
+        for (at, id) in [(100, "a"), (200, "b")] {
+            s.conn
+                .execute(
+                    "INSERT INTO item_events (at, item_id, kind, from_location, to_location, response_id) VALUES (?1, ?2, 'added', NULL, 'stash/x', 1)",
+                    rusqlite::params![at, id],
+                )
+                .unwrap();
+        }
+        assert_eq!(s.events_since(0, usize::MAX).unwrap().len(), 2);
+        assert_eq!(s.events_after(0, usize::MAX).unwrap().len(), 2);
+        assert!(s.refused_list(usize::MAX).unwrap().is_empty());
     }
 }
