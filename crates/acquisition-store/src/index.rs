@@ -163,8 +163,8 @@ pub fn index_path(dir: &Path) -> PathBuf {
 
 /// Whether a selector names this account: the exact username, the name
 /// without its `#discriminator` (both case-insensitive), or the uuid.
-/// Never a prefix. [`Index::resolve`] also tries each name an entry
-/// holds for its keyring as a username.
+/// Never a prefix. When no entry matches so, [`Index::resolve`] tries
+/// the names entries hold for their keyrings, exactly.
 pub fn account_matches(selector: &str, username: &str, uuid: Option<&str>) -> bool {
     let sel = selector.to_lowercase();
     let u = username.to_lowercase();
@@ -404,10 +404,13 @@ impl Index {
 
     /// Pick one account. A selector matches the exact username, the
     /// username without its `#discriminator`, or the exact uuid — never a
-    /// prefix — or, by the username's rule, a name the entry holds for
-    /// its keyring (issue #74: the retry a failed logout prints names the
-    /// session, which a rename the index could not record left only as a
-    /// held name). A selector two entries match is ambiguous. No selector
+    /// prefix. Only when no entry matches so does it try the names
+    /// entries hold for their keyrings, and a held name matches only
+    /// whole (case-insensitive), never without its discriminator (issue
+    /// #74: the retry a failed logout prints names the session in full,
+    /// which a rename the index could not record left only as a held
+    /// name; a current username always wins over another entry's held
+    /// name). A selector two entries match is ambiguous. No selector
     /// picks the sole account, or fails as ambiguous.
     pub fn resolve(&self, selector: Option<&str>) -> Result<&AccountEntry, Resolve> {
         if self.entries.is_empty() {
@@ -421,16 +424,23 @@ impl Index {
                 )),
             },
             Some(sel) => {
-                let hits: Vec<&AccountEntry> = self
+                let mut hits: Vec<&AccountEntry> = self
                     .entries
                     .iter()
-                    .filter(|e| {
-                        account_matches(sel, &e.username, e.uuid.as_deref())
-                            || e.keyring_names
-                                .iter()
-                                .any(|held| account_matches(sel, held, None))
-                    })
+                    .filter(|e| account_matches(sel, &e.username, e.uuid.as_deref()))
                     .collect();
+                if hits.is_empty() {
+                    let sel = sel.to_lowercase();
+                    hits = self
+                        .entries
+                        .iter()
+                        .filter(|e| {
+                            e.keyring_names
+                                .iter()
+                                .any(|held| held.to_lowercase() == sel)
+                        })
+                        .collect();
+                }
                 match hits.as_slice() {
                     [one] => Ok(one),
                     [] => Err(Resolve::NotFound(sel.to_string())),
@@ -581,6 +591,48 @@ mod tests {
         assert_eq!(cleos[0].uuid.as_deref(), Some("u-alice"));
     }
 
+    /// Issue #74: when no entry matches a selector by username or uuid, a
+    /// name an entry holds for its keyring matches it whole
+    /// (case-insensitive), never without its discriminator or by prefix;
+    /// a current username wins over another entry's held name, and a held
+    /// name two entries match is ambiguous.
+    #[test]
+    fn a_selector_matches_a_held_keyring_name() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut idx = Index::load(temp.path()).unwrap();
+        idx.record_login(
+            "test-user",
+            "u-1",
+            true,
+            1,
+            &["B#2".into(), "Carol#3".into()],
+        )
+        .unwrap();
+        idx.record_login("Carol#3", "u-3", true, 2, &[]).unwrap();
+        for sel in ["B#2", "b#2"] {
+            assert_eq!(
+                idx.resolve(Some(sel)).unwrap().username,
+                "test-user",
+                "{sel}"
+            );
+        }
+        for sel in ["B", "B#"] {
+            assert_eq!(idx.resolve(Some(sel)), Err(Resolve::NotFound(sel.into())));
+        }
+        // A current username, whole or without its discriminator, wins
+        // over the name another entry holds.
+        for sel in ["Carol#3", "carol"] {
+            assert_eq!(idx.resolve(Some(sel)).unwrap().username, "Carol#3", "{sel}");
+        }
+
+        idx.record_login("Dave#4", "u-4", true, 3, &["B#2".into()])
+            .unwrap();
+        assert!(matches!(
+            idx.resolve(Some("B#2")),
+            Err(Resolve::Ambiguous(ref v)) if *v == ["test-user", "Dave#4"]
+        ));
+    }
+
     /// C144 (no keyring entry out of the index's reach), the review of the
     /// h1 fix round, its second finding: a rename records the new username
     /// and the old name its keyring entry may still be under in one
@@ -589,35 +641,6 @@ mod tests {
     /// both. Before, the username and the held name were two writes, and
     /// a stop between them left the old name's entry out of every verb's
     /// reach.
-    /// Issue #74: a selector matches a name an entry holds for its
-    /// keyring by the username's rule, exact or without the
-    /// discriminator, never by prefix; a held name two entries match is
-    /// ambiguous.
-    #[test]
-    fn a_selector_matches_a_held_keyring_name() {
-        let temp = tempfile::tempdir().unwrap();
-        let mut idx = Index::load(temp.path()).unwrap();
-        idx.record_login("test-user", "u-1", true, 1, &["B#2".into()])
-            .unwrap();
-        idx.record_login("Carol#3", "u-3", true, 2, &[]).unwrap();
-        for sel in ["B#2", "b#2", "B"] {
-            assert_eq!(
-                idx.resolve(Some(sel)).unwrap().username,
-                "test-user",
-                "{sel}"
-            );
-        }
-        assert_eq!(idx.resolve(Some("B#")), Err(Resolve::NotFound("B#".into())));
-
-        idx.record_login("Dave#4", "u-4", true, 3, &["B#2".into()])
-            .unwrap();
-        assert!(matches!(
-            idx.resolve(Some("B#2")),
-            Err(Resolve::Ambiguous(ref v)) if *v == ["test-user", "Dave#4"]
-        ));
-        assert_eq!(idx.resolve(Some("Carol")).unwrap().username, "Carol#3");
-    }
-
     #[test]
     fn c144_a_stop_after_the_renames_write_leaves_the_old_name_in_reach() {
         let temp = tempfile::tempdir().unwrap();
