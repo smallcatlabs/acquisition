@@ -45,7 +45,7 @@ fn the_plan_apply_replan_loop_closes_against_the_mock() {
     let scratch = harness::scratch("al");
     let base = scratch.0.clone();
 
-    login_as_mock(&base, &[]);
+    let _daemon = login_as_mock(&base, &[]);
     let out = acq(
         &base,
         &[
@@ -190,7 +190,7 @@ fn a_failed_apply_counts_its_failed_requests_from_the_daemons_own_words() {
     let scratch = harness::scratch("af");
     let base = scratch.0.clone();
 
-    login_as_mock(&base, &[]);
+    let _daemon = login_as_mock(&base, &[]);
     let policy = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","max_age_seconds":3600}}}}}"#;
     assert!(acq(&base, &["policy", "set", policy]).status.success());
     assert!(acq(&base, &["stashes"]).status.success());

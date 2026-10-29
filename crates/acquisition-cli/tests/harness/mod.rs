@@ -121,37 +121,58 @@ pub fn start_daemon_with(base: &Path, env: &[(&str, &str)]) -> (Proc, u64) {
 /// The daemon a command under `base` spawned lazily, stopped when the
 /// test ends, failure included: a test owns what it starts, and a daemon
 /// left to its idle exit holds its database, lock and log open past the
-/// scratch's removal. Declared after the scratch, so it drops first. A
+/// scratch's removal. Every harness login returns one ([`login`]), so a
+/// test that logs in cannot forget it; [`stop_on_drop`] is for a daemon
+/// another command spawned. Held after the scratch, so it drops first. A
 /// stop with no daemon to stop is nothing.
 ///
 /// After the stop the guard counts what is left by the harness's own
 /// accounting, the endpoints bound under the test's scratch runtime
 /// directory ([`sockets_under`]): a daemon's socket derives from its
 /// world into that directory and nothing else binds there (C83). The
-/// stop waits for the daemon's connection to close, which is its process
-/// ending after its endpoint is removed, for at most the client's
-/// `STOPPED_WITHIN` (20 s), and returns success past that bound all the
-/// same; the check is what catches a daemon still bound then. It counts
-/// endpoints, not processes: a daemon that removed its endpoint and
-/// lingered would not be seen. One left fails a test that is not already
-/// failing, naming it; a failing one prints it beside the failure, since
-/// a second panic in a drop aborts.
-pub struct StopOnDrop(PathBuf);
+/// stop waits for the daemon's connection to close, for at most the
+/// client's `STOPPED_WITHIN` (20 s), and returns success past that bound
+/// all the same. On Unix the daemon removes its socket before it exits,
+/// so the first look finds it gone; on Windows a pipe's name lasts until
+/// the system has closed the last handle of the ended process, which can
+/// come after the stop's own connection ends (#125's Windows run
+/// 40886043255, two stops returned in seconds with the pipe still
+/// listed). So the guard looks again until the endpoints are gone, for at
+/// most `STOPPED_WITHIN` more: a liveness bound on a path that takes
+/// milliseconds, never the assertion (C137), and a daemon that stayed is
+/// still named when it passes. It counts endpoints, not processes: a
+/// daemon that removed its endpoint and lingered would not be seen. One
+/// left fails a test that is not already failing, naming it; a failing
+/// one prints it beside the failure, since a second panic in a drop
+/// aborts.
+#[must_use = "the guard stops the daemon its login started when the test ends; \
+              bind it to a named local, or drop it where the test says why"]
+pub struct StopOnDrop(Option<PathBuf>);
 
 pub fn stop_on_drop(base: &Path) -> StopOnDrop {
-    StopOnDrop(base.to_path_buf())
+    StopOnDrop(Some(base.to_path_buf()))
 }
 
 impl Drop for StopOnDrop {
     fn drop(&mut self) {
-        let _ = acq(&self.0, &["daemon", "stop"]);
-        let left = sockets_under(&scratch_tmp(&self.0));
+        let Some(base) = &self.0 else {
+            return;
+        };
+        let _ = acq(base, &["daemon", "stop"]);
+        let deadline = std::time::Instant::now() + acquisition_client::client::STOPPED_WITHIN;
+        let left = loop {
+            let left = sockets_under(&scratch_tmp(base));
+            if left.is_empty() || std::time::Instant::now() >= deadline {
+                break left;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        };
         if left.is_empty() {
             return;
         }
         let said = format!(
             "a daemon of the test under {} outlived its stop: {left:?}",
-            self.0.display()
+            base.display()
         );
         if std::thread::panicking() {
             eprintln!("{said}");
@@ -161,21 +182,41 @@ impl Drop for StopOnDrop {
     }
 }
 
-/// The scripted mock login as `user`.
-pub fn login(base: &Path, user: &str) {
-    login_with(base, user, &[]);
+/// The guard for the daemon a login under `base` is about to start: inert
+/// when a daemon already runs in the world, the test's own
+/// ([`start_daemon`]) or an earlier login's, since that one is not this
+/// login's to stop. Asked of `acq daemon status --json`, which never
+/// spawns, and not read off the runtime directory: on Unix a killed
+/// daemon's socket file outlives it.
+fn guard_for_login(base: &Path) -> StopOnDrop {
+    let status = sole_json(&acq(base, &["daemon", "status", "--json"]));
+    if status["running"] == true {
+        StopOnDrop(None)
+    } else {
+        stop_on_drop(base)
+    }
+}
+
+/// The scripted mock login as `user`, returning the guard that stops the
+/// daemon it started ([`StopOnDrop`]).
+pub fn login(base: &Path, user: &str) -> StopOnDrop {
+    login_with(base, user, &[])
 }
 
 /// [`login`] with `env` set on the `acq auth` that starts the daemon: a
 /// knob the daemon reads at its start goes here.
-pub fn login_with(base: &Path, user: &str, env: &[(&str, &str)]) {
+pub fn login_with(base: &Path, user: &str, env: &[(&str, &str)]) -> StopOnDrop {
+    let guard = guard_for_login(base);
     shared::login(acq_exe(), base, Some(user), env);
+    guard
 }
 
 /// The scripted mock login as the mock's own user, `env` set on the `acq
 /// auth` that starts the daemon.
-pub fn login_as_mock(base: &Path, env: &[(&str, &str)]) {
+pub fn login_as_mock(base: &Path, env: &[(&str, &str)]) -> StopOnDrop {
+    let guard = guard_for_login(base);
     shared::login(acq_exe(), base, None, env);
+    guard
 }
 
 // ---- goldens (C122) -------------------------------------------------------

@@ -86,7 +86,7 @@ fn c133_a_sigterm_drains_the_running_job_checkpoints_and_leaves() {
     let scratch = harness::scratch("sigterm");
     let base = scratch.0.clone();
     let (mut daemon, pid) = start_daemon(&base);
-    login_as_mock(&base, &[]);
+    let _login = login_as_mock(&base, &[]);
     // Facts in the account's file, so its WAL holds pages to checkpoint.
     let out = acq(&base, &["stashes", "--json"]);
     assert!(out.status.success(), "{out:?}");

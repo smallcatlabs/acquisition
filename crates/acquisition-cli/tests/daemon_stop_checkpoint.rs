@@ -29,7 +29,7 @@ fn wal_len(db: &Path) -> Option<u64> {
 fn daemon_stop_checkpoints_the_facts_file_and_the_queue() {
     let scratch = harness::scratch("ckpt");
     let base = scratch.0.clone();
-    login_as_mock(&base, &[]);
+    let _daemon = login_as_mock(&base, &[]);
 
     // A listing lands facts in the account's file through the daemon.
     let out = acq(&base, &["stashes", "--json"]);

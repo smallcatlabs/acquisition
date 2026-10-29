@@ -271,7 +271,7 @@ fn a_job_verb_prints_its_answer_alone_and_says_whose_job_it_was() {
     let scratch = harness::scratch("seat-job");
     let base = scratch.0.clone();
     let (_daemon, _pid) = start_daemon(&base);
-    login(&base, "alice");
+    let _login = login(&base, "alice");
 
     let mut t = Transcript::new(&base);
     let out = t.run(&["profile"], &["(alice): done"]);
@@ -447,7 +447,7 @@ fn an_apply_ends_by_saying_what_a_new_plan_would_still_fetch() {
     let scratch = harness::scratch("seat-rounds");
     let base = scratch.0.clone();
     let (_daemon, _pid) = start_daemon(&base);
-    login(&base, "alice");
+    let _login = login(&base, "alice");
     let policy = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}"#;
     assert!(acq(&base, &["policy", "set", policy]).status.success());
     // The listings a plan compiles from.
@@ -608,7 +608,7 @@ fn stopping_a_daemon_says_which_logins_ended_with_it() {
     let scratch = harness::scratch("seat-stop");
     let base = scratch.0.clone();
     let (daemon, _pid) = start_daemon(&base);
-    login(&base, "alice");
+    let _login = login(&base, "alice");
 
     let mut t = Transcript::new(&base);
     let out = t.run(
@@ -858,9 +858,10 @@ fn shows_price_line_says_why_none() {
 
 /// A daemon with `alice` logged in, a Standard policy over every tab and
 /// the stash listing on record; the plan compiled from it is written to
-/// `plan.json` under `base` and returned beside its path.
-fn a_saved_plan(base: &Path) -> (String, Value) {
-    login(base, "alice");
+/// `plan.json` under `base` and returned beside its path and the login's
+/// guard.
+fn a_saved_plan(base: &Path) -> (String, Value, harness::StopOnDrop) {
+    let guard = login(base, "alice");
     let policy = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","max_age_seconds":3600}}}}}"#;
     assert!(acq(base, &["policy", "set", policy]).status.success());
     assert!(acq(base, &["stashes"]).status.success());
@@ -868,7 +869,7 @@ fn a_saved_plan(base: &Path) -> (String, Value) {
     let plan = sole_json(&out);
     let path = base.join("plan.json");
     std::fs::write(&path, &out.stdout).unwrap();
-    (format!("--apply={}", path.display()), plan)
+    (format!("--apply={}", path.display()), plan, guard)
 }
 
 /// C111. A plan file applied twice fetched twice: the same command run
@@ -880,7 +881,7 @@ fn a_plan_file_applied_twice_sends_nothing_the_second_time() {
     let scratch = harness::scratch("seat-replay");
     let base = scratch.0.clone();
     let (_daemon, _pid) = start_daemon(&base);
-    let (apply, plan) = a_saved_plan(&base);
+    let (apply, plan, _login) = a_saved_plan(&base);
     let planned = plan["logical_requests"].as_u64().expect("a count");
     assert!(planned > 1, "{plan}");
 
@@ -910,7 +911,7 @@ fn an_apply_behind_a_waiting_stash_fetch_does_not_queue_it_again() {
     let scratch = harness::scratch("seat-door");
     let base = scratch.0.clone();
     let (_daemon, _pid) = start_daemon(&base);
-    let (apply, plan) = a_saved_plan(&base);
+    let (apply, plan, _login) = a_saved_plan(&base);
     let tab = plan["actions"][0]["id"]
         .as_str()
         .expect("a tab id")
@@ -1000,7 +1001,7 @@ fn an_apply_retried_while_its_requests_wait_queues_nothing_more() {
     let scratch = harness::scratch("seat-retry");
     let base = scratch.0.clone();
     let (_daemon, _pid) = start_daemon(&base);
-    let (apply, plan) = a_saved_plan(&base);
+    let (apply, plan, _login) = a_saved_plan(&base);
 
     // Spend the stash route's burst so the apply's fetches wait.
     let tab = plan["actions"][0]["id"].as_str().expect("a tab id");

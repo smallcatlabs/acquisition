@@ -46,7 +46,7 @@ fn a_new_league_starts_empty_beside_standard_and_a_typo_is_named() {
     let base = scratch.0.clone();
     let (knob, journal) = harness::journal_on(&base);
     let (mut daemon, pid) = harness::start_daemon_with(&base, &[(knob, journal.as_str())]);
-    harness::login_as_mock(&base, &[]);
+    let _login = harness::login_as_mock(&base, &[]);
 
     // Standard synced first, as the owner's store will be: the journey's
     // policy, planned and applied until the plan names nothing.

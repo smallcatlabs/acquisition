@@ -32,10 +32,11 @@ fn acq(base: &Path, args: &[&str]) -> Output {
         .expect("spawning acq")
 }
 
-/// The scripted mock login, its daemon journaling to `base/sends.jsonl`.
-fn login_journaled(base: &Path) {
+/// The scripted mock login, its daemon journaling to `base/sends.jsonl`;
+/// the guard that stops it is returned.
+fn login_journaled(base: &Path) -> harness::StopOnDrop {
     let (knob, journal) = harness::journal_on(base);
-    harness::login_as_mock(base, &[(knob, journal.as_str())]);
+    harness::login_as_mock(base, &[(knob, journal.as_str())])
 }
 
 /// A job command's successful payload.
@@ -51,7 +52,7 @@ fn payload(base: &Path, args: &[&str]) -> Value {
 fn realm_is_on_the_wire_exactly_as_ruled() {
     let scratch = harness::scratch("rw");
     let base = scratch.0.clone();
-    login_journaled(&base);
+    let _daemon = login_journaled(&base);
 
     // Explicit pc and omitted realm: the same route, the same listing.
     let omitted = payload(

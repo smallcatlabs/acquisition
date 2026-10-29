@@ -34,10 +34,11 @@ fn acq(base: &Path, args: &[&str]) -> Output {
         .expect("spawning acq")
 }
 
-/// The scripted mock login, its daemon journaling to `base/sends.jsonl`.
-fn login_journaled(base: &Path) {
+/// The scripted mock login, its daemon journaling to `base/sends.jsonl`;
+/// the guard that stops it is returned.
+fn login_journaled(base: &Path) -> harness::StopOnDrop {
     let (knob, journal) = harness::journal_on(base);
-    harness::login_as_mock(base, &[(knob, journal.as_str())]);
+    harness::login_as_mock(base, &[(knob, journal.as_str())])
 }
 
 /// `refresh --plan --realm poe2 --json` as the planner's own validated
@@ -61,7 +62,7 @@ fn apply(base: &Path) -> Value {
 fn a_character_only_poe2_policy_closes_its_loop_on_the_poe2_routes() {
     let scratch = harness::scratch("cw");
     let base = scratch.0.clone();
-    login_journaled(&base);
+    let _daemon = login_journaled(&base);
 
     // A character-only PoE2 entry is the ordinary v3 shape; a tabs facet
     // under poe2 is refused at the write, nothing stored.

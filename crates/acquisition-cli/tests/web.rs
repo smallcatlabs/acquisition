@@ -564,7 +564,7 @@ fn the_moved_world_renders_with_a_badge() {
 fn the_refresh_loop_runs_through_the_pages() {
     let scratch = harness::scratch("webloop");
     let base = scratch.0.clone();
-    harness::login_as_mock(&base, &[]);
+    let _daemon = harness::login_as_mock(&base, &[]);
     let policy = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}"#;
     assert!(
         harness::acq(&base, &["policy", "set", policy])
@@ -757,11 +757,15 @@ fn the_refresh_loop_runs_through_the_pages() {
 fn the_jobs_page_opens_with_the_halt() {
     let scratch = harness::scratch("webhalt");
     let base = scratch.0.clone();
-    harness::login_as_mock(&base, &[]);
+    let login = harness::login_as_mock(&base, &[]);
     assert!(harness::acq(&base, &["daemon", "stop"]).status.success());
     while sole_json(&harness::acq(&base, &["daemon", "status", "--json"]))["running"] != false {
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
+    // The test stopped the login's daemon itself, and the one it starts
+    // next is its own: that one's kill leaves its socket on Unix, which
+    // this guard, dropped after it, would count as a daemon left.
+    drop(login);
     let rails = base.join("store").join("mock").join("rails.json");
     std::fs::create_dir_all(rails.parent().unwrap()).unwrap();
     std::fs::write(
@@ -849,7 +853,7 @@ fn probes_in_order(mut jobs: harness::Reply) -> harness::Reply {
 fn a_selection_submits_as_the_served_account_whatever_the_daemon_holds() {
     let scratch = harness::scratch("webacct");
     let base = scratch.0.clone();
-    harness::login(&base, "Alice");
+    let _daemon = harness::login(&base, "Alice");
     let web = start_web(harness::command(&base, &["web", "--no-browser"]));
     // The mock world's keyring is off: the logout succeeds and says it
     // cleared nothing (C144).
@@ -859,7 +863,7 @@ fn a_selection_submits_as_the_served_account_whatever_the_daemon_holds() {
         String::from_utf8_lossy(&out.stdout).contains("logged out (keyring off, nothing cleared)"),
         "{out:?}"
     );
-    harness::login(&base, "Bob");
+    let _login = harness::login(&base, "Bob");
     let plan = web.get("plan?realm=pc&league=Standard&selected=yes&tab=dump");
     assert_eq!(plan.status, 200, "{}", plan.body);
     let envelope = hidden_plan(&plan.body);
@@ -876,7 +880,7 @@ fn a_selection_submits_as_the_served_account_whatever_the_daemon_holds() {
             .collect()
     };
     assert!(jobs(&base).is_empty(), "{:?}", jobs(&base));
-    harness::login(&base, "Alice");
+    let _again = harness::login(&base, "Alice");
     let submitted = web.post("apply", &[("plan", &envelope)]);
     assert_eq!(submitted.status, 303, "{}", submitted.body);
     let applies = jobs(&base);

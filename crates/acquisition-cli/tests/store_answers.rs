@@ -245,7 +245,7 @@ fn c149_every_json_answer_the_step_wrapped_is_one_object() {
     let scratch = harness::scratch("store-c149");
     let base = scratch.0.clone();
     let (_daemon, _pid) = harness::start_daemon(&base);
-    harness::login(&base, "alice");
+    let _login = harness::login(&base, "alice");
     let answer = |args: &[&str]| -> Value {
         let out = harness::acq(&base, &[args, &["--json"]].concat());
         assert!(out.status.success(), "{args:?}: {out:?}");

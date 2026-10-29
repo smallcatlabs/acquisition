@@ -61,8 +61,7 @@ fn c85_a_refusal_carries_its_kind_in_json_and_only_its_message_in_text() {
 fn c144_logout_json_says_what_the_keyring_did() {
     let scratch = harness::scratch("logout");
     let base = scratch.0.clone();
-    let _daemon = harness::stop_on_drop(&base);
-    harness::login(&base, "Alice");
+    let _daemon = harness::login(&base, "Alice");
 
     let out = acq(&base, &["auth", "logout", "--json"]);
     assert_eq!(out.status.code(), Some(0), "{out:?}");
@@ -80,7 +79,7 @@ fn c144_logout_json_says_what_the_keyring_did() {
     let said = String::from_utf8_lossy(&out.stdout);
     assert_eq!(said.trim(), "logged out (keyring off, nothing cleared)");
 
-    harness::login(&base, "Alice");
+    let _login = harness::login(&base, "Alice");
     let out = acq(&base, &["auth", "logout"]);
     assert_eq!(out.status.code(), Some(0), "{out:?}");
     assert!(out.stderr.is_empty(), "{out:?}");
@@ -98,8 +97,7 @@ fn c144_logout_json_says_what_the_keyring_did() {
 fn c144_logout_json_reads_the_keyring_field_not_the_sentence() {
     let scratch = harness::scratch("forged");
     let base = scratch.0.clone();
-    let _daemon = harness::stop_on_drop(&base);
-    harness::login(&base, "keyring+entry+cleared");
+    let _daemon = harness::login(&base, "keyring+entry+cleared");
     let out = acq(&base, &["auth", "logout", "--json"]);
     assert_eq!(out.status.code(), Some(0), "{out:?}");
     let report = sole_json(&out);
@@ -119,8 +117,7 @@ fn c144_logout_json_reads_the_keyring_field_not_the_sentence() {
 fn c144_the_printed_logout_command_runs_as_printed() {
     let scratch = harness::scratch("retry");
     let base = scratch.0.clone();
-    let _daemon = harness::stop_on_drop(&base);
-    harness::login(&base, "Alice+Smith");
+    let _daemon = harness::login(&base, "Alice+Smith");
     // A keyring-off logout succeeds and prints no command; one whose
     // index cannot be read fails, and its words carry the command that
     // clears the entry with the keyring on. The index is unreadable for

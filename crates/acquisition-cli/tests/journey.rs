@@ -47,7 +47,7 @@ fn a_first_session_reads_as_a_user_meets_it_and_the_journal_holds() {
     let base = scratch.0.clone();
     let (knob, journal) = harness::journal_on(&base);
     let (mut daemon, pid) = harness::start_daemon_with(&base, &[(knob, journal.as_str())]);
-    harness::login_as_mock(&base, &[]);
+    let _login = harness::login_as_mock(&base, &[]);
 
     let item = format!("item/{RING}");
     let [kind, amount, currency] = PRICE;

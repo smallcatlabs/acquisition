@@ -24,7 +24,7 @@
 //! named.
 
 use crate::harness;
-use harness::{acq, login_with, scratch, scratch_tmp, sockets_under, sole_json, stop_on_drop};
+use harness::{StopOnDrop, acq, login_with, scratch, scratch_tmp, sockets_under, sole_json};
 
 fn help(path: &[&str]) -> Result<String, String> {
     let scratch = scratch("help");
@@ -300,9 +300,10 @@ fn agent_section() -> String {
 
 /// The daemon the agent recipe's `acq auth` line starts, as the README
 /// runs it. The harness isolates every daemon at a 30 s idle exit; an
-/// empty knob is misread and keeps the default, the README's hour.
-fn recipe_daemon(base: &std::path::Path) {
-    login_with(base, "Alice#1", &[("ACQ_IDLE_SHUTDOWN", "")]);
+/// empty knob is misread and keeps the default, the README's hour. The
+/// login's guard is returned: it stops that daemon however the test ends.
+fn recipe_daemon(base: &std::path::Path) -> StopOnDrop {
+    login_with(base, "Alice#1", &[("ACQ_IDLE_SHUTDOWN", "")])
 }
 
 /// The agent's daemon recipe runs as the README prints it, in the case
@@ -326,10 +327,9 @@ fn the_agent_recipe_starts_a_daemon_that_idles_out_after_the_hour() {
     );
     let dir = scratch("recipe");
     let base = &dir.0;
-    let _daemon = stop_on_drop(base);
     let status = sole_json(&acq(base, &["daemon", "status", "--json"]));
     assert_eq!(status["running"], serde_json::json!(false), "{status}");
-    recipe_daemon(base);
+    let _daemon = recipe_daemon(base);
     let status = sole_json(&acq(base, &["daemon", "status", "--json"]));
     assert_eq!(
         (
@@ -365,8 +365,7 @@ fn a_daemon_the_recipe_starts_is_stopped_when_its_test_fails() {
     let base = dir.0.clone();
     const FORCED: &str = "a recipe test failing after its daemon started";
     let failed = std::panic::catch_unwind(|| {
-        let _daemon = stop_on_drop(&base);
-        recipe_daemon(&base);
+        let _daemon = recipe_daemon(&base);
         let up = sockets_under(&scratch_tmp(&base)).len();
         if up == 1 {
             panic!("{FORCED}");

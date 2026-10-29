@@ -15,6 +15,7 @@ mod daemon_stop_checkpoint;
 mod diagnose;
 mod error_kind;
 mod journey;
+mod login_guard;
 mod new_league;
 mod no_ids;
 mod normaliser;
