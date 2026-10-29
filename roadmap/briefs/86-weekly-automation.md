@@ -2,8 +2,9 @@
 
 Issue #86, with the owner's comment of 2026-10-26 (the macOS Keychain
 round trip). The second item of "Pull-forward" (`roadmap/README.md`)
-after #85's close at `f0bfa17c`. The rhythm is "A step". Do 1 is a
-ruling, so this brief stops there until the owner's word.
+after #85's close at `f0bfa17c`. The rhythm is "A step". This brief
+stopped at Do 1, a ruling; it was settled under the owner's
+delegation, (a).
 
 ## Goal
 
@@ -108,6 +109,10 @@ Measured on this brief's tree (`f0bfa17c`), before the work:
      forget.
    - Whichever is chosen, the test's doc comment names where macOS
      runs it, beside Linux and Windows.
+
+   Settled: (a). Taken by the orchestrating session under the owner's
+   delegation on 2026-10-28, quoted in `roadmap/README.md`, "The
+   owner's rulings for this road"; no registry entry.
 2. **The `breakers` job** (`gate-linux.yml`): `if: ${{ !cancelled() }}`
    on every step after the first, so one red breaker hides none, as
    r1 did for the `gate` jobs; nothing else in the two gates is left of

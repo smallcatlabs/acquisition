@@ -62,6 +62,17 @@ Each in his words, with the commit that landed it.
   daemon's and the client's own tests, a small count in the gate and
   the full count on CI, as the brief proposes." No registry entry: (a)
   adds no edge and no boundary (the commit carrying this line).
+- 2026-10-28, #86's Do 1: (a), a `keyring-macos` job in `release.yml`
+  that `draft` needs, so the macOS Keychain round trip is earned on
+  the commit a release tags. Taken by the orchestrating session under
+  the owner's delegation, which reads: "If the decision is clear cut,
+  you may take the recommendation. Use fable otherwise to get a
+  practical, simple, elegant recommendation." Clear cut because the
+  repository is public, so the job costs no minutes; `release.yml`
+  already runs a macOS job `draft` needs; and (a) alone meets the
+  owner's words on the issue, "so the pass is earned on every platform
+  a release names", with nothing to remember. No registry entry: it
+  adds no edge and no boundary (the commit carrying this line).
 
 ## Roles
 
