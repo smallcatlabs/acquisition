@@ -19,6 +19,8 @@ table, never a silent regeneration, in the order tools/game-diff.py prints):
                                           stat_translations.json and the site's stats of 2026-09-12)
   search/repoe/data/base-defences.csv     the track's extract of the same ranges: read only to show that
                                           the ranges written here are that file's, row for row
+                                          (search/repoe/scripts/base-defences.py, from the same clone's
+                                          base_items.json)
 
 Rules, each a reading of a source and never a judgment (C106). The rulings the
 field rests on are `search/LEDGER.md`, "Holes ruled", the 9d rows (J5, J6, J8,

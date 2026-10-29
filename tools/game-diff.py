@@ -69,7 +69,8 @@ TABLES = [
      "first: base names under the game's class names; a new class or a renamed base is a row"),
     ("defences-v1", "tools/defence-table.py", ["base_items.json"],
      "the ranges of `properties`; it checks itself against search/repoe/data/base-defences.csv, "
-     "whose generator is not in the tree (deleted at c756bd38), so a change to a range stops it"),
+     "so remake that extract first with search/repoe/scripts/base-defences.py, which reads the same "
+     "file, and a moved range is a reviewed diff of the extract and the table"),
     ("categories-v1", "tools/category-table.py", ["base_items.json", "gems.json", "item_classes.json"],
      "after the class table, which it reads, so the class table's inputs are its own; it refuses a "
      "class it cannot place, which a new class is, and checks its name rules against the bases"),
