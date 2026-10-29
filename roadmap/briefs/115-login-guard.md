@@ -191,8 +191,11 @@ Measured on this tree (`235b28a6`).
   `stop_on_drop` is named once, by
   `the_login_ends_with_the_daemons_words_not_a_bound_of_its_own`.
 - Every harness login under `crates/acquisition-cli/tests` binds its
-  guard to a named local or returns it, except `web.rs`'s halt test,
-  which drops it after its own stop with a comment saying why.
+  guard to a named local or returns it, except where the test drops it
+  on purpose: `web.rs`'s halt test, after its own stop, with a comment
+  saying why, and `login_guard.rs`'s pin, whose drop is what it tests.
+  Settled in the round (#115's review, its note on the brief; the line
+  first named `web.rs` alone).
 - The guard's drop polls `sockets_under(&scratch_tmp(base))` for at
   most `STOPPED_WITHIN` before failing, and its doc comment names run
   40886043255.
