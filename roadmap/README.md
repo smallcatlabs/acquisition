@@ -205,9 +205,10 @@ The owner's list, his to strike:
 
 The league group (#87, #90, #68, #103, #63, #53, #94, #96) closed on
 2026-10-28 (`LEDGER.md`); #85 closed the same day, and #86, #89 and
-#125 and #115 on 2026-10-29. Next: #91, the frontend hygiene from
-the 2026-10-26 read, its brief not yet written (the owner, 2026-10-29:
-"yes, go ahead on #91").
+#125 and #115 on 2026-10-29. #91, the frontend hygiene from the
+2026-10-26 read, with #109's clock flake, #124's ratatui 0.30 and its
+pin, and #128's feature check (`briefs/91-frontend-hygiene.md`), is
+built, review pending (the owner, 2026-10-29: "yes, go ahead on #91").
 Phase 3, the owner's league run, follows at his word; #70 closes on a
 week of pushes without a re-run. `AGENTS.md` governs; the gate is
 `tools/gate.sh`.

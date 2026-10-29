@@ -35,7 +35,10 @@ getrandom = "0.4"
 # code. Its `default` and `fs` are tempfile's, a dev-dependency of six
 # crates, and a dev-dependency feature unifies into every test build, which
 # gave acq a second form (#124, C84); compiled in always, so one build
-# writes one binary.
+# writes one binary. acqd's Linux graph leans on it too: keyring's zbus links
+# rustix there, and the workspace build unifies this pin's features into it,
+# so with the pin gone `tools/gate.sh --only features` names the daemon's
+# rustix on Linux as well (#91, #128).
 [target.'cfg(unix)'.dependencies]
 rustix = { version = "1", features = ["fs"] }
 
