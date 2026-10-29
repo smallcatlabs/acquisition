@@ -1058,8 +1058,11 @@ impl CredentialStore for OsCredentialStore {
 ///   failure's body is GGG's numeric error code or its size, and a 2xx
 ///   that is not JSON serde's category and position.
 ///
-/// The raw headers and bodies stay the journal's and a job's payload,
-/// GGG's contract evidence. Kept: the account names and uuids (the
+/// What is kept raw, as GGG's contract evidence: each send's rate
+/// snapshot and a non-2xx's response-header snapshot in the journal
+/// (`rails::SendReport`), and an API 2xx's body with
+/// its rate snapshot in the job's payload. A token endpoint's body is
+/// kept nowhere. Kept in the words: the account names and uuids (the
 /// diagnosis redacts them), a job's kind and params (client text, which
 /// C7 keeps free of secrets), the OS keyring's and the transport's own
 /// error words, and C130's redirect target with its query redacted (a

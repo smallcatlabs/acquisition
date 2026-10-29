@@ -228,8 +228,9 @@ The league group (#87, #90, #68, #103, #63, #53, #94, #96) closed on
 league build's first seat: its one item, the words, waits on that
 seat. The owner's pre-league work, in order: the daemon paths his run
 will hit, the league milestone's buildables (#74, #107, #112), tools
-hygiene. The first, daemon-safety (#113, #116, #110;
-`briefs/daemon-safety.md`), is built, its review pending.
+hygiene. The first, daemon-safety (#113, #116, #110), closed on
+2026-10-29 (`LEDGER.md`). Next, the league milestone's buildables
+(#74, #107, #112), if the owner starts them.
 Phase 3, the owner's league run, follows at his word; #70 closes on a
 week of pushes without a re-run. `AGENTS.md` governs; the gate is
 `tools/gate.sh`.
