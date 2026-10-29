@@ -454,7 +454,9 @@ pub fn search(cx: &Ctx, args: SearchArgs, json: bool) -> Result<()> {
     };
     if let (Some(word), Some(trade)) = (&args.realm, &trade)
         && let Some(url) = named(trade)
-        && *word == url
+        // the realm as parsed, as the request will read it: `PC` is `pc`
+        // (the review of #91, its second finding)
+        && Realm::parse(word).is_ok_and(|asked| asked.as_str() == url)
     {
         return Err(fail(
             SearchError::Scope {

@@ -2418,9 +2418,16 @@ fn k6_a_realm_beside_a_url_conflicts_and_an_id_takes_one() {
     let url = trade_url();
     // the URL's own realm again is the terminal's conflict; another realm
     // is the request's, in the words a request read whole gets below and
-    // the MCP's search gets (C143, the request's words)
+    // the MCP's search gets (C143, the request's words); a realm's
+    // spelling is the parsed realm's, so capitals are no way around either
+    // (the review of #91, its second finding)
     for (realm, said) in [
         ("pc", "says its realm again: the URL's realm, `pc`"),
+        ("PC", "says its realm again: the URL's realm, `pc`"),
+        (
+            "XBOX",
+            "URL names the realm `pc`, and this is asked in `xbox`",
+        ),
         (
             "xbox",
             "URL names the realm `pc`, and this is asked in `xbox`",
