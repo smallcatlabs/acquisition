@@ -212,7 +212,7 @@ fn rows_line(r: &ListingReport) -> Option<String> {
     )
 }
 
-fn rows_detail(r: &ListingReport) -> String {
+fn rows_detail(r: &ListingReport, account: &str) -> String {
     let mut out = String::new();
     let rows = &r.rows;
     if !rows.unmatched.is_empty() {
@@ -225,11 +225,16 @@ fn rows_detail(r: &ListingReport) -> String {
         }
     }
     if rows.unreadable_total > 0 {
+        // C151: the row is named and can be cleared; the command that
+        // clears it names its revision, with the flags a write takes
+        // (the account alone: its target names the realm).
+        let flags = write_flags(account);
         out.push_str("rows that cannot be read:\n");
         for p in &rows.unreadable {
+            let word = acquisition_search::answer::shell_quoted(&format!("{}/{}", p.scope, p.key));
             out.push_str(&format!(
-                "  {}/{} revision {}: {}\n",
-                p.scope, p.key, p.revision, p.why
+                "  {}/{} revision {}: {}; `acq price clear {flags} {word} --if-revision {}` clears it\n",
+                p.scope, p.key, p.revision, p.why, p.revision
             ));
         }
     }
@@ -312,7 +317,7 @@ fn render_status(r: &ListingReport, now: i64, expand: bool, account: &str) -> St
             ));
         }
         if expand {
-            out.push_str(&rows_detail(r));
+            out.push_str(&rows_detail(r, account));
         }
         let next = if r.rows.unreadable_total > 0 {
             format!("`acq price status {scope} --expand` lists the rows that cannot be read")
@@ -420,7 +425,7 @@ fn render_status(r: &ListingReport, now: i64, expand: bool, account: &str) -> St
             basis(h.character_listing),
             ago(now, Some(h.taken_at))
         ));
-        out.push_str(&rows_detail(r));
+        out.push_str(&rows_detail(r, account));
     }
     let next = if unresolved > 0 {
         format!(
@@ -587,18 +592,6 @@ fn render_list(view: &ListView, expand: bool, account: &str) -> String {
     let mut out = String::new();
     let h = &view.header;
     let flags = scope_flags(h, account);
-    // C151: a price row this build cannot read is named first, whatever
-    // the filter, with the two writes that remove or replace it by its
-    // revision; it is in no selection below.
-    for row in &view.unreadable {
-        let word = acquisition_search::answer::shell_quoted(&format!("{}/{}", row.scope, row.key));
-        out.push_str(&format!(
-            "cannot read the price row on {}/{} (revision {}): {}; `acq price clear {flags} {word} \
-             --if-revision {}` removes it, `acq price set {flags} {word} <type> [amount] [currency] \
-             --if-revision {}` replaces it\n",
-            row.scope, row.key, row.revision, row.fault, row.revision, row.revision
-        ));
-    }
     let items: Vec<&Listing> = view.items.iter().collect();
     let place = format!("{}{}", realm_prefix(h.realm), h.league);
     let mut scope = String::new();
@@ -1318,46 +1311,42 @@ mod tests {
     /// store's bound) and counts the whole on the first line, the ten
     /// grouped and listed, `--expand` every item with its texts; a
     /// filter that matches nothing says so.
-    /// C151 — `list`'s text names a price row this build cannot read
-    /// first, with its revision and fault and the two commands that
-    /// remove or replace it naming that revision, before the listing;
-    /// an empty selection still names it.
+    /// C151 — the status's "rows that cannot be read" line carries the
+    /// command that clears the row at its revision, and that command
+    /// parses as printed (the second review of #63, its second finding:
+    /// the list once printed `clear` and `set` with realm and league
+    /// flags neither takes). The account is quoted for a shell as every
+    /// printed command's is.
     #[test]
-    fn c151_price_list_names_an_unreadable_row_and_the_writes_that_replace_it() {
-        let r = report();
-        let mut view = r.list_view(ListFilter::default()).unwrap();
-        view.unreadable = vec![acquisition_store::UnreadableRow {
-            scope: "item".into(),
-            key: "i-bad".into(),
-            kind: "buyout".into(),
-            revision: 7,
-            fault: "key must be a string at line 1 column 2".into(),
-        }];
-        let text = render_list(&view, false, "a");
-        let first = text.lines().next().unwrap();
-        assert!(
-            first.starts_with(
-                "cannot read the price row on item/i-bad (revision 7): key must be a string"
-            ) && first.contains(
-                "`acq price clear --account a --realm pc --league Standard item/i-bad \
-                 --if-revision 7` removes it"
-            ) && first.contains(
-                "`acq price set --account a --realm pc --league Standard item/i-bad <type> \
-                 [amount] [currency] --if-revision 7` replaces it"
-            ),
-            "{first}"
+    fn c151_the_status_names_the_clear_that_removes_an_unreadable_row_and_it_parses() {
+        use clap::Parser;
+        let mut r = report();
+        r.rows
+            .unreadable
+            .push(acquisition_plan::listing::RowProblem {
+                scope: "item".into(),
+                key: "i-bad".into(),
+                revision: 7,
+                why: "key must be a string at line 1 column 2".into(),
+            });
+        r.rows.unreadable_total = 1;
+        let text = render_status(&r, 8_000, true, "a");
+        let line = text
+            .lines()
+            .find(|l| l.starts_with("  item/i-bad revision 7: key must be a string"))
+            .unwrap_or_else(|| panic!("{text}"));
+        let printed = line
+            .split_once('`')
+            .and_then(|(_, rest)| rest.split_once('`'))
+            .map(|(command, _)| command)
+            .unwrap_or_else(|| panic!("no command on the line: {line}"));
+        assert_eq!(
+            printed,
+            "acq price clear --account a item/i-bad --if-revision 7"
         );
-        assert!(text.lines().count() > 1, "the listing follows");
-        let mut empty = r
-            .list_view(ListFilter {
-                relation: Some(Relation::None),
-                ..ListFilter::default()
-            })
-            .unwrap();
-        empty.unreadable = view.unreadable.clone();
         assert!(
-            render_list(&empty, false, "a").starts_with("cannot read the price row on item/i-bad"),
-            "named even when nothing else is listed"
+            crate::Cli::try_parse_from(printed.split_whitespace()).is_ok(),
+            "clap refused the printed command: {printed}"
         );
     }
 

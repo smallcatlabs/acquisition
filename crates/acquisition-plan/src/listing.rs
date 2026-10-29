@@ -507,7 +507,9 @@ pub struct RowAccounting {
     /// How many rows name nothing in these facts, `unmatched` whole.
     #[serde(default)]
     pub unmatched_total: usize,
-    /// Rows that cannot be read, each with why: the status lists ten
+    /// Rows that cannot be read, each with why — a value the buyout kind
+    /// refuses, or one the store could not parse at all (C151; the one
+    /// kind of unreadable, whichever parse failed): the status lists ten
     /// unless expanded.
     pub unreadable: Vec<RowProblem>,
     /// How many rows cannot be read, `unreadable` whole.
@@ -624,10 +626,6 @@ pub struct ListingReport {
     /// Containers first (tabs in listing order, then characters), then
     /// items in the snapshot's order.
     pub listings: Vec<Listing>,
-    /// The price rows this build cannot read, named (C151), from the
-    /// snapshot's one read of the intent file; `list` carries them.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub unreadable: Vec<acquisition_store::UnreadableRow>,
 }
 
 /// Which items `list` selects: by relation, by the effective price's
@@ -680,12 +678,6 @@ pub struct ListView {
     pub counts: SetCounts,
     pub containers: Vec<Listing>,
     pub items: Vec<Listing>,
-    /// The price rows this build cannot read (C151), each with the
-    /// revision a clear or a write names to remove or replace it: named
-    /// whatever the filter, since a row nothing can read is in no
-    /// selection.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub unreadable: Vec<acquisition_store::UnreadableRow>,
 }
 
 /// `show`'s contract: the listing, the container an item sits in, and
@@ -924,7 +916,6 @@ impl ListingReport {
             counts,
             containers,
             items,
-            unreadable: self.unreadable.clone(),
         })
     }
 
@@ -1014,15 +1005,43 @@ struct Rows {
     accounting: RowAccounting,
 }
 
-fn index_rows(rows: &[AnnotationRow], realm: Realm) -> Rows {
+fn index_rows(
+    rows: &[AnnotationRow],
+    unparsed: &[acquisition_store::UnreadableRow],
+    realm: Realm,
+) -> Rows {
     let mut out = Rows {
         by_target: BTreeMap::new(),
         unreadable: BTreeMap::new(),
         accounting: RowAccounting {
-            total: rows.len(),
+            total: rows.len() + unparsed.len(),
             ..RowAccounting::default()
         },
     };
+    // C151: a row the store could not parse is unreadable as a row the
+    // kind refuses is — one path: its target's manual side is a problem
+    // (the item resolves unresolved, C81, never falls through to the next
+    // row up), and the accounting lists it with the parse fault as why.
+    for row in unparsed {
+        let problem = RowProblem {
+            scope: row.scope.clone(),
+            key: row.key.clone(),
+            revision: row.revision,
+            why: row.fault.clone(),
+        };
+        match PriceTarget::from_address(&row.scope, &row.key) {
+            Err(_) => out.accounting.unreadable.push(problem),
+            Ok(PriceTarget::Tab { realm: r, .. } | PriceTarget::Substash { realm: r, .. })
+                if r != realm =>
+            {
+                out.accounting.other_realm += 1;
+            }
+            Ok(target) => {
+                out.accounting.unreadable.push(problem);
+                out.unreadable.insert(target, row.fault.clone());
+            }
+        }
+    }
     for row in rows {
         let problem = |why: String| RowProblem {
             scope: row.scope.clone(),
@@ -1534,7 +1553,7 @@ pub fn resolve(snapshot: &PricingSnapshot) -> Result<ListingReport, ListingError
     let realm = Realm::parse(&snapshot.realm).ok_or_else(|| ListingError::UnknownRealm {
         realm: snapshot.realm.clone(),
     })?;
-    let rows = index_rows(&snapshot.buyouts, realm);
+    let rows = index_rows(&snapshot.buyouts, &snapshot.unreadable_buyouts, realm);
     let tabs = tab_infos(&snapshot.tabs, realm);
     let tab_by_id: HashMap<&str, &TabInfo<'_>> =
         tabs.iter().map(|i| (i.tab.id.as_str(), i)).collect();
@@ -1759,7 +1778,6 @@ pub fn resolve(snapshot: &PricingSnapshot) -> Result<ListingReport, ListingError
         counts,
         rows: accounting,
         listings,
-        unreadable: snapshot.unreadable_buyouts.clone(),
     })
 }
 
@@ -1845,40 +1863,72 @@ mod tests {
     /// The stash in miniature: a folder named like a price holding a
     /// public priced tab, a plain tab, a public priced map tab with a
     /// substash, an unpriced unique tab with a substash, one character.
-    /// C151 — a price row this build cannot read reaches `list`'s view
-    /// (and the report's summary) named, from the snapshot's one read,
-    /// whatever the filter: a frontend prints it beside the listing.
+    /// C151 — a row the store could not parse is one kind of unreadable
+    /// with a row the buyout kind refuses (the second review of #63, its
+    /// first and third findings): the item it names resolves unresolved,
+    /// so its public tab's price never wins past it (C81, the checklist's
+    /// "fall-through past an unreadable row"); the accounting lists it
+    /// with the parse fault as why, bounded as the status bounds every
+    /// list, under one total with the kind-refused rows; a row of another
+    /// realm counts there and names no subject.
     #[test]
-    fn c151_an_unreadable_price_row_reaches_the_list_view_named() {
-        let mut snap = snapshot();
-        snap.unreadable_buyouts = vec![acquisition_store::UnreadableRow {
-            scope: "item".into(),
-            key: "i-bad".into(),
+    fn c151_a_row_the_store_could_not_parse_leaves_its_item_unresolved_and_is_accounted() {
+        let unparsed = |scope: &str, key: &str, revision: i64| acquisition_store::UnreadableRow {
+            scope: scope.into(),
+            key: key.into(),
             kind: "buyout".into(),
-            revision: 7,
+            revision,
             fault: "key must be a string at line 1 column 2".into(),
-        }];
+        };
+        let mut snap = snapshot();
+        snap.buyouts.retain(|r| r.key != "i-plain");
+        snap.unreadable_buyouts = vec![
+            unparsed("item", "i-plain", 9), // above the public tab price
+            unparsed("tab", "xbox/c9", 2),  // another realm
+        ];
         let report = resolve(&snap).unwrap();
-        assert_eq!(report.summary().unreadable, snap.unreadable_buyouts);
-        let view = report.list_view(ListFilter::default()).unwrap();
-        assert_eq!(view.unreadable, snap.unreadable_buyouts);
-        let filtered = report
-            .list_view(ListFilter {
-                relation: Some(Relation::None),
-                ..ListFilter::default()
-            })
-            .unwrap();
+        let l = get(&report, &item_target("i-plain"));
+        assert!(l.game.reading.price().is_some(), "the tab names a price");
+        assert_eq!(l.effective.kind, "unresolved", "{}", l.effective.why);
+        assert_eq!(l.effective.side, None);
         assert_eq!(
-            filtered.unreadable, snap.unreadable_buyouts,
-            "named whatever the filter"
+            l.manual_problem.as_deref(),
+            Some("the row on item/i-plain cannot be read: key must be a string at line 1 column 2")
         );
-        assert!(
-            resolve(&snapshot())
+        // Beside the rows the kind already refuses in this snapshot: one
+        // accounting, one total.
+        let base = resolve(&snapshot()).unwrap().rows;
+        let rows = &report.rows;
+        assert_eq!(rows.total, snap.buyouts.len() + 2, "every row counted once");
+        assert_eq!(rows.unreadable_total, base.unreadable_total + 1);
+        let mine = rows
+            .unreadable
+            .iter()
+            .find(|p| p.key == "i-plain")
+            .expect("the unparsed row is accounted");
+        assert_eq!(
+            (mine.scope.as_str(), mine.revision, mine.why.as_str()),
+            ("item", 9, "key must be a string at line 1 column 2")
+        );
+        assert_eq!(rows.other_realm, base.other_realm + 1);
+        // Eleven such rows: the status lists ten under the whole count.
+        let mut snap = snapshot();
+        snap.unreadable_buyouts = (0..11)
+            .map(|n| unparsed("item", &format!("i-x{n}"), 1))
+            .collect();
+        let status = resolve(&snap).unwrap().status(false, 300);
+        assert_eq!(
+            (status.rows.unreadable.len(), status.rows.unreadable_total),
+            (10, base.unreadable_total + 11)
+        );
+        assert_eq!(
+            resolve(&snap)
                 .unwrap()
-                .list_view(ListFilter::default())
-                .unwrap()
+                .status(true, 300)
+                .rows
                 .unreadable
-                .is_empty()
+                .len(),
+            base.unreadable_total + 11
         );
     }
 
