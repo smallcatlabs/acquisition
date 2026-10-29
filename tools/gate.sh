@@ -142,15 +142,46 @@ for line in open(sys.argv[1]):
 # shows and no stage builds.
 RELEASE=.github/workflows/release.yml
 
+# The release's targets, one a line, from the `build` job's
+# `matrix.include`: each row must be the inline `- { os: …, target: … }`
+# the file writes, and a row in any other form is refused by name, so the
+# stage never goes green over a target it could not read (the review of
+# #91, its first finding).
+release_targets() {
+  python3 -I -c '
+import re, sys
+lines = open(sys.argv[1]).read().split("\n")
+def indent(l): return len(l) - len(l.lstrip(" "))
+job = next((i for i, l in enumerate(lines) if re.match(r"^  build:\s*$", l)), None)
+inc = next((i for i in range(job + 1, len(lines)) if lines[i].strip() == "include:"), None) if job is not None else None
+if inc is None:
+    sys.exit(sys.argv[1] + ": no jobs.build.strategy.matrix.include")
+targets, bad = [], []
+for l in lines[inc + 1:]:
+    if not l.strip() or l.strip().startswith("#"):
+        continue
+    if indent(l) <= indent(lines[inc]):
+        break
+    m = re.match(r"^\s*- \{ os: [^,{}]+, target: ([a-z0-9_-]+) \}\s*$", l)
+    (targets.append(m[1]) if m else bad.append(l.strip()))
+if bad or not targets:
+    sys.exit(sys.argv[1] + ": a matrix row not in the form - { os: <runner>, target: <triple> }, so its target would go unchecked: " + "; ".join(bad or ["none listed"]))
+print("\n".join(targets))
+' "$RELEASE"
+}
+
 # Each package of the target's two feature graphs, `<name> <version>`,
-# whose feature sets differ, with both; exit 1 when any does.
+# whose feature sets differ, with both: exit 1 when any does, and 2 when
+# a graph could not be read, which is cargo's failure and no split.
 feature_split() {
   local graphs rc
   graphs=$(mktemp -d) || return 2
-  cargo tree --workspace --target "$1" -e no-dev,features --prefix none --format '{p} {f}' >"$graphs/build" &&
-    cargo tree --workspace --target "$1" -e features --prefix none --format '{p} {f}' >"$graphs/test"
-  rc=$?
-  ((rc == 0)) && python3 -I -c '
+  if ! cargo tree --workspace --target "$1" -e no-dev,features --prefix none --format '{p} {f}' >"$graphs/build" ||
+    ! cargo tree --workspace --target "$1" -e features --prefix none --format '{p} {f}' >"$graphs/test"; then
+    rm -rf "${graphs:?}"
+    return 2
+  fi
+  python3 -I -c '
 import re, sys
 def graph(path):
     seen = {}
@@ -163,7 +194,7 @@ build, test = graph(sys.argv[1]), graph(sys.argv[2])
 split = [p for p in sorted(build.keys() & test.keys()) if build[p] != test[p]]
 for p in split:
     print(p + ": build " + " | ".join(sorted(build[p])) + "; test " + " | ".join(sorted(test[p])))
-sys.exit(1 if split or not build else 0)
+sys.exit(2 if not build or not test else 1 if split else 0)
 ' "$graphs/build" "$graphs/test"
   rc=$?
   rm -rf "${graphs:?}"
@@ -172,15 +203,14 @@ sys.exit(1 if split or not build else 0)
 
 features() {
   local targets t out rc=0
-  targets=$(sed -nE 's/.*\{ os: [^,]+, target: ([a-z0-9_-]+) \}.*/\1/p' "$RELEASE")
-  [[ -n $targets ]] || { echo "gate: features: $RELEASE names no target in its build matrix" >&2; return 1; }
+  targets=$(release_targets) || { echo "gate: features: the release's targets could not be read: the line above names why" >&2; return 1; }
   for t in $targets; do
     out=$(feature_split "$t")
     case $? in
       0) echo "gate: features: $t: the build and the test build agree" ;;
       1) echo "gate: features: $t: a test build compiles these packages with other features than the build, so a test run writes another binary (C84, the artifact mismatch); pin the features in a binary's crate, as acquisition-cli and acquisition-mcp do:" >&2
          echo "$out" >&2; rc=1 ;;
-      *) echo "gate: features: $t: cargo tree failed" >&2; rc=1 ;;
+      *) echo "gate: features: $t: cargo tree could not read the feature graphs (its words above): no comparison was made, and nothing here says a pin is due" >&2; rc=1 ;;
     esac
   done
   return "$rc"

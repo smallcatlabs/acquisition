@@ -2,7 +2,9 @@
 # gate-breakers.sh — proves tools/gate.sh refuses what it claims to, by
 # staging each refusal and watching it fail: a stage name it does not
 # know, the fixture switch set at any value, a working tree its
-# stages changed (#87), and a feature pin taken out (#124).
+# stages changed (#87), a feature pin taken out (#124), a release
+# matrix row the features stage cannot read, and cargo failing under it
+# (the review of #91).
 #
 # A refusal is evidence only when it names the property, so each case
 # states the words the gate must print; a case that passes states the
@@ -29,7 +31,7 @@ for p in "${owned[@]}"; do
 done
 
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/acq-gate-breakers.XXXXXX")
-files=(tools/gate.sh GLOSSARY.md crates/acquisition-cli/Cargo.toml Cargo.lock)
+files=(tools/gate.sh GLOSSARY.md crates/acquisition-cli/Cargo.toml Cargo.lock .github/workflows/release.yml)
 for f in "${files[@]}"; do mkdir -p "$scratch/keep/$(dirname "$f")"; cp "$f" "$scratch/keep/$f"; done
 restore() {
   local f
@@ -142,6 +144,21 @@ p.write_text(pin.sub('', s))
 PY
 }
 run_case 'the rustix pin taken out'                              refuse 'rustix 1.1.4: build'      unpinned       $gate --only features
+# One release row rewritten as valid block YAML beside the inline ones:
+# the stage refuses it by name rather than check four targets of five.
+block_row() {
+  python3 - <<'PY'
+import pathlib
+p = pathlib.Path('.github/workflows/release.yml'); s = p.read_text()
+a = '          - { os: windows-latest, target: x86_64-pc-windows-msvc }\n'
+assert s.count(a) == 1, 'no one windows row'
+p.write_text(s.replace(a, '          - os: windows-latest\n            target: x86_64-pc-windows-msvc\n'))
+PY
+}
+run_case 'a release row in block form beside inline ones'        refuse 'not in the form - { os: <runner>, target: <triple> }' block_row $gate --only features
+# cargo failing under the stage is its failure, never a split to pin.
+cargo_fails() { gate_edit '--target "$1" -e no-dev,features' '--target "zz-no-such-target" -e no-dev,features'; }
+run_case 'cargo tree failing under the stage'                    refuse 'cargo tree could not read the feature graphs' cargo_fails $gate --only features
 run_case 'the feature graphs as they stand'                      pass   'gate: green'              none           $gate --only features
 
 echo
