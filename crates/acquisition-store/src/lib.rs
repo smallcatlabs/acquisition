@@ -974,8 +974,8 @@ pub mod world;
 #[cfg(windows)]
 pub mod world_windows;
 pub use annotations::{
-    AnnotationError, AnnotationRow, Annotations, IntentValue, Provenance, ValueError,
-    annotations_path, check_value,
+    AnnotationError, AnnotationList, AnnotationRow, Annotations, IntentValue, Provenance,
+    UnreadableRow, ValueError, annotations_path, check_value,
 };
 pub use corpus::{
     CorpusHeader, CorpusItem, CorpusItems, Gone, ListingSeen, LocationRow, Membership, RealmScope,
@@ -2388,7 +2388,7 @@ impl Store {
         annotations: &Annotations,
     ) -> Result<Vec<AnnotationRow>> {
         let mut orphaned = Vec::new();
-        for row in annotations.list(Some("item"), None)? {
+        for row in annotations.list(Some("item"), None)?.rows {
             let live: Option<Option<i64>> = self
                 .conn
                 .query_row(

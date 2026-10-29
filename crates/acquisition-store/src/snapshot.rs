@@ -24,7 +24,7 @@ use rusqlite::OptionalExtension;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::annotations::{AnnotationRow, Annotations};
+use crate::annotations::{AnnotationList, AnnotationRow, Annotations, UnreadableRow};
 use crate::{Store, TAB_ORDER_KEYS};
 
 /// The per-account sync policy's annotation address (scope `"account"`,
@@ -250,6 +250,10 @@ pub struct PricingSnapshot {
     /// Every live `buyout` row, whatever its scope and realm — the intent
     /// file is per account, not per league; the reader matches targets.
     pub buyouts: Vec<AnnotationRow>,
+    /// Every live `buyout` row this build cannot read, named (C151), from
+    /// the same read as `buyouts`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub unreadable_buyouts: Vec<UnreadableRow>,
 }
 
 /// The `kind` of the price intent rows this snapshot carries (its value
@@ -330,7 +334,10 @@ impl Store {
         let characters = read_characters(&tx, realm, league)?;
         let items = read_items(&tx, realm, league)?;
         tx.finish()?;
-        let buyouts = annotations.list(None, Some(BUYOUT_KIND))?;
+        let AnnotationList {
+            rows: buyouts,
+            unreadable: unreadable_buyouts,
+        } = annotations.list(None, Some(BUYOUT_KIND))?;
         Ok(PricingSnapshot {
             account_uuid,
             account_name,
@@ -343,6 +350,7 @@ impl Store {
             characters,
             items,
             buyouts,
+            unreadable_buyouts,
         })
     }
 

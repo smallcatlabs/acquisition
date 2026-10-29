@@ -43,6 +43,22 @@
 //!
 //! **Annotations are the only irreplaceable local state.** A separate per-account file named by the account uuid (identity decision in "Multi-account design"), keyed on stable GGG ids, written only through the store crate with integer-revision compare-and-swap; no fact-side event ever deletes intent — an annotation whose item is removed is kept and surfaceable as orphaned; export/backup is a store-managed consistent snapshot (`VACUUM INTO` / SQLite backup API — a raw file copy under WAL is not a backup). Rationale: facts are refetchable at the cost of requests; intent has no server to refetch from — the C++ legacy-buyout saga is the full price of getting this wrong. Decided 2026-08-31.
 //!
+//! ## C151 — An annotation row this build cannot read is named, never dropped, never a wall, and never repaired by a read.
+//!
+//! Every door reads a row as stored first (`Stored`, its value still
+//! text). [`Annotations::list`] parses each and answers an
+//! [`AnnotationList`]: the readable rows, and beside them each
+//! [`UnreadableRow`] by its scope, key, kind, revision and parse fault.
+//! [`Annotations::get`] answers [`AnnotationError::Unreadable`] with the
+//! same facts. [`Annotations::put`] and [`Annotations::delete`] naming
+//! the row's revision never parse the value they replace, so the one
+//! compare-and-swap (C35) can clear or replace such a row; at a wrong
+//! revision they answer `Unreadable` with the revision the row stands
+//! at, where a readable row would answer a `Conflict` carrying itself.
+//! Nothing rewrites a value in place and no read repairs. Rationale: one
+//! damaged row hid every price and could not be cleared by the only API
+//! that may write the file (issue #63).
+//!
 //! ## C65 — Every intent write carries structured provenance
 //!
 //! **Every intent write carries structured provenance: the channel it came
@@ -225,6 +241,78 @@ pub struct AnnotationRow {
     /// metadata: never identity, never authorization.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub actor: Option<String>,
+}
+
+/// A live row whose stored value this build cannot parse as JSON (C151):
+/// where it is, the revision a write must name to clear or replace it,
+/// and the parse fault in the parser's words (which never quote the
+/// value, C127).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UnreadableRow {
+    pub scope: String,
+    pub key: String,
+    pub kind: String,
+    pub revision: i64,
+    pub fault: String,
+}
+
+/// What [`Annotations::list`] answers (C151): every readable live row,
+/// and beside them every live row this build cannot read, named, so one
+/// damaged row neither hides the rest nor disappears.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AnnotationList {
+    pub rows: Vec<AnnotationRow>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub unreadable: Vec<UnreadableRow>,
+}
+
+/// One row as the table holds it, its value still the text as written:
+/// what every door reads first (C151), so a write naming the row's
+/// revision never parses the value it replaces, and a read that cannot
+/// parse it names the row instead of failing.
+struct Stored {
+    scope: String,
+    key: String,
+    kind: String,
+    value: String,
+    revision: i64,
+    created_at: i64,
+    updated_at: i64,
+    written_via: String,
+    actor: Option<String>,
+    deleted: bool,
+}
+
+impl Stored {
+    /// The row with its value parsed, or the row named as unreadable.
+    fn parsed(self) -> Result<AnnotationRow, UnreadableRow> {
+        match serde_json::from_str(&self.value) {
+            Ok(value) => Ok(self.with_value(value)),
+            Err(e) => Err(UnreadableRow {
+                scope: self.scope,
+                key: self.key,
+                kind: self.kind,
+                revision: self.revision,
+                fault: e.to_string(),
+            }),
+        }
+    }
+
+    /// The row's metadata around a value given, the stored text unread:
+    /// what a write naming the revision builds on.
+    fn with_value(self, value: Value) -> AnnotationRow {
+        AnnotationRow {
+            scope: self.scope,
+            key: self.key,
+            kind: self.kind,
+            value,
+            revision: self.revision,
+            created_at: self.created_at,
+            updated_at: self.updated_at,
+            written_via: self.written_via,
+            actor: self.actor,
+        }
+    }
 }
 
 /// Who is writing, as the write API requires it (C65). Built once per
@@ -514,6 +602,10 @@ pub enum AnnotationError {
         kind: String,
         revision: i64,
     },
+    /// C151: a live row this build cannot read, met by a read or by a
+    /// write that did not name its revision. The row stands; a clear or a
+    /// write naming the revision carried here replaces it.
+    Unreadable(UnreadableRow),
     Db(rusqlite::Error),
     Io(std::io::Error),
     Json(serde_json::Error),
@@ -574,6 +666,12 @@ impl std::fmt::Display for AnnotationError {
                 "annotation {scope}/{key}/{kind} is at revision {revision}, the last a row can \
                  take: nothing was written"
             ),
+            AnnotationError::Unreadable(row) => write!(
+                f,
+                "annotation {}/{}/{} at revision {} cannot be read ({}); a clear or a write naming \
+                 that revision replaces it",
+                row.scope, row.key, row.kind, row.revision, row.fault
+            ),
             AnnotationError::Db(e) => write!(f, "annotation store: {e}"),
             AnnotationError::Io(e) => write!(f, "annotation store: {e}"),
             AnnotationError::Json(e) => write!(f, "annotation store: {e}"),
@@ -582,6 +680,12 @@ impl std::fmt::Display for AnnotationError {
 }
 
 impl std::error::Error for AnnotationError {}
+
+impl From<UnreadableRow> for AnnotationError {
+    fn from(row: UnreadableRow) -> Self {
+        AnnotationError::Unreadable(row)
+    }
+}
 
 impl From<rusqlite::Error> for AnnotationError {
     fn from(e: rusqlite::Error) -> Self {
@@ -964,7 +1068,9 @@ impl Annotations {
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let current = row_of(&tx, scope, key, kind)?;
+        // C151: the row as stored, its value unread — a write naming the
+        // revision replaces what it cannot parse.
+        let current = stored(&tx, scope, key, kind)?;
         let stamped = |row: AnnotationRow| AnnotationRow {
             value: value.clone(),
             updated_at: now,
@@ -985,15 +1091,19 @@ impl Annotations {
                 actor: None,
             }),
             // Recreation after a delete: the tombstone's revision carries on.
-            (None, Some((tombstone, true))) => stamped(AnnotationRow {
-                revision: next_revision(&tombstone)?,
-                created_at: now,
-                ..tombstone
-            }),
-            (Some(expected), Some((current, false))) if current.revision == expected => {
+            (None, Some(tombstone)) if tombstone.deleted => {
+                let revision = next_revision(&tombstone)?;
                 stamped(AnnotationRow {
-                    revision: next_revision(&current)?,
-                    ..current
+                    revision,
+                    created_at: now,
+                    ..tombstone.with_value(Value::Null)
+                })
+            }
+            (Some(expected), Some(current)) if !current.deleted && current.revision == expected => {
+                let revision = next_revision(&current)?;
+                stamped(AnnotationRow {
+                    revision,
+                    ..current.with_value(Value::Null)
                 })
             }
             (_, current) => return Err(conflict(current)),
@@ -1054,8 +1164,10 @@ impl Annotations {
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let tombstone = match row_of(&tx, scope, key, kind)? {
-            Some((current, false)) if current.revision == expected_revision => {
+        // C151: read as stored; a delete naming the revision clears a row
+        // it cannot parse.
+        let tombstone = match stored(&tx, scope, key, kind)? {
+            Some(current) if !current.deleted && current.revision == expected_revision => {
                 let tombstone = next_revision(&current)?;
                 tx.execute(
                     "UPDATE annotations
@@ -1080,15 +1192,19 @@ impl Annotations {
         Ok(tombstone)
     }
 
-    /// The stored row, raw: the value as written, with its provenance.
+    /// The stored row, raw: the value as written, with its provenance. A
+    /// live row this build cannot read is [`AnnotationError::Unreadable`]
+    /// (C151), never "no such annotation".
     pub fn get(
         &self,
         scope: &str,
         key: &str,
         kind: &str,
     ) -> Result<Option<AnnotationRow>, AnnotationError> {
-        Ok(row_of(&self.conn, scope, key, kind)?
-            .and_then(|(row, deleted)| (!deleted).then_some(row)))
+        match stored(&self.conn, scope, key, kind)? {
+            Some(row) if !row.deleted => Ok(Some(row.parsed()?)),
+            _ => Ok(None),
+        }
     }
 
     /// The live row a write naming `revision` replaces: the row read now,
@@ -1106,8 +1222,8 @@ impl Annotations {
         kind: &str,
         revision: i64,
     ) -> Result<AnnotationRow, AnnotationError> {
-        match row_of(&self.conn, scope, key, kind)? {
-            Some((row, false)) if row.revision == revision => Ok(row),
+        match stored(&self.conn, scope, key, kind)? {
+            Some(row) if !row.deleted && row.revision == revision => Ok(row.parsed()?),
             current => Err(conflict(current)),
         }
     }
@@ -1122,8 +1238,8 @@ impl Annotations {
         key: &str,
         kind: &str,
     ) -> Result<Option<i64>, AnnotationError> {
-        Ok(row_of(&self.conn, scope, key, kind)?
-            .and_then(|(row, deleted)| deleted.then_some(row.revision)))
+        Ok(stored(&self.conn, scope, key, kind)?
+            .and_then(|row| row.deleted.then_some(row.revision)))
     }
 
     /// The stored row of kind `K` and its typed value (C66): the same
@@ -1145,36 +1261,46 @@ impl Annotations {
     }
 
     /// Every live annotation (tombstones excluded), optionally restricted
-    /// to one scope and/or one kind, ordered by (scope, key, kind). A
-    /// pricing read wants one kind across four scopes; at 10k rows the
-    /// scan is 35 ms, so a filter is needed and an index is not.
+    /// to one scope and/or one kind, ordered by (scope, key, kind): the
+    /// readable rows, and beside them each row this build cannot read,
+    /// named (C151), so one damaged row never fails the list. A pricing
+    /// read wants one kind across four scopes; at 10k rows the scan is
+    /// 35 ms, so a filter is needed and an index is not.
     pub fn list(
         &self,
         scope: Option<&str>,
         kind: Option<&str>,
-    ) -> Result<Vec<AnnotationRow>, AnnotationError> {
+    ) -> Result<AnnotationList, AnnotationError> {
         let mut stmt = self.conn.prepare(
             "SELECT scope, key, kind, value, revision, created_at, updated_at, written_via, actor
                FROM annotations
               WHERE deleted_at IS NULL AND (?1 IS NULL OR scope = ?1) AND (?2 IS NULL OR kind = ?2)
               ORDER BY scope, key, kind",
         )?;
-        let rows: Vec<RawRow> = stmt
+        let rows: Vec<Stored> = stmt
             .query_map(params![scope, kind], |r| {
-                Ok((
-                    r.get(0)?,
-                    r.get(1)?,
-                    r.get(2)?,
-                    r.get(3)?,
-                    r.get(4)?,
-                    r.get(5)?,
-                    r.get(6)?,
-                    r.get(7)?,
-                    r.get(8)?,
-                ))
+                Ok(Stored {
+                    scope: r.get(0)?,
+                    key: r.get(1)?,
+                    kind: r.get(2)?,
+                    value: r.get(3)?,
+                    revision: r.get(4)?,
+                    created_at: r.get(5)?,
+                    updated_at: r.get(6)?,
+                    written_via: r.get(7)?,
+                    actor: r.get(8)?,
+                    deleted: false,
+                })
             })?
             .collect::<Result<_, _>>()?;
-        rows.into_iter().map(row_from_raw).collect()
+        let mut list = AnnotationList::default();
+        for row in rows {
+            match row.parsed() {
+                Ok(row) => list.rows.push(row),
+                Err(unreadable) => list.unreadable.push(unreadable),
+            }
+        }
+        Ok(list)
     }
 
     /// The file's revision: the sum of every row's revision, tombstones
@@ -1301,7 +1427,7 @@ impl Annotations {
 /// the write returns — or, at the last revision an `i64` holds, the
 /// refusal that says so with nothing written ([`AnnotationError::RevisionExhausted`]).
 /// The one increment both doors take, `put` and `delete`.
-fn next_revision(row: &AnnotationRow) -> Result<i64, AnnotationError> {
+fn next_revision(row: &Stored) -> Result<i64, AnnotationError> {
     row.revision
         .checked_add(1)
         .ok_or_else(|| AnnotationError::RevisionExhausted {
@@ -1312,52 +1438,32 @@ fn next_revision(row: &AnnotationRow) -> Result<i64, AnnotationError> {
         })
 }
 
-fn conflict(current: Option<(AnnotationRow, bool)>) -> AnnotationError {
-    AnnotationError::Conflict {
-        current: current.and_then(|(row, deleted)| (!deleted).then(|| Box::new(row))),
+/// What a write that did not match answers: a `Conflict` carrying the
+/// live row as it stands, none for a tombstone or no row at all — or,
+/// for a live row this build cannot read, `Unreadable` with the revision
+/// a write must name (C151).
+fn conflict(current: Option<Stored>) -> AnnotationError {
+    match current {
+        Some(row) if !row.deleted => match row.parsed() {
+            Ok(row) => AnnotationError::Conflict {
+                current: Some(Box::new(row)),
+            },
+            Err(unreadable) => AnnotationError::Unreadable(unreadable),
+        },
+        _ => AnnotationError::Conflict { current: None },
     }
 }
 
-/// The columns of one row as SQLite hands them back, before the JSON is
-/// parsed: scope, key, kind, value text, revision, created, updated,
-/// written_via, actor.
-type RawRow = (
-    String,
-    String,
-    String,
-    String,
-    i64,
-    i64,
-    i64,
-    String,
-    Option<String>,
-);
-
-fn row_from_raw(raw: RawRow) -> Result<AnnotationRow, AnnotationError> {
-    let (scope, key, kind, value, revision, created_at, updated_at, written_via, actor) = raw;
-    Ok(AnnotationRow {
-        scope,
-        key,
-        kind,
-        value: serde_json::from_str(&value)?,
-        revision,
-        created_at,
-        updated_at,
-        written_via,
-        actor,
-    })
-}
-
-/// The stored row, tombstones included; the bool is "deleted".
-fn row_of(
+/// The stored row, tombstones included, its value unread (C151).
+fn stored(
     conn: &Connection,
     scope: &str,
     key: &str,
     kind: &str,
-) -> Result<Option<(AnnotationRow, bool)>, AnnotationError> {
+) -> Result<Option<Stored>, AnnotationError> {
     // value, revision, created, updated, deleted, written_via, actor
-    type Stored = (String, i64, i64, i64, Option<i64>, String, Option<String>);
-    let found: Option<Stored> = conn
+    type Columns = (String, i64, i64, i64, Option<i64>, String, Option<String>);
+    let found: Option<Columns> = conn
         .query_row(
             "SELECT value, revision, created_at, updated_at, deleted_at, written_via, actor
                FROM annotations
@@ -1376,25 +1482,20 @@ fn row_of(
             },
         )
         .optional()?;
-    match found {
-        None => Ok(None),
-        Some((value, revision, created_at, updated_at, deleted_at, written_via, actor)) => {
-            Ok(Some((
-                AnnotationRow {
-                    scope: scope.into(),
-                    key: key.into(),
-                    kind: kind.into(),
-                    value: serde_json::from_str(&value)?,
-                    revision,
-                    created_at,
-                    updated_at,
-                    written_via,
-                    actor,
-                },
-                deleted_at.is_some(),
-            )))
-        }
-    }
+    Ok(found.map(
+        |(value, revision, created_at, updated_at, deleted_at, written_via, actor)| Stored {
+            scope: scope.into(),
+            key: key.into(),
+            kind: kind.into(),
+            value,
+            revision,
+            created_at,
+            updated_at,
+            written_via,
+            actor,
+            deleted: deleted_at.is_some(),
+        },
+    ))
 }
 
 /// Kinds for this crate's tests: a value of any shape under a named kind,
@@ -1568,7 +1669,7 @@ mod tests {
             &via,
         )
         .unwrap();
-        assert_eq!(a.list(Some("item"), None).unwrap().len(), 2);
+        assert_eq!(a.list(Some("item"), None).unwrap().rows.len(), 2);
         // Delete is CAS too; a stale delete conflicts and changes nothing.
         let err = a.delete("item", "i1", "buyout", 1, &via).unwrap_err();
         assert_eq!(conflict_revision(err), Some(2));
@@ -1582,6 +1683,155 @@ mod tests {
     }
 
     /// C35 — delete tombstones; the revision sequence survives delete/recreate, so a writer holding any revision of the live row conflicts once it moves (a create over the tombstone lands, whatever its generation — see `put`).
+    /// A live row's value overwritten with text that is not JSON, as a
+    /// damaged file holds it: the fixture every `c151_` test stages.
+    fn damaged(a: &Annotations, key: &str) {
+        a.conn
+            .execute(
+                "UPDATE annotations SET value = '{nope' WHERE key = ?1",
+                [key],
+            )
+            .unwrap();
+    }
+
+    /// C151 — an annotation row this build cannot read is named, never
+    /// dropped, never a wall: `list` answers the readable rows and names
+    /// the damaged one by its coordinate, revision and fault (the
+    /// parser's words, which never quote the value, C127), where it used
+    /// to fail whole; `get` answers the same facts as a structured
+    /// refusal, in words that say what replaces the row; the file's
+    /// revision still sums every row; a tombstone is never the row.
+    #[test]
+    fn c151_list_names_an_unreadable_row_beside_the_readable_ones_and_get_refuses_it() {
+        let mut a = Annotations::open_memory().unwrap();
+        let via = via_test();
+        a.put::<Buyout>("item", "i-good", &price("1c"), None, &via)
+            .unwrap();
+        let bad = a
+            .put::<Buyout>("item", "i-bad", &price("2c"), None, &via)
+            .unwrap();
+        a.put::<Buyout>("item", "i-bad", &price("3c"), Some(bad.revision), &via)
+            .unwrap();
+        damaged(&a, "i-bad");
+
+        let list = a.list(None, None).unwrap();
+        let readable: Vec<&str> = list.rows.iter().map(|r| r.key.as_str()).collect();
+        assert_eq!(readable, ["i-good"], "the readable rows, whole");
+        let [named] = list.unreadable.as_slice() else {
+            panic!("one unreadable row named: {:?}", list.unreadable)
+        };
+        assert_eq!(
+            (
+                named.scope.as_str(),
+                named.key.as_str(),
+                named.kind.as_str(),
+                named.revision
+            ),
+            ("item", "i-bad", "buyout", 2)
+        );
+        assert!(
+            !named.fault.is_empty() && !named.fault.contains("nope"),
+            "the fault is the parser's and never quotes the value: {}",
+            named.fault
+        );
+        assert_eq!(
+            a.revision().unwrap(),
+            1 + 2,
+            "the file's revision sums every row"
+        );
+
+        let err = a.get("item", "i-bad", "buyout").unwrap_err();
+        assert!(
+            matches!(&err, AnnotationError::Unreadable(row) if row.revision == 2 && row.key == "i-bad"),
+            "{err:?}"
+        );
+        let words = err.to_string();
+        assert!(
+            words.contains("item/i-bad/buyout")
+                && words.contains("revision 2")
+                && words.contains("naming that revision replaces it"),
+            "{words}"
+        );
+        assert_eq!(a.cleared("item", "i-bad", "buyout").unwrap(), None);
+        assert_eq!(
+            a.get("item", "i-good", "buyout").unwrap().unwrap().value,
+            price("1c")
+        );
+    }
+
+    /// C151 — a write naming the row's revision does not parse its value:
+    /// `put` at the revision replaces an unreadable row and `delete` at
+    /// the revision clears it, through the one compare-and-swap (C35);
+    /// at a wrong revision, or a create over the live row, each answers
+    /// `Unreadable` with the revision the row stands at, never a
+    /// `Conflict` that would need the row it cannot read; a create over
+    /// the tombstone of a damaged row continues the sequence without
+    /// reading it. Nothing repairs a value in place.
+    #[test]
+    fn c151_a_write_naming_the_revision_replaces_or_clears_an_unreadable_row() {
+        let mut a = Annotations::open_memory().unwrap();
+        let via = via_test();
+        let first = a
+            .put::<Buyout>("item", "i-bad", &price("2c"), None, &via)
+            .unwrap();
+        a.put::<Buyout>("item", "i-bad", &price("3c"), Some(first.revision), &via)
+            .unwrap();
+        damaged(&a, "i-bad");
+        let unreadable_at = |err: AnnotationError| match err {
+            AnnotationError::Unreadable(row) => row.revision,
+            other => panic!("expected the row named as unreadable, got {other:?}"),
+        };
+
+        // The wrong revision, and a create over the live row: named.
+        let stale = a
+            .put::<Buyout>("item", "i-bad", &price("4c"), Some(1), &via)
+            .unwrap_err();
+        assert_eq!(unreadable_at(stale), 2);
+        let blind = a
+            .put::<Buyout>("item", "i-bad", &price("4c"), None, &via)
+            .unwrap_err();
+        assert_eq!(unreadable_at(blind), 2);
+        let stale_clear = a.delete("item", "i-bad", "buyout", 1, &via).unwrap_err();
+        assert_eq!(unreadable_at(stale_clear), 2);
+        assert!(
+            matches!(
+                a.get("item", "i-bad", "buyout"),
+                Err(AnnotationError::Unreadable(_))
+            ),
+            "nothing was written"
+        );
+
+        // The right revision: replaced, readable again, the sequence kept.
+        let replaced = a
+            .put::<Buyout>("item", "i-bad", &price("4c"), Some(2), &via)
+            .unwrap();
+        assert_eq!((replaced.revision, &replaced.value), (3, &price("4c")));
+        assert_eq!(
+            a.get("item", "i-bad", "buyout").unwrap().unwrap().value,
+            price("4c")
+        );
+        assert!(a.list(None, None).unwrap().unreadable.is_empty());
+
+        // Damaged again, cleared at its revision; the tombstone's value is
+        // still unreadable and a create over it never reads it.
+        damaged(&a, "i-bad");
+        let tombstone = a.delete("item", "i-bad", "buyout", 3, &via).unwrap();
+        assert_eq!(tombstone, 4);
+        let list = a.list(None, None).unwrap();
+        assert!(
+            list.rows.is_empty() && list.unreadable.is_empty(),
+            "{list:?}"
+        );
+        assert_eq!(a.cleared("item", "i-bad", "buyout").unwrap(), Some(4));
+        let again = a
+            .put::<Buyout>("item", "i-bad", &price("5c"), None, &via)
+            .unwrap();
+        assert_eq!(
+            again.revision, 5,
+            "the sequence continues past the damaged tombstone"
+        );
+    }
+
     #[test]
     fn delete_and_recreate_never_reset_the_revision() {
         let mut a = Annotations::open_memory().unwrap();
@@ -1916,18 +2166,23 @@ mod tests {
                 .collect()
         };
         assert_eq!(
-            keys(a.list(None, None).unwrap()),
+            keys(a.list(None, None).unwrap().rows),
             ["item/i1/buyout", "item/i1/note", "tab/pc/t1/buyout"]
         );
         assert_eq!(
-            keys(a.list(None, Some("buyout")).unwrap()),
+            keys(a.list(None, Some("buyout")).unwrap().rows),
             ["item/i1/buyout", "tab/pc/t1/buyout"]
         );
         assert_eq!(
-            keys(a.list(Some("item"), Some("buyout")).unwrap()),
+            keys(a.list(Some("item"), Some("buyout")).unwrap().rows),
             ["item/i1/buyout"]
         );
-        assert!(a.list(Some("account"), Some("buyout")).unwrap().is_empty());
+        assert!(
+            a.list(Some("account"), Some("buyout"))
+                .unwrap()
+                .rows
+                .is_empty()
+        );
     }
 
     /// C65 — every write carries who wrote it; a delete stamps the
@@ -1954,8 +2209,8 @@ mod tests {
         assert_eq!((row.written_via.as_str(), row.actor), ("mcp", None));
         // The tombstone records who cleared the row.
         a.delete("item", "i1", "buyout", 2, &cli).unwrap();
-        let (tomb, deleted) = row_of(&a.conn, "item", "i1", "buyout").unwrap().unwrap();
-        assert!(deleted);
+        let tomb = stored(&a.conn, "item", "i1", "buyout").unwrap().unwrap();
+        assert!(tomb.deleted);
         assert_eq!(tomb.written_via, "cli");
         assert_eq!(tomb.actor.as_deref(), Some("tom"));
         // Refused channels: nothing lands, nothing is deleted.
@@ -2144,7 +2399,7 @@ mod tests {
         );
         // The snapshot is a complete, standalone annotation file.
         let restored = Annotations::open(&backup).unwrap();
-        assert_eq!(restored.list(None, None).unwrap().len(), 1);
+        assert_eq!(restored.list(None, None).unwrap().rows.len(), 1);
         // A second export to the same path is refused, not an overwrite —
         // and refused before anything is written.
         assert!(a.export(&backup).is_err());
@@ -2176,7 +2431,7 @@ mod tests {
             other => panic!("expected AlreadyExists, got {other}"),
         }
         let restored = Annotations::open(&backup).unwrap();
-        assert_eq!(restored.list(None, None).unwrap().len(), 1);
+        assert_eq!(restored.list(None, None).unwrap().rows.len(), 1);
         let leftovers = std::fs::read_dir(&dir)
             .unwrap()
             .filter_map(|e| e.ok())
@@ -2547,7 +2802,7 @@ mod tests {
         let before = file_hash(&path);
         let mut ro = Annotations::open_read_only_for(&dir, "u-1").unwrap();
         assert_eq!(ro.uuid(), Some("u-1"));
-        assert_eq!(ro.list(None, None).unwrap().len(), 1);
+        assert_eq!(ro.list(None, None).unwrap().rows.len(), 1);
         assert!(
             ro.put::<Buyout>("item", "i2", &price("2 divine"), None, &via_test())
                 .is_err(),
