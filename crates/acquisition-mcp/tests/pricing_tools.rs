@@ -137,10 +137,12 @@ fn seed(base: &Path) {
 /// A document with the clock's own readings taken out — when the
 /// snapshot was taken and the render made, a second apart at most
 /// between the two processes, and every age said in words beside an
-/// epoch (an `_age` key, C53: made at each answer's own time, so the two
-/// processes' can differ by a second) — and, for a write's receipt, when
-/// the row was written and through which surface (`mcp` or `cli`, by
-/// design).
+/// epoch (an `_age` key, C53: made at each answer's own time, so two
+/// answers' can differ by a second, from two processes or from one read
+/// twice) — and, for a write's receipt, when the row was written and
+/// through which surface (`mcp` or `cli`, by design). Every comparison in
+/// this file of a document read twice goes through it (#109: a row read
+/// before and after a refused write said `0s ago`, then `1s ago`).
 fn steady(mut doc: Value, keys: &[&str]) -> Value {
     fn strip(v: &mut Value, keys: &[&str]) {
         match v {
@@ -600,7 +602,7 @@ fn a_blind_replace_and_a_blind_clear_are_refused_naming_the_current_revision() {
     let shown = |mcp: &mut Mcp| {
         let (ok, view) = tool(mcp, "price_show", json!({ "target": "item/i-plain" }));
         assert!(ok, "{view}");
-        view["listing"]["manual"].clone()
+        steady(view["listing"]["manual"].clone(), &[])
     };
     let before = shown(&mut mcp);
     assert_eq!(before["revision"], json!(1), "{before}");
@@ -915,18 +917,12 @@ fn a_conflicts_current_is_the_row_price_show_prints_verbatim() {
     let mut mcp = Mcp::start(base, &[]);
     let (ok, view) = tool(&mut mcp, "price_show", json!({ "target": "item/i-map" }));
     assert!(ok, "{view}");
-    let mut manual = view["listing"]["manual"].clone();
+    let manual = view["listing"]["manual"].clone();
     assert_eq!(manual["actor"], "acq search --count tab", "{view}");
     // less the words C53 says beside its `updated_at` on `show` (step 2g
     // round 6), which a refusal does not carry: round 6 touches no refusal
-    assert!(
-        manual
-            .as_object_mut()
-            .unwrap()
-            .remove("updated_at_age")
-            .is_some(),
-        "{view}"
-    );
+    assert!(manual.get("updated_at_age").is_some(), "{view}");
+    let manual = steady(manual, &[]);
     let (ok, refusal) = tool(
         &mut mcp,
         "price_set",
