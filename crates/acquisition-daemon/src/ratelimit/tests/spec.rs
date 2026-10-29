@@ -301,6 +301,17 @@ const D8_REJECTED: &[(&str, &[(&str, &str)])] = &[
         ],
     ),
     (
+        // `u64::from_str` takes a leading `+`; the digits-only check before
+        // it is what refuses one (#86's mutants run).
+        "signed field",
+        &[
+            ("x-rate-limit-policy", "p"),
+            ("x-rate-limit-rules", "Account"),
+            ("x-rate-limit-account", "+2:10:60"),
+            ("x-rate-limit-account-state", "1:10:0"),
+        ],
+    ),
+    (
         "hit count outside u32",
         &[
             ("x-rate-limit-policy", "p"),
@@ -336,25 +347,20 @@ fn d8_full_header_grammar_rejects_every_partial_or_malformed_shape() {
     }
 }
 
+/// The operational bounds as their docs state them, a full day, written
+/// as a number rather than read from the constants: a bound read from its
+/// own constant moves with it: `24 * 60 + 60`, which would refuse GGG's
+/// observed 1,800 s period, left every bound test green (#86's mutants
+/// run).
+const A_DAY_SECS: u64 = 86_400;
+
 #[test]
 fn policy_deadline_fields_accept_the_operational_bounds() {
     let cases = [
-        (
-            "limit period",
-            MAX_POLICY_PERIOD_SECS,
-            0,
-            MAX_POLICY_PERIOD_SECS,
-            0,
-        ),
-        ("limit restriction", 1, MAX_POLICY_RESTRICTION_SECS, 1, 0),
-        (
-            "state period",
-            MAX_POLICY_PERIOD_SECS,
-            0,
-            MAX_POLICY_PERIOD_SECS,
-            0,
-        ),
-        ("active restriction", 1, 0, 1, MAX_POLICY_RESTRICTION_SECS),
+        ("limit period", A_DAY_SECS, 0, A_DAY_SECS, 0),
+        ("limit restriction", 1, A_DAY_SECS, 1, 0),
+        ("state period", A_DAY_SECS, 0, A_DAY_SECS, 0),
+        ("active restriction", 1, 0, 1, A_DAY_SECS),
     ];
     for (name, limit_period, limit_restriction, state_period, active_restriction) in cases {
         assert!(
@@ -373,34 +379,10 @@ fn policy_deadline_fields_accept_the_operational_bounds() {
 #[test]
 fn policy_deadline_fields_reject_one_above_the_operational_bounds() {
     let cases = [
-        (
-            "limit period",
-            MAX_POLICY_PERIOD_SECS + 1,
-            0,
-            MAX_POLICY_PERIOD_SECS,
-            0,
-        ),
-        (
-            "limit restriction",
-            1,
-            MAX_POLICY_RESTRICTION_SECS + 1,
-            1,
-            0,
-        ),
-        (
-            "state period",
-            MAX_POLICY_PERIOD_SECS,
-            0,
-            MAX_POLICY_PERIOD_SECS + 1,
-            0,
-        ),
-        (
-            "active restriction",
-            1,
-            0,
-            1,
-            MAX_POLICY_RESTRICTION_SECS + 1,
-        ),
+        ("limit period", A_DAY_SECS + 1, 0, A_DAY_SECS, 0),
+        ("limit restriction", 1, A_DAY_SECS + 1, 1, 0),
+        ("state period", A_DAY_SECS, 0, A_DAY_SECS + 1, 0),
+        ("active restriction", 1, 0, 1, A_DAY_SECS + 1),
     ];
     for (name, limit_period, limit_restriction, state_period, active_restriction) in cases {
         assert!(
@@ -545,6 +527,13 @@ fn pacing_rows() -> Vec<Row> {
             // positional lookback would have landed on it and said "go".
             history: &[303.0, 0.0],
             expect_wait: 10.0 + 5.0 + 1.0,
+        },
+        Row {
+            name: "over-full window: more of our hits in it than its max",
+            claims: "N25: a send needs hits below max, so the window frees when all but max-1 have left it: the second-oldest of three (1s ago) + 10 + 5 + 1, not the oldest (#86's mutants run)",
+            headers: with_state(CHAR_LIST, "3:10:0,3:300:0").leak(),
+            history: &[2.0, 1.0, 0.0],
+            expect_wait: 10.0 + 5.0 + 1.0 - 1.0,
         },
         Row {
             name: "restriction active",
@@ -1506,6 +1495,41 @@ fn retryable_429_holds_an_unknown_route_when_policy_headers_are_bad() {
     assert!(limiter.is_live(now));
 }
 
+/// A route's 429 hold is the latest deadline any of its 429s set: a later
+/// 429 with a shorter `Retry-After` never shortens it, and a longer one
+/// extends it. The route-local hold is the only one an unknown route has,
+/// and no other row landed two 429s on one (#86's mutants run).
+#[test]
+fn a_routes_429_hold_keeps_the_latest_deadline() {
+    let now = far_future();
+    let mut limiter = Limiter::new();
+    let mut land_429 = |seconds: &str| {
+        let retry_after = retry(Some(seconds));
+        let observation = limiter.observe_landed(
+            "oauth-token",
+            LandedObservation {
+                policy: parse(&[]),
+                retry_after: &retry_after,
+                raw: serde_json::Value::Null,
+                counted: true,
+                status: 429,
+                now,
+            },
+        );
+        assert!(observation.is_err());
+    };
+    land_429("30");
+    land_429("2");
+    land_429("300");
+    land_429("30");
+    assert_wait(
+        "the longest of four 429s on an unknown route",
+        limiter.wait_for("oauth-token", now),
+        300.0 + 60.0 + 1.0,
+    );
+    assert_eq!(limiter.violation_count(), 4, "every landed 429 counts");
+}
+
 #[test]
 fn token_policy_uses_the_frozen_conservative_single_window_bucket() {
     let now = far_future();
@@ -1637,13 +1661,19 @@ fn full_head_429_establishes_and_holds_without_a_get_attempt() {
 
 #[test]
 fn every_unacceptable_full_head_429_is_a_setup_failure() {
+    // Each with the words the degraded reason must carry (C53: a failure
+    // names its evidence), written out rather than read back through
+    // `Display`, which an empty rendering would satisfy (#86's mutants run).
     let cases = [
-        retry(None),
-        retry(Some("soon")),
-        retry(Some("-1")),
-        retry(Some("901")),
+        (retry(None), "missing Retry-After"),
+        (retry(Some("soon")), "malformed Retry-After 'soon'"),
+        (retry(Some("-1")), "negative Retry-After '-1'"),
+        (
+            retry(Some("901")),
+            "Retry-After '901' exceeds the 900s product cap",
+        ),
     ];
-    for retry_after in cases {
+    for (retry_after, words) in cases {
         let now = far_future();
         let mut limiter = Limiter::new();
         let result = limiter.observe_probe_429(
@@ -1654,10 +1684,12 @@ fn every_unacceptable_full_head_429_is_a_setup_failure() {
             now,
         );
         assert!(result.is_err(), "{retry_after} unexpectedly established");
-        assert!(matches!(
-            limiter.endpoint_state("/character", now),
-            EndpointState::Degraded { .. }
-        ));
+        match limiter.endpoint_state("/character", now) {
+            EndpointState::Degraded { reason, .. } => {
+                assert!(reason.contains(words), "{reason:?} names no {words:?}")
+            }
+            state => panic!("{words}: {state:?}, not degraded"),
+        }
         assert!(limiter.statuses(now).is_empty());
         assert_eq!(limiter.violation_count(), 1);
     }
@@ -2192,6 +2224,49 @@ async fn transport_failure_on_an_established_policy_paces_as_if_counted() {
     );
 }
 
+/// The one send record the choke point holds for `endpoint`.
+fn record_of(choke: &ChokePoint, endpoint: &str) -> SendRecord {
+    let mut records: Vec<SendRecord> = choke
+        .recent_sends()
+        .into_iter()
+        .filter(|send| send.endpoint == endpoint)
+        .collect();
+    assert_eq!(records.len(), 1, "{endpoint}: {records:?}");
+    records.remove(0)
+}
+
+/// A HEAD's send record says what the GET's does: a complete 2xx that
+/// taught no policy is a protocol failure and not ok; a refusal is its
+/// status, never a protocol failure, whatever headers it carried. No row
+/// read a HEAD's record (#86's mutants run).
+#[tokio::test]
+async fn a_heads_record_names_a_protocol_failure_only_on_a_2xx() {
+    let choke = ChokePoint::new();
+    let (url, server) = serve_one_raw(raw_response("200 OK", "", 0, "")).await;
+    let _ = choke
+        .head("headerless-head", &url, None, choke.now(), ALWAYS_WANTED)
+        .await;
+    server.await.unwrap();
+    let send = record_of(&choke, "headerless-head");
+    assert!(!send.ok, "{send:?}");
+    assert!(send.outcome.contains("protocol failure"), "{send:?}");
+
+    let (url, server) = serve_one_raw(raw_response(
+        "403 Forbidden",
+        &full_rate_headers("p", None),
+        0,
+        "",
+    ))
+    .await;
+    let _ = choke
+        .head("refused-head", &url, None, choke.now(), ALWAYS_WANTED)
+        .await;
+    server.await.unwrap();
+    let send = record_of(&choke, "refused-head");
+    assert!(!send.ok, "{send:?}");
+    assert_eq!(send.outcome, "403 Forbidden", "{send:?}");
+}
+
 #[tokio::test]
 async fn malformed_200_with_truncated_body_is_network_and_preserves_policy() {
     let route = "malformed-truncated";
@@ -2480,6 +2555,12 @@ fn a_journaled_location_keeps_its_origin_and_path_and_marks_the_rest() {
     assert!(kept.starts_with("https://h/aaa"), "{kept}");
     assert!(kept.ends_with("…?…"), "{kept}");
     assert_eq!(kept.chars().count(), LOCATION_CHARS + 3, "{kept}");
+    // One exactly at the bound is whole, no mark (#86's mutants run).
+    let at_bound = format!(
+        "https://h/{}",
+        "a".repeat(LOCATION_CHARS - "https://h/".len())
+    );
+    assert_eq!(redacted_location(&at_bound), at_bound);
 }
 
 #[tokio::test]
@@ -3024,6 +3105,7 @@ fn a_declared_policyless_route_accepts_a_headerless_2xx_and_nothing_else_does() 
         .expect("declared policyless");
     assert_eq!(l.endpoint_state(&profile, now), EndpointState::Policyless);
     assert_eq!(l.wait_for(&profile, now), Duration::ZERO);
+    assert_eq!(l.policyless_endpoints(), std::slice::from_ref(&profile));
     // The same answer on an undeclared route is still a protocol failure.
     let err = l
         .observe(
@@ -3055,6 +3137,140 @@ fn a_declared_policyless_route_accepts_a_headerless_2xx_and_nothing_else_does() 
         l.endpoint_state(&profile, now),
         EndpointState::Policy(_)
     ));
+    assert!(
+        l.policyless_endpoints().is_empty(),
+        "a learned policy leaves the policyless list"
+    );
+}
+
+/// The choke point's status reads are the limiter's, unchanged: the
+/// policyless routes and the degraded ones a status reports (#86's
+/// mutants run; no row read either through the choke point).
+#[tokio::test]
+async fn the_choke_point_reports_policyless_and_degraded_routes() {
+    let choke = ChokePoint::new();
+    {
+        let mut limiter = choke.limiter.lock().unwrap();
+        limiter.declare_policyless("profile");
+        let none: &[(&str, &str)] = &[];
+        limiter
+            .observe(
+                "profile",
+                parse(none),
+                serde_json::json!({}),
+                true,
+                Instant::now(),
+            )
+            .expect("declared policyless");
+    }
+    assert_eq!(choke.policyless_endpoints(), ["profile".to_string()]);
+
+    let (url, server) = serve_one_raw(raw_response("403 Forbidden", "", 0, "")).await;
+    let _ = choke
+        .head("refused-head", &url, None, choke.now(), ALWAYS_WANTED)
+        .await;
+    server.await.unwrap();
+    let degraded = choke.degraded_endpoints();
+    assert_eq!(degraded.len(), 1, "{degraded:?}");
+    assert_eq!(degraded[0].endpoint, "refused-head");
+    assert!(degraded[0].reason.contains("403"), "{degraded:?}");
+}
+
+/// A degraded route leaves the degraded list when its cooldown ends, as
+/// it reads `Unknown` then (`endpoint_state`); a status names only the
+/// routes still closed (#86's mutants run).
+#[test]
+fn a_degraded_route_leaves_the_list_when_its_cooldown_ends() {
+    let then = far_future();
+    let mut l = Limiter::new();
+    l.observe_probe(
+        "/ep",
+        Err("HEAD returned 500".into()),
+        serde_json::Value::Null,
+        then,
+    );
+    assert_eq!(l.degraded_endpoints(then).len(), 1);
+    let after = then + PROBE_COOLDOWN + Duration::from_secs(1);
+    assert_eq!(l.endpoint_state("/ep", after), EndpointState::Unknown);
+    assert!(l.degraded_endpoints(after).is_empty());
+}
+
+/// A pending restriction is state worth keeping (`is_live`, N24) after
+/// every hit has left the policy's longest window: the restriction runs
+/// 30 s past the last response, the window only 10 (#86's mutants run).
+#[test]
+fn a_pending_restriction_keeps_the_limiter_live_past_its_window() {
+    let then = far_future();
+    let mut l = Limiter::new();
+    l.observe(
+        "/ep",
+        parse(&[
+            ("x-rate-limit-policy", "p"),
+            ("x-rate-limit-rules", "Account"),
+            ("x-rate-limit-account", "2:10:60"),
+            ("x-rate-limit-account-state", "1:10:30"),
+        ]),
+        serde_json::Value::Null,
+        true,
+        then,
+    )
+    .unwrap();
+    let later = then + Duration::from_secs(20);
+    assert_wait(
+        "the restriction",
+        l.wait_for("/ep", later),
+        30.0 + 5.0 + 1.0 - 20.0,
+    );
+    assert!(l.is_live(later), "a restriction pending 16 s more");
+    assert!(
+        !l.is_live(then + Duration::from_secs(40)),
+        "every hold has passed"
+    );
+}
+
+/// The ETA counts the server's residue (hits it reported that this daemon
+/// never sent, N23/N24) as hits at the last response, and the window frees
+/// from them once our own older hits have left it. One counted hit 50 s
+/// ago; an uncounted answer 10 s ago reporting 3 of 4 in a 100 s window,
+/// so 2 unseen hits at -10 s. Queue position 0 goes now; 1 waits for the
+/// -50 s hit: 50 + 5 + 1 = 56; 2 waits for the residue at -10 s:
+/// 90 + 5 + 1 = 96. Without the residue the third would say 106 (#86's
+/// mutants run: no row gave the simulation a residue between two hits).
+#[test]
+fn the_eta_frees_a_window_from_the_servers_residue() {
+    let now = far_future();
+    let mut l = Limiter::new();
+    let headers = |state: &'static str| {
+        parse(&[
+            ("x-rate-limit-policy", "p"),
+            ("x-rate-limit-rules", "Account"),
+            ("x-rate-limit-account", "4:100:60"),
+            ("x-rate-limit-account-state", state),
+        ])
+    };
+    let ago = |seconds| now - Duration::from_secs(seconds);
+    l.observe(
+        "/ep",
+        headers("1:100:0"),
+        serde_json::Value::Null,
+        true,
+        ago(50),
+    )
+    .unwrap();
+    l.observe(
+        "/ep",
+        headers("3:100:0"),
+        serde_json::Value::Null,
+        false,
+        ago(10),
+    )
+    .unwrap();
+    let etas: Vec<f64> = l
+        .etas_for("/ep", 3, now)
+        .iter()
+        .map(Duration::as_secs_f64)
+        .collect();
+    assert_eq!(etas, [0.0, 56.0, 96.0]);
 }
 
 /// A bearer that counts how often its token was read.
@@ -3104,6 +3320,14 @@ async fn c128_a_bearer_goes_only_to_the_api_origin_and_nothing_reaches_either_se
             "a bearer GET to {url}: {:?}",
             get.as_ref().err()
         );
+        // The refusal names the origin it refused (#86's mutants run).
+        let refused = url::Url::parse(url).unwrap().origin().ascii_serialization();
+        let words = get
+            .as_ref()
+            .err()
+            .map(ToString::to_string)
+            .unwrap_or_default();
+        assert!(words.contains(&refused), "{words:?} names no {refused}");
         let head = tokio::time::timeout(
             bound,
             choke.head(
