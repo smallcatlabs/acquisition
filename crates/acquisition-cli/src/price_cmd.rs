@@ -231,11 +231,22 @@ fn rows_detail(r: &ListingReport, account: &str) -> String {
         let flags = write_flags(account);
         out.push_str("rows that cannot be read:\n");
         for p in &rows.unreadable {
-            let word = acquisition_search::answer::shell_quoted(&format!("{}/{}", p.scope, p.key));
             out.push_str(&format!(
-                "  {}/{} revision {}: {}; `acq price clear {flags} {word} --if-revision {}` clears it\n",
-                p.scope, p.key, p.revision, p.why, p.revision
+                "  {}/{} revision {}: {}",
+                p.scope, p.key, p.revision, p.why
             ));
+            // Only an address a write can name gets the command (the third
+            // review of #63): a stored address no target reads back from
+            // is named with its fault alone, since `clear` would refuse it.
+            if PriceTarget::from_address(&p.scope, &p.key).is_ok() {
+                let word =
+                    acquisition_search::answer::shell_quoted(&format!("{}/{}", p.scope, p.key));
+                out.push_str(&format!(
+                    "; `acq price clear {flags} {word} --if-revision {}` clears it",
+                    p.revision
+                ));
+            }
+            out.push('\n');
         }
     }
     out
@@ -1315,8 +1326,11 @@ mod tests {
     /// command that clears the row at its revision, and that command
     /// parses as printed (the second review of #63, its second finding:
     /// the list once printed `clear` and `set` with realm and league
-    /// flags neither takes). The account is quoted for a shell as every
-    /// printed command's is.
+    /// flags neither takes), its target reading back through the verb's
+    /// own parser; a row whose stored address no target reads back from
+    /// (the third review's finding: a `tab` keyed `pc`) is named with its
+    /// fault alone, since the command would be refused as printed. The
+    /// account is quoted for a shell as every printed command's is.
     #[test]
     fn c151_the_status_names_the_clear_that_removes_an_unreadable_row_and_it_parses() {
         use clap::Parser;
@@ -1329,8 +1343,24 @@ mod tests {
                 revision: 7,
                 why: "key must be a string at line 1 column 2".into(),
             });
-        r.rows.unreadable_total = 1;
+        r.rows
+            .unreadable
+            .push(acquisition_plan::listing::RowProblem {
+                scope: "tab".into(),
+                key: "pc".into(),
+                revision: 9,
+                why: "a tab's address is realm/id".into(),
+            });
+        r.rows.unreadable_total = 2;
         let text = render_status(&r, 8_000, true, "a");
+        let malformed = text
+            .lines()
+            .find(|l| l.starts_with("  tab/pc revision 9: a tab's address is realm/id"))
+            .unwrap_or_else(|| panic!("{text}"));
+        assert!(
+            !malformed.contains('`'),
+            "no command for an address no write can name: {malformed}"
+        );
         let line = text
             .lines()
             .find(|l| l.starts_with("  item/i-bad revision 7: key must be a string"))
@@ -1347,6 +1377,15 @@ mod tests {
         assert!(
             crate::Cli::try_parse_from(printed.split_whitespace()).is_ok(),
             "clap refused the printed command: {printed}"
+        );
+        let target = printed
+            .split_whitespace()
+            .find(|w| w.contains('/'))
+            .unwrap_or_else(|| panic!("no target word: {printed}"));
+        assert_eq!(
+            pricing::read_target(target).unwrap(),
+            PriceTarget::Item { id: "i-bad".into() },
+            "the printed target reads back through the verb's parser"
         );
     }
 
