@@ -122,9 +122,13 @@ the store and every daemon under the test's own scratch (the harness's
    can see the fault), then a forced panic. After it: the closure
    panicked, and no endpoint is left under the scratch. If one is, the
    pin stops it before failing, so a regression never leaks the hour.
-   No `sleep`, no wall-clock bound, no process listing: the stop returns
-   when the daemon is gone (`a_stopped_daemon_is_gone_when_the_stop_returns`),
-   and the forced panic is the interleaving.
+   No `sleep`, no wall-clock bound, no process listing: the stop waits
+   for the daemon's connection to close, bounded by the client's
+   `STOPPED_WITHIN` (20 s) and returning success past it, so the
+   endpoint check after it is what proves the daemon gone; the forced
+   panic is the interleaving. Settled in the round (#96's review, the one
+   finding; the brief first said the stop returns when the daemon is
+   gone).
    Run once against the unfixed guard (the guard's `drop` reverted to a
    no-op in a scratch copy) and its failure reported, the report and not
    the history.

@@ -127,11 +127,15 @@ pub fn start_daemon_with(base: &Path, env: &[(&str, &str)]) -> (Proc, u64) {
 /// After the stop the guard counts what is left by the harness's own
 /// accounting, the endpoints bound under the test's scratch runtime
 /// directory ([`sockets_under`]): a daemon's socket derives from its
-/// world into that directory and nothing else binds there (C83), and a
-/// stop returns only once the daemon is gone
-/// (`a_stopped_daemon_is_gone_when_the_stop_returns`). One left fails a
-/// test that is not already failing, naming it; a failing one prints it
-/// beside the failure, since a second panic in a drop aborts.
+/// world into that directory and nothing else binds there (C83). The
+/// stop waits for the daemon's connection to close, which is its process
+/// ending after its endpoint is removed, for at most the client's
+/// `STOPPED_WITHIN` (20 s), and returns success past that bound all the
+/// same; the check is what catches a daemon still bound then. It counts
+/// endpoints, not processes: a daemon that removed its endpoint and
+/// lingered would not be seen. One left fails a test that is not already
+/// failing, naming it; a failing one prints it beside the failure, since
+/// a second panic in a drop aborts.
 pub struct StopOnDrop(PathBuf);
 
 pub fn stop_on_drop(base: &Path) -> StopOnDrop {
