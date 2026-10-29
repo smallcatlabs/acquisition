@@ -27,6 +27,12 @@ What is fixed before the work starts: a measurement, a capture, a
 ruling, and the failing inputs the step's tests will stage, each
 named concretely. A step with no fixed input says so.
 
+The last push's CI: each gate's run on `main` (`gh run list --branch
+main --workflow "Gate (Linux)" --limit 1`, the same for `Gate
+(Windows)`), its commit, id and conclusion. A red run says whether
+this step fixes it as its first concern or files it, and where; a run
+still in progress is named as such, and the step goes on.
+
 ## Do
 Numbered, concrete, in order. A ruling the step needs and does not have
 (a boundary, an invariant, anything touching the real store or the real

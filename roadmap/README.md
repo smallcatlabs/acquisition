@@ -73,6 +73,14 @@ Each in his words, with the commit that landed it.
   owner's words on the issue, "so the pass is earned on every platform
   a release names", with nothing to remember. No registry entry: it
   adds no edge and no boundary (the commit carrying this line).
+- 2026-10-29, #128's item 1: "yes to 128". Each step reads the last
+  push's CI for both gates on `main` before it starts (`gh run list
+  --branch main --workflow "Gate (Linux)" --limit 1`, the same for
+  `Gate (Windows)`). The brief names a red run and says whether the
+  step fixes it as its first concern or files it; a run still in
+  progress is named as such and the step goes on. No registry entry:
+  it is process, and adds no edge and no boundary (the commit carrying
+  this line).
 
 ## Roles
 
@@ -103,7 +111,9 @@ Brief, build, gate, commit, review, close. This is the one statement
 of the rhythm; `briefs/TEMPLATE.md` and the session-close skill point
 here rather than restate it.
 
-1. **The brief** is written from `briefs/TEMPLATE.md`. A step that
+1. **The brief** is written from `briefs/TEMPLATE.md`, after reading
+   the last push's CI for both gates on `main`, whose runs it names
+   (the ruling of 2026-10-29). A step that
    needs a design has a design brief first, reviewed and ruled by the
    owner before the build brief is written. A worker reads this file,
    the brief, and what the brief names, and nothing else unless the
