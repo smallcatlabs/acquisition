@@ -137,6 +137,7 @@ impl Refused {
                 }),
             ),
             Conflicting::Cleared(revision) => (revision, None),
+            Conflicting::Unreadable(revision) => (Some(revision), None),
         };
         anyhow::Error::new(Refused {
             kind: RefusedKind::Conflict { revision, current },
@@ -177,6 +178,9 @@ impl Refused {
 enum Conflicting<'a> {
     Live(&'a AnnotationRow),
     Cleared(Option<i64>),
+    /// A live row this build cannot read (C151): its revision, and no
+    /// `current`, since no value can be shown.
+    Unreadable(i64),
 }
 
 impl std::fmt::Display for Refused {
@@ -677,6 +681,25 @@ fn on_conflict(
         PriceWriteError::Store(AnnotationError::Conflict { current }) => {
             refused_write(annotations, target, current.as_deref(), verb, shown)
         }
+        // C151: a stale write over a row this build cannot read is the
+        // same conflict shape — kind conflict, the row's revision — in the
+        // verb's words, with the revision the write must name to go
+        // through (the second review of #63, its fourth finding).
+        PriceWriteError::Store(AnnotationError::Unreadable(row)) => {
+            let does = match verb {
+                Verb::Set => "replaces",
+                Verb::Clear => "clears",
+            };
+            Refused::conflict(
+                Conflicting::Unreadable(row.revision),
+                target,
+                format!(
+                    "{target} holds a value this build cannot read (revision {}: {}); \
+                     `--if-revision {}` {does} it deliberately, `{shown}` names it",
+                    row.revision, row.fault, row.revision
+                ),
+            )
+        }
         // the price's words, never the store's (C116)
         PriceWriteError::Store(AnnotationError::RevisionExhausted { revision, .. }) => {
             anyhow::anyhow!(
@@ -1066,6 +1089,94 @@ mod tests {
     /// revision over a live row; a revision named over a cleared one; a
     /// clear of a cleared row. A target the facts do not hold is
     /// `not_found`.
+    /// C151 — a stale write over a row this build cannot read is a
+    /// `conflict` with the row's revision, in the verb's words naming the
+    /// `--if-revision` that goes through, never the store's generic
+    /// refusal (the second review of #63, its fourth finding); the write
+    /// naming the revision then lands. The damage is staged through a
+    /// second connection on a file-backed intent store.
+    #[test]
+    fn c151_a_stale_write_over_an_unreadable_row_is_a_conflict_naming_its_revision() {
+        let (store, _) = priced();
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().to_path_buf();
+        let mut a = Annotations::open_for(&dir, "u-1").unwrap();
+        let via = Provenance::via("test");
+        let refused = |e: anyhow::Error| {
+            Refused::find(&e)
+                .cloned()
+                .unwrap_or_else(|| panic!("{e:#}"))
+        };
+        set(
+            &store,
+            &mut a,
+            "item/i1",
+            "exact",
+            Some("2"),
+            Some("divine"),
+            Expect::Current,
+            &via,
+            "a",
+            plain,
+        )
+        .unwrap();
+        rusqlite::Connection::open(acquisition_store::annotations_path(&dir, "u-1"))
+            .unwrap()
+            .execute(
+                "UPDATE annotations SET value = '{nope' WHERE key = 'i1'",
+                [],
+            )
+            .unwrap();
+
+        let r =
+            refused(clear(&mut a, "item/i1", Expect::Exactly(6), &via, "a", plain).unwrap_err());
+        assert!(
+            matches!(
+                r.kind,
+                RefusedKind::Conflict {
+                    revision: Some(1),
+                    current: None
+                }
+            ),
+            "{:?}",
+            r.kind
+        );
+        assert!(
+            r.message
+                .starts_with("item/i1 holds a value this build cannot read (revision 1: ")
+                && r.message
+                    .contains("`--if-revision 1` clears it deliberately"),
+            "{}",
+            r.message
+        );
+        assert_eq!(r.fields()["kind"], json!("conflict"));
+        assert_eq!(r.fields()["revision"], json!(1));
+        let r = refused(
+            set(
+                &store,
+                &mut a,
+                "item/i1",
+                "exact",
+                Some("7"),
+                Some("divine"),
+                Expect::Exactly(6),
+                &via,
+                "a",
+                plain,
+            )
+            .unwrap_err(),
+        );
+        assert!(
+            r.message
+                .contains("`--if-revision 1` replaces it deliberately"),
+            "{}",
+            r.message
+        );
+        // Naming the revision goes through.
+        clear(&mut a, "item/i1", Expect::Exactly(1), &via, "a", plain).unwrap();
+        assert_eq!(a.get("item", "i1", BUYOUT_KIND).unwrap(), None);
+    }
+
     #[test]
     fn a_write_refused_for_its_revision_is_a_conflict_naming_it_in_the_verbs_words() {
         let (store, mut a) = priced();
