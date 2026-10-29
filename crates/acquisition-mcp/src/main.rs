@@ -143,10 +143,10 @@
 
 mod transport;
 
-use acquisition_client::client::{Client, ConnectError, DaemonError, NotSpawned};
+use acquisition_client::client::{ConnectError, NotSpawned};
 use acquisition_plan::pricing::Expect;
 use acquisition_plan::{PolicyWrite, RefreshPlan};
-use acquisition_protocol::protocol::{ErrorKind, Request, Response};
+use acquisition_protocol::protocol::ErrorKind;
 use acquisition_protocol::realm::Realm;
 use acquisition_search::answer::{Asked, QueryInput};
 use acquisition_search::{Holder, SearchError};
@@ -549,20 +549,6 @@ impl<T: serde::de::DeserializeOwned> Args<T> {
 
 /// The channel every intent write from this binary is stamped with (C65).
 const WRITTEN_VIA: &str = "mcp";
-
-/// One request to the daemon: its answer, a daemon refusal as its closed
-/// kind (C85), or the transport's failure, not served.
-async fn ask(client: &mut Client, request: &Request) -> Result<Response, Fault> {
-    match client.request(request).await.map_err(Fault::from_client)? {
-        Response::Error { kind, message } => Err(Fault::Daemon(DaemonError { kind, message })),
-        other => Ok(other),
-    }
-}
-
-/// An answer of a shape the request does not take: not served.
-fn unexpected(response: Response) -> Fault {
-    Fault::Transport(anyhow::anyhow!("unexpected response: {response:?}"))
-}
 
 /// A `realm` tool parameter: pc when omitted (as on the wire), else one
 /// of the documented realms in the layer's one sentence; anything else is
@@ -2030,16 +2016,7 @@ impl AcqMcp {
 
     #[tool(description = "Cancel a waiting or running job; cascades to its descendants.")]
     async fn cancel_job(&self, Parameters(p): Parameters<JobParams>) -> Told {
-        settled(
-            async {
-                let mut client = self.frontend.attach().await?;
-                match ask(&mut client, &Request::Cancel { id: p.id }).await? {
-                    Response::Ack { .. } => Ok(json!({ "job_id": p.id, "cancel_requested": true })),
-                    other => Err(unexpected(other).into()),
-                }
-            }
-            .await,
-        )
+        settled(async { Ok(self.frontend.cancel(p.id).await?) }.await)
     }
 
     #[tool(

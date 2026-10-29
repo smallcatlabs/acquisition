@@ -460,6 +460,56 @@ async fn a_parent_whose_child_failed_carries_its_childrens_tally() {
     assert_eq!(from_disk.failed_children, live.failed_children);
 }
 
+/// #91: a cancel is one document on both frontends, `job_id` and
+/// `cancel_requested`, from the one function they call; a finished job's
+/// cancel is the daemon's refusal in its closed kind (C85), and with no
+/// daemon running it is [`Fault::NoDaemon`].
+#[tokio::test]
+async fn a_cancel_is_one_document_and_a_finished_jobs_is_refused() {
+    let s = session("cancel");
+    let (_daemon, frontend, _opened, mut client) = world(&s).await;
+    let sleeping = submit(
+        &frontend,
+        &mut client,
+        "sleep",
+        json!({ "seconds": 60.0 }),
+        0,
+        None,
+    )
+    .await
+    .expect("a submit");
+    let asked = frontend.cancel(sleeping).await.unwrap();
+    assert_eq!(
+        serde_json::to_value(&asked).unwrap(),
+        json!({ "job_id": sleeping, "cancel_requested": true })
+    );
+    let done = submit(
+        &frontend,
+        &mut client,
+        "sleep",
+        json!({ "seconds": 0.0 }),
+        0,
+        None,
+    )
+    .await
+    .expect("a submit");
+    wait(&mut client, done, None).await.expect("the sleep");
+    let fault = frontend.cancel(done).await.unwrap_err();
+    assert_eq!(fault.kind(), "wrong_state", "{fault}");
+
+    Client::stop_any()
+        .await
+        .expect("a stop")
+        .expect("a daemon acknowledged it");
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !matches!(frontend.observe().await, Ok(None)) {
+        assert!(Instant::now() < deadline, "the daemon did not stop");
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    let fault = frontend.cancel(sleeping).await.unwrap_err();
+    assert!(matches!(fault, Fault::NoDaemon { .. }), "{fault}");
+}
+
 /// The quote over a running daemon is the daemon's: no note.
 #[tokio::test]
 async fn a_running_daemon_quotes_the_plan() {

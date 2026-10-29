@@ -1850,10 +1850,9 @@ async fn run(cli: Cli) -> Result<()> {
             print_result(&mut client, id, cli.json).await
         }
         Cmd::Cancel { id } => {
-            let mut client = attach(cx).await?;
-            client.expect_ack(&Request::Cancel { id }).await?;
+            let asked = cx.frontend.cancel(id).await?;
             if cli.json {
-                println!("{}", json!({ "job_id": id, "cancel_requested": true }));
+                println!("{}", serde_json::to_string(&asked)?);
             } else {
                 println!(
                     "job {id} cancel requested — a running job stops at its next check; \

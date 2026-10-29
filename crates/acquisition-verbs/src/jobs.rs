@@ -513,7 +513,34 @@ pub async fn outcome_live(client: &mut Client, id: u64) -> Result<Outcome, Fault
     }
 }
 
+/// A cancel the daemon took (C4, jobs not calls): the job, and that its
+/// cancel is asked; a running job stops at its next check, which its
+/// result says. The one document both frontends answer a cancel with.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct CancelRequested {
+    pub job_id: u64,
+    pub cancel_requested: bool,
+}
+
 impl Frontend {
+    /// C10: a cancel sent to the daemon running, cascading to the job's
+    /// descendants; with none running, [`Fault::NoDaemon`].
+    pub async fn cancel(&self, id: u64) -> Result<CancelRequested, Fault> {
+        let mut client = self.attach().await?;
+        match client
+            .request(&Request::Cancel { id })
+            .await
+            .map_err(Fault::from_client)?
+        {
+            Response::Ack { .. } => Ok(CancelRequested {
+                job_id: id,
+                cancel_requested: true,
+            }),
+            Response::Error { kind, message } => Err(Fault::Daemon(DaemonError { kind, message })),
+            other => Err(unexpected(other)),
+        }
+    }
+
     /// C45 (the ledger answers) and C10: the queue, live, or from the
     /// ledger on disk when no daemon answers; never spawns. Ten open and
     /// ten finished rows beside the counts of every job, every one under
