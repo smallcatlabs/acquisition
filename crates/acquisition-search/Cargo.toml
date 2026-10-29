@@ -24,7 +24,7 @@ regex-syntax = "0.8"
 sha2 = "0.11"
 # a continuation's token is its request, encoded for a terminal (answer.rs);
 # a site search id is its query, base64url over gzip (trade.rs, S56)
-base64 = "0.22"
+base64 = "0.23"
 # the one inflater, for a site search id (trade.rs, C113): no HTTP, no runtime
 flate2 = "1"
 serde.workspace = true
