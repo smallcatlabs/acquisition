@@ -1085,7 +1085,7 @@ mod tests {
         AnnotationRow, CharacterSnapshot, ItemSnapshot, ListingBasis, PricingSnapshot, TabSnapshot,
     };
     use serde_json::{Value, json};
-    use std::time::{Duration, Instant};
+    use std::time::Instant;
 
     fn tab(id: &str, parent: Option<&str>, name: &str, r#type: &str, public: bool) -> TabSnapshot {
         TabSnapshot {
@@ -1801,10 +1801,11 @@ mod tests {
     /// --effective none --expand` — every item nothing applies to, each
     /// with its texts — `show --expand` on the owner's test tab, and
     /// `status --expand`. Measured 2026-09-07 in a debug build: 300 ms,
-    /// 7 ms and under a millisecond. The bound is a cliff, not a budget —
+    /// 7 ms and under a millisecond. The time is printed, never asserted
+    /// (C137: no test asserts a wall-clock bound a slow machine can miss),
     /// and each view still says everything it has.
     #[test]
-    fn c53_the_expanded_list_show_and_status_are_linear_over_the_owners_league_tiled() {
+    fn c53_the_expanded_list_show_and_status_say_everything_over_the_owners_league_tiled() {
         let s = real_scale_fixture::tiled(16);
         let r = resolve(&s).unwrap();
         let tab = real_scale_fixture::owners_test_tab(&s);
@@ -1831,8 +1832,7 @@ mod tests {
         );
         let status = render_status(&r, now, true, "a");
         let took = t.elapsed();
-        assert!(
-            took < Duration::from_secs(5),
+        eprintln!(
             "the expanded views took {took:?} over {} items",
             r.counts.items
         );

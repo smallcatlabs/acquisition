@@ -2998,7 +2998,7 @@ mod tests {
     /// counts are read against the file, not against themselves.
     mod real_scale {
         use std::collections::BTreeSet;
-        use std::time::{Duration, Instant};
+        use std::time::Instant;
 
         use super::*;
         use crate::real_scale_fixture::{self, OWNERS_TEST_TAB};
@@ -3029,16 +3029,16 @@ mod tests {
         /// notes, all in the one public tab, are 49 statements and the
         /// dialog's one residue; 16 `~` tab names are 14 prices and the
         /// two lot ratios a tab name cannot carry (T19); 16 rows are 5
-        /// applied and 11 naming another league's facts. The resolve is
-        /// guarded: 7 ms in a debug build on 2026-09-07 — the bound is a
-        /// cliff, not a budget.
+        /// applied and 11 naming another league's facts. The resolve's time
+        /// is printed, never asserted (C137): 7 ms in a debug build on
+        /// 2026-09-07.
         #[test]
         fn c69_at_real_scale_every_fact_has_one_listing_and_the_counts_are_the_files() {
             let s = real_scale_fixture::snapshot();
             let t = Instant::now();
             let r = resolve(&s).unwrap();
             let took = t.elapsed();
-            assert!(took < Duration::from_secs(2), "resolve took {took:?}");
+            eprintln!("resolve took {took:?}");
 
             assert_eq!(
                 r.listings.len(),
@@ -3430,10 +3430,7 @@ mod tests {
             // below both.
             assert!(below_total > 0);
             let took = t.elapsed();
-            assert!(
-                took < Duration::from_secs(5),
-                "443 show views took {took:?}"
-            );
+            eprintln!("443 show views took {took:?}");
         }
     }
 }

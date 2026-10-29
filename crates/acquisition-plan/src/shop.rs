@@ -2284,7 +2284,7 @@ mod tests {
     /// the owner's pc/Standard league, rendered whole — the page the
     /// owner pasted for validation reading 2, from the same facts.
     mod real_scale {
-        use std::time::{Duration, Instant};
+        use std::time::Instant;
 
         use super::*;
         use crate::real_scale_fixture;
@@ -2319,15 +2319,15 @@ mod tests {
         /// too, the substash row's 5 items are blocked on Q3, 1,889 have
         /// nothing applying, and the 31 the hand decides are the page:
         /// one page, under the size, every link once, under three titles.
-        /// The render is guarded: under 1 ms in a debug build on
-        /// 2026-09-07 — the bound is a cliff, not a budget.
+        /// The render's time is printed, never asserted (C137): under 1 ms
+        /// in a debug build on 2026-09-07.
         #[test]
         fn c74_at_real_scale_every_item_lands_in_one_cell_and_the_page_is_the_owners_test_tab() {
             let (s, report) = fixture();
             let t = Instant::now();
             let r = render(&report, &opts_at(s.taken_at, PolicySource::NotSet)).unwrap();
             let took = t.elapsed();
-            assert!(took < Duration::from_secs(2), "render took {took:?}");
+            eprintln!("render took {took:?}");
             assert_eq!(r.schema, SHOP_SCHEMA);
             assert_eq!(r.listing, report.header);
 

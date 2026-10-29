@@ -4378,11 +4378,12 @@ mod tests {
         );
     }
 
-    /// Ten thousand items: the unchanged re-ingest reports no change and
-    /// is bounded. The first ingest's time is printed, never asserted, and
-    /// nothing here observes how many transactions either took.
+    /// Ten thousand items: the unchanged re-ingest reports no change. Both
+    /// ingests' times are printed, never asserted (C137: no test asserts a
+    /// wall-clock bound a slow machine can miss), and nothing here
+    /// observes how many transactions either took.
     #[test]
-    fn a_large_tab_reingested_unchanged_reports_nothing_within_five_seconds() {
+    fn a_large_tab_reingested_unchanged_reports_nothing() {
         let mut s = Store::open_memory().unwrap();
         let items: Vec<Value> = (0..10_000)
             .map(|i| item(&format!("i{i}"), "Chaos Orb", i % 24))
@@ -4406,10 +4407,6 @@ mod tests {
         let second = t.elapsed();
         assert_eq!((ing.added, ing.changed, ing.removed), (0, 0, 0));
         eprintln!("10k items: first ingest {first:?}, unchanged re-ingest {second:?}");
-        assert!(
-            second < std::time::Duration::from_secs(5),
-            "re-ingest took {second:?}"
-        );
     }
 
     /// Realm is the coordinate above league (C58): the

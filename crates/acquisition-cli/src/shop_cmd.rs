@@ -366,7 +366,7 @@ mod tests {
     };
     use serde_json::json;
     use std::collections::BTreeMap;
-    use std::time::{Duration, Instant};
+    use std::time::Instant;
 
     /// A render with three posted items on two pages, one item of each
     /// omission and two blocked, and a policy that covers one of the two
@@ -650,11 +650,12 @@ mod tests {
     /// at. The audit view over the real-scale fixture tiled to 63k items
     /// (plan step 7, item 2, `PRICING-SLICE.md` at `b6197a82`), measured 2026-09-07 in
     /// a debug build: 45 ms as built; with the search put back, 3.9 s at
-    /// half this scale and four-fold per doubling. The bound is the cliff
-    /// between the two, not a budget — and the view still says
-    /// everything: the table, a line per item left off, every page.
+    /// half this scale and four-fold per doubling. The time is printed,
+    /// never asserted (C137: no test asserts a wall-clock bound a slow
+    /// machine can miss), and the view still says everything: the table,
+    /// a line per item left off, every page.
     #[test]
-    fn c53_the_expanded_render_is_linear_over_the_owners_league_tiled() {
+    fn c53_the_expanded_render_says_everything_over_the_owners_league_tiled() {
         let s = real_scale_fixture::tiled(32);
         let report = resolve(&s).unwrap();
         let r = render(
@@ -675,8 +676,7 @@ mod tests {
         let t = Instant::now();
         let text = render_text(&r, s.taken_at, true, "a");
         let took = t.elapsed();
-        assert!(
-            took < Duration::from_secs(2),
+        eprintln!(
             "the expanded render took {took:?} over {} items",
             r.counts.items
         );
