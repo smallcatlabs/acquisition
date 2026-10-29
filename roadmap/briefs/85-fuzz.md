@@ -200,6 +200,10 @@ tables at this brief's commit, and the two frame tests' streams.
   `frame.rs` copies, each with a local count, a full count under
   `ACQ_CASES=full`, and a printed seed; the two copies of `frame.rs`
   differ only in their module doc's paragraph (`diff`).
+- The header property draws whether each history entry and the landing
+  are counted, so the limiter observes both counted and uncounted
+  responses; a probe's 429 counts inside the limiter and draws none.
+  Settled in the round (#85's review, the first finding).
 - Each property's commit message states its long run: the cases, the
   time, and what it found.
 - Every case a run found is a named test in the daemon or the client

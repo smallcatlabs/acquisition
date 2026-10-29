@@ -3471,11 +3471,16 @@ mod generated_headers {
         /// each parsed, the first observed as the history before now, the
         /// second landed as a 200 or a 429, a probe's 429 on a second
         /// route, and the limiter read at now and at a drawn later instant.
+        /// Every argument that changes how the limiter treats an
+        /// observation is drawn: each history entry and the landing are
+        /// counted or not (a GET or a HEAD, N24). A probe's 429 counts
+        /// inside the limiter, whatever its caller says, so it draws none.
         #[test]
         fn a_generated_header_set_parses_within_its_caps_and_the_limiter_survives_it(
             first in header_set(),
             second in header_set(),
-            history in prop::collection::vec(0u64..=4_000, 0..=8),
+            history in prop::collection::vec((0u64..=4_000, any::<bool>()), 0..=8),
+            counted in any::<bool>(),
             status in prop::sample::select(&[200u16, 429][..]),
             ahead in 0u32..=48,
             later in 0u64..=3 * MAX_POLICY_PERIOD_SECS,
@@ -3487,14 +3492,14 @@ mod generated_headers {
             for policy in [&first_policy, &second_policy].into_iter().flatten() {
                 assert_within_caps(policy);
             }
-            let mut ago = history;
-            ago.sort_unstable_by(|a, b| b.cmp(a));
-            for ago in ago {
+            let mut history = history;
+            history.sort_unstable_by_key(|&(ago, _)| std::cmp::Reverse(ago));
+            for (ago, counted) in history {
                 let _ = limiter.observe(
                     "/ep",
                     first_policy.clone(),
                     raw(&first),
-                    true,
+                    counted,
                     now - Duration::from_secs(ago),
                 );
             }
@@ -3506,7 +3511,7 @@ mod generated_headers {
                     policy: second_policy.clone(),
                     retry_after: &retry_after,
                     raw: raw(&second),
-                    counted: true,
+                    counted,
                     status,
                     now,
                 },
