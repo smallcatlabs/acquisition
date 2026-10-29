@@ -208,7 +208,7 @@ features() {
     out=$(feature_split "$t")
     case $? in
       0) echo "gate: features: $t: the build and the test build agree" ;;
-      1) echo "gate: features: $t: a test build compiles these packages with other features than the build, so a test run writes another binary (C84, the artifact mismatch); pin the features in a binary's crate, as acquisition-cli and acquisition-mcp do:" >&2
+      1) echo "gate: features: $t: a test build compiles these packages with other features than the build, so a test run writes another binary (C84, the artifact mismatch); pin the features in the workspace's feature pins, the one block in crates/acquisition-cli/Cargo.toml:" >&2
          echo "$out" >&2; rc=1 ;;
       *) echo "gate: features: $t: cargo tree could not read the feature graphs (its words above): no comparison was made, and nothing here says a pin is due" >&2; rc=1 ;;
     esac

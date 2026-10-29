@@ -29,18 +29,30 @@ ratatui = "0.30"
 # `acq web` (C139): the loopback listener, over the hyper and tower the
 # lock already holds; HTTP/1 alone, no default features.
 axum = { version = "0.8", default-features = false, features = ["http1", "tokio", "query", "form"] }
-getrandom = "0.4"
 
-# Linked through ratatui's crossterm on Unix, never named in this crate's
-# code. Its `default` and `fs` are tempfile's, a dev-dependency of six
-# crates, and a dev-dependency feature unifies into every test build, which
-# gave acq a second form (#124, C84); compiled in always, so one build
-# writes one binary. acqd's Linux graph leans on it too: keyring's zbus links
-# rustix there, and the workspace build unifies this pin's features into it,
-# so with the pin gone `tools/gate.sh --only features` names the daemon's
-# rustix on Linux as well (#91, #128).
+# ---- the workspace's feature pins ----------------------------------------
+# A feature a dev-dependency asks of a package unifies into every test
+# build, so a test run would write another form of each binary linking it
+# than `cargo build --workspace` does (C84, the artifact mismatch). Each
+# pin compiles that feature in always, and the workspace build unifies it
+# into every binary of the build, wherever the pin stands; the pins stand
+# here, the one home, and `tools/gate.sh --only features` checks that the
+# two graphs agree on every release target (#88, #125, #124; the owner,
+# 2026-10-29: the pins kept, cleaned up, over cargo-hakari).
+#
+# num-traits `std`: proptest's, a dev-dependency of the plan and the search;
+# acq-mcp links it through rmcp's chrono (#88).
+num-traits = { version = "0.2", features = ["std"] }
+# getrandom `std`, `sys_rng`: proptest 1.12's rand 0.10; acq-mcp links it
+# through rmcp's uuid, and acq draws its web token from it (#125).
+getrandom = { version = "0.4", features = ["std", "sys_rng"] }
+
 [target.'cfg(unix)'.dependencies]
+# rustix `default`, `fs`: tempfile's, a dev-dependency of six crates; acq
+# links it through ratatui's crossterm, and acqd on Linux through keyring's
+# zbus, which leans on this pin by the workspace's unification (#124, #91).
 rustix = { version = "1", features = ["fs"] }
+# ---- end of the feature pins ---------------------------------------------
 
 [[test]]
 name = "main"

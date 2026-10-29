@@ -127,6 +127,14 @@ Measured on `1957f715` on 2026-10-29:
      rustix's features across `acq` and `acqd`. So the list came out
      empty and was not built, and the check covers all five release
      targets. A second comment on #128 says so.
+   - 2026-10-29, the owner, after a comparison of the pins against
+     cargo-hakari: "yes, agree with keeping the pins and cleaning them
+     up." Settled in the fix round: the three pins (`num-traits` #88,
+     `getrandom` #125, `rustix` here) stand in one commented block in
+     `crates/acquisition-cli/Cargo.toml`, each with the dev-dependency
+     that asks for its features and the binaries that rely on it, and
+     the `features` stage, which checks them, names that block. #128's
+     hakari triggers are replaced by a comment there.
 2. **#109.** One rule over the file: every comparison of a document
    read twice goes through `steady`. The blind-replace test's `shown`
    reads its row through it, and line 926's by-hand removal becomes
