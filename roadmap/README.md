@@ -202,8 +202,8 @@ The owner's list, his to strike:
 ## Current step
 
 The league group (#87, #90, #68, #103, #63, #53, #94, #96) closed on
-2026-10-28 (`LEDGER.md`); #85 closed the same day; #86 built
-(`briefs/86-weekly-automation.md`), its review pending.
+2026-10-28 (`LEDGER.md`); #85 closed the same day and #86 on
+2026-10-29. Next: #89, its brief not yet written.
 Phase 3, the owner's league run, follows at his word; #70 closes on a
 week of pushes without a re-run. `AGENTS.md` governs; the gate is
 `tools/gate.sh`.
