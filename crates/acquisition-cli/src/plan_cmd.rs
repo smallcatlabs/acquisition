@@ -128,6 +128,8 @@ use serde_json::Value;
 
 use crate::{Ctx, store_cmd};
 
+use crate::plural;
+
 /// The channel every intent write from this binary is stamped with (C65).
 pub(crate) const WRITTEN_VIA: &str = "cli";
 
@@ -609,10 +611,6 @@ fn check_flags(
 
 fn requests(n: u64) -> String {
     format!("{n} request{}", if n == 1 { "" } else { "s" })
-}
-
-fn plural(n: usize, one: &str, many: &str) -> String {
-    format!("{n} {}", if n == 1 { one } else { many })
 }
 
 /// Two-column lines padded to the widest left column (capped), so reasons

@@ -59,6 +59,12 @@ pub(crate) async fn connect(cx: &Ctx) -> Result<Client> {
     Ok(client)
 }
 
+/// `n` and its noun, `one` for exactly one and `many` otherwise: the
+/// count words every text of this crate prints (#91: five copies).
+pub(crate) fn plural(n: usize, one: &str, many: &str) -> String {
+    format!("{n} {}", if n == 1 { one } else { many })
+}
+
 /// Remember that this command started the daemon it talks to (C3).
 pub(crate) fn note_spawn(client: &Client) {
     if client.spawned() {

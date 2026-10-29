@@ -32,6 +32,8 @@ use anyhow::{Context, Result};
 use crate::Ctx;
 use crate::store_cmd::{ago, clip, realm_prefix};
 
+use crate::plural;
+
 /// Groups of this many items or fewer are listed one per line; larger
 /// groups are counted (C53; `--expand` lists every one): the store's one
 /// bound, which the document's lists hold too.
@@ -90,10 +92,6 @@ pub fn render_cmd(cx: &Ctx, realm: Realm, league: &str, args: &RenderArgs<'_>) -
         render_text(&rendered, now, args.expand, &opened.account.entry.username)
     );
     Ok(())
-}
-
-fn plural(n: usize, one: &str, many: &str) -> String {
-    format!("{n} {}", if n == 1 { one } else { many })
 }
 
 /// The cell's words in a breakdown.

@@ -14,6 +14,8 @@ use acquisition_search::trade::translate::{Fidelity, Status};
 use super::form::{Fate, Filter, Form, LIMITS, STAT_ROWS};
 use crate::search_cmd;
 
+use crate::plural;
+
 /// The one template every page fills.
 const TEMPLATE: &str = include_str!("assets/page.html");
 
@@ -436,10 +438,6 @@ pub(crate) fn item_badges(shown: &Shown) -> String {
         return String::new();
     }
     format!("<p>{}</p>\n", out.join(" "))
-}
-
-fn plural(n: usize, one: &str, many: &str) -> String {
-    format!("{n} {}", if n == 1 { one } else { many })
 }
 
 /// The league control both pages carry (the 4b sitting round, Do 3): a

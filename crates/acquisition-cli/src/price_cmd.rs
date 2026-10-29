@@ -45,6 +45,8 @@ use crate::{Ctx, Terminal};
 use acquisition_verbs::receipt;
 use acquisition_verbs::refusal::{Surface as _, Way};
 
+use crate::plural;
+
 /// The selected account's facts file, opened beside its intent (C121,
 /// C12), and the account's name.
 fn opened(cx: &Ctx) -> Result<(Store, Annotations, String)> {
@@ -123,10 +125,6 @@ pub fn list(
     }
     print!("{}", render_list(&view, expand, &username));
     Ok(())
-}
-
-fn plural(n: usize, one: &str, many: &str) -> String {
-    format!("{n} {}", if n == 1 { one } else { many })
 }
 
 fn count_of(r: &ListingReport, relation: Relation) -> usize {

@@ -71,6 +71,8 @@ use serde::Serialize;
 use crate::Ctx;
 use crate::store_cmd::ago;
 
+use crate::plural;
+
 /// What `acq search` was typed with.
 #[derive(clap::Args)]
 pub struct SearchArgs {
@@ -685,10 +687,6 @@ fn basis_text(b: &acquisition_search::Basis) -> String {
         b.currency,
         b.notes
     )
-}
-
-fn plural(n: usize, one: &str, many: &str) -> String {
-    format!("{n} {}", if n == 1 { one } else { many })
 }
 
 fn number(value: &serde_json::Value) -> String {
