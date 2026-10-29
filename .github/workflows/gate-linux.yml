@@ -9,13 +9,21 @@ name: Gate (Linux)
 # crate's own CI recipe. Nothing here talks to GGG: every harness sets
 # ACQ_PROVIDER=mock (C88) and no test process has a terminal.
 
+# Weekly too (#86), Mondays at 05:00 UTC, so a RustSec advisory, a moved
+# runner image or a crate yanked under the lockfile surfaces without a
+# push. GitHub runs a schedule on the default branch only, and stops it
+# after sixty days with no activity in the repository.
 on:
   push:
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: "0 5 * * 1"
 
+# The event in the group: a push to main and the scheduled run of main
+# share a ref, and would otherwise cancel each other.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
