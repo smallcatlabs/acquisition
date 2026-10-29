@@ -26,5 +26,9 @@ anyhow.workspace = true
 sha2 = "0.10"
 
 [dev-dependencies]
+# the generated property over the frame reader, which reads what a daemon
+# of any revision answers (#85); the plan's and the search's version, so
+# the test build's feature graph is unchanged (C84)
+proptest = "1.11.0"
 # a test's own folder, removed on drop: never a name built from the pid
 tempfile.workspace = true

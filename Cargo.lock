@@ -29,6 +29,7 @@ dependencies = [
  "acquisition-protocol",
  "acquisition-store",
  "anyhow",
+ "proptest",
  "serde",
  "serde_json",
  "sha2",

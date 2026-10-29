@@ -24,4 +24,6 @@ pub mod artifact;
 pub mod client;
 pub mod endpoint;
 pub mod frame;
+#[cfg(test)]
+mod generated;
 pub mod locator;

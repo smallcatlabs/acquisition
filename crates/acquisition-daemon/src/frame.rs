@@ -109,4 +109,125 @@ mod tests {
         let mut reader = BufReader::with_capacity(4, &input[..]);
         assert_eq!(read_frame(&mut reader, 8).await.unwrap(), Frame::Closed);
     }
+
+    // ---- generated streams (#85) ----------------------------------------
+    //
+    // What any local process may write to the socket (client input), and
+    // what a daemon of any revision may answer: a stream drawn from JSON
+    // frames, arbitrary bytes, newlines and runs at the bound and one past
+    // it, read at a drawn buffer capacity and bound. No stream may make the
+    // reader return a line over its bound or holding a newline, fail to
+    // reach the close, read otherwise than the reference split below, or
+    // panic the decode either side runs on a line.
+
+    mod generated_streams {
+        use super::*;
+        use crate::generated::config;
+        use acquisition_protocol::protocol::{Bootstrap, BootstrapReply, Request, Response};
+        use proptest::prelude::*;
+
+        /// The frames the reader must return for `input` at `max`: each
+        /// newline-terminated piece a line, or oversize past the bound; an
+        /// unterminated last piece a line when it is within the bound and
+        /// not empty; then the close.
+        fn reference(input: &[u8], max: usize) -> Vec<Frame> {
+            let mut pieces: Vec<&[u8]> = input.split(|&b| b == b'\n').collect();
+            let rest = pieces.pop().unwrap_or_default();
+            let mut frames: Vec<Frame> = pieces
+                .into_iter()
+                .map(|piece| {
+                    if piece.len() > max {
+                        Frame::Oversize
+                    } else {
+                        Frame::Line(piece.to_vec())
+                    }
+                })
+                .collect();
+            if !rest.is_empty() && rest.len() <= max {
+                frames.push(Frame::Line(rest.to_vec()));
+            }
+            frames.push(Frame::Closed);
+            frames
+        }
+
+        /// One piece of a stream, for a bound of `max`.
+        fn piece(max: usize) -> impl Strategy<Value = Vec<u8>> {
+            const FRAMES: &[&str] = &[
+                r#"{"req":"hello","version":"1.0.0","contract":"c","world":"/w"}"#,
+                r#"{"req":"daemon_stop"}"#,
+                r#"{"resp":"hello","pid":7,"provider":"mock","world":"/w"}"#,
+                r#"{"resp":"stopping"}"#,
+                r#"{"req":"list"}"#,
+                "{}",
+                "12345678",
+                "123456789",
+                "last",
+            ];
+            prop_oneof![
+                3 => prop::sample::select(FRAMES).prop_map(|f| f.as_bytes().to_vec()),
+                3 => prop::collection::vec(any::<u8>(), 0..24),
+                3 => Just(b"\n".to_vec()),
+                1 => Just(vec![b'x'; max]),
+                1 => Just(vec![b'x'; max + 1]),
+                1 => Just(b"\r\n".to_vec()),
+            ]
+        }
+
+        fn stream() -> impl Strategy<Value = (Vec<u8>, usize, usize)> {
+            (1usize..=64, 0usize..=64).prop_flat_map(|(capacity, max)| {
+                (
+                    prop::collection::vec(piece(max), 0..12).prop_map(|pieces| pieces.concat()),
+                    Just(capacity),
+                    Just(max),
+                )
+            })
+        }
+
+        /// Read `input` to the close; the reading is bounded by the
+        /// stream's length, since every frame but the close consumes a
+        /// byte.
+        fn read_all(input: &[u8], capacity: usize, max: usize) -> Vec<Frame> {
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .build()
+                .expect("a current-thread runtime");
+            runtime.block_on(async {
+                let mut reader = BufReader::with_capacity(capacity, input);
+                let mut frames = Vec::new();
+                for _ in 0..=input.len() + 1 {
+                    let frame = read_frame(&mut reader, max).await.expect("a slice reads");
+                    let closed = frame == Frame::Closed;
+                    frames.push(frame);
+                    if closed {
+                        return frames;
+                    }
+                }
+                panic!(
+                    "{} frames from {} bytes and no close",
+                    frames.len(),
+                    input.len()
+                );
+            })
+        }
+
+        proptest! {
+            #![proptest_config(config(2_048, 100_000))]
+
+            #[test]
+            fn a_generated_stream_reads_as_its_reference_split_and_decodes_without_panic(
+                (input, capacity, max) in stream(),
+            ) {
+                let frames = read_all(&input, capacity, max);
+                prop_assert_eq!(&frames, &reference(&input, max));
+                for frame in &frames {
+                    if let Frame::Line(line) = frame {
+                        prop_assert!(line.len() <= max && !line.contains(&b'\n'));
+                        let _ = Bootstrap::read(line);
+                        let _ = BootstrapReply::read(line);
+                        let _ = serde_json::from_slice::<Request>(line);
+                        let _ = serde_json::from_slice::<Response>(line);
+                    }
+                }
+            }
+        }
+    }
 }
