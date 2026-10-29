@@ -114,7 +114,7 @@ Measured on this brief's tree (`f0bfa17c`), before the work:
    delegation on 2026-10-28, quoted in `roadmap/README.md`, "The
    owner's rulings for this road"; no registry entry.
 2. **The `breakers` job** (`gate-linux.yml`): `if: ${{ !cancelled() }}`
-   on every step after the first, so one red breaker hides none, as
+   on every breaker after the first, so one red breaker hides none, as
    r1 did for the `gate` jobs; nothing else in the two gates is left of
    the issue's sentence.
 3. **The first mutants run, measured.** `cargo mutants` over the five
@@ -168,8 +168,8 @@ Measured on this brief's tree (`f0bfa17c`), before the work:
   owner's word on Do 1, quoted, in a commit before any code commit; the
   keyring round trip runs on macOS where he ruled, with the variable
   set, and its doc comment names that place.
-- Every step of `gate-linux.yml`'s `breakers` job after the first
-  carries `!cancelled()`.
+- Every breaker step of `gate-linux.yml`'s `breakers` job after the
+  first carries `!cancelled()`.
 - `.cargo/mutants.toml` scopes cargo-mutants to the five files, and
   `cargo mutants --list` over it names the mutants the first run
   tested; every exclusion in it carries its reason or an issue number.

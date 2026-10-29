@@ -148,17 +148,24 @@ jobs:
       - name: Install the pinned toolchain
         run: rustup toolchain install
 
+      # Every breaker after the first runs after a red one too
+      # (`!cancelled()`), as in the gate job, so one red breaker hides
+      # none; any red step still fails the job.
       - name: The registry check's breakers
         run: tools/bothy-breakers.sh
 
       - name: The preflight's breakers
+        if: ${{ !cancelled() }}
         run: tools/preflight-breakers.sh
 
       - name: The docs check's breakers
+        if: ${{ !cancelled() }}
         run: tools/docs-check-breakers.sh
 
       - name: The architecture check's breakers
+        if: ${{ !cancelled() }}
         run: tools/arch-check-breakers.sh
 
       - name: The gate's breakers
+        if: ${{ !cancelled() }}
         run: tools/gate-breakers.sh
