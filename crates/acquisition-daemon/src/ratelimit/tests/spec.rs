@@ -1677,7 +1677,7 @@ fn every_unacceptable_full_head_429_is_a_setup_failure() {
         (retry(Some("-1")), "negative Retry-After"),
         (
             retry(Some("901")),
-            "Retry-After '901' exceeds the 900s product cap",
+            "a Retry-After over the 900s product cap",
         ),
     ];
     for (retry_after, words) in cases {
@@ -1696,7 +1696,7 @@ fn every_unacceptable_full_head_429_is_a_setup_failure() {
                 assert!(reason.contains(words), "{reason:?} names no {words:?}");
                 // #113: the reason reaches the log; the header's text never.
                 assert!(
-                    !reason.contains("soon") && !reason.contains("'-1'"),
+                    !reason.contains("soon") && !reason.contains("-1") && !reason.contains("901"),
                     "{reason:?} quotes the header"
                 );
             }

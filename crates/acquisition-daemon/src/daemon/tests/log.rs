@@ -531,3 +531,26 @@ async fn names_a_provider_gives_its_policy_and_rules_log_none_of_their_text() {
     );
     assert!(log.contains("a rule outside GGG's"), "{log}");
 }
+
+/// #113's fourth review: a `Retry-After` over the cap is all digits but
+/// need not fit a number, so a token of digits could ride in one. A HEAD
+/// carrying one past `u64` logs the cap's words, never the digits.
+#[tokio::test]
+async fn an_over_cap_retry_after_logs_none_of_its_digits() {
+    const DIGITS: &str = "18446744073709551616000123456789";
+    let (log, _) = api_answered_by(
+        "Retry-After: 18446744073709551616000123456789\r\n",
+        "200 OK",
+        API_RATE,
+        r#"{"characters":[]}"#,
+    )
+    .await;
+    assert!(
+        !log.contains(DIGITS),
+        "the header's digits are in the log:\n{log}"
+    );
+    assert!(
+        log.contains("a Retry-After over the 900s product cap"),
+        "{log}"
+    );
+}

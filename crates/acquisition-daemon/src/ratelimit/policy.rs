@@ -304,13 +304,15 @@ impl fmt::Display for RetryAfter {
             RetryAfter::Acceptable { seconds } => write!(f, "{seconds}s"),
             RetryAfter::Missing => write!(f, "missing Retry-After"),
             // #113: a log line never carries the header's text; a
-            // malformed or negative value is named, not quoted. An
-            // over-cap one is all digits, a number the daemon parsed.
+            // malformed, negative or over-cap value is named, not quoted.
+            // An over-cap value is all digits but need not fit a number
+            // (one past `u64` never parses); `carried_secs` reads it for
+            // the status alone.
             RetryAfter::Malformed { .. } => write!(f, "malformed Retry-After"),
             RetryAfter::Negative { .. } => write!(f, "negative Retry-After"),
-            RetryAfter::OverCap { raw } => write!(
+            RetryAfter::OverCap { .. } => write!(
                 f,
-                "Retry-After '{raw}' exceeds the {RETRY_AFTER_CAP_SECS}s product cap"
+                "a Retry-After over the {RETRY_AFTER_CAP_SECS}s product cap"
             ),
         }
     }

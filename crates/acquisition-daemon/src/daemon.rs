@@ -1043,16 +1043,29 @@ impl CredentialStore for OsCredentialStore {
 /// no code outside `auth.rs` reads and whose formatting is a placeholder.
 /// What it receives: a line's words are values the daemon chose or parsed
 /// into its own types, never upstream text judged safe by its shape (a
-/// token can be a lowercase word, or sit in a header). A rate line is the
-/// policy the limiter parsed (`ratelimit::rate_words`); an OAuth `error`
-/// is one of RFC 6749's codes (`auth::oauth_error_words`); a body is
-/// GGG's numeric error code or its size, a parser's failure its category
-/// and position. The raw headers stay the journal's, GGG's contract
-/// evidence. Kept by ruling: the account names and uuids (the
-/// diagnosis redacts them), the policy and rule names the parse
-/// accepted, and C130's redirect target with its query redacted. (A
-/// type guards what is held; text received goes around it, so this rule
-/// is the second half.) A write that fails is dropped: the log is a
+/// token can be a lowercase word, a string of digits, or sit in a
+/// header).
+/// - A rate line (`ratelimit::rate_words`) is the windows the limiter
+///   parsed, each rule by its label (`ratelimit::rule_label`: `Ip`,
+///   `Account`, `Client`, else "a rule outside GGG's"), and a
+///   `Retry-After` as its seconds or named as malformed, negative or over
+///   the cap. A policy is never named; a line names the route the daemon
+///   keys it on. The parser's own words name rules the same way.
+/// - An OAuth `error` is one of RFC 6749's codes
+///   (`auth::oauth_error_words`), else "an error code outside OAuth's".
+/// - A token endpoint's refusal body is its OAuth code or "an unreadable
+///   body", and a grant that does not parse "a malformed body"; an API
+///   failure's body is GGG's numeric error code or its size, and a 2xx
+///   that is not JSON serde's category and position.
+///
+/// The raw headers and bodies stay the journal's and a job's payload,
+/// GGG's contract evidence. Kept: the account names and uuids (the
+/// diagnosis redacts them), a job's kind and params (client text, which
+/// C7 keeps free of secrets), the OS keyring's and the transport's own
+/// error words, and C130's redirect target with its query redacted (a
+/// ruling's words). A type guards what is held; text received goes
+/// around it, so this rule is the second half until #132 types it too.
+/// A write that fails is dropped: the log is a
 /// diagnostic, and the caller may be the thread that ends the process.
 fn write_log_line(log: &std::fs::File, uptime: Option<u64>, line: &str) {
     let mut log = log;
