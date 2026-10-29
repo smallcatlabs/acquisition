@@ -2328,14 +2328,20 @@ pub(crate) fn daemon_text(report: &DaemonReport) -> String {
 /// The daemon's rails as `daemon status` prints them: the tripwire, the
 /// sends against their ceiling and the journal, then a halt with its
 /// cause and what clears it — the web UI's jobs page opens with it, so a
-/// queue that stands still says why.
+/// queue that stands still says why. A journal that was not written is
+/// named by its path, the status's own field, before the daemon's words
+/// of why, which name none (C152).
 pub(crate) fn rails_text(rails: &acquisition_protocol::status::RailsStatus) -> String {
+    let journal = match (&rails.journal_path, &rails.journal) {
+        (Some(path), Some(words)) if words != path => format!("{path} {words}"),
+        (_, Some(words)) => words.clone(),
+        (_, None) => "off".to_string(),
+    };
     let mut out = format!(
-        "rails:  tripwire {} · sends {}{} · journal {}\n",
+        "rails:  tripwire {} · sends {}{} · journal {journal}\n",
         if rails.tripwire_enabled { "ON" } else { "off" },
         rails.sends,
         rails.max_sends.map_or(String::new(), |m| format!("/{m}")),
-        rails.journal.as_deref().unwrap_or("off"),
     );
     let Some(cause) = &rails.halted else {
         return out;

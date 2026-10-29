@@ -173,6 +173,48 @@ fn a_diagnosis_with_no_daemon_prints_every_section_and_nothing_planted() {
     golden(file!(), "no_daemon", &t);
 }
 
+/// C152 (the journal's path a field of its own), what the CLI adds: a
+/// daemon started under an unwritable `ACQ_JOURNAL`, diagnosed by an
+/// `acq` whose knob differs (unset, the world's default), prints the
+/// rails line with the journal's redacted path before the daemon's words
+/// and neither spelling of the directory anywhere in its text, and exits
+/// 0. The document's redaction is the verbs crate's pin (C122). The
+/// journal's directory is a file, so no platform can create it.
+#[test]
+fn c152_a_journal_the_daemon_could_not_open_is_redacted_in_the_text() {
+    let scratch = harness::scratch("diagnose-journal");
+    let base = scratch.0.clone();
+    std::fs::create_dir_all(base.join("store")).unwrap();
+    let blocked = base.join("private-runs");
+    std::fs::write(&blocked, "a file where the journal's directory would be").unwrap();
+    let journal = blocked.join("sends.jsonl");
+    let (_daemon, _pid) =
+        harness::start_daemon_with(&base, &[("ACQ_JOURNAL", journal.to_str().unwrap())]);
+
+    let out = harness::command(&base, &["diagnose"])
+        .env_remove("ACQ_JOURNAL")
+        .output()
+        .expect("spawning acq");
+    assert!(out.status.success(), "{out:?}");
+    let printed = String::from_utf8_lossy(&out.stdout).replace('\\', "/");
+    for fact in [
+        "journal <journal>/sends.jsonl NOT WRITTEN — could not be opened: ",
+        "== journal\nnot read: the daemon running reports <journal>/sends.jsonl: NOT WRITTEN",
+    ] {
+        assert!(printed.contains(fact), "{fact:?} is not in:\n{printed}");
+    }
+    for spelling in [
+        blocked.display().to_string(),
+        blocked.canonicalize().unwrap().display().to_string(),
+    ] {
+        assert!(
+            !printed.contains(&spelling.replace('\\', "/")),
+            "the text prints {spelling}, the directory the daemon's ACQ_JOURNAL named from \
+             another shell:\n{printed}"
+        );
+    }
+}
+
 /// #79: a world nothing has written yet is no failure: each section that
 /// has nothing to read says why, and the command exits 0.
 #[test]
