@@ -1,11 +1,11 @@
 //! Plan step 7, item 4 (`PRICING-SLICE.md` at `b6197a82`): the daemon leaves by
 //! `process::exit`, so its SQLite connections are never closed and the
 //! write-ahead logs stayed uncheckpointed beside the facts file and
-//! `daemon.db` (the price-notes run, 2026-09-04: `tools/notes-check.py` at
-//! `aacd6a51` had to read through the WAL, `tools/census.py` at
-//! `aacd6a51` refuses one). Pinned here through the real binaries over
-//! the in-process mock: after a fetch has landed facts, `acq daemon
-//! stop` leaves no `-wal` pages behind either file. The pre-stop assertion keeps the check honest —
+//! `daemon.db` (the price-notes run, 2026-09-04:
+//! `tools/notes-check.py` at `aacd6a51` had to read through the WAL,
+//! `tools/census.py` at `aacd6a51` refuses one). Pinned here through the
+//! real binaries over the in-process mock: after a fetch has landed
+//! facts, `acq daemon stop` leaves no `-wal` pages behind either file. The pre-stop assertion keeps the check honest —
 //! the WAL holds pages before the stop, so an empty one after it is the
 //! checkpoint's doing.
 
