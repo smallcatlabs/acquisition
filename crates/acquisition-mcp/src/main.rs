@@ -157,7 +157,7 @@ use acquisition_verbs::refusal::{self, Arguments, Way};
 use acquisition_verbs::{Account, Fault, Frontend};
 use anyhow::Result;
 use rmcp::handler::server::wrapper::Parameters;
-use rmcp::model::{CallToolResult, ServerCapabilities, ServerInfo};
+use rmcp::model::{CallToolResult, ServerCapabilities, ServerConfig};
 use rmcp::{ErrorData, ServerHandler, ServiceExt, schemars, tool, tool_handler, tool_router};
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -2062,8 +2062,8 @@ impl ServerHandler for AcqMcp {
         CALLED.scope(called, Self::tool_router().call(call)).await
     }
 
-    fn get_info(&self) -> ServerInfo {
-        let mut info = ServerInfo::default();
+    fn get_info(&self) -> ServerConfig {
+        let mut info = ServerConfig::default();
         info.capabilities = ServerCapabilities::builder().enable_tools().build();
         info.instructions = Some(format!(
             "Acquisition (provider: {}).\n\
