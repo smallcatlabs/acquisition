@@ -191,8 +191,8 @@ The owner's list, his to strike:
 ## Current step
 
 #63's remainder, store failures absorbed as success: built on
-`briefs/63-store-remainder.md`, Do 2 to 8, reviewed and its fix round
-built; Do 1 built on the owner's ruling (C151); the review of Do 1 and
-the fix round pending. #103 closed (`LEDGER.md`). Phase 3, the owner's
-league run, follows at his word; #70 closes on a week of pushes without
-a re-run. `AGENTS.md` governs; the gate is `tools/gate.sh`.
+`briefs/63-store-remainder.md`, Do 1 to 8, two fix rounds built; the
+third review, allowed by the owner, pending. #103 closed (`LEDGER.md`).
+Phase 3, the owner's league run, follows at his word; #70 closes on a
+week of pushes without a re-run. `AGENTS.md` governs; the gate is
+`tools/gate.sh`.
