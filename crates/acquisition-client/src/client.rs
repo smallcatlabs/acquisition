@@ -1968,7 +1968,8 @@ fn spawn_daemon(world: &World) -> Result<Spawned, ConnectError> {
         acquisition_store::world_windows::disinherit_std_handles();
         // Out of the caller's job object where the job allows it: a host
         // that runs its children in a kill-on-close job (measured
-        // 2026-10-15, `tools/windows-checks.ps1 job`) would otherwise take
+        // 2026-10-15 by the `job` check of
+        // `tools/windows-checks.ps1` at `e91da86b`) would otherwise take
         // the daemon with it when it exits. A job that forbids breakaway
         // refuses the flag (access denied); the daemon then starts inside
         // it, and lives as long as that host does.
