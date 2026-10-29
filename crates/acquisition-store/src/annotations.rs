@@ -719,7 +719,8 @@ impl From<ValueError> for AnnotationError {
 }
 
 pub struct Annotations {
-    conn: Connection,
+    /// Crate-private: the store's own tests stage a damaged row on it.
+    pub(crate) conn: Connection,
     path: PathBuf,
     /// The owning account's uuid as stored in the file's `meta` table;
     /// `None` for a file created through [`Annotations::open`] on a raw

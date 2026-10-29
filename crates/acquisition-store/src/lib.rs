@@ -2389,24 +2389,31 @@ impl Store {
     /// Item annotations whose item this fact store no longer has live
     /// (removed, or never seen). No fact-side event ever deletes intent
     /// (C35): this is how kept-but-detached intent stays visible so
-    /// a frontend can surface it instead of it silently rotting.
-    pub fn orphaned_item_annotations(
-        &self,
-        annotations: &Annotations,
-    ) -> Result<Vec<AnnotationRow>> {
-        let mut orphaned = Vec::new();
-        for row in annotations.list(Some("item"), None)?.rows {
+    /// a frontend can surface it instead of it silently rotting. The
+    /// answer is the list's shape (C151): the readable orphans, and
+    /// beside them each orphan this build cannot read, named — never
+    /// dropped for being unreadable.
+    pub fn orphaned_item_annotations(&self, annotations: &Annotations) -> Result<AnnotationList> {
+        let listed = annotations.list(Some("item"), None)?;
+        let mut orphaned = AnnotationList::default();
+        let attached = |key: &str| -> Result<bool> {
             let live: Option<Option<i64>> = self
                 .conn
-                .query_row(
-                    "SELECT removed_at FROM items WHERE id = ?1",
-                    [&row.key],
-                    |r| r.get(0),
-                )
+                .query_row("SELECT removed_at FROM items WHERE id = ?1", [key], |r| {
+                    r.get(0)
+                })
                 .optional()?;
-            match live {
-                Some(None) => {} // the item is live; the annotation is attached
-                _ => orphaned.push(row),
+            // the item is live, so the annotation is attached
+            Ok(matches!(live, Some(None)))
+        };
+        for row in listed.rows {
+            if !attached(&row.key)? {
+                orphaned.rows.push(row);
+            }
+        }
+        for row in listed.unreadable {
+            if !attached(&row.key)? {
+                orphaned.unreadable.push(row);
             }
         }
         Ok(orphaned)
@@ -3754,12 +3761,12 @@ mod tests {
             &via,
         )
         .unwrap();
-        assert!(s.orphaned_item_annotations(&a).unwrap().is_empty());
+        assert!(s.orphaned_item_annotations(&a).unwrap().rows.is_empty());
         // The item disappears from its tab: the fact side records a removal
         // and touches no intent — the annotation stays, now orphaned.
         s.record(&stash_ep("a"), &json!({}), 200, &stash("a", vec![]), 200)
             .unwrap();
-        let orphaned = s.orphaned_item_annotations(&a).unwrap();
+        let orphaned = s.orphaned_item_annotations(&a).unwrap().rows;
         assert_eq!(orphaned.len(), 1);
         assert_eq!(orphaned[0].key, "i1");
         assert_eq!(a.get("item", "i1", "buyout").unwrap().unwrap().revision, 1);
@@ -3772,7 +3779,7 @@ mod tests {
             300,
         )
         .unwrap();
-        assert!(s.orphaned_item_annotations(&a).unwrap().is_empty());
+        assert!(s.orphaned_item_annotations(&a).unwrap().rows.is_empty());
         // An annotation on an item this store never saw is orphaned too.
         a.put::<crate::annotations::test_kinds::Note>(
             "item",
@@ -3782,7 +3789,35 @@ mod tests {
             &via,
         )
         .unwrap();
-        assert_eq!(s.orphaned_item_annotations(&a).unwrap().len(), 1);
+        assert_eq!(s.orphaned_item_annotations(&a).unwrap().rows.len(), 1);
+        // C151 (the second review of #63, its fifth finding): an orphan
+        // this build cannot read is named beside the readable ones, never
+        // dropped; one on a live item is attached and named nowhere here.
+        a.put::<crate::annotations::test_kinds::Note>(
+            "item",
+            "i1",
+            &json!({"version": 1, "text": "kept"}),
+            None,
+            &via,
+        )
+        .unwrap();
+        for key in ["ghost", "i1"] {
+            a.conn
+                .execute(
+                    "UPDATE annotations SET value = '{nope' WHERE key = ?1 AND kind = 'note'",
+                    [key],
+                )
+                .unwrap();
+        }
+        let orphaned = s.orphaned_item_annotations(&a).unwrap();
+        assert!(orphaned.rows.is_empty(), "{:?}", orphaned.rows);
+        let keys: Vec<&str> = orphaned.unreadable.iter().map(|r| r.key.as_str()).collect();
+        assert_eq!(
+            keys,
+            ["ghost"],
+            "the unreadable orphan, and not the attached one"
+        );
+        assert_eq!(orphaned.unreadable[0].kind, "note");
     }
 
     #[test]
