@@ -1036,10 +1036,16 @@ impl CredentialStore for OsCredentialStore {
 /// its uptime stamp when the daemon has one (a line before it is built, a
 /// startup refusal, has none). Every writer calls it: [`Daemon::log`]
 /// and so every `note_error`, the exit that ends at once and the panic
-/// hook through their clones of the file, and the startup lines. Its
-/// input is text, and a token cannot be in it: every token the daemon
-/// holds is an [`auth::Secret`], whose text no code outside `auth.rs`
-/// reads and whose formatting is a placeholder. A write that fails is
+/// hook through their clones of the file, and the startup lines.
+///
+/// The guarantee is that no token reaches the log, and it has two halves.
+/// What the daemon holds: every token is an [`auth::Secret`], whose text
+/// no code outside `auth.rs` reads and whose formatting is a placeholder.
+/// What it receives: the token endpoint's answers, the only ones that
+/// carry tokens, reach words only as their status, rate line and OAuth
+/// `error` code, never their text or a parser's message about it
+/// (`auth::token_request`), since a type guards what is held while text
+/// received goes around it. A write that fails is
 /// dropped: the log is a diagnostic, and the caller may be the thread
 /// that ends the process.
 fn write_log_line(log: &std::fs::File, uptime: Option<u64>, line: &str) {

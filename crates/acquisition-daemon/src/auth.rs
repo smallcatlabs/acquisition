@@ -329,17 +329,25 @@ async fn token_request(
         });
     }
     if !status.is_success() {
+        // #113: the server's text never reaches the words, which go to
+        // the log; only its status, its rate line and the OAuth `error`
+        // code. A 3xx's body is no server text: the choke point put its
+        // own words there, where the redirect pointed with its query
+        // redacted (C130), and they stand. The choke point has already
+        // read the whole body for what it recognises (a block or a 429,
+        // `rails::Verdict::of`).
         let rate = response.rate;
-        let body = response
-            .body
-            .unwrap_or_else(|error| format!("<body read transport failure: {error}>"));
-        let body: String = body.chars().take(300).collect();
+        let code = match &response.body {
+            Ok(evidence) if status.is_redirection() => evidence.clone(),
+            Ok(body) => oauth_error_code(body),
+            Err(_) => "a body that could not be read".to_string(),
+        };
         return Err(TokenError {
             status: Some(status.as_u16()),
             blocked: false,
             halted: false,
             cancelled: false,
-            message: format!("token endpoint returned {status} (rate headers {rate}): {body}"),
+            message: format!("token endpoint returned {status} (rate headers {rate}): {code}"),
         });
     }
     let body = response
@@ -365,8 +373,11 @@ async fn token_request(
             None => words,
         },
     };
-    let tokens =
-        serde_json::from_str::<TokenResponse>(&body).map_err(|e| refused(e.to_string()))?;
+    // #113: serde's message can quote a value of the body, so it is not
+    // the words.
+    let tokens = serde_json::from_str::<TokenResponse>(&body).map_err(|_| {
+        refused("the token endpoint answered with a malformed body; nothing was installed".into())
+    })?;
     if tokens.expires_in > MAX_ACCESS_TOKEN_LIFETIME_SECS {
         return Err(refused(format!(
             "the token endpoint gave the access token a lifetime of {} seconds, past the {MAX_ACCESS_TOKEN_LIFETIME_SECS} any grant is taken to carry; nothing was installed",
@@ -375,6 +386,33 @@ async fn token_request(
     }
     Ok(tokens)
 }
+
+/// #113: what the words of a token endpoint's refusal carry of its body:
+/// the OAuth `error` code (RFC 6749, section 5.2), when the body is JSON
+/// holding one that is a short word of `[a-z_]` (at most
+/// [`OAUTH_CODE_LEN`] long); "an unreadable error code" when it holds
+/// another; "an unreadable body" else. Nothing else of the text is kept,
+/// so a body that echoes a token cannot carry it into the log.
+fn oauth_error_code(body: &str) -> String {
+    let code = serde_json::from_str::<serde_json::Value>(body)
+        .ok()
+        .and_then(|value| value.get("error")?.as_str().map(str::to_string));
+    match code {
+        Some(code)
+            if !code.is_empty()
+                && code.len() <= OAUTH_CODE_LEN
+                && code.bytes().all(|b| b.is_ascii_lowercase() || b == b'_') =>
+        {
+            code
+        }
+        Some(_) => "an unreadable error code".to_string(),
+        None => "an unreadable body".to_string(),
+    }
+}
+
+/// The longest OAuth `error` code the words keep: RFC 6749's longest,
+/// `unsupported_grant_type`, is 22.
+const OAUTH_CODE_LEN: usize = 32;
 
 // ---- keyring ------------------------------------------------------------
 //

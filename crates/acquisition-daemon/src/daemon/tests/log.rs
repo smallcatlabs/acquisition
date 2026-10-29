@@ -197,3 +197,127 @@ async fn no_token_reaches_the_log_on_the_login_send_and_refresh_paths() {
     }
     finish_harness(dispatcher, &log_path);
 }
+
+/// A provider whose token endpoint answers every refresh with `status`
+/// and `body`; any other request is a 200.
+async fn token_endpoint_answering(
+    status: &'static str,
+    body: &'static str,
+) -> (String, tokio::task::JoinHandle<()>) {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let task = tokio::spawn(async move {
+        loop {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let Some(request) = mockggg::read_request(&mut stream).await else {
+                continue;
+            };
+            let headers = "X-Rate-Limit-Policy: token-request-limit\r\nX-Rate-Limit-Rules: Ip\r\nX-Rate-Limit-Ip: 60:30:30\r\nX-Rate-Limit-Ip-State: 1:30:0\r\n";
+            let (status, body) = if request.path == "/token" {
+                (status, body)
+            } else {
+                ("200 OK", r#"{"characters":[]}"#)
+            };
+            mockggg::respond_with(&mut stream, status, "application/json", headers, body).await;
+        }
+    });
+    (base, task)
+}
+
+/// A session whose access token has expired asks `base`'s token endpoint
+/// for a refresh through a job; returns the log once the job is done.
+async fn refresh_answered_by(status: &'static str, body: &'static str) -> String {
+    let (base, server) = token_endpoint_answering(status, body).await;
+    let clock = Arc::new(ManualClock::new());
+    let log_path = test_log_path();
+    let rails = Arc::new(Rails::with_config_and_clock(
+        RailsConfig {
+            journal_path: Some(journal_of(&log_path)),
+            ..RailsConfig::default()
+        },
+        clock.clone(),
+    ));
+    let (daemon, log_path) = test_daemon_scenario_at(
+        Provider::mock(&base),
+        clock.clone(),
+        rails,
+        Arc::new(NoopCredentialStore),
+        log_path,
+    );
+    {
+        let mut s = daemon.shared.lock().unwrap();
+        s.auth.rename("", "scenario-user");
+        daemon.install_tokens_locked(
+            s.auth.one_mut(),
+            auth::TokenResponse {
+                access_token: "at-expired".into(),
+                refresh_token: "rt-held".into(),
+                expires_in: 60,
+                username: "scenario-user".into(),
+            },
+        );
+    }
+    clock.advance(Duration::from_secs(120));
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    let job = daemon
+        .submit(
+            "characters".into(),
+            json!({}),
+            0,
+            "test".into(),
+            Some("scenario-user".into()),
+        )
+        .unwrap();
+    let (info, _) = wait_terminal(&daemon, job).await;
+    assert_eq!(info.state, JobState::Failed, "the refresh failed the job");
+    server.abort();
+    let log = std::fs::read_to_string(&*log_path).unwrap();
+    finish_harness(dispatcher, &log_path);
+    log
+}
+
+/// #113, the text a daemon receives: a token endpoint's refusal whose
+/// body echoes tokens, one in a field and one as its `error`, reaches the
+/// log as its status and no more of its text. The code is kept when it is
+/// a word, so the refusal still says what GGG said.
+#[tokio::test]
+async fn a_token_refusal_whose_body_echoes_a_token_logs_none_of_its_text() {
+    let log = refresh_answered_by(
+        "400 Bad Request",
+        r#"{"error":"invalid_grant","refresh_token":"rt-echoed-w4Qe"}"#,
+    )
+    .await;
+    assert!(
+        log.contains("400") && log.contains("invalid_grant"),
+        "{log}"
+    );
+    assert!(
+        !log.contains("rt-echoed-w4Qe"),
+        "the echoed token is in the log:\n{log}"
+    );
+
+    let log = refresh_answered_by("400 Bad Request", r#"{"error":"at-echoed-z8Lm"}"#).await;
+    assert!(
+        !log.contains("at-echoed-z8Lm"),
+        "the echoed token is in the log:\n{log}"
+    );
+    assert!(log.contains("an unreadable error code"), "{log}");
+}
+
+/// #113, the text a daemon receives: a 2xx from the token endpoint that
+/// is no token response, whose parser's message would quote a value
+/// (here a token where a number goes), reaches the log as a malformed
+/// body, quoting nothing.
+#[tokio::test]
+async fn a_malformed_token_answer_logs_none_of_its_text() {
+    let log = refresh_answered_by(
+        "200 OK",
+        r#"{"access_token":"at-x","refresh_token":"rt-x","expires_in":"rt-quoted-n3Jp","username":"scenario-user"}"#,
+    )
+    .await;
+    assert!(
+        !log.contains("rt-quoted-n3Jp"),
+        "the quoted token is in the log:\n{log}"
+    );
+    assert!(log.contains("malformed body"), "{log}");
+}
