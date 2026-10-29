@@ -190,7 +190,8 @@ The owner's list, his to strike:
 ## Current step
 
 #53's generator (in the tree before the post-launch pin), next from
-"Pull-forward", its brief not yet written; #63 closed (`LEDGER.md`).
+"Pull-forward": its brief is `briefs/53-defence-generator.md`, the
+build next; #63 closed (`LEDGER.md`).
 Phase 3, the owner's league run, follows at his word; #70 closes on a
 week of pushes without a re-run. `AGENTS.md` governs; the gate is
 `tools/gate.sh`.
