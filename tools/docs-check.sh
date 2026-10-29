@@ -152,23 +152,31 @@ rm -f "$reg"
 # cherry-picked ground-truth commits and one review-branch commit.
 #
 # The governed files, one scope for the document scans: the roots below,
-# their *.rs, *.sh, *.py and *.md files. The cited commits here and the
-# history citations after them read the roadmap under SKIP_ROADMAP's two
-# exclusions alone (its saved reviews, its dated assessment), as the
-# registry's citations do; the document paths (6) read no roadmap file.
-governed=(crates tools README.md GLOSSARY.md search/DIGEST.md RUN-LEDGER.md SEAT-LEDGER.md TESTING-NOTES.md SURFACES.md search/MEASUREMENTS.md search/LEDGER.md AGENTS.md decisions .claude/skills REVIEW-CHECKLIST.md HISTORY.md roadmap)
+# their *.rs, *.sh, *.py and *.md files, and for the cited commits here
+# and the history citations after them their *.toml and *.yml files too
+# (CITED_KINDS), since a manifest, a shipped table's header and a
+# workflow's comments cite commits as the code does (#89's review: a
+# table's source cited a deleted tool where neither scan read it). The
+# root manifests and the workflows are roots for that reason;
+# `audits/`, dated records, is not. The cited commits and the history
+# citations read the roadmap under SKIP_ROADMAP's two exclusions alone
+# (its saved reviews, its dated assessment), as the registry's citations
+# do; the document paths (6) read no roadmap file.
+governed=(crates tools README.md GLOSSARY.md search/DIGEST.md RUN-LEDGER.md SEAT-LEDGER.md TESTING-NOTES.md SURFACES.md search/MEASUREMENTS.md search/LEDGER.md AGENTS.md decisions .claude/skills REVIEW-CHECKLIST.md HISTORY.md roadmap Cargo.toml deny.toml about.toml .github)
+CITED_KINDS=(rs sh py md toml yml)
+cited_includes=(); for k in "${CITED_KINDS[@]}"; do cited_includes+=(--include="*.$k"); done
 revs=$(git rev-list HEAD)
 dead=0; checked=0
 while read -r h; do
   [[ -n $h ]] || continue
   checked=$((checked+1))
   if ! grep -q "^$h" <<<"$revs"; then
-    where=$(grep -rlE --include='*.rs' --include='*.sh' --include='*.py' --include='*.md' "${SKIP_ROADMAP[@]}" -- "\`$h\`|\bat \`?$h\b" "${governed[@]}" 2>/dev/null | head -1 || true)
+    where=$(grep -rlE "${cited_includes[@]}" "${SKIP_ROADMAP[@]}" -- "\`$h\`|\bat \`?$h\b" "${governed[@]}" 2>/dev/null | head -1 || true)
     printf 'COMMIT  %-18s `%s` is not in this history — cite the twin that is, or <repo>@%s\n' "$where" "$h" "$h"
     dead=$((dead+1))
   fi
-done < <( { grep -rhoE '`[0-9a-f]{7,8}`' "${governed[@]}" --include='*.rs' --include='*.sh' --include='*.py' --include='*.md' "${SKIP_ROADMAP[@]}" 2>/dev/null
-            grep -rhoE "$AT_HASH" "${governed[@]}" --include='*.rs' --include='*.sh' --include='*.py' --include='*.md' "${SKIP_ROADMAP[@]}" 2>/dev/null | sed 's/^at //'
+done < <( { grep -rhoE '`[0-9a-f]{7,8}`' "${governed[@]}" "${cited_includes[@]}" "${SKIP_ROADMAP[@]}" 2>/dev/null
+            grep -rhoE "$AT_HASH" "${governed[@]}" "${cited_includes[@]}" "${SKIP_ROADMAP[@]}" 2>/dev/null | sed 's/^at //'
           } | tr -d '`' | sort -u)
 if ((dead > 0)); then fail=1; else printf 'ok      %-18s %5d cited commits, every one in this history\n' commits "$checked"; fi
 # Every history citation, `<path>` at `<hash>` (or "whole at"), names
@@ -178,9 +186,9 @@ if ((dead > 0)); then fail=1; else printf 'ok      %-18s %5d cited commits, ever
 # no slash and no extension is a name, not a path, and is not read. The
 # roadmap is read under SKIP_ROADMAP's exclusions, as the cited commits
 # are (the outside review of `1f074d5a`, finding 1).
-if ! cites=$(python3 -I - "$AT_HASH" "${governed[@]}" <<'PY'
+if ! cites=$(python3 -I - "$AT_HASH" "${CITED_KINDS[*]}" "${governed[@]}" <<'PY'
 import os, re, subprocess, sys
-at, roots = sys.argv[1], sys.argv[2:]
+at, kinds, roots = sys.argv[1], tuple("." + k for k in sys.argv[2].split()), sys.argv[3:]
 LEAD = r"(?:\s|//[!/]?|#)*"   # a line break, and a comment's leader, may fall between
 cite = re.compile(r"`([^`\s]+)`,?" + LEAD + r"(?:whole" + LEAD + r")?(" + at + ")")
 def files():   # SKIP_ROADMAP's exclusions, as grep applies them: a directory named reviews, a file STATE-*.md
@@ -189,7 +197,7 @@ def files():   # SKIP_ROADMAP's exclusions, as grep applies them: a directory na
         for d, ds, fs in os.walk(r):
             ds[:] = sorted(x for x in ds if x not in ("target", "reviews"))
             yield from (os.path.join(d, f) for f in sorted(fs)
-                        if f.endswith((".rs", ".sh", ".py", ".md")) and not re.fullmatch(r"STATE-.*\.md", f))
+                        if f.endswith(kinds) and not re.fullmatch(r"STATE-.*\.md", f))
 found = []
 for f in files():
     text = open(f, encoding="utf-8").read()
@@ -328,13 +336,16 @@ NOT_HERE = {"LICENSE.md", "DEBRIEF.md", "friction.md"}
 tracked = [t for t in subprocess.run(["git", "ls-files"], capture_output=True, text=True, check=True).stdout.splitlines()
            if os.path.exists(t)]
 tails = {"/".join(t.split("/")[i:]) for t in tracked for i in range(t.count("/") + 1)}
+KINDS = (".rs", ".sh", ".py", ".md")   # this scan's own, never CITED_KINDS: a manifest names generated files
 def files():
     for r in roots:
         if r == "roadmap" or r in DATED: continue
-        if os.path.isfile(r): yield r; continue
+        if os.path.isfile(r):
+            if r.endswith(KINDS): yield r
+            continue
         for d, ds, fs in os.walk(r):
             ds[:] = sorted(x for x in ds if x != "target")
-            yield from (os.path.join(d, f) for f in sorted(fs) if f.endswith((".rs", ".sh", ".py", ".md")))
+            yield from (os.path.join(d, f) for f in sorted(fs) if f.endswith(KINDS))
 n = 0; bad = []
 for f in files():
     text = open(f, encoding="utf-8").read()

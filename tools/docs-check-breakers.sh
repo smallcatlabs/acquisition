@@ -26,7 +26,7 @@ for f in roadmap/reviews/zz-breaker.md "$golden_breaker"; do
   if [[ -e $f ]]; then echo "refusing to start: $f exists, and the suite would delete it"; exit 2; fi
 done
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/acq-docs-breakers.XXXXXX")
-files=(AGENTS.md GLOSSARY.md decisions/plans.md REVIEW-CHECKLIST.md .claude/skills/seat/SKILL.md roadmap/README.md search/README.md)
+files=(AGENTS.md GLOSSARY.md decisions/plans.md REVIEW-CHECKLIST.md .claude/skills/seat/SKILL.md roadmap/README.md search/README.md deny.toml)
 for f in "${files[@]}"; do mkdir -p "$scratch/keep/$(dirname "$f")"; cp "$f" "$scratch/keep/$f"; done
 restore() {
   local f
@@ -97,6 +97,10 @@ run_case 'an entry: at, letters alone, no backticks'             refuse 'carries
 run_case 'an entry: at, nine letters in backticks'               refuse 'carries a commit'        entry "$W" "at compile (at \`$H9\`). *Why:*"
 run_case 'a document: at, letters alone, no backticks'           refuse "\`$H7\` is not in this history" checklist "A note at $H7."
 run_case 'a document: at, nine letters in backticks'             refuse "\`$H9\` is not in this history" checklist "A note at \`$H9\`."
+# A manifest's comment is read as a document's is (#89's review: the scans
+# read only *.rs, *.sh, *.py and *.md, and no root manifest).
+manifest() { printf '%s\n' "$1" >>deny.toml; }
+run_case 'a root manifest: at, letters alone, in backticks'      refuse "\`$H7\` is not in this history" manifest "# A note at \`$H7\`."
 
 echo '== a history citation names the path as it was at its commit (the governance design'"'"'s second read trial)'
 # Built with escaped backticks, so the source never holds a citation the
