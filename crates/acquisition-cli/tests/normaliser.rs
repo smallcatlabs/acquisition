@@ -234,6 +234,32 @@ fn the_build_rule_names_the_version_the_contract_and_the_platform() {
     );
 }
 
+/// Issue #127: the tabs table pads its `fetched` cell to twelve, so an age
+/// that crosses from one digit to two moves the spaces after it. The rule
+/// keeps the cell's width, and two runs a second apart read one text;
+/// in prose an age keeps its one space, however wide the age.
+#[test]
+fn the_age_rule_keeps_a_padded_cells_width_whatever_the_ages_digits() {
+    let row = |age: &str| format!("Gear PremiumStash      1  {age:<12} {:<12} a1\n", "");
+    let read = n(&row("9s ago"));
+    assert_eq!(read, n(&row("10s ago")));
+    assert_eq!(read, n(&row("100d ago")));
+    assert_eq!(
+        read,
+        format!("Gear PremiumStash      1  <age> ago{}a1\n", " ".repeat(17))
+    );
+    assert_eq!(
+        n("facts: stash listed 9s ago; characters listed 10s ago and 3m ago\n"),
+        "facts: stash listed <age> ago; characters listed <age> ago and <age> ago\n"
+    );
+    // a fixture's day count is wider than `<age>`, and its one space
+    // before a separator is prose, never padding
+    assert_eq!(
+        n("location list seen 20391d ago \u{b7} each tab\n"),
+        "location list seen <age> ago \u{b7} each tab\n"
+    );
+}
+
 #[test]
 fn the_new_rules_leave_counts_names_and_ids_that_are_no_job_alone() {
     for text in [

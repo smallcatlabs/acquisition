@@ -116,14 +116,14 @@ $ acq tabs --league Rehearsal
 --- stdout
 8 tabs in Rehearsal: 7 fetched, 1 folder (never fetched); 0 items
 name         type           items  fetched      parent       id
-Currency     CurrencyStash      0  <age> ago                   rh-cur1
-Dump         PremiumStash       0  <age> ago                    rh-dump
+Currency     CurrencyStash      0  <age> ago                 rh-cur1
+Dump         PremiumStash       0  <age> ago                 rh-dump
 Old leagues  Folder             -  never                     rh-fold
-  Old 1      PremiumStash       0  <age> ago       rh-fold      rh-old1
-  Old 2      QuadStash          0  <age> ago       rh-fold      rh-old2
-Uniques      UniqueStash        0  <age> ago                    rh-uniq
-Maps         MapStash           0  <age> ago                    rh-maps
-Maps (empty) MapStash           0  <age> ago                    rh-mape
+  Old 1      PremiumStash       0  <age> ago    rh-fold      rh-old1
+  Old 2      QuadStash          0  <age> ago    rh-fold      rh-old2
+Uniques      UniqueStash        0  <age> ago                 rh-uniq
+Maps         MapStash           0  <age> ago                 rh-maps
+Maps (empty) MapStash           0  <age> ago                 rh-mape
 
 $ acq tabs
 # holds "15 tabs in Standard: 14 fetched, 1 folder (never fetched); 37 items"
@@ -138,16 +138,16 @@ QuadStash          1        1       2
 Folder             1        0       0
 the 10 with the most items:
 name        type           items  fetched      parent       id
-Dump        PremiumStash      11  <age> ago                   dump
-  (unnamed) MapStash           4  <age> ago      maps         m004
-  (unnamed) UniqueStash        4  <age> ago      uniq         u003
-Currency    CurrencyStash      3  <age> ago                   cur1
-  (unnamed) MapStash           3  <age> ago      maps         m003
-  (unnamed) UniqueStash        3  <age> ago      uniq         u002
-  (unnamed) MapStash           2  <age> ago      maps         m002
-  Old 1     PremiumStash       2  <age> ago      fold         old1
-  Old 2     QuadStash          2  <age> ago      fold         old2
-  (unnamed) UniqueStash        2  <age> ago      uniq         u001
+Dump        PremiumStash      11  <age> ago                 dump
+  (unnamed) MapStash           4  <age> ago    maps         m004
+  (unnamed) UniqueStash        4  <age> ago    uniq         u003
+Currency    CurrencyStash      3  <age> ago                 cur1
+  (unnamed) MapStash           3  <age> ago    maps         m003
+  (unnamed) UniqueStash        3  <age> ago    uniq         u002
+  (unnamed) MapStash           2  <age> ago    maps         m002
+  Old 1     PremiumStash       2  <age> ago    fold         old1
+  Old 2     QuadStash          2  <age> ago    fold         old2
+  (unnamed) UniqueStash        2  <age> ago    uniq         u001
 next: `acq tabs --expand` lists all 15; `acq search --realm pc league=Standard --count tab` counts what a query matches by tab
 
 $ acq search --count league

@@ -100,16 +100,16 @@ QuadStash          1        1       2
 Folder             1        0       0
 the 10 with the most items:
 name        type           items  fetched      parent       id
-Dump        PremiumStash      11  <age> ago                    dump
-  (unnamed) MapStash           4  <age> ago       maps         m004
-  (unnamed) UniqueStash        4  <age> ago       uniq         u003
-Currency    CurrencyStash      3  <age> ago                    cur1
-  (unnamed) MapStash           3  <age> ago       maps         m003
-  (unnamed) UniqueStash        3  <age> ago       uniq         u002
-  (unnamed) MapStash           2  <age> ago       maps         m002
-  Old 1     PremiumStash       2  <age> ago       fold         old1
-  Old 2     QuadStash          2  <age> ago       fold         old2
-  (unnamed) UniqueStash        2  <age> ago       uniq         u001
+Dump        PremiumStash      11  <age> ago                 dump
+  (unnamed) MapStash           4  <age> ago    maps         m004
+  (unnamed) UniqueStash        4  <age> ago    uniq         u003
+Currency    CurrencyStash      3  <age> ago                 cur1
+  (unnamed) MapStash           3  <age> ago    maps         m003
+  (unnamed) UniqueStash        3  <age> ago    uniq         u002
+  (unnamed) MapStash           2  <age> ago    maps         m002
+  Old 1     PremiumStash       2  <age> ago    fold         old1
+  Old 2     QuadStash          2  <age> ago    fold         old2
+  (unnamed) UniqueStash        2  <age> ago    uniq         u001
 next: `acq tabs --expand` lists all 15; `acq search --realm pc league=Standard --count tab` counts what a query matches by tab
 
 $ acq search 'class=Rings rarity=rare'

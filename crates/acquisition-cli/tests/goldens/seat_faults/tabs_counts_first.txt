@@ -5,7 +5,7 @@ $ acq tabs
 --- stdout
 1 tabs in Standard: 1 fetched; 1 items
 name type          items  fetched      parent       id
-Gear PremiumStash      1  <age> ago                    a1
+Gear PremiumStash      1  <age> ago                 a1
 
 $ acq tabs
 # holds "41 tabs in Standard: 1 fetched, 40 never fetched; 1 items"
@@ -17,7 +17,7 @@ PremiumStash      1        1       1
 QuadStash        40        0       0
 the 10 with the most items:
 name    type          items  fetched      parent       id
-Gear    PremiumStash      1  <age> ago                    a1
+Gear    PremiumStash      1  <age> ago                 a1
 Dump 1  QuadStash         -  never                     q1
 Dump 10 QuadStash         -  never                     q10
 Dump 11 QuadStash         -  never                     q11

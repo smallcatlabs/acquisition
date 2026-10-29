@@ -738,7 +738,11 @@ fn log_rule(text: &str) -> String {
 }
 
 /// The rule `age`: `<n>s ago`, `<n>m ago`, `<n>h ago` and `<n>d ago` are
-/// `<age> ago`, since a seeded fetch grows older every day.
+/// `<age> ago`, since a seeded fetch grows older every day. An age padded
+/// in a table's cell, two spaces or more after it, keeps the cell's width,
+/// the age and those spaces, so `9s ago` and `10s ago` in one column read
+/// the same (issue #127), never with fewer than one space; one space after
+/// an age is prose or a separator and stays one.
 fn age_rule(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     let mut rest = text;
@@ -757,14 +761,20 @@ fn age_rule(text: &str) -> String {
                 start = i;
             }
         }
+        rest = &rest[at + " ago".len()..];
         if start < n {
             out.push_str(&head[..start]);
             out.push_str("<age> ago");
+            let pad = rest.len() - rest.trim_start_matches(' ').len();
+            if pad > 1 {
+                let cell = n - start + " ago".len() + pad;
+                out.push_str(&" ".repeat(cell.saturating_sub("<age> ago".len()).max(1)));
+                rest = &rest[pad..];
+            }
         } else {
             out.push_str(head);
             out.push_str(" ago");
         }
-        rest = &rest[at + " ago".len()..];
     }
     out.push_str(rest);
     out
