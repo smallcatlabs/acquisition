@@ -36,7 +36,7 @@ $ acq refresh --plan
 # holds "9 requests"
 --- stdout
 refresh Standard on mock as ExileTester — policy 1
-facts: stash and characters listed <age> ago
+facts: stash listed <age> ago; characters listed <age> ago
 
 9 requests:
   fetch 7 tabs

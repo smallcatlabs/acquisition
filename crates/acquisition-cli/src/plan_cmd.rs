@@ -736,10 +736,11 @@ fn render_header(plan: &RefreshPlan, now: i64, audit: bool) -> String {
             .character_listing
             .as_ref()
             .map(|l| dur(plan.generated_at - l.fetched_at));
+        // Each listing keeps its own age, even when the two agree: a fold
+        // on equal ages printed one shape or the other by which second
+        // each listing landed in (issue #76), and the store holds no fact
+        // that ties the two, which are always two responses.
         let facts = match (has_tabs, has_characters, stash_age, character_age) {
-            (true, true, Some(stash), Some(characters)) if stash == characters => {
-                format!("stash and characters listed {stash} ago")
-            }
             (true, true, stash, characters) => format!(
                 "stash {}; characters {}",
                 basis_age(stash),
@@ -1762,7 +1763,8 @@ fn render_scope(scope: &QuoteScope, width: usize, expand: bool) -> String {
 mod tests {
     use super::*;
     use acquisition_store::{
-        AnnotationRow, RefreshSnapshot, SYNC_POLICY_KEY, SYNC_POLICY_KIND, SYNC_POLICY_SCOPE,
+        AnnotationRow, ListingBasis, RefreshSnapshot, SYNC_POLICY_KEY, SYNC_POLICY_KIND,
+        SYNC_POLICY_SCOPE,
     };
 
     fn example() -> Value {
@@ -1810,6 +1812,39 @@ mod tests {
         assert!(err.to_string().contains("Standard"), "{err}");
         let err = check_flags(&plan, Some(Realm::Xbox), None).unwrap_err();
         assert!(err.to_string().contains("--realm xbox"), "{err}");
+    }
+
+    /// Issue #76: the facts line names each listing's age, so two
+    /// listings in one second and two a second apart read one shape; a
+    /// fold on equal ages made the line hang on the clock.
+    #[test]
+    fn the_facts_line_reads_one_shape_whether_the_listings_share_a_second() {
+        let read = |stash_at: i64, characters_at: i64| {
+            let mut plan = tiny_plan();
+            plan.basis.stash_listing = Some(ListingBasis {
+                response_id: 1,
+                fetched_at: stash_at,
+            });
+            plan.basis.character_listing = Some(ListingBasis {
+                response_id: 2,
+                fetched_at: characters_at,
+            });
+            let header = render_header(&plan, plan.generated_at, false);
+            header
+                .lines()
+                .find(|l| l.starts_with("facts: "))
+                .unwrap()
+                .to_string()
+        };
+        let at = tiny_plan().generated_at;
+        assert_eq!(
+            read(at - 5, at - 5),
+            "facts: stash listed 5s ago; characters listed 5s ago"
+        );
+        assert_eq!(
+            read(at - 5, at - 6),
+            "facts: stash listed 5s ago; characters listed 6s ago"
+        );
     }
 
     // ---- C53: decision, audit and contract views ----
