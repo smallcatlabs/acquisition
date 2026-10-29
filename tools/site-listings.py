@@ -13,6 +13,13 @@ id, deduped across the parts, with what a result row shows.
     tools/site-listings.py <dir-or-files>... > site-listings-<date>.json
     tools/site-listings.py --exchange-items <saved exchange page> > exchange-items-<date>.json
 
+Run when the owner has saved pages for one of the two on-demand reads
+`SURFACES.md`'s trade-site row registers: the oracle comparison, whose
+steps `crates/acquisition-plan/examples/listing-report.rs` writes down
+(this table, then `tools/site-join.py` against that example's report),
+and the bulk exchange's item list (`--exchange-items`; issue #23). Its
+input is what a human saved, so no gate or workflow runs it.
+
 Per row: `id` (the 64-hex item id the stash API also gives — the join
 key), `name` and `base` (the popup's header lines), `note` (the price
 note the popup shows verbatim, or null), `label` (`exact` for "Exact
