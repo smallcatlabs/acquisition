@@ -214,7 +214,9 @@ The owner's list, his to strike:
 
 The league group (#87, #90, #68, #103, #63, #53, #94, #96) closed on
 2026-10-28 (`LEDGER.md`); #85 closed the same day, and #86, #89 and
-#125, #115 and #91 on 2026-10-29. Next in "Pull-forward": the words,
+#125, #115 and #91 on 2026-10-29. The clock-dependent tests (#127,
+#76, #111, and #128's ruling; `briefs/clock-tests.md`) are built,
+review pending. Next in "Pull-forward": the words,
 which wait on the first seat on the league's build, so no step starts
 from the list until that seat has sat.
 Phase 3, the owner's league run, follows at his word; #70 closes on a
