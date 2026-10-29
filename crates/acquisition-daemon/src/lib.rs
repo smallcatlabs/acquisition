@@ -32,6 +32,7 @@ pub mod daemon;
 pub mod frame;
 pub(crate) mod gate;
 #[cfg(test)]
+#[path = "tests/generated.rs"]
 mod generated;
 pub mod mockggg;
 pub mod provider;

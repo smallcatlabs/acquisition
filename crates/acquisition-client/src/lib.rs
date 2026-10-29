@@ -25,5 +25,6 @@ pub mod client;
 pub mod endpoint;
 pub mod frame;
 #[cfg(test)]
+#[path = "tests/generated.rs"]
 mod generated;
 pub mod locator;
