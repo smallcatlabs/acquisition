@@ -178,7 +178,13 @@ fn c10_a_partial_install_refuses_and_leaves_no_daemon_bound() {
     let base = scratch.0.clone();
     // A failure below must not leave the daemon for its idle exit.
     let _stop = harness::stop_on_drop(&base);
-    let real_acqd = acquisition_store::world::canonical(&acqd()).unwrap();
+    // The daemon the script runs is a copy under a path with an
+    // apostrophe, so the script's quoting is exercised: unescaped, the
+    // shell cannot run it and the test fails before the mismatch.
+    let quoted = base.join("it's here");
+    std::fs::create_dir_all(&quoted).unwrap();
+    let real_acqd = quoted.join("acqd-real");
+    std::fs::copy(acqd(), &real_acqd).unwrap();
     let dir = base.join("partial");
     let acq = stage(&dir, None);
     let script = dir.join(acquisition_client::locator::ACQD);
