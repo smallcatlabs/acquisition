@@ -1,0 +1,28 @@
+# Dependabot's version updates (#86): the locked crate graph and the
+# workflows' actions, weekly. The crates' minor and patch updates come as
+# one grouped pull request and each major bump as its own; the actions are
+# pinned by major tag, so every update to one is a major, and they come
+# grouped as one pull request a week. A pull request runs both gates like
+# any other; merging is the owner's. Not here: the toolchain
+# (`rust-toolchain.toml`, "nothing floats", a deliberate commit) and the
+# tool versions the workflows pin by string (nextest, cargo-mutants),
+# which Dependabot does not read.
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      cargo:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns: ["*"]
