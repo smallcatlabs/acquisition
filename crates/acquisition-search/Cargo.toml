@@ -21,7 +21,7 @@ regex = "1"
 # uses: two spellings of one value are told apart by it (bind.rs, `folded`)
 regex-syntax = "0.8"
 # the basis names the store by a short hash of its path, as C83 names a world
-sha2 = "0.10"
+sha2 = "0.11"
 # a continuation's token is its request, encoded for a terminal (answer.rs);
 # a site search id is its query, base64url over gzip (trade.rs, S56)
 base64 = "0.22"
@@ -43,7 +43,7 @@ rusqlite = { version = "0.32", features = ["bundled", "hooks"] }
 
 [build-dependencies]
 # the build a basis names is a digest of sources (build.rs, C98)
-sha2 = "0.10"
+sha2 = "0.11"
 
 [[test]]
 name = "main"

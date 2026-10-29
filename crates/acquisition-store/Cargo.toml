@@ -16,7 +16,7 @@ anyhow.workspace = true
 rusqlite = { version = "0.32", features = ["bundled", "hooks"] }
 directories = "6"
 # the world's short id (world.rs): twelve hex digits of the canonical root's SHA-256
-sha2 = "0.10"
+sha2 = "0.11"
 # the calling uid, for the private runtime directory (world.rs)
 libc = "0.2"
 
