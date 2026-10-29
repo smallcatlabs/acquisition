@@ -184,7 +184,12 @@ fn c10_a_partial_install_refuses_and_leaves_no_daemon_bound() {
     let script = dir.join(acquisition_client::locator::ACQD);
     std::fs::write(
         &script,
-        format!("#!/bin/sh\nexec '{}' \"$@\"\n", real_acqd.display()),
+        // Single-quoted for the shell, each `'` in the path closed,
+        // escaped and reopened.
+        format!(
+            "#!/bin/sh\nexec '{}' \"$@\"\n",
+            real_acqd.display().to_string().replace('\'', r"'\''")
+        ),
     )
     .unwrap();
     std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
