@@ -52,3 +52,6 @@ What someone would propose and the project declines, each until the trigger it n
 - keyring 4's per-platform stores in place of keyring 3's backends: not until a sandboxed package or a provisioning-profile bundle.
 - A GUI-hosted daemon: refused; the GUI spawns `acqd` as the CLI does, and phase 4 records the spawn policy.
 - musl static Linux builds below the glibc 2.35 floor: not until a user on an older distribution.
+- An allowlist of GGG's policy and rule names in the daemon log: not until there is a demonstrated need (the owner, 2026-10-29, daemon-safety's close).
+- Keeping GGG's text out of the send journal: refused; the journal keeps GGG's rate and header text verbatim, and invariant 5 is not touched, because no token reaches it (the owner, 2026-10-29).
+- Typing GGG's text where it enters the daemon (#132): not until a need or value is identified (the owner, 2026-10-29).
