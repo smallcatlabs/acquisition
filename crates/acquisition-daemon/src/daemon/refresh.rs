@@ -279,9 +279,20 @@ impl Daemon {
     }
 
     /// [`Self::land_rejection`]'s body, on the landing's thread.
+    ///
+    /// C135 with C87, #110: the write is a narrowing, saved without the account index.
+    /// The index-first hold of [`Self::persist_credentials`] guards a
+    /// name: no credential lands under a name no verb can find. This
+    /// rewrite adds none: it saves under the session's own name, which
+    /// its `ok` keyring already holds, the refresh token the entry held
+    /// and no access token. So an index that cannot be read at the 401
+    /// does not keep the rejected bearer for the next lifetime. A save
+    /// that fails leaves the entry and warns: its refresh token is still
+    /// the live grant, and clearing it would trade one 401 after a
+    /// restart for a login.
     fn persist_rejection(&self, username: &str, generations: AuthGenerations) {
         let credentials = self.hold_credentials();
-        let (entry, uuid) = {
+        let entry = {
             let s = self.shared.lock().unwrap();
             let Some(session) = s.auth.find(username) else {
                 return;
@@ -295,31 +306,24 @@ impl Daemon {
             let Some(entry) = session.keyring_entry() else {
                 return;
             };
-            (entry, session.uuid.clone())
+            entry
         };
-        let persisted = self.persist_credentials(
-            &credentials,
-            username,
-            &entry,
-            uuid.as_deref(),
-            None,
-            self.unix_now(),
-        );
-        let mut warnings = persisted.warnings;
-        if let Err(e) = persisted.indexed {
-            warnings.push(e);
-        }
-        {
+        let saved =
+            self.credential_store
+                .save(self.provider.keyring_service, &entry.to_secret(), username);
+        if let Err(e) = &saved {
             let mut s = self.shared.lock().unwrap();
             if let Some(session) = s.auth.find_mut(username)
                 && session.generations == generations
             {
-                session.keyring = persisted.keyring;
+                session.keyring = format!("unavailable: {e}");
             }
         }
         drop(credentials);
-        if !warnings.is_empty() {
-            self.note_error(&warnings.join("; "));
+        if let Err(e) = saved {
+            self.note_error(&format!(
+                "keyring save failed: {e}: the entry for {username} still holds the access token GGG rejected, so a restart before the next refresh sends it once more"
+            ));
         }
     }
 

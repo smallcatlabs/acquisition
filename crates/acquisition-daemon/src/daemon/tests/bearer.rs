@@ -757,9 +757,15 @@ fn restored_scenario_daemon(
 /// refreshes before any send; the rejected bearer is never sent again.
 /// The first lifetime restores `at-kept`, unexpired, and its first job
 /// meets the 401 (on the probe or the GET, by `probe_checks_bearer`);
-/// the second restores from the same store and index. Returns the
-/// second lifetime's journal sends.
-async fn rejected_access_token_across_a_restart(probe_checks_bearer: bool) -> Vec<Value> {
+/// the second restores from the same store and index. With
+/// `frozen_index`, the index cannot be read from the restore until the
+/// first lifetime is done (#110): bytes that are no index stand in
+/// `accounts.json` while the 401 lands, and the index is put back for
+/// the second. Returns the second lifetime's journal sends.
+async fn rejected_access_token_across_a_restart(
+    probe_checks_bearer: bool,
+    frozen_index: bool,
+) -> Vec<Value> {
     let (base, server) = bearer_aware_server("at-kept", "at-new", probe_checks_bearer).await;
     let clock = Arc::new(ManualClock::new());
     let dir = TestPath::dir();
@@ -779,6 +785,12 @@ async fn rejected_access_token_across_a_restart(probe_checks_bearer: bool) -> Ve
         .insert("scenario-user".into(), kept.to_secret());
 
     let (first, first_log) = restored_scenario_daemon(&base, clock.clone(), store.clone(), &dir);
+    let index_path = dir.join("accounts.json");
+    let index_bytes = std::fs::read(&index_path).unwrap();
+    if frozen_index {
+        std::fs::write(&index_path, b"not an index").unwrap();
+        assert!(Index::load(&dir).is_err(), "the index is unreadable");
+    }
     let dispatcher = tokio::spawn(first.clone().dispatcher());
     let job = first
         .submit("characters".into(), json!({}), 0, "test".into(), None)
@@ -801,6 +813,7 @@ async fn rejected_access_token_across_a_restart(probe_checks_bearer: bool) -> Ve
         "{first_sends:?}"
     );
     finish_harness(dispatcher, &first_log);
+    std::fs::write(&index_path, &index_bytes).unwrap();
 
     let (second, second_log) = restored_scenario_daemon(&base, clock.clone(), store, &dir);
     let dispatcher = tokio::spawn(second.clone().dispatcher());
@@ -833,7 +846,7 @@ fn assert_restart_refreshes_first(sends: &[Value]) {
 /// keyring entry, and a restart refreshes before its first send.
 #[tokio::test]
 async fn a_token_rejected_on_the_probe_is_not_restored_after_a_restart() {
-    let sends = rejected_access_token_across_a_restart(true).await;
+    let sends = rejected_access_token_across_a_restart(true, false).await;
     assert_restart_refreshes_first(&sends);
     let methods: Vec<&str> = sends
         .iter()
@@ -846,11 +859,22 @@ async fn a_token_rejected_on_the_probe_is_not_restored_after_a_restart() {
 /// keyring entry, and a restart refreshes before its first send.
 #[tokio::test]
 async fn a_token_rejected_on_the_get_is_not_restored_after_a_restart() {
-    let sends = rejected_access_token_across_a_restart(false).await;
+    let sends = rejected_access_token_across_a_restart(false, false).await;
     assert_restart_refreshes_first(&sends);
     let methods: Vec<&str> = sends
         .iter()
         .map(|l| l["method"].as_str().unwrap())
         .collect();
     assert_eq!(methods, ["POST", "HEAD", "GET"], "{sends:?}");
+}
+
+/// #110, with C87 and C135: a 401 that lands while the account index
+/// cannot be read still takes the rejected token out of the keyring
+/// entry, so a restart refreshes before its first send and never sends
+/// that bearer again. The index-first hold guards a name, and this
+/// rewrite adds none.
+#[tokio::test]
+async fn a_token_rejected_under_an_unreadable_index_is_not_restored_after_a_restart() {
+    let sends = rejected_access_token_across_a_restart(false, true).await;
+    assert_restart_refreshes_first(&sends);
 }
