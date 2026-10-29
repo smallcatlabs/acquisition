@@ -108,6 +108,21 @@ pub struct RailsConfig {
     pub daemon_artifact: Option<String>,
 }
 
+/// The journal `ACQ_JOURNAL` names (`knob`): empty or `0` is none, unset
+/// is `default_journal`, and a path is made absolute against this
+/// process's working directory, the one it opens against, so the status's
+/// `journal_path` and the log name the file as any reader can find it
+/// (C152; a relative path is no needle the diagnosis can take, #94's
+/// review, finding 2). A working directory that cannot be read leaves
+/// the path as given.
+fn journal_path_from(knob: Option<&str>, default_journal: &Path) -> Option<PathBuf> {
+    match knob {
+        Some(p) if p.trim().is_empty() || p.trim() == "0" => None,
+        Some(p) => Some(std::path::absolute(p).unwrap_or_else(|_| PathBuf::from(p))),
+        None => Some(default_journal.to_path_buf()),
+    }
+}
+
 impl RailsConfig {
     /// Read the environment. `state_path` is where the tripwire and
     /// refresh-failed marks persist — the world's `rails.json` for the
@@ -136,11 +151,10 @@ impl RailsConfig {
             },
             Err(_) => None,
         };
-        let journal_path = match std::env::var("ACQ_JOURNAL") {
-            Ok(p) if p.trim().is_empty() || p.trim() == "0" => None,
-            Ok(p) => Some(PathBuf::from(p)),
-            Err(_) => Some(default_journal.to_path_buf()),
-        };
+        let journal_path = journal_path_from(
+            std::env::var("ACQ_JOURNAL").ok().as_deref(),
+            default_journal,
+        );
         let state_path = Some(state_path.to_path_buf());
         RailsConfig {
             tripwire,
@@ -1731,6 +1745,23 @@ mod tests {
             warnings[0].starts_with(&format!("journal {path} could not be opened: ")),
             "{warnings:?}"
         );
+
+        // #94's review, finding 2: a relative `ACQ_JOURNAL` is reported
+        // absolute, against the working directory the daemon opens it
+        // in; off and unset are as before.
+        let default = temp.path().join("default.jsonl");
+        let relative = journal_path_from(Some("private-runs/sends.jsonl"), &default).unwrap();
+        assert!(relative.is_absolute(), "{}", relative.display());
+        assert_eq!(
+            relative,
+            std::env::current_dir()
+                .unwrap()
+                .join("private-runs")
+                .join("sends.jsonl")
+        );
+        assert_eq!(journal_path_from(Some("0"), &default), None);
+        assert_eq!(journal_path_from(Some(" "), &default), None);
+        assert_eq!(journal_path_from(None, &default), Some(default.clone()));
     }
 
     #[test]

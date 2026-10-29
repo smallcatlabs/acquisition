@@ -72,7 +72,8 @@ pub struct Frontend {
 
 /// What `ACQ_JOURNAL` says, in the daemon's reading of it (`rails.rs`):
 /// unset (or not UTF-8), the world's default journal; empty or `0`, no
-/// journal; anything else, that path.
+/// journal; anything else, that path, made absolute against the working
+/// directory as the daemon makes it (C152).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum JournalKnob {
     Default,
@@ -85,7 +86,7 @@ impl JournalKnob {
     pub fn from_environment() -> JournalKnob {
         match std::env::var("ACQ_JOURNAL") {
             Ok(p) if p.trim().is_empty() || p.trim() == "0" => JournalKnob::Off,
-            Ok(p) => JournalKnob::At(PathBuf::from(p)),
+            Ok(p) => JournalKnob::At(std::path::absolute(&p).unwrap_or_else(|_| PathBuf::from(p))),
             Err(_) => JournalKnob::Default,
         }
     }

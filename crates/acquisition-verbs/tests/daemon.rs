@@ -18,6 +18,7 @@
 #[path = "../../acquisition-client/tests/harness/mod.rs"]
 mod harness;
 
+use std::path::Path;
 use std::time::{Duration, Instant};
 
 use acquisition_client::client::{Client, Observed};
@@ -1153,11 +1154,14 @@ async fn c152_a_journal_the_daemon_could_not_open_is_redacted_from_another_shell
     let s = session("diagnose-not-written");
     let blocked = s.base.join("private-runs");
     std::fs::write(&blocked, "a file where the journal's directory would be").unwrap();
-    let journal = blocked.join("sends.jsonl");
     let acqd = acqd_built();
     harness::link_beside_this_test(&acqd);
+    // The daemon's knob is relative, as an operator may type it (#94's
+    // review, finding 2): it reports the path absolute, against the
+    // directory it was started in.
     let mut cmd = harness::daemon_command(&acqd, &s.base);
-    cmd.env("ACQ_JOURNAL", &journal);
+    cmd.current_dir(&s.base)
+        .env("ACQ_JOURNAL", Path::new("private-runs").join("sends.jsonl"));
     let (_daemon, said) = harness::spawn_drained(cmd, &acqd);
     // The diagnosing shell's knob differs from the daemon's: unset, the
     // world's default.
@@ -1217,4 +1221,8 @@ async fn c152_a_journal_the_daemon_could_not_open_is_redacted_from_another_shell
              from another shell: {document:#}"
         );
     }
+    assert!(
+        !printed.contains("private-runs"),
+        "the relative spelling's directory is printed: {document:#}"
+    );
 }
