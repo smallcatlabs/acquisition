@@ -836,6 +836,17 @@ fn ends_token(c: char) -> bool {
 mod tests {
     use super::*;
 
+    /// `path` made absolute on this platform: a path without a drive is
+    /// relative on Windows, and the redactor holds absolute paths alone
+    /// (#125). The text redacted carries the same drive.
+    fn abs(path: &str) -> String {
+        if cfg!(windows) {
+            format!("C:{path}")
+        } else {
+            path.to_string()
+        }
+    }
+
     fn redactor() -> Redactor {
         Redactor::new(
             &[
@@ -843,8 +854,8 @@ mod tests {
                 ("Bob#5678".into(), None),
             ],
             &[
-                (PathBuf::from("/srv/acq/store"), "<store>"),
-                (PathBuf::from("/home/al"), "~"),
+                (PathBuf::from(abs("/srv/acq/store")), "<store>"),
+                (PathBuf::from(abs("/home/al")), "~"),
             ],
         )
     }
@@ -859,7 +870,10 @@ mod tests {
             "route stash@<account 1> and stash@<account 2>; Alicex stays; <account 1> goes"
         );
         assert_eq!(
-            r.redact("/srv/acq/store/mock/Alice_1234.db opened (u-alice-uuid)"),
+            r.redact(&format!(
+                "{}/mock/Alice_1234.db opened (u-alice-uuid)",
+                abs("/srv/acq/store")
+            )),
             "<store>/mock/<account 1>.db opened (<account 1 uuid>)"
         );
         assert_eq!(
@@ -878,11 +892,18 @@ mod tests {
         let mut r = Redactor::new(
             &[("store#1".into(), None)],
             &[
-                (PathBuf::from("/home/al/s"), "<store>"),
-                (PathBuf::from("/home/al"), "~"),
+                (PathBuf::from(abs("/home/al/s")), "<store>"),
+                (PathBuf::from(abs("/home/al")), "~"),
             ],
         );
-        assert_eq!(r.redact("/home/al/s/x and /home/al/y"), "<store>/x and ~/y");
+        assert_eq!(
+            r.redact(&format!(
+                "{}/x and {}/y",
+                abs("/home/al/s"),
+                abs("/home/al")
+            )),
+            "<store>/x and ~/y"
+        );
     }
 
     /// Each token-shaped string is replaced after its mark, one number per

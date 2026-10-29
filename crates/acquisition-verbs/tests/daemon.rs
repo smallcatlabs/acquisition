@@ -850,9 +850,12 @@ async fn a_diagnosis_with_no_daemon_reads_every_section_and_holds_nothing_plante
     );
     let log_lines = document["log"]["lines"].as_array().unwrap();
     assert_eq!(log_lines.len(), 10, "{document:#}");
+    // A path is read with forward slashes: the log writes the platform's
+    // separator, and Windows' is `\` (#125).
+    let shown = |line: &serde_json::Value| line.as_str().unwrap_or("").replace('\\', "/");
     assert_eq!(
-        log_lines[1],
-        json!("[    5s] store: <store>/mock/<account 1>.db opened for <account 1>")
+        shown(&log_lines[1]),
+        "[    5s] store: <store>/mock/<account 1>.db opened for <account 1>"
     );
     assert_eq!(
         log_lines[2],
@@ -871,7 +874,7 @@ async fn a_diagnosis_with_no_daemon_reads_every_section_and_holds_nothing_plante
         log_lines[8],
         json!("[    6s] Authorization: Bearer\t<token 6>")
     );
-    assert_eq!(log_lines[9], json!("[    7s] config read from ~/.config"));
+    assert_eq!(shown(&log_lines[9]), "[    7s] config read from ~/.config");
     assert_eq!(
         document["redactions"]["tokens"],
         json!(6),

@@ -186,7 +186,9 @@ pub fn login_as_mock(base: &Path, env: &[(&str, &str)]) {
 /// facts are checked against its own raw output as it runs, before any
 /// normalising and whatever the update switch says, so a regeneration
 /// that lost a fact from one command fails even where another still
-/// prints it. A `--json` command is never recorded: JSON is the contract
+/// prints it; a path under a placeholder may be written in a fact with
+/// forward slashes, as the golden writes it ([`placeholder_paths`]), so
+/// one fact holds on Windows (#125). A `--json` command is never recorded: JSON is the contract
 /// and is asserted by field.
 pub struct Transcript {
     base: PathBuf,
@@ -272,9 +274,12 @@ impl Transcript {
         };
         let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
         let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
+        let (shown_out, shown_err) = (placeholder_paths(&stdout), placeholder_paths(&stderr));
         for fact in facts {
             assert!(
-                stdout.contains(fact) || stderr.contains(fact),
+                [&stdout, &stderr, &shown_out, &shown_err]
+                    .iter()
+                    .any(|text| text.contains(fact)),
                 "acq {}: the fact {fact:?} is not in what it printed:\n--- stdout\n{stdout}--- stderr\n{stderr}",
                 args.join(" ")
             );
@@ -605,9 +610,16 @@ fn scratch_rule(text: &str, base: &Path) -> String {
     for spelling in spellings {
         text = text.replace(&spelling, "<scratch>");
     }
+    placeholder_paths(&text)
+}
+
+/// Each path under `<scratch>`, `<store>` or `<logs>` written with forward
+/// slashes to its end ([`forward_slashes_under`]): the scratch rule's
+/// second half, which a [`Transcript`]'s facts are also read under.
+fn placeholder_paths(text: &str) -> String {
     ["<scratch>", "<store>", "<logs>"]
         .iter()
-        .fold(text, |text, placeholder| {
+        .fold(text.to_string(), |text, placeholder| {
             forward_slashes_under(&text, placeholder)
         })
 }
