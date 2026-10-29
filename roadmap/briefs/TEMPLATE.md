@@ -71,6 +71,9 @@ instead.
 - Your own worktree and your own scratch subdirectory, named in the
   brief's launch; never another worker's. Kill only the processes you
   started.
+- Touch nothing in the tree while the gate runs: its `tree` stage fails
+  on any edit, and an edit to a source it built fails `artifacts` too
+  (daemon-safety's first gate).
 - One commit per concern; the story in the message, which names this
   brief's file; a size or a count stated in a message is measured after
   the last edit. A test rides in the commit of the fix it pins, and a

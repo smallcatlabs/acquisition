@@ -132,9 +132,10 @@ here rather than restate it.
    (a fix round's at `<step>-fixes-<sha>.md`), from the final answer's
    first line, the one naming the range, to the end (`codex exec`
    prints the answer twice, the copy to save after `tokens used` and
-   its count), ride in the next commit,
-   and stay there for good. A round that touches only comments and
-   documents gets no review, and nothing is reviewed a third time
+   its count), are committed on their own before the round that
+   answers them (corrected 2026-10-29: #115, #91 and the clock-tests
+   step did so), and stay there for good. A round that touches only
+   comments and documents gets no review, and nothing is reviewed a third time
    unless the owner asks.
 4. **The owner reads** the findings and the proposed fixes before any
    fix is built. A finding is pinned as a test and fixed by one rule,
