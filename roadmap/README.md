@@ -189,8 +189,8 @@ The owner's list, his to strike:
 
 ## Current step
 
-#96, next from "Pull-forward", its brief not yet written; #94 closed
-(`LEDGER.md`).
+#96, the last of the league group, from `briefs/96-tour-leak.md`:
+the brief written, the build next; #94 closed (`LEDGER.md`).
 Phase 3, the owner's league run, follows at his word; #70 closes on a
 week of pushes without a re-run. `AGENTS.md` governs; the gate is
 `tools/gate.sh`.
