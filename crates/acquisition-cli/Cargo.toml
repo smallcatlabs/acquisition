@@ -25,7 +25,7 @@ acquisition-plan = { path = "../acquisition-plan" }
 acquisition-search = { path = "../acquisition-search" }
 acquisition-verbs = { path = "../acquisition-verbs" }
 clap.workspace = true
-ratatui = "0.29"
+ratatui = "0.30"
 # `acq web` (C139): the loopback listener, over the hyper and tower the
 # lock already holds; HTTP/1 alone, no default features.
 axum = { version = "0.8", default-features = false, features = ["http1", "tokio", "query", "form"] }
