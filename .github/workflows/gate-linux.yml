@@ -32,7 +32,7 @@ jobs:
     steps:
       # The whole history: the docs check refuses a cited commit it cannot
       # find, and a shallow clone holds one commit.
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -148,7 +148,7 @@ jobs:
     steps:
       # The whole history: docs-check.sh refuses a cited commit it cannot
       # find, and a shallow clone holds one commit.
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 

@@ -40,7 +40,7 @@ jobs:
   notices:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install the pinned toolchain
         run: rustup toolchain install
       - uses: taiki-e/install-action@v2
@@ -52,7 +52,7 @@ jobs:
         run: cargo about generate --locked --all-features about.hbs -o THIRD-PARTY-NOTICES.md
       - name: Every shipped crate is named
         run: tools/notices-check.sh THIRD-PARTY-NOTICES.md
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: notices
           path: THIRD-PARTY-NOTICES.md
@@ -76,7 +76,7 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install the pinned toolchain and the target
         run: |
           rustup toolchain install
@@ -86,7 +86,7 @@ jobs:
           key: ${{ matrix.target }}
       - name: Build
         run: cargo build --release --locked --target ${{ matrix.target }} -p acquisition-cli -p acquisition-daemon -p acquisition-mcp
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: notices
       - name: Package
@@ -100,7 +100,7 @@ jobs:
         run: tools/release-smoke.sh "${{ steps.package.outputs.archive }}"
       # By the workspace-relative directory: on Windows the script prints a
       # Git Bash path, which the action cannot resolve.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: acquisition-${{ matrix.target }}
           path: dist/*
@@ -120,8 +120,8 @@ jobs:
       matrix:
         target: [aarch64-apple-darwin, x86_64-apple-darwin]
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
           name: acquisition-${{ matrix.target }}
           path: dist
@@ -177,7 +177,7 @@ jobs:
           echo "archive=$archive" >> "$GITHUB_OUTPUT"
       - name: Smoke the signed archive
         run: tools/release-smoke.sh "${{ steps.sign.outputs.archive }}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: acquisition-${{ matrix.target }}
           path: ${{ steps.sign.outputs.archive }}
@@ -200,7 +200,7 @@ jobs:
   keyring-macos:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install the pinned toolchain
         run: rustup toolchain install
       - uses: taiki-e/install-action@v2
@@ -221,7 +221,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: acquisition-*
           path: dist
