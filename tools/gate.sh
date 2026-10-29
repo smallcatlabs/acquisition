@@ -133,41 +133,25 @@ for line in open(sys.argv[1]):
   return "$rc"
 }
 
-# The `features` stage (the header). The targets are the release's,
-# read from its build matrix, so a target added there is checked here.
-# The graphs are the workspace's, as the build and the test run are: a
-# pin in one binary's crate unifies into every binary of the build, so
+# The `features` stage (the header). The targets are the release's: every
+# target triple `release.yml` names, anywhere in the file and in any YAML
+# form, read as a token of a triple's shape (`<arch>-<vendor>-<os>[-<env>]`,
+# the vendor `apple`, `pc` or `unknown`) over the file's whole text, so no
+# structure is parsed and none can hide one. A triple named twice, or in a
+# comment, is checked once more for nothing; one never named is not a
+# release target. A file naming none fails the stage. A hand-written reader
+# of the matrix answered for coverage and each review found the next shape
+# it skipped, block rows, then an axis beside `include` (the reviews of
+# #91). The graphs are the workspace's, as the build and the test run are:
+# a pin in one binary's crate unifies into every binary of the build, so
 # `acq`'s rustix pin also closes the split Linux's `acqd` had through
 # keyring's zbus (#91's Do 1), which `-p acquisition-daemon` alone still
 # shows and no stage builds.
 RELEASE=.github/workflows/release.yml
 
-# The release's targets, one a line, from the `build` job's
-# `matrix.include`: each row must be the inline `- { os: …, target: … }`
-# the file writes, and a row in any other form is refused by name, so the
-# stage never goes green over a target it could not read (the review of
-# #91, its first finding).
+# The release's targets, one a line, sorted and each once.
 release_targets() {
-  python3 -I -c '
-import re, sys
-lines = open(sys.argv[1]).read().split("\n")
-def indent(l): return len(l) - len(l.lstrip(" "))
-job = next((i for i, l in enumerate(lines) if re.match(r"^  build:\s*$", l)), None)
-inc = next((i for i in range(job + 1, len(lines)) if lines[i].strip() == "include:"), None) if job is not None else None
-if inc is None:
-    sys.exit(sys.argv[1] + ": no jobs.build.strategy.matrix.include")
-targets, bad = [], []
-for l in lines[inc + 1:]:
-    if not l.strip() or l.strip().startswith("#"):
-        continue
-    if indent(l) <= indent(lines[inc]):
-        break
-    m = re.match(r"^\s*- \{ os: [^,{}]+, target: ([a-z0-9_-]+) \}\s*$", l)
-    (targets.append(m[1]) if m else bad.append(l.strip()))
-if bad or not targets:
-    sys.exit(sys.argv[1] + ": a matrix row not in the form - { os: <runner>, target: <triple> }, so its target would go unchecked: " + "; ".join(bad or ["none listed"]))
-print("\n".join(targets))
-' "$RELEASE"
+  grep -oE '\b[a-z0-9_]+-(apple|pc|unknown)-[a-z0-9]+(-[a-z0-9]+)?\b' "$RELEASE" | sort -u
 }
 
 # Each package of the target's two feature graphs, `<name> <version>`,
@@ -203,7 +187,9 @@ sys.exit(2 if not build or not test else 1 if split else 0)
 
 features() {
   local targets t out rc=0
-  targets=$(release_targets) || { echo "gate: features: the release's targets could not be read: the line above names why" >&2; return 1; }
+  targets=$(release_targets)
+  [[ -n $targets ]] || { echo "gate: features: $RELEASE names no target triple, so the release's targets are unknown and nothing would be checked" >&2; return 1; }
+  echo "gate: features: the release's $(wc -l <<<"$targets" | tr -d ' ') targets: "$targets
   for t in $targets; do
     out=$(feature_split "$t")
     case $? in

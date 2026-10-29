@@ -144,22 +144,29 @@ p.write_text(pin.sub('', s))
 PY
 }
 run_case 'the rustix pin taken out'                              refuse 'rustix 1.1.4: build'      unpinned       $gate --only features
-# One release row rewritten as valid block YAML beside the inline ones:
-# the stage refuses it by name rather than check four targets of five.
-block_row() {
-  python3 - <<'PY'
-import pathlib
+# The release's targets are every triple release.yml names, in any YAML
+# form (the reviews of #91): each case checks exactly the set it names.
+FIVE="the release's 5 targets: aarch64-apple-darwin aarch64-unknown-linux-gnu x86_64-apple-darwin x86_64-pc-windows-msvc x86_64-unknown-linux-gnu"
+SIX="the release's 6 targets: aarch64-apple-darwin aarch64-pc-windows-msvc aarch64-unknown-linux-gnu x86_64-apple-darwin x86_64-pc-windows-msvc x86_64-unknown-linux-gnu"
+release_edit() {  # release_edit <old> <new>: an exact-once substitution in release.yml
+  python3 - "$1" "$2" <<'PY'
+import pathlib, sys
 p = pathlib.Path('.github/workflows/release.yml'); s = p.read_text()
-a = '          - { os: windows-latest, target: x86_64-pc-windows-msvc }\n'
-assert s.count(a) == 1, 'no one windows row'
-p.write_text(s.replace(a, '          - os: windows-latest\n            target: x86_64-pc-windows-msvc\n'))
+assert s.count(sys.argv[1]) == 1, 'edit anchor not found once: ' + sys.argv[1][:60]
+p.write_text(s.replace(sys.argv[1], sys.argv[2]))
 PY
 }
-run_case 'a release row in block form beside inline ones'        refuse 'not in the form - { os: <runner>, target: <triple> }' block_row $gate --only features
+WINDOWS_ROW='          - { os: windows-latest, target: x86_64-pc-windows-msvc }'
+block_row() { release_edit "$WINDOWS_ROW" $'          - os: windows-latest\n            target: x86_64-pc-windows-msvc'; }
+axis() { release_edit '        include:' $'        target: [aarch64-pc-windows-msvc]\n        include:'; }
+no_triple() { printf 'name: Release\non: workflow_dispatch\n' >.github/workflows/release.yml; }
+run_case 'the release rows inline, as they stand'                pass   "$FIVE"                    none           $gate --only features
+run_case 'a release row in block form beside inline ones'        pass   "$FIVE"                    block_row      $gate --only features
+run_case 'a matrix axis beside include'                          pass   "$SIX"                     axis           $gate --only features
+run_case 'a release file naming no triple'                       refuse 'names no target triple'   no_triple      $gate --only features
 # cargo failing under the stage is its failure, never a split to pin.
 cargo_fails() { gate_edit '--target "$1" -e no-dev,features' '--target "zz-no-such-target" -e no-dev,features'; }
 run_case 'cargo tree failing under the stage'                    refuse 'cargo tree could not read the feature graphs' cargo_fails $gate --only features
-run_case 'the feature graphs as they stand'                      pass   'gate: green'              none           $gate --only features
 
 echo
 printf '%d ok, %d failed\n' "$pass" "$failed"
