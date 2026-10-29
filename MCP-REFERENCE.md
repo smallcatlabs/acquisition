@@ -88,7 +88,7 @@ Remove one target's own price row; what it covered falls back to the next row up
 
 ### `price_list`
 
-The items of one league that are priced, each with both sides of its listing (no daemon): `items`, ten by default (`limit` more, `expand` all), each with its `subject`, the hand row that applies (`manual`), the game's reading (`game`), the `relation` and the `effective` price; `containers`, the tabs, substashes and characters they sit under; and the counts `describe` with names ["pricing"] explains. With neither `relation` nor `effective`, items nothing prices are left out, except unresolved ones.
+The items of one league that are priced, each with both sides of its listing (no daemon): `items`, ten by default (`limit` more, `expand` all), each with its `subject`, the hand row that applies (`manual`), the game's reading (`game`), the `relation` and the `effective` price; `containers`, the tabs, substashes and characters they sit under; and the counts `describe` with names ["pricing"] explains. With neither `relation` nor `effective`, items nothing prices are left out, except unresolved ones. `unreadable`: price rows this build cannot read, with the revision a clear or set names.
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
 - `covered_by` (string | null) — Only items a row on this target would cover: a folder's tabs' items, a map or unique tab's substashes' items too.

@@ -17,7 +17,7 @@ Part of the decision registry (`AGENTS.md`, "Cross-cutting rulings"): the ruling
 
 ## Store: intent
 
-- **C151 — An annotation row this build cannot read is named, never dropped, never a wall, and never repaired by a read.** `list` returns every readable row and names each unreadable one beside them: scope, key, kind, revision and the parse fault. `get` answers a structured refusal with the same facts. `delete` and `put` naming the row's revision do not parse its value, so the one compare-and-swap (C35, intent written under revision compare-and-swap) can clear or replace it; at a wrong revision they answer the refusal with the revision the row stands at. Nothing rewrites a value in place. *Why:* one damaged row hid every price and could not be cleared by the only API that may write the file. *Pinned:* nothing yet. Unbuilt, issue #63.
+- **C151 — An annotation row this build cannot read is named, never dropped, never a wall, and never repaired by a read.** `list` returns every readable row and names each unreadable one beside them: scope, key, kind, revision and the parse fault. `get` answers a structured refusal with the same facts. `delete` and `put` naming the row's revision do not parse its value, so the one compare-and-swap (C35, intent written under revision compare-and-swap) can clear or replace it; at a wrong revision they answer the refusal with the revision the row stands at. Nothing rewrites a value in place. *Why:* one damaged row hid every price and could not be cleared by the only API that may write the file. *Pinned:* `acquisition-store/src/annotations.rs`, the `c151_` tests; `acquisition-plan/src/price.rs` and `listing.rs`, `acquisition-cli/src/price_cmd.rs`, the `c151_` tests.
 
 ## Realm and characters
 

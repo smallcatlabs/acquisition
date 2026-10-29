@@ -1786,7 +1786,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "The items of one league that are priced, each with both sides of its listing (no daemon): `items`, ten by default (`limit` more, `expand` all), each with its `subject`, the hand row that applies (`manual`), the game's reading (`game`), the `relation` and the `effective` price; `containers`, the tabs, substashes and characters they sit under; and the counts `describe` with names [\"pricing\"] explains. With neither `relation` nor `effective`, items nothing prices are left out, except unresolved ones."
+        description = "The items of one league that are priced, each with both sides of its listing (no daemon): `items`, ten by default (`limit` more, `expand` all), each with its `subject`, the hand row that applies (`manual`), the game's reading (`game`), the `relation` and the `effective` price; `containers`, the tabs, substashes and characters they sit under; and the counts `describe` with names [\"pricing\"] explains. With neither `relation` nor `effective`, items nothing prices are left out, except unresolved ones. `unreadable`: price rows this build cannot read, with the revision a clear or set names."
     )]
     fn price_list(&self, Parameters(p): Parameters<Args<PriceListParams>>) -> Told {
         let p = match p.read() {

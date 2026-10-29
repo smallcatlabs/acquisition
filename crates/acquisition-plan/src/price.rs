@@ -649,6 +649,12 @@ pub struct PriceWrite {
     pub target: PriceTarget,
     pub written: Option<AnnotationRow>,
     pub prior: Option<AnnotationRow>,
+    /// The row this write replaced or cleared when this build could not
+    /// read it (C151): named by its revision and fault, since `prior`
+    /// cannot carry a value nothing can parse. `None` beside a `prior`
+    /// or when nothing stood.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub prior_unreadable: Option<acquisition_store::UnreadableRow>,
     pub revision: i64,
 }
 
@@ -697,7 +703,13 @@ impl PriceWrite {
                 value: put_back(prior)?,
                 if_revision: None,
             }),
-            (None, None) => Err("nothing was cleared".into()),
+            (None, None) => Err(match &self.prior_unreadable {
+                Some(row) => format!(
+                    "the cleared row (revision {}) could not be read, so nothing puts it back",
+                    row.revision
+                ),
+                None => "nothing was cleared".into(),
+            }),
         }
     }
 }
@@ -749,16 +761,23 @@ fn replaced(
     scope: &str,
     key: &str,
     expected: Option<i64>,
-) -> Result<Option<AnnotationRow>, PriceWriteError> {
+) -> Result<
+    (
+        Option<AnnotationRow>,
+        Option<acquisition_store::UnreadableRow>,
+    ),
+    PriceWriteError,
+> {
     let Some(expected) = expected else {
-        return Ok(None);
+        return Ok((None, None));
     };
-    Ok(Some(annotations.at_revision(
-        scope,
-        key,
-        BUYOUT_KIND,
-        expected,
-    )?))
+    match annotations.at_revision(scope, key, BUYOUT_KIND, expected) {
+        Ok(row) => Ok((Some(row), None)),
+        // C151: the row at exactly that revision cannot be read; the write
+        // naming it replaces it anyway, and the receipt names what stood.
+        Err(AnnotationError::Unreadable(row)) if row.revision == expected => Ok((None, Some(row))),
+        Err(e) => Err(e.into()),
+    }
 }
 
 /// Write one price under compare-and-swap (C35) — the one write path
@@ -790,7 +809,7 @@ pub fn set_buyout(
     provenance: &Provenance,
 ) -> Result<PriceWrite, PriceWriteError> {
     let (scope, key) = target.address()?;
-    let prior = replaced(annotations, scope, &key, expected_revision)?;
+    let (prior, prior_unreadable) = replaced(annotations, scope, &key, expected_revision)?;
     let written = annotations.put::<Buyout>(
         scope,
         &key,
@@ -803,6 +822,7 @@ pub fn set_buyout(
         revision: written.revision,
         written: Some(written),
         prior,
+        prior_unreadable,
     })
 }
 
@@ -820,12 +840,13 @@ pub fn clear_buyout(
     provenance: &Provenance,
 ) -> Result<PriceWrite, PriceWriteError> {
     let (scope, key) = target.address()?;
-    let prior = replaced(annotations, scope, &key, Some(expected_revision))?;
+    let (prior, prior_unreadable) = replaced(annotations, scope, &key, Some(expected_revision))?;
     let revision = annotations.delete(scope, &key, BUYOUT_KIND, expected_revision, provenance)?;
     Ok(PriceWrite {
         target: target.clone(),
         written: None,
         prior,
+        prior_unreadable,
         revision,
     })
 }
@@ -1239,7 +1260,7 @@ mod tests {
             a.put::<Buyout>(scope, &key, &Buyout::NoPrice.to_value(), None, &via)
                 .unwrap();
         }
-        let rows = a.list(None, Some(BUYOUT_KIND)).unwrap();
+        let rows = a.list(None, Some(BUYOUT_KIND)).unwrap().rows;
         let targets: Vec<PriceTarget> = rows
             .iter()
             .map(|r| PriceTarget::from_address(&r.scope, &r.key).unwrap())
@@ -1353,6 +1374,7 @@ mod tests {
                 target: target.clone(),
                 written: written.clone(),
                 prior: Some(prior),
+                prior_unreadable: None,
                 revision: 2,
             };
             assert_eq!(
@@ -1370,6 +1392,76 @@ mod tests {
     /// store's lock tests stage a race: a second connection holds
     /// `BEGIN IMMEDIATE`, tombstones the row inside it, and commits once
     /// the create has read and is waiting on the lock.
+    /// C151 — a price write naming the revision of a row this build
+    /// cannot read goes through: `set --if-revision` replaces it and
+    /// `clear --if-revision` clears it, each receipt naming what stood by
+    /// its revision and fault (`prior_unreadable`) since no value can be
+    /// shown, and the clear's undo honestly says nothing puts it back;
+    /// a write that does not name the revision is refused in the store's
+    /// words, which name the revision. The damage is staged through a
+    /// second connection, as a damaged file would hold it.
+    #[test]
+    fn c151_a_write_naming_the_revision_replaces_or_clears_a_row_this_build_cannot_read() {
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().to_path_buf();
+        let mut a = Annotations::open_for(&dir, "u-damaged").unwrap();
+        let via = Provenance::via("test");
+        let target = PriceTarget::Item { id: "i1".into() };
+        set_buyout(&mut a, &target, &exact("30", "chaos"), None, &via).unwrap();
+        let damage = || {
+            rusqlite::Connection::open(acquisition_store::annotations_path(&dir, "u-damaged"))
+                .unwrap()
+                .execute(
+                    "UPDATE annotations SET value = '{nope' WHERE key = 'i1'",
+                    [],
+                )
+                .unwrap();
+        };
+        damage();
+
+        let blind = set_buyout(&mut a, &target, &exact("5", "divine"), None, &via).unwrap_err();
+        let words = blind.to_string();
+        assert!(
+            words.contains("item/i1/buyout") && words.contains("revision 1"),
+            "{words}"
+        );
+
+        let replaced = set_buyout(&mut a, &target, &exact("5", "divine"), Some(1), &via).unwrap();
+        assert_eq!(replaced.prior, None);
+        let stood = replaced
+            .prior_unreadable
+            .clone()
+            .expect("what stood is named");
+        assert_eq!((stood.key.as_str(), stood.revision), ("i1", 1));
+        assert!(
+            !stood.fault.is_empty() && !stood.fault.contains("nope"),
+            "{}",
+            stood.fault
+        );
+        assert_eq!(replaced.revision, 2);
+        assert!(
+            matches!(replaced.undo(), Ok(Undo::Clear { if_revision: 2 })),
+            "a replace of an unreadable row is undone by clearing what it wrote"
+        );
+        assert_eq!(
+            a.get("item", "i1", BUYOUT_KIND).unwrap().unwrap().revision,
+            2,
+            "readable again"
+        );
+
+        damage();
+        let cleared = clear_buyout(&mut a, &target, 2, &via).unwrap();
+        assert_eq!((&cleared.written, &cleared.prior), (&None, &None));
+        assert_eq!(
+            cleared.prior_unreadable.as_ref().map(|r| r.revision),
+            Some(2)
+        );
+        assert_eq!(cleared.revision, 3);
+        let no_undo = cleared.undo().unwrap_err();
+        assert!(no_undo.contains("could not be read"), "{no_undo}");
+        assert_eq!(a.get("item", "i1", BUYOUT_KIND).unwrap(), None);
+    }
+
     #[test]
     fn a_create_after_a_racing_clear_reports_no_prior() {
         let temp = tempfile::tempdir().unwrap();

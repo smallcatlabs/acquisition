@@ -624,6 +624,10 @@ pub struct ListingReport {
     /// Containers first (tabs in listing order, then characters), then
     /// items in the snapshot's order.
     pub listings: Vec<Listing>,
+    /// The price rows this build cannot read, named (C151), from the
+    /// snapshot's one read of the intent file; `list` carries them.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub unreadable: Vec<acquisition_store::UnreadableRow>,
 }
 
 /// Which items `list` selects: by relation, by the effective price's
@@ -676,6 +680,12 @@ pub struct ListView {
     pub counts: SetCounts,
     pub containers: Vec<Listing>,
     pub items: Vec<Listing>,
+    /// The price rows this build cannot read (C151), each with the
+    /// revision a clear or a write names to remove or replace it: named
+    /// whatever the filter, since a row nothing can read is in no
+    /// selection.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub unreadable: Vec<acquisition_store::UnreadableRow>,
 }
 
 /// `show`'s contract: the listing, the container an item sits in, and
@@ -914,6 +924,7 @@ impl ListingReport {
             counts,
             containers,
             items,
+            unreadable: self.unreadable.clone(),
         })
     }
 
@@ -1748,6 +1759,7 @@ pub fn resolve(snapshot: &PricingSnapshot) -> Result<ListingReport, ListingError
         counts,
         rows: accounting,
         listings,
+        unreadable: snapshot.unreadable_buyouts.clone(),
     })
 }
 
@@ -1833,6 +1845,43 @@ mod tests {
     /// The stash in miniature: a folder named like a price holding a
     /// public priced tab, a plain tab, a public priced map tab with a
     /// substash, an unpriced unique tab with a substash, one character.
+    /// C151 — a price row this build cannot read reaches `list`'s view
+    /// (and the report's summary) named, from the snapshot's one read,
+    /// whatever the filter: a frontend prints it beside the listing.
+    #[test]
+    fn c151_an_unreadable_price_row_reaches_the_list_view_named() {
+        let mut snap = snapshot();
+        snap.unreadable_buyouts = vec![acquisition_store::UnreadableRow {
+            scope: "item".into(),
+            key: "i-bad".into(),
+            kind: "buyout".into(),
+            revision: 7,
+            fault: "key must be a string at line 1 column 2".into(),
+        }];
+        let report = resolve(&snap).unwrap();
+        assert_eq!(report.summary().unreadable, snap.unreadable_buyouts);
+        let view = report.list_view(ListFilter::default()).unwrap();
+        assert_eq!(view.unreadable, snap.unreadable_buyouts);
+        let filtered = report
+            .list_view(ListFilter {
+                relation: Some(Relation::None),
+                ..ListFilter::default()
+            })
+            .unwrap();
+        assert_eq!(
+            filtered.unreadable, snap.unreadable_buyouts,
+            "named whatever the filter"
+        );
+        assert!(
+            resolve(&snapshot())
+                .unwrap()
+                .list_view(ListFilter::default())
+                .unwrap()
+                .unreadable
+                .is_empty()
+        );
+    }
+
     fn snapshot() -> PricingSnapshot {
         let public = json!({ "public": true });
         PricingSnapshot {
@@ -1915,6 +1964,7 @@ mod tests {
                 item("i-sub", "stash", "s1", None),
                 item("i-sub2", "stash", "s2", None),
             ],
+            unreadable_buyouts: Vec::new(),
             buyouts: vec![
                 row("item", "i-plain", exact("3", "chaos"), 1),
                 row(

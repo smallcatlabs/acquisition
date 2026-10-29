@@ -1401,6 +1401,7 @@ mod tests {
                 character("ch2", "Nowhere", None),
             ],
             items,
+            unreadable_buyouts: Vec::new(),
             buyouts: vec![
                 row("item", "i-hand", exact("5", "chaos")),
                 row("item", "i-hand2", exact("5", "chaos")),

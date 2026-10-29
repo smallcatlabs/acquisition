@@ -587,6 +587,18 @@ fn render_list(view: &ListView, expand: bool, account: &str) -> String {
     let mut out = String::new();
     let h = &view.header;
     let flags = scope_flags(h, account);
+    // C151: a price row this build cannot read is named first, whatever
+    // the filter, with the two writes that remove or replace it by its
+    // revision; it is in no selection below.
+    for row in &view.unreadable {
+        let word = acquisition_search::answer::shell_quoted(&format!("{}/{}", row.scope, row.key));
+        out.push_str(&format!(
+            "cannot read the price row on {}/{} (revision {}): {}; `acq price clear {flags} {word} \
+             --if-revision {}` removes it, `acq price set {flags} {word} <type> [amount] [currency] \
+             --if-revision {}` replaces it\n",
+            row.scope, row.key, row.revision, row.fault, row.revision, row.revision
+        ));
+    }
     let items: Vec<&Listing> = view.items.iter().collect();
     let place = format!("{}{}", realm_prefix(h.realm), h.league);
     let mut scope = String::new();
@@ -1022,9 +1034,15 @@ fn render_write(write: &PriceWrite, in_facts: Option<bool>, account: &str) -> St
     // The target as a command word: quoted where a shell would split it.
     let word = acquisition_search::answer::shell_quoted(&target.to_string());
     let show = price_verb("show", account);
-    let was = match &write.prior {
-        None => "was unset".to_string(),
-        Some(prior) => format!("was {} (revision {})", value_text(prior), prior.revision),
+    let was = match (&write.prior, &write.prior_unreadable) {
+        (Some(prior), _) => format!("was {} (revision {})", value_text(prior), prior.revision),
+        // C151: what stood could not be read; its revision and fault are
+        // all there is to say of it.
+        (None, Some(stood)) => format!(
+            "was a row this build could not read (revision {}: {})",
+            stood.revision, stood.fault
+        ),
+        (None, None) => "was unset".to_string(),
     };
     let undo = match receipt::price_undo(write, account) {
         Ok((way, says)) => format!("`{}` {says}", offered_line(&way)),
@@ -1176,6 +1194,7 @@ mod tests {
                 fetched: Value::Null,
             }],
             items,
+            unreadable_buyouts: Vec::new(),
             buyouts: vec![
                 row("item", "i-01", json!({ "version": 1, "type": "skip" }), 4),
                 row("item", "i-gone", json!({ "version": 1, "type": "skip" }), 5),
@@ -1299,6 +1318,49 @@ mod tests {
     /// store's bound) and counts the whole on the first line, the ten
     /// grouped and listed, `--expand` every item with its texts; a
     /// filter that matches nothing says so.
+    /// C151 — `list`'s text names a price row this build cannot read
+    /// first, with its revision and fault and the two commands that
+    /// remove or replace it naming that revision, before the listing;
+    /// an empty selection still names it.
+    #[test]
+    fn c151_price_list_names_an_unreadable_row_and_the_writes_that_replace_it() {
+        let r = report();
+        let mut view = r.list_view(ListFilter::default()).unwrap();
+        view.unreadable = vec![acquisition_store::UnreadableRow {
+            scope: "item".into(),
+            key: "i-bad".into(),
+            kind: "buyout".into(),
+            revision: 7,
+            fault: "key must be a string at line 1 column 2".into(),
+        }];
+        let text = render_list(&view, false, "a");
+        let first = text.lines().next().unwrap();
+        assert!(
+            first.starts_with(
+                "cannot read the price row on item/i-bad (revision 7): key must be a string"
+            ) && first.contains(
+                "`acq price clear --account a --realm pc --league Standard item/i-bad \
+                 --if-revision 7` removes it"
+            ) && first.contains(
+                "`acq price set --account a --realm pc --league Standard item/i-bad <type> \
+                 [amount] [currency] --if-revision 7` replaces it"
+            ),
+            "{first}"
+        );
+        assert!(text.lines().count() > 1, "the listing follows");
+        let mut empty = r
+            .list_view(ListFilter {
+                relation: Some(Relation::None),
+                ..ListFilter::default()
+            })
+            .unwrap();
+        empty.unreadable = view.unreadable.clone();
+        assert!(
+            render_list(&empty, false, "a").starts_with("cannot read the price row on item/i-bad"),
+            "named even when nothing else is listed"
+        );
+    }
+
     #[test]
     fn c53_price_list_groups_by_container_and_lists_ten_or_fewer() {
         let r = report();
@@ -1613,6 +1675,7 @@ mod tests {
             target: target.clone(),
             written: Some(row(exact.clone(), 1)),
             prior: None,
+            prior_unreadable: None,
             revision: 1,
         };
         assert_eq!(
@@ -1647,6 +1710,7 @@ mod tests {
             target: target.clone(),
             written: Some(row(bo.clone(), 2)),
             prior: Some(row(exact.clone(), 1)),
+            prior_unreadable: None,
             revision: 2,
         };
         assert_eq!(
@@ -1659,6 +1723,7 @@ mod tests {
             target: target.clone(),
             written: None,
             prior: Some(row(bo, 2)),
+            prior_unreadable: None,
             revision: 3,
         };
         assert_eq!(
@@ -1672,6 +1737,7 @@ mod tests {
             target,
             written: None,
             prior: Some(row(newer, 3)),
+            prior_unreadable: None,
             revision: 4,
         };
         let text = render_write(&unreadable, None, "a");
@@ -1691,6 +1757,7 @@ mod tests {
             target: PriceTarget::Item { id: "i1".into() },
             written: Some(row(exact, 4)),
             prior: Some(row(json!({ "version": 9, "type": "auction" }), 3)),
+            prior_unreadable: None,
             revision: 4,
         };
         let text = render_write(&overwritten, None, "a");
