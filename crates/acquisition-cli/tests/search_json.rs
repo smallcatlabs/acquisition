@@ -2114,9 +2114,13 @@ fn membership_removed_at_a_terminal() {
 
     let e = sole_json(&acq(&base, &["--json", "search", "--membership", "gone"]));
     assert_eq!(e["kind"], "membership_unknown");
-    for word in ["live", "all", "removed"] {
-        assert!(e["error"].as_str().unwrap().contains(word), "{e}");
-    }
+    // the search crate's words, which a request read whole says too
+    // (C143, the request's words)
+    assert_eq!(
+        e["error"],
+        acquisition_search::answer::Membership::unknown("gone"),
+        "{e}"
+    );
 }
 
 /// A command printed for a count view is the view it was printed for
@@ -2412,7 +2416,16 @@ fn k6_a_realm_beside_a_url_conflicts_and_an_id_takes_one() {
     let base = scratch.0.clone();
     seed(&base);
     let url = trade_url();
-    for realm in ["pc", "xbox"] {
+    // the URL's own realm again is the terminal's conflict; another realm
+    // is the request's, in the words a request read whole gets below and
+    // the MCP's search gets (C143, the request's words)
+    for (realm, said) in [
+        ("pc", "says its realm again: the URL's realm, `pc`"),
+        (
+            "xbox",
+            "URL names the realm `pc`, and this is asked in `xbox`",
+        ),
+    ] {
         let out = acq(
             &base,
             &["--json", "search", "--trade", &url, "--realm", realm],
@@ -2420,13 +2433,7 @@ fn k6_a_realm_beside_a_url_conflicts_and_an_id_takes_one() {
         assert_eq!(out.status.code(), Some(1), "--realm {realm}");
         let e = sole_json(&out);
         assert_eq!(e["kind"], "trade", "{e}");
-        assert!(
-            e["error"]
-                .as_str()
-                .unwrap()
-                .contains("the URL's realm, `pc`"),
-            "{e}"
-        );
+        assert!(e["error"].as_str().unwrap().contains(said), "{e}");
     }
     let by_id = sole_json(&acq(
         &base,

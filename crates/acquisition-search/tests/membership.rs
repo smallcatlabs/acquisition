@@ -1073,3 +1073,23 @@ fn c53_an_answer_says_each_age_its_text_prints_beside_the_epoch() {
         "{shown}"
     );
 }
+
+/// C143, a shared refusal speaks the request's words: a membership that
+/// is none of the three is refused in one wording wherever it is sent,
+/// a request read whole (the MCP's search, `acq search --request`) and
+/// the terminal's flag alike (`Membership::unknown`), where the request
+/// said serde's `unknown variant`.
+#[test]
+fn c143_a_word_that_is_no_membership_is_refused_in_the_requests_words() {
+    let said = Membership::unknown("gone");
+    for word in ["live", "all", "removed", "`gone`"] {
+        assert!(said.contains(word), "{said}");
+    }
+    let e = acquisition_search::answer::Asked::read(&json!({ "scope": { "membership": "gone" } }))
+        .unwrap_err();
+    assert!(e.to_string().contains(&said), "{e}");
+    assert!(!e.to_string().contains("unknown variant"), "{e}");
+    let parsed: Request =
+        serde_json::from_value(json!({ "scope": { "membership": "all" } })).unwrap();
+    assert_eq!(parsed.scope.membership, Membership::All);
+}

@@ -42,10 +42,11 @@
 //!   (C113): the site search is the request's `query.trade`, translated by
 //!   the crate at every read (`answer.rs`), and `--print-request` writes
 //!   the text it translates to beside it. `--realm` beside a URL is K6's
-//!   conflict, said here before anything is read, the same realm
-//!   included; the request's own rule, a scope beside a URL being the
-//!   URL's, is the crate's. The text opens with the translation, its
-//!   remainder loud (`trade_text`).
+//!   conflict: naming the URL's own realm, a terminal's alone, it is said
+//!   here before anything is read; naming another, it is the request's
+//!   conflict, a scope beside a URL being the URL's, and the crate refuses
+//!   it in the words every surface gets (C143). The text opens with the
+//!   translation, its remainder loud (`trade_text`).
 //! - **The intent file is opened beside the store** (the layer's `Account::open`,
 //!   as `acq price` opens it): the effective price a query reads is the
 //!   listing state's (C81, C100), and every basis names the intent
@@ -435,9 +436,12 @@ pub fn search(cx: &Ctx, args: SearchArgs, json: bool) -> Result<()> {
         (None, Some(path)) => Some(read(path, "site search")?),
         (None, None) => None,
     };
-    // a URL's realm is the scope (K6): the flag beside one says it twice;
-    // the realm the search names, read where every reader reads it, and an
-    // input that does not read left to the request to refuse
+    // a URL's realm is the scope (K6): the flag beside one naming the same
+    // realm says it twice, which only a terminal can, so this refusal is
+    // the terminal's; one naming another realm is the request's conflict,
+    // refused in the search's words on every surface (C143, the request's
+    // words). The realm the search names is read where every reader reads
+    // it, and an input that does not read is left to the request to refuse.
     let named = |trade: &str| {
         acquisition_search::answer::QueryInput {
             trade: Some(serde_json::Value::String(trade.to_string())),
@@ -450,12 +454,13 @@ pub fn search(cx: &Ctx, args: SearchArgs, json: bool) -> Result<()> {
     };
     if let (Some(word), Some(trade)) = (&args.realm, &trade)
         && let Some(url) = named(trade)
+        && *word == url
     {
         return Err(fail(
             SearchError::Scope {
                 kind: "trade",
                 message: format!(
-                    "`--realm {word}` beside a trade URL: the URL's realm, `{url}`, is the search's scope — leave `--realm` out, or give the search's id, which names no realm"
+                    "`--realm {word}` beside a trade URL says its realm again: the URL's realm, `{url}`, is the search's scope — leave `--realm` out, or give the search's id, which names no realm"
                 ),
                 offers: Vec::new(),
             },
@@ -521,9 +526,7 @@ pub fn search(cx: &Ctx, args: SearchArgs, json: bool) -> Result<()> {
                 return Err(fail(
                     SearchError::Scope {
                         kind: "membership_unknown",
-                        message: format!(
-                            "`{word}` is no membership: live, the items in the stash; all, the removed beside them; or removed, the removed alone"
-                        ),
+                        message: Membership::unknown(word),
                         offers: Vec::new(),
                     },
                     json,

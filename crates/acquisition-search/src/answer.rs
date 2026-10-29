@@ -414,7 +414,10 @@ pub struct Scope {
     pub membership: Membership,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+/// Read from a request by its word ([`Membership::parse`]), so a word
+/// that is none of the three is refused in [`Membership::unknown`]'s
+/// words on every surface, not serde's (C143, the request's words).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Membership {
     #[default]
@@ -435,11 +438,20 @@ impl Membership {
         }
     }
 
-    /// A terminal's word for one, or none where it is no membership.
+    /// A request's or a terminal's word for one, or none where it is no
+    /// membership.
     pub fn parse(word: &str) -> Option<Membership> {
         [Membership::Live, Membership::All, Membership::Removed]
             .into_iter()
             .find(|m| m.as_str() == word)
+    }
+
+    /// What a word that is no membership is refused in, wherever it was
+    /// sent: the three, each with what it searches.
+    pub fn unknown(word: &str) -> String {
+        format!(
+            "`{word}` is no membership: live, the items in the stash; all, the removed beside them; or removed, the removed alone"
+        )
     }
 
     /// The store's read that hands its items over: the removed alone are
@@ -449,6 +461,13 @@ impl Membership {
             Membership::Live => acquisition_store::Membership::Live,
             Membership::All | Membership::Removed => acquisition_store::Membership::All,
         }
+    }
+}
+
+impl<'de> Deserialize<'de> for Membership {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Membership, D::Error> {
+        let word = String::deserialize(d)?;
+        Membership::parse(&word).ok_or_else(|| serde::de::Error::custom(Membership::unknown(&word)))
     }
 }
 
