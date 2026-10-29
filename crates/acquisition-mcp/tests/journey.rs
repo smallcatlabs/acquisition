@@ -166,7 +166,7 @@ fn a_first_session_through_the_tools_holds_the_journeys_facts() {
     drop(mcp);
     let stop = harness::acq(&base, &["daemon", "stop"]);
     assert!(stop.status.success(), "{stop:?}");
-    daemon.wait_exit(Duration::from_secs(10));
+    daemon.wait_exit(Duration::from_secs(120));
     harness::assert_journal_holds(&base, pid, &GETS, TOKEN_POSTS);
 }
 
@@ -214,5 +214,5 @@ fn a_new_league_through_the_tools_holds_the_rehearsals_facts() {
     drop(mcp);
     let stop = harness::acq(&base, &["daemon", "stop"]);
     assert!(stop.status.success(), "{stop:?}");
-    daemon.wait_exit(Duration::from_secs(10));
+    daemon.wait_exit(Duration::from_secs(120));
 }

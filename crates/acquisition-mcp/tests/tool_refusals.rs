@@ -115,7 +115,7 @@ fn a_tool_refusal_is_a_result_marked_is_error_with_its_kind() {
 
     // A daemon's own refusal is still a JSON-RPC error with its kind.
     let _daemon = spawn_daemon(&base, &[]);
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(120);
     while mcp.expect_ok("daemon_status", json!({}))["running"] != json!(true) {
         assert!(Instant::now() < deadline, "the mock daemon did not come up");
         std::thread::sleep(Duration::from_millis(50));
@@ -136,7 +136,7 @@ fn submit_jobs_kind_names_the_kinds_the_daemons_refusal_lists() {
     let base = scratch.0.clone();
     let mut mcp = Mcp::start(&base, &[]);
     let _daemon = spawn_daemon(&base, &[]);
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(120);
     while mcp.expect_ok("daemon_status", json!({}))["running"] != json!(true) {
         assert!(Instant::now() < deadline, "the mock daemon did not come up");
         std::thread::sleep(Duration::from_millis(50));

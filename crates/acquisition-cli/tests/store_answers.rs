@@ -147,7 +147,9 @@ fn store_events_summary_counts_every_location_and_prints_the_command_for_all() {
                     &json!({ "stash": { "id": tab, "name": tab, "type": "PremiumStash", "items": [
                         { "id": format!("i{n:02}"), "typeLine": "Iron Ring", "baseType": "Iron Ring",
                           "frameType": 0, "identified": true, "ilvl": 1, "x": 0, "y": 0 } ] } }),
-                    at - 60 + n,
+                    // twelve seconds old or less, so the 144 s window below
+                    // holds every event under the harness's 120 s ceiling
+                    at - 12 + n,
                 )
                 .unwrap();
         }

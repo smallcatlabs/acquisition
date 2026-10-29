@@ -1165,7 +1165,10 @@ fn item_events_reads_back_its_hours_and_defaults_to_a_day() {
         .mcp
         .expect_ok("item_events", json!({ "hours": 1.0e9, "limit": 1 }));
     assert_eq!(one["rows"].as_array().unwrap().len(), 1, "{one}");
-    assert_eq!(one["rows"][0], all["rows"][0]);
+    assert_eq!(
+        unaged(one["rows"][0].clone()),
+        unaged(all["rows"][0].clone())
+    );
     assert_eq!(one["limit_reached"], true, "{one}");
     assert_eq!(all["limit_reached"], false, "{all}");
     // the same events by location: counted apart from the events

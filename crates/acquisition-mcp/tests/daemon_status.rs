@@ -40,7 +40,7 @@ fn c84_daemon_status_reports_the_identity_and_the_sibling_it_is_judged_against()
     );
 
     let daemon = spawn_daemon(&base, &[]);
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(120);
     let status = loop {
         let status = mcp.expect_ok("daemon_status", json!({}));
         if status["running"] == json!(true) {

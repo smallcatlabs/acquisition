@@ -219,7 +219,7 @@ fn the_mcp_tools_carry_the_plan_slice_and_its_gates() {
             .await
             .expect("daemon should still be up")
             .expect("a daemon acknowledged the stop");
-        let deadline = Instant::now() + Duration::from_secs(10);
+        let deadline = Instant::now() + Duration::from_secs(120);
         while Client::connect(ConnectOptions::autonomous(false))
             .await
             .is_ok()

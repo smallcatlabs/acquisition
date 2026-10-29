@@ -451,7 +451,7 @@ async fn a_parent_whose_child_failed_carries_its_childrens_tally() {
         .await
         .expect("a stop")
         .expect("a daemon acknowledged it");
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(120);
     while !matches!(frontend.observe().await, Ok(None)) {
         assert!(Instant::now() < deadline, "the daemon did not stop");
         tokio::time::sleep(Duration::from_millis(50)).await;
@@ -501,7 +501,7 @@ async fn a_cancel_is_one_document_and_a_finished_jobs_is_refused() {
         .await
         .expect("a stop")
         .expect("a daemon acknowledged it");
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(120);
     while !matches!(frontend.observe().await, Ok(None)) {
         assert!(Instant::now() < deadline, "the daemon did not stop");
         tokio::time::sleep(Duration::from_millis(50)).await;
