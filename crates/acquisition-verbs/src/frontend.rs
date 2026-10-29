@@ -209,7 +209,8 @@ impl Frontend {
 
     /// C121 (an account that cannot be picked): the one account a
     /// selector names — an exact username, a name without its
-    /// discriminator, or a uuid — or the sole one known. Refused as
+    /// discriminator, a uuid, or a name the account holds for its
+    /// keyring ([`Index::resolve`]) — or the sole one known. Refused as
     /// `not_logged_in` or `ambiguous_account`, each with the accounts.
     pub fn account(&self, selector: Option<&str>) -> Result<Account, Fault> {
         let index = self.index()?;

@@ -163,7 +163,8 @@ pub fn index_path(dir: &Path) -> PathBuf {
 
 /// Whether a selector names this account: the exact username, the name
 /// without its `#discriminator` (both case-insensitive), or the uuid.
-/// Never a prefix.
+/// Never a prefix. [`Index::resolve`] also tries each name an entry
+/// holds for its keyring as a username.
 pub fn account_matches(selector: &str, username: &str, uuid: Option<&str>) -> bool {
     let sel = selector.to_lowercase();
     let u = username.to_lowercase();
@@ -403,7 +404,11 @@ impl Index {
 
     /// Pick one account. A selector matches the exact username, the
     /// username without its `#discriminator`, or the exact uuid — never a
-    /// prefix. No selector picks the sole account, or fails as ambiguous.
+    /// prefix — or, by the username's rule, a name the entry holds for
+    /// its keyring (issue #74: the retry a failed logout prints names the
+    /// session, which a rename the index could not record left only as a
+    /// held name). A selector two entries match is ambiguous. No selector
+    /// picks the sole account, or fails as ambiguous.
     pub fn resolve(&self, selector: Option<&str>) -> Result<&AccountEntry, Resolve> {
         if self.entries.is_empty() {
             return Err(Resolve::Empty);
@@ -419,7 +424,12 @@ impl Index {
                 let hits: Vec<&AccountEntry> = self
                     .entries
                     .iter()
-                    .filter(|e| account_matches(sel, &e.username, e.uuid.as_deref()))
+                    .filter(|e| {
+                        account_matches(sel, &e.username, e.uuid.as_deref())
+                            || e.keyring_names
+                                .iter()
+                                .any(|held| account_matches(sel, held, None))
+                    })
                     .collect();
                 match hits.as_slice() {
                     [one] => Ok(one),
@@ -579,6 +589,35 @@ mod tests {
     /// both. Before, the username and the held name were two writes, and
     /// a stop between them left the old name's entry out of every verb's
     /// reach.
+    /// Issue #74: a selector matches a name an entry holds for its
+    /// keyring by the username's rule, exact or without the
+    /// discriminator, never by prefix; a held name two entries match is
+    /// ambiguous.
+    #[test]
+    fn a_selector_matches_a_held_keyring_name() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut idx = Index::load(temp.path()).unwrap();
+        idx.record_login("test-user", "u-1", true, 1, &["B#2".into()])
+            .unwrap();
+        idx.record_login("Carol#3", "u-3", true, 2, &[]).unwrap();
+        for sel in ["B#2", "b#2", "B"] {
+            assert_eq!(
+                idx.resolve(Some(sel)).unwrap().username,
+                "test-user",
+                "{sel}"
+            );
+        }
+        assert_eq!(idx.resolve(Some("B#")), Err(Resolve::NotFound("B#".into())));
+
+        idx.record_login("Dave#4", "u-4", true, 3, &["B#2".into()])
+            .unwrap();
+        assert!(matches!(
+            idx.resolve(Some("B#2")),
+            Err(Resolve::Ambiguous(ref v)) if *v == ["test-user", "Dave#4"]
+        ));
+        assert_eq!(idx.resolve(Some("Carol")).unwrap().username, "Carol#3");
+    }
+
     #[test]
     fn c144_a_stop_after_the_renames_write_leaves_the_old_name_in_reach() {
         let temp = tempfile::tempdir().unwrap();

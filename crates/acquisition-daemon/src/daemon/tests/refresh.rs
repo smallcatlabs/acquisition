@@ -928,6 +928,82 @@ async fn c144_renames_under_an_unwritable_index_leave_no_credential_behind() {
     finish_harness(None, &log_path);
 }
 
+/// Issue #74 (C144, no keyring entry out of the index's reach; C51, a
+/// selector names one account): a refresh renames test-user to B while
+/// the index cannot be written, so the index still names the account
+/// test-user. A logout of B, with the index writable again and the
+/// keyring's clears failing, holds B among the entry's names and prints
+/// `acq auth logout --account 'B#2'`. That command, run as printed once
+/// the session is gone and the keyring works, reaches the account by the
+/// held name, clears it and the index releases it. Before, the retry
+/// matched neither the username test-user nor the uuid and was refused
+/// as "no account matches".
+#[cfg(unix)]
+#[tokio::test]
+async fn the_printed_retry_runs_after_a_rename_whose_index_write_failed() {
+    let (mut daemon, store, log_path, requests, server) = token_daemon_with_store(
+        vec![renamed_answer("B#2")],
+        RecordingCredentialStore::default(),
+    )
+    .await;
+    let dir = indexed_test_user(&mut daemon);
+
+    let frozen = freeze(&dir);
+    let (_, username) = daemon.valid_access_token(None, false, None).await.unwrap();
+    drop(frozen);
+    assert_eq!(username, "B#2", "the session runs on, in memory");
+    {
+        let index = Index::load(&dir).unwrap();
+        let entry = index
+            .get("test-user")
+            .expect("the index still names test-user");
+        assert_eq!(entry.keyring_reach(), ["test-user"], "{entry:?}");
+    }
+
+    *store.fail_clear.lock().unwrap() = Some("keychain locked".into());
+    let refusal = daemon.logout(Some("B#2")).unwrap_err();
+    assert_eq!(refusal.kind, ErrorKind::Internal);
+    {
+        let index = Index::load(&dir).unwrap();
+        let entry = index.get("test-user").unwrap();
+        assert!(
+            entry.keyring_names.iter().any(|n| n == "B#2"),
+            "the failed clear holds B: {entry:?}"
+        );
+    }
+    let printed = refusal
+        .message
+        .split_once("`acq auth logout --account ")
+        .and_then(|(_, rest)| rest.split_once('`'))
+        .map(|(word, _)| word)
+        .unwrap_or_else(|| panic!("a retry command in {}", refusal.message));
+    // What a POSIX shell makes of the printed word.
+    let account = printed
+        .strip_prefix('\'')
+        .and_then(|w| w.strip_suffix('\''))
+        .unwrap_or(printed);
+    assert!(!account.contains('\''), "{printed}");
+    assert!(daemon.shared.lock().unwrap().auth.find("B#2").is_none());
+
+    *store.fail_clear.lock().unwrap() = None;
+    let outcome = daemon
+        .logout(Some(account))
+        .unwrap_or_else(|r| panic!("the printed retry runs: {r}"));
+    assert_eq!(outcome, KeyringOutcome::Cleared);
+    assert!(
+        store.entries.lock().unwrap().is_empty(),
+        "{:?}",
+        store.entries.lock().unwrap()
+    );
+    let index = Index::load(&dir).unwrap();
+    let entry = index.get("test-user").unwrap();
+    assert!(!entry.persisted);
+    assert!(entry.keyring_names.is_empty(), "B is released: {entry:?}");
+    server.await.unwrap();
+    assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
+    finish_harness(None, &log_path);
+}
+
 /// C144 (no keyring entry out of the index's reach), the review of the h1
 /// fix round, its fourth finding: two renames, test-user to B and B to C,
 /// each failing its old names' clears, leave the index holding every
