@@ -1336,11 +1336,11 @@ impl Store {
     /// `process::exit` never closes its connection, so SQLite never runs
     /// the close-time checkpoint and the `-wal` stays beside the file with
     /// every fact since the last automatic one — which an `immutable=1`
-    /// reader (`tools/census.py`) refuses and `tools/notes-check.py` had to
-    /// read through (the price-notes run, 2026-09-04; plan step 7, item
-    /// 4). The daemon calls this on its way out. Best effort: a reader
-    /// mid-transaction leaves pages behind, reported in the result, never
-    /// an error.
+    /// reader (`tools/census.py` at `aacd6a51`) refuses and
+    /// `tools/notes-check.py` at `aacd6a51` had to read through (the
+    /// price-notes run, 2026-09-04; plan step 7, item 4). The daemon
+    /// calls this on its way out. Best effort: a reader mid-transaction
+    /// leaves pages behind, reported in the result, never an error.
     pub fn checkpoint(&self) -> Result<Checkpoint> {
         checkpoint(&self.conn)
     }
