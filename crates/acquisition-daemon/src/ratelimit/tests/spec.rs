@@ -536,6 +536,13 @@ fn pacing_rows() -> Vec<Row> {
             expect_wait: 10.0 + 5.0 + 1.0 - 1.0,
         },
         Row {
+            name: "a hit exactly one period old has left its window",
+            claims: "the window counts hits younger than its period: the older hit is 10 s old in a 10 s window, so the window frees from the newer one, 0 + 10 + 5 + 1, not 6 s from the older (#86's review)",
+            headers: with_state(CHAR_LIST, "2:10:0,2:300:0").leak(),
+            history: &[10.0, 0.0],
+            expect_wait: 10.0 + 5.0 + 1.0,
+        },
+        Row {
             name: "restriction active",
             claims: "restricted-for 30s from the last response + initial bucket + 1s",
             headers: with_state(CHAR_LIST, "2:10:30,2:300:0").leak(),
@@ -3193,6 +3200,64 @@ fn a_degraded_route_leaves_the_list_when_its_cooldown_ends() {
     let after = then + PROBE_COOLDOWN + Duration::from_secs(1);
     assert_eq!(l.endpoint_state("/ep", after), EndpointState::Unknown);
     assert!(l.degraded_endpoints(after).is_empty());
+}
+
+/// The ETA reads a hit, or the server's residue, exactly one period old
+/// as gone from its window, as the pacing table does. (a) A counted hit at
+/// -110 s and an uncounted answer at -10 s reporting 3 of 4 in a 100 s
+/// window: the -110 s hit is a period older than that answer, so all 3 are
+/// residue at -10 s, and position 1 waits for them: 90 + 5 + 1 = 96 (the
+/// residue as 2 would say 0). (b) Only an uncounted answer at -100 s
+/// reporting 3 of 4: its residue is a period old now, so position 1 goes
+/// now too (counting it would say 106). #86's review.
+#[test]
+fn the_eta_reads_a_hit_exactly_one_period_old_as_gone() {
+    let now = far_future();
+    let headers = |state: &'static str| {
+        parse(&[
+            ("x-rate-limit-policy", "p"),
+            ("x-rate-limit-rules", "Account"),
+            ("x-rate-limit-account", "4:100:60"),
+            ("x-rate-limit-account-state", state),
+        ])
+    };
+    let ago = |seconds| now - Duration::from_secs(seconds);
+    let etas = |l: &Limiter| -> Vec<f64> {
+        l.etas_for("/ep", 2, now)
+            .iter()
+            .map(Duration::as_secs_f64)
+            .collect()
+    };
+
+    let mut l = Limiter::new();
+    l.observe(
+        "/ep",
+        headers("1:100:0"),
+        serde_json::Value::Null,
+        true,
+        ago(110),
+    )
+    .unwrap();
+    l.observe(
+        "/ep",
+        headers("3:100:0"),
+        serde_json::Value::Null,
+        false,
+        ago(10),
+    )
+    .unwrap();
+    assert_eq!(etas(&l), [0.0, 96.0], "(a)");
+
+    let mut l = Limiter::new();
+    l.observe(
+        "/ep",
+        headers("3:100:0"),
+        serde_json::Value::Null,
+        false,
+        ago(100),
+    )
+    .unwrap();
+    assert_eq!(etas(&l), [0.0, 0.0], "(b)");
 }
 
 /// A pending restriction is state worth keeping (`is_live`, N24) after

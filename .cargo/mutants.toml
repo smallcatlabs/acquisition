@@ -19,25 +19,33 @@ examine_globs = [
 test_tool = "nextest"
 
 # The mutants the daemon's tests cannot tell apart, each with its reason.
-# The first run (cargo-mutants 27.1.0, #86) left 46 alive; 31 are pinned
-# as tests in `ratelimit/tests/spec.rs`, and these 15 are listed. Each
+# The first run (cargo-mutants 27.1.0, #86) left 46 alive; 34 are pinned
+# as tests in `ratelimit/tests/spec.rs`, and these 12 are listed. Each
 # names its line: the same operator elsewhere in the function is caught
 # and must stay tested, so a pattern for the function would hide it. A
 # listed line that moves comes back as missed, to be read again.
+#
+# A tie between two Instants is listed only when both arms leave the
+# limiter in the same state at the tie and nothing carries the difference
+# forward. A tie that decides what the limiter keeps or computes from (a
+# hit counted in its window, a deadline chosen) is pinned instead, by a
+# boundary row at the instant the times are equal (#86's review).
 exclude_re = [
-    # A strict comparison of two Instants made non-strict, or the reverse:
-    # the two differ only at the one instant the times are equal, and every
-    # deadline on the far side of it carries the 1 s buffer (BUFFER). A
-    # test there would pin a tie, not a pacing property.
-    'limiter\.rs:303:76: replace < with <= in Limiter::simulate$',
-    'limiter\.rs:312:53: replace < with <= in Limiter::simulate$',
+    # Equal deadlines: the hold keeps the same instant either way, and the
+    # seconds stored beside it are read nowhere.
     'limiter\.rs:685:26: replace > with >= in Limiter::install_retry_hold$',
+    # Reads at the instant a hold, a restriction, a window or a cooldown
+    # ends: a status, `is_live` or the degraded list says "still" for that
+    # one instant and writes nothing; the next read says "ended". (`is_live`
+    # only defers an idle exit to the next check.)
     'limiter\.rs:763:44: replace > with >= in Limiter::statuses$',
     'limiter\.rs:777:59: replace > with >= in Limiter::is_live$',
     'limiter\.rs:779:56: replace > with >= in Limiter::is_live$',
     'limiter\.rs:792:72: replace < with <= in Limiter::is_live$',
     'limiter\.rs:846:69: replace > with >= in Limiter::degraded_endpoints$',
-    'limiter\.rs:927:57: replace < with <= in window_frees_at_seeded$',
+    # The seed's window, checked again: every caller passes a seed only
+    # when the same test already held (`seeded_in`) or passes none, so
+    # both arms always agree.
     'limiter\.rs:929:62: replace < with <= in window_frees_at_seeded$',
     # `window_frees_at_seeded`'s fallback arm with a seed: unreachable. The
     # simulation calls it only once the window holds at least max hits,

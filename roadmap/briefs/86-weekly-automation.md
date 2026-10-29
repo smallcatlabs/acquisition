@@ -174,7 +174,11 @@ Measured on this brief's tree (`f0bfa17c`), before the work:
   first carries `!cancelled()`.
 - `.cargo/mutants.toml` scopes cargo-mutants to the five files, and
   `cargo mutants --list` over it names the mutants the first run
-  tested; every exclusion in it carries its reason or an issue number.
+  tested less those it lists as excluded; every exclusion in it carries
+  its reason or an issue number, and a tie between two instants is
+  excluded only when both arms leave the limiter in the same state and
+  nothing carries the difference forward. Settled in the round (#86's
+  review).
 - The commit that adds the configuration states the first run: the
   cargo-mutants version, the wall time on this machine, and the counts
   caught, missed, timed out and unviable; every missed mutant is a
