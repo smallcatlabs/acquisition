@@ -30,6 +30,9 @@ rmcp = { version = "3.1", features = ["transport-io"] }
 # dev-dependency feature unifies into every test build, which gave acq-mcp
 # a second form (#88, C84); compiled in always, so one build writes one binary.
 num-traits = { version = "0.2", features = ["std"] }
+# The same for rmcp's uuid's getrandom: proptest 1.12's chacha20 asks
+# `std` and `sys_rng` of it in every test build (#125).
+getrandom = { version = "0.4", features = ["std", "sys_rng"] }
 
 [[test]]
 name = "main"

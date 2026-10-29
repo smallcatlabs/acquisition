@@ -69,6 +69,7 @@ dependencies = [
  "acquisition-store",
  "acquisition-verbs",
  "anyhow",
+ "getrandom 0.4.3",
  "num-traits",
  "rmcp",
  "serde",
