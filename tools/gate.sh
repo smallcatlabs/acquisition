@@ -29,6 +29,17 @@
 # artifacts behind for any daemon started after it (C84, the artifact
 # mismatch). CI runs the stages singly, for timing.
 #
+# The `features` stage holds the same property at its cause, on every
+# target a release builds, and builds nothing: for each, the plain
+# build's feature graph (`cargo tree -e no-dev,features`) against the
+# test build's (`-e features`), package by package, name and version,
+# failing on each package whose features differ and naming both sets.
+# `artifacts` sees only this host's binaries, after a test run; this
+# stage sees every target's graph in a second, so CI runs it and a
+# dependency bump that splits a binary is red on its own checks (#128,
+# item 2). A split is closed by a pin in the binary's crate, as
+# `acquisition-mcp` and `acquisition-cli` hold (#88, #125, #124).
+#
 # The full gate starts with `fixtures`: every golden regenerates when
 # `ACQ_UPDATE_FIXTURES` is set at all, `0` and empty among its values,
 # and the harness removes `ACQ_*` from the children a test spawns, never
@@ -52,7 +63,7 @@ fixture_switch=${ACQ_UPDATE_FIXTURES+set}
 fixture_value=${ACQ_UPDATE_FIXTURES-}
 unset ACQ_UPDATE_FIXTURES
 
-names=(fixtures build test clippy fmt diff docs arch trade bothy doc artifacts tree)
+names=(fixtures build test clippy fmt diff docs arch trade bothy features doc artifacts tree)
 DOCS=(diff docs arch trade bothy)
 
 # The `artifacts` stage (the header): what the stages before it left
@@ -116,9 +127,62 @@ for line in open(sys.argv[1]):
     fi
   done
   if ((moved)); then
-    echo "gate: artifacts: a feature divergence shows in a diff of 'cargo tree --workspace -e no-dev,features --prefix none --format \"{p} {f}\"' and the same with '-e features'; a binary with no integration-test target is never written by a test run" >&2
+    echo "gate: artifacts: tools/gate.sh --only features names each package a test build compiles with other features; a binary with no integration-test target is never written by a test run" >&2
     ((rc)) || rc=1
   fi
+  return "$rc"
+}
+
+# The `features` stage (the header). The targets are the release's,
+# read from its build matrix, so a target added there is checked here.
+# The graphs are the workspace's, as the build and the test run are: a
+# pin in one binary's crate unifies into every binary of the build, so
+# `acq`'s rustix pin also closes the split Linux's `acqd` had through
+# keyring's zbus (#91's Do 1), which `-p acquisition-daemon` alone still
+# shows and no stage builds.
+RELEASE=.github/workflows/release.yml
+
+# Each package of the target's two feature graphs, `<name> <version>`,
+# whose feature sets differ, with both; exit 1 when any does.
+feature_split() {
+  local graphs rc
+  graphs=$(mktemp -d) || return 2
+  cargo tree --workspace --target "$1" -e no-dev,features --prefix none --format '{p} {f}' >"$graphs/build" &&
+    cargo tree --workspace --target "$1" -e features --prefix none --format '{p} {f}' >"$graphs/test"
+  rc=$?
+  ((rc == 0)) && python3 -I -c '
+import re, sys
+def graph(path):
+    seen = {}
+    for line in open(path):
+        m = re.match(r"^(\S+) v(\S+)(?: \([^)]*\))? ?(\S*?)(?: \(\*\))?$", line.rstrip("\n"))
+        if m:
+            seen.setdefault(f"{m[1]} {m[2]}", set()).add(m[3])
+    return seen
+build, test = graph(sys.argv[1]), graph(sys.argv[2])
+split = [p for p in sorted(build.keys() & test.keys()) if build[p] != test[p]]
+for p in split:
+    print(p + ": build " + " | ".join(sorted(build[p])) + "; test " + " | ".join(sorted(test[p])))
+sys.exit(1 if split or not build else 0)
+' "$graphs/build" "$graphs/test"
+  rc=$?
+  rm -rf "${graphs:?}"
+  return "$rc"
+}
+
+features() {
+  local targets t out rc=0
+  targets=$(sed -nE 's/.*\{ os: [^,]+, target: ([a-z0-9_-]+) \}.*/\1/p' "$RELEASE")
+  [[ -n $targets ]] || { echo "gate: features: $RELEASE names no target in its build matrix" >&2; return 1; }
+  for t in $targets; do
+    out=$(feature_split "$t")
+    case $? in
+      0) echo "gate: features: $t: the build and the test build agree" ;;
+      1) echo "gate: features: $t: a test build compiles these packages with other features than the build, so a test run writes another binary (C84, the artifact mismatch); pin the features in a binary's crate, as acquisition-cli and acquisition-mcp do:" >&2
+         echo "$out" >&2; rc=1 ;;
+      *) echo "gate: features: $t: cargo tree failed" >&2; rc=1 ;;
+    esac
+  done
   return "$rc"
 }
 
@@ -166,6 +230,7 @@ run_stage() {
     tree) tree_stage ;;
     build) cargo build --workspace ;;
     artifacts) artifacts ;;
+    features) features ;;
     test) cargo nextest run --workspace --all-targets ;;
     clippy) cargo clippy --workspace --all-targets --all-features -- -D warnings ;;
     fmt) cargo fmt --all -- --check ;;

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # gate-breakers.sh — proves tools/gate.sh refuses what it claims to, by
 # staging each refusal and watching it fail: a stage name it does not
-# know, the fixture switch set at any value, and a working tree its
-# stages changed (#87).
+# know, the fixture switch set at any value, a working tree its
+# stages changed (#87), and a feature pin taken out (#124).
 #
 # A refusal is evidence only when it names the property, so each case
 # states the words the gate must print; a case that passes states the
@@ -29,7 +29,7 @@ for p in "${owned[@]}"; do
 done
 
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/acq-gate-breakers.XXXXXX")
-files=(tools/gate.sh GLOSSARY.md)
+files=(tools/gate.sh GLOSSARY.md crates/acquisition-cli/Cargo.toml Cargo.lock)
 for f in "${files[@]}"; do mkdir -p "$scratch/keep/$(dirname "$f")"; cp "$f" "$scratch/keep/$f"; done
 restore() {
   local f
@@ -128,6 +128,21 @@ run_case 'a stage writes under an ignored path'                  pass   'gate: g
 no_snapshot() { gate_edit 'git write-tree)' 'git write-treee)'; }
 run_case 'a snapshot that cannot be taken'                       refuse 'no snapshot of the working tree before the first stage' no_snapshot $gate --only tree
 run_case 'the tree stage alone, on the tree as it stands'        pass   'gate: green'              none           $gate --only tree
+
+echo '== the feature graphs: a test build that compiles a package otherwise fails, naming it (#124)'
+# The pin #124 needed, taken out: cargo then drops its line from the
+# lock, which the restore puts back with the manifest.
+unpinned() {
+  python3 - <<'PY'
+import pathlib, re
+p = pathlib.Path('crates/acquisition-cli/Cargo.toml'); s = p.read_text()
+pin = re.compile(r'(?m)^rustix = .*\n')
+assert len(pin.findall(s)) == 1, 'no one rustix pin'
+p.write_text(pin.sub('', s))
+PY
+}
+run_case 'the rustix pin taken out'                              refuse 'rustix 1.1.4: build'      unpinned       $gate --only features
+run_case 'the feature graphs as they stand'                      pass   'gate: green'              none           $gate --only features
 
 echo
 printf '%d ok, %d failed\n' "$pass" "$failed"

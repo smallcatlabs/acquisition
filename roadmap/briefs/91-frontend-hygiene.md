@@ -117,6 +117,16 @@ Measured on `1957f715` on 2026-10-29:
    Linux named as unchecked, and an issue carries the trigger. The
    check's commit waits for the answer. The other concerns do not
    depend on it.
+   - 2026-10-29, the orchestrating session under the owner's
+     delegation ("If the decision is clear cut, you may take the
+     recommendation"): (c), the check over the targets clean today,
+     the Linux targets on a list of unchecked targets with their
+     reason, and the evidence on #128 as a comment, with no new issue.
+     Settled in the build: #124's pin in `acquisition-cli` (Do 3)
+     closes the Linux split too, because the workspace build unifies
+     rustix's features across `acq` and `acqd`. So the list came out
+     empty and was not built, and the check covers all five release
+     targets. A second comment on #128 says so.
 2. **#109.** One rule over the file: every comparison of a document
    read twice goes through `steady`. The blind-replace test's `shown`
    reads its row through it, and line 926's by-hand removal becomes
@@ -133,8 +143,9 @@ Measured on `1957f715` on 2026-10-29:
    names and fails naming each package and both feature sets. CI's
    Linux job runs it as a step. The `artifacts` stage's failure names
    the stage, closing #128's item 3 by pointing at the packages. Its
-   targets wait on Do 1. Shown clean on `main` and red on #124's tree
-   without the pin.
+   targets are the release's (settled by Do 1). Shown red on `main`'s
+   Linux targets and on #124's tree without the pin, and clean on the
+   step's tree.
 5. **The bound.** `Events::read` refuses an `hours` that is negative
    or not a number, as `arguments`, in the request's word `hours`, and
    subtracts with saturation. The store binds a `limit` past `i64::MAX`
@@ -169,9 +180,9 @@ Measured on `1957f715` on 2026-10-29:
   `artifacts` stage's status without the pin (failing) and with it
   (passing).
 - The `features` stage is in `tools/gate.sh` and a step of
-  `gate-linux.yml`, over the targets Do 1 settles; the report shows it
-  clean on the step's tree and naming `rustix` on #124's tree without
-  the pin.
+  `gate-linux.yml`, over the release's five targets; the report shows
+  it clean on the step's tree and naming `rustix` on #124's tree
+  without the pin.
 - `Events::read` refuses `hours` below zero and not a number, with a
   test in the verbs crate. The store's three limit binds go through
   one helper, with a test of a `usize::MAX` limit.
@@ -180,7 +191,10 @@ Measured on `1957f715` on 2026-10-29:
 - An unknown membership's words come from the search crate on both
   surfaces, and a mismatched realm beside a URL is the search crate's
   refusal on the CLI, with the tests in Read updated to the words.
-- No `include_str!` in `crates/` names a path under `search/`.
+- No `include_str!` in a crate's `src/` names a path under `search/`
+  (a test may still read the research captures it checks against;
+  corrected from "in `crates/`", which the catalogue test's stats and
+  grammar captures make false).
 - `tools/gate.sh` green on the step's tree.
 
 ## Not in scope
