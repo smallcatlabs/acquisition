@@ -17,7 +17,9 @@ use serde_json::{Value, json};
 
 use crate::harness;
 
-use harness::{Pages, WebUi, offline_acq, offline_command, page_golden, sole_json, start_web};
+use harness::{
+    Pages, WebUi, offline_acq, offline_command, page_golden, sole_json, start_web, unaged,
+};
 
 const USER: &str = "Alice#1234";
 const ART: &str = "https://web.poecdn.com/gen/image/ring.png";
@@ -355,7 +357,7 @@ fn the_fold_answers_as_acq_search_trade_does() {
         assert_eq!(row["icon"], ART, "{row}");
         row.as_object_mut().unwrap().remove("icon");
     }
-    assert_eq!(page, cli);
+    assert_eq!(unaged(page), unaged(cli));
 }
 
 /// The search pages, each a golden naming what a reader must find: the

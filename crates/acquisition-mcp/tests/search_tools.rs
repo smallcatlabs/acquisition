@@ -16,7 +16,7 @@ use std::path::{Path, PathBuf};
 
 use acquisition_store::{Endpoint, Index, Store, account_path};
 use harness::{Mcp, acq, assert_spoken_as, no_daemon_appeared};
-use harness::{Scratch, scratch};
+use harness::{Scratch, scratch, unaged};
 use serde_json::{Value, json};
 
 const USER: &str = "Alice#1234";
@@ -895,18 +895,18 @@ fn tabs_counts_first_and_lists_the_ten_with_the_most_items() {
     assert_eq!(tabs["rows"].as_array().unwrap().len(), 10);
     let (printed, ok) = cli(&seat.base, &["tabs"]);
     assert!(ok);
-    assert_eq!(printed, tabs);
+    assert_eq!(unaged(printed), unaged(tabs));
 
     let (all, _) = seat.call("tabs", &json!({ "expand": true }));
     assert_eq!(all["rows"].as_array().unwrap().len(), 41);
     let (printed, _) = cli(&seat.base, &["tabs", "--expand"]);
-    assert_eq!(printed, all);
+    assert_eq!(unaged(printed), unaged(all));
 
     let (more, _) = seat.call("tabs", &json!({ "limit": 25 }));
     assert_eq!(more["rows"].as_array().unwrap().len(), 25, "{more}");
     assert_eq!(more["left_out"], 16);
     let (printed, _) = cli(&seat.base, &["tabs", "--limit", "25"]);
-    assert_eq!(printed, more);
+    assert_eq!(unaged(printed), unaged(more));
 
     // twenty tabs of another league: ten listed, ten counted
     let mut store = Store::open(&account_path(&stores(&seat.base), USER)).unwrap();
@@ -935,7 +935,7 @@ fn tabs_counts_first_and_lists_the_ten_with_the_most_items() {
         "{small}"
     );
     let (printed, _) = cli(&seat.base, &["tabs", "--league", "Small"]);
-    assert_eq!(printed, small);
+    assert_eq!(unaged(printed), unaged(small));
 }
 
 /// Pc Standard listed again as 41 tabs: Rings and Dump, and 39 of `kind`
@@ -1008,7 +1008,7 @@ fn tabs_lists_the_never_fetched_of_one_type() {
         &["tabs", "--type", "UniqueStash", "--never-fetched"],
     );
     assert!(ok);
-    assert_eq!(printed, tabs);
+    assert_eq!(unaged(printed), unaged(tabs));
     let (all, _) = seat.call(
         "tabs",
         &json!({ "type": "UniqueStash", "never_fetched": true, "expand": true }),
@@ -1035,7 +1035,7 @@ fn tabs_lists_the_never_fetched_of_one_type() {
             "20",
         ],
     );
-    assert_eq!(printed, more);
+    assert_eq!(unaged(printed), unaged(more));
 }
 
 /// A row's place carried no age (the trade seat: mcp-sonnet-2 calls 3, 14,

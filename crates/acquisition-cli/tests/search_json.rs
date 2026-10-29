@@ -16,7 +16,9 @@ use serde_json::{Value, json};
 
 use crate::harness;
 
-use harness::{Transcript, golden, offline_acq as acq, offline_command as command, sole_json};
+use harness::{
+    Transcript, golden, offline_acq as acq, offline_command as command, sole_json, unaged,
+};
 
 const USER: &str = "Alice#1234";
 
@@ -1013,7 +1015,7 @@ fn step_10_explain_context_and_against_at_a_terminal() {
             "matches",
         ],
     ));
-    assert_eq!(plain, matches);
+    assert_eq!(unaged(plain), unaged(matches));
 
     // the why-not: r2 holds 20 and 75, neither reaching 90
     let out = acq(&base, &["--json", "show", "r2", "--against", LIFE]);
@@ -2377,7 +2379,10 @@ fn c113_a_site_search_url_runs_labelled_and_its_printed_request_reads_back() {
         &["--json", "search", "--request", file.to_str().unwrap()],
     ));
     assert_eq!(again["query"], answer["query"]);
-    assert_eq!(again["rows"], answer["rows"]);
+    assert_eq!(
+        unaged(again["rows"].clone()),
+        unaged(answer["rows"].clone())
+    );
 
     // an edit beside the site search is refused, never run under its
     // label; the translation is the reading, and dropping `trade` runs

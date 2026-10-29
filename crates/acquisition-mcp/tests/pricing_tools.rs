@@ -17,7 +17,7 @@ use std::path::{Path, PathBuf};
 use acquisition_plan::price::Buyout;
 use acquisition_plan::{PolicyWrite, put_sync_policy};
 use acquisition_store::{Annotations, Endpoint, Index, Provenance, Store, account_path};
-use harness::{Mcp, acq, assert_spoken_as, no_daemon_appeared, scratch};
+use harness::{Mcp, acq, assert_spoken_as, no_daemon_appeared, scratch, unaged};
 use serde_json::{Value, json};
 
 const USER: &str = "Alice#1234";
@@ -140,9 +140,10 @@ fn seed(base: &Path) {
 /// epoch (an `_age` key, C53: made at each answer's own time, so two
 /// answers' can differ by a second, from two processes or from one read
 /// twice) — and, for a write's receipt, when the row was written and
-/// through which surface (`mcp` or `cli`, by design). Every comparison in
-/// this file of a document read twice goes through it (#109: a row read
-/// before and after a refused write said `0s ago`, then `1s ago`).
+/// through which surface (`mcp` or `cli`, by design). The ages go by the
+/// harness's one rule, `unaged`, and every comparison in this file of a
+/// document read twice goes through here (#109: a row read before and
+/// after a refused write said `0s ago`, then `1s ago`).
 fn steady(mut doc: Value, keys: &[&str]) -> Value {
     fn strip(v: &mut Value, keys: &[&str]) {
         match v {
@@ -150,7 +151,6 @@ fn steady(mut doc: Value, keys: &[&str]) -> Value {
                 for key in keys {
                     map.remove(*key);
                 }
-                map.retain(|key, _| !key.ends_with("_age"));
                 for child in map.values_mut() {
                     strip(child, keys);
                 }
@@ -160,7 +160,7 @@ fn steady(mut doc: Value, keys: &[&str]) -> Value {
         }
     }
     strip(&mut doc, keys);
-    doc
+    unaged(doc)
 }
 
 const CLOCK: &[&str] = &["taken_at", "rendered_at"];

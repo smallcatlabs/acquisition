@@ -772,6 +772,27 @@ pub fn sole_json(out: &Output) -> Value {
         .unwrap_or_else(|e| panic!("stdout is not exactly one JSON document ({e}):\n{stdout}"))
 }
 
+/// `doc` with every age said in words taken out, at any depth: each key
+/// ending `_age` (C53: the words are made at each answer's own time, so
+/// two answers' can differ by a second, or by a day's count, and the
+/// epoch beside each is the fact). Every comparison of two answers read
+/// apart goes through it, on every surface's tests (#109, then #91's fix
+/// round: a row read twice said `0s ago`, then `1s ago`).
+pub fn unaged(mut doc: Value) -> Value {
+    fn strip(v: &mut Value) {
+        match v {
+            Value::Object(map) => {
+                map.retain(|key, _| !key.ends_with("_age"));
+                map.values_mut().for_each(strip);
+            }
+            Value::Array(items) => items.iter_mut().for_each(strip),
+            _ => {}
+        }
+    }
+    strip(&mut doc);
+    doc
+}
+
 /// Both streams as one string, for assertions on prose.
 pub fn text(out: &Output) -> String {
     format!(

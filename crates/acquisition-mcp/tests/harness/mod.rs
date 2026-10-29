@@ -374,6 +374,11 @@ fn spoken_under(server: &Value, cli: &Value, path: &str, payload: bool) -> Optio
             if s.keys().collect::<Vec<_>>() == c.keys().collect::<Vec<_>>() =>
         {
             s.iter().find_map(|(k, v)| {
+                // an age's words are made at each answer's own time, the
+                // epoch beside them the fact (`unaged`)
+                if k.ends_with("_age") {
+                    return None;
+                }
                 let here = format!("{path}.{k}");
                 if k == "offers" && s.contains_key("kind") {
                     return offered_otherwise(v, &c[k], &here);
