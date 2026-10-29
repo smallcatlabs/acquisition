@@ -156,10 +156,14 @@ impl fmt::Display for PolicyObservationError {
             PolicyObservationError::PolicyMismatch {
                 established,
                 observed,
-            } => write!(
-                f,
-                "endpoint is established under policy '{established}' but response reported '{observed}'"
-            ),
+            } => {
+                // #113: the names are GGG's text; the words say what
+                // happened, and the journal holds the names.
+                let _ = (established, observed);
+                f.write_str(
+                    "endpoint is established under one policy but the response reported another",
+                )
+            }
         }
     }
 }

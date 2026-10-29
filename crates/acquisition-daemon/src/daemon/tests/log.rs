@@ -198,12 +198,14 @@ async fn no_token_reaches_the_log_on_the_login_send_and_refresh_paths() {
     finish_harness(dispatcher, &log_path);
 }
 
+/// The token endpoint's rate headers (N33).
+const TOKEN_RATE: &str = "X-Rate-Limit-Policy: token-request-limit\r\nX-Rate-Limit-Rules: Ip\r\nX-Rate-Limit-Ip: 60:30:30\r\nX-Rate-Limit-Ip-State: 1:30:0\r\n";
+
 /// A provider whose token endpoint answers every refresh with `status`,
-/// `extra` headers beside its rate headers, and `body`; any other request
-/// is a 200.
+/// `headers` and `body`; any other request is a 200.
 async fn token_endpoint_answering(
     status: &'static str,
-    extra: &'static str,
+    headers: String,
     body: &'static str,
 ) -> (String, tokio::task::JoinHandle<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -214,9 +216,6 @@ async fn token_endpoint_answering(
             let Some(request) = mockggg::read_request(&mut stream).await else {
                 continue;
             };
-            let headers = format!(
-                "X-Rate-Limit-Policy: token-request-limit\r\nX-Rate-Limit-Rules: Ip\r\nX-Rate-Limit-Ip: 60:30:30\r\nX-Rate-Limit-Ip-State: 1:30:0\r\n{extra}"
-            );
             let (status, body) = if request.path == "/token" {
                 (status, body)
             } else {
@@ -235,7 +234,18 @@ async fn refresh_answered_by(
     extra: &'static str,
     body: &'static str,
 ) -> String {
-    let (base, server) = token_endpoint_answering(status, extra, body).await;
+    refresh_answered_by_headers(status, format!("{TOKEN_RATE}{extra}"), body)
+        .await
+        .0
+}
+
+/// [`refresh_answered_by`] with the token endpoint's whole header set.
+async fn refresh_answered_by_headers(
+    status: &'static str,
+    headers: impl Into<String>,
+    body: &'static str,
+) -> (String, ()) {
+    let (base, server) = token_endpoint_answering(status, headers.into(), body).await;
     let clock = Arc::new(ManualClock::new());
     let log_path = test_log_path();
     let rails = Arc::new(Rails::with_config_and_clock(
@@ -281,7 +291,7 @@ async fn refresh_answered_by(
     server.abort();
     let log = std::fs::read_to_string(&*log_path).unwrap();
     finish_harness(dispatcher, &log_path);
-    log
+    (log, ())
 }
 
 /// #113, the text a daemon receives: a token endpoint's refusal whose
@@ -351,7 +361,7 @@ async fn a_token_refusal_shaped_like_its_rules_logs_none_of_its_text() {
         "the header's token is in the log:\n{log}"
     );
     assert!(
-        log.contains("invalid_grant") && log.contains("policy token-request-limit"),
+        log.contains("invalid_grant") && log.contains("rate Ip 1/60 per 30s"),
         "{log}"
     );
 
@@ -363,12 +373,16 @@ async fn a_token_refusal_shaped_like_its_rules_logs_none_of_its_text() {
     assert!(log.contains("an error code outside OAuth's"), "{log}");
 }
 
-/// #113's second review, on an API send: a token in a rate-limit header
-/// and one in a 400's body each stay out of the log, whose `GET` line and
-/// whose job failure carry the rate line as parsed and the body as its
-/// size (or GGG's numeric code).
-#[tokio::test]
-async fn an_api_answer_echoing_a_token_logs_none_of_its_text() {
+/// A session with a live token sends one `characters` job to a provider
+/// whose HEAD answers 204 with the API's rate headers and `head_extra`,
+/// and whose GET answers `status` with `get_rate` and `body`; returns the
+/// log once the job is done, and the job's state.
+async fn api_answered_by(
+    head_extra: &'static str,
+    status: &'static str,
+    get_rate: &'static str,
+    body: &'static str,
+) -> (String, JobState) {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     let server = tokio::spawn(async move {
@@ -379,15 +393,11 @@ async fn an_api_answer_echoing_a_token_logs_none_of_its_text() {
             };
             let rate = "X-Rate-Limit-Policy: log-policy\r\nX-Rate-Limit-Rules: Account\r\nX-Rate-Limit-Account: 100:1:60\r\nX-Rate-Limit-Account-State: 1:1:0\r\n";
             let (status, headers, body) = if request.method == "HEAD" {
-                ("204 No Content", rate.to_string(), String::new())
+                ("204 No Content", format!("{rate}{head_extra}"), "")
             } else {
-                (
-                    "400 Bad Request",
-                    format!("{rate}X-Rate-Limit-Debug: at-header-v6Tq\r\n"),
-                    r#"{"error":{"message":"bad request for rt-body-c1Ns"}}"#.to_string(),
-                )
+                (status, get_rate.to_string(), body)
             };
-            mockggg::respond_with(&mut stream, status, "application/json", &headers, &body).await;
+            mockggg::respond_with(&mut stream, status, "application/json", &headers, body).await;
         }
     });
     let clock = Arc::new(ManualClock::new());
@@ -430,15 +440,94 @@ async fn an_api_answer_echoing_a_token_logs_none_of_its_text() {
         )
         .unwrap();
     let (info, _) = wait_terminal(&daemon, job).await;
-    assert_eq!(info.state, JobState::Failed, "the 400 fails the job");
     server.abort();
     let log = std::fs::read_to_string(&*log_path).unwrap();
     finish_harness(dispatcher, &log_path);
+    (log, info.state)
+}
+
+/// The API's rate headers on a GET, with `extra` beside them.
+const API_RATE: &str = "X-Rate-Limit-Policy: log-policy\r\nX-Rate-Limit-Rules: Account\r\nX-Rate-Limit-Account: 100:1:60\r\nX-Rate-Limit-Account-State: 1:1:0\r\n";
+
+/// #113's second review, on an API send: a token in a rate-limit header
+/// and one in a 400's body each stay out of the log, whose `GET` line and
+/// whose job failure carry the rate line as parsed and the body as its
+/// size (or GGG's numeric code).
+#[tokio::test]
+async fn an_api_answer_echoing_a_token_logs_none_of_its_text() {
+    let (log, state) = api_answered_by(
+        "",
+        "400 Bad Request",
+        "X-Rate-Limit-Policy: log-policy\r\nX-Rate-Limit-Rules: Account\r\nX-Rate-Limit-Account: 100:1:60\r\nX-Rate-Limit-Account-State: 1:1:0\r\nX-Rate-Limit-Debug: at-header-v6Tq\r\n",
+        r#"{"error":{"message":"bad request for rt-body-c1Ns"}}"#,
+    )
+    .await;
+    assert_eq!(state, JobState::Failed, "the 400 fails the job");
     for token in ["at-header-v6Tq", "rt-body-c1Ns"] {
         assert!(!log.contains(token), "{token} is in the log:\n{log}");
     }
     assert!(
-        log.contains("-> 400 Bad Request | policy log-policy") && log.contains("a body of"),
+        log.contains("-> 400 Bad Request | rate Account 1/100 per 1s") && log.contains("a body of"),
         "{log}"
     );
+}
+
+/// #113's third review: a successful HEAD probe whose headers carry a
+/// token logs the parsed rate, not the headers.
+#[tokio::test]
+async fn a_probe_answer_echoing_a_token_logs_none_of_its_text() {
+    let (log, state) = api_answered_by(
+        "X-Rate-Limit-Debug: rt-probe-h7Kd\r\n",
+        "200 OK",
+        API_RATE,
+        r#"{"characters":[]}"#,
+    )
+    .await;
+    assert_eq!(state, JobState::Done, "the GET succeeds");
+    assert!(
+        !log.contains("rt-probe-h7Kd"),
+        "the probe's token is in the log:\n{log}"
+    );
+    assert!(
+        log.contains("HEAD /character -> 204 No Content | rate Account"),
+        "{log}"
+    );
+}
+
+/// #113's third review, the names GGG gives: a token sent as the policy's
+/// name on an answer the limiter accepts, and one sent as a rule's name
+/// with none of its windows, which the parser refuses as missing that
+/// rule's header. Neither name reaches the log: the policy is named by
+/// its route, the rule by a label.
+#[tokio::test]
+async fn names_a_provider_gives_its_policy_and_rules_log_none_of_their_text() {
+    let (log, _) = refresh_answered_by_headers(
+        "400 Bad Request",
+        "X-Rate-Limit-Policy: rt-policy-p2Wn\r\nX-Rate-Limit-Rules: Ip\r\nX-Rate-Limit-Ip: 60:30:30\r\nX-Rate-Limit-Ip-State: 1:30:0\r\n",
+        r#"{"error":"invalid_grant"}"#,
+    )
+    .await;
+    assert!(
+        !log.contains("rt-policy-p2Wn"),
+        "the policy's name is in the log:\n{log}"
+    );
+    assert!(log.contains("rate Ip 1/60 per 30s"), "{log}");
+
+    let (log, state) = api_answered_by(
+        "",
+        "200 OK",
+        "X-Rate-Limit-Policy: log-policy\r\nX-Rate-Limit-Rules: rt_rules_x9\r\n",
+        r#"{"characters":[]}"#,
+    )
+    .await;
+    assert_eq!(
+        state,
+        JobState::Failed,
+        "unusable headers fail the send (C19)"
+    );
+    assert!(
+        !log.contains("rt_rules_x9") && !log.contains("x-rate-limit-rt_rules_x9"),
+        "the rule's name is in the log:\n{log}"
+    );
+    assert!(log.contains("a rule outside GGG's"), "{log}");
 }

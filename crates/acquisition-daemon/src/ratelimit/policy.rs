@@ -162,20 +162,61 @@ pub enum PolicyParseError {
     },
 }
 
+/// #113, a log line's words are values the daemon chose: a rule GGG
+/// names, as one of its documented scopes, else "a rule outside GGG's".
+/// The limiter keys on the name it accepted; the words never carry it.
+pub fn rule_label(rule: &str) -> &'static str {
+    match rule.trim() {
+        "Ip" => "Ip",
+        "Account" => "Account",
+        "Client" => "Client",
+        _ => "a rule outside GGG's",
+    }
+}
+
+/// #113: a rate-limit header's name as words: the two fixed ones as they
+/// are, a rule's limits or state header by the rule's label, since its
+/// name embeds the rule GGG named.
+fn header_label(header: &str) -> String {
+    match header {
+        "x-rate-limit-policy" | "x-rate-limit-rules" => header.to_string(),
+        _ => {
+            let rule = header.strip_prefix("x-rate-limit-").unwrap_or(header);
+            match rule.strip_suffix("-state") {
+                Some(rule) => format!("the state header of rule {}", rule_label(&capitalise(rule))),
+                None => format!(
+                    "the limits header of rule {}",
+                    rule_label(&capitalise(rule))
+                ),
+            }
+        }
+    }
+}
+
+/// A lowercased header key's rule back in GGG's spelling (`account` →
+/// `Account`), for [`rule_label`].
+fn capitalise(rule: &str) -> String {
+    let mut chars = rule.chars();
+    match chars.next() {
+        Some(first) => first.to_ascii_uppercase().to_string() + chars.as_str(),
+        None => String::new(),
+    }
+}
+
 impl fmt::Display for PolicyParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            PolicyParseError::MissingHeader { name } => write!(f, "missing {name}"),
+            PolicyParseError::MissingHeader { name } => write!(f, "missing {}", header_label(name)),
             PolicyParseError::EmptyPolicyName => write!(f, "empty X-Rate-Limit-Policy"),
             PolicyParseError::EmptyRules => write!(f, "empty X-Rate-Limit-Rules"),
             PolicyParseError::EmptyRuleName => write!(f, "empty rule name"),
             // #113: the triplet's text is not quoted; a log line carries
             // only what the daemon parsed.
             PolicyParseError::MalformedTriplet { header, .. } => {
-                write!(f, "malformed {header} triplet")
+                write!(f, "malformed triplet in {}", header_label(header))
             }
             PolicyParseError::OutOfRangeTriplet { header, .. } => {
-                write!(f, "out-of-range {header} triplet")
+                write!(f, "out-of-range triplet in {}", header_label(header))
             }
             PolicyParseError::WindowCountMismatch {
                 rule,
@@ -183,7 +224,8 @@ impl fmt::Display for PolicyParseError {
                 state,
             } => write!(
                 f,
-                "rule '{rule}' has {limits} limit windows but {state} state windows"
+                "rule {} has {limits} limit windows but {state} state windows",
+                rule_label(rule)
             ),
             PolicyParseError::PeriodMismatch {
                 rule,
@@ -192,7 +234,8 @@ impl fmt::Display for PolicyParseError {
                 state,
             } => write!(
                 f,
-                "rule '{rule}' window {index} has limit period {limit} but state period {state}"
+                "rule {} window {index} has limit period {limit} but state period {state}",
+                rule_label(rule)
             ),
         }
     }
@@ -488,8 +531,9 @@ pub(crate) fn redirect_evidence(headers: &reqwest::header::HeaderMap) -> String 
 /// its own types, never upstream text judged safe by its shape: the rate
 /// line a log or a refusal carries, rendered from `rate`, a
 /// [`rate_limit_snapshot`], through [`Policy::parse`] and
-/// [`parse_retry_after`]. The policy and rule names the parse accepted,
-/// each window's numbers, and the `Retry-After` the parse read; headers
+/// [`parse_retry_after`]. Each rule by its [`rule_label`], each window's
+/// numbers, and the `Retry-After` the parse read; never the policy's
+/// name, which a line names by the route the daemon keys it on; headers
 /// that do not parse are "unreadable rate headers" and never their text;
 /// none at all is "no rate headers". The snapshot itself, raw, stays the
 /// journal's and a job's payload (GGG's contract evidence).
@@ -523,10 +567,10 @@ pub fn rate_words(rate: &serde_json::Value) -> String {
                                 )
                             })
                             .collect();
-                        format!("{} {}", rule.name, windows.join(", "))
+                        format!("{} {}", rule_label(&rule.name), windows.join(", "))
                     })
                     .collect();
-                format!("policy {}: {}", policy.name, rules.join("; "))
+                format!("rate {}", rules.join("; "))
             }
             Err(_) => "unreadable rate headers".to_string(),
         }

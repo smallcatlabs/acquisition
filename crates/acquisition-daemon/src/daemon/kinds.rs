@@ -712,10 +712,14 @@ impl Daemon {
                 self.announce_trip();
                 match probed {
                     Ok((status, policy, headers)) => {
+                        // The name goes to the job's payload, not the log.
                         let name = policy.name;
+                        // #113: the headers' text stays the payload's and
+                        // the journal's; the line carries the parsed rate.
                         self.log(&format!(
-                            "HEAD {} -> {status} | policy {name} | {headers}",
-                            url_path(&url)
+                            "HEAD {} -> {status} | {}",
+                            url_path(&url),
+                            crate::ratelimit::rate_words(&headers)
                         ));
                         Outcome::Success {
                             payload: json!({
