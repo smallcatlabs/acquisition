@@ -124,7 +124,10 @@ here rather than restate it.
 3. **The review** runs over each committed step and over each fix
    round that changes behaviour, over its commits as one range. The
    findings are saved verbatim at `roadmap/reviews/<step>-<sha>.md`
-   (a fix round's at `<step>-fixes-<sha>.md`), ride in the next commit,
+   (a fix round's at `<step>-fixes-<sha>.md`), from the final answer's
+   first line, the one naming the range, to the end (`codex exec`
+   prints the answer twice, the copy to save after `tokens used` and
+   its count), ride in the next commit,
    and stay there for good. A round that touches only comments and
    documents gets no review, and nothing is reviewed a third time
    unless the owner asks.
@@ -214,11 +217,11 @@ The owner's list, his to strike:
 
 The league group (#87, #90, #68, #103, #63, #53, #94, #96) closed on
 2026-10-28 (`LEDGER.md`); #85 closed the same day, and #86, #89 and
-#125, #115 and #91 on 2026-10-29. The clock-dependent tests (#127,
-#76, #111, and #128's ruling; `briefs/clock-tests.md`) are built,
-review pending. Next in "Pull-forward": the words,
-which wait on the first seat on the league's build, so no step starts
-from the list until that seat has sat.
+#125, #115, #91 and the clock-dependent tests (#127, #76, #111 and
+#128) on 2026-10-29. Nothing starts from "Pull-forward" until the
+league build's first seat: its one item, the words, waits on that
+seat. The owner is choosing further pre-league work with the
+orchestrating session.
 Phase 3, the owner's league run, follows at his word; #70 closes on a
 week of pushes without a re-run. `AGENTS.md` governs; the gate is
 `tools/gate.sh`.
