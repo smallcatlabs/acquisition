@@ -58,6 +58,10 @@ Each in his words, with the commit that landed it.
   The league group is the milestone's buildable issues the owner's
   run would otherwise meet; the automation and the words follow it
   (the commit carrying this line).
+- 2026-10-28, #85's Do 1: "#85: (a), proptest properties in the
+  daemon's and the client's own tests, a small count in the gate and
+  the full count on CI, as the brief proposes." No registry entry: (a)
+  adds no edge and no boundary (the commit carrying this line).
 
 ## Roles
 

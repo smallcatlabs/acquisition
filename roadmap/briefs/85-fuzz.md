@@ -2,8 +2,7 @@
 
 Issue #85. The first item of "Pull-forward" (`roadmap/README.md`), after
 the league group's close at `c308cf0d`. The rhythm is "A step". This
-brief stops at Do 1: the step needs a ruling it does not have, and the
-build waits for the owner's word.
+brief stopped at Do 1, a ruling; the owner's word settled it, (a).
 
 ## Goal
 
@@ -90,8 +89,8 @@ tables at this brief's commit, and the two frame tests' streams.
 
 ## Do
 
-1. **The ruling** (the owner's; recorded in `decisions/daemon.md` in its
-   own docs commit, quoting him, before any code). `cargo-fuzz` needs a
+1. **The ruling** (the owner's; recorded in its own docs commit,
+   quoting him, before any code). `cargo-fuzz` needs a
    package of its own that names the code it drives: a `fuzz/` package
    naming `acquisition-daemon` for the header parse and the limiter, and
    `acquisition-client` for the client's copy of the reader. Today no
@@ -134,9 +133,9 @@ tables at this brief's commit, and the two frame tests' streams.
      deduplicating the two `frame.rs` copies. Each is a C1 change for a
      test's convenience.
 
-   The rest of this list is written for (a). Under (b), Do 2 to 4 become
-   two `fuzz_targets/` with the same assertions, Do 5 the scheduled
-   workflow, and the seeds are files under `fuzz/seeds/<target>/`.
+   Settled: (a). The owner's word of 2026-10-28, quoted in
+   `roadmap/README.md`, "The owner's rulings for this road"; no registry
+   entry, because (a) adds no edge and no boundary.
 
 2. **The header property** (`ratelimit/tests/spec.rs`, the daemon's
    dev-dependencies). A generator of header sets built from the tables'
@@ -194,8 +193,8 @@ tables at this brief's commit, and the two frame tests' streams.
 
 ## Done when
 
-- `decisions/daemon.md` holds the owner's ruling on Do 1, quoted in the
-  commit that lands it, before any code commit.
+- `roadmap/README.md`, "The owner's rulings for this road", holds the
+  owner's ruling on Do 1, quoted, in a commit before any code commit.
 - Under (a): a generated property over the header parse and the
   limiter reads in `spec.rs`, and one over the frame reader in both
   `frame.rs` copies, each with a local count, a full count under
