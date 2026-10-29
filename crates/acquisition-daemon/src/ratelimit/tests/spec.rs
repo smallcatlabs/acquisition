@@ -1673,8 +1673,8 @@ fn every_unacceptable_full_head_429_is_a_setup_failure() {
     // `Display`, which an empty rendering would satisfy (#86's mutants run).
     let cases = [
         (retry(None), "missing Retry-After"),
-        (retry(Some("soon")), "malformed Retry-After 'soon'"),
-        (retry(Some("-1")), "negative Retry-After '-1'"),
+        (retry(Some("soon")), "malformed Retry-After"),
+        (retry(Some("-1")), "negative Retry-After"),
         (
             retry(Some("901")),
             "Retry-After '901' exceeds the 900s product cap",
@@ -1693,7 +1693,12 @@ fn every_unacceptable_full_head_429_is_a_setup_failure() {
         assert!(result.is_err(), "{retry_after} unexpectedly established");
         match limiter.endpoint_state("/character", now) {
             EndpointState::Degraded { reason, .. } => {
-                assert!(reason.contains(words), "{reason:?} names no {words:?}")
+                assert!(reason.contains(words), "{reason:?} names no {words:?}");
+                // #113: the reason reaches the log; the header's text never.
+                assert!(
+                    !reason.contains("soon") && !reason.contains("'-1'"),
+                    "{reason:?} quotes the header"
+                );
             }
             state => panic!("{words}: {state:?}, not degraded"),
         }

@@ -314,16 +314,16 @@ async fn token_request(
     }
     if !status.is_success() {
         // #113: the server's text never reaches the words, which go to
-        // the log; only its status, its rate line and the OAuth `error`
-        // code. A 3xx's body is no server text: the choke point put its
+        // the log; only its status, its rate line as the limiter parses it
+        // (`rate_words`) and the OAuth `error` code as one of OAuth's. A 3xx's body is no server text: the choke point put its
         // own words there, where the redirect pointed with its query
         // redacted (C130), and they stand. The choke point has already
         // read the whole body for what it recognises (a block or a 429,
         // `rails::Verdict::of`).
-        let rate = response.rate;
+        let rate = crate::ratelimit::rate_words(&response.rate);
         let code = match &response.body {
             Ok(evidence) if status.is_redirection() => evidence.clone(),
-            Ok(body) => oauth_error_code(body),
+            Ok(body) => oauth_error_code(body).to_string(),
             Err(_) => "a body that could not be read".to_string(),
         };
         return Err(TokenError {
@@ -331,7 +331,7 @@ async fn token_request(
             blocked: false,
             halted: false,
             cancelled: false,
-            message: format!("token endpoint returned {status} (rate headers {rate}): {code}"),
+            message: format!("token endpoint returned {status} ({rate}): {code}"),
         });
     }
     let body = response
@@ -372,31 +372,44 @@ async fn token_request(
 }
 
 /// #113: what the words of a token endpoint's refusal carry of its body:
-/// the OAuth `error` code (RFC 6749, section 5.2), when the body is JSON
-/// holding one that is a short word of `[a-z_]` (at most
-/// [`OAUTH_CODE_LEN`] long); "an unreadable error code" when it holds
-/// another; "an unreadable body" else. Nothing else of the text is kept,
-/// so a body that echoes a token cannot carry it into the log.
-fn oauth_error_code(body: &str) -> String {
-    let code = serde_json::from_str::<serde_json::Value>(body)
+/// the OAuth `error` code when the body is JSON holding one
+/// ([`oauth_error_words`]), else "an unreadable body". Nothing else of
+/// the text is kept, so a body that echoes a token cannot carry it into
+/// the log.
+fn oauth_error_code(body: &str) -> &'static str {
+    match serde_json::from_str::<serde_json::Value>(body)
         .ok()
-        .and_then(|value| value.get("error")?.as_str().map(str::to_string));
-    match code {
-        Some(code)
-            if !code.is_empty()
-                && code.len() <= OAUTH_CODE_LEN
-                && code.bytes().all(|b| b.is_ascii_lowercase() || b == b'_') =>
-        {
-            code
-        }
-        Some(_) => "an unreadable error code".to_string(),
-        None => "an unreadable body".to_string(),
+        .and_then(|value| value.get("error")?.as_str().map(str::to_string))
+    {
+        Some(code) => oauth_error_words(&code),
+        None => "an unreadable body",
     }
 }
 
-/// The longest OAuth `error` code the words keep: RFC 6749's longest,
-/// `unsupported_grant_type`, is 22.
-const OAUTH_CODE_LEN: usize = 32;
+/// #113, a log line's words are values the daemon chose: an OAuth `error`
+/// code, from a token endpoint's body or an authorize redirect's query,
+/// as one of RFC 6749's own (sections 4.1.2.1 and 5.2), else "an error
+/// code outside OAuth's". Never the text received, whatever its shape: a
+/// token can be a lowercase word too.
+pub fn oauth_error_words(code: &str) -> &'static str {
+    const CODES: [&str; 10] = [
+        "invalid_request",
+        "invalid_client",
+        "invalid_grant",
+        "unauthorized_client",
+        "unsupported_grant_type",
+        "unsupported_response_type",
+        "invalid_scope",
+        "access_denied",
+        "server_error",
+        "temporarily_unavailable",
+    ];
+    CODES
+        .iter()
+        .find(|known| **known == code)
+        .copied()
+        .unwrap_or("an error code outside OAuth's")
+}
 
 // ---- keyring ------------------------------------------------------------
 //

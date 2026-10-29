@@ -858,7 +858,10 @@ impl Daemon {
             let rate = response.rate;
             let retry_after = response.retry_after;
             let path = url_path(url);
-            self.log(&format!("GET {path} -> {status} | rate headers: {rate}"));
+            self.log(&format!(
+                "GET {path} -> {status} | {}",
+                crate::ratelimit::rate_words(&rate)
+            ));
             if let Some(verdict) = response
                 .verdict
                 .filter(|verdict| verdict.block || verdict.unreachable)
@@ -1013,7 +1016,8 @@ fn cloudflare_failure(
         }
     });
     ApiError::Other(format!(
-        "GET {path} returned {status}; rate headers {rate} — NOT retrying; {halt}"
+        "GET {path} returned {status}; {} — NOT retrying; {halt}",
+        crate::ratelimit::rate_words(rate)
     ))
 }
 
@@ -1039,10 +1043,16 @@ pub(super) fn classify_api_body(
         }
         let shape = verdict.map_or(BlockShape::Unclassified, |verdict| verdict.shape);
         let body = match body {
-            Ok(body) => body.chars().take(300).collect(),
-            Err(error) => format!("<body read transport failure: {error}>"),
+            // C130: a 3xx's body is the choke point's own words, where it
+            // pointed with its query redacted, not the server's text.
+            Ok(evidence) if status.is_redirection() => evidence,
+            Ok(body) => api_error_words(&body),
+            Err(error) => format!("a body read transport failure: {error}"),
         };
-        let evidence = format!("GET {path} returned {status}; rate headers {rate}; body: {body}");
+        let evidence = format!(
+            "GET {path} returned {status}; {}; {body}",
+            crate::ratelimit::rate_words(&rate)
+        );
         return Err(match status.as_u16() {
             429 if retry_after.is_acceptable() => ApiError::RateLimited(evidence),
             429 => ApiError::Other(format!(
@@ -1061,7 +1071,30 @@ pub(super) fn classify_api_body(
             "GET {path} body read transport failure after {status}: {error}"
         ))
     })?;
+    // #113: serde's message can quote a value of the body; its category
+    // and position are the daemon's own.
     serde_json::from_str::<Value>(&body)
         .map(|value| (value, rate))
-        .map_err(|error| ApiError::Other(format!("bad JSON from {path}: {error}")))
+        .map_err(|error| {
+            ApiError::Other(format!(
+                "bad JSON from {path}: {:?} at line {} column {}",
+                error.classify(),
+                error.line(),
+                error.column()
+            ))
+        })
+}
+
+/// #113, a log line's words are values the daemon chose or parsed: what
+/// an API failure's words carry of its body, GGG's error code as the
+/// number it parses to (`{"error":{"code":N,…}}`), else the body's length.
+/// Never its text, whose message is GGG's prose and may echo anything.
+fn api_error_words(body: &str) -> String {
+    match serde_json::from_str::<Value>(body)
+        .ok()
+        .and_then(|value| value.get("error")?.get("code")?.as_u64())
+    {
+        Some(code) => format!("GGG error code {code}"),
+        None => format!("a body of {} bytes", body.len()),
+    }
 }

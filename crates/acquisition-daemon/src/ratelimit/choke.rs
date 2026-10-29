@@ -598,9 +598,9 @@ impl ChokePoint {
                 Err(format!("HEAD body transfer failed: {error}"))
             }
             // A HEAD has no body: the headers are the whole of the evidence.
-            Ok((status, _)) => Err(format!(
-                "HEAD returned {status}; response headers {headers}"
-            )),
+            // #113: the headers' text stays the journal's; the reason,
+            // which reaches the log, carries the rate line as parsed.
+            Ok((status, _)) => Err(format!("HEAD returned {status}; {}", rate_words(&headers))),
             Err(error) => Err(format!("HEAD failed: {error}")),
         };
         // C129: a HEAD has no body, so no page marker counts here; only

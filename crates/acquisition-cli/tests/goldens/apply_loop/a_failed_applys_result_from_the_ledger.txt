@@ -5,5 +5,5 @@ $ acq result <j1>
 # holds "no-such-tab"
 --- stderr
 Error: job <j1> failed: 1 of 7 child jobs failed, 6 done
-  job <j2>  stash Standard/no-such-tab  GET /stash/Standard/no-such-tab returned 404 Not Found; rate headers {}; body: {"error":"no such stash"}
+  job <j2>  stash Standard/no-such-tab  GET /stash/Standard/no-such-tab returned 404 Not Found; no rate headers; a body of 25 bytes
 --- exit 1

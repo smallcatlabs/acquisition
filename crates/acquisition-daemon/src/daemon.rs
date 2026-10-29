@@ -1041,13 +1041,19 @@ impl CredentialStore for OsCredentialStore {
 /// The guarantee is that no token reaches the log, and it has two halves.
 /// What the daemon holds: every token is an [`auth::Secret`], whose text
 /// no code outside `auth.rs` reads and whose formatting is a placeholder.
-/// What it receives: the token endpoint's answers, the only ones that
-/// carry tokens, reach words only as their status, rate line and OAuth
-/// `error` code, never their text or a parser's message about it
-/// (`auth::token_request`), since a type guards what is held while text
-/// received goes around it. A write that fails is
-/// dropped: the log is a diagnostic, and the caller may be the thread
-/// that ends the process.
+/// What it receives: a line's words are values the daemon chose or parsed
+/// into its own types, never upstream text judged safe by its shape (a
+/// token can be a lowercase word, or sit in a header). A rate line is the
+/// policy the limiter parsed (`ratelimit::rate_words`); an OAuth `error`
+/// is one of RFC 6749's codes (`auth::oauth_error_words`); a body is
+/// GGG's numeric error code or its size, a parser's failure its category
+/// and position. The raw headers stay the journal's, GGG's contract
+/// evidence. Kept by ruling: the account names and uuids (the
+/// diagnosis redacts them), the policy and rule names the parse
+/// accepted, and C130's redirect target with its query redacted. (A
+/// type guards what is held; text received goes around it, so this rule
+/// is the second half.) A write that fails is dropped: the log is a
+/// diagnostic, and the caller may be the thread that ends the process.
 fn write_log_line(log: &std::fs::File, uptime: Option<u64>, line: &str) {
     let mut log = log;
     let _ = match uptime {

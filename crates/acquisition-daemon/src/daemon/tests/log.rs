@@ -198,10 +198,12 @@ async fn no_token_reaches_the_log_on_the_login_send_and_refresh_paths() {
     finish_harness(dispatcher, &log_path);
 }
 
-/// A provider whose token endpoint answers every refresh with `status`
-/// and `body`; any other request is a 200.
+/// A provider whose token endpoint answers every refresh with `status`,
+/// `extra` headers beside its rate headers, and `body`; any other request
+/// is a 200.
 async fn token_endpoint_answering(
     status: &'static str,
+    extra: &'static str,
     body: &'static str,
 ) -> (String, tokio::task::JoinHandle<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -212,13 +214,15 @@ async fn token_endpoint_answering(
             let Some(request) = mockggg::read_request(&mut stream).await else {
                 continue;
             };
-            let headers = "X-Rate-Limit-Policy: token-request-limit\r\nX-Rate-Limit-Rules: Ip\r\nX-Rate-Limit-Ip: 60:30:30\r\nX-Rate-Limit-Ip-State: 1:30:0\r\n";
+            let headers = format!(
+                "X-Rate-Limit-Policy: token-request-limit\r\nX-Rate-Limit-Rules: Ip\r\nX-Rate-Limit-Ip: 60:30:30\r\nX-Rate-Limit-Ip-State: 1:30:0\r\n{extra}"
+            );
             let (status, body) = if request.path == "/token" {
                 (status, body)
             } else {
                 ("200 OK", r#"{"characters":[]}"#)
             };
-            mockggg::respond_with(&mut stream, status, "application/json", headers, body).await;
+            mockggg::respond_with(&mut stream, status, "application/json", &headers, body).await;
         }
     });
     (base, task)
@@ -226,8 +230,12 @@ async fn token_endpoint_answering(
 
 /// A session whose access token has expired asks `base`'s token endpoint
 /// for a refresh through a job; returns the log once the job is done.
-async fn refresh_answered_by(status: &'static str, body: &'static str) -> String {
-    let (base, server) = token_endpoint_answering(status, body).await;
+async fn refresh_answered_by(
+    status: &'static str,
+    extra: &'static str,
+    body: &'static str,
+) -> String {
+    let (base, server) = token_endpoint_answering(status, extra, body).await;
     let clock = Arc::new(ManualClock::new());
     let log_path = test_log_path();
     let rails = Arc::new(Rails::with_config_and_clock(
@@ -284,6 +292,7 @@ async fn refresh_answered_by(status: &'static str, body: &'static str) -> String
 async fn a_token_refusal_whose_body_echoes_a_token_logs_none_of_its_text() {
     let log = refresh_answered_by(
         "400 Bad Request",
+        "",
         r#"{"error":"invalid_grant","refresh_token":"rt-echoed-w4Qe"}"#,
     )
     .await;
@@ -296,12 +305,12 @@ async fn a_token_refusal_whose_body_echoes_a_token_logs_none_of_its_text() {
         "the echoed token is in the log:\n{log}"
     );
 
-    let log = refresh_answered_by("400 Bad Request", r#"{"error":"at-echoed-z8Lm"}"#).await;
+    let log = refresh_answered_by("400 Bad Request", "", r#"{"error":"at-echoed-z8Lm"}"#).await;
     assert!(
         !log.contains("at-echoed-z8Lm"),
         "the echoed token is in the log:\n{log}"
     );
-    assert!(log.contains("an unreadable error code"), "{log}");
+    assert!(log.contains("an error code outside OAuth's"), "{log}");
 }
 
 /// #113, the text a daemon receives: a 2xx from the token endpoint that
@@ -312,6 +321,7 @@ async fn a_token_refusal_whose_body_echoes_a_token_logs_none_of_its_text() {
 async fn a_malformed_token_answer_logs_none_of_its_text() {
     let log = refresh_answered_by(
         "200 OK",
+        "",
         r#"{"access_token":"at-x","refresh_token":"rt-x","expires_in":"rt-quoted-n3Jp","username":"scenario-user"}"#,
     )
     .await;
@@ -320,4 +330,115 @@ async fn a_malformed_token_answer_logs_none_of_its_text() {
         "the quoted token is in the log:\n{log}"
     );
     assert!(log.contains("malformed body"), "{log}");
+}
+
+/// #113's second review, the rule whole: a log line's words are values the
+/// daemon chose or parsed into its own types, never upstream text judged
+/// safe by its shape. A token in a rate-limit header beside a token
+/// refusal, and an `error` that is a token shaped as a lowercase word,
+/// each reach the log as nothing of their text: the rate line is the
+/// policy the limiter parsed, the code is "outside OAuth's".
+#[tokio::test]
+async fn a_token_refusal_shaped_like_its_rules_logs_none_of_its_text() {
+    let log = refresh_answered_by(
+        "400 Bad Request",
+        "X-Rate-Limit-Debug: rt-live-w4Qe\r\n",
+        r#"{"error":"invalid_grant"}"#,
+    )
+    .await;
+    assert!(
+        !log.contains("rt-live-w4Qe"),
+        "the header's token is in the log:\n{log}"
+    );
+    assert!(
+        log.contains("invalid_grant") && log.contains("policy token-request-limit"),
+        "{log}"
+    );
+
+    let log = refresh_answered_by("400 Bad Request", "", r#"{"error":"rt_echoed"}"#).await;
+    assert!(
+        !log.contains("rt_echoed"),
+        "the shaped token is in the log:\n{log}"
+    );
+    assert!(log.contains("an error code outside OAuth's"), "{log}");
+}
+
+/// #113's second review, on an API send: a token in a rate-limit header
+/// and one in a 400's body each stay out of the log, whose `GET` line and
+/// whose job failure carry the rate line as parsed and the body as its
+/// size (or GGG's numeric code).
+#[tokio::test]
+async fn an_api_answer_echoing_a_token_logs_none_of_its_text() {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let server = tokio::spawn(async move {
+        loop {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let Some(request) = mockggg::read_request(&mut stream).await else {
+                continue;
+            };
+            let rate = "X-Rate-Limit-Policy: log-policy\r\nX-Rate-Limit-Rules: Account\r\nX-Rate-Limit-Account: 100:1:60\r\nX-Rate-Limit-Account-State: 1:1:0\r\n";
+            let (status, headers, body) = if request.method == "HEAD" {
+                ("204 No Content", rate.to_string(), String::new())
+            } else {
+                (
+                    "400 Bad Request",
+                    format!("{rate}X-Rate-Limit-Debug: at-header-v6Tq\r\n"),
+                    r#"{"error":{"message":"bad request for rt-body-c1Ns"}}"#.to_string(),
+                )
+            };
+            mockggg::respond_with(&mut stream, status, "application/json", &headers, &body).await;
+        }
+    });
+    let clock = Arc::new(ManualClock::new());
+    let log_path = test_log_path();
+    let rails = Arc::new(Rails::with_config_and_clock(
+        RailsConfig {
+            journal_path: Some(journal_of(&log_path)),
+            ..RailsConfig::default()
+        },
+        clock.clone(),
+    ));
+    let (daemon, log_path) = test_daemon_scenario_at(
+        Provider::mock(&base),
+        clock.clone(),
+        rails,
+        Arc::new(NoopCredentialStore),
+        log_path,
+    );
+    {
+        let mut s = daemon.shared.lock().unwrap();
+        s.auth.rename("", "scenario-user");
+        daemon.install_tokens_locked(
+            s.auth.one_mut(),
+            auth::TokenResponse {
+                access_token: "at-live".into(),
+                refresh_token: "rt-live".into(),
+                expires_in: 3600,
+                username: "scenario-user".into(),
+            },
+        );
+    }
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    let job = daemon
+        .submit(
+            "characters".into(),
+            json!({}),
+            0,
+            "test".into(),
+            Some("scenario-user".into()),
+        )
+        .unwrap();
+    let (info, _) = wait_terminal(&daemon, job).await;
+    assert_eq!(info.state, JobState::Failed, "the 400 fails the job");
+    server.abort();
+    let log = std::fs::read_to_string(&*log_path).unwrap();
+    finish_harness(dispatcher, &log_path);
+    for token in ["at-header-v6Tq", "rt-body-c1Ns"] {
+        assert!(!log.contains(token), "{token} is in the log:\n{log}");
+    }
+    assert!(
+        log.contains("-> 400 Bad Request | policy log-policy") && log.contains("a body of"),
+        "{log}"
+    );
 }

@@ -587,8 +587,10 @@ async fn a_callback_read_past_its_bound_is_dropped_and_the_flow_waits() {
 
 /// A denial is reported in the browser's words: a redirect with the
 /// flow's state and `error=access_denied` ends the flow failed, its
-/// result carrying the error and its description and a word on what to
-/// do, never "state mismatch"; the browser reads a page that says so.
+/// result carrying the error as OAuth's code and a word on what to do,
+/// never "state mismatch"; the browser reads a page that says so. #113:
+/// the free-text description is text received, and these words reach
+/// the log, so it is not carried.
 #[tokio::test]
 async fn a_denied_login_is_reported_in_the_browsers_words() {
     let clock = Arc::new(ManualClock::new());
@@ -616,7 +618,7 @@ async fn a_denied_login_is_reported_in_the_browsers_words() {
     let error = error.expect("the flow failed");
     assert!(error.contains("denied in the browser"), "{error}");
     assert!(error.contains("access_denied"), "{error}");
-    assert!(error.contains("The user denied the request"), "{error}");
+    assert!(!error.contains("The user denied"), "{error}");
     assert!(error.contains("acq auth"), "{error}");
     assert!(!error.contains("state mismatch"), "{error}");
     assert!(daemon.shared.lock().unwrap().auth.pending.is_none());

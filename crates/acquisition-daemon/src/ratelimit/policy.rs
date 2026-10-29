@@ -169,11 +169,13 @@ impl fmt::Display for PolicyParseError {
             PolicyParseError::EmptyPolicyName => write!(f, "empty X-Rate-Limit-Policy"),
             PolicyParseError::EmptyRules => write!(f, "empty X-Rate-Limit-Rules"),
             PolicyParseError::EmptyRuleName => write!(f, "empty rule name"),
-            PolicyParseError::MalformedTriplet { header, raw } => {
-                write!(f, "malformed {header} triplet '{raw}'")
+            // #113: the triplet's text is not quoted; a log line carries
+            // only what the daemon parsed.
+            PolicyParseError::MalformedTriplet { header, .. } => {
+                write!(f, "malformed {header} triplet")
             }
-            PolicyParseError::OutOfRangeTriplet { header, raw } => {
-                write!(f, "out-of-range {header} triplet '{raw}'")
+            PolicyParseError::OutOfRangeTriplet { header, .. } => {
+                write!(f, "out-of-range {header} triplet")
             }
             PolicyParseError::WindowCountMismatch {
                 rule,
@@ -258,8 +260,11 @@ impl fmt::Display for RetryAfter {
         match self {
             RetryAfter::Acceptable { seconds } => write!(f, "{seconds}s"),
             RetryAfter::Missing => write!(f, "missing Retry-After"),
-            RetryAfter::Malformed { raw } => write!(f, "malformed Retry-After '{raw}'"),
-            RetryAfter::Negative { raw } => write!(f, "negative Retry-After '{raw}'"),
+            // #113: a log line never carries the header's text; a
+            // malformed or negative value is named, not quoted. An
+            // over-cap one is all digits, a number the daemon parsed.
+            RetryAfter::Malformed { .. } => write!(f, "malformed Retry-After"),
+            RetryAfter::Negative { .. } => write!(f, "negative Retry-After"),
             RetryAfter::OverCap { raw } => write!(
                 f,
                 "Retry-After '{raw}' exceeds the {RETRY_AFTER_CAP_SECS}s product cap"
@@ -479,8 +484,63 @@ pub(crate) fn redirect_evidence(headers: &reqwest::header::HeaderMap) -> String 
     format!("<a redirect's body is not kept; it pointed to {target}>")
 }
 
-/// The `X-Rate-Limit-*` (+ `Retry-After`) headers as a JSON object, for
-/// logging, job payloads, and the dashboard.
+/// #113, a log line's words are values the daemon chose or parsed into
+/// its own types, never upstream text judged safe by its shape: the rate
+/// line a log or a refusal carries, rendered from `rate`, a
+/// [`rate_limit_snapshot`], through [`Policy::parse`] and
+/// [`parse_retry_after`]. The policy and rule names the parse accepted,
+/// each window's numbers, and the `Retry-After` the parse read; headers
+/// that do not parse are "unreadable rate headers" and never their text;
+/// none at all is "no rate headers". The snapshot itself, raw, stays the
+/// journal's and a job's payload (GGG's contract evidence).
+pub fn rate_words(rate: &serde_json::Value) -> String {
+    let get = |name: &str| rate.get(name).and_then(|v| v.as_str()).map(str::to_string);
+    let has_rate = rate
+        .as_object()
+        .is_some_and(|map| map.keys().any(|name| name.starts_with("x-rate-limit")));
+    let mut words = if !has_rate {
+        "no rate headers".to_string()
+    } else {
+        match Policy::parse(get) {
+            Ok(policy) => {
+                let rules: Vec<String> = policy
+                    .rules
+                    .iter()
+                    .map(|rule| {
+                        let windows: Vec<String> = rule
+                            .limits
+                            .iter()
+                            .zip(&rule.state)
+                            .map(|(limit, state)| {
+                                let held = if state.restricted_secs > 0 {
+                                    format!(", restricted {}s", state.restricted_secs)
+                                } else {
+                                    String::new()
+                                };
+                                format!(
+                                    "{}/{} per {}s{held}",
+                                    state.hits, limit.max_hits, limit.period_secs
+                                )
+                            })
+                            .collect();
+                        format!("{} {}", rule.name, windows.join(", "))
+                    })
+                    .collect();
+                format!("policy {}: {}", policy.name, rules.join("; "))
+            }
+            Err(_) => "unreadable rate headers".to_string(),
+        }
+    };
+    let retry_after = parse_retry_after(get);
+    if !matches!(retry_after, RetryAfter::Missing) {
+        words.push_str(&format!("; Retry-After {retry_after}"));
+    }
+    words
+}
+
+/// The `X-Rate-Limit-*` (+ `Retry-After`) headers as a JSON object, raw:
+/// for the journal, job payloads and the dashboard. A log line renders
+/// it through [`rate_words`].
 pub fn rate_limit_snapshot(headers: &reqwest::header::HeaderMap) -> serde_json::Value {
     let mut map = serde_json::Map::new();
     for (name, value) in headers {

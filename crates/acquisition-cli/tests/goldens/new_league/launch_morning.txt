@@ -210,7 +210,7 @@ $ acq refresh --apply --league Typo
 --- stdout
 applying 1 request as job <j7>
 job <j7> failed: 1 of 1 child jobs failed, 0 done
-  job <j8>  stashes Typo  GET /stash/Typo returned 404 Not Found; rate headers {}; body: {"error":"no such league"}
+  job <j8>  stashes Typo  GET /stash/Typo returned 404 Not Found; no rate headers; a body of 26 bytes
 changed: no items — 0 responses recorded, nothing added, changed, moved, or removed
 daemon log: <scratch>/logs/<world>/mock/daemon.log
 --- stderr

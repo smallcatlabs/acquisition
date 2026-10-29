@@ -862,13 +862,12 @@ async fn answer_callback(
                  tab; to try again, run <code>acq auth</code> from the terminal.</p>",
             )
             .await;
-            let description = req
-                .query
-                .get("error_description")
-                .map(|d| format!(": {d}"))
-                .unwrap_or_default();
+            // #113: the redirect's query is text the daemon received, and
+            // these words reach the log: its `error` as one of OAuth's
+            // codes, and never its free-text `error_description`.
             let _ = ended.try_send(Err(format!(
-                "the login was denied in the browser ({error}{description}); run `acq auth` to try again"
+                "the login was denied in the browser ({}); run `acq auth` to try again",
+                auth::oauth_error_words(error)
             )));
         }
         (None, None) => {
