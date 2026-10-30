@@ -264,12 +264,9 @@ fn c116_no_user_facing_text_cites_a_record_id() {
     }
     let mut files = Vec::new();
     sources(&root.join("crates"), &mut files);
-    // a test's source out of line, `tests.rs` or under `tests/`, is no
-    // binary's: the rule the contract revision's digest passes over by
     files.retain(|f| {
         f.components().any(|c| c.as_os_str() == "src")
             && !f.components().any(|c| c.as_os_str() == "tests")
-            && f.file_name().is_some_and(|n| n != "tests.rs")
     });
     files.sort();
     assert!(files.len() > 50, "the walk found {} sources", files.len());

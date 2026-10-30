@@ -28,9 +28,8 @@
 //! artifact's job.
 //!
 //! Which files of a source tree are hashed is the routine's rule, stated
-//! there: a closed list of kinds, a dotfile and a test's source passed
-//! over (`tests.rs`, or under a `tests` directory: a store test edit
-//! moves no revision), any other file a stop.
+//! there: a closed list of kinds, a dotfile passed over, any other file
+//! a stop.
 //!
 //! The routine is `digest.rs`, included here and by the search crate's
 //! build script, which names a build by the same rule

@@ -5,12 +5,7 @@
 // The inputs are paths relative to the workspace root, files or
 // directories, hashed as `path NUL length NUL bytes` in sorted path
 // order under a domain prefix; the first twelve hex digits of the
-// SHA-256 are the digest. Every file hashed is a `rerun-if-changed`, one
-// by one: cargo reads a directory there as every file under it, and a
-// rerun recompiles the crate whatever it prints, so a directory would
-// bring back each edit the rules below pass over. A file added beside
-// them is seen at the next rerun; to be read by a build it is declared,
-// or included, in a file already hashed, whose edit is that rerun.
+// SHA-256 are the digest. Every input is a `rerun-if-changed`.
 //
 // Which files of a directory (the owner, 2026-10-10: "yes"): a closed
 // list of kinds, `KINDS`, the ones a build reads. A dotfile is passed
@@ -21,14 +16,6 @@
 // source is never left out in silence, which would name two trees one
 // way. Git is not consulted: an untracked file of a listed kind is in,
 // being a difference in the tree that is built.
-//
-// A test's source is passed over too: under a directory input, a file
-// named `tests.rs` and anything under a directory named `tests`, the
-// shape a `#[cfg(test)] mod` takes out of line. A library compiled for a
-// peer never reads one, so it cannot change what the digest names, and
-// a test edit moves no digest and recompiles nothing above its crate
-// (t4, `roadmap/briefs/t4-compile-cost.md`). The rule is the path, not
-// a parse: a test kept inline is hashed with its file.
 
 use std::path::{Path, PathBuf};
 
@@ -40,25 +27,19 @@ pub(crate) fn digest(prefix: &[u8], inputs: &[&str]) -> String {
         .join("../..")
         .canonicalize()
         .expect("workspace root");
-    for file in files_under(&root, inputs) {
-        println!("cargo:rerun-if-changed={}", file.display());
+    for input in inputs {
+        println!("cargo:rerun-if-changed={}", root.join(input).display());
     }
     digest_under(&root, prefix, inputs)
 }
 
-/// The files the digest of `inputs` under `root` is of, sorted.
-fn files_under(root: &Path, inputs: &[&str]) -> Vec<PathBuf> {
+/// The digest of `inputs` under `root`: a pure function of the files.
+pub(crate) fn digest_under(root: &Path, prefix: &[u8], inputs: &[&str]) -> String {
     let mut files: Vec<PathBuf> = Vec::new();
     for input in inputs {
         collect(&root.join(input), &mut files);
     }
     files.sort();
-    files
-}
-
-/// The digest of `inputs` under `root`: a pure function of the files.
-pub(crate) fn digest_under(root: &Path, prefix: &[u8], inputs: &[&str]) -> String {
-    let files = files_under(root, inputs);
     let mut hasher = Sha256::new();
     hasher.update(prefix);
     hasher.update([0]);
@@ -86,18 +67,7 @@ pub(crate) fn digest_under(root: &Path, prefix: &[u8], inputs: &[&str]) -> Strin
 /// The kinds of file a digest is of, by extension.
 const KINDS: &[&str] = &["rs", "toml", "lock", "sql", "json", "txt"];
 
-/// Whether an entry of a directory input is a test's source (the header).
-fn is_test_source(entry: &Path) -> bool {
-    let name = entry.file_name().and_then(|n| n.to_str()).unwrap_or_default();
-    if entry.is_dir() {
-        name == "tests"
-    } else {
-        name == "tests.rs"
-    }
-}
-
-/// Every file of a listed kind under `path` (itself, if it is one), less
-/// a test's source below it.
+/// Every file of a listed kind under `path` (itself, if it is one).
 fn collect(path: &Path, out: &mut Vec<PathBuf>) {
     if path.is_dir() {
         let mut entries: Vec<PathBuf> = std::fs::read_dir(path)
@@ -106,9 +76,7 @@ fn collect(path: &Path, out: &mut Vec<PathBuf>) {
             .collect();
         entries.sort();
         for entry in entries {
-            if !is_test_source(&entry) {
-                collect(&entry, out);
-            }
+            collect(&entry, out);
         }
     } else if path.is_file() {
         let name = path.file_name().and_then(|n| n.to_str()).unwrap_or_default();

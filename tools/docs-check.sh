@@ -288,10 +288,8 @@ fi
 # home; the README is the users' (2026-10-19, the release seat's fix
 # round, when three such rows left it). The convention a test-only file
 # of `src/` follows: it lives under a `tests/` directory, as
-# `ratelimit.rs` includes `ratelimit/tests/spec.rs`, or is a `tests.rs`,
-# as `annotations.rs` includes `annotations/tests.rs`, so this check
-# skips it by its path; the contract revision's digest passes over the
-# same files by the same rule (`acquisition-protocol/digest.rs`). The `#[cfg(test)] mod name;` line that includes it is
+# `ratelimit.rs` includes `ratelimit/tests/spec.rs`, so this check skips
+# it by its path. The `#[cfg(test)] mod name;` line that includes it is
 # not resolved to a file (#118, which `ACQ_CASES` met in a test-only
 # `src/generated.rs`), and the refusal names the convention.
 tour_bad=$(awk '/^```sh/{f=1; prev=""; next} /^```/{f=0; next} f{ if ($0 ~ /^[[:space:]]*#/ && prev !~ /^[[:space:]]*$/) print "        line "NR": "$0; prev=$0 }' README.md)
@@ -301,7 +299,7 @@ if [[ -n $tour_bad ]]; then
 else
   echo "ok      tour          one line per verb"
 fi
-code_knobs=$(find crates -name '*.rs' -not -path '*/tests/*' -not -name tests.rs -not -path '*/target/*' -exec awk '
+code_knobs=$(find crates -name '*.rs' -not -path '*/tests/*' -not -path '*/target/*' -exec awk '
     FNR == 1 { skip = 0; attr = 0 }
     attr { attr = 0; if ($0 ~ /;[[:space:]]*$/) next; skip = 1; next }
     /^#\[cfg\(test\)\]/ { attr = 1; next }
@@ -312,7 +310,7 @@ code_knobs=$(find crates -name '*.rs' -not -path '*/tests/*' -not -name tests.rs
 readme_knobs=$(grep -oE 'ACQ_[A-Z_]+' README.md | sort -u)
 missing_knobs=$(comm -23 <(printf '%s\n' "$code_knobs") <(printf '%s\n' "$readme_knobs") | tr '\n' ' ')
 if [[ -n $missing_knobs ]]; then
-  printf 'KNOB    %-18s read in the crates, no row in the knob table: %s— a knob a build ships has a row; a knob only tests read is read in a test-only file, which lives under a tests/ directory or is a tests.rs\n' README.md "$missing_knobs"
+  printf 'KNOB    %-18s read in the crates, no row in the knob table: %s— a knob a build ships has a row; a knob only tests read is read in a test-only file, which lives under a tests/ directory\n' README.md "$missing_knobs"
   fail=1
 else
   echo "ok      knobs         every ACQ_* the crates read has a README row"
