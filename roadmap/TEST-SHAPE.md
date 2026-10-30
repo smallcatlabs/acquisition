@@ -42,6 +42,12 @@ time from an edit to green:
 - **Inline tests triple a library's compile.** The daemon, the store
   and the plan keep 7k to 18k lines of tests inside `src/`, so every
   library compile pays for them, and so does every crate above.
+  Corrected 2026-10-30 (t4, #140): a plain library compiles none of
+  its `#[cfg(test)]` modules, so no library and no crate above it pays
+  for them; what they cost is their crate's test unit, and that a test
+  edit was an edit of a library file and of the contract revision's
+  digest, which rebuilt every crate above. The store's and the plan's
+  now live in `unit/tests/`, and a test edit rebuilds one unit.
 - **A store test edit moves the contract revision.** The protocol
   crate's build script hashes the store's whole `src/`, tests
   included, so an edit to a store unit test recompiles the protocol

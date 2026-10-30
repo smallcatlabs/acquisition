@@ -154,6 +154,12 @@ the test-shape group (`roadmap/TEST-SHAPE.md`, #137 to #143) moves it:
   moves the fixture worlds to one canonical world and the short
   goldens into a few long transcripts.
 
+The store's and the plan's unit tests live in `crates/<crate>/unit/tests/`,
+each declared from `src/` by `#[cfg(test)]` and a `#[path]`, outside
+the `src/` the contract revision and the search's build name digest,
+so a test edit rebuilds only its crate's test unit (t4, #140); a new
+test module follows its neighbours there.
+
 A behaviour is pinned once, at the lowest crate that holds it, and a
 frontend's tests pin what its adapter adds (C122). A surface's wording
 is held by one golden; a sentence literal elsewhere asserts only what

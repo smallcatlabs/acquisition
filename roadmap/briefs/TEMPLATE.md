@@ -58,7 +58,12 @@ green is always one of them, on the step's own tree: a step never
 needs what a later step delivers. A number or a literal in a line is
 measured on the tree the brief is written against, or the line says
 the build measures it: 2e's brief said fourteen tabs where the empty
-league lists seven, and a grep whose literal the fix changed.
+league lists seven, and a grep whose literal the fix changed. A
+measurement brief's done-when names the production edit and the test
+edit apart: t4's one "store touch" read a library edit, which its
+changes could not speed, against a test edit, which they did. A step
+comparing gate-length runs interleaves them A/B or names its tolerance
+before the first: t4's two runs of one gate differed by 22 s.
 A fix round's done-when is its own, not the brief's: each finding of
 the review it answers fixed by one rule and pinned, or named as not
 taken and why, and the gate green on the round's tree. Execution
@@ -86,6 +91,11 @@ instead.
   breaker case in the commit of the check it stages: step 1e ran the
   full gate eight times for that. A brief that wants a test seen
   failing first asks for it in the report, not the history.
+- A worker may rewrite its own unpushed commits, never by a reset: the
+  new commits made with `git commit-tree`, then `git update-ref <ref>
+  <new> <old>`, which refuses if the branch moved, the working tree
+  untouched, and each rewritten commit checked to compile (t4's three
+  commits carrying a staged rename that belonged to a later one).
 - Each concern may commit after its own targeted tests; the one full
   gate runs on the step's tree before the "built" commit, and that
   commit waits on its exit status.

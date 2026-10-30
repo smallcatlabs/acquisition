@@ -120,6 +120,20 @@ Each in his words, with the commit that landed it.
   is in the close for the owner's later read. A retirement outside the
   lists, or one without a holder, waits for his word (the commit
   carrying this line).
+- 2026-10-30, #140's incremental build (`briefs/t4-compile-cost.md`,
+  Do 2): "Yes, adopt." `[profile.dev]` sets `incremental = true`, with
+  occasional manual cleanups (`cargo clean` after each compiler
+  upgrade) and no automated sweep in the gate. The full gate after one
+  store touch 62.90 and 62.89 s wall on, against 145.85 and 167.91 s
+  off; the target directory 27G to 34G, 5.0G of it
+  `target/debug/incremental`. CI builds without it: `Swatinem/rust-cache`
+  sets `CARGO_INCREMENTAL=0` (the commit carrying this line).
+- 2026-10-30, #140's three environment binaries (Do 5): "don't fold."
+  `daemon_stalled`, `watch_recovery` and `plan_loop` stay their own
+  binaries, keeping the `cargo test` fallback's isolation. Their
+  compile 43.5 CPU-s; touch and the workspace's nextest run 139.74 and
+  140.57 s wall unfolded, 138.15 and 135.49 folded, 1391 tests either
+  way (the commit carrying this line).
 
 ## Roles
 
@@ -292,8 +306,8 @@ without a re-run. Between sittings, the test-shape group's first
 tranche ("Pull-forward", item 2), the orchestrator proceeding on its
 own judgment as that item says. t1 (#137) closed on 2026-10-29
 (`LEDGER.md`), and t2 (#138) the same day; t3 (#139) closed undone
-on 2026-10-30; t4 (#140, the compile cost) built on 2026-10-30, its
-review pending, with two rulings for the owner in its report: the
-incremental build (faster, and a larger target directory) and the fold
-of the three environment binaries. `AGENTS.md`
+on 2026-10-30, and t4 (#140, the compile cost) the same day
+(`LEDGER.md`): the first tranche is done. Its second, t5 to t7, is
+phase 4's. The group's review rule is due for its revisit at this
+tranche's close; the orchestrator brings it to the owner. `AGENTS.md`
 governs; the gate is `tools/gate.sh`.
