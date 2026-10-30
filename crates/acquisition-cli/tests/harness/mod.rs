@@ -126,25 +126,18 @@ pub fn start_daemon_with(base: &Path, env: &[(&str, &str)]) -> (Proc, u64) {
 /// another command spawned. Held after the scratch, so it drops first. A
 /// stop with no daemon to stop is nothing.
 ///
-/// After the stop the guard counts what is left by the harness's own
-/// accounting, the endpoints bound under the test's scratch runtime
+/// After the stop the guard counts what is left, once, by the harness's
+/// own accounting, the endpoints bound under the test's scratch runtime
 /// directory ([`sockets_under`]): a daemon's socket derives from its
 /// world into that directory and nothing else binds there (C83). The
-/// stop waits for the daemon's connection to close, for at most the
-/// client's `STOPPED_WITHIN` (20 s), and returns success past that bound
-/// all the same. On Unix the daemon removes its socket before it exits,
-/// so the first look finds it gone; on Windows a pipe's name lasts until
-/// the system has closed the last handle of the ended process, which can
-/// come after the stop's own connection ends (#125's Windows run
-/// 40886043255, two stops returned in seconds with the pipe still
-/// listed). So the guard looks again until the endpoints are gone, for at
-/// most `STOPPED_WITHIN` more: a liveness bound on a path that takes
-/// milliseconds, never the assertion (C137), and a daemon that stayed is
-/// still named when it passes. It counts endpoints, not processes: a
-/// daemon that removed its endpoint and lingered would not be seen. One
-/// left fails a test that is not already failing, naming it; a failing
-/// one prints it beside the failure, since a second panic in a drop
-/// aborts.
+/// stop returns once the daemon's connection has ended and its endpoint
+/// is gone, for at most the client's `STOPPED_WITHIN` (20 s), and
+/// returns success past that bound all the same
+/// (`acquisition_client::client::Stopped::Gone`, #130). It counts
+/// endpoints, not processes: a daemon that removed its endpoint and
+/// lingered would not be seen. One left fails a test that is not
+/// already failing, naming it; a failing one prints it beside the
+/// failure, since a second panic in a drop aborts.
 #[must_use = "the guard stops the daemon its login started when the test ends; \
               bind it to a named local, or drop it where the test says why"]
 pub struct StopOnDrop(Option<PathBuf>);
@@ -159,14 +152,7 @@ impl Drop for StopOnDrop {
             return;
         };
         let _ = acq(base, &["daemon", "stop"]);
-        let deadline = std::time::Instant::now() + acquisition_client::client::STOPPED_WITHIN;
-        let left = loop {
-            let left = sockets_under(&scratch_tmp(base));
-            if left.is_empty() || std::time::Instant::now() >= deadline {
-                break left;
-            }
-            std::thread::sleep(std::time::Duration::from_millis(50));
-        };
+        let left = sockets_under(&scratch_tmp(base));
         if left.is_empty() {
             return;
         }
