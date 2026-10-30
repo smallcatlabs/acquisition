@@ -625,7 +625,7 @@ impl fmt::Display for ConnectError {
                         )?,
                         Some(Ok(Stopped::Acknowledged)) => write!(
                             f,
-                            "; the daemon this client started acknowledged a stop but had not exited within {}s, so it may still be running: `acq daemon stop` stops it",
+                            "; the daemon this client started acknowledged a stop but did not confirm its exit within {}s, so it may still be running: `acq daemon stop` stops it",
                             STOPPED_WITHIN.as_secs()
                         )?,
                         Some(Err(error)) => write!(
@@ -2248,7 +2248,9 @@ mod tests {
         };
         let lingered = words(Stopped::Acknowledged);
         assert!(
-            !lingered.contains("none is left running") && lingered.contains("acq daemon stop"),
+            !lingered.contains("none is left running")
+                && lingered.contains("did not confirm its exit")
+                && lingered.contains("acq daemon stop"),
             "{lingered}"
         );
         assert!(words(Stopped::Gone).contains("none is left running"));
