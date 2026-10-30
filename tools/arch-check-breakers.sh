@@ -100,6 +100,10 @@ shadow_meta() { tool "$META_CMD" "if ! cat \"$1\" >\"\$meta\"; then"; }   # a fi
 
 # ---- the harness -----------------------------------------------------------
 pass=0; failed=0
+# The refusal's first line, cut to 90 characters, never inside one: `cut -c`
+# cuts bytes under the C locale, and half an em dash made the saved output
+# binary to grep (tools hygiene's report).
+clip() { python3 -Ic 'import sys; print(sys.stdin.readline().rstrip("\n")[:90])'; }
 run_case() {  # run_case <name> <refuse|pass> <pattern the output must contain> <setup...>
   local name=$1 want=$2 pattern=$3; shift 3
   local out status verdict
@@ -112,7 +116,7 @@ run_case() {  # run_case <name> <refuse|pass> <pattern the output must contain> 
   out=$(tools/arch-check.sh 2>&1); status=$?
   if [[ $want == refuse && $status -ne 0 && $out == *"$pattern"* ]] \
      || [[ $want == pass && $status -eq 0 && $out == *"$pattern"* ]]; then
-    printf 'ok      %-52s %s: %s\n' "$name" "$want" "$(grep -m1 -F "$pattern" <<<"$out" | cut -c1-90)"; pass=$((pass+1))
+    printf 'ok      %-52s %s: %s\n' "$name" "$want" "$(grep -m1 -F "$pattern" <<<"$out" | clip)"; pass=$((pass+1))
   else
     printf 'FAIL    %-52s wanted %s with "%s"; exit %d, got:\n%s\n' "$name" "$want" "$pattern" "$status" "$(grep -E 'EDGE|GROUP|LAYOUT|dependencies|layout' <<<"$out" | sed 's/^/          /')"
     failed=$((failed+1))
