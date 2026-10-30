@@ -6,7 +6,8 @@
 #                                 change no test or build reads, which the
 #                                 session establishes; when unsure, the
 #                                 full gate
-#   tools/gate.sh --only <stage>  one stage, by the name in the table
+#   tools/gate.sh --only <stage>  one stage, by the name in the table, or
+#                                 doc, which CI runs
 #
 # Each stage runs bare, its output unfiltered, and its exit status is
 # captured into its own slot: a stage piped through a filter reports the
@@ -69,6 +70,11 @@
 # variable and unsets it before any stage of any selection, so no stage
 # rewrites a golden, and the stage fails naming it.
 #
+# The doc stage, `cargo doc` with warnings denied, is not in the full
+# list: 80 s after any edit, serial, and the Linux gate's `doc` job runs
+# it on every push (the owner's ruling of 2026-10-29, `roadmap/README.md`).
+# `--only doc` runs it here.
+#
 # The full gate ends with `tree`: the working tree its stages leave must
 # be the one they found (#87). A session gates its uncommitted work, so
 # the stage compares the tree before the first stage with the tree after
@@ -84,7 +90,8 @@ fixture_switch=${ACQ_UPDATE_FIXTURES+set}
 fixture_value=${ACQ_UPDATE_FIXTURES-}
 unset ACQ_UPDATE_FIXTURES
 
-names=(fixtures build test clippy winclippy fmt diff docs arch trade bothy features doc artifacts tree)
+names=(fixtures build test clippy winclippy fmt diff docs arch trade bothy features artifacts tree)
+ONLY=(doc)   # selectable by --only, never in the full list
 DOCS=(diff docs arch trade bothy)
 
 # The `artifacts` stage (the header): what the stages before it left
@@ -297,16 +304,16 @@ run_stage() {
   esac
 }
 
-usage() { sed -n '4,9p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '4,10p' "$0" | sed 's/^# \{0,1\}//'; }
 
 selected=()
 case ${1:-} in
   '') selected=("${names[@]}") ;;
   --docs) selected=("${DOCS[@]}") ;;
   --only)
-    for name in "${names[@]}"; do [[ ${2:-} == "$name" ]] && selected=("$2"); done
+    for name in "${names[@]}" "${ONLY[@]}"; do [[ ${2:-} == "$name" ]] && selected=("$2"); done
     if ((${#selected[@]} == 0)); then
-      echo "gate.sh: --only takes one of: ${names[*]}" >&2; exit 2
+      echo "gate.sh: --only takes one of: ${names[*]} ${ONLY[*]}" >&2; exit 2
     fi ;;
   -h | --help) usage; exit 0 ;;
   *) usage >&2; exit 2 ;;

@@ -143,6 +143,25 @@ jobs:
         if: ${{ !cancelled() }}
         run: python3 -I tools/bothy.py check
 
+  # The doc stage (`tools/gate.sh --only doc`, `cargo doc` with warnings
+  # denied), beside the gate job, not in it: 80 s after any edit, serial,
+  # so the local full gate leaves it here, the one place it runs on every
+  # push (the owner's ruling of 2026-10-29, `roadmap/README.md`).
+  doc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install the pinned toolchain
+        run: rustup toolchain install
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: .
+
+      - name: The doc stage
+        run: tools/gate.sh --only doc
+
   # The checks' own breakers: each breaks what a check guards and requires
   # the check to refuse it by name, so a check that stopped refusing — one
   # that passes everything — fails here. Beside the gate, not in it: they

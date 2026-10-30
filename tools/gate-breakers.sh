@@ -102,6 +102,9 @@ gate=tools/gate.sh
 echo '== a stage the gate does not know'
 run_case 'an unknown stage under --only'                         refuse '--only takes one of: fixtures' none $gate --only bogus
 run_case 'an unknown flag'                                       refuse 'tools/gate.sh --only <stage>'  none $gate --bogus
+# The doc stage left the full list for CI and stays selectable here.
+doc_is_quick() { stage_does doc true; }
+run_case 'the doc stage under --only'                            pass   'gate: green'  doc_is_quick $gate --only doc
 
 echo '== the fixture switch: set at any value, the gate refuses (#87)'
 FX='ACQ_UPDATE_FIXTURES is set in this shell'
