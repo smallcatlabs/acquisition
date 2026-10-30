@@ -530,7 +530,12 @@ async fn c137_an_observe_request_under_the_deadline_at_zero_is_refused_naming_th
             req
         }
 
-        /// Read to EOF (the client has hung up): the whole transcript.
+        /// Read to EOF (the client has hung up): the whole transcript. A
+        /// reset is that hang-up too (#144): a Unix socket reports the
+        /// client closing with bytes it never read, this peer's answers,
+        /// as `ConnectionReset`, and `ConnectionAborted` is its Windows
+        /// twin. Whether the client should drain before it closes is the
+        /// daemon area's question, not this peer's.
         async fn read_to_eof(mut self) -> Vec<String> {
             loop {
                 match read_frame(&mut self.reader, MAX_FRAME_BYTES).await {
@@ -540,6 +545,15 @@ async fn c137_an_observe_request_under_the_deadline_at_zero_is_refused_naming_th
                             .push(frame["req"].as_str().unwrap_or("?").to_string());
                     }
                     Ok(Frame::Closed) => return self.transcript,
+                    Err(e)
+                        if matches!(
+                            e.kind(),
+                            std::io::ErrorKind::ConnectionReset
+                                | std::io::ErrorKind::ConnectionAborted
+                        ) =>
+                    {
+                        return self.transcript;
+                    }
                     other => panic!("the peer's read after the hang-up: {other:?}"),
                 }
             }
