@@ -36,12 +36,16 @@
 //!   doubling it (C83, C132) is taken in `run` (`start.rs`) before the log
 //!   directory is made, the log rotated or opened, or anything sends,
 //!   whatever the root — a refused contender may append its refusal to an
-//!   existing log afterward. Every persisted account is restored as a live
-//!   session at start. Limiter and probe scope keying is a **precondition
-//!   of the session map, not an optimization**: with two live sessions on
-//!   one policy each response would overwrite shared state with a
-//!   different account's counters, and the next send from the other
-//!   account floods (a 429 path). As built: the endpoint key is
+//!   existing log afterward. GGG counts `Account` rules per account (rung
+//!   11, 2026-08-30), so two accounts never contend on the policies'
+//!   counters (ground truth's layer 2): what they share is the per-IP
+//!   Cloudflare bound (layer 1) and the `Ip`-scoped token endpoint, which
+//!   is what the single gate exists for. Every persisted account is
+//!   restored as a live session at start. Limiter and probe scope keying
+//!   is a **precondition of the session map, not an optimization**: with
+//!   two live sessions on one policy each response would overwrite shared
+//!   state with a different account's counters, and the next send from
+//!   the other account floods (a 429 path). As built: the endpoint key is
 //!   `route@account`; a policy's state is keyed `name@account` only when
 //!   *every* rule of the policy is `Account`-scoped and the send had an
 //!   account — `Ip` rules, mixed scopes, and accountless sends share the

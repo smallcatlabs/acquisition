@@ -7,7 +7,9 @@
 //!
 //! - **C6** (the job queue persists): the table is `daemon.db`'s `jobs`, in
 //!   the provider's store directory beside the account files (the store's
-//!   `jobs.rs`). Besides a `result` for an id this lifetime never held, the
+//!   `jobs.rs`); SQLite because it is the store crate's one persistence
+//!   idiom, debuggable with `sqlite3`, and readable by a frontend with no
+//!   daemon. Besides a `result` for an id this lifetime never held, the
 //!   table answers `status`, `result` and the job list for a tree that has
 //!   left memory (`Daemon::evict_tree`). What each open row comes back as
 //!   at start is `restore_jobs`'s doc. Ids continue from the table's
@@ -38,10 +40,12 @@
 //!   cancelled, `ACQ_FAILED_JOB_RETENTION_DAYS` (default 30) for failed,
 //!   misread values logged as `CONFIG` errors like the rails knobs
 //!   (`start.rs`). Outcomes are stored verbatim, bodies included (a full
-//!   refresh is ~50 MB, bounded by retention). The world lock (C83,
-//!   `<root>/daemon.lock`, `acquisition_store::world::Lock`) is taken
-//!   before `daemon.db` opens, and a daemon that cannot take it refuses to
-//!   start naming the holder.
+//!   refresh is ~50 MB, bounded by retention), and uncompressed:
+//!   compression would cost a crate and make the column unreadable in
+//!   `sqlite3`, and compressing one column later is a local change. The
+//!   world lock (C83, `<root>/daemon.lock`,
+//!   `acquisition_store::world::Lock`) is taken before `daemon.db` opens,
+//!   and a daemon that cannot take it refuses to start naming the holder.
 
 use super::*;
 

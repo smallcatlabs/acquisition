@@ -44,6 +44,25 @@
 //!   events`: the text default is the per-location summary, the JSON
 //!   default stays the event list (what the driver reads); `--summary` and
 //!   `--expand` select either form in both modes.
+//!
+//! Considered and rejected, each with its reason:
+//!
+//! - A `summary` block in the plan envelope: a schema bump and one more
+//!   derived quantity to validate, for presentation; `--plan=FILE` makes
+//!   the text a function of the JSON without touching the envelope.
+//! - Counting everything, no threshold: a five-tab plan reads better
+//!   listed than counted, and a stated threshold keeps the shape
+//!   predictable.
+//! - Names without ids in the expanded character lines: ids are what a
+//!   policy names; the default view drops them by counting.
+//! - The events JSON defaulting to the summary: the driver reads the
+//!   array and holds an explicit limit on it.
+//! - Colour or other decoration: captured output is the common case.
+//! - A `--quiet` driver: its problem was repetition, not volume.
+//! - A store-side event summary function: the event list is grouped above
+//!   the store, with the reads a frontend has; the grouping moved to the
+//!   shared layer (`acquisition_verbs::events::summary`) once the MCP, the
+//!   second consumer, asked for it.
 
 use std::collections::BTreeMap;
 
