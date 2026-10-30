@@ -269,6 +269,7 @@ hygiene. The first, daemon-safety (#113, #116, #110), closed on
 the owner's league run, at his word; #70 closes on a week of pushes
 without a re-run. Between sittings, the test-shape group's first
 tranche ("Pull-forward", item 2), the orchestrator proceeding on its
-own judgment as that item says. t1 (#137, `briefs/t1-stopping-rules.md`)
-waits at Do 1, its three rulings, for the owner's word. `AGENTS.md` governs; the gate is
+own judgment as that item says. t1 (#137) closed on 2026-10-29
+(`LEDGER.md`); next t2 (#138), whose Do 1 is the owner's (the gate's
+stage list), in a machine window he names. `AGENTS.md` governs; the gate is
 `tools/gate.sh`.
