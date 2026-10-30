@@ -105,6 +105,15 @@ Each in his words, with the commit that landed it.
   AGENTS.md budget as needed for the duration of this work"; taken as
   16,300 bytes and, under the same word, the cross-cutting count from
   16 to 18 (the commit carrying this line).
+- 2026-10-29, #138's gate (`briefs/t2-gate-trims.md`, Do 1): "Accept
+  as recommended." The doc stage leaves the full gate's list for a
+  parallel job in `gate-linux.yml`, `--only doc` kept; `fixtures`
+  retired with the unset kept; `artifacts` retired, held by
+  `features` and the binaries' feature pins, with the Build order
+  rule's words in `AGENTS.md` following it; `--all-features` kept,
+  since it costs nothing and is the flag wanted the day a crate
+  declares a feature. No registry entry: it is process (the commit
+  carrying this line).
 
 ## Roles
 
@@ -270,6 +279,6 @@ the owner's league run, at his word; #70 closes on a week of pushes
 without a re-run. Between sittings, the test-shape group's first
 tranche ("Pull-forward", item 2), the orchestrator proceeding on its
 own judgment as that item says. t1 (#137) closed on 2026-10-29
-(`LEDGER.md`); next t2 (#138), whose Do 1 is the owner's (the gate's
-stage list), in a machine window he names. `AGENTS.md` governs; the gate is
+(`LEDGER.md`); next t2 (#138, `briefs/t2-gate-trims.md`), its gate
+ruled, waiting for a machine window the owner names. `AGENTS.md` governs; the gate is
 `tools/gate.sh`.
