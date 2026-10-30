@@ -132,9 +132,8 @@ jobs:
       # The plain build's feature graph against the test build's, on every
       # target the release builds, read from cargo's graph and building
       # nothing: a dependency bump that would make a test run write
-      # another binary (C84) is red here on its own pull request, where
-      # the local gate's `artifacts` stage, which CI does not run, sees
-      # only the host it runs on (#128).
+      # another binary (C84) is red here on its own pull request, on
+      # every release target, not only the host a session gates on (#128).
       - name: The feature graphs
         if: ${{ !cancelled() }}
         run: tools/gate.sh --only features

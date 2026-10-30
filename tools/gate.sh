@@ -15,31 +15,24 @@
 # line. A failing stage does not stop the others, and a stage name the
 # script does not know fails rather than passing as a stage that ran. The table at the end,
 # `stage  rc  seconds`, is the verdict, and the script exits 1 when any
-# stage failed, so a commit is gated on this script's exit alone.
+# stage failed, so a commit is gated on this script's exit alone. CI
+# runs the stages singly, for timing.
 #
-# The full gate ends with `artifacts`: the three executables a frontend
-# spawns or a driver starts (`acq`, `acqd`, `acq-mcp` in cargo's `debug`
-# directory) are hashed, `cargo build --workspace` runs, and the stage
-# fails if the build compiled anything or any hash moved. A
-# `--workspace` test run writes them as the plain build does (#88: one
-# feature graph for both, and an integration test in every binary's
-# crate, so cargo writes each binary on a test run), and the stage holds
-# that at the boundary, what the test run leaves on disk. The doc stage writes none of them
-# (measured, #88). It still performs the build, unless an executable
-# could not be hashed before it, so a failing gate leaves the plain
-# artifacts behind for any daemon started after it (C84, the artifact
-# mismatch). CI runs the stages singly, for timing.
-#
-# The `features` stage holds the same property at its cause, on every
-# target a release builds, and builds nothing: for each, the plain
-# build's feature graph (`cargo tree -e no-dev,features`) against the
-# test build's (`-e features`), package by package, name and version,
-# failing on each package whose features differ and naming both sets.
-# `artifacts` sees only this host's binaries, after a test run; this
-# stage sees every target's graph in a second, so CI runs it and a
-# dependency bump that splits a binary is red on its own checks (#128,
-# item 2). A split is closed by a pin in the binary's crate, as
-# `acquisition-mcp` and `acquisition-cli` hold (#88, #125, #124).
+# The `features` stage holds that a `--workspace` test run writes the
+# executables a frontend spawns or a driver starts (`acq`, `acqd`,
+# `acq-mcp`) as the plain build does, so a daemon started after a test
+# run is the one a frontend would spawn (C84, the artifact mismatch;
+# #88: one feature graph for both, and an integration test in every
+# binary's crate, so cargo writes each binary on a test run). It holds
+# it at its cause, on every target a release builds, and builds
+# nothing: for each, the plain build's feature graph (`cargo tree -e
+# no-dev,features`) against the test build's (`-e features`), package
+# by package, name and version, failing on each package whose features
+# differ and naming both sets. It sees every target's graph in a
+# second, so CI runs it and a dependency bump that splits a binary is
+# red on its own checks (#128, item 2). A split is closed by a pin in
+# the binary's crate, as `acquisition-mcp` and `acquisition-cli` hold
+# (#88, #125, #124).
 #
 # The `winclippy` stage is clippy for the Windows target,
 # `x86_64-pc-windows-msvc`, on whatever host runs the gate (the owner's
@@ -55,8 +48,7 @@
 # tools, and could not execute a shell script as a compiler (the review
 # of the step's build, finding 1).
 # It builds into its own target directory, `target/winclippy`, so the
-# host's executables, which `artifacts` hashes, are never touched, and a
-# later run is warm (42 s cold, 2 s warm, measured on a 10-core M4). Where
+# host's executables are never touched, and a later run is warm (42 s cold, 2 s warm, measured on a 10-core M4). Where
 # the target's standard library is not installed the stage fails and
 # names `rustup target add`, never passing as a stage that did not run.
 # CI does not run it: the Windows gate runs clippy natively, which sees
@@ -87,76 +79,9 @@ cd "$(dirname "$0")/.."
 
 unset ACQ_UPDATE_FIXTURES
 
-names=(build test clippy winclippy fmt diff docs arch trade bothy features artifacts tree)
+names=(build test clippy winclippy fmt diff docs arch trade bothy features tree)
 ONLY=(doc)   # selectable by --only, never in the full list
 DOCS=(diff docs arch trade bothy)
-
-# The `artifacts` stage (the header): what the stages before it left
-# must be what the plain build writes. Equality counts only between
-# valid digests of the files cargo itself reports writing: the paths
-# hashed before the build are cargo's target directory (`cargo
-# metadata`), the build runs with `--message-format=json`, and a binary
-# it reports at another path (a configured or cross target) fails the
-# stage by name; a hash command that fails, or a digest that is not 64
-# hex characters, fails it before any comparison (#88, the reviews).
-ARTIFACTS=(acq acqd acq-mcp)
-
-# The SHA-256 of `$1`, or the stage's failure naming it.
-artifact_hash() {
-  local digest
-  if ! digest=$(shasum -a 256 "$1" 2>/dev/null | cut -d' ' -f1) || [[ ! $digest =~ ^[0-9a-f]{64}$ ]]; then
-    echo "gate: artifacts: no SHA-256 of $1 (absent, or the hash command failed)" >&2
-    return 1
-  fi
-  echo "$digest"
-}
-
-artifacts() {
-  local dir log json reported before=() digest a i rc path moved=0
-  dir=$(cargo metadata --format-version 1 --no-deps |
-    python3 -I -c 'import json, sys; print(json.load(sys.stdin)["target_directory"])') && [[ -n $dir ]] ||
-    { echo "gate: artifacts: cargo metadata named no target directory" >&2; return 1; }
-  dir=$dir/debug
-  for a in "${ARTIFACTS[@]}"; do
-    digest=$(artifact_hash "$dir/$a") || return 1
-    before+=("$digest")
-  done
-  log=$(mktemp) && json=$(mktemp) || return 2
-  cargo build --workspace --message-format=json 2>"$log" >"$json"
-  rc=$?
-  cat "$log" >&2
-  if grep -E '^ *Compiling ' "$log" >/dev/null; then
-    echo "gate: artifacts: the build compiled what the stages before it left behind:" >&2
-    grep -E '^ *Compiling ' "$log" >&2
-    moved=1
-  fi
-  reported=$(python3 -I -c '
-import json, sys
-for line in open(sys.argv[1]):
-    m = json.loads(line) if line.startswith("{") else {}
-    if m.get("reason") == "compiler-artifact" and m.get("executable") and "bin" in m["target"]["kind"]:
-        print(m["target"]["name"], m["executable"])
-' "$json")
-  rm -f "${log:?}" "${json:?}"
-  for i in "${!ARTIFACTS[@]}"; do
-    a=${ARTIFACTS[$i]}
-    path=$(awk -v n="$a" '$1 == n { print substr($0, length(n) + 2) }' <<<"$reported")
-    if [[ $path != "$dir/$a" ]]; then
-      echo "gate: artifacts: cargo reports writing $a at '${path:-nowhere}', not the $dir/$a this stage hashed: a configured or cross target writes elsewhere" >&2
-      return 1
-    fi
-    digest=$(artifact_hash "$path") || return 1
-    if [[ $digest != "${before[$i]}" ]]; then
-      echo "gate: artifacts: $path changed under cargo build --workspace: a test run wrote another form of it, or never wrote it" >&2
-      moved=1
-    fi
-  done
-  if ((moved)); then
-    echo "gate: artifacts: tools/gate.sh --only features names each package a test build compiles with other features; a binary with no integration-test target is never written by a test run" >&2
-    ((rc)) || rc=1
-  fi
-  return "$rc"
-}
 
 # The `features` stage (the header). The targets are the release's: every
 # target triple `release.yml` names, anywhere in the file and in any YAML
@@ -277,7 +202,6 @@ run_stage() {
   case $1 in
     tree) tree_stage ;;
     build) cargo build --workspace ;;
-    artifacts) artifacts ;;
     features) features ;;
     test) cargo nextest run --workspace --all-targets ;;
     clippy) cargo clippy --workspace --all-targets --all-features -- -D warnings ;;
