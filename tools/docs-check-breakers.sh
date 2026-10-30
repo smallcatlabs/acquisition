@@ -25,7 +25,8 @@ cd "$(dirname "$0")/.."
 golden_breaker=crates/acquisition-cli/tests/goldens/seat_faults/zz_breaker.txt
 knob_src=crates/acquisition-daemon/src/zz_breaker.rs
 knob_test=crates/acquisition-daemon/src/tests/zz_breaker.rs
-for f in roadmap/reviews/zz-breaker.md "$golden_breaker" "$knob_src" "$knob_test"; do
+knob_tests_rs=crates/acquisition-search/src/trade/tests.rs
+for f in roadmap/reviews/zz-breaker.md "$golden_breaker" "$knob_src" "$knob_test" "$knob_tests_rs"; do
   if [[ -e $f ]]; then echo "refusing to start: $f exists, and the suite would delete it"; exit 2; fi
 done
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/acq-docs-breakers.XXXXXX")
@@ -37,7 +38,7 @@ restore() {
     cp "$scratch/keep/$f" "$f"
     cmp -s "$scratch/keep/$f" "$f" || { echo "RESTORE FAILED: $f"; exit 2; }
   done
-  rm -f roadmap/reviews/zz-breaker.md "$golden_breaker" "$knob_src" "$knob_test"
+  rm -f roadmap/reviews/zz-breaker.md "$golden_breaker" "$knob_src" "$knob_test" "$knob_tests_rs"
 }
 trap 'restore; rm -rf "$scratch"' EXIT
 
@@ -163,13 +164,14 @@ run_case 'a skill names a tool that does not exist'              refuse 'STALE  
 glossary() { printf '%s\n' "$1" >>GLOSSARY.md; }
 run_case 'the glossary names a tool that does not exist'         refuse 'STALE   GLOSSARY.md' glossary "- **x**: held by \`tools/gate-$N.sh\`."
 
-echo '== a knob only tests read lives in a test-only file under tests/ (#118)'
+echo '== a knob only tests read lives in a test-only file, under tests/ or a tests.rs (#118)'
 # The file need not be compiled: the check reads the crates' sources by
 # path. A test-only file outside `tests/` is read as shipped code, and the
 # refusal names the convention that moves it.
 knob_read() { printf '//! A test-only helper.\nfn cases() { std::env::var("ACQ_ZZ_BREAKER").ok(); }\n' >"$1"; }
 run_case 'a knob read in a test-only file outside tests/'        refuse 'which lives under a tests/ directory' knob_read "$knob_src"
 run_case 'the same file under src/tests/'                        pass   'every ACQ_* the crates read has a README row' knob_read "$knob_test"
+run_case 'the same file as a tests.rs'                           pass   'every ACQ_* the crates read has a README row' knob_read "$knob_tests_rs"
 
 echo '== a golden is named by its test file (C122)'
 orphan() { printf '# an orphan\n' >"$golden_breaker"; }
