@@ -22,7 +22,7 @@ pub(crate) struct PriceNotes {
 }
 
 pub(crate) fn price_notes() -> PriceNotes {
-    let text = include_str!("../reference/price-notes-2026-09-04.txt");
+    let text = include_str!("../../reference/price-notes-2026-09-04.txt");
     let mut out = PriceNotes {
         notes: Vec::new(),
         tab_names: Vec::new(),
