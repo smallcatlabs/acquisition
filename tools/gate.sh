@@ -40,6 +40,23 @@
 # item 2). A split is closed by a pin in the binary's crate, as
 # `acquisition-mcp` and `acquisition-cli` hold (#88, #125, #124).
 #
+# The `winclippy` stage is clippy for the Windows target,
+# `x86_64-pc-windows-msvc`, on whatever host runs the gate (the owner's
+# ruling of 2026-10-29, `roadmap/README.md`): it lints the `cfg(windows)`
+# code, which the host's `clippy` never compiles, so a Windows-only lint
+# is seen before a push and not first in CI. It sees lints only: no test
+# of that code runs, and nothing links. The C and C++ compilers and the
+# archiver a build script calls for the target are `tools/windows-cc-stub.sh`,
+# which writes each output it is named as an empty file; a stage that
+# linked through it would be wrong by design, and clippy links nothing.
+# It builds into its own target directory, `target/winclippy`, so the
+# host's executables, which `artifacts` hashes, are never touched, and a
+# later run is warm (42 s cold, 2 s warm, measured on a 10-core M4). Where
+# the target's standard library is not installed the stage fails and
+# names `rustup target add`, never passing as a stage that did not run.
+# CI does not run it: the Windows gate runs clippy natively, which sees
+# the same lints and links.
+#
 # The full gate starts with `fixtures`: every golden regenerates when
 # `ACQ_UPDATE_FIXTURES` is set at all, `0` and empty among its values,
 # and the harness removes `ACQ_*` from the children a test spawns, never
@@ -63,7 +80,7 @@ fixture_switch=${ACQ_UPDATE_FIXTURES+set}
 fixture_value=${ACQ_UPDATE_FIXTURES-}
 unset ACQ_UPDATE_FIXTURES
 
-names=(fixtures build test clippy fmt diff docs arch trade bothy features doc artifacts tree)
+names=(fixtures build test clippy winclippy fmt diff docs arch trade bothy features doc artifacts tree)
 DOCS=(diff docs arch trade bothy)
 
 # The `artifacts` stage (the header): what the stages before it left
@@ -202,6 +219,20 @@ features() {
   return "$rc"
 }
 
+# The `winclippy` stage (the header).
+WINDOWS_TARGET=x86_64-pc-windows-msvc
+winclippy() {
+  local installed stub triple
+  if ! installed=$(rustup target list --installed 2>/dev/null) || ! grep -qx "$WINDOWS_TARGET" <<<"$installed"; then
+    echo "gate: winclippy: the $WINDOWS_TARGET target is not installed for this toolchain, so the Windows lints cannot run: rustup target add $WINDOWS_TARGET" >&2
+    return 1
+  fi
+  stub=$PWD/tools/windows-cc-stub.sh
+  triple=${WINDOWS_TARGET//-/_}
+  env "CC_$triple=$stub" "CXX_$triple=$stub" "AR_$triple=$stub" CARGO_TARGET_DIR=target/winclippy \
+    cargo clippy --keep-going --workspace --all-targets --all-features --target "$WINDOWS_TARGET" -- -D warnings
+}
+
 # The `fixtures` stage (the header): the switch the script found set.
 fixtures() {
   [[ -z $fixture_switch ]] && return 0
@@ -249,6 +280,7 @@ run_stage() {
     features) features ;;
     test) cargo nextest run --workspace --all-targets ;;
     clippy) cargo clippy --workspace --all-targets --all-features -- -D warnings ;;
+    winclippy) winclippy ;;
     fmt) cargo fmt --all -- --check ;;
     diff) git diff --check ;;
     docs) tools/docs-check.sh ;;

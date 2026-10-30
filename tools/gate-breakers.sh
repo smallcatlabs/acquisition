@@ -4,7 +4,8 @@
 # know, the fixture switch set at any value, a working tree its
 # stages changed (#87), a feature pin taken out (#124), a release
 # matrix row the features stage cannot read, and cargo failing under it
-# (the review of #91).
+# (the review of #91), and the Windows-target clippy where its target is
+# not installed (#106).
 #
 # A refusal is evidence only when it names the property, so each case
 # states the words the gate must print; a case that passes states the
@@ -167,6 +168,12 @@ run_case 'a release file naming no triple'                       refuse 'names n
 # cargo failing under the stage is its failure, never a split to pin.
 cargo_fails() { gate_edit '--target "$1" -e no-dev,features' '--target "zz-no-such-target" -e no-dev,features'; }
 run_case 'cargo tree failing under the stage'                    refuse 'cargo tree could not read the feature graphs' cargo_fails $gate --only features
+
+echo '== the Windows-target clippy: a target not installed fails the stage, naming the remedy (#106)'
+# A target no toolchain has stands for one this host lacks; the stage
+# fails before cargo runs, so the case builds no Rust.
+no_target() { gate_edit 'WINDOWS_TARGET=x86_64-pc-windows-msvc' 'WINDOWS_TARGET=zz-no-such-target'; }
+run_case 'the target not installed'                              refuse 'rustup target add zz-no-such-target' no_target $gate --only winclippy
 
 echo
 printf '%d ok, %d failed\n' "$pass" "$failed"
