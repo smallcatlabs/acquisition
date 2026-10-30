@@ -96,9 +96,13 @@ read it as the hang-up.
 
 ## Done when
 - `stop_within` returns `Stopped::Gone` only when the connection has
-  ended and `endpoint::exists` is false for its endpoint, both inside
-  `within`. The step-1 pin forces both outcomes and holds no wall-clock
-  bound.
+  ended and `endpoint::exists` is false for its endpoint. The stop
+  waits at most `within`, and an end it sees at the poll the bound
+  expires is reported as Gone. The step-1 pin forces both outcomes and
+  the tie, and holds no wall-clock bound. Settled in the round (the
+  review of this step, the first finding): the brief first said "both
+  inside `within`", which reads a tie as Acknowledged, a report that
+  the daemon may still be running when it was seen gone.
 - `StopOnDrop` has no loop, and the retirement line is in the
   harness commit's message.
 - `read_to_eof` accepts a reset as the hang-up.

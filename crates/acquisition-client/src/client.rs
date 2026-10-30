@@ -555,7 +555,9 @@ pub enum Stopped {
     /// connected to ([`endpoint::exists`](crate::endpoint::exists)) every
     /// [`GONE_LOOK_EVERY`] until none was there, both within
     /// [`STOPPED_WITHIN`]. The next command finds no daemon, not a dying
-    /// one.
+    /// one. An end and an absent endpoint the stop sees at the poll its
+    /// bound expires are this, not [`Stopped::Acknowledged`]: the daemon
+    /// was seen gone, and "it may still be running" would be false.
     Gone,
     /// It answered `stopping` and had not gone when the wait for it
     /// ended ([`STOPPED_WITHIN`]) — its connection still open, or its
@@ -1637,6 +1639,11 @@ impl Client {
     /// the interleaving (C137, the deadline's contract is its expiry
     /// behaviour): the endpoint present after the connection ended, and
     /// the bound expiring while it is.
+    ///
+    /// The tie rule: the stop waits at most the bound, and when the end
+    /// and the endpoint's absence are seen at the poll the bound expires,
+    /// the stop is [`Stopped::Gone`] — the fact it observed — because the
+    /// wait for them is polled before the bound (`biased`).
     async fn stop_until<B: std::future::Future<Output = ()>>(
         &mut self,
         bound: impl FnOnce() -> B,
@@ -1656,7 +1663,9 @@ impl Client {
                 // daemon rather than a dying one. The bound covers the read
                 // and the looks from one start; a bound that expires first,
                 // or a read that fails otherwise, leaves the stop only
-                // acknowledged.
+                // acknowledged. A tie, the end seen at the poll the bound
+                // expires, is gone: that is what was observed, so the wait
+                // for it is polled first.
                 let at = PathBuf::from(&self.daemon.endpoint.socket);
                 let reader = &mut self.reader;
                 let gone = async {
@@ -2251,8 +2260,10 @@ mod tests {
     /// until the test removes it. Each look at the endpoint is signalled,
     /// so the stop is polled to pending after a look found the endpoint
     /// there; it is gone once the file is removed. Kept, with the bound
-    /// expiring only after such a look, the stop is acknowledged. The
-    /// interleaving is forced, never waited for (C137).
+    /// expiring only after such a look, the stop is acknowledged. Removed,
+    /// with the bound already expired at the poll that sees the end and
+    /// the absence, the tie is gone. The interleaving is forced, never
+    /// waited for (C137).
     #[cfg(unix)]
     #[tokio::test]
     async fn a_stop_is_gone_only_once_the_endpoint_it_connected_to_is() {
@@ -2296,6 +2307,23 @@ mod tests {
         assert_eq!(stopped, Stopped::Acknowledged);
         assert!(peer.is_finished(), "the peer ended the connection");
         assert!(crate::endpoint::exists(&socket));
+
+        // The tie: the bound has expired by the stop's first poll after
+        // `stopping`, and that poll also sees the connection's end and the
+        // endpoint gone. The stop reports what it saw, gone.
+        std::fs::remove_file(&socket).unwrap();
+        let (mut client, peer) = a_peer_that_stops(&socket, false).await;
+        let stopped = client
+            .stop_until(
+                || std::future::ready(()),
+                |at| {
+                    assert!(peer.is_finished(), "the end came before the look");
+                    crate::endpoint::exists(at)
+                },
+            )
+            .await
+            .expect("the stop was acknowledged");
+        assert_eq!(stopped, Stopped::Gone);
     }
 
     /// C147 and C137, the look for the winner is bounded whole: a connect
