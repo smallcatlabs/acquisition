@@ -49,6 +49,10 @@
 # archiver a build script calls for the target are `tools/windows-cc-stub.sh`,
 # which writes each output it is named as an empty file; a stage that
 # linked through it would be wrong by design, and clippy links nothing.
+# On a Windows host (`OS` is `Windows_NT` in every process there, Git
+# Bash's included) the stage names no stub: cargo calls the native MSVC
+# tools, and could not execute a shell script as a compiler (the review
+# of the step's build, finding 1).
 # It builds into its own target directory, `target/winclippy`, so the
 # host's executables, which `artifacts` hashes, are never touched, and a
 # later run is warm (42 s cold, 2 s warm, measured on a 10-core M4). Where
@@ -222,14 +226,15 @@ features() {
 # The `winclippy` stage (the header).
 WINDOWS_TARGET=x86_64-pc-windows-msvc
 winclippy() {
-  local installed stub triple
+  local installed stub triple stubs=()
   if ! installed=$(rustup target list --installed 2>/dev/null) || ! grep -qx "$WINDOWS_TARGET" <<<"$installed"; then
     echo "gate: winclippy: the $WINDOWS_TARGET target is not installed for this toolchain, so the Windows lints cannot run: rustup target add $WINDOWS_TARGET" >&2
     return 1
   fi
   stub=$PWD/tools/windows-cc-stub.sh
   triple=${WINDOWS_TARGET//-/_}
-  env "CC_$triple=$stub" "CXX_$triple=$stub" "AR_$triple=$stub" CARGO_TARGET_DIR=target/winclippy \
+  [[ ${OS-} == Windows_NT ]] || stubs=("CC_$triple=$stub" "CXX_$triple=$stub" "AR_$triple=$stub")
+  env ${stubs[@]+"${stubs[@]}"} CARGO_TARGET_DIR=target/winclippy \
     cargo clippy --keep-going --workspace --all-targets --all-features --target "$WINDOWS_TARGET" -- -D warnings
 }
 

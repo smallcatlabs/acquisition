@@ -5,7 +5,7 @@
 # stages changed (#87), a feature pin taken out (#124), a release
 # matrix row the features stage cannot read, and cargo failing under it
 # (the review of #91), and the Windows-target clippy where its target is
-# not installed (#106).
+# not installed (#106) and the compiler it names on each host.
 #
 # A refusal is evidence only when it names the property, so each case
 # states the words the gate must print; a case that passes states the
@@ -174,6 +174,17 @@ echo '== the Windows-target clippy: a target not installed fails the stage, nami
 # fails before cargo runs, so the case builds no Rust.
 no_target() { gate_edit 'WINDOWS_TARGET=x86_64-pc-windows-msvc' 'WINDOWS_TARGET=zz-no-such-target'; }
 run_case 'the target not installed'                              refuse 'rustup target add zz-no-such-target' no_target $gate --only winclippy
+# The stub only where it can run: on a Windows host the native tools
+# (the review of the build, finding 1). The target's check passes and
+# cargo prints the compiler the stage named, so the cases build no Rust
+# and need no target installed.
+names_cc() {
+  gate_edit 'if ! installed=$(rustup target list --installed 2>/dev/null) || ! grep -qx "$WINDOWS_TARGET" <<<"$installed"; then' 'if false; then' &&
+    gate_edit 'cargo clippy --keep-going --workspace --all-targets --all-features --target "$WINDOWS_TARGET" -- -D warnings' \
+      'sh -c '"'"'echo "the compiler: ${CC_x86_64_pc_windows_msvc:-native}"'"'"''
+}
+run_case 'a Mac or Linux host: the stub'                         pass   'the compiler: '"$PWD"'/tools/windows-cc-stub.sh' names_cc env -u OS $gate --only winclippy
+run_case 'a Windows host: the native tools'                      pass   'the compiler: native'     names_cc env OS=Windows_NT $gate --only winclippy
 
 echo
 printf '%d ok, %d failed\n' "$pass" "$failed"
