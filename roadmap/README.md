@@ -134,6 +134,11 @@ Each in his words, with the commit that landed it.
   compile 43.5 CPU-s; touch and the workspace's nextest run 139.74 and
   140.57 s wall unfolded, 138.15 and 135.49 folded, 1391 tests either
   way (the commit carrying this line).
+- 2026-10-30, the group's review rule at the first tranche's close:
+  "I agree to keep the rule." Unchanged for t5 to t7. Each reviewed
+  build found a real fault (t1, t2, t4); the unreviewed rounds (t2's
+  last comment fix, the closes) let through none found later (the
+  commit carrying this line).
 
 ## Roles
 
@@ -308,6 +313,6 @@ own judgment as that item says. t1 (#137) closed on 2026-10-29
 (`LEDGER.md`), and t2 (#138) the same day; t3 (#139) closed undone
 on 2026-10-30, and t4 (#140, the compile cost) the same day
 (`LEDGER.md`): the first tranche is done. Its second, t5 to t7, is
-phase 4's. The group's review rule is due for its revisit at this
-tranche's close; the orchestrator brings it to the owner. `AGENTS.md`
+phase 4's. The group's review rule, revisited at this close, is kept
+(the rulings list). `AGENTS.md`
 governs; the gate is `tools/gate.sh`.
