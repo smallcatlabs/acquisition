@@ -29,7 +29,10 @@ named concretely. A step with no fixed input says so. A step whose
 work includes a sweep for a class runs the sweep before the brief is
 committed, and its Input lists the instances found, so the reviewer
 holds the commits against a fixed list (clock-tests' Do 4 ran after
-its brief).
+its brief). A brief that drafts a registry line (a ruling, a "Not
+doing" line) runs `python3 -I tools/bothy.py check` on it before the
+brief is committed (league-buildables' two Not-doing drafts failed
+its form).
 
 The last push's CI: each gate's run on `main` (`gh run list --branch
 main --workflow "Gate (Linux)" --limit 1`, the same for `Gate
@@ -80,6 +83,9 @@ instead.
   breaker case in the commit of the check it stages: step 1e ran the
   full gate eight times for that. A brief that wants a test seen
   failing first asks for it in the report, not the history.
+- Each concern may commit after its own targeted tests; the one full
+  gate runs on the step's tree before the "built" commit, and that
+  commit waits on its exit status.
 - A draft the brief names is taken verbatim unless the tree disproves
   a sentence of it; each correction is named in the report. A brief
   sentence a fix round corrects in place is marked "Settled in the
