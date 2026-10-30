@@ -27,9 +27,10 @@ fn name(root: &Path) -> String {
 
 /// The name moves on any edit to a file of a kind a build reads, and on
 /// one added; a file an operating system or an editor writes unasked —
-/// a dotfile, at any depth — is no part of it.
+/// a dotfile, at any depth — is no part of it, and neither is a test's
+/// source, `tests.rs` or anything under a `tests` directory, of any kind.
 #[test]
-fn the_name_moves_on_a_source_and_never_on_a_dotfile() {
+fn the_name_moves_on_a_source_and_never_on_a_dotfile_or_a_test() {
     let tree = tree();
     let root = tree.path();
     let first = name(root);
@@ -43,6 +44,17 @@ fn the_name_moves_on_a_source_and_never_on_a_dotfile() {
     ] {
         std::fs::write(root.join(stray), "anything").unwrap();
         assert_eq!(name(root), first, "{stray}");
+    }
+    for test in [
+        "src/tests.rs",
+        "src/deep/tests.rs",
+        "src/tests/kinds.rs",
+        "src/deep/tests/fixture.csv",
+    ] {
+        let path = root.join(test);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, "anything").unwrap();
+        assert_eq!(name(root), first, "{test}");
     }
     std::fs::write(root.join("src/a.rs"), "fn a() { }").unwrap();
     let edited = name(root);
