@@ -77,8 +77,11 @@ SKIP_ROADMAP=(--exclude-dir=reviews --exclude='STATE-*.md')
 # escaped both. Between "at" and the hash, a space or a line break and a
 # comment's leader (`//`, `//!`, `///`, `#`), as `LEAD` admits between a
 # path and "at": a citation wrapped after "at" was read by neither 2b
-# scan and passed silently (#126).
-AT_HASH='\bat(?:\s|//[!/]?|#)+`?[0-9a-f]{7,40}\b`?'
+# scan and passed silently (#126). A `^` after the hash is its parent, as
+# git reads it: a file deleted at a commit is cited at `<hash>^`, and
+# the history citations look it up there, not at the commit that
+# deleted it (tools hygiene's fix round, the `search/repoe/` extracts).
+AT_HASH='\bat(?:\s|//[!/]?|#)+`?[0-9a-f]{7,40}\b\^?`?'
 ENTRY_LIMIT=800
 reg=$(mktemp)
 # entries are single lines in the registry (one bullet, no continuation),
@@ -184,7 +187,8 @@ at, kinds, roots = sys.argv[1], tuple("." + k for k in sys.argv[2].split()), sys
 LEAD = r"(?:\s|//[!/]?|#)*"   # a line break, and a comment's leader, may fall between
 cite = re.compile(r"`([^`\s]+)`,?" + LEAD + r"(?:whole" + LEAD + r")?(" + at + ")")
 written = re.compile(r"`([0-9a-f]{7,8})`|" + at)
-hex_of = lambda h: re.search(r"[0-9a-f]{7,40}`?$", h).group(0).strip("`")
+rev_of = lambda h: re.search(r"([0-9a-f]{7,40}\^?)`?$", h).group(1)   # the commit, `^` its parent
+hex_of = lambda h: rev_of(h).rstrip("^")
 def files():   # SKIP_ROADMAP's exclusions, as grep applies them: a directory named reviews, a file STATE-*.md
     for r in roots:
         if os.path.isfile(r): yield r; continue
@@ -199,7 +203,7 @@ for f in files():
     for m in written.finditer(text):
         commits.setdefault(m.group(1) or hex_of(m.group(0)), (f, line(m)))
     for m in cite.finditer(text):
-        path, h = m.group(1).rstrip("/"), hex_of(m.group(2))
+        path, h = m.group(1).rstrip("/"), rev_of(m.group(2))
         if ("/" in path or re.search(r"\.\w+$", path)) and not re.search(r"[<>*{}$]", path):
             found.append((f, line(m), path, h))
 # A cited commit is an ancestor of HEAD.

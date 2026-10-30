@@ -116,6 +116,11 @@ run_case 'the path as it is now, not as it was'                  refuse 'search/
 run_case 'the same, written "whole at"'                          refuse 'search/OBSERVATIONS.md` is not at 453a4429' checklist "The list is \`search/OBSERVATIONS.md\` whole at \`453a4429\`."
 run_case 'the path as it was there'                              pass   'ok      citations'      checklist "The list is \`spikes/rust-playground/search/OBSERVATIONS.md\` at \`453a4429\`."
 run_case 'wrapped after at: the path as it is now'               refuse 'search/OBSERVATIONS.md` is not at 453a4429' checklist "The list is \`search/OBSERVATIONS.md\` at"$'\n'"\`453a4429\`."
+# A `^` is the commit's parent: a file is cited at the commit before the
+# one that deleted it, and never read at the deletion itself.
+DELETED='spikes/rust-playground/search/repoe/data/trade-stat-coverage.csv'
+run_case 'a deleted file at the deletion'"'"'s parent'               pass   'ok      citations'      checklist "The coverage was \`$DELETED\` at \`c756bd38^\`."
+run_case 'the same at the deletion itself'                       refuse "$DELETED\` is not at c756bd38:" checklist "The coverage was \`$DELETED\` at \`c756bd38\`."
 # The roadmap is read under the cited commits' two exclusions alone (the
 # outside review of 1f074d5a, finding 1): its plan is read, a saved
 # review, an outside model's answer verbatim, is not.
