@@ -1,21 +1,9 @@
 //! Where `acqd` is: beside the calling executable, and nowhere else.
 //!
-//! # Decisions as recorded
+//! # Rulings held here
 //!
-//! ## C82 — At most one installation targets a world.
-//!
-//! **C82 — At most one installation targets a world.** Acquisition's
-//! installation places one canonical `acqd` and every frontend beside
-//! it; the implementation requires it as a sibling of the calling
-//! executable (`current_exe()` canonicalised) — no `PATH`, no configured
-//! path, no embedded mode; no sibling, no spawn, reported. A second
-//! installation targeting the same world is a design event, recorded
-//! here first. Tests and drivers locate it the same way (a test
-//! executable names the `acqd` its build wrote — the clause amended
-//! 2026-09-10); packaging smoke tests are the acceptance criterion. *Why:* C10's "the runtime it would
-//! itself spawn" must name one file, or two installations thrash; one
-//! directory of siblings is what Acquisition ships. *Details:*
-//! `acquisition-client/src/locator.rs` doc. Ruled 2026-09-09.
+//! - **C82** (at most one installation targets a world): a test
+//!   executable names the `acqd` its build wrote; the mechanism follows.
 //!
 //! ## C82 — as built
 //!

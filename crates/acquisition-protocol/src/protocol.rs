@@ -16,26 +16,12 @@
 //!   shared-contract revision, and `tests/fixtures/wire/` (one document
 //!   per variant, `tests/wire.rs`) makes it a diff a reviewer sees.
 //!
-//! # Decisions as recorded
+//! Rulings: `decisions/daemon.md`.
 //!
-//! The rulings are the decision registry — `decisions/daemon.md` for this
-//! area (`C<n>`); what follows is the entry's full text as recorded there,
-//! kept beside the code that implements it.
+//! # Rulings held here
 //!
-//! ## C85 — Connection semantics
-//!
-//! **C85 — Connection semantics: 1 request in flight per connection; a
-//! subscription uses a dedicated connection — hello/hello,
-//! subscribe/subscribed, then events only, no more requests; events are
-//! invalidation hints, never a complete stream — a subscriber snapshots
-//! after subscribing, treats events as invalidations and re-reads before
-//! relying on its view, is told `resync_required` when it lagged, and
-//! after that or any disconnect subscribes and snapshots again; a frame
-//! has a bound, and an oversize or malformed one is answered with an
-//! error, not a closed socket; `hello` and `daemon_stop` are a stable
-//! plane every version parses.** *Why:* a client must see losses to
-//! recover from them. *Pinned:* `acquisition-protocol/tests/wire.rs`,
-//! `acquisition-client/tests/contract.rs`. Ruled 2026-09-09.
+//! - **C85** (one request in flight per connection; a subscription has
+//!   its own connection), as built below.
 //!
 //! ## C85 — as built
 //!

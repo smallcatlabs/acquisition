@@ -17,47 +17,22 @@
 //! the live-run skill's standing rule — an unobserved URL shape is never
 //! sent.
 //!
-//! # Decisions as recorded
+//! Rulings: `decisions/store.md`; the cross-cutting ones are `AGENTS.md`'s.
 //!
-//! The rulings are the decision registry — `decisions/store.md` for this
-//! area, `AGENTS.md` for the cross-cutting ones (`C<n>`); what follows is each
-//! entry's full text as recorded there, moved here on 2026-09-02 because
-//! the mechanism it describes is this module's. The registry is current;
-//! this is the mechanism as decided, kept beside the code that implements it.
+//! # Rulings held here
 //!
-//! ## C58 — Realm is a coordinate above league, everywhere
-//!
-//! **Realm is a coordinate above league, everywhere.** PoE2 1.0 ships
-//!   December 2026 (announced late August); league names collide across
-//!   realms (Standard exists in both games). Policy becomes
-//!   `realms.<R>.leagues.<L>.{tabs, characters, max_age_seconds}`
-//!   (the realm nesting is **policy v2**, built; `characters` beside `tabs`
-//!   makes **v3** — a new sibling field is a shape change, so a v2 reader
-//!   says "newer version", never "malformed"; each older version upgrades
-//!   on parse, v1 as realm pc); the
-//!   plan envelope carries realm beside league; the snapshot is taken per
-//!   `(realm, league)`; `tabs` and `characters` facts carry a realm column
-//!   (existing rows pc); realm is an explicit param on all four data kinds
-//!   (`stashes`, `stash`, `characters`, `character`), defaulted to pc only
-//!   at the decode boundary (`Endpoint::from_job`) so persisted pre-realm
-//!   jobs still decode. On the wire realm is a path segment and **pc is
-//!   expressed by omission — `pc` is not a legal segment value**
-//!   (documented), so pc URLs stay byte-identical to every live send so
-//!   far: the realm step costs no live spend, and the mock rehearsal
-//!   journal proves the URLs did not move.
-//!
-//! ## C59 — Which realms each route accepts is declared in one place
-//!
-//! **Which realms each route accepts is declared in one place, never one
-//!   shared list** (the `declare_route_knowledge` mold). Documented today:
-//!   `/character` and `/character/{name}` take `xbox|sony|poe2`;
-//!   `/stash…` and `/account/leagues` take `xbox|sony` and are titled
-//!   "PoE1 only". A policy naming `tabs` under `poe2` is a structured parse
-//!   error; no code path renders a stash URL with `poe2`. GGG is expected
-//!   to extend PoE2 to the other endpoints (almost certainly the same
-//!   segment): when it ships, the change is one row in that table plus a
-//!   first-contact sample under the standing rule. Not pre-enabled — an
-//!   unobserved URL shape is never sent.
+//! - **C58** (realm is a coordinate above league): the realm nesting is
+//!   **policy v2**, built; `characters` beside `tabs` makes **v3** — a new
+//!   sibling field is a shape change, so a v2 reader says "newer version",
+//!   never "malformed"; each older version upgrades on parse, v1 as realm
+//!   pc. Realm is an explicit param on all four data kinds (`stashes`,
+//!   `stash`, `characters`, `character`), defaulted to pc only at the
+//!   decode boundary (`Endpoint::from_job`) so persisted pre-realm jobs
+//!   still decode.
+//! - **C59** (which realms each route accepts is declared once): in the
+//!   `declare_route_knowledge` mold, [`Family::accepts`]. `/character` and
+//!   `/character/{name}` take `xbox|sony|poe2`; `/stash…` and
+//!   `/account/leagues` take `xbox|sony` and are titled "PoE1 only".
 //!
 //! ## C58 — The realm step as built (2026-09-02)
 //!

@@ -80,42 +80,14 @@
 //! The class is one exhaustive match (`asked`), so a new request is
 //! classed before the crate builds.
 //!
-//! # Decisions as recorded
+//! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 //!
-//! The rulings are the decision registry — `decisions/daemon.md` for this
-//! area, `AGENTS.md` for the cross-cutting ones (`C<n>`); what follows is
-//! the entry's full text as recorded there, kept beside the code that
-//! implements it. The registry is current; this is the mechanism as
-//! decided and as built.
+//! # Rulings held here
 //!
-//! ## C10 — Handshake protocol is single-version on purpose.
-//!
-//! **C10 — Handshake protocol is single-version on purpose.** Migration is
-//! via kill-and-respawn only. A client uses a daemon only when its provider
-//! and runtime identity match what it would itself spawn. That identity
-//! changes automatically with the daemon and protocol implementation it
-//! governs; it never derives from Git state or a hand-maintained value. A
-//! use verb may replace a mismatch; observation never spawns or replaces,
-//! just reports absence and mismatches distinctly; an autonomous client
-//! (MCP) never replaces. *Why:* a compat matrix is the reconciliation
-//! swamp; respawn is a one-line diff; an observer that replaced cost a live
-//! run (2026-09-08). *Details:* `client.rs` doc, C10. *Pinned:*
-//! `acquisition-cli/tests/daemon_observe.rs`. Amended 2026-09-09.
-//!
-//! ## C84 — The runtime identity (C10) is two values from two sources
-//!
-//! **C84 — The runtime identity (C10) is two values from two sources:
-//! the shared-contract revision, a digest of the protocol and store
-//! sources, manifests and lock both sides are compiled from, and the
-//! daemon artifact — the executable, which the daemon identifies and
-//! hashes at startup and a client compares with the sibling `acqd` it
-//! would spawn.** A mismatch on either is reported by name; a rebuilt
-//! `acqd` under a live daemon is an artifact mismatch. Daemon-only source
-//! changes move only the artifact; nothing derives from Git or a
-//! hand-kept number. *Why:* the contract answers "can I use it", the
-//! artifact "is it the one I would start"; each sees a failure the other
-//! cannot. *Details:* `client.rs` doc, C10. *Pinned:*
-//! `daemon_observe.rs`. Ruled 2026-09-09.
+//! - **C10** (the handshake is single-version): the doors above are its
+//!   policy tiers.
+//! - **C84** (the runtime identity is two values): the contract and the
+//!   artifact, as built below.
 //!
 //! ## C10, C84 and C83 — as built
 //!
@@ -196,7 +168,8 @@
 //!
 //! ## C85 — Connection semantics, as built on this side
 //!
-//! The ruling is recorded in full on the protocol crate's `protocol.rs`. Here: every connection
+//! The ruling is the registry's; the daemon's side is on the protocol crate's
+//! `protocol.rs`. Here: every connection
 //! opens with the bootstrap `hello` exchange (`Client::handshake`),
 //! written and read as [`Bootstrap`]/[`BootstrapReply`] frames outside the
 //! versioned enums, so a daemon of any revision is identified — a frame
