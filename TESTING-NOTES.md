@@ -204,11 +204,14 @@ send, the first send per route a probe but where the daemon never
 probes, `counted` exactly on non-HEAD sends, no 429 and no window over
 its maximum, and the GETs per route exactly what the plans named.
 
-Two invariants are out of the journey's reach. The user-agent is no
-journal field, and the mock records nothing it receives, so no test
-holds it here. A retry through a Cloudflare block cannot happen: the
-mock never serves a block, and a rule over inputs that never carry the
-case pins nothing.
+The user-agent is no journal field; the mock holds it instead. It
+answers 400 to any request the daemon sends (an API GET or HEAD, a
+token POST) that does not carry the registration's user-agent, written
+out in `mockggg.rs`, so every test that faces the mock, the journey
+included, fails on a change to either side (invariant 4). A retry
+through a Cloudflare block is out of the journey's reach: the mock
+never serves a block, and a rule over inputs that never carry the case
+pins nothing.
 
 ## What a rewrite keeps
 

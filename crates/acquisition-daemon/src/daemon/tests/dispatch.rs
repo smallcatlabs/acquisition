@@ -590,7 +590,7 @@ async fn dispatcher_exhausts_on_third_429_without_a_fourth_send_or_final_sleep()
 /// C19: a landed GET 429 holds its route for its `Retry-After`, clamped
 /// to the cap, plus the retry bucket, whatever the header carried. Such a
 /// 429 is not retried, so a second job's send shows the hold: 61 s after
-/// a missing or garbled value, 961 s after an over-cap one.
+/// a missing, garbled or negative value, 961 s after an over-cap one.
 #[tokio::test]
 async fn a_get_429_without_a_usable_retry_after_holds_the_next_send() {
     let missing = || ScriptedResponse::full("GET", "429 Too Many Requests", None, "{}");
@@ -599,6 +599,11 @@ async fn a_get_429_without_a_usable_retry_after_holds_the_next_send() {
         (
             "garbled",
             missing().with_raw_retry_after("soon"),
+            full_hold_ms(),
+        ),
+        (
+            "negative",
+            missing().with_raw_retry_after("-1"),
             full_hold_ms(),
         ),
         (

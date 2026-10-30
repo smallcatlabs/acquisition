@@ -25,6 +25,14 @@ use crate::auth;
 pub(crate) const USERNAME: &str = "ExileTester";
 const ACCESS_TOKEN_TTL_SECONDS: u64 = 60;
 
+/// The user-agent the registration is known by (invariant 4), the shipped
+/// app's shape with this package's version.
+const REGISTERED_USER_AGENT: &str = concat!(
+    "acquisition/",
+    env!("CARGO_PKG_VERSION"),
+    " (contact: gerwaric@gmail.com)"
+);
+
 struct PendingCode {
     challenge: String,
     redirect_uri: String,
@@ -629,6 +637,25 @@ async fn handle(
     let Some(req) = read_request(&mut stream).await else {
         return;
     };
+    // Invariant 4, held where GGG would see it: every request the daemon
+    // sends carries the registration's user-agent, written out here rather
+    // than read from `provider::USER_AGENT`, so a change to either side is
+    // refused by every test that faces the mock. The two pages the browser
+    // opens are outside the daemon's boundary (invariant 1) and carry the
+    // browser's own.
+    if !matches!(req.path.as_str(), "/authorize" | "/approve")
+        && req.headers.get("user-agent").map(String::as_str) != Some(REGISTERED_USER_AGENT)
+    {
+        respond(
+            &mut stream,
+            "400 Bad Request",
+            "application/json",
+            &json!({ "error": "the request does not carry the registration's user-agent" })
+                .to_string(),
+        )
+        .await;
+        return;
+    }
     match (req.method.as_str(), req.path.as_str()) {
         ("GET", "/authorize") => {
             let client_id = req.query.get("client_id").cloned().unwrap_or_default();
