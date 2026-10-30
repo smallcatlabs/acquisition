@@ -49,7 +49,7 @@ Each in his words, with the commit that landed it.
   holds an item only until the next close gives it a home; the ledger
   is `LEDGER.md`, a range and a date per row; the tools' issues are
   `area:process`; C150, the proxy variables; a step's tests ride with
-  their fix; the `AGENTS.md` budget of 15,277 bytes stands; no
+  their fix; the `AGENTS.md` budget of 15,277 bytes stands (raised 2026-10-29, below); no
   frontends review before the league; #91 and #11 join "Pull-forward"
   (`64b7f505`).
 - 2026-10-28, the road reordered: "Yes: reorder the road as you
@@ -92,6 +92,19 @@ Each in his words, with the commit that landed it.
   the `cfg(windows)` code before a push, which only the Windows gate in
   CI saw. No registry entry: it is process, and adds no edge and no
   boundary (the commit carrying this line).
+- 2026-10-29, #137's three rulings (`briefs/t1-stopping-rules.md`,
+  Do 1): "Accept all three." The stopping rule is C153 and the
+  retirement rule C154, cross-cutting in `AGENTS.md`. The review rule
+  binds the test-shape group (#137 to #143), no registry entry: a
+  round that changes only tests or documents gets its retirement lines
+  and the gate; a round that changes non-test code, anything under
+  `tools/`, the gate's stage list, a workflow, `.config/nextest.toml`
+  or the shared harness's isolation list gets the review as "A step"
+  says; revisited at the first tranche's close. The `AGENTS.md` budget
+  raised for the group's duration: "I give you permission to raise the
+  AGENTS.md budget as needed for the duration of this work"; taken as
+  16,300 bytes and, under the same word, the cross-cutting count from
+  16 to 18 (the commit carrying this line).
 
 ## Roles
 
