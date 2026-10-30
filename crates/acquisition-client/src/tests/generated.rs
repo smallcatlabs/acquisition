@@ -1,8 +1,12 @@
 //! How a generated property runs in this crate's tests (#85): the search's
 //! shape (`acquisition-search/tests/common/generated.rs`, `cases` and
 //! `config`), copied because a test module is no other crate's to link.
-//! The daemon and the client hold the same text; a change here is made in
-//! both, and in the search's when it is a change of the shape.
+//! The copies are kept (#117): a shared test-support crate would be a new
+//! dependency edge, and none is ruled. The daemon's
+//! (`acquisition-daemon/src/tests/generated.rs`) and the client's
+//! (`acquisition-client/src/tests/generated.rs`) hold the same text; a
+//! change here is made in both, and in the search's when it is a change of
+//! the shape.
 
 use proptest::test_runner::{Config as ProptestConfig, RngSeed};
 

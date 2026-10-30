@@ -61,6 +61,13 @@
 //! Nothing here reads the crate's tree, binder or evaluator: a query is
 //! rendered to text and asked, and a body enters through `Store::record`;
 //! a row enters through the pricing area's one write.
+//!
+//! [`cases`] and [`config`], how a generated property runs, are the shape
+//! two copies take (#85): `acquisition-daemon/src/tests/generated.rs` and
+//! `acquisition-client/src/tests/generated.rs`, kept as copies because a
+//! test module is no other crate's to link and a shared test-support crate
+//! would be a new dependency edge, none ruled (#117). A change of the shape
+//! here is made in both.
 
 use std::collections::{BTreeSet, HashMap};
 
