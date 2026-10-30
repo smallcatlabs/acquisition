@@ -188,6 +188,14 @@ leaves the list when its step closes or the owner strikes it.
 
 1. The words, after the first seat on the league's build: #11, #16,
    #20, #72, #74, #101, #107, in the order that seat gives them.
+2. The test-shape group's first tranche, between league sittings
+   (`TEST-SHAPE.md`, the owner's word of 2026-10-29): t1 the stopping
+   and retirement rules (#137), t2 the gate trims and the real-time
+   waits (#138), t3 the breakers as positive controls (#139), t4 the
+   compile cost (#140), in that order, each on the shared checkout.
+   Its second tranche is phase 4's: t5 the daemon's door inside 4-0
+   (#141), t6 the canonical world and the door corpus before 4-full's
+   door (#142), t7 the search's case table (#143).
 
 ## Open
 
@@ -239,5 +247,7 @@ hygiene. The first, daemon-safety (#113, #116, #110), closed on
 (#74, #107, #112) and tools hygiene (#117, #118, #126, #114, #106,
 #135) the same day: the owner's pre-league plan is done. Next, Phase 3,
 the owner's league run, at his word; #70 closes on a week of pushes
-without a re-run. `AGENTS.md` governs; the gate is
+without a re-run. Between sittings, the test-shape group's first
+tranche ("Pull-forward", item 2), t1 first (#137), each step at the
+owner's typed word. `AGENTS.md` governs; the gate is
 `tools/gate.sh`.
