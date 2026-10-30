@@ -86,6 +86,12 @@ Each in his words, with the commit that landed it.
   joins the trigger list in `AGENTS.md`, "Where things live". No
   registry entry: it is process, and adds no edge and no boundary (the
   commit carrying this line).
+- 2026-10-29, #106's Windows clippy: "Make the Windows-target clippy a
+  gate stage", on the measurement in `briefs/tools-hygiene.md` (42 s
+  cold, 2 s warm, on this Mac with a stub C toolchain). The stage lints
+  the `cfg(windows)` code before a push, which only the Windows gate in
+  CI saw. No registry entry: it is process, and adds no edge and no
+  boundary (the commit carrying this line).
 
 ## Roles
 
