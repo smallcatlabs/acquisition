@@ -32,7 +32,10 @@ holds the commits against a fixed list (clock-tests' Do 4 ran after
 its brief). A brief that drafts a registry line (a ruling, a "Not
 doing" line) runs `python3 -I tools/bothy.py check` on it before the
 brief is committed (league-buildables' two Not-doing drafts failed
-its form).
+its form). A claim about a file's history also searches
+`spikes/rust-playground/`, the tree before the root swap: #135 said two
+extracts were never tracked, from a log of their path today, and both
+had been, there.
 
 The last push's CI: each gate's run on `main` (`gh run list --branch
 main --workflow "Gate (Linux)" --limit 1`, the same for `Gate
@@ -91,6 +94,10 @@ instead.
   sentence a fix round corrects in place is marked "Settled in the
   round".
 - A JSON pin may add `--json` to a printed command it runs.
+- A brief says whether each rule binds the session's own work or the
+  thing it builds: tools hygiene's "a scratch `CARGO_TARGET_DIR`, never
+  `target/`" was written for the measurement and read by its review as
+  binding the gate stage.
 - No test asserts a wall-clock bound a slow machine can miss: a
   deadline's behaviour is pinned by forcing its expiry, and a lifecycle
   that waits across processes is designed as a state machine over an

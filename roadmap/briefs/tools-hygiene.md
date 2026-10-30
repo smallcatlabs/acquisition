@@ -136,7 +136,12 @@ place. `base-taxonomy.py` reads the owner's local raw stores read-only.
    hold only what the extracts table describes (counts, classes, ids,
    GGG's text) and no item or character name from the owner's raw
    stores. Otherwise correct the table, F1, F3 and S62 to name only what
-   the tree holds. The report says which and why.
+   the tree holds. The report says which and why. *Settled in the
+   round:* the two had been tracked under `spikes/rust-playground/` and
+   deleted on purpose at `c756bd38`, so on the owner's fates they went
+   back to that deletion: the table lists only what `data/` holds, and
+   every citation of an output deleted there is a history citation at
+   `c756bd38^` (`dd9adc6b`).
 7. **#106, the other three.**
    - The document-path check reads no roadmap file. Its header gives
      the reason (about eighty deletion names told as story). Declined,
@@ -207,7 +212,9 @@ place. `base-taxonomy.py` reads the owner's local raw stores read-only.
 `TEMPLATE.md`'s. What differs:
 - The shared checkout, no worktree; scratch under
   `$TMPDIR/tools-hygiene/`. The Windows clippy uses a scratch
-  `CARGO_TARGET_DIR`, never `target/`.
+  `CARGO_TARGET_DIR`, never `target/`. *Settled in the round:* this
+  binds the session's measurement, not the stage, which builds into
+  `target/winclippy` (the review's P3, not taken on the owner's fates).
 - The breaker suites edit the working tree and restore it from copies.
   Never run one while the gate runs, or while another suite runs.
 - Do 6 reads the owner's local raw stores read-only, through the
