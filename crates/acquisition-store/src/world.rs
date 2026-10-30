@@ -1103,4 +1103,5 @@ impl RailsState {
 }
 
 #[cfg(test)]
+#[path = "../unit/tests/world.rs"]
 mod tests;

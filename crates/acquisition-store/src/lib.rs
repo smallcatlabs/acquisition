@@ -2986,12 +2986,13 @@ fn container_rows<'a>(address: &FactAddress<'a>) -> Option<(&'static str, Vec<&'
 }
 
 #[cfg(test)]
+#[path = "../unit/tests/lib.rs"]
 mod tests;
 
 #[cfg(test)]
-#[path = "tests/fact_address.rs"]
+#[path = "../unit/tests/fact_address.rs"]
 mod fact_address_tests;
 
 #[cfg(test)]
-#[path = "tests/events_order.rs"]
+#[path = "../unit/tests/events_order.rs"]
 mod events_order;

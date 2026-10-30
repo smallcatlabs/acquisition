@@ -1214,4 +1214,5 @@ fn freshness(report: &ListingReport, entries: &[Entry], opts: &RenderOptions<'_>
 }
 
 #[cfg(test)]
+#[path = "../unit/tests/shop.rs"]
 mod tests;

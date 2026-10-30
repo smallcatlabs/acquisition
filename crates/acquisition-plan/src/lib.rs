@@ -261,7 +261,7 @@ pub mod game_side;
 pub mod listing;
 pub mod price;
 #[cfg(test)]
-#[path = "tests/price_notes_fixture.rs"]
+#[path = "../unit/tests/price_notes_fixture.rs"]
 pub(crate) mod price_notes_fixture;
 pub mod pricing;
 
@@ -269,7 +269,7 @@ pub mod pricing;
 /// planner, the verbs crate and every frontend.
 pub use pricing::DEFAULT_LEAGUE;
 #[cfg(test)]
-#[path = "tests/real_scale_fixture.rs"]
+#[path = "../unit/tests/real_scale_fixture.rs"]
 pub(crate) mod real_scale_fixture;
 pub mod shop;
 
@@ -2461,8 +2461,9 @@ fn fetch_action(
 }
 
 #[cfg(test)]
+#[path = "../unit/tests/lib.rs"]
 mod tests;
 
 #[cfg(test)]
-#[path = "tests/ages.rs"]
+#[path = "../unit/tests/ages.rs"]
 mod ages;

@@ -604,4 +604,5 @@ fn parse(text: String) -> Value {
 }
 
 #[cfg(test)]
+#[path = "../unit/tests/jobs.rs"]
 mod tests;

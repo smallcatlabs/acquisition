@@ -1002,4 +1002,5 @@ pub fn described() -> Vec<Described> {
 }
 
 #[cfg(test)]
+#[path = "../unit/tests/pricing.rs"]
 mod tests;

@@ -1782,4 +1782,5 @@ pub fn resolve(snapshot: &PricingSnapshot) -> Result<ListingReport, ListingError
 }
 
 #[cfg(test)]
+#[path = "../unit/tests/listing.rs"]
 mod tests;

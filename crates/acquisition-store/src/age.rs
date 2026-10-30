@@ -63,4 +63,5 @@ pub fn before(basis: &str, basis_at: i64, at: Option<i64>) -> String {
 }
 
 #[cfg(test)]
+#[path = "../unit/tests/age.rs"]
 mod tests;

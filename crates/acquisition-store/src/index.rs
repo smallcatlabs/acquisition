@@ -506,4 +506,5 @@ impl Index {
 }
 
 #[cfg(test)]
+#[path = "../unit/tests/index.rs"]
 mod tests;

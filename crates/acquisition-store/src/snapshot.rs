@@ -800,4 +800,5 @@ fn read_items(tx: &rusqlite::Transaction, realm: &str, league: &str) -> Result<V
 }
 
 #[cfg(test)]
+#[path = "../unit/tests/snapshot.rs"]
 mod tests;

@@ -31,4 +31,5 @@ pub fn bounded<T>(mut rows: Vec<T>, limit: Option<usize>, expand: bool) -> (Vec<
 }
 
 #[cfg(test)]
+#[path = "../unit/tests/bound.rs"]
 mod tests;

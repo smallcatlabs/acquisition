@@ -852,4 +852,5 @@ pub fn clear_buyout(
 }
 
 #[cfg(test)]
+#[path = "../unit/tests/price.rs"]
 mod tests;

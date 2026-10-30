@@ -281,4 +281,5 @@ pub fn table() -> Result<&'static CurrencyTable, CurrencyTableError> {
 }
 
 #[cfg(test)]
+#[path = "../unit/tests/currency.rs"]
 mod tests;

@@ -509,4 +509,5 @@ impl Store {
 }
 
 #[cfg(test)]
+#[path = "../unit/tests/corpus.rs"]
 mod tests;

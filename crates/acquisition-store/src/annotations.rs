@@ -1504,8 +1504,9 @@ fn stored(
 /// stamped `version: 1`. The store crate owns no real kind (each kind's
 /// shape is its owner's, C66), so its tests declare these.
 #[cfg(test)]
-#[path = "annotations/tests/kinds.rs"]
+#[path = "../unit/tests/annotations_kinds.rs"]
 pub(crate) mod test_kinds;
 
 #[cfg(test)]
+#[path = "../unit/tests/annotations.rs"]
 mod tests;

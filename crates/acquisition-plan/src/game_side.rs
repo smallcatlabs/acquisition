@@ -248,4 +248,5 @@ pub fn read(source: Source, text: &str, table: &CurrencyTable) -> GamePrice {
 }
 
 #[cfg(test)]
+#[path = "../unit/tests/game_side.rs"]
 mod tests;
