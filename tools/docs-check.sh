@@ -277,7 +277,12 @@ fi
 # line, or a block to its closing column-0 `}`), and not `tools/`. A
 # knob read only there is development's, and its read site's doc is its
 # home; the README is the users' (2026-10-19, the release seat's fix
-# round, when three such rows left it).
+# round, when three such rows left it). The convention a test-only file
+# of `src/` follows: it lives under a `tests/` directory, as
+# `ratelimit.rs` includes `ratelimit/tests/spec.rs`, so this check skips
+# it by its path. The `#[cfg(test)] mod name;` line that includes it is
+# not resolved to a file (#118, which `ACQ_CASES` met in a test-only
+# `src/generated.rs`), and the refusal names the convention.
 tour_bad=$(awk '/^```sh/{f=1; prev=""; next} /^```/{f=0; next} f{ if ($0 ~ /^[[:space:]]*#/ && prev !~ /^[[:space:]]*$/) print "        line "NR": "$0; prev=$0 }' README.md)
 if [[ -n $tour_bad ]]; then
   printf 'TOUR    %-18s a comment line continues a verb line — one line per verb, the rest is its --help:\n%s\n' README.md "$tour_bad"
@@ -296,7 +301,7 @@ code_knobs=$(find crates -name '*.rs' -not -path '*/tests/*' -not -path '*/targe
 readme_knobs=$(grep -oE 'ACQ_[A-Z_]+' README.md | sort -u)
 missing_knobs=$(comm -23 <(printf '%s\n' "$code_knobs") <(printf '%s\n' "$readme_knobs") | tr '\n' ' ')
 if [[ -n $missing_knobs ]]; then
-  printf 'KNOB    %-18s read in the crates, no row in the knob table: %s\n' README.md "$missing_knobs"
+  printf 'KNOB    %-18s read in the crates, no row in the knob table: %s— a knob a build ships has a row; a knob only tests read is read in a test-only file, which lives under a tests/ directory\n' README.md "$missing_knobs"
   fail=1
 else
   echo "ok      knobs         every ACQ_* the crates read has a README row"
