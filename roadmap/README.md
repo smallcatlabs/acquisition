@@ -218,8 +218,8 @@ The owner's list, his to strike:
 ## Starting a session
 
 1. Read this file, then the current step's brief, then what the brief
-   names. `STATE-2026-10-19.md`, `STATE-2026-10-26.md`, `GUI-NOTES.md`
-   and `TIME-SEAM.md` are dated evidence, read when a brief points into
+   names. `STATE-2026-10-19.md`, `STATE-2026-10-26.md`, `GUI-NOTES.md`,
+   `TIME-SEAM.md` and `TEST-SHAPE.md` are dated evidence, read when a brief points into
    them and never rewritten; a sentence an outside review shows wider
    than its report is corrected in place, dated.
 2. A session ends with "Current step" true; nothing else here changes
