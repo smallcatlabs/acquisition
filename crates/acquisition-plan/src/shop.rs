@@ -3,8 +3,9 @@
 //! table (C68), a template and the policy table below. Built by the
 //! pricing slice's plan step 6 (`PRICING-SLICE.md` at `b6197a82`, 2026-09-07). Nothing
 //! here reads a store, contacts a daemon or sends anything: the CLI
-//! (`acq shop render`, `shop_cmd.rs`) writes the pages to stdout and the
-//! owner pastes them by hand (`SURFACES.md`, the forum row).
+//! (`acq shop render`, `shop_cmd.rs`) writes the pages to stdout and a
+//! person pastes them by hand; Acquisition never posts (C120;
+//! `SURFACES.md`, the forum row).
 //!
 //! # Rulings held here
 //!
@@ -26,10 +27,11 @@
 //! read down. The order of the reads is the order of `cell`: what the
 //! effective price says (the game decides → omitted, since the site
 //! already shows it and a page must not contradict it, C81; a hand `skip`
-//! → omitted, as the word means; `no_price` → blocked on Q5; nothing →
-//! off the page; unresolved → blocked, never treated as unpriced), then
-//! what a hand price carries (a kind other than `exact` or `negotiable`
-//! → blocked, since no row of the table says how it is written; a ratio
+//! → omitted, as the word means; a hand `no_price` → posted as its link
+//! alone under an empty title, below; nothing → off the page; unresolved
+//! → blocked, never treated as unpriced), then what a hand price carries
+//! (a kind other than `exact`, `negotiable` or `no_price` → blocked,
+//! since no row of the table says how it is written; a ratio
 //! → Q6; a retired tag → C68), then whether the item can be addressed at
 //! all (a league-less character's item is not evidence for this league;
 //! the realm must be one the site lists — `pc`, `xbox`, `sony`, T4, and

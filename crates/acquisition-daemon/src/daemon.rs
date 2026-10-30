@@ -18,6 +18,7 @@
 //! - `dispatch.rs`: the dispatcher and a job's life.
 //! - `kinds.rs`: what each job kind does and what it records.
 //! - `login.rs`: the login flow, logout and forget.
+//! - `held.rs`: the credentials lock as a type.
 //! - `refresh.rs`: the single-flight refresh and the dead bearer.
 //! - `quote.rs`: the quote.
 //! - `server.rs`: the connection, the requests, the idle watchdog and the exit.

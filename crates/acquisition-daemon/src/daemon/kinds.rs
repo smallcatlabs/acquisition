@@ -8,8 +8,8 @@
 //! - **C43** (apply, a pure fan-out parent): the daemon stays plan-blind
 //!   (it cannot link the plan crate, and it reads no intent — C34; the
 //!   store it links only to write facts and keep its queue), so what it
-//!   admits is vocabulary — only single-request kinds (`stashes`, or
-//!   `stash` with `deep` false), each of which submits no children.
+//!   admits is vocabulary — only single-request kinds, each of which
+//!   submits no children; the vocabulary is `validate_apply`'s.
 //!   Admission is at submit, before a job id exists: a malformed tuple
 //!   list, an empty one, one longer than `APPLY_MAX_ACTIONS`, or a logical
 //!   bound over the caller's `max_requests` refuses the submit whole — the

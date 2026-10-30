@@ -21,8 +21,8 @@
 //!
 //! # Rulings held here
 //!
-//! - **C45** (with no daemon, read the ledger): [`Persisted`] is a
-//!   read-only connection that creates nothing (no file, no schema, no
+//! - **C45** (with no daemon, read the ledger): [`Persisted::read`] opens
+//!   a read-only connection that creates nothing (no file, no schema, no
 //!   world) and reads none of the bulk columns (a parent's held `deferred`
 //!   result can be a whole refresh), never the daemon's open [`JobDb`]; the
 //!   daemon's list carries what disk cannot (ETAs, re-queue counts as they

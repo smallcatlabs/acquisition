@@ -26,11 +26,12 @@
 //!   refresh --plan=FILE` renders a reviewed envelope through the same
 //!   renderer as a fresh compile (re-validated by the planner's parse), so
 //!   the driver's confirm step and a human's review of a saved plan read
-//!   the same text. A failure line's evidence is the child's result id,
-//!   the `refused` row, the daemon log path — never a bare id list; a
-//!   parent's failure expands its failed children inline (ten at most,
-//!   then `and n more: acq jobs`), and `failed_ids` is sorted at the
-//!   source. Never fetched renders `-`; a fetched body that carried no
+//!   the same text. A failure line names each failed child by its job id,
+//!   target and error — never a bare id list — and the daemon log path
+//!   follows; a parent's failure expands its failed children inline (ten
+//!   at most, then a count of the rest and `acq result <id> --json`,
+//!   which lists every id: `job_report`), and `failed_ids` is sorted at
+//!   the source. Never fetched renders `-`; a fetched body that carried no
 //!   items renders `0` and the footer counts those rows; an empty plan
 //!   says what is fresh and for how long; a missing quote says `no daemon
 //!   running` once, without an OS error string (`--plan` never spawns).

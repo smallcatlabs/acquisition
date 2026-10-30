@@ -132,10 +132,12 @@ impl Daemon {
         })
     }
 
-    /// Per-route knowledge about GGG that headers cannot teach, kept in
-    /// one place (`RUN-LEDGER.md`, 2026-08-30):
+    /// Per-route knowledge about GGG that headers cannot teach
+    /// (`RUN-LEDGER.md`, 2026-08-30), in two declarations: this function
+    /// declares the policyless route, and `NO_PROBE_ROUTES` below names
+    /// the routes that are not probed:
     /// - `/profile`: HEAD is answered 403, and GET answers 200 with no
-    ///   `X-Rate-Limit-*` headers at all — not probed, may be policyless.
+    ///   `X-Rate-Limit-*` headers at all — not probed, declared policyless.
     /// - `/account/leagues`: HEAD is answered 200 and **counted** as a hit
     ///   (state `1:10:0` after the probe; N24's free HEAD is per endpoint),
     ///   so a probe costs what the GET costs — not probed; the GET teaches.

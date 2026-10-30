@@ -17,9 +17,9 @@
 //!   Authentication completes before an API request performs its final
 //!   limiter check and acquires its send permit, so neither auth nor
 //!   rate-limit waiting occupies an API permit. The dispatcher may keep one
-//!   active job task per scheduling key to preserve priority and FIFO; auth
-//!   and pacing waits therefore cannot block progress on independent
-//!   keys.
+//!   active job task per scheduling key to preserve priority and FIFO, and
+//!   has no global job-task cap; auth and pacing waits therefore cannot
+//!   block progress on independent keys.
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::{Arc, Mutex};

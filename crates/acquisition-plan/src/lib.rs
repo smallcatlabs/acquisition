@@ -145,12 +145,14 @@
 //!   (binding untouched: every action stays an explicit reviewed tuple,
 //!   nothing is added at apply); a folder's children are planned at once,
 //!   because the listing already carries them (folders themselves are
-//!   never fetched); a child named directly still works. A substash stub
-//!   whose `metadata.items` is 0 is skipped (`SkipReason::EmptyStub`) —
-//!   GGG appears to list only non-empty substashes (64 of 64 stubs on the
-//!   real account carry a count ≥ 1), so this is a guard, not a saving; a
-//!   count is still never proof of freshness. A new skip kind is an
-//!   envelope shape change (`REFRESH_PLAN_SCHEMA`).
+//!   never fetched); a child named directly still works. A map or unique
+//!   substash stub whose `metadata.items` is 0 and where the store holds
+//!   no item either is skipped (`is_empty_substash`,
+//!   `SkipReason::EmptyStub`) — GGG appears to list only non-empty
+//!   substashes (64 of 64 stubs on the real account carry a count ≥ 1), so
+//!   this is a guard, not a saving; a count is still never proof of
+//!   freshness. A new skip kind is an envelope shape change
+//!   (`REFRESH_PLAN_SCHEMA`).
 //! - **C38** (plans are binding): [`RefreshPlan`] is the operation-specific
 //!   type; a universal grammar waits for the second plan-bearing consumer.
 //!   Work has two dimensions: `logical_requests` (exact or bounded) and
@@ -159,13 +161,15 @@
 //!   excludes dynamic `--deep` fan-out (a vanished tab fails or is
 //!   reported skipped; newly discovered tabs wait for the next plan).
 //! - **C44** (a moved policy revokes a plan): the check is
-//!   [`RefreshPlan::check_spendable`], run frontend-side against a fresh
-//!   read of the policy row immediately before submit (the daemon is
-//!   intent-blind); a different provider, a mismatched account uuid, a
-//!   missing row or a different revision each refuse ([`SpendError`]) with
-//!   the remedy named. The check races a concurrent policy write between
-//!   read and submit (the same register as `policy set` without
-//!   `--if-revision`).
+//!   [`RefreshPlan::check_spendable`], run frontend-side immediately
+//!   before submit (the daemon is intent-blind): a different provider or a
+//!   mismatched account uuid refuses any plan; a plan derived from the
+//!   policy (`basis.policy_revision` set) is then held against a fresh
+//!   read of the policy row, and a missing row or a different revision
+//!   refuses; a selection plan reads no row (C44 as amended). Each refusal
+//!   is a [`SpendError`] with the remedy named. The check races a
+//!   concurrent policy write between read and submit (the same register as
+//!   `policy set` without `--if-revision`).
 //! - **C61** (deleted or expired characters skipped): the planner treats a
 //!   character's league key as an opaque string — league names on
 //!   characters are not restricted to `/account/leagues`.
