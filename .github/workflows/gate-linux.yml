@@ -185,6 +185,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: tools/arch-check-breakers.sh
 
+      - name: The trade check's breakers
+        if: ${{ !cancelled() }}
+        run: tools/trade-check-breakers.sh
+
       - name: The gate's breakers
         if: ${{ !cancelled() }}
         run: tools/gate-breakers.sh

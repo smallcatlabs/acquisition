@@ -38,6 +38,11 @@
 #      `--check`, and between bumps the drift line holds their headers to
 #      the pin.
 #
+# Six stages are self-tests, each staging its own refusals on inputs it
+# makes, and `gamediff`'s stage the `drift` line's too; the four that
+# hold a committed file to its script (`sheet`, `category`, `totals`,
+# `stats`) have theirs staged by `tools/trade-check-breakers.sh` (#106).
+#
 # Exit 1 on any failure; the report names each offender.
 set -euo pipefail
 cd "$(dirname "$0")/.."
