@@ -16,7 +16,9 @@ method `browser`).
 The sheet is appended to and never edited (`changed`): a run that would write
 a committed line otherwise, or drop one, writes nothing and names it, and
 `--verify` holds the committed sheet to what this script composes, line for
-line (tools/trade-check.sh runs it). The batch below cannot be written over it.
+line (tools/trade-check.sh runs it), a link by the query it decodes to and
+never by its bytes, which are the zlib build's (`same`); a committed line is
+written back as committed. The batch below cannot be written over it.
 
 The checks ask the site of every listed item at once whether a pseudo's rows
 are complete and sound (`checks` and `round_two`, below, the second written
@@ -2402,6 +2404,36 @@ def sheet_text(searches):
     return out.getvalue()
 
 
+def same(committed, composed):
+    """Whether a composed line is the committed one. The link is compared by
+    the query it carries, never by its bytes: deflate's bytes are the zlib
+    build's, and a zlib-ng host's are not the site's (#145), while the
+    committed link is the one its captures name."""
+    if committed == composed:
+        return True
+    old, new = next(csv.reader([committed])), next(csv.reader([composed]))
+    at = 4  # the link, as sheet_text writes it
+    return (len(old) == len(new) and old[:at] + old[at + 1:] == new[:at] + new[at + 1:]
+            and old[at].rsplit("/", 1)[0] == new[at].rsplit("/", 1)[0]
+            and decode(old[at]) == decode(new[at]))
+
+
+def committed_lines():
+    with OUT.open(newline="") as fh:
+        return fh.read().splitlines(keepends=True)
+
+
+def kept(composed):
+    """The composed sheet with each committed line that is the same search
+    written as committed, so a link is never rewritten in another zlib's bytes."""
+    by_name = {line.split(",", 1)[0]: line for line in committed_lines()}
+    out = []
+    for line in composed.splitlines(keepends=True):
+        old = by_name.get(line.split(",", 1)[0])
+        out.append(old if old is not None and same(old, line) else line)
+    return "".join(out)
+
+
 def changed(composed):
     """The committed rows a composed sheet would change or drop. The sheet is
     appended to and never edited: a sat search was composed as its line says,
@@ -2409,12 +2441,13 @@ def changed(composed):
     query under its name, the name gone — turns a capture into an answer to
     no question (tools/trade_rows.py keeps its versions by the same rule)."""
     lines = composed.splitlines(keepends=True)
-    with OUT.open(newline="") as fh:
-        committed = fh.read().splitlines(keepends=True)
+    committed = committed_lines()
     by_name = {line.split(",", 1)[0]: line for line in lines}
-    out = [line.split(",", 1)[0] for line in committed if by_name.get(line.split(",", 1)[0]) != line]
+    out = [line.split(",", 1)[0] for line in committed
+           if by_name.get(line.split(",", 1)[0]) is None or not same(line, by_name[line.split(",", 1)[0]])]
     # a new search is appended after every committed one, never between them
-    return out or ([] if lines[:len(committed)] == committed else ["(the order)"])
+    names = [line.split(",", 1)[0] for line in lines[:len(committed)]]
+    return out or ([] if names == [line.split(",", 1)[0] for line in committed] else ["(the order)"])
 
 
 def verify():
@@ -2432,7 +2465,7 @@ def verify():
             bad += 1
             print(f"NO CONTROL  {row['search']}")
     # the sheet is what this script writes, line for line
-    composed = sheet_text(compose_sheet())
+    composed = kept(sheet_text(compose_sheet()))
     with OUT.open(newline="") as fh:
         committed = fh.read()
     gone = changed(composed)
@@ -2483,7 +2516,7 @@ def main():
         print(__doc__)
         return 2
     searches = compose_sheet(method)
-    text = sheet_text(searches)
+    text = kept(sheet_text(searches))
     gone = changed(text)
     if gone:
         raise SystemExit(f"{len(gone)} committed searches would change or go ({', '.join(gone[:8])}"
@@ -2491,8 +2524,8 @@ def main():
     with OUT.open("w", newline="") as out:
         out.write(text)
     if method == "site":
-        for row in searches:
-            print(f"{row['search']}  {link(row['query'], row.get('league', LEAGUE))}")
+        for row in csv.DictReader(io.StringIO(text)):
+            print(f"{row['search']}  {row['link']}")
     kinds = {"trade": 0, "park": 0, "pilot": 0, "check": 0, "line": 0, "pair": 0, "percentile line": 0,
              "percentile case": 0, "open question": 0}
     for row in searches:
