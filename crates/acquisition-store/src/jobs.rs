@@ -17,32 +17,16 @@
 //! asks the daemon (`acq jobs`, `acq result`) while one answers, and reads
 //! the table through [`Persisted`] only when none does.
 //!
-//! # Decisions as recorded
+//! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 //!
-//! The rulings are the decision registry — `decisions/daemon.md` for this
-//! area, `AGENTS.md` for the cross-cutting ones (`C<n>`); what follows is
-//! the entry's full text as recorded there, kept beside the code that
-//! implements it. The registry is current.
+//! # Rulings held here
 //!
-//! ## C45 — With no daemon to ask, an observer reads the queue from the ledger on disk
-//!
-//! **With no daemon to ask, an observer reads the queue from the ledger on
-//! disk — what waits, what was recorded running, when it was last written
-//! — never "no outstanding work".** This is the observe tier's absent arm
-//! (C10): `acq jobs` and `acq daemon status`, the MCP's `list_jobs` and
-//! `daemon_status`, answer `running: false` with the persisted queue beside
-//! it, read through [`Persisted`] — a read-only connection that creates
-//! nothing (no file, no schema, no world) and reads none of the bulk
-//! columns (a parent's held `deferred` result can be a whole refresh) —
-//! never through the daemon's open [`JobDb`], and never while a daemon
-//! answers: memory is the truth then (C6), and the daemon's list carries
-//! what disk cannot (ETAs, re-queue counts as they move). Rationale: C25
-//! makes a halted daemon idle out with its queue on disk, and once
-//! observation stopped spawning (C10, 2026-09-09) the halt procedure's
-//! `acq jobs` answered only "not running" — for a ceiling halt the one way
-//! to see the queue was to respawn it, which is exactly what the procedure
-//! says to look before doing. Decided 2026-08-31 (a facade, unbuilt);
-//! amended and built 2026-09-11.
+//! - **C45** (with no daemon, read the ledger): [`Persisted`] is a
+//!   read-only connection that creates nothing (no file, no schema, no
+//!   world) and reads none of the bulk columns (a parent's held `deferred`
+//!   result can be a whole refresh), never the daemon's open [`JobDb`]; the
+//!   daemon's list carries what disk cannot (ETAs, re-queue counts as they
+//!   move).
 
 use std::path::{Path, PathBuf};
 

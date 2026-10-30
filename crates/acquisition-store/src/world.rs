@@ -9,163 +9,123 @@
 //! with its own and to read the log after a failed spawn, the frontends
 //! to print them.
 //!
-//! # Decisions as recorded
+//! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 //!
-//! The rulings are the decision registry — `decisions/daemon.md` for this
-//! area (`C<n>`); what follows is the entry's full text as recorded
-//! there, kept beside the code that implements it.
+//! # Rulings held here
 //!
-//! ## C83 — A world is a canonical, provider-neutral store root
-//!
-//! **C83 — A world is a canonical, provider-neutral store root; its
-//! daemon holds an exclusive lock on it for its lifetime, and in real
-//! mode a per-OS-user lock no root bypasses.** A use path creates the
-//! root, then canonicalises and locks; observation creates nothing. Its
-//! endpoint is C112; `hello` names the root and a client refuses a daemon
-//! on another world. Durable state (`daemon.db`, rails state) lives in
-//! the world; the log and journal are bounded diagnostics elsewhere.
-//! *Why:* C6 and C31 were held by documentation, and the tripwire's state
-//! lived in a directory the OS clears at reboot. *Details:* `world.rs`
-//! doc. Ruled 2026-09-09; amended 2026-10-14 (the endpoint to C112).
-//!
-//! ## C112 — The daemon's endpoint
-//!
-//! **C112 — The daemon's endpoint is derived from the world and the OS
-//! user, never chosen by hand (`ACQ_SOCKET` is gone); only that user can
-//! serve or reach it, and a client speaks to it only after verifying the
-//! server runs as that user.** *Why:* a socket name is discovery, not
-//! ownership; on Windows a named pipe's namespace is machine-wide, so
-//! privacy is the endpoint's property, not a directory's. *Details:*
-//! `world.rs` doc (each platform's arm). Ruled 2026-10-14, splitting
-//! C83's socket clause (owner: "yes").
-//!
-//! On Unix the arm is the socket below, in the private per-user runtime
-//! directory a client verifies before it connects; the Windows arm, a
-//! named pipe under a user-only ACL whose server's process user a client
-//! checks, is step 0 of `PLATFORMS-SLICE.md` at `b6197a82`.
-//!
-//! ## C132 — The real-mode lock's path
-//!
-//! **C132 — The real-mode lock's path derives from the OS user alone, in
-//! the user's own data directory.** The home comes from the password
-//! database (on Windows, the profile directory from the process token),
-//! never from a variable; the lock sits in a private `run` directory
-//! beside the default store; the socket stays in the runtime directory
-//! (C112, the derived endpoint). Another user or mount namespace stays
-//! external concurrency (C31, one daemon, many sessions); a home that
-//! cannot hold the lock means no real-mode daemon, refused by name.
-//! *Why:* every temp directory is moved by a variable or age-cleaned
-//! under a held lock, and two locks are two gates.
-//!
-//! ## C83 — as built (the daemon split's steps 5 and 6)
-//!
-//! - **The root.** [`intended_root`] is the path the environment names:
-//!   `ACQ_STORE_DIR` (a relative value made absolute against the current
-//!   directory, so the same spelling crosses into a spawned `acqd`), else
-//!   the platform data directory's `store` — the base [`store_dir`] has
-//!   always put the provider directories under. [`World::create`] is the
-//!   use path: it creates the root (mode 0700 on Unix) and canonicalises
-//!   it; [`World::observe`] is the observation path: it canonicalises
-//!   what exists and creates nothing, so a missing root is an absent
-//!   world, never a new one; the use path sets the root to mode 0700 on
-//!   every start, not only when it creates it, and refuses if it cannot
-//!   (a root that drifted, or was made before this rule, is brought to
-//!   the documented state).
-//!   `fs::canonicalize` is what makes two spellings of one directory one
-//!   world — a symlinked data directory, macOS's `/var` and
-//!   `/private/var` — and what a daemon reports in `hello` (`world`),
-//!   which a client compares with its own before any other dimension. A
-//!   root that is not valid UTF-8 is refused rather than carried lossily:
-//!   the name crosses the wire as a string, and two distinct byte paths
-//!   must never read as one world (review 2026-09-11).
-//! - **The world lock.** [`World::lock_path`] is `<root>/daemon.lock`;
-//!   [`Lock::acquire`] takes an exclusive advisory lock on it (`flock`,
-//!   through `std::fs::File::try_lock`) and writes the holder's pid into
-//!   the file; the lock lives as long as the [`Lock`] — the daemon keeps
-//!   it for its lifetime, and the kernel releases it however the process
-//!   ends. A second daemon on the root fails to acquire, reads the pid,
-//!   and refuses to start naming the holder ([`LockError`]). This is what
-//!   makes C6's "one daemon per store directory" structure rather than a
-//!   sentence: two daemons on one `daemon.db` would each restore and run
-//!   the same queue.
-//! - **The real-mode lock** (C132, below). [`real_mode_lock_path`] is
-//!   `ggg.lock` in a private `run` directory of the user's own data
-//!   directory, under the home the system records for this OS user —
-//!   `pw_dir` from the password database on Unix, the process token's
-//!   profile directory on Windows — and never a variable:
-//!   `~/Library/Application Support/com.smallcatlabs.acq/run` on macOS,
-//!   `~/.local/share/acq/run` on Linux,
-//!   `<profile>\AppData\Local\smallcatlabs\acq\run` on Windows. `run` is
-//!   held to [`private_dir`]'s checks (made 0700 in the creating call, no
-//!   symlink, this user's, exactly 0700 or restored or refused). Every
-//!   real-mode daemon takes it whatever its root and whatever its
-//!   environment, so two live-test roots, or a terminal and a cron job
-//!   with different `TMPDIR` or `XDG_RUNTIME_DIR`, cannot make two GGG
-//!   gates (C31's Cloudflare bound is per-process state). Per user, not
-//!   per machine: another OS user, another mount namespace or sandbox
-//!   (each its own home), the C++ Acquisition and other machines behind
-//!   the same address are outside it — C31 names them as external
-//!   concurrency the tripwire exists for. A home that cannot hold it (no
-//!   entry, no directory, a `run` refused, a lock the filesystem refuses)
-//!   is no real-mode daemon, refused by name; there is no fallback. The
-//!   mock never takes it.
-//! - **Durable state in the world.** `daemon.db` (`jobs::daemon_db_path`)
-//!   and the rails state ([`World::rails_state_path`]:
-//!   `<root>/<provider>/rails.json`) live beside the account files, where
-//!   a reboot cannot clear them.
-//! - **Diagnostics elsewhere, bounded.** The daemon log and the default
-//!   send journal live under [`log_base_dir`] — `ACQ_LOG_DIR`, else the
-//!   platform's log directory (`~/Library/Logs/acq` on
-//!   macOS, the XDG state directory's `log` on Linux) — one subdirectory
-//!   per world ([`World::id`], twelve hex digits of the canonical root's
-//!   SHA-256, beside a `world` file naming the root for a human browsing
-//!   there) and provider: [`World::log_path`] is
-//!   `<base>/<id>/<provider>/daemon.log`, [`World::journal_path`]
-//!   `<base>/<id>/<provider>/sends.jsonl`. They are append-only and
-//!   never durable state; the daemon bounds them (rotated once at its
-//!   start past a cap — the mechanism and the size are the daemon's,
-//!   `daemon/start.rs`). `ACQ_JOURNAL` still overrides the journal — a live run
-//!   points it into its evidence directory, where the ledger cites it —
-//!   and `0` disables it (`rails.rs`).
-//! - **The socket.** [`World::socket_path`] is `<runtime>/<id>.sock` —
-//!   the world's twelve-hex id in the private per-user runtime directory
-//!   (the split's step 6). Nothing chooses it by hand, and two spellings
-//!   of one root reach one socket because the id is the canonical root's. Short under the platform's defaults: the
-//!   runtime directory is `$XDG_RUNTIME_DIR` (`/run/user/<uid>`) or
-//!   macOS's fixed-shape `$TMPDIR`, so the whole path is about 75 bytes
-//!   under the macOS fallback — but both variables are the
-//!   environment's, so the derivation ([`World::socket_path_under`])
-//!   refuses by name a path over [`SOCKET_PATH_MAX`] or one that is not
-//!   valid UTF-8 (the socket is named in every report; Linux permits
-//!   other bytes in `XDG_RUNTIME_DIR`), rather than leaving the first to
-//!   `bind`'s `ENAMETOOLONG` and the second to a report that cannot be
-//!   built. The daemon creates the runtime directory
-//!   ([`app_runtime_dir`]) before it binds; a client only verifies it
-//!   ([`existing_private_dir`]: this user's, 0700, no symlink) before it
-//!   connects, so a socket in a directory another user made is never
-//!   used, and an observation creates nothing — no runtime directory yet
-//!   is no daemon yet. A world that does not exist has no socket: a use
-//!   door creates the root first, an observer reports absence.
-//!
-//! ## The Windows arm (`PLATFORMS-SLICE.md` at `b6197a82`, step 0)
-//!
-//! - **The endpoint** is a named pipe, not a socket (C112;
-//!   [`World::socket_path`], `world_windows`).
-//! - **The runtime directory** is `%TEMP%\acq` — per user, under the
-//!   profile — and is not made by the daemon: the endpoint is a pipe and the
-//!   real-mode lock is in the profile's `AppData\Local` (C132), its
-//!   profile directory read from the process token
-//!   (`world_windows::profile_dir`); the owner and mode checks of
-//!   [`private_dir`] are Unix-only.
-//! - **The locks** are `std`'s file locks, which on Windows are mandatory:
-//!   the holder's pid is written to `<lock>.pid` beside each lock as well,
-//!   where [`Lock::holder`] reads it.
-//! - **The root** is canonicalised without the verbatim `\\?\` prefix
-//!   where a plain spelling exists, so the name a user types is the name
-//!   `hello` carries and the id hashes.
-//! - **Every reported path** is spelled the same way ([`canonical`]), and
-//!   a file's id ([`file_id`]) is its volume serial number and file
-//!   index, read from the open handle.
+//! - **C83** (a world is a canonical root), as built in the daemon
+//!   split's steps 5 and 6:
+//!   - **The root.** [`intended_root`] is the path the environment names:
+//!     `ACQ_STORE_DIR` (a relative value made absolute against the current
+//!     directory, so the same spelling crosses into a spawned `acqd`), else
+//!     the platform data directory's `store` — the base [`store_dir`] has
+//!     always put the provider directories under. [`World::create`] is the
+//!     use path: it creates the root (mode 0700 on Unix) and canonicalises
+//!     it; [`World::observe`] is the observation path: it canonicalises
+//!     what exists and creates nothing, so a missing root is an absent
+//!     world, never a new one; the use path sets the root to mode 0700 on
+//!     every start, not only when it creates it, and refuses if it cannot
+//!     (a root that drifted, or was made before this rule, is brought to
+//!     the documented state).
+//!     `fs::canonicalize` is what makes two spellings of one directory one
+//!     world — a symlinked data directory, macOS's `/var` and
+//!     `/private/var` — and what a daemon reports in `hello` (`world`),
+//!     which a client compares with its own before any other dimension. A
+//!     root that is not valid UTF-8 is refused rather than carried lossily:
+//!     the name crosses the wire as a string, and two distinct byte paths
+//!     must never read as one world (review 2026-09-11).
+//!   - **The world lock.** [`World::lock_path`] is `<root>/daemon.lock`;
+//!     [`Lock::acquire`] takes an exclusive advisory lock on it (`flock`,
+//!     through `std::fs::File::try_lock`) and writes the holder's pid into
+//!     the file; the lock lives as long as the [`Lock`] — the daemon keeps
+//!     it for its lifetime, and the kernel releases it however the process
+//!     ends. A second daemon on the root fails to acquire, reads the pid,
+//!     and refuses to start naming the holder ([`LockError`]). This is what
+//!     makes C6's "one daemon per store directory" structure rather than a
+//!     sentence: two daemons on one `daemon.db` would each restore and run
+//!     the same queue.
+//!   - **The real-mode lock** (C132, below). [`real_mode_lock_path`] is
+//!     `ggg.lock` in a private `run` directory of the user's own data
+//!     directory, under the home the system records for this OS user —
+//!     `pw_dir` from the password database on Unix, the process token's
+//!     profile directory on Windows — and never a variable:
+//!     `~/Library/Application Support/com.smallcatlabs.acq/run` on macOS,
+//!     `~/.local/share/acq/run` on Linux,
+//!     `<profile>\AppData\Local\smallcatlabs\acq\run` on Windows. `run` is
+//!     held to [`private_dir`]'s checks (made 0700 in the creating call, no
+//!     symlink, this user's, exactly 0700 or restored or refused). Every
+//!     real-mode daemon takes it whatever its root and whatever its
+//!     environment, so two live-test roots, or a terminal and a cron job
+//!     with different `TMPDIR` or `XDG_RUNTIME_DIR`, cannot make two GGG
+//!     gates (C31's Cloudflare bound is per-process state). Per user, not
+//!     per machine: another OS user, another mount namespace or sandbox
+//!     (each its own home), the C++ Acquisition and other machines behind
+//!     the same address are outside it — C31 names them as external
+//!     concurrency the tripwire exists for. A home that cannot hold it (no
+//!     entry, no directory, a `run` refused, a lock the filesystem refuses)
+//!     is no real-mode daemon, refused by name; there is no fallback. The
+//!     mock never takes it.
+//!   - **Durable state in the world.** `daemon.db` (`jobs::daemon_db_path`)
+//!     and the rails state ([`World::rails_state_path`]:
+//!     `<root>/<provider>/rails.json`) live beside the account files, where
+//!     a reboot cannot clear them.
+//!   - **Diagnostics elsewhere, bounded.** The daemon log and the default
+//!     send journal live under [`log_base_dir`] — `ACQ_LOG_DIR`, else the
+//!     platform's log directory (`~/Library/Logs/acq` on
+//!     macOS, the XDG state directory's `log` on Linux) — one subdirectory
+//!     per world ([`World::id`], twelve hex digits of the canonical root's
+//!     SHA-256, beside a `world` file naming the root for a human browsing
+//!     there) and provider: [`World::log_path`] is
+//!     `<base>/<id>/<provider>/daemon.log`, [`World::journal_path`]
+//!     `<base>/<id>/<provider>/sends.jsonl`. They are append-only and
+//!     never durable state; the daemon bounds them (rotated once at its
+//!     start past a cap — the mechanism and the size are the daemon's,
+//!     `daemon/start.rs`). `ACQ_JOURNAL` still overrides the journal — a live run
+//!     points it into its evidence directory, where the ledger cites it —
+//!     and `0` disables it (`rails.rs`).
+//!   - **The socket.** [`World::socket_path`] is `<runtime>/<id>.sock` —
+//!     the world's twelve-hex id in the private per-user runtime directory
+//!     (the split's step 6). Nothing chooses it by hand, and two spellings
+//!     of one root reach one socket because the id is the canonical root's. Short under the platform's defaults: the
+//!     runtime directory is `$XDG_RUNTIME_DIR` (`/run/user/<uid>`) or
+//!     macOS's fixed-shape `$TMPDIR`, so the whole path is about 75 bytes
+//!     under the macOS fallback — but both variables are the
+//!     environment's, so the derivation ([`World::socket_path_under`])
+//!     refuses by name a path over [`SOCKET_PATH_MAX`] or one that is not
+//!     valid UTF-8 (the socket is named in every report; Linux permits
+//!     other bytes in `XDG_RUNTIME_DIR`), rather than leaving the first to
+//!     `bind`'s `ENAMETOOLONG` and the second to a report that cannot be
+//!     built. The daemon creates the runtime directory
+//!     ([`app_runtime_dir`]) before it binds; a client only verifies it
+//!     ([`existing_private_dir`]: this user's, 0700, no symlink) before it
+//!     connects, so a socket in a directory another user made is never
+//!     used, and an observation creates nothing — no runtime directory yet
+//!     is no daemon yet. A world that does not exist has no socket: a use
+//!     door creates the root first, an observer reports absence.
+//! - **C112** (the endpoint derives from the world): on Unix the arm is
+//!   the socket under C83 above, in the private per-user runtime directory
+//!   a client verifies before it connects; the Windows arm, a named pipe
+//!   under a user-only ACL whose server's process user a client checks, is
+//!   step 0 of `PLATFORMS-SLICE.md` at `b6197a82`:
+//!   - **The endpoint** is a named pipe, not a socket (C112;
+//!     [`World::socket_path`], `world_windows`).
+//!   - **The runtime directory** is `%TEMP%\acq` — per user, under the
+//!     profile — and is not made by the daemon: the endpoint is a pipe and the
+//!     real-mode lock is in the profile's `AppData\Local` (C132), its
+//!     profile directory read from the process token
+//!     (`world_windows::profile_dir`); the owner and mode checks of
+//!     [`private_dir`] are Unix-only.
+//!   - **The locks** are `std`'s file locks, which on Windows are mandatory:
+//!     the holder's pid is written to `<lock>.pid` beside each lock as well,
+//!     where [`Lock::holder`] reads it.
+//!   - **The root** is canonicalised without the verbatim `\\?\` prefix
+//!     where a plain spelling exists, so the name a user types is the name
+//!     `hello` carries and the id hashes.
+//!   - **Every reported path** is spelled the same way ([`canonical`]), and
+//!     a file's id ([`file_id`]) is its volume serial number and file
+//!     index, read from the open handle.
+//! - **C132** (the real-mode lock's path): the real-mode lock under C83
+//!   above.
 
 use std::fs::{File, OpenOptions, TryLockError};
 use std::io::{Read as _, Write as _};

@@ -30,89 +30,53 @@
 //! Backup is store-managed: [`Annotations::export`] writes a consistent
 //! snapshot via `VACUUM INTO` — a raw file copy under WAL is not a backup.
 //!
-//! # Decisions as recorded
+//! Rulings: `decisions/store.md` and `decisions/pricing.md`; the
+//! cross-cutting ones (C35 among them) are `AGENTS.md`'s.
 //!
-//! The rulings are the decision registry — `decisions/plans.md` and
-//! `decisions/pricing.md` for this area, `AGENTS.md` for the cross-cutting
-//! ones (`C<n>`); what follows is each entry's full text as recorded there,
-//! moved here because the mechanism it describes is this module's. The
-//! registry is current; this is the mechanism as decided, kept beside the
-//! code that implements it.
+//! # Rulings held here
 //!
-//! ## C35 — Annotations are the only irreplaceable local state.
-//!
-//! **Annotations are the only irreplaceable local state.** A separate per-account file named by the account uuid (identity decision in "Multi-account design"), keyed on stable GGG ids, written only through the store crate with integer-revision compare-and-swap; no fact-side event ever deletes intent — an annotation whose item is removed is kept and surfaceable as orphaned; export/backup is a store-managed consistent snapshot (`VACUUM INTO` / SQLite backup API — a raw file copy under WAL is not a backup). Rationale: facts are refetchable at the cost of requests; intent has no server to refetch from — the C++ legacy-buyout saga is the full price of getting this wrong. Decided 2026-08-31.
-//!
-//! ## C151 — An annotation row this build cannot read is named, never dropped, never a wall, and never repaired by a read.
-//!
-//! Every door reads a row as stored first (`Stored`, its value still
-//! text). [`Annotations::list`] parses each and answers an
-//! [`AnnotationList`]: the readable rows, and beside them each
-//! [`UnreadableRow`] by its scope, key, kind, revision and parse fault.
-//! [`Annotations::get`] answers [`AnnotationError::Unreadable`] with the
-//! same facts. [`Annotations::put`] and [`Annotations::delete`] naming
-//! the row's revision never parse the value they replace, so the one
-//! compare-and-swap (C35) can clear or replace such a row; at a wrong
-//! revision they answer `Unreadable` with the revision the row stands
-//! at, where a readable row would answer a `Conflict` carrying itself.
-//! Nothing rewrites a value in place and no read repairs. Rationale: one
-//! damaged row hid every price and could not be cleared by the only API
-//! that may write the file (issue #63).
-//!
-//! ## C65 — Every intent write carries structured provenance
-//!
-//! **Every intent write carries structured provenance: the channel it came
-//! through (`written_via`) and an optional claimed `actor`; the hash of the
-//! plan that landed it (`applied_plan`, C71) joins when receipts exist.**
-//! Stored on the row (annotations v3), returned on every read;
-//! `written_via` required by the write API; `actor` is untrusted audit
-//! metadata, never identity or authorization; origin detail lives on the
-//! receipt (C78). v3 is the floor: a file below it is refused, never
-//! migrated — every row on record has a writer. Ruled 2026-09-03;
-//! `applied_plan` deferred 2026-09-04; the floor 2026-09-05.
-//!
-//! As built: [`Provenance`] is a required argument of [`Annotations::put`]
-//! and [`Annotations::delete`] (a tombstone records who cleared the row);
-//! `written_via` must be a non-empty single word. Files below v3 were
-//! written only by development builds (the owner's held one policy row),
-//! so rather than carry a migration that would have to invent a writer
-//! for rows that had none, the open refuses them
-//! ([`AnnotationError::SchemaTooOld`]) naming the file and the fix; a
-//! future column is added by a stepwise `ALTER TABLE` in the same
-//! IMMEDIATE transaction, the way the facts store migrates.
-//!
-//! ## C66 — Intent values are typed at the write API
-//!
-//! **Intent values are typed at the write API: a kind declares its schema
-//! version and a strict parser, a value that does not parse under its
-//! stamp never lands, and a current-schema value re-serializes to exactly
-//! what was read.** The generic (version gate, unknown fields refused,
-//! exact round-trip, compare-and-swap) lives in the store crate over a
-//! per-kind trait; a kind's shape stays its owner's; an older value
-//! upgrades in memory, stored as written. A kind may also refuse as a
-//! *new write* what it reads (`check_write`; C67's retired tag first) —
-//! at the door, every write, never a read. Ruled 2026-09-03; amended
-//! 2026-09-07.
-//!
-//! As built: [`IntentValue`] is the per-kind trait (the kind's name, the
-//! version this build writes, its strict parse); [`check_value`] is the
-//! generic, in this order: an integer `version` stamp, refused above the
-//! kind's version *before* the shape is read (a newer value is reported as
-//! such, never as a typo); the kind's own parse (each kind's wire structs
-//! carry `deny_unknown_fields` at every depth); then, for a value stamped
-//! with the current version only, the parsed value must re-serialize to
-//! exactly what was read — the first differing path is named — which
-//! closes the holes serde leaves open (`null` for an absent field, an
-//! empty list for "none", an extra field beside a unit variant's tag). A
-//! value stamped older is upgraded in memory by the kind's parse and
-//! stored as written. [`Annotations::put`] runs the generic before the
-//! compare-and-swap, so there is no untyped write door: the store crate
-//! itself cannot land a value its kind refuses. A kind may also refuse a
-//! value *as a new write* that it reads without complaint
-//! ([`IntentValue::check_write`], 2026-09-07): the writer's rules — the
-//! first is C67's, a new price never names a retired currency — run at
-//! the door on every write and never on a read, so a stored row keeps
-//! saying what it said and no frontend can write past the rule.
+//! - **C35** (annotations are irreplaceable state): the module doc above.
+//! - **C151** (an unreadable row is named): every door reads a row as
+//!   stored first (`Stored`, its value still text). [`Annotations::list`]
+//!   parses each and answers an [`AnnotationList`]: the readable rows, and
+//!   beside them each [`UnreadableRow`] by its scope, key, kind, revision
+//!   and parse fault. [`Annotations::get`] answers
+//!   [`AnnotationError::Unreadable`] with the same facts.
+//!   [`Annotations::put`] and [`Annotations::delete`] naming the row's
+//!   revision never parse the value they replace, so the one
+//!   compare-and-swap (C35) can clear or replace such a row; at a wrong
+//!   revision they answer `Unreadable` with the revision the row stands
+//!   at, where a readable row would answer a `Conflict` carrying itself.
+//!   No read repairs.
+//! - **C65** (every intent write carries provenance): stored on the row
+//!   (annotations v3); [`Provenance`] is a required argument of
+//!   [`Annotations::put`] and [`Annotations::delete`] (a tombstone records
+//!   who cleared the row); `written_via` must be a non-empty single word.
+//!   Files below v3 were written only by development builds (the owner's
+//!   held one policy row), so rather than carry a migration that would
+//!   have to invent a writer for rows that had none, the open refuses them
+//!   ([`AnnotationError::SchemaTooOld`]) naming the file and the fix; a
+//!   future column is added by a stepwise `ALTER TABLE` in the same
+//!   IMMEDIATE transaction, the way the facts store migrates.
+//! - **C66** (intent values typed at the write API): [`IntentValue`] is
+//!   the per-kind trait (the kind's name, the version this build writes,
+//!   its strict parse); [`check_value`] is the generic, in this order: an
+//!   integer `version` stamp, refused above the kind's version *before*
+//!   the shape is read (a newer value is reported as such, never as a
+//!   typo); the kind's own parse (each kind's wire structs carry
+//!   `deny_unknown_fields` at every depth); then, for a value stamped with
+//!   the current version only, the parsed value must re-serialize to
+//!   exactly what was read — the first differing path is named — which
+//!   closes the holes serde leaves open (`null` for an absent field, an
+//!   empty list for "none", an extra field beside a unit variant's tag). A
+//!   value stamped older is upgraded in memory by the kind's parse and
+//!   stored as written. [`Annotations::put`] runs the generic before the
+//!   compare-and-swap, so there is no untyped write door: the store crate
+//!   itself cannot land a value its kind refuses.
+//!   [`IntentValue::check_write`] holds the writer's rules — the first is
+//!   C67's, a new price never names a retired currency — run at the door
+//!   on every write and never on a read, so a stored row keeps saying what
+//!   it said and no frontend can write past the rule.
 
 use std::path::{Path, PathBuf};
 

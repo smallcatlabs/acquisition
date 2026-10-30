@@ -65,51 +65,47 @@
 //!   `items` adds no realm, and reading it for one cost more than the rest
 //!   of the header (8 ms of 13 over 22,721 items, a release build).
 //!
-//! # Decisions as recorded
+//! # Rulings held here
 //!
-//! ## C108, C98 — the revision is the highest `responses.id`
-//!
-//! Ruled 2026-09-19 (owner: "I agree with (a)"): no schema change for
-//! it, and a stamped counter stays the fallback. It advances in the
-//! transaction that changes bodies, locations or membership, as read line
-//! by line on 2026-09-20:
-//!
-//! - [`Store::record`] is the one door that writes `items`, `tabs` or
-//!   `characters` outside a migration, and every path through it that
-//!   commits has inserted exactly one `responses` row in that transaction;
-//!   every earlier exit is an error, which rolls back whole. A refused
-//!   body's row goes to `refused` alone, in a transaction of its own, and
-//!   the id it did not keep is the next record's — no reader ever saw it.
-//! - `acq store import` goes through `record`. [`Store::rebuild`] rewrites
-//!   the derived columns alone, none of which this read hands over or
-//!   orders by. No code deletes a response. No other crate opens a facts
-//!   file to write it.
-//! - A listing, a profile or a withheld fetch advances the revision though
-//!   no item changed: a held corpus is reloaded once more than it needed.
-//! - A schema migration moves rows with no response, so the facts version
-//!   is part of the [`Revision`] and is printed beside it.
-//! - `responses.id` is a plain `INTEGER PRIMARY KEY`, so SQLite hands out
-//!   the highest id plus one, and an id comes back only if the highest row
-//!   is deleted. **Whatever prunes this file keeps two rules: it never
-//!   deletes the highest `responses` row, and a prune that changes what a
-//!   basis read returns advances the revision.** A prune of events or of
-//!   old responses changes nothing this read returns while it keeps the
-//!   latest listing of each realm and league, which the header and the
-//!   snapshots read. A prune of removed items or of retired locations
-//!   changes what the read returns under `All` and what the live read
-//!   names as gone, so it advances the revision — and the highest
-//!   response id does not move when rows are deleted, so that prune
-//!   brings the stamped counter with it or writes a response of its own
-//!   (`decisions/store.md`, "Parked").
-//! - A facts file deleted and refetched, or restored from a copy, counts
-//!   from an earlier number again, so the revision carries the time the
-//!   highest response was recorded beside its id (B2, `search/LEDGER.md`;
-//!   owner, 2026-10-10): no schema change, `fetched_at` being every
-//!   response's since the first version. An id the file itself carried
-//!   would travel with a copy and miss the restore. Not covered: two
-//!   histories whose last response has one id and one second. The same
-//!   snapshot imported again lands at the same ids and times, and is the
-//!   same state.
+//! - **C108**, **C98** (the revision is the highest `responses.id`): no
+//!   schema change, with a stamped counter as the fallback. How each
+//!   writer of this file keeps it:
+//!   - [`Store::record`] is the one door that writes `items`, `tabs` or
+//!     `characters` outside a migration, and every path through it that
+//!     commits has inserted exactly one `responses` row in that transaction;
+//!     every earlier exit is an error, which rolls back whole. A refused
+//!     body's row goes to `refused` alone, in a transaction of its own, and
+//!     the id it did not keep is the next record's — no reader ever saw it.
+//!   - `acq store import` goes through `record`. [`Store::rebuild`] rewrites
+//!     the derived columns alone, none of which this read hands over or
+//!     orders by. No code deletes a response. No other crate opens a facts
+//!     file to write it.
+//!   - A listing, a profile or a withheld fetch advances the revision though
+//!     no item changed: a held corpus is reloaded once more than it needed.
+//!   - A schema migration moves rows with no response, so the facts version
+//!     is part of the [`Revision`] and is printed beside it.
+//!   - `responses.id` is a plain `INTEGER PRIMARY KEY`, so SQLite hands out
+//!     the highest id plus one, and an id comes back only if the highest row
+//!     is deleted. **Whatever prunes this file keeps two rules: it never
+//!     deletes the highest `responses` row, and a prune that changes what a
+//!     basis read returns advances the revision.** A prune of events or of
+//!     old responses changes nothing this read returns while it keeps the
+//!     latest listing of each realm and league, which the header and the
+//!     snapshots read. A prune of removed items or of retired locations
+//!     changes what the read returns under `All` and what the live read
+//!     names as gone, so it advances the revision — and the highest
+//!     response id does not move when rows are deleted, so that prune
+//!     brings the stamped counter with it or writes a response of its own
+//!     (`decisions/store.md`, "Parked").
+//!   - A facts file deleted and refetched, or restored from a copy, counts
+//!     from an earlier number again, so the revision carries the time the
+//!     highest response was recorded beside its id (B2, `search/LEDGER.md`;
+//!     owner, 2026-10-10): no schema change, `fetched_at` being every
+//!     response's since the first version. An id the file itself carried
+//!     would travel with a copy and miss the restore. Not covered: two
+//!     histories whose last response has one id and one second. The same
+//!     snapshot imported again lands at the same ids and times, and is the
+//!     same state.
 
 use anyhow::Result;
 use rusqlite::OptionalExtension as _;
