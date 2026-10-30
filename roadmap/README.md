@@ -114,6 +114,12 @@ Each in his words, with the commit that landed it.
   since it costs nothing and is the flag wanted the day a crate
   declares a feature. No registry entry: it is process (the commit
   carrying this line).
+- 2026-10-29, the group's pace: "i accept your proposed change." A
+  close whose retirements are all on `TEST-SHAPE.md`'s lists, each
+  with a named holder, proceeds to the next step; its retirement list
+  is in the close for the owner's later read. A retirement outside the
+  lists, or one without a holder, waits for his word (the commit
+  carrying this line).
 
 ## Roles
 
@@ -217,10 +223,12 @@ leaves the list when its step closes or the owner strikes it.
    compile cost (#140), in that order, each on the shared checkout.
    The orchestrator proceeds on its own judgment (the owner's word of
    2026-10-29): a ruling in his classes comes to him with a
-   recommendation, and each close's retirement list, every `retired
-   X; held by Y`, comes to him before the next step starts; #137's
-   rulings and the first retirement outside `TEST-SHAPE.md`'s lists
-   wait for his word. The machine is his during a league sitting, as
+   recommendation; a close whose retirements, every `retired X; held
+   by Y`, are all on `TEST-SHAPE.md`'s lists, each with a named holder,
+   proceeds to the next step, its retirement list in the close for his
+   later read (the group's pace, 2026-10-29); a retirement outside the
+   lists, or one without a holder, waits for his word, as #137's
+   rulings did. The machine is his during a league sitting, as
    a window he names.
    Its second tranche is phase 4's: t5 the daemon's door inside 4-0
    (#141), t6 the canonical world and the door corpus before 4-full's
@@ -279,6 +287,6 @@ the owner's league run, at his word; #70 closes on a week of pushes
 without a re-run. Between sittings, the test-shape group's first
 tranche ("Pull-forward", item 2), the orchestrator proceeding on its
 own judgment as that item says. t1 (#137) closed on 2026-10-29
-(`LEDGER.md`); t2 (#138, `briefs/t2-gate-trims.md`) is built in the
-owner's machine window of 2026-10-29, its review pending. `AGENTS.md`
+(`LEDGER.md`), and t2 (#138) the same day; next t3 (#139, the breakers
+as positive controls), whose brief the orchestrator writes. `AGENTS.md`
 governs; the gate is `tools/gate.sh`.
