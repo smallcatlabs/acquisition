@@ -55,3 +55,4 @@ What someone would propose and the project declines, each until the trigger it n
 - An allowlist of GGG's policy and rule names in the daemon log: not until there is a demonstrated need (the owner, 2026-10-29, daemon-safety's close).
 - Keeping GGG's text out of the send journal: refused; the journal keeps GGG's rate and header text verbatim, and invariant 5 is not touched, because no token reaches it (the owner, 2026-10-29).
 - Typing GGG's text where it enters the daemon (#132): not until a need or value is identified (the owner, 2026-10-29).
+- Replacing GGG's policy and rule names with the daemon's labels on `daemon status`, the dashboard and the diagnosis (#133): not until #132's need; the names stay as GGG sent them, and the diagnosis redactor is their belt (the owner, 2026-10-30).
