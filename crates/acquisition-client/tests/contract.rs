@@ -248,19 +248,26 @@ async fn c85_the_daemon_identifies_itself_and_stops_across_a_contract_mismatch()
 /// A scripted daemon of a future revision on the session's socket: answers
 /// every hello with `hello_reply`, every `daemon_stop` with `stop_reply`,
 /// anything else with an error of a kind this build does not know. Having
-/// answered `stopping` it closes the connection, as a daemon's exit does,
-/// so the client's stop returns at once instead of waiting out its bound.
+/// answered `stopping` it exits as a daemon does (C133): it removes its
+/// endpoint, stops listening and closes the connection, so the client's
+/// stop, which returns once the connection has ended and the endpoint is
+/// gone (#130), returns at once instead of waiting out its bound.
 async fn foreign_daemon(hello_reply: Value, stop_reply: Value) -> tokio::task::JoinHandle<()> {
     let socket = session_socket();
     let mut listener =
         Listener::bind(&socket).unwrap_or_else(|e| panic!("bind {}: {e:?}", socket.display()));
+    let exited = std::sync::Arc::new(tokio::sync::Notify::new());
     tokio::spawn(async move {
         loop {
-            let stream = listener.accept().await.expect("accept");
+            let stream = tokio::select! {
+                stream = listener.accept() => stream.expect("accept"),
+                () = exited.notified() => break,
+            };
             let (read, mut write) = tokio::io::split(stream);
             let mut reader = BufReader::new(read);
             let hello_reply = hello_reply.clone();
             let stop_reply = stop_reply.clone();
+            let (socket, exited) = (socket.clone(), exited.clone());
             tokio::spawn(async move {
                 while let Ok(Frame::Line(bytes)) = read_frame(&mut reader, MAX_FRAME_BYTES).await {
                     let frame: Value = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
@@ -277,6 +284,10 @@ async fn foreign_daemon(hello_reply: Value, stop_reply: Value) -> tokio::task::J
                         break;
                     }
                     if reply["resp"] == "stopping" {
+                        // On Unix the socket file; on Windows the listener's
+                        // waiting instance, which the accept loop drops.
+                        let _ = std::fs::remove_file(&socket);
+                        exited.notify_one();
                         break;
                     }
                 }

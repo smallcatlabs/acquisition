@@ -366,6 +366,12 @@ fn parse_within(value: &str, default: Duration) -> Duration {
 /// seconds. Past it the stop is still the daemon's acknowledged one.
 pub const STOPPED_WITHIN: Duration = Duration::from_secs(20);
 
+/// How often a stop whose connection has ended looks again for the
+/// daemon's endpoint, within [`STOPPED_WITHIN`] (#130): on Windows a
+/// pipe's name stays listed until the system has closed the ended
+/// process's last handle, which can come after the connection ends.
+pub const GONE_LOOK_EVERY: Duration = Duration::from_millis(50);
+
 /// A peer that accepted a connection on the world's socket and did not
 /// answer `hello` within [`hello_within`] (C86). `holder` is the pid the
 /// world lock's file records — the daemon that took the world, if the
@@ -544,10 +550,16 @@ pub enum NotSpawned {
 /// What a stop the daemon acknowledged came to (#116's review).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Stopped {
-    /// Its connection ended: the process is gone, its endpoint removed.
+    /// Its connection ended and its endpoint is gone (#130): the stop
+    /// read the connection to its end, then looked at the endpoint it had
+    /// connected to ([`endpoint::exists`](crate::endpoint::exists)) every
+    /// [`GONE_LOOK_EVERY`] until none was there, both within
+    /// [`STOPPED_WITHIN`]. The next command finds no daemon, not a dying
+    /// one.
     Gone,
     /// It answered `stopping` and had not gone when the wait for it
-    /// ended ([`STOPPED_WITHIN`]): it may still be running.
+    /// ended ([`STOPPED_WITHIN`]) — its connection still open, or its
+    /// endpoint still there: it may still be running.
     Acknowledged,
 }
 
@@ -1614,35 +1626,63 @@ impl Client {
     /// [`Client::stop`], waiting `within` for the daemon to go: its
     /// seam, so a test forces the bound's expiry (C137).
     async fn stop_within(&mut self, within: Duration) -> Result<Stopped> {
+        self.stop_until(|| tokio::time::sleep(within), crate::endpoint::exists)
+            .await
+    }
+
+    /// [`Client::stop_within`] with its bound and its look supplied: the
+    /// bound is the future `bound` makes once the daemon has answered
+    /// `stopping`, and `present` says whether the endpoint this client
+    /// connected to is still there. A test supplies both, so it forces
+    /// the interleaving (C137, the deadline's contract is its expiry
+    /// behaviour): the endpoint present after the connection ended, and
+    /// the bound expiring while it is.
+    async fn stop_until<B: std::future::Future<Output = ()>>(
+        &mut self,
+        bound: impl FnOnce() -> B,
+        present: impl Fn(&Path) -> bool,
+    ) -> Result<Stopped> {
         let bytes = self.exchange(&Bootstrap::DaemonStop).await?;
         match BootstrapReply::read(&bytes) {
             Some(BootstrapReply::Stopping) => {
-                // Gone, not only going: this connection ends when the
-                // daemon's process does, after its endpoint is removed —
-                // so the next command finds no daemon rather than a
-                // dying one (first seen on CI's Windows runner). A hang-up
-                // is that end; a bound that expires first, or a read that
-                // fails otherwise, leaves the stop only acknowledged.
-                let mut rest = Vec::new();
-                let read = tokio::time::timeout(
-                    within,
-                    tokio::io::AsyncReadExt::read_to_end(&mut self.reader, &mut rest),
-                )
-                .await;
-                Ok(match read {
-                    Ok(Ok(_)) => Stopped::Gone,
-                    Ok(Err(e))
-                        if matches!(
-                            e.kind(),
-                            std::io::ErrorKind::ConnectionReset
-                                | std::io::ErrorKind::ConnectionAborted
-                                | std::io::ErrorKind::BrokenPipe
-                                | std::io::ErrorKind::UnexpectedEof
-                        ) =>
-                    {
-                        Stopped::Gone
+                // Gone, not only going (#130): this connection ends when
+                // the daemon's process does, after its endpoint is removed
+                // (C133) — but on Windows a pipe's name stays listed until
+                // the system closes the ended process's last handle, which
+                // can come later (CI's Windows runner, run 40886043255).
+                // So a hang-up is the end only once the endpoint the
+                // handshake ran over is gone too, looked at every
+                // `GONE_LOOK_EVERY`, the next command then finding no
+                // daemon rather than a dying one. The bound covers the read
+                // and the looks from one start; a bound that expires first,
+                // or a read that fails otherwise, leaves the stop only
+                // acknowledged.
+                let at = PathBuf::from(&self.daemon.endpoint.socket);
+                let reader = &mut self.reader;
+                let gone = async {
+                    let mut rest = Vec::new();
+                    match tokio::io::AsyncReadExt::read_to_end(reader, &mut rest).await {
+                        Ok(_) => {}
+                        Err(e)
+                            if matches!(
+                                e.kind(),
+                                std::io::ErrorKind::ConnectionReset
+                                    | std::io::ErrorKind::ConnectionAborted
+                                    | std::io::ErrorKind::BrokenPipe
+                                    | std::io::ErrorKind::UnexpectedEof
+                            ) => {}
+                        Err(_) => return false,
                     }
-                    Ok(Err(_)) | Err(_) => Stopped::Acknowledged,
+                    while present(&at) {
+                        tokio::time::sleep(GONE_LOOK_EVERY).await;
+                    }
+                    true
+                };
+                let bound = bound();
+                Ok(tokio::select! {
+                    biased;
+                    gone = gone => if gone { Stopped::Gone } else { Stopped::Acknowledged },
+                    () = bound => Stopped::Acknowledged,
                 })
             }
             _ => match error_message(&bytes) {
@@ -2127,11 +2167,12 @@ mod tests {
 
     use super::*;
 
-    /// A client over one end of a socket pair whose other end answers
-    /// `hello` and then a stop with `stopping`; `linger` keeps that end
-    /// open afterwards, as a daemon that acknowledged and did not go.
+    /// A client handshaken over one end of a socket pair whose other end
+    /// answers `hello` and then a stop with `stopping`, as the daemon at
+    /// `at`; `linger` keeps that end open afterwards, as a daemon that
+    /// acknowledged and did not go, else it ends the connection.
     #[cfg(unix)]
-    async fn stop_a_peer_that(linger: bool, within: Duration) -> (Stopped, DaemonId) {
+    async fn a_peer_that_stops(at: &Path, linger: bool) -> (Client, tokio::task::JoinHandle<()>) {
         use tokio::io::{AsyncBufReadExt as _, AsyncWriteExt as _};
         let (ours, theirs) = tokio::net::UnixStream::pair().unwrap();
         let peer = tokio::spawn(async move {
@@ -2155,10 +2196,18 @@ mod tests {
                 std::future::pending::<()>().await;
             }
         });
-        let at = Endpoint::world(Path::new("/peer.sock")).unwrap();
-        let Ok(mut client) = Client::handshake(ours, at, Ok("w".into())).await else {
+        let at = Endpoint::world(at).unwrap();
+        let Ok(client) = Client::handshake(ours, at, Ok("w".into())).await else {
             panic!("the handshake failed");
         };
+        (client, peer)
+    }
+
+    /// [`a_peer_that_stops`] at an endpoint that does not exist, stopped
+    /// with the bound `within`.
+    #[cfg(unix)]
+    async fn stop_a_peer_that(linger: bool, within: Duration) -> (Stopped, DaemonId) {
+        let (mut client, peer) = a_peer_that_stops(Path::new("/peer.sock"), linger).await;
         let stopped = client
             .stop_within(within)
             .await
@@ -2194,6 +2243,59 @@ mod tests {
             "{lingered}"
         );
         assert!(words(Stopped::Gone).contains("none is left running"));
+    }
+
+    /// #130: a stop whose connection has ended is gone only once the
+    /// endpoint it connected to is gone too. The peer ends its connection
+    /// after `stopping` and its endpoint, a file the test holds, stays
+    /// until the test removes it. Each look at the endpoint is signalled,
+    /// so the stop is polled to pending after a look found the endpoint
+    /// there; it is gone once the file is removed. Kept, with the bound
+    /// expiring only after such a look, the stop is acknowledged. The
+    /// interleaving is forced, never waited for (C137).
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_stop_is_gone_only_once_the_endpoint_it_connected_to_is() {
+        let dir = tempfile::tempdir().unwrap();
+        let socket = dir.path().join("acqd.sock");
+        // The product's look, signalled on `looked` each time it is taken.
+        let look = |looked: &tokio::sync::Notify, at: &Path| {
+            assert_eq!(at, socket, "the stop looks at the endpoint it connected to");
+            looked.notify_one();
+            crate::endpoint::exists(at)
+        };
+
+        std::fs::write(&socket, b"").unwrap();
+        let (mut client, peer) = a_peer_that_stops(&socket, false).await;
+        let looked = tokio::sync::Notify::new();
+        let mut stop =
+            std::pin::pin!(client.stop_until(std::future::pending::<()>, |at| look(&looked, at)));
+        tokio::select! {
+            biased;
+            stopped = &mut stop => panic!(
+                "the stop returned with its endpoint still there: {stopped:?}"
+            ),
+            () = looked.notified() => {}
+        }
+        assert!(
+            peer.is_finished(),
+            "the peer ended the connection before the look"
+        );
+        std::fs::remove_file(&socket).unwrap();
+        let stopped = stop.await.expect("the stop was acknowledged");
+        assert_eq!(stopped, Stopped::Gone);
+
+        // The bound expires once a look has found the endpoint still there.
+        std::fs::write(&socket, b"").unwrap();
+        let (mut client, peer) = a_peer_that_stops(&socket, false).await;
+        let looked = tokio::sync::Notify::new();
+        let stopped = client
+            .stop_until(|| looked.notified(), |at| look(&looked, at))
+            .await
+            .expect("the stop was acknowledged");
+        assert_eq!(stopped, Stopped::Acknowledged);
+        assert!(peer.is_finished(), "the peer ended the connection");
+        assert!(crate::endpoint::exists(&socket));
     }
 
     /// C147 and C137, the look for the winner is bounded whole: a connect
