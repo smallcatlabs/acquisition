@@ -292,6 +292,8 @@ without a re-run. Between sittings, the test-shape group's first
 tranche ("Pull-forward", item 2), the orchestrator proceeding on its
 own judgment as that item says. t1 (#137) closed on 2026-10-29
 (`LEDGER.md`), and t2 (#138) the same day; t3 (#139) closed undone
-on 2026-10-30; next t4 (#140, the compile cost), in a machine window
-the owner names. `AGENTS.md`
+on 2026-10-30; t4 (#140, the compile cost) built on 2026-10-30, its
+review pending, with two rulings for the owner in its report: the
+incremental build (faster, and a larger target directory) and the fold
+of the three environment binaries. `AGENTS.md`
 governs; the gate is `tools/gate.sh`.
