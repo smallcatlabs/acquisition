@@ -144,9 +144,9 @@ jobs:
         run: python3 -I tools/bothy.py check
 
   # The doc stage (`tools/gate.sh --only doc`, `cargo doc` with warnings
-  # denied), beside the gate job, not in it: 80 s after any edit, serial,
-  # so the local full gate leaves it here, the one place it runs on every
-  # push (the owner's ruling of 2026-10-29, `roadmap/README.md`).
+  # denied), beside the gate job, not in it: 81 s after one store touch,
+  # on a 10-core M4, serial, so the local full gate leaves it here, the
+  # one place it runs on every push (the owner's ruling of 2026-10-29, `roadmap/README.md`).
   doc:
     runs-on: ubuntu-latest
     steps:

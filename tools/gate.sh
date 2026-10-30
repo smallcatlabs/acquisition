@@ -70,8 +70,8 @@
 # golden and went green (#87).
 #
 # The doc stage, `cargo doc` with warnings denied, is not in the full
-# list: 80 s after any edit, serial, and the Linux gate's `doc` job runs
-# it on every push (the owner's ruling of 2026-10-29, `roadmap/README.md`).
+# list: 81 s after one store touch, on a 10-core M4, serial, and the
+# Linux gate's `doc` job runs it on every push (the owner's ruling of 2026-10-29, `roadmap/README.md`).
 # `--only doc` runs it here.
 #
 # The full gate ends with `tree`: the working tree its stages leave must
