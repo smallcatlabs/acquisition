@@ -33,6 +33,10 @@ was named:
 9. A fixture regenerated blind: every changed file under `tests/goldens/`
    or a `*-REFERENCE.md` is read as a diff of what a user now reads, and a
    change no source change in the commit explains is a finding.
+10. A pin kept where a lower pin or a structural check holds it; and,
+   for each `retired X; held by Y` line in a message, Y missing at
+   that commit, run neither by the gate nor by CI, or holding less
+   than X held.
 
 Then whether the brief's "done when" lines are actually met by what
 landed; a line that needs execution to check is reported as "not

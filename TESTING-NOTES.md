@@ -126,18 +126,51 @@ About half the register's entries have a journal invariant. The rest:
 
 ## The suite's shape
 
+The suite is organised by contract surface: each surface has one
+oracle and one corpus, and a finding becomes a row in that corpus, a
+case in an existing test or a line of an existing transcript before it
+becomes a file of its own (C153, the stopping rule). The four
+surfaces, each as the tree holds it and where the test-shape group
+(`roadmap/TEST-SHAPE.md`, #137 to #143) moves it:
+
+- **The GGG side.** The oracle is the journal ("The journal is the
+  contract surface" below), the corpus the scripted-server scenarios.
+  Today the daemon's harness drives internals beside them; the group
+  moves the scenarios to the five-call door of "What a rewrite keeps"
+  and the permutation families to tables.
+- **Facts and plans.** The oracles are the store's public API, the C35
+  annotation tests, the migrations, the C38 envelope and the committed
+  JSON schemas. A test naming the store's SQL internals is mechanism
+  (C48, the schema is internal).
+- **The search.** The oracle is the answer: query text in, answer JSON
+  out, over items entered through the store's ingest, with the
+  metamorphic properties and the trade oracle over captured searches.
+  The per-feature examples move to one case table.
+- **The doors.** The oracle is the CLI's golden transcript and the
+  MCP's field-for-field comparison over one facts table ("The
+  journey"); the protocol's wire fixtures stay as they are. The group
+  moves the fixture worlds to one canonical world and the short
+  goldens into a few long transcripts.
+
 A behaviour is pinned once, at the lowest crate that holds it, and a
-frontend's tests pin what its adapter adds (C122). Every process test
-takes one harness, `crates/acquisition-client/tests/harness/mod.rs`,
-whose one isolation list scrubs every `ACQ_*` by prefix; the CLI's and
-the MCP's `tests/harness/mod.rs` bind it to their binary. The CLI's
-wording is held by goldens under `crates/acquisition-cli/tests/goldens/`,
-each command naming the facts a reader must find, checked before the
-update switch, so a blind regeneration fails; `tools/docs-check.sh`
-refuses a golden no test names. A crate's integration tests are one
-binary, `tests/main.rs` of modules; a test that sets the process
-environment (one that calls `session(`) is its own binary, because a
-process-wide write leaks into every test beside it under `cargo test`.
+frontend's tests pin what its adapter adds (C122). A surface's wording
+is held by one golden; a sentence literal elsewhere asserts only what
+no golden holds. A test or a check is retired by a commit line,
+`retired X; held by Y`, where Y runs in the gate or in CI at that
+commit; a worker that cannot name Y keeps X and files it (C154, the
+retirement rule).
+
+Every process test takes one harness,
+`crates/acquisition-client/tests/harness/mod.rs`, whose one isolation
+list scrubs every `ACQ_*` by prefix; the CLI's and the MCP's
+`tests/harness/mod.rs` bind it to their binary. The CLI's wording is
+held by goldens under `crates/acquisition-cli/tests/goldens/`, each
+command naming the facts a reader must find, checked before the update
+switch, so a blind regeneration fails; `tools/docs-check.sh` refuses a
+golden no test names. A crate's integration tests are one binary,
+`tests/main.rs` of modules; a test that sets the process environment
+(one that calls `session(`) is its own binary, because a process-wide
+write leaks into every test beside it under `cargo test`.
 `tools/arch-check.sh` holds that layout, and the gate runs the suite
 under nextest (`.config/nextest.toml`), a process per test, never
 retried.

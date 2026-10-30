@@ -35,6 +35,12 @@ where the next session reads it. A size stated in the message is
 measured with `wc -c` after the last edit, never recalled. A deleted
 text is cited as `<path>` at `<commit>`.
 
+A test or a check deleted is one line per retirement, `retired X;
+held by Y`, Y running in the gate or in CI at that commit (C154, the
+retirement rule). The close lists every such line from the step's
+commits beside what the step pinned, and asks what the step's pins
+now let it retire (C153, the stopping rule).
+
 What else a session writes back, and where, is `AGENTS.md`, "Where
 things live": a ruling to its area file, a finding to a test or the
 message, work not done to an issue, a user-facing change to the help
