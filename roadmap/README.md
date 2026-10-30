@@ -314,5 +314,8 @@ own judgment as that item says. t1 (#137) closed on 2026-10-29
 on 2026-10-30, and t4 (#140, the compile cost) the same day
 (`LEDGER.md`): the first tranche is done. Its second, t5 to t7, is
 phase 4's. The group's review rule, revisited at this close, is kept
-(the rulings list). `AGENTS.md`
-governs; the gate is `tools/gate.sh`.
+(the rulings list). On 2026-10-30 the owner's review of the open
+issues closed #64, #136, #133 and #6 and took two groups ahead of the
+time seam ("Closures, then A and B"): map-before-seam (#65, #134) and
+stop-means-gone (#130, #144), both closed the same day (`LEDGER.md`).
+`AGENTS.md` governs; the gate is `tools/gate.sh`.
