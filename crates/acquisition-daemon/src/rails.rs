@@ -63,17 +63,18 @@
 //!   logged at startup as `RAILS CONFIG` errors and the rail stays off; a
 //!   persisted trip is honored only by a daemon started with the tripwire.
 //!
-//! # Decisions as recorded
+//! Rulings: `decisions/network.md`; the cross-cutting ones are `AGENTS.md`'s.
 //!
-//! The rulings are the decision registry — `decisions/network.md` for this
-//! area, `AGENTS.md` for the cross-cutting ones (`C<n>`); what follows is each
-//! entry's full text as recorded there, moved here on 2026-09-02 because
-//! the mechanism it describes is this module's. The registry is current;
-//! this is the mechanism as decided, kept beside the code that implements it.
+//! # Rulings held here
 //!
-//! ## C25 — A rails halt leaves queued network jobs waiting; nothing fails for lack of a send.
-//!
-//! **A rails halt leaves queued network jobs waiting; nothing fails for lack of a send.** The dispatcher does not pick a network job while halted, a job that finds the halt after being picked gives its key back, and `reset-tripwire` wakes the queue. A halted daemon with only waiting jobs counts as idle and exits — the queue is on disk, and its successor (started with the tripwire, which honors the persisted trip) holds it until the reset. Rationale: rung 10 (2026-08-24) failed 82 never-sent children on a 503 and the rerun refetched all 322 tabs; the two reasons for failing them — results died with the daemon, and a daemon with waiting jobs never idled out — are both gone with persistence. Caveat for the live-run skill: the ceiling is per lifetime and not persisted, so a queue halted by `ACQ_MAX_SENDS` resumes under the next daemon's fresh ceiling — `acq jobs` and `acq cancel` before respawning. Decided 2026-08-30.
+//! - **C25** (a halt leaves jobs waiting): the dispatcher does not pick a
+//!   network job while halted, a job that finds the halt after being
+//!   picked gives its key back, and `reset-tripwire` wakes the queue. A
+//!   halted daemon's successor holds the queue only when started with the
+//!   tripwire, which honors the persisted trip. Because the ceiling is per
+//!   lifetime, a queue halted by `ACQ_MAX_SENDS` resumes under the next
+//!   daemon's fresh ceiling — `acq jobs` and `acq cancel` before
+//!   respawning.
 
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};

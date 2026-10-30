@@ -4,17 +4,22 @@
 //! [`SendPermit`] from immediately before dispatch until the response body is
 //! complete; dropping it is the only completion signal the gate needs.
 //!
-//! # Decisions as recorded
+//! Rulings: `decisions/network.md`; the cross-cutting ones are `AGENTS.md`'s.
 //!
-//! The rulings are the decision registry — `decisions/network.md` for this
-//! area, `AGENTS.md` for the cross-cutting ones (`C<n>`); what follows is each
-//! entry's full text as recorded there, moved here on 2026-09-02 because
-//! the mechanism it describes is this module's. The registry is current;
-//! this is the mechanism as decided, kept beside the code that implements it.
+//! # Rulings held here
 //!
-//! ## C21 — The global burst bound belongs at the daemon's HTTP send boundary and spans each actual…
-//!
-//! **The global burst bound belongs at the daemon's HTTP send boundary and spans each actual request from immediately before dispatch until its response/body completes.** API requests use policy serialization plus ordinary permits from this common gate; HEAD probes take its exclusive, writer-preferred permit. OAuth code exchange and refresh use ordinary permits and serialize under stable route key `oauth-token` before discovery, then learned policy name `token-request-limit`; no HEAD probes the token endpoint. Authentication completes before an API request performs its final limiter check and acquires its send permit, so neither auth nor rate-limit waiting occupies an API permit. Browser authorize remains outside because the browser owns it. The dispatcher may keep one active job task per scheduling key to preserve priority and FIFO, but it has no global job-task cap; auth and pacing waits therefore cannot block progress on independent keys. Rationale: P-B and N33 — Cloudflare watches bursts across policies and the token endpoint is itself Cloudflare-fronted and IP-limited; HTTP capacity must describe actual sends, not waiting work.
+//! - **C21** (the burst bound spans each send): API requests use policy
+//!   serialization plus ordinary permits from this common gate; HEAD
+//!   probes take its exclusive, writer-preferred permit. OAuth code
+//!   exchange and refresh use ordinary permits and serialize under stable
+//!   route key `oauth-token` before discovery, then learned policy name
+//!   `token-request-limit`; no HEAD probes the token endpoint.
+//!   Authentication completes before an API request performs its final
+//!   limiter check and acquires its send permit, so neither auth nor
+//!   rate-limit waiting occupies an API permit. The dispatcher may keep one
+//!   active job task per scheduling key to preserve priority and FIFO; auth
+//!   and pacing waits therefore cannot block progress on independent
+//!   keys.
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::{Arc, Mutex};

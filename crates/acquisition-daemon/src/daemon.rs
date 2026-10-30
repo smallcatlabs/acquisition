@@ -25,91 +25,71 @@
 //!
 //! The tests are `tests.rs` and the files under `tests/`.
 //!
-//! # Decisions as recorded
+//! Rulings: `decisions/daemon.md`; the cross-cutting ones are `AGENTS.md`'s.
 //!
-//! The rulings are the decision registry — `decisions/daemon.md` for this
-//! area, `AGENTS.md` for the cross-cutting ones (`C<n>`); what follows is each
-//! entry's full text as recorded there, moved here on 2026-09-02 because
-//! the mechanism it describes is this module's. The registry is current;
-//! this is the mechanism as decided, kept beside the code that implements it.
+//! # Rulings held here
 //!
-//! ## C31 — Multi-account is one daemon holding many sessions, not one daemon per account.
-//!
-//! **Multi-account is one daemon holding many sessions, not one daemon per account.** The Cloudflare bound (`SendGate`, 2 live sends) is a per-IP property (P-B, ground truth §1) held as per-process state; two daemons on one machine make it a 4-wide burst that neither sees, with separate tripwires — enforced among real-mode daemons for one OS user by the C83 lock (`ggg.lock` in a private `run` directory of the user's own data directory, from the home the system records and never a variable, C132; taken in `run` before the log directory is made, the log rotated or opened, or anything sends, whatever the root — a refused contender may append its refusal to an existing log afterward; amended 2026-09-11, the split's step 5); other users and processes remain external concurrency no local lock can coordinate, and the tripwire bounds further sends after any resulting visible violation. Rung 11 (2026-08-30) showed the other half: `Account` rules count per account on GGG's side, so two accounts never contend on layer 2 — the only thing they share is layer 1 and the `Ip`-scoped token endpoint, which is exactly what the single gate exists for. Built in two halves with different blast radii (option C): **account as first-class identity first** (store path, job field, keyring key — leaves), then **many live sessions** (a refactor confined to the session layer) — both built by 2026-08-30; every persisted account is restored as a live session at start. Limiter and probe scope keying — `(account, policy)` for `Account` rules, policy alone for `Ip` rules, scope learned from `X-Rate-Limit-Rules` — is a **precondition of the session map, not an optimization**: with two live sessions on one policy each response would overwrite shared state with a different account's counters, and the next send from the other account floods (a 429 path; the "over-waits, never floods" reading only held for rung 11's sequential switch). Decided 2026-08-29, amended 2026-08-30 after review across sessions; design below in "Multi-account design"; built 2026-08-30 through step (6) — step (7)'s live samples are in `RUN-LEDGER.md`.
-//!
-//! ## C49–C51 — Multi-account design as recorded (2026-08-30)
-//!
-//! **Complexity rule:** the only code that interprets accounts is the
-//! session layer. Everywhere else account is data — a field on the job, a
-//! path segment for the store, an opaque key component for the limiter
-//! (which never reads it; scope comes from `X-Rate-Limit-Rules`). An
-//! `if account == …` outside the session layer is the smell.
-//!
-//! - **Identity: the stable account key is the profile `uuid`, fetched at
-//!   login and required** (amended 2026-08-31; was username-only with
-//!   opportunistic uuid). After token exchange the daemon submits a profile
-//!   job — causal service of the client's `acq auth` — and the session is
-//!   registered, the keyring written, and `accounts.json` updated only when
-//!   the uuid lands; a login whose profile fetch fails **fails whole**: no
-//!   provisional identity, no minted keys, no rename-repair machinery — if
-//!   `/profile` is broken, something is broken and login says so. A retry
-//!   repeats the token exchange, paced by the `Ip`-scoped token policy, so
-//!   a retry loop is already bounded. `accounts.json` maps
-//!   username/discriminator/provider → uuid; a rename is a mapping update
-//!   with intent untouched. The token response's `username`
-//!   (`name#discriminator`) stays the display name and selector; fact files
-//!   stay username-named (refetchable; rename-orphaning tolerable);
-//!   annotation files are uuid-named. Entries without a uuid: one re-auth,
-//!   no migration. The mock serves deterministic per-username uuids.
-//! - **No daemon-side default account; stateless selection.** Every submit
-//!   carries `account`. Omitted, it resolves only when exactly one session
-//!   exists; otherwise the daemon refuses with the list. While the daemon
-//!   holds one session, a submitted `account` is validated against it and
-//!   refused on mismatch (so the selector is testable before the session
-//!   map exists). The CLI resolves `--account` / `ACQ_ACCOUNT` client-side
-//!   against a non-secret index file, `store/<provider>/accounts.json`
-//!   (username, uuid when known, last login), so reads never spawn a daemon.
-//!   Matching is exact — name with or without discriminator, or uuid —
-//!   never by prefix. GUI/MCP hold their own selection and pass it.
-//! - One-off (non-persisted) sessions are accounts: listed, selectable,
-//!   marked "not persisted".
-//! - A job has exactly one account; no cross-account `refresh --all`.
-//!   Cross-account work is a frontend loop.
-//! - `account` is a protocol field on `Submit`/`JobInfo`, not a params
-//!   entry; fixed at submit (resolved against the live session, refused
-//!   before a job exists otherwise), checked again at the moment a token is
-//!   taken (a mismatch fails the job with no send), and it selects the store
-//!   file — never the session at landing time. Shown in `jobs`, `dash`, the
-//!   daemon log, and the journal (the `route` field is the endpoint key,
-//!   `stash@Alice#1234`).
-//! - **Limiter keying as built (step 5):** the endpoint key is
+//! - **C31** (one daemon, many sessions): the Cloudflare bound is
+//!   `SendGate` (`gate.rs`, `MAX_ACTUAL_SENDS`, two live sends), per
+//!   process; the real-mode lock that keeps a second real daemon from
+//!   doubling it (C83, C132) is taken in `run` (`start.rs`) before the log
+//!   directory is made, the log rotated or opened, or anything sends,
+//!   whatever the root — a refused contender may append its refusal to an
+//!   existing log afterward. Every persisted account is restored as a live
+//!   session at start. Limiter and probe scope keying is a **precondition
+//!   of the session map, not an optimization**: with two live sessions on
+//!   one policy each response would overwrite shared state with a
+//!   different account's counters, and the next send from the other
+//!   account floods (a 429 path). As built: the endpoint key is
 //!   `route@account`; a policy's state is keyed `name@account` only when
 //!   *every* rule of the policy is `Account`-scoped and the send had an
 //!   account — `Ip` rules, mixed scopes, and accountless sends share the
-//!   bare name (over-waits at worst). One notch more conservative than
+//!   bare name (over-waits at worst), one notch more conservative than
 //!   "Account rules per account" if GGG ever mixes scopes in one policy.
 //!   The token route (`oauth-token`) is deliberately accountless: it is
 //!   `Ip`-scoped and has no probe, so an accounted key would be unpaced on
 //!   an account's first login.
-//! - **The free HEAD probe (N24) is per endpoint, not an API property.**
-//!   First contact 2026-08-30: `HEAD /account/leagues` is answered 200 and
-//!   counted as a hit (the free HEADs answer 204); `HEAD /profile` is 403.
-//!   Both routes are declared no-probe in `Daemon::declare_route_knowledge`
-//!   and taught by their first GET; pacing was never wrong (headers are
-//!   post-increment and trusted), a probe there is just a wasted hit.
-//! - Store: `store/<provider>/<account>.db`, opened lazily on first record;
-//!   `tabs`/`items`/`store` take the selector and never span accounts.
-//!   Keyring: one entry per account; the index file is how the daemon knows
-//!   which entries to restore (the keyring crate cannot enumerate). Restore
-//!   continues past a dead grant — the terminal-grant mark is per session.
-//!   The existing single keyring entry is orphaned, not migrated: one
-//!   re-auth.
-//! - The `jobs` table lives in a per-daemon `daemon.db`, not inside an
-//!   account file, and carries the account column (persistence decision above).
-//! - Mock: the login page accepts any username and policies count per
+//! - **C49** (only the session layer interprets accounts): the limiter
+//!   never reads the account in its key; scope comes from
+//!   `X-Rate-Limit-Rules`.
+//! - **C50** (the account key is the profile uuid): after token exchange
+//!   the daemon submits a profile job — causal service of the client's
+//!   `acq auth` — and the session is registered, the keyring written, and
+//!   `accounts.json` updated only when the uuid lands. A retry repeats the
+//!   token exchange, paced by the `Ip`-scoped token policy, so a retry
+//!   loop is already bounded. The token response's `username`
+//!   (`name#discriminator`) stays the display name and selector. Entries
+//!   without a uuid: one re-auth, no migration. The mock serves
+//!   deterministic per-username uuids.
+//! - **C51** (no default account): the index file is
+//!   `store/<provider>/accounts.json` (username, uuid when known, last
+//!   login); matching is by name with or without discriminator, or uuid.
+//!   GUI/MCP hold their own selection and pass it. One-off (non-persisted)
+//!   sessions are accounts: listed, selectable, marked "not persisted".
+//!   `account` is a protocol field on `Submit`/`JobInfo`, not a params
+//!   entry; fixed at submit (resolved against the live session, refused
+//!   before a job exists otherwise), checked again at the moment a token
+//!   is taken (a mismatch fails the job with no send), and it selects the
+//!   store file — never the session at landing time. Shown in `jobs`,
+//!   `dash`, the daemon log, and the journal (the `route` field is the
+//!   endpoint key, `stash@Alice#1234`).
+//! - **Per-endpoint probes** (N24, N38, N39): the free HEAD probe is per
+//!   endpoint, not an API property — `HEAD /account/leagues` is counted
+//!   and `HEAD /profile` is 403, so both routes are in `NO_PROBE_ROUTES`
+//!   (`daemon/routes.rs`, C32) and taught by their first GET; pacing was
+//!   never wrong (headers are post-increment and trusted), a probe there
+//!   is just a wasted hit.
+//! - **Store and keyring:** `store/<provider>/<account>.db`, opened lazily
+//!   on first record; `tabs`/`items`/`store` take the selector and never
+//!   span accounts. Keyring: one entry per account; the index file is how
+//!   the daemon knows which entries to restore (the keyring crate cannot
+//!   enumerate). Restore continues past a dead grant — the terminal-grant
+//!   mark is per session. The `jobs` table lives in the per-daemon
+//!   `daemon.db`, not inside an account file, and carries the account
+//!   column (C6).
+//! - **Mock:** the login page accepts any username and policies count per
 //!   username (the access token carries it, `at-<user>-<rand>`), so
-//!   two-account tests can distinguish per-account from shared counting —
-//!   the property rung 11 established for GGG.
+//!   two-account tests can distinguish per-account from shared counting.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::io::Write as _;

@@ -4,23 +4,23 @@
 //!
 //! Rulings: `decisions/network.md`; the cross-cutting ones are `AGENTS.md`'s.
 //!
-//! # Decisions as recorded
+//! # Rulings held here
 //!
-//! The rulings are the decision registry — `decisions/network.md` for this
-//! area, `AGENTS.md` for the cross-cutting ones (`C<n>`); what follows is each
-//! entry's full text as recorded there, moved here on 2026-09-02 because
-//! the mechanism it describes is this module's. The registry is current;
-//! this is the mechanism as decided, kept beside the code that implements it.
-//!
-//! ## C18 — Limiter state is keyed by policy name — per account for `Account`-scoped rules since 20…
-//!
-//! **Limiter state is keyed by policy name — per account for `Account`-scoped rules since 2026-08-30 (keying decision below) — and learned only from headers.** No local token counting; waits are computed from the last `X-Rate-Limit-*` state plus response arrival times, padded by the server's timing bucket. For the observed paired API-policy windows, classification is positional (first window initial/5s, later windows sustained/60s — ground-truth Q4 hypothesis). That hypothesis does not classify N33's single-window `token-request-limit`; use the conservative 60s bucket for it until GGG confirms its hidden resolution through N14's support channel. Rationale: same-name policies share counters across endpoints (N6), so endpoint-keyed state would be a migration later; positional classification is conservative on the observed paired API shapes without pretending the new one-window shape is known.
-//!
-//! ## C19 — A counted send whose response carries no usable policy headers is paced as if the serve…
-//!
-//! **A counted send whose response carries no usable policy headers is paced as if the server counted it — the same treatment as a send lost in transport.** One predicted hit in every window as of that response; the definition and the last real observation are untouched; the next response with headers replaces the prediction (invariant 2). The job still fails and is never retried. Rationale: rung 10's origin 503 (2026-08-24, N35) was an HTML page with no `X-Rate-Limit-*`; before this, such a response left pacing reading a state that predated it, so a run of 503s went out unpaced. This bounds an outage at the policy's own rate (30 per 300 s on stash) with no new policy; backing off harder than that waits for evidence. Decided 2026-08-24.
-//!
-//! Amended 2026-10-22: a landed 429 holds its route for its `Retry-After`, clamped to the cap, plus the retry bucket, whatever the header carried. A missing, malformed or negative value counts as zero and an over-cap one as the cap; before this, a 429 whose `Retry-After` was any of those installed no hold at all (`install_retry_hold`). A probe's 429 is held the same way whatever its policy headers carried, beside the setup failure's degrade (`observe_probe_429`).
+//! - **C18** (state keyed by policy name, from headers): for the observed
+//!   paired API-policy windows, classification is positional (first window
+//!   initial/5s, later windows sustained/60s — ground-truth Q4
+//!   hypothesis). That hypothesis does not classify N33's single-window
+//!   `token-request-limit`, which takes the conservative 60s bucket until
+//!   GGG confirms its hidden resolution through N14's support channel.
+//! - **C19** (a headerless counted send is paced as counted): one
+//!   predicted hit in every window as of that response (`assume_counted`,
+//!   which moves `last_response` to it); the policy's definition is
+//!   untouched; the next response with headers replaces the prediction
+//!   (invariant 2). A
+//!   missing, malformed or negative `Retry-After` counts as zero and an
+//!   over-cap one as the cap (`install_retry_hold`). A probe's 429 is held
+//!   the same way whatever its policy headers carried, beside the setup
+//!   failure's degrade (`observe_probe_429`).
 
 use super::*;
 

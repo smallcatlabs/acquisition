@@ -3,12 +3,18 @@
 //!
 //! Rulings: `decisions/network.md`; the cross-cutting ones are `AGENTS.md`'s.
 //!
-//! # Decisions as recorded
+//! # Rulings held here
 //!
-//! ## C32 — Per-route knowledge about GGG that headers cannot teach lives in one place (`Daemon::de…
-//!
-//! **Per-route knowledge about GGG that headers cannot teach lives in one place (`Daemon::declare_route_knowledge`), and strict observation is the default everywhere else.** `GET /profile` (first contact 2026-08-30) answers 200 with no `X-Rate-Limit-*` headers at all and 403 to HEAD, which strict observation ("every endpoint has a policy", post-N33) classed as a protocol failure and discarded. Now: a route *declared* policyless accepts a 2xx with **no** rate-limit header (a partial set is still a failure; a policy that later appears is learned strictly), becomes `EndpointState::Policyless`, and is paced by nothing but the send gate; a declared no-probe route goes straight to its GET. Only `/profile` is declared, and it is called at most once per login. Not generalised on purpose: "any headerless 2xx is fine" reopens the blind spot strict observation closed. Owner decision 2026-08-30; GGG confirmed the same day (Q12/N38): `/profile` is not rate limited at present, so the declaration is confirmed and stays until headers ever appear — strict observation covers that arm.
-//!
+//! - **C32** (per-route knowledge headers cannot teach): the knowledge is
+//!   in two declarations here and one acceptance in the limiter.
+//!   `declare_route_knowledge` declares `/profile` policyless (N38);
+//!   `NO_PROBE_ROUTES` names the routes whose first send has no HEAD
+//!   probe, `/profile` and `/account/leagues` (N39). A route declared
+//!   policyless accepts a 2xx with **no** rate-limit header (a partial set
+//!   is still a failure; a policy that later appears is learned strictly),
+//!   becomes `EndpointState::Policyless` (`ratelimit/limiter.rs`), and is
+//!   paced by nothing but the send gate; a declared no-probe route goes
+//!   straight to its GET.
 
 use super::*;
 

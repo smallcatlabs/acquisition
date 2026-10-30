@@ -3,12 +3,20 @@
 //!
 //! Rulings: `decisions/daemon.md`, `decisions/plans.md`; the cross-cutting ones are `AGENTS.md`'s.
 //!
-//! # Decisions as recorded
+//! # Rulings held here
 //!
-//! ## C43 — Apply is its own pure fan-out parent job kind (`apply`), never the `refresh` parent.
-//!
-//! **Apply is its own pure fan-out parent job kind (`apply`), never the `refresh` parent.** The refresh parent re-lists by construction — it fans out from the listing it just fetched — which contradicts "executes exactly the listed actions": a plan's listing is an optional action and its fetches derive from reviewed facts. So `apply`'s params carry the plan's actions as explicit `(kind, params)` child tuples; the parent performs no send of its own, submits exactly one child per tuple, and holds for them. "Never expands" is structural, not disciplinary: the daemon stays plan-blind (it cannot link the plan crate, and it reads no intent — C34; the store it links only to write facts and keep its queue), so what it admits is **vocabulary, not meaning** — only single-request kinds (`stashes`, or `stash` with `deep` false), each of which submits no children. Admission is at submit, before a job id exists: a malformed tuple list, an empty one, one longer than `APPLY_MAX_ACTIONS`, or a logical bound over the caller's `max_requests` refuses the submit whole — the mid-fan-out terminalization path is never the budget's normal mechanism (D8). Plan validation, the staleness check, and rendering actions to tuples are the frontend's (`acq refresh --apply`, through the planner's validating parse). The ad-hoc `refresh` kind (`--all`/`--tabs`) stood beside it as the explicit client-stated-selection surface until the 4b sitting round retired it (C44 as amended: a selection is a plan too, applied here). Decided 2026-09-01.
-//!
+//! - **C43** (apply, a pure fan-out parent): the daemon stays plan-blind
+//!   (it cannot link the plan crate, and it reads no intent — C34; the
+//!   store it links only to write facts and keep its queue), so what it
+//!   admits is vocabulary — only single-request kinds (`stashes`, or
+//!   `stash` with `deep` false), each of which submits no children.
+//!   Admission is at submit, before a job id exists: a malformed tuple
+//!   list, an empty one, one longer than `APPLY_MAX_ACTIONS`, or a logical
+//!   bound over the caller's `max_requests` refuses the submit whole — the
+//!   mid-fan-out terminalization path is never the budget's normal
+//!   mechanism (D8). Plan validation, the staleness check, and rendering
+//!   actions to tuples are the frontend's (`acq refresh --apply`, through
+//!   the planner's validating parse).
 
 use super::*;
 
