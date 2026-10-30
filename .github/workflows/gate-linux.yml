@@ -28,7 +28,11 @@ concurrency:
 
 jobs:
   gate:
-    runs-on: ubuntu-latest
+    # A push to main runs on the owner's Linux runner VM when the
+    # repository variable SELF_HOSTED_LINUX is 'true' (C155); everything
+    # else, every pull request and the weekly run above all, stays on a
+    # hosted runner.
+    runs-on: ${{ (vars.SELF_HOSTED_LINUX == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main') && fromJSON('["self-hosted", "linux", "x64", "acq"]') || 'ubuntu-latest' }}
     steps:
       # The whole history: the docs check refuses a cited commit it cannot
       # find, and a shallow clone holds one commit.
@@ -47,21 +51,28 @@ jobs:
         with:
           tool: cargo-nextest@0.9.149
 
+      # The self-hosted VM keeps its own target directory (CARGO_TARGET_DIR,
+      # outside the checkout); only a hosted runner restores a cache.
       - uses: Swatinem/rust-cache@v2
+        if: runner.environment == 'github-hosted'
         with:
           workspaces: .
 
       # cargo-deny over the locked graph (`deny.toml`): RustSec advisories,
       # the licences an archive may carry, bans and sources. Here only —
       # the local gate does not install cargo-deny (C8 of the 2026-09-11
-      # census).
-      - name: Dependencies
-        uses: EmbarkStudios/cargo-deny-action@v2
+      # census). The binary, not the action: the action is a container,
+      # and the self-hosted VM has no Docker.
+      - uses: taiki-e/install-action@v2
         with:
-          command: check advisories licenses bans sources
-          manifest-path: Cargo.toml
+          tool: cargo-deny
 
+      - name: Dependencies
+        run: cargo deny --locked check advisories licenses bans sources
+
+      # Preinstalled on the self-hosted VM, whose runner has no sudo.
       - name: Install a Secret Service
+        if: runner.environment == 'github-hosted'
         run: |
           sudo apt-get update
           sudo apt-get install -y gnome-keyring dbus
