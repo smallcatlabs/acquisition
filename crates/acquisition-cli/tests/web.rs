@@ -558,10 +558,10 @@ fn the_moved_world_renders_with_a_badge() {
 
 /// The refresh loop through the pages, over the mock: the plan page with
 /// its quote, apply posting the envelope whole, the jobs page until every
-/// job is done, the same envelope posted again sending nothing (C111), a
-/// ticked selection compiled into the plan `refresh --tabs` applies,
-/// `refresh --all` the same plan over every tab with its listing (C76),
-/// and a plan whose policy moved refused (C44).
+/// job is done, the same envelope posted again sending nothing (C111),
+/// `refresh --all` a selection over every tab with its listing (C76), a
+/// ticked selection compiled into the plan `refresh --tabs` applies, and
+/// a plan whose policy moved refused (C44).
 #[test]
 fn the_refresh_loop_runs_through_the_pages() {
     let scratch = harness::scratch("webloop");
@@ -609,9 +609,49 @@ fn the_refresh_loop_runs_through_the_pages() {
         &["nothing to do: every request of this plan is spent"],
     );
 
-    // a second plan and apply through the CLI fetch every tab, which
-    // lands the map and unique tabs' pages: the tabs page lists them
-    let out = harness::acq(&base, &["refresh", "--apply"]);
+    // `refresh --all` is a selection too: every tab, the listing
+    // fetched beside it (C76), applied through the same apply kind; it
+    // lands the map and unique tabs' pages, which the tabs page lists.
+    // It runs before the two selections below so the run's tab fetches
+    // stay inside the mock's stash policy, 15 in 10 s: past it an apply
+    // waits out the window in real time, which nothing here tests
+    let out = harness::acq(&base, &["refresh", "--all"]);
+    assert!(out.status.success(), "{out:?}");
+    let said = String::from_utf8_lossy(&out.stdout);
+    for fact in [
+        "a selection",
+        "the listing is fetched beside the selection",
+        "fetch 7 tabs",
+        "1 folder",
+    ] {
+        assert!(said.contains(fact), "{fact}: {said}");
+    }
+    let listed = sole_json(&harness::acq(&base, &["jobs", "--all", "--json"]));
+    let all = listed["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .rfind(|j| j["kind"] == "apply")
+        .unwrap();
+    assert!(
+        all["submitted_by"].as_str().unwrap().starts_with("cli:"),
+        "{all}"
+    );
+    let sent: Vec<(&Value, &Value)> = all["params"]["jobs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|j| (&j["kind"], &j["params"]["id"]))
+        .collect();
+    assert_eq!(sent[0], (&json!("stashes"), &Value::Null), "{all}");
+    let tabs: Vec<&Value> = sent[1..].iter().map(|(_, id)| *id).collect();
+    for id in ["cur1", "dump", "old1", "old2", "uniq", "maps", "mape"] {
+        assert!(tabs.contains(&&json!(id)), "{id} not fetched: {all}");
+    }
+    assert!(!tabs.contains(&&json!("fold")), "a folder fetched: {all}");
+    // the characters the selection left, fetched by name: the tabs page
+    // lists them
+    let out = harness::acq(&base, &["refresh", "--characters", "fake0001,fake0002"]);
     assert!(out.status.success(), "{out:?}");
     // no league list on disk yet: no select, the fetch button alone; the
     // button fetches it, and the select lists it
@@ -694,43 +734,6 @@ fn the_refresh_loop_runs_through_the_pages() {
             .all(|j| j["kind"] != "refresh"),
         "no ad-hoc refresh job"
     );
-
-    // `refresh --all` is a selection too: every tab, the listing
-    // fetched beside it (C76), applied through the same apply kind
-    let out = harness::acq(&base, &["refresh", "--all"]);
-    assert!(out.status.success(), "{out:?}");
-    let said = String::from_utf8_lossy(&out.stdout);
-    for fact in [
-        "a selection",
-        "the listing is fetched beside the selection",
-        "fetch 7 tabs",
-        "1 folder",
-    ] {
-        assert!(said.contains(fact), "{fact}: {said}");
-    }
-    let listed = sole_json(&harness::acq(&base, &["jobs", "--all", "--json"]));
-    let all = listed["rows"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .rfind(|j| j["kind"] == "apply")
-        .unwrap();
-    assert!(
-        all["submitted_by"].as_str().unwrap().starts_with("cli:"),
-        "{all}"
-    );
-    let sent: Vec<(&Value, &Value)> = all["params"]["jobs"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|j| (&j["kind"], &j["params"]["id"]))
-        .collect();
-    assert_eq!(sent[0], (&json!("stashes"), &Value::Null), "{all}");
-    let tabs: Vec<&Value> = sent[1..].iter().map(|(_, id)| *id).collect();
-    for id in ["cur1", "dump", "old1", "old2", "uniq", "maps", "mape"] {
-        assert!(tabs.contains(&&json!(id)), "{id} not fetched: {all}");
-    }
-    assert!(!tabs.contains(&&json!("fold")), "a folder fetched: {all}");
 
     let moved = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":["dump"],"max_age_seconds":3600}}}}}"#;
     assert!(
