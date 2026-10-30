@@ -279,6 +279,6 @@ the owner's league run, at his word; #70 closes on a week of pushes
 without a re-run. Between sittings, the test-shape group's first
 tranche ("Pull-forward", item 2), the orchestrator proceeding on its
 own judgment as that item says. t1 (#137) closed on 2026-10-29
-(`LEDGER.md`); next t2 (#138, `briefs/t2-gate-trims.md`), its gate
-ruled, waiting for a machine window the owner names. `AGENTS.md` governs; the gate is
-`tools/gate.sh`.
+(`LEDGER.md`); t2 (#138, `briefs/t2-gate-trims.md`) is built in the
+owner's machine window of 2026-10-29, its review pending. `AGENTS.md`
+governs; the gate is `tools/gate.sh`.
