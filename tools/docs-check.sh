@@ -165,7 +165,7 @@ rm -f "$reg"
 # `audits/`, dated records, is not. The cited commits and the history
 # citations read the roadmap under SKIP_ROADMAP's two exclusions alone
 # (its saved reviews, its dated assessment), as the registry's citations
-# do; the document paths (6) read no roadmap file.
+# do; the document paths (6) read the roadmap's plan alone.
 governed=(crates tools README.md GLOSSARY.md search/DIGEST.md RUN-LEDGER.md SEAT-LEDGER.md TESTING-NOTES.md SURFACES.md search/MEASUREMENTS.md search/LEDGER.md AGENTS.md decisions .claude/skills REVIEW-CHECKLIST.md HISTORY.md roadmap Cargo.toml deny.toml about.toml .github)
 CITED_KINDS=(rs sh py md toml yml)
 # Every history citation, `<path>` at `<hash>` (or "whole at"), names
@@ -329,8 +329,10 @@ fi
 # reads code names and skips a document's: step 1d's brief named a
 # deleted document in the review checklist as its failing input, and
 # nothing refused it (the outside review of `202e4659`, finding 2). Not
-# read: the roadmap, whose ledger and briefs tell deletions as their
-# story (about eighty such names), and the search slice's ledger and
+# read: the roadmap, whose briefs and dated notes tell deletions as their
+# story (about eighty such names), except its plan, `roadmap/README.md`,
+# which every step reads first and which named none when #106 measured it
+# (30 names), and the search slice's ledger and
 # digest, whose heads give the commit each of their pointers is read at. Three names are of no file in this tree, by design: RePoE's
 # licence, a seat run's debrief, and a live run's friction notes.
 if ! paths=$(python3 -I - "$AT_HASH" "${governed[@]}" <<'PY'
@@ -349,7 +351,8 @@ tails = {"/".join(t.split("/")[i:]) for t in tracked for i in range(t.count("/")
 KINDS = (".rs", ".sh", ".py", ".md")   # this scan's own, never CITED_KINDS: a manifest names generated files
 def files():
     for r in roots:
-        if r == "roadmap" or r in DATED: continue
+        if r == "roadmap": yield "roadmap/README.md"; continue   # its plan alone (the header)
+        if r in DATED: continue
         if os.path.isfile(r):
             if r.endswith(KINDS): yield r
             continue

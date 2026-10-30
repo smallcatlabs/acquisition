@@ -127,6 +127,9 @@ run_case 'a saved review: not read'                              pass   'ok     
 echo '== a document name names a file in this tree (the outside review of 202e4659, finding 2)'
 run_case 'a bare deleted document in the review checklist'       refuse 'LIVE-TESTING.md` names no document in this tree' checklist "Read \`LIVE-TESTING.md\` first."
 run_case 'the same, cited at the commit that held it'            pass   'ok      paths'          checklist "Read \`LIVE-TESTING.md\` at \`b6197a82\` first."
+# The roadmap's plan is read, its briefs are not (#106: the plan named no
+# dead document when measured).
+run_case 'a bare deleted document in the roadmap'"'"'s plan'         refuse 'PATH    roadmap/README.md:' roadmap "Read \`LIVE-TESTING.md\` first."
 # A deletion not yet staged: `git ls-files` still lists the file, so a
 # pointer to it passed (the outside review of 1f074d5a, finding 2). The
 # research-track skill names it; the copy restores it.
