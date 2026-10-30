@@ -193,6 +193,13 @@ leaves the list when its step closes or the owner strikes it.
    and retirement rules (#137), t2 the gate trims and the real-time
    waits (#138), t3 the breakers as positive controls (#139), t4 the
    compile cost (#140), in that order, each on the shared checkout.
+   The orchestrator proceeds on its own judgment (the owner's word of
+   2026-10-29): a ruling in his classes comes to him with a
+   recommendation, and each close's retirement list, every `retired
+   X; held by Y`, comes to him before the next step starts; #137's
+   rulings and the first retirement outside `TEST-SHAPE.md`'s lists
+   wait for his word. The machine is his during a league sitting, as
+   a window he names.
    Its second tranche is phase 4's: t5 the daemon's door inside 4-0
    (#141), t6 the canonical world and the door corpus before 4-full's
    door (#142), t7 the search's case table (#143).
@@ -248,6 +255,6 @@ hygiene. The first, daemon-safety (#113, #116, #110), closed on
 #135) the same day: the owner's pre-league plan is done. Next, Phase 3,
 the owner's league run, at his word; #70 closes on a week of pushes
 without a re-run. Between sittings, the test-shape group's first
-tranche ("Pull-forward", item 2), t1 first (#137), each step at the
-owner's typed word. `AGENTS.md` governs; the gate is
+tranche ("Pull-forward", item 2), t1 first (#137), the orchestrator
+proceeding on its own judgment as that item says. `AGENTS.md` governs; the gate is
 `tools/gate.sh`.
