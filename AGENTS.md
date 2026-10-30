@@ -59,9 +59,9 @@ As few as possible, each a property, never a mechanism.
   after, at its home below.
 - **Build order.** Run `cargo build --workspace` before anything that
   starts a daemon. A `--workspace` test run writes the same `acqd`,
-  `acq` and `acq-mcp` as that build, held by the gate's `features`
-  stage, so no build is owed after a test run; a `-p` run that leaves out the
-  daemon's package writes no `acqd`. Never run the live drivers, a bare
+  `acq` and `acq-mcp` as that build, held by the gate's `artifacts`
+  stage, so no build is owed after a test run; a `-p` run that leaves
+  out the daemon's package writes no `acqd`. Never run the live drivers, a bare
   `acq` or a second gate while the gate runs.
 - **The gate decides.** Every change keeps `tools/gate.sh` green, and a
   commit is gated on its exit status, never on a filtered grep.
@@ -157,8 +157,8 @@ tools/trade-check.sh
 python3 -I tools/bothy.py check
 ```
 
-`tools/gate.sh` runs these with a table of exit statuses; `--docs`
-runs the five that build no Rust. CI runs `cargo
+`tools/gate.sh` runs these, then the build again, with a table of exit
+statuses; `--docs` runs the five that build no Rust. CI runs `cargo
 doc` (`--only doc` here).
 
 Once per clone: `git config core.hooksPath .githooks` (the commit-msg

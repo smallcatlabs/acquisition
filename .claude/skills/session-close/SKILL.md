@@ -19,14 +19,13 @@ scratch.
 
 ### Why build order matters
 
-`tools/gate.sh`'s `features` stage compares the plain build's feature
-graph with the test build's on every release target, and fails on a
-package whose features differ, so a `--workspace` test run leaves the
-`acq`, `acqd` and `acq-mcp` that `cargo build --workspace` writes
-(C84). `cargo build --workspace --release` and `cargo build --release
--p acquisition-cli` uplift two forms of `target/release/acq` from one
-source, and a no-op build swaps them, so a hash in a ledger names the
-form that built it.
+`tools/gate.sh` ends with its `artifacts` stage: it hashes `acq`,
+`acqd` and `acq-mcp`, runs `cargo build --workspace`, and fails if the
+build compiled anything or a hash moved, so a test run leaves the
+executables that build writes (C84). `cargo build --workspace
+--release` and `cargo build --release -p acquisition-cli` uplift two
+forms of `target/release/acq` from one source, and a no-op build swaps
+them, so a hash in a ledger names the form that built it.
 
 ## 2. Commit
 
