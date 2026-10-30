@@ -71,7 +71,6 @@ TOTALS = REPO / "search/pseudo-stats/data/totals-v1.toml"
 PSEUDOMODS = SEARCH / "cpp-search/data/pseudomods.toml"
 PERCENTILE_CHECK = TRACK / "data/percentile-check.csv"  # scripts/percentile.py, run first
 
-EXPORT_STATS = "poe1@e2bd511a:data/stats.json"
 APT_INDEX = "awakened-poe-trade@ce551eb7:renderer/src/web/price-check/filters/pseudo/index.ts"
 APT_Q20 = "awakened-poe-trade@ce551eb7:renderer/src/parser/calc-q20.ts"
 POB_TQG = "PathOfBuilding@16de4b82:src/Classes/TradeQueryGenerator.lua"
@@ -734,7 +733,7 @@ def spawn_report(rows):
     the item tags they spawn on with a weight above zero."""
     mods = json.loads((POE1 / "data/mods.json").read_text())
     print()
-    print("where the stats behind the unsuffixed ranged templates can appear (poe1@e2bd511a data/mods.json):")
+    print(f"where the stats behind the unsuffixed ranged templates can appear (poe1@{PINS['poe1'][:8]} data/mods.json):")
     stats = sorted({e.split("=")[0] for r in rows if "pseudo_adds_" in r["pseudo"]
                     and r["template"] == r["pseudo_text"] for e in r["local"].split(";")
                     if e.startswith(("local_minimum", "global_minimum"))})
