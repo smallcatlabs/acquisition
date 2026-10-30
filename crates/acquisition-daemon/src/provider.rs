@@ -2,7 +2,7 @@
 //!
 //! Real mode is the default (C88) and uses the existing "acquisition"
 //! registration (same client id, callback path, scopes, and user-agent as the
-//! shipped C++ app — CONTEXT invariant 4). Everything else in the daemon is
+//! shipped C++ app — `AGENTS.md` invariant 4). Everything else in the daemon is
 //! provider-agnostic; this struct is the whole difference. The provider
 //! *names* and `ggg_mode()` are the protocol crate's (`provider.rs` there):
 //! which provider a process wants is part of the handshake.
@@ -10,7 +10,7 @@
 /// Same shape as the shipped app (APP_NAME "/" APP_VERSION " (contact: " EMAIL ")")
 /// and the same registration. The version segment is the package's and
 /// moves with each release, as the C++ app's does under this registration;
-/// the shape and the contact are what stay (CONTEXT invariant 4).
+/// the shape and the contact are what stay (`AGENTS.md` invariant 4).
 pub const USER_AGENT: &str = concat!(
     "acquisition/",
     env!("CARGO_PKG_VERSION"),

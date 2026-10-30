@@ -135,7 +135,8 @@ impl Daemon {
     ///   so a probe costs what the GET costs — not probed; the GET teaches.
     ///
     /// Every other route is probed (HEAD uncounted) and observed strictly.
-    /// Owner decisions 2026-08-30, pending GGG's word on both endpoints.
+    /// GGG's word on both is recorded: N38 (`/profile`) and N39
+    /// (`/account/leagues`).
     pub(super) fn declare_route_knowledge(choke: &ChokePoint) {
         choke.declare_policyless("profile");
     }

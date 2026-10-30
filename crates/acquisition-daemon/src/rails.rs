@@ -712,7 +712,7 @@ impl Rails {
 
     /// Active only with the tripwire. Returns whether the mark was set.
     /// `cause` is persisted to disk: callers pass a status and a fixed
-    /// reason, never a response body (CONTEXT invariant 5). Not gated on
+    /// reason, never a response body (`AGENTS.md` invariant 5). Not gated on
     /// the tripwire: a rejected `refresh_token` grant is terminal by
     /// decision (C24), so this is product behavior
     /// rather than a ladder rail. Returns whether the mark was newly set.

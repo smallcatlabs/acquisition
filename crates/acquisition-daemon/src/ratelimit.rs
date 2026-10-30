@@ -10,7 +10,7 @@
 //! with the three adaptations that entry records.
 //!
 //! `ChokePoint` is invariant 1 made structural: it privately owns the
-//! workspace's only `reqwest::Client` (C15), so nothing can send a request
+//! workspace's only `reqwest::Client`, so nothing can send a request
 //! without first asking the limiter, and every response is observed by it.
 //!
 //! Endpoints are discovered by a HEAD probe before their first real send

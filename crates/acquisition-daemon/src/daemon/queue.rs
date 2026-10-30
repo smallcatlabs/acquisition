@@ -103,7 +103,8 @@ impl Daemon {
     /// and dropped. The job a fault marker names, and the jobs open on the
     /// route of a probe it names, fail unless cancelling or a parent
     /// (C134); that route is degraded for the cooldown, so neither they
-    /// nor a job submitted on it then recreate the probe. A login's
+    /// nor a job submitted on it then recreate the probe, until a completed
+    /// login lifts the closure (`forget_degraded`, `login.rs`). A login's
     /// profile fetch (kind `profile` under the daemon's own submitter,
     /// C136), waiting or running and not cancelling, fails: its login was
     /// lost with the lifetime that ran it, and nothing is sent for it
@@ -748,10 +749,17 @@ pub(super) struct KindRow {
 /// any demonstration or test wants, and a bound keeps the timer finite.
 pub(super) const SLEEP_MAX_SECONDS: f64 = 3600.0;
 
-/// C127 — The kind table: every kind the daemon runs, in one place. The
-/// client's door (`admit_client`) and apply's tuples (`validate_apply`, by
-/// `admit_segments`) read it; a kind that is not a row is refused at the
-/// door, in words that list the protocol's client kinds.
+/// C127 — The kind table: one row per kind the daemon runs, with the path
+/// segments its URL renders, the params it requires and its submit-time
+/// check. The client's door (`admit_client`) and apply's tuples
+/// (`validate_apply`, by `admit_segments`) read it; a kind that is not a
+/// row is refused at the door, in words that list the protocol's client
+/// kinds. It is not the only place a kind is named: a new kind is also
+/// added to the protocol's `CLIENT_KINDS` or `MOCK_ONLY_KINDS` and its
+/// `target_of`, to `route_for`, `sends_unrouted` and `NO_PROBE_ROUTES`
+/// (`routes.rs`), to `kind_needs_account` (`daemon.rs`), to `admit_realm`
+/// (here), to the run arms and apply's vocabulary (`kinds.rs`), and to the
+/// store's `Endpoint::from_job`.
 pub(super) const KINDS: &[KindRow] = &[
     KindRow {
         kind: "profile",

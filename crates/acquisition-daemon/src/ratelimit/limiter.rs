@@ -128,7 +128,9 @@ pub(super) struct PolicyState {
     /// Arrival times of counted responses under this policy, oldest first.
     /// Shared by every endpoint that reports the same policy name (N6).
     pub(super) history: VecDeque<Instant>,
-    /// When the Full policy was observed; the base for restriction state.
+    /// When the Full policy was observed, or when `assume_counted` advanced
+    /// the prediction by an assumed hit; the base for restriction state, and
+    /// what the status reports as `last_observed_seconds_ago`.
     last_response: Instant,
     /// The raw headers, for the dashboard.
     pub(super) raw: serde_json::Value,

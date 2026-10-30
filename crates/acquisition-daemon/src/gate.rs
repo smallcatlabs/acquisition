@@ -1,6 +1,6 @@
 //! Send-lifetime admission gate.
 //!
-//! N3 deliberately keeps this primitive independent of HTTP. A caller owns a
+//! This primitive is deliberately independent of HTTP. A caller owns a
 //! [`SendPermit`] from immediately before dispatch until the response body is
 //! complete; dropping it is the only completion signal the gate needs.
 //!

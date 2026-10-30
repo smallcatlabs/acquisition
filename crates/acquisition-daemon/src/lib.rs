@@ -2,11 +2,13 @@
 //! C82; the binary is `acqd`, `main.rs`): the header-driven rate limiter
 //! and its choke point (`ratelimit.rs` with its children under `ratelimit/`,
 //! `gate.rs`), the live-test rails and the Cloudflare block mark
-//! (`rails.rs`), OAuth and sessions (`auth.rs`), the provider (`provider.rs`),
+//! (`rails.rs`), the OAuth client mechanics (`auth.rs`), the provider (`provider.rs`),
 //! the mock provider (`mockggg.rs`), the daemon's own executable identified
 //! and hashed at startup (`artifact.rs`, C84), and the daemon itself
 //! (`daemon.rs` with its children under `daemon/`: queue, dispatcher, socket or
-//! named-pipe server, idle watchdog). The only GGG
+//! named-pipe server, idle watchdog, and the sessions — `daemon.rs`'s
+//! `Sessions`, logged in by `daemon/login.rs` and refreshed by
+//! `daemon/refresh.rs`). The only GGG
 //! sender. It links the protocol crate and the store, never the client
 //! crate, the planner or a frontend — `tools/arch-check.sh` refuses the
 //! edges — and no package but this one names it, so "never in-process

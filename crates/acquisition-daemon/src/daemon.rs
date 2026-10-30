@@ -935,7 +935,7 @@ pub struct Daemon {
     events: broadcast::Sender<JobInfo>,
     work: Notify,
     log: Mutex<std::fs::File>,
-    /// The single rate-limit choke point (CONTEXT invariant 1). It owns the
+    /// The single rate-limit choke point (`AGENTS.md` invariant 1). It owns the
     /// HTTP client, so all outbound requests — OAuth included — consult the
     /// header-driven limiter and feed their responses back to it.
     choke: ChokePoint,
