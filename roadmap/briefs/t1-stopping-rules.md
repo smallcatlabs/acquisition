@@ -118,7 +118,10 @@ owner's word (README, "Pull-forward", item 2).
 serves (no test reads these four files: grepped, `TESTING-NOTES.md`
 appears in four test files' comments only, `REVIEW-PROMPT.md` and the
 close skill in none; `AGENTS.md`'s budget is read by docs-check); no
-outside review, a round touching only documents.
+outside review, a round touching only documents. Settled in the
+round: Do 2's budget raise touched `tools/docs-check.sh`, which the
+review rule of Do 1 (c) sends to review, so the step was reviewed
+(`roadmap/reviews/t1-095d5ed1.md`).
 
 ## Report
 

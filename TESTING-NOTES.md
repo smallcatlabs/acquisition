@@ -126,12 +126,14 @@ About half the register's entries have a journal invariant. The rest:
 
 ## The suite's shape
 
-The suite is organised by contract surface: each surface has one
-oracle and one corpus, and a finding becomes a row in that corpus, a
-case in an existing test or a line of an existing transcript before it
-becomes a file of its own (C153, the stopping rule). The four
-surfaces, each as the tree holds it and where the test-shape group
-(`roadmap/TEST-SHAPE.md`, #137 to #143) moves it:
+The suite is read by contract surface. Each surface's target is one
+oracle and one corpus; today some keep corpora beside it (the fixture
+worlds, `apply_loop.rs`'s counts written apart from the journey's
+table), which the test-shape group consolidates. A finding becomes a
+row in a surface's corpus, a case in an existing test or a line of an
+existing transcript before it becomes a file of its own (C153, the
+stopping rule). The four surfaces, each as the tree holds it and where
+the test-shape group (`roadmap/TEST-SHAPE.md`, #137 to #143) moves it:
 
 - **The GGG side.** The oracle is the journal ("The journal is the
   contract surface" below), the corpus the scripted-server scenarios.
