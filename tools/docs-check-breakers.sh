@@ -104,6 +104,10 @@ run_case 'a document: at, nine letters in backticks'             refuse "\`$H9\`
 # read only *.rs, *.sh, *.py and *.md, and no root manifest).
 manifest() { printf '%s\n' "$1" >>deny.toml; }
 run_case 'a root manifest: at, letters alone, in backticks'      refuse "\`$H7\` is not in this history" manifest "# A note at \`$H7\`."
+# Wrapped after "at": a line break, and a comment's leader, between "at"
+# and the hash (#126: neither scan read one, and a dead hash passed).
+run_case 'a document: wrapped after at, a dead hash'             refuse "\`$H7\` is not in this history" checklist "A note at"$'\n'"$H7."
+run_case 'a manifest: wrapped after at, behind its leader'       refuse "\`$H9\` is not in this history" manifest "# A note at"$'\n'"# $H9."
 
 echo '== a history citation names the path as it was at its commit (the governance design'"'"'s second read trial)'
 # Built with escaped backticks, so the source never holds a citation the
@@ -111,6 +115,7 @@ echo '== a history citation names the path as it was at its commit (the governan
 run_case 'the path as it is now, not as it was'                  refuse 'search/OBSERVATIONS.md` is not at 453a4429' checklist "The list is \`search/OBSERVATIONS.md\` at \`453a4429\`."
 run_case 'the same, written "whole at"'                          refuse 'search/OBSERVATIONS.md` is not at 453a4429' checklist "The list is \`search/OBSERVATIONS.md\` whole at \`453a4429\`."
 run_case 'the path as it was there'                              pass   'ok      citations'      checklist "The list is \`spikes/rust-playground/search/OBSERVATIONS.md\` at \`453a4429\`."
+run_case 'wrapped after at: the path as it is now'               refuse 'search/OBSERVATIONS.md` is not at 453a4429' checklist "The list is \`search/OBSERVATIONS.md\` at"$'\n'"\`453a4429\`."
 # The roadmap is read under the cited commits' two exclusions alone (the
 # outside review of 1f074d5a, finding 1): its plan is read, a saved
 # review, an outside model's answer verbatim, is not.
