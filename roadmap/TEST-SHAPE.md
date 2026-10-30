@@ -31,7 +31,7 @@ removing, and what shape would we want for ourselves?
 | Daemon library, plain vs with its inline tests | 24 s vs 74 s |
 | Three one-test environment binaries | 37 CPU-s of compile for 3 tests |
 | Linux CI gate | 7 to 10 min; the test step 355 s (3 min 19 s compile, 155 s run under `ACQ_CASES=full`) |
-| Linux CI breakers job | 339 s a push; never red except for its own rot (`fb85d749`) |
+| Linux CI breakers job | 339 s a push; never red except for its own rot (`fb85d749`). Corrected 2026-10-30: runner time, not wall time; the job runs beside the gate job and ends before it (5 min 55 s against 7 min 50 s, run 40998406288), so a push waits no longer for it, and #139 closed undone |
 | Windows CI gate | 9 to 34 min |
 | Test lines against production lines | about 95k against 73k |
 | Commits since the root swap touching only markdown | 43% |

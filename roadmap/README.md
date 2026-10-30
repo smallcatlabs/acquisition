@@ -219,8 +219,12 @@ leaves the list when its step closes or the owner strikes it.
 2. The test-shape group's first tranche, between league sittings
    (`TEST-SHAPE.md`, the owner's word of 2026-10-29): t1 the stopping
    and retirement rules (#137), t2 the gate trims and the real-time
-   waits (#138), t3 the breakers as positive controls (#139), t4 the
-   compile cost (#140), in that order, each on the shared checkout.
+   waits (#138), t4 the compile cost (#140), in that order, each on
+   the shared checkout; t3, the breakers as positive controls (#139),
+   closed undone at the owner's word of 2026-10-30 ("I agree"): the
+   breakers job adds no wall time to a push, and the suites are the
+   checks' own tests, so the rule that each fixed check gains a
+   breaker case stands.
    The orchestrator proceeds on its own judgment (the owner's word of
    2026-10-29): a ruling in his classes comes to him with a
    recommendation; a close whose retirements, every `retired X; held
@@ -287,6 +291,7 @@ the owner's league run, at his word; #70 closes on a week of pushes
 without a re-run. Between sittings, the test-shape group's first
 tranche ("Pull-forward", item 2), the orchestrator proceeding on its
 own judgment as that item says. t1 (#137) closed on 2026-10-29
-(`LEDGER.md`), and t2 (#138) the same day; next t3 (#139, the breakers
-as positive controls), whose brief the orchestrator writes. `AGENTS.md`
+(`LEDGER.md`), and t2 (#138) the same day; t3 (#139) closed undone
+on 2026-10-30; next t4 (#140, the compile cost), in a machine window
+the owner names. `AGENTS.md`
 governs; the gate is `tools/gate.sh`.
