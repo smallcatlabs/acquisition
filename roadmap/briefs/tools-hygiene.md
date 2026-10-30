@@ -147,10 +147,25 @@ place. `base-taxonomy.py` reads the owner's local raw stores read-only.
      that each self-test exercises a refusal. If each does, this is
      declined with that reason. If one does not, that stage gains the
      case it lacks.
-   - The Windows clippy: as the owner rules on the measurement above
-     (a gate stage, a `gate.sh --windows` flag, or declined). The stub
-     script lives under `tools/`, with a header that says what it is
-     and that it lets nothing link.
+   - The Windows clippy is a gate stage. The owner ruled this on
+     2026-10-29, on the measurement above: "Make the Windows-target
+     clippy a gate stage". Record it first as a dated bullet in
+     `roadmap/README.md`'s rulings, in its own docs commit.
+     - The stage builds into its own target directory, so the
+       `artifacts` stage's hashes of the host binaries are untouched.
+     - Where the Windows target is not installed, the stage fails and
+       names `rustup target add x86_64-pc-windows-msvc`. It never
+       passes as a stage that did not run.
+     - `tools/gate.sh`'s header and stage list say what the stage sees
+       (lints only, not the tests) and that it lets nothing link.
+     - The stub script lives under `tools/`, with a header that says
+       what it is.
+     - CI runs the same `gate.sh`. Whether each workflow installs the
+       target or the Windows gate skips the stage, because it already
+       runs clippy natively, is the build's choice, named in the commit
+       and the report.
+     - `gate-breakers.sh` gains a case if its form covers a stage that
+       must fail when its tool is absent.
 8. The full gate, then each changed check's breaker suite run by hand
    (`tools/docs-check-breakers.sh`, `tools/bothy-breakers.sh`), then
    the close per "A step".
@@ -171,6 +186,7 @@ place. `base-taxonomy.py` reads the owner's local raw stores read-only.
   closes-when).
 - #106: each of its four items is fixed with a breaker case where it is
   a check, or named as declined in the close (#106's closes-when).
+- The gate has a Windows-target clippy stage, and the owner's ruling is a dated bullet in `roadmap/README.md`.
 - `tools/gate.sh` green on the step's tree; `docs-check-breakers.sh`
   and `bothy-breakers.sh` green, their output's last lines in the
   report.
