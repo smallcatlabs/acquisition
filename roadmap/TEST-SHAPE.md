@@ -101,7 +101,12 @@ the sleep job's three-second default (12 s).
 6. **Guards of guards past their use.** `fixtures`, `artifacts`,
    `features` and `tree` each came from one incident (#87, #88, #124,
    #125). `features` now holds the property at its cause on every
-   release target; `artifacts` re-holds it on one host after the fact;
+   release target; `artifacts` re-holds it on one host after the fact
+   (corrected 2026-10-29: `features` holds feature-graph equality,
+   `artifacts` executable equality, which also sees a profile split and
+   a binary crate with no integration-test target; t2's build report
+   and its reviews, `reviews/t2-8b02f38b.md` and
+   `reviews/t2-fixes-79658fc2.md`);
    `fixtures` guards a variable the script already unsets. The six
    breaker suites are 969 lines and 339 s a push. cargo-deny is the
    only CI check that has caught a real fault. Clippy's `--all-features`

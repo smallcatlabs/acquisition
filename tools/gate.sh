@@ -30,15 +30,18 @@
 # started after it (C84, the artifact mismatch). CI runs the stages
 # singly, for timing.
 #
-# The `features` stage holds the same property at its cause, on every
-# target a release builds, and builds nothing: for each, the plain
-# build's feature graph (`cargo tree -e no-dev,features`) against the
-# test build's (`-e features`), package by package, name and version,
-# failing on each package whose features differ and naming both sets.
-# `artifacts` sees only this host's binaries, after a test run; this
-# stage sees every target's graph in a second, so CI runs it and a
-# dependency bump that splits a binary is red on its own checks (#128,
-# item 2). A split is closed by a pin in the binary's crate, as
+# The `features` stage checks that the plain build's and the test
+# build's feature graphs are equal, on every target a release builds,
+# and builds nothing: for each, the plain build's graph (`cargo tree -e
+# no-dev,features`) against the test build's (`-e features`), package
+# by package, name and version, failing on each package whose features
+# differ and naming both sets. Equal graphs are not equal executables:
+# `artifacts` checks those, which includes a split caused by a profile
+# difference, and a binary whose crate has no integration-test target
+# (t2's build and its reviews). `artifacts` sees only this host's
+# binaries, after a test run; this stage sees every target's graph in a
+# second, so CI runs it and a dependency bump that splits a feature
+# graph is red on its own checks (#128, item 2). A split is closed by a pin in the binary's crate, as
 # `acquisition-mcp` and `acquisition-cli` hold (#88, #125, #124).
 #
 # The `winclippy` stage is clippy for the Windows target,
