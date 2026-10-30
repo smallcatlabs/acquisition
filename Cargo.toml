@@ -38,13 +38,22 @@ tempfile = "3"
 split-debuginfo = "packed"
 # The workspace's own crates at opt-level 1: the search's derivation and
 # the listing loops are workspace code, so they ran unoptimised while
-# every dependency ran optimised (below). Incremental off: a fresh
+# every dependency ran optimised (below). The measurements are in the
+# commit that made the change.
+#
+# Incremental on (the owner's ruling, 2026-10-30, t4): the full gate
+# after one store touch took 63 s wall against 146 to 168 s with it off.
+# The cost is about 5 GB of `target/debug/incremental` in each checkout
+# that builds, and a stale set left behind by every compiler upgrade and
+# every change of features, profile or flags, which cargo never
+# collects: run `cargo clean` after each compiler upgrade. That cleanup
+# exists because of the history: with incremental on before, a fresh
 # worktree's build was 15 GB of which 9.3 GB was `incremental`, and the
-# main checkout's had grown to 124 GB by 2026-10-25, since cargo never
-# collects a target directory; the gate builds whole anyway. The
-# measurements are in the commit that made the change.
+# main checkout's target had grown to 124 GB by 2026-10-25. CI builds
+# without it: `Swatinem/rust-cache` sets CARGO_INCREMENTAL=0 in both
+# gate jobs.
 opt-level = 1
-incremental = false
+incremental = true
 
 # Dependencies optimised and without debug info, the workspace's own
 # crates as they were (roadmap 0e, measured from an empty target dir,
