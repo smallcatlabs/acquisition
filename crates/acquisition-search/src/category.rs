@@ -10,36 +10,32 @@
 //! test), cited and not restated. The class is `class.rs`'s
 //! and the buckets of a count are `counts.rs`'s (C105).
 //!
-//! # Decisions as recorded
+//! # Rulings held here
 //!
-//! **C106 — category.** The rulings are `search/LEDGER.md`, "Holes
-//! ruled", the 9d rows (J1–J4, J9–J22), each the owner's; his words are
-//! quoted where they state the rule.
+//! **C106** (category, as reference data): the rules below are
+//! `search/LEDGER.md`, "Holes ruled", the 9d rows (J1–J4, J9–J22).
 //!
 //! - **A term names the trade site's category id as spelled** — the ids
 //!   of the site's filter as the owner captured it 2026-09-12, in the
 //!   site's order, each with the site's text for it. The word is the trade
-//!   site's and the help says so (the owner at the first seat, V1: "I'd
-//!   like to mimic the trade site as much as practically feasible, because
-//!   that's how most players will think.").
+//!   site's and the help says so (V1).
 //! - **A leaf is a class's, or a class's with a rule on the base name.**
 //!   An item of the class has the leaf; where a name rule of that class
 //!   holds the item's base, it has the rule's leaf in place of the
 //!   class's own (an Awakened support gem is `gem.supportgemplus` and not
 //!   `gem.supportgem`). A name rule is one clause on a name within one
 //!   class; a case one clause cannot say is an exception row citing its
-//!   capture, never a second clause (the owner's ruling, 2026-10-07) —
-//!   none is needed today, and the generator stops on a base that holds a
-//!   leaf's word and misses its rule unless the miss is named with its
-//!   reason (one: `Fossilised Delirium Orb`). The Maven's Invitation leaf
-//!   holds a base named for the Maven, and every other invitation takes
-//!   `map`, the second half not asked of the site (J3). A Stackable
-//!   Currency base whose name holds the word `Tattoo` is
-//!   `currency.tattoo`, the site listing Honoured and Journey tattoos
-//!   there and the answer extended to the word for the families not asked
-//!   (J23; round m). A class no id is keyed by gives none: a
-//!   quest-frame invitation, whose class is Quest Items, has no id, its
-//!   class deciding (J19).
+//!   capture, never a second clause — none is needed today, and the
+//!   generator stops on a base that holds a leaf's word and misses its
+//!   rule unless the miss is named with its reason (one: `Fossilised
+//!   Delirium Orb`). The Maven's Invitation leaf holds a base named for
+//!   the Maven, and every other invitation takes `map`, the second half
+//!   not asked of the site (J3). A Stackable Currency base whose name
+//!   holds the word `Tattoo` is `currency.tattoo`, the site listing
+//!   Honoured and Journey tattoos there and the answer extended to the
+//!   word for the families not asked (J23; round m). A class no id is
+//!   keyed by gives none: a quest-frame invitation, whose class is Quest
+//!   Items, has no id, its class deciding (J19).
 //! - **A parent matches the classes the site puts at it and every id
 //!   under it by the dot** (J2): `map` holds Inscribed Ultimatums of its
 //!   own and its children's scarabs and breachstones alike. The dot is in
@@ -54,18 +50,13 @@
 //!   data under clause (a) of the admission test, generated from the
 //!   sittings' captures, 250 yellow, 79 red, 32 unknown, each row citing
 //!   its capture. A name the table lacks or marks unknown is undecided
-//!   with that reason and the hint that the site may list it (the owner,
-//!   2026-10-05: "Let's leave the undecided beasts undecided."). The count
+//!   with that reason and the hint that the site may list it. The count
 //!   of bestiary mods is the track's check and reads nothing at run time.
 //! - **A beast's class gives it no id** (J10): the class is the game's
 //!   word, Stackable Currency (J9, `class.rs`), and the beast is under
-//!   `monster.beast` and its colour leaf, never `currency` (the owner,
-//!   2026-10-06: "no, let's not count captured beasts as currency. They
-//!   are "Captured Beast" and either "Red Beast" or "Yellow Beast" or
-//!   neither.").
+//!   `monster.beast` and its colour leaf, never `currency`.
 //! - **A count by category lists an item under its most specific id**
-//!   (J11: "under the most specific. consumers can roll up these counts as
-//!   needed."): the ids that hold with no id beneath them holding — a
+//!   (J11): the ids that hold with no id beneath them holding — a
 //!   breachstone, `map` twice over, under `map.breachstone`. An item of
 //!   two leaves not nested is listed under each, as a count by class lists
 //!   it (J16); a beast of undecided colour under `monster.beast` (J15);
@@ -81,8 +72,7 @@
 //!   undecided on every item, the beast ids among them (J18, J22). An item
 //!   whose class gives no id lacks a category: `none`.
 //! - **Growing Wombgift is `wombgift`** by its class, which `class.rs`
-//!   reads as Wombgifts (J14, J20: "I want growing wombgift to behave like
-//!   other wombgift items, however they are handled.").
+//!   reads as Wombgifts (J14, J20).
 //!
 //! # As built
 //!

@@ -7,23 +7,20 @@
 //!
 //! The rules that decide a count are this doc's (C101).
 //!
-//! # Decisions as recorded
+//! # Rulings held here
 //!
-//! - **C101 — the sockets.** Socket colours are asked two ways: over the
-//!   whole item — `sockets.red>=2`, a count over every socket the item
-//!   has — and within a link group — `linked(red>=3 green>=1)`, where
-//!   every colour and count named must be met together by one group
-//!   (S59, the owner: "the filter matches the item if any of the link
-//!   groups contains at least as many sockets of each color that were
-//!   specified by the filter"). `sockets` is how many sockets the item
-//!   has, `links` the size of its largest link group, a link group's
+//! - **C101** (colours over the item and a group): Socket colours are
+//!   asked two ways: over the whole item — `sockets.red>=2`, a count over
+//!   every socket the item has — and within a link group —
+//!   `linked(red>=3 green>=1)`, where every colour and count named must be
+//!   met together by one group (S59). `sockets` is how many sockets the
+//!   item has, `links` the size of its largest link group, a link group's
 //!   `size` its own count. Every socket counts in `sockets`, whatever its
 //!   colour: an abyssal socket (GGG's `A`) and a resonator's (`DV`) are
 //!   sockets, each in a group of its own on the census's copy; the
-//!   colours a query names are four, so an abyssal
-//!   socket is asked for by the line every such item displays (`"Has #
-//!   Abyssal Sockets"`) and a resonator by its base (K1; owner,
-//!   2026-09-24: "agreed").
+//!   colours a query names are four, so an abyssal socket is asked for by
+//!   the line every such item displays (`"Has # Abyssal Sockets"`) and a
+//!   resonator by its base (K1).
 //!
 //! # As built
 //!

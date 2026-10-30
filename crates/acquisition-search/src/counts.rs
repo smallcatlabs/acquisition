@@ -6,30 +6,26 @@
 //! are the clap help's. The totals table a sum may name is `totals.rs`
 //! (C94).
 //!
-//! # Decisions as recorded
+//! # Rulings held here
 //!
-//! Count views (C95; E4 and E5 accepted 2026-09-22): choose `--count` or
-//! `--cross`, never both. `--cross` takes exactly two fields; `line` is
-//! counted in its own vocabulary table. `--sort` orders item rows and is an
-//! error with either count view; tables are ranked by their counts.
-//! `--sum` requires one of those count views: no standalone grand total.
-//! It adds one number per item: a numeric field or an explicit item
-//! `sum( … )`. A raw line projection is an error offering the item sum,
-//! never an implicit choice of its largest occurrence (C95; E2 accepted
-//! 2026-09-22). For example, `--sum 'sum("# to maximum Life")'` adds all
-//! matching life lines on each item before adding the items' totals.
-//! A computed value (`pseudo.<name>`; C94, C101) defines its own
-//! contributors and is summed as a numeric field is; a ranged one with no
-//! slot word is its `avg` (`pseudo.rs`).
-//! `--limit` bounds rows or each table's values (a crossed table's cells),
-//! while `none` and `undecided` remain visible. The bucket selectors and
-//! the vocabulary's presence-based `undecided` (C105; E1 and E3 accepted
-//! the same day) are defined below, under
-//! "As built"; zero undecided does not assert that every line was readable.
-//!
-//! Computed values in the vocabulary read — owner, 2026-09-19: "agreed and
-//! we will see what this does to implementation, but it's always easier to
-//! cut stuff out than add it in".
+//! - **C95** (two count views, one sum): choose `--count` or `--cross`,
+//!   never both. `--cross` takes exactly two fields; `line` is counted in
+//!   its own vocabulary table. `--sort` orders item rows and is an error
+//!   with either count view; tables are ranked by their counts. `--sum`
+//!   requires one of those count views: no standalone grand total. It adds
+//!   one number per item: a numeric field or an explicit item `sum( … )`.
+//!   A raw line projection is an error offering the item sum, never an
+//!   implicit choice of its largest occurrence. For example, `--sum
+//!   'sum("# to maximum Life")'` adds all matching life lines on each item
+//!   before adding the items' totals. A computed value (`pseudo.<name>`;
+//!   C94, C101) defines its own contributors and is summed as a numeric
+//!   field is; a ranged one with no slot word is its `avg` (`pseudo.rs`).
+//!   `--limit` bounds rows or each table's values (a crossed table's
+//!   cells), while `none` and `undecided` remain visible.
+//! - **C105** (every match accounted for): the bucket selectors and the
+//!   vocabulary's presence-based `undecided` are defined below, under "As
+//!   built"; zero undecided does not assert that every line was readable.
+//! - **C97** (the vocabulary read): computed values are in it.
 //!
 //! # As built
 //!

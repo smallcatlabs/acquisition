@@ -7,10 +7,9 @@
 //! type, are rows of the same table. No general accessor (C101): a
 //! property is reached by a row, and a row is reviewed reference data.
 //!
-//! # Decisions as recorded
+//! # Rulings held here
 //!
-//! - **C114.** Owner, 2026-10-15: "build all using displayed names"; the
-//!   quality-normalised defences "in this step". The table is
+//! - **C114** (displayed names, one table): The table is
 //!   `reference/properties-v1.toml`; its header carries the rules a
 //!   reviewer reads — what a row means, the one status, the q20 rule and
 //!   what it was measured against — and `--describe fields` prints each
@@ -18,16 +17,14 @@
 //!   (c)). The names the catalogue spells (`trade-catalogue-v1.toml`) are
 //!   the table's: the catalogue's loader refuses one this build does not
 //!   know (`trade::catalogue`).
-//! - **S26, the q20 rule.** The site's figure for a defence is the display
-//!   with the item's quality taken out and 20 % put in, and the display
-//!   itself at 20 % or more or under the enchant that drops quality —
-//!   within one, since the site works from the roll the display rounded:
-//!   equal on 1,148 of 1,313 captured rows and one off on 165, equal on 32
-//!   of the fetch census's 37 (`tests/properties.rs`). So the field is the
-//!   rule, rounded half up, and never claims to be the site's number.
-//!   The display standing above 20 % is the owner's, 2026-10-15,
-//!   verbatim: "yes, we need to able to handle qualities >20% because
-//!   there are legacy mechanics that can make this happen."
+//! - **S26** (the q20 rule): The site's figure for a defence is the
+//!   display with the item's quality taken out and 20 % put in, and the
+//!   display itself at 20 % or more or under the enchant that drops
+//!   quality — within one, since the site works from the roll the display
+//!   rounded: equal on 1,148 of 1,313 captured rows and one off on 165,
+//!   equal on 32 of the fetch census's 37 (`tests/properties.rs`). So the
+//!   field is the rule, rounded half up, and never claims to be the
+//!   site's number.
 //!
 //! # As built
 //!

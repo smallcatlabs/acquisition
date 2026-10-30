@@ -3,23 +3,22 @@
 //! person would have typed, and a report, clause by clause, of what each
 //! became.
 //!
-//! # Decisions as recorded
+//! # Rulings held here
 //!
-//! - **C113 (K6), taken from the contract detail at step 4** (verbatim;
-//!   what a URL is and its scope are `answer.rs`'s, taken at step 5).
-//!   Every clause has one of five statuses — exact, ambiguous, unsupported,
-//!   listing-only, disabled — from one catalogue table the translation
-//!   reads, `--describe trade` prints and a test walks, an unknown key or
-//!   option unsupported by name. `fidelity` is the worst status among the
-//!   clauses with stash meaning — exact, ambiguous, or partial when the
-//!   remainder is nonempty — promising the item predicate alone. A stat
-//!   group translates whole or not at all, `and` excepted. A hash-category
-//!   stat is `line("T" …)` with the category as source or flag, `min` and
-//!   `max` on `arg1`, on `avg` for a ranged template (S47), presence for a
-//!   text with no number; `+#` and a `(Local)` suffix are spelling, the
-//!   suffix making the clause ambiguous (S72), as does a text with two ids
-//!   (S66); an id of two texts in one category is unsupported (owner,
-//!   2026-10-15: "Unsupported until the sitting"); a pseudo the totals
+//! - **C113** (the clauses and their statuses; what a URL is and its
+//!   scope are `answer.rs`'s): Every clause has one of five statuses —
+//!   exact, ambiguous, unsupported, listing-only, disabled — from one
+//!   catalogue table the translation reads, `--describe trade` prints and
+//!   a test walks, an unknown key or option unsupported by name.
+//!   `fidelity` is the worst status among the clauses with stash meaning —
+//!   exact, ambiguous, or partial when the remainder is nonempty —
+//!   promising the item predicate alone. A stat group translates whole or
+//!   not at all, `and` excepted. A hash-category stat is `line("T" …)`
+//!   with the category as source or flag, `min` and `max` on `arg1`, on
+//!   `avg` for a ranged template (S47), presence for a text with no
+//!   number; `+#` and a `(Local)` suffix are spelling, the suffix making
+//!   the clause ambiguous (S72), as does a text with two ids (S66); an id
+//!   of two texts in one category is unsupported; a pseudo the totals
 //!   table names is that total or reading, with no bound `has:` it (C94),
 //!   any other unsupported. `not` is `-( … or … )`, `if` is `(-line(T) or
 //!   line(T v))` per stat, `count` is `holds(…)=min..max`, a weighted group
@@ -27,20 +26,16 @@
 //!   tautology its own, and every path is a clause's. What no sitting has
 //!   asked — which number a many-numbered template compares, and each row
 //!   whose note leaves it to one — is ambiguous until one has.
-//! - **What step 7's sitting settled, built at 7e** (the owner, 2026-10-16:
-//!   "I accept all your recommendations"; 2026-10-17, "The choice before
-//!   7e" in the brief at `77666ea4` and note 37 at `b6197a82`:
-//!   the translation alone ships, a named
-//!   stat value is parked). A site stat is the item's stat however
-//!   displayed: a bound on it is `sum(line(T source=…).arg1)` over the
-//!   sources the id admits — an explicit id holds the stat's crafted and
-//!   fractured lines — with the line's presence beside a maximum, since a
-//!   sum of nothing is zero (C95); a stat with a numberless or
-//!   opposite-sign form is ambiguous with a note naming the park — label,
-//!   never compute an alternative from the bound; `No Physical Damage`,
-//!   and any form no sitting read, is presence alone. The forms are one
-//!   reference table beside the catalogue (C106), read here alone
-//!   (`forms.rs`).
+//! - **C113** (what step 7's sitting settled; a named stat value is
+//!   parked): A site stat is the item's stat however displayed: a bound
+//!   on it is `sum(line(T source=…).arg1)` over the sources the id admits
+//!   — an explicit id holds the stat's crafted and fractured lines — with
+//!   the line's presence beside a maximum, since a sum of nothing is zero
+//!   (C95); a stat with a numberless or opposite-sign form is ambiguous
+//!   with a note naming the park — label, never compute an alternative
+//!   from the bound; `No Physical Damage`, and any form no sitting read,
+//!   is presence alone. The forms are one reference table beside the
+//!   catalogue (C106), read here alone (`forms.rs`).
 //!
 //! # As built
 //!

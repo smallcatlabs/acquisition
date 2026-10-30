@@ -5,23 +5,19 @@
 //! ([`super::translate`]), for a stat's presence over every form and to
 //! say where a bound cannot be exact.
 //!
-//! # Decisions as recorded
+//! # Rulings held here
 //!
-//! - **The choice before 7e** (the owner, 2026-10-17; the brief at
-//!   `77666ea4`, the section of that name;
-//!   note 37 at `b6197a82`): the
-//!   translation alone ships, and the forms knowledge is data, once — "a
-//!   forms table beside the catalogue — which texts have an opposite word,
-//!   which elide to a numberless display, the exceptions — reference data
-//!   (C106) read by the translation alone, so the park lifts it rather than
-//!   finds it again". The park is "A named stat value"
-//!   (`decisions/trade.md`).
-//! - **The game's forms first, the brief's rules beside** (the owner,
-//!   2026-10-17, during 7e, choosing "Game data, rules beside"): the
-//!   brief's blanket rules named forms the game never shows — `#% chance
-//!   to X` elides at 100 % for 212 of the 372 texts the PoE1 export joins
-//!   and not for 160 (`Suppress Spell Damage`), and 316 of 2,235 joined
-//!   texts with a sign word have no opposite display — so a text the export
+//! - **The forms are data, once** (C106): the translation alone ships,
+//!   and the forms knowledge is data, once — a forms table beside the
+//!   catalogue — which texts have an opposite word, which elide to a
+//!   numberless display, the exceptions — reference data read by the
+//!   translation alone, so the park lifts it rather than finds it again.
+//!   The park is "A named stat value" (`decisions/trade.md`).
+//! - **The game's forms first, the brief's rules beside**: the brief's
+//!   blanket rules named forms the game never shows — `#% chance to X`
+//!   elides at 100 % for 212 of the 372 texts the PoE1 export joins and
+//!   not for 160 (`Suppress Spell Damage`), and 316 of 2,235 joined texts
+//!   with a sign word have no opposite display — so a text the export
 //!   joins takes the game's own forms, and the rules stand for a text it
 //!   joins nowhere.
 //!

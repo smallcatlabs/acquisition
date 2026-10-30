@@ -5,9 +5,9 @@
 //! scalar, the together count; C93 — composition and witnesses; C95 — a
 //! sum's status, whose table is `pseudo.rs`'s).
 //!
-//! # Decisions as recorded
+//! # Rulings held here
 //!
-//! - **C93 — composition.** `true or undecided` is true; `false and
+//! - **C93** (composition): `true or undecided` is true; `false and
 //!   undecided` is false; `not undecided` is undecided; at-least-N-of with
 //!   `t` true and `u` undecided children has the count interval `[t, t+u]`:
 //!   true when wholly inside the bound, false when disjoint, otherwise
@@ -16,12 +16,12 @@
 //!   fixed item scope, before any limit, with no short-circuit omission;
 //!   root matches and root undecided are separate answer counts
 //!   (`answer.rs`).
-//! - **C93 — `undecided(x)`**, `x` a thing or a term, is true when its
+//! - **C93** (`undecided(x)`): `x` a thing or a term, is true when its
 //!   value or its truth cannot be established. Always decided itself;
 //!   known absence does not satisfy it. A reason says why and what might
 //!   help — *a refresh will not help, a reference update may*; *a refresh
 //!   may help* — and these are hints, never guarantees.
-//! - **C92 — the together count** is a diagnostic beside C93's counts,
+//! - **C92** (the together count): a diagnostic beside C93's counts,
 //!   never a fifth bucket: for a lower bound on a one-slot line selector,
 //!   an item counts once when no occurrence meets the bound and the
 //!   complete sum of its occurrences does — 20 + 75 counts for ≥ 90, 95 + 5

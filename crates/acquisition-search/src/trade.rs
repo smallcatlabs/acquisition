@@ -3,10 +3,10 @@
 //! id or its query JSON, decoded with no network. The brief is
 //! `search/TRADE-PLAN.md` at `77666ea4`.
 //!
-//! # Decisions as recorded
+//! # Rulings held here
 //!
-//! - **C113 (K6), taken from the contract detail at step 4** (verbatim):
-//!   The id is the query object, gzipped and base64url-encoded (S56).
+//! - **C113** (a search id decodes offline): The id is the query object,
+//!   gzipped and base64url-encoded (S56).
 //!
 //! # As built (step 1 of the brief: decode)
 //!

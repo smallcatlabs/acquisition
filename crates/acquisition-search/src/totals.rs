@@ -7,9 +7,9 @@
 //! `pseudo.rs`; what reference data admits, and the admission test the
 //! table passed, is the crate's doc (C106), cited and not restated.
 //!
-//! # Decisions as recorded
+//! # Rulings held here
 //!
-//! - **C94 — the totals table.** A total's row names the contributing
+//! - **C94** (the totals table): A total's row names the contributing
 //!   line — its template, exact; its source and flag where they matter,
 //!   any otherwise — the slot of it or none, and a weight. For each
 //!   occurrence the row names, a row with a slot contributes that slot's
@@ -21,59 +21,49 @@
 //!   lacked — no line a row names on the item, or lines that cancel, `+21
 //!   to Strength` beside `-21` — as the trade site shows no pseudo for
 //!   either: known absence, false under a comparison and never zero
-//!   (C93), asked by `has:` (owner, 2026-09-26: "Yes, let's make it absent
-//!   to match the site"; of both cases alike: "A". It takes back "a total
-//!   of nothing is an honest zero", as this entry read until then). A
-//!   `sum( … )` of the same lines is the user's arithmetic and stays a
-//!   number, zero of nothing (C95). A total whose rows are
-//!   ranged lines sums low with low and high with high and is a ranged
-//!   value taking `low`, `high` and `avg`. A contributor the search could
-//!   not read — a source a row admits unread, an occurrence a row names
-//!   whose number is unread, or whose flag is where the row asks one —
-//!   leaves a subtotal marked incomplete, never a total: its comparison
-//!   is undecided, `undecided( … )` of it is true (`pseudo.rs`). A flag
-//!   that is no yes or no opens nothing a row does not ask, and no row of
-//!   the shipped table asks one: the line counts by its text (J32, owner,
-//!   2026-10-08: "yes, i agree"; the plan, rule 8). No definition for the item's realm is never a
-//!   zero: the value is unavailable with that reason, undecided as an
-//!   incomplete one is, and the reason names the realm and the versions
-//!   (rule 8 of the plan: said once, where the table is read). The answer
-//!   prints a definition on request (`--describe pseudo.<name>`, C97),
-//!   and the table is checked, loudly, when it is built: a table that
-//!   fails is a build defect surfaced as [`TotalsTableError`] to every
-//!   caller, never a partial table.
-//! - **C94 — the ranged family** (the build plan, 9d-C; taken from the
-//!   contract detail 2026-10-08; `search/LEDGER.md`, "Holes ruled", the
-//!   9c and 9d rows). The unsuffixed `Adds # to # <type> Damage` displays
+//!   (C93), asked by `has:`. A `sum( … )` of the same lines is the user's
+//!   arithmetic and stays a number, zero of nothing (C95). A contributor
+//!   the search could not read — a source a row admits unread, an
+//!   occurrence a row names whose number is unread, or whose flag is where
+//!   the row asks one — leaves a subtotal marked incomplete, never a
+//!   total: its comparison is undecided, `undecided( … )` of it is true
+//!   (`pseudo.rs`). A flag that is no yes or no opens nothing a row does
+//!   not ask, and no row of the shipped table asks one: the line counts
+//!   by its text (J32; the plan, rule 8). No definition for the item's
+//!   realm is never a zero: the value is unavailable with that reason,
+//!   undecided as an incomplete one is, and the reason names the realm and
+//!   the versions (rule 8 of the plan: said once, where the table is
+//!   read). The answer prints a definition on request (`--describe
+//!   pseudo.<name>`, C97), and the table is checked, loudly, when it is
+//!   built: a table that fails is a build defect surfaced as
+//!   [`TotalsTableError`] to every caller, never a partial table.
+//! - **C94** (the ranged family; `search/LEDGER.md`, "Holes ruled", the
+//!   9c and 9d rows): The unsuffixed `Adds # to # <type> Damage` displays
 //!   one of two stats: a weapon's own line feeds the attacks' total
 //!   alone, the other twin the plain, the attacks' and the spells'
 //!   (`search/pseudo-stats/README.md`, rounds two to four). Which it is
 //!   the item's category decides: on a weapon the line is the weapon's
-//!   own (J7, ruled 2026-10-01, the owner's assent to the builder's
-//!   recommendation). A ranged total asked with no slot word is its
-//!   `avg`, the one number the site shows (owner, 2026-09-26: "yes, bare
-//!   means average"). Every ranged total prints the limit — a line under
-//!   the other stat on a weapon is read as the weapon's own — with what
-//!   the site showed: no listed weapon was found to carry one (round i,
-//!   i06–i08). Where both twins count toward a total at one weight its
-//!   row asks nothing of the item, so only the plain and the spells' rows
-//!   read its category, and an item whose category is not established is
-//!   undecided there alone: a total none of whose rows reads the item's
-//!   category is never left open by it (J30). A ranged total is nothing,
-//!   and so lacked, only where its low and its high both are — a range
-//!   that cancels in its average alone, `-5` to `5`, is a value whose
-//!   `avg` is 0 (J31). J30 and J31 are the builder's recommendations, the
-//!   owner's assent to each 2026-10-08: "yes and yes".
-//! - **C94 — what no total reads (J29).** A total leaves out a crucible
+//!   own (J7). A ranged total asked with no slot word is its `avg`, the
+//!   one number the site shows. Every ranged total prints the limit — a
+//!   line under the other stat on a weapon is read as the weapon's own —
+//!   with what the site showed: no listed weapon was found to carry one
+//!   (round i, i06–i08). Where both twins count toward a total at one
+//!   weight its row asks nothing of the item, so only the plain and the
+//!   spells' rows read its category, and an item whose category is not
+//!   established is undecided there alone: a total none of whose rows
+//!   reads the item's category is never left open by it (J30). A ranged
+//!   total is nothing, and so lacked, only where its low and its high
+//!   both are — a range that cancels in its average alone, `-5` to `5`,
+//!   is a value whose `avg` is 0 (J31).
+//! - **C94** (what no total reads, J29): A total leaves out a crucible
 //!   node's lines and a flask's own, the arrays `crucibleMods` and
 //!   `utilityMods` and no other: the trade site files them under no stat
-//!   and counts neither (round n; the owner, 2026-10-08, of both: "Leave
-//!   both out."). It is a rule of every total, the ones shipped before
-//!   the ranged family among them and the readings by the totals they
-//!   read; an array a total does not read cannot leave that total
-//!   incomplete (rule 8 of the plan). A line's term, the item's own
-//!   `sum( … )` of a line and the vocabulary read both arrays as they
-//!   read any: the rule is a total's.
+//!   and counts neither (round n). It is a rule of every total, the ones
+//!   shipped before the ranged family among them and the readings by the
+//!   totals they read; an array a total does not read cannot leave that
+//!   total incomplete (rule 8 of the plan). A line's term, the item's own
+//!   `sum( … )` of a line and the vocabulary read both arrays as they read
+//!   any: the rule is a total's.
 //!
 //! # As built
 //!

@@ -206,162 +206,147 @@
 //! corpus (invariant 3). What the evaluator does not yet build is refused
 //! by name (the build plan, "How a partial build stays honest").
 //!
-//! # Decisions as recorded
+//! # Rulings held here
 //!
-//! - **C89.** The crate links the store, and the planner once a query
-//!   reads the effective price; never the daemon, the client, an HTTP
-//!   client or an async runtime, and the daemon and the planner never link
-//!   it. `tools/arch-check.sh` §5 refuses each edge, and
-//!   `tools/arch-check-breakers.sh` proves it refuses.
-//! - **C103, C90.** The deriver is [`mod@derive`]'s module doc; pinned by
-//!   `tests/derive.rs`, and set against the census over a real corpus by
-//!   `search/item-facts/scripts/m2-differential.py` (never in the gate).
-//!   The read that hands the deriver its facts is the store's, C108
-//!   (`acquisition-store/src/corpus.rs`). A mod displayed over several
-//!   rows, named by its whole text or by a row, is the deriver's doc and
-//!   `group`'s; pinned by `tests/rows.rs` (a line's term, its slots, what
-//!   is unread of one row, the vocabulary, what a quoted template resolved
-//!   to), `tests/generated_rows.rs` (a row named answers as the row
-//!   alone) and `tests/pseudo.rs` (a total's row, on the trade site's
-//!   captures).
-//! - **C91, C92, C93, C96, C98, C100, C102.** The binder, evaluation, the
-//!   held corpus and the answer are their modules' docs; pinned at the
-//!   crate's boundary — a request in, an answer out, as JSON — by
-//!   `tests/answer.rs` (the worked example reduced to what is
+//! - **C89** (its own crate, its edges): `tools/arch-check.sh` §5
+//!   refuses each edge, and `tools/arch-check-breakers.sh` proves it
+//!   refuses.
+//! - **C103, C90** (one deriver; a line's identity): The deriver is
+//!   [`mod@derive`]'s module doc; pinned by `tests/derive.rs`, and set
+//!   against the census over a real corpus by
+//!   `search/item-facts/scripts/m2-differential.py` (never in the gate). The
+//!   read that hands the deriver its facts is the store's, C108
+//!   (`acquisition-store/src/corpus.rs`). A mod displayed over several rows,
+//!   named by its whole text or by a row, is the deriver's doc and `group`'s;
+//!   pinned by `tests/rows.rs` (a line's term, its slots, what is unread of
+//!   one row, the vocabulary, what a quoted template resolved to),
+//!   `tests/generated_rows.rs` (a row named answers as the row alone) and
+//!   `tests/pseudo.rs` (a total's row, on the trade site's captures).
+//! - **C91, C92, C93, C96, C98, C100, C102** (the query to its answer): The
+//!   binder, evaluation, the held corpus and the answer are their modules'
+//!   docs; pinned at the crate's boundary — a request in, an answer out, as
+//!   JSON — by `tests/answer.rs` (the worked example reduced to what is
 //!   built, the route property, invariants 2 and 6), `tests/acceptance.rs`
 //!   (the acceptance set's rows green at step 4, the limits' wording) and
-//!   `tests/refusal.rs` (the refusal walk, invariant 3). The why-not —
-//!   what a path names, the literal substitution, the corpus context,
-//!   the zero block's offers, `show --against` — is [`tree`]'s,
-//!   [`mod@answer`]'s and [`mod@show`]'s docs; pinned by
-//!   `tests/explain.rs` (every cell of the piece's expected answers, a
-//!   node under a not, an or and a `holds`, the refusals, the offers
-//!   followed as requests), `tests/against.rs` (the seven items of the
-//!   worked example), `tests/generated_explain.rs` (each forced answer
-//!   is the transformed query's, asked alone, at every path, and a
-//!   term's is the same in every spelling) and `tests/acceptance.rs`
-//!   (AQ3 whole). The continuation and a route read back are
-//!   [`mod@answer`]'s doc; pinned by `tests/next.rs` (the pages in order
-//!   are the answer at a limit past the total, fixed and generated; the
-//!   refusal across a changed basis, another build's and a refetched
-//!   file's among them; both counts of a route read back, with its
-//!   basis sent or without) and `tests/build_name.rs` (which files the
-//!   build's name is a digest of). What a refusal offers is [`error`]'s
-//!   doc; pinned by `tests/offers.rs` (each offer the request its
-//!   reading is, and one that runs). Membership is [`corpus`]'s doc and the store's
-//!   (`acquisition-store/src/corpus.rs`, C108); pinned by
-//!   `tests/membership.rs` (the removed beside the live, each marked at
-//!   the place it was last seen; a removed item's price; every route
-//!   under `all`; AQ4 across a refresh that removed the item; the
+//!   `tests/refusal.rs` (the refusal walk, invariant 3). The why-not — what a
+//!   path names, the literal substitution, the corpus context, the zero
+//!   block's offers, `show --against` — is [`tree`]'s, [`mod@answer`]'s and
+//!   [`mod@show`]'s docs; pinned by `tests/explain.rs` (every cell of the
+//!   piece's expected answers, a node under a not, an or and a `holds`, the
+//!   refusals, the offers followed as requests), `tests/against.rs` (the
+//!   seven items of the worked example), `tests/generated_explain.rs` (each
+//!   forced answer is the transformed query's, asked alone, at every path,
+//!   and a term's is the same in every spelling) and `tests/acceptance.rs`
+//!   (AQ3 whole). The continuation and a route read back are [`mod@answer`]'s
+//!   doc; pinned by `tests/next.rs` (the pages in order are the answer at a
+//!   limit past the total, fixed and generated; the refusal across a changed
+//!   basis, another build's and a refetched file's among them; both counts of
+//!   a route read back, with its basis sent or without) and
+//!   `tests/build_name.rs` (which files the build's name is a digest of).
+//!   What a refusal offers is [`error`]'s doc; pinned by `tests/offers.rs`
+//!   (each offer the request its reading is, and one that runs). Membership
+//!   is [`corpus`]'s doc and the store's (`acquisition-store/src/corpus.rs`,
+//!   C108); pinned by `tests/membership.rs` (the removed beside the live,
+//!   each marked at the place it was last seen; a removed item's price; every
+//!   route under `all`; AQ4 across a refresh that removed the item; the
 //!   removed alone, the rows `all` marks).
-//! - **C95, C97, C105.** The counts view and the vocabulary are
-//!   [`counts`]'s doc; pinned by `tests/counts.rs`: AQ1, C105's two
-//!   invariants on a one-value key, C95's sum over the three kinds, the
-//!   vocabulary's pasted term selecting its row, every bucket's route
-//!   followed by id.
-//! - **C113.** The decoder is [`trade`]'s doc; pinned by
-//!   `tests/trade_decode.rs` (the eight captured ids decode to exactly
-//!   their requests, S56; the URL forms of K6; every malformed input a
-//!   structured error; a PoE2 URL refused by name). The stat table and the
-//!   catalogue are [`trade::stats`]'s and [`trade::catalogue`]'s docs;
-//!   pinned by `tests/trade_stats.rs` and `tests/trade_catalogue.rs`
-//!   (every filter, stat category and group type of the captures a row;
-//!   every field named one the build binds; each defect refused). The
-//!   translation is [`trade::translate`]'s doc; pinned by
-//!   `tests/trade_translate.rs` (every fixture of `trade-translate.toml`,
-//!   its text worked by hand and asked of items that tell it from a
-//!   weaker reading; every catalogue row a fixture; every stat id of the
-//!   table; K6's guard, apart from the module's own; a generated site
-//!   query read back). The surface — a site search as a request's query,
-//!   its report in the answer, its realm the scope, its printed request
-//!   read back, every command printed run, `--describe trade` — is
-//!   [`mod@answer`]'s doc; pinned at the CLI by
+//! - **C95, C97, C105** (counts and the vocabulary): The counts view and the
+//!   vocabulary are [`counts`]'s doc; pinned by `tests/counts.rs`: AQ1,
+//!   C105's two invariants on a one-value key, C95's sum over the three
+//!   kinds, the vocabulary's pasted term selecting its row, every bucket's
+//!   route followed by id.
+//! - **C113** (the trade boundary, inbound): The decoder is [`trade`]'s doc;
+//!   pinned by `tests/trade_decode.rs` (the eight captured ids decode to
+//!   exactly their requests, S56; the URL forms of K6; every malformed input
+//!   a structured error; a PoE2 URL refused by name). The stat table and the
+//!   catalogue are [`trade::stats`]'s and [`trade::catalogue`]'s docs; pinned
+//!   by `tests/trade_stats.rs` and `tests/trade_catalogue.rs` (every filter,
+//!   stat category and group type of the captures a row; every field named
+//!   one the build binds; each defect refused). The translation is
+//!   [`trade::translate`]'s doc; pinned by `tests/trade_translate.rs` (every
+//!   fixture of `trade-translate.toml`, its text worked by hand and asked of
+//!   items that tell it from a weaker reading; every catalogue row a fixture;
+//!   every stat id of the table; K6's guard, apart from the module's own; a
+//!   generated site query read back). The surface — a site search as a
+//!   request's query, its report in the answer, its realm the scope, its
+//!   printed request read back, every command printed run, `--describe trade`
+//!   — is [`mod@answer`]'s doc; pinned at the CLI by
 //!   `acquisition-cli/tests/search_json.rs` and at the MCP by
 //!   `acquisition-mcp/tests/search_tools.rs`. Against the site, by
-//!   `tests/trade_oracle.rs`: every item the site returned for a search
-//!   that translates whole, entered as the site sent it, is matched or a
-//!   row of `trade-oracle.toml`, its finding a fact of the captures, the
-//!   owner's ruling or a question for the sitting (step 6).
-//! - **C114.** The property fields are [`properties`]'s doc and
-//!   `reference/properties-v1.toml`'s header; pinned by
-//!   `tests/properties.rs` (the shipped table; what its loader refuses;
-//!   every field asked every way a number is, on an item that has it, one
-//!   that lacks it and one that leaves it open; the q20 rule's arithmetic
-//!   and every captured figure of the site's within one of it; the tier;
+//!   `tests/trade_oracle.rs`: every item the site returned for a search that
+//!   translates whole, entered as the site sent it, is matched or a row of
+//!   `trade-oracle.toml`, its finding a fact of the captures, the owner's
+//!   ruling or a question for the sitting (step 6).
+//! - **C114** (the property fields): The property fields are [`properties`]'s
+//!   doc and `reference/properties-v1.toml`'s header; pinned by
+//!   `tests/properties.rs` (the shipped table; what its loader refuses; every
+//!   field asked every way a number is, on an item that has it, one that
+//!   lacks it and one that leaves it open; the q20 rule's arithmetic and
+//!   every captured figure of the site's within one of it; the tier;
 //!   `pseudo.edps`).
-//! - **C104.** Pinned by `tests/language.rs`: the round trip over
-//!   generated trees and over the corpus (`tests/language.toml`), where
-//!   every construct of the language has a case.
-//! - **C106 — what reference data admits, and the test.** Three kinds:
-//!   *data*, what the game files state and a registered surface exports;
-//!   *convention*, a concept the community has published a definition for
-//!   (the owner, 2026-09-18, on "equipment": "This is something that's
-//!   well-defined by the community, e.g. RePoE, the trade site categories,
-//!   poedb.tw, and <https://www.poewiki.net/wiki/Equipment>"); *judgment*,
-//!   never embedded. C79 never required a surface to be GGG's: it requires
-//!   registration, no runtime fetch, and a human's commit (C68). A
-//!   convention behaves as a named total does (C94): defined once, printing
-//!   its definition and source on request, naming one authority with the
-//!   rest as corroboration and any disagreement noted on the row — order of
-//!   authority: GGG-authored surfaces (the API, the trade site's own
-//!   categories, the item-filter documentation), then game-file exports
-//!   (RePoE, Path of Building), then community prose (the wiki, poedb). A
-//!   word that is the trade site's says so. **The admission test:** (a) a
-//!   definition at a registered surface: published there, or, where the
+//! - **C104** (text and tree, one value): Pinned by `tests/language.rs`: the
+//!   round trip over generated trees and over the corpus
+//!   (`tests/language.toml`), where every construct of the language has a
+//!   case.
+//! - **C106** (what reference data admits, and the test): C79 never required
+//!   a surface to be GGG's: it requires registration, no runtime fetch, and a
+//!   human's commit (C68). A convention behaves as a named total does (C94):
+//!   defined once, printing its definition and source on request, naming one
+//!   authority with the rest as corroboration and any disagreement noted on
+//!   the row — order of authority: GGG-authored surfaces (the API, the trade
+//!   site's own categories, the item-filter documentation), then game-file
+//!   exports (RePoE, Path of Building), then community prose (the wiki,
+//!   poedb). A word that is the trade site's says so. **The admission test:**
+//!   (a) a definition at a registered surface: published there, or, where the
 //!   surface publishes the word and not its definition, evidenced by dated
 //!   observations of what the surface answers, each row citing its capture
-//!   (the trade site's pseudo stats; owner, 2026-09-26, V6); (b) reviewable —
-//!   generated by a committed script from a pinned source and reviewed as a
-//!   diff at each pull, read first with `tools/game-diff.py` (a "small enough to read every row" test would have
-//!   refused the 476-row base-defence extract); (c) the word prints its
-//!   definition and its source version, which the basis cites (C98); (d)
-//!   every question can still be asked without it. A table enters one at a
-//!   time — "may back a field", never "the app carries game data" — and a
-//!   surface's row changes only when the first definition needs it, its
-//!   licence read then (the wiki is CC BY-NC 3.0; poedb states no terms and
-//!   is unregistered). "A roll outside the base's current range" is data;
-//!   calling it legacy is history the export does not carry — legacy is
-//!   never a field (C107); a unique's variant, a label its source prints,
+//!   (the trade site's pseudo stats; V6); (b) reviewable — generated by a
+//!   committed script from a pinned source and reviewed as a diff at each
+//!   pull, read first with `tools/game-diff.py` (a "small enough to read
+//!   every row" test would have refused the 476-row base-defence extract);
+//!   (c) the word prints its definition and its source version, which the
+//!   basis cites (C98); (d) every question can still be asked without it. A
+//!   table enters one at a time — "may back a field", never "the app carries
+//!   game data" — and a surface's row changes only when the first definition
+//!   needs it, its licence read then (the wiki is CC BY-NC 3.0; poedb states
+//!   no terms and is unregistered). "A roll outside the base's current range"
+//!   is data; calling it legacy is history the export does not carry — legacy
+//!   is never a field (C107); a unique's variant, a label its source prints,
 //!   is the parked candidate (`decisions/search.md`, "Parked"). The three
 //!   class readings the first seat ruled (V1, V2) are `class.rs`'s doc.
-//! - **C106.** The class table is [`class`]'s doc and
-//!   `reference/classes-v1.toml`'s header; pinned by `tests/class.rs`
-//!   (the shipped file, every reason the table gives, `undecided(class)`,
-//!   the count's tally, `show`) and `tests/acceptance.rs` (OQ1 and OQ4 as
-//!   worded, OQ5 askable). Category is [`category`]'s doc — the paragraph
-//!   of the contract detail and the rulings J1–J4, J9–J22, taken there at
-//!   step 9d-B — and the headers of `reference/categories-v1.toml` and
-//!   `reference/beast-colours-v1.toml`; pinned by `tests/category.rs`
-//!   (every row of the track's expected answers, a beast found by its
-//!   category, a category under not and or, `show`, the help) and
-//!   `tests/acceptance.rs` (OQ5 by category).
-//! - **C94, C101.** The totals table is [`totals`]'s doc and
-//!   `reference/totals-v6.toml`'s header — the ranged family and what no
-//!   total reads (J29) among them, taken from the contract detail at
-//!   step 9d-C; the computed values, their three
-//!   statuses, the readings of other totals and the derived fields are
-//!   `pseudo`'s doc; pinned by
-//!   `tests/pseudo.rs` (the shipped table through the boundary, a total's
-//!   three statuses, a count and a least on the trade site's captures and
-//!   where a total they read is open, `dps` and `pdps`, the sort and the
-//!   sum over one), `tests/ranged.rs` (every row of the ranged family's
-//!   expected answers, the plan's closing row, J29 on the totals shipped
-//!   before it and on round n's captures, a row that reads the category
-//!   under not and or, the help),
-//!   `tests/answer.rs` (the worked example whole) and
-//!   `tests/acceptance.rs` (AQ2 as worded). The base defence percentile
-//!   — the paragraph of the contract detail and the rulings J5, J6, J8
-//!   and J33–J35, taken at step 9d-A — is `pseudo`'s doc, its reference
-//!   data [`defences`]'s and `reference/defences-v1.toml`'s header;
-//!   pinned by `tests/percentile.rs` (every row of the track's expected
-//!   answers, the worked cases asked every way a computed value is, the
-//!   field under not and or, what does not open it, the refusal of
-//!   `has:` with a slot word, the help). The sockets are [`sockets`]'s
-//!   doc, the link group `group`'s; pinned by `tests/sockets.rs` (the
-//!   counts two ways, S59, what each unread socket leaves open, the
-//!   buckets, the sort, `show`, every authoring error), `tests/derive.rs`
-//!   (the collection at the socket's grain) and `tests/acceptance.rs`
-//!   (OQ3's socket colours).
+//! - **C106** (the class and category tables): The class table is [`class`]'s
+//!   doc and `reference/classes-v1.toml`'s header; pinned by `tests/class.rs`
+//!   (the shipped file, every reason the table gives, `undecided(class)`, the
+//!   count's tally, `show`) and `tests/acceptance.rs` (OQ1 and OQ4 as worded,
+//!   OQ5 askable). Category is [`category`]'s doc — the rulings J1–J4, J9–J22
+//!   — and the headers of `reference/categories-v1.toml` and
+//!   `reference/beast-colours-v1.toml`; pinned by `tests/category.rs` (every
+//!   row of the track's expected answers, a beast found by its category, a
+//!   category under not and or, `show`, the help) and `tests/acceptance.rs`
+//!   (OQ5 by category).
+//! - **C94, C101** (totals and computed values): The totals table is
+//!   [`totals`]'s doc and `reference/totals-v6.toml`'s header — the ranged
+//!   family and what no total reads (J29) among them; the computed values,
+//!   their three statuses, the readings of other totals and the derived
+//!   fields are `pseudo`'s doc; pinned by `tests/pseudo.rs` (the shipped
+//!   table through the boundary, a total's three statuses, a count and a
+//!   least on the trade site's captures and where a total they read is open,
+//!   `dps` and `pdps`, the sort and the sum over one), `tests/ranged.rs`
+//!   (every row of the ranged family's expected answers, the plan's closing
+//!   row, J29 on the totals shipped before it and on round n's captures, a
+//!   row that reads the category under not and or, the help),
+//!   `tests/answer.rs` (the worked example whole) and `tests/acceptance.rs`
+//!   (AQ2 as worded). The base defence percentile — the rulings J5, J6, J8
+//!   and J33–J35 — is `pseudo`'s doc, its reference data [`defences`]'s and
+//!   `reference/defences-v1.toml`'s header; pinned by `tests/percentile.rs`
+//!   (every row of the track's expected answers, the worked cases asked every
+//!   way a computed value is, the field under not and or, what does not open
+//!   it, the refusal of `has:` with a slot word, the help). The sockets are
+//!   [`sockets`]'s doc, the link group `group`'s; pinned by
+//!   `tests/sockets.rs` (the counts two ways, S59, what each unread socket
+//!   leaves open, the buckets, the sort, `show`, every authoring error),
+//!   `tests/derive.rs` (the collection at the socket's grain) and
+//!   `tests/acceptance.rs` (OQ3's socket colours).
 
 // The lint ratchet (C47): malformed input — a text, a tree — is a
 // structured error, never a panic. Tests may unwrap.

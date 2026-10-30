@@ -83,13 +83,11 @@
 //! A crossed cell's route carries both keys. Paths (`0`…`4`, `3.1`) belong
 //! to this exact returned query; after an edit, use the next answer's.
 //!
-//! # Decisions as recorded
+//! # Rulings held here
 //!
-//! - **C113 (K6), taken from the contract detail at step 5** of
-//!   `search/TRADE-PLAN.md` at `77666ea4` (verbatim): A URL is a request: its realm the
-//!   scope, its league a term, the rest the query; a bare id or the query
-//!   JSON fills no scope; `--realm` beside a URL is a conflict; a sort,
-//!   which only the JSON envelope carries, is reported, never applied.
+//! - **C113** (a site URL is a request): a bare id or the query JSON
+//!   fills no scope; `--realm` beside a URL is a conflict; a sort, which
+//!   only the JSON envelope carries, is reported, never applied.
 //!
 //! # As built
 //!

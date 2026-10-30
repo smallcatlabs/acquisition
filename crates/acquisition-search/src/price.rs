@@ -3,18 +3,18 @@
 //! resolves it, made once there and read here — never a second reading of
 //! a note, a tab name or a row (rule 10 of the plan).
 //!
-//! # Decisions as recorded
+//! # Rulings held here
 //!
-//! - **C100 — `priced` is the effective price the pricing area defines
-//!   (C81), joined read-only.** The search asks `acquisition-plan`'s
-//!   `listing::resolve` over the store's pricing snapshot of each (realm,
-//!   league) the corpus covers, and keeps of every item listing only its
-//!   effective price ([`acquisition_plan::listing::Effective`]): the
-//!   search writes no intent, reads no note for
-//!   itself, and has no rule of its own for which statement wins. What the
-//!   join needs of the store is the snapshot the pricing CLI already reads
-//!   and the intent file's revision (`Annotations::revision`).
-//! - **C81, read here.** A statement that carries a price — `exact` or
+//! - **C100** (`priced`, joined read-only): The search asks
+//!   `acquisition-plan`'s `listing::resolve` over the store's pricing
+//!   snapshot of each (realm, league) the corpus covers, and keeps of
+//!   every item listing only its effective price
+//!   ([`acquisition_plan::listing::Effective`]): the search writes no
+//!   intent, reads no note for itself, and has no rule of its own for
+//!   which statement wins. What the join needs of the store is the
+//!   snapshot the pricing CLI already reads and the intent file's
+//!   revision (`Annotations::revision`).
+//! - **C81** (read here): A statement that carries a price — `exact` or
 //!   `negotiable`, the game's or the owner's — is the item's price:
 //!   `has:priced` holds, and `price.amount`, `price.currency` and
 //!   `price.lot` are its parts. A listing resolved to `none`, `no_price`
@@ -26,8 +26,7 @@
 //!   numbers (`exact::reads`: ten whole digits and four decimals): an
 //!   amount or a lot the intent file holds beyond it is unread at that
 //!   part — `has:priced` holds, `price.amount` is undecided — never a
-//!   float that drops its last digits (the step-9 review: two prices
-//!   past 2^53 in one bucket).
+//!   float that drops its last digits.
 //!
 //! # As built
 //!

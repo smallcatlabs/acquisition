@@ -12,7 +12,7 @@
 //! `search/pseudo-stats/README.md` (2026-09-18; 109 unresolved, each with
 //! the one read that closes it).
 //!
-//! # Decisions as recorded
+//! # Rulings held here
 //!
 //! **A sum's status.** One rule for computed totals and item sums, but
 //! what nothing sums to:
@@ -26,29 +26,18 @@
 //!
 //! Absent is false and never zero for a *line or property* the item lacks
 //! (C93), and for a *total* of nothing, which the trade site shows no
-//! pseudo for (owner, 2026-09-26: "Yes, let's make it absent to match the
-//! site"); an item's own `sum( … )` of nothing is an honest zero.
+//! pseudo for; an item's own `sum( … )` of nothing is an honest zero.
 //!
-//! The owner's words (2026-09-19, verbatim but for spelling):
-//!
-//! - One namespace for every computed value, never a kind of line: "i agree
-//!   with 'pseudo' as the namespace now, which means we can fit stuff like
-//!   the various kinds of dps and other calculated items." A line the item
-//!   lacks is false and a sum of nothing is zero; a condition binds to one
-//!   occurrence and a total has none (C92) — so the reuse is at the value,
-//!   where the same `.<slot>` reads a line and a ranged computed value.
-//! - `has:` on a derived field (T2, 2026-09-24: "A ring has no dps"), and
-//!   on a total since a total of nothing is lacked (2026-09-26, above). It
-//!   was refused on a total while every item had one: "agree, no
-//!   has:pseudo".
-//!
-//! - **C101 — the derived fields.** A missing reach is a field to add,
-//!   never a general door: a pseudo that is no sum over lines is a named
-//!   pure function over the item's properties, its lines and reference
-//!   data, listed with its definition
-//!   under `pseudo.` by `--describe` (C97), never a total row. Built here:
-//!   `pseudo.dps`, `pseudo.pdps` and `pseudo.edps` (step 3 of
-//!   `search/TRADE-PLAN.md` at `77666ea4`), each attacks per second times the
+//! - **One namespace for every computed value, never a kind of line.** A
+//!   line the item lacks is false and a sum of nothing is zero; a
+//!   condition binds to one occurrence and a total has none (C92) — so
+//!   the reuse is at the value, where the same `.<slot>` reads a line and
+//!   a ranged computed value.
+//! - **`has:` on a derived field** (T2), and on a total since a total of
+//!   nothing is lacked (above).
+//! - **C101** (the derived fields): listed with its definition under
+//!   `pseudo.` by `--describe` (C97). Built here: `pseudo.dps`,
+//!   `pseudo.pdps` and `pseudo.edps`, each attacks per second times the
 //!   mean of a damage range (S22), read from the properties as the game
 //!   displays them — `Physical Damage: 59-88`, `Attacks per Second: 1.25`
 //!   — quality applied as GGG has already applied it to what it displays.
@@ -63,28 +52,23 @@
 //!   the units hold (`exact::Exact::times`), the field is undecided with
 //!   that reason. An unread element of `properties` leaves a field open
 //!   only when it may be one the field reads: its name unread, or one of
-//!   the field's (`derive::Unread::name`; rule 8 at the element's grain,
-//!   outside audit 2026-09-24).
+//!   the field's (`derive::Unread::name`; rule 8 at the element's grain).
 //!   `has:` asks a computed value's presence, a derived field's or a
-//!   total's: `-has:pseudo.dps` is the lacked count's route (owner,
-//!   2026-09-24, T2 in `search/LEDGER.md`: "A ring has no dps"), and
-//!   `-has:pseudo.total_res` a total's, since a total of nothing is
-//!   lacked (`totals.rs`, C94 as ruled 2026-09-26, which takes back
-//!   T2's "every item has a total").
-//! - **C101 — the base defence percentile** (`pseudo.defence_pct`; V5,
-//!   the first seat: the trade site's Base Percentile; the build plan,
-//!   step 9d-A; taken from the contract detail there). The item's defence
-//!   against its base's range from reference data (C68, C106;
-//!   `defences.rs`). It is the site's own stated rule — each base defence
-//!   roll's percentile, averaged, rounded half up, a roll being any
-//!   integer whose display is the item's — with one departure the
-//!   definition prints: a display at an exact half admits both integers
-//!   as rolls (J5, 2026-10-01: the stated rule reproduced 541 of 543
-//!   captured items and this reading all 543, each one value). A
-//!   defence's display is (roll + the local flat additions) × (1 + the
-//!   sum of the local increases) × (1 + the quality displayed), flat
-//!   before increase and quality multiplying, as both community tools
-//!   state; the `reduced` spelling of an increase is its stat below
+//!   total's: `-has:pseudo.dps` is the lacked count's route (T2 in
+//!   `search/LEDGER.md`), and `-has:pseudo.total_res` a total's, since a
+//!   total of nothing is lacked (`totals.rs`, C94).
+//! - **C101** (the base defence percentile, `pseudo.defence_pct`; V5, the
+//!   trade site's Base Percentile): The item's defence against its base's
+//!   range from reference data (C68, C106; `defences.rs`). It is the
+//!   site's own stated rule — each base defence roll's percentile,
+//!   averaged, rounded half up, a roll being any integer whose display is
+//!   the item's — with one departure the definition prints: a display at
+//!   an exact half admits both integers as rolls (J5: the stated rule
+//!   reproduced 541 of 543 captured items and this reading all 543, each
+//!   one value). A defence's display is (roll + the local flat additions)
+//!   × (1 + the sum of the local increases) × (1 + the quality displayed),
+//!   flat before increase and quality multiplying, as both community
+//!   tools state; the `reduced` spelling of an increase is its stat below
 //!   nothing. A roll's percentile is 100 × (roll − minimum) ÷ (maximum −
 //!   minimum). The value is a whole number and takes no slot word.
 //!   - *The shapes round i pinned (J6).* Three defence types on one base
@@ -94,18 +78,17 @@
 //!     displays and its base ranges none of is no base defence roll and
 //!     is not read.
 //!   - *A twin text, which a local stat and a global one both display,
-//!     is told by the item's mark (J8, ruled 2026-10-05).* An implicit
-//!     twin on an eldritch item, `searing` or `tangled`, is the global
-//!     stat and left out, 17 of 17 captured; an explicit twin, and an
-//!     implicit twin on a synthesised item, are the item's own, 442 of
-//!     442 and 10 of 10 (`search/pseudo-stats/scripts/defence-twins.py`;
-//!     the 421 the contract detail said was of an earlier day); an
-//!     implicit twin on an item of neither mark, seen nowhere, cannot be
-//!     established and the field is undecided there with that reason
-//!     (C93). A text only a local stat displays is the item's own
-//!     whatever its array, a crucible node's too (J33, below). The
-//!     definition prints the counts each part rests on.
-//!   - *A value only where the item fixes one (J33, 2026-10-08).* The
+//!     is told by the item's mark (J8).* An implicit twin on an eldritch
+//!     item, `searing` or `tangled`, is the global stat and left out, 17
+//!     of 17 captured; an explicit twin, and an implicit twin on a
+//!     synthesised item, are the item's own, 442 of 442 and 10 of 10
+//!     (`search/pseudo-stats/scripts/defence-twins.py`); an implicit twin
+//!     on an item of neither mark, seen nowhere, cannot be established and
+//!     the field is undecided there with that reason (C93). A text only a
+//!     local stat displays is the item's own whatever its array, a
+//!     crucible node's too (J33, below). The definition prints the counts
+//!     each part rests on.
+//!   - *A value only where the item fixes one (J33).* The
 //!     field is a value only where what the item shows gives one value
 //!     from lines whose side is established; anywhere else it is
 //!     undecided, the reason saying which part failed: a twin text in another array
@@ -114,37 +97,33 @@
 //!     base whose minimum is its maximum; a display several rolls give at
 //!     different values. Several rolls that give one value are that
 //!     value.
-//!   - *A roll out of the base's range still reads (J34, 2026-10-08).*
-//!     An item above its base's current maximum reads over 100 % and one
-//!     under its minimum below 0 — the owner: "keep reads over 100". It
-//!     is the stated rule's and no capture's: the site lists no armour
-//!     over 100. So a line misread shows a number out of range, and no
-//!     reason.
-//!   - *A realm with no table (J35, 2026-10-08)* is undecided with that
-//!     reason, never zero, on every item of it, one displaying no defence
-//!     among them — the owner: "undecided". The realms are the class
-//!     table's.
+//!   - *A roll out of the base's range still reads (J34).* An item above
+//!     its base's current maximum reads over 100 % and one under its
+//!     minimum below 0. It is the stated rule's and no capture's: the site
+//!     lists no armour over 100. So a line misread shows a number out of
+//!     range, and no reason.
+//!   - *A realm with no table (J35)* is undecided with that reason, never
+//!     zero, on every item of it, one displaying no defence among them.
+//!     The realms are the class table's.
 //!   - *Lacked* is an item, in a realm the table covers, that displays
 //!     none of the four defences — known absence (C93), claimed only
 //!     where everything that could display one was read.
 //!   - A defence bound on the site is inexact (C102); the
 //!     quality-normalised defences are fields of their own, `armour.q20`
 //!     and its kin (`properties.rs`, C114).
-//! - **C94 — what no total reads (J29)** is `totals.rs`'s, said there
-//!   once (the owner, 2026-10-08: "Leave both out."): no total reads a
-//!   line of `crucibleMods` or `utilityMods`, and neither array unread
-//!   leaves a total open. A reading follows the totals it reads and has
-//!   no rule of its own; a damage field reads properties, never lines.
-//!   J29 is not the percentile's rule: it reads every array of lines, a
-//!   defence line of `crucibleMods` the item's own since the site was
-//!   asked (t54, step 7f of the trade brief; J33 had it undecided until
-//!   then), and an array it reads that is no array leaves it open.
-//! - **C101 — the readings of other totals** (the build plan, step 9c3;
-//!   owner, 2026-09-26: "They should be present at launch."). Four of the
-//!   trade site's pseudos are no sum of lines and so no total: each reads
-//!   totals, as the table names them (`totals::Reading`), and what it
-//!   reads is each total as this search counts it — the rows the owner
-//!   ruled counted where the site leaves them out among them. A *count*
+//! - **C94** (what no total reads, J29): `totals.rs`'s, said there once:
+//!   no total reads a line of `crucibleMods` or `utilityMods`, and neither
+//!   array unread leaves a total open. A reading follows the totals it
+//!   reads and has no rule of its own; a damage field reads properties,
+//!   never lines. J29 is not the percentile's rule: it reads every array
+//!   of lines, a defence line of `crucibleMods` the item's own since the
+//!   site was asked (t54), and an array it reads that is no array leaves
+//!   it open.
+//! - **C101** (the readings of other totals): Four of the trade site's
+//!   pseudos are no sum of lines and so no total: each reads totals, as
+//!   the table names them (`totals::Reading`), and what it reads is each
+//!   total as this search counts it — the rows the owner ruled counted
+//!   where the site leaves them out among them. A *count*
 //!   (`pseudo.count_res`, `pseudo.count_ele_res`) is how many of its
 //!   totals the item shows: a total below nothing is shown and counts, a
 //!   total of nothing is not, and a count of none is lacked, as the site
@@ -153,8 +132,8 @@
 //!   item that shows every one, with the line that names them all or
 //!   without it, and lacked where one of them is nothing. What the
 //!   captures hold of each is `search/pseudo-stats/README.md`.
-//! - **C93, C94 — a reading where a total it reads is open** (rule 8 of
-//!   the plan: unknown of no more than was lost). A count of totals is a
+//! - **C93, C94** (a reading where a total it reads is open; rule 8 of
+//!   the plan: unknown of no more than was lost): A count of totals is a
 //!   count of three-valued things, which C93 rules for at-least-N-of: the
 //!   totals established are its floor and each open one widens its
 //!   ceiling by one, a comparison is decided where the whole interval
