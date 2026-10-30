@@ -255,6 +255,7 @@ hygiene. The first, daemon-safety (#113, #116, #110), closed on
 #135) the same day: the owner's pre-league plan is done. Next, Phase 3,
 the owner's league run, at his word; #70 closes on a week of pushes
 without a re-run. Between sittings, the test-shape group's first
-tranche ("Pull-forward", item 2), t1 first (#137), the orchestrator
-proceeding on its own judgment as that item says. `AGENTS.md` governs; the gate is
+tranche ("Pull-forward", item 2), the orchestrator proceeding on its
+own judgment as that item says. t1 (#137, `briefs/t1-stopping-rules.md`)
+waits at Do 1, its three rulings, for the owner's word. `AGENTS.md` governs; the gate is
 `tools/gate.sh`.
