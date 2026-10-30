@@ -112,7 +112,16 @@ fn c88_a_real_mode_daemon_is_started_from_a_terminal_and_the_mock_from_anywhere(
     );
 
     // The mock, from the same non-terminal: spawned freely.
-    let out = acq(base, &["submit", "sleep", "--detach"]);
+    let out = acq(
+        base,
+        &[
+            "submit",
+            "sleep",
+            "--params",
+            r#"{"seconds":0}"#,
+            "--detach",
+        ],
+    );
     assert!(out.status.success(), "{}", text(&out));
     let status = sole_json(&acq(base, &["daemon", "status", "--json"]));
     assert_eq!(status["running"], true, "{status}");
@@ -138,10 +147,19 @@ fn a_lazily_started_daemon_keeps_no_pipe_of_the_command_that_started_it() {
     // never a measure of a healthy spawn (C137, the deadline's contract
     // is its expiry behaviour).
     let started = std::time::Instant::now();
-    let out = command(base, &["submit", "sleep", "--detach"])
-        .env("ACQ_IDLE_SHUTDOWN", "600")
-        .output()
-        .expect("spawning acq");
+    let out = command(
+        base,
+        &[
+            "submit",
+            "sleep",
+            "--params",
+            r#"{"seconds":0}"#,
+            "--detach",
+        ],
+    )
+    .env("ACQ_IDLE_SHUTDOWN", "600")
+    .output()
+    .expect("spawning acq");
     let took = started.elapsed();
     assert!(out.status.success(), "{}", text(&out));
     assert!(
@@ -167,7 +185,16 @@ fn a_lazily_started_daemon_survives_a_ctrl_c_at_the_prompt_that_started_it() {
     use std::process::Command;
     let scratch = scratch("ctrl-c");
     let base = &scratch.0;
-    let mut job = command(base, &["submit", "sleep", "--detach"]);
+    let mut job = command(
+        base,
+        &[
+            "submit",
+            "sleep",
+            "--params",
+            r#"{"seconds":0}"#,
+            "--detach",
+        ],
+    );
     job.process_group(0);
     let child = job.spawn().expect("spawning acq");
     let group = child.id();
@@ -203,7 +230,16 @@ fn a_lazily_started_daemon_survives_a_ctrl_c_at_the_prompt_that_started_it() {
 fn a_stopped_daemon_is_gone_when_the_stop_returns() {
     let scratch = scratch("stop-gone");
     let base = &scratch.0;
-    let out = acq(base, &["submit", "sleep", "--detach"]);
+    let out = acq(
+        base,
+        &[
+            "submit",
+            "sleep",
+            "--params",
+            r#"{"seconds":0}"#,
+            "--detach",
+        ],
+    );
     assert!(out.status.success(), "{}", text(&out));
     assert_eq!(
         sockets_under(&scratch_tmp(base)).len(),
