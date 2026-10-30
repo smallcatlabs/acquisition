@@ -184,8 +184,10 @@ jobs:
   # since the search crate linked the planner (fb85d749).
   # sign-acqd-breakers.sh is not here: it needs macOS's codesign, and runs
   # weekly on macOS (weekly.yml, `sign-acqd`).
+  # As the gate job (C155), on the same VM's second runner, so the two run
+  # side by side and the gate's target directory stays the gate's.
   breakers:
-    runs-on: ubuntu-latest
+    runs-on: ${{ (vars.SELF_HOSTED_LINUX == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main') && fromJSON('["self-hosted", "linux", "x64", "acq-breakers"]') || 'ubuntu-latest' }}
     steps:
       # The whole history: docs-check.sh refuses a cited commit it cannot
       # find, and a shallow clone holds one commit.
