@@ -48,9 +48,11 @@ trigger reopens. The backlog is GitHub issues, never this list.
 
 `pack --path` routes a file by the `decisions/<area>.md` its module doc
 names near the top; a file that names none is routed by the area intros
-whose ticked tokens end with its name or start with its crate, so a
-crate path in an intro routes every unrouted file of that crate there
-(the 2d build: plans' intro names `kinds.rs` bare for that reason).
+with a ticked token its path ends with, whole path components, or one
+that starts with its crate, so a crate path in an intro routes every
+unrouted file of that crate there (the 2d build: plans' intro names
+`kinds.rs` bare for that reason). A token ending with the file's name is
+not one: `search/README.md` names no other `README.md` (#106).
 
 `check` holds what `tools/docs-check.sh` does not: a cross-reference
 inside the registry resolves; an entry has its *Why:* and its *Pinned:* and no
@@ -296,11 +298,10 @@ class Registry:
                             found.append(area)
         if found:
             return found
-        base = os.path.basename(rel)
         crate = rel.split("/")[1] if rel.startswith("crates/") and rel.count("/") > 1 else None
         for area, meta in self.areas.items():
             toks = TICK_RE.findall(meta["intro"])
-            if any(t.endswith(base) for t in toks) or (crate and any(t.startswith(crate) for t in toks)):
+            if any(rel == t or rel.endswith("/" + t) for t in toks) or (crate and any(t.startswith(crate) for t in toks)):
                 found.append(area)
         return found
 

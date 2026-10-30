@@ -110,5 +110,23 @@ p.write_text(p.read_text().replace("Read this before", "History: `spikes/rust-pl
 PY
 out=$(run); n=$((n+1))
 if [[ $out == ok* ]]; then echo "ok      history, a route and a key shape are not paths"; else echo "WRONG   a non-path was refused:"; echo "$out"; bad=1; fi
+# pack's routing by an intro: a ticked path routes the file whose path
+# ends with it, whole components, and no file that merely shares its last
+# name (#106: `pack --path README.md` printed the search rulings, whose
+# intro names `search/README.md`).
+fixture
+python3 -I - "$tmp" <<'PY'
+import pathlib, sys
+root = pathlib.Path(sys.argv[1])
+p = root / "decisions/store.md"
+p.write_text(p.read_text().replace("Read this before", "Its notes: `" + "notes/README.md`. Read this before"))   # split: docs-check reads this file
+for f in ("README.md", "notes/README.md"):
+    (root / f).parent.mkdir(parents=True, exist_ok=True); (root / f).write_text("# a readme\n")
+PY
+pack() { python3 -I "$here/bothy.py" --root "$tmp" pack --path "$1" 2>&1; }
+n=$((n+1))
+if out=$(pack notes/README.md) && [[ $out == *'Rulings for `store`'* ]]; then echo "ok      routing   the path an intro names is routed"; else echo "MISSED  routing   notes/README.md not routed to store:"; echo "$out"; bad=1; fi
+n=$((n+1))
+if ! out=$(pack README.md) && [[ $out == *'no area governs README.md'* ]]; then echo "ok      routing   a file sharing only its last name is not"; else echo "MISSED  routing   README.md routed by a basename:"; echo "$out"; bad=1; fi
 echo "$n cases"
 exit $bad
