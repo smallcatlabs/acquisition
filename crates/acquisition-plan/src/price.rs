@@ -6,20 +6,11 @@
 //! `set` and `clear` use ([`set_buyout`], [`clear_buyout`]), through the
 //! intent file's own API and nothing else.
 //!
-//! # Decisions as recorded
+//! # Rulings held here
 //!
-//! **C67 — The v1 `buyout` and its target.** A typed `PriceTarget` — item
-//! and character by id (C55), tab by `(realm, id)`, substash by `(realm,
-//! parent, id)`, league-less (a merge keeps the row) — is the public API.
-//! `type` is `exact` (`~price`), `negotiable` (`~b/o`), `no_price` or
-//! `skip` (`~skip`); the first two carry `amount` and a `currency` tag that must
-//! resolve in the reference table (C68). `amount` is a decimal of at most
-//! four fractional digits (T10), or a lot ratio `wanted/lot` (T2) of two
-//! unreduced positive integers; canonical text, structural equality; more
-//! digits are refused. *Why:* the key mirrors the store's identity (C54,
-//! C58); the game writes four places (T10), two ruled 2026-09-04; widening
-//! is compatible, narrowing is not. *Details:* `price.rs`. *Pinned:* the
-//! `c67_` tests.
+//! - **C67** (the `buyout` and its target): a league-less target means a
+//!   merge keeps the row; `amount`'s four fractional digits are the game's
+//!   (T10); canonical text, structural equality; more digits are refused.
 //!
 //! # As built
 //!

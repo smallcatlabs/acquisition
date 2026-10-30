@@ -6,32 +6,11 @@
 //! (`acq shop render`, `shop_cmd.rs`) writes the pages to stdout and the
 //! owner pastes them by hand (`SURFACES.md`, the forum row).
 //!
-//! # Decisions as recorded
+//! # Rulings held here
 //!
-//! **C74 — `shop render` is in scope as a derivation, publishing isn't,
-//! and every item the page omits is counted with a named reason.** The
-//! page is a pure function of facts, intent, reference data, a template
-//! and a ruled policy; it is written to stdout in pages labelled *n* of
-//! *N*; it sends nothing; the template is an input, not stored. Nothing
-//! is skipped silently: what the game already lists (C81) is omitted and
-//! counted, an unruled cell is blocked, a prior post is never read (T6).
-//! The policy's rows cite trade claims (T7, T13) and owner observations
-//! (T11, T12), never its own output. *Why:* every human surface is a
-//! derivation over a machine surface (pattern 3); posting stays parked
-//! behind its own session. *Details:* `shop.rs`. *Pinned:* the `c74_`
-//! tests. Amended 2026-09-06.
-//!
-//! **C72 — Pricing never edits the sync policy, and a price never locks a
-//! tab into refresh.** The relationship between the two kinds of intent is
-//! reported, not enforced: the consumer that needs freshness — `shop
-//! render` first — names priced locations outside the policy's coverage,
-//! priced facts older than its stated window, and items moved or reindexed
-//! since the render's basis, each with the remedy (the policy edit, or the
-//! `RefreshPlan` it would take, C41). *Why:* C++'s "priced tabs are always
-//! refreshed" is one kind of intent silently rewriting another; a report
-//! keeps the policy what its author wrote (07 §10, 08 boundary 7).
-//! *Details:* `shop.rs`. *Pinned:* the `c72_` test. Ruled 2026-09-03;
-//! amended 2026-09-04.
+//! - **C74** (the shop page, derived and counted): the policy's rows cite
+//!   trade claims (T7, T13) and owner observations (T11, T12).
+//! - **C72** (pricing never edits the sync policy).
 //!
 //! # As built
 //!

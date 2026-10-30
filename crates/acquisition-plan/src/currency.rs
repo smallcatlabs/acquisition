@@ -2,20 +2,11 @@
 //! `decisions/pricing.md`), built by the pricing slice's plan step 1
 //! (`PRICING-SLICE.md` at `b6197a82`, 2026-09-04).
 //!
-//! # Decisions as recorded
+//! # Rulings held here
 //!
-//! **C68 — Reference data is a fifth input, a versioned, reviewed,
-//! committed table whose rows cite evidence, shipped inside the binary,
-//! read-only, never in a store file, enumerable by every surface built,
-//! cited by version when used.** A tool may propose rows from a governed
-//! source (C79); a human commits. The currency table is first: the
-//! immutable `tag` intent cites; `emit`, the word GGG's client writes
-//! into a note; `aliases`, the legacy C++ tag and shorthand the owner
-//! checked by hand, each cited — the indexer's loose matching is not
-//! modelled. A tag is never removed or reused; a dropped currency keeps
-//! its row, marked; additions are reported. *Why:* not a fact, not
-//! intent, not a derivation (pattern 8); the C++ list rotted without
-//! evidence. Amended 2026-09-05.
+//! - **C68** (reviewed reference data): `aliases` are the legacy C++ tag
+//!   and shorthand the owner checked by hand, each cited; the indexer's
+//!   loose matching is not modelled.
 //!
 //! # As built
 //!

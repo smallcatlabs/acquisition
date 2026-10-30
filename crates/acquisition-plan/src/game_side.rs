@@ -5,19 +5,12 @@
 //! once per note and once per tab name and keeps the raw text beside
 //! the result.
 //!
-//! # Decisions as recorded
+//! # Rulings held here
 //!
-//! **C69 — A listing is 2 independent resolutions, their relation, and the
-//! effective price (C81).** The manual side resolves by specificity (C70);
-//! the game side reads note, then tab name, as a price (exact or
-//! negotiable; a ratio too, T2) or `skip` (T10); any other text — free
-//! text, an empty amount, an unknown word, a ratio in a tab name — has no
-//! effect (T11, T16, T18, T19), is shown verbatim, and the tab applies.
-//! The relation is manual-only, game-only, agree, conflict or none. Each
-//! result carries both sides with causes, revisions, basis, versions, the
-//! raw texts. *Why:* four statements C++ fused and needed locks; the
-//! site's display states are not modelled. *Details:* `game_side.rs`,
-//! `listing.rs`. *Pinned:* the `c69_` tests. Amended 2026-09-06.
+//! - **C69** (a listing's two sides): [`read`] is the game side — a price
+//!   (exact or negotiable; a ratio too, T2) or `skip` (T10); free text, an
+//!   empty amount, an unknown word, a ratio in a tab name has no effect
+//!   (T11, T16, T18, T19).
 //!
 //! # As built
 //!

@@ -6,54 +6,16 @@
 //! store or writes anything; the CLI (`acq price status | show | list`,
 //! `price_cmd.rs`) renders the report under C53.
 //!
-//! # Decisions as recorded
+//! # Rulings held here
 //!
-//! **C69 — A listing is 2 independent resolutions, their relation, and the
-//! effective price (C81).** The manual side resolves by specificity (C70);
-//! the game side reads note, then tab name, as a price (exact or
-//! negotiable; a ratio too, T2) or `skip` (T10); any other text — free
-//! text, an empty amount, an unknown word, a ratio in a tab name — has no
-//! effect (T11, T16, T18, T19), is shown verbatim, and the tab applies.
-//! The relation is manual-only, game-only, agree, conflict or none. Each
-//! result carries both sides with causes, revisions, basis, versions, the
-//! raw texts. *Why:* four statements C++ fused and needed locks; the
-//! site's display states are not modelled. *Details:* `game_side.rs`,
-//! `listing.rs`. *Pinned:* the `c69_` tests. Amended 2026-09-06.
-//!
-//! **C70 — A priced tab covers that tab and its children, the way a policy
-//! id does (C37);** a substash row overrides its parent's for that
-//! substash; an item row overrides both; a character row covers its items.
-//! Coverage is the manual side's inheritance only — it says nothing about
-//! eligibility (C74). *Why:* the C++ store already lands substash items'
-//! location prices on the parent, and the house rule for tab-scoped intent
-//! should not have two shapes. Ruled 2026-09-03.
-//!
-//! **C81 — The effective price is the most specific statement, the game's
-//! on a tie; only a public tab's game side is a statement.** Levels are
-//! C70's; the game speaks
-//! at item level (a note) and tab level (a name, C80). A note or name in a
-//! non-public tab is invisible to the index (T1, T11) — residue, shown,
-//! never a side. A prior forum post is never a side (T6). A row that
-//! cannot be read, at a level that could decide, leaves the price
-//! unresolved — never the game's by default. *Why:* acquisition's prices
-//! reach the world only
-//! through the forum, and a page must not contradict what the site
-//! already shows; owner, 2026-09-06: "In-game prices should take priority
-//! over acquisition prices." *Details:* `listing.rs`. *Pinned:* the `c81_`
-//! tests. Ruled 2026-09-06.
-//!
-//! **C80 — The game side's tab for a nested item is the tab a user can name
-//! and publish: a substash reads its parent, a folder child reads itself, a
-//! folder's name is never a price.** A map or unique substash has the
-//! game's own name and no `public`, so an item in one reads its note, then
-//! the parent's name and `public`, the substash's name reported verbatim
-//! beside it. A folder is a grouping, not a tab: its child's own name and
-//! `public` are read. Confirmed on the site 2026-09-09, all three ways
-//! (`PRICING-SLICE.md` at `b6197a82`, "What the site taught", 12). *Why:* the
-//! owner's facts hold 64 substashes with no settable name or `public` and
-//! 77 folder children as ordinary tabs; owner, 2026-09-06: "Folders never
-//! carry price, but substash parents can." *Pinned:* the `c80_` tests.
-//! Ruled 2026-09-06.
+//! - **C69** (a listing's two sides).
+//! - **C70** (a priced tab covers its children).
+//! - **C81** (the most specific statement wins): a prior forum post is
+//!   never a side (T6).
+//! - **C80** (the nameable tab): a map or unique substash has the game's
+//!   own name and no `public`, so an item in one reads its note, then the
+//!   parent's name and `public`, the substash's name reported verbatim
+//!   beside it.
 //!
 //! # As built
 //!
