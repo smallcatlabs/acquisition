@@ -62,13 +62,12 @@
 # CI does not run it: the Windows gate runs clippy natively, which sees
 # the same lints and links.
 #
-# The full gate starts with `fixtures`: every golden regenerates when
-# `ACQ_UPDATE_FIXTURES` is set at all, `0` and empty among its values,
-# and the harness removes `ACQ_*` from the children a test spawns, never
-# from the test that compares, so a gate run in a shell that exports it
-# rewrote every golden and went green (#87). The script records the
-# variable and unsets it before any stage of any selection, so no stage
-# rewrites a golden, and the stage fails naming it.
+# The script unsets `ACQ_UPDATE_FIXTURES` before any stage of any
+# selection, so no stage rewrites a golden: every golden regenerates when
+# it is set at all, `0` and empty among its values, and the harness
+# removes `ACQ_*` from the children a test spawns, never from the test
+# that compares, so a gate run in a shell that exports it rewrote every
+# golden and went green (#87).
 #
 # The doc stage, `cargo doc` with warnings denied, is not in the full
 # list: 80 s after any edit, serial, and the Linux gate's `doc` job runs
@@ -86,11 +85,9 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
-fixture_switch=${ACQ_UPDATE_FIXTURES+set}
-fixture_value=${ACQ_UPDATE_FIXTURES-}
 unset ACQ_UPDATE_FIXTURES
 
-names=(fixtures build test clippy winclippy fmt diff docs arch trade bothy features artifacts tree)
+names=(build test clippy winclippy fmt diff docs arch trade bothy features artifacts tree)
 ONLY=(doc)   # selectable by --only, never in the full list
 DOCS=(diff docs arch trade bothy)
 
@@ -245,13 +242,6 @@ winclippy() {
     cargo clippy --keep-going --workspace --all-targets --all-features --target "$WINDOWS_TARGET" -- -D warnings
 }
 
-# The `fixtures` stage (the header): the switch the script found set.
-fixtures() {
-  [[ -z $fixture_switch ]] && return 0
-  echo "gate: fixtures: ACQ_UPDATE_FIXTURES is set in this shell (to '$fixture_value'): any value, 0 and empty among them, makes every golden rewrite its fixture and pass. This run's stages ran without it; unset it, and regenerate a golden only by the command its failure names." >&2
-  return 1
-}
-
 # The `tree` stage (the header). A snapshot is the tree object of the
 # working tree, written through a copy of the index (`git add -A`, then
 # `git write-tree`), so the real index is never touched and `git diff`
@@ -285,7 +275,6 @@ tree_stage() {
 
 run_stage() {
   case $1 in
-    fixtures) fixtures ;;
     tree) tree_stage ;;
     build) cargo build --workspace ;;
     artifacts) artifacts ;;

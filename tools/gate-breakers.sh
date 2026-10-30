@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-breakers.sh — proves tools/gate.sh refuses what it claims to, by
 # staging each refusal and watching it fail: a stage name it does not
-# know, the fixture switch set at any value, a working tree its
+# know, the fixture switch reaching a stage, a working tree its
 # stages changed (#87), a feature pin taken out (#124), a release
 # matrix row the features stage cannot read, and cargo failing under it
 # (the review of #91), and the Windows-target clippy where its target is
@@ -100,23 +100,19 @@ none() { :; }
 gate=tools/gate.sh
 
 echo '== a stage the gate does not know'
-run_case 'an unknown stage under --only'                         refuse '--only takes one of: fixtures' none $gate --only bogus
+run_case 'an unknown stage under --only'                         refuse '--only takes one of: build'    none $gate --only bogus
 run_case 'an unknown flag'                                       refuse 'tools/gate.sh --only <stage>'  none $gate --bogus
 # The doc stage left the full list for CI and stays selectable here.
 doc_is_quick() { stage_does doc true; }
 run_case 'the doc stage under --only'                            pass   'gate: green'  doc_is_quick $gate --only doc
 
-echo '== the fixture switch: set at any value, the gate refuses (#87)'
-FX='ACQ_UPDATE_FIXTURES is set in this shell'
-run_case 'the switch at 0'                                       refuse "$FX (to '0')" none env ACQ_UPDATE_FIXTURES=0 $gate --only fixtures
-run_case 'the switch empty'                                      refuse "$FX (to '')"  none env ACQ_UPDATE_FIXTURES= $gate --only fixtures
-run_case 'the switch at 1'                                       refuse "$FX (to '1')" none env ACQ_UPDATE_FIXTURES=1 $gate --only fixtures
-run_case 'the switch unset'                                      pass   'gate: green'  none $gate --only fixtures
-# The stage that would rewrite a golden is any stage after the switch is
-# read: the gate unsets it for all of them, under any selection.
+echo '== the fixture switch: set at any value, no stage sees it (#87)'
+# The stage that would rewrite a golden is any stage: the gate unsets the
+# switch for all of them, under any selection, whatever its value.
 sees_no_switch() { stage_does diff '[[ -z ${ACQ_UPDATE_FIXTURES+x} ]] || { echo "the stage saw the switch"; false; }'; }
 run_case 'a stage run with the switch set sees it unset'         pass   'gate: green'  sees_no_switch env ACQ_UPDATE_FIXTURES=1 $gate --only diff
 run_case 'the same stage under --docs'                           pass   'gate: green'  sees_no_switch env ACQ_UPDATE_FIXTURES=0 $gate --docs
+run_case 'the switch set empty, the same'                        pass   'gate: green'  sees_no_switch env ACQ_UPDATE_FIXTURES= $gate --only diff
 
 echo '== the tree: a stage that changed it fails the gate, naming each path (#87)'
 # The `diff` stage stands for any stage, a test run among them; the
