@@ -468,9 +468,6 @@ async fn run_with_log(
     let mut rails_config = RailsConfig::from_env(&rails_state, &default_journal);
     rails_config.daemon_artifact = Some(artifact.sha256.clone());
     let rails = Arc::new(Rails::with_config_and_clock(rails_config, clock.clone()));
-    let choke = ChokePoint::with_clock_and_rails(clock, rails, &provider.api_base);
-    Daemon::declare_route_knowledge(&choke);
-    let now = choke.now();
 
     // Sessions survive daemon restarts through the keyring (C144: read
     // through the credential store, as every keyring call is), read by
@@ -483,7 +480,7 @@ async fn run_with_log(
     // file comes back. Refusing to start is the safe failure; the log
     // names the file to repair or remove.
     let jobs_db = match JobDb::open(&acquisition_store::jobs::daemon_db_path(&dir)) {
-        Ok(db) => Mutex::new(db),
+        Ok(db) => db,
         Err(e) => {
             anyhow::bail!(
                 "could not open {}: {e:#} (repair or remove it; the daemon will not run without its queue)",
@@ -493,41 +490,15 @@ async fn run_with_log(
     };
     let signal_log = log.try_clone()?;
     let log_for_panics = log.try_clone()?;
-    let daemon = Arc::new(Daemon {
-        credentials: Mutex::new(()),
-        shared: Mutex::new(Shared {
-            jobs: HashMap::new(),
-            next_id: 1,
-            first_id: 1,
-            restored: Vec::new(),
-            auth: Sessions::default(),
-            landings: 0,
-            errors: VecDeque::new(),
-            active_jobs: HashMap::new(),
-        }),
-        connections: AtomicUsize::new(0),
-        last_activity: AtomicU64::new(0),
-        started: now,
-        events: broadcast::channel(256).0,
-        work: Notify::new(),
-        log: Mutex::new(log),
-        choke,
-        provider,
-        artifact: Some(artifact),
-        credential_store,
-        world: Some(world.name()),
-        log_path: Some(log_path.clone()),
-        socket_path: Some(bound),
-        store_dir: Some(dir.clone()),
-        store: Mutex::new(None),
-        jobs_db,
-        queue_failure: Mutex::new(None),
-        exit: Exit::default(),
-        restore: watch::channel(false).0,
-        login_within: login_within_from_env(),
-        #[cfg(test)]
-        refresh_landed_hook: Mutex::new(None),
-    });
+    let daemon = Daemon::builder(provider, clock, credential_store, log)
+        .rails(rails)
+        .jobs_db(jobs_db)
+        .restore_landed(false)
+        .login_within(login_within_from_env())
+        .artifact(artifact)
+        .world(world.name(), bound, dir.clone())
+        .log_path(Some(log_path.clone()))
+        .build();
     // C133: the exit's at-once end, then the signals: a signal from here
     // on runs the exit, before restore or any lock is taken.
     let _ = daemon.exit.end.set(end_at_once(&daemon, signal_log));

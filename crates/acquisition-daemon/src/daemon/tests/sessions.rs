@@ -213,56 +213,30 @@ fn test_daemon(base: &str) -> (Arc<Daemon>, Arc<MemoryCredentialStore>, TestPath
         .open(&log_path)
         .unwrap();
     let credential_store = Arc::new(MemoryCredentialStore::default());
-    let choke =
-        ChokePoint::with_clock_and_rails(Arc::new(SystemClock), Arc::new(Rails::disabled()), base);
-    let now = choke.now();
-    let daemon = Arc::new(Daemon {
-        credentials: Mutex::new(()),
-        shared: Mutex::new(Shared {
-            jobs: HashMap::new(),
-            next_id: 1,
-            first_id: 1,
-            restored: Vec::new(),
-            auth: Sessions::with(AuthSession {
-                access_token: Some("at-expired".into()),
-                access_expires_at: Some(SystemTime::now()),
-                refresh_token: Some("rt-old".into()),
-                username: Some("old-user".into()),
-                keyring: "ok".into(),
-                generations: AuthGenerations {
-                    session: 7,
-                    access_token: 11,
-                    refresh_token: 13,
-                },
-                next_refresh_flight: 1,
-                ..AuthSession::default()
-            }),
-            landings: 0,
-            errors: VecDeque::new(),
-            active_jobs: HashMap::new(),
-        }),
-        connections: AtomicUsize::new(0),
-        last_activity: AtomicU64::new(0),
-        started: now,
-        events: broadcast::channel(16).0,
-        work: Notify::new(),
-        log: Mutex::new(log),
-        choke,
-        provider: Provider::mock(base),
-        artifact: None,
-        credential_store: credential_store.clone(),
-        world: None,
-        log_path: log_path.to_str().map(str::to_string),
-        socket_path: None,
-        store_dir: None,
-        store: Mutex::new(None),
-        jobs_db: Mutex::new(JobDb::open_memory().unwrap()),
-        queue_failure: Mutex::new(None),
-        exit: Exit::default(),
-        restore: watch::channel(true).0,
-        login_within: LOGIN_WITHIN,
-        refresh_landed_hook: Mutex::new(None),
-    });
+    let daemon = Daemon::builder(
+        Provider::mock(base),
+        Arc::new(SystemClock),
+        credential_store.clone(),
+        log,
+    )
+    .rails(Arc::new(Rails::disabled()))
+    .sessions(Sessions::with(AuthSession {
+        access_token: Some("at-expired".into()),
+        access_expires_at: Some(SystemTime::now()),
+        refresh_token: Some("rt-old".into()),
+        username: Some("old-user".into()),
+        keyring: "ok".into(),
+        generations: AuthGenerations {
+            session: 7,
+            access_token: 11,
+            refresh_token: 13,
+        },
+        next_refresh_flight: 1,
+        ..AuthSession::default()
+    }))
+    .log_path(log_path.to_str().map(str::to_string))
+    .events_capacity(16)
+    .build();
     (daemon, credential_store, log_path)
 }
 

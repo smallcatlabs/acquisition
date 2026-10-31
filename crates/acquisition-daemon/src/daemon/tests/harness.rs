@@ -541,43 +541,11 @@ pub(super) fn test_daemon_scenario_at(
         .write(true)
         .open(&log_path)
         .unwrap();
-    let now = clock.now();
-    let daemon = Arc::new(Daemon {
-        credentials: Mutex::new(()),
-        shared: Mutex::new(Shared {
-            jobs: HashMap::new(),
-            next_id: 1,
-            first_id: 1,
-            restored: Vec::new(),
-            auth: Sessions::with(AuthSession::default()),
-            landings: 0,
-            errors: VecDeque::new(),
-            active_jobs: HashMap::new(),
-        }),
-        connections: AtomicUsize::new(0),
-        last_activity: AtomicU64::new(0),
-        started: now,
-        events: broadcast::channel(256).0,
-        work: Notify::new(),
-        log: Mutex::new(log),
-        choke: ChokePoint::with_clock_and_rails(clock, rails, &provider.api_base),
-        provider,
-        artifact: None,
-        credential_store,
-        world: None,
-        log_path: log_path.to_str().map(str::to_string),
-        socket_path: None,
-        store_dir: None,
-        store: Mutex::new(None),
-        jobs_db: Mutex::new(JobDb::open_memory().unwrap()),
-        queue_failure: Mutex::new(None),
-        exit: Exit::default(),
-        restore: watch::channel(true).0,
-        login_within: LOGIN_WITHIN,
-        refresh_landed_hook: Mutex::new(None),
-    });
-    // Test daemons know what the real one knows about routes.
-    Daemon::declare_route_knowledge(&daemon.choke);
+    let daemon = Daemon::builder(provider, clock, credential_store, log)
+        .rails(rails)
+        .sessions(Sessions::with(AuthSession::default()))
+        .log_path(log_path.to_str().map(str::to_string))
+        .build();
     (daemon, log_path)
 }
 

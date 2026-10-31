@@ -1019,6 +1019,178 @@ pub struct Daemon {
     refresh_landed_hook: Mutex<Option<Box<dyn FnOnce() + Send>>>,
 }
 
+/// The one constructor of a [`Daemon`] (t5's "construct with a base URL, a
+/// clock and a credential store"): `run` and the test harnesses build
+/// through it, so the struct's literal exists here alone. What every
+/// daemon shares (the locks, the counters, the channels) is made here;
+/// what a caller varies is an option, its default the in-process
+/// harness's: the rails off on the given clock, an in-memory queue, no
+/// session, the restore landed, no world, the login's browser wait of
+/// [`LOGIN_WITHIN`]; the exit is C133's, its bound and grace the
+/// constants', which a test replaces on the built daemon as before. The choke point
+/// is built from the clock, the rails and the provider's base, and
+/// learns what the real one knows about routes. The exit's at-once end
+/// holds the daemon itself, so `run` installs it on the built daemon.
+#[must_use = "a builder does nothing until it is built"]
+struct Builder {
+    provider: Provider,
+    clock: Arc<dyn Clock>,
+    credential_store: Arc<dyn CredentialStore>,
+    log: std::fs::File,
+    rails: Option<Arc<Rails>>,
+    jobs_db: Option<JobDb>,
+    sessions: Sessions,
+    restore_landed: bool,
+    login_within: Duration,
+    artifact: Option<Artifact>,
+    world: Option<String>,
+    log_path: Option<String>,
+    socket_path: Option<BoundSocket>,
+    store_dir: Option<PathBuf>,
+    events_capacity: usize,
+}
+
+impl Daemon {
+    /// A [`Builder`] over what every daemon is built from: its provider,
+    /// its clock, its credential store and its log's file.
+    fn builder(
+        provider: Provider,
+        clock: Arc<dyn Clock>,
+        credential_store: Arc<dyn CredentialStore>,
+        log: std::fs::File,
+    ) -> Builder {
+        Builder {
+            provider,
+            clock,
+            credential_store,
+            log,
+            rails: None,
+            jobs_db: None,
+            sessions: Sessions::default(),
+            restore_landed: true,
+            login_within: LOGIN_WITHIN,
+            artifact: None,
+            world: None,
+            log_path: None,
+            socket_path: None,
+            store_dir: None,
+            events_capacity: 256,
+        }
+    }
+}
+
+impl Builder {
+    /// The rails the choke point consults (C25); off by default.
+    fn rails(mut self, rails: Arc<Rails>) -> Builder {
+        self.rails = Some(rails);
+        self
+    }
+
+    /// The persisted queue (C6); in memory by default.
+    fn jobs_db(mut self, jobs_db: JobDb) -> Builder {
+        self.jobs_db = Some(jobs_db);
+        self
+    }
+
+    /// The sessions the daemon starts with; none by default.
+    #[cfg_attr(not(test), allow(dead_code))] // `run` restores its own
+    fn sessions(mut self, sessions: Sessions) -> Builder {
+        self.sessions = sessions;
+        self
+    }
+
+    /// C148: whether the start's restore has landed; `run` starts it
+    /// unlanded and begins the restore.
+    fn restore_landed(mut self, landed: bool) -> Builder {
+        self.restore_landed = landed;
+        self
+    }
+
+    /// The login's browser wait (C137, `ACQ_LOGIN_WITHIN`).
+    fn login_within(mut self, within: Duration) -> Builder {
+        self.login_within = within;
+        self
+    }
+
+    /// What `hello` reports of the executable (C84).
+    fn artifact(mut self, artifact: Artifact) -> Builder {
+        self.artifact = Some(artifact);
+        self
+    }
+
+    /// The world served (C83), its socket and its store directory.
+    fn world(mut self, world: String, socket_path: BoundSocket, store_dir: PathBuf) -> Builder {
+        self.world = Some(world);
+        self.socket_path = Some(socket_path);
+        self.store_dir = Some(store_dir);
+        self
+    }
+
+    /// The log's path, as `daemon_status` reports it.
+    fn log_path(mut self, log_path: Option<String>) -> Builder {
+        self.log_path = log_path;
+        self
+    }
+
+    /// How many events a subscriber may fall behind (C85).
+    #[cfg_attr(not(test), allow(dead_code))] // `run` keeps the default
+    fn events_capacity(mut self, capacity: usize) -> Builder {
+        self.events_capacity = capacity;
+        self
+    }
+
+    /// The daemon.
+    fn build(self) -> Arc<Daemon> {
+        let rails = self.rails.unwrap_or_else(|| {
+            Arc::new(Rails::with_config_and_clock(
+                RailsConfig::default(),
+                self.clock.clone(),
+            ))
+        });
+        let choke = ChokePoint::with_clock_and_rails(self.clock, rails, &self.provider.api_base);
+        Daemon::declare_route_knowledge(&choke);
+        let jobs_db = match self.jobs_db {
+            Some(db) => db,
+            None => JobDb::open_memory().expect("an in-memory queue opens"),
+        };
+        Arc::new(Daemon {
+            credentials: Mutex::new(()),
+            shared: Mutex::new(Shared {
+                jobs: HashMap::new(),
+                next_id: 1,
+                first_id: 1,
+                restored: Vec::new(),
+                auth: self.sessions,
+                landings: 0,
+                errors: VecDeque::new(),
+                active_jobs: HashMap::new(),
+            }),
+            connections: AtomicUsize::new(0),
+            last_activity: AtomicU64::new(0),
+            started: choke.now(),
+            events: broadcast::channel(self.events_capacity).0,
+            work: Notify::new(),
+            log: Mutex::new(self.log),
+            choke,
+            provider: self.provider,
+            artifact: self.artifact,
+            credential_store: self.credential_store,
+            world: self.world,
+            log_path: self.log_path,
+            socket_path: self.socket_path,
+            store_dir: self.store_dir,
+            store: Mutex::new(None),
+            jobs_db: Mutex::new(jobs_db),
+            queue_failure: Mutex::new(None),
+            exit: Exit::default(),
+            restore: watch::channel(self.restore_landed).0,
+            login_within: self.login_within,
+            #[cfg(test)]
+            refresh_landed_hook: Mutex::new(None),
+        })
+    }
+}
+
 /// Where a refresh token is kept (invariant 5): the OS keyring in a
 /// running daemon. `Any` lets the in-process harness name the test store
 /// its daemons default to.
