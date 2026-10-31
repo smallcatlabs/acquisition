@@ -370,7 +370,11 @@ the time seam. #146 closed on 2026-10-31 (`LEDGER.md`), with C156
 amended: `ACQ_SHELL` declares `posix`, `pwsh`, `powershell5` or `cmd`
 over detection. 4-0's design closed on 2026-10-31
 (`briefs/4-0-design.md`, the rulings list), its rulings entered and
-its steps on #147, #148 and #141. Next, 4-0's build, step 1 the
-client's door (`briefs/4-0-door.md`), at his word; then Phase 3, the
-owner's league run, at his word, its first seat checking the words.
+its steps on #147, #148 and #141. Step 1, the client's door as a
+machine (`briefs/4-0-door.md`, cut four times under cold reviews, the
+narrowing recorded as the owner's ruling in the design's §4), closed
+on 2026-10-31 (`LEDGER.md`), its review clean. Next, step 2's brief,
+the daemon's `Life`, between sittings in a window the owner names,
+answering the criterion per poll; and Phase 3, the owner's league run,
+at his word, its first seat checking the words.
 `AGENTS.md` governs; the gate is `tools/gate.sh`.
