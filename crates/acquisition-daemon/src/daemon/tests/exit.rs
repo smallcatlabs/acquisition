@@ -148,19 +148,23 @@ async fn settle() {
 /// for. Through the door: the account server holds the GET; the stop
 /// comes while it is held, so the send in flight keeps the clock still
 /// while the drain parks its look; released, the body lands, the exit
-/// leaves, and the job is Done by the protocol with its POST and GET in
-/// the journal, the journal equal to the wire.
+/// leaves before its bound on the clock (a drain cut at `HELD` reads
+/// the bound), and the job is Done by the protocol with its POST and GET
+/// in the journal, the journal equal to the wire.
 #[test]
 fn exit_waits_for_a_landed_body_to_persist() {
+    let clock = Arc::new(ParkingClock::new());
+    let parking = clock.clone();
     let hook = Door::open(
         Server::Account(("GET", "/profile", 0)),
-        Arc::new(ParkingClock::new()),
+        clock,
         Arc::new(RecordingCredentialStore::default()),
     )
     .sessions(logged_in_sessions())
     .exit_bound(HELD)
     .life(IDLE_SHUTDOWN)
     .run(|mut door| async move {
+        let clock = parking;
         let Fixture::Account {
             sent: wire,
             arrived,
@@ -179,9 +183,15 @@ fn exit_waits_for_a_landed_body_to_persist() {
             .expect("the GET reached the server")
             .unwrap();
 
+        let stopped = clock.now();
         door.stop();
         release.unwrap().send(()).unwrap();
         door.await_leave().await;
+        let drained = clock.now() - stopped;
+        assert!(
+            drained < HELD,
+            "a clean drain leaves before its bound: {drained:?}"
+        );
 
         assert_eq!(status_of(&mut door, id).await.state, JobState::Done);
         assert_eq!(
@@ -197,20 +207,24 @@ fn exit_waits_for_a_landed_body_to_persist() {
 /// C133: a token refresh on the wire when the exit begins is waited for.
 /// Through the door: a client's `auth check` asks the refresh, which the
 /// delayed token server holds; the stop comes while it is held;
-/// released, the token lands and the exit leaves. `auth status`, read
+/// released, the token lands and the exit leaves before its bound on the
+/// clock (a drain cut at `HELD` reads the bound). `auth status`, read
 /// at the leave, has the access token's expiry moved (none before the
 /// refresh), the check is answered, and the journal holds the one POST.
 #[test]
 fn exit_waits_for_a_refresh_and_installs_the_token() {
+    let clock = Arc::new(ParkingClock::new());
+    let parking = clock.clone();
     Door::open(
         Server::Token(Token::Delayed),
-        Arc::new(ParkingClock::new()),
+        clock,
         Arc::new(RecordingCredentialStore::default()),
     )
     .sessions(logged_in_sessions())
     .exit_bound(HELD)
     .life(IDLE_SHUTDOWN)
     .run(|mut door| async move {
+        let clock = parking;
         let before = door.await_auth(|_| true).await;
         let Fixture::Delayed {
             arrived, release, ..
@@ -225,9 +239,15 @@ fn exit_waits_for_a_refresh_and_installs_the_token() {
             .expect("the refresh reached the server")
             .unwrap();
 
+        let stopped = clock.now();
         door.stop();
         release.unwrap().send(()).unwrap();
         door.await_leave().await;
+        let drained = clock.now() - stopped;
+        assert!(
+            drained < HELD,
+            "a clean drain leaves before its bound: {drained:?}"
+        );
 
         let after = door.await_auth(|_| true).await;
         assert_eq!(before.access_expires_in_seconds, None, "{before:?}");
@@ -581,49 +601,78 @@ async fn the_bound_ends_the_exit_though_every_worker_is_blocked() {
 /// C133 with C25: a job picked before the exit and held at the limiter
 /// before its send (here behind a 429's hold, whose pacing slices park on
 /// the daemon's clock) is turned away: the drain does not wait out the
-/// hold, and the exit leaves before its `BOUND` on the daemon's clock (a
-/// drain that waited out the 30 s hold would be cut at it), with the job
-/// Waiting by the protocol with only the 429's retry spent and the probe
-/// and the one GET in the journal, equal to the wire. Through the door:
-/// the stop comes once the protocol reads the job Waiting with its retry
-/// spent.
-#[test]
-fn exit_turns_away_a_job_held_at_the_limiter() {
+/// hold, and the exit leaves before its `BOUND` on the clock (a drain that
+/// waited out the 30 s hold would be cut at it), the job Waiting with only
+/// the 429's retry spent, in memory and on disk, and nothing sent but
+/// the probe and the one GET. The stop comes only once the state it
+/// interrupts is seen: the job requeued with its retry, picked again and
+/// its pacing wait registered on the clock. A component test (C158): it
+/// reads `active_jobs`, the clock's sleepers and the queue's row through
+/// a connection of its own, and drives the clock by hand: to the pacing
+/// wait's own deadline, below the bound, then through [`drive_drain`].
+#[tokio::test]
+async fn exit_turns_away_a_job_held_at_the_limiter() {
+    let (base, requests, server) = scripted_server(vec![
+        ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+        ScriptedResponse::full("GET", "429 Too Many Requests", Some(30), "{}"),
+    ])
+    .await;
     let clock = Arc::new(ParkingClock::new());
-    let parking = clock.clone();
-    let hook = Door::open(
-        Server::Script(vec![
-            ScriptedResponse::full("HEAD", "204 No Content", None, ""),
-            ScriptedResponse::full("GET", "429 Too Many Requests", Some(30), "{}"),
-        ]),
-        clock,
-        Arc::new(RecordingCredentialStore::default()),
-    )
-    .exit_bound(BOUND)
-    .life(IDLE_SHUTDOWN)
-    .run(|mut door| async move {
-        let clock = parking;
-        let id = submitted(door.request(submit_request("fetch", json!({}), None)).await);
-        door.await_job(id, |job| job.state == JobState::Waiting && job.retries == 1)
-            .await;
+    let (daemon, log_path, db) = exit_daemon_on(&base, BOUND, clock.clone());
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    let id = submit_for(&daemon, "fetch", json!({}), None);
+    tokio::time::timeout(HANG, async {
+        loop {
+            let held = {
+                let s = daemon.shared.lock().unwrap();
+                let info = &s.jobs[&id].info;
+                info.retries == 1
+                    && info.state == JobState::Waiting
+                    && s.active_jobs.contains_key(&id)
+            };
+            if held && clock.sleepers() >= 1 {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(1)).await;
+        }
+    })
+    .await
+    .expect("the job is held at the limiter's pacing wait after its 429");
+    server.await.unwrap();
+    assert_eq!(clock.sleepers(), 1, "only the pacing wait is parked");
+    let pacing = clock.next_deadline().expect("the pacing wait's deadline");
 
-        let stopped = clock.now();
-        door.stop();
-        door.await_leave().await;
+    let stopped = clock.now();
+    assert!(daemon.begin_exit("test: exit"));
+    assert!(
+        pacing < stopped + BOUND,
+        "the pacing wait wakes before the bound"
+    );
+    clock.advance_to(pacing);
+    let cut = drive_drain(&clock, &daemon, drain(&daemon)).await;
+    let drained = clock.now() - stopped;
 
-        let drained = clock.now() - stopped;
-        assert!(
-            drained < BOUND,
-            "the drain did not wait out the hold: it left after {drained:?}"
-        );
-
-        let job = status_of(&mut door, id).await;
-        assert_eq!(job.state, JobState::Waiting);
-        assert_eq!(job.retries, 1, "the exit spent no retry");
-        assert_eq!(journal_methods(&door), ["HEAD", "GET"]);
-        door.finish().await;
-    });
-    eprintln!("a turned-away hold: the park hook: {hook:?}");
+    assert_eq!(cut, None, "nothing was cut");
+    assert!(
+        drained < BOUND,
+        "the drain did not wait out the hold: it left after {drained:?}"
+    );
+    let info = daemon.shared.lock().unwrap().jobs[&id].info.clone();
+    assert_eq!(info.state, JobState::Waiting);
+    assert_eq!(info.retries, 1, "the exit spent no retry");
+    let row = row_of(&db, id);
+    assert_eq!(row.state, JobState::Waiting.to_string(), "on disk");
+    assert_eq!(row.retries, 1, "the 429's retry, on disk");
+    let log = std::fs::read_to_string(&log_path).unwrap();
+    assert!(
+        log.contains(&format!(
+            "job {id} (fetch): turned away before its send by the exit"
+        )),
+        "the held pacing task was turned away:\n{log}"
+    );
+    assert_eq!(requests.lock().unwrap().as_slice(), ["HEAD", "GET"]);
+    assert_journal_matches_wire(&log_path, &requests.lock().unwrap());
+    finish_harness(dispatcher, &log_path);
 }
 
 /// C133: a login's code exchange on the wire when the exit begins is
@@ -631,7 +680,9 @@ fn exit_turns_away_a_job_held_at_the_limiter() {
 /// protocol, the browser's callback reaches the daemon's own listener,
 /// and the scenario's own token server holds the exchange; the stop
 /// comes while it is held; released, the exchange lands and the exit
-/// leaves. The journal holds the exchange's POST, and the profile job
+/// leaves before its bound on the clock (a drain cut at `HELD` reads the
+/// bound). The clock is held across the callback, a wait no count of the
+/// daemon's sees. The journal holds the exchange's POST, and the profile job
 /// the login queued after the stop is left Waiting by the protocol (a
 /// stopping daemon starts nothing, and a waiting profile does not hold
 /// the drain). That the login then registers is the staged login's
@@ -643,14 +694,17 @@ fn exit_waits_for_a_login_code_exchange() {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     listener.set_nonblocking(true).unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
+    let clock = Arc::new(ParkingClock::new());
+    let parking = clock.clone();
     Door::open(
         Server::Own(base),
-        Arc::new(ParkingClock::new()),
+        clock,
         Arc::new(RecordingCredentialStore::default()),
     )
     .exit_bound(HELD)
     .life(IDLE_SHUTDOWN)
     .run(|mut door| async move {
+        let clock = parking;
         let listener = TcpListener::from_std(listener).unwrap();
         let (arrived_tx, arrived) = tokio::sync::oneshot::channel();
         let (release, release_rx) = tokio::sync::oneshot::channel::<()>();
@@ -680,6 +734,9 @@ fn exit_waits_for_a_login_code_exchange() {
             mockggg::respond_with(&mut stream, "200 OK", "application/json", headers, &body).await;
         });
 
+        // The callback and the exchange's way to the wire are waits no
+        // count of the daemon's sees: the clock is held across them.
+        let hold = door.hold_clock();
         let url = match door.request(Request::AuthStart).await {
             Response::AuthUrl { authorize_url } => authorize_url,
             other => panic!("expected the authorize URL, got {other:?}"),
@@ -695,10 +752,17 @@ fn exit_waits_for_a_login_code_exchange() {
             .await
             .expect("the exchange reached the server")
             .unwrap();
+        drop(hold);
 
+        let stopped = clock.now();
         door.stop();
         release.send(()).unwrap();
         door.await_leave().await;
+        let drained = clock.now() - stopped;
+        assert!(
+            drained < HELD,
+            "a clean drain leaves before its bound: {drained:?}"
+        );
 
         let jobs = match door.request(Request::List).await {
             Response::Jobs { jobs } => jobs,

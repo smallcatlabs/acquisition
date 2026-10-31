@@ -17,7 +17,12 @@
 //! [`Door::laptop_sleep`]) and ends through the oracles
 //! ([`Door::finish`]). It never polls and never yields: the runtime parks
 //! whenever nothing can run, and the hook then moves the clock to its
-//! next deadline unless a send or a blocking task is in flight.
+//! next deadline unless a send or a blocking task is in flight. A
+//! scenario that waits on something outside the daemon that neither
+//! count sees (a browser's callback, a request to its own server before
+//! it reaches the wire) holds the clock across that wait
+//! ([`Door::hold_clock`]), so the hook moves no deadline, the idle
+//! deadline of [`DoorBuilder::life`] among them, under it.
 //!
 //! What stays off the door, each a component test that says which
 //! boundary it needs (`roadmap/briefs/t5-design.md` §2.6): several
@@ -45,7 +50,7 @@ use crate::daemon::server::InFlight;
 use crate::daemon::*;
 use crate::ratelimit::Clock;
 use std::future::Future;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use tokio::sync::oneshot;
 
 /// What the daemon faces: one of the harness's fixtures, each as it
@@ -68,6 +73,17 @@ pub(super) enum Server {
     Own(String),
     /// No server: a base nothing listens on.
     None,
+}
+
+/// A scenario's hold on the clock ([`Door::hold_clock`]), released when
+/// dropped.
+#[must_use = "the clock is held only while the guard stands"]
+pub(super) struct ClockHold(Arc<AtomicUsize>);
+
+impl Drop for ClockHold {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::SeqCst);
+    }
 }
 
 /// The two token servers.
@@ -118,6 +134,9 @@ pub(super) struct Counters {
     pub(super) held_by_send: usize,
     /// Parks that found a blocking task in flight and left the clock.
     pub(super) held_by_blocking: usize,
+    /// Parks that found the scenario holding the clock
+    /// ([`Door::hold_clock`]) and left it.
+    pub(super) held_by_scenario: usize,
     /// Parks that found nothing parked on the clock.
     pub(super) nothing_parked: usize,
 }
@@ -128,7 +147,9 @@ pub(super) struct Counters {
 /// occupancy, from just before dispatch until the body completes) or a
 /// blocking task is (`Daemon::blocking`'s count, a landing or the idle
 /// verdict on its thread): then the park is the wire's or the blocking
-/// thread's, and time must not move under it. Tokio's paused clock
+/// thread's, and time must not move under it; nor while the scenario
+/// holds the clock across a wait of its own ([`Door::hold_clock`]).
+/// Tokio's paused clock
 /// advances at the same point; this is that, behind the daemon's
 /// `Clock`, with no feature split (C84). The spike that found it:
 /// `roadmap/briefs/4-0-spike.md`, "Answer".
@@ -137,12 +158,16 @@ struct IdleHook {
     daemon: Arc<Daemon>,
     /// Shared with the door, which reads them ([`Door::counters`]).
     counters: Arc<Mutex<Counters>>,
+    /// The scenario's holds ([`Door::hold_clock`]).
+    holds: Arc<AtomicUsize>,
 }
 
 impl IdleHook {
     fn on_idle(&mut self) {
         let mut counters = self.counters.lock().unwrap();
-        if self.daemon.choke.actual_send_occupancy().0 > 0 {
+        if self.holds.load(Ordering::SeqCst) > 0 {
+            counters.held_by_scenario += 1;
+        } else if self.daemon.choke.actual_send_occupancy().0 > 0 {
             counters.held_by_send += 1;
         } else if self.daemon.blocking_in_flight.load(Ordering::SeqCst) > 0 {
             counters.held_by_blocking += 1;
@@ -211,6 +236,8 @@ pub(super) struct Door {
     leave: Option<oneshot::Receiver<Option<InFlight>>>,
     /// The park hook's counters, which the hook writes.
     counters: Arc<Mutex<Counters>>,
+    /// The scenario's holds on the clock, which the hook reads.
+    holds: Arc<AtomicUsize>,
     finished: bool,
 }
 
@@ -337,6 +364,7 @@ impl DoorBuilder {
                 clock: door.clock.clone(),
                 daemon: door.daemon.clone(),
                 counters: counters.clone(),
+                holds: door.holds.clone(),
             });
             scenario(door).await;
             slot.lock().unwrap().take();
@@ -444,6 +472,7 @@ impl DoorBuilder {
             life,
             leave,
             counters: Arc::default(),
+            holds: Arc::default(),
             finished: false,
         }
     }
@@ -462,6 +491,17 @@ impl Door {
     pub(super) fn spawn_request(&self, req: Request) -> tokio::task::JoinHandle<Response> {
         let daemon = self.daemon.clone();
         tokio::spawn(async move { daemon.handle_request(req, &mut None).await })
+    }
+
+    /// C158: hold the clock until the guard drops: while it stands, the
+    /// park hook moves no deadline. For a wait of the scenario's own that
+    /// neither the gate's occupancy nor the blocking count sees (a
+    /// browser's callback to the daemon's listener, a request on its way
+    /// to the scenario's own server), so the time the scenario reads is
+    /// the time it moved, not the time the hook found parked beside it.
+    pub(super) fn hold_clock(&self) -> ClockHold {
+        self.holds.fetch_add(1, Ordering::SeqCst);
+        ClockHold(self.holds.clone())
     }
 
     /// C133, what a frontend's `acq daemon stop` asks on the bootstrap
