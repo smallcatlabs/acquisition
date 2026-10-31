@@ -9,7 +9,10 @@ pull these forward"). Four issues, in this order:
 - #101: the three places the CLI and the MCP diverge without a ruling,
   each made one behaviour or a stated difference.
 - #16: a printed command runs as printed in the shell the platform
-  gives its user, PowerShell on Windows included.
+  gives its user, PowerShell on Windows included. Settled in the
+  round: C156 narrows it to a POSIX shell, or PowerShell 7.3 or newer
+  on Windows outside Git Bash, the shell read from the environment;
+  Windows PowerShell 5.1 and cmd.exe get a refusal that names it.
 
 Why now: the machine is free until the 3.30 launch (2026-11-13), and
 alpha.2 ships these words to Windows users. The league seat then
@@ -187,6 +190,8 @@ and PowerShell 7.3 or newer keeps.
   decided it at Do 1, the delegation and its reason in the commit.
 - On Windows, a printed command quotes for PowerShell, and a test runs
   one through `powershell.exe`; on Unix, the POSIX tests stand.
+  Settled in the round: through `pwsh.exe`, PowerShell 7.3 or newer
+  (C156), and through `sh` under Git Bash.
 - `tools/gate.sh` green on the step's tree.
 
 ## Not in scope

@@ -244,11 +244,7 @@ issue carrying its evidence and its done-when, and takes a brief from
 `briefs/TEMPLATE.md` written by the session that starts it. An item
 leaves the list when its step closes or the owner strikes it.
 
-1. The words, pulled ahead of the league build's first seat at the
-   owner's word of 2026-10-30 (the rulings list): step `words`
-   (`briefs/words.md`), #20, #11, #101 and #16 in that order (#72, #74
-   and #107 closed before it). The seat then checks the fixes.
-2. The test-shape group's first tranche, between league sittings
+1. The test-shape group's first tranche, between league sittings
    (`TEST-SHAPE.md`, the owner's word of 2026-10-29): t1 the stopping
    and retirement rules (#137), t2 the gate trims and the real-time
    waits (#138), t4 the compile cost (#140), in that order, each on
@@ -319,7 +315,7 @@ hygiene. The first, daemon-safety (#113, #116, #110), closed on
 #135) the same day: the owner's pre-league plan is done. Next, Phase 3,
 the owner's league run, at his word; #70 closes on a week of pushes
 without a re-run. Between sittings, the test-shape group's first
-tranche ("Pull-forward", item 2), the orchestrator proceeding on its
+tranche ("Pull-forward", item 1), the orchestrator proceeding on its
 own judgment as that item says. t1 (#137) closed on 2026-10-29
 (`LEDGER.md`), and t2 (#138) the same day; t3 (#139) closed undone
 on 2026-10-30, and t4 (#140, the compile cost) the same day
@@ -329,10 +325,9 @@ phase 4's. The group's review rule, revisited at this close, is kept
 issues closed #64, #136, #133 and #6 and took two groups ahead of the
 time seam ("Closures, then A and B"): map-before-seam (#65, #134) and
 stop-means-gone (#130, #144), both closed the same day (`LEDGER.md`).
-The same day the owner pulled the words forward ("Pull-forward", item
-1): step `words` (#20, #11, #101, #16; `briefs/words.md`) is built
-and reviewed (`reviews/words-fd5f3d1f.md`), its fix round answered by
-C156 (printed commands are for POSIX, or PowerShell 7.3+ on Windows
-outside Git Bash) and reviewed (`reviews/words-fixes-ee0b6397.md`), and
-that review answered in `b1c09668`, both gates green there; the close
-waits for the owner's read. `AGENTS.md` governs; the gate is `tools/gate.sh`.
+The same day the owner pulled the words forward, ahead of the league
+seat: step `words` (#20, #11, #101, #16) closed on 2026-10-31
+(`LEDGER.md`), with C156 (a printed command is for a POSIX shell, or
+PowerShell 7.3 or newer on Windows outside Git Bash). Next, Phase 3,
+the owner's league run, at his word; its first seat checks the words.
+`AGENTS.md` governs; the gate is `tools/gate.sh`.
