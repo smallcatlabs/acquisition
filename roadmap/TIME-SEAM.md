@@ -113,6 +113,12 @@ Candidate machines, in the order the evidence earned:
 3. **The store's annotation wait**: the two-writers race (C35)
    determinised in-process with two connections; the cross-process
    twin shrinks to a smoke test that the OS file lock exists.
+   (Corrected 2026-10-31, the 4-0 design's read: the in-process
+   two-connection pin already exists, the wait is SQLite's
+   `busy_timeout` which no injected clock reaches, and the
+   cross-process twin proves the real binary's compare-and-swap and
+   receipts chain, asserting no time; it stays. Not a candidate:
+   `briefs/4-0-design.md` §1.)
 4. **The harness's logical-time runner**: how a test drives a machine
    through injected ticks; one shape shared by the three above.
 
