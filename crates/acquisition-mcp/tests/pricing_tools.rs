@@ -278,6 +278,26 @@ fn each_pricing_read_is_the_document_the_cli_prints() {
             &["price", "list", "--relation", "maybe"],
             false,
         ),
+        // the price text that decides nothing, in the words of the
+        // status's counts, one word on both surfaces (#11)
+        (
+            "price_list",
+            json!({ "game_text": "residue" }),
+            &["price", "list", "--game-text", "residue"],
+            true,
+        ),
+        (
+            "price_list",
+            json!({ "game_text": "invalid_note" }),
+            &["price", "list", "--game-text", "invalid_note"],
+            true,
+        ),
+        (
+            "price_list",
+            json!({ "game_text": "residues" }),
+            &["price", "list", "--game-text", "residues"],
+            false,
+        ),
         (
             "price_show",
             json!({ "target": "item/i-plain" }),
@@ -366,6 +386,23 @@ fn each_pricing_read_is_the_document_the_cli_prints() {
             &format!("{name} {args} is not what acq {verb:?} --json prints"),
         );
     }
+
+    // The residue the status counts is the list's total, and its items
+    // (#11): the character's noted item, which carries `game.residue`.
+    let (_, status) = tool(&mut mcp, "price_status", json!({}));
+    let (_, residue) = tool(&mut mcp, "price_list", json!({ "game_text": "residue" }));
+    assert_eq!(residue["total"], status["counts"]["residue"], "{residue}");
+    assert_eq!(residue["total"], json!(1), "{residue}");
+    assert_eq!(
+        residue["items"][0]["subject"]["target"]["id"],
+        json!("i-worn"),
+        "{residue}"
+    );
+    assert_eq!(
+        residue["items"][0]["game"]["residue"],
+        json!(true),
+        "{residue}"
+    );
 
     // The template is text to the tool and a file to the CLI: one page.
     let template = "[spoiler=\"shop\"]\n[items]\n[/spoiler]";

@@ -94,6 +94,7 @@ The items of one league that are priced, each with both sides of its listing (no
 - `covered_by` (string | null) — Only items a row on this target would cover: a folder's tabs' items, a map or unique tab's substashes' items too.
 - `effective` (string | null) — Only items whose price this side decides: game, manual, none or unresolved.
 - `expand` (boolean | null) — List every item of the selection.
+- `game_text` (string | null) — Only items whose price text decides nothing, the members of price_status's counts: residue (`counts.residue`), a note or tab name that reads as a price where the trade site cannot see it; invalid_note (`counts.invalid_notes`), a note that starts like a price and does not read as one.
 - `in` (string | null) — Only items physically in this container: a tab, substash or character address.
 - `league` (string | null) — The league; omitted, the league of the container `in` or `covered_by` names, else Standard.
 - `limit` (integer | null) — List this many items in place of ten, the first in listing order; `total` says how many the selection holds.

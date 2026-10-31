@@ -964,6 +964,12 @@ struct PriceListParams {
     /// Only items a row on this target would cover: a folder's tabs'
     /// items, a map or unique tab's substashes' items too.
     covered_by: Option<String>,
+    /// Only items whose price text decides nothing, the members of
+    /// price_status's counts: residue (`counts.residue`),
+    /// a note or tab name that reads as a price where the trade site cannot
+    /// see it; invalid_note (`counts.invalid_notes`), a note that starts
+    /// like a price and does not read as one.
+    game_text: Option<String>,
     /// List this many items in place of ten, the first in listing order;
     /// `total` says how many the selection holds.
     limit: Option<usize>,
@@ -1795,6 +1801,7 @@ impl AcqMcp {
                 effective: p.effective,
                 location: p.location,
                 covered_by: p.covered_by,
+                game_text: p.game_text,
                 limit: p.limit,
                 expand: p.expand.unwrap_or(false),
             },

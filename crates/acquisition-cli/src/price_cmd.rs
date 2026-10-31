@@ -32,7 +32,7 @@
 
 use acquisition_plan::game_side::{GamePrice, Source};
 use acquisition_plan::listing::{
-    ListView, Listing, ListingReport, Relation, ReportHeader, ShowView, Side,
+    GameText, ListView, Listing, ListingReport, Relation, ReportHeader, ShowView, Side,
 };
 use acquisition_plan::price::{Buyout, PriceTarget, PriceWrite};
 use acquisition_plan::pricing::{self, Expect, ListArgs};
@@ -376,7 +376,7 @@ fn render_status(r: &ListingReport, now: i64, expand: bool, account: &str) -> St
     // character has no tab to publish (the h2 review)
     if c.residue > 0 {
         out.push_str(&format!(
-            "{}: a note on a character's item decides no price until the item is moved into a public stash tab, and a note or tab name in a tab that is not public decides none until the tab is made public in the game; `acq price show {scope} item/<id>` shows one item's text\n",
+            "{}: a note on a character's item decides no price until the item is moved into a public stash tab, and a note or tab name in a tab that is not public decides none until the tab is made public in the game; `acq price list {scope} --game-text residue` lists them\n",
             plural(
                 c.residue,
                 "item carries price text the trade site cannot see",
@@ -387,8 +387,14 @@ fn render_status(r: &ListingReport, now: i64, expand: bool, account: &str) -> St
     let skipped = reading_count(r, "skip");
     let invalid = c.invalid_notes;
     if skipped + invalid > 0 {
+        // the invalid notes' list, where there are any to list (#11)
+        let listed = if invalid > 0 {
+            format!("; `acq price list {scope} --game-text invalid_note` lists them")
+        } else {
+            String::new()
+        };
         out.push_str(&format!(
-            "in game also: {} (~skip), {} (no effect: the tab's name applies)\n",
+            "in game also: {} (~skip), {} (no effect: the tab's name applies){listed}\n",
             plural(skipped, "item skipped", "items skipped"),
             plural(
                 invalid,
@@ -616,6 +622,16 @@ fn render_list(view: &ListView, expand: bool, account: &str) -> String {
     if let Some(t) = &view.filter.covered_by {
         scope.push_str(&format!(" covered by {t}"));
     }
+    // the text in the words of the status line that counts it (C146)
+    match view.filter.game_text {
+        Some(GameText::Residue) => {
+            scope.push_str(" with price text the trade site cannot see");
+        }
+        Some(GameText::InvalidNote) => {
+            scope.push_str(" with a note that starts like a price and does not read as one");
+        }
+        None => {}
+    }
     if items.is_empty() {
         if view.listed == 0 && view.total > 0 {
             // a limit of zero: the items are there, none was asked for
@@ -630,7 +646,7 @@ fn render_list(view: &ListView, expand: bool, account: &str) -> String {
         }
         let nothing = if view.items_on_record == 0 {
             "no items on record".to_string()
-        } else if view.filter.relation.is_none() {
+        } else if view.filter.relation.is_none() && view.filter.game_text.is_none() {
             format!(
                 "{} items on record, none listed by hand or in game",
                 view.items_on_record
@@ -1080,7 +1096,7 @@ fn render_write(write: &PriceWrite, in_facts: Option<bool>, account: &str) -> St
 mod tests {
     use super::*;
     use crate::real_scale_fixture;
-    use acquisition_plan::listing::{ListFilter, resolve};
+    use acquisition_plan::listing::{GameText, ListFilter, resolve};
     use acquisition_store::{
         AnnotationRow, CharacterSnapshot, ItemSnapshot, ListingBasis, PricingSnapshot, TabSnapshot,
     };
@@ -1227,7 +1243,7 @@ mod tests {
         );
         assert_eq!(
             lines[2],
-            "3 items carry price text the trade site cannot see: a note on a character's item decides no price until the item is moved into a public stash tab, and a note or tab name in a tab that is not public decides none until the tab is made public in the game; `acq price show --account a --realm pc --league Standard item/<id>` shows one item's text"
+            "3 items carry price text the trade site cannot see: a note on a character's item decides no price until the item is moved into a public stash tab, and a note or tab name in a tab that is not public decides none until the tab is made public in the game; `acq price list --account a --realm pc --league Standard --game-text residue` lists them"
         );
         assert_eq!(
             lines[3],
@@ -1255,6 +1271,20 @@ mod tests {
         );
         assert!(
             text.contains("rows naming nothing in the facts:\n  item/i-gone: skip, revision 5\n"),
+            "{text}"
+        );
+
+        // The invalid notes' line (#11): what they are, that they have no
+        // effect, and the list of them.
+        let mut invalid = snapshot();
+        invalid.items[3].note = Some("~price  chaos".into());
+        let r = resolve(&invalid).unwrap();
+        assert_eq!(r.counts.invalid_notes, 1);
+        let text = render_status(&r, 8_000, false, "a");
+        assert!(
+            text.contains(
+                "in game also: 0 items skipped (~skip), 1 note starts like a price and does not read as one (no effect: the tab's name applies); `acq price list --account a --realm pc --league Standard --game-text invalid_note` lists them\n"
+            ),
             "{text}"
         );
 
@@ -1309,7 +1339,7 @@ mod tests {
         let text = render_status(&r, 8_000, false, "a");
         assert!(
             text.contains(
-                "1 item carries price text the trade site cannot see: a note on a character's item decides no price until the item is moved into a public stash tab, and a note or tab name in a tab that is not public decides none until the tab is made public in the game; `acq price show --account a --realm pc --league Standard item/<id>` shows one item's text\n"
+                "1 item carries price text the trade site cannot see: a note on a character's item decides no price until the item is moved into a public stash tab, and a note or tab name in a tab that is not public decides none until the tab is made public in the game; `acq price list --account a --realm pc --league Standard --game-text residue` lists them\n"
             ),
             "{text}"
         );
@@ -1489,6 +1519,32 @@ mod tests {
         assert!(lines[5].ends_with("i-sub"), "{}", lines[5]);
         assert_eq!(lines[6], "Exile  1 item: 1 unlisted  character/ch1");
         assert!(lines[7].ends_with("i-worn"), "{}", lines[7]);
+
+        // The same three under the status's own words (#11): the price
+        // text the trade site cannot see, the count the status prints.
+        let view = r
+            .list_view(ListFilter {
+                game_text: Some(GameText::Residue),
+                ..ListFilter::default()
+            })
+            .unwrap();
+        assert_eq!(
+            render_list(&view, false, "a").lines().next(),
+            Some(
+                "3 items listed in Standard with price text the trade site cannot see: 3 unlisted; in 3 containers"
+            )
+        );
+        // and a note that does not read, none here, says which nothing
+        let view = r
+            .list_view(ListFilter {
+                game_text: Some(GameText::InvalidNote),
+                ..ListFilter::default()
+            })
+            .unwrap();
+        assert_eq!(
+            render_list(&view, false, "a"),
+            "15 items on record, none match for Standard with a note that starts like a price and does not read as one\nnext: `acq price status --account a --realm pc --league Standard` says what is on record\n"
+        );
 
         let view = r
             .list_view(ListFilter {

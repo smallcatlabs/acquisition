@@ -383,6 +383,35 @@ fn c69_two_sides_resolve_independently_and_the_relation_names_both() {
     assert_eq!(report.counts.by_game_statement["none"], 3);
     assert_eq!(report.counts.game_priced, 5);
     assert_eq!(report.counts.residue, 1);
+
+    // Each count's members are a list's selection under the count's own
+    // word (#11), whatever their relation: the residue a character's
+    // `manual_only` item, the invalid note one the tab's price decides.
+    let selected = |text: GameText| {
+        let view = report
+            .list_view(ListFilter {
+                game_text: Some(text),
+                ..ListFilter::default()
+            })
+            .unwrap();
+        let ids: Vec<String> = view
+            .items
+            .iter()
+            .map(|l| l.subject.target.to_string())
+            .collect();
+        (view.total, ids)
+    };
+    assert_eq!(
+        selected(GameText::Residue),
+        (report.counts.residue, vec!["item/i-worn".to_string()])
+    );
+    assert_eq!(
+        selected(GameText::InvalidNote),
+        (
+            report.counts.invalid_notes,
+            vec!["item/i-invalid".to_string()]
+        )
+    );
 }
 
 /// C81 — a note the store could not read is a statement of unknown

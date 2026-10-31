@@ -55,7 +55,7 @@ use serde_json::{Value, json};
 
 use crate::currency::{Currency, CurrencyTable, table};
 use crate::listing::{
-    ListFilter, ListView, ListingReport, ManualSide, Relation, ShowView, resolve,
+    GameText, ListFilter, ListView, ListingReport, ManualSide, Relation, ShowView, resolve,
 };
 use crate::price::{
     BUYOUT_KIND, BUYOUT_VERSION, Buyout, PriceTarget, PriceWrite, PriceWriteError, clear_buyout,
@@ -438,6 +438,7 @@ pub struct ListArgs {
     pub effective: Option<String>,
     pub location: Option<String>,
     pub covered_by: Option<String>,
+    pub game_text: Option<String>,
     pub limit: Option<usize>,
     pub expand: bool,
 }
@@ -470,6 +471,15 @@ pub fn list(
             )
         })?),
     };
+    let game_text = match args.game_text.as_deref() {
+        None => None,
+        Some(word) => Some(GameText::parse(word).ok_or_else(|| {
+            anyhow::anyhow!(
+                "{word:?} is not a price text that decides nothing (one of {})",
+                GameText::ALL.map(GameText::as_str).join(", ")
+            )
+        })?),
+    };
     let container = |flag: &str, word: Option<&str>| -> Result<Option<PriceTarget>> {
         let Some(word) = word else {
             return Ok(None);
@@ -491,6 +501,7 @@ pub fn list(
         effective,
         r#in: location.clone(),
         covered_by: covered_by.clone(),
+        game_text,
         limit: args.limit,
         expand: args.expand,
     };
@@ -992,7 +1003,7 @@ pub fn described() -> Vec<Described> {
         ),
         entry(
             "status counts",
-            "a league's listing state, counted: `counts.by_effective` says who decides each item's price (game, manual, none, unresolved — a row that cannot be read could decide), `counts.by_relation` how the two sides stand (none, manual_only, game_only, agree, conflict), so the items priced by hand are its manual_only, agree and conflict together; `counts.game_priced` the items the game prices; `counts.residue` the items carrying price text the trade site cannot see — a note on a character's item, which decides no price until the item is moved into a public stash tab, or a note or tab name in a tab that is not public, which decides none until the tab is made public in the game; `counts.invalid_notes` the notes that start like a price and do not read as one (no effect: the tab's name applies); `rows` accounts for every hand-written row: how many apply here, which name nothing in the facts (`unmatched`, each row whole — `value`, `from`, `revision`, `updated_at`, `written_via` — since no listing carries it), which cannot be read (`unreadable`), which belong to other leagues (`other_league`) or realms (`other_realm`, a count); each of the three lists holds ten unless `expand`, its whole count beside it (`unmatched_total`, `unreadable_total`, `other_league_total`)",
+            "a league's listing state, counted: `counts.by_effective` says who decides each item's price (game, manual, none, unresolved — a row that cannot be read could decide), `counts.by_relation` how the two sides stand (none, manual_only, game_only, agree, conflict), so the items priced by hand are its manual_only, agree and conflict together; `counts.game_priced` the items the game prices; `counts.residue` the items carrying price text the trade site cannot see — a note on a character's item, which decides no price until the item is moved into a public stash tab, or a note or tab name in a tab that is not public, which decides none until the tab is made public in the game; `counts.invalid_notes` the notes that start like a price and do not read as one (no effect: the tab's name applies); price_list with `game_text` `residue` or `invalid_note` lists the items of either count; `rows` accounts for every hand-written row: how many apply here, which name nothing in the facts (`unmatched`, each row whole — `value`, `from`, `revision`, `updated_at`, `written_via` — since no listing carries it), which cannot be read (`unreadable`), which belong to other leagues (`other_league`) or realms (`other_realm`, a count); each of the three lists holds ten unless `expand`, its whole count beside it (`unmatched_total`, `unreadable_total`, `other_league_total`)",
         ),
         entry(
             "show counts",

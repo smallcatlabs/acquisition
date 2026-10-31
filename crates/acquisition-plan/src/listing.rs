@@ -609,11 +609,55 @@ pub struct ListFilter {
     pub r#in: Option<PriceTarget>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub covered_by: Option<PriceTarget>,
+    /// Only items whose price text decides nothing, of one kind: the
+    /// members of `Counts::residue` or of `Counts::invalid_notes`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub game_text: Option<GameText>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub limit: Option<usize>,
     /// Every item of the selection, whatever `limit` says.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub expand: bool,
+}
+
+/// The price text that decides nothing, as `list` selects it (#11): the
+/// items `price status` counts and no other verb listed. The words are
+/// the counts' (C146).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GameText {
+    /// A note or tab name that reads as a price or `skip` where the trade
+    /// site cannot see it: `Counts::residue`, `game.residue` on the item.
+    Residue,
+    /// A note that starts like a price and does not read as one:
+    /// `Counts::invalid_notes`, `game.note.reading` invalid on the item.
+    InvalidNote,
+}
+
+impl GameText {
+    pub const ALL: [GameText; 2] = [GameText::Residue, GameText::InvalidNote];
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            GameText::Residue => "residue",
+            GameText::InvalidNote => "invalid_note",
+        }
+    }
+
+    pub fn parse(word: &str) -> Option<GameText> {
+        GameText::ALL.into_iter().find(|t| t.as_str() == word)
+    }
+
+    /// Whether an item's game side holds this text.
+    fn holds(self, game: &GameSide) -> bool {
+        match self {
+            GameText::Residue => game.residue,
+            GameText::InvalidNote => game
+                .note
+                .as_ref()
+                .is_some_and(|n| matches!(n.reading, GamePrice::Invalid { .. })),
+        }
+    }
 }
 
 /// `list`'s contract: everything its text is a function of (C53) — the
@@ -826,14 +870,20 @@ impl ListingReport {
             .listings
             .iter()
             .filter(|l| l.subject.is_item())
-            // The default suppression of `none` applies only when neither
-            // selector was given: `--effective none` must be able to select
-            // exactly the items nothing applies to.
-            .filter(|l| match (filter.relation, &filter.effective) {
-                (Some(rel), _) => l.relation == rel,
-                (None, Some(_)) => true,
-                (None, None) => l.relation != Relation::None || l.effective.kind == "unresolved",
-            })
+            // The default suppression of `none` applies only when no
+            // selector of a side was given: `--effective none` must be able
+            // to select exactly the items nothing applies to, and a text
+            // that decides nothing mostly sits on such an item.
+            .filter(
+                |l| match (filter.relation, &filter.effective, filter.game_text) {
+                    (Some(rel), _, _) => l.relation == rel,
+                    (None, Some(_), _) | (None, None, Some(_)) => true,
+                    (None, None, None) => {
+                        l.relation != Relation::None || l.effective.kind == "unresolved"
+                    }
+                },
+            )
+            .filter(|l| filter.game_text.is_none_or(|t| t.holds(&l.game)))
             .filter(|l| {
                 filter
                     .effective
