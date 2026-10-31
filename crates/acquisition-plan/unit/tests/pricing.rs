@@ -184,7 +184,7 @@ fn a_revision_of_0_creates_only_where_no_price_stands_under_either_default() {
         assert_eq!(Expect::or(Some(4), default), Expect::Exactly(4));
         assert_eq!(Expect::or(None, default), default);
     }
-    let mut zero = |a: &mut Annotations| {
+    let zero = |a: &mut Annotations| {
         set(
             &store,
             a,
