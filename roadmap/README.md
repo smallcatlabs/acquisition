@@ -393,7 +393,9 @@ its branch (`LEDGER.md`): the clock works, the design's door count
 does not, and the runtime's park hook is the exact signal. t5's design
 brief (`briefs/t5-design.md`, cut three times under cold reviews)
 was ruled on 2026-10-31 ("Accept as drafted with your
-recommendations"), C158 entered; next its rounds, each a build brief,
-round 1 the clock and the door; then #148; and Phase 3, the owner's
+recommendations"), C158 entered. Round 1, the clock and the door
+(`briefs/t5-r1.md`), closed on 2026-10-31 (`LEDGER.md`): its build
+reviewed, one fix round reviewed clean. Next round 2's brief, `Life`
+on the clock; then rounds 3 to 6; then #148; and Phase 3, the owner's
 league run, at his word, its first seat checking the words.
 `AGENTS.md` governs; the gate is `tools/gate.sh`.
