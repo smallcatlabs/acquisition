@@ -156,12 +156,16 @@ pub fn scratch_tmp(base: &Path) -> PathBuf {
 /// annotation file's wait, are widened to 60 s, so a starved runner
 /// cannot fail a healthy path (C137, the deadline's contract is its
 /// expiry behaviour); a test that pins one sets its own value after this
-/// list.
+/// list. `MSYSTEM` is removed, so the commands a child prints are quoted
+/// for the platform's declared shell, PowerShell on Windows, whatever
+/// shell runs the tests (C156: CI's Windows gate runs under Git Bash); a
+/// test of the Git Bash quoting sets it after this list.
 pub fn isolation(world: &Path, base: &Path) -> Vec<(OsString, Option<OsString>)> {
     let mut list: Vec<(OsString, Option<OsString>)> = std::env::vars_os()
         .filter(|(key, _)| key.to_str().is_some_and(|k| k.starts_with("ACQ_")))
         .map(|(key, _)| (key, None))
         .collect();
+    list.push(("MSYSTEM".into(), None));
     let tmp = scratch_tmp(base);
     list.push(("ACQ_STORE_DIR".into(), Some(world.as_os_str().to_owned())));
     for key in TEMP_VARS {

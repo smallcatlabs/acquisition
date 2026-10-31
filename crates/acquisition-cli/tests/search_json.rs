@@ -400,7 +400,14 @@ fn step_5_a_count_at_a_terminal_and_every_route_it_prints_returns_what_it_counte
         ran += 1;
     }
     assert!(ran >= 12, "{ran} routes ran:\n{shown}");
-    for printed in ["'name=\"Kaom'\\''s Heart\"'", "(?-i)^", "-- -has:name"] {
+    // a not prints after a space inside its quotes, no `--` (C156); the
+    // apostrophe as the platform's shell reads it
+    let kaom = if cfg!(windows) {
+        "'name=\"Kaom''s Heart\"'"
+    } else {
+        "'name=\"Kaom'\\''s Heart\"'"
+    };
+    for printed in [kaom, "(?-i)^", "' -has:name'"] {
         assert!(shown.contains(printed), "`{printed}` in:\n{shown}");
     }
 
@@ -672,9 +679,10 @@ fn c53_search_json_is_the_answer_whole_and_the_text_is_a_function_of_it() {
         "matched, failed, lacked, undecided, together, and the root's undecided:\n{shown}"
     );
     // the lacked route starts with the language's not, which a terminal
-    // reads as a flag: it is printed after `--`, and it ran above
+    // reads as a flag: it is printed after a space inside its quotes, no
+    // `--` (C156), and it ran above
     assert!(
-        shown.contains(r##"--realm pc -- '-line("# to maximum Life")'"##),
+        shown.contains(r##"--realm pc ' -line("# to maximum Life")'"##),
         "{shown}"
     );
 }
@@ -1111,7 +1119,7 @@ fn a_query_with_an_apostrophe_is_read_from_stdin_and_routed_shell_quoted() {
             .unwrap();
         text(&child.wait_with_output().unwrap())
     };
-    // a quote inside is the platform shell's (#16): POSIX `'\''`, or
+    // a quote inside is the declared shell's (C156): POSIX `'\''`, or
     // PowerShell's doubled quote on Windows
     let quote = if cfg!(windows) { "''" } else { r"'\''" };
     assert!(
@@ -1120,6 +1128,32 @@ fn a_query_with_an_apostrophe_is_read_from_stdin_and_routed_shell_quoted() {
         )),
         "{shown}"
     );
+
+    // Under Git Bash (MSYSTEM set, C156) the route is quoted for a POSIX
+    // shell on every platform, and `sh` runs it as printed to the one
+    // item: PowerShell's doubled quote there would read `Kaoms Heart`.
+    let shown = {
+        let mut child = command(&base, &["search", "--query-file", "-", "--routes"])
+            .env("MSYSTEM", "MINGW64")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .spawn()
+            .unwrap();
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(b"name=\"Kaom's Heart\"")
+            .unwrap();
+        text(&child.wait_with_output().unwrap())
+    };
+    let route = r#"acq search --account 'Alice#1234' --realm pc 'name="Kaom'\''s Heart"'"#;
+    assert!(shown.contains(route), "{shown}");
+    let out = harness::offline_printed_in_sh(&base, &route.replacen("acq ", "acq --json ", 1))
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "{out:?}");
+    assert_eq!(sole_json(&out)["rows"][0]["id"], "kaom", "{out:?}");
 }
 
 /// Step 9 at a terminal: a price set through `acq price set` is what

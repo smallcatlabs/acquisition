@@ -68,7 +68,7 @@ pub fn offline_command(world: &Path, args: &[&str]) -> Command {
 }
 
 /// A command a text prints, run as a person pastes it: through the shell
-/// the platform gives its user (#16), `sh` or on Windows PowerShell
+/// it is printed for (C156), `sh`, or PowerShell 7 on Windows
 /// ([`shell_printed`]), its `acq` the binary under test, under the
 /// isolation of `base` (the world at `base/store`).
 pub fn printed(base: &Path, command: &str) -> Command {
@@ -86,10 +86,19 @@ pub fn offline_printed(world: &Path, command: &str) -> Command {
     cmd
 }
 
+/// [`offline_printed`] through `sh` on every platform, as Git Bash runs
+/// it on Windows (C156: it sets `MSYSTEM`, which the child keeps, and a
+/// printed command is quoted for it).
+pub fn offline_printed_in_sh(world: &Path, command: &str) -> Command {
+    let mut cmd = sh_printed(command);
+    isolate_at(&mut cmd, world, world);
+    cmd.env("ACQ_NO_SPAWN", "1").env("MSYSTEM", "MINGW64");
+    cmd
+}
+
 /// The printed command through `sh -c`, its leading `acq` the binary
 /// under test.
-#[cfg(not(windows))]
-fn shell_printed(command: &str, _dir: &Path) -> Command {
+fn sh_printed(command: &str) -> Command {
     let rest = command
         .strip_prefix("acq ")
         .unwrap_or_else(|| panic!("not an acq command: {command}"));
@@ -100,47 +109,39 @@ fn shell_printed(command: &str, _dir: &Path) -> Command {
     cmd
 }
 
-/// The printed command through Windows PowerShell (`powershell.exe`, the
-/// shell Windows gives its user), as a script file under `dir`, so no
-/// second quoting stands between the line and the shell: its `acq` (at
-/// the start, or after a pipe) the binary under test, and the exit the
-/// program's. The script reads and writes UTF-8, as the test reads it;
-/// a person's console needs no such line.
+/// The printed command through the shell it is printed for: `sh`.
+#[cfg(not(windows))]
+fn shell_printed(command: &str, _dir: &Path) -> Command {
+    sh_printed(command)
+}
+
+/// The printed command through PowerShell 7 (`pwsh.exe`, the shell C156
+/// declares on Windows), as a script file under `dir`, so no second
+/// quoting stands between the line and the shell: its `acq` the binary
+/// under test, and the exit the program's. The script reads the
+/// program's output as UTF-8, as the test reads it; a person's console
+/// needs no such line, and what the command sends is the shell's own.
 #[cfg(windows)]
 fn shell_printed(command: &str, dir: &Path) -> Command {
     use std::sync::atomic::{AtomicUsize, Ordering};
     static SCRIPTS: AtomicUsize = AtomicUsize::new(0);
-    let line = match command.strip_prefix("acq ") {
-        Some(rest) => format!("& $env:ACQ {rest}"),
-        None => match command.split_once(" | acq ") {
-            Some((input, rest)) => format!("{input} | & $env:ACQ {rest}"),
-            None => panic!("not an acq command: {command}"),
-        },
-    };
+    let rest = command
+        .strip_prefix("acq ")
+        .unwrap_or_else(|| panic!("not an acq command: {command}"));
     let script = dir.join(format!(
         "printed-{}.ps1",
         SCRIPTS.fetch_add(1, Ordering::Relaxed)
     ));
     let text = format!(
-        "$utf8 = New-Object System.Text.UTF8Encoding $false\r\n\
-         [Console]::OutputEncoding = $utf8\r\n\
-         $OutputEncoding = $utf8\r\n\
-         {line}\r\n\
+        "[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)\r\n\
+         & $env:ACQ {rest}\r\n\
          exit $LASTEXITCODE\r\n"
     );
-    // a BOM, so Windows PowerShell 5.1 reads the script as UTF-8
-    std::fs::write(&script, [&b"\xEF\xBB\xBF"[..], text.as_bytes()].concat())
-        .expect("writing the printed command's script");
-    let mut cmd = Command::new("powershell.exe");
-    cmd.args([
-        "-NoProfile",
-        "-NonInteractive",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-    ])
-    .arg(script)
-    .env("ACQ", acq_exe());
+    std::fs::write(&script, text).expect("writing the printed command's script");
+    let mut cmd = Command::new("pwsh.exe");
+    cmd.args(["-NoProfile", "-NonInteractive", "-File"])
+        .arg(script)
+        .env("ACQ", acq_exe());
     cmd
 }
 

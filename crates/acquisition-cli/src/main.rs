@@ -1366,8 +1366,43 @@ async fn main() {
                 eprintln!("Error: {}", failure_words(&e));
             }
         }
+        let powershell = acquisition_search::answer::powershell(
+            cfg!(windows),
+            std::env::var_os("MSYSTEM").is_some(),
+        );
+        if !json && let Some(hint) = shell_hint(std::env::args().skip(1), powershell) {
+            eprintln!("{hint}");
+        }
         std::process::exit(1);
     }
+}
+
+/// C156: where the commands acq prints are for PowerShell 7.3 or newer, a
+/// failed command whose words carry what another Windows shell leaves of
+/// a printed one says so after its refusal: a word still in single
+/// quotes, which cmd.exe reads as no quote, or JSON with no double quote
+/// left, which Windows PowerShell 5.1 strips from an argument. Elsewhere,
+/// and on any other failure, nothing.
+fn shell_hint(args: impl Iterator<Item = String>, powershell: bool) -> Option<&'static str> {
+    if !powershell {
+        return None;
+    }
+    let mut hint = None;
+    for arg in args {
+        if arg.starts_with('\'') {
+            return Some(
+                "a word still holds its single quotes, as cmd.exe passes them: \
+                 the commands acq prints are for PowerShell 7.3 or newer",
+            );
+        }
+        if arg.starts_with('{') && arg.contains(':') && !arg.contains('"') {
+            hint = Some(
+                "the JSON reached acq with no double quotes, as Windows PowerShell 5.1 \
+                 passes them: the commands acq prints are for PowerShell 7.3 or newer",
+            );
+        }
+    }
+    hint
 }
 
 async fn run(cli: Cli) -> Result<()> {
@@ -2919,6 +2954,35 @@ async fn watch_table_until_done(client: &mut Client, ids: &[u64]) -> Result<()> 
 
 #[cfg(test)]
 mod tests {
+    /// C156: a refusal under the declared PowerShell names the shell a
+    /// pasted command met, from what that shell left of its words; under
+    /// any other shell, and for words no shell mangled, nothing.
+    #[test]
+    fn c156_a_refusal_names_the_windows_shell_a_pasted_command_met() {
+        let words = |w: &[&str]| {
+            w.iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>()
+                .into_iter()
+        };
+        let cmd = shell_hint(words(&["search", "--account", "'Alice#1234'"]), true).unwrap();
+        assert!(
+            cmd.contains("cmd.exe") && cmd.contains("PowerShell 7.3"),
+            "{cmd}"
+        );
+        let ps5 = shell_hint(words(&["policy", "set", "{version:3,realms:{}}"]), true).unwrap();
+        assert!(
+            ps5.contains("Windows PowerShell 5.1") && ps5.contains("PowerShell 7.3"),
+            "{ps5}"
+        );
+        assert_eq!(
+            shell_hint(words(&["policy", "set", r#"{"version":3}"#]), true),
+            None
+        );
+        assert_eq!(shell_hint(words(&["search", "class=Rings"]), true), None);
+        assert_eq!(shell_hint(words(&["search", "'x'", "{a:b}"]), false), None);
+    }
+
     use super::*;
 
     /// `auth status` while the daemon's start restores its sessions from

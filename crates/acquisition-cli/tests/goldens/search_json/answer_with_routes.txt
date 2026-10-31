@@ -31,5 +31,5 @@ routes  each returns exactly the members counted
   term 0 failed (1), over the scope:
     acq search --account 'Alice#1234' --realm pc 'line("# to maximum Life") -line("# to maximum Life" arg1>=90)'
   term 0 lacked (1), over the scope:
-    acq search --account 'Alice#1234' --realm pc -- '-line("# to maximum Life")'
+    acq search --account 'Alice#1234' --realm pc ' -line("# to maximum Life")'
 basis   store <store> · build <build> · snapshot 4 · facts v9 · prices and policy revision 0 · derivation 12 · classes v1 · categories v1 · beast colours v1 · totals v6 · defences v1 · currency v1 · notes v2

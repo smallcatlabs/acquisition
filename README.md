@@ -76,7 +76,11 @@ is; the link is followed.
   in your desktop session.
 - **Windows**: the binaries are not signed, so Windows may show a
   SmartScreen prompt.
-  Add the directory to your `PATH`; do not symlink `acq`.
+  Add the directory to your `PATH`; do not symlink `acq`. Run `acq` in
+  PowerShell 7.3 or newer (`winget install Microsoft.PowerShell`): the
+  commands it prints are quoted for it. Windows PowerShell 5.1 strips
+  the double quotes inside them, and cmd.exe reads no single quote;
+  under Git Bash, `acq` prints them for a POSIX shell.
 
 On every platform, run `acq` at your desktop, not over ssh: over ssh
 the keyring is out of reach, and on Windows the daemon ends with the

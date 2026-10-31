@@ -420,7 +420,10 @@ fn a_policy_receipts_undo_runs_as_printed_and_a_first_write_says_why_it_has_none
         .unwrap()
         .record_login("Bob#5678", "u-bob", false, acquisition_store::now(), &[])
         .unwrap();
-    let pc = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","max_age_seconds":3600}}}}}"#;
+    // a league beyond ASCII, which the undo carries whole through the
+    // platform's shell (the review of words, its first finding: a pipe
+    // under Windows PowerShell 5.1 made `Café` `Caf?`)
+    let pc = r#"{"version":3,"realms":{"pc":{"leagues":{"Café":{"tabs":"all","max_age_seconds":3600}}}}}"#;
     let poe2 = r#"{"version":3,"realms":{"poe2":{"leagues":{"Standard":{"characters":"all","max_age_seconds":600}}}}}"#;
     let set = |args: &[&str]| {
         let out = acq(
@@ -459,21 +462,14 @@ fn a_policy_receipts_undo_runs_as_printed_and_a_first_write_says_why_it_has_none
     let line = merged["undo"]["request"]
         .as_str()
         .unwrap_or_else(|| panic!("{merged}"));
-    // #16: a POSIX shell's line carries the JSON as one quoted word; on
-    // Windows it is piped to the verb's `-`, since Windows PowerShell 5.1
-    // strips an argument's double quotes and 7.3 keeps them
-    let flags = "acq policy set --account 'Alice#1234' --replace --if-revision 2";
-    if cfg!(windows) {
-        assert!(
-            line.starts_with("'{\"version\":3,") && line.ends_with(&format!(" | {flags} -")),
-            "{line}"
-        );
-    } else {
-        assert!(line.starts_with(&format!("{flags} '{{")), "{line}");
-    }
-    // run as printed through the platform's shell, `sh` or PowerShell,
-    // `--json` added as a refusal's offers are run
-    let out = harness::offline_printed(&base, &format!("{line} --json"))
+    // the JSON is one quoted word on every platform (C156)
+    assert!(
+        line.starts_with("acq policy set --account 'Alice#1234' --replace --if-revision 2 '{"),
+        "{line}"
+    );
+    // run as printed through the shell it is printed for, `sh` or on
+    // Windows PowerShell 7, `--json` added as a refusal's offers are run
+    let out = harness::offline_printed(&base, &line.replacen("acq ", "acq --json ", 1))
         .output()
         .expect("running the printed undo");
     assert!(out.status.success(), "`{line}`: {out:?}");

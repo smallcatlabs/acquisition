@@ -1574,7 +1574,13 @@ fn the_retry_word_is_quoted_for_the_platforms_shell() {
     ] {
         assert_eq!(posix_word(word), posix, "{word}");
         assert_eq!(powershell_word(word), powershell, "{word}");
-        let platform = if cfg!(windows) { powershell } else { posix };
+        // the shell is the environment's (C156): this process may run
+        // under Git Bash, which sets MSYSTEM
+        let platform = if cfg!(windows) && std::env::var_os("MSYSTEM").is_none() {
+            powershell
+        } else {
+            posix
+        };
         assert_eq!(shell_word(word), platform, "{word}");
     }
 }

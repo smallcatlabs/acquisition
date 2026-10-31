@@ -90,19 +90,15 @@ pub(crate) const WRITTEN_VIA: &str = "cli";
 /// A shape hint for humans; the planner's strict parse is the authority.
 pub(crate) const POLICY_EXAMPLE: &str = r#"{"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}"#;
 
-/// A printed `acq policy set` that runs as printed in the shell the
-/// platform gives its user (#16): `flags` after the verb, then the JSON
-/// as one word where a POSIX shell reads it; on Windows the JSON piped
-/// to the verb's `-`, since Windows PowerShell 5.1 strips the double
-/// quotes of an argument it hands a program and PowerShell 7.3 keeps
-/// them, and a pipe carries them under both.
+/// A printed `acq policy set`: `flags` after the verb, then the JSON as
+/// one word, quoted for the shell it will be pasted into (C156; the pipe
+/// the build first printed on Windows corrupted every character past
+/// ASCII under Windows PowerShell 5.1, the review of step words).
 pub(crate) fn policy_set_line(flags: &str, json: &str) -> String {
-    let quoted = acquisition_search::answer::shell_quoted(json);
-    if cfg!(windows) {
-        format!("{quoted} | acq policy set{flags} -")
-    } else {
-        format!("acq policy set{flags} {quoted}")
-    }
+    format!(
+        "acq policy set{flags} {}",
+        acquisition_search::answer::shell_quoted(json)
+    )
 }
 
 /// Groups of this many entities or fewer are listed one per line; larger

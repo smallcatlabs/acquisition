@@ -754,13 +754,15 @@ impl Daemon {
     }
 }
 
-/// One argument of a printed command, quoted for the shell the platform
-/// gives its user (#16): PowerShell's on Windows, a POSIX shell's
-/// elsewhere. The search crate's `shell_quoted` is the twin every other
-/// printed command uses; C1 (the daemon never links the search) keeps
-/// this one apart, the same rules held by the same cases.
+/// One argument of a printed command, quoted for the shell it will be
+/// pasted into (C156): PowerShell's on Windows outside Git Bash (which
+/// sets `MSYSTEM`), a POSIX shell's elsewhere; the daemon reads the
+/// environment the command that spawned it handed it. The search crate's
+/// `shell_quoted` is the twin every other printed command uses; C1 (the
+/// daemon never links the search) keeps this one apart, the same rules
+/// held by the same cases.
 pub(super) fn shell_word(word: &str) -> String {
-    if cfg!(windows) {
+    if cfg!(windows) && std::env::var_os("MSYSTEM").is_none() {
         powershell_word(word)
     } else {
         posix_word(word)

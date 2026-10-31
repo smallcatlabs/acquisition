@@ -197,7 +197,7 @@ Search the items the store holds (no daemon): a query over every live item of on
 Usage: acq search [OPTIONS] [QUERY]
 
 Arguments:
-  [QUERY]  The query: `class:helmets rarity=rare`, `line("# to maximum Life").arg1>=70`, `pseudo.total_res>=80`; `acq search --describe fields` is the place to start, and bare `--describe` the whole index. None: every item in scope. One that starts with `-`, the language's not, goes after `--`, as every route prints it: `acq search --realm pc -- '-is:corrupted'`
+  [QUERY]  The query: `class:helmets rarity=rare`, `line("# to maximum Life").arg1>=70`, `pseudo.total_res>=80`; `acq search --describe fields` is the place to start, and bare `--describe` the whole index. None: every item in scope. One that starts with `-`, the language's not, takes a space inside its quotes, as every route prints it: `acq search --realm pc ' -is:corrupted'`
 
 Options:
       --realm <REALM>                  The realm searched: pc, xbox, sony, poe2, or all. Over a store holding one realm it may be omitted and the answer prints it; over several it is required, one of them or `all`

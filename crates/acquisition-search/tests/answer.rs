@@ -838,6 +838,12 @@ fn a_touched_term_on_a_row_is_its_path_its_lines_and_what_it_left_out() {
 /// would read as a number it prints another way quoted.
 #[test]
 fn a_printed_word_is_quoted_for_the_platforms_shell() {
+    use acquisition_search::answer::powershell;
+    // C156: PowerShell on Windows outside Git Bash, a POSIX shell else
+    assert!(powershell(true, false));
+    assert!(!powershell(true, true));
+    assert!(!powershell(false, false));
+    assert!(!powershell(false, true));
     use acquisition_search::answer::{posix_quoted, powershell_quoted, shell_quoted};
     for (word, posix, powershell) in [
         ("item/i-1", "item/i-1", "item/i-1"),
@@ -868,7 +874,16 @@ fn a_printed_word_is_quoted_for_the_platforms_shell() {
     ] {
         assert_eq!(posix_quoted(word), posix, "{word}");
         assert_eq!(powershell_quoted(word), powershell, "{word}");
-        let platform = if cfg!(windows) { powershell } else { posix };
+        // the shell is the environment's: PowerShell on Windows outside
+        // Git Bash (C156), which this process may run under
+        let platform = if acquisition_search::answer::powershell(
+            cfg!(windows),
+            std::env::var_os("MSYSTEM").is_some(),
+        ) {
+            powershell
+        } else {
+            posix
+        };
         assert_eq!(shell_quoted(word), platform, "{word}");
     }
 }

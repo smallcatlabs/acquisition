@@ -2850,15 +2850,16 @@ fn exactly(of: &str, value: &str) -> Node {
 /// build plan's rule 5 — a command printed is a command that runs). It
 /// names the account it was answered for, since a second account makes a
 /// command without one an error, and a last word that starts with `-` —
-/// the language's not, a terminal's flag — goes after `--`, or `-has:note`
-/// is read as `-h`.
+/// the language's not, a terminal's flag — is printed after a space
+/// inside its quotes, or `-has:note` is read as `-h`: the query reads the
+/// space as nothing, and no shell needs a `--`, which Windows PowerShell
+/// swallows rather than hand on (C156).
 pub fn command(verb: &str, account: Option<&str>, realm: Option<&str>, last: &str) -> String {
     command_with(verb, account, realm, last, "")
 }
 
 /// [`command`] with the flags a view and a context add: after the query,
-/// as a reader types them — and before it where the query goes after
-/// `--`, past which a terminal reads no flag.
+/// as a reader types them.
 fn command_with(
     verb: &str,
     account: Option<&str>,
@@ -2867,15 +2868,13 @@ fn command_with(
     flags: &str,
 ) -> String {
     let mut out = opening(verb, account, realm);
+    out.push(' ');
     if last.starts_with('-') {
-        out.push_str(flags);
-        out.push_str(" -- ");
-        out.push_str(&shell_quoted(last));
+        out.push_str(&shell_quoted(&format!(" {last}")));
     } else {
-        out.push(' ');
         out.push_str(&shell_quoted(last));
-        out.push_str(flags);
     }
+    out.push_str(flags);
     out
 }
 
@@ -3191,17 +3190,26 @@ fn listed_text(text: &str) -> String {
     out
 }
 
-/// One word of a printed command, quoted for the shell the platform
-/// gives its user, so the command runs as printed (#16): PowerShell's
-/// on Windows ([`powershell_quoted`]), a POSIX shell's elsewhere
-/// ([`posix_quoted`]). The daemon's twin is `login.rs`'s `shell_word`,
-/// which C1 (the daemon never links the search) keeps apart.
+/// One word of a printed command, quoted for the shell it will be
+/// pasted into, so the command runs as printed (C156): PowerShell's
+/// ([`powershell_quoted`]) where [`powershell`] says the shell is
+/// PowerShell, a POSIX shell's ([`posix_quoted`]) elsewhere. The
+/// daemon's twin is `login.rs`'s `shell_word`, which C1 (the daemon never
+/// links the search) keeps apart.
 pub fn shell_quoted(text: &str) -> String {
-    if cfg!(windows) {
+    if powershell(cfg!(windows), std::env::var_os("MSYSTEM").is_some()) {
         powershell_quoted(text)
     } else {
         posix_quoted(text)
     }
+}
+
+/// C156: whether a printed command is for PowerShell 7.3 or newer —
+/// on Windows, outside Git Bash, which sets `MSYSTEM` and is a POSIX
+/// shell. The shell is read from the environment, never from the
+/// binary's platform alone.
+pub fn powershell(windows: bool, msystem: bool) -> bool {
+    windows && !msystem
 }
 
 /// One POSIX shell word, in single quotes when it needs them; an
@@ -3218,7 +3226,8 @@ pub fn posix_quoted(text: &str) -> String {
     }
 }
 
-/// One PowerShell word, in single quotes when it needs them, a quote
+/// One PowerShell word (7.3 or newer, C156), in single quotes when it
+/// needs them, a quote
 /// inside doubled — PowerShell reads the typographic single quotes as
 /// quotes too, so each of those is doubled as well. Bare is narrower
 /// than a POSIX shell's: `@` opens a splat and `,` an array, so both are
