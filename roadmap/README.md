@@ -358,5 +358,11 @@ seat: step `words` (#20, #11, #101, #16) closed on 2026-10-31
 PowerShell 7.3 or newer on Windows outside Git Bash). Next, Phase 3,
 the owner's league run, at his word; its first seat checks the words.
 Before the seat, at the owner's word of 2026-10-31: #146, then 4-0,
-the time seam ("Pull-forward", items 1 and 2); neither is started.
+the time seam ("Pull-forward", items 1 and 2). #146 is under way
+(`briefs/146-declared-shell.md`): C156 amended at the owner's word
+(`84d46ca9`); Do 2 done, the four shells' quoting held by one table,
+every word of it carried whole through `pwsh`, Windows PowerShell 5.1
+and cmd.exe on the Windows gate (run 41205233903 on `6f20c616`), no
+rule of the brief overturned; Do 3's daemon half to Do 7 ahead, then
+the review. 4-0 is not started.
 `AGENTS.md` governs; the gate is `tools/gate.sh`.
