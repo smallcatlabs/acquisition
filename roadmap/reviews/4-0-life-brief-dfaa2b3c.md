@@ -1,0 +1,6 @@
+- `roadmap/briefs/4-0-life.md` at `dfaa2b3c`, unchanged in the working tree, is **buildable as drawn**.
+- The finding: **answered**—a separate `Judge` task leaves the select responsive; the channel-driven test is feasible under a multi-thread runtime with a worker available while the judge blocks.
+- **Do 3 — The lock claim remains literally too broad.** At `roadmap/briefs/4-0-life.md:324–332`, “waits on no lock” overlooks the rails lock (`crates/acquisition-daemon/src/rails.rs:551`) and log lock (`crates/acquisition-daemon/src/daemon.rs:1161`); “no other effect … takes `shared`” overlooks final `leave` error reporting (`crates/acquisition-daemon/src/daemon/server.rs:639–641`, `:656`; `daemon.rs:1174`). **Smallest change:** say “Before final `Leave`, the loop never blocks acquiring `shared`.” This preserves the substantive guarantee: `stop_admitting` and `Exit::arm` do not acquire `shared`, and `AwaitQuiet` uses `try_lock`. No substantive conflict with Do 1’s inventory, Do 2’s rows or the done-when lines, and no checked citation mismatch, was found.
+- What I did not check and why: no builds, tests, daemon runs, gate or fresh CI checks, as requested. Unchanged builder and retirement details were not re-audited in this confirming review.
+- Nitpicks: the Do 3 wording finding above; it does not undermine the admission fix.
+- **Step 2 may start as drawn.**
