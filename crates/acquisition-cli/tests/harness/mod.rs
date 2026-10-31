@@ -17,6 +17,8 @@ pub mod journey;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
+use acquisition_search::answer::Shell;
+
 pub use shared::*;
 
 /// The binary under test.
@@ -90,59 +92,132 @@ pub fn offline_printed(world: &Path, command: &str) -> Command {
 /// it on Windows (C156: it sets `MSYSTEM`, which the child keeps, and a
 /// printed command is quoted for it).
 pub fn offline_printed_in_sh(world: &Path, command: &str) -> Command {
-    let mut cmd = sh_printed(command);
+    let mut cmd = in_shell(Shell::Posix, acq_exe(), acq_rest(command), world);
     isolate_at(&mut cmd, world, world);
     cmd.env("ACQ_NO_SPAWN", "1").env("MSYSTEM", "MINGW64");
     cmd
 }
 
-/// The printed command through `sh -c`, its leading `acq` the binary
-/// under test.
-fn sh_printed(command: &str) -> Command {
-    let rest = command
+/// The words after a printed command's leading `acq`.
+fn acq_rest(command: &str) -> &str {
+    command
         .strip_prefix("acq ")
-        .unwrap_or_else(|| panic!("not an acq command: {command}"));
-    let mut cmd = Command::new("sh");
-    cmd.arg("-c")
-        .arg(format!("\"$ACQ\" {rest}"))
-        .env("ACQ", acq_exe());
-    cmd
+        .unwrap_or_else(|| panic!("not an acq command: {command}"))
 }
 
-/// The printed command through the shell it is printed for: `sh`.
-#[cfg(not(windows))]
-fn shell_printed(command: &str, _dir: &Path) -> Command {
-    sh_printed(command)
-}
-
-/// The printed command through PowerShell 7 (`pwsh.exe`, the shell C156
-/// declares on Windows), as a script file under `dir`, so no second
-/// quoting stands between the line and the shell: its `acq` the binary
-/// under test, and the exit the program's. The script reads the
-/// program's output as UTF-8, as the test reads it; a person's console
-/// needs no such line, and what the command sends is the shell's own.
-#[cfg(windows)]
+/// The printed command through the shell it is printed for: `sh`, or
+/// PowerShell 7 on Windows (C156, the shell detection names).
 fn shell_printed(command: &str, dir: &Path) -> Command {
+    let shell = if cfg!(windows) {
+        Shell::Pwsh
+    } else {
+        Shell::Posix
+    };
+    in_shell(shell, acq_exe(), acq_rest(command), dir)
+}
+
+/// The line `program rest` through `shell` as a person's paste is read,
+/// with no second quoting between the line and the shell, and the exit
+/// the program's: `sh -c`; a PowerShell (`pwsh`, or Windows PowerShell
+/// 5.1's `powershell.exe`) from a script file under `dir`; `cmd.exe /s
+/// /c` with the line passed raw. A PowerShell script reads the program's
+/// output as UTF-8, as the test reads it; a person's console needs no
+/// such line, and what the command sends is the shell's own. The
+/// program's path is the environment's `PROGRAM` where a shell can read
+/// it, and written into the line for cmd.exe, which cannot quote it
+/// otherwise.
+pub fn in_shell(shell: Shell, program: &Path, rest: &str, dir: &Path) -> Command {
     use std::sync::atomic::{AtomicUsize, Ordering};
     static SCRIPTS: AtomicUsize = AtomicUsize::new(0);
-    let rest = command
-        .strip_prefix("acq ")
-        .unwrap_or_else(|| panic!("not an acq command: {command}"));
-    let script = dir.join(format!(
-        "printed-{}.ps1",
-        SCRIPTS.fetch_add(1, Ordering::Relaxed)
-    ));
-    let text = format!(
-        "[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)\r\n\
-         & $env:ACQ {rest}\r\n\
-         exit $LASTEXITCODE\r\n"
-    );
-    std::fs::write(&script, text).expect("writing the printed command's script");
-    let mut cmd = Command::new("pwsh.exe");
-    cmd.args(["-NoProfile", "-NonInteractive", "-File"])
-        .arg(script)
-        .env("ACQ", acq_exe());
+    let mut cmd = match shell {
+        Shell::Posix => {
+            let mut cmd = Command::new("sh");
+            cmd.arg("-c").arg(format!("\"$PROGRAM\" {rest}"));
+            cmd
+        }
+        Shell::Pwsh | Shell::PowerShell5 => {
+            let script = dir.join(format!(
+                "printed-{}.ps1",
+                SCRIPTS.fetch_add(1, Ordering::Relaxed)
+            ));
+            let text = format!(
+                "[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)\r\n\
+                 & $env:PROGRAM {rest}\r\n\
+                 exit $LASTEXITCODE\r\n"
+            );
+            std::fs::write(&script, text).expect("writing the printed command's script");
+            let mut cmd = Command::new(if shell == Shell::Pwsh {
+                "pwsh"
+            } else {
+                "powershell.exe"
+            });
+            cmd.args(["-NoProfile", "-NonInteractive", "-File"])
+                .arg(script);
+            cmd
+        }
+        Shell::Cmd => cmd_line(program, rest),
+    };
+    cmd.env("PROGRAM", program);
     cmd
+}
+
+/// `cmd.exe /d /s /c ""program" rest"`, passed raw: cmd strips the outer
+/// quotes and runs the line as typed.
+#[cfg(windows)]
+fn cmd_line(program: &Path, rest: &str) -> Command {
+    use std::os::windows::process::CommandExt;
+    let mut cmd = Command::new("cmd.exe");
+    cmd.raw_arg(format!("/d /s /c \"\"{}\" {rest}\"", program.display()));
+    cmd
+}
+
+/// cmd.exe is Windows' alone.
+#[cfg(not(windows))]
+fn cmd_line(_program: &Path, _rest: &str) -> Command {
+    panic!("cmd.exe runs only on Windows")
+}
+
+/// The shells this machine runs a printed command through: `sh` off
+/// Windows (Git Bash is MSYS's, which rewrites a word that looks like a
+/// path); `pwsh` where it is on the path, which the Windows gate
+/// requires; on Windows, Windows PowerShell 5.1 and cmd.exe.
+pub fn shells_here() -> Vec<Shell> {
+    let runs = |program: &str, flag: &str| {
+        Command::new(program)
+            .args([flag, "exit 0"])
+            .output()
+            .is_ok_and(|o| o.status.success())
+    };
+    let mut shells = Vec::new();
+    if !cfg!(windows) {
+        shells.push(Shell::Posix);
+    }
+    if runs("pwsh", "-c") {
+        shells.push(Shell::Pwsh);
+    } else if cfg!(windows) {
+        panic!("pwsh is not on the path");
+    }
+    if cfg!(windows) {
+        shells.extend([Shell::PowerShell5, Shell::Cmd]);
+    }
+    shells
+}
+
+/// The `argv` example beside `acq`, which prints the words it received
+/// as a JSON array (`examples/argv.rs`); the gate's `--all-targets`
+/// builds it.
+pub fn argv_exe() -> PathBuf {
+    let path = acq_exe()
+        .parent()
+        .expect("acq has a directory")
+        .join("examples")
+        .join(format!("argv{}", std::env::consts::EXE_SUFFIX));
+    assert!(
+        path.exists(),
+        "{} is missing: build the examples (`cargo build -p acquisition-cli --examples`), as the gate's --all-targets does",
+        path.display()
+    );
+    path
 }
 
 /// [`offline_command`], run to its end.

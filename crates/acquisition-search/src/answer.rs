@@ -3191,25 +3191,85 @@ fn listed_text(text: &str) -> String {
 }
 
 /// One word of a printed command, quoted for the shell it will be
-/// pasted into, so the command runs as printed (C156): PowerShell's
-/// ([`powershell_quoted`]) where [`powershell`] says the shell is
-/// PowerShell, a POSIX shell's ([`posix_quoted`]) elsewhere. The
-/// daemon's twin is `login.rs`'s `shell_word`, which C1 (the daemon never
-/// links the search) keeps apart.
+/// pasted into, so the command runs as printed (C156): the shell
+/// [`Shell::of_environment`] names. The daemon's twin is `login.rs`'s
+/// `shell_word`, which C1 (the daemon never links the search) keeps
+/// apart.
 pub fn shell_quoted(text: &str) -> String {
-    if powershell(cfg!(windows), std::env::var_os("MSYSTEM").is_some()) {
-        powershell_quoted(text)
-    } else {
-        posix_quoted(text)
+    Shell::of_environment().quoted(text)
+}
+
+/// The shell a printed command is quoted for (C156): the one
+/// `ACQ_SHELL` declares, else the one the environment says.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Shell {
+    /// A POSIX shell, Git Bash among them.
+    Posix,
+    /// PowerShell 7.3 or newer.
+    Pwsh,
+    /// Windows PowerShell 5.1.
+    PowerShell5,
+    /// cmd.exe.
+    Cmd,
+}
+
+impl Shell {
+    /// Every shell `ACQ_SHELL` declares, by the word it takes.
+    pub const DECLARED: [(&'static str, Shell); 4] = [
+        ("posix", Shell::Posix),
+        ("pwsh", Shell::Pwsh),
+        ("powershell5", Shell::PowerShell5),
+        ("cmd", Shell::Cmd),
+    ];
+
+    /// The shell `word` declares, none for a word `ACQ_SHELL` does not
+    /// take.
+    pub fn named(word: &str) -> Option<Shell> {
+        Shell::DECLARED
+            .iter()
+            .find(|(name, _)| *name == word)
+            .map(|(_, shell)| *shell)
+    }
+
+    /// The shell this process's environment says: `ACQ_SHELL` where it
+    /// declares one, else [`Shell::detected`]. A frontend refuses a
+    /// value `ACQ_SHELL` does not take before it prints anything; read
+    /// here, such a value falls back to detection.
+    pub fn of_environment() -> Shell {
+        std::env::var("ACQ_SHELL")
+            .ok()
+            .and_then(|word| Shell::named(&word))
+            .unwrap_or_else(|| {
+                Shell::detected(cfg!(windows), std::env::var_os("MSYSTEM").is_some())
+            })
+    }
+
+    /// Undeclared: PowerShell 7.3 or newer on Windows outside Git Bash,
+    /// which sets `MSYSTEM` and is a POSIX shell; a POSIX shell
+    /// elsewhere. The binary's platform alone never decides.
+    pub fn detected(windows: bool, msystem: bool) -> Shell {
+        if windows && !msystem {
+            Shell::Pwsh
+        } else {
+            Shell::Posix
+        }
+    }
+
+    /// One word quoted for this shell.
+    pub fn quoted(self, text: &str) -> String {
+        match self {
+            Shell::Posix => posix_quoted(text),
+            Shell::Pwsh => powershell_quoted(text),
+            Shell::PowerShell5 => powershell5_quoted(text),
+            Shell::Cmd => cmd_quoted(text),
+        }
     }
 }
 
-/// C156: whether a printed command is for PowerShell 7.3 or newer —
-/// on Windows, outside Git Bash, which sets `MSYSTEM` and is a POSIX
-/// shell. The shell is read from the environment, never from the
-/// binary's platform alone.
+/// C156: whether a printed command is for PowerShell 7.3 or newer by
+/// detection alone — on Windows, outside Git Bash ([`Shell::detected`]).
 pub fn powershell(windows: bool, msystem: bool) -> bool {
-    windows && !msystem
+    Shell::detected(windows, msystem) == Shell::Pwsh
 }
 
 /// One POSIX shell word, in single quotes when it needs them; an
@@ -3301,4 +3361,77 @@ fn canonical_number(text: &str) -> bool {
             && fraction.chars().all(|c| c.is_ascii_digit())
             && !fraction.ends_with('0'));
     whole_ok && fraction_ok
+}
+
+/// One Windows PowerShell 5.1 word (C156). 5.1 hands a native program
+/// the string it read, wrapped in double quotes when it holds
+/// whitespace, an inner double quote unescaped; the program splits its
+/// command line by the C runtime's rules. So the string is written for
+/// those rules ([`crt_escaped`]) and then quoted as PowerShell 7.3's
+/// word is. An empty word, which 5.1 drops, is two double quotes.
+pub fn powershell5_quoted(text: &str) -> String {
+    if text.is_empty() {
+        return "'\"\"'".to_string();
+    }
+    let wrapped = text.contains([' ', '\t']);
+    let escaped = crt_escaped(text, wrapped);
+    if escaped == text {
+        powershell_quoted(text)
+    } else {
+        powershell_quoted(&escaped)
+    }
+}
+
+/// One cmd.exe word (C156). cmd reads no single quote, and the program
+/// splits its command line by the C runtime's rules: a word that needs
+/// it is double-quoted by those rules, and every character cmd reads
+/// specially, the double quotes included, is escaped with `^`, so cmd
+/// never enters a quote state an escaped quote would flip. A `%` is
+/// escaped too: the caret ends a would-be variable's name, so `%PATH%`
+/// is read as `%PATH^%`, a variable no shell defines.
+pub fn cmd_quoted(text: &str) -> String {
+    const SPECIAL: &str = "()%!^\"<>&|";
+    let plain = !text.is_empty()
+        && text
+            .chars()
+            .all(|c| !c.is_whitespace() && !SPECIAL.contains(c) && c != '\\');
+    if plain {
+        return text.to_string();
+    }
+    let quoted = format!("\"{}\"", crt_escaped(text, true));
+    let mut out = String::new();
+    for c in quoted.chars() {
+        if SPECIAL.contains(c) {
+            out.push('^');
+        }
+        out.push(c);
+    }
+    out
+}
+
+/// `text` as the C runtime's command-line split reads it back: an inner
+/// `"` is `\"`, the backslashes before it doubled, and where the word
+/// will stand inside double quotes (`wrapped`) the backslashes that end
+/// it are doubled too, so the closing quote stays a quote.
+fn crt_escaped(text: &str, wrapped: bool) -> String {
+    let mut out = String::new();
+    let mut slashes = 0;
+    for c in text.chars() {
+        match c {
+            '\\' => slashes += 1,
+            '"' => {
+                out.push_str(&"\\".repeat(slashes * 2 + 1));
+                slashes = 0;
+            }
+            _ => {
+                out.push_str(&"\\".repeat(slashes));
+                slashes = 0;
+            }
+        }
+        if c != '\\' {
+            out.push(c);
+        }
+    }
+    out.push_str(&"\\".repeat(if wrapped { slashes * 2 } else { slashes }));
+    out
 }

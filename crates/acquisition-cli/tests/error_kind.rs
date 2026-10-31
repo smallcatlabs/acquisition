@@ -217,3 +217,48 @@ fn the_login_ends_with_the_daemons_words_not_a_bound_of_its_own() {
     assert!(stderr.contains("run `acq auth` again"), "{stderr}");
     assert!(!stderr.contains("5 minutes"), "{stderr}");
 }
+
+/// C156 — every word of the quoting's one table (the search crate's
+/// `shell-words.json`), quoted for a shell, reaches the program whole
+/// when that shell runs the line: `sh` off Windows, `pwsh` where it is
+/// on the path, and on Windows Windows PowerShell 5.1 (`powershell.exe`)
+/// and cmd.exe. The program is the `argv` example, which splits its
+/// command line as `acq` does and prints what it received. Git Bash is
+/// left to the Git Bash route test: MSYS rewrites a word that looks like
+/// a path before any program sees it, whatever its quoting.
+#[test]
+fn c156_every_printed_word_reaches_the_program_whole_through_each_shell() {
+    let rows: Vec<serde_json::Value> = serde_json::from_str(include_str!(
+        "../../acquisition-search/tests/shell-words.json"
+    ))
+    .unwrap();
+    let words: Vec<&str> = rows.iter().map(|r| r["word"].as_str().unwrap()).collect();
+    let argv = harness::argv_exe();
+    let scratch = harness::scratch("shells");
+    let dir = scratch.0.clone();
+    let shells = harness::shells_here();
+    for shell in &shells {
+        let line: Vec<String> = words.iter().map(|w| shell.quoted(w)).collect();
+        let mut cmd = harness::in_shell(*shell, &argv, &line.join(" "), &dir);
+        harness::isolate(&mut cmd, &dir);
+        let out = cmd.output().unwrap();
+        assert!(
+            out.status.success(),
+            "{shell:?}: {}\n{}",
+            String::from_utf8_lossy(&out.stdout),
+            String::from_utf8_lossy(&out.stderr)
+        );
+        let got: Vec<String> = serde_json::from_slice(&out.stdout)
+            .unwrap_or_else(|e| panic!("{shell:?}: {e}: {}", String::from_utf8_lossy(&out.stdout)));
+        for (i, want) in words.iter().enumerate() {
+            assert_eq!(
+                got.get(i).map(String::as_str),
+                Some(*want),
+                "{shell:?}: word {i}, quoted {}",
+                line[i]
+            );
+        }
+        assert_eq!(got.len(), words.len(), "{shell:?}: {got:?}");
+    }
+    eprintln!("ran through: {shells:?}");
+}

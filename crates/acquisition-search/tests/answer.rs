@@ -831,59 +831,54 @@ fn a_touched_term_on_a_row_is_its_path_its_lines_and_what_it_left_out() {
     );
 }
 
-/// #16 — a printed command's words are quoted for the shell the
-/// platform gives its user: a POSIX shell's single quotes, `'\''` for a
-/// quote inside, or on Windows PowerShell's, a quote inside doubled (the
-/// typographic ones too), `@` and `,` quoted, and a bare word PowerShell
-/// would read as a number it prints another way quoted.
+/// The words a printed command's quoting is pinned on, each beside its
+/// quoting for every shell C156 names: one table, `shell-words.json`,
+/// which the daemon's twin and the CLI's run through each shell read too
+/// (C1 keeps the functions two, not their cases).
+fn shell_words() -> Vec<(String, [(acquisition_search::answer::Shell, String); 4])> {
+    use acquisition_search::answer::Shell;
+    let rows: Vec<Value> = serde_json::from_str(include_str!("shell-words.json")).unwrap();
+    rows.iter()
+        .map(|row| {
+            let column = |name: &str| row[name].as_str().unwrap().to_string();
+            (
+                column("word"),
+                Shell::DECLARED.map(|(name, shell)| (shell, column(name))),
+            )
+        })
+        .collect()
+}
+
+/// #16, C156 — a printed command's words are quoted for the shell it
+/// will be pasted into: a POSIX shell's single quotes, `'\''` for a
+/// quote inside; PowerShell's, a quote inside doubled (the typographic
+/// ones too), `@` and `,` quoted, and a bare word PowerShell would read
+/// as a number it prints another way quoted; Windows PowerShell 5.1's,
+/// PowerShell's over the C runtime's escapes; cmd.exe's, the C
+/// runtime's double quotes with every character cmd reads escaped by a
+/// caret. The shell is `ACQ_SHELL`'s, else PowerShell on Windows
+/// outside Git Bash and a POSIX shell elsewhere.
 #[test]
-fn a_printed_word_is_quoted_for_the_platforms_shell() {
-    use acquisition_search::answer::powershell;
-    // C156: PowerShell on Windows outside Git Bash, a POSIX shell else
-    assert!(powershell(true, false));
-    assert!(!powershell(true, true));
-    assert!(!powershell(false, false));
-    assert!(!powershell(false, true));
-    use acquisition_search::answer::{posix_quoted, powershell_quoted, shell_quoted};
-    for (word, posix, powershell) in [
-        ("item/i-1", "item/i-1", "item/i-1"),
-        ("Alice#1234", "'Alice#1234'", "'Alice#1234'"),
-        ("Alice Smith", "'Alice Smith'", "'Alice Smith'"),
-        ("Kaom's Heart", r"'Kaom'\''s Heart'", "'Kaom''s Heart'"),
-        (
-            "Kaom\u{2019}s",
-            "'Kaom\u{2019}s'",
-            "'Kaom\u{2019}\u{2019}s'",
-        ),
-        ("@plan.json", "@plan.json", "'@plan.json'"),
-        ("a,b", "'a,b'", "'a,b'"),
-        (r#"name="x""#, r#"'name="x"'"#, r#"'name="x"'"#),
-        ("", "''", "''"),
-        // numbers PowerShell prints back as written stay bare
-        ("5", "5", "5"),
-        ("12.5", "12.5", "12.5"),
-        ("1/5", "1/5", "1/5"),
-        ("51e6c1055b", "51e6c1055b", "51e6c1055b"),
-        // and those it would print another way are quoted
-        ("0123", "0123", "'0123'"),
-        ("1.50", "1.50", "'1.50'"),
-        ("1e3", "1e3", "'1e3'"),
-        ("5d", "5d", "'5d'"),
-        ("0x10", "0x10", "'0x10'"),
-        ("3kb", "3kb", "'3kb'"),
-    ] {
-        assert_eq!(posix_quoted(word), posix, "{word}");
-        assert_eq!(powershell_quoted(word), powershell, "{word}");
-        // the shell is the environment's: PowerShell on Windows outside
-        // Git Bash (C156), which this process may run under
-        let platform = if acquisition_search::answer::powershell(
-            cfg!(windows),
-            std::env::var_os("MSYSTEM").is_some(),
-        ) {
-            powershell
-        } else {
-            posix
-        };
-        assert_eq!(shell_quoted(word), platform, "{word}");
+fn a_printed_word_is_quoted_for_the_declared_shell() {
+    use acquisition_search::answer::{Shell, powershell, shell_quoted};
+    assert_eq!(Shell::detected(true, false), Shell::Pwsh);
+    assert_eq!(Shell::detected(true, true), Shell::Posix);
+    assert_eq!(Shell::detected(false, false), Shell::Posix);
+    assert_eq!(Shell::detected(false, true), Shell::Posix);
+    assert!(powershell(true, false) && !powershell(true, true));
+    for (name, shell) in Shell::DECLARED {
+        assert_eq!(Shell::named(name), Some(shell));
+    }
+    assert_eq!(Shell::named("bash"), None);
+    assert_eq!(Shell::named("PWSH"), None);
+    for (word, quoted) in shell_words() {
+        for (shell, expected) in &quoted {
+            assert_eq!(&shell.quoted(&word), expected, "{shell:?}: {word}");
+        }
+        // the shell is the environment's, which this process may declare
+        // or run under Git Bash
+        let here = Shell::of_environment();
+        let expected = &quoted.iter().find(|(shell, _)| *shell == here).unwrap().1;
+        assert_eq!(&shell_quoted(&word), expected, "{word}");
     }
 }

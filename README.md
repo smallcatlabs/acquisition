@@ -255,6 +255,7 @@ them.
 | `ACQ_STORE_DIR=<dir>` | the platform data dir | the store, and the daemon that serves it: one daemon per directory | [world.rs][world] |
 | `ACQ_LOG_DIR=<dir>` | the platform log dir | bounded daemon log and default journal, by store and provider | [world.rs][world] |
 | `ACQ_NO_KEYRING=1` | off | logins in memory only, never plaintext on disk | [auth.rs][auth] |
+| `ACQ_SHELL=<shell>` | detected | the shell the commands acq prints are quoted for: `posix`, `pwsh` (PowerShell 7.3 or newer), `powershell5` (Windows PowerShell 5.1) or `cmd` (cmd.exe); unset, PowerShell 7.3 on Windows outside Git Bash and a POSIX shell elsewhere | [answer.rs][answer] |
 | `ACQ_NO_SPAWN=1` | off | never start or replace a daemon; for cron, ssh and headless shells | [client.rs][client]; keyring context: [auth.rs][auth] |
 | `ACQ_IDLE_SHUTDOWN=<s>` | 3600 | idle exit, this many seconds after the last connection or job submitted once no login is under way, no job is sending or waiting to send, and the limiter's recent history is gone; a rails halt or a failed queue write parks the queue on disk, and nothing waiting then holds it | [start.rs][daemon] |
 | `ACQ_LOGIN_WITHIN=<s>` | 300 | how long `acq auth` waits for the browser before the login fails; the CLI waits on the daemon's flow and has no bound of its own | [start.rs][daemon] |
@@ -276,6 +277,7 @@ them.
 [daemon]: crates/acquisition-daemon/src/daemon/start.rs
 [rails]: crates/acquisition-daemon/src/rails.rs
 [mock]: crates/acquisition-daemon/src/mockggg.rs
+[answer]: crates/acquisition-search/src/answer.rs
 
 A knob the daemon reads takes effect when it starts: set it on the
 command that starts the daemon, or stop the daemon first. The rails are
