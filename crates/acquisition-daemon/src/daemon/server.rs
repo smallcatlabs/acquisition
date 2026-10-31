@@ -635,6 +635,10 @@ impl Daemon {
     /// re-judges at [`IDLE_REJUDGE`] (C157). Takes `shared`.
     fn judge(&self, idle_shutdown: Duration) -> Judged {
         let now = self.choke.now();
+        // C157: the activity judged, read once and judged as read, so the
+        // driver can tell whether it is still the activity when it acts.
+        let activity = self.activity();
+        let (connections, stamp) = activity;
         let (held, timed) = {
             let s = self.shared.lock().unwrap();
             let parked = self.rails().halted().is_some() || self.queue_failed().is_some();
@@ -642,20 +646,32 @@ impl Daemon {
             // A login holds the daemon (C133): its browser step and code
             // exchange belong to no connection and no job. The count and
             // the stamp are read beside this hold, not under it (C148).
-            let held = self.connections.load(Ordering::SeqCst) != 0
+            let held = connections != 0
                 || live_jobs
                 || s.auth.pending.is_some()
                 // C148: a keyring or index write in flight, the start's
                 // restore among them, holds the daemon.
                 || s.landings != 0;
-            let timed = now.saturating_duration_since(self.last_activity()) >= idle_shutdown;
+            let last = self.started + Duration::from_nanos(stamp);
+            let timed = now.saturating_duration_since(last) >= idle_shutdown;
             (held, timed)
         };
         let live = self.choke.is_live();
         Judged {
             idle: !held && timed && !live,
             held: held || live,
+            activity,
         }
+    }
+
+    /// C157: the activity as the connections and the activity stamp
+    /// stand, read lock-free: a verdict is current only while this is
+    /// what it judged.
+    fn activity(&self) -> (usize, u64) {
+        (
+            self.connections.load(Ordering::SeqCst),
+            self.last_activity.load(Ordering::SeqCst),
+        )
     }
 
     /// C157, the lifecycle's driver: one loop over [`Life`]'s `step`, the
@@ -684,6 +700,7 @@ impl Daemon {
             daemon: self.clone(),
             knob,
             held: false,
+            judged: None,
             idle: None,
             drain: None,
             judging: None,
@@ -711,9 +728,29 @@ impl Daemon {
             if let life::Event::Signal { won: false, why } = &event {
                 self.log(why);
             }
+            #[cfg(test)]
+            if event == life::Event::Busy
+                && let Some(probe) = self.life_probe.get()
+            {
+                probe.busy.notify_one();
+            }
             effects.extend(machine.step(event));
         }
     }
+}
+
+/// C157: a test's view into the lifecycle's driver, at the points a pin
+/// must order against: the judge's start, a busy verdict stepped, and an
+/// idle verdict answered before its `Begin`, where the driver waits for
+/// `go` when `hold_idle` is set.
+#[cfg(test)]
+#[derive(Default)]
+pub(super) struct LifeProbe {
+    pub(super) judging: tokio::sync::Notify,
+    pub(super) busy: tokio::sync::Notify,
+    pub(super) idle: tokio::sync::Notify,
+    pub(super) hold_idle: bool,
+    pub(super) go: tokio::sync::Notify,
 }
 
 /// C157: what the lifecycle's driver does at `Leave`, given what the
@@ -726,6 +763,8 @@ struct Judged {
     idle: bool,
     /// A clause other than time held the daemon.
     held: bool,
+    /// The activity judged ([`Daemon::activity`]).
+    activity: (usize, u64),
 }
 
 /// The lifecycle's driver's own state: the armed timers, the verdict in
@@ -735,6 +774,8 @@ struct Driver {
     knob: Duration,
     /// The last verdict was held by a clause other than time.
     held: bool,
+    /// The activity the last verdict judged.
+    judged: Option<(usize, u64)>,
     idle: Option<tokio::time::Instant>,
     drain: Option<tokio::time::Instant>,
     judging: Option<tokio::task::JoinHandle<Judged>>,
@@ -806,9 +847,19 @@ impl Driver {
             Effect::Judge => {
                 let daemon = self.daemon.clone();
                 let knob = self.knob;
-                self.judging = Some(tokio::task::spawn_blocking(move || daemon.judge(knob)));
+                self.judging = Some(tokio::task::spawn_blocking(move || {
+                    #[cfg(test)]
+                    if let Some(probe) = daemon.life_probe.get() {
+                        probe.judging.notify_one();
+                    }
+                    daemon.judge(knob)
+                }));
                 None
             }
+            // A verdict is current only if the activity it judged is the
+            // activity now: one that moved while the answer waited (a
+            // client connected, a request stamped) is busy, never an exit.
+            Effect::Begin if self.judged != Some(self.daemon.activity()) => Some(life::Event::Busy),
             Effect::Begin => Some(life::Event::ExitArmed {
                 won: self.daemon.begin_exit("idle timeout; exiting"),
             }),
@@ -894,11 +945,18 @@ impl Driver {
                     self.judging = None;
                     let judged = judged.expect("the idle verdict's judge ran to its end");
                     self.held = judged.held;
-                    return if judged.idle {
-                        life::Event::Idle
-                    } else {
-                        life::Event::Busy
-                    };
+                    self.judged = Some(judged.activity);
+                    if !judged.idle {
+                        return life::Event::Busy;
+                    }
+                    #[cfg(test)]
+                    if let Some(probe) = self.daemon.life_probe.get() {
+                        probe.idle.notify_one();
+                        if probe.hold_idle {
+                            probe.go.notified().await;
+                        }
+                    }
+                    return life::Event::Idle;
                 }
                 Turn::Look => {
                     if let Some(quiet) = self.look() {

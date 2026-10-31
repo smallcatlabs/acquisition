@@ -11,7 +11,7 @@
 
 use super::harness::*;
 use crate::daemon::life::{Cause, Effect, Event, Life, State, Timer};
-use crate::daemon::server::InFlight;
+use crate::daemon::server::{InFlight, LifeProbe};
 use crate::daemon::*;
 
 /// Long enough for the drains that must finish, short beside a hold the
@@ -903,24 +903,12 @@ fn every_row_of_the_lifecycle_table_is_named_once() {
 
 /// C137 (the knob at zero forces the expiry) with C3: the driver at the
 /// idle knob zero leaves a quiet daemon (no connection, no job, no login,
-/// the restore landed), by the idle exit's words; with a connection open
-/// the same daemon is judged busy and does not leave until it closes.
+/// the restore landed), by the idle exit's words, then the drain's. That
+/// a busy verdict arms the deadline again is the table's row.
 #[tokio::test]
 async fn c137_the_idle_deadline_at_zero_leaves_a_quiet_daemon() {
     let (daemon, log_path, _db) = exit_daemon("http://127.0.0.1:1", BOUND);
-    daemon.connections.store(1, Ordering::SeqCst);
-    let (life, mut leave) = spawn_life(&daemon, Duration::ZERO);
-    settle().await;
-    assert!(
-        matches!(
-            leave.try_recv(),
-            Err(tokio::sync::oneshot::error::TryRecvError::Empty)
-        ),
-        "a connection holds the daemon"
-    );
-    assert!(!daemon.exit.begun(), "the exit has not begun");
-
-    daemon.connections.store(0, Ordering::SeqCst);
+    let (life, leave) = spawn_life(&daemon, Duration::ZERO);
     let cut = tokio::time::timeout(HANG, leave)
         .await
         .expect("the idle deadline at zero leaves")
@@ -935,6 +923,66 @@ async fn c137_the_idle_deadline_at_zero_leaves_a_quiet_daemon() {
         .find("exit: nothing in flight")
         .unwrap_or_else(|| panic!("the drain's words:\n{log}"));
     assert!(idle < quiet, "the idle exit, then the drain:\n{log}");
+    finish_harness(None, &log_path);
+}
+
+/// C3 with C157: at the idle knob zero, a daemon with a connection open is
+/// judged busy, the driver has stepped that verdict, and the exit has not
+/// begun.
+#[tokio::test]
+async fn c3_a_connection_holds_a_daemon_under_the_idle_knob_at_zero() {
+    let (daemon, log_path, _db) = exit_daemon("http://127.0.0.1:1", BOUND);
+    daemon.connections.store(1, Ordering::SeqCst);
+    let _ = daemon.life_probe.set(LifeProbe::default());
+    let probe = daemon.life_probe.get().unwrap();
+    let (_life, mut leave) = spawn_life(&daemon, Duration::ZERO);
+    tokio::time::timeout(HANG, probe.busy.notified())
+        .await
+        .expect("the driver stepped a busy verdict");
+    assert!(!daemon.exit.begun(), "the exit has not begun");
+    assert!(
+        matches!(
+            leave.try_recv(),
+            Err(tokio::sync::oneshot::error::TryRecvError::Empty)
+        ),
+        "a connection holds the daemon"
+    );
+    finish_harness(None, &log_path);
+}
+
+/// C157 with C3: a verdict is current only if the activity it judged is
+/// the activity now. The judge answers idle; before the driver begins the
+/// exit, a client connects and stamps its activity; the driver takes the
+/// verdict as busy and the exit does not begin.
+#[tokio::test]
+async fn c157_an_idle_verdict_overtaken_by_a_connection_begins_no_exit() {
+    let (daemon, log_path, _db) = exit_daemon("http://127.0.0.1:1", BOUND);
+    let _ = daemon.life_probe.set(LifeProbe {
+        hold_idle: true,
+        ..LifeProbe::default()
+    });
+    let probe = daemon.life_probe.get().unwrap();
+    let (_life, mut leave) = spawn_life(&daemon, Duration::ZERO);
+    tokio::time::timeout(HANG, probe.idle.notified())
+        .await
+        .expect("the judge answered idle");
+    // A connection opens as `handle_conn` opens one: counted, then stamped.
+    daemon.connections.fetch_add(1, Ordering::SeqCst);
+    daemon.mark_activity(daemon.choke.now());
+    probe.go.notify_one();
+    tokio::time::timeout(HANG, probe.busy.notified())
+        .await
+        .expect("the overtaken verdict was stepped as busy");
+    assert!(!daemon.exit.begun(), "the stale verdict began no exit");
+    assert!(
+        matches!(
+            leave.try_recv(),
+            Err(tokio::sync::oneshot::error::TryRecvError::Empty)
+        ),
+        "the daemon serves on"
+    );
+    let log = std::fs::read_to_string(&log_path).unwrap();
+    assert!(!log.contains("idle timeout; exiting"), "{log}");
     finish_harness(None, &log_path);
 }
 
@@ -994,9 +1042,14 @@ async fn c133_a_signal_stops_admission_while_shared_is_held() {
         })
     };
     held_rx.recv().unwrap();
+    let _ = daemon.life_probe.set(LifeProbe::default());
+    let probe = daemon.life_probe.get().unwrap();
     let (life, leave) = spawn_life(&daemon, Duration::ZERO);
-    // Long enough for the driver's judge to be waiting on the lock.
-    settle().await;
+    // The driver's judge has started, its thread about to wait on the
+    // held lock: the loop is judging when the signal comes.
+    tokio::time::timeout(HANG, probe.judging.notified())
+        .await
+        .expect("the driver's judge started");
 
     let why = "SIGTERM received; exiting".to_string();
     let won = daemon.exit.arm(&why);

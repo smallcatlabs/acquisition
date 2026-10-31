@@ -146,18 +146,18 @@ async fn list_matches_the_per_job_walk_on_a_mixed_queue() {
 }
 
 /// `List` over 20,000 waiting jobs, nine in ten on a learned route,
-/// answers well inside a generous bound (about 0.3 s in a debug build).
+/// answers (about 0.3 s in a debug build, printed, asserted by nothing:
+/// C137, no wall-clock upper bound a slow machine can miss).
 /// The per-job walk took 22 s for 5,000 jobs on an unlearned route in a
 /// debug build, and 18 s for only 1,000 on a learned one, whose per-job
 /// simulation grew with the cube of the queue; one simulation that kept
 /// every simulated send still took 5.7 s for 20,000. All of it under
 /// `shared`, so the dispatcher and every other request waited behind
-/// one listing. The listing runs on its own thread so a slow one fails
-/// at the bound, not when it ends.
+/// one listing. The listing runs on its own thread, so a hung one fails
+/// at the hang ceiling, not never.
 #[tokio::test]
-async fn list_of_twenty_thousand_jobs_answers_inside_the_bound() {
+async fn list_of_twenty_thousand_jobs_answers() {
     const JOBS: usize = 20_000;
-    const BOUND: Duration = Duration::from_secs(2);
     let daemon = learned_daemon().await;
     for i in 0..JOBS {
         let kind = if i % 10 == 9 { "characters" } else { "fetch" };
@@ -171,11 +171,11 @@ async fn list_of_twenty_thousand_jobs_answers_inside_the_bound() {
         let jobs = listing.shared.lock().unwrap().list(&listing);
         let _ = done.send((jobs.len(), started.elapsed()));
     });
-    match finished.recv_timeout(BOUND) {
+    match finished.recv_timeout(HANG) {
         Ok((listed, took)) => {
             assert_eq!(listed, JOBS);
             eprintln!("List of {JOBS} jobs took {took:?}");
         }
-        Err(_) => panic!("List of {JOBS} jobs did not answer within {BOUND:?}"),
+        Err(_) => panic!("List of {JOBS} jobs did not answer within {HANG:?}"),
     }
 }

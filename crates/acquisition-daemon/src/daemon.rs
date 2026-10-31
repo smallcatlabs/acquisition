@@ -1017,6 +1017,10 @@ pub struct Daemon {
     /// run once (C144: the landings are ordered by that lock, C148).
     #[cfg(test)]
     refresh_landed_hook: Mutex<Option<Box<dyn FnOnce() + Send>>>,
+    /// A test's view into the lifecycle's driver (C157), set before the
+    /// driver is spawned.
+    #[cfg(test)]
+    life_probe: OnceLock<server::LifeProbe>,
 }
 
 /// The one constructor of a [`Daemon`] (t5's "construct with a base URL, a
@@ -1187,6 +1191,8 @@ impl Builder {
             login_within: self.login_within,
             #[cfg(test)]
             refresh_landed_hook: Mutex::new(None),
+            #[cfg(test)]
+            life_probe: OnceLock::new(),
         })
     }
 }
