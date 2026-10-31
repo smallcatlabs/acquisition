@@ -1,9 +1,9 @@
 # 4-0-life — the daemon's lifecycle as a machine (#147, step 2)
 
-Cut three times: the first draft (`5a2c1725`) and the re-cut
-(`09a777e4`), each reviewed cold (`roadmap/reviews/4-0-life-brief-
-<sha>.md`, the prompt beside); this cut answers the second review's
-four findings. What each finding changed is at the foot, "Taken from
+Cut four times: the first draft (`5a2c1725`), the re-cut (`09a777e4`)
+and the third cut (`0d3c16dc`), each reviewed cold
+(`roadmap/reviews/4-0-life-brief-<sha>.md`, the prompt beside); this
+cut answers the third review's one finding. What each finding changed is at the foot, "Taken from
 the reviews". Written from three read-only reads of
 the tree at `5c9cd487` (the lifecycle code, its tests, the clock),
 after step 1 closed
@@ -209,7 +209,10 @@ this step's first concern or is filed.
    cause's `begin_exit` whole, `server.rs:550–556`: the swap with its
    words, "idle timeout; exiting", and, when won, `stop_admitting` at
    once in the same task, the rails' `begin_stopping`, the log line,
-   the dispatcher woken, 563–567; answered `ExitArmed`), `AwaitQuiet` (the driver's wait for
+   the dispatcher woken, 563–567; answered `ExitArmed`), `StopAdmitting(why)` (the driver's
+   `stop_admitting`, `server.rs:563–567`, for the signal's winner
+   alone: the watcher's thread swaps and nothing more, Do 3),
+   `AwaitQuiet` (the driver's wait for
    `InFlight` empty: `try_lock` and look, a pause of `DRAIN_POLL`
    between looks, `server.rs:584–603`), `Cut` (the log line from the
    last snapshot the driver saw, `server.rs:593–601`), `Leave` (the
@@ -226,7 +229,9 @@ this step's first concern or is filed.
    decides today: in `Serving`, `Deadline(Idle)` is `Judge`; `Busy`
    is `Arm(Idle)`; `Idle` is `Begin`; `ExitArmed { won: true }`,
    `StopRequested { won: true }` and `Signal { won: true }` each set
-   the cause and are `Cancel(Idle)`, `Arm(Drain)`, `AwaitQuiet`, the state `Draining`; any of the three
+   the cause and are `Cancel(Idle)`, `Arm(Drain)`, `AwaitQuiet`, the
+   state `Draining`, the signal's with `StopAdmitting(why)` first
+   (its ingress swapped and no more); any of the three
    with `won: false` is nothing (the swap's winner's own event comes,
    or came). In `Draining`: `StopRequested` and `Signal` with any
    `won` are nothing (the stop's connection pends, `server.rs:529–531`;
@@ -262,19 +267,25 @@ this step's first concern or is filed.
    stop requests, the signals, the quiet wait) and performing each
    effect with the functions that exist (`is_idle`, `begin_exit`,
    `InFlight::of`, `leave`). What stays at the ingress, outside the
-   loop, as today: every cause's `begin_exit` whole, the swap of
-   `Exit::arm` and, when won, `stop_admitting` in the same task
-   before it hands control away (the stop's connection task at
-   `server.rs:550`; the watcher, which today swaps at `start.rs:221`
-   and leaves `stop_admitting` to `exit_armed`, `server.rs:540–544`,
-   now does both before sending its event; the loop itself for idle,
-   through `Begin`), so `refuse_while_stopping` (`server.rs:515`)
-   refuses and the choke point's admission, which reads the rails'
-   halt (`choke.rs:393`), fences the moment the first cause arms,
-   before any loop turn, as `exit_turns_away_a_job_parked_past_running`
-   pins (`exit.rs:223–240`: the exit begun, the held send released at
-   once, nothing more sent, both jobs waiting), and the machine's
-   `cause` is the swap's winner; the signal watcher whole, on its own thread
+   loop, exactly as today: on the main runtime, `begin_exit` whole,
+   the swap of `Exit::arm` and, when won, `stop_admitting` in the
+   same task before it hands control away (the stop's connection
+   task at `server.rs:550`; the loop itself for idle, through
+   `Begin`), so `refuse_while_stopping` (`server.rs:515`) refuses
+   and the choke point's admission, which reads the rails' halt
+   (`choke.rs:393`), fences the moment the first cause arms, before
+   any loop turn, as `exit_turns_away_a_job_parked_past_running`
+   pins (`exit.rs:223–240`: the exit begun, the held send released
+   at once, nothing more sent, both jobs waiting); on the watcher's
+   thread, the swap alone, lock-free (`start.rs:221`), the event
+   then handed to the loop, whose first act on `Signal { won: true }`
+   is `StopAdmitting(why)` (the rails' `begin_stopping`, the line,
+   the dispatcher woken), as `exit_armed` is today one runtime turn
+   after the swap (`server.rs:540–544`): the same gap as today, no
+   wider, and the watcher takes no lock (the rails' at `rails.rs:551`,
+   the log's at `daemon.rs:1161`), so its second receive
+   (`start.rs:230`) is never behind one; and the machine's `cause`
+   is the swap's winner; the signal watcher whole, on its own thread
    and runtime (`start.rs:120–123`): a signal before the daemon is
    built exits at 217, the first signal swaps and hands `Signal {
    won, why }` to the loop, the second signal calls `end_at_once`
@@ -534,12 +545,22 @@ answered or soundly narrowed by the second:
 The second review's four (`4-0-life-brief-09a777e4.md`):
 
 1. The rails' stop behind the loop's turn let a parked sender through
-   the choke point: `begin_exit` stays whole at every ingress, the
-   swap and `stop_admitting` in one task, an admission fence before
-   the event is sent; the loop performs no `StopAdmitting` (Do 1,
-   Do 3).
+   the choke point: `begin_exit` stays whole at every ingress on the
+   main runtime, the swap and `stop_admitting` in one task, an
+   admission fence before the event is sent (Do 1, Do 3); narrowed
+   by the third review for the watcher, below.
 2. The idle knob's unbounded value: saturating remainder, a one-day
    cap, checked addition (Do 3).
 3. A stale `Leave` shape in Do 4: the unit `Leave` (Do 4).
 4. The design's dated paragraph gave the second signal to the
    machine: amended to the watcher's backstop (`4-0-design.md` §4).
+
+The third review's one (`4-0-life-brief-0d3c16dc.md`):
+
+1. `begin_exit` whole on the watcher's thread would take the rails'
+   and the log's locks where the second signal must be received: the
+   watcher swaps and nothing more, as today, and the loop's first act
+   on the signal's winner event is `StopAdmitting(why)`, as
+   `exit_armed` is today one runtime turn after the swap; the stop's
+   and idle's ingresses, on the main runtime, keep `begin_exit` whole
+   (Do 1, Do 3).
