@@ -103,7 +103,7 @@ impl Daemon {
     /// C148: the count and the stamp are atomics, so `hello` is read
     /// and answered under no lock.
     pub(super) async fn handle_conn(self: Arc<Self>, stream: Stream) {
-        self.connections.fetch_add(1, Ordering::SeqCst);
+        self.connections.admit();
         self.mark_activity(self.choke.now());
 
         let (read, mut write) = tokio::io::split(stream);
@@ -248,7 +248,7 @@ impl Daemon {
         // Stamped before the count drops, connect's mirror: the idle
         // verdict never reads zero connections beside a stale stamp.
         self.mark_activity(self.choke.now());
-        self.connections.fetch_sub(1, Ordering::SeqCst);
+        self.connections.close();
     }
 
     pub(super) async fn handle_request(
@@ -418,7 +418,7 @@ impl Daemon {
                     provider: self.provider.name.to_string(),
                     uptime_seconds: self.uptime_seconds(),
                     idle_shutdown_seconds: idle_shutdown_from_env().as_secs(),
-                    connections: self.connections.load(Ordering::SeqCst),
+                    connections: self.connections.open(),
                     jobs_waiting: waiting,
                     jobs_running: running,
                     policies_known: self.choke.policy_statuses().len(),
@@ -450,7 +450,7 @@ impl Daemon {
                     contract: acquisition_protocol::CONTRACT_REVISION.to_string(),
                     provider: self.provider.name.to_string(),
                     uptime_seconds: self.uptime_seconds(),
-                    connections: self.connections.load(Ordering::SeqCst),
+                    connections: self.connections.open(),
                     logged_in: !s.auth.by_account.is_empty(),
                     username: self.headline_session(&s).and_then(|h| h.username.clone()),
                     access_expires_in_seconds: self
@@ -517,7 +517,9 @@ impl Daemon {
     /// C133: a submit after the exit began is refused, in words a frontend
     /// can act on; the queue is the next daemon's.
     pub(super) fn refuse_while_stopping(&self) -> Result<(), Refusal> {
-        if self.exit.begun() {
+        // C157: a connection admitted after the idle exit's claim, before
+        // its swap, is refused as one after the swap would be.
+        if self.exit.begun() || self.connections.claimed() {
             return Err(Refusal::new(
                 ErrorKind::Refused,
                 "the daemon is stopping; try again in a moment",
@@ -635,10 +637,9 @@ impl Daemon {
     /// re-judges at [`IDLE_REJUDGE`] (C157). Takes `shared`.
     fn judge(&self, idle_shutdown: Duration) -> Judged {
         let now = self.choke.now();
-        // C157: the activity judged, read once and judged as read, so the
-        // driver can tell whether it is still the activity when it acts.
-        let activity = self.activity();
-        let (connections, stamp) = activity;
+        // C157: the connections' word judged, read once and judged as
+        // read: the idle exit's commit claims exactly this word.
+        let word = self.connections.word();
         let (held, timed) = {
             let s = self.shared.lock().unwrap();
             let parked = self.rails().halted().is_some() || self.queue_failed().is_some();
@@ -646,32 +647,21 @@ impl Daemon {
             // A login holds the daemon (C133): its browser step and code
             // exchange belong to no connection and no job. The count and
             // the stamp are read beside this hold, not under it (C148).
-            let held = connections != 0
+            let held = Connections::open_in(word) != 0
                 || live_jobs
                 || s.auth.pending.is_some()
                 // C148: a keyring or index write in flight, the start's
                 // restore among them, holds the daemon.
                 || s.landings != 0;
-            let last = self.started + Duration::from_nanos(stamp);
-            let timed = now.saturating_duration_since(last) >= idle_shutdown;
+            let timed = now.saturating_duration_since(self.last_activity()) >= idle_shutdown;
             (held, timed)
         };
         let live = self.choke.is_live();
         Judged {
             idle: !held && timed && !live,
             held: held || live,
-            activity,
+            word,
         }
-    }
-
-    /// C157: the activity as the connections and the activity stamp
-    /// stand, read lock-free: a verdict is current only while this is
-    /// what it judged.
-    fn activity(&self) -> (usize, u64) {
-        (
-            self.connections.load(Ordering::SeqCst),
-            self.last_activity.load(Ordering::SeqCst),
-        )
     }
 
     /// C157, the lifecycle's driver: one loop over [`Life`]'s `step`, the
@@ -717,7 +707,10 @@ impl Daemon {
                     leave(&self, driver.cut.take());
                     return;
                 }
-                events.extend(driver.perform(effect));
+                events.extend(match effect {
+                    Effect::Begin => Some(driver.begin().await),
+                    effect => driver.perform(effect),
+                });
             }
             let event = match events.pop_front() {
                 Some(event) => event,
@@ -741,8 +734,9 @@ impl Daemon {
 
 /// C157: a test's view into the lifecycle's driver, at the points a pin
 /// must order against: the judge's start, a busy verdict stepped, and an
-/// idle verdict answered before its `Begin`, where the driver waits for
-/// `go` when `hold_idle` is set.
+/// idle verdict answered before its commit (the driver waits for `go`
+/// when `hold_idle` is set), and the idle commit's claim made before its
+/// swap (the driver waits for `go` when `hold_claim` is set).
 #[cfg(test)]
 #[derive(Default)]
 pub(super) struct LifeProbe {
@@ -750,6 +744,8 @@ pub(super) struct LifeProbe {
     pub(super) busy: tokio::sync::Notify,
     pub(super) idle: tokio::sync::Notify,
     pub(super) hold_idle: bool,
+    pub(super) claimed: tokio::sync::Notify,
+    pub(super) hold_claim: bool,
     pub(super) go: tokio::sync::Notify,
 }
 
@@ -763,8 +759,8 @@ struct Judged {
     idle: bool,
     /// A clause other than time held the daemon.
     held: bool,
-    /// The activity judged ([`Daemon::activity`]).
-    activity: (usize, u64),
+    /// The connections' word judged ([`Connections::word`]).
+    word: u64,
 }
 
 /// The lifecycle's driver's own state: the armed timers, the verdict in
@@ -774,8 +770,8 @@ struct Driver {
     knob: Duration,
     /// The last verdict was held by a clause other than time.
     held: bool,
-    /// The activity the last verdict judged.
-    judged: Option<(usize, u64)>,
+    /// The connections' word the last verdict judged.
+    judged: Option<u64>,
     idle: Option<tokio::time::Instant>,
     drain: Option<tokio::time::Instant>,
     judging: Option<tokio::task::JoinHandle<Judged>>,
@@ -810,6 +806,42 @@ impl Driver {
                 };
                 left.min(IDLE_CAP)
             }
+        }
+    }
+
+    /// C157, the idle cause's commit, by one rule: admission and the idle
+    /// commit contend on one atomic, the connections' word, so no
+    /// connection is admitted between the verdict confirmed and the
+    /// exit's swap. The commit claims the exact word the verdict judged
+    /// ([`Connections::claim`]): a connection admitted since, open or
+    /// closed again, fails it, and the answer is `Busy` (the machine arms
+    /// the idle deadline again); one admitted after it is refused as
+    /// stopping. Then the swap, as the idle cause's `begin_exit` always
+    /// was; a stop or a signal that swapped first makes the claim moot.
+    /// The verdict's other clauses need no claim of their own: from an
+    /// idle verdict, a live job, a pending login, a landing or a live
+    /// limiter comes only from work a connection brings (a submit, an
+    /// auth) or from work the verdict already counted (a live job's
+    /// children and probes, a pending login's exchange, a landing); the
+    /// start's restore is a landing counted before the driver starts, and
+    /// the activity stamp moves only with these. The time clause moves
+    /// only toward idle.
+    async fn begin(&mut self) -> life::Event {
+        if !self
+            .judged
+            .is_some_and(|judged| self.daemon.connections.claim(judged))
+        {
+            return life::Event::Busy;
+        }
+        #[cfg(test)]
+        if let Some(probe) = self.daemon.life_probe.get() {
+            probe.claimed.notify_one();
+            if probe.hold_claim {
+                probe.go.notified().await;
+            }
+        }
+        life::Event::ExitArmed {
+            won: self.daemon.begin_exit("idle timeout; exiting"),
         }
     }
 
@@ -856,13 +888,7 @@ impl Driver {
                 }));
                 None
             }
-            // A verdict is current only if the activity it judged is the
-            // activity now: one that moved while the answer waited (a
-            // client connected, a request stamped) is busy, never an exit.
-            Effect::Begin if self.judged != Some(self.daemon.activity()) => Some(life::Event::Busy),
-            Effect::Begin => Some(life::Event::ExitArmed {
-                won: self.daemon.begin_exit("idle timeout; exiting"),
-            }),
+            Effect::Begin => unreachable!("the driver's loop performs the idle commit"),
             Effect::StopAdmitting(why) => {
                 self.daemon.stop_admitting(&why);
                 None
@@ -945,7 +971,7 @@ impl Driver {
                     self.judging = None;
                     let judged = judged.expect("the idle verdict's judge ran to its end");
                     self.held = judged.held;
-                    self.judged = Some(judged.activity);
+                    self.judged = Some(judged.word);
                     if !judged.idle {
                         return life::Event::Busy;
                     }

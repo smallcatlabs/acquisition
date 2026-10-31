@@ -950,12 +950,22 @@ async fn c3_a_connection_holds_a_daemon_under_the_idle_knob_at_zero() {
     finish_harness(None, &log_path);
 }
 
-/// C157 with C3: a verdict is current only if the activity it judged is
-/// the activity now. The judge answers idle; before the driver begins the
-/// exit, a client connects and stamps its activity; the driver takes the
-/// verdict as busy and the exit does not begin.
-#[tokio::test]
-async fn c157_an_idle_verdict_overtaken_by_a_connection_begins_no_exit() {
+/// A connection admitted as `handle_conn` admits one: counted, then
+/// stamped; and, when `closes`, closed again as it closes.
+fn connect(daemon: &Daemon, closes: bool) {
+    daemon.connections.admit();
+    daemon.mark_activity(daemon.choke.now());
+    if closes {
+        daemon.mark_activity(daemon.choke.now());
+        daemon.connections.close();
+    }
+}
+
+/// C157 with C3, the idle commit claims the connections' word its verdict
+/// judged: the judge answers idle; before the driver commits, a client is
+/// admitted (and, when `closes`, closes again); the claim fails, the
+/// driver steps the verdict as busy, and the exit does not begin.
+async fn an_admission_before_the_claim_begins_no_exit(closes: bool) {
     let (daemon, log_path, _db) = exit_daemon("http://127.0.0.1:1", BOUND);
     let _ = daemon.life_probe.set(LifeProbe {
         hold_idle: true,
@@ -966,14 +976,13 @@ async fn c157_an_idle_verdict_overtaken_by_a_connection_begins_no_exit() {
     tokio::time::timeout(HANG, probe.idle.notified())
         .await
         .expect("the judge answered idle");
-    // A connection opens as `handle_conn` opens one: counted, then stamped.
-    daemon.connections.fetch_add(1, Ordering::SeqCst);
-    daemon.mark_activity(daemon.choke.now());
+    connect(&daemon, closes);
     probe.go.notify_one();
     tokio::time::timeout(HANG, probe.busy.notified())
         .await
         .expect("the overtaken verdict was stepped as busy");
     assert!(!daemon.exit.begun(), "the stale verdict began no exit");
+    assert!(!daemon.connections.claimed(), "the claim failed");
     assert!(
         matches!(
             leave.try_recv(),
@@ -983,6 +992,64 @@ async fn c157_an_idle_verdict_overtaken_by_a_connection_begins_no_exit() {
     );
     let log = std::fs::read_to_string(&log_path).unwrap();
     assert!(!log.contains("idle timeout; exiting"), "{log}");
+    finish_harness(None, &log_path);
+}
+
+#[tokio::test]
+async fn c157_an_idle_verdict_overtaken_by_a_connection_begins_no_exit() {
+    an_admission_before_the_claim_begins_no_exit(false).await;
+}
+
+#[tokio::test]
+async fn c157_an_idle_verdict_overtaken_by_a_connection_that_closed_begins_no_exit() {
+    an_admission_before_the_claim_begins_no_exit(true).await;
+}
+
+/// C157 with C133, the other side of the claim: a client admitted after
+/// the idle commit's claim and before its swap meets a daemon whose exit
+/// stands. Its submit is refused as stopping before the swap and after
+/// it; the driver, released, begins the exit and leaves.
+#[tokio::test]
+async fn c157_a_connection_admitted_after_the_idle_claim_meets_the_exit() {
+    let (daemon, log_path, _db) = exit_daemon("http://127.0.0.1:1", BOUND);
+    let _ = daemon.life_probe.set(LifeProbe {
+        hold_claim: true,
+        ..LifeProbe::default()
+    });
+    let probe = daemon.life_probe.get().unwrap();
+    let (life, leave) = spawn_life(&daemon, Duration::ZERO);
+    tokio::time::timeout(HANG, probe.claimed.notified())
+        .await
+        .expect("the idle commit claimed the word");
+    connect(&daemon, false);
+    let submit = || Request::Submit {
+        kind: "sleep".into(),
+        params: json!({ "seconds": 0 }),
+        priority: 0,
+        submitted_by: "test".into(),
+        account: None,
+    };
+    let stopping = |response: Response| match response {
+        Response::Error { kind, message } => {
+            assert_eq!(kind, ErrorKind::Refused);
+            assert_eq!(message, "the daemon is stopping; try again in a moment");
+        }
+        other => panic!("expected the stopping refusal, got {other:?}"),
+    };
+    assert!(!daemon.exit.begun(), "the swap has not come yet");
+    stopping(daemon.handle_request(submit(), &mut None).await);
+
+    probe.go.notify_one();
+    let cut = tokio::time::timeout(HANG, leave)
+        .await
+        .expect("the claimed exit leaves")
+        .expect("the driver reached its leave");
+    assert_eq!(cut, None, "nothing was in flight");
+    life.await.unwrap();
+    assert!(daemon.exit.begun(), "the claim stood: the exit began");
+    stopping(daemon.handle_request(submit(), &mut None).await);
+    let log = std::fs::read_to_string(&log_path).unwrap();
+    assert!(log.contains("idle timeout; exiting"), "{log}");
     finish_harness(None, &log_path);
 }
 

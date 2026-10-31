@@ -101,7 +101,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant, SystemTime};
 
@@ -920,6 +920,89 @@ impl Shared {
     }
 }
 
+/// C148, C157: the daemon's connections as one atomic word, so admitting
+/// a connection and committing the idle exit contend on it and on
+/// nothing else: the open count (the low 32 bits), the admissions'
+/// generation (the next 31 bits, wrapping within them, moved by every
+/// admission), and the idle exit's claim (the top bit). A verdict reads
+/// the word once ([`Connections::word`]); the idle commit claims exactly
+/// that word ([`Connections::claim`]), so a connection admitted since,
+/// even one that has closed again, fails the claim, and a connection
+/// admitted after it finds the claim and is refused as stopping
+/// ([`Daemon::refuse_while_stopping`]). The claim is cleared by nothing:
+/// once claimed, the exit begins. Lock-free throughout: `hello` waits on
+/// no lock.
+#[derive(Default)]
+struct Connections(AtomicU64);
+
+impl Connections {
+    const OPEN: u64 = (1 << 32) - 1;
+    const GENERATION: u64 = ((1 << 31) - 1) << 32;
+    const CLAIM: u64 = 1 << 63;
+
+    /// A connection admitted: counted, its generation moved. Admitted
+    /// after a claim, it is counted all the same; its requests are
+    /// refused as stopping.
+    fn admit(&self) {
+        let _ = self
+            .0
+            .try_update(Ordering::SeqCst, Ordering::SeqCst, |word| {
+                let generation = ((word & Self::GENERATION) + (1 << 32)) & Self::GENERATION;
+                Some(((word & !Self::GENERATION) + 1) | generation)
+            });
+    }
+
+    /// A connection closed.
+    fn close(&self) {
+        self.0.fetch_sub(1, Ordering::SeqCst);
+    }
+
+    /// How many connections are open.
+    fn open(&self) -> usize {
+        usize::try_from(self.0.load(Ordering::SeqCst) & Self::OPEN).unwrap_or(usize::MAX)
+    }
+
+    /// The word as it stands, for a verdict to judge and a claim to name.
+    fn word(&self) -> u64 {
+        self.0.load(Ordering::SeqCst)
+    }
+
+    /// The open count in a word a verdict read.
+    fn open_in(word: u64) -> u64 {
+        word & Self::OPEN
+    }
+
+    /// C157: claim the word for the idle exit, only if it is still
+    /// `judged`, unclaimed and with nothing open; `false` when a
+    /// connection has been admitted since.
+    fn claim(&self, judged: u64) -> bool {
+        Self::open_in(judged) == 0
+            && judged & Self::CLAIM == 0
+            && self
+                .0
+                .compare_exchange(
+                    judged,
+                    judged | Self::CLAIM,
+                    Ordering::SeqCst,
+                    Ordering::SeqCst,
+                )
+                .is_ok()
+    }
+
+    /// Whether the idle exit has claimed the word.
+    fn claimed(&self) -> bool {
+        self.0.load(Ordering::SeqCst) & Self::CLAIM != 0
+    }
+
+    /// A test's count of open connections, standing in for admissions.
+    #[cfg(test)]
+    fn store(&self, open: u64, ordering: Ordering) {
+        let word = self.0.load(ordering);
+        self.0
+            .store((word & !Self::OPEN) | (open & Self::OPEN), ordering);
+    }
+}
+
 /// The lock order. A thread that holds one of these takes only those
 /// after it: `credentials` → `store` → `shared` → `jobs_db` →
 /// `queue_failure` → `log`. `credentials` is taken only on a blocking
@@ -943,8 +1026,9 @@ pub struct Daemon {
     /// index write and every keyring persist requires (`held.rs`).
     credentials: Mutex<()>,
     shared: Mutex<Shared>,
-    /// C148: open connections, outside every lock, so `hello` takes none.
-    connections: AtomicUsize,
+    /// C148: open connections, outside every lock, so `hello` takes none;
+    /// C157: the word the idle exit's commit claims ([`Connections`]).
+    connections: Connections,
     /// C148: the last activity, in nanoseconds after `started` on the
     /// daemon's clock, outside every lock as `connections` is.
     last_activity: AtomicU64,
@@ -1169,7 +1253,7 @@ impl Builder {
                 errors: VecDeque::new(),
                 active_jobs: HashMap::new(),
             }),
-            connections: AtomicUsize::new(0),
+            connections: Connections::default(),
             last_activity: AtomicU64::new(0),
             started: choke.now(),
             events: broadcast::channel(self.events_capacity).0,
