@@ -373,8 +373,12 @@ over detection. 4-0's design closed on 2026-10-31
 its steps on #147, #148 and #141. Step 1, the client's door as a
 machine (`briefs/4-0-door.md`, cut four times under cold reviews, the
 narrowing recorded as the owner's ruling in the design's §4), closed
-on 2026-10-31 (`LEDGER.md`), its review clean. Next, step 2's brief,
-the daemon's `Life`, between sittings in a window the owner names,
-answering the criterion per poll; and Phase 3, the owner's league run,
-at his word, its first seat checking the words.
+on 2026-10-31 (`LEDGER.md`), its review clean. Step 2, the daemon's lifecycle as a machine
+(`briefs/4-0-life.md`, cut five times under cold reviews, its narrowing
+recorded in the design's §4 under the owner's grant of autonomy),
+closed on 2026-10-31 (`LEDGER.md`): its build reviewed, two fix
+rounds, the second read by the orchestrating session. Next, step 3,
+the parking-clock spike (#147), then t5 (#141) and #148; and Phase 3,
+the owner's league run, at his word, its first seat checking the
+words.
 `AGENTS.md` governs; the gate is `tools/gate.sh`.
