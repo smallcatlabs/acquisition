@@ -1469,15 +1469,17 @@ fn a_rows_place_says_how_long_ago_its_location_was_fetched() {
         &["search", "--realm", "pc", "league=Standard"],
         &["Standard / Gear · x 0, y 0 · fetched 3d ago"],
     ));
-    // the scope line carries its counts and ends after the two ages: the
-    // row's place says its own age, and the line repeated that as an
+    // the scope line carries its counts and ends after the two ages,
+    // each naming its location as a row's place does (#11): the row's
+    // place says its own age, and the line repeated that as an
     // instruction (the h2 fix round)
     let scope = shown
         .lines()
         .find(|l| l.starts_with("scope "))
         .unwrap_or_else(|| panic!("{shown}"));
     assert!(
-        scope.contains("(the oldest fetch 3d ago, the newest ") && scope.ends_with(" ago)"),
+        scope.contains("(the oldest fetch 3d ago, Standard / Gear; the newest ")
+            && scope.ends_with(" ago, Allflame / Gear)"),
         "{scope}"
     );
     t.run(

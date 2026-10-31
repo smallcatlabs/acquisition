@@ -117,7 +117,7 @@ $ acq search 'class=Rings rarity=rare'
 # holds "Empyrean Knot"
 --- stdout
 query   class=Rings rarity=rare
-scope   account ExileTester · pc · live · 49 items · 16 locations fetched (the oldest fetch <age> ago, the newest <age> ago)
+scope   account ExileTester · pc · live · 49 items · 16 locations fetched (the oldest fetch <age> ago, Standard / Currency; the newest <age> ago, Standard / Currency)
         0 locations never fetched · location list seen <age> ago
 total   1 match
 rows    Empyrean Knot Coral Ring · rare · Standard / Dump · x 0, y 0 · fetched <age> ago
@@ -138,7 +138,7 @@ $ acq search '"+# to maximum Life">=70' --sort pseudo.total_life
 # holds "sorts by pseudo.total_life 108"
 --- stdout
 query   line("# to maximum Life" arg1>=70)
-scope   account ExileTester · pc · live · 49 items · 16 locations fetched (the oldest fetch <age> ago, the newest <age> ago)
+scope   account ExileTester · pc · live · 49 items · 16 locations fetched (the oldest fetch <age> ago, Standard / Currency; the newest <age> ago, Standard / Currency)
         0 locations never fetched · location list seen <age> ago
 total   2 matches
 rows    Doryani's Prototype Saint's Hauberk · unique · Standard / Dump · x 1, y 0 · fetched <age> ago
@@ -158,7 +158,7 @@ $ acq search 'class="Stackable Currency"' --count base --sum stack
 # holds "Mirror Shard   sum 7"
 --- stdout
 query   class="Stackable Currency"
-scope   account ExileTester · pc · live · 49 items · 16 locations fetched (the oldest fetch <age> ago, the newest <age> ago)
+scope   account ExileTester · pc · live · 49 items · 16 locations fetched (the oldest fetch <age> ago, Standard / Currency; the newest <age> ago, Standard / Currency)
         0 locations never fetched · location list seen <age> ago
 total   1 match · 34 undecided
 sum     stack over every match: 7

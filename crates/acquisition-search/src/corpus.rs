@@ -351,6 +351,28 @@ pub struct Held {
     pub price: Priced,
 }
 
+/// A location the scope names by its fetch: `stash` or `character`, its
+/// id, its name as GGG gives it (none where it gives no text), and its
+/// league.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct FetchedLocation {
+    pub kind: String,
+    pub id: String,
+    pub name: Option<String>,
+    pub league: Option<String>,
+}
+
+impl FetchedLocation {
+    fn of(l: &LocationRow) -> FetchedLocation {
+        FetchedLocation {
+            kind: l.kind.clone(),
+            id: l.id.clone(),
+            name: (!l.name.trim().is_empty()).then(|| l.name.clone()),
+            league: l.league.clone(),
+        }
+    }
+}
+
 /// What the scope block says was searched (C96).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Coverage {
@@ -388,11 +410,19 @@ pub struct Coverage {
     /// one.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub oldest_fetch_age: Option<String>,
+    /// The location whose last fetch is `oldest_fetch` (#11: the line
+    /// named an age and no place), the first in the store's order on a
+    /// tie.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub oldest_fetch_location: Option<FetchedLocation>,
     pub newest_fetch: Option<i64>,
     /// C53: `newest_fetch` in words at the answer's time, where there is
     /// one.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub newest_fetch_age: Option<String>,
+    /// The location whose last fetch is `newest_fetch`, as for the oldest.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub newest_fetch_location: Option<FetchedLocation>,
     /// When the oldest of the location lists the scope reads was last
     /// seen: under a query that fixes one league, that league's tab list
     /// and the realm's character list; otherwise every list of the realm
@@ -1039,6 +1069,11 @@ fn coverage(
 ) -> Coverage {
     let holds_items: Vec<&LocationRow> = locations.iter().filter(|l| !is_folder(l)).collect();
     let fetches = || holds_items.iter().filter_map(|l| l.fetched_at);
+    let fetched = || holds_items.iter().filter_map(|l| Some((l.fetched_at?, *l)));
+    // the first on a tie, both ways: `min_by_key` keeps the first,
+    // `max_by_key` the last, so the newest reads the reversed order
+    let oldest = fetched().min_by_key(|(at, _)| *at);
+    let newest = fetched().rev().max_by_key(|(at, _)| *at);
     let mut never_fetched_by_type = crate::tabs::by_type(holds_items.iter().map(|l| {
         let kind = match l.kind.as_str() {
             "character" => "character",
@@ -1082,10 +1117,12 @@ fn coverage(
         never_fetched_by_type,
         never_fetched_leagues: by_league.into_iter().map(|(l, _)| l.to_string()).collect(),
         folders: locations.len() - holds_items.len(),
-        oldest_fetch: fetches().min(),
+        oldest_fetch: oldest.map(|(at, _)| at),
         oldest_fetch_age: None,
-        newest_fetch: fetches().max(),
+        oldest_fetch_location: oldest.map(|(_, l)| FetchedLocation::of(l)),
+        newest_fetch: newest.map(|(at, _)| at),
         newest_fetch_age: None,
+        newest_fetch_location: newest.map(|(_, l)| FetchedLocation::of(l)),
         list_seen: header
             .listings
             .iter()

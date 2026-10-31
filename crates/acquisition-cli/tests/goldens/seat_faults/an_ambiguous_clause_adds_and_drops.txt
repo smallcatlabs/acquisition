@@ -11,7 +11,7 @@ trade   from the query JSON: ambiguous — every clause ran, 2 as the site may n
         ambiguous stats.0.0  the bound sums the text and its plurals; not its forms "#% reduced Rarity of Items found" (opposite) · read the other way: adds 0, drops 1
         ambiguous stats.0.1  the text's other id: explicit.stat_1604736568
 query   sum(line("#% increased Rarity of Items found" source=explicit).arg1)>=20 line(("Recover #% of Mana on Kill" or "Lose #% of Mana on Kill") source=explicit)
-scope   account Alice#1234 · pc · live · 2 items · 1 location fetched (the oldest fetch <age> ago, the newest <age> ago)
+scope   account Alice#1234 · pc · live · 2 items · 1 location fetched (the oldest fetch <age> ago, Standard / Rings; the newest <age> ago, Standard / Rings)
         0 locations never fetched · location list seen <age> ago
 total   2 matches
 rows    Iron Ring · Standard / Rings · x 0, y 0 · fetched <age> ago

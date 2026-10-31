@@ -5,7 +5,7 @@ $ acq search --realm pc rarity=rare --membership all --routes
 # holds "each term counted alone over all live and removed pc items"
 --- stdout
 query   rarity=rare
-scope   account Alice#1234 · pc · all · 4 items live · 1 removed · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago)
+scope   account Alice#1234 · pc · all · 4 items live · 1 removed · 2 locations fetched (the oldest fetch <age> ago, Standard / Dump; the newest <age> ago, Standard / Rings)
         1 location never fetched: PremiumStash 1 of 3 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location list seen <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
 total   4 matches
             1 location was never fetched: nothing here says what they hold
@@ -28,9 +28,11 @@ basis   store <store> · build <build> · snapshot 5 · facts v9 · prices and p
 
 $ acq search --realm pc id:r2
 # holds "id:r2 — it left the scope, as its term says"
+# holds ", Standard / Dump; the newest "
+# holds ", Standard / Rings)"
 --- stdout
 query   id:r2
-scope   account Alice#1234 · pc · live · 4 items · 2 locations fetched (the oldest fetch <age> ago, the newest <age> ago)
+scope   account Alice#1234 · pc · live · 4 items · 2 locations fetched (the oldest fetch <age> ago, Standard / Dump; the newest <age> ago, Standard / Rings)
         1 location never fetched: PremiumStash 1 of 3 (counted over every location in the realm, in every league, whatever the query asks, since what a never-fetched location holds is unknown) · location list seen <age> ago · each tab: acq tabs --account 'Alice#1234' --realm pc --league Standard --never-fetched
 total   0 matches
             1 location was never fetched: nothing here says what they hold

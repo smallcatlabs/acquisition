@@ -983,11 +983,28 @@ pub(crate) fn answer_head(a: &Answer) -> String {
         // named no location, the release seat: cli-opus call 35,
         // cli-sonnet call 25, cli-opus-2 call 34); a row's place carries
         // its own age, which the line need not say again (the h2 fix
-        // round: a line carries its counts, not an instruction)
+        // round: a line carries its counts, not an instruction); each
+        // names its location as a row's place does, league first (#11)
+        let at = |l: &Option<acquisition_search::corpus::FetchedLocation>| {
+            l.as_ref().map_or(String::new(), |l| {
+                format!(
+                    ", {} / {}{}",
+                    l.league.as_deref().unwrap_or("no league"),
+                    l.name.as_deref().unwrap_or(&l.id),
+                    if l.kind == "character" {
+                        " (character)"
+                    } else {
+                        ""
+                    }
+                )
+            })
+        };
         first.push_str(&format!(
-            " (the oldest fetch {}, the newest {})",
+            " (the oldest fetch {}{}; the newest {}{})",
             ago(now, Some(oldest)),
-            ago(now, Some(newest))
+            at(&scope.coverage.oldest_fetch_location),
+            ago(now, Some(newest)),
+            at(&scope.coverage.newest_fetch_location),
         ));
     }
     line(first);

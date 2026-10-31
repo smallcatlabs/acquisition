@@ -63,6 +63,18 @@ fn c100_the_worked_example_whole_counts_as_printed_there() {
         ),
         (&json!(20), &json!(30), &json!(10))
     );
+    // each names the location it is the fetch of (#11)
+    assert_eq!(
+        (
+            &scope["oldest_fetch_location"]["kind"],
+            &scope["oldest_fetch_location"]["league"]
+        ),
+        (&json!("stash"), &json!("Standard"))
+    );
+    assert_ne!(
+        scope["oldest_fetch_location"]["id"],
+        scope["newest_fetch_location"]["id"]
+    );
     assert_eq!(scope["leagues"], json!(["Standard"]));
     assert_eq!(a["basis"]["account"], "u-1");
     assert_eq!(

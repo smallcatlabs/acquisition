@@ -2009,7 +2009,12 @@ fn step_10_membership_all_at_a_terminal() {
     // an id that left: said on the term, with the command that finds it
     let gone = text(&t.run(
         &["search", "--realm", "pc", "id:r2"],
-        &["id:r2 — it left the scope, as its term says"],
+        &[
+            "id:r2 — it left the scope, as its term says",
+            // the scope's oldest and newest fetch, each with its place (#11)
+            ", Standard / Dump; the newest ",
+            ", Standard / Rings)",
+        ],
     ));
     let said = gone
         .lines()
