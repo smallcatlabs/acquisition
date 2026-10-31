@@ -363,6 +363,8 @@ the time seam ("Pull-forward", items 1 and 2). #146 is under way
 (`84d46ca9`); Do 2 done, the four shells' quoting held by one table,
 every word of it carried whole through `pwsh`, Windows PowerShell 5.1
 and cmd.exe on the Windows gate (run 41205233903 on `6f20c616`), no
-rule of the brief overturned; Do 3's daemon half to Do 7 ahead, then
-the review. 4-0 is not started.
+rule of the brief overturned; Do 3 to Do 7 built (`c45b4c19`,
+`0f6515da`), the gate green here; the Windows gate has not yet run the
+policy undo through 5.1 and cmd.exe (Do 6), and the review of the
+build, `ec67e7ed^..0f6515da`, is pending. 4-0 is not started.
 `AGENTS.md` governs; the gate is `tools/gate.sh`.
