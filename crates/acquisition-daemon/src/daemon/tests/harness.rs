@@ -69,6 +69,185 @@ impl Clock for ManualClock {
     }
 }
 
+/// 4-0 spike (#147, `roadmap/briefs/4-0-spike.md`): a clock whose sleeps
+/// park. `sleep` and `sleep_until` park in a map ordered by deadline (then
+/// by arrival, so equal deadlines wake first-come); `advance_to(t)` wakes
+/// every sleeper due by `t`, in deadline order; `advance_to_next()` moves
+/// to the earliest parked deadline and wakes the sleepers due there, so
+/// each sleeper wakes at its own deadline, never a summed overshoot;
+/// `sleepers()` is how many are parked now (a woken or dropped sleep is
+/// not). `now` and `wall` are `ManualClock`'s two faces. Tokio's paused
+/// clock behind the project's own trait, without `test-util` (C84).
+pub(super) struct ParkingClock {
+    inner: Mutex<Parked>,
+}
+
+struct Parked {
+    now: Instant,
+    wall: SystemTime,
+    next_id: u64,
+    parked: std::collections::BTreeMap<(Instant, u64), std::task::Waker>,
+    woken: HashSet<u64>,
+}
+
+impl ParkingClock {
+    pub(super) fn new() -> Self {
+        ParkingClock {
+            inner: Mutex::new(Parked {
+                now: Instant::now(),
+                wall: SystemTime::UNIX_EPOCH + MANUAL_WALL_ORIGIN,
+                next_id: 0,
+                parked: Default::default(),
+                woken: HashSet::new(),
+            }),
+        }
+    }
+
+    /// Time passes normally by `duration`: both faces move, and every
+    /// sleeper due by then wakes ([`Self::advance_to`]).
+    pub(super) fn advance(&self, duration: Duration) {
+        let to = self
+            .now()
+            .checked_add(duration)
+            .expect("bounded test deadline");
+        self.advance_to(to);
+    }
+
+    /// Move both faces to `t` (never back) and wake, in deadline order,
+    /// every sleeper due by `t`. Waking only schedules: a woken task runs
+    /// when the test yields, and reads `now` as `t`.
+    pub(super) fn advance_to(&self, t: Instant) {
+        let wakers = {
+            let mut p = self.inner.lock().unwrap();
+            if t > p.now {
+                let by = t - p.now;
+                p.now = t;
+                p.wall += by;
+            }
+            let now = p.now;
+            let mut wakers = Vec::new();
+            while let Some(entry) = p.parked.first_entry() {
+                if entry.key().0 > now {
+                    break;
+                }
+                let ((_, id), waker) = entry.remove_entry();
+                p.woken.insert(id);
+                wakers.push(waker);
+            }
+            wakers
+        };
+        for waker in wakers {
+            waker.wake();
+        }
+    }
+
+    /// Move to the earliest parked deadline and wake what is due there;
+    /// the deadline moved to, or `None` when nothing is parked.
+    pub(super) fn advance_to_next(&self) -> Option<Instant> {
+        let next = self.next_deadline()?;
+        self.advance_to(next);
+        Some(next)
+    }
+
+    /// How many sleeps are parked now.
+    pub(super) fn sleepers(&self) -> usize {
+        self.inner.lock().unwrap().parked.len()
+    }
+
+    /// The earliest parked deadline, if any.
+    pub(super) fn next_deadline(&self) -> Option<Instant> {
+        self.inner.lock().unwrap().parked.keys().next().map(|k| k.0)
+    }
+
+    /// The lid closes: the wall clock moves, the monotonic clock does not.
+    #[allow(dead_code)]
+    pub(super) fn laptop_sleep(&self, duration: Duration) {
+        self.inner.lock().unwrap().wall += duration;
+    }
+
+    fn park(&self, deadline: Instant) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(ParkedSleep {
+            clock: self,
+            deadline,
+            id: None,
+        })
+    }
+}
+
+/// One parked sleep: registered on its first poll, ready once woken,
+/// unregistered when dropped (a cancelled sleep is never counted).
+struct ParkedSleep<'a> {
+    clock: &'a ParkingClock,
+    deadline: Instant,
+    id: Option<u64>,
+}
+
+impl Future for ParkedSleep<'_> {
+    type Output = ();
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<()> {
+        let mut p = self.clock.inner.lock().unwrap();
+        match self.id {
+            Some(id) => {
+                if p.woken.remove(&id) {
+                    drop(p);
+                    self.id = None;
+                    return std::task::Poll::Ready(());
+                }
+                p.parked.insert((self.deadline, id), cx.waker().clone());
+                std::task::Poll::Pending
+            }
+            None => {
+                if self.deadline <= p.now {
+                    return std::task::Poll::Ready(());
+                }
+                let id = p.next_id;
+                p.next_id += 1;
+                p.parked.insert((self.deadline, id), cx.waker().clone());
+                drop(p);
+                self.id = Some(id);
+                std::task::Poll::Pending
+            }
+        }
+    }
+}
+
+impl Drop for ParkedSleep<'_> {
+    fn drop(&mut self) {
+        if let Some(id) = self.id {
+            let mut p = self.clock.inner.lock().unwrap();
+            p.parked.remove(&(self.deadline, id));
+            p.woken.remove(&id);
+        }
+    }
+}
+
+impl Clock for ParkingClock {
+    fn now(&self) -> Instant {
+        self.inner.lock().unwrap().now
+    }
+
+    fn wall(&self) -> SystemTime {
+        self.inner.lock().unwrap().wall
+    }
+
+    fn kind(&self) -> &'static str {
+        "manual"
+    }
+
+    fn sleep(&self, duration: Duration) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        let deadline = self
+            .now()
+            .checked_add(duration)
+            .expect("bounded test deadline");
+        self.park(deadline)
+    }
+
+    fn sleep_until(&self, deadline: Instant) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        self.park(deadline)
+    }
+}
+
 pub(super) struct NoopCredentialStore;
 
 impl CredentialStore for NoopCredentialStore {
@@ -592,6 +771,215 @@ pub(super) async fn wait_terminal(daemon: &Daemon, id: JobId) -> (JobInfo, Outco
     })
     .await
     .expect("dispatcher completed the scripted job")
+}
+
+/// 4-0 spike (#147): what the door's advance rule saw driving one job.
+#[derive(Debug, Default)]
+pub(super) struct Drove {
+    /// `advance_to_next` calls.
+    pub(super) cycles: usize,
+    /// Per cycle, the yields between the door first knowing a task waits
+    /// and the clock's count matching it.
+    pub(super) yields_to_match: Vec<usize>,
+    /// Yields spent with no task known to wait (sends, landings, picks).
+    pub(super) yields_unparked: usize,
+    /// Every place the count misjudged: a match the confirmation window
+    /// disproved, or a park the count did not know of.
+    pub(super) misjudged: Vec<String>,
+    /// How far the clock's `now` moved.
+    pub(super) virtual_elapsed: Duration,
+    /// The most tasks the door knew waiting at once.
+    pub(super) max_waiting: usize,
+}
+
+/// The door's bound on the yields it gives one match before it calls the
+/// count wrong.
+pub(super) const DOOR_SPIN: usize = 10_000;
+
+/// The tasks the door knows wait on the clock: jobs picked and held at
+/// the limiter before their send (`InFlight`'s `held`), each in the
+/// dispatcher's pacing or the choke point's admission. A job past
+/// admission (`jobs`) is on the wire or landing, and parks nowhere the
+/// door can name.
+pub(super) fn known_waiting(daemon: &Daemon) -> usize {
+    InFlight::of(&daemon.shared.lock().unwrap()).held.len()
+}
+
+/// 4-0 spike (#147), the door's advance rule: yield until the clock's
+/// sleepers equal the tasks the door knows wait ([`known_waiting`]), then
+/// `confirm` more yields to test the match (0 is the rule as the design
+/// drew it), then `advance_to_next`; until job `id` is terminal.
+pub(super) async fn run_until_terminal(
+    daemon: &Daemon,
+    clock: &ParkingClock,
+    id: JobId,
+    confirm: usize,
+) -> ((JobInfo, Outcome), Drove) {
+    let (mut done, drove) = run_until_all_terminal(daemon, clock, &[id], confirm).await;
+    (done.remove(0), drove)
+}
+
+/// [`run_until_terminal`] over several jobs, until every one is terminal.
+pub(super) async fn run_until_all_terminal(
+    daemon: &Daemon,
+    clock: &ParkingClock,
+    ids: &[JobId],
+    confirm: usize,
+) -> (Vec<(JobInfo, Outcome)>, Drove) {
+    let started = clock.now();
+    let mut drove = Drove::default();
+    let terminal = |daemon: &Daemon| {
+        ids.iter()
+            .map(|&id| match held(daemon, id) {
+                Some((info, Some(outcome))) if info.state.is_terminal() => Some((info, outcome)),
+                _ => None,
+            })
+            .collect::<Option<Vec<_>>>()
+    };
+    let done = tokio::time::timeout(HANG, async {
+        loop {
+            let mut gap = 0;
+            let mut unknown = 0;
+            loop {
+                if let Some(done) = terminal(daemon) {
+                    return done;
+                }
+                let waiting = known_waiting(daemon);
+                drove.max_waiting = drove.max_waiting.max(waiting);
+                let parked = clock.sleepers();
+                if waiting > 0 && parked == waiting {
+                    break;
+                }
+                if waiting == 0 && parked > 0 {
+                    unknown += 1;
+                    if unknown > DOOR_SPIN {
+                        drove.misjudged.push(format!(
+                            "cycle {}: {parked} parked, none known to wait",
+                            drove.cycles
+                        ));
+                        break;
+                    }
+                }
+                if waiting > 0 {
+                    gap += 1;
+                    assert!(gap <= DOOR_SPIN, "the count never matched: {drove:?}");
+                } else {
+                    drove.yields_unparked += 1;
+                }
+                tokio::task::yield_now().await;
+            }
+            drove.yields_to_match.push(gap);
+            let seen = (
+                known_waiting(daemon),
+                clock.sleepers(),
+                clock.next_deadline(),
+            );
+            for _ in 0..confirm {
+                tokio::task::yield_now().await;
+            }
+            let after = (
+                known_waiting(daemon),
+                clock.sleepers(),
+                clock.next_deadline(),
+            );
+            if confirm > 0 && after != seen {
+                drove.misjudged.push(format!(
+                    "cycle {}: matched at {seen:?}, {confirm} yields later {after:?}",
+                    drove.cycles
+                ));
+            }
+            clock.advance_to_next();
+            drove.cycles += 1;
+        }
+    })
+    .await
+    .expect("the door drove the job to its end");
+    drove.virtual_elapsed = clock.now() - started;
+    (done, drove)
+}
+
+/// 4-0 spike (#147), the exact candidate: the runtime's own word that
+/// nothing can run. A current-thread runtime calls its park hook
+/// (`on_thread_park`, stable tokio) only when no task is runnable; the
+/// installed hook then advances the parking clock to its next deadline,
+/// unless a send is in flight (the gate's occupancy, C21's span from just
+/// before dispatch until the body completes), when the park is the wire's
+/// and time must not move under it. Tokio's own paused clock advances at
+/// the same point; this is that, behind the daemon's `Clock`.
+pub(super) struct IdleHook {
+    pub(super) clock: Arc<ParkingClock>,
+    pub(super) daemon: Arc<Daemon>,
+    /// Parks that advanced the clock.
+    pub(super) advances: usize,
+    /// Parks that found a send in flight and left the clock.
+    pub(super) held_by_send: usize,
+    /// Parks that found nothing parked on the clock.
+    pub(super) nothing_parked: usize,
+    /// The measurement's control: advance even with a send in flight.
+    pub(super) ignore_sends: bool,
+}
+
+/// The slot a test installs its hook in, once its daemon exists.
+pub(super) type IdleSlot = Arc<Mutex<Option<IdleHook>>>;
+
+impl IdleHook {
+    pub(super) fn new(clock: Arc<ParkingClock>, daemon: Arc<Daemon>) -> Self {
+        IdleHook {
+            clock,
+            daemon,
+            advances: 0,
+            held_by_send: 0,
+            nothing_parked: 0,
+            ignore_sends: false,
+        }
+    }
+
+    fn on_idle(&mut self) {
+        if !self.ignore_sends && self.daemon.choke.actual_send_occupancy().0 > 0 {
+            self.held_by_send += 1;
+        } else if self.clock.advance_to_next().is_some() {
+            self.advances += 1;
+        } else {
+            self.nothing_parked += 1;
+        }
+    }
+}
+
+/// A current-thread runtime whose park hook runs the slot's [`IdleHook`].
+pub(super) fn idle_runtime() -> (tokio::runtime::Runtime, IdleSlot) {
+    let slot: IdleSlot = Arc::default();
+    let hook = slot.clone();
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .on_thread_park(move || {
+            if let Some(hook) = hook.lock().unwrap().as_mut() {
+                hook.on_idle();
+            }
+        })
+        .build()
+        .unwrap();
+    (runtime, slot)
+}
+
+/// Job `id`'s end, awaited on the daemon's job events, never by a poll
+/// or a yield, so the runtime parks whenever nothing can run.
+pub(super) async fn await_terminal(daemon: &Daemon, id: JobId) -> (JobInfo, Outcome) {
+    let mut events = daemon.events.subscribe();
+    tokio::time::timeout(HANG, async {
+        loop {
+            if let Some((info, Some(outcome))) = held(daemon, id)
+                && info.state.is_terminal()
+            {
+                return (info, outcome);
+            }
+            match events.recv().await {
+                Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => {}
+                Err(broadcast::error::RecvError::Closed) => panic!("the daemon's events closed"),
+            }
+        }
+    })
+    .await
+    .expect("the job ended")
 }
 
 /// The hang ceiling: how long a test waits before it calls a wait hung,

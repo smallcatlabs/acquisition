@@ -70,6 +70,14 @@ pub(crate) trait Clock: Send + Sync {
 
     fn sleep(&self, duration: Duration) -> Pin<Box<dyn Future<Output = ()> + Send + '_>>;
 
+    /// Sleep until `deadline` on this clock's `now` face. 4-0 spike
+    /// (#147): the default reads `now` once and sleeps the remainder, so
+    /// a clock that parks by deadline overrides it with its own.
+    #[cfg_attr(not(test), allow(dead_code))]
+    fn sleep_until(&self, deadline: Instant) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        self.sleep(deadline.saturating_duration_since(self.now()))
+    }
+
     /// `"system"` or `"manual"`: written into the journal header so a
     /// fake-clock journal can never pass for live evidence.
     fn kind(&self) -> &'static str;

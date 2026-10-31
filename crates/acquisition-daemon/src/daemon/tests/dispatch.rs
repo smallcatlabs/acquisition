@@ -2037,3 +2037,383 @@ async fn c144_a_restart_after_a_failed_record_keeps_the_failure_and_replays_noth
         "the server saw lifetime 1's sends and nothing more"
     );
 }
+
+// ---- 4-0 spike (#147): the 429 hold through the door on a parking clock ----
+
+/// The scenario: one job; its probe; its GET answered 429 with GGG's
+/// headers and `Retry-After: 0` (held the bucket pad and the buffer,
+/// 61 s); its GET again after the hold, landing.
+fn hold_scenario() -> Vec<ScriptedResponse> {
+    vec![
+        ScriptedResponse::full("HEAD", "204 No Content", None, ""),
+        ScriptedResponse::full("GET", "429 Too Many Requests", Some(0), "{}"),
+        ScriptedResponse::full("GET", "200 OK", None, r#"{"items":["after the hold"]}"#),
+    ]
+}
+
+/// Each send of the journal as the comparison reads it: method, path,
+/// status, counted, `wait_ms`.
+fn journal_projection(log_path: &std::path::Path) -> Vec<Value> {
+    journal_sends(log_path)
+        .iter()
+        .map(|l| {
+            json!([
+                l["method"],
+                l["path"],
+                l["status"],
+                l["counted"],
+                l["wait_ms"]
+            ])
+        })
+        .collect()
+}
+
+/// The scenario on `clock`, driven to its end by `drive`; the journal's
+/// projection and the job's retries.
+async fn hold_on<C, F, Fut>(clock: Arc<C>, drive: F) -> (Vec<Value>, u32)
+where
+    C: Clock + 'static,
+    F: FnOnce(Arc<Daemon>, Arc<C>, JobId) -> Fut,
+    Fut: Future<Output = (JobInfo, Outcome)>,
+{
+    let (base, requests, server) = scripted_server(hold_scenario()).await;
+    let (daemon, log_path) = test_daemon(&base, clock.clone());
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    let id = daemon
+        .submit("fetch".into(), json!({}), 0, "test".into(), None)
+        .unwrap();
+    let (info, outcome) = drive(daemon.clone(), clock, id).await;
+    assert_eq!(info.state, JobState::Done);
+    assert_eq!(fetch_payload_marker(&outcome), "after the hold");
+    assert_eq!(requests.lock().unwrap().as_slice(), ["HEAD", "GET", "GET"]);
+    server.await.unwrap();
+    let projection = journal_projection(&log_path);
+    finish_harness_wire(dispatcher, &log_path, &requests);
+    (projection, info.retries)
+}
+
+/// The expected journal: the probe, the 429, the landing after the
+/// whole hold.
+fn hold_journal() -> Vec<Value> {
+    vec![
+        json!(["HEAD", "/fetch", 204, false, 0]),
+        json!(["GET", "/fetch", 429, true, 0]),
+        json!(["GET", "/fetch", 200, true, full_hold_ms()]),
+    ]
+}
+
+/// 4-0 spike (#147): the 429 hold through the door's advance rule on the
+/// parking clock, as the design drew it (no confirmation window) and
+/// with one (each match re-read 100 yields later): the same sends in
+/// the same order as the manual clock's run, the whole hold in virtual
+/// time, no real waiting. The measurements print under `--no-capture`.
+#[tokio::test]
+async fn spike_the_door_drives_a_429_hold_on_a_parking_clock() {
+    let real = std::time::Instant::now();
+    let (manual, retries) = hold_on(Arc::new(ManualClock::new()), |daemon, _, id| async move {
+        wait_terminal(&daemon, id).await
+    })
+    .await;
+    assert_eq!(retries, 1);
+    eprintln!(
+        "spike: manual clock: {:?} real, journal {manual:?}",
+        real.elapsed()
+    );
+
+    for confirm in [0, 100] {
+        let real = std::time::Instant::now();
+        let drove = Arc::new(Mutex::new(None));
+        let kept = drove.clone();
+        let (parked, retries) = hold_on(
+            Arc::new(ParkingClock::new()),
+            |daemon, clock, id| async move {
+                let (done, d) = run_until_terminal(&daemon, &clock, id, confirm).await;
+                *kept.lock().unwrap() = Some(d);
+                done
+            },
+        )
+        .await;
+        let elapsed = real.elapsed();
+        let drove = drove.lock().unwrap().take().unwrap();
+        eprintln!(
+            "spike: parking clock, confirm {confirm}: {elapsed:?} real, {} cycles, {:?} virtual, \
+             yields to match max {:?} sum {}, unparked yields {}, misjudged {:?}, journal {parked:?}",
+            drove.cycles,
+            drove.virtual_elapsed,
+            drove.yields_to_match.iter().max(),
+            drove.yields_to_match.iter().sum::<usize>(),
+            drove.yields_unparked,
+            drove.misjudged,
+        );
+        assert_eq!(retries, 1);
+        assert_eq!(
+            parked, manual,
+            "the parking clock's journal is the manual clock's"
+        );
+        assert_eq!(parked, hold_journal());
+        assert!(drove.misjudged.is_empty(), "{:?}", drove.misjudged);
+        assert!(
+            drove.virtual_elapsed >= Duration::from_millis(full_hold_ms()),
+            "the whole hold passed in virtual time"
+        );
+    }
+}
+
+/// 4-0 spike (#147): the same scenario on the system clock, once, for the
+/// journal the parking clock's run is compared with; it waits the 61 s
+/// hold in real time, so it is run by name with `--run-ignored`.
+#[tokio::test]
+#[ignore = "waits a 61 s hold in real time; the spike's one comparison run"]
+async fn spike_the_429_hold_on_the_system_clock() {
+    let real = std::time::Instant::now();
+    let (system, retries) = hold_on(
+        Arc::new(crate::ratelimit::SystemClock),
+        |daemon, _, id| async move { wait_terminal(&daemon, id).await },
+    )
+    .await;
+    eprintln!(
+        "spike: system clock: {:?} real, journal {system:?}",
+        real.elapsed()
+    );
+    assert_eq!(retries, 1);
+    let shape =
+        |j: &[Value]| -> Vec<Value> { j.iter().map(|s| json!([s[0], s[1], s[2], s[3]])).collect() };
+    assert_eq!(shape(&system), shape(&hold_journal()));
+    let waited = system[2][4].as_u64().unwrap();
+    assert!(waited >= full_hold_ms(), "{waited}");
+}
+
+/// 4-0 spike (#147): the counting mock on a parking clock, two scheduling
+/// keys held at once by the limiter (eight fetches and eight character
+/// lists, each policy five sends a ten-second window), driven to every
+/// job's end by `drive`; the journal's (path, `wait_ms`) in order. The
+/// mock's teardown holds it to "never over the limit".
+async fn two_keys_on<F, Fut>(clock: Arc<ParkingClock>, drive: F) -> Vec<(String, u64)>
+where
+    F: FnOnce(Arc<Daemon>, Vec<JobId>) -> Fut,
+    Fut: Future<Output = Vec<(JobInfo, Outcome)>>,
+{
+    let base = mockggg::start_with_clock(clock.clone()).await.unwrap();
+    let (mut daemon, log_path) = test_daemon(&base, clock.clone());
+    logged_in(&mut daemon);
+    {
+        let mut s = daemon.shared.lock().unwrap();
+        s.auth.one_mut().access_token = Some("at-established".into());
+        s.auth.one_mut().access_expires_at = Some(clock.wall() + Duration::from_secs(3600));
+    }
+    let dispatcher = tokio::spawn(daemon.clone().dispatcher());
+    let mut ids = Vec::new();
+    for sequence in 0..8 {
+        ids.push(
+            daemon
+                .submit(
+                    "fetch".into(),
+                    json!({ "sequence": sequence }),
+                    0,
+                    "test".into(),
+                    None,
+                )
+                .unwrap(),
+        );
+        ids.push(
+            daemon
+                .submit("characters".into(), json!({}), 0, "test".into(), None)
+                .unwrap(),
+        );
+    }
+    for (info, outcome) in drive(daemon.clone(), ids).await {
+        assert_eq!(info.state, JobState::Done, "{outcome:?}");
+    }
+    let journal = journal_projection(&log_path)
+        .iter()
+        .map(|s| (s[1].as_str().unwrap().to_string(), s[4].as_u64().unwrap()))
+        .collect();
+    finish_harness_mock(dispatcher, &log_path);
+    journal
+}
+
+/// 4-0 spike (#147): the two held keys under the door's rule as the
+/// design drew it (`confirm` 0) and with a confirmation window (each
+/// match re-read 100 yields later), five runs each. What it measures is
+/// printed under `--no-capture`: whether the count misjudged, and
+/// whether the runs journal alike. It asserts only what every run must
+/// keep: every job done and the mock's oracle.
+#[tokio::test]
+async fn spike_the_door_rule_on_two_held_keys() {
+    for confirm in [0, 100] {
+        let mut journals = Vec::new();
+        for run in 0..5 {
+            let real = std::time::Instant::now();
+            let clock = Arc::new(ParkingClock::new());
+            let drove = Arc::new(Mutex::new(None));
+            let kept = drove.clone();
+            let journal = two_keys_on(clock.clone(), |daemon, ids| async move {
+                let (done, d) = run_until_all_terminal(&daemon, &clock, &ids, confirm).await;
+                *kept.lock().unwrap() = Some(d);
+                done
+            })
+            .await;
+            let drove = drove.lock().unwrap().take().unwrap();
+            eprintln!(
+                "spike: door rule, confirm {confirm}, run {run}: {:?} real, {} cycles, {:?} virtual, \
+                 most known waiting {}, yields to match max {:?}, unparked yields {}, \
+                 misjudged {:?}, waits {:?}",
+                real.elapsed(),
+                drove.cycles,
+                drove.virtual_elapsed,
+                drove.max_waiting,
+                drove.yields_to_match.iter().max(),
+                drove.yields_unparked,
+                drove.misjudged,
+                journal,
+            );
+            journals.push(journal);
+        }
+        let distinct: HashSet<_> = journals.iter().collect();
+        eprintln!(
+            "spike: door rule, confirm {confirm}: {} distinct journals in 5 runs",
+            distinct.len()
+        );
+    }
+}
+
+/// 4-0 spike (#147), the exact candidate: the 429 hold driven by the
+/// runtime's park hook ([`IdleHook`]), the test awaiting the job's end on
+/// its events: the manual clock's journal, no real waiting.
+#[test]
+fn spike_the_park_hook_drives_a_429_hold() {
+    let (runtime, slot) = idle_runtime();
+    runtime.block_on(async {
+        let real = std::time::Instant::now();
+        let clock = Arc::new(ParkingClock::new());
+        let origin = clock.now();
+        let (journal, retries) = hold_on(clock, |daemon, clock, id| {
+            let slot = slot.clone();
+            async move {
+                *slot.lock().unwrap() = Some(IdleHook::new(clock, daemon.clone()));
+                let done = await_terminal(&daemon, id).await;
+                let hook = slot.lock().unwrap().take().unwrap();
+                eprintln!(
+                    "spike: park hook, 429 hold: {:?} real, {} advances, {:?} virtual, \
+                     {} parks held by a send, {} with nothing parked",
+                    real.elapsed(),
+                    hook.advances,
+                    hook.clock.now() - origin,
+                    hook.held_by_send,
+                    hook.nothing_parked,
+                );
+                done
+            }
+        })
+        .await;
+        assert_eq!(retries, 1);
+        assert_eq!(journal, hold_journal());
+    });
+}
+
+/// 4-0 spike (#147), the exact candidate on the two held keys: five
+/// runs under the park hook journal alike, and every job is done under
+/// the mock's oracle. The control (time moved under a send in flight)
+/// prints how many distinct journals it gives, asserting nothing.
+#[test]
+fn spike_the_park_hook_on_two_held_keys() {
+    let control: HashSet<_> = (0..5).map(|_| park_hook_two_keys(99, true)).collect();
+    eprintln!(
+        "spike: park hook ignoring sends, two keys: {} distinct journals in 5 runs",
+        control.len()
+    );
+    let journals: HashSet<_> = (0..5).map(|run| park_hook_two_keys(run, false)).collect();
+    assert_eq!(journals.len(), 1, "five runs journal alike");
+}
+
+fn park_hook_two_keys(run: usize, ignore_sends: bool) -> Vec<(String, u64)> {
+    {
+        let (runtime, slot) = idle_runtime();
+        let journal = runtime.block_on(async {
+            let real = std::time::Instant::now();
+            let clock = Arc::new(ParkingClock::new());
+            let origin = clock.now();
+            let hook_clock = clock.clone();
+            let slot = slot.clone();
+            two_keys_on(clock, |daemon, ids| async move {
+                let mut hook = IdleHook::new(hook_clock.clone(), daemon.clone());
+                hook.ignore_sends = ignore_sends;
+                *slot.lock().unwrap() = Some(hook);
+                let mut done = Vec::new();
+                for id in ids {
+                    done.push(await_terminal(&daemon, id).await);
+                }
+                let hook = slot.lock().unwrap().take().unwrap();
+                eprintln!(
+                    "spike: park hook (ignore sends {ignore_sends}), two keys, run {run}: {:?} real, \
+                     {} advances, {:?} virtual, {} parks held by a send, {} with nothing parked",
+                    real.elapsed(),
+                    hook.advances,
+                    hook_clock.now() - origin,
+                    hook.held_by_send,
+                    hook.nothing_parked,
+                );
+                done
+            })
+            .await
+        });
+        eprintln!(
+            "spike: park hook (ignore sends {ignore_sends}), two keys, run {run}: waits {journal:?}"
+        );
+        journal
+    }
+}
+
+/// 4-0 spike (#147): the parking clock wakes each sleeper at its own
+/// deadline, in deadline order; `advance` keeps `ManualClock`'s meaning
+/// (both faces move); a dropped sleep is not counted.
+#[tokio::test]
+async fn spike_the_parking_clock_wakes_in_deadline_order() {
+    let clock = Arc::new(ParkingClock::new());
+    let origin = clock.now();
+    let order = Arc::new(Mutex::new(Vec::new()));
+    let mut tasks = Vec::new();
+    for secs in [3u64, 1, 2] {
+        let (clock, order) = (clock.clone(), order.clone());
+        tasks.push(tokio::spawn(async move {
+            clock.sleep(Duration::from_secs(secs)).await;
+            order.lock().unwrap().push((secs, clock.now() - origin));
+        }));
+    }
+    while clock.sleepers() < 3 {
+        tokio::task::yield_now().await;
+    }
+    {
+        let mut cancelled = clock.sleep_until(origin + Duration::from_secs(10));
+        assert!(futures_poll_once(cancelled.as_mut()).is_pending());
+        assert_eq!(clock.sleepers(), 4);
+    }
+    assert_eq!(clock.sleepers(), 3, "a dropped sleep is not counted");
+    while clock.advance_to_next().is_some() {
+        while clock.sleepers() + order.lock().unwrap().len() < 3 {
+            tokio::task::yield_now().await;
+        }
+        tokio::task::yield_now().await;
+    }
+    for task in tasks {
+        task.await.unwrap();
+    }
+    assert_eq!(
+        order.lock().unwrap().as_slice(),
+        [
+            (1, Duration::from_secs(1)),
+            (2, Duration::from_secs(2)),
+            (3, Duration::from_secs(3))
+        ]
+    );
+    let wall = clock.wall();
+    clock.advance(Duration::from_secs(5));
+    assert_eq!(clock.now() - origin, Duration::from_secs(8));
+    assert_eq!(clock.wall(), wall + Duration::from_secs(5));
+}
+
+/// Poll `future` once with a waker that does nothing.
+fn futures_poll_once<F: Future + ?Sized>(future: Pin<&mut F>) -> std::task::Poll<F::Output> {
+    let mut cx = std::task::Context::from_waker(std::task::Waker::noop());
+    future.poll(&mut cx)
+}
