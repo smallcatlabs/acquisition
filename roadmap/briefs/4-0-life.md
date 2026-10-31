@@ -282,7 +282,7 @@ this step's first concern or is filed.
    is `StopAdmitting(why)` (the rails' `begin_stopping`, the line,
    the dispatcher woken), as `exit_armed` is today one runtime turn
    after the swap (`server.rs:540–544`): the same gap as today, no
-   wider, because the loop never waits on a lock (below), and the
+   wider, because the loop never blocks on `shared` before its leave (below), and the
    watcher takes no lock (the rails' at `rails.rs:551`,
    the log's at `daemon.rs:1161`), so its second receive
    (`start.rs:230`) is never behind one; and the machine's `cause`
@@ -321,15 +321,17 @@ this step's first concern or is filed.
      the manual clock advances on every sleep. `Clock` gains no
      `sleep_until` in this step (the dated paragraph; step 3's
      spike decides whether a parking clock takes the driver).
-   - **The loop waits on no lock**: `Judge` takes `shared`
-     (`is_idle`, `server.rs:674`), so the driver performs it on a
-     task of its own and receives `Idle` or `Busy` as an event when
-     it returns, the loop's select live meanwhile: a signal's
-     `StopAdmitting` proceeds while a judge waits behind a held
-     `shared`, as `exit_armed` on another worker does today. No other
-     effect the loop performs takes `shared`: `stop_admitting` does
-     not, `AwaitQuiet` looks through `try_lock`, `Begin` is the swap
-     and `stop_admitting`, and `leave` is the loop's last act.
+   - **Before its final `Leave`, the loop never blocks on `shared`**:
+     `Judge` takes it (`is_idle`, `server.rs:674`), so the driver
+     performs it on a task of its own and receives `Idle` or `Busy`
+     as an event when it returns, the loop's select live meanwhile:
+     a signal's `StopAdmitting` proceeds while a judge waits behind a
+     held `shared`, as `exit_armed` on another worker does today.
+     Nothing else the loop performs before `Leave` acquires `shared`:
+     `Exit::arm` and `stop_admitting` do not (they take the rails'
+     and the log's locks, `rails.rs:551`, `daemon.rs:1161`, as today),
+     `AwaitQuiet` looks through `try_lock`; `leave`, the loop's last
+     act, takes what it takes today (`server.rs:616–662`).
    - **The one race**: `Drain` abandons `AwaitQuiet` (the drain's
      `deadline.min(now + DRAIN_POLL)` today, `server.rs:603`); the
      quiet wait's looks are the driver's, `DRAIN_POLL` kept as the
@@ -590,3 +592,7 @@ The fourth review's one (`4-0-life-brief-10472714.md`):
    runs on a task of its own and answers as an event, the loop waiting
    on no lock, pinned by a test that holds `shared` and sees the rails
    stop on a signal before releasing it (Do 3, Do 4).
+
+The fifth review's nitpick (`4-0-life-brief-dfaa2b3c.md`): "waits on
+no lock" was literally too broad; the bullet now says what is true,
+the loop never blocks on `shared` before its final `Leave` (Do 3).
