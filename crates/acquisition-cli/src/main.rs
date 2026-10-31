@@ -681,9 +681,11 @@ enum PriceCmd {
         currency: Option<String>,
         /// Only write over exactly this revision (what `acq price show`
         /// printed when you reviewed it); refused naming the current one
-        /// otherwise. Without it the write replaces whatever is stored —
-        /// though a write racing in between still conflicts rather than
-        /// being clobbered.
+        /// otherwise. 0 writes only where the target has no price of its
+        /// own, and is refused naming the stored revision where it has.
+        /// Without it the write replaces whatever is stored — though a
+        /// write racing in between still conflicts rather than being
+        /// clobbered.
         #[arg(long)]
         if_revision: Option<i64>,
     },
@@ -1194,9 +1196,9 @@ impl acquisition_verbs::refusal::Surface for Terminal {
                     line.push(' ');
                     line.push_str(&quote(word));
                 }
-                if let Some(revision) = if_revision {
-                    line.push_str(&format!(" --if-revision {revision}"));
-                }
+                // a create is 0 here, since naming none at a terminal
+                // replaces whatever stands
+                line.push_str(&format!(" --if-revision {}", if_revision.unwrap_or(0)));
                 line
             }
             Way::PriceClear {

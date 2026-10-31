@@ -82,7 +82,7 @@ pub fn price_undo(write: &PriceWrite, account: &str) -> Result<(Way, String), St
             };
             let says = match if_revision {
                 Some(_) => "puts the prior back".to_string(),
-                None => "puts it back (a create, which names no revision; the row's count continues past the clear)".to_string(),
+                None => "puts it back (a create, which lands only where no price stands; the row's count continues past the clear)".to_string(),
             };
             (way, says)
         }

@@ -863,7 +863,8 @@ struct SetPolicyParams {
     /// or not at all.
     value: Value,
     /// The revision this write replaces, from sync_policy: required when a
-    /// policy exists, `replace` or not; omitted only to create the first.
+    /// policy exists, `replace` or not; omitted, or 0, only to create the
+    /// first.
     if_revision: Option<i64>,
     /// true writes the whole policy: every realm `value` does not name is
     /// removed. Default false: the realms `value` names, the rest kept.
@@ -1023,7 +1024,7 @@ struct PriceSetParams {
     /// The revision of the target's own row this write replaces: price_show's
     /// `listing.manual.revision`, when `listing.manual.from` is the target
     /// itself, or the revision a refusal names. Required when the target
-    /// has a row of its own; omit it only to create one.
+    /// has a row of its own; omit it, or give 0, only to create one.
     if_revision: Option<i64>,
     #[schemars(description = ACCOUNT)]
     account: Option<String>,

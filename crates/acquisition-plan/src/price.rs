@@ -654,7 +654,8 @@ pub struct PriceWrite {
 /// written; after a replace, the prior's value naming the revision
 /// written, so it undoes this write and not a later one; after a clear, a
 /// create of the prior's value, which names no revision (the store lands
-/// it over the tombstone, [`Annotations::put`]).
+/// it over the tombstone, [`Annotations::put`]; a terminal spells it
+/// revision 0, the create-only form, `pricing::Expect::or`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Undo {
     Set {

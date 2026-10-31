@@ -107,7 +107,7 @@ Set one target's price by hand: one row on an item, tab, substash or character, 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
 - `amount` (string | null) — For exact and negotiable: a decimal of up to four places (`12.5`), or a `wanted/lot` ratio (`1/5`), as a string.
 - `currency` (string | null) — For exact and negotiable: a tag of reference_currency.
-- `if_revision` (integer | null) — The revision of the target's own row this write replaces: price_show's `listing.manual.revision`, when `listing.manual.from` is the target itself, or the revision a refusal names. Required when the target has a row of its own; omit it only to create one.
+- `if_revision` (integer | null) — The revision of the target's own row this write replaces: price_show's `listing.manual.revision`, when `listing.manual.from` is the target itself, or the revision a refusal names. Required when the target has a row of its own; omit it, or give 0, only to create one.
 - `target` (string, required) — One address: `item/<id>`, `character/<id>`, `tab/<realm>/<id>` or `substash/<realm>/<parent>/<id>`. An answer holds a target as an object, `{scope, realm, parent, id}`: the address is its parts in that order joined by `/`, the absent ones left out.
 - `type` (string, required) — exact, negotiable, no_price or skip (the game's `price`, `b/o` and `~skip` work too).
 
@@ -164,7 +164,7 @@ Item search over the store (no daemon): a query in the language `describe` print
 Write the account's sync policy, validated strictly, compare-and-swap on `if_revision`. Local only: it sends nothing. Each realm the value names replaces that realm alone, the others stay; `replace: true` writes the whole policy. Returns the stored row with the receipt — `target`, `written`, `prior`, `undo` (a request that puts `prior` back) or `no_undo` (why none) — and `league_notes` for a league the fetched league list lacks, with `list_fetched_at` (null if never fetched; a `leagues` job fetches it) and its age in words (`describe` ["ages"]). Nothing refuses on a note.
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
-- `if_revision` (integer | null) — The revision this write replaces, from sync_policy: required when a policy exists, `replace` or not; omitted only to create the first.
+- `if_revision` (integer | null) — The revision this write replaces, from sync_policy: required when a policy exists, `replace` or not; omitted, or 0, only to create the first.
 - `replace` (boolean | null) — true writes the whole policy: every realm `value` does not name is removed. Default false: the realms `value` names, the rest kept.
 - `value` (object, required) — The policy, e.g. {"version":3,"realms":{"pc":{"leagues":{"Standard":{"tabs":"all","characters":"all","max_age_seconds":3600}}}}}: per league `tabs` and/or `characters`, "all" or an id list; a realm named with no leagues is removed. Validated strictly, landing whole or not at all.
 

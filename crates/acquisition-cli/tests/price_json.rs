@@ -2302,14 +2302,14 @@ fn every_json_receipts_undo_runs_as_printed_and_its_revision_is_the_next_writes(
         (&Value::Null, at(&created) + 1)
     );
     assert_eq!(cleared["prior"], created["written"]);
-    // Its undo is a create naming no revision, which says so, and lands
-    // at the revision after the tombstone's.
+    // Its undo is a create, revision 0 at a terminal, which says so, and
+    // lands at the revision after the tombstone's.
     let line = cleared["undo"]["request"].as_str().unwrap();
-    assert!(!line.contains("--if-revision"), "{line}");
+    assert!(line.ends_with("--if-revision 0"), "{line}");
     assert!(
         cleared["undo"]["says"]
             .as_str()
-            .is_some_and(|s| s.contains("a create, which names no revision")),
+            .is_some_and(|s| s.contains("a create, which lands only where no price stands")),
         "{cleared}"
     );
     let recreated = undone(&cleared);

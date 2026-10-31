@@ -2148,15 +2148,17 @@ fn every_undo_a_price_receipt_prints_runs_as_printed_with_a_second_account_known
     let now = price(&base);
     assert_eq!(now["value"]["amount"], json!("2"), "{now}");
 
-    // A clear: its undo is a create, and the line says why it names no
-    // revision.
+    // A clear: its undo is a create, revision 0, and the line says so.
     let rev = now["revision"].as_i64().unwrap().to_string();
     let mut args = vec!["price", "clear", "item/i-std", "--if-revision", &rev];
     args.extend(account);
     let out = acq(&base, &args);
     let said = text(&out);
     assert!(out.status.success(), "{said}");
-    assert!(said.contains("which names no revision"), "{said}");
+    assert!(
+        said.contains("which lands only where no price stands"),
+        "{said}"
+    );
     undo(&said);
     assert_eq!(price(&base)["value"]["amount"], json!("2"));
 }

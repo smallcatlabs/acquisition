@@ -254,7 +254,10 @@ fn the_install_lines_name_the_archives_the_release_makes() {
         sums += usize::from(file == "SHA256SUMS");
     }
     assert!(urls > 0, "the README downloads nothing");
-    assert!(sums > 0, "the README fetches no SHA256SUMS to check against");
+    assert!(
+        sums > 0,
+        "the README fetches no SHA256SUMS to check against"
+    );
 }
 
 #[test]

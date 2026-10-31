@@ -171,6 +171,47 @@ fn c151_a_stale_write_over_an_unreadable_row_is_a_conflict_naming_its_revision()
     assert_eq!(a.get("item", "i1", BUYOUT_KIND).unwrap(), None);
 }
 
+/// A revision of 0 is the create-only form under either frontend's
+/// default (#101): no row carries it, so the CLI's `--if-revision 0` and
+/// the MCP's `if_revision: 0` both create where no price stands and are
+/// refused naming the stored revision where one does.
+#[test]
+fn a_revision_of_0_creates_only_where_no_price_stands_under_either_default() {
+    let (store, mut a) = priced();
+    let via = Provenance::via("test");
+    for default in [Expect::Current, Expect::Create] {
+        assert_eq!(Expect::or(Some(0), default), Expect::Create);
+        assert_eq!(Expect::or(Some(4), default), Expect::Exactly(4));
+        assert_eq!(Expect::or(None, default), default);
+    }
+    let mut zero = |a: &mut Annotations| {
+        set(
+            &store,
+            a,
+            "item/i1",
+            "exact",
+            Some("2"),
+            Some("divine"),
+            Expect::or(Some(0), Expect::Current),
+            &via,
+            "a",
+            plain,
+        )
+    };
+    assert_eq!(zero(&mut a).unwrap().write.revision, 1);
+    let r = Refused::find(&zero(&mut a).unwrap_err()).cloned().unwrap();
+    assert!(
+        matches!(
+            r.kind,
+            RefusedKind::Conflict {
+                revision: Some(1),
+                ..
+            }
+        ),
+        "{r:?}"
+    );
+}
+
 #[test]
 fn a_write_refused_for_its_revision_is_a_conflict_naming_it_in_the_verbs_words() {
     let (store, mut a) = priced();

@@ -257,7 +257,7 @@ $ acq price clear item/51e6c1055b1d94f8c53921012d459ec5d2f4e353f674f4b03192c7937
 # holds "item/51e6c1055b1d94f8c53921012d459ec5d2f4e353f674f4b03192c79375c4c682: cleared, was 5 chaos (revision 1)"
 --- stdout
 item/51e6c1055b1d94f8c53921012d459ec5d2f4e353f674f4b03192c79375c4c682: cleared, was 5 chaos (revision 1)
-next: `acq price set --account ExileTester item/51e6c1055b1d94f8c53921012d459ec5d2f4e353f674f4b03192c79375c4c682 exact 5 chaos` puts it back (a create, which names no revision; the row's count continues past the clear)
+next: `acq price set --account ExileTester item/51e6c1055b1d94f8c53921012d459ec5d2f4e353f674f4b03192c79375c4c682 exact 5 chaos --if-revision 0` puts it back (a create, which lands only where no price stands; the row's count continues past the clear)
 
 $ acq daemon stop
 # holds "daemon stopped (pid"

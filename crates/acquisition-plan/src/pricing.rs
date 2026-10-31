@@ -553,7 +553,10 @@ pub fn read_buyout(kind: &str, amount: Option<&str>, currency: Option<&str>) -> 
 }
 
 /// What a write expects to find: the compare-and-swap's revision, or
-/// what naming none means — the one rule the frontends differ on.
+/// what naming none means — the one rule the frontends differ on. A
+/// revision of 0, which no row carries (revisions start at 1), is the
+/// create-only form on every surface and both write verbs, so a command
+/// one surface prints reads the same on the other (#101).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Expect {
     /// Only over exactly this revision; refused naming the current one
@@ -570,9 +573,14 @@ pub enum Expect {
 }
 
 impl Expect {
-    /// A frontend's revision argument under its default.
+    /// A frontend's revision argument under its default: none is the
+    /// default, 0 is [`Expect::Create`], another is exactly that one.
     pub fn or(revision: Option<i64>, default: Expect) -> Expect {
-        revision.map_or(default, Expect::Exactly)
+        match revision {
+            None => default,
+            Some(0) => Expect::Create,
+            Some(revision) => Expect::Exactly(revision),
+        }
     }
 }
 
@@ -976,7 +984,7 @@ pub fn described() -> Vec<Described> {
         ),
         entry(
             "revision",
-            "a write over a row the target has of its own names that row's revision — a listing's `manual.revision` where `manual.from` is the target itself, a write's receipt's `revision`, or the `revision` a `conflict` refusal names, beside `current`, the stored row as it stands, `manual` less the age words an answer adds (`updated_at_age`), absent over a cleared row — and with no row names none, to create one; a write naming a revision the target's own row does not stand at is refused as a `conflict` naming the target's own revision, null where it has none — a container's (`manual.revision` where `manual.inherited`) among them, unless the target's own row stands at that same number, which a revision cannot tell apart: revisions count per target. A clear takes a revision too, so the next write's revision continues from it: a receipt's `revision` is the one now current, the written row's, or after a clear its tombstone's — the generation the row sequence has reached, which a later conflict names — and the next write after a clear is a create, naming none",
+            "a write over a row the target has of its own names that row's revision — a listing's `manual.revision` where `manual.from` is the target itself, a write's receipt's `revision`, or the `revision` a `conflict` refusal names, beside `current`, the stored row as it stands, `manual` less the age words an answer adds (`updated_at_age`), absent over a cleared row — and with no row names none, or 0, to create one (0, which no row carries, creates only where no row stands, on every surface); a write naming a revision the target's own row does not stand at is refused as a `conflict` naming the target's own revision, null where it has none — a container's (`manual.revision` where `manual.inherited`) among them, unless the target's own row stands at that same number, which a revision cannot tell apart: revisions count per target. A clear takes a revision too, so the next write's revision continues from it: a receipt's `revision` is the one now current, the written row's, or after a clear its tombstone's — the generation the row sequence has reached, which a later conflict names — and the next write after a clear is a create, naming none",
         ),
         entry(
             "undo",

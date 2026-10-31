@@ -697,7 +697,7 @@ Arguments:
   [CURRENCY]  For exact and negotiable: a tag of `acq reference currency`
 
 Options:
-      --if-revision <IF_REVISION>  Only write over exactly this revision (what `acq price show` printed when you reviewed it); refused naming the current one otherwise. Without it the write replaces whatever is stored — though a write racing in between still conflicts rather than being clobbered
+      --if-revision <IF_REVISION>  Only write over exactly this revision (what `acq price show` printed when you reviewed it); refused naming the current one otherwise. 0 writes only where the target has no price of its own, and is refused naming the stored revision where it has. Without it the write replaces whatever is stored — though a write racing in between still conflicts rather than being clobbered
   -h, --help                       Print help
 ```
 

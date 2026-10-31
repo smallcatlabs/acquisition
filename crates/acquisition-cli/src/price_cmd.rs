@@ -1028,8 +1028,8 @@ fn offered_line(way: &Way) -> String {
 /// clear naming the revision just written; after a replacement the
 /// prior's value with `--if-revision` naming the revision just written,
 /// so it undoes this write and not a later one; after a clear a create,
-/// which the store lands over the tombstone whatever came between (a
-/// cleared price names no revision), and the line says so. A prior this
+/// `--if-revision 0`, which the store lands over the tombstone and
+/// refuses over a price set since, and the line says so. A prior this
 /// build cannot read is shown as its JSON and promised no undo.
 fn render_write(write: &PriceWrite, in_facts: Option<bool>, account: &str) -> String {
     let target = &write.target;
@@ -1755,8 +1755,8 @@ mod tests {
         assert_eq!(
             render_write(&cleared, None, "a"),
             "item/i1: cleared, was 1/5 divine b/o (revision 2)\n\
-             next: `acq price set --account a item/i1 negotiable 1/5 divine` puts it back \
-             (a create, which names no revision; the row's count continues past the clear)\n"
+             next: `acq price set --account a item/i1 negotiable 1/5 divine --if-revision 0` puts it back \
+             (a create, which lands only where no price stands; the row's count continues past the clear)\n"
         );
         let newer = json!({ "version": 9, "type": "auction" });
         let unreadable = PriceWrite {
