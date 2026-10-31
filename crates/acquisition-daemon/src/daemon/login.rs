@@ -765,17 +765,23 @@ impl Daemon {
 }
 
 /// One argument of a printed command, quoted for the shell it will be
-/// pasted into (C156): PowerShell's on Windows outside Git Bash (which
-/// sets `MSYSTEM`), a POSIX shell's elsewhere; the daemon reads the
-/// environment the command that spawned it handed it. The search crate's
-/// `shell_quoted` is the twin every other printed command uses; C1 (the
-/// daemon never links the search) keeps this one apart, the same rules
-/// held by the same cases.
+/// pasted into (C156): the one `ACQ_SHELL` declares in the environment
+/// the command that spawned this daemon handed it, else PowerShell's on
+/// Windows outside Git Bash (which sets `MSYSTEM`) and a POSIX shell's
+/// elsewhere; a value `ACQ_SHELL` does not take falls back to that, the
+/// frontend having refused it. The search crate's `shell_quoted` is the
+/// twin every other printed command uses; C1 (the daemon never links the
+/// search) keeps this one apart, and one table holds both
+/// (`acquisition-search/tests/shell-words.json`).
 pub(super) fn shell_word(word: &str) -> String {
-    if cfg!(windows) && std::env::var_os("MSYSTEM").is_none() {
-        powershell_word(word)
-    } else {
-        posix_word(word)
+    let declared = std::env::var("ACQ_SHELL").ok();
+    match declared.as_deref() {
+        Some("posix") => posix_word(word),
+        Some("pwsh") => powershell_word(word),
+        Some("powershell5") => powershell5_word(word),
+        Some("cmd") => cmd_word(word),
+        _ if cfg!(windows) && std::env::var_os("MSYSTEM").is_none() => powershell_word(word),
+        _ => posix_word(word),
     }
 }
 
@@ -787,12 +793,75 @@ pub(super) fn posix_word(word: &str) -> String {
     let plain = !word.is_empty()
         && word
             .chars()
-            .all(|c| c.is_ascii_alphanumeric() || "-_.,/:@%+=".contains(c));
+            .all(|c| c.is_ascii_alphanumeric() || "-_./@:=".contains(c));
     if plain {
         word.to_string()
     } else {
         format!("'{}'", word.replace('\'', "'\\''"))
     }
+}
+
+/// A Windows PowerShell 5.1 word: 5.1 hands a native program the string
+/// it read, wrapped in double quotes when it holds whitespace, an inner
+/// double quote unescaped, and the program splits its command line by
+/// the C runtime's rules; so the string is written for those rules
+/// ([`crt_escaped`]) and quoted as PowerShell 7.3's word is. An empty
+/// word, which 5.1 drops, is two double quotes.
+pub(super) fn powershell5_word(word: &str) -> String {
+    if word.is_empty() {
+        return "'\"\"'".to_string();
+    }
+    powershell_word(&crt_escaped(word, word.contains([' ', '\t'])))
+}
+
+/// A cmd.exe word: cmd reads no single quote, so a word that needs it is
+/// double-quoted by the C runtime's rules, and every character cmd reads
+/// specially, the double quotes and `%` included, is escaped with `^`, so
+/// cmd never enters a quote state and reads no variable.
+pub(super) fn cmd_word(word: &str) -> String {
+    const SPECIAL: &str = "()%!^\"<>&|";
+    let plain = !word.is_empty()
+        && word
+            .chars()
+            .all(|c| !c.is_whitespace() && !SPECIAL.contains(c) && c != '\\');
+    if plain {
+        return word.to_string();
+    }
+    let mut out = String::new();
+    for c in format!("\"{}\"", crt_escaped(word, true)).chars() {
+        if SPECIAL.contains(c) {
+            out.push('^');
+        }
+        out.push(c);
+    }
+    out
+}
+
+/// `word` as the C runtime's command-line split reads it back: an inner
+/// `"` is `\"`, the backslashes before it doubled, and where the word
+/// will stand inside double quotes (`wrapped`) the backslashes that end
+/// it are doubled too.
+fn crt_escaped(word: &str, wrapped: bool) -> String {
+    let mut out = String::new();
+    let mut slashes = 0;
+    for c in word.chars() {
+        match c {
+            '\\' => slashes += 1,
+            '"' => {
+                out.push_str(&"\\".repeat(slashes * 2 + 1));
+                slashes = 0;
+            }
+            _ => {
+                out.push_str(&"\\".repeat(slashes));
+                slashes = 0;
+            }
+        }
+        if c != '\\' {
+            out.push(c);
+        }
+    }
+    out.push_str(&"\\".repeat(if wrapped { slashes * 2 } else { slashes }));
+    out
 }
 
 /// A PowerShell word: bare when every character is one PowerShell's

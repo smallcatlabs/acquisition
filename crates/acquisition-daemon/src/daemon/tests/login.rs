@@ -1546,41 +1546,34 @@ async fn a_logins_landing_saves_the_access_token_beside_the_refresh_token() {
     assert_eq!(entry.refresh_token, "rt-Alice#1");
 }
 
-/// #16 — the logout's retry word is quoted for the shell the platform
-/// gives its user, by the same rules and cases as the search crate's
-/// `shell_quoted`, whose twin this is (C1 keeps them two): a POSIX
-/// shell's `'\''`, or on Windows PowerShell's doubled quote, `@` and `,`
-/// quoted, and a number PowerShell would print another way quoted.
+/// #16, C156 — the logout's retry word is quoted for the shell it will
+/// be pasted into by the same rules as the search crate's
+/// `shell_quoted`, whose twin this is (C1 keeps them two): every row of
+/// the one table both read, `shell-words.json`, for every shell
+/// `ACQ_SHELL` declares, and `shell_word` the environment's shell.
 #[test]
-fn the_retry_word_is_quoted_for_the_platforms_shell() {
-    use crate::daemon::login::{posix_word, powershell_word, shell_word};
-    for (word, posix, powershell) in [
-        ("Alice", "Alice", "Alice"),
-        ("Alice#1234", "'Alice#1234'", "'Alice#1234'"),
-        ("Alice Smith", "'Alice Smith'", "'Alice Smith'"),
-        ("O'Neil", r"'O'\''Neil'", "'O''Neil'"),
-        (
-            "O\u{2019}Neil",
-            "'O\u{2019}Neil'",
-            "'O\u{2019}\u{2019}Neil'",
-        ),
-        ("@alice", "@alice", "'@alice'"),
-        ("a,b", "a,b", "'a,b'"),
-        ("", "''", "''"),
-        ("12", "12", "12"),
-        ("0123", "0123", "'0123'"),
-        ("1e3", "1e3", "'1e3'"),
-        ("0x10", "0x10", "'0x10'"),
-    ] {
-        assert_eq!(posix_word(word), posix, "{word}");
-        assert_eq!(powershell_word(word), powershell, "{word}");
-        // the shell is the environment's (C156): this process may run
-        // under Git Bash, which sets MSYSTEM
-        let platform = if cfg!(windows) && std::env::var_os("MSYSTEM").is_none() {
-            powershell
-        } else {
-            posix
-        };
-        assert_eq!(shell_word(word), platform, "{word}");
+fn the_retry_word_is_quoted_for_the_declared_shell() {
+    use crate::daemon::login::{
+        cmd_word, posix_word, powershell_word, powershell5_word, shell_word,
+    };
+    let rows: Vec<serde_json::Value> = serde_json::from_str(include_str!(
+        "../../../../acquisition-search/tests/shell-words.json"
+    ))
+    .unwrap();
+    assert!(rows.len() > 20);
+    let declared = std::env::var("ACQ_SHELL").ok();
+    let here = match declared.as_deref() {
+        Some(name @ ("posix" | "pwsh" | "powershell5" | "cmd")) => name,
+        _ if cfg!(windows) && std::env::var_os("MSYSTEM").is_none() => "pwsh",
+        _ => "posix",
+    };
+    for row in &rows {
+        let word = row["word"].as_str().unwrap();
+        let want = |shell: &str| row[shell].as_str().unwrap().to_string();
+        assert_eq!(posix_word(word), want("posix"), "{word}");
+        assert_eq!(powershell_word(word), want("pwsh"), "{word}");
+        assert_eq!(powershell5_word(word), want("powershell5"), "{word}");
+        assert_eq!(cmd_word(word), want("cmd"), "{word}");
+        assert_eq!(shell_word(word), want(here), "{word}");
     }
 }
