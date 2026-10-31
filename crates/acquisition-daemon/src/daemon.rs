@@ -1033,8 +1033,10 @@ pub struct Daemon {
     /// daemon's clock, outside every lock as `connections` is.
     last_activity: AtomicU64,
     /// C158: the blocking tasks [`Daemon::blocking`] has spawned whose
-    /// closures have not returned, outside every lock. Nothing in the
-    /// daemon reads it; a door scenario's park hook does.
+    /// completion a runtime task has not yet observed (the count holds
+    /// past the closure's return, through tokio's wake of the task that
+    /// awaits it), outside every lock. Nothing in the daemon reads it;
+    /// a door scenario's park hook does.
     blocking_in_flight: AtomicUsize,
     /// C158: notified after every publication that changes what
     /// `AuthStatus` answers (the login flow's start and end, a login's
