@@ -579,6 +579,7 @@ impl Daemon {
         }
         self.settle(Settled {
             username: &username,
+            uuid: uuid.as_deref(),
             session_dropped: dropped,
             cleared,
             indexed,
@@ -656,6 +657,7 @@ impl Daemon {
     fn settle(&self, done: Settled<'_>) -> Result<KeyringOutcome, Refusal> {
         let Settled {
             username,
+            uuid,
             session_dropped,
             cleared,
             indexed,
@@ -692,7 +694,13 @@ impl Daemon {
                 "the account index could not mark it not persisted ({e}), so a start may still try to restore it"
             ));
         }
-        let retry = format!("`acq auth logout --account {}`", shell_word(username));
+        // The retry names the account by its uuid, a word no shell reads
+        // specially, so it runs as printed whichever shell it is pasted
+        // into, not only the one this daemon was started from (C156; the
+        // review of words' fix round, its first finding); the username,
+        // quoted, only for an entry the index holds no uuid for.
+        let selector = uuid.map_or_else(|| shell_word(username), str::to_string);
+        let retry = format!("`acq auth logout --account {selector}`");
         match &cleared {
             Ok(()) => {}
             Err(auth::NotCleared::Off(why)) => but.push(format!(
@@ -716,6 +724,8 @@ impl Daemon {
 /// What a logout or a forget did, for [`Daemon::settle`]'s words.
 struct Settled<'a> {
     username: &'a str,
+    /// The account's uuid, which the retry names where there is one.
+    uuid: Option<&'a str>,
     session_dropped: bool,
     cleared: Result<(), auth::NotCleared>,
     indexed: Result<(), String>,

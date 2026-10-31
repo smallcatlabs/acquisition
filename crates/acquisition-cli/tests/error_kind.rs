@@ -104,12 +104,33 @@ fn c144_logout_json_reads_the_keyring_field_not_the_sentence() {
     assert_eq!(report["keyring"], "off", "{report}");
 }
 
+/// C156: a printed command pasted into cmd.exe keeps its single quotes and
+/// splits its quoted words, so the parser refuses it; on Windows the
+/// refusal then names the shell the commands are for (the review of
+/// words' fix round, its second finding: the hint ran only after a
+/// command parsed). Elsewhere no shell leaves such words, and nothing is
+/// said.
+#[test]
+fn c156_a_refused_cmd_paste_names_the_shell_the_commands_are_for() {
+    let scratch = harness::scratch("cmd-paste");
+    let out = harness::offline_acq(&scratch.0, &["search", "'rarity=rare", "is:corrupted'"]);
+    assert_eq!(out.status.code(), Some(2), "{out:?}");
+    let said = String::from_utf8_lossy(&out.stderr);
+    assert_eq!(
+        said.contains("cmd.exe") && said.contains("PowerShell 7.3 or newer"),
+        cfg!(windows),
+        "{said}"
+    );
+}
+
 /// C144's retry command runs as printed, the review of h1, its seventh
 /// finding (part of issue #16, printed commands quoted for the shell):
-/// the account the logout's words name is quoted for a POSIX shell, so
-/// the command `sh` reads back is one `--account` for `Alice Smith`,
-/// which clap parses and the daemon resolves; unquoted, `Smith` was a
-/// second positional argument and clap refused the line. The command is
+/// the account `Alice Smith` is named by its uuid, which no shell splits
+/// or quotes (C156; the review of words' fix round, its first finding:
+/// a quoted username followed the daemon's shell, not the paster's), so
+/// the command `sh` reads back is one `--account`, which clap parses and
+/// the daemon resolves; a bare `Alice Smith` was two words and clap
+/// refused the line. The command is
 /// run by `sh` exactly as printed, with this build's `acq` first on the
 /// path, in the same mock world.
 #[cfg(unix)]
@@ -134,7 +155,16 @@ fn c144_the_printed_logout_command_runs_as_printed() {
         .and_then(|(_, rest)| rest.split_once('`'))
         .map(|(command, _)| command.to_string())
         .unwrap_or_else(|| panic!("no command in the words: {said}"));
-    assert_eq!(printed, "acq auth logout --account 'Alice Smith'");
+    // the account by its uuid, a word no shell quotes, so the line runs
+    // as printed in whichever shell it is pasted into (C156)
+    let uuid = acquisition_store::Index::load(&base.join("store").join("mock"))
+        .unwrap()
+        .resolve(Some("Alice Smith"))
+        .unwrap()
+        .uuid
+        .clone()
+        .expect("a login records the uuid");
+    assert_eq!(printed, format!("acq auth logout --account {uuid}"));
 
     let bin = harness::acq_exe().parent().unwrap();
     let path = std::env::join_paths(std::iter::once(bin.to_path_buf()).chain(

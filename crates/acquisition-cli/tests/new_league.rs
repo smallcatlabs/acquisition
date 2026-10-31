@@ -176,7 +176,7 @@ fn a_new_league_starts_empty_beside_standard_and_a_typo_is_named() {
         },
     ]);
 
-    let mut t = Transcript::new(&base);
+    let mut t = Transcript::new(&base).fetched_live();
     let mut said = String::new();
     for s in &steps {
         let args: Vec<&str> = s.args.iter().map(String::as_str).collect();

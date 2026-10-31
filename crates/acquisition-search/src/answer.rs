@@ -2852,8 +2852,8 @@ fn exactly(of: &str, value: &str) -> Node {
 /// command without one an error, and a last word that starts with `-` —
 /// the language's not, a terminal's flag — is printed after a space
 /// inside its quotes, or `-has:note` is read as `-h`: the query reads the
-/// space as nothing, and no shell needs a `--`, which Windows PowerShell
-/// swallows rather than hand on (C156).
+/// space as nothing, and the word reads the same in every shell C156
+/// names, with no `--` to carry.
 pub fn command(verb: &str, account: Option<&str>, realm: Option<&str>, last: &str) -> String {
     command_with(verb, account, realm, last, "")
 }

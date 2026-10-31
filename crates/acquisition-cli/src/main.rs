@@ -988,8 +988,17 @@ fn refuse_usage(e: clap::Error) -> ! {
             | Parse::DisplayVersion
             | Parse::DisplayHelpOnMissingArgumentOrSubcommand
     );
-    if !asked_json || informative {
+    if informative {
         e.exit();
+    }
+    if !asked_json {
+        // the parser's refusal, then what a pasted command met (C156): a
+        // cmd.exe paste most often fails here, its quoted words split
+        let _ = e.print();
+        if let Some(hint) = pasted_shell_hint() {
+            eprintln!("{hint}");
+        }
+        std::process::exit(e.exit_code());
     }
     let message = e.render().to_string();
     let message = message.trim().trim_start_matches("error: ");
@@ -1366,15 +1375,21 @@ async fn main() {
                 eprintln!("Error: {}", failure_words(&e));
             }
         }
-        let powershell = acquisition_search::answer::powershell(
-            cfg!(windows),
-            std::env::var_os("MSYSTEM").is_some(),
-        );
-        if !json && let Some(hint) = shell_hint(std::env::args().skip(1), powershell) {
+        if !json && let Some(hint) = pasted_shell_hint() {
             eprintln!("{hint}");
         }
         std::process::exit(1);
     }
+}
+
+/// [`shell_hint`] over this command's own words, under the shell the
+/// environment says the printed commands are for.
+fn pasted_shell_hint() -> Option<&'static str> {
+    let powershell = acquisition_search::answer::powershell(
+        cfg!(windows),
+        std::env::var_os("MSYSTEM").is_some(),
+    );
+    shell_hint(std::env::args().skip(1), powershell)
 }
 
 /// C156: where the commands acq prints are for PowerShell 7.3 or newer, a
