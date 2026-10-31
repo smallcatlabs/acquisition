@@ -299,6 +299,41 @@ pub fn offered_line_in(offer: &serde_json::Value, shell: Shell) -> String {
 /// An offer's `argv` run with no shell, `extra` after it, as a program
 /// runs it, over a world seeded by hand at `world` ([`offline_acq`]):
 /// the JSON it answers.
+/// Two runs of one request answer alike but for what the clock chose
+/// between them: an age (`<n>s ago`, the `age` rule's words) and the
+/// epoch an answer was taken at (`taken_at`). A document with those
+/// replaced by `<age> ago` and `<taken_at>`, so two runs compare whole
+/// (#149: `listing.basis.at_age` read `1s ago` beside `0s ago` across a
+/// second's boundary on the Windows gate; C137).
+pub fn but_for_the_clock(doc: &serde_json::Value) -> serde_json::Value {
+    use serde_json::Value;
+    match doc {
+        Value::Object(map) => Value::Object(
+            map.iter()
+                .map(|(k, v)| {
+                    let v = if k == "taken_at" {
+                        Value::String("<taken_at>".into())
+                    } else {
+                        but_for_the_clock(v)
+                    };
+                    (k.clone(), v)
+                })
+                .collect(),
+        ),
+        Value::Array(items) => Value::Array(items.iter().map(but_for_the_clock).collect()),
+        Value::String(text) if is_age(text) => Value::String("<age> ago".into()),
+        other => other.clone(),
+    }
+}
+
+/// `<n>s ago`, `<n>m ago`, `<n>h ago` or `<n>d ago`, the `age` rule's shape.
+fn is_age(text: &str) -> bool {
+    text.strip_suffix(" ago").is_some_and(|span| {
+        span.strip_suffix(['s', 'm', 'h', 'd'])
+            .is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()))
+    })
+}
+
 pub fn run_argv(world: &Path, offer: &serde_json::Value, extra: &[&str]) -> serde_json::Value {
     let argv: Vec<&str> = offer["argv"]
         .as_array()

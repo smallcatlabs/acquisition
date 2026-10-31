@@ -1762,7 +1762,12 @@ fn every_offer_a_refusal_prints_runs_as_printed() {
         let line = harness::offered_line(offer);
         let printed = run_offered(&base, &line);
         // C156: the words beside the line answer the same with no shell
-        assert_eq!(harness::run_argv(&base, offer, &[]), printed, "{offer}");
+        // (but for the clock's fields, read a second apart: #149).
+        assert_eq!(
+            harness::but_for_the_clock(&harness::run_argv(&base, offer, &[])),
+            harness::but_for_the_clock(&printed),
+            "{offer}"
+        );
     }
 
     // a target held nowhere: the search of the realm, a request, and the
@@ -1797,8 +1802,8 @@ fn every_offer_a_refusal_prints_runs_as_printed() {
     );
     let line = harness::offered_line(&offers[1]);
     assert_eq!(
-        harness::run_argv(&base, &offers[1], &["--json"]),
-        run_offered(&base, &format!("{line} --json"))
+        harness::but_for_the_clock(&harness::run_argv(&base, &offers[1], &["--json"])),
+        harness::but_for_the_clock(&run_offered(&base, &format!("{line} --json")))
     );
     let words = doc["error"].as_str().unwrap();
     let printed: Vec<&str> = words.split('`').filter(|w| w.starts_with("acq ")).collect();
@@ -1823,7 +1828,10 @@ fn every_offer_a_refusal_prints_runs_as_printed() {
             &base,
             &format!("{} --json", harness::offered_line(&offers[0])),
         );
-        assert_eq!(harness::run_argv(&base, &offers[0], &["--json"]), shown);
+        assert_eq!(
+            harness::but_for_the_clock(&harness::run_argv(&base, &offers[0], &["--json"])),
+            harness::but_for_the_clock(&shown)
+        );
         assert_eq!(shown["listing"]["subject"]["target"]["id"], "ix", "{shown}");
     }
 }
