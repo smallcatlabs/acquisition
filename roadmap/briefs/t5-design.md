@@ -3,11 +3,11 @@
 Provenance: Fable, the orchestrating session of 2026-10-31, after
 4-0's three steps closed (`LEDGER.md`), from the spike's Answer
 (`4-0-spike.md`) and one read-only measurement of the daemon's tests
-at `a4834369`, every count from a printed command. Re-cut from the
-cold review of the first draft (`6284d681`, saved verbatim at
-`roadmap/reviews/t5-design-6284d681.md` with its prompt beside): the
-thirteen findings and what each changed are at the foot, "Taken from
-the review". A design brief: §5 is the owner's to rule; the rounds of
+at `a4834369`, every count from a printed command. Cut three times: the first
+draft (`6284d681`) and the re-cut (`189792f5`), each reviewed cold
+(`roadmap/reviews/t5-design-<sha>.md`, the prompt beside); this cut
+answers the second review's seven findings. What each finding
+changed is at the foot, "Taken from the reviews". A design brief: §5 is the owner's to rule; the rounds of
 §4 become build briefs after it, one at a time, each reviewed cold.
 Nothing here is a ruling until he says so.
 
@@ -75,11 +75,13 @@ eight) and a store that cannot be written (`login.rs:1201`, six); the
 exit and drain (`credentials.rs:318`); the idle lifecycle
 (`exit.rs:909`); a cancel (`dispatch.rs:1630`). `responses.rs`'s five
 synchronous tests judge the classification of a body as a function;
-`dispatch.rs`'s wire tests hold three of the five by line (the retry
-bound, 518 and 553; the terminal `Retry-After`, 595) and not the other
-two: a non-2xx status keeping precedence over a body that failed to
-transfer (`responses.rs:111`) and a 200 whose body is not JSON (129;
-the malformed-listing wire test at `dispatch.rs:376` sends valid JSON).
+`dispatch.rs`'s wire tests hold two of the five at the boundary (the
+retry bound, `responses.rs:27`, by 518 and 553 jointly; the body
+outcome that requeues, 40, by 595 and the headerless 429 at 744) and
+not the other three: a truncated 200 staying a transport failure with
+its cause (92), a non-2xx status keeping precedence over a body that
+failed to transfer (111), and a 200 whose body is not JSON (129; the
+malformed-listing wire test at `dispatch.rs:376` sends valid JSON).
 `BlockingClock`'s one test (`dispatch.rs:192`) proves a zero-duration
 job completes while two different rate waits stay parked (233, 244).
 The exempt-route list is written three times in two domains:
@@ -141,15 +143,24 @@ time automatically only when nothing the scenario started can run.**
      job events (finish, cancel and restore all emit: `dispatch.rs:471`,
      `queue.rs` 648 and 349), the events a hint and the state re-read
      (subscribe before the snapshot, as the frontends do); and
-     `door.await_state(…)` for the non-terminal waits a scenario
-     needs (a login landed or failed before any profile job exists,
-     `login.rs` 342 and 403), on the same events.
+     `door.await_auth()` for the login's waits (a login landed or
+     failed before any profile job exists, `login.rs` 342 and 403):
+     these the job events cannot wake (`finish_auth_flow_error` at
+     `login.rs:472` records the result and publishes no event; the
+     success is published after the profile job's, 341), so the daemon
+     gains an auth-change notification at its auth transitions (the
+     flow's end, success and failure, the logout), the door subscribes
+     before it reads, and the answer is read through `AuthStatus`
+     (`protocol.rs:455`, which documents the poll it replaces).
    - `door.journal() -> Journal`: the sends as the oracles read them.
    - `door.finish()`: the teardown and the oracles the server kind
-     selects, run always: a door scenario has a journal file even
-     under `None` (journaling writes its header before any send,
-     `rails.rs` 447 and 468), a missing file fails, and the empty
-     journal's oracles run. The skip at `harness.rs:694` is not the
+     selects, run always: the door supplies a scratch `journal_path` to every
+     daemon it builds, whatever rails it was given (the builder's
+     default rails have none, `daemon.rs:1232`, and `rails.rs:447–480`
+     writes no header without one; the harness sets one at
+     `harness.rs:506`), fails construction if it cannot open it, and
+     so has a journal file even under `None`; a missing file at finish
+     fails, and the empty journal's oracles run. The skip at `harness.rs:694` is not the
      door's.
    A sixth, `door.advance(d)` (and `laptop_sleep`), moves the clock by
    the scenario's own hand, for a verdict read at a moment
@@ -189,8 +200,14 @@ time automatically only when nothing the scenario started can run.**
 5. **`Life` on the clock**, the three waits together: the idle
    deadline and the drain through `sleep_until`, the quiet wait's look
    through the clock's `sleep`; `Exit::arm` sets the drain's deadline
-   on the daemon's clock (`daemon.rs:233` today, tokio's), so the
+   on the daemon's clock (`daemon.rs:267` today, tokio's), so the
    driver reads one clock; the bound's OS thread stays real (C133).
+   Every caller of `Life` moves in the same round, the retained
+   component tests included: a drain driven on `ManualClock`
+   (`credentials.rs` 564 and 781, through the harness's `drain` at
+   633) would expire at once, since that clock's `sleep` advances
+   itself and the default `sleep_until` is its `sleep`; such a test
+   takes the system clock or a parking clock it advances by hand.
    Then `exit.rs`'s drain tests run in virtual time through the door:
    `HELD` and `BOUND` virtual, the `settle` sleeps awaited events;
    `exit.rs:301`'s lower bound (the tokio drain) becomes a logical
@@ -233,7 +250,7 @@ the door until one is asked for (§5's line).
 | `BlockingClock`'s one test (`dispatch.rs:192`) | the same test on the parking clock, asserting what it asserts today: the independent job completes while two rate waits stay parked (`sleepers() == 2`) | `BlockingClock`, held by that test |
 | Cloudflare's three shapes, the origin 5xx, GGG's 4xx | the same table, the failure read as the daemon classifies it (below) | the sleeps that prove absence; the literal ceilings |
 | the 401, the laptop sleep, the refresh families (`bearer.rs`, `refresh.rs`) | rows with a clock-move column (`advance`, `laptop_sleep`) | nothing until round 5 |
-| `responses.rs` | first, wire twins for its two unheld properties (a truncated body under a non-2xx status; a 200 whose body is not JSON), through the script's raw form; then the file retires with a C154 line naming each of its five tests' holder by line | `responses.rs`, held by `dispatch.rs` 518, 553, 595 and the two twins |
+| `responses.rs` | kept as the classification's component table (`classify_api_body`, `may_requeue_429`); the boundary gains three wire twins through the script's raw form (a truncated 200 a transport failure with its cause; a truncated body under a non-2xx status; a 200 whose body is not JSON), so every classification the table names is seen once at the boundary | nothing |
 | `sessions.rs` | journaling scenarios through `Own` servers: "one owner" is "one token POST on the wire", read from the journal, not from `auth` | its own `test_daemon`, `SystemClock`, `Rails::disabled()`, its `shared.lock()`s, the generation counters |
 | `login.rs` | the login's scenarios through the door where they cross the frontend boundary, their `shared.lock()`s and `auth` reads replaced by the journal, the protocol's answers and `await_state`; the callback tests off the door | the two unbounded polls (346, 404) |
 | the exit and the drain (`exit.rs`, `credentials.rs:318`) | virtual time through the door; the `Life` table and its wiring tests as they are | `settle`; `HELD` and `BOUND` as real durations |
@@ -246,12 +263,14 @@ children and a payload and no classification field
 (`protocol.rs`, `job.rs:150`), and several of the kinds a row would
 name are flattened to `ApiError::Other` on the way (`kinds.rs` 1070,
 1082, 1091), while halted work is parked, not terminal
-(`dispatch.rs:565`). So a row asserts the classification where the
-daemon makes it, a test-visible enum the dispatcher records beside
-the outcome (daemon-internal, read by the door), and the words the
-goldens hold stay the frontends'. A classification field in
-`Outcome` would be a protocol change, serialized and persisted, a
-user's JSON: §5 puts it to the owner as a question, not a plan.
+(`dispatch.rs:565`). So a door row asserts what crosses the boundary: the journal (the
+sends, their waits, a retry made or not) and the protocol's answer
+(the outcome, the error's words where a golden holds them); the
+classification itself stays a component property, `responses.rs`'s
+table over `classify_api_body`, and the ruling's boundary is kept
+without an exception. A classification field in `Outcome` would be
+a protocol change, serialized and persisted, a user's JSON: §5 puts
+it to the owner as a question, not a plan.
 
 ## 4. The rounds
 
@@ -266,17 +285,20 @@ retirement waits for its last user.
    its `mutants.out` kept under `runs/`. Round 6 compares
    corresponding mutants and classifies additions and removals apart.
 1. **The clock and the door.** `ParkingClock`, `Clock::sleep_until`,
-   the counted blocking helper and its arch check, the door's five
-   calls with its builder and fixture kinds, the 429 hold as the first
+   the counted blocking helper and its arch check, the auth-change
+   notification, the door's five calls with its builder, fixture
+   kinds and scratch journal, the 429 hold as the first
    table (the spike's scenario), the mock on the daemon's clock at
    the seven sites, `BlockingClock`'s test moved and its clock retired.
    The gate's test time must not grow: the table runs in milliseconds.
 2. **`Life` on the clock.** The three waits and `Exit`'s deadline onto
-   the clock; `exit.rs`'s drain tests through the door in virtual
-   time; 301's bound logical.
+   the clock; every `Life` caller inventoried and moved with it, the
+   retained component tests on a system or hand-driven parking clock;
+   `exit.rs`'s drain tests through the door in virtual time; 301's
+   bound logical.
 3. **The families as tables.** The scripted-server families of §3's
-   first and third rows, the classification read from the daemon;
-   the two wire twins, then `responses.rs` retired.
+   first and third rows, asserted at the boundary; the three wire
+   twins; `responses.rs` kept as the component table.
 4. **The sessions and the login as scenarios.** `sessions.rs` and
    `login.rs` through the door where they cross the boundary; the
    private-state reads out of the top five files where a journal, an
@@ -300,21 +322,21 @@ Each is his; nothing below is entered until he rules.
   boundary only, and its time moves by its own hand or when nothing
   it started can run.** It enters through the protocol and reads the
   journal and the protocol's answers; it moves its clock explicitly
-  or lets the runtime's park move it, never a poll; a test that needs
+  or lets the runtime move it, never a poll; a test that needs
   another boundary (several workers, a child process, the daemon's
   own socket, a function or a table) says which and stays a component
   test. *Why:* a test that drives internals pins this build's
   mechanics and dies with a rewrite; a count of waiting tasks is
-  wrong once two park, and the runtime's park is the one exact
-  signal. *Pinned:* the door's own table; the arch check that every
-  blocking task the daemon spawns goes through its counted helper.
-  (The mechanism, the hook and its two counts, is the door's doc
-  comment.)
-- **A "Not doing" line for `decisions/daemon.md`:** a scenario that
-  needs a request's timeout to expire: refused; a script answers every
-  connection, a late answer is staged by the delayed server, and a
-  silent one waits its real timeout. Not until a scenario needs the
-  expiry itself.
+  wrong once two park, and the runtime's own park is the one exact
+  signal. *Pinned:* nothing yet (the door's table and the arch check
+  on `spawn_blocking`, when built).
+
+  The mechanism, the park hook and its two counts, is the door's doc
+  comment, not the entry's.
+- **A "Not doing" line for `decisions/daemon.md`:** virtualising a
+  request timeout's expiry: not until a scenario requires it. A
+  script answers every connection, a late answer is staged by the
+  delayed server, and a silent one waits its real timeout.
 - **A question, not a draft: a classification field in `Outcome`.**
   The design reads a failure's kind from a daemon-internal enum; a
   field in `Outcome` would be the frontends' to read and a user's
@@ -345,9 +367,10 @@ Each is his; nothing below is entered until he rules.
 - The baseline's hours: round 0 is a machine's night, not a worker's
   day; the owner names the machine.
 
-## Taken from the review
+## Taken from the reviews
 
-The thirteen findings of `roadmap/reviews/t5-design-6284d681.md`:
+The first review's thirteen (`t5-design-6284d681.md`), as the second
+review judged them:
 
 1. The door's submit could not carry a refusal, an auth reply or a
    non-terminal wait, and the internal-input tests cannot enter
@@ -383,3 +406,24 @@ The thirteen findings of `roadmap/reviews/t5-design-6284d681.md`:
 12. The exempt lists' two domains and a third shape (§1, §3, §5).
 13. The census's occurrences labelled, the calls and rows counted as
     such (§1).
+
+The second review's seven (`t5-design-189792f5.md`):
+
+1. The job events cannot wake the auth waits: an auth-change
+   notification, the door subscribing before it reads `AuthStatus`
+   (§2.1, round 1).
+2. `responses.rs:92` had no holder and the five-test map was wrong:
+   the map corrected (two held, three unheld); the file is kept as the
+   classification's component table and the boundary gains three
+   twins (§1, §3, round 3).
+3. Round 2 left `Life` callers on the manual clock: every caller
+   moves in the round (§2.5, round 2).
+4. The internal classification was an exception the ruling did not
+   name: door rows assert the boundary, the classification stays a
+   component property (§3).
+5. A header only under a configured journal path: the door supplies
+   a scratch one and fails construction without it (§2.1).
+6. The ruling's form: the parenthesis out, the mechanism to the
+   code, the pins named as "nothing yet" with what will pin it; the
+   "Not doing" line in the registry's wording (§5).
+7. The drain deadline's citation: `daemon.rs:267` (§2.5).
