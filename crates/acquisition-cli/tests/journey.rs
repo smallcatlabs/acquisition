@@ -174,7 +174,7 @@ fn a_first_session_reads_as_a_user_meets_it_and_the_journal_holds() {
         ),
     ];
 
-    let mut t = Transcript::new(&base);
+    let mut t = Transcript::new(&base).fetched_live();
     for s in &steps {
         let args: Vec<&str> = s.args.iter().map(String::as_str).collect();
         let facts: Vec<&str> = s.facts.iter().map(String::as_str).collect();

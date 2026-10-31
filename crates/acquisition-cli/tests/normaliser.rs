@@ -312,3 +312,23 @@ fn normalising_a_committed_golden_changes_nothing() {
         goldens.display()
     );
 }
+
+/// A world fetched in real time writes the scope's two fetch places
+/// `<place>`, since which location is the newest hangs on a second's
+/// boundary (#11; the journey's flipped between runs); the rest of the
+/// line, every other line and a fact stand.
+#[test]
+fn the_fetch_place_rule_writes_the_scopes_two_places_and_nothing_else() {
+    use crate::harness::fetch_place_rule;
+    let text = "scope   account a · pc · live · 49 items · 16 locations fetched (the oldest fetch <age> ago, Standard / Currency; the newest <age> ago, Standard / u001)\n\
+                # holds \"the oldest fetch <age> ago, Standard / Currency; \"\n\
+                rows    Ring · Standard / Dump · fetched <age> ago\n";
+    let once = fetch_place_rule(text);
+    assert_eq!(
+        once,
+        "scope   account a · pc · live · 49 items · 16 locations fetched (the oldest fetch <age> ago, <place>; the newest <age> ago, <place>)\n\
+         # holds \"the oldest fetch <age> ago, Standard / Currency; \"\n\
+         rows    Ring · Standard / Dump · fetched <age> ago\n"
+    );
+    assert_eq!(fetch_place_rule(&once), once);
+}

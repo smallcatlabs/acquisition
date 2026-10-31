@@ -225,6 +225,8 @@ pub struct Transcript {
     /// Knobs set over the isolation list on every command, `None`
     /// removing one ([`Transcript::knob`]).
     knobs: Vec<(String, Option<String>)>,
+    /// The world was fetched in real time ([`Transcript::fetched_live`]).
+    fetched_live: bool,
 }
 
 impl Transcript {
@@ -236,7 +238,18 @@ impl Transcript {
             text: String::new(),
             facts: 0,
             knobs: Vec::new(),
+            fetched_live: false,
         }
+    }
+
+    /// The world was fetched by the mock daemon in real time, so which of
+    /// its locations is the scope's oldest or newest fetch hangs on a
+    /// second's boundary: the golden writes those two places `<place>`
+    /// ([`fetch_place_rule`]). A seeded world, whose fetch times the test
+    /// sets, names them.
+    pub fn fetched_live(mut self) -> Transcript {
+        self.fetched_live = true;
+        self
     }
 
     /// Every command after this sets `key` to `value` over the isolation
@@ -345,8 +358,36 @@ impl Transcript {
 
     /// The transcript under the normaliser's named rules ([`normalise`]).
     fn normalised(&self) -> String {
-        normalise(&self.text, &self.base)
+        let text = normalise(&self.text, &self.base);
+        if self.fetched_live {
+            fetch_place_rule(&text)
+        } else {
+            text
+        }
     }
+}
+
+/// A transcript's own rule, outside [`normalise`]'s eleven, for a world
+/// fetched in real time ([`Transcript::fetched_live`]): on a scope line,
+/// the place after each of the oldest and the newest fetch's ages is
+/// `<place>`. A `# holds` line is the fact as checked and is kept.
+pub fn fetch_place_rule(text: &str) -> String {
+    text.split_inclusive('\n')
+        .map(|line| {
+            if is_fact(line) || !line.starts_with("scope ") {
+                return line.to_string();
+            }
+            let mut line = line.to_string();
+            for (open, close) in [("fetch <age> ago, ", "; "), ("newest <age> ago, ", ")")] {
+                if let Some(at) = line.find(open).map(|at| at + open.len())
+                    && let Some(len) = line[at..].find(close)
+                {
+                    line.replace_range(at..at + len, "<place>");
+                }
+            }
+            line
+        })
+        .collect()
 }
 
 /// The normaliser's eleven named rules, in order: CRLF to LF, `scratch`
