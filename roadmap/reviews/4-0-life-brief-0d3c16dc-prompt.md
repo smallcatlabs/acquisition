@@ -1,0 +1,15 @@
+You are the outside reviewer of a BUILD BRIEF, not a code change, in the Acquisition Rust workspace: roadmap/briefs/4-0-life.md as cut a third time at 0d3c16dc, the second build step of phase 4-0, the time seam. Read it with `git show 0d3c16dc` and the file as it stands. This is a short confirming review: the second cold review (of 09a777e4, saved verbatim at roadmap/reviews/4-0-life-brief-09a777e4.md with its prompt beside; the first review of 5a2c1725 beside them) found the first review's eight findings answered or soundly narrowed and raised four of its own; this cut answers the four, and the same commit amends the dated paragraph for step 2 under §4 of roadmap/briefs/4-0-design.md. Read; do not build or run anything; the tree is read-only to you. The brief's form is roadmap/briefs/TEMPLATE.md; AGENTS.md names the invariants and the cross-cutting rulings. Every line the brief cites was printed from the tree at 0d3c16dc.
+
+Your lens, in this order:
+1. Did this cut answer each of the second review's four findings in substance, not in words? For each: answered, answered narrower than proposed (and whether the narrowing is sound against the tree), or not answered. Check "Taken from the reviews" against the Do lines it points at, not against itself.
+2. The ingress contract as Do 1 and Do 3 now draw it: `begin_exit` whole at every ingress (the stop's connection task, server.rs:189–191 and 550–567; the watcher, which today swaps at start.rs:221 and leaves `stop_admitting` to `exit_armed` at server.rs:540–544 and now does both before sending its event; the loop itself for idle through `Begin` answered `ExitArmed { won }`), the loop performing only `Cancel(Idle)`, `Arm(Drain)`, `AwaitQuiet` on the winner's event. Is the admission fence (choke.rs:393 reading the rails' halt, rails.rs:541–552) now in place before any ingress hands control away, as exit.rs:223–240 pins? Does the watcher calling `stop_admitting` on its own thread (it takes no daemon lock today at start.rs:221; `stop_admitting` at server.rs:563–567 calls `rails().begin_stopping()`, logs and notifies) introduce a lock or a runtime problem on that thread?
+3. The idle remainder's arithmetic (Do 3): saturating subtraction, a one-day cap, checked addition: sound against start.rs:16–21 and server.rs:686, and does the cap change when an idle daemon exits for any knob a user would set?
+4. Anything this cut introduced that contradicts Do 1's inventory, Do 2's rows or the done-when lines; any citation that does not match the tree.
+
+Report in this form, nothing else:
+- One line: the brief, and whether it is buildable as drawn.
+- The four findings: one line each, answered / narrower (sound or not) / not answered.
+- Findings, most severe first, each: the Do or done-when number, what is wrong in one sentence, the concrete reading in the tree (file:line), and the smallest change sufficient.
+- What you did not check and why.
+- Which findings you would call nitpicks.
+- Whether step 2 may start as drawn, in one line.
