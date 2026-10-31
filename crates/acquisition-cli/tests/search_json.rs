@@ -2738,6 +2738,15 @@ fn describe_trade_is_the_catalogue() {
     assert!((42_000..52_000).contains(&index.len()), "{}", index.len());
     let all = text(&acq(&base, &["search", "--describe", "all"]));
     assert!(all.len() > 150_000, "{}", all.len());
+    // `--json` pretty-prints, about a fifth larger than the compact JSON
+    // the MCP's describe states its sizes in (#101: 182,823 bytes against
+    // 153,353 at the words step)
+    let pretty = acq(&base, &["--json", "search", "--describe", "all"]).stdout;
+    let compact = sole_json(&acq(&base, &["--json", "search", "--describe", "all"]))
+        .to_string()
+        .len();
+    let ratio = pretty.len() as f64 / compact as f64;
+    assert!((1.1..1.3).contains(&ratio), "{ratio}");
     let help = text(&acq(&base, &["search", "--help"]));
     assert!(help.contains("(about 47 KB)"), "{help}");
     assert!(help.contains("over 150 KB"), "{help}");

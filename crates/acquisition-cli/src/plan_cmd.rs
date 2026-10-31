@@ -426,25 +426,32 @@ async fn apply_plan(
             _ => Err(crate::AlreadyReported.into()),
         };
     }
-    print!(
-        "{}",
-        crate::job_report(id, &landed.outcome, &landed.failed_children)
-    );
-    println!("{}", changes_line(&landed.store_changes));
+    // The job's report on the stream `acq result` prints it on: stdout
+    // for a success, stderr for a failure or a cancel, which left nothing
+    // on stdout to use (#101). What the store took is stdout either way.
+    let report = crate::job_report(id, &landed.outcome, &landed.failed_children);
     match landed.outcome {
         Outcome::Success { .. } => {
+            print!("{report}");
+            println!("{}", changes_line(&landed.store_changes));
             if let Some(line) = remaining_line(landed.remaining_requests, &plan) {
                 println!("{line}");
             }
             Ok(())
         }
         Outcome::Failure { .. } => {
+            eprint!("{report}");
+            println!("{}", changes_line(&landed.store_changes));
             if let Some(log) = crate::daemon_log_path(&mut client).await {
-                println!("daemon log: {log}");
+                eprintln!("daemon log: {log}");
             }
             Err(crate::AlreadyReported.into())
         }
-        Outcome::Cancelled => Err(crate::AlreadyReported.into()),
+        Outcome::Cancelled => {
+            eprint!("{report}");
+            println!("{}", changes_line(&landed.store_changes));
+            Err(crate::AlreadyReported.into())
+        }
     }
 }
 

@@ -516,17 +516,20 @@ fn pid_rule(text: &str) -> String {
     out
 }
 
-/// The rule `progress`: of a command's stderr lines that begin `job
-/// <id>`, each job's last is kept and the earlier ones go. The first
-/// progress line prints whatever state the first poll saw; the last is
-/// the terminal one, a job's `done` or an apply's children tally, and
-/// always prints.
+/// The rule `progress`: of a command's stderr progress lines, `job <id>`
+/// then its account in parentheses or a colon, each job's last is kept
+/// and the earlier ones go. The first progress line prints whatever
+/// state the first poll saw; the last is the terminal one, a job's
+/// `done` or an apply's children tally, and always prints. A failed
+/// job's report on stderr (`job <id> failed: …`) is no progress line
+/// and stands.
 fn progress_rule(text: &str) -> String {
     let lines: Vec<&str> = text.split_inclusive('\n').collect();
     let job_of = |line: &str| -> Option<String> {
         let rest = line.strip_prefix("job ")?;
         let end = rest.find([' ', ':']).unwrap_or(rest.len());
-        (end > 0).then(|| rest[..end].to_string())
+        let progress = rest[end..].starts_with(" (") || rest[end..].starts_with(':');
+        (end > 0 && progress).then(|| rest[..end].to_string())
     };
     let mut keep = vec![true; lines.len()];
     let mut i = 0;

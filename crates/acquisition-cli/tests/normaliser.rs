@@ -101,6 +101,13 @@ fn the_progress_rule_keeps_each_jobs_last_stderr_line() {
     // stdout's `job` lines are the command's answer, never progress
     let answer = "--- stdout\njob 2: running\njob 2: done\n";
     assert_eq!(n(answer), "--- stdout\njob <j1>: running\njob <j1>: done\n");
+    // a failed job's report on stderr is no progress line: it stands
+    // after the job's last progress line (#101)
+    let failed = "--- stderr\njob 2 (alice): 0/1 done, 1 waiting\njob 2 (alice): 0/1 done, 1 failed\njob 2 failed: 1 of 1 child jobs failed, 0 done\n";
+    assert_eq!(
+        n(failed),
+        "--- stderr\njob <j1> (alice): 0/1 done, 1 failed\njob <j1> failed: 1 of 1 child jobs failed, 0 done\n"
+    );
 }
 
 #[test]

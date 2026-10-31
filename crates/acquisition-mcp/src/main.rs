@@ -771,7 +771,7 @@ struct DescribeParams {
 fn describe_names_doc() -> String {
     format!(
         "Sections, each by the key it answers under: {}, {} — or a name within one (league, \
-total_res, revision). Omitted: everything, over 100 KB.",
+total_res, revision). Omitted: everything, over 150 KB.",
         acquisition_search::describe::SECTIONS.join(", "),
         OWN_SECTIONS.join(", ")
     )
@@ -1528,7 +1528,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "What the tools answer and the language `search` takes, read by name (no store read): answer, every key of a search answer; trade, what a site search becomes and its report; fields, what a query may ask; pricing, the listing model and its revision rule; daemon, what the job tools answer without one; store, what store_status and tabs count. The whole is over 100 KB: computed is some 80 KB, fields and trade some 20 KB each, categories some 10 KB, answer and pricing some 5 KB each, and the rest each under 4 KB. A name it does not know is refused, and the refusal lists every name it knows."
+        description = "What the tools answer and the language `search` takes, read by name (no store read): answer, a search answer's keys; trade, what a site search becomes and its report; fields, what a query may ask; pricing, listings and the revision rule; daemon, what the job tools answer without one; store, what store_status and tabs count. As compact JSON (`acq --json` is a fifth larger) the whole is over 150 KB: computed is some 80 KB, fields and trade some 20 KB each, categories some 10 KB, answer and pricing some 5 KB each, the rest under 4 KB each. An unknown name is refused, listing every name it knows."
     )]
     fn describe(&self, Parameters(p): Parameters<Args<DescribeParams>>) -> Told {
         let p = match p.read() {
@@ -2052,7 +2052,7 @@ impl ServerHandler for AcqMcp {
              - Begin with search and no arguments; where the store holds several realms, name \
              scope.realm (the refusal offers each).\n\
              - describe with names explains the language and the answers: fields first, then \
-             answer, trade, pricing, daemon, store; the whole is over 100 KB.\n\
+             answer, trade, pricing, daemon, store; the whole is over 150 KB.\n\
              - A refusal is marked isError: error, kind, and readings, next and offers where \
              it has them; any request an offer or an answer holds is sent back as printed, to \
              the tool it names or the same one.\n\

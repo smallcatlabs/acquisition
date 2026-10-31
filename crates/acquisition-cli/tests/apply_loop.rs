@@ -206,23 +206,23 @@ fn a_failed_apply_counts_its_failed_requests_from_the_daemons_own_words() {
 
     // Stays a literal: a failed apply prints the daemon log's path, whose
     // directory is the world's hash, which no golden rule normalises.
+    // The failure's report is on stderr, as `acq result` prints it below
+    // (#101: one stream for a failed job's report on both verbs); stdout
+    // keeps the submission and what the store took.
     let out = acq(&base, &["refresh", &format!("--apply={}", file.display())]);
-    let said = String::from_utf8_lossy(&out.stdout).into_owned();
+    let said = String::from_utf8_lossy(&out.stderr).into_owned();
+    let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
     let stop = acq(&base, &["daemon", "stop"]);
-    assert_eq!(
-        out.status.code(),
-        Some(1),
-        "{said}{}",
-        String::from_utf8_lossy(&out.stderr)
-    );
+    assert_eq!(out.status.code(), Some(1), "{stdout}{said}");
     assert!(
         said.contains(&format!(
             "failed: 1 of {planned} child jobs failed, {} done\n",
             planned - 1
         )),
-        "stdout: {said}\nstderr: {}",
-        String::from_utf8_lossy(&out.stderr)
+        "stdout: {stdout}\nstderr: {said}"
     );
+    assert!(said.contains("daemon log: "), "{said}");
+    assert!(!stdout.contains("failed"), "{stdout}");
     assert!(stop.status.success(), "{stop:?}");
     // The failed child's row, under the daemon's sentence.
     assert!(said.contains("no-such-tab"), "{said}");
@@ -230,7 +230,7 @@ fn a_failed_apply_counts_its_failed_requests_from_the_daemons_own_words() {
     // With the daemon stopped, the parent's result read from the ledger
     // prints the same: the daemon's sentence and the failed child's row
     // (C45), and its JSON details the child (C23).
-    let parent = said
+    let parent = stdout
         .split("as job ")
         .nth(1)
         .and_then(|rest| rest.split_whitespace().next())

@@ -620,8 +620,11 @@ fn describe_is_as_large_as_its_text_says() {
         assert!(!refused, "{names}: {doc}");
         doc.to_string().len()
     };
+    // the sizes are of the compact JSON the tool returns (#101), the
+    // whole 153,353 bytes of the language alone at the words step, where
+    // `acq search --describe all --json` printed 182,823 pretty
     let (whole, _) = seat.call("describe", &json!({}));
-    assert!(whole.to_string().len() > 100_000);
+    assert!(whole.to_string().len() > 150_000);
     // some 80 KB, every computed value's definition (83,448 bytes at r5)
     assert!(size(&mut seat, json!(["computed"])) > 70_000);
     assert!(size(&mut seat, json!(["computed"])) < 90_000);
@@ -671,12 +674,12 @@ fn describe_is_as_large_as_its_text_says() {
     // The sizes the text states are the ones measured above: a text
     // that says other numbers fails here and is checked again.
     for stated in [
-        "The whole is over 100 KB",
+        "As compact JSON (`acq --json` is a fifth larger) the whole is over 150 KB",
         "computed is some 80 KB",
         "fields and trade some 20 KB each",
         "categories some 10 KB",
         "answer and pricing some 5 KB each",
-        "the rest each under 4 KB",
+        "the rest under 4 KB each",
     ] {
         assert!(text.contains(stated), "{stated}: {text}");
     }
