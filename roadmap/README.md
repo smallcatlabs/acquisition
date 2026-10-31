@@ -159,6 +159,14 @@ Each in his words, with the commit that landed it.
   (`TIME-SEAM.md` §5, corrected that day); what the league finds
   "slow or stuck" joins them as added states. 4-full stays after
   `alpha.2` (the commit carrying this line).
+- 2026-10-31, #146's Do 1 (`briefs/146-declared-shell.md`): "Accept
+  as drafted." C156 amended: `ACQ_SHELL` declares `posix`, `pwsh`,
+  `powershell5` or `cmd` over the detection that stays the default,
+  an unknown value refused; a JSON field holding one printed command
+  stands beside its words or its request; the refusal names the
+  declaration. The variable is the one knob, no `--shell`; the daemon
+  quotes for the `ACQ_SHELL` it was started with (the commit carrying
+  this line).
 
 ## Roles
 
