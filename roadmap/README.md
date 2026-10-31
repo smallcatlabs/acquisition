@@ -150,6 +150,15 @@ Each in his words, with the commit that landed it.
   lists it for his later read; a registry bullet, if one is needed,
   comes to him first (`briefs/words.md`, Do 1; the commit carrying this
   line).
+- 2026-10-31, the road after `words`: "let's do this. i want to
+  address 146 immediately, and after that I want to start work on the
+  time seam." #146 (a declared shell for printed commands, `argv`
+  beside them in JSON) runs now, C156 amended first; then 4-0, the
+  time seam, beside the league rather than after `alpha.2`. 4-0's
+  machines are local lifecycles that need no live evidence
+  (`TIME-SEAM.md` §5, corrected that day); what the league finds
+  "slow or stuck" joins them as added states. 4-full stays after
+  `alpha.2` (the commit carrying this line).
 
 ## Roles
 
@@ -230,7 +239,7 @@ plan or the tools, and the close answers every item.
 | r. League readiness | closed: p0, r1 to r5 (`LEDGER.md`) | Opus workers | 2f, h3 | closed |
 | 3. League 3.30 | the owner runs the league under the rails · count the undecided classes and untranslated mods · the prune verb (#43) at the league end | owner, Opus | 2e | League 3.30 and alpha.2 |
 | 3b. `alpha.2` | regenerate the tables when the named inputs exist: a post-launch `poe1` pin (RePoE lags launch by 0 to 13 days), the owner's four site captures (C79: nobody else may fetch them), the pins and manifests bumped, every generator's `--check` green · then the release | owner captures, Opus | 3 | League 3.30 and alpha.2 |
-| 4. The GUI | closed: 4a the 4-lite design · 4b 4-lite, `acq web` · ahead, after `alpha.2`: 4-0 the time seam (`TIME-SEAM.md`) · 4-full on it: the keeper bundle (#1), the subscriber with reconnect, the live loop, the results as site-style cards (#98), the dense table, hardening | Fable, then Opus | 2a, 2b | 4-full, the GUI |
+| 4. The GUI | closed: 4a the 4-lite design · 4b 4-lite, `acq web` · ahead: 4-0 the time seam (`TIME-SEAM.md`), beside the league (the ruling of 2026-10-31) · after `alpha.2`, 4-full on it: the keeper bundle (#1), the subscriber with reconnect, the live loop, the results as site-style cards (#98), the dense table, hardening | Fable, then Opus | 2a, 2b | 4-full, the GUI |
 | 5. PoE2 | the route flip and first-contact checklist prepared unmerged · PoE2 currency rows · launch day as the assessment's report 6, section 3: a first contact only if GGG ships the stash endpoint | Opus, owner live | 0b | PoE2 launch |
 
 "Closes by" names the GitHub milestone; its due date lives there.
@@ -244,7 +253,17 @@ issue carrying its evidence and its done-when, and takes a brief from
 `briefs/TEMPLATE.md` written by the session that starts it. An item
 leaves the list when its step closes or the owner strikes it.
 
-1. The test-shape group's first tranche, between league sittings
+1. #146, a declared shell for printed commands and `argv` beside them
+   in JSON, at the owner's word of 2026-10-31 (the rulings list): the
+   amendment to C156 is his, brought first with a recommendation; the
+   Windows PowerShell 5.1 and cmd.exe cases are run on the Windows gate
+   before code relies on them. Before the league seat, which then
+   checks the words in their final shape.
+2. 4-0, the time seam, after #146 (the same ruling): a design session
+   with Fable over `TIME-SEAM.md` §4 and §6 and `TEST-SHAPE.md` §4,
+   ruled by the owner, then the build; t5 (#141) rides inside it. The
+   machine is the owner's during a league sitting.
+3. The test-shape group's first tranche, between league sittings
    (`TEST-SHAPE.md`, the owner's word of 2026-10-29): t1 the stopping
    and retirement rules (#137), t2 the gate trims and the real-time
    waits (#138), t4 the compile cost (#140), in that order, each on
@@ -315,7 +334,7 @@ hygiene. The first, daemon-safety (#113, #116, #110), closed on
 #135) the same day: the owner's pre-league plan is done. Next, Phase 3,
 the owner's league run, at his word; #70 closes on a week of pushes
 without a re-run. Between sittings, the test-shape group's first
-tranche ("Pull-forward", item 1), the orchestrator proceeding on its
+tranche ("Pull-forward", item 3), the orchestrator proceeding on its
 own judgment as that item says. t1 (#137) closed on 2026-10-29
 (`LEDGER.md`), and t2 (#138) the same day; t3 (#139) closed undone
 on 2026-10-30, and t4 (#140, the compile cost) the same day
@@ -330,4 +349,6 @@ seat: step `words` (#20, #11, #101, #16) closed on 2026-10-31
 (`LEDGER.md`), with C156 (a printed command is for a POSIX shell, or
 PowerShell 7.3 or newer on Windows outside Git Bash). Next, Phase 3,
 the owner's league run, at his word; its first seat checks the words.
+Before the seat, at the owner's word of 2026-10-31: #146, then 4-0,
+the time seam ("Pull-forward", items 1 and 2); neither is started.
 `AGENTS.md` governs; the gate is `tools/gate.sh`.

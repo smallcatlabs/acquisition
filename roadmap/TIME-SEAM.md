@@ -123,7 +123,13 @@ template's Rules line).
 
 ## 5. What the league run should feed this design
 
-Phase 3 is upstream evidence, which is why 4-0 sits after it. Watch
+Phase 3 is upstream evidence, which is why 4-0 sits after it.
+(Corrected 2026-10-31: wider than §4. The four machines there are
+local lifecycles none of these observations shape; the 429 holds and
+the waits are the limiter's, which has its clock already, and the
+reconnects are 4-full's. Only "slow or stuck" may add a state, which a
+machine takes later. 4-0 now runs beside the league, the owner's
+ruling of that day.) Watch
 for and record: real 429 holds and their durations against the
 limiter's predictions; any reconnect or re-login the fortnight
 forces; the longest honest wall-clock wait a live session meets; and
