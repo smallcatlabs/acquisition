@@ -139,6 +139,11 @@ Each in his words, with the commit that landed it.
   build found a real fault (t1, t2, t4); the unreviewed rounds (t2's
   last comment fix, the closes) let through none found later (the
   commit carrying this line).
+- 2026-10-30, the words ahead of the league seat: "let's pull these
+  forward." #20, #11, #101 and #16 leave "Pull-forward" item 1's wait
+  on the league build's first seat and run now as step `words`, in that
+  order; the seat then checks the fixes, and what it finds new is new
+  rows (the commit carrying this line).
 
 ## Roles
 
@@ -233,8 +238,10 @@ issue carrying its evidence and its done-when, and takes a brief from
 `briefs/TEMPLATE.md` written by the session that starts it. An item
 leaves the list when its step closes or the owner strikes it.
 
-1. The words, after the first seat on the league's build: #11, #16,
-   #20, #72, #74, #101, #107, in the order that seat gives them.
+1. The words, pulled ahead of the league build's first seat at the
+   owner's word of 2026-10-30 (the rulings list): step `words`
+   (`briefs/words.md`), #20, #11, #101 and #16 in that order (#72, #74
+   and #107 closed before it). The seat then checks the fixes.
 2. The test-shape group's first tranche, between league sittings
    (`TEST-SHAPE.md`, the owner's word of 2026-10-29): t1 the stopping
    and retirement rules (#137), t2 the gate trims and the real-time
@@ -298,9 +305,7 @@ The owner's list, his to strike:
 The league group (#87, #90, #68, #103, #63, #53, #94, #96) closed on
 2026-10-28 (`LEDGER.md`); #85 closed the same day, and #86, #89 and
 #125, #115, #91 and the clock-dependent tests (#127, #76, #111 and
-#128) on 2026-10-29. Nothing starts from "Pull-forward" until the
-league build's first seat: its one item, the words, waits on that
-seat. The owner's pre-league work, in order: the daemon paths his run
+#128) on 2026-10-29. The owner's pre-league work, in order: the daemon paths his run
 will hit, the league milestone's buildables (#74, #107, #112), tools
 hygiene. The first, daemon-safety (#113, #116, #110), closed on
 2026-10-29 (`LEDGER.md`), and the league milestone's buildables
@@ -318,4 +323,6 @@ phase 4's. The group's review rule, revisited at this close, is kept
 issues closed #64, #136, #133 and #6 and took two groups ahead of the
 time seam ("Closures, then A and B"): map-before-seam (#65, #134) and
 stop-means-gone (#130, #144), both closed the same day (`LEDGER.md`).
-`AGENTS.md` governs; the gate is `tools/gate.sh`.
+The same day the owner pulled the words forward ("Pull-forward", item
+1): step `words` (`briefs/words.md`) is next, in a fresh session at his
+word. `AGENTS.md` governs; the gate is `tools/gate.sh`.
