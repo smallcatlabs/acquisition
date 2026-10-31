@@ -97,6 +97,7 @@ fn every_count_a_description_left_is_glossed_where_it_points() {
             &[
                 "`items` every live item in scope before any term",
                 "`never_fetched` counts the tabs, their pages and the characters",
+                "named in `oldest_fetch_location` and `newest_fetch_location`",
                 "never over the matches, which are `total`",
                 "counted in `view.rows.left_out`",
             ][..],
@@ -107,6 +108,7 @@ fn every_count_a_description_left_is_glossed_where_it_points() {
             &[
                 "`counts.residue` the items carrying price text the trade site cannot see",
                 "`counts.invalid_notes` the notes that start like a price",
+                "price_list with `game_text` `residue` or `invalid_note` lists the items",
                 "`rows` accounts for every hand-written row",
             ][..],
         ),
@@ -124,6 +126,7 @@ fn every_count_a_description_left_is_glossed_where_it_points() {
             &[
                 "`left_out_total` counts them all",
                 "with how many `items` link to it",
+                "`position_before_listing` the posted items fetched before the stash listing",
             ][..],
         ),
         (

@@ -1445,7 +1445,7 @@ impl AcqMcp {
     // ---- store reads: no daemon, no GGG traffic ----
 
     #[tool(
-        description = "Accounts this machine has logged into (from the store's non-secret index; no daemon), each with its store file: `total` counts every one, `accounts` lists ten, `expand` every one, and `left_out` counts the rest. Each age is in words beside its time (`describe` with names [\"ages\"])."
+        description = "Accounts this machine has logged into (from the store's non-secret index; no daemon), each with its store file: `total` counts every one, `accounts` lists ten, `expand` every one, and `left_out` counts the rest. `persisted` is true where the account's login is kept in the keyring, false where it lived in a daemon alone (no keyring, a failed save, or a logout). Each age is in words beside its time (`describe` with names [\"ages\"])."
     )]
     fn accounts(&self, Parameters(p): Parameters<Args<AccountsParams>>) -> Told {
         answer(|| {
@@ -1597,7 +1597,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "One item as the search derives it, live or removed (no daemon): its place, its fields, class, category and price, and every line with its kind, template and numbers. `against` adds why the item does or does not match a query, each node's outcome (`describe` with names [\"against\"]); `body` adds the stored body, verbatim. Each age is in words beside its time (`describe` with names [\"ages\"])."
+        description = "One item as the search derives it, live or removed (no daemon): its place, its fields, class, category and price, and every line with its kind, template and numbers. `against` adds why the item does or does not match a query, each node's outcome (`describe` with names [\"against\"]); `body` adds the stored body, verbatim. `basis` is what the answer was read at, its `intent` the revision of your prices and sync policy (`describe` with names [\"answer\"]). Each age is in words beside its time (`describe` with names [\"ages\"])."
     )]
     fn show(&self, Parameters(p): Parameters<Args<ShowParams>>) -> Told {
         let p = match p.read() {
@@ -1842,7 +1842,7 @@ impl AcqMcp {
     }
 
     #[tool(
-        description = "The forum shop pages for one league, for a person to paste by hand; this server posts nothing and reads no forum (no daemon). One link code per hand-priced item under its price's spoiler, in pages of at most `size` characters: `pages` (each `text` is what to paste), `posted`, `left_out`, `counts`, `policy` and `freshness`, whether the sync policy covers the posted items — reported, never enforced. `describe` with names [\"pricing\"] says what each count counts, and [\"ages\"] what an age's words say."
+        description = "The forum shop pages for one league, for a person to paste by hand; this server posts nothing and reads no forum (no daemon). One link code per hand-priced item under its price's spoiler, in pages of at most `size` characters: `pages` (each `text` is what to paste), `posted`, `left_out`, `counts`, `policy` and `freshness`, whether the sync policy covers the posted items — reported, never enforced — and in `position_before_listing` items fetched before the listing their links' tab ranks use. `describe` with names [\"pricing\"] says what each count counts, and [\"ages\"] what an age's words say."
     )]
     fn shop_render(&self, Parameters(p): Parameters<Args<ShopRenderParams>>) -> Told {
         let p = match p.read() {

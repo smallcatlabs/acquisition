@@ -10,7 +10,7 @@ Acquisition (provider: mock). - price_set, price_clear and set_sync_policy write
 
 ### `accounts`
 
-Accounts this machine has logged into (from the store's non-secret index; no daemon), each with its store file: `total` counts every one, `accounts` lists ten, `expand` every one, and `left_out` counts the rest. Each age is in words beside its time (`describe` with names ["ages"]).
+Accounts this machine has logged into (from the store's non-secret index; no daemon), each with its store file: `total` counts every one, `accounts` lists ten, `expand` every one, and `left_out` counts the rest. `persisted` is true where the account's login is kept in the keyring, false where it lived in a daemon alone (no keyring, a failed save, or a logout). Each age is in words beside its time (`describe` with names ["ages"]).
 
 - `expand` (boolean | null) — List every account, not ten.
 
@@ -171,7 +171,7 @@ Write the account's sync policy, validated strictly, compare-and-swap on `if_rev
 
 ### `shop_render`
 
-The forum shop pages for one league, for a person to paste by hand; this server posts nothing and reads no forum (no daemon). One link code per hand-priced item under its price's spoiler, in pages of at most `size` characters: `pages` (each `text` is what to paste), `posted`, `left_out`, `counts`, `policy` and `freshness`, whether the sync policy covers the posted items — reported, never enforced. `describe` with names ["pricing"] says what each count counts, and ["ages"] what an age's words say.
+The forum shop pages for one league, for a person to paste by hand; this server posts nothing and reads no forum (no daemon). One link code per hand-priced item under its price's spoiler, in pages of at most `size` characters: `pages` (each `text` is what to paste), `posted`, `left_out`, `counts`, `policy` and `freshness`, whether the sync policy covers the posted items — reported, never enforced — and in `position_before_listing` items fetched before the listing their links' tab ranks use. `describe` with names ["pricing"] says what each count counts, and ["ages"] what an age's words say.
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
 - `expand` (boolean | null) — List every entry of `posted`, `left_out` and `freshness`'s lists, past the first ten, the items nothing applies to included in `left_out` (a league holds thousands); they are counted either way.
@@ -183,7 +183,7 @@ The forum shop pages for one league, for a person to paste by hand; this server 
 
 ### `show`
 
-One item as the search derives it, live or removed (no daemon): its place, its fields, class, category and price, and every line with its kind, template and numbers. `against` adds why the item does or does not match a query, each node's outcome (`describe` with names ["against"]); `body` adds the stored body, verbatim. Each age is in words beside its time (`describe` with names ["ages"]).
+One item as the search derives it, live or removed (no daemon): its place, its fields, class, category and price, and every line with its kind, template and numbers. `against` adds why the item does or does not match a query, each node's outcome (`describe` with names ["against"]); `body` adds the stored body, verbatim. `basis` is what the answer was read at, its `intent` the revision of your prices and sync policy (`describe` with names ["answer"]). Each age is in words beside its time (`describe` with names ["ages"]).
 
 - `account` (string | null) — A username, with or without its #discriminator, or a uuid; needed only when several are known.
 - `against` (object) — Why the item does or does not match a query: `{"text": …}`, `{"tree": …}` or `{"trade": …}`, as a request's `query`.

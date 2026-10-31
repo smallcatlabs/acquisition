@@ -132,6 +132,8 @@ pub struct AccountRow {
     pub last_login: i64,
     /// C53: `last_login` in words at the answer's time (`6d ago`).
     pub last_login_age: String,
+    /// The account's login is kept in the keyring; false where it lived
+    /// in a daemon alone (no keyring, a failed save) or was logged out.
     pub persisted: bool,
     pub uuid: Option<String>,
     /// The account's facts file, whether or not it exists yet.
