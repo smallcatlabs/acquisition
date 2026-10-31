@@ -182,7 +182,8 @@ poll. Moving it alone breaks 8 tests.
 
 **The runs.** Each number below comes from one of these.
 (a) `cargo nextest run -p acquisition-daemon -E 'test(/spike_/)'
---no-capture` at `c6272386`, the branch head. It runs the scenario and
+--no-capture` at `c6272386`, whose code the branch head keeps (only
+this section came after). It runs the scenario and
 clock tests in `tests/dispatch.rs`.
 (b) The same command at `b62b2f6c`, the scratch commit that puts the
 `Life` driver's timers on the clock. It adds the three `spike_life_*`
