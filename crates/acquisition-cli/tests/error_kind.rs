@@ -219,11 +219,11 @@ fn the_login_ends_with_the_daemons_words_not_a_bound_of_its_own() {
 }
 
 /// C156 — every word of the quoting's one table (the search crate's
-/// `shell-words.json`), quoted for a shell, reaches the program whole
-/// when that shell runs the line: `sh` off Windows, `pwsh` where it is
-/// on the path, and on Windows Windows PowerShell 5.1 (`powershell.exe`)
-/// and cmd.exe. The program is the `argv` example, which splits its
-/// command line as `acq` does and prints what it received. Git Bash is
+/// `shell-words.json`), quoted for a shell, reaches `acq` whole when that
+/// shell runs the line: `sh` off Windows, `pwsh` where it is on the path,
+/// and on Windows Windows PowerShell 5.1 (`powershell.exe`) and cmd.exe.
+/// The word stands where a verb would, so the parser's refusal names it
+/// back, in quotes, as `acq` split it from its command line. Git Bash is
 /// left to the Git Bash route test: MSYS rewrites a word that looks like
 /// a path before any program sees it, whatever its quoting.
 #[test]
@@ -232,33 +232,37 @@ fn c156_every_printed_word_reaches_the_program_whole_through_each_shell() {
         "../../acquisition-search/tests/shell-words.json"
     ))
     .unwrap();
-    let words: Vec<&str> = rows.iter().map(|r| r["word"].as_str().unwrap()).collect();
-    let argv = harness::argv_exe();
     let scratch = harness::scratch("shells");
-    let dir = scratch.0.clone();
+    let base = scratch.0.clone();
     let shells = harness::shells_here();
     for shell in &shells {
-        let line: Vec<String> = words.iter().map(|w| shell.quoted(w)).collect();
-        let mut cmd = harness::in_shell(*shell, &argv, &line.join(" "), &dir);
-        harness::isolate(&mut cmd, &dir);
-        let out = cmd.output().unwrap();
-        assert!(
-            out.status.success(),
-            "{shell:?}: {}\n{}",
-            String::from_utf8_lossy(&out.stdout),
-            String::from_utf8_lossy(&out.stderr)
-        );
-        let got: Vec<String> = serde_json::from_slice(&out.stdout)
-            .unwrap_or_else(|e| panic!("{shell:?}: {e}: {}", String::from_utf8_lossy(&out.stdout)));
-        for (i, want) in words.iter().enumerate() {
-            assert_eq!(
-                got.get(i).map(String::as_str),
-                Some(*want),
-                "{shell:?}: word {i}, quoted {}",
-                line[i]
+        for row in &rows {
+            let word = row["word"].as_str().unwrap();
+            let quoted = shell.quoted(word);
+            let mut cmd = harness::in_shell(
+                *shell,
+                harness::acq_exe(),
+                &format!("--json {quoted}"),
+                &base,
             );
+            harness::isolate(&mut cmd, &base);
+            cmd.env("ACQ_NO_SPAWN", "1");
+            let out = cmd.output().unwrap();
+            let doc: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap_or_else(|e| {
+                panic!(
+                    "{shell:?}, {quoted}: {e}: {}{}",
+                    String::from_utf8_lossy(&out.stdout),
+                    String::from_utf8_lossy(&out.stderr)
+                )
+            });
+            let said = doc["error"].as_str().unwrap_or_default();
+            let got = said
+                .strip_prefix("unrecognized subcommand '")
+                .and_then(|rest| rest.split_once("'\n"))
+                .map(|(got, _)| got);
+            assert_eq!(got, Some(word), "{shell:?}, quoted {quoted}: {said}");
+            assert_eq!(out.status.code(), Some(2), "{shell:?}, {quoted}");
         }
-        assert_eq!(got.len(), words.len(), "{shell:?}: {got:?}");
     }
     eprintln!("ran through: {shells:?}");
 }

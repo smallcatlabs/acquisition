@@ -203,23 +203,6 @@ pub fn shells_here() -> Vec<Shell> {
     shells
 }
 
-/// The `argv` example beside `acq`, which prints the words it received
-/// as a JSON array (`examples/argv.rs`); the gate's `--all-targets`
-/// builds it.
-pub fn argv_exe() -> PathBuf {
-    let path = acq_exe()
-        .parent()
-        .expect("acq has a directory")
-        .join("examples")
-        .join(format!("argv{}", std::env::consts::EXE_SUFFIX));
-    assert!(
-        path.exists(),
-        "{} is missing: build the examples (`cargo build -p acquisition-cli --examples`), as the gate's --all-targets does",
-        path.display()
-    );
-    path
-}
-
 /// [`offline_command`], run to its end.
 pub fn offline_acq(world: &Path, args: &[&str]) -> Output {
     offline_command(world, args).output().expect("spawning acq")
