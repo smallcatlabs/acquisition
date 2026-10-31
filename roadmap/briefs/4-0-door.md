@@ -1,12 +1,11 @@
 # 4-0-door — the client's door as a machine (#147, step 1)
 
-Cut three times: the first draft (`e4e6b305`), reviewed cold
-(`roadmap/reviews/4-0-door-brief-e4e6b305.md`); the re-cut
-(`e8306c53`), reviewed cold again
-(`roadmap/reviews/4-0-door-brief-e8306c53.md`); this cut answers the
-second review's seven findings and narrows the machine by one
-criterion, stated in Goal. What each finding changed is listed at the
-foot, "Taken from the reviews".
+Cut four times: the first draft (`e4e6b305`), the re-cut
+(`e8306c53`) and the third cut (`19f771d4`), each reviewed cold
+(`roadmap/reviews/4-0-door-brief-<sha>.md`, the prompt beside); this
+cut answers the third review's five findings, the first of them by
+the owner's ruling recorded in `4-0-design.md` §4. What each finding
+changed is listed at the foot, "Taken from the reviews".
 
 ## Goal
 
@@ -20,21 +19,26 @@ an instant, a handle or a duration lives. The five-second `c86_` wait
 is retired, held by the expiry row, the `c137_` real-wiring test at
 zero (extended) and a wording test. No word a user meets changes.
 
-The criterion that draws the machine's edge: **a wait enters the
-machine when its deadline competes with another event for the door's
-next decision; a wait whose outcome is one value is a driver effect
-with its bound inside.** The hello's deadline competes with the reply
-(the loser decides the verdict); the startup deadline competes with
-the child's exit (the order decides look or not-bound); the bind poll
-and the settle are pauses the machine orders. The stop's wait for the
-daemon to go (gone or acknowledged, its tie rule pinned by forced
-interleavings that cost no real time) and the look for a winner
-(found or not, its late connect pinned on an injected instant) are
-effects: each is one value to the door, and each already has the pin
-C137 asks for. This is C157's first machine (a lifecycle that waits is
-a value, time an event) and proves the shape step 2, the daemon's
-`Life`, copies, the criterion included: a poll of the daemon's becomes
-a transition only where its deadline competes. It is the smallest
+The criterion that draws the machine's edge, the owner's ruling of
+2026-10-31 (`4-0-design.md` §4, the dated line): **a wait enters the
+machine when its ordering against another event is a decision of the
+door, or when its only pin costs real time; a wait whose
+interleavings are already forced without real time, and whose
+outcome the door takes as one value, stays a driver effect with its
+bound inside.** The hello's deadline orders against the reply (the
+loser is the verdict) and its one pin cost five seconds; the startup
+deadline orders against the child's exit (look, or not bound); the
+bind poll and the settle are pauses the machine orders. The stop's
+wait for the daemon to go (gone or acknowledged, its tie forced by
+injected futures) and the look for a winner (found, not found or
+failed, its late connect forced on an injected instant) are effects:
+their pins cost no real time and the door takes each as one value.
+This is C157's first machine (a lifecycle that waits is a value, time
+an event) and proves the shape step 2, the daemon's `Life`, copies.
+The criterion is the door's; step 2's brief answers for each of the
+daemon's polls whether it holds there, since an idle poll today has
+no competing future and the criterion must not hide the lifecycle
+step 2 exists to expose (the third review). It is the smallest
 machine, in the crate that sends nothing to GGG, so it may run during
 a league sitting.
 
@@ -44,9 +48,9 @@ a league sitting.
   of the table) and `roadmap/TIME-SEAM.md` §1 to §2 (why). Where this
   brief is narrower than the design's §3 and §4 (the machine names
   timers and the driver holds their durations; the stop's wait and
-  the winner look stay effects by the Goal's criterion; the startup
-  deadline is consulted, not raced), this brief rules, and the close
-  brings the criterion to the design file as a dated line.
+  the winner look stay effects; the startup deadline is consulted,
+  not raced), the design's dated line under §4 records the owner's
+  ruling of 2026-10-31, and this brief builds it.
 - `decisions/daemon.md`: C157 (a lifecycle that waits is a value),
   C137 (a deadline's contract is its expiry behaviour; the knobs),
   C86 (the hello deadline: unresponsive on every door, never
@@ -134,7 +138,7 @@ a league sitting.
   0s" at the first look after the spawn, with no further connect);
   `c147_…` (916, with its 2 s sleep at 936; 969; 1042; 1096).
   `tests/harness/mod.rs`: the isolation list (163–186: the mock
-  provider, the scratch store and the three knobs at 60), `set_knob`
+  provider, the scratch store and the three knobs at 180–182), `set_knob`
   (951), `wait_exit` (335) and the 120 s ceiling (442, 969, 1016).
 - `crates/acquisition-cli/tests/watch_recovery.rs`: the one frontend
   test naming `Unresponsive`; it reads the same after.
@@ -171,7 +175,12 @@ first concern or is filed.
 
    Construction inputs, read once at the door's start: the door,
    `enum Door { Use { spawn: bool, replace: bool }, Observe, Stop }`,
-   and the policy environment, `no_spawn: bool` and `human: bool`.
+   the policy environment, `no_spawn: bool` and `human: bool`, and
+   `child: Option<u32>`, a child this door already spawned (the
+   driver's seam, `open_door`'s third argument at 1310: the driver
+   holds that child and its deadline; the machine starts with the
+   pid, no `Spawned` and no fresh arming, its first effect
+   `Connect`).
    This consolidates the four reads of `no_spawn()` a use door makes
    today (1328, 1329, 1417, 1514) into one, deliberately: a change to
    `ACQ_NO_SPAWN` during a door is not seen, where before it could
@@ -204,8 +213,10 @@ first concern or is filed.
    own pid as 1470 does; the driver keeps the exit status, the
    executable and the log offset for the words at 1491–1497);
    `Deadline(Timer)` and `Pending(Timer::Startup)` (the answers to
-   `Consult`); `Found`, `NotFound` (the look's two values; `Found`
-   leaves the connection in the driver's hand); `Stopped(Stopped)`
+   `Consult`); `Found`, `NotFound`, `LookFailed(String)` (the look's three
+   outcomes, `winner_listens`'s `Ok(Some)`, `Ok(None)` and `Err`,
+   1942–1951; `Found` leaves the connection in the driver's hand; the
+   driver keeps the typed error for the words); `Stopped(Stopped)`
    (`Gone` or `Acknowledged`, the stop wait's value, 1624) and
    `StopFailed(String)` (the stop refused, or its conversation
    failed, as `stop`'s error).
@@ -239,7 +250,8 @@ first concern or is filed.
    a child, `PollChild`; `ChildExited` with a holder not the child's,
    on the first such turn, `LookForWinner` (the child kept, `Startup`
    cancelled); `Found` drops the child and sends hello with `found`
-   set; `NotFound` reports the spawn failed by a lost look;
+   set; `NotFound` reports the spawn failed by a lost look; `LookFailed`
+   reports the transport failure, as `?` does at 1477;
    `ChildExited` otherwise reports the spawn failed by exit;
    `ChildRunning` consults `Startup`; `Deadline(Startup)` reports not
    bound, with no further `Connect` or `PollChild`;
@@ -262,10 +274,14 @@ first concern or is filed.
    refusal reason; `Nothing` with spawn allowed, `Spawned`,
    `Deadline(Startup)` (not bound at the first look, nothing more
    performed: the zero row); `Nothing`, `Spawned`, `Pending(Startup)`,
-   `Deadline(BindPoll)`, `Nothing`, `ChildRunning`, `Pending`, and
-   then `Deadline(Startup)` (not bound after a poll); `ChildExited`
-   with a lock holder, `Found`, `Identified` as found and not started
-   here; `ChildExited` with a lock holder, `NotFound` (lost); the
+   `Deadline(BindPoll)`, `Nothing`, `ChildRunning`, `Deadline(Startup)`
+   (not bound after a poll); the same with `Pending(Startup)` last
+   (another bind poll); a machine built with a child, `Nothing`,
+   `ChildRunning`, `Deadline(Startup)` (no `Spawn`, no fresh arming:
+   the seam's row); `ChildExited` with a lock holder, `Found`,
+   `Identified` as found and not started here; `ChildExited` with a
+   lock holder, `NotFound` (lost); `ChildExited` with a lock holder,
+   `LookFailed` (transport); the
    holder the child's own, or the second such turn (failed by exit);
    the stop door with `Stopped(Gone)` and with `Stopped(Acknowledged)`
    and with `StopFailed`; `StopFailed` on the replace path kept and
@@ -320,10 +336,12 @@ first concern or is filed.
      1605) and placed in the typed value the driver builds; never an
      event.
    - **The seam**: `open_door`'s third argument (a child and its
-     deadline, 1310) stays as the driver's, so the two in-crate tests
-     that drive it (2373, 2449) keep their wiring (the found stream
-     handed to the hello; the replacement's fresh deadline and the
-     daemon returned), their decisions also rows.
+     deadline, 1310) stays as the driver's: it holds the child and
+     the deadline it was given and builds the machine with the
+     child's pid (Do 1), so the two in-crate tests that drive it
+     (2373, 2449) keep their wiring (the found stream handed to the
+     hello; the replacement's fresh deadline and the daemon
+     returned), their decisions also rows.
 
 4. **The real-wiring tests**: one per effect kind the driver performs,
    under the harness's 120 s ceiling, asserting no duration. The
@@ -427,8 +445,9 @@ runs on.
 
 `TEMPLATE.md`, and the table's run time, as a number the report
 carries and nothing asserts (C137). Raised for review: the policy
-snapshot (Do 1, the four reads of `no_spawn()` made one) and the
-criterion (Goal) as a line for the design file.
+snapshot (Do 1, the four reads of `no_spawn()` made one, so a
+refusal's reason no longer changes mid-door) and what the criterion
+says of each of the daemon's polls, for step 2's brief.
 
 ## Taken from the reviews
 
@@ -471,3 +490,19 @@ The second review's seven (`4-0-door-brief-e8306c53.md`):
    each door's read, in the typed value (Do 3, Do 5).
 7. `no_spawn()` is read four times today: the single snapshot is a
    stated consolidation, raised for review (Do 1, Report).
+
+The third review's five (`4-0-door-brief-19f771d4.md`):
+
+1. The narrowing changed the ruled design before the owner recorded
+   it, and prescribed the criterion to step 2: recorded as his ruling
+   of 2026-10-31 in `4-0-design.md` §4, reworded by evidence (a pin
+   that costs real time) rather than "one value"; step 2 answers it
+   per poll (Goal, Read).
+2. The look's transport error was a third outcome: `LookFailed`, with
+   its row (Do 1, Do 2).
+3. One script delivered a deadline unasked after `Pending`: split into
+   two scripts (Do 2).
+4. The seam's child had no way into the machine: `child` as a
+   construction input, no `Spawned`, no fresh arming, with its row
+   (Do 1, Do 2, Do 3).
+5. The harness's knobs cited at 60: 180–182 (Read).

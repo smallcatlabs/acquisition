@@ -202,6 +202,28 @@ spike before it.
 | the limiter | already a value; untouched | the choke point's sleep through the clock | nothing |
 | the store's annotation wait | none: the knob is the seam and SQLite is the clock | everything, as today | nothing; a "Not doing" line records why |
 
+Narrowed 2026-10-31, the owner's ruling at the door brief's third cut
+("cut as proposed with narrowings"; "Record, cut, review"), after two
+cold reviews of the brief (`roadmap/reviews/4-0-door-brief-*`): the
+`Door` row above is read with these changes. The machine names its
+timers (`Hello`, `Startup`, `BindPoll`, `Settle`) and the driver holds
+their durations, read where the knobs are read today. The stop's wait
+(`stop_until`, its biased tie) and the winner look (`look_until`, its
+late connect) stay driver effects with the seams and in-crate pins
+they have, which force every interleaving with no real time: a wait
+enters the machine when its ordering against another event is a
+decision of the lifecycle, or when its only pin costs real time; one
+whose interleavings are already forced without real time, and whose
+outcome the lifecycle takes as one value, stays an effect with its
+bound inside. The startup deadline is consulted at the loop's one
+check point, answered expired or pending, never raced or delivered
+unasked; §3's "a machine that leaves a state cancels the timers it
+armed there" is replaced by explicit `Cancel` effects where the loop
+drops a deadline today. The criterion is ruled for the door; step 2's
+brief answers it per poll of the daemon's, since an idle poll has no
+competing future today and the criterion must not hide the lifecycle
+step 2 exposes.
+
 The one constructor (t5's "construct with a base URL, a clock and a
 credential store") is the daemon driver's constructor, and the
 `Life` extraction is where it is built: a builder over `provider`,
