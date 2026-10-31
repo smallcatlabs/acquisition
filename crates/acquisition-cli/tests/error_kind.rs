@@ -235,6 +235,9 @@ fn c156_every_printed_word_reaches_the_program_whole_through_each_shell() {
     let scratch = harness::scratch("shells");
     let base = scratch.0.clone();
     let shells = harness::shells_here();
+    // every word through every shell before the verdict, so one run on
+    // the Windows gate names each word a shell did not carry
+    let mut wrong = Vec::new();
     for shell in &shells {
         for row in &rows {
             let word = row["word"].as_str().unwrap();
@@ -260,9 +263,14 @@ fn c156_every_printed_word_reaches_the_program_whole_through_each_shell() {
                 .strip_prefix("unrecognized subcommand '")
                 .and_then(|rest| rest.split_once("'\n"))
                 .map(|(got, _)| got);
-            assert_eq!(got, Some(word), "{shell:?}, quoted {quoted}: {said}");
-            assert_eq!(out.status.code(), Some(2), "{shell:?}, {quoted}");
+            if got != Some(word) || out.status.code() != Some(2) {
+                wrong.push(format!(
+                    "{shell:?}: {word:?} quoted {quoted} reached acq as {got:?}, exit {:?}: {said}",
+                    out.status.code()
+                ));
+            }
         }
     }
+    assert!(wrong.is_empty(), "{}", wrong.join("\n"));
     eprintln!("ran through: {shells:?}");
 }

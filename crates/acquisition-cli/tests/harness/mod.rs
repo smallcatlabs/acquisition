@@ -145,7 +145,16 @@ pub fn in_shell(shell: Shell, program: &Path, rest: &str, dir: &Path) -> Command
                  & $env:PROGRAM {rest}\r\n\
                  exit $LASTEXITCODE\r\n"
             );
-            std::fs::write(&script, text).expect("writing the printed command's script");
+            // Windows PowerShell 5.1 reads a script without a byte-order
+            // mark as the ANSI code page, which a typed paste never meets;
+            // the mark makes it read the line as written
+            let bom = if shell == Shell::PowerShell5 {
+                "\u{feff}"
+            } else {
+                ""
+            };
+            std::fs::write(&script, format!("{bom}{text}"))
+                .expect("writing the printed command's script");
             let mut cmd = Command::new(if shell == Shell::Pwsh {
                 "pwsh"
             } else {
